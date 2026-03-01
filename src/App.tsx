@@ -110,6 +110,7 @@ export default function App() {
   }, [mode]);
 
   const prevSlotIdRef = useRef<string | null>(null);
+  const prevSlotTypeRef = useRef<TimerType>('none');
 
   // Manual Timer State
   const [manualTotalTime, setManualTotalTime] = useState(initialState.manual.totalTime);
@@ -146,6 +147,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editingDay, setEditingDay] = useState<number>(1);
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+  const [characterImageError, setCharacterImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -194,6 +196,22 @@ export default function App() {
 
       const todaysSchedule = weeklySchedule[dayOfWeek] || [];
       const activeSlot = todaysSchedule.find(s => currentMinutes >= s.start && currentMinutes < s.end);
+      const nextSlotId = activeSlot ? activeSlot.id : null;
+      const nextSlotType: TimerType = activeSlot ? (activeSlot.type as TimerType) : 'none';
+
+      // Play alarm only when a non-class slot ends.
+      if (
+        prevSlotIdRef.current !== null &&
+        prevSlotIdRef.current !== nextSlotId &&
+        prevSlotTypeRef.current !== 'none' &&
+        prevSlotTypeRef.current !== 'class' &&
+        modeRef.current === 'schedule'
+      ) {
+        playAlarm();
+      }
+
+      prevSlotIdRef.current = nextSlotId;
+      prevSlotTypeRef.current = nextSlotType;
 
       if (activeSlot) {
         const slotTotalSeconds = (activeSlot.end - activeSlot.start) * 60;
@@ -342,27 +360,99 @@ export default function App() {
 
   let characterMessage = "";
   let showCharacter = false;
+  let characterMotionStyle: React.CSSProperties = {};
+  let speechBubbleSizeClass = "px-7 py-4 md:px-10 md:py-6";
+  let speechTextSizeClass = "text-2xl md:text-4xl";
+  let characterWrapSizeClass = "w-48 h-48 md:w-64 md:h-64";
+  let characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
+  const isScheduleBreak = mode === 'schedule' && timerType === 'break';
+  const isScheduleLunch = mode === 'schedule' && timerType === 'lunch';
+  const shouldShowTimedMessage = mode === 'manual' || isScheduleBreak || isScheduleLunch;
+  const scheduleTypeLabel =
+    timerType === 'class'
+      ? "\uC218\uC5C5\uC2DC\uAC04"
+      : timerType === 'break'
+        ? "\uC26C\uB294\uC2DC\uAC04"
+        : timerType === 'lunch'
+          ? "\uC810\uC2EC\uC2DC\uAC04"
+          : "\uC77C\uC815 \uC5C6\uC74C";
+  const scheduleTypeBadgeClass =
+    timerType === 'class'
+      ? 'bg-[#EAF1FF] text-[#3F5D9A] border-[#C8D6F5]'
+      : timerType === 'break'
+        ? 'bg-[#ECF8EE] text-[#3F7A46] border-[#CBE8CF]'
+        : timerType === 'lunch'
+          ? 'bg-[#FFF4E8] text-[#9A6432] border-[#F1D5B8]'
+          : 'bg-[#F6F2EE] text-[#8A6347]/70 border-[#E6D5C9]';
+
+  const getCharacterMessage = (stage: 'warning' | 'urgent' | 'end') => {
+    if (mode === 'manual') {
+      if (stage === 'warning') return "\uB9C8\uBB34\uB9AC\uD560 \uC2DC\uAC04\uC774 \uB2E4\uAC00\uC624\uACE0 \uC788\uC5B4\uC694.";
+      if (stage === 'urgent') return "\uC774\uC81C \uAC70\uC758 \uB05D\uB098\uC694.";
+      return "\uC2DC\uAC04\uC774 \uB05D\uB0AC\uC5B4\uC694!";
+    }
+
+    if (isScheduleBreak) {
+      if (stage === 'warning') return "\uC26C\uB294 \uC2DC\uAC04\uC774 \uB05D\uB098\uAC00\uC694. \uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
+      if (stage === 'urgent') return "\uC774\uC81C \uACF3 \uC218\uC5C5\uC774 \uC2DC\uC791\uD574\uC694. \uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
+      return "\uC26C\uB294 \uC2DC\uAC04\uC774 \uB05D\uB0AC\uC5B4\uC694!";
+    }
+
+    if (isScheduleLunch) {
+      if (stage === 'warning') return "\uC810\uC2EC\uC2DC\uAC04\uC774 \uB05D\uB098\uAC00\uC694. \uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
+      if (stage === 'urgent') return "\uC774\uC81C \uC815\uB9AC\uD560 \uC2DC\uAC04\uC774\uC5D0\uC694. \uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
+      return "\uC810\uC2EC\uC2DC\uAC04\uC774 \uB05D\uB0AC\uC5B4\uC694!";
+    }
+
+    return "";
+  };
 
   if (displayTotalTime === 0) {
     colorClass = "text-[#E6D5C9]";
     strokeColor = "#E6D5C9";
-  } else if (percentage <= 0.1) {
+  } else if (shouldShowTimedMessage && displayTimeLeft === 0) {
     colorClass = "text-[#C65D47]";
     strokeColor = "#C65D47";
     showCharacter = true;
-    characterMessage = "긴급! 시간이 거의 다 됐어요!";
+    characterMessage = getCharacterMessage('end');
+    speechBubbleSizeClass = "px-8 py-5 md:px-12 md:py-7";
+    speechTextSizeClass = "text-3xl md:text-5xl";
+    characterWrapSizeClass = "w-56 h-56 md:w-80 md:h-80";
+    characterImageScaleClass = "scale-125 md:scale-[1.45]";
+  } else if (shouldShowTimedMessage && percentage <= 0.1) {
+    colorClass = "text-[#C65D47]";
+    strokeColor = "#C65D47";
+    showCharacter = true;
+    speechBubbleSizeClass = "px-8 py-5 md:px-12 md:py-7";
+    speechTextSizeClass = "text-3xl md:text-5xl";
+    characterWrapSizeClass = "w-56 h-56 md:w-80 md:h-80";
+    characterImageScaleClass = "scale-125 md:scale-[1.45]";
+    characterMessage = getCharacterMessage('urgent');
     if (displayIsRunning) {
       pulseClass = "animate-pulse";
       bgClass = "bg-[#FFF5F3]";
     }
-  } else if (percentage <= 0.3) {
+  } else if (shouldShowTimedMessage && percentage <= 0.3) {
     colorClass = "text-[#D97736]";
     strokeColor = "#D97736";
     showCharacter = true;
-    characterMessage = "시간이 얼마 남지 않았어요!";
+    speechBubbleSizeClass = "px-7 py-4 md:px-10 md:py-6";
+    speechTextSizeClass = "text-2xl md:text-4xl";
+    characterWrapSizeClass = "w-48 h-48 md:w-64 md:h-64";
+    characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
+    characterMessage = getCharacterMessage('warning');
     if (displayIsRunning) {
       bgClass = "bg-[#FFF9F0]";
     }
+  }
+
+  if (showCharacter && displayIsRunning) {
+    const bobOffset = Math.sin((displayTimeLeft || 0) * 0.8) * 10;
+    const tilt = Math.sin((displayTimeLeft || 0) * 1.3) * (percentage <= 0.1 ? 6 : 3);
+    characterMotionStyle = {
+      transform: `translateY(${bobOffset}px) rotate(${tilt}deg)`,
+      transition: "transform 220ms ease-out",
+    };
   }
 
   const formatTime = (seconds: number) => {
@@ -410,13 +500,48 @@ export default function App() {
             <div className={`mt-4 md:mt-8 text-[clamp(4rem,10vw,11rem)] leading-none font-mono font-bold tracking-tight transition-colors duration-1000 shrink-0 ${colorClass}`}>
               {formatTime(displayTimeLeft)}
             </div>
+
+            {/* Character Notification Overlay (independent from right controls) */}
+            <div className={`absolute inset-0 z-20 flex items-center justify-center p-4 transition-all duration-500 ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
+              <div className="flex flex-col items-center pointer-events-none">
+                {/* Speech Bubble */}
+                <div className={`relative bg-white rounded-3xl shadow-xl border-4 border-[#E6D5C9] mb-4 md:mb-6 text-center ${speechBubbleSizeClass}`} style={characterMotionStyle}>
+                  <p className={`font-bold whitespace-nowrap ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
+                  {/* Bubble Tail (pointing down) */}
+                  <div className="absolute -bottom-[14px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[12px] border-x-transparent border-t-[14px] border-t-white z-10"></div>
+                  <div className="absolute -bottom-[19px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
+                </div>
+
+                {/* Character Image or Placeholder */}
+                <div className={`relative shrink-0 ${characterWrapSizeClass}`} style={characterMotionStyle}>
+                  {characterImageError && (
+                    <div className="absolute inset-0 bg-[#8A6347]/10 rounded-3xl border-2 border-dashed border-[#8A6347]/40 flex flex-col items-center justify-center text-[#8A6347]/60">
+                      <span className="text-5xl md:text-7xl mb-2">?</span>
+                      <span className="text-sm md:text-base font-bold text-center leading-tight">Character<br/>Area</span>
+                    </div>
+                  )}
+                  <img
+                    src="/character.png?v=20260301"
+                    alt="character notification"
+                    className={`absolute inset-0 w-full h-full object-contain drop-shadow-2xl z-10 ${characterImageScaleClass}`}
+                    referrerPolicy="no-referrer"
+                    onLoad={() => setCharacterImageError(false)}
+                    onError={(e) => {
+                      // Fallback if image is not found
+                      setCharacterImageError(true);
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Right: Controls & Presets */}
           <div className="w-[300px] lg:w-[400px] bg-white/60 border-l border-[#E6D5C9]/50 p-6 lg:p-10 flex flex-col gap-6 shrink-0 overflow-y-auto relative">
             
             {/* Character Notification Overlay */}
-            <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm transition-all duration-500 origin-center ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
+            <div className="hidden">
               {/* Speech Bubble */}
               <div className="relative bg-white px-6 py-4 md:px-8 md:py-6 rounded-3xl shadow-xl border-4 border-[#E6D5C9] mb-6 animate-bounce text-center">
                 <p className={`font-bold text-lg md:text-2xl whitespace-nowrap ${colorClass}`}>{characterMessage}</p>
@@ -434,7 +559,7 @@ export default function App() {
                 </div>
                 {/* 실제 이미지 (있을 경우 덮어씀) */}
                 <img 
-                  src="/character.png" 
+                  src="/character.png?v=20260301" 
                   alt="알림 캐릭터" 
                   className="absolute inset-0 w-full h-full object-contain drop-shadow-2xl z-10"
                   referrerPolicy="no-referrer"
@@ -447,7 +572,7 @@ export default function App() {
             </div>
 
             {/* Controls Content (Fades out when character shows) */}
-            <div className={`flex flex-col gap-6 transition-opacity duration-500 ${showCharacter ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <div className="flex flex-col gap-6">
               {/* Mode Switcher */}
             <div className="flex bg-[#E6D5C9]/30 p-1.5 rounded-2xl shrink-0">
               <button
@@ -549,6 +674,10 @@ export default function App() {
                         ? '현재 예정된 일정이 없습니다.'
                         : `현재: ${currentSlotName}`}
                     </p>
+                    <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm lg:text-base font-bold ${scheduleTypeBadgeClass}`}>
+                      {timerType === 'break' ? <Coffee size={16} /> : timerType === 'lunch' ? <Utensils size={16} /> : timerType === 'class' ? <CalendarClock size={16} /> : <Timer size={16} />}
+                      <span>{scheduleTypeLabel}</span>
+                    </div>
                   </div>
                   
                   <div className="mt-4 p-5 bg-[#FDFBF7] rounded-3xl border-2 border-[#E6D5C9] w-full text-left shadow-sm flex flex-col h-[250px]">
