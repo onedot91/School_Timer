@@ -815,7 +815,7 @@ export default function App() {
                         ? '현재 예정된 일정이 없습니다.'
                         : `현재: ${currentSlotName}`}
                     </p>
-                    <div className={`inline-flex items-center justify-center gap-5 px-10 py-5 rounded-full border-2 text-[clamp(2.5rem,4.8vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.01em] whitespace-nowrap shadow-sm ${scheduleTypeBadgeClass}`}>
+                    <div className={`inline-flex items-center justify-center gap-4 px-7 py-5 rounded-full border-2 text-[clamp(2.5rem,4.8vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.01em] whitespace-nowrap shadow-sm ${scheduleTypeBadgeClass}`}>
                       {timerType === 'break' ? <Coffee size={48} strokeWidth={2.25} /> : timerType === 'lunch' ? <Utensils size={48} strokeWidth={2.25} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={48} strokeWidth={2.25} /> : <Timer size={48} strokeWidth={2.25} />}
                       <span className="whitespace-nowrap leading-none">{scheduleTypeLabel}</span>
                     </div>
