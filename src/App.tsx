@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload } from 'lucide-react';
 
-type TimerType = 'break' | 'lunch' | 'class' | 'none';
+type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type Mode = 'schedule' | 'manual';
 
 interface ScheduleSlot {
@@ -16,7 +16,89 @@ type WeeklySchedule = {
   [key: number]: ScheduleSlot[]; // 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri
 };
 
+const MORNING_ACTIVITY_LABEL = '\uC544\uCE68\uD65C\uB3D9';
+const MORNING_DEFAULT_DURATION = 15;
+const CLASS_DURATION = 40;
+const BREAK_DURATION = 10;
+const WEEKDAYS = [1, 2, 3, 4, 5];
+
+const createSlotId = () => Math.random().toString(36).slice(2, 11);
+
+const getFixedDurationByType = (type: TimerType) => {
+  if (type === 'class') return CLASS_DURATION;
+  if (type === 'break') return BREAK_DURATION;
+  return null;
+};
+
+const isMorningSlot = (slot: ScheduleSlot) => slot.type === 'morning' || slot.name === MORNING_ACTIVITY_LABEL;
+
+const normalizeDaySchedule = (daySchedule: ScheduleSlot[]) => {
+  const cloned = (daySchedule || []).map((slot) => ({ ...slot }));
+  const morningSlots = cloned.filter(isMorningSlot);
+  const morningSlot =
+    morningSlots[0] || {
+      id: createSlotId(),
+      name: MORNING_ACTIVITY_LABEL,
+      type: 'morning' as TimerType,
+      start: 540 - MORNING_DEFAULT_DURATION,
+      end: 540,
+    };
+
+  const others = cloned
+    .filter((slot) => !isMorningSlot(slot))
+    .map((slot) => {
+      const fixedDuration = getFixedDurationByType(slot.type);
+      if (fixedDuration !== null) {
+        return { ...slot, end: slot.start + fixedDuration };
+      }
+      if (slot.end <= slot.start) {
+        return { ...slot, end: slot.start + 1 };
+      }
+      return slot;
+    })
+    .sort((a, b) => a.start - b.start);
+
+  const ordered = [
+    {
+      ...morningSlot,
+      id: morningSlot.id || createSlotId(),
+      name: MORNING_ACTIVITY_LABEL,
+      type: 'morning' as TimerType,
+    },
+    ...others,
+  ];
+
+  const normalized: ScheduleSlot[] = [];
+  for (let i = 0; i < ordered.length; i += 1) {
+    const slot = ordered[i];
+    const fixedDuration = getFixedDurationByType(slot.type);
+    const rawDuration = slot.end - slot.start;
+    const fallbackDuration = rawDuration > 0 ? rawDuration : (slot.type === 'morning' ? MORNING_DEFAULT_DURATION : 1);
+    const duration = Math.max(1, fixedDuration ?? fallbackDuration);
+
+    if (i === 0) {
+      const firstStart = Math.max(0, Number.isFinite(slot.start) ? slot.start : 540 - MORNING_DEFAULT_DURATION);
+      normalized.push({ ...slot, start: firstStart, end: firstStart + duration });
+      continue;
+    }
+
+    const start = normalized[i - 1].end;
+    normalized.push({ ...slot, start, end: start + duration });
+  }
+
+  return normalized;
+};
+
+const normalizeWeeklySchedule = (schedule: WeeklySchedule): WeeklySchedule => {
+  const normalized: WeeklySchedule = {};
+  WEEKDAYS.forEach((day) => {
+    const daySchedule = Array.isArray(schedule?.[day]) ? schedule[day] : [];
+    normalized[day] = normalizeDaySchedule(daySchedule);
+  });
+  return normalized;
+};
 const defaultDailySchedule: ScheduleSlot[] = [
+  { id: 'm0', name: MORNING_ACTIVITY_LABEL, type: 'morning', start: 525, end: 540 },
   { id: '1', name: '1교시', type: 'class', start: 540, end: 580 },
   { id: '2', name: '쉬는 시간', type: 'break', start: 580, end: 590 },
   { id: '3', name: '2교시', type: 'class', start: 590, end: 630 },
@@ -30,15 +112,14 @@ const defaultDailySchedule: ScheduleSlot[] = [
   { id: '11', name: '6교시', type: 'class', start: 830, end: 870 },
 ];
 
-const defaultWeeklySchedule: WeeklySchedule = {
-  1: [...defaultDailySchedule],
-  2: [...defaultDailySchedule],
-  3: [...defaultDailySchedule],
-  4: [...defaultDailySchedule],
-  5: [...defaultDailySchedule],
-};
-
-const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const defaultWeeklySchedule: WeeklySchedule = normalizeWeeklySchedule({
+  1: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
+  2: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
+  3: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
+  4: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
+  5: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
+});
+const DAYS = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
 
 const playAlarm = () => {
   try {
@@ -135,7 +216,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-          return parsed;
+          return normalizeWeeklySchedule(parsed);
         }
       }
     } catch (e) {
@@ -289,9 +370,27 @@ export default function App() {
       const daySchedule = [...(prev[day] || [])];
       const slotIndex = daySchedule.findIndex(s => s.id === id);
       if (slotIndex > -1) {
-        daySchedule[slotIndex] = { ...daySchedule[slotIndex], [field]: value };
+        const nextSlot = { ...daySchedule[slotIndex], [field]: value } as ScheduleSlot;
+
+        if (field === 'type' || field === 'start') {
+          const fixedDuration = getFixedDurationByType(nextSlot.type);
+          if (fixedDuration !== null) {
+            nextSlot.end = nextSlot.start + fixedDuration;
+          }
+        }
+
+        if (field === 'end' && nextSlot.end <= nextSlot.start) {
+          nextSlot.end = nextSlot.start + 1;
+        }
+
+        if (isMorningSlot(nextSlot)) {
+          nextSlot.type = 'morning';
+          nextSlot.name = MORNING_ACTIVITY_LABEL;
+        }
+
+        daySchedule[slotIndex] = nextSlot;
       }
-      return { ...prev, [day]: daySchedule.sort((a, b) => a.start - b.start) };
+      return { ...prev, [day]: normalizeDaySchedule(daySchedule) };
     });
   };
 
@@ -301,20 +400,24 @@ export default function App() {
       const lastSlot = daySchedule[daySchedule.length - 1];
       const start = lastSlot ? lastSlot.end : 540;
       daySchedule.push({
-        id: Math.random().toString(36).substr(2, 9),
+        id: createSlotId(),
         name: '새 일정',
         type: 'class',
         start: start,
-        end: start + 40
+        end: start + CLASS_DURATION
       });
-      return { ...prev, [day]: daySchedule.sort((a, b) => a.start - b.start) };
+      return { ...prev, [day]: normalizeDaySchedule(daySchedule) };
     });
   };
 
   const removeSlot = (day: number, id: string) => {
     setWeeklySchedule(prev => {
+      const targetSlot = (prev[day] || []).find((s) => s.id === id);
+      if (targetSlot && isMorningSlot(targetSlot)) {
+        return prev;
+      }
       const daySchedule = (prev[day] || []).filter(s => s.id !== id);
-      return { ...prev, [day]: daySchedule };
+      return { ...prev, [day]: normalizeDaySchedule(daySchedule) };
     });
   };
 
@@ -338,7 +441,7 @@ export default function App() {
         const content = e.target?.result as string;
         const parsed = JSON.parse(content);
         if (parsed && typeof parsed === 'object') {
-          setWeeklySchedule(parsed);
+          setWeeklySchedule(normalizeWeeklySchedule(parsed));
           alert('시간표를 성공적으로 불러왔습니다.');
         } else {
           alert('잘못된 파일 형식입니다.');
@@ -384,6 +487,8 @@ export default function App() {
       ? "\uC218\uC5C5\uC2DC\uAC04"
       : timerType === 'break'
         ? "\uC26C\uB294\uC2DC\uAC04"
+        : timerType === 'morning'
+          ? MORNING_ACTIVITY_LABEL
         : timerType === 'lunch'
           ? "\uC810\uC2EC\uC2DC\uAC04"
           : "\uC77C\uC815 \uC5C6\uC74C";
@@ -392,6 +497,8 @@ export default function App() {
       ? 'bg-[#EAF1FF] text-[#3F5D9A] border-[#C8D6F5]'
       : timerType === 'break'
         ? 'bg-[#ECF8EE] text-[#3F7A46] border-[#CBE8CF]'
+        : timerType === 'morning'
+          ? 'bg-[#FFF8DF] text-[#8E6A2D] border-[#F0DFAE]'
         : timerType === 'lunch'
           ? 'bg-[#FFF4E8] text-[#9A6432] border-[#F1D5B8]'
           : 'bg-[#F6F2EE] text-[#8A6347]/70 border-[#E6D5C9]';
@@ -594,15 +701,15 @@ export default function App() {
               
               {/* Character Image or Placeholder */}
               <div className="relative w-48 h-48 md:w-64 md:h-64 shrink-0">
-                {/* 가상의 도형 (Placeholder) */}
+                {/* 임시 영역 (Placeholder) */}
                 <div className="absolute inset-0 bg-[#8A6347]/10 rounded-3xl border-2 border-dashed border-[#8A6347]/40 flex flex-col items-center justify-center text-[#8A6347]/60">
-                  <span className="text-5xl md:text-7xl mb-2">🐻</span>
+                  <span className="text-5xl md:text-7xl mb-2">🎨</span>
                   <span className="text-sm md:text-base font-bold text-center leading-tight">캐릭터<br/>영역</span>
                 </div>
                 {/* 실제 이미지 (있을 경우 덮어씀) */}
                 <img 
                   src="/character.png?v=20260301" 
-                  alt="알림 캐릭터" 
+                  alt="알림 캐릭터"
                   className="absolute inset-0 w-full h-full object-contain drop-shadow-2xl z-10"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
@@ -709,7 +816,7 @@ export default function App() {
                         : `현재: ${currentSlotName}`}
                     </p>
                     <div className={`inline-flex items-center justify-center gap-5 px-10 py-5 rounded-full border-2 text-[clamp(2.5rem,4.8vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.01em] whitespace-nowrap shadow-sm ${scheduleTypeBadgeClass}`}>
-                      {timerType === 'break' ? <Coffee size={48} strokeWidth={2.25} /> : timerType === 'lunch' ? <Utensils size={48} strokeWidth={2.25} /> : timerType === 'class' ? <CalendarClock size={48} strokeWidth={2.25} /> : <Timer size={48} strokeWidth={2.25} />}
+                      {timerType === 'break' ? <Coffee size={48} strokeWidth={2.25} /> : timerType === 'lunch' ? <Utensils size={48} strokeWidth={2.25} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={48} strokeWidth={2.25} /> : <Timer size={48} strokeWidth={2.25} />}
                       <span className="whitespace-nowrap leading-none">{scheduleTypeLabel}</span>
                     </div>
                   </div>
@@ -718,7 +825,7 @@ export default function App() {
                     <div className="mb-3 flex items-center justify-between gap-2 shrink-0">
                       <h3 className="font-bold text-[#8A6347] text-lg lg:text-xl flex items-center gap-2">
                         <CalendarClock size={18} />
-                        오늘({DAYS[today]}요일)의 시간표
+                        오늘({DAYS[today]}요일) 시간표
                       </h3>
                       <button 
                         onClick={() => setIsSettingsOpen(true)}
@@ -825,7 +932,7 @@ export default function App() {
                   onClick={() => setShowCopyConfirm(true)}
                   className="text-sm font-bold text-[#5C8D5D] hover:text-[#3A5A3B] bg-[#F0F5F0] px-3 py-1.5 rounded-lg transition-colors"
                 >
-                  다른 요일에 복사
+                  다른 요일로 복사
                 </button>
               </div>
 
@@ -845,7 +952,7 @@ export default function App() {
                       onClick={() => {
                         setWeeklySchedule(prev => {
                           const current = prev[editingDay] || [];
-                          const createCopy = () => current.map(slot => ({ ...slot, id: Math.random().toString(36).substr(2, 9) }));
+                          const createCopy = () => normalizeDaySchedule(current.map(slot => ({ ...slot, id: createSlotId() })));
                           return {
                             ...prev,
                             1: editingDay === 1 ? current : createCopy(),
@@ -871,21 +978,28 @@ export default function App() {
                     일정이 없습니다. 아래 버튼을 눌러 추가해보세요.
                   </div>
                 ) : (
-                  (weeklySchedule[editingDay] || []).map((slot) => (
+                  (weeklySchedule[editingDay] || []).map((slot, index) => {
+                    const isMorningRow = index === 0;
+                    const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
+                    const isAutoStartRow = index > 0;
+                    return (
                     <div key={slot.id} className="flex flex-wrap lg:flex-nowrap items-center gap-2 md:gap-3 bg-white p-3 md:p-4 rounded-2xl border border-[#E6D5C9] shadow-sm group transition-all hover:border-[#B58363]">
                       <input
                         type="text"
                         value={slot.name}
+                        readOnly={isMorningRow}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
                         className="flex-1 min-w-[120px] bg-transparent border-none outline-none font-bold text-[#8A6347] text-base md:text-lg focus:ring-2 focus:ring-[#5C8D5D]/20 rounded-lg px-2 py-1 -ml-2"
                         placeholder="일정 이름"
                       />
                       <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end mt-2 lg:mt-0">
                         <select
-                          value={slot.type}
+                          value={isMorningRow ? 'morning' : slot.type}
+                          disabled={isMorningRow}
                           onChange={(e) => updateSlot(editingDay, slot.id, 'type', e.target.value)}
                           className="bg-[#F0F5F0] text-[#3A5A3B] font-bold rounded-xl px-2 md:px-3 py-2 outline-none border-none text-sm md:text-base cursor-pointer hover:bg-[#E2EFE2] transition-colors"
                         >
+                          {isMorningRow && <option value="morning">{MORNING_ACTIVITY_LABEL}</option>}
                           <option value="class">수업</option>
                           <option value="break">쉬는시간</option>
                           <option value="lunch">점심시간</option>
@@ -895,6 +1009,7 @@ export default function App() {
                           <input
                             type="time"
                             value={formatMinutesToTime(slot.start)}
+                            disabled={isAutoStartRow}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'start', parseTimeToMinutes(e.target.value))}
                             className="bg-[#FDFBF7] text-[#8A6347] font-mono font-bold rounded-xl px-2 md:px-3 py-2 outline-none border border-[#E6D5C9] text-sm md:text-base cursor-pointer hover:border-[#B58363] transition-colors"
                           />
@@ -902,11 +1017,13 @@ export default function App() {
                           <input
                             type="time"
                             value={formatMinutesToTime(slot.end)}
+                            disabled={isFixedDurationRow}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'end', parseTimeToMinutes(e.target.value))}
                             className="bg-[#FDFBF7] text-[#8A6347] font-mono font-bold rounded-xl px-2 md:px-3 py-2 outline-none border border-[#E6D5C9] text-sm md:text-base cursor-pointer hover:border-[#B58363] transition-colors"
                           />
                         </div>
                         <button
+                          disabled={isMorningRow}
                           onClick={() => removeSlot(editingDay, slot.id)}
                           className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors shrink-0 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
                           title="일정 삭제"
@@ -915,7 +1032,7 @@ export default function App() {
                         </button>
                       </div>
                     </div>
-                  ))
+                  )})
                 )}
               </div>
               
@@ -933,3 +1050,5 @@ export default function App() {
     </div>
   );
 }
+
+
