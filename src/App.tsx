@@ -148,11 +148,22 @@ export default function App() {
   const [editingDay, setEditingDay] = useState<number>(1);
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [characterImageError, setCharacterImageError] = useState(false);
+  const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scheduleListRef = useRef<HTMLUListElement>(null);
+  const scheduleSlotRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
     localStorage.setItem('weeklySchedule', JSON.stringify(weeklySchedule));
   }, [weeklySchedule]);
+
+  useEffect(() => {
+    if (mode !== 'schedule') return;
+    const interval = window.setInterval(() => {
+      setScheduleFocusTick(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [mode]);
 
   // Persist App State
   useEffect(() => {
@@ -474,6 +485,37 @@ export default function App() {
 
   const today = new Date().getDay();
   const currentDaySchedule = weeklySchedule[today] || [];
+  const nowForScheduleView = new Date(scheduleFocusTick);
+  const currentMinsForScheduleView = nowForScheduleView.getHours() * 60 + nowForScheduleView.getMinutes();
+  const activeSlotIndex = currentDaySchedule.findIndex(
+    (slot) => currentMinsForScheduleView >= slot.start && currentMinsForScheduleView < slot.end
+  );
+  const nextSlotIndex = currentDaySchedule.findIndex((slot) => currentMinsForScheduleView < slot.start);
+  const focusSlotIndex =
+    activeSlotIndex !== -1
+      ? activeSlotIndex
+      : nextSlotIndex !== -1
+        ? nextSlotIndex
+        : currentDaySchedule.length - 1;
+
+  useEffect(() => {
+    if (mode !== 'schedule' || focusSlotIndex < 0) return;
+    const focusSlot = currentDaySchedule[focusSlotIndex];
+    if (!focusSlot) return;
+    const node = scheduleSlotRefs.current[focusSlot.id];
+    const list = scheduleListRef.current;
+    if (!node || !list) return;
+
+    const nodeTop = node.offsetTop;
+    const nodeBottom = nodeTop + node.offsetHeight;
+    const viewportTop = list.scrollTop;
+    const viewportBottom = viewportTop + list.clientHeight;
+    const isVisible = nodeTop >= viewportTop && nodeBottom <= viewportBottom;
+
+    if (!isVisible) {
+      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [mode, today, currentSlotName, weeklySchedule, focusSlotIndex, currentDaySchedule, scheduleFocusTick]);
 
   return (
     <div className="h-screen w-screen bg-[#FDFBF7] p-4 md:p-8 font-sans overflow-hidden flex items-center justify-center">
@@ -538,7 +580,7 @@ export default function App() {
           </div>
 
           {/* Right: Controls & Presets */}
-          <div className="w-[300px] lg:w-[400px] bg-white/60 border-l border-[#E6D5C9]/50 p-6 lg:p-10 flex flex-col gap-6 shrink-0 overflow-y-auto relative">
+          <div className={`w-[300px] lg:w-[400px] bg-white/60 border-l border-[#E6D5C9]/50 p-6 lg:p-10 flex flex-col gap-6 shrink-0 relative min-h-0 ${mode === 'schedule' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
             
             {/* Character Notification Overlay */}
             <div className="hidden">
@@ -572,7 +614,7 @@ export default function App() {
             </div>
 
             {/* Controls Content (Fades out when character shows) */}
-            <div className="flex flex-col gap-6">
+            <div className={`flex flex-col flex-1 min-h-0 ${mode === 'schedule' ? 'gap-4' : 'gap-6'}`}>
               {/* Mode Switcher */}
             <div className="flex bg-[#E6D5C9]/30 p-1.5 rounded-2xl shrink-0">
               <button
@@ -595,7 +637,7 @@ export default function App() {
               </button>
             </div>
 
-            <div className="flex-1 flex flex-col justify-center gap-8">
+            <div className={`flex-1 flex flex-col min-h-0 ${mode === 'schedule' ? 'justify-start gap-4' : 'justify-center gap-8'}`}>
               {mode === 'manual' ? (
                 <>
                   <div className="flex justify-center items-center gap-6">
@@ -655,49 +697,56 @@ export default function App() {
                   </div>
                 </>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-6 text-center relative">
-                  <button 
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="absolute top-0 right-0 p-2 text-[#8A6347]/60 hover:text-[#8A6347] transition-colors"
-                    title="시간표 설정"
-                  >
-                    <Settings size={24} />
-                  </button>
-                  
-                  <div className="w-24 h-24 rounded-full bg-[#F0F5F0] flex items-center justify-center text-[#5C8D5D] mb-2 shadow-inner">
+                <div className="flex flex-col items-stretch justify-start h-full gap-3 text-left relative w-full pt-2 min-h-0">
+                  <div className="hidden w-24 h-24 rounded-full bg-[#F0F5F0] items-center justify-center text-[#5C8D5D] mb-2 shadow-inner">
                     <CalendarClock size={48} />
                   </div>
-                  <div>
-                    <h2 className="text-2xl lg:text-3xl font-bold text-[#8A6347] mb-2">자동 시간표 모드</h2>
-                    <p className="text-lg lg:text-xl text-[#8A6347]/70 font-medium">
+                  <div className="flex justify-center">
+                    <h2 className="hidden text-2xl lg:text-3xl font-bold text-[#8A6347] mb-2">자동 시간표 모드</h2>
+                    <p className="hidden text-lg lg:text-xl text-[#8A6347]/70 font-medium">
                       {currentSlotName === '일정 없음'
                         ? '현재 예정된 일정이 없습니다.'
                         : `현재: ${currentSlotName}`}
                     </p>
-                    <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm lg:text-base font-bold ${scheduleTypeBadgeClass}`}>
-                      {timerType === 'break' ? <Coffee size={16} /> : timerType === 'lunch' ? <Utensils size={16} /> : timerType === 'class' ? <CalendarClock size={16} /> : <Timer size={16} />}
-                      <span>{scheduleTypeLabel}</span>
+                    <div className={`inline-flex items-center justify-center gap-5 px-10 py-5 rounded-full border-2 text-[clamp(2.5rem,4.8vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.01em] whitespace-nowrap shadow-sm ${scheduleTypeBadgeClass}`}>
+                      {timerType === 'break' ? <Coffee size={48} strokeWidth={2.25} /> : timerType === 'lunch' ? <Utensils size={48} strokeWidth={2.25} /> : timerType === 'class' ? <CalendarClock size={48} strokeWidth={2.25} /> : <Timer size={48} strokeWidth={2.25} />}
+                      <span className="whitespace-nowrap leading-none">{scheduleTypeLabel}</span>
                     </div>
                   </div>
                   
-                  <div className="mt-4 p-5 bg-[#FDFBF7] rounded-3xl border-2 border-[#E6D5C9] w-full text-left shadow-sm flex flex-col h-[250px]">
-                    <h3 className="font-bold text-[#8A6347] mb-3 text-base lg:text-lg flex items-center gap-2 shrink-0">
-                      <CalendarClock size={18} />
-                      오늘({DAYS[today]}요일)의 시간표
-                    </h3>
-                    <ul className="space-y-1.5 text-[#8A6347]/80 overflow-y-auto pr-2 text-sm lg:text-base flex-1">
+                  <div className="p-5 bg-[#FDFBF7] rounded-3xl border-2 border-[#E6D5C9] w-full text-left shadow-sm flex flex-col flex-[0.9] min-h-0">
+                    <div className="mb-3 flex items-center justify-between gap-2 shrink-0">
+                      <h3 className="font-bold text-[#8A6347] text-lg lg:text-xl flex items-center gap-2">
+                        <CalendarClock size={18} />
+                        오늘({DAYS[today]}요일)의 시간표
+                      </h3>
+                      <button 
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="p-2 text-[#8A6347]/60 hover:text-[#8A6347] transition-colors rounded-lg hover:bg-[#E6D5C9]/30"
+                        title="시간표 설정"
+                      >
+                        <Settings size={22} />
+                      </button>
+                    </div>
+                    <ul ref={scheduleListRef} className="space-y-2 text-[#8A6347]/90 pr-2 text-base lg:text-lg flex-1 overflow-y-auto">
                       {currentDaySchedule.length === 0 ? (
                         <li className="text-center py-4 opacity-60">일정이 없습니다.</li>
                       ) : (
-                        currentDaySchedule.map((s, i) => {
+                        currentDaySchedule.map((s) => {
                           const now = new Date();
                           const currentMins = now.getHours() * 60 + now.getMinutes();
                           const isThisSlot = currentMins >= s.start && currentMins < s.end;
 
                           return (
-                            <li key={i} className={`flex justify-between p-2.5 rounded-xl transition-colors ${isThisSlot ? 'bg-[#5C8D5D] text-white font-bold shadow-md' : 'hover:bg-[#E6D5C9]/30'}`}>
-                              <span>{s.name}</span>
-                              <span className="font-mono">{formatMinutesToTime(s.start)} - {formatMinutesToTime(s.end)}</span>
+                            <li
+                              key={s.id}
+                              ref={(el) => {
+                                scheduleSlotRefs.current[s.id] = el;
+                              }}
+                              className={`flex justify-between items-center p-3 rounded-xl transition-colors ${isThisSlot ? 'bg-[#5C8D5D] text-white font-bold shadow-md' : 'hover:bg-[#E6D5C9]/30'}`}
+                            >
+                              <span className="font-semibold">{s.name}</span>
+                              <span className="font-mono text-sm lg:text-base">{formatMinutesToTime(s.start)} - {formatMinutesToTime(s.end)}</span>
                             </li>
                           )
                         })
