@@ -76,13 +76,8 @@ const normalizeDaySchedule = (daySchedule: ScheduleSlot[]) => {
     const fallbackDuration = rawDuration > 0 ? rawDuration : (slot.type === 'morning' ? MORNING_DEFAULT_DURATION : 1);
     const duration = Math.max(1, fixedDuration ?? fallbackDuration);
 
-    if (i === 0) {
-      const firstStart = Math.max(0, Number.isFinite(slot.start) ? slot.start : 540 - MORNING_DEFAULT_DURATION);
-      normalized.push({ ...slot, start: firstStart, end: firstStart + duration });
-      continue;
-    }
-
-    const start = normalized[i - 1].end;
+    const startFallback = slot.type === 'morning' ? 540 - MORNING_DEFAULT_DURATION : 540;
+    const start = Math.max(0, Number.isFinite(slot.start) ? slot.start : startFallback);
     normalized.push({ ...slot, start, end: start + duration });
   }
 
@@ -620,14 +615,19 @@ export default function App() {
     const isVisible = nodeTop >= viewportTop && nodeBottom <= viewportBottom;
 
     if (!isVisible) {
-      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      const targetTop = nodeTop - (list.clientHeight - node.offsetHeight) / 2;
+      const maxTop = Math.max(0, list.scrollHeight - list.clientHeight);
+      list.scrollTo({
+        top: Math.min(Math.max(0, targetTop), maxTop),
+        behavior: 'smooth',
+      });
     }
   }, [mode, today, currentSlotName, weeklySchedule, focusSlotIndex, currentDaySchedule, scheduleFocusTick]);
 
   return (
-    <div className="h-screen w-screen bg-[#FDFBF7] p-4 md:p-8 font-sans overflow-hidden flex items-center justify-center">
+    <div className="h-[100dvh] w-full bg-[#FDFBF7] p-3 sm:p-4 md:p-8 font-sans overflow-hidden flex items-center justify-center">
       <div className={`w-full h-full max-w-screen-2xl rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col transition-colors duration-1000 ${bgClass}`}>
-        <div className="flex-1 flex flex-row min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row min-h-0">
           {/* Left: Timer Display */}
           <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative min-w-0 h-full">
             <div className={`relative flex-1 w-full min-h-0 flex items-center justify-center ${pulseClass}`}>
@@ -687,7 +687,7 @@ export default function App() {
           </div>
 
           {/* Right: Controls & Presets */}
-          <div className={`w-[300px] lg:w-[400px] bg-white/60 border-l border-[#E6D5C9]/50 p-6 lg:p-10 flex flex-col gap-6 shrink-0 relative min-h-0 ${mode === 'schedule' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          <div className={`w-full lg:w-[400px] bg-white/60 border-t lg:border-t-0 lg:border-l border-[#E6D5C9]/50 p-5 sm:p-6 lg:p-10 flex flex-col gap-6 shrink-0 relative min-h-0 overflow-hidden`}>
             
             {/* Character Notification Overlay */}
             <div className="hidden">
@@ -981,7 +981,6 @@ export default function App() {
                   (weeklySchedule[editingDay] || []).map((slot, index) => {
                     const isMorningRow = index === 0;
                     const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
-                    const isAutoStartRow = index > 0;
                     return (
                     <div key={slot.id} className="flex flex-wrap lg:flex-nowrap items-center gap-2 md:gap-3 bg-white p-3 md:p-4 rounded-2xl border border-[#E6D5C9] shadow-sm group transition-all hover:border-[#B58363]">
                       <input
@@ -1009,7 +1008,6 @@ export default function App() {
                           <input
                             type="time"
                             value={formatMinutesToTime(slot.start)}
-                            disabled={isAutoStartRow}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'start', parseTimeToMinutes(e.target.value))}
                             className="bg-[#FDFBF7] text-[#8A6347] font-mono font-bold rounded-xl px-2 md:px-3 py-2 outline-none border border-[#E6D5C9] text-sm md:text-base cursor-pointer hover:border-[#B58363] transition-colors"
                           />
