@@ -654,8 +654,8 @@ export default function App() {
             <div className={`absolute inset-0 z-20 flex items-center justify-center p-4 transition-all duration-500 ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
               <div className="flex flex-col items-center pointer-events-none">
                 {/* Speech Bubble */}
-                <div className={`relative bg-white rounded-3xl shadow-xl border-4 border-[#E6D5C9] mb-4 md:mb-6 text-center ${speechBubbleSizeClass}`} style={characterMotionStyle}>
-                  <p className={`font-bold whitespace-nowrap ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
+                <div className={`relative bg-white rounded-3xl shadow-xl border-4 border-[#E6D5C9] mb-4 md:mb-6 text-center max-w-[min(92vw,56rem)] ${speechBubbleSizeClass}`} style={characterMotionStyle}>
+                  <p className={`font-bold whitespace-normal break-keep text-center ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
                   {/* Bubble Tail (pointing down) */}
                   <div className="absolute -bottom-[14px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[12px] border-x-transparent border-t-[14px] border-t-white z-10"></div>
                   <div className="absolute -bottom-[19px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
@@ -692,8 +692,8 @@ export default function App() {
             {/* Character Notification Overlay */}
             <div className="hidden">
               {/* Speech Bubble */}
-              <div className="relative bg-white px-6 py-4 md:px-8 md:py-6 rounded-3xl shadow-xl border-4 border-[#E6D5C9] mb-6 animate-bounce text-center">
-                <p className={`font-bold text-lg md:text-2xl whitespace-nowrap ${colorClass}`}>{characterMessage}</p>
+              <div className="relative bg-white px-6 py-4 md:px-8 md:py-6 rounded-3xl shadow-xl border-4 border-[#E6D5C9] mb-6 animate-bounce text-center max-w-[min(92vw,56rem)]">
+                <p className={`font-bold text-lg md:text-2xl whitespace-normal break-keep text-center ${colorClass}`}>{characterMessage}</p>
                 {/* Bubble Tail (pointing down) */}
                 <div className="absolute -bottom-[14px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[12px] border-x-transparent border-t-[14px] border-t-white z-10"></div>
                 <div className="absolute -bottom-[19px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
