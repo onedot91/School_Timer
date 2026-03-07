@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload, Pencil, Check, BellRing } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload, Check, BellRing } from 'lucide-react';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type Mode = 'schedule' | 'manual';
@@ -230,6 +230,7 @@ export default function App() {
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const noticeInputRef = useRef<HTMLInputElement>(null);
   const scheduleListRef = useRef<HTMLUListElement>(null);
   const scheduleSlotRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
@@ -250,6 +251,12 @@ export default function App() {
       setNoticeDraft(scheduleNotice);
     }
   }, [scheduleNotice, isEditingNotice]);
+
+  useEffect(() => {
+    if (!isEditingNotice) return;
+    noticeInputRef.current?.focus();
+    noticeInputRef.current?.select();
+  }, [isEditingNotice]);
 
   useEffect(() => {
     if (mode !== 'schedule') return;
@@ -715,11 +722,26 @@ export default function App() {
                   style={noticeCardStyle}
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className={`min-w-0 flex-1 px-2 ${isEditingNotice ? 'rounded-[1.5rem] border border-[#D7E2D3] bg-[#F6FAF4] px-5 py-4' : 'py-2'}`}>
+                    <div
+                      onClick={() => {
+                        if (isEditingNotice) return;
+                        setNoticeDraft(scheduleNotice);
+                        setIsEditingNotice(true);
+                      }}
+                      className={`min-w-0 flex-1 px-2 ${isEditingNotice ? 'rounded-[1.5rem] border border-[#D7E2D3] bg-[#F6FAF4] px-5 py-4' : 'cursor-text py-2'}`}
+                      title={isEditingNotice ? undefined : '공지 수정'}
+                    >
                       {isEditingNotice ? (
                         <input
+                          ref={noticeInputRef}
                           value={noticeDraft}
                           onChange={(e) => setNoticeDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter') return;
+                            e.preventDefault();
+                            setScheduleNotice(noticeDraft.trim());
+                            setIsEditingNotice(false);
+                          }}
                           maxLength={160}
                           className={`w-full rounded-2xl border-2 border-[#B7CDB2] bg-white px-5 py-3.5 font-extrabold text-[#3E573C] outline-none transition-colors placeholder:text-[#7F997C]/60 focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${noticeDraftTextClass}`}
                           placeholder="공지 입력"
@@ -736,7 +758,7 @@ export default function App() {
                           {noticeDraft.length}/160
                         </span>
                       )}
-                      {isEditingNotice ? (
+                      {isEditingNotice && (
                         <>
                           <button
                             onClick={() => {
@@ -759,17 +781,6 @@ export default function App() {
                             <X size={18} />
                           </button>
                         </>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setNoticeDraft(scheduleNotice);
-                            setIsEditingNotice(true);
-                          }}
-                          className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full text-[#8DA08A] opacity-35 transition-all hover:bg-[#F3F7F1] hover:opacity-100"
-                          title="공지 수정"
-                        >
-                          <Pencil size={14} />
-                        </button>
                       )}
                     </div>
                   </div>
