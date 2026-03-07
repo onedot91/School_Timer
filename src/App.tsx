@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload, Pencil, Check, BellRing } from 'lucide-react';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type Mode = 'schedule' | 'manual';
@@ -179,6 +179,10 @@ const getInitialAppState = () => {
 export default function App() {
   const initialState = getInitialAppState();
   const [mode, setMode] = useState<Mode>(initialState.mode);
+  const [scheduleNotice, setScheduleNotice] = useState(() => localStorage.getItem('scheduleNotice') || '');
+  const [noticeDraft, setNoticeDraft] = useState(() => localStorage.getItem('scheduleNotice') || '');
+  const [isEditingNotice, setIsEditingNotice] = useState(false);
+  const [isNoticeVisible, setIsNoticeVisible] = useState(() => localStorage.getItem('scheduleNoticeVisible') !== 'false');
   
   const modeRef = useRef(mode);
   useEffect(() => {
@@ -232,6 +236,20 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('weeklySchedule', JSON.stringify(weeklySchedule));
   }, [weeklySchedule]);
+
+  useEffect(() => {
+    localStorage.setItem('scheduleNotice', scheduleNotice);
+  }, [scheduleNotice]);
+
+  useEffect(() => {
+    localStorage.setItem('scheduleNoticeVisible', String(isNoticeVisible));
+  }, [isNoticeVisible]);
+
+  useEffect(() => {
+    if (!isEditingNotice) {
+      setNoticeDraft(scheduleNotice);
+    }
+  }, [scheduleNotice, isEditingNotice]);
 
   useEffect(() => {
     if (mode !== 'schedule') return;
@@ -417,7 +435,11 @@ export default function App() {
   };
 
   const exportSchedule = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(weeklySchedule));
+    const exportPayload = {
+      weeklySchedule,
+      scheduleNotice,
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute("download", "timer_schedule.json");
@@ -436,7 +458,12 @@ export default function App() {
         const content = e.target?.result as string;
         const parsed = JSON.parse(content);
         if (parsed && typeof parsed === 'object') {
-          setWeeklySchedule(normalizeWeeklySchedule(parsed));
+          const nextSchedule = parsed.weeklySchedule && typeof parsed.weeklySchedule === 'object'
+            ? parsed.weeklySchedule
+            : parsed;
+          const nextNotice = typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '';
+          setWeeklySchedule(normalizeWeeklySchedule(nextSchedule));
+          setScheduleNotice(nextNotice);
           alert('시간표를 성공적으로 불러왔습니다.');
         } else {
           alert('잘못된 파일 형식입니다.');
@@ -624,9 +651,201 @@ export default function App() {
     }
   }, [mode, today, currentSlotName, weeklySchedule, focusSlotIndex, currentDaySchedule, scheduleFocusTick]);
 
+  const visibleNoticeText = scheduleNotice.trim() || '등록된 공지가 없습니다.';
+  const getNoticeTextClass = (text: string) => {
+    const length = text.trim().length;
+    if (length <= 10) return 'text-[clamp(1.8rem,3.3vw,3rem)] leading-[1.16] tracking-[-0.035em]';
+    if (length <= 18) return 'text-[clamp(1.6rem,2.8vw,2.5rem)] leading-[1.2] tracking-[-0.03em]';
+    if (length <= 32) return 'text-[clamp(1.4rem,2.1vw,2.1rem)] leading-[1.3] tracking-[-0.025em]';
+    return 'text-[clamp(1.18rem,1.65vw,1.78rem)] leading-[1.38] tracking-[-0.018em]';
+  };
+  const noticeDisplayTextClass = getNoticeTextClass(visibleNoticeText);
+  const noticeDraftTextClass = getNoticeTextClass(noticeDraft);
+  const noticeIconStyle = isNoticeVisible && !isEditingNotice
+    ? { animation: 'noticeIconBreath 2.2s ease-in-out infinite' }
+    : undefined;
+  const noticeCardStyle = isNoticeVisible
+    ? { animation: `${isEditingNotice ? 'noticeFadeIn 220ms ease-out' : 'noticeSlideIn 360ms ease-out, noticeGlow 2.8s ease-in-out infinite'}` }
+    : undefined;
+
   return (
     <div className="h-[100dvh] w-full bg-[#FDFBF7] p-3 sm:p-4 md:p-8 font-sans overflow-hidden flex items-center justify-center">
       <div className={`w-full h-full max-w-screen-2xl rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col transition-colors duration-1000 ${bgClass}`}>
+        {mode === 'schedule' && (
+          <div className={isNoticeVisible
+            ? 'border-b border-[#C9D7C6] bg-[#EEF4EB] px-4 py-4 sm:px-6 lg:px-8'
+            : 'px-4 pt-4 pb-0 sm:px-6 lg:px-8'}>
+            <div className={`flex items-center ${isNoticeVisible ? 'gap-4' : 'gap-0'}`}>
+              <div className="relative h-14 w-14 shrink-0">
+                {isNoticeVisible && !isEditingNotice && (
+                  <>
+                    <div
+                      className="absolute inset-[-6px] rounded-[1.4rem] border-2 border-[#7FA57B]/60"
+                      style={{ animation: 'noticeIconRing 1.6s ease-out infinite' }}
+                    />
+                    <div
+                      className="absolute inset-[-10px] rounded-[1.6rem] border-2 border-[#9DBA98]/45"
+                      style={{ animation: 'noticeIconRingOuter 1.6s ease-out infinite 0.32s' }}
+                    />
+                  </>
+                )}
+                <button
+                  onClick={() => {
+                    if (isNoticeVisible) {
+                      setIsEditingNotice(false);
+                      setIsNoticeVisible(false);
+                      return;
+                    }
+                    setIsNoticeVisible(true);
+                  }}
+                  className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-[1.15rem] text-white transition-transform hover:scale-[1.03] ${
+                    isNoticeVisible
+                      ? 'bg-[linear-gradient(180deg,#7A9B76_0%,#5C8D5D_100%)] shadow-[0_12px_28px_rgba(92,141,93,0.28)]'
+                      : 'bg-[linear-gradient(180deg,#C7D5C4_0%,#AEBFAA_100%)] shadow-[0_8px_18px_rgba(130,150,126,0.18)]'
+                  }`}
+                  style={noticeIconStyle}
+                  title={isNoticeVisible ? '공지 숨기기' : '공지 보기'}
+                >
+                  <BellRing size={24} strokeWidth={2.4} />
+                </button>
+              </div>
+              {isNoticeVisible && (
+                <div
+                  className="relative min-w-0 flex-1 rounded-[2rem] border-2 border-[#A8BEA3] bg-white px-4 py-4 shadow-[0_14px_30px_rgba(92,141,93,0.12)] sm:px-5 lg:px-6"
+                  style={noticeCardStyle}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className={`min-w-0 flex-1 px-2 ${isEditingNotice ? 'rounded-[1.5rem] border border-[#D7E2D3] bg-[#F6FAF4] px-5 py-4' : 'py-2'}`}>
+                      {isEditingNotice ? (
+                        <input
+                          value={noticeDraft}
+                          onChange={(e) => setNoticeDraft(e.target.value)}
+                          maxLength={160}
+                          className={`w-full rounded-2xl border-2 border-[#B7CDB2] bg-white px-5 py-3.5 font-extrabold text-[#3E573C] outline-none transition-colors placeholder:text-[#7F997C]/60 focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${noticeDraftTextClass}`}
+                          placeholder="공지 입력"
+                        />
+                      ) : (
+                        <p className={`break-keep font-extrabold text-[#3E573C] ${noticeDisplayTextClass}`}>
+                          {visibleNoticeText}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+                      {isEditingNotice && (
+                        <span className="text-sm font-bold tabular-nums text-[#6E876B]/85">
+                          {noticeDraft.length}/160
+                        </span>
+                      )}
+                      {isEditingNotice ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              setScheduleNotice(noticeDraft.trim());
+                              setIsEditingNotice(false);
+                            }}
+                            className="inline-flex h-11 min-w-11 items-center justify-center rounded-full bg-[#5C8D5D] px-3 text-white shadow-[0_10px_24px_rgba(92,141,93,0.22)] transition-colors hover:bg-[#4A734B]"
+                            title="공지 저장"
+                          >
+                            <Check size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setNoticeDraft(scheduleNotice);
+                              setIsEditingNotice(false);
+                            }}
+                            className="inline-flex h-11 min-w-11 items-center justify-center rounded-full border border-[#B7CDB2] bg-white text-[#5E765B] transition-colors hover:bg-[#F5FAF3]"
+                            title="취소"
+                          >
+                            <X size={18} />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setNoticeDraft(scheduleNotice);
+                            setIsEditingNotice(true);
+                          }}
+                          className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full text-[#8DA08A] opacity-35 transition-all hover:bg-[#F3F7F1] hover:opacity-100"
+                          title="공지 수정"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        <style>{`
+          @keyframes noticeIconBreath {
+            0%, 100% {
+              transform: scale(1);
+              box-shadow: 0 12px 28px rgba(92, 141, 93, 0.28);
+            }
+            50% {
+              transform: scale(1.14);
+              box-shadow: 0 24px 46px rgba(92, 141, 93, 0.58);
+            }
+          }
+          @keyframes noticeIconRing {
+            0% {
+              opacity: 0.9;
+              transform: scale(0.88);
+            }
+            75% {
+              opacity: 0;
+              transform: scale(1.36);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(1.36);
+            }
+          }
+          @keyframes noticeIconRingOuter {
+            0% {
+              opacity: 0.72;
+              transform: scale(0.92);
+            }
+            75% {
+              opacity: 0;
+              transform: scale(1.5);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(1.5);
+            }
+          }
+          @keyframes noticeGlow {
+            0%, 100% {
+              box-shadow: 0 14px 30px rgba(92, 141, 93, 0.12);
+              border-color: #A8BEA3;
+            }
+            50% {
+              box-shadow: 0 22px 42px rgba(92, 141, 93, 0.22);
+              border-color: #88A684;
+            }
+          }
+          @keyframes noticeSlideIn {
+            0% {
+              opacity: 0;
+              transform: translateY(-8px);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          @keyframes noticeFadeIn {
+            0% {
+              opacity: 0;
+            }
+            100% {
+              opacity: 1;
+            }
+          }
+        `}</style>
         <div className="flex-1 flex flex-col lg:flex-row min-h-0">
           {/* Left: Timer Display */}
           <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative min-w-0 h-full">
