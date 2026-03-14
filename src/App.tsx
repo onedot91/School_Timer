@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload, Check, ChevronDown } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload, ChevronDown } from 'lucide-react';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type Mode = 'schedule' | 'manual';
@@ -237,6 +237,7 @@ export default function App() {
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
+  const skipNoticeAutoSaveRef = useRef(false);
   const scheduleListRef = useRef<HTMLUListElement>(null);
   const scheduleSlotRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
@@ -506,6 +507,7 @@ export default function App() {
   };
 
   const startNoticeEdit = () => {
+    skipNoticeAutoSaveRef.current = false;
     setNoticeDraft(scheduleNotice);
     setIsEditingNotice(true);
   };
@@ -519,6 +521,7 @@ export default function App() {
   };
 
   const saveNotice = () => {
+    skipNoticeAutoSaveRef.current = false;
     const nextNotice = noticeDraft.trim();
     setScheduleNotice(nextNotice);
     if (nextNotice.length > 0) {
@@ -528,8 +531,17 @@ export default function App() {
   };
 
   const cancelNoticeEdit = () => {
+    skipNoticeAutoSaveRef.current = true;
     setNoticeDraft(scheduleNotice);
     setIsEditingNotice(false);
+  };
+
+  const handleNoticeBlur = () => {
+    if (skipNoticeAutoSaveRef.current) {
+      skipNoticeAutoSaveRef.current = false;
+      return;
+    }
+    saveNotice();
   };
 
   // Visual calculations
@@ -544,10 +556,10 @@ export default function App() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = -(circumference - percentage * circumference);
 
-  let colorClass = "text-[#5C8D5D]";
-  let strokeColor = "#5C8D5D";
+  let colorClass = "text-[#587052]";
+  let strokeColor = "#587052";
   let pulseClass = "";
-  let bgClass = "bg-white";
+  let bgClass = "app-tone-calm";
 
   let characterMessage = "";
   let showCharacter = false;
@@ -571,14 +583,14 @@ export default function App() {
           : "\uC77C\uC815 \uC5C6\uC74C";
   const scheduleTypeBadgeClass =
     timerType === 'class'
-      ? 'bg-[#EAF1FF] text-[#3F5D9A] border-[#C8D6F5]'
+      ? 'bg-[#EEF5EA] text-[#466146] border-[#CADABD]'
       : timerType === 'break'
-        ? 'bg-[#ECF8EE] text-[#3F7A46] border-[#CBE8CF]'
+        ? 'bg-[#F7FBF4] text-[#5C7A4B] border-[#D5E6CA]'
         : timerType === 'morning'
-          ? 'bg-[#FFF8DF] text-[#8E6A2D] border-[#F0DFAE]'
+          ? 'bg-[#FFF7E3] text-[#8D6C37] border-[#EBCF93]'
         : timerType === 'lunch'
-          ? 'bg-[#FFF4E8] text-[#9A6432] border-[#F1D5B8]'
-          : 'bg-[#F6F2EE] text-[#8A6347]/70 border-[#E6D5C9]';
+          ? 'bg-[#FFF0E3] text-[#A46943] border-[#EDC7A8]'
+          : 'bg-[#F7F0E9] text-[#8A6347]/70 border-[#E8D7C5]';
 
   const getCharacterMessage = (stage: 'warning' | 'urgent' | 'end') => {
     if (mode === 'manual') {
@@ -603,42 +615,42 @@ export default function App() {
   };
 
   if (displayTotalTime === 0) {
-    colorClass = "text-[#E6D5C9]";
-    strokeColor = "#E6D5C9";
+    colorClass = "text-[#CEBFA8]";
+    strokeColor = "#CEBFA8";
+    bgClass = "app-tone-idle";
   } else if (shouldShowTimedMessage && displayTimeLeft === 0) {
-    colorClass = "text-[#C65D47]";
-    strokeColor = "#C65D47";
+    colorClass = "text-[#B55E4C]";
+    strokeColor = "#B55E4C";
     showCharacter = true;
+    bgClass = "app-tone-finished";
     characterMessage = getCharacterMessage('end');
     speechBubbleSizeClass = "px-8 py-5 md:px-12 md:py-7";
     speechTextSizeClass = "text-3xl md:text-5xl";
     characterWrapSizeClass = "w-56 h-56 md:w-80 md:h-80";
     characterImageScaleClass = "scale-125 md:scale-[1.45]";
   } else if (shouldShowTimedMessage && percentage <= urgentThreshold) {
-    colorClass = "text-[#C65D47]";
-    strokeColor = "#C65D47";
+    colorClass = "text-[#B55E4C]";
+    strokeColor = "#B55E4C";
     showCharacter = true;
+    bgClass = "app-tone-urgent";
     speechBubbleSizeClass = "px-8 py-5 md:px-12 md:py-7";
     speechTextSizeClass = "text-3xl md:text-5xl";
     characterWrapSizeClass = "w-56 h-56 md:w-80 md:h-80";
     characterImageScaleClass = "scale-125 md:scale-[1.45]";
     characterMessage = getCharacterMessage('urgent');
     if (displayIsRunning) {
-      pulseClass = "animate-pulse";
-      bgClass = "bg-[#FFF5F3]";
+      pulseClass = "mascot-alert-pulse";
     }
   } else if (shouldShowTimedMessage && percentage <= warningThreshold) {
-    colorClass = "text-[#D97736]";
-    strokeColor = "#D97736";
+    colorClass = "text-[#C58747]";
+    strokeColor = "#C58747";
     showCharacter = true;
+    bgClass = "app-tone-warning";
     speechBubbleSizeClass = "px-7 py-4 md:px-10 md:py-6";
     speechTextSizeClass = "text-2xl md:text-4xl";
     characterWrapSizeClass = "w-48 h-48 md:w-64 md:h-64";
     characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
     characterMessage = getCharacterMessage('warning');
-    if (displayIsRunning) {
-      bgClass = "bg-[#FFF9F0]";
-    }
   }
 
   if (showCharacter && displayIsRunning) {
@@ -708,16 +720,16 @@ export default function App() {
 
   const trimmedNotice = scheduleNotice.trim();
   const hasScheduleNotice = trimmedNotice.length > 0;
-  const getStudentNoticeTextClass = (text: string) => {
+  const getNoticeTextClass = (text: string) => {
     const length = text.replace(/\s+/g, '').length;
-    if (length <= 6) return 'text-[clamp(2.35rem,5.4vw,2.9rem)] leading-[1.02] tracking-[-0.04em]';
-    if (length <= 10) return 'text-[clamp(2.05rem,4.7vw,2.5rem)] leading-[1.08] tracking-[-0.03em]';
-    if (length <= 16) return 'text-[clamp(1.76rem,4vw,2.08rem)] leading-[1.14] tracking-[-0.025em]';
-    if (length <= 24) return 'text-[clamp(1.48rem,3.4vw,1.74rem)] leading-[1.24] tracking-[-0.02em]';
-    return 'text-[clamp(1.2rem,2.7vw,1.4rem)] leading-[1.36] tracking-[-0.015em]';
+    if (length <= 6) return 'text-[clamp(2rem,4.8vw,2.4rem)] leading-[1.18] tracking-[-0.01em]';
+    if (length <= 10) return 'text-[clamp(1.75rem,4.1vw,2.05rem)] leading-[1.24] tracking-[-0.01em]';
+    if (length <= 16) return 'text-[clamp(1.48rem,3.5vw,1.78rem)] leading-[1.34] tracking-[0em]';
+    if (length <= 24) return 'text-[clamp(1.28rem,3vw,1.52rem)] leading-[1.46] tracking-[0em]';
+    return 'text-[clamp(1.08rem,2.4vw,1.24rem)] leading-[1.58] tracking-[0em]';
   };
-  const studentNoticeTextClass = getStudentNoticeTextClass(trimmedNotice);
-  const draftNoticeTextClass = getStudentNoticeTextClass(noticeDraft);
+  const studentNoticeTextClass = getNoticeTextClass(trimmedNotice);
+  const draftNoticeTextClass = getNoticeTextClass(noticeDraft);
   const shouldCenterNoticeText = trimmedNotice.replace(/\s+/g, '').length <= 12;
   const shouldCenterNoticeDraft = noticeDraft.trim().length > 0 && noticeDraft.replace(/\s+/g, '').length <= 12;
   const shouldShowNoticeCard = isEditingNotice || (isNoticeEnabled && hasScheduleNotice);
@@ -725,12 +737,12 @@ export default function App() {
   const noticeCardStyle = shouldShowNoticeCard
     ? { animation: `${isEditingNotice ? 'noticeFadeIn 220ms ease-out' : 'studentNoticeEnter 420ms ease-out, studentNoticeFloat 2.6s ease-in-out infinite'}` }
     : undefined;
-  const noticeHandleButtonClass = "group relative inline-flex h-8 min-w-[3.2rem] items-center justify-center rounded-[1rem] border-2 border-[#E4C48A] bg-[linear-gradient(180deg,#FFFDF8_0%,#F7E6BF_100%)] px-2.5 text-[#A36A28] shadow-[0_5px_12px_rgba(181,134,58,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_8px_16px_rgba(181,134,58,0.16)] active:translate-y-0";
+  const noticeHandleButtonClass = "notice-toggle group relative inline-flex h-8 min-w-[3.2rem] items-center justify-center rounded-[1rem] border-2 border-[#E4C48A] bg-[linear-gradient(180deg,#FFFDF8_0%,#F7E6BF_100%)] px-2.5 text-[#A36A28] shadow-[0_5px_12px_rgba(181,134,58,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_8px_16px_rgba(181,134,58,0.16)] active:translate-y-0";
   const noticeHandleIconClass = "inline-flex h-5 min-w-[1.85rem] items-center justify-center rounded-full border border-white/85 bg-white/58 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]";
 
   return (
-    <div className="h-[100dvh] w-full bg-[#FDFBF7] p-3 sm:p-4 md:p-8 font-sans overflow-hidden flex items-center justify-center">
-      <div className={`w-full h-full max-w-screen-2xl rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col transition-colors duration-1000 ${bgClass}`}>
+    <div className="mascot-app h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
+      <div className={`mascot-shell relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl transition-colors duration-1000 md:rounded-[3rem] ${bgClass}`}>
         <style>{`
           @keyframes noticeFadeIn {
             0% {
@@ -761,11 +773,15 @@ export default function App() {
             }
           }
         `}</style>
+        <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
+        <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
+        <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
+        <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
         <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_29rem] xl:grid-cols-[minmax(0,1fr)_32rem] 2xl:grid-cols-[minmax(0,1fr)_34rem] min-h-0">
           {/* Left: Timer Display */}
-          <div className="flex min-h-0 flex-col items-center justify-center p-5 md:p-8 lg:px-8 lg:py-10 xl:px-10 xl:py-12 relative h-full">
-            <div className={`relative flex-1 w-full min-h-0 flex items-center justify-center ${pulseClass}`}>
-              <svg viewBox="0 0 200 200" className="h-auto w-full max-h-full max-w-[34rem] xl:max-w-[40rem] aspect-square transform -rotate-90 rounded-full shadow-inner bg-[#FDFBF7]">
+          <div className="timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-5 md:p-8 lg:px-8 lg:py-10 xl:px-10 xl:py-12">
+            <div className={`timer-ring-stage relative flex min-h-0 w-full flex-1 items-center justify-center ${pulseClass}`}>
+              <svg viewBox="0 0 200 200" className="timer-ring-svg aspect-square h-auto w-full max-h-full max-w-[34rem] -rotate-90 transform rounded-full shadow-inner xl:max-w-[40rem]">
                 <circle cx="100" cy="100" r="50" fill="none" stroke="#E6D5C9" strokeWidth="100" />
                 <circle
                   cx="100"
@@ -780,7 +796,7 @@ export default function App() {
                 />
               </svg>
             </div>
-            <div className={`mt-4 md:mt-6 lg:mt-7 text-[clamp(3.7rem,8.5vw,9.8rem)] xl:text-[clamp(4.1rem,7.8vw,10.2rem)] leading-none font-mono font-bold tracking-tight transition-colors duration-1000 shrink-0 ${colorClass}`}>
+            <div className={`clock-display mt-4 shrink-0 text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 md:mt-6 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] lg:mt-7 ${colorClass}`}>
               {formatTime(displayTimeLeft)}
             </div>
 
@@ -788,15 +804,15 @@ export default function App() {
             <div className={`absolute inset-0 z-20 flex items-center justify-center p-4 transition-all duration-500 ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
               <div className="flex flex-col items-center pointer-events-none">
                 {/* Speech Bubble */}
-                <div className={`relative bg-white rounded-3xl shadow-xl border-4 border-[#E6D5C9] mb-4 md:mb-6 text-center max-w-[min(92vw,56rem)] ${speechBubbleSizeClass}`} style={characterMotionStyle}>
+                <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`} style={characterMotionStyle}>
                   <p className={`font-bold whitespace-normal break-keep text-center ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
                   {/* Bubble Tail (pointing down) */}
-                  <div className="absolute -bottom-[14px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[12px] border-x-transparent border-t-[14px] border-t-white z-10"></div>
-                  <div className="absolute -bottom-[19px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
+                  <div className="speech-tail-fill absolute -bottom-[14px] left-1/2 z-10 h-0 w-0 -translate-x-1/2 border-x-[12px] border-x-transparent border-t-[14px] border-t-white"></div>
+                  <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
                 </div>
 
                 {/* Character Image or Placeholder */}
-                <div className={`relative shrink-0 ${characterWrapSizeClass}`} style={characterMotionStyle}>
+                <div className={`mascot-figure-stage relative shrink-0 ${characterWrapSizeClass}`} style={characterMotionStyle}>
                   {characterImageError && (
                     <div className="absolute inset-0 bg-[#8A6347]/10 rounded-3xl border-2 border-dashed border-[#8A6347]/40 flex flex-col items-center justify-center text-[#8A6347]/60">
                       <span className="text-5xl md:text-7xl mb-2">?</span>
@@ -821,7 +837,7 @@ export default function App() {
           </div>
 
           {/* Right: Controls & Presets */}
-          <div className={`w-full lg:w-auto bg-white/60 border-t lg:border-t-0 lg:border-l border-[#E6D5C9]/50 p-5 sm:p-6 lg:px-8 lg:py-9 xl:px-10 xl:py-10 flex flex-col gap-6 relative min-h-0 overflow-hidden`}>
+          <div className="control-pane relative flex min-h-0 w-full flex-col gap-6 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-8 lg:py-9 xl:px-10 xl:py-10">
             
             {/* Character Notification Overlay */}
             <div className="hidden">
@@ -857,11 +873,11 @@ export default function App() {
             {/* Controls Content (Fades out when character shows) */}
             <div className={`flex flex-col flex-1 min-h-0 ${mode === 'schedule' ? 'gap-4' : 'gap-6'}`}>
               {/* Mode Switcher */}
-            <div className="flex bg-[#E6D5C9]/30 p-1.5 rounded-2xl shrink-0">
+            <div className="mode-switch flex shrink-0 rounded-2xl p-1.5">
               <button
                 onClick={() => handleModeSwitch('schedule')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm lg:text-base transition-all ${
-                  mode === 'schedule' ? 'bg-white text-[#8A6347] shadow-sm' : 'text-[#8A6347]/60 hover:text-[#8A6347]'
+                className={`mode-toggle flex flex-1 items-center justify-center gap-2 rounded-[1.1rem] py-3 text-sm font-bold transition-all lg:text-base ${
+                  mode === 'schedule' ? 'mode-toggle-active' : 'mode-toggle-inactive'
                 }`}
               >
                 <CalendarClock size={20} />
@@ -869,8 +885,8 @@ export default function App() {
               </button>
               <button
                 onClick={() => handleModeSwitch('manual')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm lg:text-base transition-all ${
-                  mode === 'manual' ? 'bg-white text-[#8A6347] shadow-sm' : 'text-[#8A6347]/60 hover:text-[#8A6347]'
+                className={`mode-toggle flex flex-1 items-center justify-center gap-2 rounded-[1.1rem] py-3 text-sm font-bold transition-all lg:text-base ${
+                  mode === 'manual' ? 'mode-toggle-active' : 'mode-toggle-inactive'
                 }`}
               >
                 <Timer size={20} />
@@ -884,32 +900,32 @@ export default function App() {
                   <div className="flex justify-center items-center gap-6">
                     <button
                       onClick={toggleTimer}
-                      className={`w-24 h-24 lg:w-32 lg:h-32 rounded-full flex items-center justify-center text-white shadow-xl transition-transform hover:scale-105 active:scale-95 shrink-0 ${
-                        manualIsRunning ? 'bg-[#D97736] hover:bg-[#C0662A]' : 'bg-[#5C8D5D] hover:bg-[#4A734B]'
+                      className={`round-action flex h-24 w-24 shrink-0 items-center justify-center rounded-full text-white shadow-xl transition-transform hover:scale-105 active:scale-95 lg:h-32 lg:w-32 ${
+                        manualIsRunning ? 'round-action-pause' : 'round-action-play'
                       }`}
                     >
                       {manualIsRunning ? <Pause size={48} className="lg:w-14 lg:h-14" /> : <Play size={48} className="ml-2 lg:w-14 lg:h-14 lg:ml-3" />}
                     </button>
                     <button
                       onClick={resetTimer}
-                      className="w-16 h-16 lg:w-20 lg:h-20 rounded-full flex items-center justify-center bg-[#E6D5C9] text-[#8A6347] shadow-lg transition-transform hover:scale-105 active:scale-95 hover:bg-[#D4BCA9] shrink-0"
+                      className="round-action round-action-reset flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-[#8A6347] shadow-lg transition-transform hover:scale-105 active:scale-95 lg:h-20 lg:w-20"
                     >
                       <RotateCcw size={32} className="lg:w-10 lg:h-10" />
                     </button>
                   </div>
 
-                  <div className="w-full h-px bg-[#E6D5C9] shrink-0"></div>
+                  <div className="panel-divider h-px w-full shrink-0"></div>
 
                   <div className="flex flex-col gap-4 shrink-0">
-                    <div className="bg-[#FDFBF7] p-5 rounded-3xl border-2 border-[#E6D5C9] shadow-sm">
-                      <h3 className="font-bold text-[#8A6347] mb-4 text-center">직접 시간 설정</h3>
+                    <div className="paper-card rounded-3xl border-2 border-[#E6D5C9] p-5 shadow-sm">
+                      <h3 className="section-title mb-4 text-center font-bold text-[#8A6347]">직접 시간 설정</h3>
                       <div className="flex items-center justify-center gap-3 mb-4">
                         <div className="flex flex-col items-center">
                           <input 
                             type="number" 
                             value={customMinutes}
                             onChange={(e) => setCustomMinutes(e.target.value)}
-                            className="w-20 text-center bg-white text-[#8A6347] font-mono font-bold text-2xl rounded-xl px-2 py-3 outline-none border border-[#E6D5C9] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 transition-all"
+                            className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
                             min="0"
                             max="999"
                           />
@@ -921,7 +937,7 @@ export default function App() {
                             type="number" 
                             value={customSeconds}
                             onChange={(e) => setCustomSeconds(e.target.value)}
-                            className="w-20 text-center bg-white text-[#8A6347] font-mono font-bold text-2xl rounded-xl px-2 py-3 outline-none border border-[#E6D5C9] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 transition-all"
+                            className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
                             min="0"
                             max="59"
                           />
@@ -930,7 +946,7 @@ export default function App() {
                       </div>
                       <button 
                         onClick={applyCustomTime}
-                        className="w-full py-3 rounded-xl bg-[#5C8D5D] text-white font-bold text-lg hover:bg-[#4A734B] transition-colors shadow-md active:scale-95"
+                        className="primary-cta w-full rounded-xl py-3 text-lg font-bold text-white shadow-md transition-colors active:scale-95"
                       >
                         타이머 설정
                       </button>
@@ -938,7 +954,7 @@ export default function App() {
                   </div>
                 </>
               ) : (
-                <div className="flex flex-col items-stretch justify-start h-full gap-3 text-left relative w-full pt-2 min-h-0">
+                <div className="relative flex h-full min-h-0 w-full flex-col items-stretch justify-start gap-3 pt-2 text-left">
                   <div className="hidden w-24 h-24 rounded-full bg-[#F0F5F0] items-center justify-center text-[#5C8D5D] mb-2 shadow-inner">
                     <CalendarClock size={48} />
                   </div>
@@ -949,42 +965,24 @@ export default function App() {
                         ? '현재 예정된 일정이 없습니다.'
                         : `현재: ${currentSlotName}`}
                     </p>
-                    <div className={`inline-flex items-center justify-center gap-4 px-7 py-5 rounded-full border-2 text-[clamp(2.5rem,4.8vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.01em] whitespace-nowrap shadow-sm ${scheduleTypeBadgeClass}`}>
+                    <div className={`status-medallion inline-flex items-center justify-center gap-4 rounded-full border-2 px-7 py-5 text-[clamp(2.5rem,4.8vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.01em] whitespace-nowrap shadow-sm ${scheduleTypeBadgeClass}`}>
                       {timerType === 'break' ? <Coffee size={48} strokeWidth={2.25} /> : timerType === 'lunch' ? <Utensils size={48} strokeWidth={2.25} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={48} strokeWidth={2.25} /> : <Timer size={48} strokeWidth={2.25} />}
                       <span className="whitespace-nowrap leading-none">{scheduleTypeLabel}</span>
                     </div>
 
                     {shouldShowNoticeCard ? (
                       <div
-                        className="relative w-full overflow-visible rounded-[1.85rem] border-2 border-[#D2A055] bg-[linear-gradient(180deg,#FFF8E6_0%,#F4E2AF_100%)] px-1.5 pb-1.5 pt-1.5 text-left shadow-[0_16px_30px_rgba(165,122,48,0.16)]"
+                        className={`notice-card relative z-30 w-full overflow-visible rounded-[1.85rem] border-2 border-[#D2A055] bg-[linear-gradient(180deg,#FFF8E6_0%,#F4E2AF_100%)] px-1.5 pb-1.5 pt-1.5 text-left shadow-[0_16px_30px_rgba(165,122,48,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-1.1rem] sm:mb-[-1.35rem]'}`}
                         style={noticeCardStyle}
                       >
                         {isEditingNotice ? (
                           <>
-                            <div className="mb-1.5 flex items-center justify-end gap-2">
-                              <span className="text-sm font-bold tabular-nums text-[#8A6330]/75">
-                                {noticeDraft.length}/160
-                              </span>
-                              <button
-                                onClick={saveNotice}
-                                className="inline-flex h-10 min-w-10 items-center justify-center rounded-full bg-[#C58A38] px-3 text-white shadow-[0_10px_24px_rgba(165,122,48,0.22)] transition-colors hover:bg-[#AA7228]"
-                                title="공지 저장"
-                              >
-                                <Check size={18} />
-                              </button>
-                              <button
-                                onClick={cancelNoticeEdit}
-                                className="inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-[#D9C093] bg-[#FFFDF8] text-[#8A6330] transition-colors hover:bg-[#FBF5E6]"
-                                title="취소"
-                              >
-                                <X size={18} />
-                              </button>
-                            </div>
-                            <div className="min-h-[5.5rem] rounded-[1.45rem] border border-[#E7D8BA] bg-[#FFFDF9] px-2 py-2 transition-colors focus-within:border-[#C58A38] focus-within:ring-2 focus-within:ring-[#C58A38]/20 sm:min-h-[6rem]">
+                            <div className="notice-editor min-h-[5.5rem] rounded-[1.45rem] border border-[#E7D8BA] bg-[#FFFDF9] px-1 py-1.5 transition-colors focus-within:border-[#C58A38] focus-within:ring-2 focus-within:ring-[#C58A38]/20 sm:min-h-[6rem]">
                               <textarea
                                 ref={noticeInputRef}
                                 value={noticeDraft}
                                 onChange={(e) => setNoticeDraft(e.target.value)}
+                                onBlur={handleNoticeBlur}
                                 onKeyDown={(e) => {
                                   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                                     e.preventDefault();
@@ -997,7 +995,7 @@ export default function App() {
                                 }}
                                 rows={1}
                                 maxLength={160}
-                                className={`block min-h-[3.5rem] w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#5F3A10] outline-none placeholder:text-[#B48D55]/65 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
+                                className={`notice-draft-body block min-h-[3.5rem] w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#5B4327] outline-none placeholder:text-[#B48D55]/65 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
                               />
                             </div>
                           </>
@@ -1022,10 +1020,10 @@ export default function App() {
                             </div>
                             <button
                               onClick={startNoticeEdit}
-                              className="flex min-h-[5.5rem] w-full items-center rounded-[1.45rem] border border-[#E7D8BA] bg-[#FFFDF9] px-1 py-1.5 text-left transition-colors hover:bg-white sm:min-h-[6rem]"
+                              className="notice-content flex min-h-[5.5rem] w-full items-center rounded-[1.45rem] border border-[#E7D8BA] bg-[#FFFDF9] px-1 py-1.5 text-left transition-colors hover:bg-white sm:min-h-[6rem]"
                               title="공지 수정"
                             >
-                              <p className={`w-full break-keep whitespace-pre-line font-black text-[#5F3A10] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
+                              <p className={`notice-text-body w-full break-keep whitespace-pre-line font-bold text-[#5B4327] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
                                 {trimmedNotice}
                               </p>
                             </button>
@@ -1051,21 +1049,21 @@ export default function App() {
                     ) : null}
                   </div>
                   
-                  <div className="p-5 bg-[#FDFBF7] rounded-3xl border-2 border-[#E6D5C9] w-full text-left shadow-sm flex flex-col flex-[0.9] min-h-0">
+                  <div className={`schedule-board flex min-h-0 w-full flex-[0.9] flex-col rounded-3xl border-2 border-[#E6D5C9] bg-[#FDFBF7] p-5 text-left shadow-sm ${shouldShowNoticeCard && !isEditingNotice ? 'schedule-board-muted pt-9 sm:pt-10' : ''}`}>
                     <div className="mb-3 flex items-center justify-between gap-2 shrink-0">
-                      <h3 className="font-bold text-[#8A6347] text-lg lg:text-xl flex items-center gap-2">
+                      <h3 className="section-title flex items-center gap-2 text-lg font-bold text-[#8A6347] lg:text-xl">
                         <CalendarClock size={18} />
                         오늘({DAYS[today]}요일) 시간표
                       </h3>
                       <button 
                         onClick={() => setIsSettingsOpen(true)}
-                        className="p-2 text-[#8A6347]/60 hover:text-[#8A6347] transition-colors rounded-lg hover:bg-[#E6D5C9]/30"
+                        className="icon-button rounded-lg p-2 text-[#8A6347]/60 transition-colors hover:bg-[#E6D5C9]/30 hover:text-[#8A6347]"
                         title="시간표 설정"
                       >
                         <Settings size={22} />
                       </button>
                     </div>
-                    <ul ref={scheduleListRef} className="space-y-2 text-[#8A6347]/90 pr-2 text-base lg:text-lg flex-1 overflow-y-auto">
+                    <ul ref={scheduleListRef} className="schedule-scroll custom-scrollbar flex-1 space-y-2 overflow-y-auto pr-2 text-base text-[#8A6347]/90 lg:text-lg">
                       {currentDaySchedule.length === 0 ? (
                         <li className="text-center py-4 opacity-60">일정이 없습니다.</li>
                       ) : (
@@ -1080,7 +1078,7 @@ export default function App() {
                               ref={(el) => {
                                 scheduleSlotRefs.current[s.id] = el;
                               }}
-                              className={`flex justify-between items-center p-3 rounded-xl transition-colors ${isThisSlot ? 'bg-[#5C8D5D] text-white font-bold shadow-md' : 'hover:bg-[#E6D5C9]/30'}`}
+                              className={`schedule-row flex items-center justify-between rounded-xl p-3 transition-colors ${isThisSlot ? 'schedule-row-active font-bold text-white shadow-md' : 'schedule-row-idle'}`}
                             >
                               <span className="font-semibold">{s.name}</span>
                               <span className="font-mono text-sm lg:text-base">{formatMinutesToTime(s.start)} - {formatMinutesToTime(s.end)}</span>
@@ -1100,17 +1098,17 @@ export default function App() {
 
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 md:p-8">
-          <div className="bg-[#FDFBF7] rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border-4 border-[#E6D5C9]">
-            <div className="p-5 md:p-6 border-b border-[#E6D5C9] flex justify-between items-center bg-white shrink-0">
-              <h2 className="text-xl md:text-2xl font-bold text-[#8A6347] flex items-center gap-2">
+        <div className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm md:p-8">
+          <div className="settings-dialog flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] border-4 border-[#E6D5C9] bg-[#FDFBF7] shadow-2xl">
+            <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
+              <h2 className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">
                 <Settings size={24} className="md:w-7 md:h-7" />
                 시간표 설정
               </h2>
               <div className="flex items-center gap-2 md:gap-4">
                 <button 
                   onClick={exportSchedule}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-[#5C8D5D] bg-[#F0F5F0] hover:bg-[#E2EFE2] transition-colors"
+                  className="toolbar-button toolbar-button-green flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold text-[#5C8D5D] transition-colors"
                   title="시간표 내보내기"
                 >
                   <Download size={16} />
@@ -1119,7 +1117,7 @@ export default function App() {
                 
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-[#8A6347] bg-[#FDFBF7] border border-[#E6D5C9] hover:bg-[#F0F5F0] transition-colors"
+                  className="toolbar-button toolbar-button-neutral flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold text-[#8A6347] transition-colors"
                   title="시간표 불러오기"
                 >
                   <Upload size={16} />
@@ -1135,19 +1133,19 @@ export default function App() {
 
                 <div className="w-px h-6 bg-[#E6D5C9] mx-1"></div>
                 
-                <button onClick={() => setIsSettingsOpen(false)} className="text-[#8A6347]/60 hover:text-[#8A6347] p-2 rounded-full hover:bg-[#FDFBF7] transition-colors">
+                <button onClick={() => setIsSettingsOpen(false)} className="icon-button rounded-full p-2 text-[#8A6347]/60 transition-colors hover:bg-[#FDFBF7] hover:text-[#8A6347]">
                   <X size={24} className="md:w-7 md:h-7" />
                 </button>
               </div>
             </div>
             
-            <div className="flex border-b border-[#E6D5C9] bg-white overflow-x-auto shrink-0 custom-scrollbar">
+            <div className="tab-strip custom-scrollbar flex shrink-0 overflow-x-auto border-b border-[#E6D5C9] bg-white">
               {[1, 2, 3, 4, 5].map(day => (
                 <button
                   key={day}
                   onClick={() => setEditingDay(day)}
-                  className={`flex-1 min-w-[80px] py-3 md:py-4 font-bold text-base md:text-lg transition-colors ${
-                    editingDay === day ? 'bg-[#5C8D5D] text-white' : 'text-[#8A6347] hover:bg-[#F0F5F0]'
+                  className={`day-tab min-w-[80px] flex-1 py-3 text-base font-bold transition-colors md:py-4 md:text-lg ${
+                    editingDay === day ? 'day-tab-active text-white' : 'day-tab-inactive text-[#8A6347]'
                   }`}
                 >
                   {DAYS[day]}요일
@@ -1155,26 +1153,26 @@ export default function App() {
               ))}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#FDFBF7] custom-scrollbar">
+            <div className="settings-body custom-scrollbar flex-1 overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-[#8A6347] text-lg">{DAYS[editingDay]}요일 일정</h3>
+                <h3 className="section-title text-lg font-bold text-[#8A6347]">{DAYS[editingDay]}요일 일정</h3>
                 <button 
                   onClick={() => setShowCopyConfirm(true)}
-                  className="text-sm font-bold text-[#5C8D5D] hover:text-[#3A5A3B] bg-[#F0F5F0] px-3 py-1.5 rounded-lg transition-colors"
+                  className="toolbar-button toolbar-button-green rounded-lg px-3 py-1.5 text-sm font-bold text-[#5C8D5D] transition-colors"
                 >
                   다른 요일로 복사
                 </button>
               </div>
 
               {showCopyConfirm && (
-                <div className="mb-4 p-4 bg-[#FFF5F3] border border-[#C65D47]/30 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="confirm-box mb-4 flex flex-col items-center justify-between gap-4 rounded-xl border border-[#C65D47]/30 bg-[#FFF5F3] p-4 sm:flex-row">
                   <span className="text-[#C65D47] font-bold text-sm">
                     현재 요일의 일정을 다른 모든 평일(월~금)에 덮어쓰시겠습니까?
                   </span>
                   <div className="flex gap-2 shrink-0">
                     <button 
                       onClick={() => setShowCopyConfirm(false)}
-                      className="px-3 py-1.5 rounded-lg text-sm font-bold text-[#8A6347] bg-white border border-[#E6D5C9] hover:bg-[#FDFBF7]"
+                      className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[#8A6347]"
                     >
                       취소
                     </button>
@@ -1194,7 +1192,7 @@ export default function App() {
                         });
                         setShowCopyConfirm(false);
                       }}
-                      className="px-3 py-1.5 rounded-lg text-sm font-bold text-white bg-[#C65D47] hover:bg-[#A84A36]"
+                      className="toolbar-button toolbar-button-danger rounded-lg px-3 py-1.5 text-sm font-bold text-white"
                     >
                       복사하기
                     </button>
@@ -1204,7 +1202,7 @@ export default function App() {
 
               <div className="space-y-3">
                 {(weeklySchedule[editingDay] || []).length === 0 ? (
-                  <div className="text-center py-10 text-[#8A6347]/60 font-medium bg-white rounded-2xl border border-[#E6D5C9] border-dashed">
+                  <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
                     일정이 없습니다. 아래 버튼을 눌러 추가해보세요.
                   </div>
                 ) : (
@@ -1212,13 +1210,13 @@ export default function App() {
                     const isMorningRow = index === 0;
                     const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
                     return (
-                    <div key={slot.id} className="flex flex-wrap lg:flex-nowrap items-center gap-2 md:gap-3 bg-white p-3 md:p-4 rounded-2xl border border-[#E6D5C9] shadow-sm group transition-all hover:border-[#B58363]">
+                    <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-all hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
                       <input
                         type="text"
                         value={slot.name}
                         readOnly={isMorningRow}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
-                        className="flex-1 min-w-[120px] bg-transparent border-none outline-none font-bold text-[#8A6347] text-base md:text-lg focus:ring-2 focus:ring-[#5C8D5D]/20 rounded-lg px-2 py-1 -ml-2"
+                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[#8A6347] outline-none focus:ring-2 focus:ring-[#5C8D5D]/20 md:text-lg"
                         placeholder="일정 이름"
                       />
                       <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end mt-2 lg:mt-0">
@@ -1226,7 +1224,7 @@ export default function App() {
                           value={isMorningRow ? 'morning' : slot.type}
                           disabled={isMorningRow}
                           onChange={(e) => updateSlot(editingDay, slot.id, 'type', e.target.value)}
-                          className="bg-[#F0F5F0] text-[#3A5A3B] font-bold rounded-xl px-2 md:px-3 py-2 outline-none border-none text-sm md:text-base cursor-pointer hover:bg-[#E2EFE2] transition-colors"
+                          className="slot-select cursor-pointer rounded-xl border-none bg-[#F0F5F0] px-2 py-2 text-sm font-bold text-[#3A5A3B] outline-none transition-colors hover:bg-[#E2EFE2] md:px-3 md:text-base"
                         >
                           {isMorningRow && <option value="morning">{MORNING_ACTIVITY_LABEL}</option>}
                           <option value="class">수업</option>
@@ -1239,7 +1237,7 @@ export default function App() {
                             type="time"
                             value={formatMinutesToTime(slot.start)}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'start', parseTimeToMinutes(e.target.value))}
-                            className="bg-[#FDFBF7] text-[#8A6347] font-mono font-bold rounded-xl px-2 md:px-3 py-2 outline-none border border-[#E6D5C9] text-sm md:text-base cursor-pointer hover:border-[#B58363] transition-colors"
+                            className="slot-time-input cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-2 py-2 font-mono text-sm font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363] md:px-3 md:text-base"
                           />
                           <span className="text-[#8A6347] font-bold">-</span>
                           <input
@@ -1247,13 +1245,13 @@ export default function App() {
                             value={formatMinutesToTime(slot.end)}
                             disabled={isFixedDurationRow}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'end', parseTimeToMinutes(e.target.value))}
-                            className="bg-[#FDFBF7] text-[#8A6347] font-mono font-bold rounded-xl px-2 md:px-3 py-2 outline-none border border-[#E6D5C9] text-sm md:text-base cursor-pointer hover:border-[#B58363] transition-colors"
+                            className="slot-time-input cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-2 py-2 font-mono text-sm font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363] md:px-3 md:text-base"
                           />
                         </div>
                         <button
                           disabled={isMorningRow}
                           onClick={() => removeSlot(editingDay, slot.id)}
-                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors shrink-0 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+                          className="slot-delete shrink-0 rounded-xl p-2 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                           title="일정 삭제"
                         >
                           <Trash2 size={20} />
@@ -1266,7 +1264,7 @@ export default function App() {
               
               <button
                 onClick={() => addSlot(editingDay)}
-                className="mt-4 w-full py-4 rounded-2xl border-2 border-dashed border-[#5C8D5D] text-[#5C8D5D] font-bold text-lg flex items-center justify-center gap-2 hover:bg-[#5C8D5D] hover:text-white transition-all"
+                className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-all hover:bg-[#5C8D5D] hover:text-white"
               >
                 <Plus size={24} />
                 새로운 일정 추가
