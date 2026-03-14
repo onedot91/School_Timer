@@ -801,20 +801,17 @@ export default function App() {
             }
           }
           @keyframes studentNoticeWobble {
-            0%, 12%, 100% {
+            0%, 68%, 100% {
               transform: translate3d(0, 0, 0) rotate(-0.75deg);
             }
-            20%, 32% {
-              transform: translate3d(1.1px, -0.15px, 0) rotate(0.95deg);
+            74%, 78% {
+              transform: translate3d(1px, -0.08px, 0) rotate(0.82deg);
             }
-            40%, 52% {
-              transform: translate3d(-1.35px, 0.12px, 0) rotate(-1.68deg);
+            82%, 86% {
+              transform: translate3d(-1.3px, 0.1px, 0) rotate(-1.52deg);
             }
-            60%, 72% {
-              transform: translate3d(0.85px, -0.08px, 0) rotate(0.58deg);
-            }
-            80%, 92% {
-              transform: translate3d(-1px, 0.08px, 0) rotate(-1.28deg);
+            90%, 94% {
+              transform: translate3d(0.7px, -0.04px, 0) rotate(0.42deg);
             }
           }
         `}</style>
