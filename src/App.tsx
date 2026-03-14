@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload, ChevronDown } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload, ChevronDown, Volume2, VolumeX } from 'lucide-react';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type Mode = 'schedule' | 'manual';
@@ -20,6 +20,7 @@ const MORNING_ACTIVITY_LABEL = '\uC544\uCE68\uD65C\uB3D9';
 const MORNING_DEFAULT_DURATION = 15;
 const CLASS_DURATION = 40;
 const BREAK_DURATION = 10;
+const BACKGROUND_MUSIC_VOLUME = 0.24;
 const WEEKDAYS = [1, 2, 3, 4, 5];
 
 const createSlotId = () => Math.random().toString(36).slice(2, 11);
@@ -189,6 +190,9 @@ export default function App() {
   });
   const [noticeDraft, setNoticeDraft] = useState(() => localStorage.getItem('scheduleNotice') || '');
   const [isEditingNotice, setIsEditingNotice] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isMusicLoading, setIsMusicLoading] = useState(false);
+  const [isMusicAvailable, setIsMusicAvailable] = useState(true);
   
   const modeRef = useRef(mode);
   useEffect(() => {
@@ -237,6 +241,7 @@ export default function App() {
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
+  const backgroundMusicRef = useRef<HTMLAudioElement>(null);
   const skipNoticeAutoSaveRef = useRef(false);
   const scheduleListRef = useRef<HTMLUListElement>(null);
   const scheduleSlotRefs = useRef<Record<string, HTMLLIElement | null>>({});
@@ -544,6 +549,31 @@ export default function App() {
     saveNotice();
   };
 
+  const toggleBackgroundMusic = async () => {
+    const audio = backgroundMusicRef.current;
+    if (!audio || isMusicLoading) return;
+
+    if (!audio.paused) {
+      audio.pause();
+      return;
+    }
+
+    try {
+      setIsMusicLoading(true);
+      setIsMusicAvailable(true);
+      if (audio.error || audio.readyState === 0) {
+        audio.load();
+      }
+      audio.volume = BACKGROUND_MUSIC_VOLUME;
+      await audio.play();
+    } catch (error) {
+      console.error('Background music playback failed', error);
+      setIsMusicAvailable(false);
+    } finally {
+      setIsMusicLoading(false);
+    }
+  };
+
   // Visual calculations
   const displayTotalTime = mode === 'manual' ? manualTotalTime : scheduleTotalTime;
   const displayTimeLeft = mode === 'manual' ? manualTimeLeft : scheduleTimeLeft;
@@ -739,9 +769,25 @@ export default function App() {
     : undefined;
   const noticeHandleButtonClass = "notice-toggle group relative inline-flex h-8 min-w-[3.2rem] items-center justify-center rounded-[1rem] border-2 border-[#E4C48A] bg-[linear-gradient(180deg,#FFFDF8_0%,#F7E6BF_100%)] px-2.5 text-[#A36A28] shadow-[0_5px_12px_rgba(181,134,58,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_8px_16px_rgba(181,134,58,0.16)] active:translate-y-0";
   const noticeHandleIconClass = "inline-flex h-5 min-w-[1.85rem] items-center justify-center rounded-full border border-white/85 bg-white/58 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]";
+  const musicButtonLabel = isMusicPlaying ? '배경 음악 끄기' : '배경 음악 켜기';
 
   return (
     <div className="mascot-app h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
+      <audio
+        ref={backgroundMusicRef}
+        src="/background_music.mp3"
+        loop
+        preload="auto"
+        className="hidden"
+        onCanPlay={() => setIsMusicAvailable(true)}
+        onPlay={() => setIsMusicPlaying(true)}
+        onPause={() => setIsMusicPlaying(false)}
+        onError={() => {
+          setIsMusicAvailable(false);
+          setIsMusicPlaying(false);
+          setIsMusicLoading(false);
+        }}
+      />
       <div className={`mascot-shell relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl transition-colors duration-1000 md:rounded-[3rem] ${bgClass}`}>
         <style>{`
           @keyframes noticeFadeIn {
@@ -873,24 +919,37 @@ export default function App() {
             {/* Controls Content (Fades out when character shows) */}
             <div className={`flex flex-col flex-1 min-h-0 ${mode === 'schedule' ? 'gap-4' : 'gap-6'}`}>
               {/* Mode Switcher */}
-            <div className="mode-switch flex shrink-0 rounded-2xl p-1.5">
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="mode-switch flex flex-1 rounded-2xl p-1.5">
+                <button
+                  onClick={() => handleModeSwitch('schedule')}
+                  className={`mode-toggle flex flex-1 items-center justify-center gap-2 rounded-[1.1rem] py-3 text-sm font-bold transition-all lg:text-base ${
+                    mode === 'schedule' ? 'mode-toggle-active' : 'mode-toggle-inactive'
+                  }`}
+                >
+                  <CalendarClock size={20} />
+                  시간표 모드
+                </button>
+                <button
+                  onClick={() => handleModeSwitch('manual')}
+                  className={`mode-toggle flex flex-1 items-center justify-center gap-2 rounded-[1.1rem] py-3 text-sm font-bold transition-all lg:text-base ${
+                    mode === 'manual' ? 'mode-toggle-active' : 'mode-toggle-inactive'
+                  }`}
+                >
+                  <Timer size={20} />
+                  수동 모드
+                </button>
+              </div>
               <button
-                onClick={() => handleModeSwitch('schedule')}
-                className={`mode-toggle flex flex-1 items-center justify-center gap-2 rounded-[1.1rem] py-3 text-sm font-bold transition-all lg:text-base ${
-                  mode === 'schedule' ? 'mode-toggle-active' : 'mode-toggle-inactive'
-                }`}
+                onClick={toggleBackgroundMusic}
+                disabled={isMusicLoading}
+                className={`sound-toggle inline-flex h-[3.55rem] w-[3.55rem] shrink-0 items-center justify-center rounded-2xl transition-all ${
+                  isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
+                } ${isMusicLoading ? 'cursor-not-allowed opacity-45' : ''}`}
+                title={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
+                aria-label={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
               >
-                <CalendarClock size={20} />
-                시간표 모드
-              </button>
-              <button
-                onClick={() => handleModeSwitch('manual')}
-                className={`mode-toggle flex flex-1 items-center justify-center gap-2 rounded-[1.1rem] py-3 text-sm font-bold transition-all lg:text-base ${
-                  mode === 'manual' ? 'mode-toggle-active' : 'mode-toggle-inactive'
-                }`}
-              >
-                <Timer size={20} />
-                수동 모드
+                {isMusicPlaying ? <Volume2 size={22} /> : <VolumeX size={22} />}
               </button>
             </div>
 
