@@ -180,9 +180,15 @@ export default function App() {
   const initialState = getInitialAppState();
   const [mode, setMode] = useState<Mode>(initialState.mode);
   const [scheduleNotice, setScheduleNotice] = useState(() => localStorage.getItem('scheduleNotice') || '');
+  const [isNoticeEnabled, setIsNoticeEnabled] = useState(() => {
+    const saved = localStorage.getItem('scheduleNoticeEnabled');
+    if (saved !== null) return saved === 'true';
+    const legacy = localStorage.getItem('scheduleNoticeVisible');
+    if (legacy !== null) return legacy === 'true';
+    return (localStorage.getItem('scheduleNotice') || '').trim().length > 0;
+  });
   const [noticeDraft, setNoticeDraft] = useState(() => localStorage.getItem('scheduleNotice') || '');
   const [isEditingNotice, setIsEditingNotice] = useState(false);
-  const [isNoticeVisible, setIsNoticeVisible] = useState(() => localStorage.getItem('scheduleNoticeVisible') !== 'false');
   
   const modeRef = useRef(mode);
   useEffect(() => {
@@ -230,7 +236,7 @@ export default function App() {
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const noticeInputRef = useRef<HTMLInputElement>(null);
+  const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const scheduleListRef = useRef<HTMLUListElement>(null);
   const scheduleSlotRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
@@ -243,8 +249,8 @@ export default function App() {
   }, [scheduleNotice]);
 
   useEffect(() => {
-    localStorage.setItem('scheduleNoticeVisible', String(isNoticeVisible));
-  }, [isNoticeVisible]);
+    localStorage.setItem('scheduleNoticeEnabled', String(isNoticeEnabled));
+  }, [isNoticeEnabled]);
 
   useEffect(() => {
     if (!isEditingNotice) {
@@ -257,6 +263,14 @@ export default function App() {
     noticeInputRef.current?.focus();
     noticeInputRef.current?.select();
   }, [isEditingNotice]);
+
+  useEffect(() => {
+    if (!isEditingNotice) return;
+    const textarea = noticeInputRef.current;
+    if (!textarea) return;
+    textarea.style.height = '0px';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [isEditingNotice, noticeDraft]);
 
   useEffect(() => {
     if (mode !== 'schedule') return;
@@ -445,6 +459,7 @@ export default function App() {
     const exportPayload = {
       weeklySchedule,
       scheduleNotice,
+      scheduleNoticeEnabled: isNoticeEnabled,
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload));
     const downloadAnchorNode = document.createElement('a');
@@ -469,8 +484,12 @@ export default function App() {
             ? parsed.weeklySchedule
             : parsed;
           const nextNotice = typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '';
+          const nextNoticeEnabled = typeof parsed.scheduleNoticeEnabled === 'boolean'
+            ? parsed.scheduleNoticeEnabled
+            : nextNotice.trim().length > 0;
           setWeeklySchedule(normalizeWeeklySchedule(nextSchedule));
           setScheduleNotice(nextNotice);
+          setIsNoticeEnabled(nextNoticeEnabled);
           alert('시간표를 성공적으로 불러왔습니다.');
         } else {
           alert('잘못된 파일 형식입니다.');
@@ -484,6 +503,25 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const startNoticeEdit = () => {
+    setNoticeDraft(scheduleNotice);
+    setIsEditingNotice(true);
+  };
+
+  const saveNotice = () => {
+    const nextNotice = noticeDraft.trim();
+    setScheduleNotice(nextNotice);
+    if (nextNotice.length > 0) {
+      setIsNoticeEnabled(true);
+    }
+    setIsEditingNotice(false);
+  };
+
+  const cancelNoticeEdit = () => {
+    setNoticeDraft(scheduleNotice);
+    setIsEditingNotice(false);
   };
 
   // Visual calculations
@@ -658,202 +696,55 @@ export default function App() {
     }
   }, [mode, today, currentSlotName, weeklySchedule, focusSlotIndex, currentDaySchedule, scheduleFocusTick]);
 
-  const visibleNoticeText = scheduleNotice.trim() || '등록된 공지가 없습니다.';
-  const getNoticeTextClass = (text: string) => {
+  const trimmedNotice = scheduleNotice.trim();
+  const hasScheduleNotice = trimmedNotice.length > 0;
+  const getStudentNoticeTextClass = (text: string) => {
     const length = text.trim().length;
-    if (length <= 10) return 'text-[clamp(1.8rem,3.3vw,3rem)] leading-[1.16] tracking-[-0.035em]';
-    if (length <= 18) return 'text-[clamp(1.6rem,2.8vw,2.5rem)] leading-[1.2] tracking-[-0.03em]';
-    if (length <= 32) return 'text-[clamp(1.4rem,2.1vw,2.1rem)] leading-[1.3] tracking-[-0.025em]';
-    return 'text-[clamp(1.18rem,1.65vw,1.78rem)] leading-[1.38] tracking-[-0.018em]';
+    if (length <= 10) return 'text-[clamp(1.2rem,1.75vw,1.6rem)] leading-[1.42] tracking-normal';
+    if (length <= 18) return 'text-[clamp(1.08rem,1.45vw,1.35rem)] leading-[1.48] tracking-normal';
+    if (length <= 32) return 'text-[clamp(1rem,1.15vw,1.14rem)] leading-[1.56] tracking-normal';
+    return 'text-[clamp(0.96rem,1.02vw,1.04rem)] leading-[1.62] tracking-normal';
   };
-  const noticeDisplayTextClass = getNoticeTextClass(visibleNoticeText);
-  const noticeDraftTextClass = getNoticeTextClass(noticeDraft);
-  const noticeIconStyle = isNoticeVisible && !isEditingNotice
-    ? { animation: 'noticeIconBreath 2.2s ease-in-out infinite' }
-    : undefined;
-  const noticeCardStyle = isNoticeVisible
-    ? { animation: `${isEditingNotice ? 'noticeFadeIn 220ms ease-out' : 'noticeSlideIn 360ms ease-out, noticeGlow 2.8s ease-in-out infinite'}` }
+  const studentNoticeTextClass = getStudentNoticeTextClass(trimmedNotice);
+  const draftNoticeTextClass = getStudentNoticeTextClass(noticeDraft);
+  const shouldCenterNoticeText = trimmedNotice.replace(/\s+/g, '').length <= 4;
+  const shouldCenterNoticeDraft = noticeDraft.trim().length > 0 && noticeDraft.replace(/\s+/g, '').length <= 4;
+  const shouldShowNoticeCard = isEditingNotice || (isNoticeEnabled && hasScheduleNotice);
+  const isNoticeHidden = hasScheduleNotice && !isNoticeEnabled && !isEditingNotice;
+  const noticeCardStyle = shouldShowNoticeCard
+    ? { animation: `${isEditingNotice ? 'noticeFadeIn 220ms ease-out' : 'studentNoticeEnter 420ms ease-out, studentNoticeFloat 2.6s ease-in-out infinite'}` }
     : undefined;
 
   return (
     <div className="h-[100dvh] w-full bg-[#FDFBF7] p-3 sm:p-4 md:p-8 font-sans overflow-hidden flex items-center justify-center">
       <div className={`w-full h-full max-w-screen-2xl rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col transition-colors duration-1000 ${bgClass}`}>
-        {mode === 'schedule' && (
-          <div className={isNoticeVisible
-            ? 'border-b border-[#C9D7C6] bg-[#EEF4EB] px-4 py-4 sm:px-6 lg:px-8'
-            : 'px-4 pt-4 pb-0 sm:px-6 lg:px-8'}>
-            <div className={`flex items-center ${isNoticeVisible ? 'gap-4' : 'gap-0'}`}>
-              <div className="relative h-14 w-14 shrink-0">
-                {isNoticeVisible && !isEditingNotice && (
-                  <>
-                    <div
-                      className="absolute inset-[-6px] rounded-[1.4rem] border-2 border-[#7FA57B]/60"
-                      style={{ animation: 'noticeIconRing 1.6s ease-out infinite' }}
-                    />
-                    <div
-                      className="absolute inset-[-10px] rounded-[1.6rem] border-2 border-[#9DBA98]/45"
-                      style={{ animation: 'noticeIconRingOuter 1.6s ease-out infinite 0.32s' }}
-                    />
-                  </>
-                )}
-                <button
-                  onClick={() => {
-                    if (isNoticeVisible) {
-                      setIsEditingNotice(false);
-                      setIsNoticeVisible(false);
-                      return;
-                    }
-                    setIsNoticeVisible(true);
-                  }}
-                  className={`relative z-10 flex h-14 w-14 items-center justify-center rounded-[1.15rem] text-white transition-transform hover:scale-[1.03] ${
-                    isNoticeVisible
-                      ? 'bg-[linear-gradient(180deg,#7A9B76_0%,#5C8D5D_100%)] shadow-[0_12px_28px_rgba(92,141,93,0.28)]'
-                      : 'bg-[linear-gradient(180deg,#C7D5C4_0%,#AEBFAA_100%)] shadow-[0_8px_18px_rgba(130,150,126,0.18)]'
-                  }`}
-                  style={noticeIconStyle}
-                  title={isNoticeVisible ? '공지 숨기기' : '공지 보기'}
-                >
-                  <BellRing size={24} strokeWidth={2.4} />
-                </button>
-              </div>
-              {isNoticeVisible && (
-                <div
-                  className="relative min-w-0 flex-1 rounded-[2rem] border-2 border-[#A8BEA3] bg-white px-4 py-4 shadow-[0_14px_30px_rgba(92,141,93,0.12)] sm:px-5 lg:px-6"
-                  style={noticeCardStyle}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div
-                      onClick={() => {
-                        if (isEditingNotice) return;
-                        setNoticeDraft(scheduleNotice);
-                        setIsEditingNotice(true);
-                      }}
-                      className={`min-w-0 flex-1 px-2 ${isEditingNotice ? 'rounded-[1.5rem] border border-[#D7E2D3] bg-[#F6FAF4] px-5 py-4' : 'cursor-text py-2'}`}
-                      title={isEditingNotice ? undefined : '공지 수정'}
-                    >
-                      {isEditingNotice ? (
-                        <input
-                          ref={noticeInputRef}
-                          value={noticeDraft}
-                          onChange={(e) => setNoticeDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key !== 'Enter') return;
-                            e.preventDefault();
-                            setScheduleNotice(noticeDraft.trim());
-                            setIsEditingNotice(false);
-                          }}
-                          maxLength={160}
-                          className={`w-full rounded-2xl border-2 border-[#B7CDB2] bg-white px-5 py-3.5 font-extrabold text-[#3E573C] outline-none transition-colors placeholder:text-[#7F997C]/60 focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${noticeDraftTextClass}`}
-                          placeholder="공지 입력"
-                        />
-                      ) : (
-                        <p className={`break-keep font-extrabold text-[#3E573C] ${noticeDisplayTextClass}`}>
-                          {visibleNoticeText}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-                      {isEditingNotice && (
-                        <span className="text-sm font-bold tabular-nums text-[#6E876B]/85">
-                          {noticeDraft.length}/160
-                        </span>
-                      )}
-                      {isEditingNotice && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setScheduleNotice(noticeDraft.trim());
-                              setIsEditingNotice(false);
-                            }}
-                            className="inline-flex h-11 min-w-11 items-center justify-center rounded-full bg-[#5C8D5D] px-3 text-white shadow-[0_10px_24px_rgba(92,141,93,0.22)] transition-colors hover:bg-[#4A734B]"
-                            title="공지 저장"
-                          >
-                            <Check size={18} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setNoticeDraft(scheduleNotice);
-                              setIsEditingNotice(false);
-                            }}
-                            className="inline-flex h-11 min-w-11 items-center justify-center rounded-full border border-[#B7CDB2] bg-white text-[#5E765B] transition-colors hover:bg-[#F5FAF3]"
-                            title="취소"
-                          >
-                            <X size={18} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
         <style>{`
-          @keyframes noticeIconBreath {
-            0%, 100% {
-              transform: scale(1);
-              box-shadow: 0 12px 28px rgba(92, 141, 93, 0.28);
-            }
-            50% {
-              transform: scale(1.14);
-              box-shadow: 0 24px 46px rgba(92, 141, 93, 0.58);
-            }
-          }
-          @keyframes noticeIconRing {
-            0% {
-              opacity: 0.9;
-              transform: scale(0.88);
-            }
-            75% {
-              opacity: 0;
-              transform: scale(1.36);
-            }
-            100% {
-              opacity: 0;
-              transform: scale(1.36);
-            }
-          }
-          @keyframes noticeIconRingOuter {
-            0% {
-              opacity: 0.72;
-              transform: scale(0.92);
-            }
-            75% {
-              opacity: 0;
-              transform: scale(1.5);
-            }
-            100% {
-              opacity: 0;
-              transform: scale(1.5);
-            }
-          }
-          @keyframes noticeGlow {
-            0%, 100% {
-              box-shadow: 0 14px 30px rgba(92, 141, 93, 0.12);
-              border-color: #A8BEA3;
-            }
-            50% {
-              box-shadow: 0 22px 42px rgba(92, 141, 93, 0.22);
-              border-color: #88A684;
-            }
-          }
-          @keyframes noticeSlideIn {
-            0% {
-              opacity: 0;
-              transform: translateY(-8px);
-            }
-            100% {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
           @keyframes noticeFadeIn {
             0% {
               opacity: 0;
             }
             100% {
               opacity: 1;
+            }
+          }
+          @keyframes studentNoticeEnter {
+            0% {
+              opacity: 0;
+              transform: translateY(-10px) scale(0.96);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+          @keyframes studentNoticeFloat {
+            0%, 100% {
+              transform: translateY(0);
+              box-shadow: 0 18px 36px rgba(165, 122, 48, 0.18);
+            }
+            50% {
+              transform: translateY(-4px);
+              box-shadow: 0 24px 44px rgba(165, 122, 48, 0.24);
             }
           }
         `}</style>
@@ -1038,7 +929,7 @@ export default function App() {
                   <div className="hidden w-24 h-24 rounded-full bg-[#F0F5F0] items-center justify-center text-[#5C8D5D] mb-2 shadow-inner">
                     <CalendarClock size={48} />
                   </div>
-                  <div className="flex justify-center">
+                  <div className="flex flex-col items-center gap-3">
                     <h2 className="hidden text-2xl lg:text-3xl font-bold text-[#8A6347] mb-2">자동 시간표 모드</h2>
                     <p className="hidden text-lg lg:text-xl text-[#8A6347]/70 font-medium">
                       {currentSlotName === '일정 없음'
@@ -1049,6 +940,115 @@ export default function App() {
                       {timerType === 'break' ? <Coffee size={48} strokeWidth={2.25} /> : timerType === 'lunch' ? <Utensils size={48} strokeWidth={2.25} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={48} strokeWidth={2.25} /> : <Timer size={48} strokeWidth={2.25} />}
                       <span className="whitespace-nowrap leading-none">{scheduleTypeLabel}</span>
                     </div>
+
+                    {shouldShowNoticeCard ? (
+                      <div
+                        className="w-full rounded-[2rem] border-[3px] border-[#D2A055] bg-[linear-gradient(180deg,#FFF8E6_0%,#F4E2AF_100%)] px-4 py-4 text-left shadow-[0_18px_36px_rgba(165,122,48,0.18)]"
+                        style={noticeCardStyle}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-[#FFFDF6] px-4 py-2 text-sm font-black text-[#8A6330] shadow-sm">
+                              <BellRing size={16} strokeWidth={2.4} />
+                              공지
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {isEditingNotice ? (
+                              <>
+                                <span className="text-sm font-bold tabular-nums text-[#8A6330]/75">
+                                  {noticeDraft.length}/160
+                                </span>
+                                <button
+                                  onClick={saveNotice}
+                                  className="inline-flex h-10 min-w-10 items-center justify-center rounded-full bg-[#C58A38] px-3 text-white shadow-[0_10px_24px_rgba(165,122,48,0.22)] transition-colors hover:bg-[#AA7228]"
+                                  title="공지 저장"
+                                >
+                                  <Check size={18} />
+                                </button>
+                                <button
+                                  onClick={cancelNoticeEdit}
+                                  className="inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-[#D9C093] bg-[#FFFDF8] text-[#8A6330] transition-colors hover:bg-[#FBF5E6]"
+                                  title="취소"
+                                >
+                                  <X size={18} />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setIsNoticeEnabled(false)}
+                                className="rounded-full bg-[#F3E5BE] px-4 py-2 text-sm font-black text-[#8A6330] transition-colors hover:bg-[#EAD8AA]"
+                              >
+                                끄기
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          {isEditingNotice ? (
+                            <div className="rounded-[1.5rem] border border-[#E7D8BA] bg-[#FFFDF9] px-5 py-5 transition-colors focus-within:border-[#C58A38] focus-within:ring-2 focus-within:ring-[#C58A38]/20">
+                              <textarea
+                                ref={noticeInputRef}
+                                value={noticeDraft}
+                                onChange={(e) => setNoticeDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                                    e.preventDefault();
+                                    saveNotice();
+                                  }
+                                  if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelNoticeEdit();
+                                  }
+                                }}
+                                rows={1}
+                                maxLength={160}
+                                className={`block w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#6D471C] outline-none placeholder:text-[#B48D55]/65 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              onClick={startNoticeEdit}
+                              className="w-full rounded-[1.5rem] border border-[#E7D8BA] bg-[#FFFDF9] px-5 py-5 text-left transition-colors hover:bg-white"
+                              title="공지 수정"
+                            >
+                              <p className={`break-keep whitespace-pre-line font-bold text-[#6D471C] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
+                                {trimmedNotice}
+                              </p>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : isNoticeHidden ? (
+                      <div className="flex w-full items-center justify-between gap-3 rounded-[1.6rem] border border-[#DCC496] bg-[#FFFAF0] px-4 py-3">
+                        <button
+                          onClick={startNoticeEdit}
+                          className="inline-flex items-center gap-2 rounded-full border border-[#E4D4B4] bg-[#FFFDF8] px-4 py-2 text-sm font-black text-[#8A6330] transition-colors hover:bg-[#FBF5E6]"
+                        >
+                          <BellRing size={16} strokeWidth={2.4} />
+                          공지 꺼짐
+                        </button>
+                        <button
+                          onClick={() => setIsNoticeEnabled(true)}
+                          className="rounded-full border border-[#D9C093] bg-[#F8EFDA] px-4 py-2 text-sm font-black text-[#8A6330] transition-colors hover:bg-[#F1E4C5]"
+                        >
+                          켜기
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={startNoticeEdit}
+                        className="flex w-full items-center justify-center gap-3 rounded-[1.6rem] border-2 border-dashed border-[#D7B36F] bg-[#FFF8EA] px-4 py-4 text-left transition-colors hover:bg-[#FAF0D8]"
+                      >
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-[#F3E5BE] text-[#8A6330] shadow-sm">
+                          <BellRing size={22} strokeWidth={2.4} />
+                        </div>
+                        <span className="shrink-0 rounded-full bg-[#D2A055] px-4 py-2 text-sm font-black text-white shadow-sm">
+                          공지 추가
+                        </span>
+                      </button>
+                    )}
                   </div>
                   
                   <div className="p-5 bg-[#FDFBF7] rounded-3xl border-2 border-[#E6D5C9] w-full text-left shadow-sm flex flex-col flex-[0.9] min-h-0">
