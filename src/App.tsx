@@ -764,11 +764,13 @@ export default function App() {
   const shouldCenterNoticeDraft = noticeDraft.trim().length > 0 && noticeDraft.replace(/\s+/g, '').length <= 12;
   const shouldShowNoticeCard = isEditingNotice || (isNoticeEnabled && hasScheduleNotice);
   const shouldShowNoticeHandle = !shouldShowNoticeCard;
-  const noticeCardStyle = shouldShowNoticeCard
-    ? { animation: `${isEditingNotice ? 'noticeFadeIn 220ms ease-out' : 'studentNoticeEnter 420ms ease-out, studentNoticeFloat 2.6s ease-in-out infinite'}` }
+  const noticeCardStyle = isEditingNotice
+    ? { animation: 'noticeFadeIn 220ms ease-out' }
     : undefined;
-  const noticeHandleButtonClass = "notice-toggle group relative inline-flex h-8 min-w-[3.2rem] items-center justify-center rounded-[1rem] border-2 border-[#E4C48A] bg-[linear-gradient(180deg,#FFFDF8_0%,#F7E6BF_100%)] px-2.5 text-[#A36A28] shadow-[0_5px_12px_rgba(181,134,58,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_8px_16px_rgba(181,134,58,0.16)] active:translate-y-0";
-  const noticeHandleIconClass = "inline-flex h-5 min-w-[1.85rem] items-center justify-center rounded-full border border-white/85 bg-white/58 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]";
+  const noticeHandleToneClass = shouldShowNoticeCard ? 'notice-toggle-open' : 'notice-toggle-closed';
+  const noticeHandleButtonClass = `notice-toggle ${noticeHandleToneClass} group relative inline-flex h-8 min-w-[3.2rem] items-center justify-center rounded-[1rem] border-2 px-2.5 transition-all hover:-translate-y-px active:translate-y-0`;
+  const noticeHandleIconClass = `inline-flex h-5 min-w-[1.85rem] items-center justify-center rounded-full border ${shouldShowNoticeCard ? 'notice-toggle-icon-open' : 'notice-toggle-icon-closed'}`;
+  const noticeHandleLineClass = `pointer-events-none absolute inset-x-1.5 top-[3px] h-px rounded-full ${shouldShowNoticeCard ? 'notice-toggle-line-open' : 'notice-toggle-line-closed'}`;
   const musicButtonLabel = isMusicPlaying ? '배경 음악 끄기' : '배경 음악 켜기';
 
   return (
@@ -798,24 +800,21 @@ export default function App() {
               opacity: 1;
             }
           }
-          @keyframes studentNoticeEnter {
-            0% {
-              opacity: 0;
-              transform: translateY(-10px) scale(0.96);
+          @keyframes studentNoticeWobble {
+            0%, 12%, 100% {
+              transform: translate3d(0, 0, 0) rotate(-0.75deg);
             }
-            100% {
-              opacity: 1;
-              transform: translateY(0) scale(1);
+            20%, 32% {
+              transform: translate3d(1.1px, -0.15px, 0) rotate(0.95deg);
             }
-          }
-          @keyframes studentNoticeFloat {
-            0%, 100% {
-              transform: translateY(0);
-              box-shadow: 0 18px 36px rgba(165, 122, 48, 0.18);
+            40%, 52% {
+              transform: translate3d(-1.35px, 0.12px, 0) rotate(-1.68deg);
             }
-            50% {
-              transform: translateY(-4px);
-              box-shadow: 0 24px 44px rgba(165, 122, 48, 0.24);
+            60%, 72% {
+              transform: translate3d(0.85px, -0.08px, 0) rotate(0.58deg);
+            }
+            80%, 92% {
+              transform: translate3d(-1px, 0.08px, 0) rotate(-1.28deg);
             }
           }
         `}</style>
@@ -1024,19 +1023,19 @@ export default function App() {
                         ? '현재 예정된 일정이 없습니다.'
                         : `현재: ${currentSlotName}`}
                     </p>
-                    <div className={`status-medallion inline-flex items-center justify-center gap-4 rounded-full border-2 px-7 py-5 text-[clamp(2.5rem,4.8vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.01em] whitespace-nowrap shadow-sm ${scheduleTypeBadgeClass}`}>
+                    <div className={`status-medallion inline-flex items-center justify-center gap-4 rounded-full border-2 px-7 py-5 text-[clamp(2.5rem,4.8vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.01em] whitespace-nowrap shadow-sm ${scheduleTypeBadgeClass} ${shouldShowNoticeCard && !isEditingNotice ? 'status-medallion-muted' : ''}`}>
                       {timerType === 'break' ? <Coffee size={48} strokeWidth={2.25} /> : timerType === 'lunch' ? <Utensils size={48} strokeWidth={2.25} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={48} strokeWidth={2.25} /> : <Timer size={48} strokeWidth={2.25} />}
                       <span className="whitespace-nowrap leading-none">{scheduleTypeLabel}</span>
                     </div>
 
                     {shouldShowNoticeCard ? (
                       <div
-                        className={`notice-card relative z-30 w-full overflow-visible rounded-[1.85rem] border-2 border-[#D2A055] bg-[linear-gradient(180deg,#FFF8E6_0%,#F4E2AF_100%)] px-1.5 pb-1.5 pt-1.5 text-left shadow-[0_16px_30px_rgba(165,122,48,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-1.1rem] sm:mb-[-1.35rem]'}`}
+                        className={`notice-card relative z-30 w-full overflow-visible rounded-[1.85rem] border-2 border-[#4F6B47] bg-[linear-gradient(180deg,#FFFEFB_0%,#F3EEE5_100%)] px-1.5 pb-1.5 pt-1.5 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-1.8rem] sm:mb-[-2.15rem]'}`}
                         style={noticeCardStyle}
                       >
                         {isEditingNotice ? (
                           <>
-                            <div className="notice-editor min-h-[5.5rem] rounded-[1.45rem] border border-[#E7D8BA] bg-[#FFFDF9] px-1 py-1.5 transition-colors focus-within:border-[#C58A38] focus-within:ring-2 focus-within:ring-[#C58A38]/20 sm:min-h-[6rem]">
+                            <div className="notice-editor flex min-h-[5.5rem] items-center rounded-[1.45rem] border border-[#8FA384] bg-[#FFFDF8] px-1 py-1.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[6rem]">
                               <textarea
                                 ref={noticeInputRef}
                                 value={noticeDraft}
@@ -1054,7 +1053,7 @@ export default function App() {
                                 }}
                                 rows={1}
                                 maxLength={160}
-                                className={`notice-draft-body block min-h-[3.5rem] w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#5B4327] outline-none placeholder:text-[#B48D55]/65 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
+                                className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
                               />
                             </div>
                           </>
@@ -1067,7 +1066,7 @@ export default function App() {
                                 title="공지 닫기"
                                 aria-label="공지 닫기"
                               >
-                                <span aria-hidden="true" className="pointer-events-none absolute inset-x-1.5 top-[3px] h-px rounded-full bg-white/95" />
+                                <span aria-hidden="true" className={noticeHandleLineClass} />
                                 <span aria-hidden="true" className={noticeHandleIconClass}>
                                   <ChevronDown
                                     size={10}
@@ -1079,10 +1078,10 @@ export default function App() {
                             </div>
                             <button
                               onClick={startNoticeEdit}
-                              className="notice-content flex min-h-[5.5rem] w-full items-center rounded-[1.45rem] border border-[#E7D8BA] bg-[#FFFDF9] px-1 py-1.5 text-left transition-colors hover:bg-white sm:min-h-[6rem]"
+                              className="notice-content flex min-h-[5.5rem] w-full items-center rounded-[1.45rem] border border-[#8FA384] bg-[#FFFDF8] px-1 py-1.5 text-left transition-colors hover:bg-white sm:min-h-[6rem]"
                               title="공지 수정"
                             >
-                              <p className={`notice-text-body w-full break-keep whitespace-pre-line font-bold text-[#5B4327] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
+                              <p className={`notice-text-body w-full break-keep whitespace-pre-line font-bold text-[#3E2D20] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
                                 {trimmedNotice}
                               </p>
                             </button>
@@ -1098,7 +1097,7 @@ export default function App() {
                             title={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
                             aria-label={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
                           >
-                            <span aria-hidden="true" className="pointer-events-none absolute inset-x-1.5 top-[3px] h-px rounded-full bg-white/95" />
+                            <span aria-hidden="true" className={noticeHandleLineClass} />
                             <span aria-hidden="true" className={noticeHandleIconClass}>
                               <ChevronDown size={10} strokeWidth={2.7} />
                             </span>
