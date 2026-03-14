@@ -327,14 +327,12 @@ select {
 }
 
 .control-pane {
-  background:
-    radial-gradient(circle at 85% 10%, rgba(255, 255, 255, 0.62) 0%, transparent 18%),
-    linear-gradient(180deg, var(--control-pane-start) 0%, var(--control-pane-end) 100%);
+  background: linear-gradient(180deg, var(--control-pane-start) 0%, var(--control-pane-end) 100%);
   backdrop-filter: blur(14px);
 }
 
 .control-pane::before {
-  content: "";
+  content: none;
   position: absolute;
   top: 2.8rem;
   right: 2rem;
@@ -367,6 +365,30 @@ select {
 .mode-toggle-inactive:hover {
   background: rgba(255, 255, 255, 0.5);
   color: #614b3a;
+}
+
+.sound-toggle {
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(138, 99, 71, 0.12);
+  background-clip: padding-box;
+  box-shadow:
+    0 10px 18px rgba(97, 72, 52, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.sound-toggle-active {
+  background: linear-gradient(180deg, rgba(112, 139, 102, 0.98) 0%, rgba(78, 104, 70, 0.98) 100%);
+  color: #fffef9;
+}
+
+.sound-toggle-inactive {
+  background: #fffaf2;
+  color: #7c6553;
+}
+
+.sound-toggle-inactive:hover {
+  background: #f8efe3;
 }
 
 .round-action {
