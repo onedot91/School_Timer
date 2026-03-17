@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Coffee, Utensils, CalendarClock, Timer, Settings, X, Plus, Trash2, Download, Upload, ChevronDown, Volume2, VolumeX } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type Mode = 'schedule' | 'manual';
@@ -10,6 +11,11 @@ interface ScheduleSlot {
   type: TimerType;
   start: number; // minutes from 00:00
   end: number;
+}
+
+interface AnnouncementItem {
+  id: string;
+  text: string;
 }
 
 type WeeklySchedule = {
@@ -23,6 +29,10 @@ const BREAK_DURATION = 10;
 const BACKGROUND_MUSIC_VOLUME = 0.24;
 const SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS = 59;
 const WEEKDAYS = [1, 2, 3, 4, 5];
+const ANNOUNCEMENT_VISIBLE_LINES = 5;
+const ANNOUNCEMENT_MIN_RULE_GAP_PX = 92;
+const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
+const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
 
 const createSlotId = () => Math.random().toString(36).slice(2, 11);
 
@@ -43,6 +53,54 @@ const clampScheduleClockOffsetSeconds = (value: unknown) => {
 
 const getAdjustedScheduleDate = (timeMs: number, offsetSeconds: number) =>
   new Date(timeMs + clampScheduleClockOffsetSeconds(offsetSeconds) * 1000);
+
+const renderAnnouncementNoteLine = (text: string, keyPrefix: string) => {
+  const sourceText = text.length > 0 ? text : '\u200b';
+  const segments: React.ReactNode[] = [];
+  let searchStart = 0;
+  let matchCount = 0;
+
+  while (searchStart < sourceText.length) {
+    const matchIndex = sourceText.indexOf(ANNOUNCEMENT_SAFETY_PHRASE, searchStart);
+    if (matchIndex === -1) {
+      segments.push(sourceText.slice(searchStart));
+      break;
+    }
+
+    if (matchIndex > searchStart) {
+      segments.push(sourceText.slice(searchStart, matchIndex));
+    }
+
+    segments.push(
+      <span key={`${keyPrefix}-safety-${matchCount}`} className="announcement-note-highlight-safety">
+        {ANNOUNCEMENT_SAFETY_PHRASE}
+      </span>,
+    );
+
+    searchStart = matchIndex + ANNOUNCEMENT_SAFETY_PHRASE.length;
+    matchCount += 1;
+  }
+
+  return segments;
+};
+
+const renderAnnouncementNoteDisplay = (text: string) => {
+  const lines = text.length > 0 ? text.split('\n') : [''];
+  const isPlaceholderVisible = text.length === 0;
+
+  return lines.map((line, index) => (
+    <div key={`announcement-note-line-${index}`} className="announcement-note-display-line">
+      <span className="announcement-note-display-marker">{index + 1}.</span>
+      <span
+        className={`announcement-note-display-line-text${isPlaceholderVisible ? ' announcement-note-display-line-text-placeholder' : ''}`}
+      >
+        {isPlaceholderVisible
+          ? ANNOUNCEMENT_NOTE_PLACEHOLDER
+          : renderAnnouncementNoteLine(line, `announcement-note-line-${index}`)}
+      </span>
+    </div>
+  ));
+};
 
 const getScheduleClockParts = (timeMs: number, offsetSeconds: number) => {
   const adjustedNow = getAdjustedScheduleDate(timeMs, offsetSeconds);
@@ -138,6 +196,184 @@ const defaultWeeklySchedule: WeeklySchedule = normalizeWeeklySchedule({
   5: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
 });
 const DAYS = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
+const ANNOUNCEMENT_STORAGE_KEY = 'school-announcements-v4';
+const ANNOUNCEMENT_CLOSING_MESSAGE = '차 조심, 낯선 사람 조심!';
+const ANNOUNCEMENT_WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+
+let announcementAudioContext: AudioContext | null = null;
+
+const createAnnouncementId = () => `announcement-${Math.random().toString(36).slice(2, 11)}`;
+const createEmptyAnnouncement = (): AnnouncementItem => ({ id: createAnnouncementId(), text: '' });
+
+const getAnnouncementAudioContext = () => {
+  try {
+    const AudioContextConstructor = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextConstructor) return null;
+    if (!announcementAudioContext) {
+      announcementAudioContext = new AudioContextConstructor();
+    }
+    return announcementAudioContext;
+  } catch {
+    return null;
+  }
+};
+
+const playAnnouncementSound = async (kind: 'pop' | 'tada') => {
+  try {
+    const ctx = getAnnouncementAudioContext();
+    if (!ctx) return;
+
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
+    const playTone = (
+      frequency: number,
+      startOffset: number,
+      duration: number,
+      type: OscillatorType,
+      volume: number,
+    ) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const startTime = ctx.currentTime + startOffset;
+      const endTime = startTime + duration;
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+      oscillator.frequency.exponentialRampToValueAtTime(Math.max(120, frequency * 1.06), endTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(volume, startTime + duration * 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+
+      oscillator.start(startTime);
+      oscillator.stop(endTime + 0.02);
+    };
+
+    if (kind === 'pop') {
+      playTone(720, 0, 0.08, 'triangle', 0.09);
+      playTone(980, 0.03, 0.06, 'sine', 0.05);
+      return;
+    }
+
+    playTone(660, 0, 0.08, 'triangle', 0.07);
+    playTone(880, 0.08, 0.1, 'triangle', 0.08);
+    playTone(1174, 0.2, 0.16, 'sine', 0.06);
+  } catch {
+    // Ignore browsers that block or do not support Web Audio.
+  }
+};
+
+const formatAnnouncementDate = (date: Date) =>
+  `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${ANNOUNCEMENT_WEEKDAYS[date.getDay()]}`;
+
+const parseAnnouncementDate = (value: string) => {
+  const trimmed = value.trim();
+  const koreanMatch = trimmed.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const parts = koreanMatch ?? isoMatch;
+
+  if (!parts) return null;
+
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const normalizeAnnouncementDateText = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return formatAnnouncementDate(new Date());
+
+  const parsed = parseAnnouncementDate(trimmed);
+  return parsed ? formatAnnouncementDate(parsed) : trimmed;
+};
+
+const normalizeAnnouncementItems = (value: unknown): AnnouncementItem[] => {
+  if (!Array.isArray(value)) return [createEmptyAnnouncement()];
+
+  const normalized = value
+    .map((item) => {
+      if (typeof item === 'string') {
+        return { id: createAnnouncementId(), text: item };
+      }
+
+      if (item && typeof item === 'object') {
+        const nextItem = item as Partial<AnnouncementItem>;
+        return {
+          id:
+            typeof nextItem.id === 'string' && nextItem.id.trim().length > 0
+              ? nextItem.id
+              : createAnnouncementId(),
+          text: typeof nextItem.text === 'string' ? nextItem.text : '',
+        };
+      }
+
+      return null;
+    })
+    .filter((item): item is AnnouncementItem => item !== null);
+
+  return normalized.length > 0 ? normalized : [createEmptyAnnouncement()];
+};
+
+const buildAnnouncementFilename = (value: string) => {
+  const parsed = parseAnnouncementDate(value) ?? new Date();
+  const year = parsed.getFullYear().toString();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}${month}${day}_알림장.png`;
+};
+
+const getAnnouncementTypography = (count: number) => {
+  if (count <= 4) {
+    return {
+      listGap: 'gap-4',
+      numberClass: 'text-[clamp(1.55rem,3.2vw,2.1rem)]',
+      textClass: 'text-[clamp(1.28rem,2.45vw,1.72rem)] leading-[1.56]',
+      inputClass: 'text-[clamp(1.16rem,2.2vw,1.5rem)]',
+    };
+  }
+
+  if (count <= 6) {
+    return {
+      listGap: 'gap-3',
+      numberClass: 'text-[clamp(1.42rem,2.9vw,1.9rem)]',
+      textClass: 'text-[clamp(1.18rem,2.1vw,1.5rem)] leading-[1.54]',
+      inputClass: 'text-[clamp(1.08rem,1.9vw,1.34rem)]',
+    };
+  }
+
+  if (count <= 8) {
+    return {
+      listGap: 'gap-2.5',
+      numberClass: 'text-[clamp(1.24rem,2.5vw,1.62rem)]',
+      textClass: 'text-[clamp(1.05rem,1.85vw,1.28rem)] leading-[1.5]',
+      inputClass: 'text-[clamp(1rem,1.7vw,1.18rem)]',
+    };
+  }
+
+  return {
+    listGap: 'gap-2',
+    numberClass: 'text-[clamp(1.12rem,2.15vw,1.42rem)]',
+    textClass: 'text-[clamp(0.96rem,1.55vw,1.1rem)] leading-[1.46]',
+    inputClass: 'text-[clamp(0.92rem,1.45vw,1.04rem)]',
+  };
+};
 
 const playAlarm = () => {
   try {
@@ -199,6 +435,422 @@ const getInitialAppState = () => {
   return { mode: 'manual' as Mode, manual: { totalTime: 600, timeLeft: 600, isRunning: false, endTime: null } };
 };
 
+function AnnouncementNotebookOverlay({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [dateText, setDateText] = useState(() => formatAnnouncementDate(new Date()));
+  const [noteText, setNoteText] = useState('');
+  const [bearImageError, setBearImageError] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  const noteCaptureRef = useRef<HTMLDivElement>(null);
+  const noteEditorRef = useRef<HTMLDivElement>(null);
+  const noteDisplayRef = useRef<HTMLDivElement>(null);
+  const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const hasRestoredRef = useRef(false);
+  const [noteRuleGapPx, setNoteRuleGapPx] = useState(104);
+
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+
+    try {
+      localStorage.removeItem(ANNOUNCEMENT_STORAGE_KEY);
+    } catch {
+      // Ignore storage access errors.
+    }
+
+    try {
+      const saved = sessionStorage.getItem(ANNOUNCEMENT_STORAGE_KEY);
+      if (!saved) return;
+
+      const parsed = JSON.parse(saved);
+      const restoredDate =
+        parsed && typeof parsed === 'object' && typeof parsed.date === 'string'
+          ? normalizeAnnouncementDateText(parsed.date)
+          : formatAnnouncementDate(new Date());
+      const restoredNote =
+        parsed && typeof parsed === 'object' && typeof parsed.note === 'string'
+          ? parsed.note
+          : normalizeAnnouncementItems(parsed?.announcements)
+              .map((announcement) => announcement.text.trimEnd())
+              .filter((text) => text.length > 0)
+              .join('\n');
+
+      setDateText(restoredDate);
+      setNoteText(restoredNote);
+    } catch {
+      // Ignore invalid session data and keep defaults.
+    } finally {
+      setHasHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const textarea = noteTextareaRef.current;
+      if (!textarea) return;
+
+      textarea.focus();
+      const cursorPosition = textarea.value.length;
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let frame = 0;
+    const syncRuleGap = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const editor = noteEditorRef.current;
+        if (!editor) return;
+
+        const nextGap = Math.max(
+          ANNOUNCEMENT_MIN_RULE_GAP_PX,
+          Math.round(editor.clientHeight / ANNOUNCEMENT_VISIBLE_LINES),
+        );
+        setNoteRuleGapPx((previous) => (previous === nextGap ? previous : nextGap));
+      });
+    };
+
+    syncRuleGap();
+
+    const editor = noteEditorRef.current;
+    if (!editor || typeof ResizeObserver === 'undefined') {
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    const observer = new ResizeObserver(() => {
+      syncRuleGap();
+    });
+    observer.observe(editor);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [isOpen]);
+
+  const pagePaddingClass = 'p-2 sm:p-3 lg:px-4 lg:pb-4 lg:pt-3 xl:px-5 xl:pb-5 xl:pt-3';
+  const paperTopClass = 'px-3 pb-2 pt-3 sm:px-5 sm:pb-3 sm:pt-4';
+  const paperBodyClass = 'px-3 pb-3 pt-0 sm:px-5 sm:pb-4 sm:pt-0';
+  const stageLayoutClass = 'h-full w-full max-w-[1160px] min-h-0 flex-col';
+  const paperShellLayoutClass = 'flex min-h-0 flex-1 flex-col';
+  const paperBodyLayoutClass = 'flex flex-1 min-h-0 flex-col';
+  const paperBodyStyle = {
+    '--announcement-rule-gap': `${noteRuleGapPx}px`,
+    '--announcement-rule-offset': `${Math.round(noteRuleGapPx * -0.24)}px`,
+    '--announcement-note-font-size': `${Math.max(42, Math.round(noteRuleGapPx * 0.42))}px`,
+    '--announcement-note-gutter-width': `${Math.max(66, Math.round(noteRuleGapPx * 0.62))}px`,
+    '--announcement-note-number-size': `${Math.max(30, Math.round(noteRuleGapPx * 0.34))}px`,
+  } as React.CSSProperties;
+  const hasNoteContent = noteText.length > 0;
+
+  const focusNoteTextarea = () => {
+    const textarea = noteTextareaRef.current;
+    if (!textarea) return;
+
+    textarea.focus();
+    const cursorPosition = textarea.value.length;
+    textarea.setSelectionRange(cursorPosition, cursorPosition);
+  };
+
+  const syncNoteDisplayScroll = () => {
+    const textarea = noteTextareaRef.current;
+    const display = noteDisplayRef.current;
+    if (!textarea || !display) return;
+
+    display.scrollTop = textarea.scrollTop;
+    display.scrollLeft = textarea.scrollLeft;
+  };
+
+  const insertSafetyPhrase = () => {
+    const textarea = noteTextareaRef.current;
+    const selectionStart = textarea?.selectionStart ?? noteText.length;
+    const selectionEnd = textarea?.selectionEnd ?? noteText.length;
+    const before = noteText.slice(0, selectionStart);
+    const after = noteText.slice(selectionEnd);
+    const insertPrefix = before.length > 0 && !before.endsWith('\n') ? '\n' : '';
+    const insertSuffix = after.length > 0 && !after.startsWith('\n') ? '\n' : '';
+    const insertedText = `${insertPrefix}${ANNOUNCEMENT_SAFETY_PHRASE}${insertSuffix}`;
+    const nextText = `${before}${insertedText}${after}`;
+    const cursorPosition = before.length + insertedText.length;
+
+    setNoteText(nextText);
+    void playAnnouncementSound('pop');
+
+    window.requestAnimationFrame(() => {
+      const nextTextarea = noteTextareaRef.current;
+      if (!nextTextarea) return;
+
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(cursorPosition, cursorPosition);
+      syncNoteDisplayScroll();
+    });
+  };
+
+  const insertNoteLineBreak = () => {
+    const textarea = noteTextareaRef.current;
+    const selectionStart = textarea?.selectionStart ?? noteText.length;
+    const selectionEnd = textarea?.selectionEnd ?? noteText.length;
+    const nextText = `${noteText.slice(0, selectionStart)}\n${noteText.slice(selectionEnd)}`;
+    const cursorPosition = selectionStart + 1;
+
+    setNoteText(nextText);
+
+    window.requestAnimationFrame(() => {
+      const nextTextarea = noteTextareaRef.current;
+      if (!nextTextarea) return;
+
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(cursorPosition, cursorPosition);
+      syncNoteDisplayScroll();
+    });
+  };
+
+  const handleNoteTextareaKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    if (event.key === 'Tab' && !event.shiftKey) {
+      event.preventDefault();
+      insertSafetyPhrase();
+      return;
+    }
+
+    if (event.key !== 'Enter') return;
+
+    event.preventDefault();
+    insertNoteLineBreak();
+  };
+
+  const clearAnnouncementContent = () => {
+    if (!hasNoteContent) return;
+
+    setNoteText('');
+    void playAnnouncementSound('pop');
+
+    window.requestAnimationFrame(() => {
+      const textarea = noteTextareaRef.current;
+      if (!textarea) return;
+
+      textarea.focus();
+      textarea.setSelectionRange(0, 0);
+      textarea.scrollTop = 0;
+      syncNoteDisplayScroll();
+    });
+  };
+
+  const persistAnnouncementNote = (nextDate: string, nextNote: string) => {
+    try {
+      sessionStorage.setItem(
+        ANNOUNCEMENT_STORAGE_KEY,
+        JSON.stringify({
+          date: nextDate,
+          note: nextNote,
+        }),
+      );
+    } catch {
+      // Ignore session storage write errors.
+    }
+  };
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    persistAnnouncementNote(dateText, noteText);
+  }, [dateText, hasHydrated, noteText]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      syncNoteDisplayScroll();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen, noteRuleGapPx, noteText]);
+
+  const saveImage = async () => {
+    if (!noteCaptureRef.current) return;
+
+    try {
+      const dataUrl = await toPng(noteCaptureRef.current, {
+        backgroundColor: '#fffcf8',
+        pixelRatio: 2,
+        cacheBust: true,
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
+      });
+
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = buildAnnouncementFilename(dateText);
+      link.click();
+      void playAnnouncementSound('pop');
+    } catch {
+      alert('이미지 저장에 실패했습니다.');
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleAnnouncementShortcuts = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        if (event.repeat) return;
+        void saveImage();
+      }
+    };
+
+    window.addEventListener('keydown', handleAnnouncementShortcuts);
+    return () => window.removeEventListener('keydown', handleAnnouncementShortcuts);
+  }, [isOpen, onClose, saveImage]);
+
+  const handleClose = () => {
+    void playAnnouncementSound('pop');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="announcement-overlay fixed inset-0 z-[60] p-2 sm:p-3 md:p-5">
+      <div className="announcement-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-1.5rem)] w-full max-w-[1220px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]">
+        <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
+        <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
+        <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
+        <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
+
+        <div className={`announcement-page flex min-h-0 flex-1 flex-col overflow-hidden ${pagePaddingClass}`}>
+          <div className={`announcement-stage mx-auto flex ${stageLayoutClass}`}>
+            <div
+              ref={noteCaptureRef}
+              className={`announcement-paper paper-card relative ${paperShellLayoutClass} overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]`}
+            >
+              <div className={`announcement-paper-top shrink-0 border-b border-[#EADFD1] ${paperTopClass}`}>
+                <div className="announcement-date-row">
+                  <button
+                    onClick={handleClose}
+                    className="announcement-date-badge announcement-date-badge-button"
+                    type="button"
+                    title="돌아가기"
+                    aria-label="돌아가기"
+                  >
+                    {bearImageError ? (
+                      <span className="announcement-date-bear-fallback">bear.png</span>
+                    ) : (
+                      <img
+                        src="/bear.png"
+                        alt="곰돌이 알림장 장식"
+                        className="announcement-date-bear"
+                        onLoad={() => setBearImageError(false)}
+                        onError={() => setBearImageError(true)}
+                      />
+                    )}
+                  </button>
+                  <input
+                    value={dateText}
+                    onChange={(event) => setDateText(event.target.value)}
+                    onBlur={() => setDateText((prev) => normalizeAnnouncementDateText(prev))}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        setDateText((prev) => normalizeAnnouncementDateText(prev));
+                        focusNoteTextarea();
+                      }
+                      if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        focusNoteTextarea();
+                      }
+                    }}
+                    placeholder="2026년 3월 17일"
+                    className="announcement-date-input min-h-[5.8rem] min-w-[min(100%,19rem)] flex-1 rounded-[1.8rem] border border-[#dcc7ae] bg-[#fffdf8] px-8 py-[1.15rem] text-[clamp(1.95rem,3.4vw,2.9rem)] font-semibold text-[#2c1e16] outline-none transition-all placeholder:text-[#b19d86] focus:border-[#5C8D6D] focus:ring-4 focus:ring-[#5C8D6D]/10"
+                    type="text"
+                  />
+                  <div className="announcement-date-actions" data-capture-exclude="true">
+                    <button
+                      onClick={clearAnnouncementContent}
+                      className="announcement-date-action-reset announcement-chip-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-full border border-[#dcc7ae] text-[#8A6347]"
+                      type="button"
+                      title="내용 초기화"
+                      aria-label="내용 초기화"
+                      disabled={!hasNoteContent}
+                    >
+                      <RotateCcw size={18} className="text-[#A67C52]" />
+                    </button>
+                    <button
+                      onClick={saveImage}
+                      className="announcement-date-action-save toolbar-button toolbar-button-green inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-bold text-[#466146]"
+                      type="button"
+                    >
+                      <ImageDown size={18} />
+                      이미지 저장
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={`announcement-paper-body relative ${paperBodyLayoutClass} ${paperBodyClass}`}
+                style={paperBodyStyle}
+              >
+                <div className="announcement-hole-column absolute bottom-4 left-4 top-4 hidden flex-col justify-between sm:flex">
+                  {Array.from({ length: 10 }).map((_, index) => (
+                    <span key={index} className="announcement-hole h-5 w-5 rounded-full border border-[#e8e0d5] bg-[#fffdf9]" />
+                  ))}
+                </div>
+                <div className="announcement-paper-spine absolute bottom-4 left-[2.2rem] top-4 hidden w-px bg-[#E6D5C9] sm:block" />
+
+                <div
+                  ref={noteEditorRef}
+                  className="announcement-note-editor absolute inset-x-4 bottom-4 top-0 sm:bottom-5 sm:left-[4.7rem] sm:right-6"
+                >
+                  <div ref={noteDisplayRef} aria-hidden="true" className="announcement-note-display">
+                    <div className="announcement-note-display-content">{renderAnnouncementNoteDisplay(noteText)}</div>
+                  </div>
+                  <textarea
+                    ref={noteTextareaRef}
+                    value={noteText}
+                    onChange={(event) => setNoteText(event.target.value)}
+                    onKeyDown={handleNoteTextareaKeyDown}
+                    onScroll={syncNoteDisplayScroll}
+                    className="announcement-note-textarea"
+                    placeholder={ANNOUNCEMENT_NOTE_PLACEHOLDER}
+                    spellCheck={false}
+                  />
+                  <div className="announcement-note-inline-tools" data-capture-exclude="true">
+                    <button
+                      onClick={insertSafetyPhrase}
+                      className="announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-full border border-[#dcc7ae] text-[#8A6347]"
+                      type="button"
+                      title={ANNOUNCEMENT_SAFETY_PHRASE}
+                      aria-label={`${ANNOUNCEMENT_SAFETY_PHRASE} 자동 입력`}
+                    >
+                      <Sparkles size={18} className="text-[#A67C52]" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const initialState = getInitialAppState();
   const [mode, setMode] = useState<Mode>(initialState.mode);
@@ -215,6 +867,7 @@ export default function App() {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isMusicLoading, setIsMusicLoading] = useState(false);
   const [isMusicAvailable, setIsMusicAvailable] = useState(true);
+  const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
     return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
@@ -1174,6 +1827,20 @@ export default function App() {
                         })
                       )}
                     </ul>
+                    <button
+                      onClick={() => {
+                        void playAnnouncementSound('pop');
+                        setIsAnnouncementOpen(true);
+                      }}
+                      className="announcement-launch-button mt-4 flex w-full shrink-0 items-center gap-4 rounded-[1.55rem] px-5 py-3.5 text-left text-[#75461f] transition-all"
+                      type="button"
+                    >
+                      <div className="announcement-launch-icon inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                        <NotebookText size={22} />
+                      </div>
+                      <span className="min-w-0 flex-1 text-lg leading-none">오늘의 알림장</span>
+                      <Sparkles size={17} className="shrink-0 text-[#A67C52]" />
+                    </button>
                   </div>
                 </div>
               )}
@@ -1386,6 +2053,10 @@ export default function App() {
           </div>
         </div>
       )}
+      <AnnouncementNotebookOverlay
+        isOpen={isAnnouncementOpen}
+        onClose={() => setIsAnnouncementOpen(false)}
+      />
     </div>
   );
 }
