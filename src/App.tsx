@@ -21,6 +21,7 @@ const MORNING_DEFAULT_DURATION = 15;
 const CLASS_DURATION = 40;
 const BREAK_DURATION = 10;
 const BACKGROUND_MUSIC_VOLUME = 0.24;
+const SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS = 59;
 const WEEKDAYS = [1, 2, 3, 4, 5];
 
 const createSlotId = () => Math.random().toString(36).slice(2, 11);
@@ -29,6 +30,27 @@ const getFixedDurationByType = (type: TimerType) => {
   if (type === 'class') return CLASS_DURATION;
   if (type === 'break') return BREAK_DURATION;
   return null;
+};
+
+const clampScheduleClockOffsetSeconds = (value: unknown) => {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(
+    -SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS,
+    Math.min(SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS, Math.trunc(numeric)),
+  );
+};
+
+const getAdjustedScheduleDate = (timeMs: number, offsetSeconds: number) =>
+  new Date(timeMs + clampScheduleClockOffsetSeconds(offsetSeconds) * 1000);
+
+const getScheduleClockParts = (timeMs: number, offsetSeconds: number) => {
+  const adjustedNow = getAdjustedScheduleDate(timeMs, offsetSeconds);
+  return {
+    dayOfWeek: adjustedNow.getDay(),
+    currentMinutes: adjustedNow.getHours() * 60 + adjustedNow.getMinutes(),
+    currentSeconds: adjustedNow.getSeconds(),
+  };
 };
 
 const isMorningSlot = (slot: ScheduleSlot) => slot.type === 'morning' || slot.name === MORNING_ACTIVITY_LABEL;
@@ -193,6 +215,10 @@ export default function App() {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isMusicLoading, setIsMusicLoading] = useState(false);
   const [isMusicAvailable, setIsMusicAvailable] = useState(true);
+  const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
+    const saved = localStorage.getItem('scheduleClockOffsetSeconds');
+    return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
+  });
   
   const modeRef = useRef(mode);
   useEffect(() => {
@@ -259,6 +285,10 @@ export default function App() {
   }, [isNoticeEnabled]);
 
   useEffect(() => {
+    localStorage.setItem('scheduleClockOffsetSeconds', String(scheduleClockOffsetSeconds));
+  }, [scheduleClockOffsetSeconds]);
+
+  useEffect(() => {
     if (!isEditingNotice) {
       setNoticeDraft(scheduleNotice);
     }
@@ -320,11 +350,11 @@ export default function App() {
 
   // Schedule Mode Timer Logic
   useEffect(() => {
-    const checkSchedule = () => {
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const currentSeconds = now.getSeconds();
+    const checkSchedule = (shouldPlayAlarm: boolean) => {
+      const { dayOfWeek, currentMinutes, currentSeconds } = getScheduleClockParts(
+        Date.now(),
+        scheduleClockOffsetSeconds,
+      );
 
       const todaysSchedule = weeklySchedule[dayOfWeek] || [];
       const activeSlot = todaysSchedule.find(s => currentMinutes >= s.start && currentMinutes < s.end);
@@ -333,6 +363,7 @@ export default function App() {
 
       // Play alarm only when a non-class slot ends.
       if (
+        shouldPlayAlarm &&
         prevSlotIdRef.current !== null &&
         prevSlotIdRef.current !== nextSlotId &&
         prevSlotTypeRef.current !== 'none' &&
@@ -362,11 +393,11 @@ export default function App() {
       }
     };
 
-    checkSchedule(); // Run immediately
-    const interval = window.setInterval(checkSchedule, 1000);
+    checkSchedule(false);
+    const interval = window.setInterval(() => checkSchedule(true), 250);
 
     return () => clearInterval(interval);
-  }, [weeklySchedule]);
+  }, [weeklySchedule, scheduleClockOffsetSeconds]);
 
   const handleModeSwitch = (newMode: Mode) => {
     setMode(newMode);
@@ -466,6 +497,7 @@ export default function App() {
       weeklySchedule,
       scheduleNotice,
       scheduleNoticeEnabled: isNoticeEnabled,
+      scheduleClockOffsetSeconds,
     };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload));
     const downloadAnchorNode = document.createElement('a');
@@ -493,9 +525,11 @@ export default function App() {
           const nextNoticeEnabled = typeof parsed.scheduleNoticeEnabled === 'boolean'
             ? parsed.scheduleNoticeEnabled
             : nextNotice.trim().length > 0;
+          const nextClockOffsetSeconds = clampScheduleClockOffsetSeconds(parsed.scheduleClockOffsetSeconds);
           setWeeklySchedule(normalizeWeeklySchedule(nextSchedule));
           setScheduleNotice(nextNotice);
           setIsNoticeEnabled(nextNoticeEnabled);
+          setScheduleClockOffsetSeconds(nextClockOffsetSeconds);
           alert('시간표를 성공적으로 불러왔습니다.');
         } else {
           alert('잘못된 파일 형식입니다.');
@@ -709,10 +743,10 @@ export default function App() {
     return h * 60 + m;
   };
 
-  const today = new Date().getDay();
+  const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
+  const today = adjustedScheduleNow.getDay();
   const currentDaySchedule = weeklySchedule[today] || [];
-  const nowForScheduleView = new Date(scheduleFocusTick);
-  const currentMinsForScheduleView = nowForScheduleView.getHours() * 60 + nowForScheduleView.getMinutes();
+  const currentMinsForScheduleView = adjustedScheduleNow.getHours() * 60 + adjustedScheduleNow.getMinutes();
   const activeSlotIndex = currentDaySchedule.findIndex(
     (slot) => currentMinsForScheduleView >= slot.start && currentMinsForScheduleView < slot.end
   );
@@ -1123,9 +1157,7 @@ export default function App() {
                         <li className="text-center py-4 opacity-60">일정이 없습니다.</li>
                       ) : (
                         currentDaySchedule.map((s) => {
-                          const now = new Date();
-                          const currentMins = now.getHours() * 60 + now.getMinutes();
-                          const isThisSlot = currentMins >= s.start && currentMins < s.end;
+                          const isThisSlot = currentMinsForScheduleView >= s.start && currentMinsForScheduleView < s.end;
 
                           return (
                             <li
@@ -1209,6 +1241,32 @@ export default function App() {
             </div>
 
             <div className="settings-body custom-scrollbar flex-1 overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
+              <div className="mb-5 rounded-2xl border border-[#E6D5C9] bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="section-title text-lg font-bold text-[#8A6347]">학교 시계 보정</h3>
+                    <p className="mt-1 text-sm text-[#8A6347]/70">
+                      학교 종이 먼저 울리면 양수, 웹이 먼저 울리면 음수로 맞춰주세요.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 self-start md:self-auto">
+                    <input
+                      type="number"
+                      min={-SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
+                      max={SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
+                      step={1}
+                      value={scheduleClockOffsetSeconds}
+                      onChange={(e) => setScheduleClockOffsetSeconds(clampScheduleClockOffsetSeconds(e.target.value))}
+                      className="slot-time-input w-24 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2 text-right font-mono text-base font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363]"
+                    />
+                    <span className="text-sm font-bold text-[#8A6347]">초</span>
+                  </label>
+                </div>
+                <p className="mt-3 text-sm text-[#5C7A4B]">
+                  예: 학교 종이 약 10초 먼저 울리면 <span className="font-mono font-bold">10</span>으로 설정하면 됩니다.
+                </p>
+              </div>
+
               <div className="flex justify-between items-center mb-4">
                 <h3 className="section-title text-lg font-bold text-[#8A6347]">{DAYS[editingDay]}요일 일정</h3>
                 <button 
