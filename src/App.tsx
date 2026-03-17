@@ -34,14 +34,13 @@ const ANNOUNCEMENT_MIN_RULE_GAP_PX = 92;
 const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
 const MEMO_NOTE_STORAGE_KEY = 'school-memo-note-v1';
-const MEMO_NOTE_FONT_SCALE_KEY = 'school-memo-note-font-scale-v1';
 const MEMO_NOTE_PLACEHOLDER = '메모 입력';
 const MEMO_NOTE_MIN_FONT_SCALE = 0;
 const MEMO_NOTE_MAX_FONT_SCALE = 100;
 const MEMO_NOTE_DEFAULT_FONT_SCALE = 50;
 const MEMO_NOTE_FONT_SCALE_STEP = 5;
-const MEMO_NOTE_MIN_FONT_SIZE = 36;
-const MEMO_NOTE_MAX_FONT_SIZE = 180;
+const MEMO_NOTE_MIN_FONT_SIZE = 40;
+const MEMO_NOTE_MAX_FONT_SIZE = 168;
 
 const createSlotId = () => Math.random().toString(36).slice(2, 11);
 
@@ -886,16 +885,13 @@ function MemoNotebookOverlay({
       return '';
     }
   });
-  const [memoFontScale, setMemoFontScale] = useState(() => {
-    try {
-      return clampMemoFontScale(localStorage.getItem(MEMO_NOTE_FONT_SCALE_KEY));
-    } catch {
-      return MEMO_NOTE_DEFAULT_FONT_SCALE;
-    }
-  });
+  const [memoFontScale, setMemoFontScale] = useState(MEMO_NOTE_DEFAULT_FONT_SCALE);
   const memoTextareaRef = useRef<HTMLTextAreaElement>(null);
   const memoTextareaStyle = {
     '--memo-note-font-size': `${getMemoFontSizeFromScale(memoFontScale)}px`,
+  } as React.CSSProperties;
+  const memoSliderStyle = {
+    '--memo-slider-percent': `${clampMemoFontScale(memoFontScale)}%`,
   } as React.CSSProperties;
 
   useEffect(() => {
@@ -907,15 +903,9 @@ function MemoNotebookOverlay({
   }, [memoText]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(MEMO_NOTE_FONT_SCALE_KEY, String(memoFontScale));
-    } catch {
-      // Ignore storage write errors.
-    }
-  }, [memoFontScale]);
-
-  useEffect(() => {
     if (!isOpen) return;
+
+    setMemoFontScale(MEMO_NOTE_DEFAULT_FONT_SCALE);
 
     const frame = window.requestAnimationFrame(() => {
       const textarea = memoTextareaRef.current;
@@ -1003,6 +993,7 @@ function MemoNotebookOverlay({
                     className="memo-size-slider"
                     title="글자 크기"
                     aria-label="글자 크기"
+                    style={memoSliderStyle}
                   />
                   <button
                     onClick={() => adjustMemoFontScale(MEMO_NOTE_FONT_SCALE_STEP)}
