@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { toPng } from 'html-to-image';
-import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type Mode = 'schedule' | 'manual';
@@ -33,6 +33,15 @@ const ANNOUNCEMENT_VISIBLE_LINES = 5;
 const ANNOUNCEMENT_MIN_RULE_GAP_PX = 92;
 const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
+const MEMO_NOTE_STORAGE_KEY = 'school-memo-note-v1';
+const MEMO_NOTE_FONT_SCALE_KEY = 'school-memo-note-font-scale-v1';
+const MEMO_NOTE_PLACEHOLDER = '메모 입력';
+const MEMO_NOTE_MIN_FONT_SCALE = 0;
+const MEMO_NOTE_MAX_FONT_SCALE = 100;
+const MEMO_NOTE_DEFAULT_FONT_SCALE = 50;
+const MEMO_NOTE_FONT_SCALE_STEP = 5;
+const MEMO_NOTE_MIN_FONT_SIZE = 36;
+const MEMO_NOTE_MAX_FONT_SIZE = 180;
 
 const createSlotId = () => Math.random().toString(36).slice(2, 11);
 
@@ -50,6 +59,18 @@ const clampScheduleClockOffsetSeconds = (value: unknown) => {
     Math.min(SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS, Math.trunc(numeric)),
   );
 };
+
+const clampMemoFontScale = (value: unknown) => {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return MEMO_NOTE_DEFAULT_FONT_SCALE;
+  return Math.max(MEMO_NOTE_MIN_FONT_SCALE, Math.min(MEMO_NOTE_MAX_FONT_SCALE, Math.round(numeric)));
+};
+
+const getMemoFontSizeFromScale = (scale: number) =>
+  Math.round(
+    MEMO_NOTE_MIN_FONT_SIZE +
+      ((MEMO_NOTE_MAX_FONT_SIZE - MEMO_NOTE_MIN_FONT_SIZE) * clampMemoFontScale(scale)) / 100,
+  );
 
 const getAdjustedScheduleDate = (timeMs: number, offsetSeconds: number) =>
   new Date(timeMs + clampScheduleClockOffsetSeconds(offsetSeconds) * 1000);
@@ -851,6 +872,185 @@ function AnnouncementNotebookOverlay({
   );
 }
 
+function MemoNotebookOverlay({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [memoText, setMemoText] = useState(() => {
+    try {
+      return localStorage.getItem(MEMO_NOTE_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+  const [memoFontScale, setMemoFontScale] = useState(() => {
+    try {
+      return clampMemoFontScale(localStorage.getItem(MEMO_NOTE_FONT_SCALE_KEY));
+    } catch {
+      return MEMO_NOTE_DEFAULT_FONT_SCALE;
+    }
+  });
+  const memoTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const memoTextareaStyle = {
+    '--memo-note-font-size': `${getMemoFontSizeFromScale(memoFontScale)}px`,
+  } as React.CSSProperties;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MEMO_NOTE_STORAGE_KEY, memoText);
+    } catch {
+      // Ignore storage write errors.
+    }
+  }, [memoText]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MEMO_NOTE_FONT_SCALE_KEY, String(memoFontScale));
+    } catch {
+      // Ignore storage write errors.
+    }
+  }, [memoFontScale]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const textarea = memoTextareaRef.current;
+      if (!textarea) return;
+
+      textarea.focus();
+      const cursorPosition = textarea.value.length;
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleMemoShortcuts = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+
+      event.preventDefault();
+      void playAnnouncementSound('pop');
+      onClose();
+    };
+
+    window.addEventListener('keydown', handleMemoShortcuts);
+    return () => window.removeEventListener('keydown', handleMemoShortcuts);
+  }, [isOpen, onClose]);
+
+  const clearMemo = () => {
+    if (!memoText) return;
+
+    setMemoText('');
+    void playAnnouncementSound('pop');
+
+    window.requestAnimationFrame(() => {
+      const textarea = memoTextareaRef.current;
+      if (!textarea) return;
+
+      textarea.focus();
+      textarea.setSelectionRange(0, 0);
+      textarea.scrollTop = 0;
+    });
+  };
+
+  const adjustMemoFontScale = (delta: number) => {
+    setMemoFontScale((previous) => clampMemoFontScale(previous + delta));
+  };
+
+  const handleClose = () => {
+    void playAnnouncementSound('pop');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="announcement-overlay fixed inset-0 z-[60] p-2 sm:p-3 md:p-5">
+      <div className="memo-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-1.5rem)] w-full max-w-[1220px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]">
+        <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
+        <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
+        <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
+        <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
+
+        <div className="memo-page flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3 lg:p-4 xl:p-5">
+          <div className="memo-stage mx-auto flex h-full w-full max-w-[1160px] min-h-0 flex-col">
+            <div className="memo-paper paper-card relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]">
+              <div className="memo-paper-inner flex min-h-0 flex-1 flex-col p-4 sm:p-5 lg:p-6">
+                <div className="memo-controls mb-3" data-capture-exclude="true">
+                  <button
+                    onClick={() => adjustMemoFontScale(-MEMO_NOTE_FONT_SCALE_STEP)}
+                    className="memo-control-button memo-size-button"
+                    type="button"
+                    title="글자 작게"
+                    aria-label="글자 작게"
+                  >
+                    A-
+                  </button>
+                  <input
+                    type="range"
+                    min={MEMO_NOTE_MIN_FONT_SCALE}
+                    max={MEMO_NOTE_MAX_FONT_SCALE}
+                    step={MEMO_NOTE_FONT_SCALE_STEP}
+                    value={memoFontScale}
+                    onChange={(event) => setMemoFontScale(clampMemoFontScale(event.target.value))}
+                    className="memo-size-slider"
+                    title="글자 크기"
+                    aria-label="글자 크기"
+                  />
+                  <button
+                    onClick={() => adjustMemoFontScale(MEMO_NOTE_FONT_SCALE_STEP)}
+                    className="memo-control-button memo-size-button"
+                    type="button"
+                    title="글자 크게"
+                    aria-label="글자 크게"
+                  >
+                    A+
+                  </button>
+                  <button
+                    onClick={clearMemo}
+                    className="memo-control-button memo-control-icon"
+                    type="button"
+                    title="메모 지우기"
+                    aria-label="메모 지우기"
+                    disabled={memoText.length === 0}
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    className="memo-control-button memo-control-icon"
+                    type="button"
+                    title="닫기"
+                    aria-label="닫기"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <textarea
+                  ref={memoTextareaRef}
+                  value={memoText}
+                  onChange={(event) => setMemoText(event.target.value)}
+                  className="memo-note-textarea custom-scrollbar flex-1"
+                  placeholder={MEMO_NOTE_PLACEHOLDER}
+                  spellCheck={false}
+                  style={memoTextareaStyle}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const initialState = getInitialAppState();
   const [mode, setMode] = useState<Mode>(initialState.mode);
@@ -868,6 +1068,7 @@ export default function App() {
   const [isMusicLoading, setIsMusicLoading] = useState(false);
   const [isMusicAvailable, setIsMusicAvailable] = useState(true);
   const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
+  const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
     return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
@@ -1827,20 +2028,34 @@ export default function App() {
                         })
                       )}
                     </ul>
-                    <button
-                      onClick={() => {
-                        void playAnnouncementSound('pop');
-                        setIsAnnouncementOpen(true);
-                      }}
-                      className="announcement-launch-button mt-4 flex w-full shrink-0 items-center gap-4 rounded-[1.55rem] px-5 py-3.5 text-left text-[#75461f] transition-all"
-                      type="button"
-                    >
-                      <div className="announcement-launch-icon inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
-                        <NotebookText size={22} />
-                      </div>
-                      <span className="min-w-0 flex-1 text-lg leading-none">오늘의 알림장</span>
-                      <Sparkles size={17} className="shrink-0 text-[#A67C52]" />
-                    </button>
+                    <div className="schedule-quick-actions mt-4 grid w-full shrink-0 gap-3 sm:grid-cols-2">
+                      <button
+                        onClick={() => {
+                          void playAnnouncementSound('pop');
+                          setIsMemoOpen(true);
+                        }}
+                        className="announcement-launch-button flex w-full items-center gap-4 rounded-[1.55rem] px-5 py-3.5 text-left text-[#75461f] transition-all"
+                        type="button"
+                      >
+                        <div className="announcement-launch-icon inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                          <StickyNote size={22} />
+                        </div>
+                        <span className="min-w-0 flex-1 text-lg leading-none">메모장</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          void playAnnouncementSound('pop');
+                          setIsAnnouncementOpen(true);
+                        }}
+                        className="announcement-launch-button flex w-full items-center gap-4 rounded-[1.55rem] px-5 py-3.5 text-left text-[#75461f] transition-all"
+                        type="button"
+                      >
+                        <div className="announcement-launch-icon inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                          <NotebookText size={22} />
+                        </div>
+                        <span className="min-w-0 flex-1 text-lg leading-none">알림장</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2056,6 +2271,10 @@ export default function App() {
       <AnnouncementNotebookOverlay
         isOpen={isAnnouncementOpen}
         onClose={() => setIsAnnouncementOpen(false)}
+      />
+      <MemoNotebookOverlay
+        isOpen={isMemoOpen}
+        onClose={() => setIsMemoOpen(false)}
       />
     </div>
   );
