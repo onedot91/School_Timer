@@ -8,9 +8,17 @@ const NAV_ITEMS = [
 ];
 
 export default function PageNav({ currentPath }: { currentPath: AppRoute }) {
+  const activeIndex = NAV_ITEMS.findIndex(({ path }) => path === currentPath);
+
   return (
     <div className="pointer-events-none fixed inset-x-0 top-3 z-40 flex justify-center px-3 sm:top-4 sm:px-4">
-      <nav className="page-floating-nav pointer-events-auto flex items-center gap-2 rounded-full p-1.5">
+      <nav className="page-floating-nav pointer-events-auto relative grid grid-cols-2 rounded-full p-1.5">
+        <span
+          aria-hidden="true"
+          className="page-nav-indicator"
+          style={{ transform: `translateX(${Math.max(activeIndex, 0) * 100}%)` }}
+        />
+
         {NAV_ITEMS.map(({ path, label, Icon }) => {
           const isActive = currentPath === path;
 
@@ -19,10 +27,8 @@ export default function PageNav({ currentPath }: { currentPath: AppRoute }) {
               key={path}
               href={`#${path}`}
               aria-current={isActive ? 'page' : undefined}
-              className={`page-nav-link inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-all sm:px-5 sm:text-base ${
-                isActive
-                  ? 'page-nav-link-active text-[#2F5B43]'
-                  : 'text-[#6D5645] hover:text-[#2F5B43]'
+              className={`page-nav-link inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold sm:px-5 sm:text-base ${
+                isActive ? 'page-nav-link-active' : 'page-nav-link-inactive'
               }`}
             >
               <Icon size={18} />
