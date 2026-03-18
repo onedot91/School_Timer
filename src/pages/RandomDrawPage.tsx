@@ -965,12 +965,13 @@ export default function RandomDrawPage() {
     const targetCaseId = resolvedActiveCaseId;
     const initialCase = getCaseSnapshot(targetCaseId);
     const initialDrawData = getCaseDrawData(initialCase, repeatPickEnabledRef.current);
-    const drawPool =
+    const resultPool =
       initialDrawData.availableNumbers.length > 0
         ? initialDrawData.availableNumbers
         : initialDrawData.repeatableEntries.map((entry) => entry.number);
+    const rollingPool = Array.from({ length: initialDrawData.totalCount }, (_, index) => initialDrawData.minNumber + index);
 
-    if (drawPool.length === 0) return;
+    if (resultPool.length === 0 || rollingPool.length === 0) return;
 
     const drawLaunchToken = drawLaunchTokenRef.current + 1;
     drawLaunchTokenRef.current = drawLaunchToken;
@@ -989,7 +990,7 @@ export default function RandomDrawPage() {
       const startedAt = performance.now();
 
       const rollStep = () => {
-        const nextValue = sampleOne(drawPool);
+        const nextValue = sampleOne(rollingPool);
         const elapsed = performance.now() - startedAt;
         const progress = Math.min(elapsed / DRAW_DURATION_MS, 1);
         const nextDelay = Math.round(ROLL_TICK_START_MS - (ROLL_TICK_START_MS - ROLL_TICK_END_MS) * progress);
