@@ -1070,6 +1070,11 @@ export default function App() {
     modeRef.current = mode;
   }, [mode]);
 
+  const isEditingNoticeRef = useRef(isEditingNotice);
+  useEffect(() => {
+    isEditingNoticeRef.current = isEditingNotice;
+  }, [isEditingNotice]);
+
   const prevSlotIdRef = useRef<string | null>(null);
   const prevSlotTypeRef = useRef<TimerType>('none');
 
@@ -1205,17 +1210,21 @@ export default function App() {
       const activeSlot = todaysSchedule.find(s => currentMinutes >= s.start && currentMinutes < s.end);
       const nextSlotId = activeSlot ? activeSlot.id : null;
       const nextSlotType: TimerType = activeSlot ? (activeSlot.type as TimerType) : 'none';
+      const didSlotChange = prevSlotIdRef.current !== null && prevSlotIdRef.current !== nextSlotId;
 
       // Play alarm only when a non-class slot ends.
       if (
         shouldPlayAlarm &&
-        prevSlotIdRef.current !== null &&
-        prevSlotIdRef.current !== nextSlotId &&
+        didSlotChange &&
         prevSlotTypeRef.current !== 'none' &&
         prevSlotTypeRef.current !== 'class' &&
         modeRef.current === 'schedule'
       ) {
         playAlarm();
+      }
+
+      if (didSlotChange) {
+        clearAndCloseNotice();
       }
 
       prevSlotIdRef.current = nextSlotId;
@@ -1417,6 +1426,14 @@ export default function App() {
   const cancelNoticeEdit = () => {
     skipNoticeAutoSaveRef.current = true;
     setNoticeDraft(scheduleNotice);
+    setIsEditingNotice(false);
+  };
+
+  const clearAndCloseNotice = () => {
+    skipNoticeAutoSaveRef.current = isEditingNoticeRef.current;
+    setScheduleNotice('');
+    setNoticeDraft('');
+    setIsNoticeEnabled(false);
     setIsEditingNotice(false);
   };
 
