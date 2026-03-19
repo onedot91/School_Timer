@@ -41,6 +41,13 @@ const MEMO_NOTE_DEFAULT_FONT_SCALE = 50;
 const MEMO_NOTE_FONT_SCALE_STEP = 5;
 const MEMO_NOTE_MIN_FONT_SIZE = 40;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
+const MEMO_NOTE_TEXT_COLORS = [
+  { id: 'black', label: '검정', value: '#2c1e16' },
+  { id: 'red', label: '빨강', value: '#c7684a' },
+  { id: 'blue', label: '파랑', value: '#2d63b8' },
+] as const;
+
+type MemoTextColorId = (typeof MEMO_NOTE_TEXT_COLORS)[number]['id'];
 
 const createSlotId = () => Math.random().toString(36).slice(2, 11);
 
@@ -70,6 +77,110 @@ const getMemoFontSizeFromScale = (scale: number) =>
     MEMO_NOTE_MIN_FONT_SIZE +
       ((MEMO_NOTE_MAX_FONT_SIZE - MEMO_NOTE_MIN_FONT_SIZE) * clampMemoFontScale(scale)) / 100,
   );
+
+const getMemoTextColorById = (colorId: MemoTextColorId) =>
+  MEMO_NOTE_TEXT_COLORS.find((color) => color.id === colorId) || MEMO_NOTE_TEXT_COLORS[0];
+
+const getMemoTextColorByValue = (value: string | null | undefined) => {
+  const normalized = (value || '').trim().toLowerCase();
+  if (!normalized) return null;
+
+  const rgbValueMap = new Map(
+    MEMO_NOTE_TEXT_COLORS.map((color) => {
+      const hex = color.value.slice(1);
+      const red = Number.parseInt(hex.slice(0, 2), 16);
+      const green = Number.parseInt(hex.slice(2, 4), 16);
+      const blue = Number.parseInt(hex.slice(4, 6), 16);
+      return [color.id, `rgb(${red}, ${green}, ${blue})`];
+    }),
+  );
+
+  return (
+    MEMO_NOTE_TEXT_COLORS.find(
+      (color) =>
+        normalized === color.id ||
+        normalized === color.value ||
+        normalized === rgbValueMap.get(color.id),
+    ) || null
+  );
+};
+
+const sanitizeMemoHtml = (value: unknown) => {
+  if (typeof value !== 'string' || value.trim().length === 0) return '';
+
+  const sourceRoot = document.createElement('div');
+  sourceRoot.innerHTML = value;
+  const sanitizedRoot = document.createElement('div');
+
+  const sanitizeNode = (node: Node): Node[] => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return [document.createTextNode(node.textContent || '')];
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return [];
+    }
+
+    const element = node as HTMLElement;
+    const tagName = element.tagName.toLowerCase();
+
+    if (tagName === 'br') {
+      return [document.createElement('br')];
+    }
+
+    if (tagName === 'div' || tagName === 'p') {
+      const block = document.createElement('div');
+      Array.from(element.childNodes).forEach((child) => {
+        sanitizeNode(child).forEach((sanitizedChild) => block.appendChild(sanitizedChild));
+      });
+      if (!block.hasChildNodes()) {
+        block.appendChild(document.createElement('br'));
+      }
+      return [block];
+    }
+
+    if (tagName === 'span' || tagName === 'font') {
+      const colorOption = getMemoTextColorByValue(
+        element.dataset.memoColor || element.style.color || element.getAttribute('color'),
+      );
+      const childContainer = document.createElement('div');
+      Array.from(element.childNodes).forEach((child) => {
+        sanitizeNode(child).forEach((sanitizedChild) => childContainer.appendChild(sanitizedChild));
+      });
+      const childNodes = Array.from(childContainer.childNodes);
+
+      if (!colorOption) {
+        return childNodes;
+      }
+
+      const span = document.createElement('span');
+      span.dataset.memoColor = colorOption.id;
+      span.style.color = colorOption.value;
+      childNodes.forEach((child) => span.appendChild(child));
+      return span.textContent || span.querySelector('br') ? [span] : [];
+    }
+
+    const fallbackContainer = document.createElement('div');
+    Array.from(element.childNodes).forEach((child) => {
+      sanitizeNode(child).forEach((sanitizedChild) => fallbackContainer.appendChild(sanitizedChild));
+    });
+    return Array.from(fallbackContainer.childNodes);
+  };
+
+  Array.from(sourceRoot.childNodes).forEach((child) => {
+    sanitizeNode(child).forEach((sanitizedChild) => sanitizedRoot.appendChild(sanitizedChild));
+  });
+
+  return sanitizedRoot.innerHTML;
+};
+
+const getPlainTextFromMemoHtml = (value: string) => {
+  if (!value) return '';
+
+  const root = document.createElement('div');
+  root.innerHTML = sanitizeMemoHtml(value);
+  return (root.textContent || '').replace(/\u00a0/g, ' ').trim();
+};
 
 const getAdjustedScheduleDate = (timeMs: number, offsetSeconds: number) =>
   new Date(timeMs + clampScheduleClockOffsetSeconds(offsetSeconds) * 1000);
@@ -878,29 +989,57 @@ function MemoNotebookOverlay({
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const [memoText, setMemoText] = useState(() => {
+  const [memoHtml, setMemoHtml] = useState(() => {
     try {
-      return localStorage.getItem(MEMO_NOTE_STORAGE_KEY) || '';
+      return sanitizeMemoHtml(localStorage.getItem(MEMO_NOTE_STORAGE_KEY) || '');
     } catch {
       return '';
     }
   });
   const [memoFontScale, setMemoFontScale] = useState(MEMO_NOTE_DEFAULT_FONT_SCALE);
-  const memoTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const memoTextareaStyle = {
+  const memoEditorRef = useRef<HTMLDivElement>(null);
+  const memoEditorStyle = {
     '--memo-note-font-size': `${getMemoFontSizeFromScale(memoFontScale)}px`,
   } as React.CSSProperties;
   const memoSliderStyle = {
     '--memo-slider-percent': `${clampMemoFontScale(memoFontScale)}%`,
   } as React.CSSProperties;
+  const hasMemoContent = getPlainTextFromMemoHtml(memoHtml).length > 0;
+
+  const focusMemoEditor = () => {
+    const editor = memoEditorRef.current;
+    if (!editor) return;
+
+    editor.focus();
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
+
+  const syncMemoHtmlFromEditor = (sanitizeEditorDom = false) => {
+    const editor = memoEditorRef.current;
+    if (!editor) return '';
+
+    const sanitized = sanitizeMemoHtml(editor.innerHTML);
+    if (sanitizeEditorDom && editor.innerHTML !== sanitized) {
+      editor.innerHTML = sanitized;
+    }
+    setMemoHtml(sanitized);
+    return sanitized;
+  };
 
   useEffect(() => {
     try {
-      localStorage.setItem(MEMO_NOTE_STORAGE_KEY, memoText);
+      localStorage.setItem(MEMO_NOTE_STORAGE_KEY, sanitizeMemoHtml(memoHtml));
     } catch {
       // Ignore storage write errors.
     }
-  }, [memoText]);
+  }, [memoHtml]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -908,12 +1047,11 @@ function MemoNotebookOverlay({
     setMemoFontScale(MEMO_NOTE_DEFAULT_FONT_SCALE);
 
     const frame = window.requestAnimationFrame(() => {
-      const textarea = memoTextareaRef.current;
-      if (!textarea) return;
+      const editor = memoEditorRef.current;
+      if (!editor) return;
 
-      textarea.focus();
-      const cursorPosition = textarea.value.length;
-      textarea.setSelectionRange(cursorPosition, cursorPosition);
+      editor.innerHTML = sanitizeMemoHtml(memoHtml);
+      focusMemoEditor();
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -926,6 +1064,7 @@ function MemoNotebookOverlay({
       if (event.key !== 'Escape') return;
 
       event.preventDefault();
+      syncMemoHtmlFromEditor(true);
       void playAnnouncementSound('pop');
       onClose();
     };
@@ -935,18 +1074,18 @@ function MemoNotebookOverlay({
   }, [isOpen, onClose]);
 
   const clearMemo = () => {
-    if (!memoText) return;
+    if (!hasMemoContent) return;
 
-    setMemoText('');
+    setMemoHtml('');
     void playAnnouncementSound('pop');
 
     window.requestAnimationFrame(() => {
-      const textarea = memoTextareaRef.current;
-      if (!textarea) return;
+      const editor = memoEditorRef.current;
+      if (!editor) return;
 
-      textarea.focus();
-      textarea.setSelectionRange(0, 0);
-      textarea.scrollTop = 0;
+      editor.innerHTML = '';
+      editor.scrollTop = 0;
+      focusMemoEditor();
     });
   };
 
@@ -954,7 +1093,41 @@ function MemoNotebookOverlay({
     setMemoFontScale((previous) => clampMemoFontScale(previous + delta));
   };
 
+  const applyMemoTextColor = (colorId: MemoTextColorId) => {
+    const editor = memoEditorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const commonNode = range.commonAncestorContainer;
+    if (commonNode !== editor && !editor.contains(commonNode)) return;
+
+    const color = getMemoTextColorById(colorId);
+    document.execCommand('styleWithCSS', false, 'true');
+    document.execCommand('foreColor', false, color.value);
+    syncMemoHtmlFromEditor(false);
+    editor.focus();
+  };
+
+  const handleMemoEditorInput = () => {
+    syncMemoHtmlFromEditor(false);
+  };
+
+  const handleMemoEditorBlur = () => {
+    syncMemoHtmlFromEditor(true);
+  };
+
+  const handleMemoPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const pastedText = event.clipboardData.getData('text/plain');
+    if (!pastedText) return;
+
+    document.execCommand('insertText', false, pastedText);
+    syncMemoHtmlFromEditor(false);
+  };
+
   const handleClose = () => {
+    syncMemoHtmlFromEditor(true);
     void playAnnouncementSound('pop');
     onClose();
   };
@@ -1004,13 +1177,32 @@ function MemoNotebookOverlay({
                   >
                     A+
                   </button>
+                  <div className="memo-color-group" role="group" aria-label="글자 색상">
+                    {MEMO_NOTE_TEXT_COLORS.map((color) => (
+                      <button
+                        key={color.id}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => applyMemoTextColor(color.id)}
+                        className={`memo-control-button memo-control-icon memo-color-choice memo-color-choice-${color.id}`}
+                        type="button"
+                        title={`${color.label} 적용`}
+                        aria-label={`${color.label} 적용`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="memo-color-choice-swatch"
+                          style={{ '--memo-color-choice': color.value } as React.CSSProperties}
+                        />
+                      </button>
+                    ))}
+                  </div>
                   <button
                     onClick={clearMemo}
                     className="memo-control-button memo-control-icon"
                     type="button"
                     title="메모 지우기"
                     aria-label="메모 지우기"
-                    disabled={memoText.length === 0}
+                    disabled={!hasMemoContent}
                   >
                     <RotateCcw size={18} />
                   </button>
@@ -1024,14 +1216,17 @@ function MemoNotebookOverlay({
                     <X size={20} />
                   </button>
                 </div>
-                <textarea
-                  ref={memoTextareaRef}
-                  value={memoText}
-                  onChange={(event) => setMemoText(event.target.value)}
-                  className="memo-note-textarea custom-scrollbar flex-1"
-                  placeholder={MEMO_NOTE_PLACEHOLDER}
+                <div
+                  ref={memoEditorRef}
+                  className="memo-note-editor custom-scrollbar flex-1"
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={handleMemoEditorInput}
+                  onBlur={handleMemoEditorBlur}
+                  onPaste={handleMemoPaste}
+                  data-placeholder={MEMO_NOTE_PLACEHOLDER}
                   spellCheck={false}
-                  style={memoTextareaStyle}
+                  style={memoEditorStyle}
                 />
               </div>
             </div>
@@ -2014,7 +2209,7 @@ export default function TimerPage() {
                         <Settings size={22} />
                       </button>
                     </div>
-                    <ul ref={scheduleListRef} className="schedule-scroll custom-scrollbar flex-1 space-y-2 overflow-y-auto pr-2 text-base text-[#8A6347]/90 lg:text-lg">
+                    <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar flex-1 overflow-y-auto pr-2 text-base text-[#8A6347]/90 lg:text-lg">
                       {currentDaySchedule.length === 0 ? (
                         <li className="text-center py-4 opacity-60">일정이 없습니다.</li>
                       ) : (
@@ -2027,10 +2222,10 @@ export default function TimerPage() {
                               ref={(el) => {
                                 scheduleSlotRefs.current[s.id] = el;
                               }}
-                              className={`schedule-row flex items-center justify-between rounded-xl p-3 transition-colors ${isThisSlot ? 'schedule-row-active font-bold text-white shadow-md' : 'schedule-row-idle'}`}
+                              className={`schedule-row schedule-row-spacious flex items-center justify-between rounded-xl transition-colors ${isThisSlot ? 'schedule-row-active font-bold text-white shadow-md' : 'schedule-row-idle'}`}
                             >
-                              <span className="font-semibold">{s.name}</span>
-                              <span className="font-mono text-sm lg:text-base">{formatMinutesToTime(s.start)} - {formatMinutesToTime(s.end)}</span>
+                              <span className="schedule-row-title font-semibold">{s.name}</span>
+                              <span className="schedule-row-time font-mono">{formatMinutesToTime(s.start)} - {formatMinutesToTime(s.end)}</span>
                             </li>
                           )
                         })
