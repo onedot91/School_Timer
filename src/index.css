@@ -679,10 +679,32 @@ select {
   position: relative;
 }
 
+.schedule-scroll-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .schedule-row {
   position: relative;
   overflow: hidden;
   border: 1px solid transparent;
+}
+
+.schedule-row-spacious {
+  min-height: 4.6rem;
+  padding: 0.9rem 1.1rem;
+}
+
+.schedule-row-title {
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.schedule-row-time {
+  font-size: 1.05rem;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .schedule-row-idle {
@@ -710,6 +732,39 @@ select {
   box-shadow:
     0 16px 26px rgba(82, 107, 73, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+@media (max-width: 1279px) {
+  .schedule-scroll-stack {
+    flex: 0 0 auto;
+    max-height: calc(4 * 6.1rem + 3 * 0.95rem);
+    gap: 0.95rem;
+  }
+
+  .schedule-row-spacious {
+    min-height: 6.1rem;
+    padding: 1.1rem 1.35rem;
+  }
+
+  .schedule-row-title {
+    font-size: 2.45rem;
+    line-height: 1;
+  }
+
+  .schedule-row-time {
+    font-size: 1.95rem;
+    line-height: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .schedule-row-title {
+    font-size: 2.15rem;
+  }
+
+  .schedule-row-time {
+    font-size: 1.68rem;
+  }
 }
 
 .settings-backdrop {
@@ -3544,6 +3599,48 @@ select {
   padding: 0;
 }
 
+.memo-color-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.memo-color-choice {
+  position: relative;
+}
+
+.memo-color-choice:focus-visible {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 24px rgba(166, 124, 82, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.94),
+    0 0 0 4px rgba(182, 132, 58, 0.08);
+}
+
+.memo-color-choice-swatch {
+  width: 1.18rem;
+  height: 1.18rem;
+  border: 2px solid rgba(255, 252, 247, 0.92);
+  border-radius: 999px;
+  background: var(--memo-color-choice, #2c1e16);
+  box-shadow:
+    0 4px 8px rgba(44, 30, 22, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+}
+
+.memo-color-choice-black {
+  color: #2c1e16;
+}
+
+.memo-color-choice-red {
+  color: #c7684a;
+}
+
+.memo-color-choice-blue {
+  color: #2d63b8;
+}
+
 .memo-size-slider {
   width: clamp(8rem, 16vw, 11rem);
   appearance: none;
@@ -3600,10 +3697,10 @@ select {
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-.memo-note-textarea {
+.memo-note-editor {
   width: 100%;
   min-height: 0;
-  resize: none;
+  overflow-y: auto;
   border: 0;
   border-radius: 2rem;
   padding: clamp(1rem, 2vw, 1.5rem);
@@ -3615,21 +3712,37 @@ select {
   font-weight: 700;
   line-height: 1.22;
   letter-spacing: 0.01em;
+  white-space: pre-wrap;
+  word-break: break-word;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 16px 28px rgba(166, 124, 82, 0.08);
   outline: none;
 }
 
-.memo-note-textarea::placeholder {
+.memo-note-editor:empty::before {
+  content: attr(data-placeholder);
   color: rgba(177, 157, 134, 0.9);
+  pointer-events: none;
 }
 
-.memo-note-textarea:focus {
+.memo-note-editor:focus {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     0 18px 30px rgba(182, 132, 58, 0.12),
     0 0 0 4px rgba(182, 132, 58, 0.08);
+}
+
+.memo-note-editor [data-memo-color="black"] {
+  color: #2c1e16;
+}
+
+.memo-note-editor [data-memo-color="red"] {
+  color: #c7684a;
+}
+
+.memo-note-editor [data-memo-color="blue"] {
+  color: #2d63b8;
 }
 
 @keyframes announcementBounceIn {
@@ -3763,6 +3876,7 @@ select {
     gap: 0.45rem;
     padding: 0.55rem;
     justify-content: stretch;
+    flex-wrap: wrap;
   }
 
   .memo-size-slider {
@@ -3770,12 +3884,16 @@ select {
     width: auto;
   }
 
+  .memo-color-group {
+    gap: 0.35rem;
+  }
+
   .memo-control-button {
     min-width: 2.75rem;
     height: 2.75rem;
   }
 
-  .memo-note-textarea {
+  .memo-note-editor {
     border-radius: 1.6rem;
   }
 }
