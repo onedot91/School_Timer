@@ -5,6 +5,21 @@ import TimerPage from './pages/TimerPage';
 
 type AppRoute = '/' | '/draw';
 
+const isEditableShortcutTarget = (target: EventTarget | null) => {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+
+  const tagName = element.tagName;
+  return (
+    tagName === 'INPUT' ||
+    tagName === 'TEXTAREA' ||
+    tagName === 'SELECT' ||
+    tagName === 'BUTTON' ||
+    tagName === 'A'
+  );
+};
+
 const normalizeHashRoute = (hash: string): AppRoute => {
   const rawPath = hash.replace(/^#/, '') || '/';
   return rawPath === '/draw' ? '/draw' : '/';
@@ -47,6 +62,7 @@ export default function RootApp() {
 
     const handleGlobalShortcuts = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.defaultPrevented || isEditableShortcutTarget(event.target)) return;
 
       event.preventDefault();
       const nextRoute: AppRoute = route === '/draw' ? '/' : '/draw';
