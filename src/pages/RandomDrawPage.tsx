@@ -1641,8 +1641,8 @@ export default function RandomDrawPage() {
   }, [cases, hasDrawCandidate, isSettingsOpen, repeatPickEnabled, resolvedActiveCaseId]);
 
   return (
-    <div className="mascot-app h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
-      <div className="mascot-shell app-tone-calm relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl md:rounded-[3rem]">
+    <div className="mascot-app editorial-random-legacy-font h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
+      <div className="mascot-shell editorial-main-shell app-tone-calm relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl md:rounded-[3rem]">
         {isNormalWinImpactVisible && <div aria-hidden="true" className="random-shell-win-flash" />}
         <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
@@ -1935,7 +1935,7 @@ export default function RandomDrawPage() {
 
       {isSettingsOpen && (
         <div className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm md:p-6">
-          <div className="settings-dialog random-settings-shell flex max-h-[90vh] w-full max-w-[68rem] flex-col overflow-hidden rounded-[2rem] border-[4px] border-[#B58363] bg-[#FDFBF7] shadow-2xl">
+          <div className="settings-dialog editorial-settings-dialog random-settings-shell flex max-h-[90vh] w-full max-w-[68rem] flex-col overflow-hidden rounded-[2rem] border-[4px] border-[#B58363] bg-[#FDFBF7] shadow-2xl">
             <div className="settings-header random-settings-header-panel flex shrink-0 items-start justify-between border-b border-[#E6D5C9] p-4 md:p-5 lg:p-6">
               <div onClick={handleSettingsHeaderSecretTap}>
                 <h2 className="section-title text-[1.7rem] font-extrabold text-[#3F2B20] md:text-[1.95rem]">{SETTINGS_LABEL}</h2>
