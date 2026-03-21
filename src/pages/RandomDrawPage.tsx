@@ -88,7 +88,8 @@ const SOUND_START_LEAD_TIME = 0.012;
 const SOUND_INITIAL_START_LEAD_TIME = 0.07;
 const AUDIO_PRIME_DURATION_MS = 28;
 const AUDIO_WARMUP_DELAY_MS = 64;
-const RANDOM_DRAW_AUDIO_MASTER_GAIN = 1.8;
+const RANDOM_DRAW_AUDIO_MASTER_GAIN = 3;
+const RANDOM_DRAW_REPEAT_SOUND_GAIN = 1.4;
 const DEFAULT_PRIMARY_CASE_ID = 'case-a';
 const DEFAULT_SECONDARY_CASE_ID = 'case-b';
 const SECRET_QUEUE_MAX_LENGTH = 240;
@@ -862,13 +863,14 @@ const playRandomDrawSound = async (kind: 'tick' | 'pop' | 'repeat' | 'empty') =>
       return;
     }
 
-    playTone(176, 720, 0, 0.24, 'sawtooth', 0.062);
-    playTone(392, 415, 0.15, 0.11, 'triangle', 0.046);
-    playTone(494, 523, 0.21, 0.11, 'triangle', 0.054);
-    playTone(659, 698, 0.27, 0.12, 'triangle', 0.061);
-    playTone(988, 1046, 0.33, 0.16, 'sine', 0.05);
-    playTone(1318, 1396, 0.36, 0.14, 'sine', 0.037);
-    playTone(784, 830, 0.43, 0.16, 'triangle', 0.032);
+    const repeatVolumeMultiplier = RANDOM_DRAW_REPEAT_SOUND_GAIN;
+    playTone(176, 720, 0, 0.24, 'sawtooth', 0.062 * repeatVolumeMultiplier);
+    playTone(392, 415, 0.15, 0.11, 'triangle', 0.046 * repeatVolumeMultiplier);
+    playTone(494, 523, 0.21, 0.11, 'triangle', 0.054 * repeatVolumeMultiplier);
+    playTone(659, 698, 0.27, 0.12, 'triangle', 0.061 * repeatVolumeMultiplier);
+    playTone(988, 1046, 0.33, 0.16, 'sine', 0.05 * repeatVolumeMultiplier);
+    playTone(1318, 1396, 0.36, 0.14, 'sine', 0.037 * repeatVolumeMultiplier);
+    playTone(784, 830, 0.43, 0.16, 'triangle', 0.032 * repeatVolumeMultiplier);
   } catch {
     // Ignore browsers that block or do not support Web Audio.
   }
@@ -1669,7 +1671,11 @@ export default function RandomDrawPage() {
             </div>
 
             <div className="random-stage-shell flex min-h-0 w-full flex-1 flex-col items-center justify-center">
-              <div className="random-board-stage relative flex min-h-0 w-full flex-1 items-center justify-center">
+              <div
+                className={`random-board-stage relative flex min-h-0 w-full flex-1 items-center justify-center${
+                  isStageShowingEmptyNotice ? ' random-board-stage-empty' : ''
+                }`}
+              >
                 {isNormalWinImpactVisible && <div aria-hidden="true" className="random-stage-win-flash" />}
                 {repeatFlight && (
                   <div
@@ -1721,11 +1727,14 @@ export default function RandomDrawPage() {
                 <div
                   ref={boardRef}
                   className={`random-board ${isDrawing ? 'random-board-drawing' : ''}${
+                    isStageShowingEmptyNotice ? ' random-board-empty-state' : ''
+                  }${
                     isNormalWinImpactVisible ? ' random-board-win-impact' : ''
                   }${
                     isRepeatImpacting ? ' random-board-repeat-impact' : ''
                   }`}
                 >
+                  {isStageShowingEmptyNotice && <div aria-hidden="true" className="random-board-empty-echo" />}
                   {isNormalWinImpactVisible && <div aria-hidden="true" className="random-board-win-backflash" />}
                   {isNormalWinImpactVisible && <div aria-hidden="true" className="random-board-win-glow" />}
                   {isNormalWinImpactVisible && <div aria-hidden="true" className="random-board-win-shockwave" />}
