@@ -3,8 +3,6 @@ import { toPng } from 'html-to-image';
 import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type Mode = 'schedule' | 'manual';
-
 interface ScheduleSlot {
   id: string;
   name: string;
@@ -16,6 +14,14 @@ interface ScheduleSlot {
 interface AnnouncementItem {
   id: string;
   text: string;
+}
+
+interface ManualTimerState {
+  totalTime: number;
+  timeLeft: number;
+  isRunning: boolean;
+  endTime: number | null;
+  isVisible: boolean;
 }
 
 type WeeklySchedule = {
@@ -41,10 +47,26 @@ const MEMO_NOTE_DEFAULT_FONT_SCALE = 50;
 const MEMO_NOTE_FONT_SCALE_STEP = 5;
 const MEMO_NOTE_MIN_FONT_SIZE = 40;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
+const TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV3';
+const LEGACY_TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV2';
 const MEMO_NOTE_TEXT_COLORS = [
   { id: 'black', label: '검정', value: '#2c1e16' },
   { id: 'red', label: '빨강', value: '#c7684a' },
   { id: 'blue', label: '파랑', value: '#2d63b8' },
+] as const;
+
+const DEFAULT_MANUAL_TIMER_STATE: ManualTimerState = {
+  totalTime: 600,
+  timeLeft: 600,
+  isRunning: false,
+  endTime: null,
+  isVisible: false,
+};
+
+const MANUAL_TIMER_PRESETS = [
+  { label: '3분', seconds: 180 },
+  { label: '5분', seconds: 300 },
+  { label: '10분', seconds: 600 },
 ] as const;
 
 type MemoTextColorId = (typeof MEMO_NOTE_TEXT_COLORS)[number]['id'];
@@ -547,23 +569,52 @@ const playAlarm = () => {
 };
 
 const getInitialAppState = () => {
-  const saved = localStorage.getItem('timerAppStateV2');
+  const saved =
+    localStorage.getItem(TIMER_APP_STATE_STORAGE_KEY) ||
+    localStorage.getItem(LEGACY_TIMER_APP_STATE_STORAGE_KEY);
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      let manual = parsed.manual || { totalTime: 600, timeLeft: 600, isRunning: false, endTime: null };
-      
-      if (manual.isRunning && manual.endTime) {
-         manual.timeLeft = Math.max(0, Math.floor((manual.endTime - Date.now()) / 1000));
-         if (manual.timeLeft === 0) {
-           manual.isRunning = false;
-           manual.endTime = null;
-         }
+      const savedManual = parsed?.manual || {};
+      const totalTime =
+        typeof savedManual.totalTime === 'number' && savedManual.totalTime > 0
+          ? Math.floor(savedManual.totalTime)
+          : DEFAULT_MANUAL_TIMER_STATE.totalTime;
+      let timeLeft =
+        typeof savedManual.timeLeft === 'number' && savedManual.timeLeft >= 0
+          ? Math.min(Math.floor(savedManual.timeLeft), totalTime)
+          : totalTime;
+      let endTime =
+        typeof savedManual.endTime === 'number' && Number.isFinite(savedManual.endTime)
+          ? savedManual.endTime
+          : null;
+      let isRunning = savedManual.isRunning === true && endTime !== null;
+
+      if (isRunning && endTime !== null) {
+        timeLeft = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+        if (timeLeft === 0) {
+          isRunning = false;
+          endTime = null;
+        }
+      } else {
+        endTime = null;
       }
-      return { mode: parsed.mode || 'manual', manual };
+
+      return {
+        manual: {
+          totalTime,
+          timeLeft,
+          isRunning,
+          endTime,
+          isVisible:
+            savedManual.isVisible === true ||
+            parsed?.mode === 'manual' ||
+            isRunning,
+        },
+      };
     } catch (e) {}
   }
-  return { mode: 'manual' as Mode, manual: { totalTime: 600, timeLeft: 600, isRunning: false, endTime: null } };
+  return { manual: DEFAULT_MANUAL_TIMER_STATE };
 };
 
 function AnnouncementNotebookOverlay({
@@ -1239,7 +1290,6 @@ function MemoNotebookOverlay({
 
 export default function TimerPage() {
   const initialState = getInitialAppState();
-  const [mode, setMode] = useState<Mode>(initialState.mode);
   const [scheduleNotice, setScheduleNotice] = useState(() => localStorage.getItem('scheduleNotice') || '');
   const [isNoticeEnabled, setIsNoticeEnabled] = useState(() => {
     const saved = localStorage.getItem('scheduleNoticeEnabled');
@@ -1259,11 +1309,6 @@ export default function TimerPage() {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
     return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
   });
-  
-  const modeRef = useRef(mode);
-  useEffect(() => {
-    modeRef.current = mode;
-  }, [mode]);
 
   const isEditingNoticeRef = useRef(isEditingNotice);
   useEffect(() => {
@@ -1271,13 +1316,12 @@ export default function TimerPage() {
   }, [isEditingNotice]);
 
   const prevSlotIdRef = useRef<string | null>(null);
-  const prevSlotTypeRef = useRef<TimerType>('none');
-
   // Manual Timer State
   const [manualTotalTime, setManualTotalTime] = useState(initialState.manual.totalTime);
   const [manualTimeLeft, setManualTimeLeft] = useState(initialState.manual.timeLeft);
   const [manualIsRunning, setManualIsRunning] = useState(initialState.manual.isRunning);
   const [manualEndTime, setManualEndTime] = useState<number | null>(initialState.manual.endTime);
+  const [isExtraTimerVisible, setIsExtraTimerVisible] = useState(initialState.manual.isVisible);
 
   // Schedule Timer State
   const [scheduleTotalTime, setScheduleTotalTime] = useState(0);
@@ -1354,27 +1398,26 @@ export default function TimerPage() {
   }, [isEditingNotice, noticeDraft]);
 
   useEffect(() => {
-    if (mode !== 'schedule') return;
     const interval = window.setInterval(() => {
       setScheduleFocusTick(Date.now());
     }, 1000);
     return () => clearInterval(interval);
-  }, [mode]);
+  }, []);
 
   // Persist App State
   useEffect(() => {
-    localStorage.setItem('timerAppStateV2', JSON.stringify({
-      mode,
+    localStorage.setItem(TIMER_APP_STATE_STORAGE_KEY, JSON.stringify({
       manual: {
         totalTime: manualTotalTime,
         timeLeft: manualTimeLeft,
         isRunning: manualIsRunning,
-        endTime: manualEndTime
+        endTime: manualEndTime,
+        isVisible: isExtraTimerVisible,
       }
     }));
-  }, [mode, manualTotalTime, manualTimeLeft, manualIsRunning, manualEndTime]);
+  }, [manualTotalTime, manualTimeLeft, manualIsRunning, manualEndTime, isExtraTimerVisible]);
 
-  // Manual Mode Timer Logic
+  // Manual Timer Logic
   useEffect(() => {
     let interval: number;
     if (manualIsRunning && manualEndTime) {
@@ -1384,18 +1427,16 @@ export default function TimerPage() {
         if (remaining === 0) {
           setManualIsRunning(false);
           setManualEndTime(null);
-          if (modeRef.current === 'manual') {
-            playAlarm();
-          }
+          playAlarm();
         }
       }, 100);
     }
     return () => clearInterval(interval);
   }, [manualIsRunning, manualEndTime]);
 
-  // Schedule Mode Timer Logic
+  // Schedule Timer Logic
   useEffect(() => {
-    const checkSchedule = (shouldPlayAlarm: boolean) => {
+    const checkSchedule = () => {
       const { dayOfWeek, currentMinutes, currentSeconds } = getScheduleClockParts(
         Date.now(),
         scheduleClockOffsetSeconds,
@@ -1404,26 +1445,13 @@ export default function TimerPage() {
       const todaysSchedule = weeklySchedule[dayOfWeek] || [];
       const activeSlot = todaysSchedule.find(s => currentMinutes >= s.start && currentMinutes < s.end);
       const nextSlotId = activeSlot ? activeSlot.id : null;
-      const nextSlotType: TimerType = activeSlot ? (activeSlot.type as TimerType) : 'none';
       const didSlotChange = prevSlotIdRef.current !== null && prevSlotIdRef.current !== nextSlotId;
-
-      // Play alarm only when a non-class slot ends.
-      if (
-        shouldPlayAlarm &&
-        didSlotChange &&
-        prevSlotTypeRef.current !== 'none' &&
-        prevSlotTypeRef.current !== 'class' &&
-        modeRef.current === 'schedule'
-      ) {
-        playAlarm();
-      }
 
       if (didSlotChange) {
         clearAndCloseNotice();
       }
 
       prevSlotIdRef.current = nextSlotId;
-      prevSlotTypeRef.current = nextSlotType;
 
       if (activeSlot) {
         const slotTotalSeconds = (activeSlot.end - activeSlot.start) * 60;
@@ -1442,31 +1470,59 @@ export default function TimerPage() {
       }
     };
 
-    checkSchedule(false);
-    const interval = window.setInterval(() => checkSchedule(true), 250);
+    checkSchedule();
+    const interval = window.setInterval(checkSchedule, 250);
 
     return () => clearInterval(interval);
   }, [weeklySchedule, scheduleClockOffsetSeconds]);
 
-  const handleModeSwitch = (newMode: Mode) => {
-    setMode(newMode);
+  const setManualTimerDuration = (totalSeconds: number) => {
+    if (totalSeconds <= 0) return;
+
+    setManualTotalTime(totalSeconds);
+    setManualTimeLeft(totalSeconds);
+    setManualIsRunning(false);
+    setManualEndTime(null);
   };
 
-  const applyCustomTime = () => {
-    const m = parseInt(customMinutes) || 0;
-    const s = parseInt(customSeconds) || 0;
-    const totalSeconds = m * 60 + s;
+  const clampManualInputValue = (value: string, max: number) => {
+    if (value === '') return '';
+    const numeric = Number.parseInt(value, 10);
+    if (!Number.isFinite(numeric)) return '';
+    return Math.min(Math.max(0, numeric), max).toString();
+  };
+
+  const syncManualTimerFromInputs = (minutesValue: string, secondsValue: string) => {
+    const minutes = Number.parseInt(minutesValue, 10) || 0;
+    const seconds = Number.parseInt(secondsValue, 10) || 0;
+    const totalSeconds = minutes * 60 + seconds;
+
     if (totalSeconds > 0) {
-      setManualTotalTime(totalSeconds);
-      setManualTimeLeft(totalSeconds);
-      setManualIsRunning(false);
-      setManualEndTime(null);
-      setTimerType('none');
+      setManualTimerDuration(totalSeconds);
+      setIsExtraTimerVisible(true);
     }
   };
 
+  const applyManualPreset = (totalSeconds: number) => {
+    setCustomMinutes(Math.floor(totalSeconds / 60).toString());
+    setCustomSeconds((totalSeconds % 60).toString());
+    setManualTimerDuration(totalSeconds);
+    setIsExtraTimerVisible(true);
+  };
+
+  const handleCustomMinutesChange = (value: string) => {
+    const nextValue = clampManualInputValue(value, 999);
+    setCustomMinutes(nextValue);
+    syncManualTimerFromInputs(nextValue, customSeconds);
+  };
+
+  const handleCustomSecondsChange = (value: string) => {
+    const nextValue = clampManualInputValue(value, 59);
+    setCustomSeconds(nextValue);
+    syncManualTimerFromInputs(customMinutes, nextValue);
+  };
+
   const toggleTimer = () => {
-    if (mode !== 'manual') return;
     if (manualIsRunning) {
       setManualIsRunning(false);
       setManualEndTime(null);
@@ -1479,7 +1535,6 @@ export default function TimerPage() {
   };
 
   const resetTimer = () => {
-    if (mode !== 'manual') return;
     setManualTimeLeft(manualTotalTime);
     setManualIsRunning(false);
     setManualEndTime(null);
@@ -1666,9 +1721,9 @@ export default function TimerPage() {
   };
 
   // Visual calculations
-  const displayTotalTime = mode === 'manual' ? manualTotalTime : scheduleTotalTime;
-  const displayTimeLeft = mode === 'manual' ? manualTimeLeft : scheduleTimeLeft;
-  const displayIsRunning = mode === 'manual' ? manualIsRunning : scheduleIsRunning;
+  const displayTotalTime = scheduleTotalTime;
+  const displayTimeLeft = scheduleTimeLeft;
+  const displayIsRunning = scheduleIsRunning;
 
   const percentage = displayTotalTime > 0 ? displayTimeLeft / displayTotalTime : 0;
   const warningThreshold = 0.5;
@@ -1689,9 +1744,9 @@ export default function TimerPage() {
   let speechTextSizeClass = "text-2xl md:text-4xl";
   let characterWrapSizeClass = "w-48 h-48 md:w-64 md:h-64";
   let characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
-  const isScheduleBreak = mode === 'schedule' && timerType === 'break';
-  const isScheduleLunch = mode === 'schedule' && timerType === 'lunch';
-  const shouldShowTimedMessage = mode === 'manual' || isScheduleBreak || isScheduleLunch;
+  const isScheduleBreak = timerType === 'break';
+  const isScheduleLunch = timerType === 'lunch';
+  const shouldShowTimedMessage = isScheduleBreak || isScheduleLunch;
   const scheduleTypeLabel =
     timerType === 'class'
       ? "\uC218\uC5C5\uC2DC\uAC04"
@@ -1714,12 +1769,6 @@ export default function TimerPage() {
           : 'bg-[#F7F0E9] text-[#8A6347]/70 border-[#E8D7C5]';
 
   const getCharacterMessage = (stage: 'warning' | 'urgent' | 'end') => {
-    if (mode === 'manual') {
-      if (stage === 'warning') return "\uB9C8\uBB34\uB9AC\uD560 \uC2DC\uAC04\uC774 \uB2E4\uAC00\uC624\uACE0 \uC788\uC5B4\uC694.";
-      if (stage === 'urgent') return "\uC774\uC81C \uAC70\uC758 \uB05D\uB098\uC694.";
-      return "\uC2DC\uAC04\uC774 \uB05D\uB0AC\uC5B4\uC694!";
-    }
-
     if (isScheduleBreak) {
       if (stage === 'warning') return "\uC26C\uB294 \uC2DC\uAC04\uC774 \uB05D\uB098\uAC00\uC694. \uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
       if (stage === 'urgent') return "\uC774\uC81C \uACF3 \uC218\uC5C5\uC774 \uC2DC\uC791\uD574\uC694. \uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
@@ -1800,6 +1849,21 @@ export default function TimerPage() {
     return h * 60 + m;
   };
 
+  const manualProgress = manualTotalTime > 0 ? Math.max(0, Math.min(1, manualTimeLeft / manualTotalTime)) : 0;
+  const isManualFinished = manualTotalTime > 0 && manualTimeLeft === 0;
+  const hasManualTimerActivity =
+    manualIsRunning ||
+    isManualFinished ||
+    manualTimeLeft !== manualTotalTime ||
+    manualTotalTime !== DEFAULT_MANUAL_TIMER_STATE.totalTime;
+  const manualClockClass = manualIsRunning
+    ? 'text-[#5C8D5D]'
+    : isManualFinished
+      ? 'text-[#B55E4C]'
+      : 'text-[#8A6347]';
+  const manualToggleLabel =
+    !isExtraTimerVisible && !hasManualTimerActivity ? '보조 타이머 추가' : '보조 타이머';
+
   const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
   const today = adjustedScheduleNow.getDay();
   const currentDaySchedule = weeklySchedule[today] || [];
@@ -1816,7 +1880,7 @@ export default function TimerPage() {
         : currentDaySchedule.length - 1;
 
   useEffect(() => {
-    if (mode !== 'schedule' || focusSlotIndex < 0) return;
+    if (focusSlotIndex < 0) return;
     const focusSlot = currentDaySchedule[focusSlotIndex];
     if (!focusSlot) return;
     const node = scheduleSlotRefs.current[focusSlot.id];
@@ -1837,7 +1901,7 @@ export default function TimerPage() {
         behavior: 'smooth',
       });
     }
-  }, [mode, today, currentSlotName, weeklySchedule, focusSlotIndex, currentDaySchedule, scheduleFocusTick]);
+  }, [today, currentSlotName, weeklySchedule, focusSlotIndex, currentDaySchedule, scheduleFocusTick]);
 
   const trimmedNotice = scheduleNotice.trim();
   const hasScheduleNotice = trimmedNotice.length > 0;
@@ -2004,103 +2068,47 @@ export default function TimerPage() {
             </div>
 
             {/* Controls Content (Fades out when character shows) */}
-            <div className={`flex flex-col flex-1 min-h-0 ${mode === 'schedule' ? 'gap-4' : 'gap-6'}`}>
-              {/* Mode Switcher */}
-            <div className="flex shrink-0 items-center gap-3">
-              <div className="mode-switch flex flex-1 rounded-2xl p-1.5">
+            <div className="flex flex-1 min-h-0 flex-col gap-4">
+              <div className="flex shrink-0 items-center gap-3">
                 <button
-                  onClick={() => handleModeSwitch('schedule')}
-                  className={`mode-toggle flex flex-1 items-center justify-center gap-2 rounded-[1.1rem] py-3 text-sm font-bold transition-all lg:text-base ${
-                    mode === 'schedule' ? 'mode-toggle-active' : 'mode-toggle-inactive'
-                  }`}
+                  onClick={() => setIsExtraTimerVisible((prev) => !prev)}
+                  className="paper-card flex flex-1 items-center justify-between rounded-2xl border-2 border-[#E6D5C9] bg-[#FDFBF7] px-4 py-3 text-left shadow-sm transition-all hover:-translate-y-px active:translate-y-0"
+                  type="button"
                 >
-                  <CalendarClock size={20} />
-                  시간표 모드
-                </button>
-                <button
-                  onClick={() => handleModeSwitch('manual')}
-                  className={`mode-toggle flex flex-1 items-center justify-center gap-2 rounded-[1.1rem] py-3 text-sm font-bold transition-all lg:text-base ${
-                    mode === 'manual' ? 'mode-toggle-active' : 'mode-toggle-inactive'
-                  }`}
-                >
-                  <Timer size={20} />
-                  수동 모드
-                </button>
-              </div>
-              <button
-                onClick={toggleBackgroundMusic}
-                disabled={isMusicLoading}
-                className={`sound-toggle inline-flex h-[3.55rem] w-[3.55rem] shrink-0 items-center justify-center rounded-2xl transition-all ${
-                  isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
-                } ${isMusicLoading ? 'cursor-not-allowed opacity-45' : ''}`}
-                title={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
-                aria-label={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
-              >
-                {isMusicPlaying ? <Volume2 size={22} /> : <VolumeX size={22} />}
-              </button>
-            </div>
-
-            <div className={`flex-1 flex flex-col min-h-0 ${mode === 'schedule' ? 'justify-start gap-4' : 'justify-center gap-8'}`}>
-              {mode === 'manual' ? (
-                <>
-                  <div className="flex justify-center items-center gap-6">
-                    <button
-                      onClick={toggleTimer}
-                      className={`round-action flex h-24 w-24 shrink-0 items-center justify-center rounded-full text-white shadow-xl transition-transform hover:scale-105 active:scale-95 lg:h-32 lg:w-32 ${
-                        manualIsRunning ? 'round-action-pause' : 'round-action-play'
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${
+                        manualIsRunning
+                          ? 'border-[#BFD4B2] bg-[#EEF7E8] text-[#5C8D5D]'
+                          : 'border-[#E6D5C9] bg-white text-[#8A6347]'
                       }`}
                     >
-                      {manualIsRunning ? <Pause size={48} className="lg:w-14 lg:h-14" /> : <Play size={48} className="ml-2 lg:w-14 lg:h-14 lg:ml-3" />}
-                    </button>
-                    <button
-                      onClick={resetTimer}
-                      className="round-action round-action-reset flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-[#8A6347] shadow-lg transition-transform hover:scale-105 active:scale-95 lg:h-20 lg:w-20"
-                    >
-                      <RotateCcw size={32} className="lg:w-10 lg:h-10" />
-                    </button>
-                  </div>
+                      {hasManualTimerActivity ? <Timer size={20} /> : <Plus size={20} />}
+                    </span>
+                    <span className="block min-w-0 truncate text-sm font-extrabold text-[#6B4E3A] lg:text-base">
+                      {manualToggleLabel}
+                    </span>
+                  </span>
+                  {!isExtraTimerVisible ? (
+                    <span className={`ml-3 shrink-0 font-mono text-lg font-bold ${manualIsRunning ? 'text-[#5C8D5D]' : 'text-[#8A6347]/70'}`}>
+                      {hasManualTimerActivity ? formatTime(manualTimeLeft) : '+'}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  onClick={toggleBackgroundMusic}
+                  disabled={isMusicLoading}
+                  className={`sound-toggle inline-flex h-[3.55rem] w-[3.55rem] shrink-0 items-center justify-center rounded-2xl transition-all ${
+                    isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
+                  } ${isMusicLoading ? 'cursor-not-allowed opacity-45' : ''}`}
+                  title={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
+                  aria-label={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
+                >
+                  {isMusicPlaying ? <Volume2 size={22} /> : <VolumeX size={22} />}
+                </button>
+              </div>
 
-                  <div className="panel-divider h-px w-full shrink-0"></div>
-
-                  <div className="flex flex-col gap-4 shrink-0">
-                    <div className="paper-card rounded-3xl border-2 border-[#E6D5C9] p-5 shadow-sm">
-                      <h3 className="section-title mb-4 text-center font-bold text-[#8A6347]">직접 시간 설정</h3>
-                      <div className="flex items-center justify-center gap-3 mb-4">
-                        <div className="flex flex-col items-center">
-                          <input 
-                            type="number" 
-                            value={customMinutes}
-                            onChange={(e) => setCustomMinutes(e.target.value)}
-                            className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                            min="0"
-                            max="999"
-                          />
-                          <span className="text-[#8A6347]/70 font-bold text-sm mt-1">분</span>
-                        </div>
-                        <span className="text-2xl font-bold text-[#8A6347] mb-6">:</span>
-                        <div className="flex flex-col items-center">
-                          <input 
-                            type="number" 
-                            value={customSeconds}
-                            onChange={(e) => setCustomSeconds(e.target.value)}
-                            className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                            min="0"
-                            max="59"
-                          />
-                          <span className="text-[#8A6347]/70 font-bold text-sm mt-1">초</span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={applyCustomTime}
-                        className="primary-cta w-full rounded-xl py-3 text-lg font-bold text-white shadow-md transition-colors active:scale-95"
-                      >
-                        타이머 설정
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="relative flex h-full min-h-0 w-full flex-col items-stretch justify-start gap-3 pt-2 text-left">
+              <div className="relative flex h-full min-h-0 w-full flex-col items-stretch justify-start gap-3 pt-2 text-left">
                   <div className="hidden w-24 h-24 rounded-full bg-[#F0F5F0] items-center justify-center text-[#5C8D5D] mb-2 shadow-inner">
                     <CalendarClock size={48} />
                   </div>
@@ -2194,8 +2202,97 @@ export default function TimerPage() {
                       </div>
                     ) : null}
                   </div>
-                  
-                  <div className={`schedule-board flex min-h-0 w-full flex-[0.9] flex-col rounded-3xl border-2 border-[#E6D5C9] bg-[#FDFBF7] p-5 text-left shadow-sm ${shouldShowNoticeCard && !isEditingNotice ? 'schedule-board-muted pt-9 sm:pt-10' : ''}`}>
+
+                  {isExtraTimerVisible ? (
+                    <div className="paper-card shrink-0 rounded-[1.9rem] border-2 border-[#E6D5C9] bg-[#FBF7F0] p-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="section-title text-lg font-bold text-[#8A6347]">보조 타이머</h3>
+                        <button
+                          onClick={() => setIsExtraTimerVisible(false)}
+                          className="icon-button rounded-full p-2 text-[#8A6347]/60 transition-colors hover:bg-white hover:text-[#8A6347]"
+                          title="보조 타이머 접기"
+                          type="button"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      <div className="mt-4 rounded-[1.55rem] border border-[#E6D5C9] bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                        <div className="flex items-end justify-between gap-3">
+                          <div className={`font-mono text-[clamp(2.4rem,6vw,3.6rem)] font-bold leading-none tracking-tight ${manualClockClass}`}>
+                            {formatTime(manualTimeLeft)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={toggleTimer}
+                              className={`round-action flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95 ${
+                                manualIsRunning ? 'round-action-pause' : 'round-action-play'
+                              }`}
+                              type="button"
+                              title={manualIsRunning ? '보조 타이머 일시정지' : '보조 타이머 시작'}
+                            >
+                              {manualIsRunning ? <Pause size={24} /> : <Play size={24} className="ml-0.5" />}
+                            </button>
+                            <button
+                              onClick={resetTimer}
+                              className="round-action round-action-reset flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[#8A6347] shadow-md transition-transform hover:scale-105 active:scale-95"
+                              type="button"
+                              title="보조 타이머 초기화"
+                            >
+                              <RotateCcw size={22} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#EDE2D7]">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${manualIsRunning ? 'bg-[#7DA36C]' : isManualFinished ? 'bg-[#D37C68]' : 'bg-[#B68A67]'}`}
+                            style={{ width: `${manualProgress * 100}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        {MANUAL_TIMER_PRESETS.map((preset) => (
+                          <button
+                            key={preset.seconds}
+                            onClick={() => applyManualPreset(preset.seconds)}
+                            className="rounded-2xl border border-[#E6D5C9] bg-white px-3 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#D5C0AD] hover:bg-[#FFF9F2]"
+                            type="button"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-center gap-3">
+                        <div className="flex flex-col items-center">
+                          <input
+                            type="number"
+                            value={customMinutes}
+                            onChange={(e) => handleCustomMinutesChange(e.target.value)}
+                            className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                            min="0"
+                            max="999"
+                          />
+                          <span className="mt-1 text-sm font-bold text-[#8A6347]/70">분</span>
+                        </div>
+                        <span className="mb-6 text-2xl font-bold text-[#8A6347]">:</span>
+                        <div className="flex flex-col items-center">
+                          <input
+                            type="number"
+                            value={customSeconds}
+                            onChange={(e) => handleCustomSecondsChange(e.target.value)}
+                            className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                            min="0"
+                            max="59"
+                          />
+                          <span className="mt-1 text-sm font-bold text-[#8A6347]/70">초</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className={`schedule-board flex min-h-0 w-full flex-col rounded-3xl border-2 border-[#E6D5C9] bg-[#FDFBF7] p-5 text-left shadow-sm ${shouldShowNoticeCard && !isEditingNotice ? 'schedule-board-muted pt-9 sm:pt-10' : ''} ${isExtraTimerVisible ? 'flex-[0.72]' : 'flex-[0.9]'}`}>
                     <div className="mb-3 flex items-center justify-between gap-2 shrink-0">
                       <h3 className="section-title flex items-center gap-2 text-lg font-bold text-[#8A6347] lg:text-xl">
                         <CalendarClock size={18} />
@@ -2261,8 +2358,6 @@ export default function TimerPage() {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
             </div>
           </div>
         </div>
