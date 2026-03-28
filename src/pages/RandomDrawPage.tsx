@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Play, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react';
+import { RANDOM_DRAW_RESULT_DISPLAY_MS } from '../lib/randomDraw';
 
 type RandomDrawHistoryKind = 'normal' | 'repeat';
 type StudentNameMap = Record<string, string>;
@@ -77,13 +78,14 @@ const MIN_DRAW_NUMBER = 1;
 const MAX_DRAW_NUMBER = 999;
 const MAX_HISTORY_LENGTH = 2000;
 const ENTER_HOLD_RESET_MS = 700;
-const DRAW_DURATION_MS = 1700;
+const DRAW_DURATION_MS = 1300;
 const DRAW_START_BREAK_MS = 180;
 const ROLL_TICK_START_MS = 104;
 const ROLL_TICK_END_MS = 34;
 const REPEAT_PICK_PROBABILITY = 0.1;
 const REPEAT_RESOLVE_DELAY_MS = 1040;
 const NORMAL_WIN_EFFECT_DURATION_MS = 980;
+const RESET_EFFECT_DURATION_MS = 940;
 const SOUND_START_LEAD_TIME = 0.012;
 const SOUND_INITIAL_START_LEAD_TIME = 0.07;
 const AUDIO_PRIME_DURATION_MS = 28;
@@ -135,6 +137,7 @@ const SECRET_QUEUE_APPLY_LABEL = '\uC21C\uC11C \uBC18\uC601';
 const SECRET_QUEUE_CLEAR_LABEL = '\uC785\uB825 \uBE44\uC6B0\uAE30';
 const SECRET_QUEUE_COUNT_LABEL = '\uB300\uAE30 \uC911';
 const EMPTY_DRAW_LABEL = '\uD145';
+const RESET_DRAW_LABEL = '\uC11E\uB294 \uC911';
 
 let randomDrawAudioContext: AudioContext | null = null;
 let randomDrawAudioPreparePromise: Promise<AudioContext | null> | null = null;
@@ -807,7 +810,7 @@ const prepareRandomDrawAudio = () => {
   return randomDrawAudioPreparePromise;
 };
 
-const playRandomDrawSound = async (kind: 'tick' | 'pop' | 'repeat' | 'empty') => {
+const playRandomDrawSound = async (kind: 'tick' | 'pop' | 'repeat' | 'empty' | 'reset') => {
   try {
     const ctx = await prepareRandomDrawAudio();
     if (!ctx) return;
@@ -863,6 +866,16 @@ const playRandomDrawSound = async (kind: 'tick' | 'pop' | 'repeat' | 'empty') =>
       return;
     }
 
+    if (kind === 'reset') {
+      playTone(1040, 240, 0, 0.24, 'sawtooth', 0.025);
+      playTone(760, 180, 0.028, 0.28, 'triangle', 0.022);
+      playTone(280, 190, 0.042, 0.2, 'sine', 0.018);
+      playTone(392, 523, 0.19, 0.12, 'triangle', 0.02);
+      playTone(523, 784, 0.23, 0.12, 'triangle', 0.019);
+      playTone(784, 1046, 0.28, 0.16, 'sine', 0.016);
+      return;
+    }
+
     const repeatVolumeMultiplier = RANDOM_DRAW_REPEAT_SOUND_GAIN;
     playTone(176, 720, 0, 0.24, 'sawtooth', 0.062 * repeatVolumeMultiplier);
     playTone(392, 415, 0.15, 0.11, 'triangle', 0.046 * repeatVolumeMultiplier);
@@ -894,6 +907,8 @@ export default function RandomDrawPage() {
   const [repeatFlight, setRepeatFlight] = useState<RepeatFlightState | null>(null);
   const [isRepeatImpacting, setIsRepeatImpacting] = useState(false);
   const [isWinImpacting, setIsWinImpacting] = useState(false);
+  const [isResetImpacting, setIsResetImpacting] = useState(false);
+  const [isAutoResetPending, setIsAutoResetPending] = useState(false);
 
   const hasMountedRef = useRef(false);
   const casesRef = useRef(cases);
@@ -906,11 +921,14 @@ export default function RandomDrawPage() {
   const drawResolveTimeoutRef = useRef<number | null>(null);
   const repeatResolveTimeoutRef = useRef<number | null>(null);
   const normalWinEffectTimeoutRef = useRef<number | null>(null);
+  const autoResetTimeoutRef = useRef<number | null>(null);
+  const resetEffectTimeoutRef = useRef<number | null>(null);
   const enterHoldTimeoutRef = useRef<number | null>(null);
   const secretQueueUnlockTimeoutRef = useRef<number | null>(null);
   const secretQueueTapCountRef = useRef(0);
   const enterHoldTriggeredRef = useRef(false);
   const enterPressedRef = useRef(false);
+  const queuedDrawAfterResetRef = useRef(false);
   const latestRollingValueRef = useRef<number | null>(null);
   const drawLaunchTokenRef = useRef(0);
 
@@ -933,14 +951,30 @@ export default function RandomDrawPage() {
     (studentNumber) => getStudentName(selectedSettingsCase, studentNumber).length > 0,
   ).length;
   const syncedStudentRosterBulkInput = buildStudentRosterBulkInput(selectedSettingsCase, settingsStudentNumbers);
-  const drawData = getCaseDrawData(activeCase, repeatPickEnabled);
+  const getDrawStartSnapshot = (caseState: RandomDrawCaseState, repeatEnabled: boolean) => {
+    const drawData = getCaseDrawData(caseState, repeatEnabled);
+    const canTriggerRepeatAnimation = drawData.historyEntries[0]?.kind !== 'repeat';
+    const hiddenQueueInstruction = getHiddenQueueInstruction(caseState, canTriggerRepeatAnimation);
+    const rollingPool = Array.from({ length: drawData.totalCount }, (_, index) => drawData.minNumber + index);
+    const hasDrawCandidate =
+      drawData.availableNumbers.length > 0 ||
+      (canTriggerRepeatAnimation && drawData.repeatableEntries.length > 0) ||
+      hiddenQueueInstruction !== null;
+
+    return {
+      drawData,
+      canTriggerRepeatAnimation,
+      hiddenQueueInstruction,
+      rollingPool,
+      hasDrawCandidate,
+    };
+  };
+
+  const activeDrawSnapshot = getDrawStartSnapshot(activeCase, repeatPickEnabled);
+  const { drawData, hasDrawCandidate } = activeDrawSnapshot;
   const { minNumber, maxNumber, totalCount, historyEntries, availableNumbers, repeatableEntries } = drawData;
-  const canTriggerRepeatAnimation = historyEntries[0]?.kind !== 'repeat';
-  const hiddenQueueInstruction = getHiddenQueueInstruction(activeCase, canTriggerRepeatAnimation);
-  const hasDrawCandidate =
-    availableNumbers.length > 0 ||
-    (canTriggerRepeatAnimation && repeatableEntries.length > 0) ||
-    hiddenQueueInstruction !== null;
+  const shouldTriggerImmediateResetOnEnter =
+    totalCount > 0 && availableNumbers.length === 0 && activeDrawSnapshot.hiddenQueueInstruction === null;
   const shouldPreferStudentNames = hasNamedStudentsInRange(activeCase);
   const stageDisplayValue = repeatStageNumbers === null ? (isDrawing ? rollingValue : activeCase.currentResult) : null;
   const stageValue =
@@ -964,9 +998,10 @@ export default function RandomDrawPage() {
     stageDisplayValue !== null &&
     getStudentName(activeCase, stageDisplayValue).length > 0;
   const isStageShowingEmptyNotice = stageNotice === EMPTY_DRAW_LABEL;
+  const isStageShowingResetNotice = stageNotice === RESET_DRAW_LABEL;
   const isRepeatShowingStudentName = repeatStageNumbers !== null && shouldPreferStudentNames;
   const isNormalWinImpactVisible = isWinImpacting && repeatStageNumbers === null && stageDisplayValue !== null;
-  const isDrawLocked = isDrawPending || isDrawing;
+  const isDrawLocked = isDrawPending || isDrawing || isResetImpacting || isAutoResetPending;
   const caseSignature = `${resolvedActiveCaseId}:${minNumber}:${maxNumber}`;
   const visibleHistoryEntries = (() => {
     const seenNumbers = new Set<number>();
@@ -1228,6 +1263,25 @@ export default function RandomDrawPage() {
     }
   };
 
+  const clearAutoResetTimer = () => {
+    if (autoResetTimeoutRef.current !== null) {
+      window.clearTimeout(autoResetTimeoutRef.current);
+      autoResetTimeoutRef.current = null;
+    }
+
+    setIsAutoResetPending(false);
+  };
+
+  const clearResetVisualState = () => {
+    if (resetEffectTimeoutRef.current !== null) {
+      window.clearTimeout(resetEffectTimeoutRef.current);
+      resetEffectTimeoutRef.current = null;
+    }
+
+    setIsResetImpacting(false);
+    setStageNotice((previousNotice) => (previousNotice === RESET_DRAW_LABEL ? null : previousNotice));
+  };
+
   const clearRepeatVisualState = () => {
     setRepeatStageNumbers(null);
     setRepeatFlight(null);
@@ -1236,6 +1290,17 @@ export default function RandomDrawPage() {
 
   const clearNormalWinVisualState = () => {
     setIsWinImpacting(false);
+  };
+
+  const triggerResetVisualState = () => {
+    clearResetVisualState();
+    setStageNotice(RESET_DRAW_LABEL);
+    setIsResetImpacting(true);
+    resetEffectTimeoutRef.current = window.setTimeout(() => {
+      resetEffectTimeoutRef.current = null;
+      setIsResetImpacting(false);
+      setStageNotice(null);
+    }, RESET_EFFECT_DURATION_MS);
   };
 
   const triggerNormalWinVisualState = () => {
@@ -1253,9 +1318,11 @@ export default function RandomDrawPage() {
 
   const stopDrawing = () => {
     drawLaunchTokenRef.current += 1;
+    clearAutoResetTimer();
     clearAnimationTimers();
     clearRepeatVisualState();
     clearNormalWinVisualState();
+    clearResetVisualState();
     setIsDrawPending(false);
     setIsDrawing(false);
     setRollingValue(null);
@@ -1265,9 +1332,11 @@ export default function RandomDrawPage() {
 
   const showEmptyDrawNotice = () => {
     drawLaunchTokenRef.current += 1;
+    clearAutoResetTimer();
     clearAnimationTimers();
     clearRepeatVisualState();
     clearNormalWinVisualState();
+    clearResetVisualState();
     setIsDrawPending(false);
     setIsDrawing(false);
     setRollingValue(null);
@@ -1302,24 +1371,77 @@ export default function RandomDrawPage() {
     casesRef.current.find((caseState) => caseState.id === caseId) ??
     createDefaultCaseState(getCaseLabelByIndex(0), caseId);
 
+  const performResetDrawBag = (caseId: string, animate = true) => {
+    drawLaunchTokenRef.current += 1;
+    clearAutoResetTimer();
+    clearAnimationTimers();
+    clearRepeatVisualState();
+    clearNormalWinVisualState();
+    clearResetVisualState();
+    setIsDrawPending(false);
+    setIsDrawing(false);
+    setRollingValue(null);
+    setStageNotice(null);
+    latestRollingValueRef.current = null;
+    updateCaseState(caseId, (previousCase) => ({
+      ...previousCase,
+      currentResult: null,
+      historyEntries: [],
+    }));
+
+    if (animate) {
+      triggerResetVisualState();
+      void playRandomDrawSound('reset');
+    }
+  };
+
+  const scheduleAutoReset = (caseId: string) => {
+    clearAutoResetTimer();
+    setIsAutoResetPending(true);
+    autoResetTimeoutRef.current = window.setTimeout(() => {
+      autoResetTimeoutRef.current = null;
+      setIsAutoResetPending(false);
+      performResetDrawBag(caseId, true);
+    }, RANDOM_DRAW_RESULT_DISPLAY_MS);
+  };
+
   const finalizeNormalDraw = (caseId: string, finalNumber: number, hiddenQueueIndex?: number) => {
+    const caseSnapshot = getCaseSnapshot(caseId);
+    const nextHiddenNumberQueue =
+      hiddenQueueIndex === undefined
+        ? caseSnapshot.hiddenNumberQueue
+        : removeHiddenNumberQueueItem(caseSnapshot.hiddenNumberQueue, hiddenQueueIndex);
+    const nextHistoryEntries = [createHistoryEntry(finalNumber, 'normal'), ...caseSnapshot.historyEntries].slice(
+      0,
+      MAX_HISTORY_LENGTH,
+    );
+    const shouldAutoReset =
+      getCaseDrawData(
+        {
+          ...caseSnapshot,
+          currentResult: finalNumber,
+          hiddenNumberQueue: nextHiddenNumberQueue,
+          historyEntries: nextHistoryEntries,
+        },
+        repeatPickEnabledRef.current,
+      ).availableNumbers.length === 0;
+
     setStageNotice(null);
     setRollingValue(finalNumber);
     latestRollingValueRef.current = finalNumber;
     updateCaseState(caseId, (previousCase) => ({
       ...previousCase,
       currentResult: finalNumber,
-      hiddenNumberQueue:
-        hiddenQueueIndex === undefined
-          ? previousCase.hiddenNumberQueue
-          : removeHiddenNumberQueueItem(previousCase.hiddenNumberQueue, hiddenQueueIndex),
-      historyEntries: [createHistoryEntry(finalNumber, 'normal'), ...previousCase.historyEntries].slice(
-        0,
-        MAX_HISTORY_LENGTH,
-      ),
+      hiddenNumberQueue: nextHiddenNumberQueue,
+      historyEntries: nextHistoryEntries,
     }));
     setIsDrawing(false);
     triggerNormalWinVisualState();
+    if (shouldAutoReset) {
+      scheduleAutoReset(caseId);
+    } else {
+      clearAutoResetTimer();
+    }
     void playRandomDrawSound('pop');
   };
 
@@ -1373,6 +1495,26 @@ export default function RandomDrawPage() {
   };
 
   const beginRepeatDraw = (caseId: string, repeatedEntry: RandomDrawHistoryEntry, hiddenQueueIndex?: number) => {
+    const caseSnapshot = getCaseSnapshot(caseId);
+    const nextHiddenNumberQueue =
+      hiddenQueueIndex === undefined
+        ? caseSnapshot.hiddenNumberQueue
+        : removeHiddenNumberQueueItem(caseSnapshot.hiddenNumberQueue, hiddenQueueIndex);
+    const nextHistoryEntries = [
+      createHistoryEntry(repeatedEntry.number, 'repeat', repeatedEntry.id),
+      ...caseSnapshot.historyEntries,
+    ].slice(0, MAX_HISTORY_LENGTH);
+    const shouldAutoReset =
+      getCaseDrawData(
+        {
+          ...caseSnapshot,
+          currentResult: repeatedEntry.number,
+          hiddenNumberQueue: nextHiddenNumberQueue,
+          historyEntries: nextHistoryEntries,
+        },
+        repeatPickEnabledRef.current,
+      ).availableNumbers.length === 0;
+
     setStageNotice(null);
     const previewNumber = latestRollingValueRef.current ?? activeCase.currentResult ?? repeatedEntry.number;
     const nextFlight =
@@ -1407,20 +1549,19 @@ export default function RandomDrawPage() {
       updateCaseState(caseId, (previousCase) => ({
         ...previousCase,
         currentResult: repeatedEntry.number,
-        hiddenNumberQueue:
-          hiddenQueueIndex === undefined
-            ? previousCase.hiddenNumberQueue
-            : removeHiddenNumberQueueItem(previousCase.hiddenNumberQueue, hiddenQueueIndex),
-        historyEntries: [
-          createHistoryEntry(repeatedEntry.number, 'repeat', repeatedEntry.id),
-          ...previousCase.historyEntries,
-        ].slice(0, MAX_HISTORY_LENGTH),
+        hiddenNumberQueue: nextHiddenNumberQueue,
+        historyEntries: nextHistoryEntries,
       }));
 
       setRollingValue(null);
       latestRollingValueRef.current = repeatedEntry.number;
       setIsDrawing(false);
       clearRepeatVisualState();
+      if (shouldAutoReset) {
+        scheduleAutoReset(caseId);
+      } else {
+        clearAutoResetTimer();
+      }
     }, REPEAT_RESOLVE_DELAY_MS);
   };
 
@@ -1456,6 +1597,8 @@ export default function RandomDrawPage() {
 
   useEffect(() => {
     return () => {
+      clearAutoResetTimer();
+      clearResetVisualState();
       clearAnimationTimers();
       clearEnterHoldTimer();
       if (secretQueueUnlockTimeoutRef.current !== null) {
@@ -1467,20 +1610,20 @@ export default function RandomDrawPage() {
   const startDraw = () => {
     if (isDrawLocked) return;
 
+    clearAutoResetTimer();
+    clearResetVisualState();
     const targetCaseId = resolvedActiveCaseId;
     const initialCase = getCaseSnapshot(targetCaseId);
-    const initialDrawData = getCaseDrawData(initialCase, repeatPickEnabledRef.current);
-    const initialCanTriggerRepeatAnimation = initialDrawData.historyEntries[0]?.kind !== 'repeat';
-    const initialHiddenQueueInstruction = getHiddenQueueInstruction(initialCase, initialCanTriggerRepeatAnimation);
-    const rollingPool = Array.from({ length: initialDrawData.totalCount }, (_, index) => initialDrawData.minNumber + index);
+    const initialDrawSnapshot = getDrawStartSnapshot(initialCase, repeatPickEnabledRef.current);
+    const plannedRepeatEntry: RandomDrawHistoryEntry | null = null;
+    const { rollingPool: initialRollingPool, hasDrawCandidate: initialHasDrawCandidate } = initialDrawSnapshot;
+    const hasImmediateCandidate =
+      initialDrawSnapshot.drawData.availableNumbers.length > 0 ||
+      initialDrawSnapshot.hiddenQueueInstruction !== null ||
+      plannedRepeatEntry !== null;
 
-    if (
-      rollingPool.length === 0 ||
-      (initialDrawData.availableNumbers.length === 0 &&
-        (!initialCanTriggerRepeatAnimation || initialDrawData.repeatableEntries.length === 0) &&
-        initialHiddenQueueInstruction === null)
-    ) {
-      showEmptyDrawNotice();
+    if (initialRollingPool.length === 0 || !initialHasDrawCandidate || !hasImmediateCandidate) {
+      performResetDrawBag(targetCaseId, true);
       return;
     }
 
@@ -1497,10 +1640,31 @@ export default function RandomDrawPage() {
         return;
       }
 
+      const launchCase = getCaseSnapshot(targetCaseId);
+      const launchDrawSnapshot = getDrawStartSnapshot(launchCase, repeatPickEnabledRef.current);
+      const canLaunchPlannedRepeat =
+        plannedRepeatEntry !== null &&
+        launchDrawSnapshot.hiddenQueueInstruction === null &&
+        launchDrawSnapshot.canTriggerRepeatAnimation &&
+        launchDrawSnapshot.drawData.availableNumbers.length === 0 &&
+        launchDrawSnapshot.drawData.repeatableEntries.some(
+          (entry) => entry.id === plannedRepeatEntry.id || entry.number === plannedRepeatEntry.number,
+        );
+      const hasLaunchCandidate =
+        launchDrawSnapshot.drawData.availableNumbers.length > 0 ||
+        launchDrawSnapshot.hiddenQueueInstruction !== null ||
+        canLaunchPlannedRepeat;
+
+      if (launchDrawSnapshot.rollingPool.length === 0 || !launchDrawSnapshot.hasDrawCandidate || !hasLaunchCandidate) {
+        performResetDrawBag(targetCaseId, true);
+        return;
+      }
+
       drawStartTimeoutRef.current = null;
       setIsDrawPending(false);
       setIsDrawing(true);
       const startedAt = performance.now();
+      const rollingPool = launchDrawSnapshot.rollingPool;
 
       const rollStep = () => {
         const nextValue = sampleOne(rollingPool);
@@ -1526,6 +1690,12 @@ export default function RandomDrawPage() {
         const nextDrawData = getCaseDrawData(nextCase, repeatPickEnabledRef.current);
         const nextCanTriggerRepeatAnimation = nextDrawData.historyEntries[0]?.kind !== 'repeat';
         const queuedInstruction = getHiddenQueueInstruction(nextCase, nextCanTriggerRepeatAnimation);
+        const nextPlannedRepeatEntry =
+          plannedRepeatEntry === null
+            ? null
+            : nextDrawData.repeatableEntries.find(
+                (entry) => entry.id === plannedRepeatEntry.id || entry.number === plannedRepeatEntry.number,
+              ) ?? null;
 
         if (queuedInstruction) {
           if (queuedInstruction.kind === 'repeat' && queuedInstruction.sourceEntry) {
@@ -1537,9 +1707,16 @@ export default function RandomDrawPage() {
           return;
         }
 
+        if (nextPlannedRepeatEntry && nextDrawData.availableNumbers.length === 0) {
+          beginRepeatDraw(targetCaseId, nextPlannedRepeatEntry);
+          return;
+        }
+
         const shouldRepeat =
+          plannedRepeatEntry === null &&
           repeatPickEnabledRef.current &&
           nextCanTriggerRepeatAnimation &&
+          nextDrawData.availableNumbers.length > 0 &&
           nextDrawData.repeatableEntries.length > 0 &&
           Math.random() < REPEAT_PICK_PROBABILITY;
 
@@ -1549,7 +1726,7 @@ export default function RandomDrawPage() {
         }
 
         if (nextDrawData.availableNumbers.length === 0) {
-          showEmptyDrawNotice();
+          performResetDrawBag(targetCaseId, true);
           return;
         }
 
@@ -1585,13 +1762,7 @@ export default function RandomDrawPage() {
 
   const resetDrawBag = () => {
     const targetCaseId = resolvedActiveCaseId;
-
-    stopDrawing();
-    updateCaseState(targetCaseId, (previousCase) => ({
-      ...previousCase,
-      currentResult: null,
-      historyEntries: [],
-    }));
+    performResetDrawBag(targetCaseId, true);
   };
 
   useEffect(() => {
@@ -1601,6 +1772,20 @@ export default function RandomDrawPage() {
 
       event.preventDefault();
       if (enterPressedRef.current || event.repeat) return;
+
+      if (isResetImpacting) {
+        queuedDrawAfterResetRef.current = true;
+        return;
+      }
+
+      if (shouldTriggerImmediateResetOnEnter) {
+        queuedDrawAfterResetRef.current = true;
+        enterPressedRef.current = false;
+        enterHoldTriggeredRef.current = false;
+        clearEnterHoldTimer();
+        resetDrawBag();
+        return;
+      }
 
       if (hasDrawCandidate) {
         void prepareRandomDrawAudio();
@@ -1640,7 +1825,15 @@ export default function RandomDrawPage() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [cases, hasDrawCandidate, isSettingsOpen, repeatPickEnabled, resolvedActiveCaseId]);
+  }, [cases, hasDrawCandidate, isSettingsOpen, repeatPickEnabled, resolvedActiveCaseId, shouldTriggerImmediateResetOnEnter]);
+
+  useEffect(() => {
+    if (isResetImpacting || isSettingsOpen) return;
+    if (!queuedDrawAfterResetRef.current) return;
+
+    queuedDrawAfterResetRef.current = false;
+    startDraw();
+  }, [isResetImpacting, isSettingsOpen, cases, repeatPickEnabled, resolvedActiveCaseId]);
 
   return (
     <div className="mascot-app editorial-random-legacy-font h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
@@ -1677,6 +1870,8 @@ export default function RandomDrawPage() {
                 }`}
               >
                 {isNormalWinImpactVisible && <div aria-hidden="true" className="random-stage-win-flash" />}
+                {isRepeatImpacting && <div aria-hidden="true" className="random-stage-repeat-flash" />}
+                {isResetImpacting && <div aria-hidden="true" className="random-stage-reset-flash" />}
                 {repeatFlight && (
                   <div
                     key={repeatFlight.key}
@@ -1713,7 +1908,6 @@ export default function RandomDrawPage() {
                       >
                         {repeatFlight.displayText}
                       </span>
-                      <span className="random-repeat-flight-badge">x2</span>
                       <span
                         className={`random-board-number random-board-number-active random-repeat-flight-number${
                           repeatFlight.isDisplayName ? ' random-board-display-name random-repeat-flight-display-name' : ''
@@ -1732,6 +1926,8 @@ export default function RandomDrawPage() {
                     isNormalWinImpactVisible ? ' random-board-win-impact' : ''
                   }${
                     isRepeatImpacting ? ' random-board-repeat-impact' : ''
+                  }${
+                    isResetImpacting ? ' random-board-reset-impact' : ''
                   }`}
                 >
                   {isStageShowingEmptyNotice && <div aria-hidden="true" className="random-board-empty-echo" />}
@@ -1777,7 +1973,37 @@ export default function RandomDrawPage() {
                   {isRepeatImpacting && <div aria-hidden="true" className="random-board-repeat-glow" />}
                   {isRepeatImpacting && <div aria-hidden="true" className="random-board-shockwave" />}
                   {isRepeatImpacting && <div aria-hidden="true" className="random-board-shockwave random-board-shockwave-secondary" />}
+                  {isRepeatImpacting && <div aria-hidden="true" className="random-board-shockwave random-board-shockwave-tertiary" />}
                   {isRepeatImpacting && <div aria-hidden="true" className="random-board-repeat-ring" />}
+                  {isRepeatImpacting && (
+                    <div aria-hidden="true" className="random-board-repeat-rays">
+                      {Array.from({ length: 12 }, (_, index) => (
+                        <span
+                          key={`repeat-ray-${index}`}
+                          className="random-board-repeat-ray"
+                          style={{ '--repeat-ray-angle': `${index * 30}deg` } as CSSProperties}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {isRepeatImpacting && (
+                    <div aria-hidden="true" className="random-board-repeat-particles">
+                      {NORMAL_WIN_PARTICLES.map((particle, index) => (
+                        <span
+                          key={`repeat-particle-${index}`}
+                          className="random-board-repeat-particle"
+                          style={
+                            {
+                              '--repeat-particle-angle': particle.angle,
+                              '--repeat-particle-distance': particle.distance,
+                              '--repeat-particle-size': particle.size,
+                              '--repeat-particle-delay': particle.delay,
+                            } as CSSProperties
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
                   {isRepeatImpacting && (
                     <div aria-hidden="true" className="random-board-sparks">
                       {Array.from({ length: 8 }, (_, index) => (
@@ -1785,6 +2011,34 @@ export default function RandomDrawPage() {
                           key={`spark-${index}`}
                           className="random-board-spark"
                           style={{ '--spark-angle': `${index * 45}deg` } as CSSProperties}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {isResetImpacting && (
+                    <div aria-hidden="true" className="random-board-reset-progress">
+                      <svg viewBox="0 0 100 100" className="random-board-reset-progress-svg">
+                        <circle className="random-board-reset-progress-track" cx="50" cy="50" r="46" />
+                        <circle className="random-board-reset-progress-fill" cx="50" cy="50" r="46" />
+                      </svg>
+                    </div>
+                  )}
+                  {isResetImpacting && <div aria-hidden="true" className="random-board-reset-sweep" />}
+                  {isResetImpacting && <div aria-hidden="true" className="random-board-reset-ring" />}
+                  {isResetImpacting && (
+                    <div aria-hidden="true" className="random-board-reset-particles">
+                      {NORMAL_WIN_PARTICLES.map((particle, index) => (
+                        <span
+                          key={`reset-particle-${index}`}
+                          className="random-board-reset-particle"
+                          style={
+                            {
+                              '--reset-particle-angle': particle.angle,
+                              '--reset-particle-distance': particle.distance,
+                              '--reset-particle-size': particle.size,
+                              '--reset-particle-delay': particle.delay,
+                            } as CSSProperties
+                          }
                         />
                       ))}
                     </div>
@@ -1822,9 +2076,13 @@ export default function RandomDrawPage() {
                   ) : (
                     <span
                       className={`random-board-number${hasVisibleNumber ? ' random-board-number-active' : ''}${
-                        isStageShowingStudentName ? ' random-board-display-name' : ''
+                        isStageShowingStudentName || isStageShowingResetNotice ? ' random-board-display-name' : ''
+                      }${
+                        isStageShowingResetNotice ? ' random-board-reset-label' : ''
                       }${
                         isStageShowingEmptyNotice ? ' random-board-empty-text' : ''
+                      }${
+                        isResetImpacting ? ' random-board-number-reset-accent' : ''
                       }${
                         isNormalWinImpactVisible ? ' random-board-number-win-punch' : ''
                       }`}
@@ -1914,19 +2172,10 @@ export default function RandomDrawPage() {
                           className={`random-history-chip${
                             isRepeatEntry ? ' random-history-chip-repeat' : ''
                           }${
-                            repeatFlight?.sourceEntryId === entry.id ? ' random-history-chip-launching' : ''
+                            repeatFlight?.sourceEntryId === entry.id ? ' random-history-chip-launching random-history-chip-repeat-source' : ''
                           }`}
                         >
                           <span className="random-history-chip-number">{entry.number}</span>
-                          {(isRepeatEntry || isLaunchingSource) && (
-                            <span
-                              className={`random-history-chip-badge${
-                                isLaunchingSource ? ' random-history-chip-badge-launching' : ''
-                              }`}
-                            >
-                              x2
-                            </span>
-                          )}
                         </span>
                       );
                     })}
