@@ -55,7 +55,7 @@ interface ManualTimerState {
 interface DrawOverlayState {
   caseId: string;
   displayText: string;
-  kind: 'normal' | 'repeat' | 'empty';
+  kind: 'normal' | 'repeat' | 'empty' | 'reset';
   number: number | null;
 }
 
@@ -90,7 +90,9 @@ const MEMO_NOTE_TEXT_COLORS = [
   { id: 'blue', label: '파랑', value: '#2d63b8' },
 ] as const;
 const DRAW_EMPTY_MESSAGE = '완료';
+const DRAW_RESET_MESSAGE = '섞는 중';
 const DRAW_SHORTCUT_LABEL = 'Enter';
+const DRAW_RESET_EFFECT_DURATION_MS = 940;
 const NORMAL_WIN_PARTICLES = [
   { angle: '6deg', distance: '6.3rem', size: '0.72rem', delay: '0ms' },
   { angle: '34deg', distance: '5.6rem', size: '0.54rem', delay: '38ms' },
@@ -1387,12 +1389,17 @@ export default function TimerPage() {
   const [drawCases, setDrawCases] = useState<RandomDrawCaseState[]>(initialRandomDrawState.cases);
   const [drawSettingsCaseId, setDrawSettingsCaseId] = useState(initialRandomDrawState.activeCaseId);
   const [isDrawCaseMenuOpen, setIsDrawCaseMenuOpen] = useState(false);
+  const [isDrawCaseSwitchNearby, setIsDrawCaseSwitchNearby] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+  );
   const [studentRosterBulkInput, setStudentRosterBulkInput] = useState('');
   const [rollingDrawNumber, setRollingDrawNumber] = useState<number | null>(null);
   const [isStudentDrawing, setIsStudentDrawing] = useState(false);
   const [drawOverlay, setDrawOverlay] = useState<DrawOverlayState | null>(null);
   const [isDrawWinVisible, setIsDrawWinVisible] = useState(false);
   const [isDrawRepeatVisible, setIsDrawRepeatVisible] = useState(false);
+  const [isDrawResetVisible, setIsDrawResetVisible] = useState(false);
+  const [isDrawAutoResetPending, setIsDrawAutoResetPending] = useState(false);
 
   const isEditingNoticeRef = useRef(isEditingNotice);
   useEffect(() => {
@@ -1450,6 +1457,7 @@ export default function TimerPage() {
   const drawResolveTimeoutRef = useRef<number | null>(null);
   const drawHideTimeoutRef = useRef<number | null>(null);
   const drawLaunchTokenRef = useRef(0);
+  const queuedStudentDrawAfterResetRef = useRef(false);
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
   const manualTimerMenuRef = useRef<HTMLDivElement>(null);
@@ -1473,7 +1481,15 @@ export default function TimerPage() {
   ).length;
   const syncedStudentRosterBulkInput = buildStudentRosterBulkInput(selectedDrawSettingsCase, settingsStudentNumbers);
   const activeDrawLabel = normalizeCaseLabel(activeDrawCase.label, '학생 추첨');
-  const isDrawLocked = isStudentDrawing;
+  const activeDrawCaseData = getCaseDrawData(activeDrawCase, repeatPickEnabled);
+  const shouldTriggerImmediateDrawReset =
+    activeDrawCaseData.totalCount > 0 &&
+    activeDrawCaseData.availableNumbers.length === 0 &&
+    (activeDrawCase.currentResult !== null || activeDrawCase.historyEntries.length > 0) &&
+    !isStudentDrawing &&
+    !isDrawResetVisible;
+  const isDrawCaseSwitchVisible = isDrawCaseMenuOpen || isDrawCaseSwitchNearby;
+  const isDrawLocked = isStudentDrawing || isDrawResetVisible || isDrawAutoResetPending;
 
   useEffect(() => {
     localStorage.setItem('weeklySchedule', JSON.stringify(weeklySchedule));
@@ -1722,6 +1738,8 @@ export default function TimerPage() {
     setDrawOverlay(null);
     setIsDrawWinVisible(false);
     setIsDrawRepeatVisible(false);
+    setIsDrawResetVisible(false);
+    setIsDrawAutoResetPending(false);
   };
 
   const stopStudentDraw = () => {
@@ -1731,17 +1749,69 @@ export default function TimerPage() {
     setRollingDrawNumber(null);
   };
 
-  const showDrawOverlayTemporarily = (nextOverlay: DrawOverlayState) => {
+  const performDrawCaseReset = (caseId: string, animate = true) => {
+    drawLaunchTokenRef.current += 1;
+    clearDrawAnimationTimers();
     clearDrawHideTimer();
-    setDrawOverlay(nextOverlay);
-    setIsDrawWinVisible(nextOverlay.kind === 'normal');
-    setIsDrawRepeatVisible(nextOverlay.kind === 'repeat');
+    setIsStudentDrawing(false);
+    setRollingDrawNumber(null);
+    updateDrawCaseState(caseId, (previousCase) => ({
+      ...previousCase,
+      currentResult: null,
+      historyEntries: [],
+    }));
+
+    if (!animate) {
+      setDrawOverlay(null);
+      setIsDrawWinVisible(false);
+      setIsDrawRepeatVisible(false);
+      setIsDrawResetVisible(false);
+      setIsDrawAutoResetPending(false);
+      return;
+    }
+
+    setDrawOverlay({
+      caseId,
+      displayText: DRAW_RESET_MESSAGE,
+      kind: 'reset',
+      number: null,
+    });
+    setIsDrawWinVisible(false);
+    setIsDrawRepeatVisible(false);
+    setIsDrawResetVisible(true);
+    setIsDrawAutoResetPending(false);
+    void playRandomDrawSound('reset');
 
     drawHideTimeoutRef.current = window.setTimeout(() => {
       drawHideTimeoutRef.current = null;
       setDrawOverlay(null);
+      setIsDrawResetVisible(false);
+    }, DRAW_RESET_EFFECT_DURATION_MS);
+  };
+
+  const showDrawOverlayTemporarily = (
+    nextOverlay: DrawOverlayState,
+    options?: { autoResetCaseId?: string },
+  ) => {
+    clearDrawHideTimer();
+    setDrawOverlay(nextOverlay);
+    setIsDrawWinVisible(nextOverlay.kind === 'normal');
+    setIsDrawRepeatVisible(nextOverlay.kind === 'repeat');
+    setIsDrawResetVisible(nextOverlay.kind === 'reset');
+    setIsDrawAutoResetPending(Boolean(options?.autoResetCaseId));
+
+    drawHideTimeoutRef.current = window.setTimeout(() => {
+      drawHideTimeoutRef.current = null;
+      if (options?.autoResetCaseId) {
+        performDrawCaseReset(options.autoResetCaseId, true);
+        return;
+      }
+
+      setDrawOverlay(null);
       setIsDrawWinVisible(false);
       setIsDrawRepeatVisible(false);
+      setIsDrawResetVisible(false);
+      setIsDrawAutoResetPending(false);
     }, RANDOM_DRAW_RESULT_DISPLAY_MS);
   };
 
@@ -1751,47 +1821,73 @@ export default function TimerPage() {
 
   const finalizeNormalDraw = (caseId: string, finalNumber: number) => {
     const caseSnapshot = getDrawCaseSnapshot(caseId);
+    const nextHistoryEntries = [createHistoryEntry(finalNumber, 'normal'), ...caseSnapshot.historyEntries].slice(
+      0,
+      MAX_HISTORY_LENGTH,
+    );
+    const shouldAutoReset =
+      getCaseDrawData(
+        {
+          ...caseSnapshot,
+          currentResult: finalNumber,
+          historyEntries: nextHistoryEntries,
+        },
+        repeatPickEnabledRef.current,
+      ).availableNumbers.length === 0;
     const displayText = getStudentDisplayText(caseSnapshot, finalNumber);
 
     updateDrawCaseState(caseId, (previousCase) => ({
       ...previousCase,
       currentResult: finalNumber,
-      historyEntries: [createHistoryEntry(finalNumber, 'normal'), ...previousCase.historyEntries].slice(
-        0,
-        MAX_HISTORY_LENGTH,
-      ),
+      historyEntries: nextHistoryEntries,
     }));
     setIsStudentDrawing(false);
     setRollingDrawNumber(null);
-    showDrawOverlayTemporarily({
-      caseId,
-      displayText,
-      kind: 'normal',
-      number: finalNumber,
-    });
+    showDrawOverlayTemporarily(
+      {
+        caseId,
+        displayText,
+        kind: 'normal',
+        number: finalNumber,
+      },
+      shouldAutoReset ? { autoResetCaseId: caseId } : undefined,
+    );
     void playRandomDrawSound('pop');
   };
 
   const finalizeRepeatDraw = (caseId: string, repeatedEntry: RandomDrawHistoryEntry) => {
     const caseSnapshot = getDrawCaseSnapshot(caseId);
+    const nextHistoryEntries = [
+      createHistoryEntry(repeatedEntry.number, 'repeat', repeatedEntry.id),
+      ...caseSnapshot.historyEntries,
+    ].slice(0, MAX_HISTORY_LENGTH);
+    const shouldAutoReset =
+      getCaseDrawData(
+        {
+          ...caseSnapshot,
+          currentResult: repeatedEntry.number,
+          historyEntries: nextHistoryEntries,
+        },
+        repeatPickEnabledRef.current,
+      ).availableNumbers.length === 0;
     const displayText = getStudentDisplayText(caseSnapshot, repeatedEntry.number);
 
     updateDrawCaseState(caseId, (previousCase) => ({
       ...previousCase,
       currentResult: repeatedEntry.number,
-      historyEntries: [
-        createHistoryEntry(repeatedEntry.number, 'repeat', repeatedEntry.id),
-        ...previousCase.historyEntries,
-      ].slice(0, MAX_HISTORY_LENGTH),
+      historyEntries: nextHistoryEntries,
     }));
     setIsStudentDrawing(false);
     setRollingDrawNumber(null);
-    showDrawOverlayTemporarily({
-      caseId,
-      displayText,
-      kind: 'repeat',
-      number: repeatedEntry.number,
-    });
+    showDrawOverlayTemporarily(
+      {
+        caseId,
+        displayText,
+        kind: 'repeat',
+        number: repeatedEntry.number,
+      },
+      shouldAutoReset ? { autoResetCaseId: caseId } : undefined,
+    );
     void playRandomDrawSound('repeat');
   };
 
@@ -1812,18 +1908,19 @@ export default function TimerPage() {
     const targetCaseId = resolvedActiveDrawCaseId;
     const initialCase = getDrawCaseSnapshot(targetCaseId);
     const initialDrawData = getCaseDrawData(initialCase, repeatPickEnabledRef.current);
-    const initialCanTriggerRepeatAnimation = initialDrawData.historyEntries[0]?.kind !== 'repeat';
+    const plannedRepeatEntry: RandomDrawHistoryEntry | null = null;
     const rollingPool = Array.from(
       { length: initialDrawData.totalCount },
       (_, index) => initialDrawData.minNumber + index,
     );
 
-    if (
-      rollingPool.length === 0 ||
-      (initialDrawData.availableNumbers.length === 0 &&
-        (!initialCanTriggerRepeatAnimation || initialDrawData.repeatableEntries.length === 0))
-    ) {
+    if (rollingPool.length === 0) {
       showEmptyDrawNotice(targetCaseId);
+      return;
+    }
+
+    if (initialDrawData.availableNumbers.length === 0) {
+      performDrawCaseReset(targetCaseId, true);
       return;
     }
 
@@ -1864,6 +1961,7 @@ export default function TimerPage() {
       const shouldRepeat =
         repeatPickEnabledRef.current &&
         nextCanTriggerRepeatAnimation &&
+        nextDrawData.availableNumbers.length > 0 &&
         nextDrawData.repeatableEntries.length > 0 &&
         Math.random() < REPEAT_PICK_PROBABILITY;
 
@@ -1873,7 +1971,7 @@ export default function TimerPage() {
       }
 
       if (nextDrawData.availableNumbers.length === 0) {
-        showEmptyDrawNotice(targetCaseId);
+        performDrawCaseReset(targetCaseId, true);
         return;
       }
 
@@ -1882,13 +1980,7 @@ export default function TimerPage() {
   };
 
   const resetActiveDrawCase = () => {
-    stopStudentDraw();
-    clearDrawFeedback();
-    updateDrawCaseState(resolvedActiveDrawCaseId, (previousCase) => ({
-      ...previousCase,
-      currentResult: null,
-      historyEntries: [],
-    }));
+    performDrawCaseReset(resolvedActiveDrawCaseId, true);
   };
 
   const updateDrawCaseLabel = (caseId: string, rawValue: string) => {
@@ -2063,6 +2155,17 @@ export default function TimerPage() {
       }
 
       event.preventDefault();
+      if (isDrawResetVisible) {
+        queuedStudentDrawAfterResetRef.current = true;
+        return;
+      }
+
+      if (shouldTriggerImmediateDrawReset) {
+        queuedStudentDrawAfterResetRef.current = true;
+        performDrawCaseReset(resolvedActiveDrawCaseId, true);
+        return;
+      }
+
       void prepareRandomDrawAudio();
       startStudentDraw();
     };
@@ -2072,7 +2175,42 @@ export default function TimerPage() {
     return () => {
       window.removeEventListener('keydown', handleStudentDrawShortcut);
     };
-  }, [isAnnouncementOpen, isEditingNotice, isMemoOpen, isSettingsOpen, isDrawLocked, drawCases, repeatPickEnabled, resolvedActiveDrawCaseId]);
+  }, [
+    isAnnouncementOpen,
+    isDrawResetVisible,
+    isEditingNotice,
+    isMemoOpen,
+    isSettingsOpen,
+    drawCases,
+    repeatPickEnabled,
+    resolvedActiveDrawCaseId,
+    shouldTriggerImmediateDrawReset,
+  ]);
+
+  useEffect(() => {
+    if (
+      isDrawResetVisible ||
+      isSettingsOpen ||
+      isMemoOpen ||
+      isAnnouncementOpen ||
+      isEditingNotice
+    ) {
+      return;
+    }
+    if (!queuedStudentDrawAfterResetRef.current) return;
+
+    queuedStudentDrawAfterResetRef.current = false;
+    startStudentDraw();
+  }, [
+    isAnnouncementOpen,
+    isDrawResetVisible,
+    isEditingNotice,
+    isMemoOpen,
+    isSettingsOpen,
+    drawCases,
+    repeatPickEnabled,
+    resolvedActiveDrawCaseId,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -2103,6 +2241,24 @@ export default function TimerPage() {
       window.removeEventListener('mousedown', handlePointerDown);
       window.removeEventListener('keydown', handleEscape);
     };
+  }, [isDrawCaseMenuOpen]);
+
+  useEffect(() => {
+    if (isDrawCaseMenuOpen) return;
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+
+    const menuNode = drawCaseMenuRef.current;
+    if (!menuNode) {
+      setIsDrawCaseSwitchNearby(false);
+      return;
+    }
+
+    const isPointerClose = menuNode.matches(':hover');
+    const isFocusInside = menuNode.contains(document.activeElement);
+
+    if (!isPointerClose && !isFocusInside) {
+      setIsDrawCaseSwitchNearby(false);
+    }
   }, [isDrawCaseMenuOpen]);
 
   useEffect(() => {
@@ -2380,9 +2536,13 @@ export default function TimerPage() {
         ? 'bg-[#F7FBF4] text-[#5C7A4B] border-[#D5E6CA]'
         : timerType === 'morning'
           ? 'bg-[#FFF7E3] text-[#8D6C37] border-[#EBCF93]'
-        : timerType === 'lunch'
-          ? 'bg-[#FFF0E3] text-[#A46943] border-[#EDC7A8]'
-          : 'bg-[#F7F0E9] text-[#8A6347]/70 border-[#E8D7C5]';
+          : timerType === 'lunch'
+            ? 'bg-[#FFF0E3] text-[#A46943] border-[#EDC7A8]'
+            : 'bg-[#F7F0E9] text-[#8A6347]/70 border-[#E8D7C5]';
+  const shouldShowCurrentSlotChip =
+    currentSlotName.length > 0 &&
+    currentSlotName !== '일정 없음' &&
+    currentSlotName.replace(/\s+/g, '') !== scheduleTypeLabel.replace(/\s+/g, '');
 
   const getCharacterMessage = (stage: 'warning' | 'urgent' | 'end') => {
     if (isScheduleBreak) {
@@ -2484,18 +2644,26 @@ export default function TimerPage() {
       : drawOverlay?.displayText ?? '';
   const isDrawOverlayVisible = isStudentDrawing || drawOverlay !== null;
   const isDrawOverlayEmpty = !isStudentDrawing && drawOverlay?.kind === 'empty';
+  const isDrawOverlayReset = !isStudentDrawing && drawOverlay?.kind === 'reset';
   const isDrawOverlayStudentName =
     drawOverlayNumber !== null && getStudentName(drawOverlayCase, drawOverlayNumber).length > 0;
   const drawOverlayBoardClass = `random-board ${
     isStudentDrawing ? 'random-board-drawing' : ''
   }${isDrawOverlayEmpty ? ' random-board-empty-state' : ''}${
     isDrawWinVisible ? ' random-board-win-impact' : ''
-  }${isDrawRepeatVisible ? ' random-board-repeat-impact' : ''}`;
+  }${isDrawRepeatVisible ? ' random-board-repeat-impact' : ''}${
+    isDrawResetVisible ? ' random-board-reset-impact' : ''
+  }`;
   const drawOverlayNumberClass = `random-board-number${
     isDrawOverlayVisible ? ' random-board-number-active' : ''
-  }${isDrawOverlayStudentName ? ' random-board-display-name' : ''}${
+  }${isDrawOverlayStudentName || isDrawOverlayReset ? ' random-board-display-name' : ''}${
+    isDrawOverlayReset ? ' random-board-reset-label' : ''
+  }${
     isDrawOverlayEmpty ? ' random-board-empty-text' : ''
-  }${isDrawWinVisible ? ' random-board-number-win-punch' : ''}`;
+  }${isDrawRepeatVisible ? ' random-board-number-repeat-accent' : ''}${
+    isDrawWinVisible ? ' random-board-number-win-punch' : ''
+  }${isDrawResetVisible ? ' random-board-number-reset-accent' : ''
+  }`;
 
   const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
   const today = adjustedScheduleNow.getDay();
@@ -2625,65 +2793,22 @@ export default function TimerPage() {
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
-        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_29rem] xl:grid-cols-[minmax(0,1fr)_32rem] 2xl:grid-cols-[minmax(0,1fr)_34rem] min-h-0">
+        <div className="editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]">
           {/* Left: Timer Display */}
-          <div className="timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-5 md:p-8 lg:px-8 lg:py-10 xl:px-10 xl:py-12">
-            <div ref={drawCaseMenuRef} className="absolute left-4 top-4 z-40 sm:left-5 sm:top-5 md:left-6 md:top-6">
+          <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
+            <div className="absolute inset-x-4 top-4 z-40 flex items-start justify-between sm:inset-x-5 sm:top-5 md:inset-x-6 md:top-6">
               <button
+                onClick={toggleBackgroundMusic}
+                disabled={isMusicLoading}
+                className={`sound-toggle timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] shrink-0 items-center justify-center rounded-[1.45rem] transition-all sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl ${
+                  isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
+                } ${isMusicLoading ? 'cursor-not-allowed opacity-45' : ''}`}
+                title={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
+                aria-label={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
                 type="button"
-                onClick={() => {
-                  if (drawCases.length <= 1) return;
-                  setIsExtraTimerVisible(false);
-                  setIsDrawCaseMenuOpen((previous) => !previous);
-                }}
-                className={`inline-flex items-center gap-2 rounded-full border border-[#E6D5C9] bg-white/92 px-4 py-2 text-sm font-extrabold text-[#8A6347] shadow-[0_10px_20px_rgba(95,71,50,0.1)] backdrop-blur-sm transition-all ${
-                  drawCases.length > 1 ? 'hover:border-[#D3BEA9] hover:bg-white' : 'cursor-default'
-                }`}
-                aria-haspopup="menu"
-                aria-expanded={drawCases.length > 1 ? isDrawCaseMenuOpen : undefined}
-                title="학생 추첨 상황 선택"
               >
-                <Sparkles size={16} />
-                <span>{activeDrawLabel}</span>
-                {drawCases.length > 1 ? (
-                  <ChevronDown
-                    size={15}
-                    className={`transition-transform ${isDrawCaseMenuOpen ? 'rotate-180' : ''}`}
-                  />
-                ) : null}
+                {isMusicPlaying ? <Volume2 size={22} /> : <VolumeX size={22} />}
               </button>
-
-              {isDrawCaseMenuOpen ? (
-                <div
-                  role="menu"
-                  className="mt-2 w-[11rem] rounded-[1.2rem] border border-[#E6D5C9] bg-white/96 p-2 shadow-[0_18px_40px_rgba(95,71,50,0.16)] backdrop-blur-sm"
-                >
-                  {drawCases.map((caseState, index) => {
-                    const caseLabel = normalizeCaseLabel(caseState.label, getCaseLabelByIndex(index));
-                    const isActive = resolvedActiveDrawCaseId === caseState.id;
-
-                    return (
-                      <button
-                        key={caseState.id}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={isActive}
-                        onClick={() => selectActiveDrawCase(caseState.id)}
-                        className={`flex w-full items-center justify-between rounded-[0.95rem] px-3 py-2.5 text-left text-sm font-bold transition-colors ${
-                          isActive
-                            ? 'bg-[#5C8D5D] text-white'
-                            : 'text-[#8A6347] hover:bg-[#FFF7EE]'
-                        }`}
-                      >
-                        <span>{caseLabel}</span>
-                        {isActive ? <Sparkles size={14} /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
-            <div className="absolute right-4 top-4 z-40 sm:right-5 sm:top-5 md:right-6 md:top-6">
               <button
                 type="button"
                 onClick={() => {
@@ -2691,14 +2816,14 @@ export default function TimerPage() {
                   setIsExtraTimerVisible(false);
                   setIsSettingsOpen(true);
                 }}
-                className="icon-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-[1.45rem] border border-[#E6D5C9] bg-white/92 text-[#8A6347]/70 shadow-[0_10px_20px_rgba(95,71,50,0.1)] backdrop-blur-sm transition-all hover:bg-white hover:text-[#8A6347] sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl"
+                className="icon-button timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-[1.45rem] border border-[#E6D5C9] bg-white/92 text-[#8A6347]/70 shadow-[0_10px_20px_rgba(95,71,50,0.1)] backdrop-blur-sm transition-all hover:bg-white hover:text-[#8A6347] sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl"
                 title="설정"
                 aria-label="설정"
               >
                 <Settings size={21} />
               </button>
             </div>
-            <div className={`timer-ring-stage relative flex min-h-0 w-full flex-1 items-center justify-center ${pulseClass}`}>
+            <div className={`timer-ring-stage editorial-ring-stage relative flex min-h-0 w-full flex-1 items-center justify-center ${pulseClass}`}>
               {isDrawOverlayVisible ? (
                 <div
                   className="editorial-random-legacy-font pointer-events-none absolute inset-0 z-30"
@@ -2710,11 +2835,8 @@ export default function TimerPage() {
                       }`}
                     >
                       {isDrawWinVisible ? <div aria-hidden="true" className="random-stage-win-flash" /> : null}
-                      {isDrawRepeatVisible ? (
-                        <div className="absolute right-[11%] top-[13%] z-40 rounded-full bg-[#C7684A] px-3 py-1.5 text-sm font-black text-white shadow-[0_12px_20px_rgba(199,104,74,0.28)]">
-                          x2
-                        </div>
-                      ) : null}
+                      {isDrawRepeatVisible ? <div aria-hidden="true" className="random-stage-repeat-flash" /> : null}
+                      {isDrawResetVisible ? <div aria-hidden="true" className="random-stage-reset-flash" /> : null}
                       <div className={drawOverlayBoardClass}>
                         {isDrawOverlayEmpty ? <div aria-hidden="true" className="random-board-empty-echo" /> : null}
                         {isDrawWinVisible ? <div aria-hidden="true" className="random-board-win-backflash" /> : null}
@@ -2761,7 +2883,39 @@ export default function TimerPage() {
                         {isDrawRepeatVisible ? (
                           <div aria-hidden="true" className="random-board-shockwave random-board-shockwave-secondary" />
                         ) : null}
+                        {isDrawRepeatVisible ? (
+                          <div aria-hidden="true" className="random-board-shockwave random-board-shockwave-tertiary" />
+                        ) : null}
                         {isDrawRepeatVisible ? <div aria-hidden="true" className="random-board-repeat-ring" /> : null}
+                        {isDrawRepeatVisible ? (
+                          <div aria-hidden="true" className="random-board-repeat-rays">
+                            {Array.from({ length: 12 }, (_, index) => (
+                              <span
+                                key={`timer-draw-repeat-ray-${index}`}
+                                className="random-board-repeat-ray"
+                                style={{ '--repeat-ray-angle': `${index * 30}deg` } as React.CSSProperties}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+                        {isDrawRepeatVisible ? (
+                          <div aria-hidden="true" className="random-board-repeat-particles">
+                            {NORMAL_WIN_PARTICLES.map((particle, index) => (
+                              <span
+                                key={`timer-draw-repeat-particle-${index}`}
+                                className="random-board-repeat-particle"
+                                style={
+                                  {
+                                    '--repeat-particle-angle': particle.angle,
+                                    '--repeat-particle-distance': particle.distance,
+                                    '--repeat-particle-size': particle.size,
+                                    '--repeat-particle-delay': particle.delay,
+                                  } as React.CSSProperties
+                                }
+                              />
+                            ))}
+                          </div>
+                        ) : null}
                         {isDrawRepeatVisible ? (
                           <div aria-hidden="true" className="random-board-sparks">
                             {Array.from({ length: 8 }, (_, index) => (
@@ -2769,6 +2923,34 @@ export default function TimerPage() {
                                 key={`timer-draw-spark-${index}`}
                                 className="random-board-spark"
                                 style={{ '--spark-angle': `${index * 45}deg` } as React.CSSProperties}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+                        {isDrawResetVisible ? (
+                          <div aria-hidden="true" className="random-board-reset-progress">
+                            <svg viewBox="0 0 100 100" className="random-board-reset-progress-svg">
+                              <circle className="random-board-reset-progress-track" cx="50" cy="50" r="46" />
+                              <circle className="random-board-reset-progress-fill" cx="50" cy="50" r="46" />
+                            </svg>
+                          </div>
+                        ) : null}
+                        {isDrawResetVisible ? <div aria-hidden="true" className="random-board-reset-sweep" /> : null}
+                        {isDrawResetVisible ? <div aria-hidden="true" className="random-board-reset-ring" /> : null}
+                        {isDrawResetVisible ? (
+                          <div aria-hidden="true" className="random-board-reset-particles">
+                            {NORMAL_WIN_PARTICLES.map((particle, index) => (
+                              <span
+                                key={`timer-draw-reset-particle-${index}`}
+                                className="random-board-reset-particle"
+                                style={
+                                  {
+                                    '--reset-particle-angle': particle.angle,
+                                    '--reset-particle-distance': particle.distance,
+                                    '--reset-particle-size': particle.size,
+                                    '--reset-particle-delay': particle.delay,
+                                  } as React.CSSProperties
+                                }
                               />
                             ))}
                           </div>
@@ -2781,12 +2963,19 @@ export default function TimerPage() {
                   </div>
                 </div>
               ) : null}
-              <svg viewBox="0 0 200 200" className="timer-ring-svg aspect-square h-auto w-full max-h-full max-w-[34rem] -rotate-90 transform rounded-full shadow-inner xl:max-w-[40rem]">
-                <circle cx="100" cy="100" r="50" fill="none" stroke="#E6D5C9" strokeWidth="100" />
+              <svg viewBox="0 0 200 200" className="timer-ring-svg editorial-ring-svg aspect-square h-auto w-full max-h-full max-w-[45rem] -rotate-90 transform rounded-full xl:max-w-[54rem] 2xl:max-w-[58rem]">
                 <circle
                   cx="100"
                   cy="100"
-                  r="50"
+                  r={radius}
+                  fill="none"
+                  stroke="#E6D5C9"
+                  strokeWidth="100"
+                />
+                <circle
+                  cx="100"
+                  cy="100"
+                  r={radius}
                   fill="none"
                   stroke={strokeColor}
                   strokeWidth="100"
@@ -2796,8 +2985,100 @@ export default function TimerPage() {
                 />
               </svg>
             </div>
-            <div className={`clock-display mt-4 shrink-0 text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 md:mt-6 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] lg:mt-7 ${colorClass}`}>
+            <div className={`clock-display editorial-clock-display mt-2 shrink-0 text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 md:mt-3 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] lg:mt-4 ${colorClass}`}>
               {formatTime(displayTimeLeft)}
+            </div>
+            <div className="timer-status-row relative z-10 mt-3 flex w-full max-w-[40rem] flex-wrap items-center justify-center gap-3 md:mt-4 xl:max-w-[45rem]">
+              <div
+                className={`status-medallion timer-primary-chip inline-flex min-h-[4.3rem] min-w-[13rem] items-center justify-center gap-3 rounded-full border-2 px-5 py-3 text-[clamp(1.2rem,2.8vw,1.85rem)] font-extrabold leading-none tracking-[-0.01em] ${scheduleTypeBadgeClass}`}
+              >
+                {timerType === 'break' ? <Coffee size={30} strokeWidth={2.3} /> : timerType === 'lunch' ? <Utensils size={30} strokeWidth={2.3} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={30} strokeWidth={2.3} /> : <Timer size={30} strokeWidth={2.3} />}
+                <span className="min-w-0 truncate">{scheduleTypeLabel}</span>
+              </div>
+              {shouldShowCurrentSlotChip ? (
+                <div className="timer-secondary-chip inline-flex min-h-[3.5rem] items-center justify-center rounded-full border border-[#E6D5C9] bg-white/86 px-4 py-2 text-base font-bold text-[#8A6347] shadow-[0_12px_24px_rgba(95,71,50,0.08)] backdrop-blur-sm">
+                  {currentSlotName}
+                </div>
+              ) : null}
+            </div>
+            <div
+              ref={drawCaseMenuRef}
+              onPointerEnter={() => setIsDrawCaseSwitchNearby(true)}
+              onPointerLeave={() => {
+                if (!isDrawCaseMenuOpen) {
+                  setIsDrawCaseSwitchNearby(false);
+                }
+              }}
+              onFocusCapture={() => setIsDrawCaseSwitchNearby(true)}
+              onBlurCapture={(event) => {
+                const nextTarget = event.relatedTarget as Node | null;
+                const menuNode = drawCaseMenuRef.current;
+                if (menuNode?.contains(nextTarget)) return;
+                if (!isDrawCaseMenuOpen) {
+                  setIsDrawCaseSwitchNearby(false);
+                }
+              }}
+              className="timer-draw-switch-shell absolute bottom-3 left-3 z-40 h-[5.4rem] w-[min(12rem,calc(100%-1.5rem))] overflow-visible sm:bottom-4 sm:left-4 sm:h-[5.7rem] md:bottom-5 md:left-5"
+            >
+              <div className="absolute bottom-0 left-0 w-[min(9.5rem,calc(100%-2rem))]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (drawCases.length <= 1) return;
+                    setIsExtraTimerVisible(false);
+                    setIsDrawCaseMenuOpen((previous) => !previous);
+                  }}
+                  className={`timer-draw-switch inline-flex w-full items-center justify-between gap-1.5 rounded-[1rem] border border-[#E6D5C9] bg-white/90 px-2.5 py-2 text-left text-[0.74rem] font-extrabold text-[#8A6347] shadow-[0_8px_16px_rgba(95,71,50,0.07)] backdrop-blur-sm transition-all duration-200 ${
+                    drawCases.length > 1 ? 'hover:border-[#D3BEA9] hover:bg-white' : 'cursor-default'
+                  } ${
+                    isDrawCaseSwitchVisible
+                      ? 'translate-y-0 opacity-100'
+                      : 'pointer-events-none translate-y-2 opacity-0'
+                  }`}
+                  aria-haspopup="menu"
+                  aria-expanded={drawCases.length > 1 ? isDrawCaseMenuOpen : undefined}
+                  title="추첨 상황 선택"
+                >
+                  <span className="inline-flex min-w-0 items-center gap-1">
+                    <Sparkles size={12} className="shrink-0 text-[#A67C52]" />
+                    <span className="truncate">{activeDrawLabel}</span>
+                  </span>
+                  {drawCases.length > 1 ? (
+                    <ChevronDown
+                      size={11}
+                      className={`shrink-0 transition-transform ${isDrawCaseMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  ) : null}
+                </button>
+
+                {isDrawCaseMenuOpen ? (
+                  <div
+                    role="menu"
+                    className="timer-draw-menu absolute bottom-[calc(100%+0.35rem)] left-0 right-0 rounded-[0.9rem] border border-[#E6D5C9] bg-white/96 p-1 shadow-[0_16px_30px_rgba(95,71,50,0.14)] backdrop-blur-sm"
+                  >
+                    {drawCases.map((caseState, index) => {
+                      const caseLabel = normalizeCaseLabel(caseState.label, getCaseLabelByIndex(index));
+                      const isActive = resolvedActiveDrawCaseId === caseState.id;
+
+                      return (
+                        <button
+                          key={caseState.id}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={isActive}
+                          onClick={() => selectActiveDrawCase(caseState.id)}
+                          className={`timer-draw-menu-item flex w-full items-center justify-between rounded-[0.72rem] px-2 py-1.5 text-left text-[0.74rem] font-bold transition-colors ${
+                            isActive ? 'bg-[#5C8D5D] text-white' : 'text-[#8A6347] hover:bg-[#FFF7EE]'
+                          }`}
+                        >
+                          <span>{caseLabel}</span>
+                          {isActive ? <Sparkles size={10} /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             {/* Character Notification Overlay (independent from right controls) */}
@@ -2837,150 +3118,83 @@ export default function TimerPage() {
           </div>
 
           {/* Right: Controls & Presets */}
-          <div className="control-pane relative flex min-h-0 w-full flex-col gap-6 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-8 lg:py-9 xl:px-10 xl:py-10">
-            
-            {/* Character Notification Overlay */}
-            <div className="hidden">
-              {/* Speech Bubble */}
-              <div className="relative bg-white px-6 py-4 md:px-8 md:py-6 rounded-3xl shadow-xl border-4 border-[#E6D5C9] mb-6 animate-bounce text-center max-w-[min(92vw,56rem)]">
-                <p className={`font-bold text-lg md:text-2xl whitespace-normal break-keep text-center ${colorClass}`}>{characterMessage}</p>
-                {/* Bubble Tail (pointing down) */}
-                <div className="absolute -bottom-[14px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[12px] border-x-transparent border-t-[14px] border-t-white z-10"></div>
-                <div className="absolute -bottom-[19px] left-1/2 -translate-x-1/2 w-0 h-0 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
-              </div>
-              
-              {/* Character Image or Placeholder */}
-              <div className="relative w-48 h-48 md:w-64 md:h-64 shrink-0">
-                {/* 임시 영역 (Placeholder) */}
-                <div className="absolute inset-0 bg-[#8A6347]/10 rounded-3xl border-2 border-dashed border-[#8A6347]/40 flex flex-col items-center justify-center text-[#8A6347]/60">
-                  <span className="text-5xl md:text-7xl mb-2">🎨</span>
-                  <span className="text-sm md:text-base font-bold text-center leading-tight">캐릭터<br/>영역</span>
-                </div>
-                {/* 실제 이미지 (있을 경우 덮어씀) */}
-                <img 
-                  src="/character.png?v=20260301" 
-                  alt="알림 캐릭터"
-                  className="absolute inset-0 w-full h-full object-contain drop-shadow-2xl z-10"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    // Fallback if image is not found
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Controls Content (Fades out when character shows) */}
-            <div className="flex flex-1 min-h-0 flex-col gap-4">
-              <div className="relative flex h-full min-h-0 w-full flex-col items-stretch justify-start gap-4 pt-2 text-left">
-                  <div className="hidden w-24 h-24 rounded-full bg-[#F0F5F0] items-center justify-center text-[#5C8D5D] mb-2 shadow-inner">
-                    <CalendarClock size={48} />
+          <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
+            {shouldShowNoticeCard ? (
+              <div
+                className={`notice-card relative z-30 w-full overflow-visible rounded-[1.85rem] border-2 border-[#4F6B47] bg-[linear-gradient(180deg,#FFFEFB_0%,#F3EEE5_100%)] px-1.5 pb-1.5 pt-1.5 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-1.8rem] sm:mb-[-2.15rem]'}`}
+                style={noticeCardStyle}
+              >
+                {isEditingNotice ? (
+                  <div className="notice-editor flex min-h-[5.5rem] items-center rounded-[1.45rem] border border-[#8FA384] bg-[#FFFDF8] px-1 py-1.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[6rem]">
+                    <textarea
+                      ref={noticeInputRef}
+                      value={noticeDraft}
+                      onChange={(e) => setNoticeDraft(e.target.value)}
+                      onBlur={handleNoticeBlur}
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                          e.preventDefault();
+                          saveNotice();
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault();
+                          cancelNoticeEdit();
+                        }
+                      }}
+                      rows={1}
+                      maxLength={160}
+                      className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
+                    />
                   </div>
-                  <div className={`control-pane-stack flex flex-col ${shouldShowNoticeHandle ? 'gap-2' : 'gap-4'}`}>
-                    <h2 className="hidden text-2xl lg:text-3xl font-bold text-[#8A6347] mb-2">자동 시간표 모드</h2>
-                    <p className="hidden text-lg lg:text-xl text-[#8A6347]/70 font-medium">
-                      {currentSlotName === '일정 없음'
-                        ? '현재 예정된 일정이 없습니다.'
-                        : `현재: ${currentSlotName}`}
-                    </p>
-                    <div className="control-pane-header flex items-start gap-3 sm:items-center sm:gap-4">
-                      <div className={`status-medallion control-status-medallion inline-flex min-h-[5.5rem] flex-1 items-center justify-start gap-3 rounded-[2rem] border-2 px-5 py-4 text-[clamp(2rem,4.9vw,3.6rem)] font-extrabold leading-[0.95] tracking-[-0.01em] shadow-sm sm:justify-center sm:gap-4 sm:rounded-full sm:px-7 sm:py-5 ${scheduleTypeBadgeClass} ${shouldShowNoticeCard && !isEditingNotice ? 'status-medallion-muted' : ''}`}>
-                        {timerType === 'break' ? <Coffee size={44} strokeWidth={2.25} /> : timerType === 'lunch' ? <Utensils size={44} strokeWidth={2.25} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={44} strokeWidth={2.25} /> : <Timer size={44} strokeWidth={2.25} />}
-                        <span className="min-w-0 truncate leading-none">{scheduleTypeLabel}</span>
-                      </div>
+                ) : (
+                  <>
+                    <div className="absolute left-1/2 top-0 z-20 flex -translate-x-1/2 -translate-y-[42%] flex-col items-center">
                       <button
-                        onClick={toggleBackgroundMusic}
-                        disabled={isMusicLoading}
-                        className={`sound-toggle inline-flex h-[3.35rem] w-[3.35rem] shrink-0 items-center justify-center rounded-[1.45rem] transition-all sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl ${
-                          isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
-                        } ${isMusicLoading ? 'cursor-not-allowed opacity-45' : ''}`}
-                        title={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
-                        aria-label={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
+                        onClick={() => setIsNoticeEnabled(false)}
+                        className={noticeHandleButtonClass}
+                        title="공지 닫기"
+                        aria-label="공지 닫기"
+                        type="button"
                       >
-                        {isMusicPlaying ? <Volume2 size={22} /> : <VolumeX size={22} />}
+                        <span aria-hidden="true" className={noticeHandleLineClass} />
+                        <span aria-hidden="true" className={noticeHandleIconClass}>
+                          <ChevronDown size={10} strokeWidth={2.7} className="rotate-180" />
+                        </span>
                       </button>
                     </div>
+                    <button
+                      onClick={startNoticeEdit}
+                      className="notice-content flex min-h-[5.5rem] w-full items-center rounded-[1.45rem] border border-[#8FA384] bg-[#FFFDF8] px-1 py-1.5 text-left transition-colors hover:bg-white sm:min-h-[6rem]"
+                      title="공지 수정"
+                      type="button"
+                    >
+                      <p className={`notice-text-body w-full break-keep whitespace-pre-line font-bold text-[#3E2D20] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
+                        {trimmedNotice}
+                      </p>
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : shouldShowNoticeHandle ? (
+              <div className="relative h-0 w-full overflow-visible">
+                <div className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-[42%]">
+                  <button
+                    onClick={openNoticePanel}
+                    className={noticeHandleButtonClass}
+                    title={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
+                    aria-label={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
+                    type="button"
+                  >
+                    <span aria-hidden="true" className={noticeHandleLineClass} />
+                    <span aria-hidden="true" className={noticeHandleIconClass}>
+                      <ChevronDown size={10} strokeWidth={2.7} />
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
-                    {shouldShowNoticeCard ? (
-                      <div
-                        className={`notice-card relative z-30 w-full overflow-visible rounded-[1.85rem] border-2 border-[#4F6B47] bg-[linear-gradient(180deg,#FFFEFB_0%,#F3EEE5_100%)] px-1.5 pb-1.5 pt-1.5 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-1.8rem] sm:mb-[-2.15rem]'}`}
-                        style={noticeCardStyle}
-                      >
-                        {isEditingNotice ? (
-                          <>
-                            <div className="notice-editor flex min-h-[5.5rem] items-center rounded-[1.45rem] border border-[#8FA384] bg-[#FFFDF8] px-1 py-1.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[6rem]">
-                              <textarea
-                                ref={noticeInputRef}
-                                value={noticeDraft}
-                                onChange={(e) => setNoticeDraft(e.target.value)}
-                                onBlur={handleNoticeBlur}
-                                onKeyDown={(e) => {
-                                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                                    e.preventDefault();
-                                    saveNotice();
-                                  }
-                                  if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    cancelNoticeEdit();
-                                  }
-                                }}
-                                rows={1}
-                                maxLength={160}
-                                className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
-                              />
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="absolute left-1/2 top-0 z-20 flex -translate-x-1/2 -translate-y-[42%] flex-col items-center">
-                              <button
-                                onClick={() => setIsNoticeEnabled(false)}
-                                className={noticeHandleButtonClass}
-                                title="공지 닫기"
-                                aria-label="공지 닫기"
-                              >
-                                <span aria-hidden="true" className={noticeHandleLineClass} />
-                                <span aria-hidden="true" className={noticeHandleIconClass}>
-                                  <ChevronDown
-                                    size={10}
-                                    strokeWidth={2.7}
-                                    className="rotate-180"
-                                  />
-                                </span>
-                              </button>
-                            </div>
-                            <button
-                              onClick={startNoticeEdit}
-                              className="notice-content flex min-h-[5.5rem] w-full items-center rounded-[1.45rem] border border-[#8FA384] bg-[#FFFDF8] px-1 py-1.5 text-left transition-colors hover:bg-white sm:min-h-[6rem]"
-                              title="공지 수정"
-                            >
-                              <p className={`notice-text-body w-full break-keep whitespace-pre-line font-bold text-[#3E2D20] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
-                                {trimmedNotice}
-                              </p>
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : shouldShowNoticeHandle ? (
-                      <div className="relative h-0 w-full overflow-visible">
-                        <div className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-[42%]">
-                          <button
-                            onClick={openNoticePanel}
-                            className={noticeHandleButtonClass}
-                            title={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
-                            aria-label={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
-                          >
-                            <span aria-hidden="true" className={noticeHandleLineClass} />
-                            <span aria-hidden="true" className={noticeHandleIconClass}>
-                              <ChevronDown size={10} strokeWidth={2.7} />
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className={`schedule-board schedule-board-compact flex w-full min-h-[31rem] flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[35rem] sm:p-5 lg:min-h-0 lg:flex-[0.9] ${shouldShowNoticeCard && !isEditingNotice ? 'schedule-board-muted pt-9 sm:pt-10' : ''}`}>
+            <div className={`schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0 ${shouldShowNoticeCard && !isEditingNotice ? 'schedule-board-muted pt-9 sm:pt-10' : ''}`}>
                     {currentDaySchedule.length === 0 ? (
                       <div className="schedule-empty-state my-1 flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-8 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
                         <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F8F1] text-[#6B8B63] shadow-inner shadow-[#E8F0E4]">
@@ -3008,150 +3222,147 @@ export default function TimerPage() {
                         })}
                       </ul>
                     )}
-                    <div className="pt-4">
-                      <div className="schedule-quick-actions grid w-full shrink-0 grid-cols-3 gap-3">
-                        <div ref={manualTimerMenuRef} className="relative min-w-0">
-                          {isExtraTimerVisible ? (
-                            <div className="absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[22rem] md:w-[24rem]">
-                              <div className="mb-2 flex justify-end">
-                                <button
-                                  onClick={() => setIsExtraTimerVisible(false)}
-                                  className="icon-button rounded-full p-2 text-[#8A6347]/60 transition-colors hover:bg-white hover:text-[#8A6347]"
-                                  title="보조 타이머 닫기"
-                                  type="button"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
+            </div>
 
-                              <div className="rounded-[1.45rem] border border-[#E6D5C9] bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                                <div className="flex items-end justify-between gap-3">
-                                  <div className={`font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}>
-                                    {formatTime(manualTimeLeft)}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={toggleTimer}
-                                      className={`round-action flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-md transition-transform hover:scale-105 active:scale-95 ${
-                                        manualIsRunning ? 'round-action-pause' : 'round-action-play'
-                                      }`}
-                                      type="button"
-                                      title={manualIsRunning ? '보조 타이머 일시정지' : '보조 타이머 시작'}
-                                    >
-                                      {manualIsRunning ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
-                                    </button>
-                                    <button
-                                      onClick={resetTimer}
-                                      className="round-action round-action-reset flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8A6347] shadow-md transition-transform hover:scale-105 active:scale-95"
-                                      type="button"
-                                      title="보조 타이머 초기화"
-                                    >
-                                      <RotateCcw size={18} />
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EDE2D7]">
-                                  <div
-                                    className={`h-full rounded-full transition-all duration-300 ${manualIsRunning ? 'bg-[#7DA36C]' : isManualFinished ? 'bg-[#D37C68]' : 'bg-[#B68A67]'}`}
-                                    style={{ width: `${manualProgress * 100}%` }}
-                                  />
-                                </div>
-                              </div>
+            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-3 gap-3">
+              <div ref={manualTimerMenuRef} className="relative min-w-0">
+                {isExtraTimerVisible ? (
+                  <div className="absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[22rem] md:w-[24rem]">
+                    <div className="mb-2 flex justify-end">
+                      <button
+                        onClick={() => setIsExtraTimerVisible(false)}
+                        className="icon-button rounded-full p-2 text-[#8A6347]/60 transition-colors hover:bg-white hover:text-[#8A6347]"
+                        title="보조 타이머 닫기"
+                        type="button"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
 
-                              <div className="mt-4 grid grid-cols-3 gap-2">
-                                {MANUAL_TIMER_PRESETS.map((preset) => (
-                                  <button
-                                    key={preset.seconds}
-                                    onClick={() => applyManualPreset(preset.seconds)}
-                                    className="rounded-2xl border border-[#E6D5C9] bg-white px-3 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#D5C0AD] hover:bg-[#FFF9F2]"
-                                    type="button"
-                                  >
-                                    {preset.label}
-                                  </button>
-                                ))}
-                              </div>
-
-                              <div className="mt-4 flex items-center justify-center gap-3">
-                                <div className="flex flex-col items-center">
-                                  <input
-                                    type="number"
-                                    value={customMinutes}
-                                    onChange={(e) => handleCustomMinutesChange(e.target.value)}
-                                    className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                                    min="0"
-                                    max="999"
-                                  />
-                                  <span className="mt-1 text-sm font-bold text-[#8A6347]/70">분</span>
-                                </div>
-                                <span className="mb-6 text-2xl font-bold text-[#8A6347]">:</span>
-                                <div className="flex flex-col items-center">
-                                  <input
-                                    type="number"
-                                    value={customSeconds}
-                                    onChange={(e) => handleCustomSecondsChange(e.target.value)}
-                                    className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                                    min="0"
-                                    max="59"
-                                  />
-                                  <span className="mt-1 text-sm font-bold text-[#8A6347]/70">초</span>
-                                </div>
-                              </div>
-                            </div>
-                          ) : null}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsDrawCaseMenuOpen(false);
-                            setIsExtraTimerVisible((previous) => !previous);
-                          }}
-                          className={`manual-timer-launch-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] border p-3 text-center text-[#8A6347] shadow-[0_14px_28px_rgba(95,71,50,0.1)] transition-all ${
-                            manualIsRunning
-                              ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]'
-                              : 'border-[#E6D5C9] bg-white/96 hover:border-[#D3BEA9] hover:bg-white'
-                          }`}
-                          aria-haspopup="dialog"
-                          aria-expanded={isExtraTimerVisible}
-                          aria-label="보조 타이머"
-                          title="보조 타이머"
-                        >
-                          <span className="announcement-launch-icon manual-timer-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
-                            <Timer size={22} className={manualClockClass} />
-                          </span>
-                        </button>
+                    <div className="rounded-[1.45rem] border border-[#E6D5C9] bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                      <div className="flex items-end justify-between gap-3">
+                        <div className={`font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}>
+                          {formatTime(manualTimeLeft)}
                         </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={toggleTimer}
+                            className={`round-action flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-md transition-transform hover:scale-105 active:scale-95 ${
+                              manualIsRunning ? 'round-action-pause' : 'round-action-play'
+                            }`}
+                            type="button"
+                            title={manualIsRunning ? '보조 타이머 일시정지' : '보조 타이머 시작'}
+                          >
+                            {manualIsRunning ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+                          </button>
+                          <button
+                            onClick={resetTimer}
+                            className="round-action round-action-reset flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8A6347] shadow-md transition-transform hover:scale-105 active:scale-95"
+                            type="button"
+                            title="보조 타이머 초기화"
+                          >
+                            <RotateCcw size={18} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EDE2D7]">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${manualIsRunning ? 'bg-[#7DA36C]' : isManualFinished ? 'bg-[#D37C68]' : 'bg-[#B68A67]'}`}
+                          style={{ width: `${manualProgress * 100}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      {MANUAL_TIMER_PRESETS.map((preset) => (
                         <button
-                          onClick={() => {
-                            void playAnnouncementSound('pop');
-                            setIsMemoOpen(true);
-                          }}
-                          className="announcement-launch-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
-                          aria-label="메모장"
-                          title="메모장"
+                          key={preset.seconds}
+                          onClick={() => applyManualPreset(preset.seconds)}
+                          className="rounded-2xl border border-[#E6D5C9] bg-white px-3 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#D5C0AD] hover:bg-[#FFF9F2]"
                           type="button"
                         >
-                          <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
-                            <StickyNote size={22} />
-                          </div>
+                          {preset.label}
                         </button>
-                        <button
-                          onClick={() => {
-                            void playAnnouncementSound('pop');
-                            setIsAnnouncementOpen(true);
-                          }}
-                          className="announcement-launch-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
-                          aria-label="알림장"
-                          title="알림장"
-                          type="button"
-                        >
-                          <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
-                            <NotebookText size={22} />
-                          </div>
-                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                      <div className="flex flex-col items-center">
+                        <input
+                          type="number"
+                          value={customMinutes}
+                          onChange={(e) => handleCustomMinutesChange(e.target.value)}
+                          className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                          min="0"
+                          max="999"
+                        />
+                        <span className="mt-1 text-sm font-bold text-[#8A6347]/70">분</span>
+                      </div>
+                      <span className="mb-6 text-2xl font-bold text-[#8A6347]">:</span>
+                      <div className="flex flex-col items-center">
+                        <input
+                          type="number"
+                          value={customSeconds}
+                          onChange={(e) => handleCustomSecondsChange(e.target.value)}
+                          className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                          min="0"
+                          max="59"
+                        />
+                        <span className="mt-1 text-sm font-bold text-[#8A6347]/70">초</span>
                       </div>
                     </div>
                   </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDrawCaseMenuOpen(false);
+                    setIsExtraTimerVisible((previous) => !previous);
+                  }}
+                  className={`manual-timer-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] border p-3 text-center text-[#8A6347] shadow-[0_14px_28px_rgba(95,71,50,0.1)] transition-all ${
+                    manualIsRunning
+                      ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]'
+                      : 'border-[#E6D5C9] bg-white/96 hover:border-[#D3BEA9] hover:bg-white'
+                  }`}
+                  aria-haspopup="dialog"
+                  aria-expanded={isExtraTimerVisible}
+                  aria-label="보조 타이머"
+                  title="보조 타이머"
+                >
+                  <span className="announcement-launch-icon manual-timer-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                    <Timer size={22} className={manualClockClass} />
+                  </span>
+                </button>
+              </div>
+              <button
+                onClick={() => {
+                  void playAnnouncementSound('pop');
+                  setIsMemoOpen(true);
+                }}
+                className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
+                aria-label="메모장"
+                title="메모장"
+                type="button"
+              >
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                  <StickyNote size={22} />
                 </div>
+              </button>
+              <button
+                onClick={() => {
+                  void playAnnouncementSound('pop');
+                  setIsAnnouncementOpen(true);
+                }}
+                className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
+                aria-label="알림장"
+                title="알림장"
+                type="button"
+              >
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                  <NotebookText size={22} />
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -3164,7 +3375,7 @@ export default function TimerPage() {
             <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
               <h2 className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">
                 <Settings size={24} className="md:w-7 md:h-7" />
-                수업/추첨 설정
+                시간표/추첨 설정
               </h2>
               <div className="flex items-center gap-2 md:gap-4">
                 <button 
@@ -3220,7 +3431,7 @@ export default function TimerPage() {
                   <div>
                     <h3 className="section-title text-lg font-bold text-[#8A6347]">학교 시계 보정</h3>
                     <p className="mt-1 text-sm text-[#8A6347]/70">
-                      학교 종이 먼저 울리면 양수, 웹이 먼저 울리면 음수로 맞춰주세요.
+                      학교 종이 빠르면 +, 웹이 빠르면 -
                     </p>
                   </div>
                   <label className="flex items-center gap-2 self-start md:self-auto">
@@ -3237,7 +3448,7 @@ export default function TimerPage() {
                   </label>
                 </div>
                 <p className="mt-3 text-sm text-[#5C7A4B]">
-                  예: 학교 종이 약 10초 먼저 울리면 <span className="font-mono font-bold">10</span>으로 설정하면 됩니다.
+                  예: 학교 종이 10초 빠르면 <span className="font-mono font-bold">10</span>
                 </p>
               </div>
 
@@ -3290,7 +3501,7 @@ export default function TimerPage() {
               <div className="space-y-3">
                 {(weeklySchedule[editingDay] || []).length === 0 ? (
                   <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
-                    일정이 없습니다. 아래 버튼을 눌러 추가해보세요.
+                    일정이 없습니다.
                   </div>
                 ) : (
                   (weeklySchedule[editingDay] || []).map((slot, index) => {
@@ -3354,15 +3565,15 @@ export default function TimerPage() {
                 className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-all hover:bg-[#5C8D5D] hover:text-white"
               >
                 <Plus size={24} />
-                새로운 일정 추가
+                일정 추가
               </button>
 
               <div className="mt-8 border-t border-[#E6D5C9] pt-6">
                 <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h3 className="section-title text-xl font-bold text-[#8A6347]">학생 추첨 설정</h3>
+                    <h3 className="section-title text-xl font-bold text-[#8A6347]">추첨 설정</h3>
                     <p className="mt-1 text-sm text-[#8A6347]/70">
-                      메인 화면에서는 상황만 바꾸고, 여기에서 번호 범위와 학생 명단을 관리합니다.
+                      상황, 범위, 명단
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -3376,7 +3587,7 @@ export default function TimerPage() {
                       {activeDrawLabel} 초기화
                     </button>
                     <div className="inline-flex items-center justify-center rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[#8A6347]">
-                      {DRAW_SHORTCUT_LABEL} 키로 추첨
+                      {DRAW_SHORTCUT_LABEL}
                     </div>
                   </div>
                 </div>
@@ -3384,14 +3595,14 @@ export default function TimerPage() {
                 <div className="grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
                   <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.96)_0%,rgba(248,241,232,0.9)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2.5">
-                      <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">상황 목록</h4>
+                      <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">상황</h4>
                       <button
                         type="button"
                         onClick={addDrawSettingsCase}
                         className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
                       >
                         <Plus size={18} />
-                        상황 추가
+                        추가
                       </button>
                     </div>
 
@@ -3445,7 +3656,7 @@ export default function TimerPage() {
                     <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
                       <div className="grid gap-4">
                         <label className="flex flex-col gap-2">
-                          <span className="section-title text-[0.95rem] font-bold text-[#B58363]">상황 이름</span>
+                          <span className="section-title text-[0.95rem] font-bold text-[#B58363]">이름</span>
                           <input
                             type="text"
                             value={selectedDrawSettingsCase.label}
@@ -3457,7 +3668,7 @@ export default function TimerPage() {
 
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="flex flex-col gap-2">
-                            <span className="section-title text-[0.95rem] font-bold text-[#B58363]">시작 번호</span>
+                            <span className="section-title text-[0.95rem] font-bold text-[#B58363]">시작</span>
                             <input
                               type="number"
                               min={MIN_DRAW_NUMBER}
@@ -3476,7 +3687,7 @@ export default function TimerPage() {
                           </label>
 
                           <label className="flex flex-col gap-2">
-                            <span className="section-title text-[0.95rem] font-bold text-[#B58363]">끝 번호</span>
+                            <span className="section-title text-[0.95rem] font-bold text-[#B58363]">끝</span>
                             <input
                               type="number"
                               min={MIN_DRAW_NUMBER}
@@ -3502,19 +3713,19 @@ export default function TimerPage() {
                         <div className="max-w-[32rem]">
                           <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학생 명단</h4>
                           <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">
-                            줄바꿈으로 순서대로 붙여넣거나, `번호 이름` 형식으로 입력할 수 있습니다.
+                            줄바꿈 또는 번호 이름
                           </p>
                         </div>
 
                         <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
-                          이름 입력 {assignedStudentNameCount} / {settingsStudentNumbers.length}
+                          {assignedStudentNameCount} / {settingsStudentNumbers.length}
                         </div>
                       </div>
 
                       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
                         <div className="rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
                           <label className="flex flex-col gap-2.5">
-                            <span className="section-title text-[0.92rem] font-bold text-[#B58363]">명단 일괄 입력</span>
+                            <span className="section-title text-[0.92rem] font-bold text-[#B58363]">일괄 입력</span>
                             <textarea
                               value={studentRosterBulkInput}
                               onChange={(event) => setStudentRosterBulkInput(event.target.value)}
@@ -3524,14 +3735,14 @@ export default function TimerPage() {
                           </label>
                           <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
                             <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">
-                              빈 줄은 건너뛰고, 범위 밖 번호는 자동으로 제외됩니다.
+                              범위 밖 번호 제외
                             </p>
                             <button
                               type="button"
                               onClick={applyBulkStudentRoster}
                               className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                             >
-                              명단 반영
+                              반영
                             </button>
                           </div>
                         </div>
@@ -3539,7 +3750,7 @@ export default function TimerPage() {
                         <div className="min-h-0">
                           <div className="flex items-center justify-between gap-3">
                             <h5 className="section-title text-[0.92rem] font-bold text-[#B58363]">개별 수정</h5>
-                            <span className="text-xs font-bold text-[#B58363]/70">Tab으로 다음 학생 이동</span>
+                            <span className="text-xs font-bold text-[#B58363]/70">Tab</span>
                           </div>
 
                           <div className="custom-scrollbar mt-3 max-h-[22rem] overflow-y-auto pr-1">
@@ -3574,9 +3785,9 @@ export default function TimerPage() {
                     <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="max-w-[32rem]">
-                          <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">재등장 연출</h4>
+                          <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">재등장</h4>
                           <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
-                            추첨 중 10% 확률로 이미 뽑힌 학생이 한 번 더 등장합니다. 한 학생은 초기화 전까지 최대 한 번만 재등장합니다.
+                            이미 뽑힌 번호 1회 재등장
                           </p>
                         </div>
 
@@ -3600,6 +3811,7 @@ export default function TimerPage() {
                   </section>
                 </div>
               </div>
+
             </div>
           </div>
         </div>
