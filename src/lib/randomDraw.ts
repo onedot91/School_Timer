@@ -42,8 +42,8 @@ export const MAX_HISTORY_LENGTH = 2000;
 export const REPEAT_PICK_PROBABILITY = 0.1;
 export const DEFAULT_PRIMARY_CASE_ID = 'case-a';
 export const DEFAULT_SECONDARY_CASE_ID = 'case-b';
-export const RANDOM_DRAW_DURATION_MS = 1700;
-export const RANDOM_DRAW_RESULT_DISPLAY_MS = 3000;
+export const RANDOM_DRAW_DURATION_MS = 1300;
+export const RANDOM_DRAW_RESULT_DISPLAY_MS = 2500;
 const SOUND_START_LEAD_TIME = 0.012;
 const SOUND_INITIAL_START_LEAD_TIME = 0.07;
 const AUDIO_PRIME_DURATION_MS = 28;
@@ -615,7 +615,7 @@ export const prepareRandomDrawAudio = () => {
   return randomDrawAudioPreparePromise;
 };
 
-export const playRandomDrawSound = async (kind: 'tick' | 'pop' | 'repeat' | 'empty') => {
+export const playRandomDrawSound = async (kind: 'tick' | 'pop' | 'repeat' | 'empty' | 'reset') => {
   try {
     const ctx = await prepareRandomDrawAudio();
     if (!ctx) return;
@@ -668,6 +668,16 @@ export const playRandomDrawSound = async (kind: 'tick' | 'pop' | 'repeat' | 'emp
       playTone(196, 154, 0.018, 0.34, 'sine', 0.056);
       playTone(262, 208, 0.032, 0.44, 'sine', 0.034);
       playTone(156, 132, 0.11, 0.56, 'triangle', 0.022);
+      return;
+    }
+
+    if (kind === 'reset') {
+      playTone(1040, 240, 0, 0.24, 'sawtooth', 0.025);
+      playTone(760, 180, 0.028, 0.28, 'triangle', 0.022);
+      playTone(280, 190, 0.042, 0.2, 'sine', 0.018);
+      playTone(392, 523, 0.19, 0.12, 'triangle', 0.02);
+      playTone(523, 784, 0.23, 0.12, 'triangle', 0.019);
+      playTone(784, 1046, 0.28, 0.16, 'sine', 0.016);
       return;
     }
 
