@@ -2266,35 +2266,6 @@ export default function TimerPage() {
     setIsDrawCaseMenuOpen(false);
   }, [isSettingsOpen]);
 
-  useEffect(() => {
-    if (!isExtraTimerVisible) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const menuNode = manualTimerMenuRef.current;
-      if (!menuNode) return;
-      if (menuNode.contains(event.target as Node)) return;
-      setIsExtraTimerVisible(false);
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      setIsExtraTimerVisible(false);
-    };
-
-    window.addEventListener('mousedown', handlePointerDown);
-    window.addEventListener('keydown', handleEscape);
-
-    return () => {
-      window.removeEventListener('mousedown', handlePointerDown);
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [isExtraTimerVisible]);
-
-  useEffect(() => {
-    if (!isSettingsOpen) return;
-    setIsExtraTimerVisible(false);
-  }, [isSettingsOpen]);
-
   const updateSlot = (day: number, id: string, field: keyof ScheduleSlot, value: any) => {
     setWeeklySchedule(prev => {
       const daySchedule = [...(prev[day] || [])];
@@ -2813,7 +2784,6 @@ export default function TimerPage() {
                 type="button"
                 onClick={() => {
                   setIsDrawCaseMenuOpen(false);
-                  setIsExtraTimerVisible(false);
                   setIsSettingsOpen(true);
                 }}
                 className="icon-button timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-[1.45rem] border border-[#E6D5C9] bg-white/92 text-[#8A6347]/70 shadow-[0_10px_20px_rgba(95,71,50,0.1)] backdrop-blur-sm transition-all hover:bg-white hover:text-[#8A6347] sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl"
@@ -3025,7 +2995,6 @@ export default function TimerPage() {
                   type="button"
                   onClick={() => {
                     if (drawCases.length <= 1) return;
-                    setIsExtraTimerVisible(false);
                     setIsDrawCaseMenuOpen((previous) => !previous);
                   }}
                   className={`timer-draw-switch inline-flex w-full items-center justify-between gap-1.5 rounded-[1rem] border border-[#E6D5C9] bg-white/90 px-2.5 py-2 text-left text-[0.74rem] font-extrabold text-[#8A6347] shadow-[0_8px_16px_rgba(95,71,50,0.07)] backdrop-blur-sm transition-all duration-200 ${
@@ -3228,17 +3197,6 @@ export default function TimerPage() {
               <div ref={manualTimerMenuRef} className="relative min-w-0">
                 {isExtraTimerVisible ? (
                   <div className="absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[22rem] md:w-[24rem]">
-                    <div className="mb-2 flex justify-end">
-                      <button
-                        onClick={() => setIsExtraTimerVisible(false)}
-                        className="icon-button rounded-full p-2 text-[#8A6347]/60 transition-colors hover:bg-white hover:text-[#8A6347]"
-                        title="보조 타이머 닫기"
-                        type="button"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-
                     <div className="rounded-[1.45rem] border border-[#E6D5C9] bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                       <div className="flex items-end justify-between gap-3">
                         <div className={`font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}>
