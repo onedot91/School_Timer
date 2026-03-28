@@ -2708,11 +2708,11 @@ export default function TimerPage() {
   const hasScheduleNotice = trimmedNotice.length > 0;
   const getNoticeTextClass = (text: string) => {
     const length = text.replace(/\s+/g, '').length;
-    if (length <= 6) return 'text-[clamp(2rem,4.8vw,2.4rem)] leading-[1.18] tracking-[-0.01em]';
-    if (length <= 10) return 'text-[clamp(1.75rem,4.1vw,2.05rem)] leading-[1.24] tracking-[-0.01em]';
-    if (length <= 16) return 'text-[clamp(1.48rem,3.5vw,1.78rem)] leading-[1.34] tracking-[0em]';
-    if (length <= 24) return 'text-[clamp(1.28rem,3vw,1.52rem)] leading-[1.46] tracking-[0em]';
-    return 'text-[clamp(1.08rem,2.4vw,1.24rem)] leading-[1.58] tracking-[0em]';
+    if (length <= 6) return 'text-[clamp(2.9rem,6.6vw,3.6rem)] leading-[1.08] tracking-[-0.02em]';
+    if (length <= 10) return 'text-[clamp(2.45rem,5.7vw,3rem)] leading-[1.14] tracking-[-0.018em]';
+    if (length <= 16) return 'text-[clamp(2.05rem,4.8vw,2.45rem)] leading-[1.24] tracking-[-0.012em]';
+    if (length <= 24) return 'text-[clamp(1.78rem,3.95vw,2.08rem)] leading-[1.36] tracking-[-0.01em]';
+    return 'text-[clamp(1.48rem,3vw,1.72rem)] leading-[1.48] tracking-[0em]';
   };
   const studentNoticeTextClass = getNoticeTextClass(trimmedNotice);
   const draftNoticeTextClass = getNoticeTextClass(noticeDraft);
@@ -3121,11 +3121,11 @@ export default function TimerPage() {
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
             {shouldShowNoticeCard ? (
               <div
-                className={`notice-card relative z-30 w-full overflow-visible rounded-[1.85rem] border-2 border-[#4F6B47] bg-[linear-gradient(180deg,#FFFEFB_0%,#F3EEE5_100%)] px-1.5 pb-1.5 pt-1.5 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-1.8rem] sm:mb-[-2.15rem]'}`}
+                className={`notice-card relative z-30 w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[linear-gradient(180deg,#FFFEFB_0%,#F3EEE5_100%)] px-2.5 pb-2.5 pt-2.5 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-3rem] sm:mb-[-3.55rem]'}`}
                 style={noticeCardStyle}
               >
                 {isEditingNotice ? (
-                  <div className="notice-editor flex min-h-[5.5rem] items-center rounded-[1.45rem] border border-[#8FA384] bg-[#FFFDF8] px-1 py-1.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[6rem]">
+                  <div className="notice-editor flex min-h-[8.2rem] items-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-2.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[8.9rem]">
                     <textarea
                       ref={noticeInputRef}
                       value={noticeDraft}
@@ -3164,7 +3164,7 @@ export default function TimerPage() {
                     </div>
                     <button
                       onClick={startNoticeEdit}
-                      className="notice-content flex min-h-[5.5rem] w-full items-center rounded-[1.45rem] border border-[#8FA384] bg-[#FFFDF8] px-1 py-1.5 text-left transition-colors hover:bg-white sm:min-h-[6rem]"
+                      className="notice-content flex min-h-[8.2rem] w-full items-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-2.5 text-left transition-colors hover:bg-white sm:min-h-[8.9rem]"
                       title="공지 수정"
                       type="button"
                     >
@@ -3194,7 +3194,7 @@ export default function TimerPage() {
               </div>
             ) : null}
 
-            <div className={`schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0 ${shouldShowNoticeCard && !isEditingNotice ? 'schedule-board-muted pt-9 sm:pt-10' : ''}`}>
+            <div className={`schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0 ${shouldShowNoticeCard && !isEditingNotice ? 'schedule-board-muted pt-14 sm:pt-16' : ''}`}>
                     {currentDaySchedule.length === 0 ? (
                       <div className="schedule-empty-state my-1 flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-8 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
                         <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F8F1] text-[#6B8B63] shadow-inner shadow-[#E8F0E4]">
