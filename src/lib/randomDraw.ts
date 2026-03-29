@@ -16,6 +16,7 @@ export interface RandomDrawCaseState {
   currentResult: number | null;
   historyEntries: RandomDrawHistoryEntry[];
   studentNames: StudentNameMap;
+  hiddenNumberQueue: number[];
 }
 
 export interface SavedRandomDrawState {
@@ -29,6 +30,8 @@ type PartialRandomDrawCaseState = Partial<RandomDrawCaseState> & {
   history?: unknown;
   historyEntries?: unknown;
   students?: unknown;
+  hiddenNumberQueue?: unknown;
+  hiddenNumbers?: unknown;
 };
 
 type PartialRandomDrawHistoryEntry = Partial<RandomDrawHistoryEntry> & {
@@ -44,6 +47,7 @@ export const DEFAULT_PRIMARY_CASE_ID = 'case-a';
 export const DEFAULT_SECONDARY_CASE_ID = 'case-b';
 export const RANDOM_DRAW_DURATION_MS = 1300;
 export const RANDOM_DRAW_RESULT_DISPLAY_MS = 2500;
+const SECRET_QUEUE_MAX_LENGTH = 240;
 const SOUND_START_LEAD_TIME = 0.012;
 const SOUND_INITIAL_START_LEAD_TIME = 0.07;
 const AUDIO_PRIME_DURATION_MS = 28;
@@ -101,6 +105,27 @@ const normalizeStudentNames = (value: unknown): StudentNameMap => {
   });
 
   return normalized;
+};
+
+const parseHiddenNumberQueueText = (rawValue: string) =>
+  (rawValue.match(/\d{1,3}/gu) ?? [])
+    .map((value) => normalizeResultNumber(value))
+    .filter((value): value is number => value !== null)
+    .slice(0, SECRET_QUEUE_MAX_LENGTH);
+
+const normalizeHiddenNumberQueue = (value: unknown): number[] => {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => normalizeResultNumber(entry))
+      .filter((entry): entry is number => entry !== null)
+      .slice(0, SECRET_QUEUE_MAX_LENGTH);
+  }
+
+  if (typeof value === 'string') {
+    return parseHiddenNumberQueueText(value);
+  }
+
+  return [];
 };
 
 const createCaseId = () => `case-${Math.random().toString(36).slice(2, 10)}`;
@@ -200,6 +225,7 @@ export const createDefaultCaseState = (label: string, id = createCaseId()): Rand
   currentResult: null,
   historyEntries: [],
   studentNames: {},
+  hiddenNumberQueue: [],
 });
 
 const createDefaultCasesState = (): RandomDrawCaseState[] => [
@@ -232,6 +258,7 @@ const normalizeCaseState = (
     currentResult,
     historyEntries: normalizeHistoryEntries(parsed.historyEntries ?? parsed.history),
     studentNames: normalizeStudentNames(parsed.studentNames ?? parsed.students),
+    hiddenNumberQueue: normalizeHiddenNumberQueue(parsed.hiddenNumberQueue ?? parsed.hiddenNumbers),
   };
 };
 
@@ -490,6 +517,67 @@ export const getCaseDrawData = (caseState: RandomDrawCaseState, repeatPickEnable
       : [],
     repeatedSourceEntryIds,
   };
+};
+
+export interface HiddenNumberQueueInstruction {
+  index: number;
+  number: number;
+  kind: RandomDrawHistoryKind;
+  sourceEntry?: RandomDrawHistoryEntry;
+}
+
+export const removeHiddenNumberQueueItem = (queue: number[], index: number) =>
+  queue.filter((_, itemIndex) => itemIndex !== index);
+
+export const getHiddenQueueInstruction = (
+  caseState: RandomDrawCaseState,
+  allowRepeatAnimation = true,
+): HiddenNumberQueueInstruction | null => {
+  if (caseState.hiddenNumberQueue.length === 0) return null;
+
+  const drawData = getCaseDrawData(caseState, false);
+  const availableNumberSet = new Set(drawData.availableNumbers);
+  const repeatedNumbers = new Set<number>();
+  const normalEntryByNumber = new Map<number, RandomDrawHistoryEntry>();
+
+  drawData.historyEntries.forEach((entry) => {
+    if (entry.kind === 'repeat') {
+      repeatedNumbers.add(entry.number);
+      return;
+    }
+
+    if (!normalEntryByNumber.has(entry.number)) {
+      normalEntryByNumber.set(entry.number, entry);
+    }
+  });
+
+  for (let index = 0; index < caseState.hiddenNumberQueue.length; index += 1) {
+    const queuedNumber = caseState.hiddenNumberQueue[index];
+
+    if (queuedNumber < drawData.minNumber || queuedNumber > drawData.maxNumber) {
+      continue;
+    }
+
+    if (availableNumberSet.has(queuedNumber)) {
+      return {
+        index,
+        number: queuedNumber,
+        kind: 'normal',
+      };
+    }
+
+    const sourceEntry = normalEntryByNumber.get(queuedNumber);
+    if (allowRepeatAnimation && sourceEntry && !repeatedNumbers.has(queuedNumber)) {
+      return {
+        index,
+        number: queuedNumber,
+        kind: 'repeat',
+        sourceEntry,
+      };
+    }
+  }
+
+  return null;
 };
 
 export const getCaseSummaryLabel = (caseState: RandomDrawCaseState) => {
