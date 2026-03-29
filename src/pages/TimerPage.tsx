@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { toPng } from 'html-to-image';
+import { getFontEmbedCSS, toBlob } from 'html-to-image';
 import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
@@ -45,6 +45,15 @@ interface ScheduleSlot {
 interface AnnouncementItem {
   id: string;
   text: string;
+}
+
+interface AnnouncementOverlayTimerState {
+  isVisible: boolean;
+  timeText: string;
+  progress: number;
+  timerType: TimerType;
+  timerTypeLabel: string;
+  currentSlotName: string;
 }
 
 interface ManualTimerState {
@@ -596,6 +605,73 @@ const buildAnnouncementFilename = (value: string) => {
   return `${year}${month}${day}_알림장.png`;
 };
 
+const waitForNextPaint = () =>
+  new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+
+function NotebookOverlayTimerBadge({
+  liveTimer,
+}: {
+  liveTimer: AnnouncementOverlayTimerState;
+}) {
+  const shouldShowLiveTimerSlotName =
+    liveTimer.currentSlotName.length > 0 &&
+    liveTimer.currentSlotName !== '일정 없음' &&
+    liveTimer.currentSlotName.replace(/\s+/g, '') !== liveTimer.timerTypeLabel.replace(/\s+/g, '');
+  const liveTimerBadgeLabel = shouldShowLiveTimerSlotName ? liveTimer.currentSlotName : liveTimer.timerTypeLabel;
+  const liveTimerProgress = Math.max(0, Math.min(1, liveTimer.progress));
+  const liveTimerRadius = 40;
+  const liveTimerCircumference = 2 * Math.PI * liveTimerRadius;
+  const liveTimerStrokeDashoffset = liveTimerCircumference * (1 - liveTimerProgress);
+  const liveTimerStrokeColor =
+    liveTimer.timerType === 'class'
+      ? '#5C8D6D'
+      : liveTimer.timerType === 'break'
+        ? '#7AA160'
+        : liveTimer.timerType === 'morning'
+          ? '#D19A43'
+          : liveTimer.timerType === 'lunch'
+            ? '#C47A52'
+            : '#B89E87';
+
+  if (!liveTimer.isVisible) return null;
+
+  return (
+    <div className="announcement-date-badge" aria-label={`${liveTimerBadgeLabel} ${liveTimer.timeText}`}>
+      <svg viewBox="0 0 100 100" className="announcement-date-badge-ring" aria-hidden="true">
+        <circle className="announcement-date-badge-track" cx="50" cy="50" r={liveTimerRadius} />
+        <circle
+          className="announcement-date-badge-fill"
+          cx="50"
+          cy="50"
+          r={liveTimerRadius}
+          stroke={liveTimerStrokeColor}
+          strokeDasharray={liveTimerCircumference}
+          strokeDashoffset={liveTimerStrokeDashoffset}
+        />
+      </svg>
+      <div className="announcement-date-badge-content">
+        <span className="announcement-date-badge-icon">
+          {liveTimer.timerType === 'break' ? (
+            <Coffee size={15} strokeWidth={2.2} />
+          ) : liveTimer.timerType === 'lunch' ? (
+            <Utensils size={15} strokeWidth={2.2} />
+          ) : liveTimer.timerType === 'class' || liveTimer.timerType === 'morning' ? (
+            <CalendarClock size={15} strokeWidth={2.2} />
+          ) : (
+            <Timer size={15} strokeWidth={2.2} />
+          )}
+        </span>
+        <span className="announcement-date-badge-time">{liveTimer.timeText}</span>
+        <span className="announcement-date-badge-label">{liveTimerBadgeLabel}</span>
+      </div>
+    </div>
+  );
+}
+
 const getAnnouncementTypography = (count: number) => {
   if (count <= 4) {
     return {
@@ -724,20 +800,24 @@ const getInitialAppState = () => {
 function AnnouncementNotebookOverlay({
   isOpen,
   onClose,
+  liveTimer,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  liveTimer: AnnouncementOverlayTimerState;
 }) {
   const [dateText, setDateText] = useState(() => formatAnnouncementDate(new Date()));
   const [noteText, setNoteText] = useState('');
-  const [bearImageError, setBearImageError] = useState(false);
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [isSavingImage, setIsSavingImage] = useState(false);
 
   const noteCaptureRef = useRef<HTMLDivElement>(null);
   const noteEditorRef = useRef<HTMLDivElement>(null);
   const noteDisplayRef = useRef<HTMLDivElement>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasRestoredRef = useRef(false);
+  const announcementFontEmbedCssRef = useRef<string | null>(null);
+  const announcementFontEmbedCssPromiseRef = useRef<Promise<string> | null>(null);
   const [noteRuleGapPx, setNoteRuleGapPx] = useState(104);
 
   useEffect(() => {
@@ -950,6 +1030,30 @@ function AnnouncementNotebookOverlay({
     }
   };
 
+  const getAnnouncementFontEmbedCssValue = async () => {
+    const captureNode = noteCaptureRef.current;
+    if (!captureNode) return undefined;
+
+    if (announcementFontEmbedCssRef.current !== null) {
+      return announcementFontEmbedCssRef.current;
+    }
+
+    if (!announcementFontEmbedCssPromiseRef.current) {
+      announcementFontEmbedCssPromiseRef.current = getFontEmbedCSS(captureNode, {
+        preferredFontFormat: 'woff2',
+      })
+        .then((cssText) => {
+          announcementFontEmbedCssRef.current = cssText;
+          return cssText;
+        })
+        .finally(() => {
+          announcementFontEmbedCssPromiseRef.current = null;
+        });
+    }
+
+    return announcementFontEmbedCssPromiseRef.current;
+  };
+
   useEffect(() => {
     if (!hasHydrated) return;
     persistAnnouncementNote(dateText, noteText);
@@ -963,24 +1067,56 @@ function AnnouncementNotebookOverlay({
     return () => window.cancelAnimationFrame(frame);
   }, [isOpen, noteRuleGapPx, noteText]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const warmupTimer = window.setTimeout(() => {
+      void getAnnouncementFontEmbedCssValue().catch(() => undefined);
+    }, 0);
+
+    return () => window.clearTimeout(warmupTimer);
+  }, [isOpen]);
+
   const saveImage = async () => {
-    if (!noteCaptureRef.current) return;
+    if (isSavingImage) return;
+
+    setIsSavingImage(true);
 
     try {
-      const dataUrl = await toPng(noteCaptureRef.current, {
+      await waitForNextPaint();
+
+      const captureNode = noteCaptureRef.current;
+      if (!captureNode) return;
+
+      let fontEmbedCSS: string | undefined;
+      try {
+        fontEmbedCSS = await getAnnouncementFontEmbedCssValue();
+      } catch {
+        fontEmbedCSS = undefined;
+      }
+
+      const blob = await toBlob(captureNode, {
         backgroundColor: '#fffcf8',
-        pixelRatio: 2,
-        cacheBust: true,
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+        preferredFontFormat: 'woff2',
+        fontEmbedCSS,
         filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
       });
+      if (!blob) throw new Error('Failed to create announcement image blob.');
 
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = dataUrl;
+      link.href = blobUrl;
       link.download = buildAnnouncementFilename(dateText);
+      document.body.appendChild(link);
       link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
       void playAnnouncementSound('pop');
     } catch {
       alert('이미지 저장에 실패했습니다.');
+    } finally {
+      setIsSavingImage(false);
     }
   };
 
@@ -1026,26 +1162,18 @@ function AnnouncementNotebookOverlay({
               className={`announcement-paper paper-card relative ${paperShellLayoutClass} overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]`}
             >
               <div className={`announcement-paper-top shrink-0 border-b border-[#EADFD1] ${paperTopClass}`}>
+                <button
+                  onClick={handleClose}
+                  className="announcement-close-button"
+                  type="button"
+                  title="돌아가기"
+                  aria-label="돌아가기"
+                  data-capture-exclude="true"
+                >
+                  <X size={20} />
+                </button>
                 <div className="announcement-date-row">
-                  <button
-                    onClick={handleClose}
-                    className="announcement-date-badge announcement-date-badge-button"
-                    type="button"
-                    title="돌아가기"
-                    aria-label="돌아가기"
-                  >
-                    {bearImageError ? (
-                      <span className="announcement-date-bear-fallback">bear.png</span>
-                    ) : (
-                      <img
-                        src="/bear.png"
-                        alt="곰돌이 알림장 장식"
-                        className="announcement-date-bear"
-                        onLoad={() => setBearImageError(false)}
-                        onError={() => setBearImageError(true)}
-                      />
-                    )}
-                  </button>
+                  <NotebookOverlayTimerBadge liveTimer={liveTimer} />
                   <input
                     value={dateText}
                     onChange={(event) => setDateText(event.target.value)}
@@ -1080,9 +1208,13 @@ function AnnouncementNotebookOverlay({
                       onClick={saveImage}
                       className="announcement-date-action-save toolbar-button toolbar-button-green inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-bold text-[#466146]"
                       type="button"
+                      title={isSavingImage ? '이미지 저장 진행 중' : '이미지 저장'}
+                      aria-label={isSavingImage ? '이미지 저장 진행 중' : '이미지 저장'}
+                      aria-busy={isSavingImage}
+                      disabled={isSavingImage}
                     >
                       <ImageDown size={18} />
-                      이미지 저장
+                      {isSavingImage ? '진행 중' : '이미지 저장'}
                     </button>
                   </div>
                 </div>
@@ -1140,9 +1272,11 @@ function AnnouncementNotebookOverlay({
 function MemoNotebookOverlay({
   isOpen,
   onClose,
+  liveTimer,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  liveTimer: AnnouncementOverlayTimerState;
 }) {
   const [memoHtml, setMemoHtml] = useState(() => {
     try {
@@ -1301,72 +1435,75 @@ function MemoNotebookOverlay({
           <div className="memo-stage mx-auto flex h-full w-full max-w-[1160px] min-h-0 flex-col">
             <div className="memo-paper paper-card relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]">
               <div className="memo-paper-inner flex min-h-0 flex-1 flex-col p-4 sm:p-5 lg:p-6">
-                <div className="memo-controls mb-3" data-capture-exclude="true">
-                  <button
-                    onClick={() => adjustMemoFontScale(-MEMO_NOTE_FONT_SCALE_STEP)}
-                    className="memo-control-button memo-size-button"
-                    type="button"
-                    title="글자 작게"
-                    aria-label="글자 작게"
-                  >
-                    A-
-                  </button>
-                  <input
-                    type="range"
-                    min={MEMO_NOTE_MIN_FONT_SCALE}
-                    max={MEMO_NOTE_MAX_FONT_SCALE}
-                    step={MEMO_NOTE_FONT_SCALE_STEP}
-                    value={memoFontScale}
-                    onChange={(event) => setMemoFontScale(clampMemoFontScale(event.target.value))}
-                    className="memo-size-slider"
-                    title="글자 크기"
-                    aria-label="글자 크기"
-                    style={memoSliderStyle}
-                  />
-                  <button
-                    onClick={() => adjustMemoFontScale(MEMO_NOTE_FONT_SCALE_STEP)}
-                    className="memo-control-button memo-size-button"
-                    type="button"
-                    title="글자 크게"
-                    aria-label="글자 크게"
-                  >
-                    A+
-                  </button>
-                  <div className="memo-color-group" role="group" aria-label="글자 색상">
-                    {MEMO_NOTE_TEXT_COLORS.map((color) => (
-                      <button
-                        key={color.id}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => applyMemoTextColor(color.id)}
-                        className={`memo-control-button memo-control-icon memo-color-choice memo-color-choice-${color.id}`}
-                        type="button"
-                        title={`${color.label} 적용`}
-                        aria-label={`${color.label} 적용`}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="memo-color-choice-swatch"
-                          style={{ '--memo-color-choice': color.value } as React.CSSProperties}
-                        />
-                      </button>
-                    ))}
+                <div className="memo-toolbar" data-capture-exclude="true">
+                  <NotebookOverlayTimerBadge liveTimer={liveTimer} />
+                  <div className="memo-controls">
+                    <button
+                      onClick={() => adjustMemoFontScale(-MEMO_NOTE_FONT_SCALE_STEP)}
+                      className="memo-control-button memo-size-button"
+                      type="button"
+                      title="글자 작게"
+                      aria-label="글자 작게"
+                    >
+                      A-
+                    </button>
+                    <input
+                      type="range"
+                      min={MEMO_NOTE_MIN_FONT_SCALE}
+                      max={MEMO_NOTE_MAX_FONT_SCALE}
+                      step={MEMO_NOTE_FONT_SCALE_STEP}
+                      value={memoFontScale}
+                      onChange={(event) => setMemoFontScale(clampMemoFontScale(event.target.value))}
+                      className="memo-size-slider"
+                      title="글자 크기"
+                      aria-label="글자 크기"
+                      style={memoSliderStyle}
+                    />
+                    <button
+                      onClick={() => adjustMemoFontScale(MEMO_NOTE_FONT_SCALE_STEP)}
+                      className="memo-control-button memo-size-button"
+                      type="button"
+                      title="글자 크게"
+                      aria-label="글자 크게"
+                    >
+                      A+
+                    </button>
+                    <div className="memo-color-group" role="group" aria-label="글자 색상">
+                      {MEMO_NOTE_TEXT_COLORS.map((color) => (
+                        <button
+                          key={color.id}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => applyMemoTextColor(color.id)}
+                          className={`memo-control-button memo-control-icon memo-color-choice memo-color-choice-${color.id}`}
+                          type="button"
+                          title={`${color.label} 적용`}
+                          aria-label={`${color.label} 적용`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="memo-color-choice-swatch"
+                            style={{ '--memo-color-choice': color.value } as React.CSSProperties}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={clearMemo}
+                      className="memo-control-button memo-control-icon"
+                      type="button"
+                      title="메모 지우기"
+                      aria-label="메모 지우기"
+                      disabled={!hasMemoContent}
+                    >
+                      <RotateCcw size={18} />
+                    </button>
                   </div>
                   <button
-                    onClick={clearMemo}
-                    className="memo-control-button memo-control-icon"
-                    type="button"
-                    title="메모 지우기"
-                    aria-label="메모 지우기"
-                    disabled={!hasMemoContent}
-                  >
-                    <RotateCcw size={18} />
-                  </button>
-                  <button
                     onClick={handleClose}
-                    className="memo-control-button memo-control-icon"
+                    className="announcement-close-button memo-close-button"
                     type="button"
-                    title="닫기"
-                    aria-label="닫기"
+                    title="돌아가기"
+                    aria-label="돌아가기"
                   >
                     <X size={20} />
                   </button>
@@ -4674,10 +4811,26 @@ export default function TimerPage() {
       <AnnouncementNotebookOverlay
         isOpen={isAnnouncementOpen}
         onClose={() => setIsAnnouncementOpen(false)}
+        liveTimer={{
+          isVisible: true,
+          timeText: formatTime(displayTimeLeft),
+          progress: displayTotalTime > 0 ? displayTimeLeft / displayTotalTime : 0,
+          timerType,
+          timerTypeLabel: scheduleTypeLabel,
+          currentSlotName,
+        }}
       />
       <MemoNotebookOverlay
         isOpen={isMemoOpen}
         onClose={() => setIsMemoOpen(false)}
+        liveTimer={{
+          isVisible: true,
+          timeText: formatTime(displayTimeLeft),
+          progress: displayTotalTime > 0 ? displayTimeLeft / displayTotalTime : 0,
+          timerType,
+          timerTypeLabel: scheduleTypeLabel,
+          currentSlotName,
+        }}
       />
     </div>
   );
