@@ -614,8 +614,10 @@ const waitForNextPaint = () =>
 
 function NotebookOverlayTimerBadge({
   liveTimer,
+  captureStatic = false,
 }: {
   liveTimer: AnnouncementOverlayTimerState;
+  captureStatic?: boolean;
 }) {
   const shouldShowLiveTimerSlotName =
     liveTimer.currentSlotName.length > 0 &&
@@ -640,19 +642,24 @@ function NotebookOverlayTimerBadge({
   if (!liveTimer.isVisible) return null;
 
   return (
-    <div className="announcement-date-badge" aria-label={`${liveTimerBadgeLabel} ${liveTimer.timeText}`}>
-      <svg viewBox="0 0 100 100" className="announcement-date-badge-ring" aria-hidden="true">
-        <circle className="announcement-date-badge-track" cx="50" cy="50" r={liveTimerRadius} />
-        <circle
-          className="announcement-date-badge-fill"
-          cx="50"
-          cy="50"
-          r={liveTimerRadius}
-          stroke={liveTimerStrokeColor}
-          strokeDasharray={liveTimerCircumference}
-          strokeDashoffset={liveTimerStrokeDashoffset}
-        />
-      </svg>
+    <div
+      className={`announcement-date-badge${captureStatic ? ' announcement-date-badge-static' : ''}`}
+      aria-label={`${liveTimerBadgeLabel} ${liveTimer.timeText}`}
+    >
+      {!captureStatic ? (
+        <svg viewBox="0 0 100 100" className="announcement-date-badge-ring" aria-hidden="true">
+          <circle className="announcement-date-badge-track" cx="50" cy="50" r={liveTimerRadius} />
+          <circle
+            className="announcement-date-badge-fill"
+            cx="50"
+            cy="50"
+            r={liveTimerRadius}
+            stroke={liveTimerStrokeColor}
+            strokeDasharray={liveTimerCircumference}
+            strokeDashoffset={liveTimerStrokeDashoffset}
+          />
+        </svg>
+      ) : null}
       <div className="announcement-date-badge-content">
         <span className="announcement-date-badge-icon">
           {liveTimer.timerType === 'break' ? (
@@ -1173,7 +1180,7 @@ function AnnouncementNotebookOverlay({
                   <X size={20} />
                 </button>
                 <div className="announcement-date-row">
-                  <NotebookOverlayTimerBadge liveTimer={liveTimer} />
+                  <NotebookOverlayTimerBadge liveTimer={liveTimer} captureStatic={isSavingImage} />
                   <input
                     value={dateText}
                     onChange={(event) => setDateText(event.target.value)}
