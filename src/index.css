@@ -3568,6 +3568,14 @@ select {
   transition: stroke-dashoffset 320ms ease, stroke 320ms ease;
 }
 
+.announcement-date-badge-static {
+  box-shadow:
+    0 16px 28px rgba(166, 124, 82, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 0.58rem rgba(138, 99, 71, 0.07),
+    inset 0 0 0 1.12rem rgba(255, 255, 255, 0.55);
+}
+
 .announcement-date-badge-content {
   position: relative;
   z-index: 1;
