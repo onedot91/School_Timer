@@ -8,6 +8,7 @@ import {
   createUniqueCaseLabel,
   getCaseBounds,
   getCaseDrawData,
+  getHiddenQueueInstruction,
   getCaseLabelByIndex,
   getCaseSummaryLabel,
   getInitialRandomDrawState,
@@ -25,12 +26,14 @@ import {
   RANDOM_DRAW_DURATION_MS,
   RANDOM_DRAW_RESULT_DISPLAY_MS,
   REPEAT_PICK_PROBABILITY,
+  removeHiddenNumberQueueItem,
   sampleOne,
   type RandomDrawCaseState,
   type RandomDrawHistoryEntry,
 } from '../lib/randomDraw';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
+type SettingsPanel = 'schedule' | 'draw';
 interface ScheduleSlot {
   id: string;
   name: string;
@@ -93,6 +96,19 @@ const DRAW_EMPTY_MESSAGE = '완료';
 const DRAW_RESET_MESSAGE = '섞는 중';
 const DRAW_SHORTCUT_LABEL = 'Enter';
 const DRAW_RESET_EFFECT_DURATION_MS = 940;
+const SECRET_DRAW_MAX_LENGTH = 240;
+const SECRET_DRAW_BUTTON_LABEL = '예약 결과';
+const SECRET_DRAW_SECTION_LABEL = '다음 결과 예약';
+const SECRET_DRAW_SECTION_DESCRIPTION =
+  '쉼표로 여러 번호를 입력하면 다음 추첨부터 순서대로 적용됩니다. 이미 나온 번호도 한 번 더 나오게 할 수 있습니다.';
+const SECRET_DRAW_INPUT_LABEL = '예약 번호 목록';
+const SECRET_DRAW_HINT = '예: 7, 12, 18. 빈칸으로 반영하면 예약이 해제됩니다.';
+const SECRET_DRAW_CLEAR_LABEL = '지우기';
+const SECRET_DRAW_APPLY_LABEL = '반영';
+const SECRET_DRAW_EMPTY_LABEL = '없음';
+const DRAWN_BALLS_SECTION_LABEL = '뽑힌 공';
+const DRAWN_BALLS_SECTION_DESCRIPTION = '선택한 상황에서 이미 나온 공을 확인합니다.';
+const DRAWN_BALLS_EMPTY_LABEL = '아직 뽑힌 공이 없습니다.';
 const NORMAL_WIN_PARTICLES = [
   { angle: '6deg', distance: '6.3rem', size: '0.72rem', delay: '0ms' },
   { angle: '34deg', distance: '5.6rem', size: '0.54rem', delay: '38ms' },
@@ -184,6 +200,20 @@ const clampDrawNumberInput = (value: string, fallback: number) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
   return Math.max(MIN_DRAW_NUMBER, Math.min(MAX_DRAW_NUMBER, Math.trunc(numeric)));
+};
+
+const buildHiddenDrawResultInput = (queue: number[]) => queue.join(', ');
+
+const parseHiddenDrawResultInput = (rawValue: string, minNumber: number, maxNumber: number) => {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return [];
+
+  return (trimmed.match(/\d{1,3}/g) ?? [])
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+    .map((value) => Math.trunc(value))
+    .filter((value) => value >= minNumber && value <= maxNumber)
+    .slice(0, SECRET_DRAW_MAX_LENGTH);
 };
 
 const isEditableShortcutTarget = (target: EventTarget | null) => {
@@ -1393,6 +1423,8 @@ export default function TimerPage() {
     typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
   );
   const [studentRosterBulkInput, setStudentRosterBulkInput] = useState('');
+  const [hiddenDrawResultInput, setHiddenDrawResultInput] = useState('');
+  const [isHiddenDrawSettingsVisible, setIsHiddenDrawSettingsVisible] = useState(false);
   const [rollingDrawNumber, setRollingDrawNumber] = useState<number | null>(null);
   const [isStudentDrawing, setIsStudentDrawing] = useState(false);
   const [drawOverlay, setDrawOverlay] = useState<DrawOverlayState | null>(null);
@@ -1441,6 +1473,7 @@ export default function TimerPage() {
   });
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('schedule');
   const [editingDay, setEditingDay] = useState<number>(1);
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [characterImageError, setCharacterImageError] = useState(false);
@@ -1480,11 +1513,25 @@ export default function TimerPage() {
     (studentNumber) => getStudentName(selectedDrawSettingsCase, studentNumber).length > 0,
   ).length;
   const syncedStudentRosterBulkInput = buildStudentRosterBulkInput(selectedDrawSettingsCase, settingsStudentNumbers);
+  const selectedDrawSettingsCaseData = getCaseDrawData(selectedDrawSettingsCase, repeatPickEnabled);
+  const selectedDrawHistoryEntries = selectedDrawSettingsCaseData.historyEntries;
+  const reservedDrawCount = selectedDrawSettingsCase.hiddenNumberQueue.length;
+  const editingDaySchedule = weeklySchedule[editingDay] || [];
+  const activeWeekdayScheduleCount = WEEKDAYS.filter((day) => (weeklySchedule[day] || []).length > 0).length;
+  const selectedDrawSettingsCaseLabel = normalizeCaseLabel(
+    selectedDrawSettingsCase.label,
+    getCaseLabelByIndex(Math.max(selectedDrawSettingsCaseIndex, 0)),
+  );
   const activeDrawLabel = normalizeCaseLabel(activeDrawCase.label, '학생 추첨');
   const activeDrawCaseData = getCaseDrawData(activeDrawCase, repeatPickEnabled);
+  const activeQueuedDrawInstruction = getHiddenQueueInstruction(
+    activeDrawCase,
+    activeDrawCaseData.historyEntries[0]?.kind !== 'repeat',
+  );
   const shouldTriggerImmediateDrawReset =
     activeDrawCaseData.totalCount > 0 &&
     activeDrawCaseData.availableNumbers.length === 0 &&
+    activeQueuedDrawInstruction === null &&
     (activeDrawCase.currentResult !== null || activeDrawCase.historyEntries.length > 0) &&
     !isStudentDrawing &&
     !isDrawResetVisible;
@@ -1520,6 +1567,10 @@ export default function TimerPage() {
   }, [selectedDrawSettingsCase.id, syncedStudentRosterBulkInput]);
 
   useEffect(() => {
+    setHiddenDrawResultInput(buildHiddenDrawResultInput(selectedDrawSettingsCase.hiddenNumberQueue));
+  }, [selectedDrawSettingsCase.id, selectedDrawSettingsCase.hiddenNumberQueue]);
+
+  useEffect(() => {
     persistRandomDrawState({
       activeCaseId: resolvedActiveDrawCaseId,
       repeatPickEnabled,
@@ -1541,6 +1592,11 @@ export default function TimerPage() {
     if (!isSettingsOpen) return;
     setDrawSettingsCaseId(resolvedActiveDrawCaseId);
   }, [isSettingsOpen, resolvedActiveDrawCaseId]);
+
+  useEffect(() => {
+    if (isSettingsOpen) return;
+    setIsHiddenDrawSettingsVisible(false);
+  }, [isSettingsOpen]);
 
   useEffect(() => {
     if (!isEditingNotice) {
@@ -1819,8 +1875,12 @@ export default function TimerPage() {
     drawCasesRef.current.find((caseState) => caseState.id === caseId) ??
     createDefaultCaseState(getCaseLabelByIndex(0));
 
-  const finalizeNormalDraw = (caseId: string, finalNumber: number) => {
+  const finalizeNormalDraw = (caseId: string, finalNumber: number, hiddenQueueIndex?: number) => {
     const caseSnapshot = getDrawCaseSnapshot(caseId);
+    const nextHiddenNumberQueue =
+      hiddenQueueIndex === undefined
+        ? caseSnapshot.hiddenNumberQueue
+        : removeHiddenNumberQueueItem(caseSnapshot.hiddenNumberQueue, hiddenQueueIndex);
     const nextHistoryEntries = [createHistoryEntry(finalNumber, 'normal'), ...caseSnapshot.historyEntries].slice(
       0,
       MAX_HISTORY_LENGTH,
@@ -1830,6 +1890,7 @@ export default function TimerPage() {
         {
           ...caseSnapshot,
           currentResult: finalNumber,
+          hiddenNumberQueue: nextHiddenNumberQueue,
           historyEntries: nextHistoryEntries,
         },
         repeatPickEnabledRef.current,
@@ -1839,6 +1900,7 @@ export default function TimerPage() {
     updateDrawCaseState(caseId, (previousCase) => ({
       ...previousCase,
       currentResult: finalNumber,
+      hiddenNumberQueue: nextHiddenNumberQueue,
       historyEntries: nextHistoryEntries,
     }));
     setIsStudentDrawing(false);
@@ -1855,8 +1917,12 @@ export default function TimerPage() {
     void playRandomDrawSound('pop');
   };
 
-  const finalizeRepeatDraw = (caseId: string, repeatedEntry: RandomDrawHistoryEntry) => {
+  const finalizeRepeatDraw = (caseId: string, repeatedEntry: RandomDrawHistoryEntry, hiddenQueueIndex?: number) => {
     const caseSnapshot = getDrawCaseSnapshot(caseId);
+    const nextHiddenNumberQueue =
+      hiddenQueueIndex === undefined
+        ? caseSnapshot.hiddenNumberQueue
+        : removeHiddenNumberQueueItem(caseSnapshot.hiddenNumberQueue, hiddenQueueIndex);
     const nextHistoryEntries = [
       createHistoryEntry(repeatedEntry.number, 'repeat', repeatedEntry.id),
       ...caseSnapshot.historyEntries,
@@ -1866,6 +1932,7 @@ export default function TimerPage() {
         {
           ...caseSnapshot,
           currentResult: repeatedEntry.number,
+          hiddenNumberQueue: nextHiddenNumberQueue,
           historyEntries: nextHistoryEntries,
         },
         repeatPickEnabledRef.current,
@@ -1875,6 +1942,7 @@ export default function TimerPage() {
     updateDrawCaseState(caseId, (previousCase) => ({
       ...previousCase,
       currentResult: repeatedEntry.number,
+      hiddenNumberQueue: nextHiddenNumberQueue,
       historyEntries: nextHistoryEntries,
     }));
     setIsStudentDrawing(false);
@@ -1908,6 +1976,10 @@ export default function TimerPage() {
     const targetCaseId = resolvedActiveDrawCaseId;
     const initialCase = getDrawCaseSnapshot(targetCaseId);
     const initialDrawData = getCaseDrawData(initialCase, repeatPickEnabledRef.current);
+    const initialQueuedInstruction = getHiddenQueueInstruction(
+      initialCase,
+      initialDrawData.historyEntries[0]?.kind !== 'repeat',
+    );
     const plannedRepeatEntry: RandomDrawHistoryEntry | null = null;
     const rollingPool = Array.from(
       { length: initialDrawData.totalCount },
@@ -1919,7 +1991,7 @@ export default function TimerPage() {
       return;
     }
 
-    if (initialDrawData.availableNumbers.length === 0) {
+    if (initialDrawData.availableNumbers.length === 0 && initialQueuedInstruction === null) {
       performDrawCaseReset(targetCaseId, true);
       return;
     }
@@ -1958,6 +2030,18 @@ export default function TimerPage() {
       const nextCase = getDrawCaseSnapshot(targetCaseId);
       const nextDrawData = getCaseDrawData(nextCase, repeatPickEnabledRef.current);
       const nextCanTriggerRepeatAnimation = nextDrawData.historyEntries[0]?.kind !== 'repeat';
+      const queuedInstruction = getHiddenQueueInstruction(nextCase, nextCanTriggerRepeatAnimation);
+
+      if (queuedInstruction) {
+        if (queuedInstruction.kind === 'repeat' && queuedInstruction.sourceEntry) {
+          finalizeRepeatDraw(targetCaseId, queuedInstruction.sourceEntry, queuedInstruction.index);
+          return;
+        }
+
+        finalizeNormalDraw(targetCaseId, queuedInstruction.number, queuedInstruction.index);
+        return;
+      }
+
       const shouldRepeat =
         repeatPickEnabledRef.current &&
         nextCanTriggerRepeatAnimation &&
@@ -2020,6 +2104,9 @@ export default function TimerPage() {
         currentResult: null,
         historyEntries: [],
         studentNames: nextStudentNames,
+        hiddenNumberQueue: previousCase.hiddenNumberQueue.filter(
+          (number) => number >= nextMinNumber && number <= nextMaxNumber,
+        ),
       };
     });
 
@@ -2076,6 +2163,27 @@ export default function TimerPage() {
         studentNames: nextStudentNames,
       };
     });
+  };
+
+  const applyHiddenDrawResult = () => {
+    const nextQueue = parseHiddenDrawResultInput(
+      hiddenDrawResultInput,
+      selectedDrawSettingsBounds.minNumber,
+      selectedDrawSettingsBounds.maxNumber,
+    );
+
+    updateDrawCaseState(selectedDrawSettingsCase.id, (previousCase) => ({
+      ...previousCase,
+      hiddenNumberQueue: nextQueue,
+    }));
+  };
+
+  const clearHiddenDrawResult = () => {
+    setHiddenDrawResultInput('');
+    updateDrawCaseState(selectedDrawSettingsCase.id, (previousCase) => ({
+      ...previousCase,
+      hiddenNumberQueue: [],
+    }));
   };
 
   const setRosterInputRef = (studentNumber: number, node: HTMLInputElement | null) => {
@@ -2699,6 +2807,628 @@ export default function TimerPage() {
   const noticeHandleIconClass = `inline-flex h-5 min-w-[1.85rem] items-center justify-center rounded-full border ${shouldShowNoticeCard ? 'notice-toggle-icon-open' : 'notice-toggle-icon-closed'}`;
   const noticeHandleLineClass = `pointer-events-none absolute inset-x-1.5 top-[3px] h-px rounded-full ${shouldShowNoticeCard ? 'notice-toggle-line-open' : 'notice-toggle-line-closed'}`;
   const musicButtonLabel = isMusicPlaying ? '배경 음악 끄기' : '배경 음악 켜기';
+  const scheduleSettingsPanel = (
+    <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
+      <aside className="flex flex-col gap-4 xl:sticky xl:top-0 xl:self-start">
+        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(248,242,233,0.96)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+          <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
+            Schedule
+          </p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="section-title text-[1.2rem] font-extrabold text-[#3F2B20]">요일 선택</h3>
+            <div className="rounded-full border border-[#E6D5C9] bg-white px-3 py-1.5 text-[0.82rem] font-extrabold text-[#8A6347]">
+              {activeWeekdayScheduleCount} / {WEEKDAYS.length}일 사용
+            </div>
+          </div>
+          <p className="mt-2 text-[0.88rem] font-bold leading-6 text-[#8A6347]">
+            편집할 요일을 먼저 고르면 오른쪽에서 바로 일정을 바꿀 수 있습니다.
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-2">
+            {[1, 2, 3, 4, 5].map((day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => setEditingDay(day)}
+                className={`rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-all ${
+                  editingDay === day
+                    ? 'bg-[linear-gradient(180deg,#688772_0%,#476152_100%)] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
+                    : 'border border-[#E6D5C9] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
+                }`}
+              >
+                {DAYS[day]}요일
+              </button>
+            ))}
+          </div>
+
+        </section>
+
+        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
+          <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">학교 시계 보정</h3>
+          <p className="mt-2 text-[0.88rem] font-bold leading-6 text-[#8A6347]">
+            학교 종이 빠르면 `+`, 웹 시계가 빠르면 `-` 값을 넣습니다.
+          </p>
+          <label className="mt-4 flex items-center gap-2">
+            <input
+              type="number"
+              min={-SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
+              max={SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
+              step={1}
+              value={scheduleClockOffsetSeconds}
+              onChange={(e) => setScheduleClockOffsetSeconds(clampScheduleClockOffsetSeconds(e.target.value))}
+              className="slot-time-input w-24 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2 text-right font-mono text-base font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363]"
+            />
+            <span className="text-sm font-bold text-[#8A6347]">초</span>
+          </label>
+          <p className="mt-3 text-[0.82rem] font-bold leading-6 text-[#5C7A4B]">
+            예: 학교 종이 10초 빠르면 <span className="font-mono font-bold">10</span>
+          </p>
+        </section>
+
+        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+          <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">빠른 작업</h3>
+          <p className="mt-2 text-[0.88rem] font-bold leading-6 text-[#8A6347]">
+            현재 요일 일정을 다른 평일로 한 번에 복사할 수 있습니다.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowCopyConfirm(true)}
+            className="toolbar-button toolbar-button-green mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold text-[#5C8D5D] transition-colors"
+          >
+            다른 요일로 복사
+          </button>
+        </section>
+      </aside>
+
+      <section className="flex min-h-0 flex-col gap-4">
+        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(248,242,233,0.96)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+          <div className="flex flex-wrap items-start gap-3">
+            <div>
+              <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
+                Editing
+              </p>
+              <h3 className="section-title mt-2 text-[1.35rem] font-extrabold text-[#3F2B20]">
+                {DAYS[editingDay]}요일 일정
+              </h3>
+              <p className="mt-2 text-[0.9rem] font-bold leading-6 text-[#8A6347]">
+                수업, 쉬는 시간, 점심시간 흐름을 이곳에서 정리합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {showCopyConfirm && (
+          <div className="confirm-box flex flex-col items-center justify-between gap-4 rounded-xl border border-[#C65D47]/30 bg-[#FFF5F3] p-4 sm:flex-row">
+            <span className="text-[#C65D47] font-bold text-sm">
+              현재 요일의 일정을 다른 모든 평일(월~금)에 덮어쓰시겠습니까?
+            </span>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => setShowCopyConfirm(false)}
+                className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[#8A6347]"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setWeeklySchedule(prev => {
+                    const current = prev[editingDay] || [];
+                    const createCopy = () => normalizeDaySchedule(current.map(slot => ({ ...slot, id: createSlotId() })));
+                    return {
+                      ...prev,
+                      1: editingDay === 1 ? current : createCopy(),
+                      2: editingDay === 2 ? current : createCopy(),
+                      3: editingDay === 3 ? current : createCopy(),
+                      4: editingDay === 4 ? current : createCopy(),
+                      5: editingDay === 5 ? current : createCopy(),
+                    };
+                  });
+                  setShowCopyConfirm(false);
+                }}
+                className="toolbar-button toolbar-button-danger rounded-lg px-3 py-1.5 text-sm font-bold text-white"
+              >
+                복사하기
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 md:p-5">
+          <div className="space-y-3">
+            {editingDaySchedule.length === 0 ? (
+              <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
+                일정이 없습니다.
+              </div>
+            ) : (
+              editingDaySchedule.map((slot, index) => {
+                const isMorningRow = index === 0;
+                const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
+                return (
+                  <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-all hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
+                    <input
+                      type="text"
+                      value={slot.name}
+                      readOnly={isMorningRow}
+                      onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
+                      className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[#8A6347] outline-none focus:ring-2 focus:ring-[#5C8D5D]/20 md:text-lg"
+                      placeholder="일정 이름"
+                    />
+                    <div className="mt-2 flex w-full items-center justify-between gap-2 lg:mt-0 lg:w-auto lg:justify-end">
+                      <select
+                        value={isMorningRow ? 'morning' : slot.type}
+                        disabled={isMorningRow}
+                        onChange={(e) => updateSlot(editingDay, slot.id, 'type', e.target.value)}
+                        className="slot-select cursor-pointer rounded-xl border-none bg-[#F0F5F0] px-2 py-2 text-sm font-bold text-[#3A5A3B] outline-none transition-colors hover:bg-[#E2EFE2] md:px-3 md:text-base"
+                      >
+                        {isMorningRow && <option value="morning">{MORNING_ACTIVITY_LABEL}</option>}
+                        <option value="class">수업</option>
+                        <option value="break">쉬는시간</option>
+                        <option value="lunch">점심시간</option>
+                        <option value="none">기타</option>
+                      </select>
+                      <div className="flex shrink-0 items-center gap-1 md:gap-2">
+                        <input
+                          type="time"
+                          value={formatMinutesToTime(slot.start)}
+                          onChange={(e) => updateSlot(editingDay, slot.id, 'start', parseTimeToMinutes(e.target.value))}
+                          className="slot-time-input cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-2 py-2 font-mono text-sm font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363] md:px-3 md:text-base"
+                        />
+                        <span className="text-[#8A6347] font-bold">-</span>
+                        <input
+                          type="time"
+                          value={formatMinutesToTime(slot.end)}
+                          disabled={isFixedDurationRow}
+                          onChange={(e) => updateSlot(editingDay, slot.id, 'end', parseTimeToMinutes(e.target.value))}
+                          className="slot-time-input cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-2 py-2 font-mono text-sm font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363] md:px-3 md:text-base"
+                        />
+                      </div>
+                      <button
+                        disabled={isMorningRow}
+                        onClick={() => removeSlot(editingDay, slot.id)}
+                        className="slot-delete shrink-0 rounded-xl p-2 text-red-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                        title="일정 삭제"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <button
+            onClick={() => addSlot(editingDay)}
+            className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-all hover:bg-[#5C8D5D] hover:text-white"
+          >
+            <Plus size={24} />
+            일정 추가
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+  const drawSettingsPanel = (
+    <div className="grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
+      <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.96)_0%,rgba(248,241,232,0.9)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div>
+            <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
+              Cases
+            </p>
+            <h3 className="section-title mt-2 text-[1.18rem] font-extrabold text-[#3F2B20]">상황 목록</h3>
+          </div>
+          <button
+            type="button"
+            onClick={addDrawSettingsCase}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+          >
+            <Plus size={18} />
+            추가
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {drawCases.map((caseState, index) => {
+            const isSelected = caseState.id === selectedDrawSettingsCase.id;
+            const displayLabel = normalizeCaseLabel(caseState.label, getCaseLabelByIndex(index));
+
+            return (
+              <article
+                key={caseState.id}
+                className={`rounded-[1.45rem] border-2 p-3 transition-colors ${
+                  isSelected
+                    ? 'border-[#B58363] bg-white shadow-[0_10px_20px_rgba(181,131,99,0.12)]'
+                    : 'border-[#E8DCCD] bg-[rgba(255,252,247,0.88)]'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDrawSettingsCaseId(caseState.id)}
+                    className="block flex-1 text-left"
+                  >
+                    <div className="text-[1rem] font-extrabold text-[#3F2B20] md:text-[1.08rem]">
+                      {displayLabel}
+                    </div>
+                    <div className="mt-1.5 text-[0.88rem] font-bold leading-6 text-[#B58363]">
+                      {getCaseSummaryLabel(caseState)}
+                    </div>
+                  </button>
+
+                  {drawCases.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => removeDrawSettingsCase(caseState.id)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#B58363] transition-colors hover:bg-[#FFF6ED] hover:text-[#8A6347]"
+                      aria-label={`${displayLabel} 삭제`}
+                      title={`${displayLabel} 삭제`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="flex min-h-0 flex-col gap-4">
+        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
+                Editing
+              </p>
+              <h3 className="section-title mt-2 text-[1.35rem] font-extrabold text-[#3F2B20]">
+                {selectedDrawSettingsCaseLabel}
+              </h3>
+              <p className="mt-2 text-[0.9rem] font-bold leading-6 text-[#8A6347]">
+                {getCaseSummaryLabel(selectedDrawSettingsCase)}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={resetActiveDrawCase}
+                disabled={isDrawLocked}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#CBB39D] hover:bg-[#FFF9F2] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RotateCcw size={15} />
+                {activeDrawLabel} 초기화
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsHiddenDrawSettingsVisible((previous) => !previous)}
+                className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
+                  isHiddenDrawSettingsVisible || reservedDrawCount > 0
+                    ? 'border-[#D5C0AB] bg-[#FFF3E5] text-[#8A6347] hover:border-[#C4AB93] hover:bg-[#FFECD7]'
+                    : 'border-[#DCCBB8] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
+                }`}
+                aria-pressed={isHiddenDrawSettingsVisible}
+                aria-label={SECRET_DRAW_BUTTON_LABEL}
+                title={SECRET_DRAW_BUTTON_LABEL}
+              >
+                <Sparkles size={15} />
+                {SECRET_DRAW_BUTTON_LABEL}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
+              <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
+                Range
+              </div>
+              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
+                {selectedDrawSettingsBounds.minNumber} - {selectedDrawSettingsBounds.maxNumber}
+              </div>
+            </div>
+            <div className="rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
+              <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
+                Roster
+              </div>
+              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
+                {assignedStudentNameCount} / {settingsStudentNumbers.length}
+              </div>
+            </div>
+            <div className="rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
+              <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
+                History
+              </div>
+              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
+                {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
+              </div>
+            </div>
+            <div className="rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
+              <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
+                Reserved
+              </div>
+              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
+                {reservedDrawCount > 0 ? `${reservedDrawCount}개` : SECRET_DRAW_EMPTY_LABEL}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.68fr)]">
+          <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+            <div className="grid gap-4">
+              <label className="flex flex-col gap-2">
+                <span className="section-title text-[0.95rem] font-bold text-[#B58363]">이름</span>
+                <input
+                  type="text"
+                  value={selectedDrawSettingsCase.label}
+                  onChange={(event) => updateDrawCaseLabel(selectedDrawSettingsCase.id, event.target.value)}
+                  className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                  placeholder={getCaseLabelByIndex(Math.max(selectedDrawSettingsCaseIndex, 0))}
+                />
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-2">
+                  <span className="section-title text-[0.95rem] font-bold text-[#B58363]">시작</span>
+                  <input
+                    type="number"
+                    min={MIN_DRAW_NUMBER}
+                    max={MAX_DRAW_NUMBER}
+                    value={selectedDrawSettingsCase.rangeStart}
+                    onChange={(event) =>
+                      updateDrawCaseRange(
+                        selectedDrawSettingsCase.id,
+                        'rangeStart',
+                        event.target.value,
+                        selectedDrawSettingsCase.rangeStart,
+                      )
+                    }
+                    className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="section-title text-[0.95rem] font-bold text-[#B58363]">끝</span>
+                  <input
+                    type="number"
+                    min={MIN_DRAW_NUMBER}
+                    max={MAX_DRAW_NUMBER}
+                    value={selectedDrawSettingsCase.rangeEnd}
+                    onChange={(event) =>
+                      updateDrawCaseRange(
+                        selectedDrawSettingsCase.id,
+                        'rangeEnd',
+                        event.target.value,
+                        selectedDrawSettingsCase.rangeEnd,
+                      )
+                    }
+                    className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="max-w-[32rem]">
+                <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">재등장 연출</h4>
+                <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
+                  이미 뽑힌 번호를 1회 다시 등장시키는 연출을 켜거나 끕니다.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setRepeatPickEnabled((previous) => !previous)}
+                className={`relative inline-flex h-11 w-20 shrink-0 rounded-full transition-colors ${
+                  repeatPickEnabled ? 'bg-[#6F9A58]' : 'bg-[#E6D5C9]'
+                }`}
+                aria-pressed={repeatPickEnabled}
+                aria-label="재등장 연출"
+              >
+                <span
+                  className={`absolute top-1 h-9 w-9 rounded-full bg-white shadow-md transition-all ${
+                    repeatPickEnabled ? 'left-[2.55rem]' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3.5">
+              <div className="text-[0.82rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
+                바로 추첨
+              </div>
+              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
+                키보드로 바로 추첨할 수 있습니다.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(248,242,233,0.96)_100%)] p-4 md:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-2.5">
+            <div className="max-w-[32rem]">
+              <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학생 명단</h4>
+              <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">
+                줄바꿈 또는 번호 이름
+              </p>
+            </div>
+
+            <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+              {assignedStudentNameCount} / {settingsStudentNumbers.length}
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
+            <div className="rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+              <label className="flex flex-col gap-2.5">
+                <span className="section-title text-[0.92rem] font-bold text-[#B58363]">일괄 입력</span>
+                <textarea
+                  value={studentRosterBulkInput}
+                  onChange={(event) => setStudentRosterBulkInput(event.target.value)}
+                  className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.92rem] font-bold leading-7 text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                  placeholder={`김민서\n이서연\n3 박도윤`}
+                />
+              </label>
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
+                <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">
+                  범위 밖 번호 제외
+                </p>
+                <button
+                  type="button"
+                  onClick={applyBulkStudentRoster}
+                  className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  반영
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0">
+              <div className="flex items-center justify-between gap-3">
+                <h5 className="section-title text-[0.92rem] font-bold text-[#B58363]">개별 수정</h5>
+                <span className="text-xs font-bold text-[#B58363]/70">Tab</span>
+              </div>
+
+              <div className="custom-scrollbar mt-3 max-h-[22rem] overflow-y-auto pr-1">
+                <div className="grid gap-2.5">
+                  {settingsStudentNumbers.map((studentNumber, index) => (
+                    <label
+                      key={studentNumber}
+                      className="grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[#E6D5C9] bg-white/90 px-3 py-2.5"
+                    >
+                      <span className="inline-flex items-center justify-center rounded-full bg-[#F7E8D7] px-2 py-2 text-center font-mono text-sm font-extrabold text-[#8A6347]">
+                        {studentNumber}
+                      </span>
+                      <input
+                        ref={(node) => setRosterInputRef(studentNumber, node)}
+                        type="text"
+                        value={selectedDrawSettingsCase.studentNames[String(studentNumber)] ?? ''}
+                        onChange={(event) =>
+                          updateDrawStudentName(selectedDrawSettingsCase.id, studentNumber, event.target.value)
+                        }
+                        onKeyDown={(event) => handleRosterInputKeyDown(event, index)}
+                        className="rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.95rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                        placeholder="학생 이름"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className={`grid gap-4 ${
+            isHiddenDrawSettingsVisible ? 'xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.78fr)]' : ''
+          }`}
+        >
+          <div className="random-history-panel rounded-[1.7rem] border border-[#EEE4D6] p-4 md:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-2.5">
+              <div className="max-w-[32rem]">
+                <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
+                  {DRAWN_BALLS_SECTION_LABEL}
+                </h4>
+                <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">
+                  {DRAWN_BALLS_SECTION_DESCRIPTION}
+                </p>
+              </div>
+
+              <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+                {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
+              </div>
+            </div>
+
+            <div className="custom-scrollbar random-history-scroll mt-4 max-h-[17rem] overflow-y-auto pr-1">
+              {selectedDrawHistoryEntries.length > 0 ? (
+                <div className="random-history-grid">
+                  {selectedDrawHistoryEntries.map((entry) => {
+                    const isRepeatEntry = entry.kind === 'repeat';
+                    const studentName = getStudentName(selectedDrawSettingsCase, entry.number);
+                    const chipTitle =
+                      studentName.length > 0
+                        ? `${entry.number} ${studentName}${isRepeatEntry ? ' 재등장' : ''}`
+                        : `${entry.number}${isRepeatEntry ? ' 재등장' : ''}`;
+
+                    return (
+                      <span
+                        key={entry.id}
+                        className={`random-history-chip${isRepeatEntry ? ' random-history-chip-repeat' : ''}`}
+                        title={chipTitle}
+                      >
+                        <span className="random-history-chip-number">{entry.number}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="empty-slot-state flex min-h-[8rem] items-center justify-center rounded-2xl border border-dashed border-[#E6D5C9] bg-white/60 text-center font-medium text-[#8A6347]/60">
+                  {DRAWN_BALLS_EMPTY_LABEL}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {isHiddenDrawSettingsVisible ? (
+            <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[linear-gradient(180deg,rgba(255,251,246,0.98)_0%,rgba(244,236,226,0.96)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="max-w-[32rem]">
+                  <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
+                    {SECRET_DRAW_SECTION_LABEL}
+                  </h4>
+                  <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
+                    {SECRET_DRAW_SECTION_DESCRIPTION}
+                  </p>
+                </div>
+
+                <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+                  {reservedDrawCount > 0 ? `${reservedDrawCount}개 예약` : SECRET_DRAW_EMPTY_LABEL}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+                <label className="flex flex-col gap-2.5">
+                  <span className="section-title text-[0.92rem] font-bold text-[#B58363]">
+                    {SECRET_DRAW_INPUT_LABEL}
+                  </span>
+                  <input
+                    type="text"
+                    value={hiddenDrawResultInput}
+                    onChange={(event) => setHiddenDrawResultInput(event.target.value)}
+                    className="rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.95rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                    placeholder="7, 12, 18"
+                  />
+                </label>
+
+                <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
+                  <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">
+                    {SECRET_DRAW_HINT}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={clearHiddenDrawResult}
+                      className="inline-flex items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-4 py-2 text-[0.84rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                    >
+                      {SECRET_DRAW_CLEAR_LABEL}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={applyHiddenDrawResult}
+                      className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                    >
+                      {SECRET_DRAW_APPLY_LABEL}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>
+  );
 
   return (
     <div className="mascot-app h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
@@ -3368,8 +4098,56 @@ export default function TimerPage() {
                 </button>
               </div>
             </div>
-            
-            <div className="tab-strip custom-scrollbar flex shrink-0 overflow-x-auto border-b border-[#E6D5C9] bg-white">
+
+            <div className="shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
+              <div className="grid gap-2 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('schedule')}
+                  className={`rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'schedule'
+                      ? 'border-[#6F9A58] bg-[linear-gradient(180deg,#F2F9F0_0%,#E4F0E0_100%)] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'schedule'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <CalendarClock size={18} className={settingsPanel === 'schedule' ? 'text-[#476152]' : 'text-[#8A6347]'} />
+                    시간표
+                  </div>
+                  <p className="mt-1.5 text-[0.86rem] font-bold leading-6 text-[#8A6347]">
+                    요일별 일정과 학교 시계 보정을 편집합니다.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('draw')}
+                  className={`rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'draw'
+                      ? 'border-[#B58363] bg-[linear-gradient(180deg,#FFF8F0_0%,#F4E7D7_100%)] shadow-[0_12px_24px_rgba(181,131,99,0.12)]'
+                      : 'border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'draw'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <Sparkles size={18} className={settingsPanel === 'draw' ? 'text-[#B58363]' : 'text-[#8A6347]'} />
+                    추첨
+                  </div>
+                  <p className="mt-1.5 text-[0.86rem] font-bold leading-6 text-[#8A6347]">
+                    상황, 번호 범위, 명단과 예약 결과를 관리합니다.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <div className="settings-body custom-scrollbar flex-1 overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
+              {settingsPanel === 'schedule' ? scheduleSettingsPanel : drawSettingsPanel}
+            </div>
+             
+            {false && (
+              <>
+                <div className="tab-strip custom-scrollbar flex shrink-0 overflow-x-auto border-b border-[#E6D5C9] bg-white">
               {[1, 2, 3, 4, 5].map(day => (
                 <button
                   key={day}
@@ -3543,6 +4321,21 @@ export default function TimerPage() {
                     >
                       <RotateCcw size={15} />
                       {activeDrawLabel} 초기화
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsHiddenDrawSettingsVisible((previous) => !previous)}
+                      className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
+                        isHiddenDrawSettingsVisible || reservedDrawCount > 0
+                          ? 'border-[#D5C0AB] bg-[#FFF3E5] text-[#8A6347] hover:border-[#C4AB93] hover:bg-[#FFECD7]'
+                          : 'border-[#DCCBB8] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
+                      }`}
+                      aria-pressed={isHiddenDrawSettingsVisible}
+                      aria-label={SECRET_DRAW_BUTTON_LABEL}
+                      title={SECRET_DRAW_BUTTON_LABEL}
+                    >
+                      <Sparkles size={15} />
+                      {SECRET_DRAW_BUTTON_LABEL}
                     </button>
                     <div className="inline-flex items-center justify-center rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[#8A6347]">
                       {DRAW_SHORTCUT_LABEL}
@@ -3740,6 +4533,52 @@ export default function TimerPage() {
                       </div>
                     </div>
 
+                    <div className="random-history-panel rounded-[1.7rem] border border-[#EEE4D6] p-4 md:p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-2.5">
+                        <div className="max-w-[32rem]">
+                          <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
+                            {DRAWN_BALLS_SECTION_LABEL}
+                          </h4>
+                          <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">
+                            {DRAWN_BALLS_SECTION_DESCRIPTION}
+                          </p>
+                        </div>
+
+                        <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+                          {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
+                        </div>
+                      </div>
+
+                      <div className="custom-scrollbar random-history-scroll mt-4 max-h-[17rem] overflow-y-auto pr-1">
+                        {selectedDrawHistoryEntries.length > 0 ? (
+                          <div className="random-history-grid">
+                            {selectedDrawHistoryEntries.map((entry) => {
+                              const isRepeatEntry = entry.kind === 'repeat';
+                              const studentName = getStudentName(selectedDrawSettingsCase, entry.number);
+                              const chipTitle =
+                                studentName.length > 0
+                                  ? `${entry.number} ${studentName}${isRepeatEntry ? ' 재등장' : ''}`
+                                  : `${entry.number}${isRepeatEntry ? ' 재등장' : ''}`;
+
+                              return (
+                                <span
+                                  key={entry.id}
+                                  className={`random-history-chip${isRepeatEntry ? ' random-history-chip-repeat' : ''}`}
+                                  title={chipTitle}
+                                >
+                                  <span className="random-history-chip-number">{entry.number}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="empty-slot-state flex min-h-[8rem] items-center justify-center rounded-2xl border border-dashed border-[#E6D5C9] bg-white/60 text-center font-medium text-[#8A6347]/60">
+                            {DRAWN_BALLS_EMPTY_LABEL}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="max-w-[32rem]">
@@ -3766,11 +4605,69 @@ export default function TimerPage() {
                         </button>
                       </div>
                     </div>
+
+                    {isHiddenDrawSettingsVisible ? (
+                      <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[linear-gradient(180deg,rgba(255,251,246,0.98)_0%,rgba(244,236,226,0.96)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="max-w-[32rem]">
+                            <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
+                              {SECRET_DRAW_SECTION_LABEL}
+                            </h4>
+                            <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
+                              {SECRET_DRAW_SECTION_DESCRIPTION}
+                            </p>
+                          </div>
+
+                          <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+                            {reservedDrawCount > 0 ? `${reservedDrawCount}개 예약` : SECRET_DRAW_EMPTY_LABEL}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+                          <label className="flex flex-col gap-2.5">
+                            <span className="section-title text-[0.92rem] font-bold text-[#B58363]">
+                              {SECRET_DRAW_INPUT_LABEL}
+                            </span>
+                            <input
+                              type="text"
+                              value={hiddenDrawResultInput}
+                              onChange={(event) => setHiddenDrawResultInput(event.target.value)}
+                              className="rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.95rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                              placeholder="7, 12, 18"
+                            />
+                          </label>
+
+                          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
+                            <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">
+                              {SECRET_DRAW_HINT}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={clearHiddenDrawResult}
+                                className="inline-flex items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-4 py-2 text-[0.84rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                              >
+                                {SECRET_DRAW_CLEAR_LABEL}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={applyHiddenDrawResult}
+                                className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                              >
+                                {SECRET_DRAW_APPLY_LABEL}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </section>
                 </div>
               </div>
 
-            </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
