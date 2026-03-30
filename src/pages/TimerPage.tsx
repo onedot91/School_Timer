@@ -3828,6 +3828,41 @@ export default function TimerPage() {
                   className="transition-all duration-1000 ease-linear"
                 />
               </svg>
+
+              {/* Character Notification Overlay (kept within the ring stage so it does not cover the timer text) */}
+              <div className={`absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
+                <div className="pointer-events-none flex flex-col items-center">
+                  {/* Speech Bubble */}
+                  <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`} style={characterMotionStyle}>
+                    <p className={`font-bold whitespace-normal break-keep text-center ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
+                    {/* Bubble Tail (pointing down) */}
+                    <div className="speech-tail-fill absolute -bottom-[14px] left-1/2 z-10 h-0 w-0 -translate-x-1/2 border-x-[12px] border-x-transparent border-t-[14px] border-t-white"></div>
+                    <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
+                  </div>
+
+                  {/* Character Image or Placeholder */}
+                  <div className={`mascot-figure-stage relative shrink-0 ${characterWrapSizeClass}`} style={characterMotionStyle}>
+                    {characterImageError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#8A6347]/40 bg-[#8A6347]/10 text-[#8A6347]/60">
+                        <span className="mb-2 text-5xl md:text-7xl">?</span>
+                        <span className="text-center text-sm font-bold leading-tight md:text-base">Character<br/>Area</span>
+                      </div>
+                    )}
+                    <img
+                      src="/character.png?v=20260301"
+                      alt="character notification"
+                      className={`absolute inset-0 z-10 h-full w-full object-contain drop-shadow-2xl ${characterImageScaleClass}`}
+                      referrerPolicy="no-referrer"
+                      onLoad={() => setCharacterImageError(false)}
+                      onError={(e) => {
+                        // Fallback if image is not found
+                        setCharacterImageError(true);
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
             <div className={`clock-display editorial-clock-display mt-2 shrink-0 text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 md:mt-3 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] lg:mt-4 ${colorClass}`}>
               {formatTime(displayTimeLeft)}
@@ -3924,40 +3959,6 @@ export default function TimerPage() {
               </div>
             </div>
 
-            {/* Character Notification Overlay (independent from right controls) */}
-            <div className={`absolute inset-0 z-20 flex items-center justify-center p-4 transition-all duration-500 ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
-              <div className="flex flex-col items-center pointer-events-none">
-                {/* Speech Bubble */}
-                <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`} style={characterMotionStyle}>
-                  <p className={`font-bold whitespace-normal break-keep text-center ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
-                  {/* Bubble Tail (pointing down) */}
-                  <div className="speech-tail-fill absolute -bottom-[14px] left-1/2 z-10 h-0 w-0 -translate-x-1/2 border-x-[12px] border-x-transparent border-t-[14px] border-t-white"></div>
-                  <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
-                </div>
-
-                {/* Character Image or Placeholder */}
-                <div className={`mascot-figure-stage relative shrink-0 ${characterWrapSizeClass}`} style={characterMotionStyle}>
-                  {characterImageError && (
-                    <div className="absolute inset-0 bg-[#8A6347]/10 rounded-3xl border-2 border-dashed border-[#8A6347]/40 flex flex-col items-center justify-center text-[#8A6347]/60">
-                      <span className="text-5xl md:text-7xl mb-2">?</span>
-                      <span className="text-sm md:text-base font-bold text-center leading-tight">Character<br/>Area</span>
-                    </div>
-                  )}
-                  <img
-                    src="/character.png?v=20260301"
-                    alt="character notification"
-                    className={`absolute inset-0 w-full h-full object-contain drop-shadow-2xl z-10 ${characterImageScaleClass}`}
-                    referrerPolicy="no-referrer"
-                    onLoad={() => setCharacterImageError(false)}
-                    onError={(e) => {
-                      // Fallback if image is not found
-                      setCharacterImageError(true);
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Right: Controls & Presets */}
