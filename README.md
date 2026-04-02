@@ -15,6 +15,13 @@ View your app in AI Studio: https://ai.studio/apps/7afc0c45-932b-42d8-bbda-7fc70
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set `VITE_GEMINI_API_KEY` in `.env.local`
+   You can copy from [.env.example](.env.example). `GEMINI_API_KEY` also works as a backward-compatible fallback.
 3. Run the app:
    `npm run dev`
+
+## Deploy
+
+Add `VITE_GEMINI_API_KEY` or `GEMINI_API_KEY` to your hosting provider's environment variables before running the production build, then redeploy.
+
+This app currently calls Gemini from the browser, so a build-time API key can be exposed to users. For a production deployment that must keep the key secret, move the Gemini calls to a server or serverless API route.
