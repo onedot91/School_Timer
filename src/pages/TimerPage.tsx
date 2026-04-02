@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { getFontEmbedCSS, toBlob } from 'html-to-image';
-import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -31,6 +31,7 @@ import {
   type RandomDrawCaseState,
   type RandomDrawHistoryEntry,
 } from '../lib/randomDraw';
+import DictionaryNotebookOverlay from '../components/DictionaryNotebookOverlay';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'draw';
@@ -1554,6 +1555,7 @@ export default function TimerPage() {
   const [isMusicAvailable, setIsMusicAvailable] = useState(true);
   const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
+  const [isDictionaryOpen, setIsDictionaryOpen] = useState(false);
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
     return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
@@ -2399,6 +2401,7 @@ export default function TimerPage() {
         isSettingsOpen ||
         isMemoOpen ||
         isAnnouncementOpen ||
+        isDictionaryOpen ||
         isEditingNotice ||
         isEditableShortcutTarget(event.target) ||
         event.repeat
@@ -2429,6 +2432,7 @@ export default function TimerPage() {
     };
   }, [
     isAnnouncementOpen,
+    isDictionaryOpen,
     isDrawResetVisible,
     isEditingNotice,
     isMemoOpen,
@@ -2445,6 +2449,7 @@ export default function TimerPage() {
       isSettingsOpen ||
       isMemoOpen ||
       isAnnouncementOpen ||
+      isDictionaryOpen ||
       isEditingNotice
     ) {
       return;
@@ -2455,6 +2460,7 @@ export default function TimerPage() {
     startStudentDraw();
   }, [
     isAnnouncementOpen,
+    isDictionaryOpen,
     isDrawResetVisible,
     isEditingNotice,
     isMemoOpen,
@@ -4068,7 +4074,7 @@ export default function TimerPage() {
                     )}
             </div>
 
-            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-3 gap-3">
+            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-2 gap-3 sm:grid-cols-4">
               <div ref={manualTimerMenuRef} className="relative min-w-0">
                 {isExtraTimerVisible ? (
                   <div className="absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[22rem] md:w-[24rem]">
@@ -4180,6 +4186,20 @@ export default function TimerPage() {
               >
                 <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
                   <StickyNote size={22} />
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  void playAnnouncementSound('pop');
+                  setIsDictionaryOpen(true);
+                }}
+                className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
+                aria-label="낱말 사전"
+                title="낱말 사전"
+                type="button"
+              >
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                  <Search size={22} />
                 </div>
               </button>
               <button
@@ -4831,6 +4851,18 @@ export default function TimerPage() {
       <MemoNotebookOverlay
         isOpen={isMemoOpen}
         onClose={() => setIsMemoOpen(false)}
+        liveTimer={{
+          isVisible: true,
+          timeText: formatTime(displayTimeLeft),
+          progress: displayTotalTime > 0 ? displayTimeLeft / displayTotalTime : 0,
+          timerType,
+          timerTypeLabel: scheduleTypeLabel,
+          currentSlotName,
+        }}
+      />
+      <DictionaryNotebookOverlay
+        isOpen={isDictionaryOpen}
+        onClose={() => setIsDictionaryOpen(false)}
         liveTimer={{
           isVisible: true,
           timeText: formatTime(displayTimeLeft),
