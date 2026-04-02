@@ -3658,6 +3658,39 @@ select {
   outline-offset: 4px;
 }
 
+.dictionary-shell .announcement-date-badge {
+  flex: 0 0 6.85rem;
+  width: 6.85rem;
+  height: 6.85rem;
+  min-width: 6.85rem;
+}
+
+.dictionary-shell .announcement-date-badge-content {
+  gap: 0.2rem;
+  padding: 1rem 0.65rem 0.88rem;
+}
+
+.dictionary-shell .announcement-date-badge-icon {
+  width: 1.72rem;
+  height: 1.72rem;
+}
+
+.dictionary-shell .announcement-date-badge-time {
+  font-size: 1.28rem;
+}
+
+.dictionary-shell .announcement-date-badge-label {
+  font-size: 0.76rem;
+}
+
+.dictionary-shell .announcement-close-button {
+  position: static;
+  top: auto;
+  right: auto;
+  width: 3rem;
+  height: 3rem;
+}
+
 .announcement-date-input,
 .announcement-entry-input {
   font-family: var(--font-display);
@@ -4368,6 +4401,26 @@ select {
     right: 0.9rem;
     width: 2.9rem;
     height: 2.9rem;
+  }
+
+  .dictionary-shell .announcement-date-badge {
+    flex: 0 0 5.75rem;
+    width: 5.75rem;
+    height: 5.75rem;
+    min-width: 5.75rem;
+  }
+
+  .dictionary-shell .announcement-date-badge-time {
+    font-size: 1.08rem;
+  }
+
+  .dictionary-shell .announcement-date-badge-label {
+    font-size: 0.68rem;
+  }
+
+  .dictionary-shell .announcement-close-button {
+    width: 2.85rem;
+    height: 2.85rem;
   }
 
   .announcement-date-action-save {
@@ -6218,5 +6271,464 @@ h3 {
 @media (min-width: 1280px) {
   .editorial-ring-stage::before {
     content: none;
+  }
+}
+
+body {
+  background: linear-gradient(180deg, #faf5ec 0%, #f5ecde 56%, #efe5d8 100%);
+}
+
+body::before,
+body::after,
+.timer-pane::after,
+.editorial-timer-pane::after,
+.mascot-figure-stage::before,
+.schedule-board::before,
+.announcement-page::before,
+.announcement-paper::after {
+  content: none;
+}
+
+.mascot-leaf {
+  display: none;
+}
+
+.app-tone-calm {
+  --orb-b: rgba(229, 204, 178, 0.22);
+  --leaf-accent: rgba(214, 197, 177, 0.12);
+}
+
+.timer-pane {
+  background:
+    radial-gradient(circle at 26% 22%, rgba(255, 255, 255, 0.88) 0%, transparent 24%),
+    linear-gradient(180deg, rgba(255, 252, 247, 0.99) 0%, rgba(246, 237, 226, 0.92) 100%);
+}
+
+.editorial-main-shell {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.86) 0%, transparent 28%),
+    linear-gradient(135deg, rgba(255, 251, 245, 0.98) 0%, rgba(244, 236, 226, 0.98) 58%, rgba(240, 233, 224, 0.96) 100%);
+}
+
+.dictionary-search-header {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.dictionary-search-header-idle {
+  inset: 0;
+}
+
+.dictionary-search-header-active {
+  inset: 0;
+}
+
+.dictionary-search-corner {
+  position: absolute;
+  top: calc(1.05rem + env(safe-area-inset-top, 0px));
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.dictionary-search-corner-left {
+  left: 1rem;
+}
+
+.dictionary-search-corner-right {
+  right: 1rem;
+}
+
+.dictionary-search-form {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  margin-inline: auto;
+  pointer-events: auto;
+  transition:
+    top 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    right 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dictionary-search-form-idle {
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 58rem;
+}
+
+.dictionary-search-form-active {
+  top: calc(1.05rem + env(safe-area-inset-top, 0px));
+  left: 8.75rem;
+  right: 5.45rem;
+  transform: translateY(0);
+  max-width: none;
+}
+
+.dictionary-search-bar {
+  transition:
+    border-radius 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    background-color 220ms ease;
+}
+
+.dictionary-search-bar-idle {
+  border-radius: 2rem;
+  padding: 0.96rem 0.98rem 0.96rem 1.45rem;
+  box-shadow:
+    0 24px 48px rgba(138, 99, 71, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.dictionary-search-bar-active {
+  border-radius: 1.75rem;
+  padding: 0.78rem 0.82rem 0.78rem 1.24rem;
+}
+
+.dictionary-search-side-idle,
+.dictionary-search-side-active {
+  transition:
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 280ms ease;
+}
+
+.dictionary-search-side-idle {
+  opacity: 0.88;
+  transform: translateY(-3px) scale(0.96);
+}
+
+.dictionary-search-side-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.dictionary-search-body {
+  transition:
+    padding-top 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease;
+}
+
+.dictionary-search-body-idle {
+  padding-top: 0;
+}
+
+.dictionary-search-body-active {
+  padding-top: 8.3rem;
+}
+
+.dictionary-search-empty-state {
+  display: none;
+}
+
+.dictionary-results-stage {
+  animation: dictionary-results-enter 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dictionary-loading-stage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.95rem;
+  overflow: hidden;
+  padding: 1.2rem 0 0.8rem;
+}
+
+.dictionary-loading-stage-expanded {
+  min-height: 24.5rem;
+  padding-top: 2.2rem;
+}
+
+.dictionary-loading-stage-compact {
+  min-height: 15.5rem;
+}
+
+.dictionary-loading-stage::before {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(151, 184, 130, 0.38), transparent);
+  transform: translateY(-50%);
+  animation: dictionary-loading-scan 2.6s ease-in-out infinite;
+}
+
+.dictionary-loading-glow {
+  position: absolute;
+  width: 11rem;
+  height: 11rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(223, 240, 209, 0.7) 0%, rgba(223, 240, 209, 0.22) 44%, rgba(223, 240, 209, 0) 72%);
+  filter: blur(8px);
+  opacity: 0.75;
+  pointer-events: none;
+  animation: dictionary-loading-glow-drift 3.4s ease-in-out infinite;
+}
+
+.dictionary-loading-glow-left {
+  left: 18%;
+  top: 24%;
+}
+
+.dictionary-loading-glow-right {
+  right: 18%;
+  bottom: 14%;
+  animation-delay: -1.7s;
+}
+
+.dictionary-loading-track {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+
+.dictionary-loading-card {
+  position: relative;
+  overflow: hidden;
+  animation: dictionary-loading-card-float 2.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  will-change: transform, box-shadow;
+}
+
+.dictionary-loading-card::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  background: linear-gradient(120deg, transparent 28%, rgba(255, 255, 255, 0.72) 48%, transparent 68%);
+  opacity: 0;
+  transform: translateX(-140%) skewX(-18deg);
+  animation: dictionary-loading-sheen 2.4s ease-in-out infinite;
+  animation-delay: inherit;
+}
+
+.dictionary-loading-card-text {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  animation: dictionary-loading-letter-bob 2.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  animation-delay: inherit;
+}
+
+.dictionary-loading-wave {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.7rem;
+}
+
+.dictionary-loading-wave-dot {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: #9ab884;
+  box-shadow: 0 0 0 rgba(154, 184, 132, 0.28);
+  animation: dictionary-loading-dot-wave 0.95s ease-in-out infinite;
+}
+
+.dictionary-loading-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.35rem;
+  max-width: 30rem;
+  text-align: center;
+}
+
+.dictionary-loading-copy-text {
+  font-size: clamp(1rem, 1.8vw, 1.18rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #5f7458;
+  animation: dictionary-loading-copy-enter 280ms ease;
+}
+
+.dictionary-loading-copy-subtext {
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.7;
+  color: #8b7c6a;
+}
+
+@keyframes dictionary-results-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dictionary-loading-card-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 14px 24px rgba(93, 118, 84, 0.12);
+  }
+
+  35% {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 22px 34px rgba(93, 118, 84, 0.16);
+  }
+
+  60% {
+    transform: translateY(-16px) scale(1.04);
+    box-shadow: 0 28px 42px rgba(93, 118, 84, 0.2);
+  }
+
+  80% {
+    transform: translateY(-6px) scale(0.99);
+    box-shadow: 0 16px 26px rgba(93, 118, 84, 0.14);
+  }
+}
+
+@keyframes dictionary-loading-letter-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.95;
+  }
+
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes dictionary-loading-sheen {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-140%) skewX(-18deg);
+  }
+
+  30% {
+    opacity: 0.4;
+  }
+
+  60% {
+    opacity: 0.58;
+  }
+
+  75% {
+    opacity: 0;
+    transform: translateX(150%) skewX(-18deg);
+  }
+}
+
+@keyframes dictionary-loading-dot-wave {
+  0%,
+  100% {
+    transform: translateY(0) scale(0.88);
+    opacity: 0.45;
+    box-shadow: 0 0 0 0 rgba(154, 184, 132, 0.22);
+  }
+
+  50% {
+    transform: translateY(-9px) scale(1.18);
+    opacity: 1;
+    box-shadow: 0 0 0 8px rgba(154, 184, 132, 0);
+  }
+}
+
+@keyframes dictionary-loading-glow-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.94);
+  }
+
+  50% {
+    transform: translate3d(1.2rem, -0.8rem, 0) scale(1.06);
+  }
+}
+
+@keyframes dictionary-loading-scan {
+  0%,
+  100% {
+    opacity: 0.18;
+    transform: translateY(-50%) translateX(-8%);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: translateY(-50%) translateX(8%);
+  }
+}
+
+@keyframes dictionary-loading-copy-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dictionary-results-stage,
+  .dictionary-loading-stage::before,
+  .dictionary-loading-glow,
+  .dictionary-loading-card,
+  .dictionary-loading-card::after,
+  .dictionary-loading-card-text,
+  .dictionary-loading-wave-dot,
+  .dictionary-loading-copy-text {
+    animation: none !important;
+  }
+}
+
+@media (min-width: 640px) {
+  .dictionary-search-body-active {
+    padding-top: 8.85rem;
+  }
+
+  .dictionary-search-corner {
+    top: calc(1.35rem + env(safe-area-inset-top, 0px));
+  }
+
+  .dictionary-search-form-active {
+    top: calc(1.35rem + env(safe-area-inset-top, 0px));
+    left: 9.35rem;
+    right: 5.75rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .dictionary-search-form-idle {
+    max-width: none;
+  }
+
+  .dictionary-search-form-active {
+    left: 6.35rem;
+    right: 5.2rem;
+  }
+
+  .dictionary-search-bar-idle {
+    padding: 0.86rem 0.82rem 0.86rem 1.1rem;
+  }
+
+  .dictionary-search-body-active {
+    padding-top: 6.6rem;
+  }
+
+  .dictionary-search-corner-left {
+    left: 0.9rem;
+  }
+
+  .dictionary-search-corner-right {
+    right: 0.9rem;
   }
 }
