@@ -97,7 +97,7 @@ interface SyllableResult {
   caseOptions: DictionaryCaseOption[] | null;
 }
 
-const getGeminiApiKey = () => {
+const getRuntimeGeminiApiKey = () => {
   const processValue = (
     globalThis as typeof globalThis & {
       process?: { env?: Record<string, string | undefined> };
@@ -105,6 +105,13 @@ const getGeminiApiKey = () => {
   ).process;
 
   return processValue?.env?.GEMINI_API_KEY?.trim() || '';
+};
+
+const getGeminiApiKey = () => {
+  const buildTimeApiKey =
+    typeof __GEMINI_API_KEY__ === 'string' ? __GEMINI_API_KEY__.trim() : '';
+
+  return buildTimeApiKey || getRuntimeGeminiApiKey();
 };
 
 const getDictionaryClient = () => {
@@ -716,7 +723,9 @@ export const getDictionaryErrorMessage = (error: unknown) => {
   }
 
   if (lookupError.code === 'missing_api_key') {
-    return '사전 기능을 쓰려면 `.env.local`에 `GEMINI_API_KEY`를 넣어 주세요.';
+    return import.meta.env.PROD
+      ? '사전 기능을 쓰려면 배포 환경 변수에 `VITE_GEMINI_API_KEY` 또는 `GEMINI_API_KEY`를 넣고 다시 배포해 주세요.'
+      : '사전 기능을 쓰려면 `.env.local`에 `VITE_GEMINI_API_KEY` 또는 `GEMINI_API_KEY`를 넣어 주세요.';
   }
 
   if (lookupError.code === 'invalid_api_key') {
