@@ -5,7 +5,6 @@ import type {
   DictionaryResult,
   Meaning,
   MeaningResult,
-  DictionarySuggestion,
   SyllableResult,
 } from './models';
 import type { DictionaryProvider } from './provider';
@@ -30,8 +29,6 @@ export class DictionaryService {
   private readonly entryPromiseCache = new Map<string, Promise<DictionaryEntry>>();
   private readonly syllableCache = new Map<string, SyllableResult>();
   private readonly syllablePromiseCache = new Map<string, Promise<SyllableResult>>();
-  private readonly suggestionCache = new Map<string, DictionarySuggestion[]>();
-  private readonly suggestionPromiseCache = new Map<string, Promise<DictionarySuggestion[]>>();
 
   constructor(private readonly provider: DictionaryProvider) {}
 
@@ -99,34 +96,6 @@ export class DictionaryService {
       meanings: toLegacyMeanings(entry),
       entry,
     };
-  }
-
-  async getSuggestions(rawWord: string): Promise<DictionarySuggestion[]> {
-    const word = sanitizeWord(rawWord);
-    const key = toWordKey(word);
-
-    if (!word || !key) {
-      return [];
-    }
-
-    const cachedResult = this.suggestionCache.get(key);
-    if (cachedResult) return cachedResult;
-
-    const inflightPromise = this.suggestionPromiseCache.get(key);
-    if (inflightPromise) return inflightPromise;
-
-    const nextPromise = this.provider
-      .suggestEntries(word)
-      .then((result) => {
-        this.suggestionCache.set(key, result);
-        return result;
-      })
-      .finally(() => {
-        this.suggestionPromiseCache.delete(key);
-      });
-
-    this.suggestionPromiseCache.set(key, nextPromise);
-    return nextPromise;
   }
 
   async getDictionaryEntry(rawWord: string): Promise<DictionaryEntry> {
