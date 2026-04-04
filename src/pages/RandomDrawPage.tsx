@@ -2211,7 +2211,7 @@ export default function RandomDrawPage() {
 
             <div className="settings-body custom-scrollbar flex-1 overflow-y-auto bg-[#FDFBF7] p-3 md:p-4 lg:p-5">
               <div className="random-settings-layout grid gap-4 lg:grid-cols-[minmax(15rem,0.74fr)_minmax(0,1.26fr)]">
-                <section className="random-settings-sidebar rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.96)_0%,rgba(248,241,232,0.9)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
+                <section className="random-settings-sidebar rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-2.5">
                     <h3 className="section-title text-[1.32rem] font-extrabold text-[#3F2B20]">{CASE_LIST_LABEL}</h3>
                     <button
@@ -2267,7 +2267,7 @@ export default function RandomDrawPage() {
                 </section>
 
                 <section className="random-settings-detail flex flex-col gap-4">
-                  <div className="random-settings-detail-card rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+                  <div className="random-settings-detail-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
                     <div className="grid gap-4">
                       <label className="flex flex-col gap-2">
                         <span className="section-title text-[0.95rem] font-bold text-[#B58363]">{CASE_NAME_LABEL}</span>
@@ -2322,7 +2322,7 @@ export default function RandomDrawPage() {
                     </div>
                   </div>
 
-                  <div className="random-settings-roster-card rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(248,242,233,0.96)_100%)] p-4 md:p-5">
+                  <div className="random-settings-roster-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 md:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-2.5">
                       <div className="max-w-[32rem]">
                         <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">{STUDENT_ROSTER_LABEL}</h3>
@@ -2350,7 +2350,7 @@ export default function RandomDrawPage() {
                           <button
                             type="button"
                             onClick={applyBulkStudentRoster}
-                            className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                            className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                           >
                             {STUDENT_ROSTER_BULK_APPLY_LABEL}
                           </button>
@@ -2388,7 +2388,7 @@ export default function RandomDrawPage() {
                     </div>
                   </div>
 
-                  <div className="random-settings-repeat-card rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+                  <div className="random-settings-repeat-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="max-w-[32rem]">
                         <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">{REPEAT_PICK_LABEL}</h3>
@@ -2410,7 +2410,7 @@ export default function RandomDrawPage() {
                   </div>
 
                   {isSecretQueueVisible && (
-                    <div className="random-settings-repeat-card rounded-[1.7rem] border border-[#E6D8C9] bg-[linear-gradient(180deg,rgba(255,251,246,0.98)_0%,rgba(244,236,226,0.96)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+                    <div className="random-settings-repeat-card rounded-[1.7rem] border border-[#E6D8C9] bg-[#FBF2E9] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="max-w-[32rem]">
                           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
@@ -2450,7 +2450,7 @@ export default function RandomDrawPage() {
                             <button
                               type="button"
                               onClick={applyHiddenNumberQueue}
-                              className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                              className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                             >
                               {SECRET_QUEUE_APPLY_LABEL}
                             </button>
