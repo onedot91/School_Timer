@@ -924,9 +924,9 @@ function AnnouncementNotebookOverlay({
   const paperBodyStyle = {
     '--announcement-rule-gap': `${noteRuleGapPx}px`,
     '--announcement-rule-offset': `${Math.round(noteRuleGapPx * -0.24)}px`,
-    '--announcement-note-font-size': `${Math.max(42, Math.round(noteRuleGapPx * 0.42))}px`,
-    '--announcement-note-gutter-width': `${Math.max(66, Math.round(noteRuleGapPx * 0.62))}px`,
-    '--announcement-note-number-size': `${Math.max(30, Math.round(noteRuleGapPx * 0.34))}px`,
+    '--announcement-note-font-size': `${Math.max(40, Math.round(noteRuleGapPx * 0.39))}px`,
+    '--announcement-note-gutter-width': `${Math.max(60, Math.round(noteRuleGapPx * 0.56))}px`,
+    '--announcement-note-number-size': `${Math.max(30, Math.round(noteRuleGapPx * 0.32))}px`,
   } as React.CSSProperties;
   const hasNoteContent = noteText.length > 0;
 
@@ -1243,7 +1243,7 @@ function AnnouncementNotebookOverlay({
                   ref={noteEditorRef}
                   className="announcement-note-editor absolute inset-x-4 bottom-4 top-0 sm:bottom-5 sm:left-[4.7rem] sm:right-6"
                 >
-                  <div ref={noteDisplayRef} aria-hidden="true" className="announcement-note-display">
+                  <div ref={noteDisplayRef} aria-hidden="true" className="announcement-note-display" lang="ko">
                     <div className="announcement-note-display-content">{renderAnnouncementNoteDisplay(noteText)}</div>
                   </div>
                   <textarea
@@ -1255,6 +1255,7 @@ function AnnouncementNotebookOverlay({
                     className="announcement-note-textarea"
                     placeholder={ANNOUNCEMENT_NOTE_PLACEHOLDER}
                     spellCheck={false}
+                    lang="ko"
                   />
                   <div className="announcement-note-inline-tools" data-capture-exclude="true">
                     <button
