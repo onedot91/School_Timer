@@ -1,5 +1,5 @@
 import { classifyLookupError, DictionaryLookupError } from '../errors';
-import type { DictionaryEntry, DictionarySuggestion, SyllableResult } from '../models';
+import type { DictionaryEntry, SyllableResult } from '../models';
 import type { DictionaryProvider } from '../provider';
 
 const shouldTryNextProvider = (error: unknown) => {
@@ -53,31 +53,5 @@ export class CompositeDictionaryProvider implements DictionaryProvider {
     }
 
     throw mergeProviderErrors(errors);
-  }
-
-  async suggestEntries(word: string): Promise<DictionarySuggestion[]> {
-    const collectedSuggestions = await Promise.all(
-      this.providers.map(async (provider) => {
-        try {
-          return await provider.suggestEntries(word);
-        } catch {
-          return [];
-        }
-      }),
-    );
-
-    const uniqueSuggestions: DictionarySuggestion[] = [];
-    const seenLemmas = new Set<string>();
-
-    for (const suggestionList of collectedSuggestions) {
-      for (const suggestion of suggestionList) {
-        if (seenLemmas.has(suggestion.lemma)) continue;
-
-        seenLemmas.add(suggestion.lemma);
-        uniqueSuggestions.push(suggestion);
-      }
-    }
-
-    return uniqueSuggestions;
   }
 }
