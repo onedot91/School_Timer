@@ -6357,7 +6357,7 @@ body::after,
 .dictionary-search-form-idle {
   top: 50%;
   transform: translateY(-50%);
-  max-width: 58rem;
+  max-width: 49rem;
 }
 
 .dictionary-search-form-active {
@@ -6378,16 +6378,16 @@ body::after,
 }
 
 .dictionary-search-bar-idle {
-  border-radius: 2rem;
-  padding: 0.96rem 0.98rem 0.96rem 1.45rem;
+  border-radius: 2.35rem;
+  padding: 1.18rem 1.18rem 1.18rem 1.7rem;
   box-shadow:
     0 24px 48px rgba(138, 99, 71, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .dictionary-search-bar-active {
-  border-radius: 1.75rem;
-  padding: 0.78rem 0.82rem 0.78rem 1.24rem;
+  border-radius: 2rem;
+  padding: 0.94rem 0.96rem 0.94rem 1.42rem;
 }
 
 .dictionary-search-side-idle,
@@ -6418,7 +6418,7 @@ body::after,
 }
 
 .dictionary-search-body-active {
-  padding-top: 8.3rem;
+  padding-top: 9rem;
 }
 
 .dictionary-search-empty-state {
@@ -6717,11 +6717,11 @@ body::after,
   }
 
   .dictionary-search-bar-idle {
-    padding: 0.86rem 0.82rem 0.86rem 1.1rem;
+    padding: 1rem 0.92rem 1rem 1.24rem;
   }
 
   .dictionary-search-body-active {
-    padding-top: 6.6rem;
+    padding-top: 7.2rem;
   }
 
   .dictionary-search-corner-left {
@@ -6731,4 +6731,166 @@ body::after,
   .dictionary-search-corner-right {
     right: 0.9rem;
   }
+}
+
+/* Flat gradient override */
+
+:root {
+  --flat-bg: #f4ede3;
+  --flat-shell: #f7f1e8;
+  --flat-surface: #fbf6ef;
+  --flat-surface-alt: #fcf8f1;
+  --flat-accent: #6f8a65;
+  --flat-accent-soft: #edf4ea;
+  --flat-warm: #fbf1e5;
+  --flat-danger: #d97d67;
+}
+
+body {
+  background: var(--flat-bg) !important;
+}
+
+body::before,
+body::after {
+  content: none !important;
+}
+
+.mascot-shell,
+.editorial-main-shell,
+.announcement-shell,
+.memo-shell,
+.dictionary-shell,
+.editorial-settings-dialog,
+.random-settings-shell {
+  background: var(--shell-bg-start, var(--flat-shell)) !important;
+  background-image: none !important;
+  box-shadow:
+    0 22px 56px rgba(74, 52, 34, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.mascot-shell::after,
+.editorial-main-shell::after,
+.timer-pane::before,
+.timer-pane::after,
+.control-pane::before,
+.schedule-board::before,
+.manual-timer-launch-button::after,
+.announcement-launch-button::after,
+.memo-launch-button::after,
+.dictionary-loading-stage::before,
+.dictionary-loading-card::after,
+.notice-editor::after,
+.notice-content::after {
+  content: none !important;
+}
+
+.mascot-orb,
+.mascot-leaf,
+.dictionary-loading-glow {
+  display: none !important;
+}
+
+.timer-pane {
+  background: var(--timer-pane-start, var(--flat-surface-alt)) !important;
+  background-image: none !important;
+}
+
+.control-pane {
+  background: var(--control-pane-start, var(--flat-surface)) !important;
+  background-image: none !important;
+}
+
+.timer-ring-stage::before {
+  background: rgba(255, 255, 255, 0.78) !important;
+  background-image: none !important;
+  box-shadow: 0 14px 30px rgba(99, 74, 51, 0.08) !important;
+}
+
+.timer-ring-svg,
+.paper-card,
+.schedule-board,
+.slot-card,
+.status-medallion,
+.editorial-settings-dialog,
+.settings-header,
+.settings-body,
+.random-settings-header-panel,
+.random-settings-sidebar,
+.random-settings-detail-card,
+.random-settings-roster-card,
+.random-settings-repeat-card,
+.page-floating-nav,
+.random-board,
+.random-settings-case-card,
+.random-settings-case-card-v2,
+.timer-toolbar-button {
+  background: var(--flat-surface-alt) !important;
+  background-image: none !important;
+}
+
+.notice-card {
+  background: #fffbf6 !important;
+  background-image: none !important;
+}
+
+.notice-card::before {
+  background: var(--flat-accent) !important;
+  background-image: none !important;
+}
+
+.notice-card::after {
+  background: #7d9872 !important;
+  background-image: none !important;
+}
+
+.mode-switch,
+.random-case-switch {
+  background: var(--flat-accent-soft) !important;
+  background-image: none !important;
+}
+
+.mode-toggle-active,
+.sound-toggle-active,
+.timer-toolbar-button.sound-toggle-active,
+.round-action-play,
+.schedule-row-active,
+.day-tab-active,
+.primary-cta,
+.random-settings-add-button,
+.random-settings-toggle-active {
+  background: var(--flat-accent) !important;
+  background-image: none !important;
+}
+
+.page-nav-indicator,
+.toolbar-button-green,
+.announcement-launch-icon,
+.random-history-chip-badge,
+.random-settings-case-badge {
+  background: var(--flat-accent-soft) !important;
+  background-image: none !important;
+}
+
+.sound-toggle-inactive,
+.timer-toolbar-button.sound-toggle-inactive,
+.timer-toolbar-button.sound-toggle-inactive:hover,
+.round-action-reset,
+.toolbar-button-neutral,
+.add-slot-button,
+.announcement-launch-button,
+.memo-launch-button,
+.random-settings-toggle {
+  background: var(--flat-surface) !important;
+  background-image: none !important;
+}
+
+.round-action-pause,
+.toolbar-button-danger {
+  background: var(--flat-danger) !important;
+  background-image: none !important;
+}
+
+.panel-divider {
+  background: rgba(139, 106, 86, 0.18) !important;
 }
