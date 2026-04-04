@@ -4,7 +4,6 @@ import { classifyLookupError, DictionaryLookupError } from '../errors';
 import type {
   DictionaryCaseOption,
   DictionaryEntry,
-  DictionarySuggestion,
   Meaning,
   Syllable,
   SyllableResult,
@@ -599,9 +598,5 @@ export class GeminiDictionaryProvider implements DictionaryProvider {
 
       throw lookupError;
     }
-  }
-
-  async suggestEntries(_word: string): Promise<DictionarySuggestion[]> {
-    return [];
   }
 }
