@@ -60,20 +60,6 @@ export interface DictionaryEntry {
   caseOptions: DictionaryCaseOption[] | null;
 }
 
-export type DictionarySuggestionMatchType =
-  | 'normalized'
-  | 'alias'
-  | 'prefix'
-  | 'contains'
-  | 'similar';
-
-export interface DictionarySuggestion {
-  lemma: string;
-  partOfSpeech: DictionaryPartOfSpeech;
-  lexicalOrigin: DictionaryLexicalOrigin;
-  matchType: DictionarySuggestionMatchType;
-}
-
 export interface MeaningResult {
   word: string;
   meanings: Meaning[];
