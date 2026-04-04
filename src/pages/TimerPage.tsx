@@ -2960,7 +2960,7 @@ export default function TimerPage() {
   const scheduleSettingsPanel = (
     <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
       <aside className="flex flex-col gap-4 xl:sticky xl:top-0 xl:self-start">
-        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(248,242,233,0.96)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
             Schedule
           </p>
@@ -2982,7 +2982,7 @@ export default function TimerPage() {
                 onClick={() => setEditingDay(day)}
                 className={`rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-all ${
                   editingDay === day
-                    ? 'bg-[linear-gradient(180deg,#688772_0%,#476152_100%)] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
+                    ? 'bg-[#688772] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
                     : 'border border-[#E6D5C9] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
                 }`}
               >
@@ -2993,7 +2993,7 @@ export default function TimerPage() {
 
         </section>
 
-        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
+        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
           <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">학교 시계 보정</h3>
           <p className="mt-2 text-[0.88rem] font-bold leading-6 text-[#8A6347]">
             학교 종이 빠르면 `+`, 웹 시계가 빠르면 `-` 값을 넣습니다.
@@ -3015,7 +3015,7 @@ export default function TimerPage() {
           </p>
         </section>
 
-        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">빠른 작업</h3>
           <p className="mt-2 text-[0.88rem] font-bold leading-6 text-[#8A6347]">
             현재 요일 일정을 다른 평일로 한 번에 복사할 수 있습니다.
@@ -3031,7 +3031,7 @@ export default function TimerPage() {
       </aside>
 
       <section className="flex min-h-0 flex-col gap-4">
-        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(248,242,233,0.96)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="flex flex-wrap items-start gap-3">
             <div>
               <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
@@ -3083,7 +3083,7 @@ export default function TimerPage() {
           </div>
         )}
 
-        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 md:p-5">
+        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5">
           <div className="space-y-3">
             {editingDaySchedule.length === 0 ? (
               <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
@@ -3160,7 +3160,7 @@ export default function TimerPage() {
   );
   const drawSettingsPanel = (
     <div className="grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
-      <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.96)_0%,rgba(248,241,232,0.9)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
+      <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
@@ -3171,7 +3171,7 @@ export default function TimerPage() {
           <button
             type="button"
             onClick={addDrawSettingsCase}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#6F8A65] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
           >
             <Plus size={18} />
             추가
@@ -3225,7 +3225,7 @@ export default function TimerPage() {
       </section>
 
       <section className="flex min-h-0 flex-col gap-4">
-        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
@@ -3303,7 +3303,7 @@ export default function TimerPage() {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.68fr)]">
-          <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+          <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
             <div className="grid gap-4">
               <label className="flex flex-col gap-2">
                 <span className="section-title text-[0.95rem] font-bold text-[#B58363]">이름</span>
@@ -3358,7 +3358,7 @@ export default function TimerPage() {
             </div>
           </div>
 
-          <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+          <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
             <div className="flex items-start justify-between gap-3">
               <div className="max-w-[32rem]">
                 <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">재등장 연출</h4>
@@ -3395,7 +3395,7 @@ export default function TimerPage() {
           </div>
         </div>
 
-        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(248,242,233,0.96)_100%)] p-4 md:p-5">
+        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-2.5">
             <div className="max-w-[32rem]">
               <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학생 명단</h4>
@@ -3427,7 +3427,7 @@ export default function TimerPage() {
                 <button
                   type="button"
                   onClick={applyBulkStudentRoster}
-                  className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                  className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                 >
                   반영
                 </button>
@@ -3521,7 +3521,7 @@ export default function TimerPage() {
           </div>
 
           {isHiddenDrawSettingsVisible ? (
-            <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[linear-gradient(180deg,rgba(255,251,246,0.98)_0%,rgba(244,236,226,0.96)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+            <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[#FBF2E9] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="max-w-[32rem]">
                   <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
@@ -3566,7 +3566,7 @@ export default function TimerPage() {
                     <button
                       type="button"
                       onClick={applyHiddenDrawResult}
-                      className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                      className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                     >
                       {SECRET_DRAW_APPLY_LABEL}
                     </button>
@@ -3971,7 +3971,7 @@ export default function TimerPage() {
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
             {shouldShowNoticeCard ? (
               <div
-                className={`notice-card relative z-30 w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[linear-gradient(180deg,#FFFEFB_0%,#F3EEE5_100%)] px-2.5 pb-2.5 pt-2.5 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-3rem] sm:mb-[-3.55rem]'}`}
+                className={`notice-card relative z-30 w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[#FFFBF6] px-2.5 pb-2.5 pt-2.5 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-3rem] sm:mb-[-3.55rem]'}`}
                 style={noticeCardStyle}
               >
                 {isEditingNotice ? (
@@ -4271,7 +4271,7 @@ export default function TimerPage() {
                   onClick={() => setSettingsPanel('schedule')}
                   className={`rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
                     settingsPanel === 'schedule'
-                      ? 'border-[#6F9A58] bg-[linear-gradient(180deg,#F2F9F0_0%,#E4F0E0_100%)] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      ? 'border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
                       : 'border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
                   }`}
                   aria-pressed={settingsPanel === 'schedule'}
@@ -4290,7 +4290,7 @@ export default function TimerPage() {
                   onClick={() => setSettingsPanel('draw')}
                   className={`rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
                     settingsPanel === 'draw'
-                      ? 'border-[#B58363] bg-[linear-gradient(180deg,#FFF8F0_0%,#F4E7D7_100%)] shadow-[0_12px_24px_rgba(181,131,99,0.12)]'
+                      ? 'border-[#B58363] bg-[#FBF0E4] shadow-[0_12px_24px_rgba(181,131,99,0.12)]'
                       : 'border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
                   }`}
                   aria-pressed={settingsPanel === 'draw'}
@@ -4509,13 +4509,13 @@ export default function TimerPage() {
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
-                  <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.96)_0%,rgba(248,241,232,0.9)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
+                  <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2.5">
                       <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">상황</h4>
                       <button
                         type="button"
                         onClick={addDrawSettingsCase}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#6F8A65] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
                       >
                         <Plus size={18} />
                         추가
@@ -4569,7 +4569,7 @@ export default function TimerPage() {
                   </section>
 
                   <section className="flex flex-col gap-4">
-                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(249,243,234,0.94)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
                       <div className="grid gap-4">
                         <label className="flex flex-col gap-2">
                           <span className="section-title text-[0.95rem] font-bold text-[#B58363]">이름</span>
@@ -4624,7 +4624,7 @@ export default function TimerPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,254,251,0.98)_0%,rgba(248,242,233,0.96)_100%)] p-4 md:p-5">
+                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 md:p-5">
                       <div className="flex flex-wrap items-start justify-between gap-2.5">
                         <div className="max-w-[32rem]">
                           <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학생 명단</h4>
@@ -4656,7 +4656,7 @@ export default function TimerPage() {
                             <button
                               type="button"
                               onClick={applyBulkStudentRoster}
-                              className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                              className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                             >
                               반영
                             </button>
@@ -4744,7 +4744,7 @@ export default function TimerPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[linear-gradient(180deg,rgba(255,253,248,0.98)_0%,rgba(247,241,232,0.94)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="max-w-[32rem]">
                           <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">재등장</h4>
@@ -4772,7 +4772,7 @@ export default function TimerPage() {
                     </div>
 
                     {isHiddenDrawSettingsVisible ? (
-                      <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[linear-gradient(180deg,rgba(255,251,246,0.98)_0%,rgba(244,236,226,0.96)_100%)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+                      <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[#FBF2E9] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="max-w-[32rem]">
                             <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
@@ -4817,7 +4817,7 @@ export default function TimerPage() {
                               <button
                                 type="button"
                                 onClick={applyHiddenDrawResult}
-                                className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                                className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                               >
                                 {SECRET_DRAW_APPLY_LABEL}
                               </button>
