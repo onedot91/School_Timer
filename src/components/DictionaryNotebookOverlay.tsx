@@ -732,16 +732,16 @@ export default function DictionaryNotebookOverlay({
                         value={searchInput}
                         onChange={(event) => setSearchInput(event.target.value)}
                         placeholder="궁금한 낱말을 적어 보세요"
-                        className="min-w-0 flex-1 bg-transparent text-[clamp(1.5rem,2.8vw,2.2rem)] font-extrabold tracking-[-0.04em] text-[#3F2B20] outline-none placeholder:text-[#A7B0BD]"
+                        className="min-w-0 flex-1 bg-transparent text-[clamp(1.8rem,3vw,2.6rem)] font-extrabold tracking-[-0.04em] text-[#3F2B20] outline-none placeholder:text-[#A7B0BD]"
                         autoComplete="off"
                         spellCheck={false}
                       />
                       <button
                         type="submit"
-                        className={`inline-flex shrink-0 items-center justify-center border border-[#E8D5C9] bg-[linear-gradient(180deg,#FFF8F5_0%,#FDEDE7_100%)] text-[#C7684A] shadow-[0_10px_18px_rgba(215,124,96,0.12)] transition-transform hover:scale-[1.02] active:scale-[0.98] ${hasSearched ? 'h-[3.35rem] w-[3.35rem] rounded-[1.1rem] sm:h-[3.55rem] sm:w-[3.55rem]' : 'h-[4.15rem] w-[4.15rem] rounded-[1.35rem] sm:h-[4.45rem] sm:w-[4.45rem]'}`}
+                        className={`inline-flex shrink-0 items-center justify-center border border-[#E8D5C9] bg-[#FFF1EA] text-[#C7684A] shadow-[0_10px_18px_rgba(215,124,96,0.12)] transition-transform hover:scale-[1.02] active:scale-[0.98] ${hasSearched ? 'h-[3.75rem] w-[3.75rem] rounded-[1.25rem] sm:h-[3.95rem] sm:w-[3.95rem]' : 'h-[4.8rem] w-[4.8rem] rounded-[1.55rem] sm:h-[5.05rem] sm:w-[5.05rem]'}`}
                         aria-label="낱말 검색"
                       >
-                        {isSyllableLoading ? <LoaderCircle size={22} className="animate-spin" /> : <Search size={22} />}
+                        {isSyllableLoading ? <LoaderCircle size={hasSearched ? 24 : 28} className="animate-spin" /> : <Search size={hasSearched ? 24 : 28} />}
                       </button>
                     </div>
                   </form>
@@ -866,7 +866,7 @@ export default function DictionaryNotebookOverlay({
                                     onClick={() => {
                                       void handleMeaningPanelOpen();
                                     }}
-                                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+                                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
                                   >
                                     뜻부터 보기
                                   </button>
@@ -883,7 +883,7 @@ export default function DictionaryNotebookOverlay({
                                 {displaySyllables.map((syllable, index) => {
                                   const isSelected = selectedSyllableIndex === index;
                                   const tileClass = isSelected
-                                    ? 'border-[#7DA36C] bg-[linear-gradient(180deg,#6F8A65_0%,#526B49_100%)] text-white shadow-[0_18px_30px_rgba(93,118,84,0.22)]'
+                                    ? 'border-[#7DA36C] bg-[#6F8A65] text-white shadow-[0_18px_30px_rgba(93,118,84,0.22)]'
                                     : syllable.isHanja
                                       ? 'border-[#CFE0C4] bg-white text-[#5C8D6D] shadow-[0_14px_24px_rgba(93,118,84,0.1)]'
                                       : 'border-[#E6D8C9] bg-[#F7F1E8] text-[#B9A491] opacity-80';
@@ -920,7 +920,7 @@ export default function DictionaryNotebookOverlay({
 
                               {hasAnyHanjaSyllable && selectedSyllable?.isHanja ? (
                                 <div
-                                  className={`border-2 border-[#D6E4CE] bg-[linear-gradient(180deg,rgba(250,253,249,0.98)_0%,rgba(243,248,240,0.94)_100%)] ${
+                                  className={`border-2 border-[#D6E4CE] bg-[#F5FAF4] ${
                                     isExpandedLayout ? 'mt-7 rounded-[2rem] p-6 sm:p-7' : 'mt-4 rounded-[1.7rem] p-4'
                                   }`}
                                 >
@@ -982,7 +982,7 @@ export default function DictionaryNotebookOverlay({
 
                                   {revealedSyllableMeaningMap[selectedSyllableIndex || 0] ? (
                                     <div
-                                      className={`rounded-[1.35rem] bg-[linear-gradient(180deg,#6F8A65_0%,#526B49_100%)] text-center font-extrabold tracking-[-0.04em] text-white shadow-[0_18px_30px_rgba(93,118,84,0.22)] ${
+                                      className={`rounded-[1.35rem] bg-[#6F8A65] text-center font-extrabold tracking-[-0.04em] text-white shadow-[0_18px_30px_rgba(93,118,84,0.22)] ${
                                         isExpandedLayout
                                           ? 'mt-5 px-7 py-5 text-[1.78rem] sm:text-[2rem]'
                                           : 'mt-4 px-6 py-4 text-[1.4rem]'
@@ -994,7 +994,7 @@ export default function DictionaryNotebookOverlay({
                                     <button
                                       type="button"
                                       onClick={revealSelectedMeaning}
-                                      className={`inline-flex items-center justify-center gap-2 rounded-full bg-[linear-gradient(180deg,#D97D67_0%,#C7684A_100%)] font-extrabold text-white shadow-[0_14px_24px_rgba(199,104,74,0.24)] ${
+                                      className={`inline-flex items-center justify-center gap-2 rounded-full bg-[#D97D67] font-extrabold text-white shadow-[0_14px_24px_rgba(199,104,74,0.24)] ${
                                         isExpandedLayout
                                           ? 'mt-5 w-full px-7 py-5 text-[1.42rem] sm:text-[1.56rem]'
                                           : 'mt-4 px-6 py-3 text-[1.12rem]'
