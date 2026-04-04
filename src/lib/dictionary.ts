@@ -1,4 +1,4 @@
-import { getDictionaryErrorCode, getDictionaryErrorMessage, DictionaryLookupError } from './dictionary/errors';
+import { getDictionaryErrorMessage, DictionaryLookupError } from './dictionary/errors';
 import type {
   DictionaryCaseOption,
   DictionaryEntry,
@@ -6,7 +6,6 @@ import type {
   DictionaryPartOfSpeech,
   DictionaryResult,
   DictionarySense,
-  DictionarySuggestion,
   Meaning,
   MeaningResult,
   Syllable,
@@ -32,14 +31,13 @@ export type {
   DictionaryPartOfSpeech,
   DictionaryResult,
   DictionarySense,
-  DictionarySuggestion,
   Meaning,
   MeaningResult,
   Syllable,
   SyllableResult,
 };
 
-export { DictionaryLookupError, getDictionaryErrorCode, getDictionaryErrorMessage };
+export { DictionaryLookupError, getDictionaryErrorMessage };
 
 export const normalizeDictionaryWordKey = (value: string) => toWordKey(value);
 
@@ -51,9 +49,6 @@ export const getWordSyllables = async (rawWord: string): Promise<SyllableResult>
 
 export const getDictionaryEntry = async (rawWord: string): Promise<DictionaryEntry> =>
   dictionaryService.getDictionaryEntry(rawWord);
-
-export const getDictionarySuggestions = async (rawWord: string): Promise<DictionarySuggestion[]> =>
-  dictionaryService.getSuggestions(rawWord);
 
 export const createDictionaryResult = (word: string): DictionaryResult =>
   dictionaryService.createDictionaryResult(word);
