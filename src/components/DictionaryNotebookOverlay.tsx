@@ -11,12 +11,15 @@ import {
   X,
 } from 'lucide-react';
 import {
+  getDictionaryErrorCode,
   DictionaryLookupError,
   type DictionaryResult,
+  type DictionarySuggestion,
   type Meaning,
   type Syllable,
   createDictionaryResult,
   getDictionaryErrorMessage,
+  getDictionarySuggestions,
   getWordMeanings,
   getWordSyllables,
 } from '../lib/dictionary';
@@ -208,18 +211,52 @@ interface MeaningChoiceItem {
   preview?: string;
 }
 
+function DictionarySuggestionList({
+  suggestions,
+  onSelectSuggestion,
+}: {
+  suggestions: string[];
+  onSelectSuggestion: (word: string) => void;
+}) {
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="mt-4">
+      <p className="text-[0.92rem] font-extrabold tracking-[-0.02em] text-[#8A7767]">
+        이런 표제어를 찾아볼 수 있어요.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2.5">
+        {suggestions.map((suggestion) => (
+          <button
+            key={`dictionary-suggestion-${suggestion}`}
+            type="button"
+            onClick={() => onSelectSuggestion(suggestion)}
+            className="inline-flex items-center justify-center rounded-full border border-[#D8E3D1] bg-white px-4 py-2.5 text-[0.92rem] font-extrabold text-[#5C7A58] transition-colors hover:border-[#BFD2B5] hover:bg-[#FAFCF8]"
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const DICTIONARY_LOADING_MESSAGES = [
   '사전에서 낱말을 찾고 있어요.',
   '뜻과 예문을 차근차근 정리하고 있어요.',
   '글자마다 어떤 한자가 어울리는지 살펴보고 있어요.',
 ];
+const SYLLABLE_LOOKUP_FALLBACK_NOTE = '글자별 한자 풀이는 아직 찾지 못했어요. 뜻부터 먼저 볼 수 있어요.';
 
 function MeaningPanel({
   word,
   meanings,
   isMeaningLoading,
   meaningError,
+  meaningErrorCode,
+  suggestions,
   onRetry,
+  onSelectSuggestion,
   selectionTitle,
   selectionHint,
   selectableItems,
@@ -229,7 +266,10 @@ function MeaningPanel({
   meanings: Meaning[] | null;
   isMeaningLoading: boolean;
   meaningError: string | null;
+  meaningErrorCode?: string | null;
+  suggestions?: string[];
   onRetry: () => void;
+  onSelectSuggestion?: (word: string) => void;
   selectionTitle?: string;
   selectionHint?: string;
   selectableItems?: MeaningChoiceItem[] | null;
@@ -256,13 +296,18 @@ function MeaningPanel({
             <CircleAlert size={24} className="mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-[1.08rem] font-extrabold leading-8">{meaningError}</p>
-              <button
-                type="button"
-                onClick={onRetry}
-                className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#D9C8B6] bg-white px-5 py-2.5 text-[0.98rem] font-extrabold text-[#8A6347]"
-              >
-                다시 보기
-              </button>
+              {meaningErrorCode !== 'not_found' ? (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#D9C8B6] bg-white px-5 py-2.5 text-[0.98rem] font-extrabold text-[#8A6347]"
+                >
+                  다시 보기
+                </button>
+              ) : null}
+              {onSelectSuggestion ? (
+                <DictionarySuggestionList suggestions={suggestions || []} onSelectSuggestion={onSelectSuggestion} />
+              ) : null}
             </div>
           </div>
         </div>
@@ -362,7 +407,10 @@ export default function DictionaryNotebookOverlay({
   const [isMeaningLoading, setIsMeaningLoading] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [syllableError, setSyllableError] = useState<string | null>(null);
+  const [syllableErrorCode, setSyllableErrorCode] = useState<string | null>(null);
   const [meaningError, setMeaningError] = useState<string | null>(null);
+  const [meaningErrorCode, setMeaningErrorCode] = useState<string | null>(null);
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [isMeaningChoiceStage, setIsMeaningChoiceStage] = useState(false);
   const [selectedCaseOptionIndex, setSelectedCaseOptionIndex] = useState<number | null>(null);
   const [selectedSyllableIndex, setSelectedSyllableIndex] = useState<number | null>(null);
@@ -408,8 +456,24 @@ export default function DictionaryNotebookOverlay({
   const hasAnyHanjaSyllable = displaySyllables.some((syllable) => syllable.isHanja);
   const selectedSyllable =
     selectedSyllableIndex !== null ? displaySyllables[selectedSyllableIndex] || null : null;
-  const shouldShowMeaningColumn = isMeaningPanelOpen || isMeaningLoading || Boolean(meaningError);
+  const shouldUseMeaningOnlyLayout =
+    !isSyllableLoading &&
+    !syllableError &&
+    !hasAnyHanjaSyllable &&
+    (hasMeaningResult || isMeaningLoading || Boolean(meaningError));
+  const shouldShowMeaningColumn =
+    shouldUseMeaningOnlyLayout || isMeaningPanelOpen || isMeaningLoading || Boolean(meaningError);
   const isExpandedLayout = !shouldShowMeaningColumn;
+
+  const applySyllableError = (error: unknown) => {
+    setSyllableError(getDictionaryErrorMessage(error));
+    setSyllableErrorCode(getDictionaryErrorCode(error));
+  };
+
+  const applyMeaningError = (error: unknown) => {
+    setMeaningError(getDictionaryErrorMessage(error));
+    setMeaningErrorCode(getDictionaryErrorCode(error));
+  };
 
   const resetSearchUiState = () => {
     setSearchInput('');
@@ -418,7 +482,10 @@ export default function DictionaryNotebookOverlay({
     setIsSyllableLoading(false);
     setIsMeaningLoading(false);
     setSyllableError(null);
+    setSyllableErrorCode(null);
     setMeaningError(null);
+    setMeaningErrorCode(null);
+    setSearchSuggestions([]);
     setIsMeaningChoiceStage(false);
     setSelectedCaseOptionIndex(null);
     setSelectedSyllableIndex(null);
@@ -471,9 +538,31 @@ export default function DictionaryNotebookOverlay({
     return () => window.clearInterval(interval);
   }, [isSyllableLoading]);
 
+  const loadSearchSuggestions = async (word: string, requestId: number) => {
+    try {
+      const suggestions = await getDictionarySuggestions(word);
+      if (requestId !== activeRequestIdRef.current) return;
+
+      const uniqueLemmas = Array.from(
+        new Set(
+          suggestions
+            .map((suggestion: DictionarySuggestion) => suggestion.lemma)
+            .filter((suggestion) => suggestion && suggestion !== word),
+        ),
+      );
+
+      setSearchSuggestions(uniqueLemmas);
+    } catch {
+      if (requestId === activeRequestIdRef.current) {
+        setSearchSuggestions([]);
+      }
+    }
+  };
+
   const openMeaningPanel = async (word: string, requestId: number, forceLoad = false) => {
     setIsMeaningPanelOpen(true);
     setMeaningError(null);
+    setMeaningErrorCode(null);
 
     if (!forceLoad && (isMeaningLoading || hasMeaningResult)) {
       return;
@@ -486,15 +575,25 @@ export default function DictionaryNotebookOverlay({
       if (requestId !== activeRequestIdRef.current) return;
 
       setDictionaryResult((previous) => ({
-        word: previous.word || meaningResult.word,
+        word: meaningResult.word,
         syllables: previous.syllables,
         meanings: meaningResult.meanings,
         syllableNote: previous.syllableNote,
         caseOptions: previous.caseOptions,
+        entry: {
+          ...meaningResult.entry,
+          syllables: previous.syllables,
+          syllableNote: previous.syllableNote,
+          caseOptions: previous.caseOptions,
+        },
       }));
+      setSearchSuggestions([]);
     } catch (error) {
       if (requestId !== activeRequestIdRef.current) return;
-      setMeaningError(getDictionaryErrorMessage(error));
+      applyMeaningError(error);
+      if (getDictionaryErrorCode(error) === 'not_found') {
+        void loadSearchSuggestions(word, requestId);
+      }
     } finally {
       if (requestId === activeRequestIdRef.current) {
         setIsMeaningLoading(false);
@@ -502,14 +601,13 @@ export default function DictionaryNotebookOverlay({
     }
   };
 
-  const handleSearchSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const word = searchInput.trim();
+  const runDictionarySearch = async (rawWord: string) => {
+    const word = rawWord.trim();
     const nextRequestId = activeRequestIdRef.current + 1;
     activeRequestIdRef.current = nextRequestId;
 
     setHasSearched(true);
+    setSearchInput(word);
     setDictionaryResult(createDictionaryResult(word));
     setIsMeaningChoiceStage(false);
     setSelectedCaseOptionIndex(null);
@@ -517,12 +615,15 @@ export default function DictionaryNotebookOverlay({
     setRevealedSyllableMeaningMap({});
     setIsMeaningPanelOpen(false);
     setSyllableError(null);
+    setSyllableErrorCode(null);
     setMeaningError(null);
+    setMeaningErrorCode(null);
+    setSearchSuggestions([]);
     setIsMeaningLoading(false);
 
     if (!word) {
       setHasSearched(false);
-      setSyllableError(getDictionaryErrorMessage(new DictionaryLookupError('empty_word')));
+      applySyllableError(new DictionaryLookupError('empty_word'));
       return;
     }
 
@@ -535,8 +636,34 @@ export default function DictionaryNotebookOverlay({
       ]);
       if (nextRequestId !== activeRequestIdRef.current) return;
 
+      if (
+        syllableResultState.status === 'rejected' &&
+        meaningResultState.status === 'fulfilled'
+      ) {
+        setDictionaryResult({
+          word: meaningResultState.value.word,
+          syllables: null,
+          meanings: meaningResultState.value.meanings,
+          syllableNote: SYLLABLE_LOOKUP_FALLBACK_NOTE,
+          caseOptions: null,
+          entry: {
+            ...meaningResultState.value.entry,
+            syllables: null,
+            syllableNote: SYLLABLE_LOOKUP_FALLBACK_NOTE,
+            caseOptions: null,
+          },
+        });
+        setSearchSuggestions([]);
+        setSelectedSyllableIndex(null);
+        setIsMeaningChoiceStage(true);
+        return;
+      }
+
       if (syllableResultState.status === 'rejected') {
-        setSyllableError(getDictionaryErrorMessage(syllableResultState.reason));
+        applySyllableError(syllableResultState.reason);
+        if (getDictionaryErrorCode(syllableResultState.reason) === 'not_found') {
+          void loadSearchSuggestions(word, nextRequestId);
+        }
         return;
       }
 
@@ -550,7 +677,9 @@ export default function DictionaryNotebookOverlay({
           meanings: null,
           syllableNote: syllableResult.syllableNote,
           caseOptions: syllableResult.caseOptions,
+          entry: null,
         });
+        setSearchSuggestions([]);
         setSelectedSyllableIndex(null);
         setIsMeaningChoiceStage(true);
         return;
@@ -563,9 +692,11 @@ export default function DictionaryNotebookOverlay({
           meanings: null,
           syllableNote: syllableResult.syllableNote,
           caseOptions: syllableResult.caseOptions,
+          entry: null,
         });
+        setSearchSuggestions([]);
         setSelectedSyllableIndex(firstHanjaIndex >= 0 ? firstHanjaIndex : null);
-        setMeaningError(getDictionaryErrorMessage(meaningResultState.reason));
+        applyMeaningError(meaningResultState.reason);
         setIsMeaningChoiceStage(true);
         return;
       }
@@ -576,17 +707,36 @@ export default function DictionaryNotebookOverlay({
         meanings: meaningResultState.value.meanings,
         syllableNote: syllableResult.syllableNote,
         caseOptions: syllableResult.caseOptions,
+        entry: {
+          ...meaningResultState.value.entry,
+          syllables: syllableResult.syllables,
+          syllableNote: syllableResult.syllableNote,
+          caseOptions: syllableResult.caseOptions,
+        },
       });
+      setSearchSuggestions([]);
       setSelectedSyllableIndex(firstHanjaIndex >= 0 ? firstHanjaIndex : null);
       setIsMeaningChoiceStage(true);
     } catch (error) {
       if (nextRequestId !== activeRequestIdRef.current) return;
-      setSyllableError(getDictionaryErrorMessage(error));
+      applySyllableError(error);
+      if (getDictionaryErrorCode(error) === 'not_found') {
+        void loadSearchSuggestions(word, nextRequestId);
+      }
     } finally {
       if (nextRequestId === activeRequestIdRef.current) {
         setIsSyllableLoading(false);
       }
     }
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void runDictionarySearch(searchInput);
+  };
+
+  const handleSuggestionSelect = (word: string) => {
+    void runDictionarySearch(word);
   };
 
   const handleMeaningPanelOpen = async () => {
@@ -596,6 +746,7 @@ export default function DictionaryNotebookOverlay({
     if (hasMeaningResult) {
       setIsMeaningPanelOpen(true);
       setMeaningError(null);
+      setMeaningErrorCode(null);
       return;
     }
 
@@ -613,6 +764,8 @@ export default function DictionaryNotebookOverlay({
       setSelectedSyllableIndex(firstHanjaIndex >= 0 ? firstHanjaIndex : null);
       setRevealedSyllableMeaningMap({});
       setMeaningError(null);
+      setMeaningErrorCode(null);
+      setSearchSuggestions([]);
       setIsMeaningPanelOpen(false);
       setDictionaryResult((previous) => ({
         word: previous.word,
@@ -620,6 +773,15 @@ export default function DictionaryNotebookOverlay({
         meanings: caseOption.meanings,
         syllableNote: null,
         caseOptions: previous.caseOptions,
+        entry: previous.entry
+          ? {
+              ...previous.entry,
+              senses: caseOption.senses || previous.entry.senses,
+              syllables: caseOption.syllables,
+              syllableNote: null,
+              caseOptions: previous.caseOptions,
+            }
+          : previous.entry,
       }));
       setIsMeaningChoiceStage(false);
       return;
@@ -627,6 +789,8 @@ export default function DictionaryNotebookOverlay({
 
     setRevealedSyllableMeaningMap({});
     setMeaningError(null);
+    setMeaningErrorCode(null);
+    setSearchSuggestions([]);
     setIsMeaningPanelOpen(false);
     setIsMeaningChoiceStage(false);
   };
@@ -705,7 +869,11 @@ export default function DictionaryNotebookOverlay({
                 ) : (
                   <div
                     className={`dictionary-results-stage grid h-full min-h-0 gap-2.5 lg:gap-3 ${
-                      requiresMeaningChoice ? '' : shouldShowMeaningColumn ? 'xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]' : ''
+                      requiresMeaningChoice || shouldUseMeaningOnlyLayout
+                        ? ''
+                        : shouldShowMeaningColumn
+                          ? 'xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]'
+                          : ''
                     }`}
                   >
                     {requiresMeaningChoice ? (
@@ -714,13 +882,29 @@ export default function DictionaryNotebookOverlay({
                         meanings={meanings}
                         isMeaningLoading={isMeaningLoading}
                         meaningError={meaningError}
+                        meaningErrorCode={meaningErrorCode}
+                        suggestions={searchSuggestions}
                         onRetry={() => {
                           void handleMeaningPanelOpen();
                         }}
+                        onSelectSuggestion={handleSuggestionSelect}
                         selectionTitle="뜻을 먼저 골라 주세요."
                         selectionHint="선택한 뜻에 맞춰 글자별 한자 풀이를 보여줘요."
                         selectableItems={meaningChoiceItems}
                         onSelectMeaning={handleMeaningChoiceSelect}
+                      />
+                    ) : shouldUseMeaningOnlyLayout ? (
+                      <MeaningPanel
+                        word={searchedWord}
+                        meanings={meanings}
+                        isMeaningLoading={isMeaningLoading}
+                        meaningError={meaningError}
+                        meaningErrorCode={meaningErrorCode}
+                        suggestions={searchSuggestions}
+                        onRetry={() => {
+                          void handleMeaningPanelOpen();
+                        }}
+                        onSelectSuggestion={handleSuggestionSelect}
                       />
                     ) : (
                       <>
@@ -783,15 +967,21 @@ export default function DictionaryNotebookOverlay({
                                 <CircleAlert size={20} className="mt-0.5 shrink-0" />
                                 <div className="min-w-0 flex-1">
                                   <p className="text-[0.95rem] font-extrabold">{syllableError}</p>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      void handleMeaningPanelOpen();
-                                    }}
-                                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
-                                  >
-                                    뜻부터 보기
-                                  </button>
+                                  {syllableErrorCode !== 'not_found' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        void handleMeaningPanelOpen();
+                                      }}
+                                      className="mt-3 inline-flex items-center gap-2 rounded-full bg-[linear-gradient(180deg,#78A15C_0%,#638B4C_100%)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+                                    >
+                                      뜻부터 보기
+                                    </button>
+                                  ) : null}
+                                  <DictionarySuggestionList
+                                    suggestions={searchSuggestions}
+                                    onSelectSuggestion={handleSuggestionSelect}
+                                  />
                                 </div>
                               </div>
                             </div>
@@ -957,9 +1147,12 @@ export default function DictionaryNotebookOverlay({
                             meanings={meanings}
                             isMeaningLoading={isMeaningLoading}
                             meaningError={meaningError}
+                            meaningErrorCode={meaningErrorCode}
+                            suggestions={searchSuggestions}
                             onRetry={() => {
                               void handleMeaningPanelOpen();
                             }}
+                            onSelectSuggestion={handleSuggestionSelect}
                           />
                         ) : null}
                       </>
