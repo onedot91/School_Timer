@@ -3869,6 +3869,7 @@ select {
   font-size: var(--announcement-note-font-size);
   font-weight: 700;
   line-height: var(--announcement-rule-gap);
+  line-break: strict;
 }
 
 .announcement-note-display {
@@ -3907,7 +3908,9 @@ select {
   flex: 1;
   min-width: 0;
   white-space: pre-wrap;
-  word-break: break-word;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
 }
 
 .announcement-note-display-line-text-placeholder {
@@ -3933,6 +3936,10 @@ select {
   padding: 0.2rem 0.35rem 4.9rem calc(var(--announcement-note-gutter-width) + 0.55rem);
   text-shadow: none;
   text-rendering: optimizeLegibility;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
   outline: none;
   overflow: auto;
   scrollbar-width: thin;
