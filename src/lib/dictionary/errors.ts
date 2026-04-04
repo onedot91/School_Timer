@@ -58,8 +58,6 @@ export const classifyLookupError = (error: unknown) => {
   return new DictionaryLookupError('unknown', message);
 };
 
-export const getDictionaryErrorCode = (error: unknown) => classifyLookupError(error).code;
-
 export const getDictionaryErrorMessage = (error: unknown) => {
   const lookupError = classifyLookupError(error);
 
