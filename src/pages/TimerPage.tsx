@@ -102,6 +102,7 @@ const MIN_STAGE_DISPLAY_NUMBER = 0;
 const PENALTY_SECONDS_PER_POINT = 60;
 const PENALTY_ACCENT_COLOR = '#C53124';
 const PENALTY_RING_TRACK_COLOR = '#F3D8D5';
+const PENALTY_PANEL_ANIMATION_DURATION_MS = 820;
 const MEMO_NOTE_TEXT_COLORS = [
   { id: 'black', label: '검정', value: '#2c1e16' },
   { id: 'red', label: '빨강', value: '#c7684a' },
@@ -140,17 +141,17 @@ const NORMAL_WIN_PARTICLES = [
 ] as const;
 
 const DEFAULT_MANUAL_TIMER_STATE: ManualTimerState = {
-  totalTime: 600,
-  timeLeft: 600,
+  totalTime: 300,
+  timeLeft: 300,
   isRunning: false,
   endTime: null,
   isVisible: false,
 };
 
 const MANUAL_TIMER_PRESETS = [
+  { label: '1분', seconds: 60 },
   { label: '3분', seconds: 180 },
   { label: '5분', seconds: 300 },
-  { label: '10분', seconds: 600 },
 ] as const;
 
 type MemoTextColorId = (typeof MEMO_NOTE_TEXT_COLORS)[number]['id'];
@@ -727,35 +728,49 @@ const playAlarm = () => {
     if (!AudioContext) return;
     const ctx = new AudioContext();
 
-    const playTone = (freq: number, startTime: number, duration: number) => {
+    const playTone = (
+      frequency: number,
+      startOffset: number,
+      duration: number,
+      type: OscillatorType,
+      peakVolume: number,
+      endFrequency = frequency,
+    ) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, startTime);
-      
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
-      gain.gain.setValueAtTime(0.3, startTime + duration - 0.1);
-      gain.gain.linearRampToValueAtTime(0, startTime + duration);
+      const startTime = ctx.currentTime + startOffset;
+      const endTime = startTime + duration;
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(frequency, startTime);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(120, endFrequency), endTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(
+        peakVolume,
+        startTime + Math.min(duration * 0.25, 0.06),
+      );
+      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
-      
+
       osc.start(startTime);
-      osc.stop(startTime + duration);
+      osc.stop(endTime + 0.03);
     };
 
-    const now = ctx.currentTime;
-    // Westminster Quarters (School Bell Style)
-    playTone(659.25, now, 0.5);
-    playTone(523.25, now + 0.5, 0.5);
-    playTone(587.33, now + 1.0, 0.5);
-    playTone(392.00, now + 1.5, 1.0);
-    
-    playTone(392.00, now + 3.0, 0.5);
-    playTone(587.33, now + 3.5, 0.5);
-    playTone(659.25, now + 4.0, 0.5);
-    playTone(523.25, now + 4.5, 1.0);
+    // Longer classroom finish chime with a softer, more melodic cadence.
+    playTone(392, 0, 0.42, 'triangle', 0.08, 415.3);
+    playTone(523.25, 0.2, 0.42, 'triangle', 0.09, 554.37);
+    playTone(659.25, 0.42, 0.48, 'triangle', 0.1, 698.46);
+    playTone(783.99, 0.72, 0.62, 'sine', 0.075, 830.61);
+    playTone(1046.5, 1.04, 0.78, 'sine', 0.07, 1174.66);
+    playTone(783.99, 1.48, 0.58, 'triangle', 0.06, 830.61);
+    playTone(659.25, 1.72, 0.7, 'sine', 0.055, 698.46);
+
+    window.setTimeout(() => {
+      void ctx.close().catch(() => undefined);
+    }, 3000);
   } catch (e) {
     console.error("Audio playback failed", e);
   }
@@ -1631,6 +1646,8 @@ export default function TimerPage() {
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const [stageDisplayNumber, setStageDisplayNumber] = useState(DEFAULT_STAGE_DISPLAY_NUMBER);
+  const [penaltyPanelAnimationDirection, setPenaltyPanelAnimationDirection] = useState<'up' | 'down' | null>(null);
+  const [penaltyPanelAnimationTick, setPenaltyPanelAnimationTick] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
@@ -1644,6 +1661,7 @@ export default function TimerPage() {
   const drawHideTimeoutRef = useRef<number | null>(null);
   const drawLaunchTokenRef = useRef(0);
   const queuedStudentDrawAfterResetRef = useRef(false);
+  const penaltyPanelAnimationTimeoutRef = useRef<number | null>(null);
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
   const manualTimerMenuRef = useRef<HTMLDivElement>(null);
@@ -2468,9 +2486,25 @@ export default function TimerPage() {
       }
 
       event.preventDefault();
-      setStageDisplayNumber((previous) =>
-        isPageUpKey ? previous + 1 : Math.max(MIN_STAGE_DISPLAY_NUMBER, previous - 1),
-      );
+      const nextStageDisplayNumber = isPageUpKey
+        ? stageDisplayNumber + 1
+        : Math.max(MIN_STAGE_DISPLAY_NUMBER, stageDisplayNumber - 1);
+
+      if (nextStageDisplayNumber === stageDisplayNumber) {
+        return;
+      }
+
+      if (penaltyPanelAnimationTimeoutRef.current !== null) {
+        window.clearTimeout(penaltyPanelAnimationTimeoutRef.current);
+      }
+
+      setStageDisplayNumber(nextStageDisplayNumber);
+      setPenaltyPanelAnimationDirection(isPageUpKey ? 'up' : 'down');
+      setPenaltyPanelAnimationTick((previous) => previous + 1);
+      penaltyPanelAnimationTimeoutRef.current = window.setTimeout(() => {
+        setPenaltyPanelAnimationDirection(null);
+        penaltyPanelAnimationTimeoutRef.current = null;
+      }, PENALTY_PANEL_ANIMATION_DURATION_MS);
     };
 
     window.addEventListener('keydown', handleStageDisplayShortcut);
@@ -2484,7 +2518,16 @@ export default function TimerPage() {
     isEditingNotice,
     isMemoOpen,
     isSettingsOpen,
+    stageDisplayNumber,
   ]);
+
+  useEffect(() => {
+    return () => {
+      if (penaltyPanelAnimationTimeoutRef.current !== null) {
+        window.clearTimeout(penaltyPanelAnimationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -2799,6 +2842,22 @@ export default function TimerPage() {
       : 0;
   const breakPenaltyTimeLeft = Math.max(0, breakPenaltyTotalSeconds - elapsedScheduleSeconds);
   const isBreakPenaltyActive = breakPenaltyTimeLeft > 0;
+  const shouldShowPenaltyPanel = stageDisplayNumber > 0 || penaltyPanelAnimationDirection !== null;
+  const penaltyPanelAnimationStyle =
+    penaltyPanelAnimationDirection === 'up'
+      ? { animation: 'penaltyPanelRiseBurst 820ms cubic-bezier(0.22, 0.9, 0.24, 1)' }
+      : penaltyPanelAnimationDirection === 'down'
+        ? { animation: 'penaltyPanelDropBurst 760ms cubic-bezier(0.24, 0.82, 0.26, 1)' }
+        : undefined;
+  const penaltyPanelHaloStyle =
+    penaltyPanelAnimationDirection === 'up'
+      ? { animation: 'penaltyPanelHalo 780ms ease-out forwards' }
+      : penaltyPanelAnimationDirection === 'down'
+        ? { animation: 'penaltyPanelHaloSoft 720ms ease-out forwards' }
+        : undefined;
+  const penaltyPanelNumberStyle = penaltyPanelAnimationDirection
+    ? { animation: 'penaltyPanelNumberPulse 700ms cubic-bezier(0.2, 0.88, 0.26, 1)' }
+    : undefined;
   const scheduleTypeLabel =
     timerType === 'class'
       ? "\uC218\uC5C5\uC2DC\uAC04"
@@ -3695,6 +3754,74 @@ export default function TimerPage() {
               transform: scale(1.02);
             }
           }
+          @keyframes penaltyPanelRiseBurst {
+            0% {
+              opacity: 0.24;
+              transform: translateY(18px) scale(0.72) rotate(-7deg);
+            }
+            42% {
+              opacity: 1;
+              transform: translateY(-7px) scale(1.12) rotate(2deg);
+            }
+            70% {
+              transform: translateY(2px) scale(0.97) rotate(-1deg);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0) scale(1) rotate(0deg);
+            }
+          }
+          @keyframes penaltyPanelDropBurst {
+            0% {
+              opacity: 0.42;
+              transform: translateY(-5px) scale(1.12) rotate(3deg);
+            }
+            32% {
+              opacity: 1;
+              transform: translateY(11px) scale(0.82) rotate(-4deg);
+            }
+            62% {
+              transform: translateY(-2px) scale(1.04) rotate(1deg);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0) scale(1) rotate(0deg);
+            }
+          }
+          @keyframes penaltyPanelHalo {
+            0% {
+              opacity: 0.7;
+              transform: scale(0.72);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(1.45);
+            }
+          }
+          @keyframes penaltyPanelHaloSoft {
+            0% {
+              opacity: 0.56;
+              transform: scale(0.84);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(1.28);
+            }
+          }
+          @keyframes penaltyPanelNumberPulse {
+            0% {
+              opacity: 0.2;
+              transform: scale(0.5);
+            }
+            55% {
+              opacity: 1;
+              transform: scale(1.2);
+            }
+            100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
         `}</style>
         <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
@@ -3952,15 +4079,30 @@ export default function TimerPage() {
                 </div>
               ) : null}
             </div>
-            {stageDisplayNumber > 0 ? (
+            {shouldShowPenaltyPanel ? (
               <div className="pointer-events-none absolute bottom-3 right-3 z-40 sm:bottom-4 sm:right-4 md:bottom-5 md:right-5">
-                <div className="flex min-w-[7.2rem] flex-col items-center gap-1 rounded-[1.25rem] border border-[#E7C0B9] bg-[rgba(255,248,245,0.9)] px-3 py-2.5 text-center shadow-[0_16px_28px_rgba(181,94,76,0.14)] backdrop-blur-sm">
-                  <div className="text-[0.72rem] font-extrabold tracking-[0.12em] text-[#A9675D]">
+                <div
+                  key={`${penaltyPanelAnimationDirection ?? 'idle'}-${penaltyPanelAnimationTick}`}
+                  className="relative flex min-w-[7.2rem] flex-col items-center gap-1 rounded-[1.25rem] border border-[#E7C0B9] bg-[rgba(255,248,245,0.9)] px-3 py-2.5 text-center shadow-[0_16px_28px_rgba(181,94,76,0.14)] backdrop-blur-sm"
+                  style={penaltyPanelAnimationStyle}
+                >
+                  {penaltyPanelAnimationDirection !== null ? (
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-[-0.35rem] rounded-[1.5rem] border-2 border-[#D96D61]/55"
+                      style={penaltyPanelHaloStyle}
+                    />
+                  ) : null}
+                  <div className="relative z-10 text-[0.72rem] font-extrabold tracking-[0.12em] text-[#A9675D]">
                     벌점
                   </div>
                   <div
-                    className="leading-none font-extrabold text-[clamp(2.15rem,4.5vw,4rem)] text-[#C53124] drop-shadow-[0_8px_16px_rgba(181,94,76,0.16)]"
-                    style={{ fontFamily: 'var(--font-clock)' }}
+                    className="relative z-10 leading-none font-extrabold text-[clamp(2.15rem,4.5vw,4rem)] text-[#C53124] drop-shadow-[0_8px_16px_rgba(181,94,76,0.16)]"
+                    style={
+                      penaltyPanelNumberStyle
+                        ? { fontFamily: 'var(--font-clock)', ...penaltyPanelNumberStyle }
+                        : { fontFamily: 'var(--font-clock)' }
+                    }
                   >
                     {stageDisplayNumber}
                   </div>
