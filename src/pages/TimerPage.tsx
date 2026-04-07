@@ -97,6 +97,11 @@ const MEMO_NOTE_MIN_FONT_SIZE = 40;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
 const TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV3';
 const LEGACY_TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV2';
+const DEFAULT_STAGE_DISPLAY_NUMBER = 0;
+const MIN_STAGE_DISPLAY_NUMBER = 0;
+const PENALTY_SECONDS_PER_POINT = 60;
+const PENALTY_ACCENT_COLOR = '#C53124';
+const PENALTY_RING_TRACK_COLOR = '#F3D8D5';
 const MEMO_NOTE_TEXT_COLORS = [
   { id: 'black', label: '검정', value: '#2c1e16' },
   { id: 'red', label: '빨강', value: '#c7684a' },
@@ -1625,6 +1630,7 @@ export default function TimerPage() {
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
+  const [stageDisplayNumber, setStageDisplayNumber] = useState(DEFAULT_STAGE_DISPLAY_NUMBER);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
@@ -2445,6 +2451,42 @@ export default function TimerPage() {
   ]);
 
   useEffect(() => {
+    const handleStageDisplayShortcut = (event: KeyboardEvent) => {
+      const isPageUpKey = event.key === 'PageUp' || event.code === 'PageUp';
+      const isPageDownKey = event.key === 'PageDown' || event.code === 'PageDown';
+
+      if ((!isPageUpKey && !isPageDownKey) || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (
+        isSettingsOpen ||
+        isMemoOpen ||
+        isAnnouncementOpen ||
+        isDictionaryOpen ||
+        isEditingNotice ||
+        isEditableShortcutTarget(event.target)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      setStageDisplayNumber((previous) =>
+        isPageUpKey ? previous + 1 : Math.max(MIN_STAGE_DISPLAY_NUMBER, previous - 1),
+      );
+    };
+
+    window.addEventListener('keydown', handleStageDisplayShortcut);
+
+    return () => {
+      window.removeEventListener('keydown', handleStageDisplayShortcut);
+    };
+  }, [
+    isAnnouncementOpen,
+    isDictionaryOpen,
+    isEditingNotice,
+    isMemoOpen,
+    isSettingsOpen,
+  ]);
+
+  useEffect(() => {
     if (
       isDrawResetVisible ||
       isSettingsOpen ||
@@ -2736,6 +2778,7 @@ export default function TimerPage() {
 
   let colorClass = "text-[#587052]";
   let strokeColor = "#587052";
+  let ringTrackColor = "#E6D5C9";
   let pulseClass = "";
   let bgClass = "app-tone-calm";
 
@@ -2749,6 +2792,13 @@ export default function TimerPage() {
   const isScheduleBreak = timerType === 'break';
   const isScheduleLunch = timerType === 'lunch';
   const shouldShowTimedMessage = isScheduleBreak || isScheduleLunch;
+  const elapsedScheduleSeconds = Math.max(0, displayTotalTime - displayTimeLeft);
+  const breakPenaltyTotalSeconds =
+    isScheduleBreak && stageDisplayNumber > 0
+      ? Math.min(displayTotalTime, stageDisplayNumber * PENALTY_SECONDS_PER_POINT)
+      : 0;
+  const breakPenaltyTimeLeft = Math.max(0, breakPenaltyTotalSeconds - elapsedScheduleSeconds);
+  const isBreakPenaltyActive = breakPenaltyTimeLeft > 0;
   const scheduleTypeLabel =
     timerType === 'class'
       ? "\uC218\uC5C5\uC2DC\uAC04"
@@ -2827,6 +2877,11 @@ export default function TimerPage() {
     characterWrapSizeClass = "w-48 h-48 md:w-64 md:h-64";
     characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
     characterMessage = getCharacterMessage('warning');
+  }
+
+  if (isBreakPenaltyActive) {
+    strokeColor = PENALTY_ACCENT_COLOR;
+    ringTrackColor = PENALTY_RING_TRACK_COLOR;
   }
 
   if (showCharacter && displayIsRunning) {
@@ -3820,7 +3875,7 @@ export default function TimerPage() {
                   cy="100"
                   r={radius}
                   fill="none"
-                  stroke="#E6D5C9"
+                  stroke={ringTrackColor}
                   strokeWidth="100"
                 />
                 <circle
@@ -3871,8 +3926,18 @@ export default function TimerPage() {
                 </div>
               </div>
             </div>
-            <div className={`clock-display editorial-clock-display mt-2 shrink-0 text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 md:mt-3 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] lg:mt-4 ${colorClass}`}>
-              {formatTime(displayTimeLeft)}
+            <div className="relative z-10 mt-2 shrink-0 md:mt-3 lg:mt-4">
+              <div className={`clock-display editorial-clock-display text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] ${colorClass}`}>
+                {formatTime(displayTimeLeft)}
+              </div>
+              {isBreakPenaltyActive ? (
+                <div className="mt-2 flex items-center justify-center">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[#E7C0B9] bg-[rgba(255,244,241,0.94)] px-4 py-1.5 text-[0.95rem] font-extrabold text-[#C53124] shadow-[0_10px_20px_rgba(181,94,76,0.12)] backdrop-blur-sm">
+                    <span>벌점</span>
+                    <span className="font-mono tracking-[-0.04em]">{formatTime(breakPenaltyTimeLeft)}</span>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className="timer-status-row relative z-10 mt-3 flex w-full max-w-[40rem] flex-wrap items-center justify-center gap-3 md:mt-4 xl:max-w-[45rem]">
               <div
@@ -3887,6 +3952,21 @@ export default function TimerPage() {
                 </div>
               ) : null}
             </div>
+            {stageDisplayNumber > 0 ? (
+              <div className="pointer-events-none absolute bottom-3 right-3 z-40 sm:bottom-4 sm:right-4 md:bottom-5 md:right-5">
+                <div className="flex min-w-[7.2rem] flex-col items-center gap-1 rounded-[1.25rem] border border-[#E7C0B9] bg-[rgba(255,248,245,0.9)] px-3 py-2.5 text-center shadow-[0_16px_28px_rgba(181,94,76,0.14)] backdrop-blur-sm">
+                  <div className="text-[0.72rem] font-extrabold tracking-[0.12em] text-[#A9675D]">
+                    벌점
+                  </div>
+                  <div
+                    className="leading-none font-extrabold text-[clamp(2.15rem,4.5vw,4rem)] text-[#C53124] drop-shadow-[0_8px_16px_rgba(181,94,76,0.16)]"
+                    style={{ fontFamily: 'var(--font-clock)' }}
+                  >
+                    {stageDisplayNumber}
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div
               ref={drawCaseMenuRef}
               onPointerEnter={() => setIsDrawCaseSwitchNearby(true)}
