@@ -2470,10 +2470,15 @@ export default function TimerPage() {
 
   useEffect(() => {
     const handleStageDisplayShortcut = (event: KeyboardEvent) => {
-      const isPageUpKey = event.key === 'PageUp' || event.code === 'PageUp';
-      const isPageDownKey = event.key === 'PageDown' || event.code === 'PageDown';
+      const isStageUpKey =
+        event.key === 'PageUp' || event.code === 'PageUp' || event.key === 'ArrowUp' || event.code === 'ArrowUp';
+      const isStageDownKey =
+        event.key === 'PageDown' ||
+        event.code === 'PageDown' ||
+        event.key === 'ArrowDown' ||
+        event.code === 'ArrowDown';
 
-      if ((!isPageUpKey && !isPageDownKey) || event.altKey || event.ctrlKey || event.metaKey) return;
+      if ((!isStageUpKey && !isStageDownKey) || event.altKey || event.ctrlKey || event.metaKey) return;
       if (
         isSettingsOpen ||
         isMemoOpen ||
@@ -2486,7 +2491,7 @@ export default function TimerPage() {
       }
 
       event.preventDefault();
-      const nextStageDisplayNumber = isPageUpKey
+      const nextStageDisplayNumber = isStageUpKey
         ? stageDisplayNumber + 1
         : Math.max(MIN_STAGE_DISPLAY_NUMBER, stageDisplayNumber - 1);
 
@@ -2499,7 +2504,7 @@ export default function TimerPage() {
       }
 
       setStageDisplayNumber(nextStageDisplayNumber);
-      setPenaltyPanelAnimationDirection(isPageUpKey ? 'up' : 'down');
+      setPenaltyPanelAnimationDirection(isStageUpKey ? 'up' : 'down');
       setPenaltyPanelAnimationTick((previous) => previous + 1);
       penaltyPanelAnimationTimeoutRef.current = window.setTimeout(() => {
         setPenaltyPanelAnimationDirection(null);
