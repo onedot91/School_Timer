@@ -4063,10 +4063,12 @@ export default function TimerPage() {
                 {formatTime(displayTimeLeft)}
               </div>
               {isBreakPenaltyActive ? (
-                <div className="mt-2 flex items-center justify-center">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#E7C0B9] bg-[rgba(255,244,241,0.94)] px-4 py-1.5 text-[0.95rem] font-extrabold text-[#C53124] shadow-[0_10px_20px_rgba(181,94,76,0.12)] backdrop-blur-sm">
-                    <span>벌점</span>
-                    <span className="font-mono tracking-[-0.04em]">{formatTime(breakPenaltyTimeLeft)}</span>
+                <div className="mt-2.5 flex items-center justify-center md:mt-3">
+                  <div
+                    aria-label={`벌점 남은 시간 ${formatTime(breakPenaltyTimeLeft)}`}
+                    className="inline-flex items-center rounded-full border border-[#E7C0B9] bg-[rgba(255,244,241,0.94)] px-4 py-2.5 text-[clamp(1rem,2.1vw,1.28rem)] font-extrabold text-[#C53124] shadow-[0_14px_24px_rgba(181,94,76,0.14)] backdrop-blur-sm md:px-5 md:py-3"
+                  >
+                    <span className="font-mono tracking-[-0.05em] text-[1.22em]">{formatTime(breakPenaltyTimeLeft)}</span>
                   </div>
                 </div>
               ) : null}
@@ -4085,24 +4087,22 @@ export default function TimerPage() {
               ) : null}
             </div>
             {shouldShowPenaltyPanel ? (
-              <div className="pointer-events-none absolute bottom-3 right-3 z-40 sm:bottom-4 sm:right-4 md:bottom-5 md:right-5">
+              <div className="pointer-events-none absolute bottom-4 left-4 z-40 sm:bottom-5 sm:left-5 md:bottom-6 md:left-6">
                 <div
                   key={`${penaltyPanelAnimationDirection ?? 'idle'}-${penaltyPanelAnimationTick}`}
-                  className="relative flex min-w-[7.2rem] flex-col items-center gap-1 rounded-[1.25rem] border border-[#E7C0B9] bg-[rgba(255,248,245,0.9)] px-3 py-2.5 text-center shadow-[0_16px_28px_rgba(181,94,76,0.14)] backdrop-blur-sm"
+                  aria-label={`누적 벌점 ${stageDisplayNumber}`}
+                  className="relative flex min-w-[7.2rem] flex-col items-center justify-center rounded-[1.6rem] border-2 border-[#E7C0B9] bg-[rgba(255,248,245,0.92)] px-3 py-5 text-center shadow-[0_18px_32px_rgba(181,94,76,0.16)] backdrop-blur-sm sm:min-w-[8rem] sm:px-3.5 sm:py-5.5 md:min-w-[8.8rem] md:px-4 md:py-6"
                   style={penaltyPanelAnimationStyle}
                 >
                   {penaltyPanelAnimationDirection !== null ? (
                     <div
                       aria-hidden="true"
-                      className="absolute inset-[-0.35rem] rounded-[1.5rem] border-2 border-[#D96D61]/55"
+                      className="absolute inset-[-0.45rem] rounded-[1.9rem] border-2 border-[#D96D61]/55"
                       style={penaltyPanelHaloStyle}
                     />
                   ) : null}
-                  <div className="relative z-10 text-[0.72rem] font-extrabold tracking-[0.12em] text-[#A9675D]">
-                    벌점
-                  </div>
                   <div
-                    className="relative z-10 leading-none font-extrabold text-[clamp(2.15rem,4.5vw,4rem)] text-[#C53124] drop-shadow-[0_8px_16px_rgba(181,94,76,0.16)]"
+                    className="relative z-10 leading-none font-extrabold text-[clamp(3.4rem,6vw,5.6rem)] text-[#C53124] drop-shadow-[0_10px_18px_rgba(181,94,76,0.18)]"
                     style={
                       penaltyPanelNumberStyle
                         ? { fontFamily: 'var(--font-clock)', ...penaltyPanelNumberStyle }
@@ -4131,9 +4131,9 @@ export default function TimerPage() {
                   setIsDrawCaseSwitchNearby(false);
                 }
               }}
-              className="timer-draw-switch-shell absolute bottom-3 left-3 z-40 h-[5.4rem] w-[min(12rem,calc(100%-1.5rem))] overflow-visible sm:bottom-4 sm:left-4 sm:h-[5.7rem] md:bottom-5 md:left-5"
+              className="timer-draw-switch-shell absolute bottom-3 right-3 z-40 h-[5.4rem] w-[min(12rem,calc(100%-1.5rem))] overflow-visible sm:bottom-4 sm:right-4 sm:h-[5.7rem] md:bottom-5 md:right-5"
             >
-              <div className="absolute bottom-0 left-0 w-[min(9.5rem,calc(100%-2rem))]">
+              <div className="absolute bottom-0 right-0 w-[min(9.5rem,calc(100%-2rem))]">
                 <button
                   type="button"
                   onClick={() => {
