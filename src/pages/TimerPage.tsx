@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { getFontEmbedCSS, toBlob } from 'html-to-image';
-import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -95,6 +95,9 @@ const MEMO_NOTE_DEFAULT_FONT_SCALE = 50;
 const MEMO_NOTE_FONT_SCALE_STEP = 5;
 const MEMO_NOTE_MIN_FONT_SIZE = 40;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
+const SCHEDULE_YOUTUBE_URLS_STORAGE_KEY = 'scheduleYoutubeUrls-v2';
+const SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY = 'scheduleYoutubeUrl-v1';
+const SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY = 'scheduleYoutubeVisible-v1';
 const TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV3';
 const LEGACY_TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV2';
 const DEFAULT_STAGE_DISPLAY_NUMBER = 0;
@@ -153,6 +156,43 @@ const MANUAL_TIMER_PRESETS = [
   { label: '3분', seconds: 180 },
   { label: '5분', seconds: 300 },
 ] as const;
+const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+const YOUTUBE_IFRAME_API_SRC = 'https://www.youtube.com/iframe_api';
+
+interface YoutubePlayerInstance {
+  loadPlaylist: (playlist: string[] | { list: string[]; listType?: 'playlist'; index?: number; startSeconds?: number }) => void;
+  mute: () => void;
+  playVideo: () => void;
+  destroy: () => void;
+}
+
+interface YoutubePlayerEvent {
+  target: YoutubePlayerInstance;
+}
+
+interface YoutubeIframeApi {
+  Player: new (
+    element: HTMLElement,
+    options: {
+      width?: string | number;
+      height?: string | number;
+      videoId?: string;
+      playerVars?: Record<string, string | number>;
+      events?: {
+        onReady?: (event: YoutubePlayerEvent) => void;
+        onAutoplayBlocked?: (event: YoutubePlayerEvent) => void;
+      };
+    },
+  ) => YoutubePlayerInstance;
+}
+
+declare global {
+  interface Window {
+    YT?: YoutubeIframeApi;
+    onYouTubeIframeAPIReady?: () => void;
+    __schoolTimerYoutubeIframeApiPromise?: Promise<YoutubeIframeApi>;
+  }
+}
 
 type MemoTextColorId = (typeof MEMO_NOTE_TEXT_COLORS)[number]['id'];
 
@@ -219,6 +259,174 @@ const clampDrawNumberInput = (value: string, fallback: number) => {
 };
 
 const buildHiddenDrawResultInput = (queue: number[]) => queue.join(', ');
+
+const getStoredScheduleYoutubeVisibility = () => {
+  try {
+    const saved = localStorage.getItem(SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY);
+    if (saved === null) return true;
+    return saved === 'true';
+  } catch {
+    return true;
+  }
+};
+
+const extractYoutubeVideoId = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const normalizedValue = YOUTUBE_VIDEO_ID_PATTERN.test(trimmed)
+    ? `https://youtu.be/${trimmed}`
+    : /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+
+  try {
+    const url = new URL(normalizedValue);
+    const hostname = url.hostname.replace(/^www\./, '').toLowerCase();
+    let candidate = '';
+
+    if (hostname === 'youtu.be') {
+      candidate = url.pathname.split('/').filter(Boolean)[0] || '';
+    } else if (
+      hostname === 'youtube.com' ||
+      hostname === 'm.youtube.com' ||
+      hostname === 'music.youtube.com' ||
+      hostname === 'youtube-nocookie.com'
+    ) {
+      candidate = url.searchParams.get('v') || '';
+      if (!candidate) {
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        if (['embed', 'shorts', 'live', 'v'].includes(pathParts[0] || '')) {
+          candidate = pathParts[1] || '';
+        }
+      }
+    }
+
+    const cleanedCandidate = candidate.replace(/[^A-Za-z0-9_-]/g, '');
+    return YOUTUBE_VIDEO_ID_PATTERN.test(cleanedCandidate) ? cleanedCandidate : null;
+  } catch {
+    return null;
+  }
+};
+
+const buildScheduleYoutubeWatchUrl = (videoId: string) => `https://www.youtube.com/watch?v=${videoId}`;
+
+const normalizeScheduleYoutubeUrls = (values: unknown) => {
+  if (!Array.isArray(values)) return [];
+
+  return values
+    .map((value) => (typeof value === 'string' ? value : ''))
+    .map((value) => extractYoutubeVideoId(value))
+    .filter((videoId): videoId is string => videoId !== null)
+    .map((videoId) => buildScheduleYoutubeWatchUrl(videoId));
+};
+
+const getStoredScheduleYoutubeUrls = () => {
+  try {
+    const savedUrls = localStorage.getItem(SCHEDULE_YOUTUBE_URLS_STORAGE_KEY);
+    if (savedUrls) {
+      const parsed = JSON.parse(savedUrls);
+      if (Array.isArray(parsed)) {
+        return normalizeScheduleYoutubeUrls(parsed);
+      }
+      if (typeof parsed === 'string') {
+        return normalizeScheduleYoutubeUrls([parsed]);
+      }
+    }
+  } catch {
+    // Ignore malformed data and fall back to legacy storage.
+  }
+
+  try {
+    return normalizeScheduleYoutubeUrls([
+      localStorage.getItem(SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY) || '',
+    ]);
+  } catch {
+    return [];
+  }
+};
+
+const buildScheduleYoutubeInputValue = (urls: string[]) => urls.join('\n');
+
+const parseScheduleYoutubeInput = (rawValue: string) => {
+  const normalizedUrls: string[] = [];
+  const invalidLineNumbers: number[] = [];
+
+  rawValue.split(/\r?\n/).forEach((line, index) => {
+    const entry = line.trim();
+    if (!entry) return;
+
+    const videoId = extractYoutubeVideoId(entry);
+    if (!videoId) {
+      invalidLineNumbers.push(index + 1);
+      return;
+    }
+
+    normalizedUrls.push(buildScheduleYoutubeWatchUrl(videoId));
+  });
+
+  return {
+    normalizedUrls,
+    invalidLineNumbers,
+  };
+};
+
+const loadYoutubeIframeApi = () => {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('YouTube iframe API is unavailable on the server.'));
+  }
+
+  if (window.YT?.Player) {
+    return Promise.resolve(window.YT);
+  }
+
+  if (window.__schoolTimerYoutubeIframeApiPromise) {
+    return window.__schoolTimerYoutubeIframeApiPromise;
+  }
+
+  window.__schoolTimerYoutubeIframeApiPromise = new Promise<YoutubeIframeApi>((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${YOUTUBE_IFRAME_API_SRC}"]`);
+    const previousReady = window.onYouTubeIframeAPIReady;
+
+    window.onYouTubeIframeAPIReady = () => {
+      previousReady?.();
+      if (window.YT?.Player) {
+        resolve(window.YT);
+        return;
+      }
+      reject(new Error('YouTube iframe API loaded without a Player constructor.'));
+    };
+
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = YOUTUBE_IFRAME_API_SRC;
+      script.async = true;
+      script.onerror = () => reject(new Error('Failed to load the YouTube iframe API.'));
+      document.head.appendChild(script);
+      return;
+    }
+
+    existingScript.addEventListener(
+      'error',
+      () => reject(new Error('Failed to load the YouTube iframe API.')),
+      { once: true },
+    );
+  }).catch((error) => {
+    window.__schoolTimerYoutubeIframeApiPromise = undefined;
+    throw error;
+  });
+
+  return window.__schoolTimerYoutubeIframeApiPromise;
+};
+
+const getInitialScheduleYoutubeState = () => {
+  const storedUrls = getStoredScheduleYoutubeUrls();
+  return {
+    appliedUrls: storedUrls,
+    inputValue: buildScheduleYoutubeInputValue(storedUrls),
+    isVisible: storedUrls.length > 0 ? getStoredScheduleYoutubeVisibility() : false,
+  };
+};
 
 const parseHiddenDrawResultInput = (rawValue: string, minNumber: number, maxNumber: number) => {
   const trimmed = rawValue.trim();
@@ -474,6 +682,7 @@ const ANNOUNCEMENT_CLOSING_MESSAGE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
 let announcementAudioContext: AudioContext | null = null;
+let announcementAudioPreparePromise: Promise<AudioContext | null> | null = null;
 
 const createAnnouncementId = () => `announcement-${Math.random().toString(36).slice(2, 11)}`;
 const createEmptyAnnouncement = (): AnnouncementItem => ({ id: createAnnouncementId(), text: '' });
@@ -491,14 +700,33 @@ const getAnnouncementAudioContext = () => {
   }
 };
 
+const prepareAnnouncementAudio = () => {
+  if (!announcementAudioPreparePromise) {
+    announcementAudioPreparePromise = (async () => {
+      try {
+        const ctx = getAnnouncementAudioContext();
+        if (!ctx) return null;
+
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
+
+        return ctx;
+      } catch {
+        return null;
+      } finally {
+        announcementAudioPreparePromise = null;
+      }
+    })();
+  }
+
+  return announcementAudioPreparePromise;
+};
+
 const playAnnouncementSound = async (kind: 'pop' | 'tada') => {
   try {
-    const ctx = getAnnouncementAudioContext();
+    const ctx = await prepareAnnouncementAudio();
     if (!ctx) return;
-
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
 
     const playTone = (
       frequency: number,
@@ -723,57 +951,63 @@ const getAnnouncementTypography = (count: number) => {
 };
 
 const playAlarm = () => {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+  void (async () => {
+    try {
+      const ctx = await prepareAnnouncementAudio();
+      if (!ctx) return;
 
-    const playTone = (
-      frequency: number,
-      startOffset: number,
-      duration: number,
-      type: OscillatorType,
-      peakVolume: number,
-      endFrequency = frequency,
-    ) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const startTime = ctx.currentTime + startOffset;
-      const endTime = startTime + duration;
+      const playBellLayer = (
+        frequency: number,
+        startTime: number,
+        duration: number,
+        type: OscillatorType,
+        peakVolume: number,
+        endFrequency = frequency,
+      ) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const sustainMidpoint = startTime + duration * 0.34;
+        const endTime = startTime + duration;
 
-      osc.type = type;
-      osc.frequency.setValueAtTime(frequency, startTime);
-      osc.frequency.exponentialRampToValueAtTime(Math.max(120, endFrequency), endTime);
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.frequency.exponentialRampToValueAtTime(Math.max(120, endFrequency), endTime);
 
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(
-        peakVolume,
-        startTime + Math.min(duration * 0.25, 0.06),
-      );
-      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(peakVolume, startTime + Math.min(0.04, duration * 0.16));
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, peakVolume * 0.42), sustainMidpoint);
+        gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
 
-      osc.start(startTime);
-      osc.stop(endTime + 0.03);
-    };
+        oscillator.start(startTime);
+        oscillator.stop(endTime + 0.04);
+      };
 
-    // Longer classroom finish chime with a softer, more melodic cadence.
-    playTone(392, 0, 0.42, 'triangle', 0.08, 415.3);
-    playTone(523.25, 0.2, 0.42, 'triangle', 0.09, 554.37);
-    playTone(659.25, 0.42, 0.48, 'triangle', 0.1, 698.46);
-    playTone(783.99, 0.72, 0.62, 'sine', 0.075, 830.61);
-    playTone(1046.5, 1.04, 0.78, 'sine', 0.07, 1174.66);
-    playTone(783.99, 1.48, 0.58, 'triangle', 0.06, 830.61);
-    playTone(659.25, 1.72, 0.7, 'sine', 0.055, 698.46);
+      const playBellStrike = (
+        frequency: number,
+        startOffset: number,
+        duration: number,
+        peakVolume: number,
+      ) => {
+        const startTime = ctx.currentTime + startOffset;
 
-    window.setTimeout(() => {
-      void ctx.close().catch(() => undefined);
-    }, 3000);
-  } catch (e) {
-    console.error("Audio playback failed", e);
-  }
+        // Stack a few bright bell partials so the finish sound carries longer and reads clearly.
+        playBellLayer(frequency, startTime, duration, 'triangle', peakVolume, frequency * 1.016);
+        playBellLayer(frequency * 2, startTime + 0.012, duration * 0.78, 'sine', peakVolume * 0.42, frequency * 2.012);
+        playBellLayer(frequency * 0.5, startTime, duration * 0.96, 'sine', peakVolume * 0.22, frequency * 0.503);
+      };
+
+      playBellStrike(523.25, 0, 0.74, 0.09);
+      playBellStrike(659.25, 0.5, 0.8, 0.1);
+      playBellStrike(783.99, 1.02, 0.92, 0.11);
+      playBellStrike(1046.5, 1.58, 1.52, 0.125);
+      playBellStrike(523.25, 1.58, 1.22, 0.04);
+    } catch (e) {
+      console.error("Audio playback failed", e);
+    }
+  })();
 };
 
 const getInitialAppState = () => {
@@ -1558,9 +1792,85 @@ function MemoNotebookOverlay({
   );
 }
 
+function ScheduleYoutubePlayer({
+  videoIds,
+}: {
+  videoIds: string[];
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<YoutubePlayerInstance | null>(null);
+  const autoplayRetryRef = useRef(false);
+  const playlistKey = videoIds.join(',');
+
+  useEffect(() => {
+    if (videoIds.length === 0) return;
+
+    let isCancelled = false;
+    autoplayRetryRef.current = false;
+
+    void loadYoutubeIframeApi()
+      .then((YT) => {
+        if (isCancelled || !containerRef.current) return;
+
+        const autoplayPlaylist = (player: YoutubePlayerInstance, muted = false) => {
+          if (muted) {
+            player.mute();
+          }
+
+          player.loadPlaylist(videoIds);
+          player.playVideo();
+        };
+
+        if (playerRef.current) {
+          autoplayPlaylist(playerRef.current);
+          return;
+        }
+
+        playerRef.current = new YT.Player(containerRef.current, {
+          width: '100%',
+          height: '100%',
+          videoId: videoIds[0],
+          playerVars: {
+            autoplay: 1,
+            playsinline: 1,
+            rel: 0,
+            origin: window.location.origin,
+          },
+          events: {
+            onReady: (event) => {
+              autoplayPlaylist(event.target);
+            },
+            onAutoplayBlocked: (event) => {
+              if (autoplayRetryRef.current) return;
+              autoplayRetryRef.current = true;
+              autoplayPlaylist(event.target, true);
+            },
+          },
+        });
+      })
+      .catch((error) => {
+        console.error('Failed to initialize the schedule YouTube player.', error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [playlistKey]);
+
+  useEffect(() => {
+    return () => {
+      playerRef.current?.destroy();
+      playerRef.current = null;
+    };
+  }, []);
+
+  return <div ref={containerRef} className="h-full w-full" />;
+}
+
 export default function TimerPage() {
   const initialState = getInitialAppState();
   const [initialRandomDrawState] = useState(() => getInitialRandomDrawState());
+  const [initialScheduleYoutubeState] = useState(() => getInitialScheduleYoutubeState());
   const [scheduleNotice, setScheduleNotice] = useState(() => localStorage.getItem('scheduleNotice') || '');
   const [isNoticeEnabled, setIsNoticeEnabled] = useState(() => {
     const saved = localStorage.getItem('scheduleNoticeEnabled');
@@ -1577,6 +1887,14 @@ export default function TimerPage() {
   const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isDictionaryOpen, setIsDictionaryOpen] = useState(false);
+  const [isYoutubePanelOpen, setIsYoutubePanelOpen] = useState(false);
+  const [youtubeUrlInput, setYoutubeUrlInput] = useState(initialScheduleYoutubeState.inputValue);
+  const [scheduleYoutubeUrls, setScheduleYoutubeUrls] = useState<string[]>(initialScheduleYoutubeState.appliedUrls);
+  const [isScheduleYoutubeVisible, setIsScheduleYoutubeVisible] = useState(initialScheduleYoutubeState.isVisible);
+  const [hasMountedScheduleYoutubePlayer, setHasMountedScheduleYoutubePlayer] = useState(
+    () => initialScheduleYoutubeState.isVisible && initialScheduleYoutubeState.appliedUrls.length > 0,
+  );
+  const [youtubeUrlError, setYoutubeUrlError] = useState('');
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
     return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
@@ -1665,6 +1983,7 @@ export default function TimerPage() {
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
   const manualTimerMenuRef = useRef<HTMLDivElement>(null);
+  const youtubeUrlInputRef = useRef<HTMLTextAreaElement>(null);
   const activeDrawCase =
     drawCases.find((caseState) => caseState.id === activeDrawCaseId) ??
     drawCases[0] ??
@@ -1708,6 +2027,10 @@ export default function TimerPage() {
     !isDrawResetVisible;
   const isDrawCaseSwitchVisible = isDrawCaseMenuOpen || isDrawCaseSwitchNearby;
   const isDrawLocked = isStudentDrawing || isDrawResetVisible || isDrawAutoResetPending;
+  const scheduleYoutubeVideoIds = scheduleYoutubeUrls
+    .map((url) => extractYoutubeVideoId(url))
+    .filter((videoId): videoId is string => videoId !== null);
+  const scheduleYoutubeCount = scheduleYoutubeUrls.length;
 
   useEffect(() => {
     localStorage.setItem('weeklySchedule', JSON.stringify(weeklySchedule));
@@ -1724,6 +2047,35 @@ export default function TimerPage() {
   useEffect(() => {
     localStorage.setItem('scheduleClockOffsetSeconds', String(scheduleClockOffsetSeconds));
   }, [scheduleClockOffsetSeconds]);
+
+  useEffect(() => {
+    if (scheduleYoutubeUrls.length > 0) {
+      localStorage.setItem(SCHEDULE_YOUTUBE_URLS_STORAGE_KEY, JSON.stringify(scheduleYoutubeUrls));
+      localStorage.removeItem(SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY);
+      return;
+    }
+    localStorage.removeItem(SCHEDULE_YOUTUBE_URLS_STORAGE_KEY);
+    localStorage.removeItem(SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY);
+  }, [scheduleYoutubeUrls]);
+
+  useEffect(() => {
+    if (scheduleYoutubeUrls.length > 0) {
+      localStorage.setItem(SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY, String(isScheduleYoutubeVisible));
+      return;
+    }
+    localStorage.removeItem(SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY);
+  }, [isScheduleYoutubeVisible, scheduleYoutubeUrls]);
+
+  useEffect(() => {
+    if (scheduleYoutubeVideoIds.length === 0) {
+      setHasMountedScheduleYoutubePlayer(false);
+      return;
+    }
+
+    if (isScheduleYoutubeVisible) {
+      setHasMountedScheduleYoutubePlayer(true);
+    }
+  }, [isScheduleYoutubeVisible, scheduleYoutubeVideoIds.length]);
 
   useEffect(() => {
     drawCasesRef.current = drawCases;
@@ -1770,6 +2122,11 @@ export default function TimerPage() {
   }, [isSettingsOpen]);
 
   useEffect(() => {
+    if (!isSettingsOpen) return;
+    setIsYoutubePanelOpen(false);
+  }, [isSettingsOpen]);
+
+  useEffect(() => {
     if (!isEditingNotice) {
       setNoticeDraft(scheduleNotice);
     }
@@ -1780,6 +2137,12 @@ export default function TimerPage() {
     noticeInputRef.current?.focus();
     noticeInputRef.current?.select();
   }, [isEditingNotice]);
+
+  useEffect(() => {
+    if (!isYoutubePanelOpen) return;
+    youtubeUrlInputRef.current?.focus();
+    youtubeUrlInputRef.current?.select();
+  }, [isYoutubePanelOpen]);
 
   useEffect(() => {
     if (!isEditingNotice) return;
@@ -1920,6 +2283,7 @@ export default function TimerPage() {
       setManualEndTime(null);
     } else {
       if (manualTimeLeft > 0) {
+        void prepareAnnouncementAudio();
         setManualIsRunning(true);
         setManualEndTime(Date.now() + manualTimeLeft * 1000);
       }
@@ -2427,6 +2791,7 @@ export default function TimerPage() {
         isMemoOpen ||
         isAnnouncementOpen ||
         isDictionaryOpen ||
+        isYoutubePanelOpen ||
         isEditingNotice ||
         isEditableShortcutTarget(event.target) ||
         event.repeat
@@ -2462,6 +2827,7 @@ export default function TimerPage() {
     isEditingNotice,
     isMemoOpen,
     isSettingsOpen,
+    isYoutubePanelOpen,
     drawCases,
     repeatPickEnabled,
     resolvedActiveDrawCaseId,
@@ -2484,6 +2850,7 @@ export default function TimerPage() {
         isMemoOpen ||
         isAnnouncementOpen ||
         isDictionaryOpen ||
+        isYoutubePanelOpen ||
         isEditingNotice ||
         isEditableShortcutTarget(event.target)
       ) {
@@ -2523,6 +2890,7 @@ export default function TimerPage() {
     isEditingNotice,
     isMemoOpen,
     isSettingsOpen,
+    isYoutubePanelOpen,
     stageDisplayNumber,
   ]);
 
@@ -2541,6 +2909,7 @@ export default function TimerPage() {
       isMemoOpen ||
       isAnnouncementOpen ||
       isDictionaryOpen ||
+      isYoutubePanelOpen ||
       isEditingNotice
     ) {
       return;
@@ -2556,6 +2925,7 @@ export default function TimerPage() {
     isEditingNotice,
     isMemoOpen,
     isSettingsOpen,
+    isYoutubePanelOpen,
     drawCases,
     repeatPickEnabled,
     resolvedActiveDrawCaseId,
@@ -2676,6 +3046,9 @@ export default function TimerPage() {
       weeklySchedule,
       scheduleNotice,
       scheduleNoticeEnabled: isNoticeEnabled,
+      scheduleYoutubeUrl: scheduleYoutubeUrls[0] || '',
+      scheduleYoutubeUrls,
+      scheduleYoutubeVisible: isScheduleYoutubeVisible,
       scheduleClockOffsetSeconds,
       randomDraw: {
         activeCaseId: resolvedActiveDrawCaseId,
@@ -2709,6 +3082,17 @@ export default function TimerPage() {
           const nextNoticeEnabled = typeof parsed.scheduleNoticeEnabled === 'boolean'
             ? parsed.scheduleNoticeEnabled
             : nextNotice.trim().length > 0;
+          const nextYoutubeUrls = normalizeScheduleYoutubeUrls(
+            Array.isArray(parsed.scheduleYoutubeUrls)
+              ? parsed.scheduleYoutubeUrls
+              : typeof parsed.scheduleYoutubeUrl === 'string'
+                ? [parsed.scheduleYoutubeUrl]
+                : [],
+          );
+          const nextYoutubeVisible =
+            typeof parsed.scheduleYoutubeVisible === 'boolean'
+              ? parsed.scheduleYoutubeVisible
+              : nextYoutubeUrls.length > 0;
           const nextClockOffsetSeconds = clampScheduleClockOffsetSeconds(parsed.scheduleClockOffsetSeconds);
           const nextRandomDraw =
             parsed.randomDraw && typeof parsed.randomDraw === 'object'
@@ -2719,6 +3103,10 @@ export default function TimerPage() {
           setWeeklySchedule(normalizeWeeklySchedule(nextSchedule));
           setScheduleNotice(nextNotice);
           setIsNoticeEnabled(nextNoticeEnabled);
+          setYoutubeUrlInput(buildScheduleYoutubeInputValue(nextYoutubeUrls));
+          setScheduleYoutubeUrls(nextYoutubeUrls);
+          setIsScheduleYoutubeVisible(nextYoutubeVisible);
+          setYoutubeUrlError('');
           setScheduleClockOffsetSeconds(nextClockOffsetSeconds);
           if (nextRandomDraw) {
             setDrawCases(nextRandomDraw.cases);
@@ -2753,6 +3141,44 @@ export default function TimerPage() {
       return;
     }
     startNoticeEdit();
+  };
+
+  const applyScheduleYoutubeUrl = () => {
+    const { normalizedUrls, invalidLineNumbers } = parseScheduleYoutubeInput(youtubeUrlInput);
+
+    if (invalidLineNumbers.length > 0) {
+      const preview = invalidLineNumbers.slice(0, 5).join(', ');
+      const suffix = invalidLineNumbers.length > 5 ? ` 외 ${invalidLineNumbers.length - 5}줄` : '';
+      setYoutubeUrlError(`유효하지 않은 줄이 있습니다: ${preview}${suffix}`);
+      return;
+    }
+
+    if (normalizedUrls.length === 0) {
+      setYoutubeUrlInput('');
+      setScheduleYoutubeUrls([]);
+      setIsScheduleYoutubeVisible(false);
+      setYoutubeUrlError('');
+      setIsYoutubePanelOpen(false);
+      return;
+    }
+
+    setYoutubeUrlInput(buildScheduleYoutubeInputValue(normalizedUrls));
+    setScheduleYoutubeUrls(normalizedUrls);
+    setIsScheduleYoutubeVisible(true);
+    setYoutubeUrlError('');
+    setIsYoutubePanelOpen(false);
+  };
+
+  const clearScheduleYoutubeUrl = () => {
+    setYoutubeUrlInput('');
+    setScheduleYoutubeUrls([]);
+    setIsScheduleYoutubeVisible(false);
+    setYoutubeUrlError('');
+  };
+
+  const handleScheduleYoutubeSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    applyScheduleYoutubeUrl();
   };
 
   const saveNotice = () => {
@@ -3077,6 +3503,110 @@ export default function TimerPage() {
   const noticeHandleIconClass = `inline-flex h-5 min-w-[1.85rem] items-center justify-center rounded-full border ${shouldShowNoticeCard ? 'notice-toggle-icon-open' : 'notice-toggle-icon-closed'}`;
   const noticeHandleLineClass = `pointer-events-none absolute inset-x-1.5 top-[3px] h-px rounded-full ${shouldShowNoticeCard ? 'notice-toggle-line-open' : 'notice-toggle-line-closed'}`;
   const musicButtonLabel = isMusicPlaying ? '배경 음악 끄기' : '배경 음악 켜기';
+  const noticeMemoButton = (
+    <button
+      type="button"
+      onClick={() => {
+        void playAnnouncementSound('pop');
+        setIsYoutubePanelOpen(false);
+        setIsMemoOpen(true);
+      }}
+      className="inline-flex h-6 items-center justify-center gap-1 rounded-full border border-[#D7E2D1] bg-[rgba(240,246,237,0.94)] px-2 text-[0.64rem] font-extrabold text-[#5C8D6D] shadow-[0_8px_16px_rgba(93,118,84,0.1)] backdrop-blur-xl transition-all hover:bg-[rgba(248,251,246,0.98)] hover:scale-[1.02] hover:text-[#4F7258] sm:h-7 sm:px-2.25 sm:text-[0.68rem] md:h-8 md:px-2.5 md:text-[0.72rem]"
+      aria-label="메모장"
+      title="메모장"
+    >
+      <StickyNote size={13} strokeWidth={2.2} />
+      <span>메모</span>
+    </button>
+  );
+  const noticeBanner = shouldShowNoticeCard ? (
+    <div className="relative z-30 shrink-0 px-4 pb-1 pt-3 sm:px-5 sm:pt-4 md:px-6 md:pt-[1.15rem] lg:px-7 xl:px-8">
+      <div
+        className={`notice-card relative mx-auto w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[#FFFBF6] px-1 pb-1 pt-1 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] md:px-1.5 md:pb-1.5 ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading'}`}
+        style={noticeCardStyle}
+      >
+        {isEditingNotice ? (
+          <div className="notice-editor relative grid min-h-[3.6rem] grid-rows-[1.45rem_minmax(0,1fr)_1.45rem] rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-1.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[3.85rem] sm:grid-rows-[1.55rem_minmax(0,1fr)_1.55rem] sm:px-3 md:min-h-[4.1rem] md:grid-rows-[1.7rem_minmax(0,1fr)_1.7rem]">
+            <div aria-hidden="true" className="row-start-1" />
+            <div className="row-start-2 flex min-h-0 items-center">
+              <textarea
+                ref={noticeInputRef}
+                value={noticeDraft}
+                onChange={(e) => setNoticeDraft(e.target.value)}
+                onBlur={handleNoticeBlur}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    saveNotice();
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelNoticeEdit();
+                  }
+                }}
+                rows={1}
+                maxLength={160}
+                className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
+              />
+            </div>
+            <div className="row-start-3 flex items-center justify-end">
+              {noticeMemoButton}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="absolute left-1/2 top-0 z-20 flex -translate-x-1/2 -translate-y-[42%] flex-col items-center">
+              <button
+                onClick={() => setIsNoticeEnabled(false)}
+                className={noticeHandleButtonClass}
+                title="공지 닫기"
+                aria-label="공지 닫기"
+                type="button"
+              >
+                <span aria-hidden="true" className={noticeHandleLineClass} />
+                <span aria-hidden="true" className={noticeHandleIconClass}>
+                  <ChevronDown size={10} strokeWidth={2.7} className="rotate-180" />
+                </span>
+              </button>
+            </div>
+            <div className="notice-content relative grid min-h-[3.6rem] w-full grid-rows-[1.45rem_minmax(0,1fr)_1.45rem] rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-1.5 transition-colors hover:bg-white sm:min-h-[3.85rem] sm:grid-rows-[1.55rem_minmax(0,1fr)_1.55rem] sm:px-3 md:min-h-[4.1rem] md:grid-rows-[1.7rem_minmax(0,1fr)_1.7rem]">
+              <div aria-hidden="true" className="row-start-1" />
+              <button
+                onClick={startNoticeEdit}
+                className="row-start-2 flex w-full min-h-0 items-center justify-center bg-transparent text-left"
+                title="공지 수정"
+                type="button"
+              >
+                <p className={`notice-text-body w-full break-keep whitespace-pre-line font-bold text-[#3E2D20] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
+                  {trimmedNotice}
+                </p>
+              </button>
+              <div className="row-start-3 flex items-center justify-end">
+                {noticeMemoButton}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  ) : shouldShowNoticeHandle ? (
+    <div className="pointer-events-none absolute inset-x-0 top-1 z-30 flex justify-center sm:top-1.5 md:top-2">
+      <div className="pointer-events-auto">
+        <button
+          onClick={openNoticePanel}
+          className={noticeHandleButtonClass}
+          title={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
+          aria-label={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
+          type="button"
+        >
+          <span aria-hidden="true" className={noticeHandleLineClass} />
+          <span aria-hidden="true" className={noticeHandleIconClass}>
+            <ChevronDown size={10} strokeWidth={2.7} />
+          </span>
+        </button>
+      </div>
+    </div>
+  ) : null;
   const scheduleSettingsPanel = (
     <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
       <aside className="flex flex-col gap-4 xl:sticky xl:top-0 xl:self-start">
@@ -3832,6 +4362,7 @@ export default function TimerPage() {
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
+        {noticeBanner}
         <div className="editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]">
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
@@ -4197,109 +4728,72 @@ export default function TimerPage() {
 
           {/* Right: Controls & Presets */}
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
-            {shouldShowNoticeCard ? (
-              <div
-                className={`notice-card relative z-30 w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[#FFFBF6] px-2.5 pb-2.5 pt-2.5 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading mb-[-3rem] sm:mb-[-3.55rem]'}`}
-                style={noticeCardStyle}
-              >
-                {isEditingNotice ? (
-                  <div className="notice-editor flex min-h-[8.2rem] items-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-2.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[8.9rem]">
-                    <textarea
-                      ref={noticeInputRef}
-                      value={noticeDraft}
-                      onChange={(e) => setNoticeDraft(e.target.value)}
-                      onBlur={handleNoticeBlur}
-                      onKeyDown={(e) => {
-                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                          e.preventDefault();
-                          saveNotice();
-                        }
-                        if (e.key === 'Escape') {
-                          e.preventDefault();
-                          cancelNoticeEdit();
-                        }
-                      }}
-                      rows={1}
-                      maxLength={160}
-                      className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
-                    />
+            <div className="schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="section-title text-[1.08rem] font-extrabold text-[#3F2B20]">오늘 시간표</h3>
+                </div>
+                {scheduleYoutubeCount > 0 ? (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-white px-3 py-1.5 text-[0.76rem] font-extrabold text-[#8A6347]">
+                      {scheduleYoutubeCount}개 영상
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsScheduleYoutubeVisible((previous) => !previous)}
+                      className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                      title={isScheduleYoutubeVisible ? '유튜브 임베드 숨기기' : '유튜브 임베드 보이기'}
+                    >
+                      {isScheduleYoutubeVisible ? '숨기기' : '보이기'}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              {hasMountedScheduleYoutubePlayer && scheduleYoutubeVideoIds.length > 0 ? (
+                <div
+                  className={`shrink-0 overflow-hidden rounded-[1.8rem] bg-[#FFFDF8] transition-all duration-300 ${
+                    isScheduleYoutubeVisible
+                      ? 'mt-4 max-h-[32rem] border border-[#E6D5C9] opacity-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]'
+                      : 'pointer-events-none mt-0 max-h-0 border border-transparent opacity-0 shadow-none'
+                  }`}
+                  aria-hidden={!isScheduleYoutubeVisible}
+                >
+                  <div className="aspect-video w-full bg-[#F3E9DE]">
+                    <ScheduleYoutubePlayer videoIds={scheduleYoutubeVideoIds} />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-4 min-h-0 flex flex-1 flex-col">
+                {currentDaySchedule.length === 0 ? (
+                  <div className="schedule-empty-state my-1 flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-8 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
+                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F8F1] text-[#6B8B63] shadow-inner shadow-[#E8F0E4]">
+                      <CalendarClock size={26} />
+                    </div>
+                    <p className="text-[1.55rem] font-bold leading-tight text-[#B89E87] sm:text-[1.8rem]">일정이 없습니다.</p>
                   </div>
                 ) : (
-                  <>
-                    <div className="absolute left-1/2 top-0 z-20 flex -translate-x-1/2 -translate-y-[42%] flex-col items-center">
-                      <button
-                        onClick={() => setIsNoticeEnabled(false)}
-                        className={noticeHandleButtonClass}
-                        title="공지 닫기"
-                        aria-label="공지 닫기"
-                        type="button"
-                      >
-                        <span aria-hidden="true" className={noticeHandleLineClass} />
-                        <span aria-hidden="true" className={noticeHandleIconClass}>
-                          <ChevronDown size={10} strokeWidth={2.7} className="rotate-180" />
-                        </span>
-                      </button>
-                    </div>
-                    <button
-                      onClick={startNoticeEdit}
-                      className="notice-content flex min-h-[8.2rem] w-full items-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-2.5 text-left transition-colors hover:bg-white sm:min-h-[8.9rem]"
-                      title="공지 수정"
-                      type="button"
-                    >
-                      <p className={`notice-text-body w-full break-keep whitespace-pre-line font-bold text-[#3E2D20] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
-                        {trimmedNotice}
-                      </p>
-                    </button>
-                  </>
+                  <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pr-2 text-base text-[#8A6347]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
+                    {currentDaySchedule.map((s) => {
+                      const isThisSlot = currentMinsForScheduleView >= s.start && currentMinsForScheduleView < s.end;
+
+                      return (
+                        <li
+                          key={s.id}
+                          ref={(el) => {
+                            scheduleSlotRefs.current[s.id] = el;
+                          }}
+                          className={`schedule-row schedule-row-spacious flex items-center justify-between rounded-xl transition-colors ${isThisSlot ? 'schedule-row-active font-bold text-white shadow-md' : 'schedule-row-idle'}`}
+                        >
+                          <span className="schedule-row-title font-semibold">{s.name}</span>
+                          <span className="schedule-row-time font-mono">{formatMinutesToTime(s.start)} - {formatMinutesToTime(s.end)}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
               </div>
-            ) : shouldShowNoticeHandle ? (
-              <div className="relative h-0 w-full overflow-visible">
-                <div className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-[42%]">
-                  <button
-                    onClick={openNoticePanel}
-                    className={noticeHandleButtonClass}
-                    title={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
-                    aria-label={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
-                    type="button"
-                  >
-                    <span aria-hidden="true" className={noticeHandleLineClass} />
-                    <span aria-hidden="true" className={noticeHandleIconClass}>
-                      <ChevronDown size={10} strokeWidth={2.7} />
-                    </span>
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            <div className={`schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0 ${shouldShowNoticeCard && !isEditingNotice ? 'schedule-board-muted pt-14 sm:pt-16' : ''}`}>
-                    {currentDaySchedule.length === 0 ? (
-                      <div className="schedule-empty-state my-1 flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-8 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
-                        <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F8F1] text-[#6B8B63] shadow-inner shadow-[#E8F0E4]">
-                          <CalendarClock size={26} />
-                        </div>
-                        <p className="text-[1.55rem] font-bold leading-tight text-[#B89E87] sm:text-[1.8rem]">일정이 없습니다.</p>
-                      </div>
-                    ) : (
-                      <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pr-2 text-base text-[#8A6347]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
-                        {currentDaySchedule.map((s) => {
-                          const isThisSlot = currentMinsForScheduleView >= s.start && currentMinsForScheduleView < s.end;
-
-                          return (
-                            <li
-                              key={s.id}
-                              ref={(el) => {
-                                scheduleSlotRefs.current[s.id] = el;
-                              }}
-                              className={`schedule-row schedule-row-spacious flex items-center justify-between rounded-xl transition-colors ${isThisSlot ? 'schedule-row-active font-bold text-white shadow-md' : 'schedule-row-idle'}`}
-                            >
-                              <span className="schedule-row-title font-semibold">{s.name}</span>
-                              <span className="schedule-row-time font-mono">{formatMinutesToTime(s.start)} - {formatMinutesToTime(s.end)}</span>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
             </div>
 
             <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-2 gap-3 sm:grid-cols-4">
@@ -4385,6 +4879,7 @@ export default function TimerPage() {
                   type="button"
                   onClick={() => {
                     setIsDrawCaseMenuOpen(false);
+                    setIsYoutubePanelOpen(false);
                     setIsExtraTimerVisible((previous) => !previous);
                   }}
                   className={`manual-timer-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] border p-3 text-center text-[#8A6347] shadow-[0_14px_28px_rgba(95,71,50,0.1)] transition-all ${
@@ -4402,23 +4897,33 @@ export default function TimerPage() {
                   </span>
                 </button>
               </div>
+              <div className="relative min-w-0">
+                <button
+                  onClick={() => {
+                    void playAnnouncementSound('pop');
+                    setIsExtraTimerVisible(false);
+                    setIsYoutubePanelOpen((previous) => !previous);
+                  }}
+                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                    scheduleYoutubeCount > 0
+                      ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]'
+                      : ''
+                  }`}
+                  aria-haspopup="dialog"
+                  aria-expanded={isYoutubePanelOpen}
+                  aria-label="유튜브 재생목록"
+                  title="유튜브 재생목록"
+                  type="button"
+                >
+                  <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                    <Music size={22} />
+                  </div>
+                </button>
+              </div>
               <button
                 onClick={() => {
                   void playAnnouncementSound('pop');
-                  setIsMemoOpen(true);
-                }}
-                className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
-                aria-label="메모장"
-                title="메모장"
-                type="button"
-              >
-                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
-                  <StickyNote size={22} />
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  void playAnnouncementSound('pop');
+                  setIsYoutubePanelOpen(false);
                   setIsDictionaryOpen(true);
                 }}
                 className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
@@ -4433,6 +4938,7 @@ export default function TimerPage() {
               <button
                 onClick={() => {
                   void playAnnouncementSound('pop');
+                  setIsYoutubePanelOpen(false);
                   setIsAnnouncementOpen(true);
                 }}
                 className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
@@ -4445,6 +4951,72 @@ export default function TimerPage() {
                 </div>
               </button>
             </div>
+
+            {isYoutubePanelOpen ? (
+              <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+                <form
+                  onSubmit={handleScheduleYoutubeSubmit}
+                  className="pointer-events-auto w-full max-w-[25rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
+                >
+                  <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-[0.74rem] font-bold leading-5 text-[#8A6347]/74">
+                        한 줄에 하나씩 입력하면 순서대로 연속 재생됩니다.
+                      </p>
+                      {scheduleYoutubeCount > 0 ? (
+                        <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-2.5 py-1 text-[0.72rem] font-extrabold text-[#8A6347]">
+                          {scheduleYoutubeCount}개 등록
+                        </span>
+                      ) : null}
+                    </div>
+                    <textarea
+                      ref={youtubeUrlInputRef}
+                      value={youtubeUrlInput}
+                      onChange={(event) => {
+                        setYoutubeUrlInput(event.target.value);
+                        if (youtubeUrlError) {
+                          setYoutubeUrlError('');
+                        }
+                      }}
+                      rows={5}
+                      className="time-input w-full resize-none rounded-[1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.9rem] font-bold leading-6 text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                      placeholder={'유튜브 링크 또는 영상 ID를\n한 줄에 하나씩 입력하세요'}
+                      aria-label="유튜브 URL 목록"
+                    />
+
+                    {youtubeUrlError ? (
+                      <p className="mt-2 text-[0.76rem] font-bold leading-6 text-[#C7684A]">
+                        {youtubeUrlError}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-[0.74rem] font-bold leading-5 text-[#8A6347]/72">
+                        첫 영상이 끝나면 다음 영상이 자동으로 이어집니다.
+                      </p>
+                    )}
+
+                    <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                      {scheduleYoutubeCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={clearScheduleYoutubeUrl}
+                          className="inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] border border-[#D9C8B6] bg-[#FFF7EC] px-4 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                        >
+                          <X size={15} className="mr-1.5" />
+                          지우기
+                        </button>
+                      ) : null}
+                      <button
+                        type="submit"
+                        className="primary-cta inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] px-4 py-2 text-[0.82rem] font-extrabold text-white transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                      >
+                        <Play size={15} className="mr-1.5 fill-current" />
+                        적용
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
