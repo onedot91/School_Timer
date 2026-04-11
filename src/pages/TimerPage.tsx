@@ -106,10 +106,11 @@ const SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY = 'scheduleYoutubeVisible-v1';
 const TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV3';
 const LEGACY_TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV2';
 const DEFAULT_STAGE_DISPLAY_NUMBER = 0;
-const MIN_STAGE_DISPLAY_NUMBER = 0;
-const PENALTY_SECONDS_PER_POINT = 60;
+const STAGE_SECONDS_PER_POINT = 60;
 const PENALTY_ACCENT_COLOR = '#C53124';
 const PENALTY_RING_TRACK_COLOR = '#F3D8D5';
+const REWARD_ACCENT_COLOR = '#2D63B8';
+const REWARD_RING_TRACK_COLOR = '#D7E5FB';
 const PENALTY_PANEL_ANIMATION_DURATION_MS = 820;
 const MEMO_NOTE_TEXT_COLORS = [
   { id: 'black', label: '검정', value: '#2c1e16' },
@@ -1025,10 +1026,10 @@ const getInitialAppState = (): TimerAppState => {
     try {
       const parsed = JSON.parse(saved);
       const savedManual = parsed?.manual || {};
-      const stageDisplayNumber =
-        typeof parsed?.stageDisplayNumber === 'number' && parsed.stageDisplayNumber >= MIN_STAGE_DISPLAY_NUMBER
-          ? Math.floor(parsed.stageDisplayNumber)
-          : DEFAULT_STAGE_DISPLAY_NUMBER;
+      const parsedStageDisplayNumber = Number(parsed?.stageDisplayNumber);
+      const stageDisplayNumber = Number.isFinite(parsedStageDisplayNumber)
+        ? Math.trunc(parsedStageDisplayNumber)
+        : DEFAULT_STAGE_DISPLAY_NUMBER;
       const totalTime =
         typeof savedManual.totalTime === 'number' && savedManual.totalTime > 0
           ? Math.floor(savedManual.totalTime)
@@ -2874,13 +2875,7 @@ export default function TimerPage() {
       }
 
       event.preventDefault();
-      const nextStageDisplayNumber = isStageUpKey
-        ? stageDisplayNumber + 1
-        : Math.max(MIN_STAGE_DISPLAY_NUMBER, stageDisplayNumber - 1);
-
-      if (nextStageDisplayNumber === stageDisplayNumber) {
-        return;
-      }
+      const nextStageDisplayNumber = isStageUpKey ? stageDisplayNumber + 1 : stageDisplayNumber - 1;
 
       if (penaltyPanelAnimationTimeoutRef.current !== null) {
         window.clearTimeout(penaltyPanelAnimationTimeoutRef.current);
@@ -3258,6 +3253,13 @@ export default function TimerPage() {
   const displayTotalTime = scheduleTotalTime;
   const displayTimeLeft = scheduleTimeLeft;
   const displayIsRunning = scheduleIsRunning;
+  const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
+  const today = adjustedScheduleNow.getDay();
+  const currentDaySchedule = weeklySchedule[today] || [];
+  const currentScheduleSecondsOfDay =
+    adjustedScheduleNow.getHours() * 3600 +
+    adjustedScheduleNow.getMinutes() * 60 +
+    adjustedScheduleNow.getSeconds();
 
   const percentage = displayTotalTime > 0 ? displayTimeLeft / displayTotalTime : 0;
   const warningThreshold = 0.5;
@@ -3279,17 +3281,53 @@ export default function TimerPage() {
   let speechTextSizeClass = "text-2xl md:text-4xl";
   let characterWrapSizeClass = "w-48 h-48 md:w-64 md:h-64";
   let characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
+  const stageDisplayMagnitude = Math.abs(stageDisplayNumber);
+  const isPenaltyStage = stageDisplayNumber > 0;
+  const isRewardStage = stageDisplayNumber < 0;
   const isScheduleBreak = timerType === 'break';
   const isScheduleLunch = timerType === 'lunch';
   const shouldShowTimedMessage = isScheduleBreak || isScheduleLunch;
   const elapsedScheduleSeconds = Math.max(0, displayTotalTime - displayTimeLeft);
   const breakPenaltyTotalSeconds =
-    isScheduleBreak && stageDisplayNumber > 0
-      ? Math.min(displayTotalTime, stageDisplayNumber * PENALTY_SECONDS_PER_POINT)
+    isScheduleBreak && isPenaltyStage
+      ? Math.min(displayTotalTime, stageDisplayMagnitude * STAGE_SECONDS_PER_POINT)
       : 0;
   const breakPenaltyTimeLeft = Math.max(0, breakPenaltyTotalSeconds - elapsedScheduleSeconds);
   const isBreakPenaltyActive = breakPenaltyTimeLeft > 0;
-  const shouldShowPenaltyPanel = stageDisplayNumber > 0 || penaltyPanelAnimationDirection !== null;
+  const nextUpcomingBreak = currentDaySchedule.find(
+    (slot) => slot.type === 'break' && slot.start * 60 > currentScheduleSecondsOfDay,
+  );
+  const rewardLeadSeconds = isRewardStage ? stageDisplayMagnitude * STAGE_SECONDS_PER_POINT : 0;
+  const rewardTimeUntilBreak = nextUpcomingBreak
+    ? Math.max(0, nextUpcomingBreak.start * 60 - currentScheduleSecondsOfDay)
+    : 0;
+  const isRewardActive =
+    isRewardStage && !isScheduleBreak && rewardTimeUntilBreak > 0 && rewardTimeUntilBreak <= rewardLeadSeconds;
+  const isStageTimerActive = isBreakPenaltyActive || isRewardActive;
+  const activeStageTimeLeft = isBreakPenaltyActive ? breakPenaltyTimeLeft : rewardTimeUntilBreak;
+  const activeStageLabel = isBreakPenaltyActive ? '벌점' : '상점';
+  const shouldShowStagePanel = stageDisplayNumber !== 0 || penaltyPanelAnimationDirection !== null;
+  const isNeutralStage = stageDisplayNumber === 0;
+  const stagePanelAriaLabel = isNeutralStage
+    ? `누적 점수 ${stageDisplayMagnitude}`
+    : isRewardStage
+      ? `누적 상점 ${stageDisplayMagnitude}`
+      : `누적 벌점 ${stageDisplayMagnitude}`;
+  const stagePanelClassName = isNeutralStage
+    ? 'relative flex min-w-[7.2rem] flex-col items-center justify-center rounded-[1.6rem] border-2 border-[#CFC8C1] bg-[rgba(251,249,246,0.94)] px-3 py-5 text-center shadow-[0_18px_32px_rgba(56,46,38,0.12)] backdrop-blur-sm sm:min-w-[8rem] sm:px-3.5 sm:py-5.5 md:min-w-[8.8rem] md:px-4 md:py-6'
+    : isRewardStage
+    ? 'relative flex min-w-[7.2rem] flex-col items-center justify-center rounded-[1.6rem] border-2 border-[#B7D0F5] bg-[rgba(244,248,255,0.92)] px-3 py-5 text-center shadow-[0_18px_32px_rgba(78,118,185,0.18)] backdrop-blur-sm sm:min-w-[8rem] sm:px-3.5 sm:py-5.5 md:min-w-[8.8rem] md:px-4 md:py-6'
+    : 'relative flex min-w-[7.2rem] flex-col items-center justify-center rounded-[1.6rem] border-2 border-[#E7C0B9] bg-[rgba(255,248,245,0.92)] px-3 py-5 text-center shadow-[0_18px_32px_rgba(181,94,76,0.16)] backdrop-blur-sm sm:min-w-[8rem] sm:px-3.5 sm:py-5.5 md:min-w-[8.8rem] md:px-4 md:py-6';
+  const stagePanelHaloClassName = isNeutralStage
+    ? 'absolute inset-[-0.45rem] rounded-[1.9rem] border-2 border-[#8E8378]/35'
+    : isRewardStage
+    ? 'absolute inset-[-0.45rem] rounded-[1.9rem] border-2 border-[#7EA6E6]/55'
+    : 'absolute inset-[-0.45rem] rounded-[1.9rem] border-2 border-[#D96D61]/55';
+  const stagePanelNumberClassName = isNeutralStage
+    ? 'relative z-10 leading-none font-extrabold text-[clamp(3.4rem,6vw,5.6rem)] text-[#1F1A16] drop-shadow-[0_10px_18px_rgba(56,46,38,0.12)]'
+    : isRewardStage
+    ? 'relative z-10 leading-none font-extrabold text-[clamp(3.4rem,6vw,5.6rem)] text-[#2D63B8] drop-shadow-[0_10px_18px_rgba(78,118,185,0.18)]'
+    : 'relative z-10 leading-none font-extrabold text-[clamp(3.4rem,6vw,5.6rem)] text-[#C53124] drop-shadow-[0_10px_18px_rgba(181,94,76,0.18)]';
   const penaltyPanelAnimationStyle =
     penaltyPanelAnimationDirection === 'up'
       ? { animation: 'penaltyPanelRiseBurst 820ms cubic-bezier(0.22, 0.9, 0.24, 1)' }
@@ -3385,9 +3423,9 @@ export default function TimerPage() {
     characterMessage = getCharacterMessage('warning');
   }
 
-  if (isBreakPenaltyActive) {
-    strokeColor = PENALTY_ACCENT_COLOR;
-    ringTrackColor = PENALTY_RING_TRACK_COLOR;
+  if (isStageTimerActive) {
+    strokeColor = isRewardActive ? REWARD_ACCENT_COLOR : PENALTY_ACCENT_COLOR;
+    ringTrackColor = isRewardActive ? REWARD_RING_TRACK_COLOR : PENALTY_RING_TRACK_COLOR;
   }
 
   if (showCharacter && displayIsRunning) {
@@ -3456,9 +3494,6 @@ export default function TimerPage() {
   }${isDrawResetVisible ? ' random-board-number-reset-accent' : ''
   }`;
 
-  const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
-  const today = adjustedScheduleNow.getDay();
-  const currentDaySchedule = weeklySchedule[today] || [];
   const currentMinsForScheduleView = adjustedScheduleNow.getHours() * 60 + adjustedScheduleNow.getMinutes();
   const activeSlotIndex = currentDaySchedule.findIndex(
     (slot) => currentMinsForScheduleView >= slot.start && currentMinsForScheduleView < slot.end
@@ -4609,13 +4644,17 @@ export default function TimerPage() {
               <div className={`clock-display editorial-clock-display text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] ${colorClass}`}>
                 {formatTime(displayTimeLeft)}
               </div>
-              {isBreakPenaltyActive ? (
+              {isStageTimerActive ? (
                 <div className="mt-2.5 flex items-center justify-center md:mt-3">
                   <div
-                    aria-label={`벌점 남은 시간 ${formatTime(breakPenaltyTimeLeft)}`}
-                    className="inline-flex items-center rounded-full border border-[#E7C0B9] bg-[rgba(255,244,241,0.94)] px-4 py-2.5 text-[clamp(1rem,2.1vw,1.28rem)] font-extrabold text-[#C53124] shadow-[0_14px_24px_rgba(181,94,76,0.14)] backdrop-blur-sm md:px-5 md:py-3"
+                    aria-label={`${activeStageLabel} 남은 시간 ${formatTime(activeStageTimeLeft)}`}
+                    className={`inline-flex items-center rounded-full border px-4 py-2.5 text-[clamp(1rem,2.1vw,1.28rem)] font-extrabold backdrop-blur-sm md:px-5 md:py-3 ${
+                      isRewardActive
+                        ? 'border-[#BDD2F3] bg-[rgba(242,247,255,0.94)] text-[#2D63B8] shadow-[0_14px_24px_rgba(88,122,188,0.16)]'
+                        : 'border-[#E7C0B9] bg-[rgba(255,244,241,0.94)] text-[#C53124] shadow-[0_14px_24px_rgba(181,94,76,0.14)]'
+                    }`}
                   >
-                    <span className="font-mono tracking-[-0.05em] text-[1.22em]">{formatTime(breakPenaltyTimeLeft)}</span>
+                    <span className="font-mono tracking-[-0.05em] text-[1.22em]">{formatTime(activeStageTimeLeft)}</span>
                   </div>
                 </div>
               ) : null}
@@ -4633,30 +4672,30 @@ export default function TimerPage() {
                 </div>
               ) : null}
             </div>
-            {shouldShowPenaltyPanel ? (
+            {shouldShowStagePanel ? (
               <div className="pointer-events-none absolute bottom-4 left-4 z-40 sm:bottom-5 sm:left-5 md:bottom-6 md:left-6">
                 <div
                   key={`${penaltyPanelAnimationDirection ?? 'idle'}-${penaltyPanelAnimationTick}`}
-                  aria-label={`누적 벌점 ${stageDisplayNumber}`}
-                  className="relative flex min-w-[7.2rem] flex-col items-center justify-center rounded-[1.6rem] border-2 border-[#E7C0B9] bg-[rgba(255,248,245,0.92)] px-3 py-5 text-center shadow-[0_18px_32px_rgba(181,94,76,0.16)] backdrop-blur-sm sm:min-w-[8rem] sm:px-3.5 sm:py-5.5 md:min-w-[8.8rem] md:px-4 md:py-6"
+                  aria-label={stagePanelAriaLabel}
+                  className={stagePanelClassName}
                   style={penaltyPanelAnimationStyle}
                 >
                   {penaltyPanelAnimationDirection !== null ? (
                     <div
                       aria-hidden="true"
-                      className="absolute inset-[-0.45rem] rounded-[1.9rem] border-2 border-[#D96D61]/55"
+                      className={stagePanelHaloClassName}
                       style={penaltyPanelHaloStyle}
                     />
                   ) : null}
                   <div
-                    className="relative z-10 leading-none font-extrabold text-[clamp(3.4rem,6vw,5.6rem)] text-[#C53124] drop-shadow-[0_10px_18px_rgba(181,94,76,0.18)]"
+                    className={stagePanelNumberClassName}
                     style={
                       penaltyPanelNumberStyle
                         ? { fontFamily: 'var(--font-clock)', ...penaltyPanelNumberStyle }
                         : { fontFamily: 'var(--font-clock)' }
                     }
                   >
-                    {stageDisplayNumber}
+                    {stageDisplayMagnitude}
                   </div>
                 </div>
               </div>
