@@ -685,6 +685,7 @@ const DAYS = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A
 const ANNOUNCEMENT_STORAGE_KEY = 'school-announcements-v4';
 const ANNOUNCEMENT_CLOSING_MESSAGE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+const MANUAL_TIMER_ALARM_VOLUME_MULTIPLIER = 2.8;
 
 let announcementAudioContext: AudioContext | null = null;
 let announcementAudioPreparePromise: Promise<AudioContext | null> | null = null;
@@ -973,14 +974,15 @@ const playAlarm = () => {
         const gain = ctx.createGain();
         const sustainMidpoint = startTime + duration * 0.34;
         const endTime = startTime + duration;
+        const adjustedPeakVolume = Math.min(peakVolume * MANUAL_TIMER_ALARM_VOLUME_MULTIPLIER, 0.35);
 
         oscillator.type = type;
         oscillator.frequency.setValueAtTime(frequency, startTime);
         oscillator.frequency.exponentialRampToValueAtTime(Math.max(120, endFrequency), endTime);
 
         gain.gain.setValueAtTime(0.0001, startTime);
-        gain.gain.exponentialRampToValueAtTime(peakVolume, startTime + Math.min(0.04, duration * 0.16));
-        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, peakVolume * 0.42), sustainMidpoint);
+        gain.gain.exponentialRampToValueAtTime(adjustedPeakVolume, startTime + Math.min(0.04, duration * 0.16));
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, adjustedPeakVolume * 0.42), sustainMidpoint);
         gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
 
         oscillator.connect(gain);
