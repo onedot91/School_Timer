@@ -65,6 +65,11 @@ interface ManualTimerState {
   isVisible: boolean;
 }
 
+interface TimerAppState {
+  manual: ManualTimerState;
+  stageDisplayNumber: number;
+}
+
 interface DrawOverlayState {
   caseId: string;
   displayText: string;
@@ -1010,7 +1015,7 @@ const playAlarm = () => {
   })();
 };
 
-const getInitialAppState = () => {
+const getInitialAppState = (): TimerAppState => {
   const saved =
     localStorage.getItem(TIMER_APP_STATE_STORAGE_KEY) ||
     localStorage.getItem(LEGACY_TIMER_APP_STATE_STORAGE_KEY);
@@ -1018,6 +1023,10 @@ const getInitialAppState = () => {
     try {
       const parsed = JSON.parse(saved);
       const savedManual = parsed?.manual || {};
+      const stageDisplayNumber =
+        typeof parsed?.stageDisplayNumber === 'number' && parsed.stageDisplayNumber >= MIN_STAGE_DISPLAY_NUMBER
+          ? Math.floor(parsed.stageDisplayNumber)
+          : DEFAULT_STAGE_DISPLAY_NUMBER;
       const totalTime =
         typeof savedManual.totalTime === 'number' && savedManual.totalTime > 0
           ? Math.floor(savedManual.totalTime)
@@ -1053,10 +1062,14 @@ const getInitialAppState = () => {
             parsed?.mode === 'manual' ||
             isRunning,
         },
+        stageDisplayNumber,
       };
     } catch (e) {}
   }
-  return { manual: DEFAULT_MANUAL_TIMER_STATE };
+  return {
+    manual: DEFAULT_MANUAL_TIMER_STATE,
+    stageDisplayNumber: DEFAULT_STAGE_DISPLAY_NUMBER,
+  };
 };
 
 function AnnouncementNotebookOverlay({
@@ -1963,7 +1976,7 @@ export default function TimerPage() {
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
-  const [stageDisplayNumber, setStageDisplayNumber] = useState(DEFAULT_STAGE_DISPLAY_NUMBER);
+  const [stageDisplayNumber, setStageDisplayNumber] = useState(initialState.stageDisplayNumber);
   const [penaltyPanelAnimationDirection, setPenaltyPanelAnimationDirection] = useState<'up' | 'down' | null>(null);
   const [penaltyPanelAnimationTick, setPenaltyPanelAnimationTick] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2168,9 +2181,10 @@ export default function TimerPage() {
         isRunning: manualIsRunning,
         endTime: manualEndTime,
         isVisible: isExtraTimerVisible,
-      }
+      },
+      stageDisplayNumber,
     }));
-  }, [manualTotalTime, manualTimeLeft, manualIsRunning, manualEndTime, isExtraTimerVisible]);
+  }, [manualTotalTime, manualTimeLeft, manualIsRunning, manualEndTime, isExtraTimerVisible, stageDisplayNumber]);
 
   // Manual Timer Logic
   useEffect(() => {
