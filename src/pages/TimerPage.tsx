@@ -4801,6 +4801,15 @@ export default function TimerPage() {
                     >
                       {isScheduleYoutubeVisible ? '숨기기' : '보이기'}
                     </button>
+                    <button
+                      type="button"
+                      onClick={clearScheduleYoutubeUrl}
+                      className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                      title="유튜브 재생목록 지우기"
+                    >
+                      <X size={14} className="mr-1.5" />
+                      지우기
+                    </button>
                   </div>
                 ) : null}
               </div>
@@ -5050,16 +5059,6 @@ export default function TimerPage() {
                     )}
 
                     <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-                      {scheduleYoutubeCount > 0 ? (
-                        <button
-                          type="button"
-                          onClick={clearScheduleYoutubeUrl}
-                          className="inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] border border-[#D9C8B6] bg-[#FFF7EC] px-4 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
-                        >
-                          <X size={15} className="mr-1.5" />
-                          지우기
-                        </button>
-                      ) : null}
                       <button
                         type="submit"
                         className="primary-cta inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] px-4 py-2 text-[0.82rem] font-extrabold text-white transition-transform hover:scale-[1.01] active:scale-[0.99]"
