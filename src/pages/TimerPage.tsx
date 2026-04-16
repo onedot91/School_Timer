@@ -164,9 +164,10 @@ const MANUAL_TIMER_PRESETS = [
 ] as const;
 const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_IFRAME_API_SRC = 'https://www.youtube.com/iframe_api';
+const YOUTUBE_PLAYER_STATE_ENDED = 0;
 
 interface YoutubePlayerInstance {
-  loadPlaylist: (playlist: string[] | { list: string[]; listType?: 'playlist'; index?: number; startSeconds?: number }) => void;
+  loadVideoById: (videoId: string | { videoId: string; startSeconds?: number }) => void;
   mute: () => void;
   playVideo: () => void;
   destroy: () => void;
@@ -174,6 +175,10 @@ interface YoutubePlayerInstance {
 
 interface YoutubePlayerEvent {
   target: YoutubePlayerInstance;
+}
+
+interface YoutubePlayerStateChangeEvent extends YoutubePlayerEvent {
+  data: number;
 }
 
 interface YoutubeIframeApi {
@@ -187,6 +192,7 @@ interface YoutubeIframeApi {
       events?: {
         onReady?: (event: YoutubePlayerEvent) => void;
         onAutoplayBlocked?: (event: YoutubePlayerEvent) => void;
+        onStateChange?: (event: YoutubePlayerStateChangeEvent) => void;
       };
     },
   ) => YoutubePlayerInstance;
@@ -352,8 +358,6 @@ const getStoredScheduleYoutubeUrls = () => {
   }
 };
 
-const buildScheduleYoutubeInputValue = (urls: string[]) => urls.join('\n');
-
 const parseScheduleYoutubeInput = (rawValue: string) => {
   const normalizedUrls: string[] = [];
   const invalidLineNumbers: number[] = [];
@@ -375,6 +379,19 @@ const parseScheduleYoutubeInput = (rawValue: string) => {
     normalizedUrls,
     invalidLineNumbers,
   };
+};
+
+const mergeScheduleYoutubeUrls = (currentUrls: string[], nextUrls: string[]) => {
+  const mergedUrls = [...currentUrls];
+  const seenUrls = new Set(currentUrls);
+
+  nextUrls.forEach((url) => {
+    if (seenUrls.has(url)) return;
+    seenUrls.add(url);
+    mergedUrls.push(url);
+  });
+
+  return mergedUrls;
 };
 
 const loadYoutubeIframeApi = () => {
@@ -429,7 +446,7 @@ const getInitialScheduleYoutubeState = () => {
   const storedUrls = getStoredScheduleYoutubeUrls();
   return {
     appliedUrls: storedUrls,
-    inputValue: buildScheduleYoutubeInputValue(storedUrls),
+    inputValue: '',
     isVisible: storedUrls.length > 0 ? getStoredScheduleYoutubeVisibility() : false,
   };
 };
@@ -1816,31 +1833,39 @@ function ScheduleYoutubePlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YoutubePlayerInstance | null>(null);
   const autoplayRetryRef = useRef(false);
+  const queuedVideoIdsRef = useRef(videoIds);
+  const activeVideoIdRef = useRef(videoIds[0] || '');
+  const activeIndexRef = useRef(0);
+  const hasReachedQueueEndRef = useRef(false);
   const playlistKey = videoIds.join(',');
 
+  queuedVideoIdsRef.current = videoIds;
+
+  const playVideoAtIndex = (player: YoutubePlayerInstance, index: number, muted = false) => {
+    const nextVideoId = queuedVideoIdsRef.current[index];
+    if (!nextVideoId) return;
+
+    activeIndexRef.current = index;
+    activeVideoIdRef.current = nextVideoId;
+    hasReachedQueueEndRef.current = false;
+
+    if (muted) {
+      player.mute();
+    }
+
+    player.loadVideoById(nextVideoId);
+    player.playVideo();
+  };
+
   useEffect(() => {
-    if (videoIds.length === 0) return;
+    if (videoIds.length === 0 || playerRef.current) return;
 
     let isCancelled = false;
     autoplayRetryRef.current = false;
 
     void loadYoutubeIframeApi()
       .then((YT) => {
-        if (isCancelled || !containerRef.current) return;
-
-        const autoplayPlaylist = (player: YoutubePlayerInstance, muted = false) => {
-          if (muted) {
-            player.mute();
-          }
-
-          player.loadPlaylist(videoIds);
-          player.playVideo();
-        };
-
-        if (playerRef.current) {
-          autoplayPlaylist(playerRef.current);
-          return;
-        }
+        if (isCancelled || !containerRef.current || playerRef.current) return;
 
         playerRef.current = new YT.Player(containerRef.current, {
           width: '100%',
@@ -1854,12 +1879,24 @@ function ScheduleYoutubePlayer({
           },
           events: {
             onReady: (event) => {
-              autoplayPlaylist(event.target);
+              playVideoAtIndex(event.target, 0);
             },
             onAutoplayBlocked: (event) => {
               if (autoplayRetryRef.current) return;
               autoplayRetryRef.current = true;
-              autoplayPlaylist(event.target, true);
+              playVideoAtIndex(event.target, activeIndexRef.current, true);
+            },
+            onStateChange: (event) => {
+              if (event.data !== YOUTUBE_PLAYER_STATE_ENDED) return;
+
+              const nextIndex = activeIndexRef.current + 1;
+              if (nextIndex >= queuedVideoIdsRef.current.length) {
+                hasReachedQueueEndRef.current = true;
+                return;
+              }
+
+              autoplayRetryRef.current = false;
+              playVideoAtIndex(event.target, nextIndex);
             },
           },
         });
@@ -1871,6 +1908,25 @@ function ScheduleYoutubePlayer({
     return () => {
       isCancelled = true;
     };
+  }, [videoIds.length]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || videoIds.length === 0) return;
+
+    const currentIndex = activeVideoIdRef.current ? videoIds.indexOf(activeVideoIdRef.current) : -1;
+    if (currentIndex >= 0) {
+      activeIndexRef.current = currentIndex;
+
+      if (hasReachedQueueEndRef.current && currentIndex < videoIds.length - 1) {
+        autoplayRetryRef.current = false;
+        playVideoAtIndex(player, currentIndex + 1);
+      }
+      return;
+    }
+
+    autoplayRetryRef.current = false;
+    playVideoAtIndex(player, 0);
   }, [playlistKey]);
 
   useEffect(() => {
@@ -2047,6 +2103,8 @@ export default function TimerPage() {
     .map((url) => extractYoutubeVideoId(url))
     .filter((videoId): videoId is string => videoId !== null);
   const scheduleYoutubeCount = scheduleYoutubeUrls.length;
+  const hasScheduleYoutubePlaylist = scheduleYoutubeCount > 0;
+  const hasYoutubeUrlInput = youtubeUrlInput.trim().length > 0;
 
   useEffect(() => {
     localStorage.setItem('weeklySchedule', JSON.stringify(weeklySchedule));
@@ -3114,7 +3172,7 @@ export default function TimerPage() {
           setWeeklySchedule(normalizeWeeklySchedule(nextSchedule));
           setScheduleNotice(nextNotice);
           setIsNoticeEnabled(nextNoticeEnabled);
-          setYoutubeUrlInput(buildScheduleYoutubeInputValue(nextYoutubeUrls));
+          setYoutubeUrlInput('');
           setScheduleYoutubeUrls(nextYoutubeUrls);
           setIsScheduleYoutubeVisible(nextYoutubeVisible);
           setYoutubeUrlError('');
@@ -3160,21 +3218,23 @@ export default function TimerPage() {
     if (invalidLineNumbers.length > 0) {
       const preview = invalidLineNumbers.slice(0, 5).join(', ');
       const suffix = invalidLineNumbers.length > 5 ? ` 외 ${invalidLineNumbers.length - 5}줄` : '';
-      setYoutubeUrlError(`유효하지 않은 줄이 있습니다: ${preview}${suffix}`);
+      setYoutubeUrlError(`잘못된 줄: ${preview}${suffix}`);
       return;
     }
 
     if (normalizedUrls.length === 0) {
-      setYoutubeUrlInput('');
-      setScheduleYoutubeUrls([]);
-      setIsScheduleYoutubeVisible(false);
       setYoutubeUrlError('');
-      setIsYoutubePanelOpen(false);
       return;
     }
 
-    setYoutubeUrlInput(buildScheduleYoutubeInputValue(normalizedUrls));
-    setScheduleYoutubeUrls(normalizedUrls);
+    const nextUrls = mergeScheduleYoutubeUrls(scheduleYoutubeUrls, normalizedUrls);
+    if (nextUrls.length === scheduleYoutubeUrls.length) {
+      setYoutubeUrlError('새 영상이 없습니다.');
+      return;
+    }
+
+    setYoutubeUrlInput('');
+    setScheduleYoutubeUrls(nextUrls);
     setIsScheduleYoutubeVisible(true);
     setYoutubeUrlError('');
     setIsYoutubePanelOpen(false);
@@ -4804,11 +4864,11 @@ export default function TimerPage() {
                     <button
                       type="button"
                       onClick={clearScheduleYoutubeUrl}
-                      className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
                       title="유튜브 재생목록 지우기"
+                      aria-label="유튜브 재생목록 지우기"
                     >
-                      <X size={14} className="mr-1.5" />
-                      지우기
+                      <X size={16} />
                     </button>
                   </div>
                 ) : null}
@@ -5023,16 +5083,13 @@ export default function TimerPage() {
                   className="pointer-events-auto w-full max-w-[25rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
                 >
                   <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-[0.74rem] font-bold leading-5 text-[#8A6347]/74">
-                        한 줄에 하나씩 입력하면 순서대로 연속 재생됩니다.
-                      </p>
-                      {scheduleYoutubeCount > 0 ? (
+                    {hasScheduleYoutubePlaylist ? (
+                      <div className="mb-2 flex justify-end">
                         <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-2.5 py-1 text-[0.72rem] font-extrabold text-[#8A6347]">
-                          {scheduleYoutubeCount}개 등록
+                          {scheduleYoutubeCount}개
                         </span>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
                     <textarea
                       ref={youtubeUrlInputRef}
                       value={youtubeUrlInput}
@@ -5044,7 +5101,11 @@ export default function TimerPage() {
                       }}
                       rows={5}
                       className="time-input w-full resize-none rounded-[1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.9rem] font-bold leading-6 text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
-                      placeholder={'유튜브 링크 또는 영상 ID를\n한 줄에 하나씩 입력하세요'}
+                      placeholder={
+                        hasScheduleYoutubePlaylist
+                          ? '더 붙여넣기\n여러 줄 가능'
+                          : '링크 또는 ID\n여러 줄 가능'
+                      }
                       aria-label="유튜브 URL 목록"
                     />
 
@@ -5052,19 +5113,20 @@ export default function TimerPage() {
                       <p className="mt-2 text-[0.76rem] font-bold leading-6 text-[#C7684A]">
                         {youtubeUrlError}
                       </p>
-                    ) : (
-                      <p className="mt-2 text-[0.74rem] font-bold leading-5 text-[#8A6347]/72">
-                        첫 영상이 끝나면 다음 영상이 자동으로 이어집니다.
-                      </p>
-                    )}
+                    ) : null}
 
                     <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
                       <button
                         type="submit"
-                        className="primary-cta inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] px-4 py-2 text-[0.82rem] font-extrabold text-white transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                        disabled={!hasYoutubeUrlInput}
+                        className="primary-cta inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] px-4 py-2 text-[0.82rem] font-extrabold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
                       >
-                        <Play size={15} className="mr-1.5 fill-current" />
-                        적용
+                        {hasScheduleYoutubePlaylist ? (
+                          <Plus size={15} className="mr-1.5" />
+                        ) : (
+                          <Play size={15} className="mr-1.5 fill-current" />
+                        )}
+                        {hasScheduleYoutubePlaylist ? '추가' : '재생'}
                       </button>
                     </div>
                   </div>
