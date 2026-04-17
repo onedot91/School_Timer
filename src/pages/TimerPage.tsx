@@ -3430,14 +3430,14 @@ export default function TimerPage() {
 
   const getCharacterMessage = (stage: 'warning' | 'urgent' | 'end') => {
     if (isScheduleBreak) {
-      if (stage === 'warning') return "\uC26C\uB294 \uC2DC\uAC04\uC774 \uB05D\uB098\uAC00\uC694. \uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
-      if (stage === 'urgent') return "\uC774\uC81C \uACF3 \uC218\uC5C5\uC774 \uC2DC\uC791\uD574\uC694. \uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
+      if (stage === 'warning') return "\uC26C\uB294 \uC2DC\uAC04\uC774 \uB05D\uB098\uAC00\uC694.\n\uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
+      if (stage === 'urgent') return "\uC774\uC81C \uACF3 \uC218\uC5C5\uC774 \uC2DC\uC791\uD574\uC694.\n\uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
       return "\uC26C\uB294 \uC2DC\uAC04\uC774 \uB05D\uB0AC\uC5B4\uC694!";
     }
 
     if (isScheduleLunch) {
-      if (stage === 'warning') return "\uC810\uC2EC\uC2DC\uAC04\uC774 \uB05D\uB098\uAC00\uC694. \uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
-      if (stage === 'urgent') return "\uC774\uC81C \uC815\uB9AC\uD560 \uC2DC\uAC04\uC774\uC5D0\uC694. \uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
+      if (stage === 'warning') return "\uC810\uC2EC\uC2DC\uAC04\uC774 \uB05D\uB098\uAC00\uC694.\n\uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
+      if (stage === 'urgent') return "\uC774\uC81C \uC815\uB9AC\uD560 \uC2DC\uAC04\uC774\uC5D0\uC694.\n\uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
       return "\uC810\uC2EC\uC2DC\uAC04\uC774 \uB05D\uB0AC\uC5B4\uC694!";
     }
 
@@ -3594,16 +3594,14 @@ export default function TimerPage() {
   const hasScheduleNotice = trimmedNotice.length > 0;
   const getNoticeTextClass = (text: string) => {
     const length = text.replace(/\s+/g, '').length;
-    if (length <= 6) return 'text-[clamp(2.9rem,6.6vw,3.6rem)] leading-[1.08] tracking-[-0.02em]';
-    if (length <= 10) return 'text-[clamp(2.45rem,5.7vw,3rem)] leading-[1.14] tracking-[-0.018em]';
-    if (length <= 16) return 'text-[clamp(2.05rem,4.8vw,2.45rem)] leading-[1.24] tracking-[-0.012em]';
-    if (length <= 24) return 'text-[clamp(1.78rem,3.95vw,2.08rem)] leading-[1.36] tracking-[-0.01em]';
-    return 'text-[clamp(1.48rem,3vw,1.72rem)] leading-[1.48] tracking-[0em]';
+    if (length <= 10) return 'text-[clamp(3rem,6.8vw,3.75rem)] leading-[1.06] tracking-[-0.024em]';
+    if (length <= 18) return 'text-[clamp(2.72rem,6.05vw,3.24rem)] leading-[1.12] tracking-[-0.02em]';
+    if (length <= 30) return 'text-[clamp(2.36rem,5.1vw,2.78rem)] leading-[1.18] tracking-[-0.014em]';
+    if (length <= 44) return 'text-[clamp(2.04rem,4.3vw,2.38rem)] leading-[1.24] tracking-[-0.008em]';
+    return 'text-[clamp(1.84rem,3.75vw,2.14rem)] leading-[1.3] tracking-[-0.004em]';
   };
   const studentNoticeTextClass = getNoticeTextClass(trimmedNotice);
   const draftNoticeTextClass = getNoticeTextClass(noticeDraft);
-  const shouldCenterNoticeText = trimmedNotice.replace(/\s+/g, '').length <= 12;
-  const shouldCenterNoticeDraft = noticeDraft.trim().length > 0 && noticeDraft.replace(/\s+/g, '').length <= 12;
   const shouldShowNoticeCard = isEditingNotice || (isNoticeEnabled && hasScheduleNotice);
   const shouldShowNoticeHandle = !shouldShowNoticeCard;
   const noticeCardStyle = isEditingNotice
@@ -3657,7 +3655,7 @@ export default function TimerPage() {
                 }}
                 rows={1}
                 maxLength={160}
-                className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${shouldCenterNoticeDraft ? 'text-center' : 'text-left'} ${draftNoticeTextClass}`}
+                className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep text-center font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${draftNoticeTextClass}`}
               />
             </div>
             <div className="row-start-3 flex items-center justify-end">
@@ -3688,7 +3686,7 @@ export default function TimerPage() {
                 title="공지 수정"
                 type="button"
               >
-                <p className={`notice-text-body w-full break-keep whitespace-pre-line font-bold text-[#3E2D20] ${shouldCenterNoticeText ? 'text-center' : 'text-left'} ${studentNoticeTextClass}`}>
+                <p className={`notice-text-body w-full break-keep whitespace-pre-line text-center font-bold text-[#3E2D20] ${studentNoticeTextClass}`}>
                   {trimmedNotice}
                 </p>
               </button>
@@ -4670,7 +4668,7 @@ export default function TimerPage() {
                 <div className="pointer-events-none flex flex-col items-center">
                   {/* Speech Bubble */}
                   <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`} style={characterMotionStyle}>
-                    <p className={`font-bold whitespace-normal break-keep text-center ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
+                    <p className={`font-bold whitespace-pre-line break-keep text-center leading-[1.12] md:leading-[1.08] ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
                     {/* Bubble Tail (pointing down) */}
                     <div className="speech-tail-fill absolute -bottom-[14px] left-1/2 z-10 h-0 w-0 -translate-x-1/2 border-x-[12px] border-x-transparent border-t-[14px] border-t-white"></div>
                     <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>

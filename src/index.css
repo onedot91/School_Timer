@@ -575,6 +575,7 @@ select {
   letter-spacing: 0;
   text-wrap: pretty;
   word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .notice-text-body {
