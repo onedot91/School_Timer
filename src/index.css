@@ -8526,3 +8526,95 @@ h3 {
     border-radius: 18px !important;
   }
 }
+
+/* Settings density pass */
+.settings-dialog .settings-body {
+  background: var(--ceramic) !important;
+}
+
+.settings-dialog .settings-panel-grid,
+.settings-dialog .random-settings-layout {
+  gap: 1rem !important;
+}
+
+.settings-dialog .settings-card,
+.settings-dialog .random-settings-sidebar,
+.settings-dialog .random-settings-detail-card,
+.settings-dialog .random-settings-roster-card,
+.settings-dialog .random-settings-repeat-card,
+.settings-dialog .random-history-panel {
+  border-width: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.settings-dialog .settings-card,
+.settings-dialog .random-settings-detail-card,
+.settings-dialog .random-settings-roster-card,
+.settings-dialog .random-settings-repeat-card,
+.settings-dialog .random-history-panel {
+  padding: 1rem 0 !important;
+  border-top: 1px solid var(--panel-border) !important;
+}
+
+.settings-dialog .settings-card:first-child,
+.settings-dialog .random-settings-detail > :first-child {
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+
+.settings-dialog .random-settings-sidebar {
+  padding: 0 !important;
+}
+
+.settings-dialog .random-settings-case-list,
+.settings-dialog .settings-panel-grid .space-y-3 {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.settings-dialog .settings-case-card,
+.settings-dialog .random-settings-case-card,
+.settings-dialog .random-settings-case-card-v2,
+.settings-dialog .slot-card,
+.settings-dialog .random-settings-roster-row {
+  border-radius: 12px !important;
+}
+
+.settings-dialog .settings-subcard,
+.settings-dialog .random-settings-subcard {
+  border-width: 0 !important;
+  border-radius: 12px !important;
+  background: var(--quiet-surface) !important;
+  box-shadow: none !important;
+}
+
+.settings-dialog .random-settings-roster-panel {
+  gap: 1rem !important;
+}
+
+.settings-dialog .random-settings-roster-list {
+  max-height: min(22rem, 42vh);
+  overflow-y: auto;
+}
+
+.settings-dialog .random-settings-case-badge,
+.settings-dialog .settings-count-pill,
+.settings-dialog .status-medallion,
+.settings-dialog .inline-flex.rounded-full.border {
+  box-shadow: none !important;
+}
+
+.settings-dialog h3,
+.settings-dialog h4,
+.settings-dialog h5,
+.settings-dialog .section-title {
+  letter-spacing: 0 !important;
+}
+
+@media (min-width: 1024px) {
+  .settings-dialog .random-settings-layout {
+    grid-template-columns: minmax(13rem, 0.48fr) minmax(0, 1.52fr) !important;
+  }
+}
