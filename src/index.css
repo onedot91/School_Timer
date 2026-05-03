@@ -176,15 +176,15 @@ select {
 }
 
 .app-tone-idle {
-  --shell-bg-start: #fdf8f1;
-  --shell-bg-end: #f1e8dd;
-  --timer-pane-start: rgba(252, 248, 242, 0.98);
-  --timer-pane-end: rgba(243, 236, 228, 0.86);
-  --control-pane-start: rgba(252, 247, 240, 0.84);
-  --control-pane-end: rgba(244, 237, 228, 0.96);
-  --orb-a: rgba(214, 197, 177, 0.46);
-  --orb-b: rgba(182, 169, 150, 0.18);
-  --leaf-accent: rgba(154, 133, 113, 0.12);
+  --shell-bg-start: #f7f7f4;
+  --shell-bg-end: #e8e8e3;
+  --timer-pane-start: rgba(248, 248, 245, 0.98);
+  --timer-pane-end: rgba(235, 236, 232, 0.88);
+  --control-pane-start: rgba(248, 248, 245, 0.84);
+  --control-pane-end: rgba(237, 238, 234, 0.96);
+  --orb-a: rgba(196, 201, 194, 0.46);
+  --orb-b: rgba(143, 150, 141, 0.18);
+  --leaf-accent: rgba(123, 130, 121, 0.12);
 }
 
 .mascot-orb,
@@ -6901,4 +6901,1628 @@ body::after {
 
 .panel-divider {
   background: rgba(139, 106, 86, 0.18) !important;
+}
+
+/* Starbucks-inspired redesign layer - phase 1 */
+
+:root {
+  color: rgba(0, 0, 0, 0.87);
+  font-family: "IBM Plex Sans KR", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+  --font-body: "IBM Plex Sans KR", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "IBM Plex Sans KR", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-clock: "Azeret Mono", "Consolas", monospace;
+  --ink: rgba(0, 0, 0, 0.87);
+  --starbucks-green: #006241;
+  --green-accent: #00754a;
+  --house-green: #1e3932;
+  --green-uplift: #2b5148;
+  --green-light: #d4e9e2;
+  --gold: #cba258;
+  --warm-canvas: #f2f0eb;
+  --ceramic: #edebe9;
+  --card-surface: #ffffff;
+  --quiet-surface: #f9f9f9;
+  --text-soft: rgba(0, 0, 0, 0.58);
+  --white-soft: rgba(255, 255, 255, 0.7);
+  --card-radius: 12px;
+  --card-shadow: 0 0 0.5px rgba(0, 0, 0, 0.14), 0 1px 1px rgba(0, 0, 0, 0.24);
+  --button-active-scale: 0.95;
+  --flat-bg: var(--warm-canvas);
+  --flat-shell: var(--card-surface);
+  --flat-surface: var(--quiet-surface);
+  --flat-surface-alt: var(--card-surface);
+  --flat-accent: var(--green-accent);
+  --flat-accent-soft: var(--green-light);
+  --flat-warm: var(--ceramic);
+  --flat-danger: #c82014;
+}
+
+body {
+  background: var(--warm-canvas) !important;
+  color: var(--ink);
+  font-family: var(--font-body);
+  letter-spacing: -0.01em;
+}
+
+button,
+h1,
+h2,
+h3 {
+  font-family: var(--font-body);
+  letter-spacing: -0.01em;
+}
+
+.mascot-app {
+  background: var(--warm-canvas);
+}
+
+.mascot-shell,
+.editorial-main-shell,
+.announcement-shell,
+.memo-shell,
+.dictionary-shell,
+.editorial-settings-dialog,
+.random-settings-shell {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: var(--card-surface) !important;
+  border-radius: 24px !important;
+  box-shadow:
+    0 0 0.5px rgba(0, 0, 0, 0.14),
+    0 8px 18px rgba(0, 0, 0, 0.12) !important;
+}
+
+.editorial-main-shell {
+  overflow: hidden;
+}
+
+.timer-pane {
+  background: var(--warm-canvas) !important;
+  color: var(--ink);
+}
+
+.control-pane {
+  background: var(--ceramic) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: var(--ink);
+}
+
+.timer-ring-svg {
+  background: transparent !important;
+}
+
+.clock-display,
+.editorial-clock-display {
+  color: var(--starbucks-green) !important;
+  text-shadow: none !important;
+}
+
+.timer-primary-chip,
+.timer-secondary-chip,
+.status-medallion {
+  border-color: rgba(0, 98, 65, 0.18) !important;
+  background: var(--card-surface) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.timer-secondary-chip {
+  color: var(--text-soft) !important;
+}
+
+.schedule-board,
+.paper-card,
+.slot-card,
+.random-history-panel,
+.settings-dialog,
+.random-settings-header-panel,
+.random-settings-sidebar,
+.random-settings-detail-card,
+.random-settings-roster-card,
+.random-settings-repeat-card,
+.random-settings-case-card,
+.random-settings-case-card-v2,
+.memo-paper,
+.announcement-paper {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: var(--card-surface) !important;
+  border-radius: var(--card-radius) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.section-title,
+.schedule-row-title,
+.schedule-row-time {
+  color: inherit;
+}
+
+.schedule-row {
+  border-radius: 12px !important;
+}
+
+.schedule-row-idle {
+  background: var(--quiet-surface) !important;
+  color: var(--ink);
+}
+
+.schedule-row-idle:hover {
+  background: var(--green-light) !important;
+  border-color: rgba(0, 117, 74, 0.18) !important;
+}
+
+.schedule-row-active,
+.day-tab-active,
+.mode-toggle-active,
+.random-settings-toggle-active {
+  background: var(--house-green) !important;
+  color: #ffffff !important;
+  border-color: var(--house-green) !important;
+  box-shadow: 0 8px 16px rgba(30, 57, 50, 0.18) !important;
+}
+
+.mode-switch,
+.random-case-switch {
+  background: var(--green-light) !important;
+  border-color: rgba(0, 98, 65, 0.12) !important;
+}
+
+.mode-toggle,
+.page-nav-link,
+.timer-draw-switch,
+.timer-draw-menu-item {
+  letter-spacing: -0.01em;
+}
+
+.page-floating-nav {
+  min-width: min(34rem, calc(100vw - 2.4rem));
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  background: var(--card-surface) !important;
+  box-shadow:
+    0 0 0.5px rgba(0, 0, 0, 0.14),
+    0 8px 12px rgba(0, 0, 0, 0.14) !important;
+}
+
+.page-nav-indicator {
+  background: var(--house-green) !important;
+  box-shadow: none !important;
+}
+
+.page-nav-link-active {
+  color: #ffffff !important;
+}
+
+.page-nav-link-inactive {
+  color: rgba(0, 0, 0, 0.72) !important;
+}
+
+.page-nav-link-inactive:hover {
+  color: var(--starbucks-green) !important;
+}
+
+.sound-toggle,
+.timer-toolbar-button,
+.icon-button,
+.toolbar-button,
+.announcement-chip-button,
+.memo-control-button,
+.timer-draw-switch,
+.timer-draw-menu {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  background: var(--card-surface) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.sound-toggle-active,
+.timer-toolbar-button.sound-toggle-active,
+.round-action-play,
+.primary-cta,
+.random-settings-add-button {
+  border-color: var(--green-accent) !important;
+  background: var(--green-accent) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 12px rgba(0, 117, 74, 0.18) !important;
+}
+
+.round-action-pause,
+.toolbar-button-danger {
+  background: #c82014 !important;
+  border-color: #c82014 !important;
+  color: #ffffff !important;
+}
+
+.round-action-reset,
+.toolbar-button-neutral,
+.add-slot-button,
+.announcement-launch-button,
+.manual-timer-launch-button,
+.memo-launch-button,
+.random-settings-toggle {
+  background: var(--card-surface) !important;
+  color: var(--starbucks-green) !important;
+  border-color: rgba(0, 98, 65, 0.18) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.round-action,
+.primary-cta,
+.announcement-launch-button,
+.manual-timer-launch-button,
+.memo-launch-button,
+.toolbar-button,
+.timer-toolbar-button,
+.sound-toggle,
+.icon-button,
+.page-nav-link {
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease !important;
+}
+
+.round-action:active,
+.primary-cta:active,
+.announcement-launch-button:active,
+.manual-timer-launch-button:active,
+.memo-launch-button:active,
+.toolbar-button:active,
+.timer-toolbar-button:active,
+.sound-toggle:active,
+.icon-button:active,
+.page-nav-link:active {
+  transform: scale(var(--button-active-scale));
+}
+
+.announcement-launch-icon,
+.manual-timer-launch-icon,
+.random-history-chip-badge,
+.random-settings-case-badge {
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.notice-card {
+  border-color: rgba(0, 98, 65, 0.22) !important;
+  background: var(--card-surface) !important;
+  border-radius: var(--card-radius) !important;
+  box-shadow: var(--card-shadow) !important;
+  transform: none !important;
+}
+
+.notice-card::before {
+  background: var(--house-green) !important;
+}
+
+.notice-card::after {
+  background: var(--gold) !important;
+}
+
+.notice-editor,
+.notice-content,
+.time-input,
+.slot-select,
+.slot-time-input,
+.slot-name-input,
+.announcement-date-input,
+.announcement-note-textarea,
+.memo-note-editor,
+.dictionary-search-bar {
+  border-color: rgba(0, 98, 65, 0.18) !important;
+  background: #ffffff !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+.notice-text-body,
+.notice-draft-body {
+  color: var(--ink) !important;
+  text-shadow: none !important;
+}
+
+.random-board-stage::before,
+.random-board {
+  background: var(--house-green) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    0 0 0.5px rgba(0, 0, 0, 0.18),
+    0 8px 18px rgba(30, 57, 50, 0.18) !important;
+}
+
+.random-board-number,
+.random-board-empty-text,
+.random-board-display-name {
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+.random-board-number-active,
+.random-board-empty-text.random-board-number-active,
+.random-board-display-name.random-board-number-active {
+  color: #ffffff !important;
+}
+
+.random-board-number-repeat-accent,
+.random-board-display-name.random-board-number-repeat-accent,
+.random-board-number-reset-accent,
+.random-board-display-name.random-board-number-reset-accent {
+  color: var(--gold) !important;
+}
+
+.dictionary-shell .paper-card,
+.dictionary-search-bar,
+.dictionary-loading-card {
+  border-radius: var(--card-radius) !important;
+}
+
+.dictionary-loading-card {
+  border-color: rgba(0, 98, 65, 0.18) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.dictionary-loading-wave-dot {
+  background: var(--green-accent) !important;
+}
+
+.settings-backdrop,
+.announcement-overlay,
+.random-settings-overlay {
+  background: rgba(0, 0, 0, 0.42) !important;
+  backdrop-filter: blur(10px);
+}
+
+.settings-header,
+.settings-body,
+.announcement-paper-top,
+.memo-toolbar,
+.random-settings-header-panel {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: var(--card-surface) !important;
+  color: var(--ink) !important;
+}
+
+.settings-body,
+.random-settings-layout,
+.announcement-page,
+.memo-page,
+.dictionary-search-body {
+  background: var(--ceramic) !important;
+}
+
+.settings-dialog h2,
+.settings-dialog h3,
+.settings-dialog h4,
+.settings-dialog p,
+.settings-dialog span,
+.random-settings-shell h2,
+.random-settings-shell h3,
+.random-settings-shell h4,
+.random-settings-shell p,
+.random-settings-shell span {
+  color: inherit;
+}
+
+.settings-dialog .section-title,
+.random-settings-shell .section-title,
+.announcement-shell .section-title,
+.memo-shell .section-title,
+.dictionary-shell .section-title {
+  color: var(--starbucks-green) !important;
+}
+
+.settings-dialog button[aria-pressed],
+.settings-dialog article,
+.settings-dialog section,
+.settings-dialog .empty-slot-state,
+.settings-dialog .confirm-box,
+.settings-dialog .slot-card,
+.random-settings-shell article,
+.random-settings-shell section,
+.random-settings-shell .random-settings-sidebar,
+.random-settings-shell .random-settings-detail-card,
+.random-settings-shell .random-settings-roster-card,
+.random-settings-shell .random-settings-repeat-card,
+.random-settings-shell .random-settings-case-card,
+.random-settings-shell .random-settings-case-card-v2 {
+  border-color: rgba(0, 98, 65, 0.16) !important;
+  background: var(--card-surface) !important;
+  color: var(--ink) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.settings-dialog button[aria-pressed="true"],
+.random-settings-case-card-active,
+.random-settings-case-card-v2.random-settings-case-card-active {
+  border-color: var(--green-accent) !important;
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: 0 8px 16px rgba(0, 98, 65, 0.12) !important;
+}
+
+.settings-dialog button[aria-pressed="true"] svg,
+.settings-dialog button[aria-pressed="true"] p,
+.settings-dialog button[aria-pressed="true"] span,
+.random-settings-case-card-active *,
+.random-settings-case-card-v2.random-settings-case-card-active * {
+  color: var(--starbucks-green) !important;
+}
+
+.settings-dialog input,
+.settings-dialog textarea,
+.settings-dialog select,
+.random-settings-shell input,
+.random-settings-shell textarea,
+.random-settings-shell select,
+.random-settings-text-input,
+.random-settings-number-input,
+.random-settings-roster-input {
+  border-color: rgba(0, 98, 65, 0.18) !important;
+  background: #ffffff !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+.settings-dialog input:hover,
+.settings-dialog textarea:hover,
+.settings-dialog select:hover,
+.random-settings-shell input:hover,
+.random-settings-shell textarea:hover,
+.random-settings-shell select:hover,
+.settings-dialog input:focus,
+.settings-dialog textarea:focus,
+.settings-dialog select:focus,
+.random-settings-shell input:focus,
+.random-settings-shell textarea:focus,
+.random-settings-shell select:focus {
+  border-color: var(--green-accent) !important;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(0, 117, 74, 0.1) !important;
+}
+
+.settings-dialog input::placeholder,
+.settings-dialog textarea::placeholder,
+.random-settings-shell input::placeholder,
+.random-settings-shell textarea::placeholder {
+  color: rgba(0, 0, 0, 0.38) !important;
+}
+
+.settings-dialog .text-\[\#8A6347\],
+.settings-dialog .text-\[\#B58363\],
+.settings-dialog .text-\[\#3F2B20\],
+.settings-dialog .text-\[\#75461f\],
+.random-settings-shell .text-\[\#8A6347\],
+.random-settings-shell .text-\[\#B58363\],
+.random-settings-shell .text-\[\#3F2B20\],
+.random-settings-shell .text-\[\#75461f\] {
+  color: var(--ink) !important;
+}
+
+.settings-dialog .bg-\[\#FDFBF7\],
+.settings-dialog .bg-\[\#FCF8F1\],
+.settings-dialog .bg-\[\#FAF5EE\],
+.settings-dialog .bg-\[\#FFFDF9\],
+.settings-dialog .bg-\[\#FFFAF2\],
+.random-settings-shell .bg-\[\#FDFBF7\],
+.random-settings-shell .bg-\[\#FCF8F1\],
+.random-settings-shell .bg-\[\#FAF5EE\],
+.random-settings-shell .bg-\[\#FFFDF9\],
+.random-settings-shell .bg-\[\#FFFAF2\] {
+  background-color: var(--card-surface) !important;
+}
+
+.settings-dialog .border-\[\#E6D5C9\],
+.settings-dialog .border-\[\#EEE4D6\],
+.settings-dialog .border-\[\#E4D9CB\],
+.settings-dialog .border-\[\#DCCBB8\],
+.random-settings-shell .border-\[\#E6D5C9\],
+.random-settings-shell .border-\[\#EEE4D6\],
+.random-settings-shell .border-\[\#E4D9CB\],
+.random-settings-shell .border-\[\#DCCBB8\],
+.random-settings-shell .border-\[\#B58363\] {
+  border-color: rgba(0, 98, 65, 0.18) !important;
+}
+
+.settings-dialog .toolbar-button-danger,
+.settings-dialog .slot-delete,
+.random-settings-shell .random-settings-case-delete {
+  color: #c82014 !important;
+}
+
+.settings-dialog .toolbar-button-danger {
+  color: #ffffff !important;
+}
+
+.settings-dialog .primary-cta,
+.settings-dialog .add-slot-button:hover,
+.random-settings-save-button,
+.random-settings-add-button {
+  background: var(--green-accent) !important;
+  border-color: var(--green-accent) !important;
+  color: #ffffff !important;
+}
+
+.settings-dialog .add-slot-button {
+  border-color: var(--green-accent) !important;
+  color: var(--green-accent) !important;
+}
+
+.settings-dialog .w-px,
+.settings-dialog .tab-strip,
+.settings-dialog .border-b,
+.settings-dialog .border-t,
+.random-settings-shell .border-b,
+.random-settings-shell .border-t {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.settings-dialog .border-b,
+.settings-dialog .border-t,
+.random-settings-shell .border-b,
+.random-settings-shell .border-t {
+  background-color: transparent !important;
+}
+
+.pointer-events-auto > .time-input,
+.pointer-events-auto form,
+.pointer-events-auto form > div {
+  border-color: rgba(0, 98, 65, 0.18) !important;
+  background: var(--card-surface) !important;
+  color: var(--ink) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+/* Starbucks-inspired redesign layer - phase 2 */
+
+:root {
+  --button-radius: 50px;
+  --panel-border: rgba(0, 0, 0, 0.08);
+  --green-border: rgba(0, 98, 65, 0.18);
+  --green-focus-ring: rgba(0, 117, 74, 0.12);
+  --soft-shadow: 0 0 0.5px rgba(0, 0, 0, 0.14), 0 1px 1px rgba(0, 0, 0, 0.24);
+  --floating-shadow: 0 0 6px rgba(0, 0, 0, 0.24), 0 8px 12px rgba(0, 0, 0, 0.14);
+}
+
+.mascot-shell,
+.settings-dialog,
+.announcement-shell,
+.memo-shell,
+.dictionary-shell,
+.random-settings-shell {
+  color: var(--ink) !important;
+}
+
+.mascot-shell .text-\[\#8A6347\],
+.mascot-shell .text-\[\#B58363\],
+.mascot-shell .text-\[\#3F2B20\],
+.mascot-shell .text-\[\#75461f\],
+.mascot-shell .text-\[\#5C8D5D\],
+.mascot-shell .text-\[\#5C8D6D\],
+.mascot-shell .text-\[\#466146\],
+.mascot-shell .text-\[\#476152\],
+.mascot-shell .text-\[\#4F7258\],
+.mascot-shell .text-\[\#6B8B63\],
+.announcement-shell .text-\[\#8A6347\],
+.memo-shell .text-\[\#8A6347\],
+.dictionary-shell .text-\[\#8A6347\],
+.dictionary-shell .text-\[\#B58363\],
+.dictionary-shell .text-\[\#3F2B20\],
+.dictionary-shell .text-\[\#5C8D6D\],
+.random-settings-shell .text-\[\#5C8D5D\],
+.random-settings-shell .text-\[\#5C8D6D\],
+.random-settings-shell .text-\[\#466146\] {
+  color: var(--ink) !important;
+}
+
+.mascot-shell .section-title,
+.mascot-shell h1,
+.mascot-shell h2,
+.mascot-shell h3,
+.mascot-shell h4,
+.dictionary-shell h2,
+.dictionary-shell h3,
+.dictionary-shell h4 {
+  color: var(--starbucks-green) !important;
+  letter-spacing: -0.01em;
+}
+
+.mascot-shell p,
+.settings-dialog p,
+.dictionary-shell p,
+.memo-shell p,
+.announcement-shell p {
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.mascot-shell .bg-\[\#FDFBF7\],
+.mascot-shell .bg-\[\#FCF8F1\],
+.mascot-shell .bg-\[\#FAF5EE\],
+.mascot-shell .bg-\[\#FAF4EC\],
+.mascot-shell .bg-\[\#FBF6EF\],
+.mascot-shell .bg-\[\#FBF2E9\],
+.mascot-shell .bg-\[\#FFFDF9\],
+.mascot-shell .bg-\[\#FFFAF2\],
+.mascot-shell .bg-\[\#FFF9F1\],
+.mascot-shell .bg-\[\#FFF7EC\],
+.mascot-shell .bg-\[\#fff8ef\],
+.mascot-shell .bg-\[\#FFFCF8\],
+.mascot-shell .bg-\[\#fffcf8\],
+.mascot-shell .bg-\[\#FFFCF7\],
+.mascot-shell .bg-\[\#FFF1EA\],
+.dictionary-shell .bg-\[\#FCF8F2\],
+.dictionary-shell .bg-\[\#FFFDF9\],
+.dictionary-shell .bg-\[\#FFFCF8\] {
+  background-color: var(--card-surface) !important;
+}
+
+.mascot-shell .border-\[\#E6D5C9\],
+.mascot-shell .border-\[\#EEE4D6\],
+.mascot-shell .border-\[\#E4D9CB\],
+.mascot-shell .border-\[\#E6D8C9\],
+.mascot-shell .border-\[\#E7DACB\],
+.mascot-shell .border-\[\#DCCBB8\],
+.mascot-shell .border-\[\#D9C8B6\],
+.mascot-shell .border-\[\#D5C0AB\],
+.mascot-shell .border-\[\#D5E2CE\],
+.mascot-shell .border-\[\#CFE0C4\],
+.mascot-shell .border-\[\#D7E2D1\],
+.mascot-shell .border-\[\#B58363\],
+.mascot-shell .border-\[\#6F9A58\],
+.mascot-shell .border-\[\#7DA36C\] {
+  border-color: var(--green-border) !important;
+}
+
+.paper-card,
+.schedule-board,
+.slot-card,
+.speech-card,
+.notice-card,
+.random-history-panel,
+.random-summary-card,
+.random-settings-sidebar,
+.random-settings-detail-card,
+.random-settings-roster-card,
+.random-settings-repeat-card,
+.dictionary-shell .overflow-hidden.border,
+.dictionary-shell section,
+.settings-dialog section,
+.settings-dialog article,
+.memo-paper,
+.announcement-paper {
+  border-radius: var(--card-radius) !important;
+  border-color: var(--panel-border) !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.speech-card {
+  border-width: 1px !important;
+  color: var(--ink) !important;
+  text-shadow: none !important;
+}
+
+.speech-card::before,
+.speech-card::after,
+.speech-tail-fill,
+.speech-tail-outline {
+  border-top-color: var(--card-surface) !important;
+}
+
+.editorial-control-pane,
+.settings-body,
+.announcement-page,
+.memo-page,
+.dictionary-search-body {
+  background: var(--ceramic) !important;
+}
+
+.toolbar-button,
+.icon-button,
+.timer-toolbar-button,
+.announcement-chip-button,
+.memo-control-button,
+.memo-size-button,
+.memo-control-icon,
+.announcement-launch-button,
+.manual-timer-launch-button,
+.memo-launch-button,
+.primary-cta,
+.add-slot-button,
+.day-tab,
+.random-settings-add-button,
+.random-settings-save-button,
+.random-settings-toggle,
+.random-settings-case-delete,
+.timer-draw-switch,
+.timer-draw-menu-item,
+.settings-dialog button,
+.dictionary-shell button {
+  border-radius: var(--button-radius) !important;
+  letter-spacing: -0.01em;
+}
+
+.toolbar-button,
+.icon-button,
+.timer-toolbar-button,
+.announcement-chip-button,
+.memo-control-button,
+.memo-size-button,
+.memo-control-icon,
+.timer-draw-switch,
+.timer-draw-menu,
+.day-tab-inactive,
+.random-settings-case-delete,
+.dictionary-shell button:not(.primary-cta) {
+  border: 1px solid var(--green-border) !important;
+  background: var(--card-surface) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: var(--soft-shadow) !important;
+}
+
+.primary-cta,
+.toolbar-button-green,
+.round-action-play,
+.random-settings-add-button,
+.random-settings-save-button,
+.day-tab-active,
+.dictionary-shell .bg-\[\#6F8A65\],
+.mascot-shell .bg-\[\#6F8A65\],
+.mascot-shell .bg-\[\#688772\] {
+  border-color: var(--green-accent) !important;
+  background: var(--green-accent) !important;
+  color: #ffffff !important;
+}
+
+.primary-cta *,
+.toolbar-button-green *,
+.round-action-play *,
+.random-settings-add-button *,
+.random-settings-save-button *,
+.day-tab-active *,
+.dictionary-shell .bg-\[\#6F8A65\] *,
+.mascot-shell .bg-\[\#6F8A65\] *,
+.mascot-shell .bg-\[\#688772\] * {
+  color: #ffffff !important;
+}
+
+.toolbar-button-neutral,
+.round-action-reset,
+.add-slot-button,
+.day-tab-inactive,
+.random-settings-toggle {
+  background: transparent !important;
+  color: var(--green-accent) !important;
+}
+
+.add-slot-button {
+  border-style: solid !important;
+}
+
+.add-slot-button:hover,
+.toolbar-button-neutral:hover,
+.round-action-reset:hover,
+.day-tab-inactive:hover,
+.dictionary-shell button:not(.primary-cta):hover {
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.round-action {
+  box-shadow: var(--floating-shadow) !important;
+}
+
+.round-action:active {
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.24) !important;
+}
+
+.timer-primary-chip,
+.timer-secondary-chip,
+.announcement-date-badge,
+.random-summary-medallion,
+.random-settings-case-badge,
+.random-history-chip-badge,
+.inline-flex.rounded-full.border,
+.mascot-shell .rounded-full.border {
+  border-color: var(--green-border) !important;
+  background: var(--card-surface) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: var(--soft-shadow) !important;
+}
+
+.announcement-date-badge {
+  border-radius: 50% !important;
+}
+
+.announcement-date-badge-track {
+  stroke: var(--green-light) !important;
+}
+
+.announcement-date-badge-fill {
+  stroke: var(--green-accent) !important;
+}
+
+.announcement-date-badge-icon,
+.announcement-date-badge-time,
+.announcement-date-badge-label {
+  color: var(--starbucks-green) !important;
+}
+
+.random-history-chip {
+  border: 1px solid var(--green-border) !important;
+  background: var(--quiet-surface) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+.random-history-chip-number {
+  color: var(--starbucks-green) !important;
+}
+
+.random-history-chip-repeat {
+  border-color: rgba(203, 162, 88, 0.5) !important;
+  background: var(--gold-lightest, #faf6ee) !important;
+}
+
+.random-history-chip-repeat .random-history-chip-number,
+.random-history-chip-repeat-source {
+  color: #72531e !important;
+}
+
+.random-settings-toggle {
+  background: var(--green-light) !important;
+}
+
+.random-settings-toggle-thumb {
+  background: #ffffff !important;
+  box-shadow: var(--soft-shadow) !important;
+}
+
+.random-settings-toggle-active {
+  background: var(--green-accent) !important;
+}
+
+.memo-toolbar,
+.memo-controls {
+  background: transparent !important;
+}
+
+.memo-note-editor,
+.announcement-note-textarea,
+.announcement-note-display,
+.dictionary-search-bar,
+.random-settings-text-input,
+.random-settings-number-input,
+.random-settings-roster-input,
+.slot-name-input,
+.slot-select,
+.slot-time-input,
+.time-input,
+.notice-editor,
+.notice-content,
+.settings-dialog input,
+.settings-dialog textarea,
+.settings-dialog select,
+.dictionary-shell input,
+.dictionary-shell textarea,
+.dictionary-shell select {
+  border: 1px solid var(--green-border) !important;
+  background: #ffffff !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+.memo-note-editor:focus,
+.announcement-note-textarea:focus,
+.dictionary-search-bar:focus-within,
+.random-settings-text-input:focus,
+.random-settings-number-input:focus,
+.random-settings-roster-input:focus,
+.slot-name-input:focus,
+.slot-select:focus,
+.slot-time-input:focus,
+.time-input:focus,
+.notice-editor:focus-within,
+.notice-content:focus-within,
+.settings-dialog input:focus,
+.settings-dialog textarea:focus,
+.settings-dialog select:focus,
+.dictionary-shell input:focus,
+.dictionary-shell textarea:focus,
+.dictionary-shell select:focus {
+  border-color: var(--green-accent) !important;
+  box-shadow: 0 0 0 4px var(--green-focus-ring) !important;
+  outline: none !important;
+}
+
+.announcement-paper-spine,
+.announcement-hole-column,
+.announcement-hole,
+.announcement-paper::after,
+.announcement-note-display-marker {
+  display: none !important;
+}
+
+.announcement-note-textarea,
+.announcement-note-display {
+  padding-left: 1rem !important;
+}
+
+.announcement-note-display {
+  border: 0 !important;
+  background: transparent !important;
+  color: #2c1e16 !important;
+}
+
+.announcement-note-textarea,
+.announcement-note-textarea:focus {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.announcement-note-display-line {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.dictionary-search-bar {
+  box-shadow: var(--soft-shadow) !important;
+}
+
+.dictionary-shell .dictionary-loading-stage,
+.dictionary-shell .dictionary-results-stage {
+  color: var(--ink) !important;
+}
+
+.dictionary-shell .dictionary-loading-card {
+  border-color: var(--green-border) !important;
+  background: var(--card-surface) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.dictionary-loading-copy-text {
+  color: var(--starbucks-green) !important;
+}
+
+.dictionary-loading-copy-subtext {
+  color: var(--text-soft) !important;
+}
+
+.random-board-win-glow,
+.random-board-repeat-glow,
+.random-board-stage::before,
+.random-stage-win-flash,
+.random-stage-repeat-flash,
+.random-stage-reset-flash {
+  opacity: 0.55;
+}
+
+.random-board-win-ray,
+.random-board-repeat-ray,
+.random-board-win-particle,
+.random-board-repeat-particle,
+.random-board-reset-particle {
+  background: var(--gold) !important;
+}
+
+.timer-ring-svg circle:first-child {
+  stroke: var(--green-light) !important;
+}
+
+.timer-ring-svg circle:last-child {
+  stroke: var(--green-accent) !important;
+}
+
+.timer-idle-state .clock-display,
+.timer-idle-state .editorial-clock-display {
+  color: #6f756d !important;
+}
+
+.timer-idle-state .timer-ring-svg circle:first-child {
+  stroke: #e2e5df !important;
+}
+
+.timer-idle-state .timer-ring-svg circle:last-child {
+  stroke: #c7cdc4 !important;
+}
+
+.timer-idle-state .timer-primary-chip,
+.timer-idle-state .status-medallion {
+  border-color: #d5dad2 !important;
+  background: #fbfbf9 !important;
+  color: #6f756d !important;
+}
+
+.panel-divider {
+  background: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* TimerPage settings semantic classes - phase 3 */
+
+.app-settings-modal {
+  border-width: 1px !important;
+  border-color: var(--panel-border) !important;
+  border-radius: 12px !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--floating-shadow) !important;
+}
+
+.settings-tab-strip {
+  background: var(--card-surface) !important;
+  border-color: var(--panel-border) !important;
+}
+
+.settings-panel-grid {
+  color: var(--ink);
+}
+
+.settings-card,
+.settings-subcard,
+.settings-stat-card,
+.settings-case-card {
+  border: 1px solid var(--panel-border) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.settings-card + .settings-card {
+  margin-top: 0;
+}
+
+.settings-eyebrow {
+  color: var(--starbucks-green) !important;
+  letter-spacing: 0.1em !important;
+}
+
+.settings-count-pill,
+.settings-stat-card {
+  color: var(--starbucks-green) !important;
+}
+
+.settings-count-pill {
+  border-color: var(--green-border) !important;
+  background: var(--green-light) !important;
+  box-shadow: none !important;
+}
+
+.settings-mode-tab,
+.settings-day-button,
+.settings-case-card {
+  border: 1px solid var(--green-border) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-surface) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+.settings-mode-tab-active,
+.settings-day-button-active,
+.settings-case-card-active {
+  border-color: var(--green-accent) !important;
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.settings-mode-tab-idle:hover,
+.settings-day-button-idle:hover,
+.settings-case-card-idle:hover {
+  border-color: var(--green-accent) !important;
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.settings-mode-tab *,
+.settings-day-button *,
+.settings-case-card * {
+  color: inherit !important;
+}
+
+.settings-subcard {
+  background: var(--quiet-surface) !important;
+}
+
+.settings-stat-card {
+  background: var(--quiet-surface) !important;
+}
+
+.settings-panel-grid label {
+  color: var(--ink) !important;
+}
+
+.settings-panel-grid label > span,
+.settings-panel-grid h5 {
+  color: var(--starbucks-green) !important;
+}
+
+.settings-panel-grid input,
+.settings-panel-grid textarea,
+.settings-panel-grid select {
+  border-radius: 12px !important;
+}
+
+.settings-panel-grid .slot-card {
+  border-radius: 12px !important;
+  border-color: var(--panel-border) !important;
+  background: var(--card-surface) !important;
+}
+
+/* Dictionary overlay semantic classes - phase 4 */
+
+.dictionary-stage-card,
+.dictionary-card,
+.dictionary-choice-card,
+.dictionary-meaning-card,
+.dictionary-skeleton-card,
+.dictionary-empty-card,
+.dictionary-error-card,
+.dictionary-answer-panel,
+.dictionary-related-panel {
+  border: 1px solid var(--panel-border) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.dictionary-stage-card {
+  background: var(--card-surface) !important;
+}
+
+.dictionary-search-header {
+  background: transparent !important;
+}
+
+.dictionary-search-body {
+  background: var(--ceramic) !important;
+}
+
+.dictionary-search-bar {
+  border-width: 1px !important;
+  border-color: var(--green-border) !important;
+  border-radius: 50px !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--floating-shadow) !important;
+}
+
+.dictionary-search-bar input {
+  color: var(--ink) !important;
+  letter-spacing: -0.01em !important;
+}
+
+.dictionary-search-button,
+.dictionary-primary-button,
+.dictionary-answer-button {
+  border: 1px solid var(--green-accent) !important;
+  border-radius: 50px !important;
+  background: var(--green-accent) !important;
+  color: #ffffff !important;
+  box-shadow: var(--floating-shadow) !important;
+}
+
+.dictionary-search-button:active,
+.dictionary-primary-button:active,
+.dictionary-answer-button:active {
+  transform: scale(var(--button-active-scale));
+}
+
+.dictionary-secondary-button {
+  border-color: var(--green-border) !important;
+  border-radius: 50px !important;
+  background: var(--card-surface) !important;
+  color: var(--green-accent) !important;
+  box-shadow: var(--soft-shadow) !important;
+}
+
+.dictionary-choice-card {
+  display: block;
+}
+
+.dictionary-choice-card:hover {
+  border-color: var(--green-accent) !important;
+  background: var(--green-light) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.dictionary-choice-card p,
+.dictionary-meaning-card p,
+.dictionary-card p {
+  color: var(--ink) !important;
+}
+
+.dictionary-choice-card .border-t,
+.dictionary-meaning-card .border-t {
+  border-color: var(--panel-border) !important;
+  background: var(--quiet-surface) !important;
+}
+
+.dictionary-badge,
+.dictionary-related-focus {
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.dictionary-related-chip {
+  border-width: 1px !important;
+  border-color: var(--green-border) !important;
+  border-radius: 50px !important;
+  background: var(--card-surface) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+.dictionary-syllable-tile {
+  border-width: 1px !important;
+  border-color: var(--green-border) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-surface) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.dictionary-syllable-tile:not(:disabled):hover,
+.dictionary-syllable-tile:not(:disabled):focus-visible {
+  border-color: var(--green-accent) !important;
+  background: var(--green-light) !important;
+  outline: none !important;
+}
+
+.dictionary-syllable-tile:disabled {
+  background: var(--quiet-surface) !important;
+  color: var(--text-soft) !important;
+  opacity: 0.7 !important;
+}
+
+.dictionary-answer-panel {
+  background: var(--green-light) !important;
+}
+
+.dictionary-related-panel {
+  background: var(--card-surface) !important;
+}
+
+.dictionary-answer-panel .text-\[\#C7684A\],
+.dictionary-answer-panel .text-\[\#5C8D6D\],
+.dictionary-answer-panel .text-\[\#3F2B20\] {
+  color: var(--starbucks-green) !important;
+}
+
+.dictionary-answer-reveal {
+  border-radius: var(--card-radius) !important;
+  background: var(--house-green) !important;
+  color: #ffffff !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.dictionary-answer-button {
+  background: var(--green-accent) !important;
+}
+
+.dictionary-empty-card {
+  border-style: dashed !important;
+  border-color: var(--green-border) !important;
+  color: var(--text-soft) !important;
+}
+
+.dictionary-error-card {
+  border-color: rgba(200, 32, 20, 0.22) !important;
+  background: rgba(200, 32, 20, 0.05) !important;
+  color: #c82014 !important;
+}
+
+.dictionary-skeleton-card {
+  background: var(--quiet-surface) !important;
+}
+
+.dictionary-skeleton-card div {
+  background: var(--ceramic) !important;
+}
+
+.dictionary-loading-glow,
+.dictionary-loading-stage::before,
+.dictionary-loading-card::after {
+  display: none !important;
+}
+
+.dictionary-loading-card {
+  border-radius: var(--card-radius) !important;
+}
+
+/* Random draw standalone page semantic classes - phase 5 */
+
+.random-page-shell {
+  border-width: 1px !important;
+  border-color: var(--panel-border) !important;
+  border-radius: 24px !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--floating-shadow) !important;
+}
+
+.random-stage-pane {
+  background: var(--warm-canvas) !important;
+}
+
+.random-side-panel {
+  background: var(--ceramic) !important;
+  border-color: var(--panel-border) !important;
+}
+
+.random-panel-card,
+.random-settings-modal,
+.random-settings-subcard {
+  border: 1px solid var(--panel-border) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.random-settings-modal {
+  box-shadow: var(--floating-shadow) !important;
+}
+
+.random-board-surface {
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: var(--house-green) !important;
+  box-shadow: var(--floating-shadow) !important;
+}
+
+.random-board-stage::before {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.random-stage-win-flash,
+.random-stage-repeat-flash,
+.random-stage-reset-flash,
+.random-shell-win-flash,
+.random-board-win-backflash,
+.random-board-repeat-backflash,
+.random-board-win-glow,
+.random-board-repeat-glow,
+.random-board-win-shockwave,
+.random-board-shockwave,
+.random-board-repeat-ring,
+.random-board-reset-ring,
+.random-board-reset-sweep,
+.random-repeat-flight-portal,
+.random-repeat-flight-trail {
+  opacity: 0.28 !important;
+}
+
+.random-board-win-rays,
+.random-board-repeat-rays,
+.random-board-win-particles,
+.random-board-repeat-particles,
+.random-board-reset-particles,
+.random-board-sparks {
+  opacity: 0.55 !important;
+}
+
+.random-board-win-ray,
+.random-board-repeat-ray,
+.random-board-win-particle,
+.random-board-repeat-particle,
+.random-board-reset-particle,
+.random-board-spark {
+  background: var(--gold) !important;
+}
+
+.random-board-number,
+.random-board-display-name,
+.random-board-empty-text,
+.random-repeat-flight-number {
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+.random-board-number-repeat-incoming,
+.random-board-number-repeat-accent,
+.random-board-number-reset-accent {
+  color: var(--gold) !important;
+}
+
+.random-stage-actions .round-action-play,
+.random-action-button {
+  background: var(--green-accent) !important;
+  border-color: var(--green-accent) !important;
+  color: #ffffff !important;
+}
+
+.random-stage-actions .round-action-reset {
+  background: var(--card-surface) !important;
+  border: 1px solid var(--green-border) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.random-settings-button,
+.random-settings-close-button {
+  border-color: var(--green-border) !important;
+  background: var(--card-surface) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.random-case-switch {
+  border: 1px solid var(--green-border) !important;
+  border-radius: 50px !important;
+  background: var(--green-light) !important;
+  box-shadow: none !important;
+}
+
+.random-case-button {
+  border-radius: 50px !important;
+}
+
+.random-case-button.mode-toggle-active {
+  background: var(--house-green) !important;
+  color: #ffffff !important;
+}
+
+.random-case-button.mode-toggle-inactive {
+  color: var(--starbucks-green) !important;
+}
+
+.random-summary-title,
+.random-settings-shell .section-title {
+  color: var(--starbucks-green) !important;
+}
+
+.random-summary-medallion,
+.random-settings-case-badge {
+  border-color: var(--green-border) !important;
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: none !important;
+}
+
+.random-history-panel {
+  background: var(--card-surface) !important;
+}
+
+.random-history-chip {
+  border: 1px solid var(--green-border) !important;
+  background: var(--quiet-surface) !important;
+  color: var(--starbucks-green) !important;
+  box-shadow: none !important;
+}
+
+.random-history-chip-repeat,
+.random-history-chip-repeat-source {
+  border-color: rgba(203, 162, 88, 0.5) !important;
+  background: #faf6ee !important;
+  color: #72531e !important;
+}
+
+.random-settings-shell {
+  border-width: 1px !important;
+  border-color: var(--panel-border) !important;
+}
+
+.random-settings-header-panel,
+.random-settings-sidebar,
+.random-settings-detail-card,
+.random-settings-roster-card,
+.random-settings-repeat-card,
+.random-settings-case-card,
+.random-settings-case-card-v2,
+.random-settings-subcard {
+  border: 1px solid var(--panel-border) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.random-settings-case-card-active,
+.random-settings-case-card-v2.random-settings-case-card-active {
+  border-color: var(--green-accent) !important;
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.random-settings-case-content,
+.random-settings-case-content * {
+  color: inherit !important;
+}
+
+.random-settings-text-input,
+.random-settings-number-input,
+.random-settings-roster-input {
+  border: 1px solid var(--green-border) !important;
+  border-radius: var(--card-radius) !important;
+  background: #ffffff !important;
+  color: var(--ink) !important;
+}
+
+.random-settings-text-input:focus,
+.random-settings-number-input:focus,
+.random-settings-roster-input:focus {
+  border-color: var(--green-accent) !important;
+  box-shadow: 0 0 0 4px var(--green-focus-ring) !important;
+  outline: none !important;
+}
+
+.random-settings-roster-row {
+  border: 1px solid var(--panel-border) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--quiet-surface) !important;
+}
+
+.random-settings-roster-number {
+  background: var(--green-light) !important;
+  color: var(--starbucks-green) !important;
+}
+
+.random-settings-add-button,
+.random-settings-shell .bg-\[\#6F8A65\] {
+  border-color: var(--green-accent) !important;
+  background: var(--green-accent) !important;
+  color: #ffffff !important;
+}
+
+.random-settings-shell .border-\[\#D9C8B6\] {
+  border-color: var(--green-border) !important;
+}
+
+.random-settings-shell .bg-\[\#FFF7EC\] {
+  background: var(--card-surface) !important;
+}
+
+.random-settings-shell .text-\[\#8A6347\],
+.random-settings-shell .text-\[\#B58363\],
+.random-settings-shell .text-\[\#3F2B20\] {
+  color: var(--ink) !important;
+}
+
+.random-settings-shell label > span,
+.random-settings-shell h3,
+.random-settings-shell h4 {
+  color: var(--starbucks-green) !important;
+}
+
+.random-settings-shell p {
+  color: var(--text-soft) !important;
+}
+
+.editorial-control-pane .schedule-board-compact {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+.editorial-control-pane .schedule-empty-state,
+.editorial-control-pane .schedule-scroll-stack {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+.mascot-shell [class*="shadow-["],
+.dictionary-shell [class*="shadow-["],
+.settings-dialog [class*="shadow-["] {
+  box-shadow: var(--soft-shadow) !important;
+}
+
+.round-action[class*="shadow-"],
+.page-floating-nav,
+.pointer-events-auto form {
+  box-shadow: var(--floating-shadow) !important;
+}
+
+.custom-scrollbar {
+  scrollbar-color: rgba(0, 98, 65, 0.35) transparent;
+}
+
+@media (max-width: 767px) {
+  .mascot-app {
+    padding: 0.8rem !important;
+  }
+
+  .mascot-shell,
+  .editorial-main-shell,
+  .announcement-shell,
+  .memo-shell,
+  .dictionary-shell {
+    border-radius: 18px !important;
+  }
 }

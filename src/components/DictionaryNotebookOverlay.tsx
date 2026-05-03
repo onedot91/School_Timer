@@ -175,7 +175,7 @@ const renderRelatedWordChip = (word: string, focusChar: string, isExpanded = fal
   if (focusIndex === -1) {
     return (
       <span
-        className={`inline-flex items-center border-2 border-[#D5E2CE] bg-white font-extrabold text-[#3F2B20] ${chipClass}`}
+        className={`dictionary-related-chip inline-flex items-center border-2 border-[#D5E2CE] bg-white font-extrabold text-[#3F2B20] ${chipClass}`}
       >
         {word}
       </span>
@@ -187,11 +187,11 @@ const renderRelatedWordChip = (word: string, focusChar: string, isExpanded = fal
 
   return (
     <span
-      className={`inline-flex items-center gap-2 border-2 border-[#D5E2CE] bg-white font-extrabold text-[#3F2B20] ${chipClass}`}
+      className={`dictionary-related-chip inline-flex items-center gap-2 border-2 border-[#D5E2CE] bg-white font-extrabold text-[#3F2B20] ${chipClass}`}
     >
       {before ? <span>{before}</span> : null}
       <span
-        className={`inline-flex items-center justify-center rounded-full bg-[#F7E1D5] text-[#C7684A] ${focusClass}`}
+        className={`dictionary-related-focus inline-flex items-center justify-center rounded-full bg-[#F7E1D5] text-[#C7684A] ${focusClass}`}
       >
         {focusChar}
       </span>
@@ -237,13 +237,13 @@ function MeaningPanel({
   onSelectMeaning?: (index: number) => void;
 }) {
   return (
-    <section className="paper-card flex h-full min-h-0 flex-col rounded-[2rem] border border-[#E6D5C9] p-4 sm:p-5 lg:p-6">
+    <section className="dictionary-card paper-card flex h-full min-h-0 flex-col rounded-[2rem] border border-[#E6D5C9] p-4 sm:p-5 lg:p-6">
       {isMeaningLoading ? (
         <div className="grid gap-3">
           {Array.from({ length: 2 }).map((_, index) => (
             <div
               key={`meaning-loading-${index}`}
-              className="animate-pulse rounded-[1.5rem] border border-[#E6D5C9] bg-white/90 p-4 sm:p-5"
+              className="dictionary-skeleton-card animate-pulse rounded-[1.5rem] border border-[#E6D5C9] bg-white/90 p-4 sm:p-5"
             >
               <div className="h-6 w-2/3 rounded-full bg-[#E7DACB]" />
               <div className="mt-4 h-4.5 w-full rounded-full bg-[#EEE4D6]" />
@@ -252,7 +252,7 @@ function MeaningPanel({
           ))}
         </div>
       ) : meaningError ? (
-        <div className="rounded-[1.5rem] border border-[#E8C9B8] bg-[#FFF8F3] p-4 sm:p-5 text-[#B75F47]">
+        <div className="dictionary-error-card rounded-[1.5rem] border border-[#E8C9B8] bg-[#FFF8F3] p-4 sm:p-5 text-[#B75F47]">
           <div className="flex items-start gap-3">
             <CircleAlert size={24} className="mt-0.5 shrink-0" />
             <div className="min-w-0 flex-1">
@@ -260,7 +260,7 @@ function MeaningPanel({
               <button
                 type="button"
                 onClick={onRetry}
-                className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#D9C8B6] bg-white px-5 py-2.5 text-[0.98rem] font-extrabold text-[#8A6347]"
+                className="dictionary-secondary-button mt-4 inline-flex items-center gap-2 rounded-full border border-[#D9C8B6] bg-white px-5 py-2.5 text-[0.98rem] font-extrabold text-[#8A6347]"
               >
                 다시 보기
               </button>
@@ -288,10 +288,10 @@ function MeaningPanel({
                 key={`${word}-meaning-choice-${index}`}
                 type="button"
                 onClick={() => onSelectMeaning(index)}
-                className="overflow-hidden rounded-[2rem] border border-[#E6D8C9] bg-white/95 text-left transition-all hover:border-[#D9C9B8] hover:shadow-[0_14px_26px_rgba(143,113,88,0.1)]"
+                className="dictionary-choice-card overflow-hidden rounded-[2rem] border border-[#E6D8C9] bg-white/95 text-left transition-all hover:border-[#D9C9B8] hover:shadow-[0_14px_26px_rgba(143,113,88,0.1)]"
               >
                 <div className="flex items-start gap-5 px-7 py-6 sm:px-8 sm:py-7">
-                  <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F7E1D5] text-[1.35rem] font-extrabold text-[#C7684A] sm:h-16 sm:w-16 sm:text-[1.5rem]">
+                  <span className="dictionary-badge inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F7E1D5] text-[1.35rem] font-extrabold text-[#C7684A] sm:h-16 sm:w-16 sm:text-[1.5rem]">
                     {item.badge}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -325,10 +325,10 @@ function MeaningPanel({
           {meanings.map((item, index) => (
             <article
               key={`${word}-meaning-${index}`}
-              className="overflow-hidden rounded-[1.65rem] border border-[#E6D5C9] bg-white/94"
+              className="dictionary-meaning-card overflow-hidden rounded-[1.65rem] border border-[#E6D5C9] bg-white/94"
             >
               <div className="flex items-center gap-4 px-5 py-4 sm:px-6 sm:py-5">
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F7E1D5] text-[1.08rem] font-extrabold text-[#C7684A]">
+                <span className="dictionary-badge inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F7E1D5] text-[1.08rem] font-extrabold text-[#C7684A]">
                   {index + 1}
                 </span>
                 <p className="text-[1.14rem] font-extrabold leading-8 text-[#3F2B20] sm:text-[1.22rem]">{item.meaning}</p>
@@ -343,7 +343,7 @@ function MeaningPanel({
           ))}
         </div>
       ) : (
-        <div className="rounded-[1.6rem] border border-dashed border-[#E6D5C9] bg-white/70 px-5 py-6 text-center text-[1.08rem] font-bold text-[#8A6347]">
+        <div className="dictionary-empty-card rounded-[1.6rem] border border-dashed border-[#E6D5C9] bg-white/70 px-5 py-6 text-center text-[1.08rem] font-bold text-[#8A6347]">
           뜻풀이를 열어 보세요.
         </div>
       )}
@@ -716,7 +716,7 @@ export default function DictionaryNotebookOverlay({
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2.5 lg:p-3">
           <div className="mx-auto flex h-full w-full max-w-[1440px] min-h-0 flex-col">
-            <div className="paper-card relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2.4rem] border-2 border-[#E6D5C9] bg-[#FFFCF8]">
+            <div className="dictionary-stage-card paper-card relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2.4rem] border-2 border-[#E6D5C9] bg-[#FFFCF8]">
               <div className={`dictionary-search-header shrink-0 px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 ${hasSearched ? 'dictionary-search-header-active' : 'dictionary-search-header-idle'}`}>
                 <div className="dictionary-search-corner dictionary-search-corner-left">
                   <div className="shrink-0">
@@ -738,7 +738,7 @@ export default function DictionaryNotebookOverlay({
                       />
                       <button
                         type="submit"
-                        className={`inline-flex shrink-0 items-center justify-center border border-[#E8D5C9] bg-[#FFF1EA] text-[#C7684A] shadow-[0_10px_18px_rgba(215,124,96,0.12)] transition-transform hover:scale-[1.02] active:scale-[0.98] ${hasSearched ? 'h-[3.75rem] w-[3.75rem] rounded-[1.25rem] sm:h-[3.95rem] sm:w-[3.95rem]' : 'h-[4.8rem] w-[4.8rem] rounded-[1.55rem] sm:h-[5.05rem] sm:w-[5.05rem]'}`}
+                        className={`dictionary-search-button inline-flex shrink-0 items-center justify-center border border-[#E8D5C9] bg-[#FFF1EA] text-[#C7684A] shadow-[0_10px_18px_rgba(215,124,96,0.12)] transition-transform hover:scale-[1.02] active:scale-[0.98] ${hasSearched ? 'h-[3.75rem] w-[3.75rem] rounded-[1.25rem] sm:h-[3.95rem] sm:w-[3.95rem]' : 'h-[4.8rem] w-[4.8rem] rounded-[1.55rem] sm:h-[5.05rem] sm:w-[5.05rem]'}`}
                         aria-label="낱말 검색"
                       >
                         {isSyllableLoading ? <LoaderCircle size={hasSearched ? 24 : 28} className="animate-spin" /> : <Search size={hasSearched ? 24 : 28} />}
@@ -762,7 +762,7 @@ export default function DictionaryNotebookOverlay({
               <div className={`dictionary-search-body custom-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 xl:overflow-hidden ${hasSearched ? 'dictionary-search-body-active' : 'dictionary-search-body-idle'}`}>
                 {!hasSearched ? (
                   <div className="dictionary-search-empty-state flex min-h-[13rem] items-center justify-center">
-                    <div className="rounded-[1.6rem] border border-dashed border-[#E5D7C8] bg-white/70 px-6 py-7 text-center text-[0.98rem] font-bold text-[#8A6347]">
+                    <div className="dictionary-empty-card rounded-[1.6rem] border border-dashed border-[#E5D7C8] bg-white/70 px-6 py-7 text-center text-[0.98rem] font-bold text-[#8A6347]">
                       낱말을 찾아 보세요.
                     </div>
                   </div>
@@ -803,7 +803,7 @@ export default function DictionaryNotebookOverlay({
                     ) : (
                       <>
                         <section
-                          className={`paper-card flex min-h-0 flex-col rounded-[2rem] border border-[#E6D5C9] ${
+                          className={`dictionary-card paper-card flex min-h-0 flex-col rounded-[2rem] border border-[#E6D5C9] ${
                             isExpandedLayout ? 'p-5 sm:p-6 lg:p-8' : 'p-4 sm:p-5 lg:p-6'
                           }`}
                         >
@@ -856,7 +856,7 @@ export default function DictionaryNotebookOverlay({
                               </div>
                             </div>
                           ) : syllableError ? (
-                            <div className="mt-4 rounded-[1.45rem] border border-[#E8C9B8] bg-[#FFF8F3] p-4 text-[#B75F47]">
+                            <div className="dictionary-error-card mt-4 rounded-[1.45rem] border border-[#E8C9B8] bg-[#FFF8F3] p-4 text-[#B75F47]">
                               <div className="flex items-start gap-3">
                                 <CircleAlert size={20} className="mt-0.5 shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -866,7 +866,7 @@ export default function DictionaryNotebookOverlay({
                                     onClick={() => {
                                       void handleMeaningPanelOpen();
                                     }}
-                                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+                                    className="dictionary-primary-button mt-3 inline-flex items-center gap-2 rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
                                   >
                                     뜻부터 보기
                                   </button>
@@ -905,7 +905,7 @@ export default function DictionaryNotebookOverlay({
                                         type="button"
                                         disabled={!syllable.isHanja}
                                         onClick={() => setSelectedSyllableIndex(index)}
-                                        className={`inline-flex items-center justify-center border-2 font-extrabold tracking-[-0.06em] transition-all ${
+                                        className={`dictionary-syllable-tile inline-flex items-center justify-center border-2 font-extrabold tracking-[-0.06em] transition-all ${
                                           isExpandedLayout
                                             ? 'h-[7rem] w-[7rem] rounded-[1.9rem] text-[3.5rem] sm:h-[8rem] sm:w-[8rem] sm:text-[4.1rem] lg:h-[9.2rem] lg:w-[9.2rem] lg:text-[4.8rem]'
                                             : 'h-[5.5rem] w-[5.5rem] rounded-[1.6rem] text-[2.7rem] sm:h-[6rem] sm:w-[6rem] sm:text-[3rem]'
@@ -920,7 +920,7 @@ export default function DictionaryNotebookOverlay({
 
                               {hasAnyHanjaSyllable && selectedSyllable?.isHanja ? (
                                 <div
-                                  className={`border-2 border-[#D6E4CE] bg-[#F5FAF4] ${
+                                  className={`dictionary-answer-panel border-2 border-[#D6E4CE] bg-[#F5FAF4] ${
                                     isExpandedLayout ? 'mt-7 rounded-[2rem] p-6 sm:p-7' : 'mt-4 rounded-[1.7rem] p-4'
                                   }`}
                                 >
@@ -949,7 +949,7 @@ export default function DictionaryNotebookOverlay({
                                   </div>
 
                                   <div
-                                    className={`border-2 border-[#D7E5D0] bg-white/94 ${
+                                    className={`dictionary-related-panel border-2 border-[#D7E5D0] bg-white/94 ${
                                       isExpandedLayout ? 'mt-5 rounded-[1.6rem] p-5 sm:p-6' : 'mt-4 rounded-[1.35rem] p-4'
                                     }`}
                                   >
@@ -982,7 +982,7 @@ export default function DictionaryNotebookOverlay({
 
                                   {revealedSyllableMeaningMap[selectedSyllableIndex || 0] ? (
                                     <div
-                                      className={`rounded-[1.35rem] bg-[#6F8A65] text-center font-extrabold tracking-[-0.04em] text-white shadow-[0_18px_30px_rgba(93,118,84,0.22)] ${
+                                      className={`dictionary-answer-reveal rounded-[1.35rem] bg-[#6F8A65] text-center font-extrabold tracking-[-0.04em] text-white shadow-[0_18px_30px_rgba(93,118,84,0.22)] ${
                                         isExpandedLayout
                                           ? 'mt-5 px-7 py-5 text-[1.78rem] sm:text-[2rem]'
                                           : 'mt-4 px-6 py-4 text-[1.4rem]'
@@ -994,7 +994,7 @@ export default function DictionaryNotebookOverlay({
                                     <button
                                       type="button"
                                       onClick={revealSelectedMeaning}
-                                      className={`inline-flex items-center justify-center gap-2 rounded-full bg-[#D97D67] font-extrabold text-white shadow-[0_14px_24px_rgba(199,104,74,0.24)] ${
+                                      className={`dictionary-answer-button inline-flex items-center justify-center gap-2 rounded-full bg-[#D97D67] font-extrabold text-white shadow-[0_14px_24px_rgba(199,104,74,0.24)] ${
                                         isExpandedLayout
                                           ? 'mt-5 w-full px-7 py-5 text-[1.42rem] sm:text-[1.56rem]'
                                           : 'mt-4 px-6 py-3 text-[1.12rem]'

@@ -103,7 +103,7 @@ const SETTINGS_CLOSE_LABEL = '\uC124\uC815 \uB2EB\uAE30';
 const DRAWN_NUMBERS_LABEL = '\uBF51\uD78C \uBC88\uD638';
 const REMAINING_LABEL = '\uB0A8\uC740';
 const EMPTY_HISTORY_LABEL = '\uC544\uC9C1 \uC5C6\uC2B5\uB2C8\uB2E4.';
-const ADD_CASE_LABEL = '\uC0C1\uD669 \uCD94\uAC00';
+const ADD_CASE_LABEL = '\uCD94\uAC00';
 const DELETE_CASE_LABEL = '\uC0C1\uD669 \uC0AD\uC81C';
 const SETTINGS_SUBTITLE =
   '\uC0C1\uD669 \uC774\uB984, \uBC94\uC704, \uD559\uC0DD \uC774\uB984, \uD2B9\uC218 \uCD94\uCCA8 \uC635\uC158\uC744 \uAD00\uB9AC\uD569\uB2C8\uB2E4.';
@@ -1837,7 +1837,7 @@ export default function RandomDrawPage() {
 
   return (
     <div className="mascot-app editorial-random-legacy-font h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
-      <div className="mascot-shell editorial-main-shell app-tone-calm relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl md:rounded-[3rem]">
+      <div className="random-page-shell mascot-shell editorial-main-shell app-tone-calm relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl md:rounded-[3rem]">
         {isNormalWinImpactVisible && <div aria-hidden="true" className="random-shell-win-flash" />}
         <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
@@ -1846,7 +1846,7 @@ export default function RandomDrawPage() {
 
         <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_29rem] xl:grid-cols-[minmax(0,1fr)_32rem] 2xl:grid-cols-[minmax(0,1fr)_34rem]">
           <section
-            className={`timer-pane relative flex h-full min-h-0 flex-col items-center p-5 md:p-8 lg:px-8 lg:py-10 xl:px-10 xl:py-12${
+            className={`random-stage-pane timer-pane relative flex h-full min-h-0 flex-col items-center p-5 md:p-8 lg:px-8 lg:py-10 xl:px-10 xl:py-12${
               isNormalWinImpactVisible ? ' random-stage-panel-win-shake' : ''
             }`}
           >
@@ -1920,7 +1920,7 @@ export default function RandomDrawPage() {
 
                 <div
                   ref={boardRef}
-                  className={`random-board ${isDrawing ? 'random-board-drawing' : ''}${
+                  className={`random-board random-board-surface ${isDrawing ? 'random-board-drawing' : ''}${
                     isStageShowingEmptyNotice ? ' random-board-empty-state' : ''
                   }${
                     isNormalWinImpactVisible ? ' random-board-win-impact' : ''
@@ -2121,7 +2121,7 @@ export default function RandomDrawPage() {
           </section>
 
           <aside
-            className={`control-pane random-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-4 sm:p-5 lg:w-auto lg:border-l lg:border-t-0 lg:px-6 lg:py-6 xl:px-7 xl:py-7${
+            className={`random-side-panel control-pane random-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-4 sm:p-5 lg:w-auto lg:border-l lg:border-t-0 lg:px-6 lg:py-6 xl:px-7 xl:py-7${
               isNormalWinImpactVisible ? ' random-control-pane-win-react' : ''
             }`}
           >
@@ -2146,7 +2146,7 @@ export default function RandomDrawPage() {
               })}
             </div>
 
-            <div className="paper-card random-summary-card shrink-0 rounded-[1.9rem] border-2 border-[#E6D5C9] p-4 shadow-sm">
+            <div className="random-panel-card paper-card random-summary-card shrink-0 rounded-[1.9rem] border-2 border-[#E6D5C9] p-4 shadow-sm">
               <div className="random-summary-row flex flex-wrap items-center justify-between gap-3">
                 <h2 className="random-summary-title section-title text-lg font-bold text-[#8A6347] md:text-[1.35rem]">
                   {DRAWN_NUMBERS_LABEL}
@@ -2157,7 +2157,7 @@ export default function RandomDrawPage() {
               </div>
             </div>
 
-            <div className="paper-card random-history-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border-2 border-[#E6D5C9] p-4 shadow-sm md:p-5">
+            <div className="random-panel-card paper-card random-history-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border-2 border-[#E6D5C9] p-4 shadow-sm md:p-5">
               <div className="custom-scrollbar random-history-scroll flex-1 overflow-y-auto pr-1">
                 {orderedVisibleHistoryEntries.length > 0 ? (
                   <div className="random-history-grid">
@@ -2193,11 +2193,10 @@ export default function RandomDrawPage() {
 
       {isSettingsOpen && (
         <div className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm md:p-6">
-          <div className="settings-dialog editorial-settings-dialog random-settings-shell flex max-h-[90vh] w-full max-w-[68rem] flex-col overflow-hidden rounded-[2rem] border-[4px] border-[#B58363] bg-[#FDFBF7] shadow-2xl">
+          <div className="random-settings-modal settings-dialog editorial-settings-dialog random-settings-shell flex max-h-[90vh] w-full max-w-[68rem] flex-col overflow-hidden rounded-[2rem] border-[4px] border-[#B58363] bg-[#FDFBF7] shadow-2xl">
             <div className="settings-header random-settings-header-panel flex shrink-0 items-start justify-between border-b border-[#E6D5C9] p-4 md:p-5 lg:p-6">
               <div onClick={handleSettingsHeaderSecretTap}>
                 <h2 className="section-title text-[1.7rem] font-extrabold text-[#3F2B20] md:text-[1.95rem]">{SETTINGS_LABEL}</h2>
-                <p className="mt-1.5 text-sm font-bold text-[#B58363] md:text-[0.96rem]">{SETTINGS_SUBTITLE}</p>
               </div>
               <button
                 type="button"
@@ -2213,7 +2212,7 @@ export default function RandomDrawPage() {
               <div className="random-settings-layout grid gap-4 lg:grid-cols-[minmax(15rem,0.74fr)_minmax(0,1.26fr)]">
                 <section className="random-settings-sidebar rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-2.5">
-                    <h3 className="section-title text-[1.32rem] font-extrabold text-[#3F2B20]">{CASE_LIST_LABEL}</h3>
+                    <h3 className="section-title text-[1.32rem] font-extrabold text-[#3F2B20]">상황</h3>
                     <button
                       type="button"
                       onClick={addSettingsCase}
@@ -2326,7 +2325,6 @@ export default function RandomDrawPage() {
                     <div className="flex flex-wrap items-start justify-between gap-2.5">
                       <div className="max-w-[32rem]">
                         <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">{STUDENT_ROSTER_LABEL}</h3>
-                        <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">{STUDENT_ROSTER_DESCRIPTION}</p>
                       </div>
 
                       <div className="random-settings-case-badge">
@@ -2335,7 +2333,7 @@ export default function RandomDrawPage() {
                     </div>
 
                     <div className="random-settings-roster-panel mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
-                      <div className="rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+                      <div className="random-settings-subcard rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
                         <label className="flex flex-col gap-2.5">
                           <span className="section-title text-[0.92rem] font-bold text-[#B58363]">{STUDENT_ROSTER_BULK_LABEL}</span>
                           <textarea
@@ -2346,7 +2344,6 @@ export default function RandomDrawPage() {
                           />
                         </label>
                         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                          <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">{STUDENT_ROSTER_BULK_HINT}</p>
                           <button
                             type="button"
                             onClick={applyBulkStudentRoster}
@@ -2392,7 +2389,6 @@ export default function RandomDrawPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="max-w-[32rem]">
                         <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">{REPEAT_PICK_LABEL}</h3>
-                        <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">{REPEAT_PICK_DESCRIPTION}</p>
                       </div>
 
                       <button
@@ -2416,9 +2412,6 @@ export default function RandomDrawPage() {
                           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
                             {SECRET_QUEUE_LABEL}
                           </h3>
-                          <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
-                            {SECRET_QUEUE_DESCRIPTION}
-                          </p>
                         </div>
 
                         <div className="random-settings-case-badge">
@@ -2426,7 +2419,7 @@ export default function RandomDrawPage() {
                         </div>
                       </div>
 
-                      <div className="mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+                      <div className="random-settings-subcard mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
                         <label className="flex flex-col gap-2.5">
                           <span className="section-title text-[0.92rem] font-bold text-[#B58363]">{SECRET_QUEUE_INPUT_LABEL}</span>
                           <textarea
@@ -2438,7 +2431,6 @@ export default function RandomDrawPage() {
                         </label>
 
                         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                          <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">{SECRET_QUEUE_HINT}</p>
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"

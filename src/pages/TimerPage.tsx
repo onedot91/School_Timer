@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { getFontEmbedCSS, toBlob } from 'html-to-image';
-import { CalendarClock, ChevronDown, Coffee, Download, ImageDown, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Download, ImageDown, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -158,9 +158,9 @@ const DEFAULT_MANUAL_TIMER_STATE: ManualTimerState = {
 };
 
 const MANUAL_TIMER_PRESETS = [
-  { label: '1분', seconds: 60 },
-  { label: '3분', seconds: 180 },
-  { label: '5분', seconds: 300 },
+  { label: '+1분', seconds: 60 },
+  { label: '+3분', seconds: 180 },
+  { label: '+5분', seconds: 300 },
 ] as const;
 const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_IFRAME_API_SRC = 'https://www.youtube.com/iframe_api';
@@ -1241,11 +1241,8 @@ function AnnouncementNotebookOverlay({
     const selectionEnd = textarea?.selectionEnd ?? noteText.length;
     const before = noteText.slice(0, selectionStart);
     const after = noteText.slice(selectionEnd);
-    const insertPrefix = before.length > 0 && !before.endsWith('\n') ? '\n' : '';
-    const insertSuffix = after.length > 0 && !after.startsWith('\n') ? '\n' : '';
-    const insertedText = `${insertPrefix}${ANNOUNCEMENT_SAFETY_PHRASE}${insertSuffix}`;
-    const nextText = `${before}${insertedText}${after}`;
-    const cursorPosition = before.length + insertedText.length;
+    const nextText = `${before}${ANNOUNCEMENT_SAFETY_PHRASE}${after}`;
+    const cursorPosition = before.length + ANNOUNCEMENT_SAFETY_PHRASE.length;
 
     setNoteText(nextText);
     void playAnnouncementSound('pop');
@@ -1546,6 +1543,7 @@ function AnnouncementNotebookOverlay({
                   />
                   <div className="announcement-note-inline-tools" data-capture-exclude="true">
                     <button
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={insertSafetyPhrase}
                       className="announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-full border border-[#dcc7ae] text-[#8A6347]"
                       type="button"
@@ -1973,9 +1971,7 @@ export default function TimerPage() {
   const [drawCases, setDrawCases] = useState<RandomDrawCaseState[]>(initialRandomDrawState.cases);
   const [drawSettingsCaseId, setDrawSettingsCaseId] = useState(initialRandomDrawState.activeCaseId);
   const [isDrawCaseMenuOpen, setIsDrawCaseMenuOpen] = useState(false);
-  const [isDrawCaseSwitchNearby, setIsDrawCaseSwitchNearby] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
-  );
+  const [isDrawCaseSwitchNearby, setIsDrawCaseSwitchNearby] = useState(false);
   const [studentRosterBulkInput, setStudentRosterBulkInput] = useState('');
   const [hiddenDrawResultInput, setHiddenDrawResultInput] = useState('');
   const [isHiddenDrawSettingsVisible, setIsHiddenDrawSettingsVisible] = useState(false);
@@ -2049,6 +2045,7 @@ export default function TimerPage() {
   const drawLaunchTokenRef = useRef(0);
   const queuedStudentDrawAfterResetRef = useRef(false);
   const penaltyPanelAnimationTimeoutRef = useRef<number | null>(null);
+  const drawCaseSwitchKeyboardTimeoutRef = useRef<number | null>(null);
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
   const manualTimerMenuRef = useRef<HTMLDivElement>(null);
@@ -2094,7 +2091,6 @@ export default function TimerPage() {
     (activeDrawCase.currentResult !== null || activeDrawCase.historyEntries.length > 0) &&
     !isStudentDrawing &&
     !isDrawResetVisible;
-  const isDrawCaseSwitchVisible = isDrawCaseMenuOpen || isDrawCaseSwitchNearby;
   const isDrawLocked = isStudentDrawing || isDrawResetVisible || isDrawAutoResetPending;
   const scheduleYoutubeVideoIds = scheduleYoutubeUrls
     .map((url) => extractYoutubeVideoId(url))
@@ -2330,10 +2326,17 @@ export default function TimerPage() {
     }
   };
 
-  const applyManualPreset = (totalSeconds: number) => {
-    setCustomMinutes(Math.floor(totalSeconds / 60).toString());
-    setCustomSeconds((totalSeconds % 60).toString());
-    setManualTimerDuration(totalSeconds);
+  const addManualPreset = (additionalSeconds: number) => {
+    if (additionalSeconds <= 0) return;
+
+    const nextTotalTime = manualTotalTime + additionalSeconds;
+    const nextTimeLeft = manualTimeLeft + additionalSeconds;
+
+    setCustomMinutes(Math.floor(nextTotalTime / 60).toString());
+    setCustomSeconds((nextTotalTime % 60).toString());
+    setManualTotalTime(nextTotalTime);
+    setManualTimeLeft(nextTimeLeft);
+    setManualEndTime(manualIsRunning ? Date.now() + nextTimeLeft * 1000 : null);
     setIsExtraTimerVisible(true);
   };
 
@@ -2855,6 +2858,85 @@ export default function TimerPage() {
     setIsDrawCaseMenuOpen(false);
   };
 
+  const selectAdjacentActiveDrawCase = (direction: -1 | 1) => {
+    if (drawCases.length <= 1) return;
+
+    const currentIndex = drawCases.findIndex((caseState) => caseState.id === resolvedActiveDrawCaseId);
+    const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
+    const nextIndex = (safeCurrentIndex + direction + drawCases.length) % drawCases.length;
+    const nextCase = drawCases[nextIndex];
+
+    if (nextCase) {
+      selectActiveDrawCase(nextCase.id);
+    }
+  };
+
+  const revealDrawCaseSwitchTemporarily = () => {
+    if (drawCaseSwitchKeyboardTimeoutRef.current !== null) {
+      window.clearTimeout(drawCaseSwitchKeyboardTimeoutRef.current);
+    }
+
+    setIsDrawCaseSwitchNearby(true);
+    drawCaseSwitchKeyboardTimeoutRef.current = window.setTimeout(() => {
+      const switchNode = drawCaseMenuRef.current;
+      const isPointerClose = switchNode?.matches(':hover') ?? false;
+      const isFocusInside = switchNode?.contains(document.activeElement) ?? false;
+
+      if (!isPointerClose && !isFocusInside) {
+        setIsDrawCaseSwitchNearby(false);
+      }
+
+      drawCaseSwitchKeyboardTimeoutRef.current = null;
+    }, 1800);
+  };
+
+  useEffect(() => {
+    const handleDrawCaseArrowShortcut = (event: KeyboardEvent) => {
+      const isPreviousKey = event.key === 'ArrowLeft' || event.code === 'ArrowLeft';
+      const isNextKey = event.key === 'ArrowRight' || event.code === 'ArrowRight';
+
+      if ((!isPreviousKey && !isNextKey) || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (
+        isSettingsOpen ||
+        isMemoOpen ||
+        isAnnouncementOpen ||
+        isDictionaryOpen ||
+        isYoutubePanelOpen ||
+        isEditingNotice ||
+        isEditableShortcutTarget(event.target)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      revealDrawCaseSwitchTemporarily();
+      selectAdjacentActiveDrawCase(isPreviousKey ? -1 : 1);
+    };
+
+    window.addEventListener('keydown', handleDrawCaseArrowShortcut);
+
+    return () => {
+      window.removeEventListener('keydown', handleDrawCaseArrowShortcut);
+    };
+  }, [
+    drawCases,
+    isAnnouncementOpen,
+    isDictionaryOpen,
+    isEditingNotice,
+    isMemoOpen,
+    isSettingsOpen,
+    isYoutubePanelOpen,
+    resolvedActiveDrawCaseId,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (drawCaseSwitchKeyboardTimeoutRef.current !== null) {
+        window.clearTimeout(drawCaseSwitchKeyboardTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const handleStudentDrawShortcut = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -3318,6 +3400,7 @@ export default function TimerPage() {
   const displayTotalTime = scheduleTotalTime;
   const displayTimeLeft = scheduleTimeLeft;
   const displayIsRunning = scheduleIsRunning;
+  const isScheduleIdle = displayTotalTime === 0;
   const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
   const today = adjustedScheduleNow.getDay();
   const currentDaySchedule = weeklySchedule[today] || [];
@@ -3427,7 +3510,7 @@ export default function TimerPage() {
           ? 'bg-[#FFF7E3] text-[#8D6C37] border-[#EBCF93]'
           : timerType === 'lunch'
             ? 'bg-[#FFF0E3] text-[#A46943] border-[#EDC7A8]'
-            : 'bg-[#F7F0E9] text-[#8A6347]/70 border-[#E8D7C5]';
+            : 'bg-[#F3F4F2] text-[#71766F] border-[#D5D9D2]';
   const shouldShowCurrentSlotChip =
     currentSlotName.length > 0 &&
     currentSlotName !== '일정 없음' &&
@@ -3449,9 +3532,10 @@ export default function TimerPage() {
     return "";
   };
 
-  if (displayTotalTime === 0) {
-    colorClass = "text-[#CEBFA8]";
-    strokeColor = "#CEBFA8";
+  if (isScheduleIdle) {
+    colorClass = "text-[#7A8077]";
+    strokeColor = "#C6CCC3";
+    ringTrackColor = "#E3E6E1";
     bgClass = "app-tone-idle";
   } else if (shouldShowTimedMessage && displayTimeLeft === 0) {
     colorClass = "text-[#B55E4C]";
@@ -3723,21 +3807,15 @@ export default function TimerPage() {
     </div>
   ) : null;
   const scheduleSettingsPanel = (
-    <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
+    <div className="settings-panel-grid grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
       <aside className="flex flex-col gap-4 xl:sticky xl:top-0 xl:self-start">
-        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-          <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
-            Schedule
-          </p>
+        <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <h3 className="section-title text-[1.2rem] font-extrabold text-[#3F2B20]">요일 선택</h3>
-            <div className="rounded-full border border-[#E6D5C9] bg-white px-3 py-1.5 text-[0.82rem] font-extrabold text-[#8A6347]">
+            <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-3 py-1.5 text-[0.82rem] font-extrabold text-[#8A6347]">
               {activeWeekdayScheduleCount} / {WEEKDAYS.length}일 사용
             </div>
           </div>
-          <p className="mt-2 text-[0.88rem] font-bold leading-6 text-[#8A6347]">
-            편집할 요일을 먼저 고르면 오른쪽에서 바로 일정을 바꿀 수 있습니다.
-          </p>
 
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-2">
             {[1, 2, 3, 4, 5].map((day) => (
@@ -3745,10 +3823,10 @@ export default function TimerPage() {
                 key={day}
                 type="button"
                 onClick={() => setEditingDay(day)}
-                className={`rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-all ${
+                className={`settings-day-button rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-all ${
                   editingDay === day
-                    ? 'bg-[#688772] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
-                    : 'border border-[#E6D5C9] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
+                    ? 'settings-day-button-active bg-[#688772] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
+                    : 'settings-day-button-idle border border-[#E6D5C9] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
                 }`}
               >
                 {DAYS[day]}요일
@@ -3758,12 +3836,9 @@ export default function TimerPage() {
 
         </section>
 
-        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
+        <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
           <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">학교 시계 보정</h3>
-          <p className="mt-2 text-[0.88rem] font-bold leading-6 text-[#8A6347]">
-            학교 종이 빠르면 `+`, 웹 시계가 빠르면 `-` 값을 넣습니다.
-          </p>
-          <label className="mt-4 flex items-center gap-2">
+          <label className="mt-3 flex items-center gap-2">
             <input
               type="number"
               min={-SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
@@ -3775,16 +3850,10 @@ export default function TimerPage() {
             />
             <span className="text-sm font-bold text-[#8A6347]">초</span>
           </label>
-          <p className="mt-3 text-[0.82rem] font-bold leading-6 text-[#5C7A4B]">
-            예: 학교 종이 10초 빠르면 <span className="font-mono font-bold">10</span>
-          </p>
         </section>
 
-        <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">빠른 작업</h3>
-          <p className="mt-2 text-[0.88rem] font-bold leading-6 text-[#8A6347]">
-            현재 요일 일정을 다른 평일로 한 번에 복사할 수 있습니다.
-          </p>
           <button
             type="button"
             onClick={() => setShowCopyConfirm(true)}
@@ -3796,18 +3865,12 @@ export default function TimerPage() {
       </aside>
 
       <section className="flex min-h-0 flex-col gap-4">
-        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="flex flex-wrap items-start gap-3">
             <div>
-              <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
-                Editing
-              </p>
-              <h3 className="section-title mt-2 text-[1.35rem] font-extrabold text-[#3F2B20]">
+              <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">
                 {DAYS[editingDay]}요일 일정
               </h3>
-              <p className="mt-2 text-[0.9rem] font-bold leading-6 text-[#8A6347]">
-                수업, 쉬는 시간, 점심시간 흐름을 이곳에서 정리합니다.
-              </p>
             </div>
           </div>
         </div>
@@ -3848,7 +3911,7 @@ export default function TimerPage() {
           </div>
         )}
 
-        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5">
+        <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5">
           <div className="space-y-3">
             {editingDaySchedule.length === 0 ? (
               <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
@@ -3923,15 +3986,56 @@ export default function TimerPage() {
       </section>
     </div>
   );
+  const drawnBallsSettingsCard = (
+    <div className="settings-card random-history-panel rounded-[1.7rem] border border-[#EEE4D6] p-4 md:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2.5">
+        <div className="max-w-[32rem]">
+          <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
+            {DRAWN_BALLS_SECTION_LABEL}
+          </h4>
+        </div>
+
+        <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+          {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
+        </div>
+      </div>
+
+      <div className="custom-scrollbar random-history-scroll mt-4 max-h-[17rem] overflow-y-auto pr-1">
+        {selectedDrawHistoryEntries.length > 0 ? (
+          <div className="random-history-grid">
+            {selectedDrawHistoryEntries.map((entry) => {
+              const isRepeatEntry = entry.kind === 'repeat';
+              const studentName = getStudentName(selectedDrawSettingsCase, entry.number);
+              const chipTitle =
+                studentName.length > 0
+                  ? `${entry.number} ${studentName}${isRepeatEntry ? ' 재등장' : ''}`
+                  : `${entry.number}${isRepeatEntry ? ' 재등장' : ''}`;
+
+              return (
+                <span
+                  key={entry.id}
+                  className={`random-history-chip${isRepeatEntry ? ' random-history-chip-repeat' : ''}`}
+                  title={chipTitle}
+                >
+                  <span className="random-history-chip-number">{entry.number}</span>
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty-slot-state flex min-h-[8rem] items-center justify-center rounded-2xl border border-dashed border-[#E6D5C9] bg-white/60 text-center font-medium text-[#8A6347]/60">
+            {DRAWN_BALLS_EMPTY_LABEL}
+          </div>
+        )}
+      </div>
+    </div>
+  );
   const drawSettingsPanel = (
-    <div className="grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
-      <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
+    <div className="settings-panel-grid grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
-            <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
-              Cases
-            </p>
-            <h3 className="section-title mt-2 text-[1.18rem] font-extrabold text-[#3F2B20]">상황 목록</h3>
+            <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">상황</h3>
           </div>
           <button
             type="button"
@@ -3951,10 +4055,10 @@ export default function TimerPage() {
             return (
               <article
                 key={caseState.id}
-                className={`rounded-[1.45rem] border-2 p-3 transition-colors ${
+                className={`settings-case-card rounded-[1.45rem] border-2 p-3 transition-colors ${
                   isSelected
-                    ? 'border-[#B58363] bg-white shadow-[0_10px_20px_rgba(181,131,99,0.12)]'
-                    : 'border-[#E8DCCD] bg-[rgba(255,252,247,0.88)]'
+                    ? 'settings-case-card-active border-[#B58363] bg-white shadow-[0_10px_20px_rgba(181,131,99,0.12)]'
+                    : 'settings-case-card-idle border-[#E8DCCD] bg-[rgba(255,252,247,0.88)]'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -3990,18 +4094,12 @@ export default function TimerPage() {
       </section>
 
       <section className="flex min-h-0 flex-col gap-4">
-        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/80">
-                Editing
-              </p>
-              <h3 className="section-title mt-2 text-[1.35rem] font-extrabold text-[#3F2B20]">
+              <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">
                 {selectedDrawSettingsCaseLabel}
               </h3>
-              <p className="mt-2 text-[0.9rem] font-bold leading-6 text-[#8A6347]">
-                {getCaseSummaryLabel(selectedDrawSettingsCase)}
-              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -4031,44 +4129,38 @@ export default function TimerPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
-              <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
-                Range
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="settings-stat-card rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
+              <div className="settings-eyebrow text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
+                범위
               </div>
               <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
                 {selectedDrawSettingsBounds.minNumber} - {selectedDrawSettingsBounds.maxNumber}
               </div>
             </div>
-            <div className="rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
-              <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
-                Roster
+            <div className="settings-stat-card rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
+              <div className="settings-eyebrow text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
+                명단
               </div>
               <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
                 {assignedStudentNameCount} / {settingsStudentNumbers.length}
               </div>
             </div>
-            <div className="rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
-              <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
-                History
+            <div className="settings-stat-card rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
+              <div className="settings-eyebrow text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
+                기록
               </div>
               <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
                 {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
               </div>
             </div>
-            <div className="rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
-              <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
-                Reserved
-              </div>
-              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
-                {reservedDrawCount > 0 ? `${reservedDrawCount}개` : SECRET_DRAW_EMPTY_LABEL}
-              </div>
-            </div>
           </div>
         </div>
 
+        {drawnBallsSettingsCard}
+
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.68fr)]">
-          <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+          <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
             <div className="grid gap-4">
               <label className="flex flex-col gap-2">
                 <span className="section-title text-[0.95rem] font-bold text-[#B58363]">이름</span>
@@ -4123,13 +4215,10 @@ export default function TimerPage() {
             </div>
           </div>
 
-          <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+          <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
             <div className="flex items-start justify-between gap-3">
               <div className="max-w-[32rem]">
                 <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">재등장 연출</h4>
-                <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
-                  이미 뽑힌 번호를 1회 다시 등장시키는 연출을 켜거나 끕니다.
-                </p>
               </div>
 
               <button
@@ -4148,34 +4237,22 @@ export default function TimerPage() {
                 />
               </button>
             </div>
-
-            <div className="mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3.5">
-              <div className="text-[0.82rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
-                바로 추첨
-              </div>
-              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
-                키보드로 바로 추첨할 수 있습니다.
-              </div>
-            </div>
           </div>
         </div>
 
-        <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 md:p-5">
+        <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-2.5">
             <div className="max-w-[32rem]">
               <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학생 명단</h4>
-              <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">
-                줄바꿈 또는 번호 이름
-              </p>
             </div>
 
-            <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+            <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
               {assignedStudentNameCount} / {settingsStudentNumbers.length}
             </div>
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
-            <div className="rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+            <div className="settings-subcard rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
               <label className="flex flex-col gap-2.5">
                 <span className="section-title text-[0.92rem] font-bold text-[#B58363]">일괄 입력</span>
                 <textarea
@@ -4186,9 +4263,6 @@ export default function TimerPage() {
                 />
               </label>
               <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">
-                  범위 밖 번호 제외
-                </p>
                 <button
                   type="button"
                   onClick={applyBulkStudentRoster}
@@ -4202,7 +4276,6 @@ export default function TimerPage() {
             <div className="min-h-0">
               <div className="flex items-center justify-between gap-3">
                 <h5 className="section-title text-[0.92rem] font-bold text-[#B58363]">개별 수정</h5>
-                <span className="text-xs font-bold text-[#B58363]/70">Tab</span>
               </div>
 
               <div className="custom-scrollbar mt-3 max-h-[22rem] overflow-y-auto pr-1">
@@ -4234,75 +4307,21 @@ export default function TimerPage() {
           </div>
         </div>
 
-        <div
-          className={`grid gap-4 ${
-            isHiddenDrawSettingsVisible ? 'xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.78fr)]' : ''
-          }`}
-        >
-          <div className="random-history-panel rounded-[1.7rem] border border-[#EEE4D6] p-4 md:p-5">
-            <div className="flex flex-wrap items-start justify-between gap-2.5">
-              <div className="max-w-[32rem]">
-                <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
-                  {DRAWN_BALLS_SECTION_LABEL}
-                </h4>
-                <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">
-                  {DRAWN_BALLS_SECTION_DESCRIPTION}
-                </p>
-              </div>
-
-              <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
-                {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
-              </div>
-            </div>
-
-            <div className="custom-scrollbar random-history-scroll mt-4 max-h-[17rem] overflow-y-auto pr-1">
-              {selectedDrawHistoryEntries.length > 0 ? (
-                <div className="random-history-grid">
-                  {selectedDrawHistoryEntries.map((entry) => {
-                    const isRepeatEntry = entry.kind === 'repeat';
-                    const studentName = getStudentName(selectedDrawSettingsCase, entry.number);
-                    const chipTitle =
-                      studentName.length > 0
-                        ? `${entry.number} ${studentName}${isRepeatEntry ? ' 재등장' : ''}`
-                        : `${entry.number}${isRepeatEntry ? ' 재등장' : ''}`;
-
-                    return (
-                      <span
-                        key={entry.id}
-                        className={`random-history-chip${isRepeatEntry ? ' random-history-chip-repeat' : ''}`}
-                        title={chipTitle}
-                      >
-                        <span className="random-history-chip-number">{entry.number}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="empty-slot-state flex min-h-[8rem] items-center justify-center rounded-2xl border border-dashed border-[#E6D5C9] bg-white/60 text-center font-medium text-[#8A6347]/60">
-                  {DRAWN_BALLS_EMPTY_LABEL}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {isHiddenDrawSettingsVisible ? (
-            <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[#FBF2E9] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+        {isHiddenDrawSettingsVisible ? (
+            <div className="settings-card rounded-[1.7rem] border border-[#E6D8C9] bg-[#FBF2E9] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="max-w-[32rem]">
                   <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
                     {SECRET_DRAW_SECTION_LABEL}
                   </h4>
-                  <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
-                    {SECRET_DRAW_SECTION_DESCRIPTION}
-                  </p>
                 </div>
 
-                <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+                <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
                   {reservedDrawCount > 0 ? `${reservedDrawCount}개 예약` : SECRET_DRAW_EMPTY_LABEL}
                 </div>
               </div>
 
-              <div className="mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+              <div className="settings-subcard mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
                 <label className="flex flex-col gap-2.5">
                   <span className="section-title text-[0.92rem] font-bold text-[#B58363]">
                     {SECRET_DRAW_INPUT_LABEL}
@@ -4317,9 +4336,6 @@ export default function TimerPage() {
                 </label>
 
                 <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                  <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">
-                    {SECRET_DRAW_HINT}
-                  </p>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
@@ -4339,8 +4355,7 @@ export default function TimerPage() {
                 </div>
               </div>
             </div>
-          ) : null}
-        </div>
+        ) : null}
       </section>
     </div>
   );
@@ -4362,7 +4377,7 @@ export default function TimerPage() {
           setIsMusicLoading(false);
         }}
       />
-      <div className={`mascot-shell editorial-main-shell relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl transition-colors duration-1000 md:rounded-[3rem] ${bgClass}`}>
+      <div className={`mascot-shell editorial-main-shell relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl transition-colors duration-1000 md:rounded-[3rem] ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''}`}>
         <style>{`
           @keyframes noticeFadeIn {
             0% {
@@ -4703,6 +4718,57 @@ export default function TimerPage() {
                   </div>
                 </div>
               </div>
+
+              <div
+                ref={drawCaseMenuRef}
+                onPointerEnter={() => setIsDrawCaseSwitchNearby(true)}
+                onPointerLeave={() => {
+                  if (!isDrawCaseMenuOpen) {
+                    setIsDrawCaseSwitchNearby(false);
+                  }
+                }}
+                onFocusCapture={() => setIsDrawCaseSwitchNearby(true)}
+                onBlurCapture={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null;
+                  const switchNode = drawCaseMenuRef.current;
+                  if (switchNode?.contains(nextTarget)) return;
+                  if (!isDrawCaseMenuOpen) {
+                    setIsDrawCaseSwitchNearby(false);
+                  }
+                }}
+                className={`timer-draw-switch absolute left-1/2 top-[7.2%] z-30 grid min-h-[3.2rem] w-[min(16.5rem,62%)] -translate-x-1/2 grid-cols-[2.35rem_minmax(0,1fr)_2.35rem] items-center gap-1 rounded-full border border-[#9FC7B8]/80 bg-[#F7FBF8]/88 px-2 py-1 text-[#006241] shadow-[0_4px_10px_rgba(0,98,65,0.12),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-md transition-all duration-200 md:min-h-[3.45rem] md:w-[min(18.75rem,52%)] ${
+                  isDrawCaseSwitchNearby
+                    ? 'scale-100 opacity-100 ring-2 ring-[#D4E9E2]/80'
+                    : 'pointer-events-none -translate-y-2 opacity-0'
+                }`}
+                title="추첨 상황 선택"
+                aria-label={`추첨 상황: ${activeDrawLabel}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => selectAdjacentActiveDrawCase(-1)}
+                  disabled={drawCases.length <= 1}
+                  className="timer-draw-step-button inline-flex h-9 w-9 items-center justify-center rounded-full text-[#006241] transition-colors hover:bg-[#D4E9E2] disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent md:h-10 md:w-10"
+                  aria-label="이전 추첨 상황"
+                  title="이전 추첨 상황"
+                >
+                  <ChevronLeft size={22} strokeWidth={3} />
+                </button>
+                <div className="inline-flex min-w-0 items-center justify-center gap-1.5 text-[clamp(0.98rem,1.95vw,1.28rem)] font-extrabold">
+                  <Sparkles size={19} className="shrink-0 text-[#CBA258]" />
+                  <span className="truncate">{activeDrawLabel}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectAdjacentActiveDrawCase(1)}
+                  disabled={drawCases.length <= 1}
+                  className="timer-draw-step-button inline-flex h-9 w-9 items-center justify-center rounded-full text-[#006241] transition-colors hover:bg-[#D4E9E2] disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent md:h-10 md:w-10"
+                  aria-label="다음 추첨 상황"
+                  title="다음 추첨 상황"
+                >
+                  <ChevronRight size={22} strokeWidth={3} />
+                </button>
+              </div>
             </div>
             <div className="relative z-10 mt-2 shrink-0 md:mt-3 lg:mt-4">
               <div className={`clock-display editorial-clock-display text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] ${colorClass}`}>
@@ -4764,85 +4830,6 @@ export default function TimerPage() {
                 </div>
               </div>
             ) : null}
-            <div
-              ref={drawCaseMenuRef}
-              onPointerEnter={() => setIsDrawCaseSwitchNearby(true)}
-              onPointerLeave={() => {
-                if (!isDrawCaseMenuOpen) {
-                  setIsDrawCaseSwitchNearby(false);
-                }
-              }}
-              onFocusCapture={() => setIsDrawCaseSwitchNearby(true)}
-              onBlurCapture={(event) => {
-                const nextTarget = event.relatedTarget as Node | null;
-                const menuNode = drawCaseMenuRef.current;
-                if (menuNode?.contains(nextTarget)) return;
-                if (!isDrawCaseMenuOpen) {
-                  setIsDrawCaseSwitchNearby(false);
-                }
-              }}
-              className="timer-draw-switch-shell absolute bottom-3 right-3 z-40 h-[5.4rem] w-[min(12rem,calc(100%-1.5rem))] overflow-visible sm:bottom-4 sm:right-4 sm:h-[5.7rem] md:bottom-5 md:right-5"
-            >
-              <div className="absolute bottom-0 right-0 w-[min(9.5rem,calc(100%-2rem))]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (drawCases.length <= 1) return;
-                    setIsDrawCaseMenuOpen((previous) => !previous);
-                  }}
-                  className={`timer-draw-switch inline-flex w-full items-center justify-between gap-1.5 rounded-[1rem] border border-[#E6D5C9] bg-white/90 px-2.5 py-2 text-left text-[0.74rem] font-extrabold text-[#8A6347] shadow-[0_8px_16px_rgba(95,71,50,0.07)] backdrop-blur-sm transition-all duration-200 ${
-                    drawCases.length > 1 ? 'hover:border-[#D3BEA9] hover:bg-white' : 'cursor-default'
-                  } ${
-                    isDrawCaseSwitchVisible
-                      ? 'translate-y-0 opacity-100'
-                      : 'pointer-events-none translate-y-2 opacity-0'
-                  }`}
-                  aria-haspopup="menu"
-                  aria-expanded={drawCases.length > 1 ? isDrawCaseMenuOpen : undefined}
-                  title="추첨 상황 선택"
-                >
-                  <span className="inline-flex min-w-0 items-center gap-1">
-                    <Sparkles size={12} className="shrink-0 text-[#A67C52]" />
-                    <span className="truncate">{activeDrawLabel}</span>
-                  </span>
-                  {drawCases.length > 1 ? (
-                    <ChevronDown
-                      size={11}
-                      className={`shrink-0 transition-transform ${isDrawCaseMenuOpen ? 'rotate-180' : ''}`}
-                    />
-                  ) : null}
-                </button>
-
-                {isDrawCaseMenuOpen ? (
-                  <div
-                    role="menu"
-                    className="timer-draw-menu absolute bottom-[calc(100%+0.35rem)] left-0 right-0 rounded-[0.9rem] border border-[#E6D5C9] bg-white/96 p-1 shadow-[0_16px_30px_rgba(95,71,50,0.14)] backdrop-blur-sm"
-                  >
-                    {drawCases.map((caseState, index) => {
-                      const caseLabel = normalizeCaseLabel(caseState.label, getCaseLabelByIndex(index));
-                      const isActive = resolvedActiveDrawCaseId === caseState.id;
-
-                      return (
-                        <button
-                          key={caseState.id}
-                          type="button"
-                          role="menuitemradio"
-                          aria-checked={isActive}
-                          onClick={() => selectActiveDrawCase(caseState.id)}
-                          className={`timer-draw-menu-item flex w-full items-center justify-between rounded-[0.72rem] px-2 py-1.5 text-left text-[0.74rem] font-bold transition-colors ${
-                            isActive ? 'bg-[#5C8D5D] text-white' : 'text-[#8A6347] hover:bg-[#FFF7EE]'
-                          }`}
-                        >
-                          <span>{caseLabel}</span>
-                          {isActive ? <Sparkles size={10} /> : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
           </div>
 
           {/* Right: Controls & Presets */}
@@ -4966,7 +4953,7 @@ export default function TimerPage() {
                       {MANUAL_TIMER_PRESETS.map((preset) => (
                         <button
                           key={preset.seconds}
-                          onClick={() => applyManualPreset(preset.seconds)}
+                          onClick={() => addManualPreset(preset.seconds)}
                           className="rounded-2xl border border-[#E6D5C9] bg-white px-3 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#D5C0AD] hover:bg-[#FFF9F2]"
                           type="button"
                         >
@@ -5144,11 +5131,11 @@ export default function TimerPage() {
       {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm md:p-8">
-          <div className="settings-dialog editorial-settings-dialog flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border-4 border-[#E6D5C9] bg-[#FDFBF7] shadow-2xl">
+          <div className="settings-dialog editorial-settings-dialog app-settings-modal flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border-4 border-[#E6D5C9] bg-[#FDFBF7] shadow-2xl">
             <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
               <h2 className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">
                 <Settings size={24} className="md:w-7 md:h-7" />
-                시간표/추첨 설정
+                설정
               </h2>
               <div className="flex items-center gap-2 md:gap-4">
                 <button 
@@ -5184,15 +5171,15 @@ export default function TimerPage() {
               </div>
             </div>
 
-            <div className="shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
+            <div className="settings-tab-strip shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
               <div className="grid gap-2 md:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => setSettingsPanel('schedule')}
-                  className={`rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
                     settingsPanel === 'schedule'
-                      ? 'border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
                   }`}
                   aria-pressed={settingsPanel === 'schedule'}
                 >
@@ -5200,18 +5187,15 @@ export default function TimerPage() {
                     <CalendarClock size={18} className={settingsPanel === 'schedule' ? 'text-[#476152]' : 'text-[#8A6347]'} />
                     시간표
                   </div>
-                  <p className="mt-1.5 text-[0.86rem] font-bold leading-6 text-[#8A6347]">
-                    요일별 일정과 학교 시계 보정을 편집합니다.
-                  </p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setSettingsPanel('draw')}
-                  className={`rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
                     settingsPanel === 'draw'
-                      ? 'border-[#B58363] bg-[#FBF0E4] shadow-[0_12px_24px_rgba(181,131,99,0.12)]'
-                      : 'border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                      ? 'settings-mode-tab-active border-[#B58363] bg-[#FBF0E4] shadow-[0_12px_24px_rgba(181,131,99,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
                   }`}
                   aria-pressed={settingsPanel === 'draw'}
                 >
@@ -5219,9 +5203,6 @@ export default function TimerPage() {
                     <Sparkles size={18} className={settingsPanel === 'draw' ? 'text-[#B58363]' : 'text-[#8A6347]'} />
                     추첨
                   </div>
-                  <p className="mt-1.5 text-[0.86rem] font-bold leading-6 text-[#8A6347]">
-                    상황, 번호 범위, 명단과 예약 결과를 관리합니다.
-                  </p>
                 </button>
               </div>
             </div>
