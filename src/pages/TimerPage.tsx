@@ -1659,8 +1659,6 @@ function MemoNotebookOverlay({
   }, [isOpen, onClose]);
 
   const clearMemo = () => {
-    if (!hasMemoContent) return;
-
     setMemoHtml('');
     void playAnnouncementSound('pop');
 
@@ -1789,7 +1787,6 @@ function MemoNotebookOverlay({
                       type="button"
                       title="메모 지우기"
                       aria-label="메모 지우기"
-                      disabled={!hasMemoContent}
                     >
                       <RotateCcw size={18} />
                     </button>
@@ -3276,7 +3273,15 @@ export default function TimerPage() {
     setIsEditingNotice(false);
   };
 
-  const handleNoticeBlur = () => {
+  const handleNoticeBlur = (event: React.FocusEvent<HTMLTextAreaElement>) => {
+    const nextFocusedElement = event.relatedTarget;
+    if (
+      nextFocusedElement instanceof HTMLElement &&
+      nextFocusedElement.closest('[data-notice-memo-button="true"]')
+    ) {
+      return;
+    }
+
     if (skipNoticeAutoSaveRef.current) {
       skipNoticeAutoSaveRef.current = false;
       return;
@@ -3623,6 +3628,7 @@ export default function TimerPage() {
       className="inline-flex h-6 items-center justify-center gap-1 rounded-full border border-[#D7E2D1] bg-[rgba(240,246,237,0.94)] px-2 text-[0.64rem] font-extrabold text-[#5C8D6D] shadow-[0_8px_16px_rgba(93,118,84,0.1)] backdrop-blur-xl transition-all hover:bg-[rgba(248,251,246,0.98)] hover:scale-[1.02] hover:text-[#4F7258] sm:h-7 sm:px-2.25 sm:text-[0.68rem] md:h-8 md:px-2.5 md:text-[0.72rem]"
       aria-label="메모장"
       title="메모장"
+      data-notice-memo-button="true"
     >
       <StickyNote size={13} strokeWidth={2.2} />
       <span>메모</span>
