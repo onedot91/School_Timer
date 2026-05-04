@@ -2371,6 +2371,15 @@ export default function TimerPage() {
     setManualEndTime(null);
   };
 
+  const clearManualTimer = () => {
+    setCustomMinutes('0');
+    setCustomSeconds('0');
+    setManualTotalTime(0);
+    setManualTimeLeft(0);
+    setManualIsRunning(false);
+    setManualEndTime(null);
+  };
+
   const updateDrawCaseState = (
     caseId: string,
     updater: (previousCase: RandomDrawCaseState) => RandomDrawCaseState,
@@ -3511,15 +3520,11 @@ export default function TimerPage() {
           : timerType === 'lunch'
             ? 'bg-[#FFF0E3] text-[#A46943] border-[#EDC7A8]'
             : 'bg-[#F3F4F2] text-[#71766F] border-[#D5D9D2]';
-  const shouldShowCurrentSlotChip =
-    currentSlotName.length > 0 &&
-    currentSlotName !== '일정 없음' &&
-    currentSlotName.replace(/\s+/g, '') !== scheduleTypeLabel.replace(/\s+/g, '');
 
   const getCharacterMessage = (stage: 'warning' | 'urgent' | 'end') => {
     if (isScheduleBreak) {
-      if (stage === 'warning') return "\uC26C\uB294 \uC2DC\uAC04\uC774 \uB05D\uB098\uAC00\uC694.\n\uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
-      if (stage === 'urgent') return "\uC774\uC81C \uACF3 \uC218\uC5C5\uC774 \uC2DC\uC791\uD574\uC694.\n\uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
+      if (stage === 'warning') return "\uD654\uC7A5\uC2E4\uC740 \uBBF8\uB9AC \uB2E4\uB140\uC624\uC138\uC694.";
+      if (stage === 'urgent') return "\uAD50\uACFC\uC11C\uB97C \uCC45\uC0C1 \uC704\uC5D0 \uC62C\uB824 \uB450\uC138\uC694.";
       return "\uC26C\uB294 \uC2DC\uAC04\uC774 \uB05D\uB0AC\uC5B4\uC694!";
     }
 
@@ -3543,19 +3548,11 @@ export default function TimerPage() {
     showCharacter = true;
     bgClass = "app-tone-finished";
     characterMessage = getCharacterMessage('end');
-    speechBubbleSizeClass = "px-8 py-5 md:px-12 md:py-7";
-    speechTextSizeClass = "text-3xl md:text-5xl";
-    characterWrapSizeClass = "w-56 h-56 md:w-80 md:h-80";
-    characterImageScaleClass = "scale-125 md:scale-[1.45]";
   } else if (shouldShowTimedMessage && percentage <= urgentThreshold) {
     colorClass = "text-[#B55E4C]";
     strokeColor = "#B55E4C";
     showCharacter = true;
     bgClass = "app-tone-urgent";
-    speechBubbleSizeClass = "px-8 py-5 md:px-12 md:py-7";
-    speechTextSizeClass = "text-3xl md:text-5xl";
-    characterWrapSizeClass = "w-56 h-56 md:w-80 md:h-80";
-    characterImageScaleClass = "scale-125 md:scale-[1.45]";
     characterMessage = getCharacterMessage('urgent');
     if (displayIsRunning) {
       pulseClass = "mascot-alert-pulse";
@@ -3565,10 +3562,6 @@ export default function TimerPage() {
     strokeColor = "#C58747";
     showCharacter = true;
     bgClass = "app-tone-warning";
-    speechBubbleSizeClass = "px-7 py-4 md:px-10 md:py-6";
-    speechTextSizeClass = "text-2xl md:text-4xl";
-    characterWrapSizeClass = "w-48 h-48 md:w-64 md:h-64";
-    characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
     characterMessage = getCharacterMessage('warning');
   }
 
@@ -4688,8 +4681,8 @@ export default function TimerPage() {
               <div className={`absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
                 <div className="pointer-events-none flex flex-col items-center">
                   {/* Speech Bubble */}
-                  <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`} style={characterMotionStyle}>
-                    <p className={`font-bold whitespace-pre-line break-keep text-center leading-[1.12] md:leading-[1.08] ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
+                  <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`}>
+                    <p className={`speech-card-text font-bold whitespace-pre-line break-keep text-center leading-[1.12] md:leading-[1.08] ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
                     {/* Bubble Tail (pointing down) */}
                     <div className="speech-tail-fill absolute -bottom-[14px] left-1/2 z-10 h-0 w-0 -translate-x-1/2 border-x-[12px] border-x-transparent border-t-[14px] border-t-white"></div>
                     <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
@@ -4796,11 +4789,6 @@ export default function TimerPage() {
                 {timerType === 'break' ? <Coffee size={30} strokeWidth={2.3} /> : timerType === 'lunch' ? <Utensils size={30} strokeWidth={2.3} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={30} strokeWidth={2.3} /> : <Timer size={30} strokeWidth={2.3} />}
                 <span className="min-w-0 truncate">{scheduleTypeLabel}</span>
               </div>
-              {shouldShowCurrentSlotChip ? (
-                <div className="timer-secondary-chip inline-flex min-h-[3.5rem] items-center justify-center rounded-full border border-[#E6D5C9] bg-white/86 px-4 py-2 text-base font-bold text-[#8A6347] shadow-[0_12px_24px_rgba(95,71,50,0.08)] backdrop-blur-sm">
-                  {currentSlotName}
-                </div>
-              ) : null}
             </div>
             {shouldShowStagePanel ? (
               <div className="pointer-events-none absolute bottom-4 left-4 z-40 sm:bottom-5 sm:left-5 md:bottom-6 md:left-6">
@@ -4939,6 +4927,15 @@ export default function TimerPage() {
                           >
                             <RotateCcw size={18} />
                           </button>
+                          <button
+                            onClick={clearManualTimer}
+                            className="round-action round-action-reset flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8A6347] shadow-md transition-transform hover:scale-105 active:scale-95"
+                            type="button"
+                            title="보조 타이머 시간 초기화"
+                            aria-label="보조 타이머 시간 초기화"
+                          >
+                            <Trash2 size={17} />
+                          </button>
                         </div>
                       </div>
                       <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EDE2D7]">
@@ -4987,6 +4984,7 @@ export default function TimerPage() {
                         <span className="mt-1 text-sm font-bold text-[#8A6347]/70">초</span>
                       </div>
                     </div>
+
                   </div>
                 ) : null}
 
