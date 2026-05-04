@@ -237,7 +237,7 @@ function MeaningPanel({
   onSelectMeaning?: (index: number) => void;
 }) {
   return (
-    <section className="dictionary-card paper-card flex h-full min-h-0 flex-col rounded-[2rem] border border-[#E6D5C9] p-4 sm:p-5 lg:p-6">
+    <section className="dictionary-card paper-card custom-scrollbar flex h-full min-h-0 flex-col overflow-y-auto rounded-[2rem] border border-[#E6D5C9] p-4 sm:p-6 lg:p-8">
       {isMeaningLoading ? (
         <div className="grid gap-3">
           {Array.from({ length: 2 }).map((_, index) => (
@@ -290,12 +290,12 @@ function MeaningPanel({
                 onClick={() => onSelectMeaning(index)}
                 className="dictionary-choice-card overflow-hidden rounded-[2rem] border border-[#E6D8C9] bg-white/95 text-left transition-all hover:border-[#D9C9B8] hover:shadow-[0_14px_26px_rgba(143,113,88,0.1)]"
               >
-                <div className="flex items-start gap-5 px-7 py-6 sm:px-8 sm:py-7">
-                  <span className="dictionary-badge inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F7E1D5] text-[1.35rem] font-extrabold text-[#C7684A] sm:h-16 sm:w-16 sm:text-[1.5rem]">
+                <div className="flex items-start gap-5 px-7 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-9">
+                  <span className="dictionary-badge inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F7E1D5] text-[1.35rem] font-extrabold text-[#C7684A] sm:h-16 sm:w-16 sm:text-[1.5rem] lg:h-20 lg:w-20 lg:text-[1.9rem]">
                     {item.badge}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[1.34rem] font-extrabold leading-9 tracking-[-0.04em] text-[#3F2B20] sm:text-[1.5rem]">
+                    <p className="text-[1.34rem] font-extrabold leading-9 tracking-[-0.04em] text-[#3F2B20] sm:text-[1.5rem] lg:text-[1.78rem] lg:leading-10">
                       {item.title}
                     </p>
                     {item.subtitle ? (
@@ -306,8 +306,8 @@ function MeaningPanel({
                   </div>
                 </div>
 
-                <div className="border-t border-[#EEE4D6] px-7 py-6 sm:px-8 sm:py-7">
-                  <p className="text-[1.12rem] font-bold leading-9 text-[#6E5A49] sm:text-[1.2rem]">
+                <div className="border-t border-[#EEE4D6] px-7 py-6 sm:px-8 sm:py-7 lg:px-10 lg:py-8">
+                  <p className="text-[1.12rem] font-bold leading-9 text-[#6E5A49] sm:text-[1.2rem] lg:text-[1.4rem] lg:leading-10">
                     {highlightWordInExample(item.example, word)}
                   </p>
                   {item.preview ? (
@@ -707,15 +707,15 @@ export default function DictionaryNotebookOverlay({
   if (!isOpen) return null;
 
   return (
-    <div className="announcement-overlay fixed inset-0 z-[60] p-1.5 sm:p-2 md:p-3">
-      <div className="dictionary-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-0.75rem)] w-full max-w-[1500px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]">
+    <div className="announcement-overlay fixed inset-0 z-[60] p-1 sm:p-1.5 md:p-2">
+      <div className="dictionary-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-0.5rem)] w-full max-w-[1900px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]">
         <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2.5 lg:p-3">
-          <div className="mx-auto flex h-full w-full max-w-[1440px] min-h-0 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2 lg:p-2.5">
+          <div className="mx-auto flex h-full w-full max-w-[1840px] min-h-0 flex-col">
             <div className="dictionary-stage-card paper-card relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2.4rem] border-2 border-[#E6D5C9] bg-[#FFFCF8]">
               <div className={`dictionary-search-header shrink-0 px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 ${hasSearched ? 'dictionary-search-header-active' : 'dictionary-search-header-idle'}`}>
                 <div className="dictionary-search-corner dictionary-search-corner-left">
@@ -732,7 +732,7 @@ export default function DictionaryNotebookOverlay({
                         value={searchInput}
                         onChange={(event) => setSearchInput(event.target.value)}
                         placeholder="궁금한 낱말을 적어 보세요"
-                        className="min-w-0 flex-1 bg-transparent text-[clamp(1.8rem,3vw,2.6rem)] font-extrabold tracking-[-0.04em] text-[#3F2B20] outline-none placeholder:text-[#A7B0BD]"
+                        className="min-w-0 flex-1 bg-transparent text-[clamp(2rem,3.5vw,3.75rem)] font-extrabold tracking-[-0.04em] text-[#3F2B20] outline-none placeholder:text-[#A7B0BD]"
                         autoComplete="off"
                         spellCheck={false}
                       />
@@ -759,7 +759,7 @@ export default function DictionaryNotebookOverlay({
                 </div>
               </div>
 
-              <div className={`dictionary-search-body custom-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 xl:overflow-hidden ${hasSearched ? 'dictionary-search-body-active' : 'dictionary-search-body-idle'}`}>
+              <div className={`dictionary-search-body custom-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 ${hasSearched ? 'dictionary-search-body-active' : 'dictionary-search-body-idle'}`}>
                 {!hasSearched ? (
                   <div className="dictionary-search-empty-state flex min-h-[13rem] items-center justify-center">
                     <div className="dictionary-empty-card rounded-[1.6rem] border border-dashed border-[#E5D7C8] bg-white/70 px-6 py-7 text-center text-[0.98rem] font-bold text-[#8A6347]">
@@ -803,8 +803,8 @@ export default function DictionaryNotebookOverlay({
                     ) : (
                       <>
                         <section
-                          className={`dictionary-card paper-card flex min-h-0 flex-col rounded-[2rem] border border-[#E6D5C9] ${
-                            isExpandedLayout ? 'p-5 sm:p-6 lg:p-8' : 'p-4 sm:p-5 lg:p-6'
+                          className={`dictionary-card paper-card custom-scrollbar flex h-full min-h-0 flex-col overflow-y-auto rounded-[2rem] border border-[#E6D5C9] ${
+                            isExpandedLayout ? 'p-5 sm:p-7 lg:p-10' : 'p-4 sm:p-6 lg:p-8'
                           }`}
                         >
                           {isSyllableLoading ? (
@@ -877,7 +877,7 @@ export default function DictionaryNotebookOverlay({
                             <>
                               <div
                                 className={`flex flex-wrap items-center justify-center ${
-                                  isExpandedLayout ? 'mt-7 gap-5 lg:gap-6' : 'mt-5 gap-4'
+                                  isExpandedLayout ? 'mt-6 gap-5 lg:mt-7 lg:gap-7' : 'mt-5 gap-4 lg:gap-5'
                                 }`}
                               >
                                 {displaySyllables.map((syllable, index) => {
@@ -894,7 +894,7 @@ export default function DictionaryNotebookOverlay({
                                         <span
                                           className={`inline-flex items-center justify-center rounded-full border border-[#F0D6C8] bg-white font-extrabold text-[#E3B6A0] ${
                                             isExpandedLayout
-                                              ? 'h-[3.3rem] w-[3.3rem] text-[2.25rem] sm:h-[3.55rem] sm:w-[3.55rem] sm:text-[2.45rem] lg:h-[3.8rem] lg:w-[3.8rem] lg:text-[2.7rem]'
+                                              ? 'h-[3.3rem] w-[3.3rem] text-[2.25rem] sm:h-[3.55rem] sm:w-[3.55rem] sm:text-[2.45rem] lg:h-[3.85rem] lg:w-[3.85rem] lg:text-[2.7rem]'
                                               : 'h-10 w-10 text-[1.9rem] sm:h-11 sm:w-11 sm:text-[2rem]'
                                           }`}
                                         >
@@ -907,8 +907,8 @@ export default function DictionaryNotebookOverlay({
                                         onClick={() => setSelectedSyllableIndex(index)}
                                         className={`dictionary-syllable-tile inline-flex items-center justify-center border-2 font-extrabold tracking-[-0.06em] transition-all ${
                                           isExpandedLayout
-                                            ? 'h-[7rem] w-[7rem] rounded-[1.9rem] text-[3.5rem] sm:h-[8rem] sm:w-[8rem] sm:text-[4.1rem] lg:h-[9.2rem] lg:w-[9.2rem] lg:text-[4.8rem]'
-                                            : 'h-[5.5rem] w-[5.5rem] rounded-[1.6rem] text-[2.7rem] sm:h-[6rem] sm:w-[6rem] sm:text-[3rem]'
+                                            ? 'h-[7rem] w-[7rem] rounded-[1.9rem] text-[3.5rem] sm:h-[8rem] sm:w-[8rem] sm:text-[4.1rem] lg:h-[8.8rem] lg:w-[8.8rem] lg:text-[4.65rem]'
+                                            : 'h-[5.5rem] w-[5.5rem] rounded-[1.6rem] text-[2.7rem] sm:h-[6rem] sm:w-[6rem] sm:text-[3rem] lg:h-[6.6rem] lg:w-[6.6rem] lg:text-[3.35rem]'
                                         } ${tileClass}`}
                                       >
                                         {syllable.char}
@@ -921,7 +921,7 @@ export default function DictionaryNotebookOverlay({
                               {hasAnyHanjaSyllable && selectedSyllable?.isHanja ? (
                                 <div
                                   className={`dictionary-answer-panel border-2 border-[#D6E4CE] bg-[#F5FAF4] ${
-                                    isExpandedLayout ? 'mt-7 rounded-[2rem] p-6 sm:p-7' : 'mt-4 rounded-[1.7rem] p-4'
+                                    isExpandedLayout ? 'mt-6 rounded-[2rem] p-6 sm:p-7 lg:mt-7 lg:p-8' : 'mt-4 rounded-[1.7rem] p-4 lg:p-6'
                                   }`}
                                 >
                                   <div className="flex flex-wrap items-end gap-2">
