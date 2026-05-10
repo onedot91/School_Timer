@@ -6156,7 +6156,7 @@ h3 {
   position: absolute;
   inset: 56% auto auto 50%;
   z-index: 3;
-  width: min(36%, 16rem);
+  width: min(40%, 17.5rem);
   aspect-ratio: 1.32 / 1;
   transform: translate(-50%, -50%);
   transform-origin: 50% 52%;
@@ -6175,7 +6175,7 @@ h3 {
 
 .timer-watch-eye {
   top: 13%;
-  width: 22%;
+  width: 20%;
   aspect-ratio: 1;
   border: 0.12rem solid rgba(44, 35, 28, 0.1);
   border-radius: 53% 47% 50% 52%;
@@ -6187,13 +6187,13 @@ h3 {
 }
 
 .timer-watch-eye-left {
-  left: 22.5%;
+  left: 24%;
   --timer-watch-eye-rotation: -5deg;
   transform: rotate(var(--timer-watch-eye-rotation));
 }
 
 .timer-watch-eye-right {
-  right: 22.5%;
+  right: 24%;
   --timer-watch-eye-rotation: 4deg;
   transform: rotate(var(--timer-watch-eye-rotation));
 }
@@ -6212,8 +6212,8 @@ h3 {
 .timer-watch-nose {
   left: 50%;
   top: 37%;
-  width: 12%;
-  height: 27%;
+  width: 10.8%;
+  height: 25%;
   border: 0.28rem solid rgba(47, 38, 31, 0.42);
   border-top: 0;
   border-radius: 0 0 999px 999px;
@@ -6223,7 +6223,7 @@ h3 {
 .timer-watch-smile {
   left: 50%;
   bottom: 18%;
-  width: 18%;
+  width: 16.2%;
   height: 5%;
   border-bottom: 0.22rem solid rgba(47, 38, 31, 0.38);
   border-radius: 0 0 54% 54% / 0 0 100% 100%;
