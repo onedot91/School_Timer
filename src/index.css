@@ -6145,9 +6145,197 @@ h3 {
 }
 
 .editorial-ring-svg {
+  position: relative;
+  z-index: 0;
   background: transparent;
   box-shadow: none;
   filter: none;
+}
+
+.timer-watch-face {
+  position: absolute;
+  inset: 56% auto auto 50%;
+  z-index: 3;
+  width: min(36%, 16rem);
+  aspect-ratio: 1.32 / 1;
+  transform: translate(-50%, -50%);
+  transform-origin: 50% 52%;
+  pointer-events: none;
+  animation: timerWatchBreathe 24s ease-in-out infinite;
+}
+
+.timer-watch-eye,
+.timer-watch-pupil,
+.timer-watch-nose,
+.timer-watch-smile {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.timer-watch-eye {
+  top: 13%;
+  width: 22%;
+  aspect-ratio: 1;
+  border: 0.12rem solid rgba(44, 35, 28, 0.1);
+  border-radius: 53% 47% 50% 52%;
+  background: rgba(255, 254, 249, 0.88);
+  box-shadow:
+    inset 0 -0.32rem 0.9rem rgba(98, 77, 59, 0.03),
+    0 0.34rem 0.8rem rgba(95, 71, 50, 0.03);
+  transform-origin: 50% 54%;
+}
+
+.timer-watch-eye-left {
+  left: 22.5%;
+  --timer-watch-eye-rotation: -5deg;
+  transform: rotate(var(--timer-watch-eye-rotation));
+}
+
+.timer-watch-eye-right {
+  right: 22.5%;
+  --timer-watch-eye-rotation: 4deg;
+  transform: rotate(var(--timer-watch-eye-rotation));
+}
+
+.timer-watch-pupil {
+  left: 51%;
+  top: 54%;
+  width: 16%;
+  aspect-ratio: 1;
+  border-radius: 44% 52% 48% 55%;
+  background: rgba(47, 38, 31, 0.5);
+  transform: translate(-50%, -50%);
+  transition: transform 520ms cubic-bezier(0.22, 0.86, 0.28, 1);
+}
+
+.timer-watch-nose {
+  left: 50%;
+  top: 37%;
+  width: 12%;
+  height: 27%;
+  border: 0.28rem solid rgba(47, 38, 31, 0.42);
+  border-top: 0;
+  border-radius: 0 0 999px 999px;
+  transform: translateX(-50%);
+}
+
+.timer-watch-smile {
+  left: 50%;
+  bottom: 18%;
+  width: 18%;
+  height: 5%;
+  border-bottom: 0.22rem solid rgba(47, 38, 31, 0.38);
+  border-radius: 0 0 54% 54% / 0 0 100% 100%;
+  transform: translateX(-50%) rotate(1deg);
+  transform-origin: 50% 100%;
+}
+
+.timer-watch-glance-left .timer-watch-pupil {
+  transform: translate(-22%, -52%);
+}
+
+.timer-watch-glance-right .timer-watch-pupil {
+  transform: translate(-78%, -49%);
+}
+
+.timer-watch-glance-up .timer-watch-pupil {
+  transform: translate(-49%, -76%);
+}
+
+.timer-watch-face-warning .timer-watch-eye {
+  background: rgba(255, 254, 249, 0.92);
+}
+
+.timer-watch-face-urgent .timer-watch-eye {
+  background: rgba(255, 254, 249, 0.96);
+}
+
+.timer-watch-face-idle .timer-watch-eye {
+  transform-origin: 50% 62%;
+}
+
+.timer-watch-face-blinking .timer-watch-eye {
+  animation: timerWatchBlink 340ms cubic-bezier(0.42, 0, 0.22, 1) both;
+}
+
+.timer-watch-face-reacting {
+  animation: timerWatchReact 720ms cubic-bezier(0.2, 0.86, 0.28, 1) both;
+}
+
+.timer-watch-face-reacting .timer-watch-smile {
+  animation: timerWatchSmileReact 720ms cubic-bezier(0.2, 0.86, 0.28, 1) both;
+}
+
+@keyframes timerWatchSmileReact {
+  0%,
+  100% {
+    width: 18%;
+    border-bottom-width: 0.22rem;
+    transform: translateX(-50%) rotate(1deg) scaleY(1);
+  }
+
+  42% {
+    width: 20%;
+    border-bottom-width: 0.2rem;
+    transform: translateX(-50%) rotate(0deg) scaleY(1.12);
+  }
+}
+
+@keyframes timerWatchBlink {
+  0% {
+    transform: rotate(var(--timer-watch-eye-rotation, 0deg)) scaleY(1);
+  }
+
+  34% {
+    transform: rotate(var(--timer-watch-eye-rotation, 0deg)) scaleY(0.46);
+  }
+
+  54% {
+    transform: rotate(var(--timer-watch-eye-rotation, 0deg)) scaleY(0.13);
+  }
+
+  76% {
+    transform: rotate(var(--timer-watch-eye-rotation, 0deg)) scaleY(0.7);
+  }
+
+  100% {
+    transform: rotate(var(--timer-watch-eye-rotation, 0deg)) scaleY(1);
+  }
+}
+
+@keyframes timerWatchBreathe {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.01);
+  }
+}
+
+@keyframes timerWatchReact {
+  0%,
+  100% {
+    transform: translate(-50%, -50%);
+  }
+
+  44% {
+    transform: translate(-50%, -50.8%) scale(1.012);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timer-watch-face,
+  .timer-watch-face .timer-watch-eye,
+  .timer-watch-face .timer-watch-smile {
+    animation: none;
+  }
+
+  .timer-watch-pupil {
+    transform: translate(-50%, -50%) !important;
+  }
 }
 
 .timer-primary-chip,
@@ -8734,4 +8922,177 @@ h3 {
 .app-tone-urgent .speech-card-text,
 .app-tone-finished .speech-card-text {
   color: #7f130c !important;
+}
+
+/* Settings modal layout repair */
+.settings-dialog,
+.settings-dialog * {
+  min-width: 0;
+}
+
+.settings-dialog .settings-body {
+  overflow-x: hidden;
+}
+
+.settings-dialog .settings-panel-grid {
+  align-items: start;
+  max-width: 100%;
+}
+
+.settings-dialog .settings-panel-grid > * {
+  min-width: 0;
+}
+
+.settings-dialog .settings-card,
+.settings-dialog .random-history-panel {
+  padding: 1rem !important;
+  border: 1px solid var(--panel-border) !important;
+  border-radius: 12px !important;
+  background: var(--card-surface) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.settings-dialog .settings-card:first-child {
+  padding-top: 1rem !important;
+  border-top: 1px solid var(--panel-border) !important;
+}
+
+.settings-dialog .slot-card {
+  display: grid !important;
+  grid-template-columns: minmax(10rem, 1fr) minmax(0, auto);
+  align-items: center;
+  overflow: hidden;
+}
+
+.settings-dialog .slot-card > .slot-name-input {
+  margin-left: 0 !important;
+  width: 100%;
+  min-width: 0 !important;
+}
+
+.settings-dialog .slot-card > div {
+  width: auto !important;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-dialog .slot-select {
+  max-width: 10rem;
+}
+
+.settings-dialog .slot-time-input {
+  width: 8.8rem;
+  max-width: 100%;
+}
+
+.settings-dialog .slot-delete {
+  opacity: 1 !important;
+}
+
+.settings-dialog .settings-count-pill,
+.settings-dialog .settings-stat-card,
+.settings-dialog .inline-flex.rounded-full.border {
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .settings-dialog .slot-card {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-dialog .slot-card > div {
+    width: 100% !important;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .settings-dialog .settings-header {
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .settings-dialog .settings-header > div {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .settings-dialog .slot-card > div {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .settings-dialog .slot-card > div > .flex {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .settings-dialog .slot-select,
+  .settings-dialog .slot-time-input {
+    width: 100%;
+  }
+}
+
+/* Draw history balls */
+.random-history-grid {
+  align-items: center;
+  gap: 0.7rem !important;
+}
+
+.random-history-chip {
+  width: 3.9rem !important;
+  min-width: 3.9rem !important;
+  height: 3.9rem !important;
+  aspect-ratio: 1 !important;
+  overflow: hidden;
+  border: 1px solid rgba(0, 98, 65, 0.18) !important;
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.96) 0 13%, rgba(255, 255, 255, 0.5) 14% 23%, transparent 24%),
+    radial-gradient(circle at 37% 32%, #ffffff 0 30%, #eaf5f1 52%, #b9d8cf 78%, #7fb0a0 100%) !important;
+  color: #004b35 !important;
+  box-shadow:
+    inset -0.55rem -0.7rem 1rem rgba(0, 75, 53, 0.18),
+    inset 0.35rem 0.35rem 0.7rem rgba(255, 255, 255, 0.9),
+    0 0.35rem 0.75rem rgba(0, 0, 0, 0.14) !important;
+}
+
+.random-history-chip::after {
+  content: "";
+  position: absolute;
+  inset: 10% 13% auto auto;
+  width: 22%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.68);
+  filter: blur(0.5px);
+}
+
+.random-history-chip-number {
+  color: #004b35 !important;
+  font-family: var(--font-body);
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.random-history-chip-repeat,
+.random-history-chip-repeat-source {
+  border-color: rgba(181, 125, 33, 0.28) !important;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.96) 0 13%, rgba(255, 255, 255, 0.5) 14% 23%, transparent 24%),
+    radial-gradient(circle at 37% 32%, #fffefa 0 30%, #fff0c8 53%, #e0b45e 80%, #ad741c 100%) !important;
+  color: #6f4710 !important;
+  box-shadow:
+    inset -0.55rem -0.7rem 1rem rgba(116, 75, 14, 0.2),
+    inset 0.35rem 0.35rem 0.7rem rgba(255, 255, 255, 0.9),
+    0 0.35rem 0.75rem rgba(116, 75, 14, 0.18) !important;
+}
+
+.random-history-chip-repeat .random-history-chip-number,
+.random-history-chip-repeat-source .random-history-chip-number {
+  color: #6f4710 !important;
 }

@@ -35,6 +35,7 @@ import DictionaryNotebookOverlay from '../components/DictionaryNotebookOverlay';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'draw';
+type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 interface ScheduleSlot {
   id: string;
   name: string;
@@ -76,6 +77,48 @@ interface DrawOverlayState {
   kind: 'normal' | 'repeat' | 'empty' | 'reset';
   number: number | null;
 }
+
+const getUniqueDrawHistoryEntries = (historyEntries: RandomDrawHistoryEntry[]) => {
+  const repeatedNumberSet = new Set(
+    historyEntries.filter((entry) => entry.kind === 'repeat').map((entry) => entry.number),
+  );
+  const visibleNumberSet = new Set<number>();
+  const orphanRepeatEntries: RandomDrawHistoryEntry[] = [];
+  const visibleEntries: RandomDrawHistoryEntry[] = [];
+
+  historyEntries.forEach((entry) => {
+    if (visibleNumberSet.has(entry.number)) {
+      return;
+    }
+
+    if (entry.kind === 'repeat') {
+      orphanRepeatEntries.push(entry);
+      return;
+    }
+
+    visibleNumberSet.add(entry.number);
+    visibleEntries.push(
+      repeatedNumberSet.has(entry.number)
+        ? {
+          ...entry,
+          kind: 'repeat',
+          sourceEntryId: entry.id,
+        }
+        : entry,
+    );
+  });
+
+  orphanRepeatEntries.forEach((entry) => {
+    if (visibleNumberSet.has(entry.number)) {
+      return;
+    }
+
+    visibleNumberSet.add(entry.number);
+    visibleEntries.push(entry);
+  });
+
+  return visibleEntries;
+};
 
 type WeeklySchedule = {
   [key: number]: ScheduleSlot[]; // 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri
@@ -1982,6 +2025,9 @@ export default function TimerPage() {
   const [isDrawRepeatVisible, setIsDrawRepeatVisible] = useState(false);
   const [isDrawResetVisible, setIsDrawResetVisible] = useState(false);
   const [isDrawAutoResetPending, setIsDrawAutoResetPending] = useState(false);
+  const [watchFaceGlance, setWatchFaceGlance] = useState<WatchFaceGlance>('center');
+  const [isWatchFaceBlinking, setIsWatchFaceBlinking] = useState(false);
+  const [isWatchFaceReacting, setIsWatchFaceReacting] = useState(false);
 
   const isEditingNoticeRef = useRef(isEditingNotice);
   useEffect(() => {
@@ -1989,6 +2035,8 @@ export default function TimerPage() {
   }, [isEditingNotice]);
 
   const prevSlotIdRef = useRef<string | null>(null);
+  const previousWatchFaceRunningRef = useRef<boolean | null>(null);
+  const previousWatchFaceFinishedRef = useRef(false);
   // Manual Timer State
   const [manualTotalTime, setManualTotalTime] = useState(initialState.manual.totalTime);
   const [manualTimeLeft, setManualTimeLeft] = useState(initialState.manual.timeLeft);
@@ -2071,6 +2119,7 @@ export default function TimerPage() {
   const syncedStudentRosterBulkInput = buildStudentRosterBulkInput(selectedDrawSettingsCase, settingsStudentNumbers);
   const selectedDrawSettingsCaseData = getCaseDrawData(selectedDrawSettingsCase, repeatPickEnabled);
   const selectedDrawHistoryEntries = selectedDrawSettingsCaseData.historyEntries;
+  const selectedDrawHistoryDisplayEntries = getUniqueDrawHistoryEntries(selectedDrawHistoryEntries);
   const reservedDrawCount = selectedDrawSettingsCase.hiddenNumberQueue.length;
   const editingDaySchedule = weeklySchedule[editingDay] || [];
   const activeWeekdayScheduleCount = WEEKDAYS.filter((day) => (weeklySchedule[day] || []).length > 0).length;
@@ -2198,6 +2247,67 @@ export default function TimerPage() {
       setNoticeDraft(scheduleNotice);
     }
   }, [scheduleNotice, isEditingNotice]);
+
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    let blinkStartTimer: number | undefined;
+    let blinkEndTimer: number | undefined;
+
+    const scheduleBlink = () => {
+      const delay = 32000 + Math.random() * 30000;
+      blinkStartTimer = window.setTimeout(() => {
+        setIsWatchFaceBlinking(true);
+        blinkEndTimer = window.setTimeout(() => {
+          setIsWatchFaceBlinking(false);
+          scheduleBlink();
+        }, 340);
+      }, delay);
+    };
+
+    scheduleBlink();
+
+    return () => {
+      window.clearTimeout(blinkStartTimer);
+      window.clearTimeout(blinkEndTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    let glanceStartTimer: number | undefined;
+    let glanceEndTimer: number | undefined;
+    const glances: Exclude<WatchFaceGlance, 'center'>[] = ['left', 'right', 'up'];
+
+    const scheduleGlance = () => {
+      const delay = 26000 + Math.random() * 32000;
+      glanceStartTimer = window.setTimeout(() => {
+        setWatchFaceGlance(glances[Math.floor(Math.random() * glances.length)]);
+        glanceEndTimer = window.setTimeout(() => {
+          setWatchFaceGlance('center');
+          scheduleGlance();
+        }, 1200 + Math.random() * 700);
+      }, delay);
+    };
+
+    scheduleGlance();
+
+    return () => {
+      window.clearTimeout(glanceStartTimer);
+      window.clearTimeout(glanceEndTimer);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isEditingNotice) return;
@@ -3649,6 +3759,32 @@ export default function TimerPage() {
         : currentDaySchedule.length - 1;
 
   useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    const previousRunning = previousWatchFaceRunningRef.current;
+    const isFinished = displayTotalTime > 0 && displayTimeLeft === 0;
+    const didRunningChange = previousRunning !== null && previousRunning !== displayIsRunning;
+    const didFinish = !previousWatchFaceFinishedRef.current && isFinished;
+
+    previousWatchFaceRunningRef.current = displayIsRunning;
+    previousWatchFaceFinishedRef.current = isFinished;
+
+    if (!didRunningChange && !didFinish) return;
+
+    setIsWatchFaceReacting(true);
+    const timeoutId = window.setTimeout(() => {
+      setIsWatchFaceReacting(false);
+    }, 720);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [displayIsRunning, displayTimeLeft, displayTotalTime]);
+
+  useEffect(() => {
     if (focusSlotIndex < 0) return;
     const focusSlot = currentDaySchedule[focusSlotIndex];
     if (!focusSlot) return;
@@ -3996,7 +4132,7 @@ export default function TimerPage() {
       <div className="custom-scrollbar random-history-scroll mt-4 max-h-[17rem] overflow-y-auto pr-1">
         {selectedDrawHistoryEntries.length > 0 ? (
           <div className="random-history-grid">
-            {selectedDrawHistoryEntries.map((entry) => {
+            {selectedDrawHistoryDisplayEntries.map((entry) => {
               const isRepeatEntry = entry.kind === 'repeat';
               const studentName = getStudentName(selectedDrawSettingsCase, entry.number);
               const chipTitle =
@@ -4676,6 +4812,29 @@ export default function TimerPage() {
                   className="transition-all duration-1000 ease-linear"
                 />
               </svg>
+              <div
+                aria-hidden="true"
+                className={`timer-watch-face timer-watch-face-${
+                  isScheduleIdle
+                    ? 'idle'
+                    : percentage <= urgentThreshold
+                      ? 'urgent'
+                      : percentage <= warningThreshold
+                        ? 'warning'
+                        : 'calm'
+                } timer-watch-glance-${watchFaceGlance}${
+                  isWatchFaceBlinking ? ' timer-watch-face-blinking' : ''
+                }${isWatchFaceReacting ? ' timer-watch-face-reacting' : ''}`}
+              >
+                <span className="timer-watch-eye timer-watch-eye-left">
+                  <span className="timer-watch-pupil" />
+                </span>
+                <span className="timer-watch-eye timer-watch-eye-right">
+                  <span className="timer-watch-pupil" />
+                </span>
+                <span className="timer-watch-nose" />
+                <span className="timer-watch-smile" />
+              </div>
 
               {/* Character Notification Overlay (kept within the ring stage so it does not cover the timer text) */}
               <div className={`absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
@@ -5616,7 +5775,7 @@ export default function TimerPage() {
                       <div className="custom-scrollbar random-history-scroll mt-4 max-h-[17rem] overflow-y-auto pr-1">
                         {selectedDrawHistoryEntries.length > 0 ? (
                           <div className="random-history-grid">
-                            {selectedDrawHistoryEntries.map((entry) => {
+                            {selectedDrawHistoryDisplayEntries.map((entry) => {
                               const isRepeatEntry = entry.kind === 'repeat';
                               const studentName = getStudentName(selectedDrawSettingsCase, entry.number);
                               const chipTitle =
