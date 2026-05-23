@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { getFontEmbedCSS, toBlob } from 'html-to-image';
-import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Download, ImageDown, Music, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Download, ImageDown, Music, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -67,7 +67,6 @@ interface ManualTimerState {
 
 interface TimerAppState {
   manual: ManualTimerState;
-  stageDisplayNumber: number;
 }
 
 interface DrawOverlayState {
@@ -75,6 +74,12 @@ interface DrawOverlayState {
   displayText: string;
   kind: 'normal' | 'repeat' | 'empty' | 'reset';
   number: number | null;
+}
+
+interface ScheduleYoutubeFavorite {
+  id: string;
+  name: string;
+  urls: string[];
 }
 
 const getUniqueDrawHistoryEntries = (historyEntries: RandomDrawHistoryEntry[]) => {
@@ -145,15 +150,10 @@ const MEMO_NOTE_MAX_FONT_SIZE = 168;
 const SCHEDULE_YOUTUBE_URLS_STORAGE_KEY = 'scheduleYoutubeUrls-v2';
 const SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY = 'scheduleYoutubeUrl-v1';
 const SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY = 'scheduleYoutubeVisible-v1';
+const SCHEDULE_YOUTUBE_FAVORITES_STORAGE_KEY = 'scheduleYoutubeFavorites-v1';
+const LIBRARY_SITE_URL = 'https://librarylibrary.vercel.app';
 const TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV3';
 const LEGACY_TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV2';
-const DEFAULT_STAGE_DISPLAY_NUMBER = 0;
-const STAGE_SECONDS_PER_POINT = 60;
-const PENALTY_ACCENT_COLOR = '#C53124';
-const PENALTY_RING_TRACK_COLOR = '#F3D8D5';
-const REWARD_ACCENT_COLOR = '#2D63B8';
-const REWARD_RING_TRACK_COLOR = '#D7E5FB';
-const PENALTY_PANEL_ANIMATION_DURATION_MS = 820;
 const MEMO_NOTE_TEXT_COLORS = [
   { id: 'black', label: '검정', value: '#2c1e16' },
   { id: 'red', label: '빨강', value: '#c7684a' },
@@ -365,6 +365,8 @@ const extractYoutubeVideoId = (value: string) => {
 
 const buildScheduleYoutubeWatchUrl = (videoId: string) => `https://www.youtube.com/watch?v=${videoId}`;
 
+const createScheduleYoutubeFavoriteId = () => `youtube-favorite-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
 const normalizeScheduleYoutubeUrls = (values: unknown) => {
   if (!Array.isArray(values)) return [];
 
@@ -373,6 +375,31 @@ const normalizeScheduleYoutubeUrls = (values: unknown) => {
     .map((value) => extractYoutubeVideoId(value))
     .filter((videoId): videoId is string => videoId !== null)
     .map((videoId) => buildScheduleYoutubeWatchUrl(videoId));
+};
+
+const normalizeScheduleYoutubeFavorites = (values: unknown): ScheduleYoutubeFavorite[] => {
+  if (!Array.isArray(values)) return [];
+
+  return values.reduce<ScheduleYoutubeFavorite[]>((favorites, value, index) => {
+    if (!value || typeof value !== 'object') return favorites;
+
+    const favorite = value as Partial<ScheduleYoutubeFavorite>;
+    const urls = normalizeScheduleYoutubeUrls(favorite.urls).slice(0, 1);
+    if (urls.length === 0) return favorites;
+
+    favorites.push({
+      id:
+        typeof favorite.id === 'string' && favorite.id.trim().length > 0
+          ? favorite.id
+          : `youtube-favorite-${index + 1}`,
+      name:
+        typeof favorite.name === 'string' && favorite.name.trim().length > 0
+          ? favorite.name.trim()
+          : `즐겨찾기 ${index + 1}`,
+      urls,
+    });
+    return favorites;
+  }, []);
 };
 
 const getStoredScheduleYoutubeUrls = () => {
@@ -1085,10 +1112,6 @@ const getInitialAppState = (): TimerAppState => {
     try {
       const parsed = JSON.parse(saved);
       const savedManual = parsed?.manual || {};
-      const parsedStageDisplayNumber = Number(parsed?.stageDisplayNumber);
-      const stageDisplayNumber = Number.isFinite(parsedStageDisplayNumber)
-        ? Math.trunc(parsedStageDisplayNumber)
-        : DEFAULT_STAGE_DISPLAY_NUMBER;
       const totalTime =
         typeof savedManual.totalTime === 'number' && savedManual.totalTime > 0
           ? Math.floor(savedManual.totalTime)
@@ -1124,14 +1147,22 @@ const getInitialAppState = (): TimerAppState => {
             parsed?.mode === 'manual' ||
             isRunning,
         },
-        stageDisplayNumber,
       };
     } catch (e) {}
   }
   return {
     manual: DEFAULT_MANUAL_TIMER_STATE,
-    stageDisplayNumber: DEFAULT_STAGE_DISPLAY_NUMBER,
   };
+};
+
+const getStoredScheduleYoutubeFavorites = () => {
+  try {
+    const savedFavorites = localStorage.getItem(SCHEDULE_YOUTUBE_FAVORITES_STORAGE_KEY);
+    if (!savedFavorites) return [];
+    return normalizeScheduleYoutubeFavorites(JSON.parse(savedFavorites));
+  } catch {
+    return [];
+  }
 };
 
 function AnnouncementNotebookOverlay({
@@ -1996,13 +2027,21 @@ export default function TimerPage() {
   const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isYoutubePanelOpen, setIsYoutubePanelOpen] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [youtubeUrlInput, setYoutubeUrlInput] = useState(initialScheduleYoutubeState.inputValue);
   const [scheduleYoutubeUrls, setScheduleYoutubeUrls] = useState<string[]>(initialScheduleYoutubeState.appliedUrls);
+  const [scheduleYoutubeFavorites, setScheduleYoutubeFavorites] = useState<ScheduleYoutubeFavorite[]>(() =>
+    getStoredScheduleYoutubeFavorites(),
+  );
+  const [isYoutubeFavoriteFormOpen, setIsYoutubeFavoriteFormOpen] = useState(false);
+  const [youtubeFavoriteNameInput, setYoutubeFavoriteNameInput] = useState('');
+  const [youtubeFavoriteUrlInput, setYoutubeFavoriteUrlInput] = useState('');
   const [isScheduleYoutubeVisible, setIsScheduleYoutubeVisible] = useState(initialScheduleYoutubeState.isVisible);
   const [hasMountedScheduleYoutubePlayer, setHasMountedScheduleYoutubePlayer] = useState(
     () => initialScheduleYoutubeState.isVisible && initialScheduleYoutubeState.appliedUrls.length > 0,
   );
   const [youtubeUrlError, setYoutubeUrlError] = useState('');
+  const [youtubeFavoriteError, setYoutubeFavoriteError] = useState('');
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
     return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
@@ -2074,9 +2113,6 @@ export default function TimerPage() {
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
-  const [stageDisplayNumber, setStageDisplayNumber] = useState(initialState.stageDisplayNumber);
-  const [penaltyPanelAnimationDirection, setPenaltyPanelAnimationDirection] = useState<'up' | 'down' | null>(null);
-  const [penaltyPanelAnimationTick, setPenaltyPanelAnimationTick] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
@@ -2090,7 +2126,6 @@ export default function TimerPage() {
   const drawHideTimeoutRef = useRef<number | null>(null);
   const drawLaunchTokenRef = useRef(0);
   const queuedStudentDrawAfterResetRef = useRef(false);
-  const penaltyPanelAnimationTimeoutRef = useRef<number | null>(null);
   const drawCaseSwitchKeyboardTimeoutRef = useRef<number | null>(null);
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
@@ -2144,6 +2179,7 @@ export default function TimerPage() {
     .filter((videoId): videoId is string => videoId !== null);
   const scheduleYoutubeCount = scheduleYoutubeUrls.length;
   const hasScheduleYoutubePlaylist = scheduleYoutubeCount > 0;
+  const hasScheduleYoutubeFavorites = scheduleYoutubeFavorites.length > 0;
   const hasYoutubeUrlInput = youtubeUrlInput.trim().length > 0;
 
   useEffect(() => {
@@ -2171,6 +2207,14 @@ export default function TimerPage() {
     localStorage.removeItem(SCHEDULE_YOUTUBE_URLS_STORAGE_KEY);
     localStorage.removeItem(SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY);
   }, [scheduleYoutubeUrls]);
+
+  useEffect(() => {
+    if (scheduleYoutubeFavorites.length > 0) {
+      localStorage.setItem(SCHEDULE_YOUTUBE_FAVORITES_STORAGE_KEY, JSON.stringify(scheduleYoutubeFavorites));
+      return;
+    }
+    localStorage.removeItem(SCHEDULE_YOUTUBE_FAVORITES_STORAGE_KEY);
+  }, [scheduleYoutubeFavorites]);
 
   useEffect(() => {
     if (scheduleYoutubeUrls.length > 0) {
@@ -2238,6 +2282,7 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSettingsOpen) return;
     setIsYoutubePanelOpen(false);
+    setIsLibraryOpen(false);
   }, [isSettingsOpen]);
 
   useEffect(() => {
@@ -2344,9 +2389,8 @@ export default function TimerPage() {
         endTime: manualEndTime,
         isVisible: isExtraTimerVisible,
       },
-      stageDisplayNumber,
     }));
-  }, [manualTotalTime, manualTimeLeft, manualIsRunning, manualEndTime, isExtraTimerVisible, stageDisplayNumber]);
+  }, [manualTotalTime, manualTimeLeft, manualIsRunning, manualEndTime, isExtraTimerVisible]);
 
   // Manual Timer Logic
   useEffect(() => {
@@ -2406,6 +2450,17 @@ export default function TimerPage() {
 
     return () => clearInterval(interval);
   }, [weeklySchedule, scheduleClockOffsetSeconds]);
+
+  useEffect(() => {
+    if (timerType === 'lunch') {
+      setIsExtraTimerVisible(false);
+      setIsYoutubePanelOpen(false);
+      setIsLibraryOpen(true);
+      return;
+    }
+
+    setIsLibraryOpen(false);
+  }, [timerType]);
 
   const setManualTimerDuration = (totalSeconds: number) => {
     if (totalSeconds <= 0) return;
@@ -3018,6 +3073,7 @@ export default function TimerPage() {
         isMemoOpen ||
         isAnnouncementOpen ||
         isYoutubePanelOpen ||
+        isLibraryOpen ||
         isEditingNotice ||
         isEditableShortcutTarget(event.target)
       ) {
@@ -3038,6 +3094,7 @@ export default function TimerPage() {
     drawCases,
     isAnnouncementOpen,
     isEditingNotice,
+    isLibraryOpen,
     isMemoOpen,
     isSettingsOpen,
     isYoutubePanelOpen,
@@ -3060,6 +3117,7 @@ export default function TimerPage() {
         isMemoOpen ||
         isAnnouncementOpen ||
         isYoutubePanelOpen ||
+        isLibraryOpen ||
         isEditingNotice ||
         isEditableShortcutTarget(event.target) ||
         event.repeat
@@ -3092,6 +3150,7 @@ export default function TimerPage() {
     isAnnouncementOpen,
     isDrawResetVisible,
     isEditingNotice,
+    isLibraryOpen,
     isMemoOpen,
     isSettingsOpen,
     isYoutubePanelOpen,
@@ -3102,64 +3161,20 @@ export default function TimerPage() {
   ]);
 
   useEffect(() => {
-    const handleStageDisplayShortcut = (event: KeyboardEvent) => {
-      const isStageUpKey =
-        event.key === 'PageUp' || event.code === 'PageUp' || event.key === 'ArrowUp' || event.code === 'ArrowUp';
-      const isStageDownKey =
-        event.key === 'PageDown' ||
-        event.code === 'PageDown' ||
-        event.key === 'ArrowDown' ||
-        event.code === 'ArrowDown';
+    if (!isLibraryOpen) return;
 
-      if ((!isStageUpKey && !isStageDownKey) || event.altKey || event.ctrlKey || event.metaKey) return;
-      if (
-        isSettingsOpen ||
-        isMemoOpen ||
-        isAnnouncementOpen ||
-        isYoutubePanelOpen ||
-        isEditingNotice ||
-        isEditableShortcutTarget(event.target)
-      ) {
-        return;
+    const handleLibraryEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsLibraryOpen(false);
       }
-
-      event.preventDefault();
-      const nextStageDisplayNumber = isStageUpKey ? stageDisplayNumber + 1 : stageDisplayNumber - 1;
-
-      if (penaltyPanelAnimationTimeoutRef.current !== null) {
-        window.clearTimeout(penaltyPanelAnimationTimeoutRef.current);
-      }
-
-      setStageDisplayNumber(nextStageDisplayNumber);
-      setPenaltyPanelAnimationDirection(isStageUpKey ? 'up' : 'down');
-      setPenaltyPanelAnimationTick((previous) => previous + 1);
-      penaltyPanelAnimationTimeoutRef.current = window.setTimeout(() => {
-        setPenaltyPanelAnimationDirection(null);
-        penaltyPanelAnimationTimeoutRef.current = null;
-      }, PENALTY_PANEL_ANIMATION_DURATION_MS);
     };
 
-    window.addEventListener('keydown', handleStageDisplayShortcut);
+    window.addEventListener('keydown', handleLibraryEscape);
 
     return () => {
-      window.removeEventListener('keydown', handleStageDisplayShortcut);
+      window.removeEventListener('keydown', handleLibraryEscape);
     };
-  }, [
-    isAnnouncementOpen,
-    isEditingNotice,
-    isMemoOpen,
-    isSettingsOpen,
-    isYoutubePanelOpen,
-    stageDisplayNumber,
-  ]);
-
-  useEffect(() => {
-    return () => {
-      if (penaltyPanelAnimationTimeoutRef.current !== null) {
-        window.clearTimeout(penaltyPanelAnimationTimeoutRef.current);
-      }
-    };
-  }, []);
+  }, [isLibraryOpen]);
 
   useEffect(() => {
     if (
@@ -3168,6 +3183,7 @@ export default function TimerPage() {
       isMemoOpen ||
       isAnnouncementOpen ||
       isYoutubePanelOpen ||
+      isLibraryOpen ||
       isEditingNotice
     ) {
       return;
@@ -3180,6 +3196,7 @@ export default function TimerPage() {
     isAnnouncementOpen,
     isDrawResetVisible,
     isEditingNotice,
+    isLibraryOpen,
     isMemoOpen,
     isSettingsOpen,
     isYoutubePanelOpen,
@@ -3428,6 +3445,71 @@ export default function TimerPage() {
     setIsYoutubePanelOpen(false);
   };
 
+  const addScheduleYoutubeFavorite = () => {
+    const favoriteName = youtubeFavoriteNameInput.trim();
+    const { normalizedUrls, invalidLineNumbers } = parseScheduleYoutubeInput(youtubeFavoriteUrlInput);
+
+    if (favoriteName.length === 0) {
+      setYoutubeFavoriteError('이름을 입력하세요.');
+      return;
+    }
+
+    if (invalidLineNumbers.length > 0) {
+      const preview = invalidLineNumbers.slice(0, 5).join(', ');
+      const suffix = invalidLineNumbers.length > 5 ? ` 외 ${invalidLineNumbers.length - 5}줄` : '';
+      setYoutubeFavoriteError(`잘못된 줄: ${preview}${suffix}`);
+      return;
+    }
+
+    if (normalizedUrls.length === 0) {
+      setYoutubeFavoriteError('URL을 입력하세요.');
+      return;
+    }
+
+    if (normalizedUrls.length > 1) {
+      setYoutubeFavoriteError('즐겨찾기는 URL 1개만 등록할 수 있습니다.');
+      return;
+    }
+
+    const normalizedKey = normalizedUrls.join('\n');
+    const hasSameFavorite = scheduleYoutubeFavorites.some((favorite) => favorite.urls.join('\n') === normalizedKey);
+    if (hasSameFavorite) {
+      setYoutubeFavoriteError('이미 저장된 URL입니다.');
+      return;
+    }
+
+    setScheduleYoutubeFavorites((previous) => [
+      ...previous,
+      {
+        id: createScheduleYoutubeFavoriteId(),
+        name: favoriteName,
+        urls: normalizedUrls,
+      },
+    ]);
+    setYoutubeFavoriteNameInput('');
+    setYoutubeFavoriteUrlInput('');
+    setYoutubeFavoriteError('');
+    setIsYoutubeFavoriteFormOpen(false);
+  };
+
+  const insertScheduleYoutubeFavorite = (favorite: ScheduleYoutubeFavorite) => {
+    setYoutubeUrlInput((previous) => {
+      const previousValue = previous.trim();
+      const favoriteValue = favorite.urls.join('\n');
+      return previousValue.length > 0 ? `${previousValue}\n${favoriteValue}` : favoriteValue;
+    });
+    setYoutubeUrlError('');
+    window.setTimeout(() => {
+      youtubeUrlInputRef.current?.focus();
+    }, 0);
+  };
+
+  const removeScheduleYoutubeFavorite = (favoriteId: string) => {
+    setScheduleYoutubeFavorites((previous) => previous.filter((favorite) => favorite.id !== favoriteId));
+    setYoutubeUrlError('');
+    setYoutubeFavoriteError('');
+  };
+
   const clearScheduleYoutubeUrl = () => {
     setYoutubeUrlInput('');
     setScheduleYoutubeUrls([]);
@@ -3538,68 +3620,9 @@ export default function TimerPage() {
   let speechTextSizeClass = "text-2xl md:text-4xl";
   let characterWrapSizeClass = "w-48 h-48 md:w-64 md:h-64";
   let characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
-  const stageDisplayMagnitude = Math.abs(stageDisplayNumber);
-  const isPenaltyStage = stageDisplayNumber > 0;
-  const isRewardStage = stageDisplayNumber < 0;
   const isScheduleBreak = timerType === 'break';
   const isScheduleLunch = timerType === 'lunch';
   const shouldShowTimedMessage = isScheduleBreak || isScheduleLunch;
-  const elapsedScheduleSeconds = Math.max(0, displayTotalTime - displayTimeLeft);
-  const breakPenaltyTotalSeconds =
-    isScheduleBreak && isPenaltyStage
-      ? Math.min(displayTotalTime, stageDisplayMagnitude * STAGE_SECONDS_PER_POINT)
-      : 0;
-  const breakPenaltyTimeLeft = Math.max(0, breakPenaltyTotalSeconds - elapsedScheduleSeconds);
-  const isBreakPenaltyActive = breakPenaltyTimeLeft > 0;
-  const nextUpcomingBreak = currentDaySchedule.find(
-    (slot) => slot.type === 'break' && slot.start * 60 > currentScheduleSecondsOfDay,
-  );
-  const rewardLeadSeconds = isRewardStage ? stageDisplayMagnitude * STAGE_SECONDS_PER_POINT : 0;
-  const rewardTimeUntilBreak = nextUpcomingBreak
-    ? Math.max(0, nextUpcomingBreak.start * 60 - currentScheduleSecondsOfDay)
-    : 0;
-  const isRewardActive =
-    isRewardStage && !isScheduleBreak && rewardTimeUntilBreak > 0 && rewardTimeUntilBreak <= rewardLeadSeconds;
-  const isStageTimerActive = isBreakPenaltyActive || isRewardActive;
-  const activeStageTimeLeft = isBreakPenaltyActive ? breakPenaltyTimeLeft : rewardTimeUntilBreak;
-  const activeStageLabel = isBreakPenaltyActive ? '벌점' : '상점';
-  const shouldShowStagePanel = stageDisplayNumber !== 0 || penaltyPanelAnimationDirection !== null;
-  const isNeutralStage = stageDisplayNumber === 0;
-  const stagePanelAriaLabel = isNeutralStage
-    ? `누적 점수 ${stageDisplayMagnitude}`
-    : isRewardStage
-      ? `누적 상점 ${stageDisplayMagnitude}`
-      : `누적 벌점 ${stageDisplayMagnitude}`;
-  const stagePanelClassName = isNeutralStage
-    ? 'relative flex min-w-[7.2rem] flex-col items-center justify-center rounded-[1.6rem] border-2 border-[#CFC8C1] bg-[rgba(251,249,246,0.94)] px-3 py-5 text-center shadow-[0_18px_32px_rgba(56,46,38,0.12)] backdrop-blur-sm sm:min-w-[8rem] sm:px-3.5 sm:py-5.5 md:min-w-[8.8rem] md:px-4 md:py-6'
-    : isRewardStage
-    ? 'relative flex min-w-[7.2rem] flex-col items-center justify-center rounded-[1.6rem] border-2 border-[#B7D0F5] bg-[rgba(244,248,255,0.92)] px-3 py-5 text-center shadow-[0_18px_32px_rgba(78,118,185,0.18)] backdrop-blur-sm sm:min-w-[8rem] sm:px-3.5 sm:py-5.5 md:min-w-[8.8rem] md:px-4 md:py-6'
-    : 'relative flex min-w-[7.2rem] flex-col items-center justify-center rounded-[1.6rem] border-2 border-[#E7C0B9] bg-[rgba(255,248,245,0.92)] px-3 py-5 text-center shadow-[0_18px_32px_rgba(181,94,76,0.16)] backdrop-blur-sm sm:min-w-[8rem] sm:px-3.5 sm:py-5.5 md:min-w-[8.8rem] md:px-4 md:py-6';
-  const stagePanelHaloClassName = isNeutralStage
-    ? 'absolute inset-[-0.45rem] rounded-[1.9rem] border-2 border-[#8E8378]/35'
-    : isRewardStage
-    ? 'absolute inset-[-0.45rem] rounded-[1.9rem] border-2 border-[#7EA6E6]/55'
-    : 'absolute inset-[-0.45rem] rounded-[1.9rem] border-2 border-[#D96D61]/55';
-  const stagePanelNumberClassName = isNeutralStage
-    ? 'relative z-10 leading-none font-extrabold text-[clamp(3.4rem,6vw,5.6rem)] text-[#1F1A16] drop-shadow-[0_10px_18px_rgba(56,46,38,0.12)]'
-    : isRewardStage
-    ? 'relative z-10 leading-none font-extrabold text-[clamp(3.4rem,6vw,5.6rem)] text-[#2D63B8] drop-shadow-[0_10px_18px_rgba(78,118,185,0.18)]'
-    : 'relative z-10 leading-none font-extrabold text-[clamp(3.4rem,6vw,5.6rem)] text-[#C53124] drop-shadow-[0_10px_18px_rgba(181,94,76,0.18)]';
-  const penaltyPanelAnimationStyle =
-    penaltyPanelAnimationDirection === 'up'
-      ? { animation: 'penaltyPanelRiseBurst 820ms cubic-bezier(0.22, 0.9, 0.24, 1)' }
-      : penaltyPanelAnimationDirection === 'down'
-        ? { animation: 'penaltyPanelDropBurst 760ms cubic-bezier(0.24, 0.82, 0.26, 1)' }
-        : undefined;
-  const penaltyPanelHaloStyle =
-    penaltyPanelAnimationDirection === 'up'
-      ? { animation: 'penaltyPanelHalo 780ms ease-out forwards' }
-      : penaltyPanelAnimationDirection === 'down'
-        ? { animation: 'penaltyPanelHaloSoft 720ms ease-out forwards' }
-        : undefined;
-  const penaltyPanelNumberStyle = penaltyPanelAnimationDirection
-    ? { animation: 'penaltyPanelNumberPulse 700ms cubic-bezier(0.2, 0.88, 0.26, 1)' }
-    : undefined;
   const scheduleTypeLabel =
     timerType === 'class'
       ? "\uC218\uC5C5\uC2DC\uAC04"
@@ -3663,11 +3686,6 @@ export default function TimerPage() {
     showCharacter = true;
     bgClass = "app-tone-warning";
     characterMessage = getCharacterMessage('warning');
-  }
-
-  if (isStageTimerActive) {
-    strokeColor = isRewardActive ? REWARD_ACCENT_COLOR : PENALTY_ACCENT_COLOR;
-    ringTrackColor = isRewardActive ? REWARD_RING_TRACK_COLOR : PENALTY_RING_TRACK_COLOR;
   }
 
   if (showCharacter && displayIsRunning) {
@@ -3826,6 +3844,7 @@ export default function TimerPage() {
       onClick={() => {
         void playAnnouncementSound('pop');
         setIsYoutubePanelOpen(false);
+        setIsLibraryOpen(false);
         setIsMemoOpen(true);
       }}
       className="inline-flex h-6 items-center justify-center gap-1 rounded-full border border-[#D7E2D1] bg-[rgba(240,246,237,0.94)] px-2 text-[0.64rem] font-extrabold text-[#5C8D6D] shadow-[0_8px_16px_rgba(93,118,84,0.1)] backdrop-blur-xl transition-all hover:bg-[rgba(248,251,246,0.98)] hover:scale-[1.02] hover:text-[#4F7258] sm:h-7 sm:px-2.25 sm:text-[0.68rem] md:h-8 md:px-2.5 md:text-[0.72rem]"
@@ -3957,6 +3976,10 @@ export default function TimerPage() {
 
         <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
           <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">학교 시계 보정</h3>
+          <div className="mt-1.5 space-y-1 text-[0.82rem] font-semibold leading-relaxed text-[#8A6347]/75">
+            <p>학교 종이 웹 타이머보다 빠르면 +, 늦으면 -로 입력하세요.</p>
+            <p>예: 학교 종이 10초 빠르면 10</p>
+          </div>
           <label className="mt-3 flex items-center gap-2">
             <input
               type="number"
@@ -4538,81 +4561,19 @@ export default function TimerPage() {
               transform: scale(1.02);
             }
           }
-          @keyframes penaltyPanelRiseBurst {
-            0% {
-              opacity: 0.24;
-              transform: translateY(18px) scale(0.72) rotate(-7deg);
-            }
-            42% {
-              opacity: 1;
-              transform: translateY(-7px) scale(1.12) rotate(2deg);
-            }
-            70% {
-              transform: translateY(2px) scale(0.97) rotate(-1deg);
-            }
-            100% {
-              opacity: 1;
-              transform: translateY(0) scale(1) rotate(0deg);
-            }
-          }
-          @keyframes penaltyPanelDropBurst {
-            0% {
-              opacity: 0.42;
-              transform: translateY(-5px) scale(1.12) rotate(3deg);
-            }
-            32% {
-              opacity: 1;
-              transform: translateY(11px) scale(0.82) rotate(-4deg);
-            }
-            62% {
-              transform: translateY(-2px) scale(1.04) rotate(1deg);
-            }
-            100% {
-              opacity: 1;
-              transform: translateY(0) scale(1) rotate(0deg);
-            }
-          }
-          @keyframes penaltyPanelHalo {
-            0% {
-              opacity: 0.7;
-              transform: scale(0.72);
-            }
-            100% {
-              opacity: 0;
-              transform: scale(1.45);
-            }
-          }
-          @keyframes penaltyPanelHaloSoft {
-            0% {
-              opacity: 0.56;
-              transform: scale(0.84);
-            }
-            100% {
-              opacity: 0;
-              transform: scale(1.28);
-            }
-          }
-          @keyframes penaltyPanelNumberPulse {
-            0% {
-              opacity: 0.2;
-              transform: scale(0.5);
-            }
-            55% {
-              opacity: 1;
-              transform: scale(1.2);
-            }
-            100% {
-              opacity: 1;
-              transform: scale(1);
-            }
-          }
         `}</style>
         <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
         {noticeBanner}
-        <div className="editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]">
+        <div
+          className={`editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid ${
+            isLibraryOpen
+              ? 'lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]'
+              : 'lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]'
+          }`}
+        >
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
             <div className="absolute inset-x-4 top-4 z-40 flex items-start justify-between sm:inset-x-5 sm:top-5 md:inset-x-6 md:top-6">
@@ -4632,6 +4593,7 @@ export default function TimerPage() {
                 type="button"
                 onClick={() => {
                   setIsDrawCaseMenuOpen(false);
+                  setIsLibraryOpen(false);
                   setIsSettingsOpen(true);
                 }}
                 className="icon-button timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-[1.45rem] border border-[#E6D5C9] bg-white/92 text-[#8A6347]/70 shadow-[0_10px_20px_rgba(95,71,50,0.1)] backdrop-blur-sm transition-all hover:bg-white hover:text-[#8A6347] sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl"
@@ -4916,20 +4878,6 @@ export default function TimerPage() {
               <div className={`clock-display editorial-clock-display text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] ${colorClass}`}>
                 {formatTime(displayTimeLeft)}
               </div>
-              {isStageTimerActive ? (
-                <div className="mt-2.5 flex items-center justify-center md:mt-3">
-                  <div
-                    aria-label={`${activeStageLabel} 남은 시간 ${formatTime(activeStageTimeLeft)}`}
-                    className={`inline-flex items-center rounded-full border px-4 py-2.5 text-[clamp(1rem,2.1vw,1.28rem)] font-extrabold backdrop-blur-sm md:px-5 md:py-3 ${
-                      isRewardActive
-                        ? 'border-[#BDD2F3] bg-[rgba(242,247,255,0.94)] text-[#2D63B8] shadow-[0_14px_24px_rgba(88,122,188,0.16)]'
-                        : 'border-[#E7C0B9] bg-[rgba(255,244,241,0.94)] text-[#C53124] shadow-[0_14px_24px_rgba(181,94,76,0.14)]'
-                    }`}
-                  >
-                    <span className="font-mono tracking-[-0.05em] text-[1.22em]">{formatTime(activeStageTimeLeft)}</span>
-                  </div>
-                </div>
-              ) : null}
             </div>
             <div className="timer-status-row relative z-10 mt-3 flex w-full max-w-[40rem] flex-wrap items-center justify-center gap-3 md:mt-4 xl:max-w-[45rem]">
               <div
@@ -4939,38 +4887,23 @@ export default function TimerPage() {
                 <span className="min-w-0 truncate">{scheduleTypeLabel}</span>
               </div>
             </div>
-            {shouldShowStagePanel ? (
-              <div className="pointer-events-none absolute bottom-4 left-4 z-40 sm:bottom-5 sm:left-5 md:bottom-6 md:left-6">
-                <div
-                  key={`${penaltyPanelAnimationDirection ?? 'idle'}-${penaltyPanelAnimationTick}`}
-                  aria-label={stagePanelAriaLabel}
-                  className={stagePanelClassName}
-                  style={penaltyPanelAnimationStyle}
-                >
-                  {penaltyPanelAnimationDirection !== null ? (
-                    <div
-                      aria-hidden="true"
-                      className={stagePanelHaloClassName}
-                      style={penaltyPanelHaloStyle}
-                    />
-                  ) : null}
-                  <div
-                    className={stagePanelNumberClassName}
-                    style={
-                      penaltyPanelNumberStyle
-                        ? { fontFamily: 'var(--font-clock)', ...penaltyPanelNumberStyle }
-                        : { fontFamily: 'var(--font-clock)' }
-                    }
-                  >
-                    {stageDisplayMagnitude}
-                  </div>
-                </div>
-              </div>
-            ) : null}
           </div>
 
           {/* Right: Controls & Presets */}
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
+            {isLibraryOpen ? (
+              <div className="pointer-events-none absolute inset-x-0 top-0 bottom-[6.45rem] z-[60] flex flex-col p-3 sm:bottom-[6.75rem] sm:p-4 lg:bottom-[7.05rem] lg:p-5">
+                <div className="pointer-events-auto relative min-h-0 flex-1 overflow-hidden rounded-[1.7rem] border border-[#DDE9E2] bg-white shadow-[0_18px_36px_rgba(37,28,21,0.14),inset_0_1px_0_rgba(255,255,255,0.88)] ring-1 ring-white/70">
+                  <iframe
+                    src={LIBRARY_SITE_URL}
+                    title="도서관"
+                    className="absolute left-[-1.85rem] top-[-56.5rem] h-[calc(100%+56.5rem)] w-[calc(100%+3.7rem)] border-0 bg-white"
+                    allow="fullscreen"
+                    scrolling="no"
+                  />
+                </div>
+              </div>
+            ) : null}
             <div className="schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -5048,7 +4981,7 @@ export default function TimerPage() {
               </div>
             </div>
 
-            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-3 gap-3">
+            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-4 gap-3">
               <div ref={manualTimerMenuRef} className="relative min-w-0">
                 {isExtraTimerVisible ? (
                   <div className="absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[22rem] md:w-[24rem]">
@@ -5142,6 +5075,7 @@ export default function TimerPage() {
                   onClick={() => {
                     setIsDrawCaseMenuOpen(false);
                     setIsYoutubePanelOpen(false);
+                    setIsLibraryOpen(false);
                     setIsExtraTimerVisible((previous) => !previous);
                   }}
                   className={`manual-timer-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] border p-3 text-center text-[#8A6347] shadow-[0_14px_28px_rgba(95,71,50,0.1)] transition-all ${
@@ -5164,6 +5098,7 @@ export default function TimerPage() {
                   onClick={() => {
                     void playAnnouncementSound('pop');
                     setIsExtraTimerVisible(false);
+                    setIsLibraryOpen(false);
                     setIsYoutubePanelOpen((previous) => !previous);
                   }}
                   className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -5186,6 +5121,27 @@ export default function TimerPage() {
                 onClick={() => {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
+                  setIsExtraTimerVisible(false);
+                  setIsLibraryOpen((previous) => !previous);
+                }}
+                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                  isLibraryOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
+                }`}
+                aria-haspopup="dialog"
+                aria-expanded={isLibraryOpen}
+                aria-label={isLibraryOpen ? '도서관 닫기' : '도서관 열기'}
+                title="도서관"
+                type="button"
+              >
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                  <BookOpen size={22} />
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  void playAnnouncementSound('pop');
+                  setIsYoutubePanelOpen(false);
+                  setIsLibraryOpen(false);
                   setIsAnnouncementOpen(true);
                 }}
                 className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
@@ -5206,11 +5162,91 @@ export default function TimerPage() {
                   className="pointer-events-auto w-full max-w-[25rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
                 >
                   <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                    {hasScheduleYoutubePlaylist ? (
-                      <div className="mb-2 flex justify-end">
-                        <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-2.5 py-1 text-[0.72rem] font-extrabold text-[#8A6347]">
-                          {scheduleYoutubeCount}개
-                        </span>
+                    {hasScheduleYoutubeFavorites ? (
+                      <div className="mb-3 grid max-h-[4.75rem] grid-cols-3 gap-1.5 overflow-y-auto pr-1">
+                        {scheduleYoutubeFavorites.map((favorite) => (
+                          <div
+                            key={favorite.id}
+                            className="group flex h-8 min-w-0 items-center rounded-full border border-[#D7E2D1] bg-[#FFFDF8] px-1.5 transition-colors hover:border-[#BFD4B2] hover:bg-[#F8FCF6]"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => insertScheduleYoutubeFavorite(favorite)}
+                              className="flex min-w-0 flex-1 items-center gap-1 rounded-full text-left text-[0.68rem] font-extrabold text-[#6E5139]"
+                              title={`${favorite.name} URL 입력`}
+                            >
+                              <Star size={12} className="shrink-0 fill-current text-[#C99245]" />
+                              <span className="min-w-0 truncate">{favorite.name}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeScheduleYoutubeFavorite(favorite.id)}
+                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#A98261] transition-colors hover:bg-[#FFF2E3] hover:text-[#C7684A]"
+                              title={`${favorite.name} 삭제`}
+                              aria-label={`${favorite.name} 삭제`}
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {isYoutubeFavoriteFormOpen ? (
+                      <div className="mb-3 rounded-[1rem] border border-[#D9C8B6] bg-[#FFF7EC] p-3">
+                        <div className="grid gap-2">
+                          <input
+                            type="text"
+                            value={youtubeFavoriteNameInput}
+                            onChange={(event) => {
+                              setYoutubeFavoriteNameInput(event.target.value);
+                              if (youtubeFavoriteError) {
+                                setYoutubeFavoriteError('');
+                              }
+                            }}
+                            className="time-input w-full rounded-[0.8rem] border border-[#E4D9CB] bg-white px-3 py-2 text-[0.82rem] font-bold text-[#3F2B20] outline-none transition-colors focus:border-[#B58363]"
+                            placeholder="이름"
+                            aria-label="즐겨찾기 이름"
+                          />
+                          <textarea
+                            value={youtubeFavoriteUrlInput}
+                            onChange={(event) => {
+                              setYoutubeFavoriteUrlInput(event.target.value);
+                              if (youtubeFavoriteError) {
+                                setYoutubeFavoriteError('');
+                              }
+                            }}
+                            rows={3}
+                            className="time-input w-full resize-none rounded-[0.8rem] border border-[#E4D9CB] bg-white px-3 py-2 text-[0.82rem] font-bold leading-5 text-[#3F2B20] outline-none transition-colors focus:border-[#B58363]"
+                            placeholder="URL 또는 ID 1개"
+                            aria-label="즐겨찾기 URL"
+                          />
+                        </div>
+                        {youtubeFavoriteError ? (
+                          <p className="mt-2 text-[0.74rem] font-bold leading-5 text-[#C7684A]">
+                            {youtubeFavoriteError}
+                          </p>
+                        ) : null}
+                        <div className="mt-2 flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsYoutubeFavoriteFormOpen(false);
+                              setYoutubeFavoriteNameInput('');
+                              setYoutubeFavoriteUrlInput('');
+                              setYoutubeFavoriteError('');
+                            }}
+                            className="inline-flex min-h-9 items-center justify-center rounded-[0.75rem] px-3 text-[0.76rem] font-extrabold text-[#8A6347] transition-colors hover:bg-white"
+                          >
+                            취소
+                          </button>
+                          <button
+                            type="button"
+                            onClick={addScheduleYoutubeFavorite}
+                            className="inline-flex min-h-9 items-center justify-center rounded-[0.75rem] bg-[#8DBEA8] px-3 text-[0.76rem] font-extrabold text-white transition-colors hover:bg-[#7AAD96]"
+                          >
+                            저장
+                          </button>
+                        </div>
                       </div>
                     ) : null}
                     <textarea
@@ -5239,6 +5275,19 @@ export default function TimerPage() {
                     ) : null}
 
                     <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsYoutubeFavoriteFormOpen((previous) => !previous);
+                          setYoutubeFavoriteError('');
+                        }}
+                        className="inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                        title={isYoutubeFavoriteFormOpen ? '즐겨찾기 등록 닫기' : '즐겨찾기 등록'}
+                        aria-label={isYoutubeFavoriteFormOpen ? '즐겨찾기 등록 닫기' : '즐겨찾기 등록'}
+                      >
+                        <Star size={15} className="mr-1.5 fill-current" />
+                        즐겨찾기
+                      </button>
                       <button
                         type="submit"
                         disabled={!hasYoutubeUrlInput}
