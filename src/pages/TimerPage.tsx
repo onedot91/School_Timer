@@ -2116,6 +2116,7 @@ export default function TimerPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
+  const hasResolvedBackgroundMusicAutoplayRef = useRef(false);
   const skipNoticeAutoSaveRef = useRef(false);
   const scheduleListRef = useRef<HTMLUListElement>(null);
   const scheduleSlotRefs = useRef<Record<string, HTMLLIElement | null>>({});
@@ -2185,6 +2186,53 @@ export default function TimerPage() {
   useEffect(() => {
     localStorage.setItem('weeklySchedule', JSON.stringify(weeklySchedule));
   }, [weeklySchedule]);
+
+  useEffect(() => {
+    const audio = backgroundMusicRef.current;
+    if (!audio || hasResolvedBackgroundMusicAutoplayRef.current) return;
+
+    let isCancelled = false;
+
+    const removeInteractionListeners = () => {
+      document.removeEventListener('click', playBackgroundMusic);
+      document.removeEventListener('keydown', playBackgroundMusic);
+    };
+
+    const playBackgroundMusic = async () => {
+      if (isCancelled || !audio.paused) {
+        removeInteractionListeners();
+        return;
+      }
+
+      try {
+        setIsMusicLoading(true);
+        setIsMusicAvailable(true);
+        if (audio.error || audio.readyState === 0) {
+          audio.load();
+        }
+        audio.volume = BACKGROUND_MUSIC_VOLUME;
+        await audio.play();
+        hasResolvedBackgroundMusicAutoplayRef.current = true;
+        removeInteractionListeners();
+      } catch (error) {
+        console.info('Background music autoplay is waiting for user interaction', error);
+        setIsMusicAvailable(true);
+      } finally {
+        if (!isCancelled) {
+          setIsMusicLoading(false);
+        }
+      }
+    };
+
+    document.addEventListener('click', playBackgroundMusic);
+    document.addEventListener('keydown', playBackgroundMusic);
+    void playBackgroundMusic();
+
+    return () => {
+      isCancelled = true;
+      removeInteractionListeners();
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('scheduleNotice', scheduleNotice);
@@ -4507,6 +4555,7 @@ export default function TimerPage() {
       <audio
         ref={backgroundMusicRef}
         src="/background_music.mp3"
+        autoPlay
         loop
         preload="auto"
         className="hidden"
