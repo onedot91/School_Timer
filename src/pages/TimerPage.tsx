@@ -773,6 +773,8 @@ const ANNOUNCEMENT_STORAGE_KEY = 'school-announcements-v4';
 const ANNOUNCEMENT_CLOSING_MESSAGE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_WEEKDAYS = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 const MANUAL_TIMER_ALARM_VOLUME_MULTIPLIER = 2.8;
+const CLASS_END_IMAGE_DURATION_SECONDS = 120;
+const CLASS_END_IMAGE_MESSAGES = ['우유 가져가!', '우유 갖다 놔!'];
 
 let announcementAudioContext: AudioContext | null = null;
 let announcementAudioPreparePromise: Promise<AudioContext | null> | null = null;
@@ -2199,7 +2201,7 @@ export default function TimerPage() {
     };
 
     const playBackgroundMusic = async () => {
-      if (isCancelled || !audio.paused) {
+      if (isCancelled || hasResolvedBackgroundMusicAutoplayRef.current || !audio.paused) {
         removeInteractionListeners();
         return;
       }
@@ -3610,14 +3612,20 @@ export default function TimerPage() {
     saveNotice();
   };
 
-  const toggleBackgroundMusic = async () => {
+  const toggleBackgroundMusic = async (event?: React.MouseEvent<HTMLButtonElement>) => {
+    event?.stopPropagation();
+
     const audio = backgroundMusicRef.current;
-    if (!audio || isMusicLoading) return;
+    if (!audio) return;
 
     if (!audio.paused) {
+      hasResolvedBackgroundMusicAutoplayRef.current = true;
+      setIsMusicLoading(false);
       audio.pause();
       return;
     }
+
+    if (isMusicLoading) return;
 
     try {
       setIsMusicLoading(true);
@@ -3627,6 +3635,7 @@ export default function TimerPage() {
       }
       audio.volume = BACKGROUND_MUSIC_VOLUME;
       await audio.play();
+      hasResolvedBackgroundMusicAutoplayRef.current = true;
     } catch (error) {
       console.error('Background music playback failed', error);
       setIsMusicAvailable(false);
@@ -3647,6 +3656,19 @@ export default function TimerPage() {
     adjustedScheduleNow.getHours() * 3600 +
     adjustedScheduleNow.getMinutes() * 60 +
     adjustedScheduleNow.getSeconds();
+  const activeClassEndImage = currentDaySchedule
+    .filter((slot) => slot.type === 'class')
+    .slice(0, CLASS_END_IMAGE_MESSAGES.length)
+    .map((slot, index) => ({
+      secondsSinceEnd: currentScheduleSecondsOfDay - slot.end * 60,
+      message: CLASS_END_IMAGE_MESSAGES[index],
+    }))
+    .find(
+      ({ secondsSinceEnd }) =>
+        secondsSinceEnd >= 0 &&
+        secondsSinceEnd < CLASS_END_IMAGE_DURATION_SECONDS,
+    );
+  const showClassEndImage = Boolean(activeClassEndImage);
 
   const percentage = displayTotalTime > 0 ? displayTimeLeft / displayTotalTime : 0;
   const warningThreshold = 0.5;
@@ -3736,7 +3758,17 @@ export default function TimerPage() {
     characterMessage = getCharacterMessage('warning');
   }
 
-  if (showCharacter && displayIsRunning) {
+  const showTimerNotification = showCharacter || showClassEndImage;
+  const timerNotificationMessage = activeClassEndImage?.message ?? characterMessage;
+  const timerNotificationTextColorClass = showClassEndImage ? 'text-[#3F7C49]' : colorClass;
+  const timerNotificationImageSrc = showClassEndImage
+    ? '/first-break-bear.png?v=20260527'
+    : '/character.png?v=20260301';
+  const timerNotificationImageAlt = showClassEndImage
+    ? 'class end notification'
+    : 'character notification';
+
+  if (showTimerNotification && displayIsRunning) {
     const bobOffset = Math.sin((displayTimeLeft || 0) * 0.8) * 10;
     const tilt = Math.sin((displayTimeLeft || 0) * 1.3) * (percentage <= urgentThreshold ? 6 : 3);
     characterMotionStyle = {
@@ -4560,8 +4592,14 @@ export default function TimerPage() {
         preload="auto"
         className="hidden"
         onCanPlay={() => setIsMusicAvailable(true)}
-        onPlay={() => setIsMusicPlaying(true)}
-        onPause={() => setIsMusicPlaying(false)}
+        onPlay={() => {
+          setIsMusicPlaying(true);
+          setIsMusicLoading(false);
+        }}
+        onPause={() => {
+          setIsMusicPlaying(false);
+          setIsMusicLoading(false);
+        }}
         onError={() => {
           setIsMusicAvailable(false);
           setIsMusicPlaying(false);
@@ -4628,7 +4666,7 @@ export default function TimerPage() {
             <div className="absolute inset-x-4 top-4 z-40 flex items-start justify-between sm:inset-x-5 sm:top-5 md:inset-x-6 md:top-6">
               <button
                 onClick={toggleBackgroundMusic}
-                disabled={isMusicLoading}
+                onPointerDown={(event) => event.stopPropagation()}
                 className={`sound-toggle timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] shrink-0 items-center justify-center rounded-[1.45rem] transition-all sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl ${
                   isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
                 } ${isMusicLoading ? 'cursor-not-allowed opacity-45' : ''}`}
@@ -4838,15 +4876,17 @@ export default function TimerPage() {
               </div>
 
               {/* Character Notification Overlay (kept within the ring stage so it does not cover the timer text) */}
-              <div className={`absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showCharacter ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
+              <div className={`absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showTimerNotification ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
                 <div className="pointer-events-none flex flex-col items-center">
                   {/* Speech Bubble */}
-                  <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`}>
-                    <p className={`speech-card-text font-bold whitespace-pre-line break-keep text-center leading-[1.12] md:leading-[1.08] ${speechTextSizeClass} ${colorClass}`}>{characterMessage}</p>
-                    {/* Bubble Tail (pointing down) */}
-                    <div className="speech-tail-fill absolute -bottom-[14px] left-1/2 z-10 h-0 w-0 -translate-x-1/2 border-x-[12px] border-x-transparent border-t-[14px] border-t-white"></div>
-                    <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
-                  </div>
+                  {showTimerNotification ? (
+                    <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`}>
+                      <p className={`speech-card-text font-bold whitespace-pre-line break-keep text-center leading-[1.12] md:leading-[1.08] ${speechTextSizeClass} ${timerNotificationTextColorClass}`}>{timerNotificationMessage}</p>
+                      {/* Bubble Tail (pointing down) */}
+                      <div className="speech-tail-fill absolute -bottom-[14px] left-1/2 z-10 h-0 w-0 -translate-x-1/2 border-x-[12px] border-x-transparent border-t-[14px] border-t-white"></div>
+                      <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
+                    </div>
+                  ) : null}
 
                   {/* Character Image or Placeholder */}
                   <div className={`mascot-figure-stage relative shrink-0 ${characterWrapSizeClass}`} style={characterMotionStyle}>
@@ -4857,8 +4897,8 @@ export default function TimerPage() {
                       </div>
                     )}
                     <img
-                      src="/character.png?v=20260301"
-                      alt="character notification"
+                      src={timerNotificationImageSrc}
+                      alt={timerNotificationImageAlt}
                       className={`absolute inset-0 z-10 h-full w-full object-contain drop-shadow-2xl ${characterImageScaleClass}`}
                       referrerPolicy="no-referrer"
                       onLoad={() => setCharacterImageError(false)}
