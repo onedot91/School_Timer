@@ -30,7 +30,13 @@ import {
   sampleOne,
   type RandomDrawCaseState,
   type RandomDrawHistoryEntry,
+  type SavedRandomDrawState,
 } from '../lib/randomDraw';
+import {
+  isSupabaseSettingsEnabled,
+  loadSharedSettings,
+  saveSharedSettings,
+} from '../lib/supabaseSettings';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'draw';
@@ -67,6 +73,22 @@ interface ManualTimerState {
 
 interface TimerAppState {
   manual: ManualTimerState;
+}
+
+interface SharedSchoolTimerSettings {
+  version: 1;
+  weeklySchedule: WeeklySchedule;
+  scheduleNotice: string;
+  isNoticeEnabled: boolean;
+  scheduleClockOffsetSeconds: number;
+  scheduleYoutubeUrls: string[];
+  scheduleYoutubeFavorites: ScheduleYoutubeFavorite[];
+  isScheduleYoutubeVisible: boolean;
+  randomDraw: SavedRandomDrawState;
+  manualTimer: {
+    totalTime: number;
+    isVisible: boolean;
+  };
 }
 
 interface DrawOverlayState {
@@ -768,6 +790,36 @@ const defaultWeeklySchedule: WeeklySchedule = normalizeWeeklySchedule({
   4: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
   5: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
 });
+
+const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSettings | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const parsed = value as Partial<SharedSchoolTimerSettings>;
+  const manualTimer =
+    parsed.manualTimer && typeof parsed.manualTimer === 'object'
+      ? (parsed.manualTimer as Partial<SharedSchoolTimerSettings['manualTimer']>)
+      : {};
+
+  return {
+    version: 1,
+    weeklySchedule: normalizeWeeklySchedule((parsed.weeklySchedule || defaultWeeklySchedule) as WeeklySchedule),
+    scheduleNotice: typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '',
+    isNoticeEnabled: parsed.isNoticeEnabled === true,
+    scheduleClockOffsetSeconds: clampScheduleClockOffsetSeconds(parsed.scheduleClockOffsetSeconds),
+    scheduleYoutubeUrls: normalizeScheduleYoutubeUrls(parsed.scheduleYoutubeUrls),
+    scheduleYoutubeFavorites: normalizeScheduleYoutubeFavorites(parsed.scheduleYoutubeFavorites),
+    isScheduleYoutubeVisible: parsed.isScheduleYoutubeVisible === true,
+    randomDraw: normalizeSavedRandomDrawState(parsed.randomDraw),
+    manualTimer: {
+      totalTime:
+        typeof manualTimer.totalTime === 'number' && manualTimer.totalTime > 0
+          ? Math.floor(manualTimer.totalTime)
+          : DEFAULT_MANUAL_TIMER_STATE.totalTime,
+      isVisible: manualTimer.isVisible === true,
+    },
+  };
+};
+
 const DAYS = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
 const ANNOUNCEMENT_STORAGE_KEY = 'school-announcements-v4';
 const ANNOUNCEMENT_CLOSING_MESSAGE = '차 조심, 낯선 사람 조심!';
@@ -2133,6 +2185,8 @@ export default function TimerPage() {
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
   const manualTimerMenuRef = useRef<HTMLDivElement>(null);
   const youtubeUrlInputRef = useRef<HTMLTextAreaElement>(null);
+  const sharedSettingsHydratedRef = useRef(!isSupabaseSettingsEnabled);
+  const sharedSettingsSaveTimeoutRef = useRef<number | null>(null);
   const activeDrawCase =
     drawCases.find((caseState) => caseState.id === activeDrawCaseId) ??
     drawCases[0] ??
@@ -2183,6 +2237,81 @@ export default function TimerPage() {
   const hasScheduleYoutubePlaylist = scheduleYoutubeCount > 0;
   const hasScheduleYoutubeFavorites = scheduleYoutubeFavorites.length > 0;
   const hasYoutubeUrlInput = youtubeUrlInput.trim().length > 0;
+
+  const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
+    version: 1,
+    weeklySchedule,
+    scheduleNotice,
+    isNoticeEnabled,
+    scheduleClockOffsetSeconds,
+    scheduleYoutubeUrls,
+    scheduleYoutubeFavorites,
+    isScheduleYoutubeVisible,
+    randomDraw: {
+      activeCaseId: resolvedActiveDrawCaseId,
+      repeatPickEnabled,
+      cases: drawCases,
+    },
+    manualTimer: {
+      totalTime: manualTotalTime,
+      isVisible: isExtraTimerVisible,
+    },
+  });
+
+  useEffect(() => {
+    if (!isSupabaseSettingsEnabled) return;
+
+    let isCancelled = false;
+
+    void loadSharedSettings()
+      .then((remoteValue) => {
+        if (isCancelled) return;
+
+        const remoteSettings = normalizeSharedSchoolTimerSettings(remoteValue);
+        if (remoteSettings) {
+          setWeeklySchedule(remoteSettings.weeklySchedule);
+          setScheduleNotice(remoteSettings.scheduleNotice);
+          setNoticeDraft(remoteSettings.scheduleNotice);
+          setIsNoticeEnabled(remoteSettings.isNoticeEnabled);
+          setScheduleClockOffsetSeconds(remoteSettings.scheduleClockOffsetSeconds);
+          setScheduleYoutubeUrls(remoteSettings.scheduleYoutubeUrls);
+          setScheduleYoutubeFavorites(remoteSettings.scheduleYoutubeFavorites);
+          setIsScheduleYoutubeVisible(
+            remoteSettings.scheduleYoutubeUrls.length > 0 && remoteSettings.isScheduleYoutubeVisible,
+          );
+          setHasMountedScheduleYoutubePlayer(
+            remoteSettings.scheduleYoutubeUrls.length > 0 && remoteSettings.isScheduleYoutubeVisible,
+          );
+          setActiveDrawCaseId(remoteSettings.randomDraw.activeCaseId);
+          setRepeatPickEnabled(remoteSettings.randomDraw.repeatPickEnabled);
+          setDrawCases(remoteSettings.randomDraw.cases);
+          setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
+          setManualTotalTime(remoteSettings.manualTimer.totalTime);
+          setManualTimeLeft(remoteSettings.manualTimer.totalTime);
+          setManualIsRunning(false);
+          setManualEndTime(null);
+          setIsExtraTimerVisible(remoteSettings.manualTimer.isVisible);
+          setCustomMinutes(Math.floor(remoteSettings.manualTimer.totalTime / 60).toString());
+          setCustomSeconds((remoteSettings.manualTimer.totalTime % 60).toString());
+        } else {
+          void saveSharedSettings(buildSharedSettingsSnapshot()).catch((error) => {
+            console.error('Failed to initialize shared settings in Supabase.', error);
+          });
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load shared settings from Supabase.', error);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          sharedSettingsHydratedRef.current = true;
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('weeklySchedule', JSON.stringify(weeklySchedule));
@@ -2260,6 +2389,41 @@ export default function TimerPage() {
       cases: drawCases,
     });
   }, [drawCases, repeatPickEnabled, resolvedActiveDrawCaseId]);
+
+  useEffect(() => {
+    if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
+
+    if (sharedSettingsSaveTimeoutRef.current !== null) {
+      window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+    }
+
+    sharedSettingsSaveTimeoutRef.current = window.setTimeout(() => {
+      sharedSettingsSaveTimeoutRef.current = null;
+      void saveSharedSettings(buildSharedSettingsSnapshot()).catch((error) => {
+        console.error('Failed to save shared settings to Supabase.', error);
+      });
+    }, 700);
+
+    return () => {
+      if (sharedSettingsSaveTimeoutRef.current !== null) {
+        window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+        sharedSettingsSaveTimeoutRef.current = null;
+      }
+    };
+  }, [
+    weeklySchedule,
+    scheduleNotice,
+    isNoticeEnabled,
+    scheduleClockOffsetSeconds,
+    scheduleYoutubeUrls,
+    scheduleYoutubeFavorites,
+    isScheduleYoutubeVisible,
+    drawCases,
+    repeatPickEnabled,
+    resolvedActiveDrawCaseId,
+    manualTotalTime,
+    isExtraTimerVisible,
+  ]);
 
   useEffect(() => {
     if (activeDrawCaseId === resolvedActiveDrawCaseId) return;
