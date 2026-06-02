@@ -4537,9 +4537,8 @@ export default function TimerPage() {
       <audio
         ref={backgroundMusicRef}
         src="/background_music.mp3"
-        autoPlay
         loop
-        preload="auto"
+        preload="none"
         className="hidden"
         onCanPlay={() => setIsMusicAvailable(true)}
         onPlay={() => {
