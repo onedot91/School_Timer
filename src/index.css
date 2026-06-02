@@ -9002,6 +9002,13 @@ h3 {
   color: #ffffff !important;
 }
 
+.settings-dialog .draw-case-label-input {
+  min-width: 0;
+  border-color: var(--green-border) !important;
+  background: #ffffff !important;
+  color: var(--ink) !important;
+}
+
 @media (max-width: 1180px) {
   .settings-dialog .slot-card {
     grid-template-columns: 1fr;

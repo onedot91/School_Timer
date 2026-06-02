@@ -4588,18 +4588,24 @@ export default function TimerPage() {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDrawSettingsCaseId(caseState.id)}
-                    className="block flex-1 text-left"
-                  >
-                    <div className="text-[1rem] font-extrabold text-[#3F2B20] md:text-[1.08rem]">
-                      {displayLabel}
-                    </div>
-                    <div className="mt-1.5 text-[0.88rem] font-bold leading-6 text-[#B58363]">
+                  <div className="min-w-0 flex-1">
+                    <input
+                      type="text"
+                      value={caseState.label}
+                      onFocus={() => setDrawSettingsCaseId(caseState.id)}
+                      onChange={(event) => updateDrawCaseLabel(caseState.id, event.target.value)}
+                      className="draw-case-label-input w-full rounded-xl border px-3 py-2 text-[1rem] font-extrabold md:text-[1.08rem]"
+                      placeholder={getCaseLabelByIndex(index)}
+                      aria-label={`${displayLabel} 이름 수정`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDrawSettingsCaseId(caseState.id)}
+                      className="mt-1.5 block w-full text-left text-[0.88rem] font-bold leading-6 text-[#B58363]"
+                    >
                       {getCaseSummaryLabel(caseState)}
-                    </div>
-                  </button>
+                    </button>
+                  </div>
 
                   {drawCases.length > 1 ? (
                     <button
@@ -6011,18 +6017,24 @@ export default function TimerPage() {
                             }`}
                           >
                             <div className="flex items-start gap-3">
-                              <button
-                                type="button"
-                                onClick={() => setDrawSettingsCaseId(caseState.id)}
-                                className="block flex-1 text-left"
-                              >
-                                <div className="text-[1rem] font-extrabold text-[#3F2B20] md:text-[1.08rem]">
-                                  {displayLabel}
-                                </div>
-                                <div className="mt-1.5 text-[0.88rem] font-bold leading-6 text-[#B58363]">
+                              <div className="min-w-0 flex-1">
+                                <input
+                                  type="text"
+                                  value={caseState.label}
+                                  onFocus={() => setDrawSettingsCaseId(caseState.id)}
+                                  onChange={(event) => updateDrawCaseLabel(caseState.id, event.target.value)}
+                                  className="draw-case-label-input w-full rounded-xl border px-3 py-2 text-[1rem] font-extrabold md:text-[1.08rem]"
+                                  placeholder={getCaseLabelByIndex(index)}
+                                  aria-label={`${displayLabel} 이름 수정`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setDrawSettingsCaseId(caseState.id)}
+                                  className="mt-1.5 block w-full text-left text-[0.88rem] font-bold leading-6 text-[#B58363]"
+                                >
                                   {getCaseSummaryLabel(caseState)}
-                                </div>
-                              </button>
+                                </button>
+                              </div>
 
                               {drawCases.length > 1 ? (
                                 <button
