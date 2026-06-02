@@ -9009,6 +9009,30 @@ h3 {
   color: var(--ink) !important;
 }
 
+.editorial-random-legacy-font .random-board-display-name {
+  max-width: 88%;
+}
+
+.editorial-random-legacy-font .random-board-display-name-short {
+  font-size: clamp(5.6rem, 12.8vw, 9.4rem) !important;
+  line-height: 0.92;
+}
+
+.editorial-random-legacy-font .random-board-display-name-medium {
+  font-size: clamp(4.8rem, 10.8vw, 8.2rem) !important;
+  line-height: 0.94;
+}
+
+.editorial-random-legacy-font .random-board-display-name-long {
+  font-size: clamp(4.05rem, 9vw, 7rem) !important;
+  line-height: 0.98;
+}
+
+.editorial-random-legacy-font .random-board-display-name-compact {
+  font-size: clamp(3.2rem, 7.2vw, 5.8rem) !important;
+  line-height: 1;
+}
+
 @media (max-width: 1180px) {
   .settings-dialog .slot-card {
     grid-template-columns: 1fr;

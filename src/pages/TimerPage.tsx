@@ -4120,6 +4120,17 @@ export default function TimerPage() {
   const isDrawOverlayReset = !isStudentDrawing && drawOverlay?.kind === 'reset';
   const isDrawOverlayStudentName =
     drawOverlayNumber !== null && getStudentName(drawOverlayCase, drawOverlayNumber).length > 0;
+  const drawOverlayNameLength = isDrawOverlayStudentName ? Array.from(drawOverlayText.replace(/\s/gu, '')).length : 0;
+  const drawOverlayNameSizeClass =
+    !isDrawOverlayStudentName
+      ? ''
+      : drawOverlayNameLength <= 2
+        ? ' random-board-display-name-short'
+        : drawOverlayNameLength <= 3
+          ? ' random-board-display-name-medium'
+          : drawOverlayNameLength <= 4
+            ? ' random-board-display-name-long'
+            : ' random-board-display-name-compact';
   const drawOverlayBoardClass = `random-board ${
     isStudentDrawing ? 'random-board-drawing' : ''
   }${isDrawOverlayEmpty ? ' random-board-empty-state' : ''}${
@@ -4130,6 +4141,8 @@ export default function TimerPage() {
   const drawOverlayNumberClass = `random-board-number${
     isDrawOverlayVisible ? ' random-board-number-active' : ''
   }${isDrawOverlayStudentName || isDrawOverlayReset ? ' random-board-display-name' : ''}${
+    drawOverlayNameSizeClass
+  }${
     isDrawOverlayReset ? ' random-board-reset-label' : ''
   }${
     isDrawOverlayEmpty ? ' random-board-empty-text' : ''
