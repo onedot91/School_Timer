@@ -1,6 +1,7 @@
 # Supabase shared settings setup
 
 이 앱은 모든 PC가 같은 설정을 쓰도록 Supabase의 `app_settings` 테이블 한 줄을 공유합니다.
+알림장은 `announcement_notes` 테이블에 날짜별로 한 줄씩 누적 저장합니다.
 
 ## 내가 이미 준비한 것
 
@@ -22,6 +23,8 @@
 1. Supabase 프로젝트에서 `SQL Editor`를 엽니다.
 2. `supabase/app_settings.sql` 파일 내용을 복사합니다.
 3. SQL Editor에 붙여넣고 실행합니다.
+
+이미 이전 설정 테이블을 만들었더라도 같은 파일을 다시 실행하면 됩니다. 새로 필요한 알림장 테이블과 정책만 추가됩니다.
 
 ### 3. API 키 복사하기
 
@@ -46,6 +49,7 @@ npm run dev
 ```
 
 이후 한 PC에서 설정을 바꾸면 다른 PC에서도 같은 Supabase 프로젝트를 바라볼 때 동일한 설정을 불러옵니다.
+알림장은 같은 날짜에 작성한 내용이 한 기록으로 저장되고, 날짜가 바뀌면 새 기록으로 누적됩니다.
 
 ## 주의
 

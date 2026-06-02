@@ -1,6 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { getFontEmbedCSS, toBlob } from 'html-to-image';
-import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Download, ImageDown, Music, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -33,8 +32,12 @@ import {
   type SavedRandomDrawState,
 } from '../lib/randomDraw';
 import {
+  type AnnouncementNoteRecord,
   isSupabaseSettingsEnabled,
+  loadAnnouncementNote,
+  loadAnnouncementNoteHistory,
   loadSharedSettings,
+  saveAnnouncementNote,
   saveSharedSettings,
 } from '../lib/supabaseSettings';
 
@@ -979,20 +982,27 @@ const normalizeAnnouncementItems = (value: unknown): AnnouncementItem[] => {
   return normalized.length > 0 ? normalized : [createEmptyAnnouncement()];
 };
 
-const buildAnnouncementFilename = (value: string) => {
+const getAnnouncementDateKey = (value: string) => {
   const parsed = parseAnnouncementDate(value) ?? new Date();
   const year = parsed.getFullYear().toString();
   const month = String(parsed.getMonth() + 1).padStart(2, '0');
   const day = String(parsed.getDate()).padStart(2, '0');
-  return `${year}${month}${day}_알림장.png`;
+  return `${year}-${month}-${day}`;
 };
 
-const waitForNextPaint = () =>
-  new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => resolve());
-    });
-  });
+const formatAnnouncementUpdatedAt = (value?: string) => {
+  if (!value) return '';
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+
+  const hours = String(parsed.getHours()).padStart(2, '0');
+  const minutes = String(parsed.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const getTodayAnnouncementDateText = () => formatAnnouncementDate(new Date());
+const getTodayAnnouncementDateKey = () => getAnnouncementDateKey(getTodayAnnouncementDateText());
 
 function NotebookOverlayTimerBadge({
   liveTimer,
@@ -1228,18 +1238,27 @@ function AnnouncementNotebookOverlay({
   onClose: () => void;
   liveTimer: AnnouncementOverlayTimerState;
 }) {
-  const [dateText, setDateText] = useState(() => formatAnnouncementDate(new Date()));
+  const [dateText, setDateText] = useState(() => getTodayAnnouncementDateText());
   const [noteText, setNoteText] = useState('');
   const [hasHydrated, setHasHydrated] = useState(false);
-  const [isSavingImage, setIsSavingImage] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isViewingHistoryRecord, setIsViewingHistoryRecord] = useState(false);
+  const [announcementHistory, setAnnouncementHistory] = useState<AnnouncementNoteRecord[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [todayAnnouncementDateKey, setTodayAnnouncementDateKey] = useState(() => getTodayAnnouncementDateKey());
+  const [announcementSaveState, setAnnouncementSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>(
+    isSupabaseSettingsEnabled ? 'idle' : 'saved',
+  );
+  const [remoteLoadedDateKey, setRemoteLoadedDateKey] = useState<string | null>(
+    isSupabaseSettingsEnabled ? null : getTodayAnnouncementDateKey(),
+  );
 
-  const noteCaptureRef = useRef<HTMLDivElement>(null);
   const noteEditorRef = useRef<HTMLDivElement>(null);
   const noteDisplayRef = useRef<HTMLDivElement>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasRestoredRef = useRef(false);
-  const announcementFontEmbedCssRef = useRef<string | null>(null);
-  const announcementFontEmbedCssPromiseRef = useRef<Promise<string> | null>(null);
+  const remoteLoadTokenRef = useRef(0);
+  const remoteSaveTimeoutRef = useRef<number | null>(null);
   const [noteRuleGapPx, setNoteRuleGapPx] = useState(104);
 
   useEffect(() => {
@@ -1260,7 +1279,12 @@ function AnnouncementNotebookOverlay({
       const restoredDate =
         parsed && typeof parsed === 'object' && typeof parsed.date === 'string'
           ? normalizeAnnouncementDateText(parsed.date)
-          : formatAnnouncementDate(new Date());
+          : getTodayAnnouncementDateText();
+      const restoredDateKey = getAnnouncementDateKey(restoredDate);
+      if (restoredDateKey !== getTodayAnnouncementDateKey()) {
+        sessionStorage.removeItem(ANNOUNCEMENT_STORAGE_KEY);
+        return;
+      }
       const restoredNote =
         parsed && typeof parsed === 'object' && typeof parsed.note === 'string'
           ? parsed.note
@@ -1342,7 +1366,13 @@ function AnnouncementNotebookOverlay({
     '--announcement-note-gutter-width': `${Math.max(60, Math.round(noteRuleGapPx * 0.56))}px`,
     '--announcement-note-number-size': `${Math.max(30, Math.round(noteRuleGapPx * 0.32))}px`,
   } as React.CSSProperties;
-  const hasNoteContent = noteText.length > 0;
+  const currentAnnouncementDateKey = getAnnouncementDateKey(dateText);
+  const saveStateLabel =
+    announcementSaveState === 'saving'
+      ? '저장 중'
+      : announcementSaveState === 'error'
+        ? '저장 실패'
+        : '저장됨';
 
   const focusNoteTextarea = () => {
     const textarea = noteTextareaRef.current;
@@ -1418,23 +1448,6 @@ function AnnouncementNotebookOverlay({
     insertNoteLineBreak();
   };
 
-  const clearAnnouncementContent = () => {
-    if (!hasNoteContent) return;
-
-    setNoteText('');
-    void playAnnouncementSound('pop');
-
-    window.requestAnimationFrame(() => {
-      const textarea = noteTextareaRef.current;
-      if (!textarea) return;
-
-      textarea.focus();
-      textarea.setSelectionRange(0, 0);
-      textarea.scrollTop = 0;
-      syncNoteDisplayScroll();
-    });
-  };
-
   const persistAnnouncementNote = (nextDate: string, nextNote: string) => {
     try {
       sessionStorage.setItem(
@@ -1449,34 +1462,144 @@ function AnnouncementNotebookOverlay({
     }
   };
 
-  const getAnnouncementFontEmbedCssValue = async () => {
-    const captureNode = noteCaptureRef.current;
-    if (!captureNode) return undefined;
+  const refreshAnnouncementHistory = async () => {
+    if (!isSupabaseSettingsEnabled) return;
 
-    if (announcementFontEmbedCssRef.current !== null) {
-      return announcementFontEmbedCssRef.current;
+    setIsHistoryLoading(true);
+    try {
+      setAnnouncementHistory(await loadAnnouncementNoteHistory());
+    } catch (error) {
+      console.error('Failed to load announcement note history from Supabase.', error);
+    } finally {
+      setIsHistoryLoading(false);
     }
+  };
 
-    if (!announcementFontEmbedCssPromiseRef.current) {
-      announcementFontEmbedCssPromiseRef.current = getFontEmbedCSS(captureNode, {
-        preferredFontFormat: 'woff2',
-      })
-        .then((cssText) => {
-          announcementFontEmbedCssRef.current = cssText;
-          return cssText;
-        })
-        .finally(() => {
-          announcementFontEmbedCssPromiseRef.current = null;
-        });
-    }
+  const openAnnouncementHistory = () => {
+    setIsHistoryOpen(true);
+    void refreshAnnouncementHistory();
+    void playAnnouncementSound('pop');
+  };
 
-    return announcementFontEmbedCssPromiseRef.current;
+  const selectAnnouncementHistoryRecord = (record: AnnouncementNoteRecord) => {
+    const nextDateText = normalizeAnnouncementDateText(record.date_text || record.date_key);
+    setDateText(nextDateText);
+    setNoteText(record.note);
+    setRemoteLoadedDateKey(record.date_key);
+    setIsViewingHistoryRecord(true);
+    setIsHistoryOpen(false);
+    setAnnouncementSaveState('saved');
+    void playAnnouncementSound('pop');
+
+    window.requestAnimationFrame(() => {
+      focusNoteTextarea();
+      syncNoteDisplayScroll();
+    });
   };
 
   useEffect(() => {
     if (!hasHydrated) return;
     persistAnnouncementNote(dateText, noteText);
   }, [dateText, hasHydrated, noteText]);
+
+  useEffect(() => {
+    const updateTodayKey = () => {
+      const nextTodayKey = getTodayAnnouncementDateKey();
+      setTodayAnnouncementDateKey((previous) => (previous === nextTodayKey ? previous : nextTodayKey));
+    };
+
+    updateTodayKey();
+    const intervalId = window.setInterval(updateTodayKey, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || isViewingHistoryRecord) return;
+    if (currentAnnouncementDateKey === todayAnnouncementDateKey) return;
+
+    setDateText(getTodayAnnouncementDateText());
+    setNoteText('');
+    setRemoteLoadedDateKey(isSupabaseSettingsEnabled ? null : todayAnnouncementDateKey);
+    setAnnouncementSaveState(isSupabaseSettingsEnabled ? 'idle' : 'saved');
+
+    try {
+      sessionStorage.removeItem(ANNOUNCEMENT_STORAGE_KEY);
+    } catch {
+      // Ignore session storage errors.
+    }
+  }, [currentAnnouncementDateKey, isOpen, isViewingHistoryRecord, todayAnnouncementDateKey]);
+
+  useEffect(() => {
+    if (!isOpen || !hasHydrated || !isSupabaseSettingsEnabled) return;
+
+    const dateKey = getAnnouncementDateKey(dateText);
+    if (remoteLoadedDateKey === dateKey) return;
+
+    const loadToken = remoteLoadTokenRef.current + 1;
+    remoteLoadTokenRef.current = loadToken;
+    setAnnouncementSaveState('idle');
+
+    void loadAnnouncementNote(dateKey)
+      .then((record) => {
+        if (remoteLoadTokenRef.current !== loadToken) return;
+
+        if (record) {
+          setDateText(normalizeAnnouncementDateText(record.date_text || record.date_key));
+          setNoteText(record.note);
+        }
+
+        setRemoteLoadedDateKey(dateKey);
+        setAnnouncementSaveState('saved');
+      })
+      .catch((error) => {
+        if (remoteLoadTokenRef.current !== loadToken) return;
+        console.error('Failed to load announcement note from Supabase.', error);
+        setRemoteLoadedDateKey(dateKey);
+        setAnnouncementSaveState('error');
+      });
+  }, [dateText, hasHydrated, isOpen, remoteLoadedDateKey]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isSupabaseSettingsEnabled) return;
+    if (remoteLoadedDateKey !== currentAnnouncementDateKey) return;
+
+    if (noteText.trim().length === 0) {
+      setAnnouncementSaveState('saved');
+      return;
+    }
+
+    if (remoteSaveTimeoutRef.current !== null) {
+      window.clearTimeout(remoteSaveTimeoutRef.current);
+    }
+
+    setAnnouncementSaveState('saving');
+    remoteSaveTimeoutRef.current = window.setTimeout(() => {
+      remoteSaveTimeoutRef.current = null;
+      void saveAnnouncementNote({
+        date_key: currentAnnouncementDateKey,
+        date_text: normalizeAnnouncementDateText(dateText),
+        note: noteText,
+      })
+        .then(() => {
+          setAnnouncementSaveState('saved');
+          if (isHistoryOpen) {
+            void refreshAnnouncementHistory();
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to save announcement note to Supabase.', error);
+          setAnnouncementSaveState('error');
+        });
+    }, 700);
+
+    return () => {
+      if (remoteSaveTimeoutRef.current !== null) {
+        window.clearTimeout(remoteSaveTimeoutRef.current);
+        remoteSaveTimeoutRef.current = null;
+      }
+    };
+  }, [currentAnnouncementDateKey, dateText, hasHydrated, isHistoryOpen, noteText, remoteLoadedDateKey]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -1489,78 +1612,22 @@ function AnnouncementNotebookOverlay({
   useEffect(() => {
     if (!isOpen) return;
 
-    const warmupTimer = window.setTimeout(() => {
-      void getAnnouncementFontEmbedCssValue().catch(() => undefined);
-    }, 0);
-
-    return () => window.clearTimeout(warmupTimer);
-  }, [isOpen]);
-
-  const saveImage = async () => {
-    if (isSavingImage) return;
-
-    setIsSavingImage(true);
-
-    try {
-      await waitForNextPaint();
-
-      const captureNode = noteCaptureRef.current;
-      if (!captureNode) return;
-
-      let fontEmbedCSS: string | undefined;
-      try {
-        fontEmbedCSS = await getAnnouncementFontEmbedCssValue();
-      } catch {
-        fontEmbedCSS = undefined;
-      }
-
-      const blob = await toBlob(captureNode, {
-        backgroundColor: '#fffcf8',
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
-        preferredFontFormat: 'woff2',
-        fontEmbedCSS,
-        filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
-      });
-      if (!blob) throw new Error('Failed to create announcement image blob.');
-
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = buildAnnouncementFilename(dateText);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
-      void playAnnouncementSound('pop');
-    } catch {
-      alert('이미지 저장에 실패했습니다.');
-    } finally {
-      setIsSavingImage(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isOpen) return;
-
     const handleAnnouncementShortcuts = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
         return;
       }
 
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-        event.preventDefault();
-        if (event.repeat) return;
-        void saveImage();
-      }
     };
 
     window.addEventListener('keydown', handleAnnouncementShortcuts);
     return () => window.removeEventListener('keydown', handleAnnouncementShortcuts);
-  }, [isOpen, onClose, saveImage]);
+  }, [isOpen, onClose]);
 
   const handleClose = () => {
     void playAnnouncementSound('pop');
+    setIsViewingHistoryRecord(false);
+    setIsHistoryOpen(false);
     onClose();
   };
 
@@ -1576,30 +1643,24 @@ function AnnouncementNotebookOverlay({
 
         <div className={`announcement-page flex min-h-0 flex-1 flex-col overflow-hidden ${pagePaddingClass}`}>
           <div className={`announcement-stage mx-auto flex ${stageLayoutClass}`}>
-            <div
-              ref={noteCaptureRef}
-              className={`announcement-paper paper-card relative ${paperShellLayoutClass} overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]`}
-            >
-              <div className={`announcement-paper-top shrink-0 border-b border-[#EADFD1] ${paperTopClass}`}>
-                <button
-                  onClick={handleClose}
-                  className="announcement-close-button"
-                  type="button"
-                  title="돌아가기"
-                  aria-label="돌아가기"
-                  data-capture-exclude="true"
-                >
-                  <X size={20} />
-                </button>
-                <div className="announcement-date-row">
-                  <NotebookOverlayTimerBadge liveTimer={liveTimer} captureStatic={isSavingImage} />
+            <div className={`announcement-paper paper-card relative ${paperShellLayoutClass} overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]`}>
+              <div className="announcement-paper-top announcement-paper-top-clean shrink-0 border-b border-[#EADFD1] px-3 py-3 sm:px-5 md:px-6 md:py-4">
+                <div className="announcement-date-row announcement-date-row-clean">
+                  <NotebookOverlayTimerBadge liveTimer={liveTimer} />
                   <input
                     value={dateText}
-                    onChange={(event) => setDateText(event.target.value)}
-                    onBlur={() => setDateText((prev) => normalizeAnnouncementDateText(prev))}
+                    onChange={(event) => {
+                      setIsViewingHistoryRecord(false);
+                      setDateText(event.target.value);
+                    }}
+                    onBlur={() => {
+                      setIsViewingHistoryRecord(false);
+                      setDateText((prev) => normalizeAnnouncementDateText(prev));
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         event.preventDefault();
+                        setIsViewingHistoryRecord(false);
                         setDateText((prev) => normalizeAnnouncementDateText(prev));
                         focusNoteTextarea();
                       }
@@ -1609,31 +1670,36 @@ function AnnouncementNotebookOverlay({
                       }
                     }}
                     placeholder="2026년 3월 17일"
-                    className="announcement-date-input min-h-[5.8rem] min-w-[min(100%,19rem)] flex-1 rounded-[1.8rem] border border-[#dcc7ae] bg-[#fffdf8] px-8 py-[1.15rem] text-[clamp(1.95rem,3.4vw,2.9rem)] font-semibold text-[#2c1e16] outline-none transition-all placeholder:text-[#b19d86] focus:border-[#5C8D6D] focus:ring-4 focus:ring-[#5C8D6D]/10"
+                    className="announcement-date-input announcement-date-input-clean"
                     type="text"
                   />
-                  <div className="announcement-date-actions" data-capture-exclude="true">
-                    <button
-                      onClick={clearAnnouncementContent}
-                      className="announcement-date-action-reset announcement-chip-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-full border border-[#dcc7ae] text-[#8A6347]"
-                      type="button"
-                      title="내용 초기화"
-                      aria-label="내용 초기화"
-                      disabled={!hasNoteContent}
+                  <div className="announcement-date-actions announcement-date-actions-clean" data-capture-exclude="true">
+                    <span
+                      className={`announcement-save-badge inline-flex items-center rounded-full border px-3 text-sm font-extrabold ${
+                        announcementSaveState === 'error'
+                          ? 'border-[#E5B8AA] bg-[#FFF4F0] text-[#B55E4C]'
+                          : 'border-[#D7E2D1] bg-[#F5FAF2] text-[#5C8D6D]'
+                      }`}
                     >
-                      <RotateCcw size={18} className="text-[#A67C52]" />
+                      {saveStateLabel}
+                    </span>
+                    <button
+                      onClick={openAnnouncementHistory}
+                      className="announcement-date-action-history announcement-chip-button announcement-action-button inline-flex items-center justify-center rounded-full border border-[#dcc7ae] text-[#8A6347]"
+                      type="button"
+                      title="알림장 기록"
+                      aria-label="알림장 기록"
+                    >
+                      <BookOpen size={18} />
                     </button>
                     <button
-                      onClick={saveImage}
-                      className="announcement-date-action-save toolbar-button toolbar-button-green inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-bold text-[#466146]"
+                      onClick={handleClose}
+                      className="announcement-close-button announcement-close-button-clean"
                       type="button"
-                      title={isSavingImage ? '이미지 저장 진행 중' : '이미지 저장'}
-                      aria-label={isSavingImage ? '이미지 저장 진행 중' : '이미지 저장'}
-                      aria-busy={isSavingImage}
-                      disabled={isSavingImage}
+                      title="돌아가기"
+                      aria-label="돌아가기"
                     >
-                      <ImageDown size={18} />
-                      {isSavingImage ? '진행 중' : '이미지 저장'}
+                      <X size={20} />
                     </button>
                   </div>
                 </div>
@@ -1685,6 +1751,76 @@ function AnnouncementNotebookOverlay({
             </div>
           </div>
         </div>
+        {isHistoryOpen ? (
+          <div className="announcement-history-overlay absolute inset-0 z-40 flex justify-end bg-black/25 p-2 backdrop-blur-sm sm:p-4" data-capture-exclude="true">
+            <aside className="announcement-history-panel flex h-full w-full max-w-[38rem] flex-col overflow-hidden rounded-[1.5rem] border border-[#D7E2D1] bg-[#FCFFFC] shadow-2xl">
+              <div className="announcement-history-header flex shrink-0 items-center justify-between border-b border-[#D7E2D1] px-5 py-4">
+                <div>
+                  <h3 className="section-title text-xl font-extrabold text-[#006241]">알림장 기록</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsHistoryOpen(false);
+                    void playAnnouncementSound('pop');
+                  }}
+                  className="icon-button rounded-full p-2 text-[#8A6347]/70 transition-colors hover:bg-[#F7F0E7] hover:text-[#8A6347]"
+                  title="기록 닫기"
+                  aria-label="기록 닫기"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+
+              <div className="custom-scrollbar flex-1 overflow-y-auto p-4 sm:p-5">
+                {isHistoryLoading ? (
+                  <div className="flex min-h-[14rem] items-center justify-center rounded-[1.5rem] border border-dashed border-[#E6D5C9] bg-white/70 text-center text-sm font-extrabold text-[#8A6347]/65">
+                    불러오는 중
+                  </div>
+                ) : announcementHistory.length > 0 ? (
+                  <div className="space-y-4">
+                    {announcementHistory.map((record) => {
+                      const isCurrentRecord = record.date_key === currentAnnouncementDateKey;
+                      const notePreview = record.note.trim();
+                      const updatedAt = formatAnnouncementUpdatedAt(record.updated_at);
+
+                      return (
+                        <button
+                          key={record.date_key}
+                          type="button"
+                          onClick={() => selectAnnouncementHistoryRecord(record)}
+                          className={`announcement-history-card block w-full rounded-[1.15rem] border p-4 text-left transition-colors ${
+                            isCurrentRecord
+                              ? 'border-[#8DBEA8] bg-[#F3FAF6]'
+                              : 'border-[#D7E2D1] bg-white hover:border-[#8DBEA8] hover:bg-[#F8FCF9]'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-[1.05rem] font-extrabold text-[#243832]">
+                              {normalizeAnnouncementDateText(record.date_text || record.date_key)}
+                            </span>
+                            {updatedAt ? (
+                              <span className="shrink-0 rounded-full bg-[#EDF5F0] px-2.5 py-1 text-[0.72rem] font-extrabold text-[#006241]">
+                                {updatedAt}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="announcement-history-note mt-3 whitespace-pre-wrap break-keep rounded-[0.9rem] border border-[#E5EEE9] bg-[#FAFCFA] px-3.5 py-3 text-[0.95rem] font-bold leading-7 text-[#43534D]">
+                            {notePreview || '내용 없음'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex min-h-[14rem] items-center justify-center rounded-[1.5rem] border border-dashed border-[#E6D5C9] bg-white/70 text-center text-sm font-extrabold text-[#8A6347]/65">
+                    저장된 알림장이 없습니다.
+                  </div>
+                )}
+              </div>
+            </aside>
+          </div>
+        ) : null}
       </div>
     </div>
   );
