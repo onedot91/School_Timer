@@ -737,34 +737,32 @@ select {
 
 @media (max-width: 1279px) {
   .schedule-scroll-stack {
-    flex: 0 0 auto;
-    max-height: calc(4 * 5.1rem + 3 * 0.8rem);
-    gap: 0.95rem;
+    gap: 0.65rem;
   }
 
   .schedule-row-spacious {
-    min-height: 5.1rem;
-    padding: 1rem 1.15rem;
+    min-height: 4.35rem;
+    padding: 0.85rem 1rem;
   }
 
   .schedule-row-title {
-    font-size: 2rem;
-    line-height: 1;
+    font-size: 1.2rem;
+    line-height: 1.1;
   }
 
   .schedule-row-time {
-    font-size: 1.55rem;
+    font-size: 1.05rem;
     line-height: 1;
   }
 }
 
 @media (max-width: 640px) {
   .schedule-row-title {
-    font-size: 2.15rem;
+    font-size: 1.2rem;
   }
 
   .schedule-row-time {
-    font-size: 1.68rem;
+    font-size: 1.05rem;
   }
 }
 
