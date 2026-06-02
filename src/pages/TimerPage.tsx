@@ -36,7 +36,7 @@ import {
   isSupabaseSettingsEnabled,
   loadAnnouncementNote,
   loadAnnouncementNoteHistory,
-  loadSharedSettings,
+  loadSharedSettingsRow,
   saveAnnouncementNote,
   saveSharedSettings,
 } from '../lib/supabaseSettings';
@@ -2323,6 +2323,8 @@ export default function TimerPage() {
   const youtubeUrlInputRef = useRef<HTMLTextAreaElement>(null);
   const sharedSettingsHydratedRef = useRef(!isSupabaseSettingsEnabled);
   const sharedSettingsSaveTimeoutRef = useRef<number | null>(null);
+  const lastSharedSettingsUpdatedAtRef = useRef<string | null>(null);
+  const skipNextSharedSettingsSaveRef = useRef(false);
   const activeDrawCase =
     drawCases.find((caseState) => caseState.id === activeDrawCaseId) ??
     drawCases[0] ??
@@ -2394,41 +2396,47 @@ export default function TimerPage() {
     },
   });
 
+  const applySharedSettingsSnapshot = (remoteSettings: SharedSchoolTimerSettings) => {
+    skipNextSharedSettingsSaveRef.current = true;
+    setWeeklySchedule(remoteSettings.weeklySchedule);
+    setScheduleNotice(remoteSettings.scheduleNotice);
+    setNoticeDraft(remoteSettings.scheduleNotice);
+    setIsNoticeEnabled(remoteSettings.isNoticeEnabled);
+    setScheduleClockOffsetSeconds(remoteSettings.scheduleClockOffsetSeconds);
+    setScheduleYoutubeUrls(remoteSettings.scheduleYoutubeUrls);
+    setScheduleYoutubeFavorites(remoteSettings.scheduleYoutubeFavorites);
+    setIsScheduleYoutubeVisible(
+      remoteSettings.scheduleYoutubeUrls.length > 0 && remoteSettings.isScheduleYoutubeVisible,
+    );
+    setHasMountedScheduleYoutubePlayer(
+      remoteSettings.scheduleYoutubeUrls.length > 0 && remoteSettings.isScheduleYoutubeVisible,
+    );
+    setActiveDrawCaseId(remoteSettings.randomDraw.activeCaseId);
+    setRepeatPickEnabled(remoteSettings.randomDraw.repeatPickEnabled);
+    setDrawCases(remoteSettings.randomDraw.cases);
+    setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
+    setManualTotalTime(remoteSettings.manualTimer.totalTime);
+    setManualTimeLeft(remoteSettings.manualTimer.totalTime);
+    setManualIsRunning(false);
+    setManualEndTime(null);
+    setIsExtraTimerVisible(remoteSettings.manualTimer.isVisible);
+    setCustomMinutes(Math.floor(remoteSettings.manualTimer.totalTime / 60).toString());
+    setCustomSeconds((remoteSettings.manualTimer.totalTime % 60).toString());
+  };
+
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) return;
 
     let isCancelled = false;
 
-    void loadSharedSettings()
-      .then((remoteValue) => {
+    void loadSharedSettingsRow()
+      .then((remoteRow) => {
         if (isCancelled) return;
 
-        const remoteSettings = normalizeSharedSchoolTimerSettings(remoteValue);
+        lastSharedSettingsUpdatedAtRef.current = remoteRow?.updated_at ?? null;
+        const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow?.value);
         if (remoteSettings) {
-          setWeeklySchedule(remoteSettings.weeklySchedule);
-          setScheduleNotice(remoteSettings.scheduleNotice);
-          setNoticeDraft(remoteSettings.scheduleNotice);
-          setIsNoticeEnabled(remoteSettings.isNoticeEnabled);
-          setScheduleClockOffsetSeconds(remoteSettings.scheduleClockOffsetSeconds);
-          setScheduleYoutubeUrls(remoteSettings.scheduleYoutubeUrls);
-          setScheduleYoutubeFavorites(remoteSettings.scheduleYoutubeFavorites);
-          setIsScheduleYoutubeVisible(
-            remoteSettings.scheduleYoutubeUrls.length > 0 && remoteSettings.isScheduleYoutubeVisible,
-          );
-          setHasMountedScheduleYoutubePlayer(
-            remoteSettings.scheduleYoutubeUrls.length > 0 && remoteSettings.isScheduleYoutubeVisible,
-          );
-          setActiveDrawCaseId(remoteSettings.randomDraw.activeCaseId);
-          setRepeatPickEnabled(remoteSettings.randomDraw.repeatPickEnabled);
-          setDrawCases(remoteSettings.randomDraw.cases);
-          setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
-          setManualTotalTime(remoteSettings.manualTimer.totalTime);
-          setManualTimeLeft(remoteSettings.manualTimer.totalTime);
-          setManualIsRunning(false);
-          setManualEndTime(null);
-          setIsExtraTimerVisible(remoteSettings.manualTimer.isVisible);
-          setCustomMinutes(Math.floor(remoteSettings.manualTimer.totalTime / 60).toString());
-          setCustomSeconds((remoteSettings.manualTimer.totalTime % 60).toString());
+          applySharedSettingsSnapshot(remoteSettings);
         } else {
           void saveSharedSettings(buildSharedSettingsSnapshot()).catch((error) => {
             console.error('Failed to initialize shared settings in Supabase.', error);
@@ -2529,15 +2537,24 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
 
+    if (skipNextSharedSettingsSaveRef.current) {
+      skipNextSharedSettingsSaveRef.current = false;
+      return;
+    }
+
     if (sharedSettingsSaveTimeoutRef.current !== null) {
       window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
     }
 
     sharedSettingsSaveTimeoutRef.current = window.setTimeout(() => {
       sharedSettingsSaveTimeoutRef.current = null;
-      void saveSharedSettings(buildSharedSettingsSnapshot()).catch((error) => {
-        console.error('Failed to save shared settings to Supabase.', error);
-      });
+      void saveSharedSettings(buildSharedSettingsSnapshot())
+        .then(() => {
+          lastSharedSettingsUpdatedAtRef.current = new Date().toISOString();
+        })
+        .catch((error) => {
+          console.error('Failed to save shared settings to Supabase.', error);
+        });
     }, 700);
 
     return () => {
@@ -2560,6 +2577,43 @@ export default function TimerPage() {
     manualTotalTime,
     isExtraTimerVisible,
   ]);
+
+  useEffect(() => {
+    if (!isSupabaseSettingsEnabled) return;
+
+    let isCancelled = false;
+    let isChecking = false;
+
+    const syncSharedSettingsFromRemote = async () => {
+      if (!sharedSettingsHydratedRef.current || isChecking) return;
+      isChecking = true;
+
+      try {
+        const remoteRow = await loadSharedSettingsRow();
+        if (isCancelled || !remoteRow?.updated_at) return;
+        if (remoteRow.updated_at === lastSharedSettingsUpdatedAtRef.current) return;
+
+        const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow.value);
+        if (!remoteSettings) return;
+
+        lastSharedSettingsUpdatedAtRef.current = remoteRow.updated_at;
+        applySharedSettingsSnapshot(remoteSettings);
+      } catch (error) {
+        console.error('Failed to refresh shared settings from Supabase.', error);
+      } finally {
+        isChecking = false;
+      }
+    };
+
+    const intervalId = window.setInterval(syncSharedSettingsFromRemote, 5000);
+    window.addEventListener('focus', syncSharedSettingsFromRemote);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', syncSharedSettingsFromRemote);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeDrawCaseId === resolvedActiveDrawCaseId) return;

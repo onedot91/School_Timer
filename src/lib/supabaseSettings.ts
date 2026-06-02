@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export const SHARED_SETTINGS_ID = 'school-timer-main';
 
-type SettingsRow = {
+export type SettingsRow = {
   id: string;
   value: unknown;
   updated_at?: string;
@@ -29,6 +29,11 @@ const supabase = isSupabaseSettingsEnabled
   : null;
 
 export const loadSharedSettings = async () => {
+  const data = await loadSharedSettingsRow();
+  return data?.value ?? null;
+};
+
+export const loadSharedSettingsRow = async () => {
   if (!supabase) return null;
 
   const { data, error } = await supabase
@@ -41,7 +46,7 @@ export const loadSharedSettings = async () => {
     throw error;
   }
 
-  return data?.value ?? null;
+  return data ?? null;
 };
 
 export const saveSharedSettings = async (value: unknown) => {
