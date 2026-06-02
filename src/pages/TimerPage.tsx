@@ -4429,7 +4429,7 @@ export default function TimerPage() {
                   });
                   setShowCopyConfirm(false);
                 }}
-                className="toolbar-button toolbar-button-danger rounded-lg px-3 py-1.5 text-sm font-bold text-white"
+                className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-sm font-bold text-white"
               >
                 복사하기
               </button>
@@ -5865,7 +5865,7 @@ export default function TimerPage() {
                         });
                         setShowCopyConfirm(false);
                       }}
-                      className="toolbar-button toolbar-button-danger rounded-lg px-3 py-1.5 text-sm font-bold text-white"
+                      className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-sm font-bold text-white"
                     >
                       복사하기
                     </button>

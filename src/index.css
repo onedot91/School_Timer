@@ -8994,6 +8994,14 @@ h3 {
   white-space: nowrap;
 }
 
+.settings-dialog .copy-confirm-action-button {
+  min-width: 5.8rem;
+  background: #c82014 !important;
+  background-image: none !important;
+  border-color: #c82014 !important;
+  color: #ffffff !important;
+}
+
 @media (max-width: 1180px) {
   .settings-dialog .slot-card {
     grid-template-columns: 1fr;
