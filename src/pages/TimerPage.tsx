@@ -2270,6 +2270,16 @@ export default function TimerPage() {
   const [manualIsRunning, setManualIsRunning] = useState(initialState.manual.isRunning);
   const [manualEndTime, setManualEndTime] = useState<number | null>(initialState.manual.endTime);
   const [isExtraTimerVisible, setIsExtraTimerVisible] = useState(initialState.manual.isVisible);
+  const manualTimerStateRef = useRef({
+    totalTime: initialState.manual.totalTime,
+    timeLeft: initialState.manual.timeLeft,
+    isRunning: initialState.manual.isRunning,
+  });
+  manualTimerStateRef.current = {
+    totalTime: manualTotalTime,
+    timeLeft: manualTimeLeft,
+    isRunning: manualIsRunning,
+  };
 
   // Schedule Timer State
   const [scheduleTotalTime, setScheduleTotalTime] = useState(0);
@@ -2396,7 +2406,10 @@ export default function TimerPage() {
     },
   });
 
-  const applySharedSettingsSnapshot = (remoteSettings: SharedSchoolTimerSettings) => {
+  const applySharedSettingsSnapshot = (
+    remoteSettings: SharedSchoolTimerSettings,
+    options: { applyManualTimer: boolean },
+  ) => {
     skipNextSharedSettingsSaveRef.current = true;
     setWeeklySchedule(remoteSettings.weeklySchedule);
     setScheduleNotice(remoteSettings.scheduleNotice);
@@ -2415,13 +2428,20 @@ export default function TimerPage() {
     setRepeatPickEnabled(remoteSettings.randomDraw.repeatPickEnabled);
     setDrawCases(remoteSettings.randomDraw.cases);
     setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
-    setManualTotalTime(remoteSettings.manualTimer.totalTime);
-    setManualTimeLeft(remoteSettings.manualTimer.totalTime);
-    setManualIsRunning(false);
-    setManualEndTime(null);
-    setIsExtraTimerVisible(remoteSettings.manualTimer.isVisible);
-    setCustomMinutes(Math.floor(remoteSettings.manualTimer.totalTime / 60).toString());
-    setCustomSeconds((remoteSettings.manualTimer.totalTime % 60).toString());
+    const canApplyManualTimer =
+      options.applyManualTimer &&
+      !manualTimerStateRef.current.isRunning &&
+      manualTimerStateRef.current.timeLeft === manualTimerStateRef.current.totalTime;
+
+    if (canApplyManualTimer) {
+      setManualTotalTime(remoteSettings.manualTimer.totalTime);
+      setManualTimeLeft(remoteSettings.manualTimer.totalTime);
+      setManualIsRunning(false);
+      setManualEndTime(null);
+      setIsExtraTimerVisible(remoteSettings.manualTimer.isVisible);
+      setCustomMinutes(Math.floor(remoteSettings.manualTimer.totalTime / 60).toString());
+      setCustomSeconds((remoteSettings.manualTimer.totalTime % 60).toString());
+    }
   };
 
   useEffect(() => {
@@ -2436,7 +2456,7 @@ export default function TimerPage() {
         lastSharedSettingsUpdatedAtRef.current = remoteRow?.updated_at ?? null;
         const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow?.value);
         if (remoteSettings) {
-          applySharedSettingsSnapshot(remoteSettings);
+          applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: true });
         } else {
           void saveSharedSettings(buildSharedSettingsSnapshot()).catch((error) => {
             console.error('Failed to initialize shared settings in Supabase.', error);
@@ -2597,7 +2617,7 @@ export default function TimerPage() {
         if (!remoteSettings) return;
 
         lastSharedSettingsUpdatedAtRef.current = remoteRow.updated_at;
-        applySharedSettingsSnapshot(remoteSettings);
+        applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: false });
       } catch (error) {
         console.error('Failed to refresh shared settings from Supabase.', error);
       } finally {
@@ -3996,6 +4016,7 @@ export default function TimerPage() {
   let characterImageScaleClass = "scale-[1.15] md:scale-[1.25]";
   const isScheduleBreak = timerType === 'break';
   const isScheduleLunch = timerType === 'lunch';
+  const shouldShowMorningReading = timerType === 'morning' && !isScheduleIdle;
   const shouldShowTimedMessage = isScheduleBreak || isScheduleLunch;
   const scheduleTypeLabel =
     timerType === 'class'
@@ -5160,29 +5181,40 @@ export default function TimerPage() {
                   className="transition-all duration-1000 ease-linear"
                 />
               </svg>
-              <div
-                aria-hidden="true"
-                className={`timer-watch-face timer-watch-face-${
-                  isScheduleIdle
-                    ? 'idle'
-                    : percentage <= urgentThreshold
-                      ? 'urgent'
-                      : percentage <= warningThreshold
-                        ? 'warning'
-                        : 'calm'
-                } timer-watch-glance-${watchFaceGlance}${
-                  isWatchFaceBlinking ? ' timer-watch-face-blinking' : ''
-                }${isWatchFaceReacting ? ' timer-watch-face-reacting' : ''}`}
-              >
-                <span className="timer-watch-eye timer-watch-eye-left">
-                  <span className="timer-watch-pupil" />
-                </span>
-                <span className="timer-watch-eye timer-watch-eye-right">
-                  <span className="timer-watch-pupil" />
-                </span>
-                <span className="timer-watch-nose" />
-                <span className="timer-watch-smile" />
-              </div>
+              {shouldShowMorningReading ? (
+                <div className="morning-reading-overlay" aria-label="독서 시간입니다.">
+                  <div className="morning-reading-bubble">독서 시간입니다.</div>
+                  <img
+                    src="/reading-bear-cutout.png?v=20260603"
+                    alt="책을 읽고 있는 곰 캐릭터"
+                    className="morning-reading-image"
+                  />
+                </div>
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className={`timer-watch-face timer-watch-face-${
+                    isScheduleIdle
+                      ? 'idle'
+                      : percentage <= urgentThreshold
+                        ? 'urgent'
+                        : percentage <= warningThreshold
+                          ? 'warning'
+                          : 'calm'
+                  } timer-watch-glance-${watchFaceGlance}${
+                    isWatchFaceBlinking ? ' timer-watch-face-blinking' : ''
+                  }${isWatchFaceReacting ? ' timer-watch-face-reacting' : ''}`}
+                >
+                  <span className="timer-watch-eye timer-watch-eye-left">
+                    <span className="timer-watch-pupil" />
+                  </span>
+                  <span className="timer-watch-eye timer-watch-eye-right">
+                    <span className="timer-watch-pupil" />
+                  </span>
+                  <span className="timer-watch-nose" />
+                  <span className="timer-watch-smile" />
+                </div>
+              )}
 
               {/* Character Notification Overlay (kept within the ring stage so it does not cover the timer text) */}
               <div className={`absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showTimerNotification ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
@@ -5396,8 +5428,14 @@ export default function TimerPage() {
 
             <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-4 gap-3">
               <div ref={manualTimerMenuRef} className="relative min-w-0">
-                {isExtraTimerVisible ? (
-                  <div className="absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[22rem] md:w-[24rem]">
+                <div
+                  className={`absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[22rem] md:w-[24rem] ${
+                    isExtraTimerVisible
+                      ? ''
+                      : 'hidden'
+                  }`}
+                  aria-hidden={!isExtraTimerVisible}
+                >
                     <div className="rounded-[1.45rem] border border-[#E6D5C9] bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                       <div className="flex items-end justify-between gap-3">
                         <div className={`font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}>
@@ -5479,9 +5517,7 @@ export default function TimerPage() {
                         <span className="mt-1 text-sm font-bold text-[#8A6347]/70">초</span>
                       </div>
                     </div>
-
-                  </div>
-                ) : null}
+                </div>
 
                 <button
                   type="button"
