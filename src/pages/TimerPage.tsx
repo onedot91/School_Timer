@@ -4985,7 +4985,7 @@ export default function TimerPage() {
         >
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
-            <div className="absolute inset-x-4 top-4 z-40 flex items-start justify-between sm:inset-x-5 sm:top-5 md:inset-x-6 md:top-6">
+            <div className="absolute left-4 top-4 z-40 flex items-start sm:left-5 sm:top-5 md:left-6 md:top-6">
               <button
                 onClick={toggleBackgroundMusic}
                 onPointerDown={(event) => event.stopPropagation()}
@@ -4997,19 +4997,6 @@ export default function TimerPage() {
                 type="button"
               >
                 {isMusicPlaying ? <Volume2 size={22} /> : <VolumeX size={22} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsDrawCaseMenuOpen(false);
-                  setIsLibraryOpen(false);
-                  setIsSettingsOpen(true);
-                }}
-                className="icon-button timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-[1.45rem] border border-[#E6D5C9] bg-white/92 text-[#8A6347]/70 shadow-[0_10px_20px_rgba(95,71,50,0.1)] backdrop-blur-sm transition-all hover:bg-white hover:text-[#8A6347] sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl"
-                title="설정"
-                aria-label="설정"
-              >
-                <Settings size={21} />
               </button>
             </div>
             <div className={`timer-ring-stage editorial-ring-stage relative flex min-h-0 w-full flex-1 items-center justify-center ${pulseClass}`}>
@@ -5316,34 +5303,49 @@ export default function TimerPage() {
               </div>
             ) : null}
             <div className="schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="schedule-board-header flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="section-title text-[1.08rem] font-extrabold text-[#3F2B20]">오늘 시간표</h3>
                 </div>
-                {scheduleYoutubeCount > 0 ? (
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-white px-3 py-1.5 text-[0.76rem] font-extrabold text-[#8A6347]">
-                      {scheduleYoutubeCount}개 영상
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsScheduleYoutubeVisible((previous) => !previous)}
-                      className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
-                      title={isScheduleYoutubeVisible ? '유튜브 임베드 숨기기' : '유튜브 임베드 보이기'}
-                    >
-                      {isScheduleYoutubeVisible ? '숨기기' : '보이기'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={clearScheduleYoutubeUrl}
-                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
-                      title="유튜브 재생목록 지우기"
-                      aria-label="유튜브 재생목록 지우기"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ) : null}
+                <div className="schedule-panel-actions flex min-w-0 flex-wrap items-center justify-end gap-2">
+                  {scheduleYoutubeCount > 0 ? (
+                    <>
+                      <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-white px-3 py-1.5 text-[0.76rem] font-extrabold text-[#8A6347]">
+                        {scheduleYoutubeCount}개 영상
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsScheduleYoutubeVisible((previous) => !previous)}
+                        className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                        title={isScheduleYoutubeVisible ? '유튜브 임베드 숨기기' : '유튜브 임베드 보이기'}
+                      >
+                        {isScheduleYoutubeVisible ? '숨기기' : '보이기'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearScheduleYoutubeUrl}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                        title="유튜브 재생목록 지우기"
+                        aria-label="유튜브 재생목록 지우기"
+                      >
+                        <X size={16} />
+                      </button>
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDrawCaseMenuOpen(false);
+                      setIsLibraryOpen(false);
+                      setIsSettingsOpen(true);
+                    }}
+                    className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E6DE] bg-white text-[#006241] transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7]"
+                    title="설정"
+                    aria-label="설정"
+                  >
+                    <Settings size={19} strokeWidth={2.35} />
+                  </button>
+                </div>
               </div>
 
               {hasMountedScheduleYoutubePlayer && scheduleYoutubeVideoIds.length > 0 ? (
@@ -5361,7 +5363,7 @@ export default function TimerPage() {
                 </div>
               ) : null}
 
-              <div className="mt-4 min-h-0 flex flex-1 flex-col">
+              <div className="mt-3 min-h-0 flex flex-1 flex-col">
                 {currentDaySchedule.length === 0 ? (
                   <div className="schedule-empty-state my-1 flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-8 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
                     <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F8F1] text-[#6B8B63] shadow-inner shadow-[#E8F0E4]">
