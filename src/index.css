@@ -9425,3 +9425,410 @@ h3 {
     max-height: 10rem;
   }
 }
+
+/* Home UI polish pass */
+.editorial-main-shell {
+  border: 1px solid rgba(0, 75, 53, 0.1) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.18) 18%, transparent 42%),
+    linear-gradient(135deg, #fffdf8 0%, #f7f1e8 58%, #edf3ee 100%) !important;
+  box-shadow:
+    0 30px 90px rgba(31, 24, 18, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+
+.editorial-main-shell::before {
+  inset: 10px !important;
+  border-color: rgba(0, 98, 65, 0.08) !important;
+}
+
+.editorial-home-layout {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2), transparent 48%);
+}
+
+.editorial-timer-pane {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.44) 38%, transparent 66%),
+    linear-gradient(180deg, rgba(255, 252, 247, 0.97) 0%, rgba(241, 235, 226, 0.86) 100%) !important;
+}
+
+.editorial-control-pane {
+  border-color: rgba(0, 98, 65, 0.12) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(246, 241, 233, 0.92)),
+    #faf7f0 !important;
+}
+
+.editorial-ring-stage {
+  padding: clamp(0.25rem, 1.2vw, 1rem);
+}
+
+.timer-ring-stage::before,
+.editorial-ring-stage::before {
+  content: none !important;
+  display: none !important;
+}
+
+.timer-ring-svg {
+  border: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.timer-ring-svg circle:first-child {
+  stroke: var(--green-light) !important;
+}
+
+.editorial-clock-display {
+  letter-spacing: 0 !important;
+  font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.86),
+    0 16px 34px rgba(0, 75, 53, 0.16) !important;
+}
+
+.timer-status-row {
+  margin-top: clamp(0.55rem, 1.4vw, 1rem) !important;
+}
+
+.timer-primary-chip {
+  border-radius: 999px !important;
+  min-height: 3.8rem !important;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fbf6 100%) !important;
+}
+
+.editorial-schedule-board {
+  border-width: 1px !important;
+  border-color: rgba(0, 98, 65, 0.14) !important;
+  border-radius: 1.5rem !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 247, 242, 0.96)) !important;
+  box-shadow:
+    0 14px 32px rgba(31, 24, 18, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+
+.schedule-board-header {
+  min-height: 2.75rem !important;
+  padding-bottom: 0.7rem !important;
+}
+
+.schedule-panel-actions > span,
+.schedule-panel-actions > button {
+  min-height: 2.35rem;
+}
+
+.editorial-schedule-board .schedule-row-spacious {
+  min-height: 3.85rem !important;
+  padding: 0.75rem 0.9rem !important;
+}
+
+.schedule-row-title,
+.schedule-row-time {
+  letter-spacing: 0 !important;
+}
+
+.schedule-row-title {
+  min-width: 0;
+  padding-right: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-row-time {
+  color: rgba(0, 75, 53, 0.72);
+}
+
+.schedule-row-idle {
+  background: rgba(255, 255, 255, 0.74) !important;
+}
+
+.editorial-quick-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.editorial-utility-button {
+  min-height: 4.65rem !important;
+  border-radius: 1.15rem !important;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f7f4ee 100%) !important;
+}
+
+.editorial-utility-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 98, 65, 0.22) !important;
+}
+
+.editorial-utility-button .announcement-launch-icon,
+.editorial-utility-button .manual-timer-launch-icon {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  border-radius: 0.9rem !important;
+  background: #edf6f1 !important;
+  color: #004b35 !important;
+}
+
+.manual-timer-popover {
+  border-color: rgba(0, 98, 65, 0.16) !important;
+  width: calc(400% + 2.25rem) !important;
+  max-width: calc(100dvw - 2.5rem) !important;
+  padding: 0.8rem !important;
+  border-radius: 1.25rem !important;
+}
+
+.manual-timer-popover > .rounded-\[1\.45rem\] {
+  border-radius: 1.1rem !important;
+  padding: 0.85rem !important;
+}
+
+.manual-timer-display {
+  min-width: 9.8rem;
+  color: #111111 !important;
+  font-size: clamp(2.85rem, 4.2vw, 4.15rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0 !important;
+  text-shadow: none !important;
+}
+
+.manual-timer-popover .round-action {
+  box-shadow:
+    0 10px 20px rgba(31, 24, 18, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+}
+
+.manual-timer-popover .round-action.flex.h-12 {
+  width: 3.25rem !important;
+  height: 3.25rem !important;
+}
+
+.manual-timer-popover .round-action.flex.h-10 {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+}
+
+.manual-timer-popover .h-3 {
+  height: 0.55rem !important;
+}
+
+.manual-timer-adjust-row {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 0.8fr) minmax(0, 1.2fr);
+  align-items: stretch;
+  gap: 0.6rem;
+  margin-top: 0.75rem !important;
+}
+
+.manual-timer-preset-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.manual-timer-preset-button {
+  min-height: 2.35rem;
+  border-radius: 0.85rem !important;
+  font-size: 0.88rem !important;
+  color: #1f2523 !important;
+}
+
+.manual-timer-custom-inputs {
+  min-width: 0;
+  border: 1px solid rgba(0, 98, 65, 0.12);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.45rem 0.55rem 0.35rem;
+}
+
+.manual-timer-field {
+  min-width: 0;
+}
+
+.manual-timer-number-input {
+  width: 4.1rem !important;
+  min-height: 2.9rem;
+  border-radius: 0.8rem !important;
+  font-size: 1.45rem !important;
+  padding-block: 0.45rem !important;
+  color: #1f2523 !important;
+}
+
+.manual-timer-colon {
+  margin-bottom: 1.1rem !important;
+  color: #3b342e !important;
+}
+
+.manual-timer-field span {
+  margin-top: 0.25rem !important;
+  font-size: 0.78rem !important;
+}
+
+.timer-toolbar-button,
+.schedule-settings-button {
+  border-radius: 1rem !important;
+}
+
+.speech-card {
+  max-width: min(88vw, 48rem) !important;
+  border-width: 2px !important;
+  border-radius: 1.35rem !important;
+  padding: clamp(0.85rem, 1.8vw, 1.3rem) clamp(1rem, 2.4vw, 1.75rem) !important;
+}
+
+.speech-card-text {
+  text-wrap: balance;
+}
+
+@media (min-width: 1024px) {
+  .editorial-home-layout {
+    grid-template-columns: minmax(0, 1.42fr) minmax(22rem, 27rem) !important;
+  }
+
+  .editorial-control-pane {
+    padding: 1.35rem !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  .editorial-home-layout {
+    grid-template-columns: minmax(0, 1.56fr) minmax(23rem, 28.5rem) !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .editorial-home-layout {
+    overflow-y: auto;
+  }
+
+  .editorial-timer-pane {
+    min-height: min(58dvh, 34rem);
+  }
+
+  .editorial-control-pane {
+    overflow: visible !important;
+  }
+
+  .editorial-schedule-board {
+    min-height: 18rem !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .editorial-main-shell {
+    border-radius: 1.15rem !important;
+  }
+
+  .editorial-timer-pane {
+    min-height: 52dvh;
+    padding: 0.9rem !important;
+  }
+
+  .timer-ring-svg {
+    box-shadow:
+      0 16px 36px rgba(48, 35, 24, 0.12),
+      0 0 0 6px rgba(255, 255, 255, 0.42),
+      inset 0 0 0 7px rgba(255, 255, 255, 0.34) !important;
+  }
+
+  .timer-primary-chip {
+    min-height: 3.25rem !important;
+    min-width: 9.8rem !important;
+    padding: 0.65rem 0.9rem !important;
+    font-size: 1.05rem !important;
+  }
+
+  .timer-primary-chip svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .editorial-control-pane {
+    gap: 0.7rem !important;
+    padding: 0.8rem !important;
+  }
+
+  .editorial-schedule-board {
+    border-radius: 1.1rem !important;
+    padding: 0.85rem !important;
+  }
+
+  .schedule-board-header {
+    align-items: flex-start !important;
+  }
+
+  .schedule-panel-actions {
+    gap: 0.4rem !important;
+  }
+
+  .schedule-panel-actions > span {
+    display: none !important;
+  }
+
+  .editorial-schedule-board .schedule-row-spacious {
+    min-height: 3.45rem !important;
+    padding: 0.65rem 0.75rem !important;
+  }
+
+  .schedule-row-title {
+    font-size: 1rem !important;
+  }
+
+  .schedule-row-time {
+    font-size: 0.88rem !important;
+  }
+
+  .editorial-quick-actions {
+    gap: 0.55rem !important;
+  }
+
+  .editorial-utility-button {
+    min-height: 3.95rem !important;
+    border-radius: 0.95rem !important;
+    padding: 0.55rem !important;
+  }
+
+  .editorial-utility-button .announcement-launch-icon,
+  .editorial-utility-button .manual-timer-launch-icon {
+    width: 2.35rem !important;
+    height: 2.35rem !important;
+    border-radius: 0.8rem !important;
+  }
+
+  .manual-timer-popover {
+    padding: 0.7rem !important;
+    width: calc(400% + 1.65rem) !important;
+  }
+
+  .manual-timer-display {
+    min-width: 7.4rem;
+    font-size: clamp(2.25rem, 8vw, 3rem) !important;
+  }
+
+  .manual-timer-adjust-row {
+    grid-template-columns: minmax(6.8rem, 0.78fr) minmax(0, 1.22fr);
+    gap: 0.65rem;
+  }
+
+  .manual-timer-preset-button {
+    min-height: 2.25rem;
+    font-size: 0.82rem !important;
+  }
+
+  .manual-timer-custom-inputs {
+    gap: 0.45rem !important;
+    padding: 0.55rem 0.5rem 0.45rem;
+  }
+
+  .manual-timer-number-input {
+    width: 3.55rem !important;
+    min-height: 2.75rem;
+    font-size: 1.2rem !important;
+  }
+
+  .manual-timer-colon {
+    margin-bottom: 1.25rem !important;
+    font-size: 1.35rem !important;
+  }
+}

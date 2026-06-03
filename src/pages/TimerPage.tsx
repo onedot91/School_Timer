@@ -5429,7 +5429,7 @@ export default function TimerPage() {
             <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-4 gap-3">
               <div ref={manualTimerMenuRef} className="relative min-w-0">
                 <div
-                  className={`absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[22rem] md:w-[24rem] ${
+                  className={`manual-timer-popover absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[24rem] md:w-[32rem] ${
                     isExtraTimerVisible
                       ? ''
                       : 'hidden'
@@ -5438,7 +5438,7 @@ export default function TimerPage() {
                 >
                     <div className="rounded-[1.45rem] border border-[#E6D5C9] bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                       <div className="flex items-end justify-between gap-3">
-                        <div className={`font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}>
+                        <div className={`manual-timer-display font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}>
                           {formatTime(manualTimeLeft)}
                         </div>
                         <div className="flex items-center gap-2">
@@ -5479,42 +5479,44 @@ export default function TimerPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-3 gap-2">
-                      {MANUAL_TIMER_PRESETS.map((preset) => (
-                        <button
-                          key={preset.seconds}
-                          onClick={() => addManualPreset(preset.seconds)}
-                          className="rounded-2xl border border-[#E6D5C9] bg-white px-3 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#D5C0AD] hover:bg-[#FFF9F2]"
-                          type="button"
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-center gap-3">
-                      <div className="flex flex-col items-center">
-                        <input
-                          type="number"
-                          value={customMinutes}
-                          onChange={(e) => handleCustomMinutesChange(e.target.value)}
-                          className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                          min="0"
-                          max="999"
-                        />
-                        <span className="mt-1 text-sm font-bold text-[#8A6347]/70">분</span>
+                    <div className="manual-timer-adjust-row mt-4">
+                      <div className="manual-timer-preset-grid">
+                        {MANUAL_TIMER_PRESETS.map((preset) => (
+                          <button
+                            key={preset.seconds}
+                            onClick={() => addManualPreset(preset.seconds)}
+                            className="manual-timer-preset-button rounded-2xl border border-[#E6D5C9] bg-white px-3 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#D5C0AD] hover:bg-[#FFF9F2]"
+                            type="button"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
                       </div>
-                      <span className="mb-6 text-2xl font-bold text-[#8A6347]">:</span>
-                      <div className="flex flex-col items-center">
-                        <input
-                          type="number"
-                          value={customSeconds}
-                          onChange={(e) => handleCustomSecondsChange(e.target.value)}
-                          className="time-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                          min="0"
-                          max="59"
-                        />
-                        <span className="mt-1 text-sm font-bold text-[#8A6347]/70">초</span>
+
+                      <div className="manual-timer-custom-inputs flex items-center justify-center gap-3">
+                        <div className="manual-timer-field flex flex-col items-center">
+                          <input
+                            type="number"
+                            value={customMinutes}
+                            onChange={(e) => handleCustomMinutesChange(e.target.value)}
+                            className="time-input manual-timer-number-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                            min="0"
+                            max="999"
+                          />
+                          <span className="mt-1 text-sm font-bold text-[#8A6347]/70">분</span>
+                        </div>
+                        <span className="manual-timer-colon mb-6 text-2xl font-bold text-[#8A6347]">:</span>
+                        <div className="manual-timer-field flex flex-col items-center">
+                          <input
+                            type="number"
+                            value={customSeconds}
+                            onChange={(e) => handleCustomSecondsChange(e.target.value)}
+                            className="time-input manual-timer-number-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                            min="0"
+                            max="59"
+                          />
+                          <span className="mt-1 text-sm font-bold text-[#8A6347]/70">초</span>
+                        </div>
                       </div>
                     </div>
                 </div>
