@@ -6169,7 +6169,7 @@ h3 {
 .morning-reading-overlay {
   position: absolute;
   left: 50%;
-  top: 5%;
+  top: 15%;
   z-index: 8;
   display: flex;
   width: min(36vw, 36vh, 16.5rem);
