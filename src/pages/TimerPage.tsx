@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Copy, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -4376,8 +4376,19 @@ export default function TimerPage() {
         <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <h3 className="section-title text-[1.2rem] font-extrabold text-[#3F2B20]">요일 선택</h3>
-            <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-3 py-1.5 text-[0.82rem] font-extrabold text-[#8A6347]">
-              {activeWeekdayScheduleCount} / {WEEKDAYS.length}일 사용
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCopyConfirm(true)}
+                className="toolbar-button toolbar-button-green inline-flex h-10 w-10 items-center justify-center rounded-full text-[#5C8D5D] transition-colors"
+                title="선택한 요일 일정을 평일에 복사"
+                aria-label="선택한 요일 일정을 평일에 복사"
+              >
+                <Copy size={18} strokeWidth={2.35} />
+              </button>
+              <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-3 py-1.5 text-[0.82rem] font-extrabold text-[#8A6347]">
+                {activeWeekdayScheduleCount} / {WEEKDAYS.length}일 사용
+              </div>
             </div>
           </div>
 
@@ -4420,16 +4431,6 @@ export default function TimerPage() {
           </label>
         </section>
 
-        <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-          <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">빠른 작업</h3>
-          <button
-            type="button"
-            onClick={() => setShowCopyConfirm(true)}
-            className="toolbar-button toolbar-button-green mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold text-[#5C8D5D] transition-colors"
-          >
-            다른 요일로 복사
-          </button>
-        </section>
       </aside>
 
       <section className="flex min-h-0 flex-col gap-4">
@@ -5933,9 +5934,11 @@ export default function TimerPage() {
                 <h3 className="section-title text-lg font-bold text-[#8A6347]">{DAYS[editingDay]}요일 일정</h3>
                 <button 
                   onClick={() => setShowCopyConfirm(true)}
-                  className="toolbar-button toolbar-button-green rounded-lg px-3 py-1.5 text-sm font-bold text-[#5C8D5D] transition-colors"
+                  className="toolbar-button toolbar-button-green inline-flex h-10 w-10 items-center justify-center rounded-full text-[#5C8D5D] transition-colors"
+                  title="선택한 요일 일정을 평일에 복사"
+                  aria-label="선택한 요일 일정을 평일에 복사"
                 >
-                  다른 요일로 복사
+                  <Copy size={18} strokeWidth={2.35} />
                 </button>
               </div>
 
