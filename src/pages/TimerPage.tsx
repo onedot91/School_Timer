@@ -652,6 +652,11 @@ const getPlainTextFromMemoHtml = (value: string) => {
 const getAdjustedScheduleDate = (timeMs: number, offsetSeconds: number) =>
   new Date(timeMs + clampScheduleClockOffsetSeconds(offsetSeconds) * 1000);
 
+const getCurrentScheduleWeekday = (offsetSeconds: number) => {
+  const currentDay = getAdjustedScheduleDate(Date.now(), offsetSeconds).getDay();
+  return WEEKDAYS.includes(currentDay) ? currentDay : WEEKDAYS[0];
+};
+
 const renderAnnouncementNoteLine = (text: string, keyPrefix: string) => {
   const sourceText = text.length > 0 ? text : '\u200b';
   const segments: React.ReactNode[] = [];
@@ -2288,9 +2293,11 @@ export default function TimerPage() {
   const [currentSlotName, setCurrentSlotName] = useState<string>('');
   const [timerType, setTimerType] = useState<TimerType>('break');
   
-  // Custom Time Input State
-  const [customMinutes, setCustomMinutes] = useState(Math.floor(initialState.manual.totalTime / 60).toString());
-  const [customSeconds, setCustomSeconds] = useState((initialState.manual.totalTime % 60).toString());
+  const [manualMinutesInputValue, setManualMinutesInputValue] = useState('');
+  const [manualSecondsInputValue, setManualSecondsInputValue] = useState('');
+  const [isManualTimeEditing, setIsManualTimeEditing] = useState(false);
+  const [manualEditingPart, setManualEditingPart] = useState<'minutes' | 'seconds' | null>(null);
+  const skipManualTimeCommitRef = useRef(false);
   
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(() => {
     try {
@@ -2309,7 +2316,7 @@ export default function TimerPage() {
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('schedule');
-  const [editingDay, setEditingDay] = useState<number>(1);
+  const [editingDay, setEditingDay] = useState<number>(() => getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
@@ -2439,8 +2446,6 @@ export default function TimerPage() {
       setManualIsRunning(false);
       setManualEndTime(null);
       setIsExtraTimerVisible(remoteSettings.manualTimer.isVisible);
-      setCustomMinutes(Math.floor(remoteSettings.manualTimer.totalTime / 60).toString());
-      setCustomSeconds((remoteSettings.manualTimer.totalTime % 60).toString());
     }
   };
 
@@ -2839,7 +2844,7 @@ export default function TimerPage() {
   }, [timerType]);
 
   const setManualTimerDuration = (totalSeconds: number) => {
-    if (totalSeconds <= 0) return;
+    if (totalSeconds < 0) return;
 
     setManualTotalTime(totalSeconds);
     setManualTimeLeft(totalSeconds);
@@ -2847,22 +2852,34 @@ export default function TimerPage() {
     setManualEndTime(null);
   };
 
-  const clampManualInputValue = (value: string, max: number) => {
-    if (value === '') return '';
-    const numeric = Number.parseInt(value, 10);
-    if (!Number.isFinite(numeric)) return '';
-    return Math.min(Math.max(0, numeric), max).toString();
-  };
+  const commitManualTimeInput = (part: 'minutes' | 'seconds') => {
+    if (skipManualTimeCommitRef.current) {
+      skipManualTimeCommitRef.current = false;
+      setIsManualTimeEditing(false);
+      setManualEditingPart(null);
+      setManualMinutesInputValue('');
+      setManualSecondsInputValue('');
+      return;
+    }
 
-  const syncManualTimerFromInputs = (minutesValue: string, secondsValue: string) => {
-    const minutes = Number.parseInt(minutesValue, 10) || 0;
-    const seconds = Number.parseInt(secondsValue, 10) || 0;
+    const currentMinutes = Math.floor(manualTimeLeft / 60);
+    const currentSeconds = manualTimeLeft % 60;
+    const inputMinutes = Number.parseInt(manualMinutesInputValue, 10);
+    const inputSeconds = Number.parseInt(manualSecondsInputValue, 10);
+    const minutes = part === 'minutes'
+      ? (Number.isFinite(inputMinutes) ? Math.max(0, Math.min(999, inputMinutes)) : 0)
+      : currentMinutes;
+    const seconds = part === 'seconds'
+      ? (Number.isFinite(inputSeconds) ? Math.max(0, Math.min(59, inputSeconds)) : 0)
+      : currentSeconds;
     const totalSeconds = minutes * 60 + seconds;
 
-    if (totalSeconds > 0) {
-      setManualTimerDuration(totalSeconds);
-      setIsExtraTimerVisible(true);
-    }
+    setIsManualTimeEditing(false);
+    setManualEditingPart(null);
+    setManualTimerDuration(totalSeconds);
+    setIsExtraTimerVisible(true);
+    setManualMinutesInputValue('');
+    setManualSecondsInputValue('');
   };
 
   const addManualPreset = (additionalSeconds: number) => {
@@ -2871,24 +2888,10 @@ export default function TimerPage() {
     const nextTotalTime = manualTotalTime + additionalSeconds;
     const nextTimeLeft = manualTimeLeft + additionalSeconds;
 
-    setCustomMinutes(Math.floor(nextTotalTime / 60).toString());
-    setCustomSeconds((nextTotalTime % 60).toString());
     setManualTotalTime(nextTotalTime);
     setManualTimeLeft(nextTimeLeft);
     setManualEndTime(manualIsRunning ? Date.now() + nextTimeLeft * 1000 : null);
     setIsExtraTimerVisible(true);
-  };
-
-  const handleCustomMinutesChange = (value: string) => {
-    const nextValue = clampManualInputValue(value, 999);
-    setCustomMinutes(nextValue);
-    syncManualTimerFromInputs(nextValue, customSeconds);
-  };
-
-  const handleCustomSecondsChange = (value: string) => {
-    const nextValue = clampManualInputValue(value, 59);
-    setCustomSeconds(nextValue);
-    syncManualTimerFromInputs(customMinutes, nextValue);
   };
 
   const toggleTimer = () => {
@@ -2911,12 +2914,14 @@ export default function TimerPage() {
   };
 
   const clearManualTimer = () => {
-    setCustomMinutes('0');
-    setCustomSeconds('0');
     setManualTotalTime(0);
     setManualTimeLeft(0);
     setManualIsRunning(false);
     setManualEndTime(null);
+    setManualMinutesInputValue('');
+    setManualSecondsInputValue('');
+    setIsManualTimeEditing(false);
+    setManualEditingPart(null);
   };
 
   const updateDrawCaseState = (
@@ -3922,6 +3927,12 @@ export default function TimerPage() {
     setIsEditingNotice(false);
   };
 
+  const closeMemoNotebook = () => {
+    setIsMemoOpen(false);
+    setIsNoticeEnabled(false);
+    setIsEditingNotice(false);
+  };
+
   const handleNoticeBlur = (event: React.FocusEvent<HTMLTextAreaElement>) => {
     const nextFocusedElement = event.relatedTarget;
     if (
@@ -4120,12 +4131,7 @@ export default function TimerPage() {
   };
 
   const manualProgress = manualTotalTime > 0 ? Math.max(0, Math.min(1, manualTimeLeft / manualTotalTime)) : 0;
-  const isManualFinished = manualTotalTime > 0 && manualTimeLeft === 0;
-  const manualClockClass = manualIsRunning
-    ? 'text-[#5C8D5D]'
-    : isManualFinished
-      ? 'text-[#B55E4C]'
-      : 'text-[#8A6347]';
+  const manualClockClass = 'text-[#006241]';
   const drawOverlayCaseId = isStudentDrawing
     ? resolvedActiveDrawCaseId
     : drawOverlay?.caseId ?? resolvedActiveDrawCaseId;
@@ -4252,8 +4258,8 @@ export default function TimerPage() {
     ? { animation: 'noticeFadeIn 220ms ease-out' }
     : undefined;
   const noticeHandleToneClass = shouldShowNoticeCard ? 'notice-toggle-open' : 'notice-toggle-closed';
-  const noticeHandleButtonClass = `notice-toggle ${noticeHandleToneClass} group relative inline-flex h-8 min-w-[3.2rem] items-center justify-center rounded-[1rem] border-2 px-2.5 transition-all hover:-translate-y-px active:translate-y-0`;
-  const noticeHandleIconClass = `inline-flex h-5 min-w-[1.85rem] items-center justify-center rounded-full border ${shouldShowNoticeCard ? 'notice-toggle-icon-open' : 'notice-toggle-icon-closed'}`;
+  const noticeHandleButtonClass = `notice-toggle ${noticeHandleToneClass} group relative inline-flex h-8 min-w-[9.5rem] items-center justify-center rounded-[1rem] border-2 px-5 transition-all hover:-translate-y-px active:translate-y-0 sm:min-w-[11rem] md:min-w-[12.5rem]`;
+  const noticeHandleIconClass = `inline-flex h-5 min-w-[3.25rem] items-center justify-center rounded-full border ${shouldShowNoticeCard ? 'notice-toggle-icon-open' : 'notice-toggle-icon-closed'}`;
   const noticeHandleLineClass = `pointer-events-none absolute inset-x-1.5 top-[3px] h-px rounded-full ${shouldShowNoticeCard ? 'notice-toggle-line-open' : 'notice-toggle-line-closed'}`;
   const musicButtonLabel = isMusicPlaying ? '배경 음악 끄기' : '배경 음악 켜기';
   const noticeMemoButton = (
@@ -4310,19 +4316,21 @@ export default function TimerPage() {
           </div>
         ) : (
           <>
-            <div className="absolute left-1/2 top-0 z-20 flex -translate-x-1/2 -translate-y-[42%] flex-col items-center">
-              <button
-                onClick={() => setIsNoticeEnabled(false)}
-                className={noticeHandleButtonClass}
-                title="공지 닫기"
-                aria-label="공지 닫기"
-                type="button"
-              >
-                <span aria-hidden="true" className={noticeHandleLineClass} />
-                <span aria-hidden="true" className={noticeHandleIconClass}>
-                  <ChevronDown size={10} strokeWidth={2.7} className="rotate-180" />
-                </span>
-              </button>
+            <div className="absolute left-1/2 top-0 z-20 flex -translate-x-1/2 -translate-y-[128%] flex-col items-center">
+              <div className="notice-reveal-zone -m-3 p-3">
+                <button
+                  onClick={() => setIsNoticeEnabled(false)}
+                  className={noticeHandleButtonClass}
+                  title="공지 닫기"
+                  aria-label="공지 닫기"
+                  type="button"
+                >
+                  <span aria-hidden="true" className={noticeHandleLineClass} />
+                  <span aria-hidden="true" className={noticeHandleIconClass}>
+                    <ChevronDown size={10} strokeWidth={2.7} className="rotate-180" />
+                  </span>
+                </button>
+              </div>
             </div>
             <div className="notice-content relative grid min-h-[3.6rem] w-full grid-rows-[1.45rem_minmax(0,1fr)_1.45rem] rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-1.5 transition-colors hover:bg-white sm:min-h-[3.85rem] sm:grid-rows-[1.55rem_minmax(0,1fr)_1.55rem] sm:px-3 md:min-h-[4.1rem] md:grid-rows-[1.7rem_minmax(0,1fr)_1.7rem]">
               <div aria-hidden="true" className="row-start-1" />
@@ -4345,8 +4353,8 @@ export default function TimerPage() {
       </div>
     </div>
   ) : shouldShowNoticeHandle ? (
-    <div className="pointer-events-none absolute inset-x-0 top-1 z-30 flex justify-center sm:top-1.5 md:top-2">
-      <div className="pointer-events-auto">
+    <div className="pointer-events-none absolute inset-x-0 -top-8 z-30 flex justify-center sm:-top-8 md:-top-9">
+      <div className="notice-reveal-zone pointer-events-auto -m-3 p-3">
         <button
           onClick={openNoticePanel}
           className={noticeHandleButtonClass}
@@ -5006,13 +5014,13 @@ export default function TimerPage() {
         >
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
-            <div className="absolute left-4 top-4 z-40 flex items-start sm:left-5 sm:top-5 md:left-6 md:top-6">
+            <div className="bgm-reveal-zone absolute left-1 top-1 z-40 flex items-start p-3 sm:left-2 sm:top-2 md:left-3 md:top-3">
               <button
                 onClick={toggleBackgroundMusic}
                 onPointerDown={(event) => event.stopPropagation()}
                 className={`sound-toggle timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] shrink-0 items-center justify-center rounded-[1.45rem] transition-all sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl ${
                   isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
-                } ${isMusicLoading ? 'cursor-not-allowed opacity-45' : ''}`}
+                } ${isMusicLoading ? 'cursor-not-allowed sound-toggle-loading' : ''}`}
                 title={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
                 aria-label={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
                 type="button"
@@ -5369,6 +5377,7 @@ export default function TimerPage() {
                     onClick={() => {
                       setIsDrawCaseMenuOpen(false);
                       setIsLibraryOpen(false);
+                      setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
                       setIsSettingsOpen(true);
                     }}
                     className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E6DE] bg-white text-[#006241] transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7]"
@@ -5438,8 +5447,72 @@ export default function TimerPage() {
                 >
                     <div className="rounded-[1.45rem] border border-[#E6D5C9] bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                       <div className="flex items-end justify-between gap-3">
-                        <div className={`manual-timer-display font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}>
-                          {formatTime(manualTimeLeft)}
+                        <div
+                          className={`manual-timer-display manual-timer-display-input flex items-baseline font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}
+                          aria-label="보조 타이머 시간"
+                          title="보조 타이머 시간 수정"
+                        >
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={isManualTimeEditing && manualEditingPart === 'minutes'
+                              ? manualMinutesInputValue
+                              : Math.floor(manualTimeLeft / 60).toString().padStart(2, '0')}
+                            onFocus={(event) => {
+                              setManualMinutesInputValue(Math.floor(manualTimeLeft / 60).toString().padStart(2, '0'));
+                              setIsManualTimeEditing(true);
+                              setManualEditingPart('minutes');
+                              event.currentTarget.select();
+                            }}
+                            onChange={(event) => {
+                              setManualMinutesInputValue(event.target.value.replace(/\D/g, '').slice(0, 3));
+                            }}
+                            onBlur={() => commitManualTimeInput('minutes')}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.currentTarget.blur();
+                                return;
+                              }
+
+                              if (event.key === 'Escape') {
+                                skipManualTimeCommitRef.current = true;
+                                event.currentTarget.blur();
+                              }
+                            }}
+                            className="manual-timer-display-part manual-timer-display-part-minutes bg-transparent text-right outline-none"
+                            aria-label="보조 타이머 분"
+                          />
+                          <span className="manual-timer-display-colon select-none" aria-hidden="true">:</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={isManualTimeEditing && manualEditingPart === 'seconds'
+                              ? manualSecondsInputValue
+                              : (manualTimeLeft % 60).toString().padStart(2, '0')}
+                            onFocus={(event) => {
+                              setManualSecondsInputValue((manualTimeLeft % 60).toString().padStart(2, '0'));
+                              setIsManualTimeEditing(true);
+                              setManualEditingPart('seconds');
+                              event.currentTarget.select();
+                            }}
+                            onChange={(event) => {
+                              setManualSecondsInputValue(event.target.value.replace(/\D/g, '').slice(0, 2));
+                            }}
+                            onBlur={() => commitManualTimeInput('seconds')}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.currentTarget.blur();
+                                return;
+                              }
+
+                              if (event.key === 'Escape') {
+                                skipManualTimeCommitRef.current = true;
+                                event.currentTarget.blur();
+                              }
+                            }}
+                            className="manual-timer-display-part manual-timer-display-part-seconds bg-transparent text-left outline-none"
+                            aria-label="보조 타이머 초"
+                          />
                         </div>
                         <div className="flex items-center gap-2">
                           <button
@@ -5473,13 +5546,13 @@ export default function TimerPage() {
                       </div>
                       <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EDE2D7]">
                         <div
-                          className={`h-full rounded-full transition-all duration-300 ${manualIsRunning ? 'bg-[#7DA36C]' : isManualFinished ? 'bg-[#D37C68]' : 'bg-[#B68A67]'}`}
+                          className="h-full rounded-full bg-[#00754A] transition-all duration-300"
                           style={{ width: `${manualProgress * 100}%` }}
                         />
                       </div>
                     </div>
 
-                    <div className="manual-timer-adjust-row mt-4">
+                    <div className="manual-timer-adjust-row manual-timer-adjust-row-presets-only mt-4">
                       <div className="manual-timer-preset-grid">
                         {MANUAL_TIMER_PRESETS.map((preset) => (
                           <button
@@ -5492,32 +5565,6 @@ export default function TimerPage() {
                           </button>
                         ))}
                       </div>
-
-                      <div className="manual-timer-custom-inputs flex items-center justify-center gap-3">
-                        <div className="manual-timer-field flex flex-col items-center">
-                          <input
-                            type="number"
-                            value={customMinutes}
-                            onChange={(e) => handleCustomMinutesChange(e.target.value)}
-                            className="time-input manual-timer-number-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                            min="0"
-                            max="999"
-                          />
-                          <span className="mt-1 text-sm font-bold text-[#8A6347]/70">분</span>
-                        </div>
-                        <span className="manual-timer-colon mb-6 text-2xl font-bold text-[#8A6347]">:</span>
-                        <div className="manual-timer-field flex flex-col items-center">
-                          <input
-                            type="number"
-                            value={customSeconds}
-                            onChange={(e) => handleCustomSecondsChange(e.target.value)}
-                            className="time-input manual-timer-number-input w-20 rounded-xl border border-[#E6D5C9] bg-white px-2 py-3 text-center font-mono text-2xl font-bold text-[#8A6347] outline-none transition-all focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                            min="0"
-                            max="59"
-                          />
-                          <span className="mt-1 text-sm font-bold text-[#8A6347]/70">초</span>
-                        </div>
-                      </div>
                     </div>
                 </div>
 
@@ -5529,11 +5576,7 @@ export default function TimerPage() {
                     setIsLibraryOpen(false);
                     setIsExtraTimerVisible((previous) => !previous);
                   }}
-                  className={`manual-timer-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] border p-3 text-center text-[#8A6347] shadow-[0_14px_28px_rgba(95,71,50,0.1)] transition-all ${
-                    manualIsRunning
-                      ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]'
-                      : 'border-[#E6D5C9] bg-white/96 hover:border-[#D3BEA9] hover:bg-white'
-                  }`}
+                  className="manual-timer-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] border border-[#E6D5C9] bg-white/96 p-3 text-center text-[#006241] shadow-[0_14px_28px_rgba(95,71,50,0.1)] transition-all hover:border-[#D3BEA9] hover:bg-white"
                   aria-haspopup="dialog"
                   aria-expanded={isExtraTimerVisible}
                   aria-label="보조 타이머"
@@ -6389,7 +6432,7 @@ export default function TimerPage() {
       />
       <MemoNotebookOverlay
         isOpen={isMemoOpen}
-        onClose={() => setIsMemoOpen(false)}
+        onClose={closeMemoNotebook}
         liveTimer={{
           isVisible: true,
           timeText: formatTime(displayTimeLeft),

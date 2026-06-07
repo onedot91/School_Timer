@@ -641,6 +641,24 @@ select {
   background: #ece7dc;
 }
 
+.notice-reveal-zone .notice-toggle {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.35rem) scale(0.94);
+}
+
+.notice-reveal-zone:hover .notice-toggle,
+.notice-reveal-zone:focus-within .notice-toggle {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.notice-reveal-zone .notice-toggle:focus-visible {
+  outline: 3px solid rgba(0, 117, 74, 0.2);
+  outline-offset: 4px;
+}
+
 .schedule-board {
   position: relative;
   overflow: hidden;
@@ -6120,6 +6138,29 @@ h3 {
   color: #684f41;
 }
 
+.bgm-reveal-zone .sound-toggle {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.35rem) scale(0.94);
+}
+
+.bgm-reveal-zone:hover .sound-toggle,
+.bgm-reveal-zone:focus-within .sound-toggle {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.bgm-reveal-zone:hover .sound-toggle-loading,
+.bgm-reveal-zone:focus-within .sound-toggle-loading {
+  opacity: 0.45;
+}
+
+.bgm-reveal-zone .sound-toggle:focus-visible {
+  outline: 3px solid rgba(0, 117, 74, 0.24);
+  outline-offset: 4px;
+}
+
 .editorial-clock-display {
   text-align: center;
   letter-spacing: -0.065em;
@@ -7274,7 +7315,7 @@ h3 {
 }
 
 .editorial-main-shell {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .timer-pane {
@@ -7456,6 +7497,26 @@ h3 {
 .icon-button,
 .page-nav-link {
   transition:
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease !important;
+}
+
+.bgm-reveal-zone .sound-toggle {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease !important;
+}
+
+.notice-reveal-zone .notice-toggle {
+  transition:
+    opacity 0.2s ease,
     transform 0.2s ease,
     background-color 0.2s ease,
     border-color 0.2s ease,
@@ -9585,12 +9646,46 @@ h3 {
 }
 
 .manual-timer-display {
-  min-width: 9.8rem;
+  min-width: 11.5rem;
   color: #111111 !important;
   font-size: clamp(2.85rem, 4.2vw, 4.15rem) !important;
   font-weight: 900 !important;
   letter-spacing: 0 !important;
   text-shadow: none !important;
+}
+
+.manual-timer-display-input {
+  width: 11.5rem;
+  border-radius: 0.75rem;
+  padding: 0.05rem 0.25rem;
+  caret-color: #006241;
+  overflow: visible;
+}
+
+.manual-timer-display-input:focus-within {
+  background: rgba(237, 246, 241, 0.76) !important;
+  box-shadow: 0 0 0 2px rgba(0, 98, 65, 0.16);
+}
+
+.manual-timer-display-part {
+  min-width: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  overflow: visible;
+}
+
+.manual-timer-display-part-minutes {
+  width: 3ch;
+}
+
+.manual-timer-display-part-seconds {
+  width: 2.35ch;
+}
+
+.manual-timer-display-colon {
+  padding-inline: 0.05rem;
 }
 
 .manual-timer-popover .round-action {
@@ -9621,9 +9716,13 @@ h3 {
   margin-top: 0.75rem !important;
 }
 
+.manual-timer-adjust-row-presets-only {
+  grid-template-columns: 1fr;
+}
+
 .manual-timer-preset-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.45rem;
 }
 
@@ -9802,8 +9901,12 @@ h3 {
   }
 
   .manual-timer-display {
-    min-width: 7.4rem;
+    min-width: 9.8rem;
     font-size: clamp(2.25rem, 8vw, 3rem) !important;
+  }
+
+  .manual-timer-display-input {
+    width: 9.8rem;
   }
 
   .manual-timer-adjust-row {
