@@ -721,9 +721,14 @@ select {
 }
 
 .schedule-row-time {
+  flex: 0 0 auto;
   font-size: 1.05rem;
   line-height: 1;
+  min-width: 8.8em;
+  text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .schedule-row-idle {
@@ -9646,16 +9651,18 @@ h3 {
 }
 
 .manual-timer-display {
-  min-width: 11.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
   color: #111111 !important;
-  font-size: clamp(2.85rem, 4.2vw, 4.15rem) !important;
+  font-size: 3rem !important;
   font-weight: 900 !important;
   letter-spacing: 0 !important;
   text-shadow: none !important;
 }
 
 .manual-timer-display-input {
-  width: 11.5rem;
+  width: auto;
+  max-width: 100%;
   border-radius: 0.75rem;
   padding: 0.05rem 0.25rem;
   caret-color: #006241;
@@ -9677,11 +9684,11 @@ h3 {
 }
 
 .manual-timer-display-part-minutes {
-  width: 3ch;
+  width: 2.25ch;
 }
 
 .manual-timer-display-part-seconds {
-  width: 2.35ch;
+  width: 2.25ch;
 }
 
 .manual-timer-display-colon {
@@ -9901,12 +9908,11 @@ h3 {
   }
 
   .manual-timer-display {
-    min-width: 9.8rem;
-    font-size: clamp(2.25rem, 8vw, 3rem) !important;
+    font-size: 2.55rem !important;
   }
 
   .manual-timer-display-input {
-    width: 9.8rem;
+    width: auto;
   }
 
   .manual-timer-adjust-row {

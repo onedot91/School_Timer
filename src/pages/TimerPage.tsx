@@ -4114,19 +4114,22 @@ export default function TimerPage() {
   }
 
   const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
+    const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+    const m = Math.floor(safeSeconds / 60);
+    const s = safeSeconds % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const formatMinutesToTime = (mins: number) => {
-    const h = Math.floor(mins / 60).toString().padStart(2, '0');
-    const m = (mins % 60).toString().padStart(2, '0');
+    const safeMins = Number.isFinite(mins) ? Math.max(0, Math.floor(mins)) : 0;
+    const h = Math.floor(safeMins / 60).toString().padStart(2, '0');
+    const m = (safeMins % 60).toString().padStart(2, '0');
     return `${h}:${m}`;
   };
 
   const parseTimeToMinutes = (timeStr: string) => {
     const [h, m] = timeStr.split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
     return h * 60 + m;
   };
 
