@@ -234,8 +234,10 @@ const YOUTUBE_IFRAME_API_SRC = 'https://www.youtube.com/iframe_api';
 const YOUTUBE_PLAYER_STATE_ENDED = 0;
 
 interface YoutubePlayerInstance {
+  cueVideoById: (videoId: string | { videoId: string; startSeconds?: number }) => void;
   loadVideoById: (videoId: string | { videoId: string; startSeconds?: number }) => void;
   mute: () => void;
+  pauseVideo: () => void;
   playVideo: () => void;
   destroy: () => void;
 }
@@ -2090,12 +2092,15 @@ function MemoNotebookOverlay({
 
 function ScheduleYoutubePlayer({
   videoIds,
+  shouldAutoplay,
 }: {
   videoIds: string[];
+  shouldAutoplay: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YoutubePlayerInstance | null>(null);
   const autoplayRetryRef = useRef(false);
+  const shouldAutoplayRef = useRef(shouldAutoplay);
   const queuedVideoIdsRef = useRef(videoIds);
   const activeVideoIdRef = useRef(videoIds[0] || '');
   const activeIndexRef = useRef(0);
@@ -2103,6 +2108,7 @@ function ScheduleYoutubePlayer({
   const playlistKey = videoIds.join(',');
 
   queuedVideoIdsRef.current = videoIds;
+  shouldAutoplayRef.current = shouldAutoplay;
 
   const playVideoAtIndex = (player: YoutubePlayerInstance, index: number, muted = false) => {
     const nextVideoId = queuedVideoIdsRef.current[index];
@@ -2120,6 +2126,16 @@ function ScheduleYoutubePlayer({
     player.playVideo();
   };
 
+  const cueVideoAtIndex = (player: YoutubePlayerInstance, index: number) => {
+    const nextVideoId = queuedVideoIdsRef.current[index];
+    if (!nextVideoId) return;
+
+    activeIndexRef.current = index;
+    activeVideoIdRef.current = nextVideoId;
+    hasReachedQueueEndRef.current = false;
+    player.cueVideoById(nextVideoId);
+  };
+
   useEffect(() => {
     if (videoIds.length === 0 || playerRef.current) return;
 
@@ -2135,21 +2151,27 @@ function ScheduleYoutubePlayer({
           height: '100%',
           videoId: videoIds[0],
           playerVars: {
-            autoplay: 1,
+            autoplay: shouldAutoplay ? 1 : 0,
             playsinline: 1,
             rel: 0,
             origin: window.location.origin,
           },
           events: {
             onReady: (event) => {
-              playVideoAtIndex(event.target, 0);
+              if (shouldAutoplayRef.current) {
+                playVideoAtIndex(event.target, 0);
+              } else {
+                cueVideoAtIndex(event.target, 0);
+              }
             },
             onAutoplayBlocked: (event) => {
+              if (!shouldAutoplayRef.current) return;
               if (autoplayRetryRef.current) return;
               autoplayRetryRef.current = true;
               playVideoAtIndex(event.target, activeIndexRef.current, true);
             },
             onStateChange: (event) => {
+              if (!shouldAutoplayRef.current) return;
               if (event.data !== YOUTUBE_PLAYER_STATE_ENDED) return;
 
               const nextIndex = activeIndexRef.current + 1;
@@ -2171,7 +2193,7 @@ function ScheduleYoutubePlayer({
     return () => {
       isCancelled = true;
     };
-  }, [videoIds.length]);
+  }, [videoIds.length, shouldAutoplay]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -2181,7 +2203,7 @@ function ScheduleYoutubePlayer({
     if (currentIndex >= 0) {
       activeIndexRef.current = currentIndex;
 
-      if (hasReachedQueueEndRef.current && currentIndex < videoIds.length - 1) {
+      if (shouldAutoplay && hasReachedQueueEndRef.current && currentIndex < videoIds.length - 1) {
         autoplayRetryRef.current = false;
         playVideoAtIndex(player, currentIndex + 1);
       }
@@ -2189,8 +2211,23 @@ function ScheduleYoutubePlayer({
     }
 
     autoplayRetryRef.current = false;
-    playVideoAtIndex(player, 0);
-  }, [playlistKey]);
+    if (shouldAutoplay) {
+      playVideoAtIndex(player, 0);
+    } else {
+      cueVideoAtIndex(player, 0);
+    }
+  }, [playlistKey, shouldAutoplay]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+
+    if (shouldAutoplay) {
+      player.playVideo();
+    } else {
+      player.pauseVideo();
+    }
+  }, [shouldAutoplay]);
 
   useEffect(() => {
     return () => {
@@ -2235,6 +2272,7 @@ export default function TimerPage() {
   const [hasMountedScheduleYoutubePlayer, setHasMountedScheduleYoutubePlayer] = useState(
     () => initialScheduleYoutubeState.isVisible && initialScheduleYoutubeState.appliedUrls.length > 0,
   );
+  const [shouldAutoplayScheduleYoutube, setShouldAutoplayScheduleYoutube] = useState(false);
   const [youtubeUrlError, setYoutubeUrlError] = useState('');
   const [youtubeFavoriteError, setYoutubeFavoriteError] = useState('');
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
@@ -2431,6 +2469,7 @@ export default function TimerPage() {
     setHasMountedScheduleYoutubePlayer(
       remoteSettings.scheduleYoutubeUrls.length > 0 && remoteSettings.isScheduleYoutubeVisible,
     );
+    setShouldAutoplayScheduleYoutube(false);
     setActiveDrawCaseId(remoteSettings.randomDraw.activeCaseId);
     setRepeatPickEnabled(remoteSettings.randomDraw.repeatPickEnabled);
     setDrawCases(remoteSettings.randomDraw.cases);
@@ -2527,6 +2566,7 @@ export default function TimerPage() {
   useEffect(() => {
     if (scheduleYoutubeVideoIds.length === 0) {
       setHasMountedScheduleYoutubePlayer(false);
+      setShouldAutoplayScheduleYoutube(false);
       return;
     }
 
@@ -3761,6 +3801,7 @@ export default function TimerPage() {
           setYoutubeUrlInput('');
           setScheduleYoutubeUrls(nextYoutubeUrls);
           setIsScheduleYoutubeVisible(nextYoutubeVisible);
+          setShouldAutoplayScheduleYoutube(false);
           setYoutubeUrlError('');
           setScheduleClockOffsetSeconds(nextClockOffsetSeconds);
           if (nextRandomDraw) {
@@ -3822,6 +3863,7 @@ export default function TimerPage() {
     setYoutubeUrlInput('');
     setScheduleYoutubeUrls(nextUrls);
     setIsScheduleYoutubeVisible(true);
+    setShouldAutoplayScheduleYoutube(true);
     setYoutubeUrlError('');
     setIsYoutubePanelOpen(false);
   };
@@ -3895,6 +3937,7 @@ export default function TimerPage() {
     setYoutubeUrlInput('');
     setScheduleYoutubeUrls([]);
     setIsScheduleYoutubeVisible(false);
+    setShouldAutoplayScheduleYoutube(false);
     setYoutubeUrlError('');
   };
 
@@ -5359,7 +5402,13 @@ export default function TimerPage() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => setIsScheduleYoutubeVisible((previous) => !previous)}
+                        onClick={() => {
+                          setIsScheduleYoutubeVisible((previous) => {
+                            const nextVisible = !previous;
+                            setShouldAutoplayScheduleYoutube(nextVisible);
+                            return nextVisible;
+                          });
+                        }}
                         className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
                         title={isScheduleYoutubeVisible ? '유튜브 임베드 숨기기' : '유튜브 임베드 보이기'}
                       >
@@ -5403,7 +5452,10 @@ export default function TimerPage() {
                   aria-hidden={!isScheduleYoutubeVisible}
                 >
                   <div className="aspect-video w-full bg-[#F3E9DE]">
-                    <ScheduleYoutubePlayer videoIds={scheduleYoutubeVideoIds} />
+                    <ScheduleYoutubePlayer
+                      videoIds={scheduleYoutubeVideoIds}
+                      shouldAutoplay={shouldAutoplayScheduleYoutube}
+                    />
                   </div>
                 </div>
               ) : null}
