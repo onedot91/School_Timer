@@ -40,13 +40,19 @@ import {
   saveAnnouncementNote,
   saveSharedSettings,
 } from '../lib/supabaseSettings';
+import {
+  STUDENT_CHARACTERS,
+  STUDENT_CHARACTER_ROTATION_SECONDS,
+  type StudentCharacter,
+} from '../lib/studentCharacters';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'draw';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 interface ScheduleSlot {
   id: string;
   name: string;
+  subject?: string;
   type: TimerType;
   start: number; // minutes from 00:00
   end: number;
@@ -81,7 +87,9 @@ interface TimerAppState {
 interface SharedSchoolTimerSettings {
   version: 1;
   weeklySchedule: WeeklySchedule;
+  weeklySubjects?: WeeklySubjectSchedule;
   scheduleNotice: string;
+  scheduleNoticeHighlights?: NoticeHighlightRange[];
   isNoticeEnabled: boolean;
   scheduleClockOffsetSeconds: number;
   scheduleYoutubeUrls: string[];
@@ -92,6 +100,12 @@ interface SharedSchoolTimerSettings {
     totalTime: number;
     isVisible: boolean;
   };
+}
+
+interface NoticeHighlightRange {
+  start: number;
+  end: number;
+  color: NoticeHighlightColorId;
 }
 
 interface DrawOverlayState {
@@ -105,10 +119,19 @@ interface ScheduleYoutubeFavorite {
   id: string;
   name: string;
   urls: string[];
+  title?: string;
+  channelTitle?: string;
+  thumbnailUrl?: string;
 }
 
 interface ScheduleYoutubeSearchResult {
   id: string;
+  title: string;
+  channelTitle: string;
+  thumbnailUrl: string;
+}
+
+interface ScheduleYoutubeMetadata {
   title: string;
   channelTitle: string;
   thumbnailUrl: string;
@@ -159,6 +182,7 @@ const getUniqueDrawHistoryEntries = (historyEntries: RandomDrawHistoryEntry[]) =
 type WeeklySchedule = {
   [key: number]: ScheduleSlot[]; // 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri
 };
+type WeeklySubjectSchedule = Record<string, Record<number, Record<string, string>>>;
 
 const MORNING_ACTIVITY_LABEL = '\uC544\uCE68\uD65C\uB3D9';
 const MORNING_DEFAULT_DURATION = 15;
@@ -168,10 +192,13 @@ const BACKGROUND_MUSIC_VOLUME = 0.24;
 const BACKGROUND_MUSIC_SRC = '/background_music.mp3';
 const SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS = 59;
 const WEEKDAYS = [1, 2, 3, 4, 5];
-const ANNOUNCEMENT_VISIBLE_LINES = 5;
-const ANNOUNCEMENT_MIN_RULE_GAP_PX = 92;
+const ANNOUNCEMENT_MIN_VISIBLE_LINES = 6;
+const ANNOUNCEMENT_MAX_VISIBLE_LINES = 14;
+const ANNOUNCEMENT_MIN_RULE_GAP_PX = 52;
 const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
+const WEEKLY_SUBJECTS_STORAGE_KEY = 'weeklySubjects-v1';
+const SCHEDULE_NOTICE_HIGHLIGHTS_STORAGE_KEY = 'scheduleNoticeHighlights-v1';
 const MEMO_NOTE_STORAGE_KEY = 'school-memo-note-v1';
 const MEMO_NOTE_PLACEHOLDER = '메모 입력';
 const MEMO_NOTE_MIN_FONT_SCALE = 0;
@@ -181,6 +208,7 @@ const MEMO_NOTE_FONT_SCALE_STEP = 5;
 const MEMO_NOTE_MIN_FONT_SIZE = 40;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
 const SCHEDULE_YOUTUBE_URLS_STORAGE_KEY = 'scheduleYoutubeUrls-v2';
+const SCHEDULE_YOUTUBE_METADATA_STORAGE_KEY = 'scheduleYoutubeMetadata-v1';
 
 let sharedBackgroundMusicAudio: HTMLAudioElement | null = null;
 
@@ -209,6 +237,10 @@ const MEMO_NOTE_TEXT_COLORS = [
   { id: 'red', label: '빨강', value: '#c7684a' },
   { id: 'blue', label: '파랑', value: '#2d63b8' },
 ] as const;
+const NOTICE_HIGHLIGHT_COLORS = [
+  { id: 'coral', label: '코랄', value: '#c95f49' },
+] as const;
+type NoticeHighlightColorId = (typeof NOTICE_HIGHLIGHT_COLORS)[number]['id'];
 const DRAW_EMPTY_MESSAGE = '완료';
 const DRAW_RESET_MESSAGE = '섞는 중';
 const DRAW_SHORTCUT_LABEL = 'ArrowRight';
@@ -259,6 +291,7 @@ const YOUTUBE_IFRAME_API_SRC = 'https://www.youtube.com/iframe_api';
 const YOUTUBE_SEARCH_API_SRC = 'https://www.googleapis.com/youtube/v3/search';
 const YOUTUBE_SEARCH_MAX_RESULTS = 6;
 const YOUTUBE_PLAYER_STATE_ENDED = 0;
+const YOUTUBE_PLAYER_STATE_PLAYING = 1;
 const YOUTUBE_END_DETECTION_SECONDS = 0.6;
 
 const YOUTUBE_SEARCH_API_KEY =
@@ -272,6 +305,10 @@ interface YoutubePlayerInstance {
   getCurrentTime: () => number;
   getDuration: () => number;
   getPlayerState: () => number;
+  getVideoData?: () => {
+    title?: string;
+    author?: string;
+  };
   mute: () => void;
   unMute: () => void;
   pauseVideo: () => void;
@@ -355,6 +392,61 @@ const clampMemoFontScale = (value: unknown) => {
   const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric)) return MEMO_NOTE_DEFAULT_FONT_SCALE;
   return Math.max(MEMO_NOTE_MIN_FONT_SCALE, Math.min(MEMO_NOTE_MAX_FONT_SCALE, Math.round(numeric)));
+};
+
+const normalizeNoticeHighlightRanges = (value: unknown, text: string): NoticeHighlightRange[] => {
+  if (!Array.isArray(value) || text.length === 0) return [];
+  const validColorIds = new Set<NoticeHighlightColorId>(NOTICE_HIGHLIGHT_COLORS.map((color) => color.id));
+
+  const ranges = value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const range = entry as Partial<NoticeHighlightRange>;
+      const start = Math.max(0, Math.min(text.length, Math.trunc(Number(range.start))));
+      const end = Math.max(0, Math.min(text.length, Math.trunc(Number(range.end))));
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+      const normalizedStart = Math.min(start, end);
+      const normalizedEnd = Math.max(start, end);
+      const color = validColorIds.has(range.color as NoticeHighlightColorId)
+        ? (range.color as NoticeHighlightColorId)
+        : NOTICE_HIGHLIGHT_COLORS[0].id;
+      return normalizedEnd > normalizedStart ? { start: normalizedStart, end: normalizedEnd, color } : null;
+    })
+    .filter((range): range is NoticeHighlightRange => range !== null)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  return ranges.reduce<NoticeHighlightRange[]>((merged, range) => {
+    const previous = merged[merged.length - 1];
+    if (!previous || range.start > previous.end || previous.color !== range.color) {
+      merged.push(range);
+      return merged;
+    }
+    previous.end = Math.max(previous.end, range.end);
+    return merged;
+  }, []);
+};
+
+const removeNoticeHighlightRange = (
+  ranges: NoticeHighlightRange[],
+  target: NoticeHighlightRange,
+  text: string,
+) => {
+  const nextRanges = ranges.flatMap<NoticeHighlightRange>((range) => {
+    if (target.end <= range.start || target.start >= range.end) {
+      return [range];
+    }
+
+    const splitRanges: NoticeHighlightRange[] = [];
+    if (target.start > range.start) {
+      splitRanges.push({ start: range.start, end: target.start, color: range.color });
+    }
+    if (target.end < range.end) {
+      splitRanges.push({ start: target.end, end: range.end, color: range.color });
+    }
+    return splitRanges;
+  });
+
+  return normalizeNoticeHighlightRanges(nextRanges, text);
 };
 
 const getMemoFontSizeFromScale = (scale: number) =>
@@ -449,10 +541,15 @@ const extractYoutubeVideoId = (value: string) => {
 
 const buildScheduleYoutubeWatchUrl = (videoId: string) => `https://www.youtube.com/watch?v=${videoId}`;
 
-const buildScheduleYoutubeSearchUrl = (query: string) =>
-  `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-
 const createScheduleYoutubeFavoriteId = () => `youtube-favorite-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+const buildScheduleYoutubeLyricsQuery = (query: string) => {
+  const normalizedQuery = query.trim();
+  if (/(^|\s)(가사|lyrics?|lyric\s+video)(\s|$)/i.test(normalizedQuery)) {
+    return normalizedQuery;
+  }
+  return `${normalizedQuery} 가사`;
+};
 
 const normalizeScheduleYoutubeUrls = (values: unknown) => {
   if (!Array.isArray(values)) return [];
@@ -484,9 +581,44 @@ const normalizeScheduleYoutubeFavorites = (values: unknown): ScheduleYoutubeFavo
           ? favorite.name.trim()
           : `즐겨찾기 ${index + 1}`,
       urls,
+      title: typeof favorite.title === 'string' ? favorite.title.trim() : undefined,
+      channelTitle: typeof favorite.channelTitle === 'string' ? favorite.channelTitle.trim() : undefined,
+      thumbnailUrl: typeof favorite.thumbnailUrl === 'string' ? favorite.thumbnailUrl.trim() : undefined,
     });
     return favorites;
   }, []);
+};
+
+const normalizeScheduleYoutubeMetadataMap = (value: unknown): Record<string, ScheduleYoutubeMetadata> => {
+  if (!value || typeof value !== 'object') return {};
+
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, ScheduleYoutubeMetadata>>(
+    (metadataMap, [url, metadata]) => {
+      if (!metadata || typeof metadata !== 'object') return metadataMap;
+
+      const parsed = metadata as Partial<ScheduleYoutubeMetadata>;
+      const title = typeof parsed.title === 'string' ? parsed.title.trim() : '';
+      if (!title) return metadataMap;
+
+      metadataMap[url] = {
+        title,
+        channelTitle: typeof parsed.channelTitle === 'string' ? parsed.channelTitle.trim() : '',
+        thumbnailUrl: typeof parsed.thumbnailUrl === 'string' ? parsed.thumbnailUrl.trim() : '',
+      };
+      return metadataMap;
+    },
+    {},
+  );
+};
+
+const getStoredScheduleYoutubeMetadataMap = () => {
+  try {
+    const savedMetadata = localStorage.getItem(SCHEDULE_YOUTUBE_METADATA_STORAGE_KEY);
+    if (!savedMetadata) return {};
+    return normalizeScheduleYoutubeMetadataMap(JSON.parse(savedMetadata));
+  } catch {
+    return {};
+  }
 };
 
 const getStoredScheduleYoutubeUrls = () => {
@@ -512,29 +644,6 @@ const getStoredScheduleYoutubeUrls = () => {
   } catch {
     return [];
   }
-};
-
-const parseScheduleYoutubeInput = (rawValue: string) => {
-  const normalizedUrls: string[] = [];
-  const invalidLineNumbers: number[] = [];
-
-  rawValue.split(/\r?\n/).forEach((line, index) => {
-    const entry = line.trim();
-    if (!entry) return;
-
-    const videoId = extractYoutubeVideoId(entry);
-    if (!videoId) {
-      invalidLineNumbers.push(index + 1);
-      return;
-    }
-
-    normalizedUrls.push(buildScheduleYoutubeWatchUrl(videoId));
-  });
-
-  return {
-    normalizedUrls,
-    invalidLineNumbers,
-  };
 };
 
 const mergeScheduleYoutubeUrls = (currentUrls: string[], nextUrls: string[]) => {
@@ -778,6 +887,159 @@ const getScheduleClockParts = (timeMs: number, offsetSeconds: number) => {
 
 const isMorningSlot = (slot: ScheduleSlot) => slot.type === 'morning' || slot.name === MORNING_ACTIVITY_LABEL;
 
+const getSchedulePeriodNumber = (slot: Pick<ScheduleSlot, 'name' | 'type'>) => {
+  if (slot.type !== 'class') return null;
+  const match = slot.name.trim().match(/^(\d+)\s*교시$/);
+  return match ? match[1] : null;
+};
+
+const getScheduleSlotSubject = (slot: Pick<ScheduleSlot, 'subject'>) =>
+  typeof slot.subject === 'string' ? slot.subject.trim() : '';
+
+const getScheduleSubjectKey = (slot: ScheduleSlot) => getSchedulePeriodNumber(slot) ?? slot.name.trim();
+
+const isSubjectEditableClassSlot = (slot: ScheduleSlot) =>
+  slot.type === 'class' && getSchedulePeriodNumber(slot) !== null;
+
+const getWeekStartDate = (date: Date) => {
+  const weekStart = new Date(date);
+  weekStart.setHours(0, 0, 0, 0);
+  const day = weekStart.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  weekStart.setDate(weekStart.getDate() + offset);
+  return weekStart;
+};
+
+const formatDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getWeekKeyForDate = (date: Date) => formatDateKey(getWeekStartDate(date));
+
+const getWeekOfMonthByMonday = (weekStart: Date) => {
+  const firstDayOfMonth = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1);
+  const firstMonday = getWeekStartDate(firstDayOfMonth);
+  if (firstMonday.getMonth() !== weekStart.getMonth()) {
+    firstMonday.setDate(firstMonday.getDate() + 7);
+  }
+  return Math.max(1, Math.floor((weekStart.getTime() - firstMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1);
+};
+
+const getWeekOptionLabel = (weekKey: string) => {
+  const weekStart = new Date(`${weekKey}T00:00:00`);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 4);
+  const month = weekStart.getMonth() + 1;
+  const weekOfMonth = getWeekOfMonthByMonday(weekStart);
+  return `${weekStart.getFullYear()}년 ${month}월 ${weekOfMonth}주 (${month}/${weekStart.getDate()}-${weekEnd.getMonth() + 1}/${weekEnd.getDate()})`;
+};
+
+const buildSubjectWeekOptions = (centerDate: Date) => {
+  const centerWeekStart = getWeekStartDate(centerDate);
+  return Array.from({ length: 5 }, (_, index) => {
+    const weekStart = new Date(centerWeekStart);
+    weekStart.setDate(centerWeekStart.getDate() + (index - 2) * 7);
+    const key = formatDateKey(weekStart);
+    return { key, label: getWeekOptionLabel(key) };
+  });
+};
+
+const normalizeWeeklySubjects = (value: unknown): WeeklySubjectSchedule => {
+  if (!value || typeof value !== 'object') return {};
+
+  return Object.entries(value as Record<string, unknown>).reduce<WeeklySubjectSchedule>((weeks, [weekKey, weekValue]) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey) || !weekValue || typeof weekValue !== 'object') return weeks;
+
+    const normalizedDays = Object.entries(weekValue as Record<string, unknown>).reduce<Record<number, Record<string, string>>>(
+      (days, [dayKey, dayValue]) => {
+        const day = Number(dayKey);
+        if (!WEEKDAYS.includes(day) || !dayValue || typeof dayValue !== 'object') return days;
+
+        const normalizedSubjects = Object.entries(dayValue as Record<string, unknown>).reduce<Record<string, string>>(
+          (subjects, [subjectKey, subjectValue]) => {
+            const key = subjectKey.trim();
+            const subject = typeof subjectValue === 'string' ? subjectValue.trim() : '';
+            if (key.length > 0 && subject.length > 0) {
+              subjects[key] = subject;
+            }
+            return subjects;
+          },
+          {},
+        );
+
+        if (Object.keys(normalizedSubjects).length > 0) {
+          days[day] = normalizedSubjects;
+        }
+        return days;
+      },
+      {},
+    );
+
+    if (Object.keys(normalizedDays).length > 0) {
+      weeks[weekKey] = normalizedDays;
+    }
+    return weeks;
+  }, {});
+};
+
+const getWeeklySubject = (
+  weeklySubjects: WeeklySubjectSchedule,
+  weekKey: string,
+  day: number,
+  slot: ScheduleSlot,
+) => {
+  if (!isSubjectEditableClassSlot(slot)) return '';
+  const subjectKey = getScheduleSubjectKey(slot);
+  return weeklySubjects[weekKey]?.[day]?.[subjectKey] ?? '';
+};
+
+const buildWeeklySubjectsFromSchedule = (
+  schedule: WeeklySchedule,
+  weekKey: string,
+): WeeklySubjectSchedule => {
+  const weekSubjects = WEEKDAYS.reduce<Record<number, Record<string, string>>>((days, day) => {
+    const daySubjects = (schedule[day] || []).reduce<Record<string, string>>((subjects, slot) => {
+      if (!isSubjectEditableClassSlot(slot)) return subjects;
+      const subject = getScheduleSlotSubject(slot);
+      if (subject.length > 0) {
+        subjects[getScheduleSubjectKey(slot)] = subject;
+      }
+      return subjects;
+    }, {});
+
+    if (Object.keys(daySubjects).length > 0) {
+      days[day] = daySubjects;
+    }
+    return days;
+  }, {});
+
+  return Object.keys(weekSubjects).length > 0 ? { [weekKey]: weekSubjects } : {};
+};
+
+const getScheduleSlotDisplayTitle = (slot: ScheduleSlot, subject = getScheduleSlotSubject(slot)) => {
+  if (slot.type !== 'class') return slot.name;
+  const periodNumber = getSchedulePeriodNumber(slot);
+  const baseLabel = periodNumber ? `${periodNumber}교시` : slot.name;
+  return subject ? `${baseLabel} ${subject}` : baseLabel;
+};
+
+const getScheduleSlotTimerLabel = (slot: ScheduleSlot, subject = getScheduleSlotSubject(slot)) => {
+  if (slot.type !== 'class') return slot.name;
+  return subject || slot.name;
+};
+
+const getNextClassPeriodName = (daySchedule: ScheduleSlot[]) => {
+  const periodNumbers = daySchedule
+    .filter((slot) => slot.type === 'class')
+    .map((slot) => Number(getSchedulePeriodNumber(slot)))
+    .filter((periodNumber) => Number.isFinite(periodNumber) && periodNumber > 0);
+  const nextPeriodNumber = periodNumbers.length > 0 ? Math.max(...periodNumbers) + 1 : 1;
+  return `${nextPeriodNumber}교시`;
+};
+
 const normalizeDaySchedule = (daySchedule: ScheduleSlot[]) => {
   const cloned = (daySchedule || []).map((slot) => ({ ...slot }));
   const morningSlots = cloned.filter(isMorningSlot);
@@ -824,7 +1086,12 @@ const normalizeDaySchedule = (daySchedule: ScheduleSlot[]) => {
 
     const startFallback = slot.type === 'morning' ? 540 - MORNING_DEFAULT_DURATION : 540;
     const start = Math.max(0, Number.isFinite(slot.start) ? slot.start : startFallback);
-    normalized.push({ ...slot, start, end: start + duration });
+    normalized.push({
+      ...slot,
+      subject: slot.type === 'class' ? getScheduleSlotSubject(slot) : '',
+      start,
+      end: start + duration,
+    });
   }
 
   return normalized;
@@ -869,11 +1136,21 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     parsed.manualTimer && typeof parsed.manualTimer === 'object'
       ? (parsed.manualTimer as Partial<SharedSchoolTimerSettings['manualTimer']>)
       : {};
+  const weeklySchedule = normalizeWeeklySchedule((parsed.weeklySchedule || defaultWeeklySchedule) as WeeklySchedule);
+  const weeklySubjects = normalizeWeeklySubjects(parsed.weeklySubjects);
 
   return {
     version: 1,
-    weeklySchedule: normalizeWeeklySchedule((parsed.weeklySchedule || defaultWeeklySchedule) as WeeklySchedule),
+    weeklySchedule,
+    weeklySubjects:
+      Object.keys(weeklySubjects).length > 0
+        ? weeklySubjects
+        : buildWeeklySubjectsFromSchedule(weeklySchedule, getWeekKeyForDate(new Date())),
     scheduleNotice: typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '',
+    scheduleNoticeHighlights: normalizeNoticeHighlightRanges(
+      parsed.scheduleNoticeHighlights,
+      typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '',
+    ),
     isNoticeEnabled: parsed.isNoticeEnabled === true,
     scheduleClockOffsetSeconds: clampScheduleClockOffsetSeconds(parsed.scheduleClockOffsetSeconds),
     scheduleYoutubeUrls: normalizeScheduleYoutubeUrls(parsed.scheduleYoutubeUrls),
@@ -1321,6 +1598,7 @@ function AnnouncementNotebookOverlay({
   );
 
   const noteEditorRef = useRef<HTMLDivElement>(null);
+  const notePaperBodyRef = useRef<HTMLDivElement>(null);
   const noteDisplayRef = useRef<HTMLDivElement>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasRestoredRef = useRef(false);
@@ -1394,10 +1672,12 @@ function AnnouncementNotebookOverlay({
         const editor = noteEditorRef.current;
         if (!editor) return;
 
-        const nextGap = Math.max(
-          ANNOUNCEMENT_MIN_RULE_GAP_PX,
-          Math.round(editor.clientHeight / ANNOUNCEMENT_VISIBLE_LINES),
+        const hardLineCount = Math.max(1, noteText.split('\n').length);
+        const visibleLineTarget = Math.min(
+          ANNOUNCEMENT_MAX_VISIBLE_LINES,
+          Math.max(ANNOUNCEMENT_MIN_VISIBLE_LINES, hardLineCount + 1),
         );
+        const nextGap = Math.max(ANNOUNCEMENT_MIN_RULE_GAP_PX, Math.round(editor.clientHeight / visibleLineTarget));
         setNoteRuleGapPx((previous) => (previous === nextGap ? previous : nextGap));
       });
     };
@@ -1418,7 +1698,7 @@ function AnnouncementNotebookOverlay({
       window.cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [isOpen]);
+  }, [isOpen, noteText]);
 
   const pagePaddingClass = 'p-2 sm:p-3 lg:px-4 lg:pb-4 lg:pt-3 xl:px-5 xl:pb-5 xl:pt-3';
   const paperTopClass = 'px-3 pb-2 pt-3 sm:px-5 sm:pb-3 sm:pt-4';
@@ -1429,9 +1709,9 @@ function AnnouncementNotebookOverlay({
   const paperBodyStyle = {
     '--announcement-rule-gap': `${noteRuleGapPx}px`,
     '--announcement-rule-offset': `${Math.round(noteRuleGapPx * -0.24)}px`,
-    '--announcement-note-font-size': `${Math.max(40, Math.round(noteRuleGapPx * 0.39))}px`,
-    '--announcement-note-gutter-width': `${Math.max(60, Math.round(noteRuleGapPx * 0.56))}px`,
-    '--announcement-note-number-size': `${Math.max(30, Math.round(noteRuleGapPx * 0.32))}px`,
+    '--announcement-note-font-size': `${Math.max(30, Math.min(42, Math.round(noteRuleGapPx * 0.39)))}px`,
+    '--announcement-note-gutter-width': `${Math.max(42, Math.round(noteRuleGapPx * 0.5))}px`,
+    '--announcement-note-number-size': `${Math.max(24, Math.min(34, Math.round(noteRuleGapPx * 0.32)))}px`,
   } as React.CSSProperties;
   const currentAnnouncementDateKey = getAnnouncementDateKey(dateText);
   const saveStateLabel =
@@ -1453,10 +1733,12 @@ function AnnouncementNotebookOverlay({
   const syncNoteDisplayScroll = () => {
     const textarea = noteTextareaRef.current;
     const display = noteDisplayRef.current;
+    const paperBody = notePaperBodyRef.current;
     if (!textarea || !display) return;
 
     display.scrollTop = textarea.scrollTop;
     display.scrollLeft = textarea.scrollLeft;
+    paperBody?.style.setProperty('--announcement-note-scroll-y', `${textarea.scrollTop}px`);
   };
 
   const insertSafetyPhrase = () => {
@@ -1773,6 +2055,7 @@ function AnnouncementNotebookOverlay({
               </div>
 
               <div
+                ref={notePaperBodyRef}
                 className={`announcement-paper-body relative ${paperBodyLayoutClass} ${paperBodyClass}`}
                 style={paperBodyStyle}
               >
@@ -2153,15 +2436,26 @@ function MemoNotebookOverlay({
 function ScheduleYoutubePlayer({
   videoIds,
   shouldAutoplay,
+  selectedIndex,
+  selectionRequestId,
+  onActiveIndexChange,
+  onVideoMetadataChange,
 }: {
   videoIds: string[];
   shouldAutoplay: boolean;
+  selectedIndex: number;
+  selectionRequestId: number;
+  onActiveIndexChange: (index: number) => void;
+  onVideoMetadataChange: (index: number, metadata: ScheduleYoutubeMetadata) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YoutubePlayerInstance | null>(null);
   const autoplayRetryRef = useRef(false);
   const shouldAutoplayRef = useRef(shouldAutoplay);
+  const onActiveIndexChangeRef = useRef(onActiveIndexChange);
+  const onVideoMetadataChangeRef = useRef(onVideoMetadataChange);
   const queuedVideoIdsRef = useRef(videoIds);
+  const selectedIndexRef = useRef(selectedIndex);
   const activeVideoIdRef = useRef(videoIds[0] || '');
   const activeIndexRef = useRef(0);
   const hasReachedQueueEndRef = useRef(false);
@@ -2169,6 +2463,27 @@ function ScheduleYoutubePlayer({
 
   queuedVideoIdsRef.current = videoIds;
   shouldAutoplayRef.current = shouldAutoplay;
+  onActiveIndexChangeRef.current = onActiveIndexChange;
+  onVideoMetadataChangeRef.current = onVideoMetadataChange;
+  selectedIndexRef.current = selectedIndex;
+
+  const captureVideoMetadata = (player: YoutubePlayerInstance, index: number) => {
+    const videoData = player.getVideoData?.();
+    const title = (videoData?.title || '').trim();
+    if (!title) return;
+
+    onVideoMetadataChangeRef.current(index, {
+      title,
+      channelTitle: (videoData?.author || '').trim(),
+      thumbnailUrl: '',
+    });
+  };
+
+  const scheduleVideoMetadataCapture = (player: YoutubePlayerInstance, index: number) => {
+    captureVideoMetadata(player, index);
+    window.setTimeout(() => captureVideoMetadata(player, index), 600);
+    window.setTimeout(() => captureVideoMetadata(player, index), 1600);
+  };
 
   const playVideoAtIndex = (player: YoutubePlayerInstance, index: number, muted = false) => {
     const nextVideoId = queuedVideoIdsRef.current[index];
@@ -2177,6 +2492,7 @@ function ScheduleYoutubePlayer({
     activeIndexRef.current = index;
     activeVideoIdRef.current = nextVideoId;
     hasReachedQueueEndRef.current = false;
+    onActiveIndexChangeRef.current(index);
 
     if (muted) {
       player.mute();
@@ -2186,6 +2502,7 @@ function ScheduleYoutubePlayer({
 
     player.loadVideoById(nextVideoId);
     player.playVideo();
+    scheduleVideoMetadataCapture(player, index);
   };
 
   const cueVideoAtIndex = (player: YoutubePlayerInstance, index: number) => {
@@ -2195,7 +2512,9 @@ function ScheduleYoutubePlayer({
     activeIndexRef.current = index;
     activeVideoIdRef.current = nextVideoId;
     hasReachedQueueEndRef.current = false;
+    onActiveIndexChangeRef.current(index);
     player.cueVideoById(nextVideoId);
+    scheduleVideoMetadataCapture(player, index);
   };
 
   const playNextVideo = (player: YoutubePlayerInstance) => {
@@ -2256,7 +2575,7 @@ function ScheduleYoutubePlayer({
               cueVideoAtIndex(event.target, activeIndexRef.current);
             },
             onStateChange: (event) => {
-              if (!shouldAutoplayRef.current) return;
+              scheduleVideoMetadataCapture(event.target, activeIndexRef.current);
               if (event.data !== YOUTUBE_PLAYER_STATE_ENDED) return;
               playNextVideo(event.target);
             },
@@ -2296,12 +2615,25 @@ function ScheduleYoutubePlayer({
   }, [playlistKey, shouldAutoplay]);
 
   useEffect(() => {
+    const player = playerRef.current;
+    if (!player || queuedVideoIdsRef.current.length === 0 || selectionRequestId === 0) return;
+
+    const nextIndex = Math.max(0, Math.min(selectedIndexRef.current, queuedVideoIdsRef.current.length - 1));
+    autoplayRetryRef.current = false;
+    playVideoAtIndex(player, nextIndex);
+  }, [selectionRequestId]);
+
+  useEffect(() => {
     const intervalId = window.setInterval(() => {
       const player = playerRef.current;
-      if (!player || !shouldAutoplayRef.current || hasReachedQueueEndRef.current) return;
+      if (!player || hasReachedQueueEndRef.current) return;
       if (queuedVideoIdsRef.current.length <= 1) return;
 
-      if (player.getPlayerState() === YOUTUBE_PLAYER_STATE_ENDED || isCurrentVideoNearEnd(player)) {
+      const playerState = player.getPlayerState();
+      if (
+        playerState === YOUTUBE_PLAYER_STATE_ENDED ||
+        (playerState === YOUTUBE_PLAYER_STATE_PLAYING && isCurrentVideoNearEnd(player))
+      ) {
         playNextVideo(player);
       }
     }, 800);
@@ -2310,17 +2642,6 @@ function ScheduleYoutubePlayer({
       window.clearInterval(intervalId);
     };
   }, []);
-
-  useEffect(() => {
-    const player = playerRef.current;
-    if (!player) return;
-
-    if (shouldAutoplay) {
-      player.playVideo();
-    } else {
-      player.pauseVideo();
-    }
-  }, [shouldAutoplay]);
 
   useEffect(() => {
     return () => {
@@ -2332,11 +2653,67 @@ function ScheduleYoutubePlayer({
   return <div ref={containerRef} className="h-full w-full" />;
 }
 
+function StudentCharacterShowcase({
+  character,
+  timerType,
+  onImageError,
+}: {
+  character: StudentCharacter;
+  timerType: TimerType;
+  onImageError: (characterId: string) => void;
+}) {
+  const label = character.creatorName
+    ? `${character.creatorName}의 ${character.name}`
+    : character.name;
+  const modeLabel = timerType === 'lunch' ? '점심시간' : '쉬는시간';
+  const frameStyle = {
+    '--student-character-accent': character.themeColor || '#7AA160',
+  } as React.CSSProperties;
+
+  return (
+    <div
+      key={character.id}
+      className="student-character-showcase"
+      aria-label={`${modeLabel} 자캐: ${label}`}
+      style={frameStyle}
+    >
+      <div className="student-character-frame">
+        <img
+          src={character.imageSrc}
+          alt={character.alt}
+          className="student-character-image"
+          draggable={false}
+          onError={() => onImageError(character.id)}
+        />
+      </div>
+      <div className="student-character-caption">
+        <span className="student-character-name">{character.name}</span>
+        {character.creatorName ? (
+          <span className="student-character-creator">{character.creatorName}</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function TimerPage() {
   const initialState = getInitialAppState();
   const [initialRandomDrawState] = useState(() => getInitialRandomDrawState());
   const [initialScheduleYoutubeState] = useState(() => getInitialScheduleYoutubeState());
   const [scheduleNotice, setScheduleNotice] = useState(() => localStorage.getItem('scheduleNotice') || '');
+  const [scheduleNoticeHighlights, setScheduleNoticeHighlights] = useState<NoticeHighlightRange[]>(() => {
+    const savedNotice = localStorage.getItem('scheduleNotice') || '';
+    try {
+      return normalizeNoticeHighlightRanges(
+        JSON.parse(localStorage.getItem(SCHEDULE_NOTICE_HIGHLIGHTS_STORAGE_KEY) || '[]'),
+        savedNotice,
+      );
+    } catch {
+      return [];
+    }
+  });
+  const [pendingNoticeHighlightRange, setPendingNoticeHighlightRange] = useState<NoticeHighlightRange | null>(null);
+  const [noticeHighlightPopoverPosition, setNoticeHighlightPopoverPosition] = useState({ x: 0, y: 0 });
   const [isNoticeEnabled, setIsNoticeEnabled] = useState(() => {
     const saved = localStorage.getItem('scheduleNoticeEnabled');
     if (saved !== null) return saved === 'true';
@@ -2357,9 +2734,9 @@ export default function TimerPage() {
   const [scheduleYoutubeFavorites, setScheduleYoutubeFavorites] = useState<ScheduleYoutubeFavorite[]>(() =>
     getStoredScheduleYoutubeFavorites(),
   );
-  const [isYoutubeFavoriteFormOpen, setIsYoutubeFavoriteFormOpen] = useState(false);
-  const [youtubeFavoriteNameInput, setYoutubeFavoriteNameInput] = useState('');
-  const [youtubeFavoriteUrlInput, setYoutubeFavoriteUrlInput] = useState('');
+  const [scheduleYoutubeMetadataMap, setScheduleYoutubeMetadataMap] = useState<Record<string, ScheduleYoutubeMetadata>>(
+    () => getStoredScheduleYoutubeMetadataMap(),
+  );
   const [youtubeSearchInput, setYoutubeSearchInput] = useState('');
   const [youtubeSearchResults, setYoutubeSearchResults] = useState<ScheduleYoutubeSearchResult[]>([]);
   const [isYoutubeSearching, setIsYoutubeSearching] = useState(false);
@@ -2369,7 +2746,9 @@ export default function TimerPage() {
     () => initialScheduleYoutubeState.isVisible && initialScheduleYoutubeState.appliedUrls.length > 0,
   );
   const [shouldAutoplayScheduleYoutube, setShouldAutoplayScheduleYoutube] = useState(false);
-  const [youtubeFavoriteError, setYoutubeFavoriteError] = useState('');
+  const [activeScheduleYoutubeIndex, setActiveScheduleYoutubeIndex] = useState(0);
+  const [scheduleYoutubeSelectionRequestId, setScheduleYoutubeSelectionRequestId] = useState(0);
+  const [isScheduleYoutubePlaylistOpen, setIsScheduleYoutubePlaylistOpen] = useState(false);
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
     return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
@@ -2393,8 +2772,10 @@ export default function TimerPage() {
   const [watchFaceGlance, setWatchFaceGlance] = useState<WatchFaceGlance>('center');
   const [isWatchFaceBlinking, setIsWatchFaceBlinking] = useState(false);
   const [isWatchFaceReacting, setIsWatchFaceReacting] = useState(false);
+  const [failedStudentCharacterIds, setFailedStudentCharacterIds] = useState<Set<string>>(() => new Set());
 
   const isEditingNoticeRef = useRef(isEditingNotice);
+  const skipNextNoticeTextClickRef = useRef(false);
   useEffect(() => {
     isEditingNoticeRef.current = isEditingNotice;
   }, [isEditingNotice]);
@@ -2446,6 +2827,23 @@ export default function TimerPage() {
     }
     return defaultWeeklySchedule;
   });
+  const [weeklySubjects, setWeeklySubjects] = useState<WeeklySubjectSchedule>(() => {
+    try {
+      const savedSubjects = normalizeWeeklySubjects(JSON.parse(localStorage.getItem(WEEKLY_SUBJECTS_STORAGE_KEY) || '{}'));
+      if (Object.keys(savedSubjects).length > 0) {
+        return savedSubjects;
+      }
+    } catch {
+      // Fall through to migrate legacy slot subjects for the current week.
+    }
+    return buildWeeklySubjectsFromSchedule(
+      weeklySchedule,
+      getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+    );
+  });
+  const [selectedSubjectWeekKey, setSelectedSubjectWeekKey] = useState(() =>
+    getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+  );
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('schedule');
@@ -2557,6 +2955,24 @@ export default function TimerPage() {
   const reservedDrawCount = selectedDrawSettingsCase.hiddenNumberQueue.length;
   const editingDaySchedule = weeklySchedule[editingDay] || [];
   const activeWeekdayScheduleCount = WEEKDAYS.filter((day) => (weeklySchedule[day] || []).length > 0).length;
+  const subjectWeekOptions = buildSubjectWeekOptions(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds));
+  const selectedSubjectWeekLabel =
+    subjectWeekOptions.find((option) => option.key === selectedSubjectWeekKey)?.label ??
+    getWeekOptionLabel(selectedSubjectWeekKey);
+  const subjectClassSlotsByDay = WEEKDAYS.reduce<Record<number, ScheduleSlot[]>>((slotsByDay, day) => {
+    slotsByDay[day] = (weeklySchedule[day] || []).filter(isSubjectEditableClassSlot);
+    return slotsByDay;
+  }, {});
+  const subjectPeriodKeys = Array.from(
+    new Set(
+      WEEKDAYS.flatMap((day) => subjectClassSlotsByDay[day].map((slot) => getScheduleSubjectKey(slot))),
+    ),
+  ).sort((a, b) => {
+    const numericA = Number(a);
+    const numericB = Number(b);
+    if (Number.isFinite(numericA) && Number.isFinite(numericB)) return numericA - numericB;
+    return a.localeCompare(b, 'ko');
+  });
   const selectedDrawSettingsCaseLabel = normalizeCaseLabel(
     selectedDrawSettingsCase.label,
     getCaseLabelByIndex(Math.max(selectedDrawSettingsCaseIndex, 0)),
@@ -2579,13 +2995,30 @@ export default function TimerPage() {
     .map((url) => extractYoutubeVideoId(url))
     .filter((videoId): videoId is string => videoId !== null);
   const scheduleYoutubeCount = scheduleYoutubeUrls.length;
+  const boundedActiveScheduleYoutubeIndex =
+    scheduleYoutubeCount > 0
+      ? Math.max(0, Math.min(activeScheduleYoutubeIndex, scheduleYoutubeCount - 1))
+      : 0;
+  const scheduleYoutubePlaylistItems = scheduleYoutubeUrls.map((url, index) => {
+    const metadata = scheduleYoutubeMetadataMap[url];
+    return {
+      url,
+      number: index + 1,
+      title: metadata?.title || `영상 ${index + 1}`,
+      channelTitle: metadata?.channelTitle || '',
+      isActive: index === boundedActiveScheduleYoutubeIndex,
+    };
+  });
+  const activeScheduleYoutubeItem = scheduleYoutubePlaylistItems[boundedActiveScheduleYoutubeIndex] ?? null;
   const hasScheduleYoutubePlaylist = scheduleYoutubeCount > 0;
   const hasScheduleYoutubeFavorites = scheduleYoutubeFavorites.length > 0;
 
   const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
     version: 1,
     weeklySchedule,
+    weeklySubjects,
     scheduleNotice,
+    scheduleNoticeHighlights,
     isNoticeEnabled,
     scheduleClockOffsetSeconds,
     scheduleYoutubeUrls,
@@ -2608,7 +3041,9 @@ export default function TimerPage() {
   ) => {
     skipNextSharedSettingsSaveRef.current = true;
     setWeeklySchedule(remoteSettings.weeklySchedule);
+    setWeeklySubjects(normalizeWeeklySubjects(remoteSettings.weeklySubjects));
     setScheduleNotice(remoteSettings.scheduleNotice);
+    setScheduleNoticeHighlights(remoteSettings.scheduleNoticeHighlights || []);
     setNoticeDraft(remoteSettings.scheduleNotice);
     setIsNoticeEnabled(remoteSettings.isNoticeEnabled);
     setScheduleClockOffsetSeconds(remoteSettings.scheduleClockOffsetSeconds);
@@ -2677,8 +3112,26 @@ export default function TimerPage() {
   }, [weeklySchedule]);
 
   useEffect(() => {
+    const normalizedSubjects = normalizeWeeklySubjects(weeklySubjects);
+    if (Object.keys(normalizedSubjects).length > 0) {
+      localStorage.setItem(WEEKLY_SUBJECTS_STORAGE_KEY, JSON.stringify(normalizedSubjects));
+      return;
+    }
+    localStorage.removeItem(WEEKLY_SUBJECTS_STORAGE_KEY);
+  }, [weeklySubjects]);
+
+  useEffect(() => {
     localStorage.setItem('scheduleNotice', scheduleNotice);
   }, [scheduleNotice]);
+
+  useEffect(() => {
+    const normalizedHighlights = normalizeNoticeHighlightRanges(scheduleNoticeHighlights, scheduleNotice);
+    if (normalizedHighlights.length > 0) {
+      localStorage.setItem(SCHEDULE_NOTICE_HIGHLIGHTS_STORAGE_KEY, JSON.stringify(normalizedHighlights));
+      return;
+    }
+    localStorage.removeItem(SCHEDULE_NOTICE_HIGHLIGHTS_STORAGE_KEY);
+  }, [scheduleNoticeHighlights, scheduleNotice]);
 
   useEffect(() => {
     localStorage.setItem('scheduleNoticeEnabled', String(isNoticeEnabled));
@@ -2707,6 +3160,14 @@ export default function TimerPage() {
   }, [scheduleYoutubeFavorites]);
 
   useEffect(() => {
+    if (Object.keys(scheduleYoutubeMetadataMap).length > 0) {
+      localStorage.setItem(SCHEDULE_YOUTUBE_METADATA_STORAGE_KEY, JSON.stringify(scheduleYoutubeMetadataMap));
+      return;
+    }
+    localStorage.removeItem(SCHEDULE_YOUTUBE_METADATA_STORAGE_KEY);
+  }, [scheduleYoutubeMetadataMap]);
+
+  useEffect(() => {
     if (scheduleYoutubeUrls.length > 0) {
       localStorage.setItem(SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY, String(isScheduleYoutubeVisible));
       return;
@@ -2725,6 +3186,15 @@ export default function TimerPage() {
       setHasMountedScheduleYoutubePlayer(true);
     }
   }, [isScheduleYoutubeVisible, scheduleYoutubeVideoIds.length]);
+
+  useEffect(() => {
+    if (scheduleYoutubeCount === 0) {
+      setActiveScheduleYoutubeIndex(0);
+      setIsScheduleYoutubePlaylistOpen(false);
+      return;
+    }
+    setActiveScheduleYoutubeIndex((previous) => Math.max(0, Math.min(previous, scheduleYoutubeCount - 1)));
+  }, [scheduleYoutubeCount]);
 
   useEffect(() => {
     drawCasesRef.current = drawCases;
@@ -2781,7 +3251,9 @@ export default function TimerPage() {
     };
   }, [
     weeklySchedule,
+    weeklySubjects,
     scheduleNotice,
+    scheduleNoticeHighlights,
     isNoticeEnabled,
     scheduleClockOffsetSeconds,
     scheduleYoutubeUrls,
@@ -2990,6 +3462,7 @@ export default function TimerPage() {
       );
 
       const todaysSchedule = weeklySchedule[dayOfWeek] || [];
+      const currentWeekKey = getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds));
       const activeSlot = todaysSchedule.find(s => currentMinutes >= s.start && currentMinutes < s.end);
       const nextSlotId = activeSlot ? activeSlot.id : null;
       const didSlotChange = prevSlotIdRef.current !== null && prevSlotIdRef.current !== nextSlotId;
@@ -3005,7 +3478,12 @@ export default function TimerPage() {
         const elapsedSeconds = (currentMinutes - activeSlot.start) * 60 + currentSeconds;
         setScheduleTotalTime(slotTotalSeconds);
         setScheduleTimeLeft(slotTotalSeconds - elapsedSeconds);
-        setCurrentSlotName(activeSlot.name);
+        setCurrentSlotName(
+          getScheduleSlotTimerLabel(
+            activeSlot,
+            getWeeklySubject(weeklySubjects, currentWeekKey, dayOfWeek, activeSlot),
+          ),
+        );
         setTimerType(activeSlot.type as TimerType);
         setScheduleIsRunning(true);
       } else {
@@ -3021,7 +3499,7 @@ export default function TimerPage() {
     const interval = window.setInterval(checkSchedule, 250);
 
     return () => clearInterval(interval);
-  }, [weeklySchedule, scheduleClockOffsetSeconds]);
+  }, [weeklySchedule, weeklySubjects, scheduleClockOffsetSeconds]);
 
   useEffect(() => {
     if (timerType === 'lunch') {
@@ -3837,6 +4315,10 @@ export default function TimerPage() {
       if (slotIndex > -1) {
         const nextSlot = { ...daySchedule[slotIndex], [field]: value } as ScheduleSlot;
 
+        if (field === 'type' && nextSlot.type === 'class' && !getSchedulePeriodNumber(nextSlot)) {
+          nextSlot.name = getNextClassPeriodName(daySchedule.filter((slot) => slot.id !== id));
+        }
+
         if (field === 'type' || field === 'start') {
           const fixedDuration = getFixedDurationByType(nextSlot.type);
           if (fixedDuration !== null) {
@@ -3859,6 +4341,39 @@ export default function TimerPage() {
     });
   };
 
+  const updateWeeklySubject = (weekKey: string, day: number, slot: ScheduleSlot, value: string) => {
+    if (!isSubjectEditableClassSlot(slot)) return;
+    const subjectKey = getScheduleSubjectKey(slot);
+    const subject = value.trim();
+    if (!subjectKey) return;
+
+    setWeeklySubjects((previous) => {
+      const next: WeeklySubjectSchedule = { ...previous };
+      const nextWeek = { ...(next[weekKey] || {}) };
+      const nextDay = { ...(nextWeek[day] || {}) };
+
+      if (subject.length > 0) {
+        nextDay[subjectKey] = subject;
+      } else {
+        delete nextDay[subjectKey];
+      }
+
+      if (Object.keys(nextDay).length > 0) {
+        nextWeek[day] = nextDay;
+      } else {
+        delete nextWeek[day];
+      }
+
+      if (Object.keys(nextWeek).length > 0) {
+        next[weekKey] = nextWeek;
+      } else {
+        delete next[weekKey];
+      }
+
+      return next;
+    });
+  };
+
   const addSlot = (day: number) => {
     setWeeklySchedule(prev => {
       const daySchedule = [...(prev[day] || [])];
@@ -3866,7 +4381,8 @@ export default function TimerPage() {
       const start = lastSlot ? lastSlot.end : 540;
       daySchedule.push({
         id: createSlotId(),
-        name: '새 일정',
+        name: getNextClassPeriodName(daySchedule),
+        subject: '',
         type: 'class',
         start: start,
         end: start + CLASS_DURATION
@@ -3889,7 +4405,9 @@ export default function TimerPage() {
   const exportSchedule = () => {
     const exportPayload = {
       weeklySchedule,
+      weeklySubjects,
       scheduleNotice,
+      scheduleNoticeHighlights,
       scheduleNoticeEnabled: isNoticeEnabled,
       scheduleYoutubeUrl: scheduleYoutubeUrls[0] || '',
       scheduleYoutubeUrls,
@@ -3923,7 +4441,9 @@ export default function TimerPage() {
           const nextSchedule = parsed.weeklySchedule && typeof parsed.weeklySchedule === 'object'
             ? parsed.weeklySchedule
             : parsed;
+          const nextWeeklySubjects = normalizeWeeklySubjects(parsed.weeklySubjects);
           const nextNotice = typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '';
+          const nextNoticeHighlights = normalizeNoticeHighlightRanges(parsed.scheduleNoticeHighlights, nextNotice);
           const nextNoticeEnabled = typeof parsed.scheduleNoticeEnabled === 'boolean'
             ? parsed.scheduleNoticeEnabled
             : nextNotice.trim().length > 0;
@@ -3946,7 +4466,9 @@ export default function TimerPage() {
           stopStudentDraw();
           clearDrawFeedback();
           setWeeklySchedule(normalizeWeeklySchedule(nextSchedule));
+          setWeeklySubjects(nextWeeklySubjects);
           setScheduleNotice(nextNotice);
+          setScheduleNoticeHighlights(nextNoticeHighlights);
           setIsNoticeEnabled(nextNoticeEnabled);
           setScheduleYoutubeUrls(nextYoutubeUrls);
           setIsScheduleYoutubeVisible(nextYoutubeVisible);
@@ -3979,59 +4501,24 @@ export default function TimerPage() {
     setIsEditingNotice(true);
   };
 
-  const openNoticePanel = () => {
-    if ((scheduleNotice || '').trim().length > 0) {
-      setIsNoticeEnabled(true);
-      return;
-    }
-    startNoticeEdit();
-  };
+  const toggleNoticeFromTimerCenter = () => {
+    void playAnnouncementSound('pop');
+    setIsYoutubePanelOpen(false);
+    setIsLibraryOpen(false);
+    setIsExtraTimerVisible(false);
+    setIsWatchFaceReacting(true);
 
-  const addScheduleYoutubeFavorite = () => {
-    const favoriteName = youtubeFavoriteNameInput.trim();
-    const { normalizedUrls, invalidLineNumbers } = parseScheduleYoutubeInput(youtubeFavoriteUrlInput);
-
-    if (favoriteName.length === 0) {
-      setYoutubeFavoriteError('이름을 입력하세요.');
-      return;
+    if (isEditingNoticeRef.current) {
+      closeNoticeEdit();
+    } else if (isNoticeEnabled && hasScheduleNotice) {
+      setIsNoticeEnabled(false);
+    } else {
+      startNoticeEdit();
     }
 
-    if (invalidLineNumbers.length > 0) {
-      const preview = invalidLineNumbers.slice(0, 5).join(', ');
-      const suffix = invalidLineNumbers.length > 5 ? ` 외 ${invalidLineNumbers.length - 5}줄` : '';
-      setYoutubeFavoriteError(`잘못된 줄: ${preview}${suffix}`);
-      return;
-    }
-
-    if (normalizedUrls.length === 0) {
-      setYoutubeFavoriteError('URL을 입력하세요.');
-      return;
-    }
-
-    if (normalizedUrls.length > 1) {
-      setYoutubeFavoriteError('즐겨찾기는 URL 1개만 등록할 수 있습니다.');
-      return;
-    }
-
-    const normalizedKey = normalizedUrls.join('\n');
-    const hasSameFavorite = scheduleYoutubeFavorites.some((favorite) => favorite.urls.join('\n') === normalizedKey);
-    if (hasSameFavorite) {
-      setYoutubeFavoriteError('이미 저장된 URL입니다.');
-      return;
-    }
-
-    setScheduleYoutubeFavorites((previous) => [
-      ...previous,
-      {
-        id: createScheduleYoutubeFavoriteId(),
-        name: favoriteName,
-        urls: normalizedUrls,
-      },
-    ]);
-    setYoutubeFavoriteNameInput('');
-    setYoutubeFavoriteUrlInput('');
-    setYoutubeFavoriteError('');
-    setIsYoutubeFavoriteFormOpen(false);
+    window.setTimeout(() => {
+      setIsWatchFaceReacting(false);
+    }, 720);
   };
 
   const addScheduleYoutubeFavoriteToPlaylist = (favorite: ScheduleYoutubeFavorite) => {
@@ -4042,6 +4529,17 @@ export default function TimerPage() {
       return;
     }
 
+    const favoriteUrl = favorite.urls[0];
+    if (favoriteUrl) {
+      setScheduleYoutubeMetadataMap((previous) => ({
+        ...previous,
+        [favoriteUrl]: {
+          title: favorite.title || favorite.name,
+          channelTitle: favorite.channelTitle || '',
+          thumbnailUrl: favorite.thumbnailUrl || '',
+        },
+      }));
+    }
     setScheduleYoutubeUrls(nextUrls);
     setIsScheduleYoutubeVisible(true);
     setShouldAutoplayScheduleYoutube(true);
@@ -4057,8 +4555,7 @@ export default function TimerPage() {
     }
 
     if (!YOUTUBE_SEARCH_API_KEY) {
-      window.open(buildScheduleYoutubeSearchUrl(query), '_blank', 'noopener,noreferrer');
-      setYoutubeSearchError('영상 URL을 복사해서 아래 입력칸에 붙여넣으면 바로 재생목록에 추가할 수 있습니다.');
+      setYoutubeSearchError('YouTube 검색 API 키가 필요합니다. VITE_YOUTUBE_API_KEY를 설정하세요.');
       return;
     }
 
@@ -4066,11 +4563,12 @@ export default function TimerPage() {
       setIsYoutubeSearching(true);
       setYoutubeSearchError('');
 
+      const lyricsQuery = buildScheduleYoutubeLyricsQuery(query);
       const params = new URLSearchParams({
         part: 'snippet',
         type: 'video',
         maxResults: String(YOUTUBE_SEARCH_MAX_RESULTS),
-        q: query,
+        q: lyricsQuery,
         key: YOUTUBE_SEARCH_API_KEY,
         regionCode: 'KR',
         relevanceLanguage: 'ko',
@@ -4122,42 +4620,102 @@ export default function TimerPage() {
       return;
     }
 
+    setScheduleYoutubeMetadataMap((previous) => ({
+      ...previous,
+      [nextUrl]: {
+        title: result.title,
+        channelTitle: result.channelTitle,
+        thumbnailUrl: result.thumbnailUrl,
+      },
+    }));
     setScheduleYoutubeUrls(nextUrls);
     setIsScheduleYoutubeVisible(true);
     setShouldAutoplayScheduleYoutube(true);
     setYoutubeSearchError('');
   };
 
+  const addScheduleYoutubeSearchResultToFavorites = (result: ScheduleYoutubeSearchResult) => {
+    const nextUrl = buildScheduleYoutubeWatchUrl(result.id);
+    const hasSameFavorite = scheduleYoutubeFavorites.some((favorite) => favorite.urls.includes(nextUrl));
+
+    if (hasSameFavorite) {
+      setYoutubeSearchError('이미 즐겨찾기에 저장된 영상입니다.');
+      return;
+    }
+
+    setScheduleYoutubeFavorites((previous) => [
+      ...previous,
+      {
+        id: createScheduleYoutubeFavoriteId(),
+        name: result.title,
+        title: result.title,
+        channelTitle: result.channelTitle,
+        thumbnailUrl: result.thumbnailUrl,
+        urls: [nextUrl],
+      },
+    ]);
+    setYoutubeSearchError('');
+  };
+
   const removeScheduleYoutubeFavorite = (favoriteId: string) => {
     setScheduleYoutubeFavorites((previous) => previous.filter((favorite) => favorite.id !== favoriteId));
-    setYoutubeFavoriteError('');
+  };
+
+  const playScheduleYoutubePlaylistItem = (index: number) => {
+    setActiveScheduleYoutubeIndex(index);
+    setShouldAutoplayScheduleYoutube(true);
+    setScheduleYoutubeSelectionRequestId((previous) => previous + 1);
+  };
+
+  const updateScheduleYoutubeMetadataFromPlayer = (index: number, metadata: ScheduleYoutubeMetadata) => {
+    const url = scheduleYoutubeUrls[index];
+    if (!url) return;
+
+    setScheduleYoutubeMetadataMap((previous) => {
+      const previousMetadata = previous[url];
+      if (
+        previousMetadata?.title === metadata.title &&
+        previousMetadata.channelTitle === metadata.channelTitle &&
+        previousMetadata.thumbnailUrl === metadata.thumbnailUrl
+      ) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        [url]: {
+          title: metadata.title,
+          channelTitle: metadata.channelTitle,
+          thumbnailUrl: previousMetadata?.thumbnailUrl || metadata.thumbnailUrl,
+        },
+      };
+    });
   };
 
   const clearScheduleYoutubeUrl = () => {
     setScheduleYoutubeUrls([]);
     setIsScheduleYoutubeVisible(false);
     setShouldAutoplayScheduleYoutube(false);
+    setIsScheduleYoutubePlaylistOpen(false);
   };
 
-  const saveNotice = () => {
-    skipNoticeAutoSaveRef.current = false;
-    const nextNotice = noticeDraft.trim();
+  const applyNoticeDraft = (nextValue: string) => {
+    setNoticeDraft(nextValue);
+    const nextNotice = nextValue.trim();
     setScheduleNotice(nextNotice);
-    if (nextNotice.length > 0) {
-      setIsNoticeEnabled(true);
-    }
-    setIsEditingNotice(false);
+    setScheduleNoticeHighlights((previous) => normalizeNoticeHighlightRanges(previous, nextNotice));
+    setIsNoticeEnabled(nextNotice.length > 0);
   };
 
-  const cancelNoticeEdit = () => {
+  const closeNoticeEdit = () => {
     skipNoticeAutoSaveRef.current = true;
-    setNoticeDraft(scheduleNotice);
     setIsEditingNotice(false);
   };
 
   const clearAndCloseNotice = () => {
     skipNoticeAutoSaveRef.current = isEditingNoticeRef.current;
     setScheduleNotice('');
+    setScheduleNoticeHighlights([]);
     setNoticeDraft('');
     setIsNoticeEnabled(false);
     setIsEditingNotice(false);
@@ -4182,7 +4740,7 @@ export default function TimerPage() {
       skipNoticeAutoSaveRef.current = false;
       return;
     }
-    saveNotice();
+    closeNoticeEdit();
   };
 
   const toggleBackgroundMusic = async (event?: React.MouseEvent<HTMLButtonElement>) => {
@@ -4232,6 +4790,7 @@ export default function TimerPage() {
   const isScheduleIdle = displayTotalTime === 0;
   const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
   const today = adjustedScheduleNow.getDay();
+  const currentSubjectWeekKey = getWeekKeyForDate(adjustedScheduleNow);
   const currentDaySchedule = weeklySchedule[today] || [];
   const currentScheduleSecondsOfDay =
     adjustedScheduleNow.getHours() * 3600 +
@@ -4250,6 +4809,9 @@ export default function TimerPage() {
         secondsSinceEnd < CLASS_END_IMAGE_DURATION_SECONDS,
     );
   const showClassEndImage = Boolean(activeClassEndImage);
+  const activeScheduleSlot = currentDaySchedule.find(
+    (slot) => currentScheduleSecondsOfDay >= slot.start * 60 && currentScheduleSecondsOfDay < slot.end * 60,
+  );
 
   const percentage = displayTotalTime > 0 ? displayTimeLeft / displayTotalTime : 0;
   const warningThreshold = 0.5;
@@ -4277,7 +4839,7 @@ export default function TimerPage() {
   const shouldShowTimedMessage = isScheduleBreak || isScheduleLunch;
   const scheduleTypeLabel =
     timerType === 'class'
-      ? "\uC218\uC5C5\uC2DC\uAC04"
+      ? currentSlotName || "\uC218\uC5C5\uC2DC\uAC04"
       : timerType === 'break'
         ? "\uC26C\uB294\uC2DC\uAC04"
         : timerType === 'morning'
@@ -4426,6 +4988,36 @@ export default function TimerPage() {
     isDrawWinVisible ? ' random-board-number-win-punch' : ''
   }${isDrawResetVisible ? ' random-board-number-reset-accent' : ''
   }`;
+  const visibleStudentCharacters = STUDENT_CHARACTERS.filter(
+    (character) => !failedStudentCharacterIds.has(character.id),
+  );
+  const shouldShowStudentCharacterBySchedule =
+    timerType === 'none' ||
+    ((timerType === 'break' || timerType === 'lunch') && activeScheduleSlot?.type === timerType);
+  const canShowStudentCharacter =
+    shouldShowStudentCharacterBySchedule &&
+    visibleStudentCharacters.length > 0 &&
+    !showTimerNotification &&
+    !isDrawOverlayVisible;
+  const studentCharacterElapsedSeconds =
+    activeScheduleSlot && activeScheduleSlot.type === timerType && canShowStudentCharacter
+      ? Math.max(0, currentScheduleSecondsOfDay - activeScheduleSlot.start * 60)
+      : currentScheduleSecondsOfDay;
+  const activeStudentCharacter =
+    canShowStudentCharacter
+      ? visibleStudentCharacters[
+          Math.floor(studentCharacterElapsedSeconds / STUDENT_CHARACTER_ROTATION_SECONDS) %
+            visibleStudentCharacters.length
+        ]
+      : null;
+  const markStudentCharacterFailed = (characterId: string) => {
+    setFailedStudentCharacterIds((previous) => {
+      if (previous.has(characterId)) return previous;
+      const next = new Set(previous);
+      next.add(characterId);
+      return next;
+    });
+  };
 
   const currentMinsForScheduleView = adjustedScheduleNow.getHours() * 60 + adjustedScheduleNow.getMinutes();
   const activeSlotIndex = currentDaySchedule.findIndex(
@@ -4502,7 +5094,83 @@ export default function TimerPage() {
   const studentNoticeTextClass = getNoticeTextClass(trimmedNotice);
   const draftNoticeTextClass = getNoticeTextClass(noticeDraft);
   const shouldShowNoticeCard = isEditingNotice || (isNoticeEnabled && hasScheduleNotice);
-  const shouldShowNoticeHandle = !shouldShowNoticeCard;
+  const renderNoticeTextWithHighlights = (text: string) => {
+    const ranges = normalizeNoticeHighlightRanges(scheduleNoticeHighlights, text);
+    if (ranges.length === 0) return text;
+
+    const nodes: React.ReactNode[] = [];
+    let cursor = 0;
+    ranges.forEach((range, index) => {
+      if (range.start > cursor) {
+        nodes.push(text.slice(cursor, range.start));
+      }
+      nodes.push(
+        <span
+          key={`notice-highlight-${index}`}
+          className={`notice-highlight-text notice-highlight-text-${range.color || NOTICE_HIGHLIGHT_COLORS[0].id}`}
+        >
+          {text.slice(range.start, range.end)}
+        </span>,
+      );
+      cursor = range.end;
+    });
+    if (cursor < text.length) {
+      nodes.push(text.slice(cursor));
+    }
+    return nodes;
+  };
+  const applyNoticeSelectionHighlight = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const container = document.querySelector('[data-notice-text-content="true"]');
+    if (!container || !container.contains(range.commonAncestorContainer)) return;
+    const noticeContent = container.closest('.notice-content');
+    if (!(noticeContent instanceof HTMLElement)) return;
+
+    const beforeRange = document.createRange();
+    beforeRange.selectNodeContents(container);
+    beforeRange.setEnd(range.startContainer, range.startOffset);
+    const start = beforeRange.toString().length;
+    const selectedLength = range.toString().length;
+    const end = start + selectedLength;
+
+    if (selectedLength <= 0) return;
+
+    const selectionRect = range.getBoundingClientRect();
+    const hostRect = noticeContent.getBoundingClientRect();
+    const popoverWidth = 136;
+    const popoverHeight = 44;
+    const x = Math.max(12, Math.min(selectionRect.right - hostRect.left + 12, hostRect.width - popoverWidth - 12));
+    const y = Math.max(12, Math.min(selectionRect.bottom - hostRect.top + 10, hostRect.height - popoverHeight - 12));
+
+    skipNextNoticeTextClickRef.current = true;
+    setNoticeHighlightPopoverPosition({ x, y });
+    setPendingNoticeHighlightRange({ start, end, color: NOTICE_HIGHLIGHT_COLORS[0].id });
+  };
+  const applyPendingNoticeHighlight = (color: NoticeHighlightColorId) => {
+    if (!pendingNoticeHighlightRange) return;
+    setScheduleNoticeHighlights((previous) =>
+      normalizeNoticeHighlightRanges(
+        [...previous, { ...pendingNoticeHighlightRange, color }],
+        trimmedNotice,
+      ),
+    );
+    skipNextNoticeTextClickRef.current = false;
+    setPendingNoticeHighlightRange(null);
+    window.getSelection()?.removeAllRanges();
+  };
+  const cancelPendingNoticeHighlight = () => {
+    if (pendingNoticeHighlightRange) {
+      setScheduleNoticeHighlights((previous) =>
+        removeNoticeHighlightRange(previous, pendingNoticeHighlightRange, trimmedNotice),
+      );
+    }
+    skipNextNoticeTextClickRef.current = false;
+    setPendingNoticeHighlightRange(null);
+    window.getSelection()?.removeAllRanges();
+  };
   const noticeCardStyle = isEditingNotice
     ? { animation: 'noticeFadeIn 220ms ease-out' }
     : undefined;
@@ -4542,24 +5210,34 @@ export default function TimerPage() {
               <textarea
                 ref={noticeInputRef}
                 value={noticeDraft}
-                onChange={(e) => setNoticeDraft(e.target.value)}
+                onChange={(e) => applyNoticeDraft(e.target.value)}
                 onBlur={handleNoticeBlur}
                 onKeyDown={(e) => {
                   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     e.preventDefault();
-                    saveNotice();
+                    closeNoticeEdit();
                   }
                   if (e.key === 'Escape') {
                     e.preventDefault();
-                    cancelNoticeEdit();
+                    closeNoticeEdit();
                   }
                 }}
                 rows={1}
                 maxLength={160}
+                placeholder="공지 입력"
                 className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep text-center font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${draftNoticeTextClass}`}
               />
             </div>
-            <div className="row-start-3 flex items-center justify-end">
+            <div className="row-start-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={closeNoticeEdit}
+                  className="inline-flex h-7 items-center justify-center rounded-full px-2.5 text-[0.68rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
+                >
+                  닫기
+                </button>
+              </div>
               {noticeMemoButton}
             </div>
           </div>
@@ -4583,39 +5261,59 @@ export default function TimerPage() {
             </div>
             <div className="notice-content relative grid min-h-[3.6rem] w-full grid-rows-[1.45rem_minmax(0,1fr)_1.45rem] rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-1.5 transition-colors hover:bg-white sm:min-h-[3.85rem] sm:grid-rows-[1.55rem_minmax(0,1fr)_1.55rem] sm:px-3 md:min-h-[4.1rem] md:grid-rows-[1.7rem_minmax(0,1fr)_1.7rem]">
               <div aria-hidden="true" className="row-start-1" />
-              <button
-                onClick={startNoticeEdit}
+              <div
                 className="row-start-2 flex w-full min-h-0 items-center justify-center bg-transparent text-left"
-                title="공지 수정"
-                type="button"
+                title="드래그한 뒤 강조를 누르면 코랄색으로 표시됩니다."
+                onClick={() => {
+                  if (skipNextNoticeTextClickRef.current) {
+                    skipNextNoticeTextClickRef.current = false;
+                    return;
+                  }
+                  setPendingNoticeHighlightRange(null);
+                  startNoticeEdit();
+                }}
+                onMouseUp={applyNoticeSelectionHighlight}
+                onTouchEnd={applyNoticeSelectionHighlight}
               >
-                <p className={`notice-text-body w-full break-keep whitespace-pre-line text-center font-bold text-[#3E2D20] ${studentNoticeTextClass}`}>
-                  {trimmedNotice}
+                <p
+                  data-notice-text-content="true"
+                  className={`notice-text-body notice-text-selectable w-full break-keep whitespace-pre-line text-center font-bold text-[#3E2D20] ${studentNoticeTextClass}`}
+                >
+                  {renderNoticeTextWithHighlights(trimmedNotice)}
                 </p>
-              </button>
+              </div>
               <div className="row-start-3 flex items-center justify-end">
                 {noticeMemoButton}
               </div>
+              {pendingNoticeHighlightRange ? (
+                <div
+                  className="notice-highlight-popover absolute z-30 flex items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1.5 shadow-[0_12px_24px_rgba(151,80,59,0.16)] backdrop-blur-sm"
+                  style={{
+                    left: noticeHighlightPopoverPosition.x,
+                    top: noticeHighlightPopoverPosition.y,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => applyPendingNoticeHighlight('coral')}
+                    className="notice-highlight-apply-button inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.72rem] font-extrabold text-white transition-colors"
+                    title="코랄색으로 강조"
+                    aria-label="코랄색으로 강조"
+                  >
+                    강조
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelPendingNoticeHighlight}
+                    className="inline-flex h-8 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
+                  >
+                    취소
+                  </button>
+                </div>
+              ) : null}
             </div>
           </>
         )}
-      </div>
-    </div>
-  ) : shouldShowNoticeHandle ? (
-    <div className="pointer-events-none absolute inset-x-0 -top-8 z-30 flex justify-center sm:-top-8 md:-top-9">
-      <div className="notice-reveal-zone pointer-events-auto -m-3 p-3">
-        <button
-          onClick={openNoticePanel}
-          className={noticeHandleButtonClass}
-          title={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
-          aria-label={hasScheduleNotice ? '공지 열기' : '공지 편집 열기'}
-          type="button"
-        >
-          <span aria-hidden="true" className={noticeHandleLineClass} />
-          <span aria-hidden="true" className={noticeHandleIconClass}>
-            <ChevronDown size={10} strokeWidth={2.7} />
-          </span>
-        </button>
       </div>
     </div>
   ) : null;
@@ -4738,17 +5436,25 @@ export default function TimerPage() {
             ) : (
               editingDaySchedule.map((slot, index) => {
                 const isMorningRow = index === 0;
+                const isClassRow = slot.type === 'class';
                 const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
+                const periodNumber = getSchedulePeriodNumber(slot);
                 return (
                   <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-all hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
-                    <input
-                      type="text"
-                      value={slot.name}
-                      readOnly={isMorningRow}
-                      onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
-                      className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[#8A6347] outline-none focus:ring-2 focus:ring-[#5C8D5D]/20 md:text-lg"
-                      placeholder="일정 이름"
-                    />
+                    {isClassRow ? (
+                      <span className="slot-period-label -ml-2 inline-flex min-h-10 min-w-[3.4rem] flex-1 items-center rounded-xl px-3 text-base font-extrabold text-[#3A5A3B] md:text-lg">
+                        {periodNumber ?? slot.name}
+                      </span>
+                    ) : (
+                      <input
+                        type="text"
+                        value={slot.name}
+                        readOnly={isMorningRow}
+                        onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
+                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[#8A6347] outline-none focus:ring-2 focus:ring-[#5C8D5D]/20 md:text-lg"
+                        placeholder="일정 이름"
+                      />
+                    )}
                     <div className="mt-2 flex w-full items-center justify-between gap-2 lg:mt-0 lg:w-auto lg:justify-end">
                       <select
                         value={isMorningRow ? 'morning' : slot.type}
@@ -4801,6 +5507,99 @@ export default function TimerPage() {
             일정 추가
           </button>
         </div>
+      </section>
+    </div>
+  );
+  const subjectSettingsPanel = (
+    <div className="settings-panel-grid grid gap-4">
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">주차별 과목</h3>
+          </div>
+          <label className="subject-week-select-label flex w-full max-w-[31rem] flex-col gap-2 sm:min-w-[28rem]">
+            <span className="section-title text-[0.85rem] font-bold text-[#8A6347]">주 선택</span>
+            <select
+              value={selectedSubjectWeekKey}
+              onChange={(event) => setSelectedSubjectWeekKey(event.target.value)}
+              className="subject-week-select slot-select w-full cursor-pointer rounded-xl border border-[#D7E2D1] bg-white px-3 py-2.5 text-[0.95rem] font-extrabold text-[#3A5A3B] outline-none transition-colors hover:bg-[#F3FAF7]"
+            >
+              {subjectWeekOptions.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h4 className="section-title text-[1.15rem] font-extrabold text-[#3F2B20]">
+            {selectedSubjectWeekLabel}
+          </h4>
+        </div>
+
+        {subjectPeriodKeys.length === 0 ? (
+          <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
+            수업 일정이 없습니다.
+          </div>
+        ) : (
+          <div className="custom-scrollbar overflow-x-auto pb-1">
+            <table className="subject-week-table w-full min-w-[54rem] border-separate border-spacing-y-2">
+              <thead>
+                <tr>
+                  <th className="px-2 pb-2 text-left text-[0.82rem] font-extrabold text-[#8A6347]">교시</th>
+                  {WEEKDAYS.map((day) => (
+                    <th key={day} className="px-2 pb-2 text-left text-[0.82rem] font-extrabold text-[#8A6347]">
+                      {DAYS[day]}요일
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {subjectPeriodKeys.map((subjectKey) => (
+                  <tr key={subjectKey}>
+                    <th className="rounded-l-2xl border border-r-0 border-[#E6D5C9] bg-white px-3 py-3 text-left">
+                      <span className="slot-period-label inline-flex min-h-10 min-w-[3.4rem] items-center justify-center rounded-xl bg-[#F0F5F0] px-3 text-base font-extrabold text-[#3A5A3B]">
+                        {Number.isFinite(Number(subjectKey)) ? subjectKey : subjectKey}
+                      </span>
+                    </th>
+                    {WEEKDAYS.map((day, dayIndex) => {
+                      const slot = subjectClassSlotsByDay[day].find(
+                        (classSlot) => getScheduleSubjectKey(classSlot) === subjectKey,
+                      );
+
+                      return (
+                        <td
+                          key={`${subjectKey}-${day}`}
+                          className={`border-y border-[#E6D5C9] bg-white px-2 py-3 ${
+                            dayIndex === WEEKDAYS.length - 1 ? 'rounded-r-2xl border-r pr-3' : ''
+                          }`}
+                        >
+                          {slot ? (
+                            <input
+                              type="text"
+                              value={getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)}
+                              onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
+                              className="slot-subject-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                              placeholder="과목"
+                            />
+                          ) : (
+                            <span className="block rounded-xl border border-dashed border-[#E6D5C9] bg-[#F7F0E8]/70 px-3 py-2.5 text-center text-[0.9rem] font-bold text-[#B89E87]/70">
+                              -
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -5418,6 +6217,13 @@ export default function TimerPage() {
                   className="transition-all duration-1000 ease-linear"
                 />
               </svg>
+              {activeStudentCharacter ? (
+                <StudentCharacterShowcase
+                  character={activeStudentCharacter}
+                  timerType={timerType}
+                  onImageError={markStudentCharacterFailed}
+                />
+              ) : null}
               {shouldShowMorningReading ? (
                 <div className="morning-reading-overlay" aria-label="독서 시간입니다.">
                   <div className="morning-reading-bubble">독서 시간입니다.</div>
@@ -5428,9 +6234,10 @@ export default function TimerPage() {
                   />
                 </div>
               ) : (
-                <div
-                  aria-hidden="true"
-                  className={`timer-watch-face timer-watch-face-${
+                <button
+                  type="button"
+                  onClick={toggleNoticeFromTimerCenter}
+                  className={`timer-watch-face timer-watch-notice-button timer-watch-face-${
                     isScheduleIdle
                       ? 'idle'
                       : percentage <= urgentThreshold
@@ -5441,16 +6248,18 @@ export default function TimerPage() {
                   } timer-watch-glance-${watchFaceGlance}${
                     isWatchFaceBlinking ? ' timer-watch-face-blinking' : ''
                   }${isWatchFaceReacting ? ' timer-watch-face-reacting' : ''}`}
+                  title={isEditingNotice || (isNoticeEnabled && hasScheduleNotice) ? '공지 닫기' : '공지 편집 열기'}
+                  aria-label={isEditingNotice || (isNoticeEnabled && hasScheduleNotice) ? '공지 닫기' : '공지 편집 열기'}
                 >
-                  <span className="timer-watch-eye timer-watch-eye-left">
+                  <span aria-hidden="true" className="timer-watch-eye timer-watch-eye-left">
                     <span className="timer-watch-pupil" />
                   </span>
-                  <span className="timer-watch-eye timer-watch-eye-right">
+                  <span aria-hidden="true" className="timer-watch-eye timer-watch-eye-right">
                     <span className="timer-watch-pupil" />
                   </span>
-                  <span className="timer-watch-nose" />
-                  <span className="timer-watch-smile" />
-                </div>
+                  <span aria-hidden="true" className="timer-watch-nose" />
+                  <span aria-hidden="true" className="timer-watch-smile" />
+                </button>
               )}
 
               {/* Character Notification Overlay (kept within the ring stage so it does not cover the timer text) */}
@@ -5559,7 +6368,7 @@ export default function TimerPage() {
           {/* Right: Controls & Presets */}
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
             {isLibraryOpen ? (
-              <div className="pointer-events-none absolute inset-x-0 top-0 bottom-[6.45rem] z-[60] flex flex-col p-3 sm:bottom-[6.75rem] sm:p-4 lg:bottom-[7.05rem] lg:p-5">
+              <div className="pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[60] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
                 <div className="pointer-events-auto relative min-h-0 flex-1 overflow-hidden rounded-[1.7rem] border border-[#DDE9E2] bg-white shadow-[0_18px_36px_rgba(37,28,21,0.14),inset_0_1px_0_rgba(255,255,255,0.88)] ring-1 ring-white/70">
                   <iframe
                     src={LIBRARY_SITE_URL}
@@ -5579,31 +6388,23 @@ export default function TimerPage() {
                 <div className="schedule-panel-actions flex min-w-0 flex-wrap items-center justify-end gap-2">
                   {scheduleYoutubeCount > 0 ? (
                     <>
-                      <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-white px-3 py-1.5 text-[0.76rem] font-extrabold text-[#8A6347]">
-                        {scheduleYoutubeCount}개 영상
-                      </span>
                       <button
                         type="button"
                         onClick={() => {
-                          setIsScheduleYoutubeVisible((previous) => {
-                            const nextVisible = !previous;
-                            setShouldAutoplayScheduleYoutube(nextVisible);
-                            return nextVisible;
-                          });
+                          setIsScheduleYoutubeVisible(true);
+                          setHasMountedScheduleYoutubePlayer(true);
+                          setIsScheduleYoutubePlaylistOpen((previous) => !previous);
                         }}
-                        className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
-                        title={isScheduleYoutubeVisible ? '유튜브 임베드 숨기기' : '유튜브 임베드 보이기'}
+                        className={`inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-1.5 text-[0.76rem] font-extrabold transition-colors ${
+                          isScheduleYoutubePlaylistOpen
+                            ? 'border-[#9FC7B8] bg-[#EEF7E8] text-[#006241]'
+                            : 'border-[#D9C8B6] bg-white text-[#8A6347] hover:border-[#9FC7B8] hover:bg-[#F3FAF7]'
+                        }`}
+                        title={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
+                        aria-label={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
+                        aria-expanded={isScheduleYoutubePlaylistOpen}
                       >
-                        {isScheduleYoutubeVisible ? '숨기기' : '보이기'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={clearScheduleYoutubeUrl}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
-                        title="유튜브 재생목록 지우기"
-                        aria-label="유튜브 재생목록 지우기"
-                      >
-                        <X size={16} />
+                        {scheduleYoutubeCount}개 영상
                       </button>
                     </>
                   ) : null}
@@ -5628,7 +6429,7 @@ export default function TimerPage() {
                 <div
                   className={`shrink-0 overflow-hidden rounded-[1.8rem] bg-[#FFFDF8] transition-all duration-300 ${
                     isScheduleYoutubeVisible
-                      ? 'mt-4 max-h-[32rem] border border-[#E6D5C9] opacity-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]'
+                      ? 'mt-4 max-h-[42rem] border border-[#E6D5C9] opacity-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]'
                       : 'pointer-events-none mt-0 max-h-0 border border-transparent opacity-0 shadow-none'
                   }`}
                   aria-hidden={!isScheduleYoutubeVisible}
@@ -5637,7 +6438,78 @@ export default function TimerPage() {
                     <ScheduleYoutubePlayer
                       videoIds={scheduleYoutubeVideoIds}
                       shouldAutoplay={shouldAutoplayScheduleYoutube}
+                      selectedIndex={boundedActiveScheduleYoutubeIndex}
+                      selectionRequestId={scheduleYoutubeSelectionRequestId}
+                      onActiveIndexChange={setActiveScheduleYoutubeIndex}
+                      onVideoMetadataChange={updateScheduleYoutubeMetadataFromPlayer}
                     />
+                  </div>
+                  <div className="border-t border-[#E6D5C9] bg-white/92 px-3 py-2">
+                    <p className="truncate text-[0.78rem] font-extrabold leading-6 text-[#3F2B20]">
+                      <span className="mr-1 text-[#006241]">
+                        {boundedActiveScheduleYoutubeIndex + 1}/{scheduleYoutubeCount}
+                      </span>
+                      {activeScheduleYoutubeItem?.title || '영상'}
+                    </p>
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ${
+                        isScheduleYoutubePlaylistOpen
+                          ? 'mt-2 max-h-[12rem] opacity-100'
+                          : 'mt-0 max-h-0 opacity-0'
+                      }`}
+                    >
+                      <ol className="max-h-[11.5rem] space-y-1 overflow-y-auto pr-1">
+                        {scheduleYoutubePlaylistItems.map((item) => (
+                          <li key={item.url}>
+                            <button
+                              type="button"
+                              onClick={() => playScheduleYoutubePlaylistItem(item.number - 1)}
+                              className={`grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[0.8rem] border px-2 py-1.5 text-left transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7] ${
+                                item.isActive
+                                  ? 'border-[#9FC7B8] bg-[#EEF7E8] text-[#006241]'
+                                  : 'border-[#E9DED2] bg-[#FFFDF8] text-[#8A6347]'
+                              }`}
+                              title={`${item.number}번 영상 재생: ${item.title}`}
+                              aria-label={`${item.number}번 영상 재생: ${item.title}`}
+                            >
+                              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[0.72rem] font-black ${
+                                item.isActive ? 'bg-[#006241] text-white' : 'bg-[#F3E9DE] text-[#8A6347]'
+                              }`}>
+                                {item.number}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block truncate text-[0.76rem] font-extrabold">
+                                  {item.number}. {item.title}
+                                </span>
+                                {item.channelTitle ? (
+                                  <span className="block truncate text-[0.64rem] font-bold opacity-70">{item.channelTitle}</span>
+                                ) : null}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ol>
+                      <div className="mt-2 flex items-center justify-end gap-2 border-t border-[#E9DED2] pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsScheduleYoutubeVisible(false);
+                            setShouldAutoplayScheduleYoutube(false);
+                            setIsScheduleYoutubePlaylistOpen(false);
+                          }}
+                          className="inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF7EC]"
+                        >
+                          숨기기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearScheduleYoutubeUrl}
+                          className="inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.7rem] font-extrabold text-[#B15F49] transition-colors hover:bg-[#FFF2E3]"
+                        >
+                          목록 비우기
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -5654,6 +6526,9 @@ export default function TimerPage() {
                   <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pr-2 text-base text-[#8A6347]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
                     {currentDaySchedule.map((s) => {
                       const isThisSlot = currentMinsForScheduleView >= s.start && currentMinsForScheduleView < s.end;
+                      const scheduleSubject = getWeeklySubject(weeklySubjects, currentSubjectWeekKey, today, s);
+                      const periodNumber = getSchedulePeriodNumber(s);
+                      const shouldShowSubject = s.type === 'class' && scheduleSubject.length > 0 && periodNumber !== null;
 
                       return (
                         <li
@@ -5663,7 +6538,18 @@ export default function TimerPage() {
                           }}
                           className={`schedule-row schedule-row-spacious flex items-center justify-between rounded-xl transition-colors ${isThisSlot ? 'schedule-row-active font-bold text-white shadow-md' : 'schedule-row-idle'}`}
                         >
-                          <span className="schedule-row-title font-semibold">{s.name}</span>
+                          <span className="schedule-row-title-wrap min-w-0">
+                            {shouldShowSubject ? (
+                              <>
+                                <span className="schedule-row-subject">{scheduleSubject}</span>
+                                <span className="schedule-row-period-badge">{periodNumber}교시</span>
+                              </>
+                            ) : (
+                              <span className="schedule-row-title font-semibold">
+                                {periodNumber !== null ? `${periodNumber}교시` : getScheduleSlotDisplayTitle(s, scheduleSubject)}
+                              </span>
+                            )}
+                          </span>
                           <span className="schedule-row-time font-mono">{formatMinutesToTime(s.start)} - {formatMinutesToTime(s.end)}</span>
                         </li>
                       );
@@ -5922,64 +6808,6 @@ export default function TimerPage() {
                         ))}
                       </div>
                     ) : null}
-                    {isYoutubeFavoriteFormOpen ? (
-                      <div className="mb-3 rounded-[1rem] border border-[#D9C8B6] bg-[#FFF7EC] p-3">
-                        <div className="grid gap-2">
-                          <input
-                            type="text"
-                            value={youtubeFavoriteNameInput}
-                            onChange={(event) => {
-                              setYoutubeFavoriteNameInput(event.target.value);
-                              if (youtubeFavoriteError) {
-                                setYoutubeFavoriteError('');
-                              }
-                            }}
-                            className="time-input w-full rounded-[0.8rem] border border-[#E4D9CB] bg-white px-3 py-2 text-[0.82rem] font-bold text-[#3F2B20] outline-none transition-colors focus:border-[#B58363]"
-                            placeholder="이름"
-                            aria-label="즐겨찾기 이름"
-                          />
-                          <textarea
-                            value={youtubeFavoriteUrlInput}
-                            onChange={(event) => {
-                              setYoutubeFavoriteUrlInput(event.target.value);
-                              if (youtubeFavoriteError) {
-                                setYoutubeFavoriteError('');
-                              }
-                            }}
-                            rows={3}
-                            className="time-input w-full resize-none rounded-[0.8rem] border border-[#E4D9CB] bg-white px-3 py-2 text-[0.82rem] font-bold leading-5 text-[#3F2B20] outline-none transition-colors focus:border-[#B58363]"
-                            placeholder="URL 또는 ID 1개"
-                            aria-label="즐겨찾기 URL"
-                          />
-                        </div>
-                        {youtubeFavoriteError ? (
-                          <p className="mt-2 text-[0.74rem] font-bold leading-5 text-[#C7684A]">
-                            {youtubeFavoriteError}
-                          </p>
-                        ) : null}
-                        <div className="mt-2 flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsYoutubeFavoriteFormOpen(false);
-                              setYoutubeFavoriteNameInput('');
-                              setYoutubeFavoriteUrlInput('');
-                              setYoutubeFavoriteError('');
-                            }}
-                            className="inline-flex min-h-9 items-center justify-center rounded-[0.75rem] px-3 text-[0.76rem] font-extrabold text-[#8A6347] transition-colors hover:bg-white"
-                          >
-                            취소
-                          </button>
-                          <button
-                            type="button"
-                            onClick={addScheduleYoutubeFavorite}
-                            className="inline-flex min-h-9 items-center justify-center rounded-[0.75rem] bg-[#8DBEA8] px-3 text-[0.76rem] font-extrabold text-white transition-colors hover:bg-[#7AAD96]"
-                          >
-                            저장
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
                     <div className="mb-3 rounded-[1rem] border border-[#D7E2D1] bg-[#F8FCF6] p-2.5">
                       <div className="flex items-center gap-2">
                         <div className="relative min-w-0 flex-1">
@@ -6013,7 +6841,7 @@ export default function TimerPage() {
                           disabled={isYoutubeSearching}
                           className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-[0.85rem] bg-[#8DBEA8] px-3 text-[0.78rem] font-extrabold text-white transition-colors hover:bg-[#7AAD96] disabled:cursor-not-allowed disabled:opacity-55"
                         >
-                          {isYoutubeSearching ? '검색 중' : YOUTUBE_SEARCH_API_KEY ? '검색' : 'YouTube'}
+                          {isYoutubeSearching ? '검색 중' : '검색'}
                         </button>
                       </div>
 
@@ -6022,7 +6850,7 @@ export default function TimerPage() {
                           {youtubeSearchResults.map((result) => (
                             <div
                               key={result.id}
-                              className="grid grid-cols-[4.6rem_minmax(0,1fr)_3.1rem] items-center gap-2 rounded-[0.85rem] border border-[#E1E9DD] bg-white p-1.5"
+                              className="grid grid-cols-[4.6rem_minmax(0,1fr)_2.3rem_3.1rem] items-center gap-2 rounded-[0.85rem] border border-[#E1E9DD] bg-white p-1.5"
                             >
                               <div className="aspect-video overflow-hidden rounded-[0.65rem] bg-[#EFE5D9]">
                                 {result.thumbnailUrl ? (
@@ -6044,6 +6872,15 @@ export default function TimerPage() {
                               </div>
                               <button
                                 type="button"
+                                onClick={() => addScheduleYoutubeSearchResultToFavorites(result)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] bg-[#FFF7EC] text-[#C99245] transition-colors hover:bg-[#FFF0DE]"
+                                title="즐겨찾기 저장"
+                                aria-label={`${result.title} 즐겨찾기 저장`}
+                              >
+                                <Star size={15} className="fill-current" />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => addScheduleYoutubeSearchResult(result)}
                                 className="inline-flex min-h-8 items-center justify-center rounded-[0.7rem] bg-[#FFF7EC] text-[0.68rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF0DE]"
                               >
@@ -6059,21 +6896,6 @@ export default function TimerPage() {
                           {youtubeSearchError}
                         </p>
                       ) : null}
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsYoutubeFavoriteFormOpen((previous) => !previous);
-                          setYoutubeFavoriteError('');
-                        }}
-                        className="inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] border border-[#D9C8B6] bg-[#FFF7EC] px-3.5 py-2 text-[0.82rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
-                        title={isYoutubeFavoriteFormOpen ? '즐겨찾기 등록 닫기' : '즐겨찾기 등록'}
-                        aria-label={isYoutubeFavoriteFormOpen ? '즐겨찾기 등록 닫기' : '즐겨찾기 등록'}
-                      >
-                        <Star size={15} className="mr-1.5 fill-current" />
-                        즐겨찾기
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -6127,7 +6949,7 @@ export default function TimerPage() {
             </div>
 
             <div className="settings-tab-strip shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
-              <div className="grid gap-2 md:grid-cols-2">
+              <div className="grid gap-2 md:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setSettingsPanel('schedule')}
@@ -6141,6 +6963,22 @@ export default function TimerPage() {
                   <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
                     <CalendarClock size={18} className={settingsPanel === 'schedule' ? 'text-[#476152]' : 'text-[#8A6347]'} />
                     시간표
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('subjects')}
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'subjects'
+                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'subjects'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <BookOpen size={18} className={settingsPanel === 'subjects' ? 'text-[#476152]' : 'text-[#8A6347]'} />
+                    과목
                   </div>
                 </button>
 
@@ -6163,7 +7001,11 @@ export default function TimerPage() {
             </div>
 
             <div className="settings-body custom-scrollbar flex-1 overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
-              {settingsPanel === 'schedule' ? scheduleSettingsPanel : drawSettingsPanel}
+              {settingsPanel === 'schedule'
+                ? scheduleSettingsPanel
+                : settingsPanel === 'subjects'
+                  ? subjectSettingsPanel
+                  : drawSettingsPanel}
             </div>
              
             {false && (
