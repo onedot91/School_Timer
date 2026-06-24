@@ -3994,6 +3994,15 @@ select {
   color: #d85c5c;
 }
 
+.announcement-note-highlight-text {
+  color: #c95f49;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.56);
+}
+
+.announcement-note-highlight-text-coral {
+  color: #c95f49;
+}
+
 .announcement-note-textarea {
   position: relative;
   z-index: 1;
@@ -6345,20 +6354,32 @@ h3 {
 
 .student-character-showcase {
   --student-character-accent: #7aa160;
+  --student-character-image-transform: none;
+  --student-character-walk-top: 48%;
+  --student-character-walk-size: min(31vw, 33vh, 16rem);
+  --student-character-walk-duration: 24s;
+  --student-character-walk-delay: 0s;
+  --student-character-walk-start: -24%;
+  --student-character-walk-end: 124%;
   position: absolute;
-  left: 50%;
-  top: 8.5%;
-  z-index: 7;
+  left: var(--student-character-walk-start);
+  top: var(--student-character-walk-top);
+  z-index: 18;
   display: flex;
-  width: min(33vw, 34vh, 16.5rem);
-  min-width: 8.25rem;
-  max-width: 44%;
+  width: var(--student-character-walk-size);
+  min-width: 7.5rem;
+  max-width: 18rem;
   transform: translateX(-50%);
   flex-direction: column;
   align-items: center;
-  gap: 0.42rem;
   pointer-events: none;
-  animation: studentCharacterAppear 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: studentCharacterWalkAcross var(--student-character-walk-duration) linear both;
+  animation-delay: var(--student-character-walk-delay);
+}
+
+.student-character-walk-left {
+  --student-character-walk-start: 124%;
+  --student-character-walk-end: -24%;
 }
 
 .student-character-frame {
@@ -6369,6 +6390,7 @@ h3 {
   max-height: min(34vh, 18rem);
   place-items: center;
   overflow: visible;
+  animation: studentCharacterWalkBob 780ms ease-in-out infinite;
 }
 
 .student-character-frame::before {
@@ -6387,47 +6409,10 @@ h3 {
   width: 100%;
   max-height: min(34vh, 18rem);
   object-fit: contain;
+  transform: var(--student-character-image-transform);
   filter:
     drop-shadow(0 14px 18px rgba(47, 36, 28, 0.22))
     drop-shadow(0 0 10px color-mix(in srgb, var(--student-character-accent) 18%, transparent));
-}
-
-.student-character-caption {
-  display: inline-flex;
-  max-width: min(100%, 17rem);
-  align-items: center;
-  justify-content: center;
-  gap: 0.42rem;
-  border: 2px solid color-mix(in srgb, var(--student-character-accent) 32%, rgba(47, 36, 28, 0.12));
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-  padding: 0.34rem 0.74rem;
-  color: #2f241d;
-  font-family: var(--font-display);
-  font-weight: 900;
-  line-height: 1;
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.76),
-    0 10px 18px rgba(47, 36, 28, 0.12);
-}
-
-.student-character-name,
-.student-character-creator {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.student-character-name {
-  font-size: clamp(1.05rem, 2vw, 1.46rem);
-}
-
-.student-character-creator {
-  border-left: 1px solid rgba(47, 36, 28, 0.16);
-  padding-left: 0.42rem;
-  color: color-mix(in srgb, var(--student-character-accent) 62%, #2f241d);
-  font-size: clamp(0.82rem, 1.42vw, 1.02rem);
 }
 
 @keyframes studentCharacterAppear {
@@ -6441,13 +6426,36 @@ h3 {
   }
 }
 
+@keyframes studentCharacterWalkAcross {
+  0% {
+    left: var(--student-character-walk-start);
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 1;
+  }
+  100% {
+    left: var(--student-character-walk-end);
+    opacity: 0;
+  }
+}
+
+@keyframes studentCharacterWalkBob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.5deg);
+  }
+  50% {
+    transform: translateY(-0.42rem) rotate(0.5deg);
+  }
+}
+
 @supports (width: 1cqh) {
   .timer-watch-face {
     width: min(40cqw, 40cqh, 17.5rem);
-  }
-
-  .student-character-showcase {
-    width: min(33cqw, 34cqh, 16.5rem);
   }
 }
 
@@ -8455,6 +8463,31 @@ h3 {
 
 .notice-highlight-apply-button:hover,
 .notice-highlight-apply-button:focus-visible {
+  background: #b8523f !important;
+  transform: translateY(-1px) scale(1.04);
+  box-shadow:
+    0 9px 18px rgba(151, 80, 59, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  outline: none;
+}
+
+.announcement-note-highlight-popover {
+  border-color: rgba(207, 112, 87, 0.28);
+}
+
+.announcement-note-highlight-apply-button {
+  background: #c95f49 !important;
+  box-shadow:
+    0 7px 14px rgba(151, 80, 59, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.announcement-note-highlight-apply-button:hover,
+.announcement-note-highlight-apply-button:focus-visible {
   background: #b8523f !important;
   transform: translateY(-1px) scale(1.04);
   box-shadow:

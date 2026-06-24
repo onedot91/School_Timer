@@ -42,7 +42,7 @@ import {
 } from '../lib/supabaseSettings';
 import {
   STUDENT_CHARACTERS,
-  STUDENT_CHARACTER_ROTATION_SECONDS,
+  STUDENT_CHARACTER_WALK_SECONDS,
   type StudentCharacter,
 } from '../lib/studentCharacters';
 
@@ -197,6 +197,7 @@ const ANNOUNCEMENT_MAX_VISIBLE_LINES = 14;
 const ANNOUNCEMENT_MIN_RULE_GAP_PX = 52;
 const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
+const ANNOUNCEMENT_NOTE_HIGHLIGHTS_STORAGE_KEY = 'announcementNoteHighlights-v1';
 const WEEKLY_SUBJECTS_STORAGE_KEY = 'weeklySubjects-v1';
 const SCHEDULE_NOTICE_HIGHLIGHTS_STORAGE_KEY = 'scheduleNoticeHighlights-v1';
 const MEMO_NOTE_STORAGE_KEY = 'school-memo-note-v1';
@@ -448,6 +449,9 @@ const removeNoticeHighlightRange = (
 
   return normalizeNoticeHighlightRanges(nextRanges, text);
 };
+
+const getAnnouncementNoteHighlightStorageKey = (dateKey: string) =>
+  `${ANNOUNCEMENT_NOTE_HIGHLIGHTS_STORAGE_KEY}:${dateKey}`;
 
 const getMemoFontSizeFromScale = (scale: number) =>
   Math.round(
@@ -828,7 +832,7 @@ const getCurrentScheduleWeekday = (offsetSeconds: number) => {
   return WEEKDAYS.includes(currentDay) ? currentDay : WEEKDAYS[0];
 };
 
-const renderAnnouncementNoteLine = (text: string, keyPrefix: string) => {
+const renderAnnouncementSafetySegments = (text: string, keyPrefix: string) => {
   const sourceText = text.length > 0 ? text : '\u200b';
   const segments: React.ReactNode[] = [];
   let searchStart = 0;
@@ -858,22 +862,79 @@ const renderAnnouncementNoteLine = (text: string, keyPrefix: string) => {
   return segments;
 };
 
-const renderAnnouncementNoteDisplay = (text: string) => {
+const renderAnnouncementNoteLine = (
+  text: string,
+  keyPrefix: string,
+  lineStart: number,
+  highlightRanges: NoticeHighlightRange[] = [],
+) => {
+  const sourceText = text.length > 0 ? text : '\u200b';
+  const ranges = highlightRanges
+    .map((range) => ({
+      ...range,
+      start: Math.max(0, Math.min(sourceText.length, range.start - lineStart)),
+      end: Math.max(0, Math.min(sourceText.length, range.end - lineStart)),
+    }))
+    .filter((range) => range.end > range.start)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  if (ranges.length === 0) {
+    return renderAnnouncementSafetySegments(sourceText, keyPrefix);
+  }
+
+  const segments: React.ReactNode[] = [];
+  let cursor = 0;
+
+  ranges.forEach((range, index) => {
+    if (range.start > cursor) {
+      segments.push(...renderAnnouncementSafetySegments(sourceText.slice(cursor, range.start), `${keyPrefix}-plain-${index}`));
+    }
+
+    segments.push(
+      <span
+        key={`${keyPrefix}-highlight-${index}`}
+        className={`announcement-note-highlight-text announcement-note-highlight-text-${range.color || NOTICE_HIGHLIGHT_COLORS[0].id}`}
+      >
+        {sourceText.slice(range.start, range.end)}
+      </span>,
+    );
+    cursor = range.end;
+  });
+
+  if (cursor < sourceText.length) {
+    segments.push(...renderAnnouncementSafetySegments(sourceText.slice(cursor), `${keyPrefix}-plain-end`));
+  }
+
+  return segments;
+};
+
+const renderAnnouncementNoteDisplay = (text: string, highlightRanges: NoticeHighlightRange[] = []) => {
   const lines = text.length > 0 ? text.split('\n') : [''];
   const isPlaceholderVisible = text.length === 0;
+  let lineStart = 0;
 
-  return lines.map((line, index) => (
-    <div key={`announcement-note-line-${index}`} className="announcement-note-display-line">
-      <span className="announcement-note-display-marker">{index + 1}.</span>
-      <span
-        className={`announcement-note-display-line-text${isPlaceholderVisible ? ' announcement-note-display-line-text-placeholder' : ''}`}
-      >
-        {isPlaceholderVisible
-          ? ANNOUNCEMENT_NOTE_PLACEHOLDER
-          : renderAnnouncementNoteLine(line, `announcement-note-line-${index}`)}
-      </span>
-    </div>
-  ));
+  return lines.map((line, index) => {
+    const currentLineStart = lineStart;
+    lineStart += line.length + 1;
+
+    return (
+      <div key={`announcement-note-line-${index}`} className="announcement-note-display-line">
+        <span className="announcement-note-display-marker">{index + 1}.</span>
+        <span
+          className={`announcement-note-display-line-text${isPlaceholderVisible ? ' announcement-note-display-line-text-placeholder' : ''}`}
+        >
+          {isPlaceholderVisible
+            ? ANNOUNCEMENT_NOTE_PLACEHOLDER
+            : renderAnnouncementNoteLine(
+                line,
+                `announcement-note-line-${index}`,
+                currentLineStart,
+                highlightRanges,
+              )}
+        </span>
+      </div>
+    );
+  });
 };
 
 const getScheduleClockParts = (timeMs: number, offsetSeconds: number) => {
@@ -1590,6 +1651,9 @@ function AnnouncementNotebookOverlay({
   const [announcementHistory, setAnnouncementHistory] = useState<AnnouncementNoteRecord[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [todayAnnouncementDateKey, setTodayAnnouncementDateKey] = useState(() => getTodayAnnouncementDateKey());
+  const [noteHighlightRanges, setNoteHighlightRanges] = useState<NoticeHighlightRange[]>([]);
+  const [pendingNoteHighlightRange, setPendingNoteHighlightRange] = useState<NoticeHighlightRange | null>(null);
+  const [noteHighlightPopoverPosition, setNoteHighlightPopoverPosition] = useState({ x: 0, y: 0 });
   const [announcementSaveState, setAnnouncementSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>(
     isSupabaseSettingsEnabled ? 'idle' : 'saved',
   );
@@ -1730,6 +1794,11 @@ function AnnouncementNotebookOverlay({
     textarea.setSelectionRange(cursorPosition, cursorPosition);
   };
 
+  const handleNoteTextChange = (nextText: string) => {
+    setPendingNoteHighlightRange(null);
+    setNoteText(nextText);
+  };
+
   const syncNoteDisplayScroll = () => {
     const textarea = noteTextareaRef.current;
     const display = noteDisplayRef.current;
@@ -1739,6 +1808,79 @@ function AnnouncementNotebookOverlay({
     display.scrollTop = textarea.scrollTop;
     display.scrollLeft = textarea.scrollLeft;
     paperBody?.style.setProperty('--announcement-note-scroll-y', `${textarea.scrollTop}px`);
+  };
+
+  const getNoteHighlightPopoverPosition = (selectionEnd: number) => {
+    const textarea = noteTextareaRef.current;
+    const editor = noteEditorRef.current;
+    if (!textarea || !editor) return { x: 16, y: 16 };
+
+    const computedStyle = window.getComputedStyle(textarea);
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || noteRuleGapPx;
+    const fontSize = Number.parseFloat(computedStyle.fontSize) || 36;
+    const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
+    const paddingLeft = Number.parseFloat(computedStyle.paddingLeft) || 0;
+    const textBeforeSelection = noteText.slice(0, selectionEnd);
+    const linesBeforeSelection = textBeforeSelection.split('\n');
+    const lineIndex = Math.max(0, linesBeforeSelection.length - 1);
+    const lineText = linesBeforeSelection[lineIndex] || '';
+    const estimatedTextX = Math.min(lineText.length * fontSize * 0.52, Math.max(0, editor.clientWidth - paddingLeft - 190));
+    const x = Math.max(12, Math.min(editor.clientWidth - 168, paddingLeft + estimatedTextX - textarea.scrollLeft));
+    const y = Math.max(
+      12,
+      Math.min(
+        editor.clientHeight - 64,
+        paddingTop + lineIndex * lineHeight + lineHeight * 0.56 - textarea.scrollTop,
+      ),
+    );
+
+    return { x, y };
+  };
+
+  const applyNoteSelectionHighlight = () => {
+    const textarea = noteTextareaRef.current;
+    if (!textarea) return;
+
+    const start = Math.min(textarea.selectionStart, textarea.selectionEnd);
+    const end = Math.max(textarea.selectionStart, textarea.selectionEnd);
+    if (end <= start) {
+      setPendingNoteHighlightRange(null);
+      return;
+    }
+
+    setNoteHighlightPopoverPosition(getNoteHighlightPopoverPosition(end));
+    setPendingNoteHighlightRange({ start, end, color: NOTICE_HIGHLIGHT_COLORS[0].id });
+  };
+
+  const applyPendingNoteHighlight = () => {
+    if (!pendingNoteHighlightRange) return;
+    const selectionEnd = pendingNoteHighlightRange.end;
+
+    setNoteHighlightRanges((previous) =>
+      normalizeNoticeHighlightRanges(
+        [...previous, { ...pendingNoteHighlightRange, color: NOTICE_HIGHLIGHT_COLORS[0].id }],
+        noteText,
+      ),
+    );
+    setPendingNoteHighlightRange(null);
+    const textarea = noteTextareaRef.current;
+    textarea?.focus();
+    textarea?.setSelectionRange(selectionEnd, selectionEnd);
+  };
+
+  const cancelPendingNoteHighlight = () => {
+    const selectionEnd = pendingNoteHighlightRange?.end ?? null;
+    if (pendingNoteHighlightRange) {
+      setNoteHighlightRanges((previous) =>
+        removeNoticeHighlightRange(previous, pendingNoteHighlightRange, noteText),
+      );
+    }
+    setPendingNoteHighlightRange(null);
+    const textarea = noteTextareaRef.current;
+    textarea?.focus();
+    if (selectionEnd !== null) {
+      textarea?.setSelectionRange(selectionEnd, selectionEnd);
+    }
   };
 
   const insertSafetyPhrase = () => {
@@ -1850,6 +1992,39 @@ function AnnouncementNotebookOverlay({
     if (!hasHydrated) return;
     persistAnnouncementNote(dateText, noteText);
   }, [dateText, hasHydrated, noteText]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    try {
+      const savedHighlights = localStorage.getItem(getAnnouncementNoteHighlightStorageKey(currentAnnouncementDateKey));
+      setNoteHighlightRanges(normalizeNoticeHighlightRanges(JSON.parse(savedHighlights || '[]'), noteText));
+    } catch {
+      setNoteHighlightRanges([]);
+    }
+    setPendingNoteHighlightRange(null);
+  }, [currentAnnouncementDateKey, hasHydrated]);
+
+  useEffect(() => {
+    setNoteHighlightRanges((previous) => {
+      const normalized = normalizeNoticeHighlightRanges(previous, noteText);
+      return JSON.stringify(previous) === JSON.stringify(normalized) ? previous : normalized;
+    });
+  }, [noteText]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+
+    try {
+      const normalized = normalizeNoticeHighlightRanges(noteHighlightRanges, noteText);
+      localStorage.setItem(
+        getAnnouncementNoteHighlightStorageKey(currentAnnouncementDateKey),
+        JSON.stringify(normalized),
+      );
+    } catch {
+      // Ignore local storage write errors.
+    }
+  }, [currentAnnouncementDateKey, hasHydrated, noteHighlightRanges, noteText]);
 
   useEffect(() => {
     const updateTodayKey = () => {
@@ -2071,19 +2246,54 @@ function AnnouncementNotebookOverlay({
                   className="announcement-note-editor absolute inset-x-4 bottom-4 top-0 sm:bottom-5 sm:left-[4.7rem] sm:right-6"
                 >
                   <div ref={noteDisplayRef} aria-hidden="true" className="announcement-note-display" lang="ko">
-                    <div className="announcement-note-display-content">{renderAnnouncementNoteDisplay(noteText)}</div>
+                    <div className="announcement-note-display-content">
+                      {renderAnnouncementNoteDisplay(
+                        noteText,
+                        normalizeNoticeHighlightRanges(noteHighlightRanges, noteText),
+                      )}
+                    </div>
                   </div>
                   <textarea
                     ref={noteTextareaRef}
                     value={noteText}
-                    onChange={(event) => setNoteText(event.target.value)}
+                    onChange={(event) => handleNoteTextChange(event.target.value)}
                     onKeyDown={handleNoteTextareaKeyDown}
+                    onKeyUp={applyNoteSelectionHighlight}
+                    onMouseUp={applyNoteSelectionHighlight}
+                    onTouchEnd={applyNoteSelectionHighlight}
                     onScroll={syncNoteDisplayScroll}
                     className="announcement-note-textarea"
                     placeholder={ANNOUNCEMENT_NOTE_PLACEHOLDER}
                     spellCheck={false}
                     lang="ko"
                   />
+                  {pendingNoteHighlightRange ? (
+                    <div
+                      className="announcement-note-highlight-popover absolute z-[5] inline-flex items-center gap-2 rounded-full border bg-white/95 p-2 shadow-[0_12px_22px_rgba(56,37,26,0.16)] backdrop-blur"
+                      style={{
+                        left: noteHighlightPopoverPosition.x,
+                        top: noteHighlightPopoverPosition.y,
+                      }}
+                      data-capture-exclude="true"
+                    >
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={applyPendingNoteHighlight}
+                        className="announcement-note-highlight-apply-button rounded-full px-4 py-2 text-[0.95rem] font-extrabold text-white"
+                      >
+                        강조
+                      </button>
+                      <button
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={cancelPendingNoteHighlight}
+                        className="rounded-full px-3 py-2 text-[0.95rem] font-extrabold text-[#3b241d] transition-colors hover:bg-[#f6eee8]"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="announcement-note-inline-tools" data-capture-exclude="true">
                     <button
                       onMouseDown={(event) => event.preventDefault()}
@@ -2653,28 +2863,57 @@ function ScheduleYoutubePlayer({
   return <div ref={containerRef} className="h-full w-full" />;
 }
 
+const STUDENT_CHARACTER_WALK_LANES = [
+  { top: '39%', size: 'min(28vw, 30vh, 14.5rem)' },
+  { top: '48%', size: 'min(31vw, 33vh, 16rem)' },
+  { top: '56%', size: 'min(27vw, 29vh, 14rem)' },
+] as const;
+
+interface StudentCharacterWalker {
+  renderKey: string;
+  character: StudentCharacter;
+  direction: 'left' | 'right';
+  lane: (typeof STUDENT_CHARACTER_WALK_LANES)[number];
+  animationDelaySeconds: number;
+}
+
 function StudentCharacterShowcase({
   character,
   timerType,
+  direction,
+  lane,
+  animationDelaySeconds,
   onImageError,
 }: {
   character: StudentCharacter;
   timerType: TimerType;
+  direction: 'left' | 'right';
+  lane: (typeof STUDENT_CHARACTER_WALK_LANES)[number];
+  animationDelaySeconds: number;
   onImageError: (characterId: string) => void;
 }) {
-  const label = character.creatorName
-    ? `${character.creatorName}의 ${character.name}`
-    : character.name;
-  const modeLabel = timerType === 'lunch' ? '점심시간' : '쉬는시간';
+  const [initialAnimationDelaySeconds] = useState(animationDelaySeconds);
+  const modeLabel =
+    timerType === 'lunch'
+      ? '점심시간'
+      : timerType === 'break'
+        ? '쉬는시간'
+        : '일정 없음';
+  const imageTransform = character.walkTransform?.[direction] || (direction === 'left' ? 'scaleX(-1)' : 'none');
   const frameStyle = {
     '--student-character-accent': character.themeColor || '#7AA160',
+    '--student-character-walk-top': lane.top,
+    '--student-character-walk-size': lane.size,
+    '--student-character-walk-duration': `${STUDENT_CHARACTER_WALK_SECONDS}s`,
+    '--student-character-walk-delay': `${initialAnimationDelaySeconds}s`,
+    '--student-character-image-transform': imageTransform,
   } as React.CSSProperties;
 
   return (
     <div
       key={character.id}
-      className="student-character-showcase"
-      aria-label={`${modeLabel} 자캐: ${label}`}
+      className={`student-character-showcase student-character-walk-${direction}`}
+      aria-label={`${modeLabel} 자캐`}
       style={frameStyle}
     >
       <div className="student-character-frame">
@@ -2685,12 +2924,6 @@ function StudentCharacterShowcase({
           draggable={false}
           onError={() => onImageError(character.id)}
         />
-      </div>
-      <div className="student-character-caption">
-        <span className="student-character-name">{character.name}</span>
-        {character.creatorName ? (
-          <span className="student-character-creator">{character.creatorName}</span>
-        ) : null}
       </div>
     </div>
   );
@@ -4661,6 +4894,30 @@ export default function TimerPage() {
     setScheduleYoutubeFavorites((previous) => previous.filter((favorite) => favorite.id !== favoriteId));
   };
 
+  const updateScheduleYoutubeFavoriteName = (favoriteId: string, nextName: string) => {
+    setScheduleYoutubeFavorites((previous) =>
+      previous.map((favorite) =>
+        favorite.id === favoriteId
+          ? {
+              ...favorite,
+              name: nextName,
+            }
+          : favorite,
+      ),
+    );
+  };
+
+  const normalizeScheduleYoutubeFavoriteName = (favoriteId: string) => {
+    setScheduleYoutubeFavorites((previous) =>
+      previous.map((favorite, index) => {
+        if (favorite.id !== favoriteId) return favorite;
+        const fallbackName = favorite.title || `즐겨찾기 ${index + 1}`;
+        const nextName = favorite.name.trim() || fallbackName;
+        return favorite.name === nextName ? favorite : { ...favorite, name: nextName };
+      }),
+    );
+  };
+
   const playScheduleYoutubePlaylistItem = (index: number) => {
     setActiveScheduleYoutubeIndex(index);
     setShouldAutoplayScheduleYoutube(true);
@@ -4731,7 +4988,8 @@ export default function TimerPage() {
     const nextFocusedElement = event.relatedTarget;
     if (
       nextFocusedElement instanceof HTMLElement &&
-      nextFocusedElement.closest('[data-notice-memo-button="true"]')
+      (nextFocusedElement.closest('[data-notice-memo-button="true"]') ||
+        nextFocusedElement.closest('[data-notice-highlight-popover="true"]'))
     ) {
       return;
     }
@@ -5003,13 +5261,52 @@ export default function TimerPage() {
     activeScheduleSlot && activeScheduleSlot.type === timerType && canShowStudentCharacter
       ? Math.max(0, currentScheduleSecondsOfDay - activeScheduleSlot.start * 60)
       : currentScheduleSecondsOfDay;
-  const activeStudentCharacter =
-    canShowStudentCharacter
-      ? visibleStudentCharacters[
-          Math.floor(studentCharacterElapsedSeconds / STUDENT_CHARACTER_ROTATION_SECONDS) %
-            visibleStudentCharacters.length
-        ]
-      : null;
+  const getStudentCharacterWalker = (
+    elapsedSeconds: number,
+    offsetSeconds: number,
+    activeCharacterId?: string,
+  ): StudentCharacterWalker | null => {
+    if (!canShowStudentCharacter) return null;
+
+    const shiftedElapsedSeconds = Math.max(0, elapsedSeconds + offsetSeconds);
+    const walkCycle = Math.floor(shiftedElapsedSeconds / STUDENT_CHARACTER_WALK_SECONDS);
+    let characterIndex = walkCycle % visibleStudentCharacters.length;
+    if (
+      activeCharacterId &&
+      visibleStudentCharacters.length > 1 &&
+      visibleStudentCharacters[characterIndex]?.id === activeCharacterId
+    ) {
+      characterIndex = (characterIndex + 1) % visibleStudentCharacters.length;
+    }
+    if (
+      activeCharacterId &&
+      visibleStudentCharacters.length === 1 &&
+      visibleStudentCharacters[characterIndex]?.id === activeCharacterId
+    ) {
+      return null;
+    }
+
+    const character = visibleStudentCharacters[characterIndex];
+    if (!character) return null;
+
+    return {
+      renderKey: `${offsetSeconds}-${walkCycle}-${characterIndex}-${character.id}`,
+      character,
+      direction: walkCycle % 2 === 0 ? 'right' : 'left',
+      lane: STUDENT_CHARACTER_WALK_LANES[walkCycle % STUDENT_CHARACTER_WALK_LANES.length],
+      animationDelaySeconds: -(shiftedElapsedSeconds % STUDENT_CHARACTER_WALK_SECONDS),
+    };
+  };
+  const primaryStudentCharacterWalker = getStudentCharacterWalker(studentCharacterElapsedSeconds, 0);
+  const secondaryStudentCharacterWalker = getStudentCharacterWalker(
+    studentCharacterElapsedSeconds,
+    STUDENT_CHARACTER_WALK_SECONDS / 2,
+    primaryStudentCharacterWalker?.character.id,
+  );
+  const activeStudentCharacterWalkers = [
+    primaryStudentCharacterWalker,
+    secondaryStudentCharacterWalker,
+  ].filter((walker): walker is StudentCharacterWalker => walker !== null);
   const markStudentCharacterFailed = (characterId: string) => {
     setFailedStudentCharacterIds((previous) => {
       if (previous.has(characterId)) return previous;
@@ -5149,8 +5446,46 @@ export default function TimerPage() {
     setNoticeHighlightPopoverPosition({ x, y });
     setPendingNoticeHighlightRange({ start, end, color: NOTICE_HIGHLIGHT_COLORS[0].id });
   };
+  const applyNoticeDraftSelectionHighlight = () => {
+    const textarea = noticeInputRef.current;
+    if (!textarea) return;
+
+    const selectionStart = Math.min(textarea.selectionStart, textarea.selectionEnd);
+    const selectionEnd = Math.max(textarea.selectionStart, textarea.selectionEnd);
+    if (selectionEnd <= selectionStart) {
+      setPendingNoticeHighlightRange(null);
+      return;
+    }
+
+    const leadingTrimLength = noticeDraft.length - noticeDraft.trimStart().length;
+    const trimmedText = noticeDraft.trim();
+    const start = Math.max(0, Math.min(trimmedText.length, selectionStart - leadingTrimLength));
+    const end = Math.max(0, Math.min(trimmedText.length, selectionEnd - leadingTrimLength));
+    if (end <= start) {
+      setPendingNoticeHighlightRange(null);
+      return;
+    }
+
+    const editor = textarea.closest('.notice-editor');
+    if (!(editor instanceof HTMLElement)) return;
+
+    const computedStyle = window.getComputedStyle(textarea);
+    const fontSize = Number.parseFloat(computedStyle.fontSize) || 44;
+    const selectedPrefix = noticeDraft.slice(0, selectionEnd);
+    const lineCount = selectedPrefix.split('\n').length;
+    const estimatedX = textarea.clientWidth / 2 + Math.min(fontSize * 2, textarea.clientWidth * 0.22);
+    const popoverWidth = 136;
+    const popoverHeight = 44;
+    const x = Math.max(12, Math.min(estimatedX, editor.clientWidth - popoverWidth - 12));
+    const y = Math.max(12, Math.min(34 + (lineCount - 1) * fontSize * 1.18, editor.clientHeight - popoverHeight - 12));
+
+    setNoticeHighlightPopoverPosition({ x, y });
+    setPendingNoticeHighlightRange({ start, end, color: NOTICE_HIGHLIGHT_COLORS[0].id });
+  };
   const applyPendingNoticeHighlight = (color: NoticeHighlightColorId) => {
     if (!pendingNoticeHighlightRange) return;
+    const nextCursorPosition =
+      noticeDraft.length - noticeDraft.trimStart().length + pendingNoticeHighlightRange.end;
     setScheduleNoticeHighlights((previous) =>
       normalizeNoticeHighlightRanges(
         [...previous, { ...pendingNoticeHighlightRange, color }],
@@ -5160,8 +5495,15 @@ export default function TimerPage() {
     skipNextNoticeTextClickRef.current = false;
     setPendingNoticeHighlightRange(null);
     window.getSelection()?.removeAllRanges();
+    if (isEditingNoticeRef.current) {
+      noticeInputRef.current?.focus();
+      noticeInputRef.current?.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    }
   };
   const cancelPendingNoticeHighlight = () => {
+    const nextCursorPosition = pendingNoticeHighlightRange
+      ? noticeDraft.length - noticeDraft.trimStart().length + pendingNoticeHighlightRange.end
+      : null;
     if (pendingNoticeHighlightRange) {
       setScheduleNoticeHighlights((previous) =>
         removeNoticeHighlightRange(previous, pendingNoticeHighlightRange, trimmedNotice),
@@ -5170,6 +5512,10 @@ export default function TimerPage() {
     skipNextNoticeTextClickRef.current = false;
     setPendingNoticeHighlightRange(null);
     window.getSelection()?.removeAllRanges();
+    if (isEditingNoticeRef.current && nextCursorPosition !== null) {
+      noticeInputRef.current?.focus();
+      noticeInputRef.current?.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    }
   };
   const noticeCardStyle = isEditingNotice
     ? { animation: 'noticeFadeIn 220ms ease-out' }
@@ -5212,6 +5558,9 @@ export default function TimerPage() {
                 value={noticeDraft}
                 onChange={(e) => applyNoticeDraft(e.target.value)}
                 onBlur={handleNoticeBlur}
+                onKeyUp={applyNoticeDraftSelectionHighlight}
+                onMouseUp={applyNoticeDraftSelectionHighlight}
+                onTouchEnd={applyNoticeDraftSelectionHighlight}
                 onKeyDown={(e) => {
                   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     e.preventDefault();
@@ -5228,6 +5577,35 @@ export default function TimerPage() {
                 className={`notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep text-center font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 ${draftNoticeTextClass}`}
               />
             </div>
+            {pendingNoticeHighlightRange ? (
+              <div
+                className="notice-highlight-popover absolute z-30 flex items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1.5 shadow-[0_12px_24px_rgba(151,80,59,0.16)] backdrop-blur-sm"
+                style={{
+                  left: noticeHighlightPopoverPosition.x,
+                  top: noticeHighlightPopoverPosition.y,
+                }}
+                data-notice-highlight-popover="true"
+              >
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => applyPendingNoticeHighlight('coral')}
+                  className="notice-highlight-apply-button inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.72rem] font-extrabold text-white transition-colors"
+                  title="코랄색으로 강조"
+                  aria-label="코랄색으로 강조"
+                >
+                  강조
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={cancelPendingNoticeHighlight}
+                  className="inline-flex h-8 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
+                >
+                  취소
+                </button>
+              </div>
+            ) : null}
             <div className="row-start-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <button
@@ -5292,9 +5670,11 @@ export default function TimerPage() {
                     left: noticeHighlightPopoverPosition.x,
                     top: noticeHighlightPopoverPosition.y,
                   }}
+                  data-notice-highlight-popover="true"
                 >
                   <button
                     type="button"
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => applyPendingNoticeHighlight('coral')}
                     className="notice-highlight-apply-button inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.72rem] font-extrabold text-white transition-colors"
                     title="코랄색으로 강조"
@@ -5304,6 +5684,7 @@ export default function TimerPage() {
                   </button>
                   <button
                     type="button"
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={cancelPendingNoticeHighlight}
                     className="inline-flex h-8 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
                   >
@@ -6032,6 +6413,18 @@ export default function TimerPage() {
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
+        {activeStudentCharacterWalkers.map((walker) => (
+          <React.Fragment key={walker.renderKey}>
+            <StudentCharacterShowcase
+              character={walker.character}
+              timerType={timerType}
+              direction={walker.direction}
+              lane={walker.lane}
+              animationDelaySeconds={walker.animationDelaySeconds}
+              onImageError={markStudentCharacterFailed}
+            />
+          </React.Fragment>
+        ))}
         {noticeBanner}
         <div
           className={`editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid ${
@@ -6217,13 +6610,6 @@ export default function TimerPage() {
                   className="transition-all duration-1000 ease-linear"
                 />
               </svg>
-              {activeStudentCharacter ? (
-                <StudentCharacterShowcase
-                  character={activeStudentCharacter}
-                  timerType={timerType}
-                  onImageError={markStudentCharacterFailed}
-                />
-              ) : null}
               {shouldShowMorningReading ? (
                 <div className="morning-reading-overlay" aria-label="독서 시간입니다.">
                   <div className="morning-reading-bubble">독서 시간입니다.</div>
@@ -6784,17 +7170,34 @@ export default function TimerPage() {
                         {scheduleYoutubeFavorites.map((favorite) => (
                           <div
                             key={favorite.id}
-                            className="group flex h-8 min-w-0 items-center rounded-full border border-[#D7E2D1] bg-[#FFFDF8] px-1.5 transition-colors hover:border-[#BFD4B2] hover:bg-[#F8FCF6]"
+                            className="group flex h-8 min-w-0 items-center gap-1 rounded-full border border-[#D7E2D1] bg-[#FFFDF8] px-1.5 transition-colors hover:border-[#BFD4B2] hover:bg-[#F8FCF6]"
                           >
                             <button
                               type="button"
                               onClick={() => addScheduleYoutubeFavoriteToPlaylist(favorite)}
-                              className="flex min-w-0 flex-1 items-center gap-1 rounded-full text-left text-[0.68rem] font-extrabold text-[#6E5139]"
+                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#C99245] transition-colors hover:bg-[#FFF2E3]"
                               title={`${favorite.name} 재생목록 추가`}
+                              aria-label={`${favorite.name} 재생목록 추가`}
                             >
                               <Star size={12} className="shrink-0 fill-current text-[#C99245]" />
-                              <span className="min-w-0 truncate">{favorite.name}</span>
                             </button>
+                            <input
+                              type="text"
+                              value={favorite.name}
+                              onChange={(event) => updateScheduleYoutubeFavoriteName(favorite.id, event.target.value)}
+                              onBlur={() => normalizeScheduleYoutubeFavoriteName(favorite.id)}
+                              onFocus={(event) => event.currentTarget.select()}
+                              onKeyDown={(event) => {
+                                if (event.key !== 'Enter') return;
+                                event.preventDefault();
+                                normalizeScheduleYoutubeFavoriteName(favorite.id);
+                                event.currentTarget.blur();
+                              }}
+                              className="min-w-0 flex-1 bg-transparent text-[0.68rem] font-extrabold text-[#6E5139] outline-none placeholder:text-[#A98261]/70"
+                              placeholder="이름"
+                              aria-label={`${favorite.name || '즐겨찾기'} 이름 수정`}
+                              title="즐겨찾기 이름 수정"
+                            />
                             <button
                               type="button"
                               onClick={() => removeScheduleYoutubeFavorite(favorite.id)}
