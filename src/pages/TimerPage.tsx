@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Copy, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Copy, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -107,6 +107,13 @@ interface ScheduleYoutubeFavorite {
   urls: string[];
 }
 
+interface ScheduleYoutubeSearchResult {
+  id: string;
+  title: string;
+  channelTitle: string;
+  thumbnailUrl: string;
+}
+
 const getUniqueDrawHistoryEntries = (historyEntries: RandomDrawHistoryEntry[]) => {
   const repeatedNumberSet = new Set(
     historyEntries.filter((entry) => entry.kind === 'repeat').map((entry) => entry.number),
@@ -158,6 +165,7 @@ const MORNING_DEFAULT_DURATION = 15;
 const CLASS_DURATION = 40;
 const BREAK_DURATION = 10;
 const BACKGROUND_MUSIC_VOLUME = 0.24;
+const BACKGROUND_MUSIC_SRC = '/background_music.mp3';
 const SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS = 59;
 const WEEKDAYS = [1, 2, 3, 4, 5];
 const ANNOUNCEMENT_VISIBLE_LINES = 5;
@@ -173,6 +181,23 @@ const MEMO_NOTE_FONT_SCALE_STEP = 5;
 const MEMO_NOTE_MIN_FONT_SIZE = 40;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
 const SCHEDULE_YOUTUBE_URLS_STORAGE_KEY = 'scheduleYoutubeUrls-v2';
+
+let sharedBackgroundMusicAudio: HTMLAudioElement | null = null;
+
+const getSharedBackgroundMusicAudio = () => {
+  if (typeof window === 'undefined') return null;
+
+  if (!sharedBackgroundMusicAudio) {
+    sharedBackgroundMusicAudio = new Audio(BACKGROUND_MUSIC_SRC);
+    sharedBackgroundMusicAudio.loop = true;
+    sharedBackgroundMusicAudio.preload = 'auto';
+  }
+
+  sharedBackgroundMusicAudio.volume = BACKGROUND_MUSIC_VOLUME;
+  sharedBackgroundMusicAudio.loop = true;
+
+  return sharedBackgroundMusicAudio;
+};
 const SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY = 'scheduleYoutubeUrl-v1';
 const SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY = 'scheduleYoutubeVisible-v1';
 const SCHEDULE_YOUTUBE_FAVORITES_STORAGE_KEY = 'scheduleYoutubeFavorites-v1';
@@ -231,12 +256,24 @@ const MANUAL_TIMER_PRESETS = [
 ] as const;
 const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_IFRAME_API_SRC = 'https://www.youtube.com/iframe_api';
+const YOUTUBE_SEARCH_API_SRC = 'https://www.googleapis.com/youtube/v3/search';
+const YOUTUBE_SEARCH_MAX_RESULTS = 6;
 const YOUTUBE_PLAYER_STATE_ENDED = 0;
+const YOUTUBE_END_DETECTION_SECONDS = 0.6;
+
+const YOUTUBE_SEARCH_API_KEY =
+  typeof import.meta.env.VITE_YOUTUBE_API_KEY === 'string'
+    ? import.meta.env.VITE_YOUTUBE_API_KEY.trim()
+    : '';
 
 interface YoutubePlayerInstance {
   cueVideoById: (videoId: string | { videoId: string; startSeconds?: number }) => void;
   loadVideoById: (videoId: string | { videoId: string; startSeconds?: number }) => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  getPlayerState: () => number;
   mute: () => void;
+  unMute: () => void;
   pauseVideo: () => void;
   playVideo: () => void;
   destroy: () => void;
@@ -265,6 +302,26 @@ interface YoutubeIframeApi {
       };
     },
   ) => YoutubePlayerInstance;
+}
+
+interface YoutubeSearchApiResponse {
+  items?: Array<{
+    id?: {
+      videoId?: string;
+    };
+    snippet?: {
+      title?: string;
+      channelTitle?: string;
+      thumbnails?: {
+        default?: { url?: string };
+        medium?: { url?: string };
+        high?: { url?: string };
+      };
+    };
+  }>;
+  error?: {
+    message?: string;
+  };
 }
 
 declare global {
@@ -391,6 +448,9 @@ const extractYoutubeVideoId = (value: string) => {
 };
 
 const buildScheduleYoutubeWatchUrl = (videoId: string) => `https://www.youtube.com/watch?v=${videoId}`;
+
+const buildScheduleYoutubeSearchUrl = (query: string) =>
+  `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 
 const createScheduleYoutubeFavoriteId = () => `youtube-favorite-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -2120,6 +2180,8 @@ function ScheduleYoutubePlayer({
 
     if (muted) {
       player.mute();
+    } else {
+      player.unMute();
     }
 
     player.loadVideoById(nextVideoId);
@@ -2134,6 +2196,29 @@ function ScheduleYoutubePlayer({
     activeVideoIdRef.current = nextVideoId;
     hasReachedQueueEndRef.current = false;
     player.cueVideoById(nextVideoId);
+  };
+
+  const playNextVideo = (player: YoutubePlayerInstance) => {
+    const nextIndex = activeIndexRef.current + 1;
+    if (nextIndex >= queuedVideoIdsRef.current.length) {
+      hasReachedQueueEndRef.current = true;
+      return;
+    }
+
+    autoplayRetryRef.current = false;
+    playVideoAtIndex(player, nextIndex);
+  };
+
+  const isCurrentVideoNearEnd = (player: YoutubePlayerInstance) => {
+    const duration = player.getDuration();
+    const currentTime = player.getCurrentTime();
+
+    return (
+      Number.isFinite(duration) &&
+      Number.isFinite(currentTime) &&
+      duration > 0 &&
+      currentTime >= duration - YOUTUBE_END_DETECTION_SECONDS
+    );
   };
 
   useEffect(() => {
@@ -2168,20 +2253,12 @@ function ScheduleYoutubePlayer({
               if (!shouldAutoplayRef.current) return;
               if (autoplayRetryRef.current) return;
               autoplayRetryRef.current = true;
-              playVideoAtIndex(event.target, activeIndexRef.current, true);
+              cueVideoAtIndex(event.target, activeIndexRef.current);
             },
             onStateChange: (event) => {
               if (!shouldAutoplayRef.current) return;
               if (event.data !== YOUTUBE_PLAYER_STATE_ENDED) return;
-
-              const nextIndex = activeIndexRef.current + 1;
-              if (nextIndex >= queuedVideoIdsRef.current.length) {
-                hasReachedQueueEndRef.current = true;
-                return;
-              }
-
-              autoplayRetryRef.current = false;
-              playVideoAtIndex(event.target, nextIndex);
+              playNextVideo(event.target);
             },
           },
         });
@@ -2217,6 +2294,22 @@ function ScheduleYoutubePlayer({
       cueVideoAtIndex(player, 0);
     }
   }, [playlistKey, shouldAutoplay]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      const player = playerRef.current;
+      if (!player || !shouldAutoplayRef.current || hasReachedQueueEndRef.current) return;
+      if (queuedVideoIdsRef.current.length <= 1) return;
+
+      if (player.getPlayerState() === YOUTUBE_PLAYER_STATE_ENDED || isCurrentVideoNearEnd(player)) {
+        playNextVideo(player);
+      }
+    }, 800);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -2260,7 +2353,6 @@ export default function TimerPage() {
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isYoutubePanelOpen, setIsYoutubePanelOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [youtubeUrlInput, setYoutubeUrlInput] = useState(initialScheduleYoutubeState.inputValue);
   const [scheduleYoutubeUrls, setScheduleYoutubeUrls] = useState<string[]>(initialScheduleYoutubeState.appliedUrls);
   const [scheduleYoutubeFavorites, setScheduleYoutubeFavorites] = useState<ScheduleYoutubeFavorite[]>(() =>
     getStoredScheduleYoutubeFavorites(),
@@ -2268,12 +2360,15 @@ export default function TimerPage() {
   const [isYoutubeFavoriteFormOpen, setIsYoutubeFavoriteFormOpen] = useState(false);
   const [youtubeFavoriteNameInput, setYoutubeFavoriteNameInput] = useState('');
   const [youtubeFavoriteUrlInput, setYoutubeFavoriteUrlInput] = useState('');
+  const [youtubeSearchInput, setYoutubeSearchInput] = useState('');
+  const [youtubeSearchResults, setYoutubeSearchResults] = useState<ScheduleYoutubeSearchResult[]>([]);
+  const [isYoutubeSearching, setIsYoutubeSearching] = useState(false);
+  const [youtubeSearchError, setYoutubeSearchError] = useState('');
   const [isScheduleYoutubeVisible, setIsScheduleYoutubeVisible] = useState(initialScheduleYoutubeState.isVisible);
   const [hasMountedScheduleYoutubePlayer, setHasMountedScheduleYoutubePlayer] = useState(
     () => initialScheduleYoutubeState.isVisible && initialScheduleYoutubeState.appliedUrls.length > 0,
   );
   const [shouldAutoplayScheduleYoutube, setShouldAutoplayScheduleYoutube] = useState(false);
-  const [youtubeUrlError, setYoutubeUrlError] = useState('');
   const [youtubeFavoriteError, setYoutubeFavoriteError] = useState('');
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
@@ -2361,6 +2456,7 @@ export default function TimerPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
+  const isMusicLoadingRef = useRef(false);
   const skipNoticeAutoSaveRef = useRef(false);
   const scheduleListRef = useRef<HTMLUListElement>(null);
   const scheduleSlotRefs = useRef<Record<string, HTMLLIElement | null>>({});
@@ -2375,7 +2471,7 @@ export default function TimerPage() {
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
   const manualTimerMenuRef = useRef<HTMLDivElement>(null);
-  const youtubeUrlInputRef = useRef<HTMLTextAreaElement>(null);
+  const youtubeSearchInputRef = useRef<HTMLInputElement>(null);
   const sharedSettingsHydratedRef = useRef(!isSupabaseSettingsEnabled);
   const sharedSettingsSaveTimeoutRef = useRef<number | null>(null);
   const lastSharedSettingsUpdatedAtRef = useRef<string | null>(null);
@@ -2384,6 +2480,62 @@ export default function TimerPage() {
     drawCases.find((caseState) => caseState.id === activeDrawCaseId) ??
     drawCases[0] ??
     createDefaultCaseState(getCaseLabelByIndex(0));
+
+  useEffect(() => {
+    const audio = getSharedBackgroundMusicAudio();
+    if (!audio) return;
+
+    backgroundMusicRef.current = audio;
+
+    const markAvailable = () => setIsMusicAvailable(true);
+    const markPlaying = () => {
+      isMusicLoadingRef.current = false;
+      setIsMusicPlaying(true);
+      setIsMusicLoading(false);
+    };
+    const markPaused = () => {
+      isMusicLoadingRef.current = false;
+      setIsMusicPlaying(false);
+      setIsMusicLoading(false);
+    };
+    const markLoading = () => {
+      if (!audio.paused) {
+        setIsMusicLoading(true);
+      }
+    };
+    const markUnavailable = () => {
+      isMusicLoadingRef.current = false;
+      setIsMusicAvailable(false);
+      setIsMusicPlaying(false);
+      setIsMusicLoading(false);
+    };
+
+    setIsMusicAvailable(!audio.error);
+    setIsMusicPlaying(!audio.paused);
+    setIsMusicLoading(false);
+
+    audio.addEventListener('canplay', markAvailable);
+    audio.addEventListener('play', markPlaying);
+    audio.addEventListener('playing', markPlaying);
+    audio.addEventListener('pause', markPaused);
+    audio.addEventListener('waiting', markLoading);
+    audio.addEventListener('stalled', markLoading);
+    audio.addEventListener('error', markUnavailable);
+
+    return () => {
+      audio.removeEventListener('canplay', markAvailable);
+      audio.removeEventListener('play', markPlaying);
+      audio.removeEventListener('playing', markPlaying);
+      audio.removeEventListener('pause', markPaused);
+      audio.removeEventListener('waiting', markLoading);
+      audio.removeEventListener('stalled', markLoading);
+      audio.removeEventListener('error', markUnavailable);
+      if (backgroundMusicRef.current === audio) {
+        backgroundMusicRef.current = null;
+      }
+    };
+  }, []);
+
   const resolvedActiveDrawCaseId = activeDrawCase.id;
   const selectedDrawSettingsCaseIndex = drawCases.findIndex((caseState) => caseState.id === drawSettingsCaseId);
   const selectedDrawSettingsCase =
@@ -2429,7 +2581,6 @@ export default function TimerPage() {
   const scheduleYoutubeCount = scheduleYoutubeUrls.length;
   const hasScheduleYoutubePlaylist = scheduleYoutubeCount > 0;
   const hasScheduleYoutubeFavorites = scheduleYoutubeFavorites.length > 0;
-  const hasYoutubeUrlInput = youtubeUrlInput.trim().length > 0;
 
   const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
     version: 1,
@@ -2781,8 +2932,8 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (!isYoutubePanelOpen) return;
-    youtubeUrlInputRef.current?.focus();
-    youtubeUrlInputRef.current?.select();
+    youtubeSearchInputRef.current?.focus();
+    youtubeSearchInputRef.current?.select();
   }, [isYoutubePanelOpen]);
 
   useEffect(() => {
@@ -3797,11 +3948,9 @@ export default function TimerPage() {
           setWeeklySchedule(normalizeWeeklySchedule(nextSchedule));
           setScheduleNotice(nextNotice);
           setIsNoticeEnabled(nextNoticeEnabled);
-          setYoutubeUrlInput('');
           setScheduleYoutubeUrls(nextYoutubeUrls);
           setIsScheduleYoutubeVisible(nextYoutubeVisible);
           setShouldAutoplayScheduleYoutube(false);
-          setYoutubeUrlError('');
           setScheduleClockOffsetSeconds(nextClockOffsetSeconds);
           if (nextRandomDraw) {
             setDrawCases(nextRandomDraw.cases);
@@ -3836,35 +3985,6 @@ export default function TimerPage() {
       return;
     }
     startNoticeEdit();
-  };
-
-  const applyScheduleYoutubeUrl = () => {
-    const { normalizedUrls, invalidLineNumbers } = parseScheduleYoutubeInput(youtubeUrlInput);
-
-    if (invalidLineNumbers.length > 0) {
-      const preview = invalidLineNumbers.slice(0, 5).join(', ');
-      const suffix = invalidLineNumbers.length > 5 ? ` 외 ${invalidLineNumbers.length - 5}줄` : '';
-      setYoutubeUrlError(`잘못된 줄: ${preview}${suffix}`);
-      return;
-    }
-
-    if (normalizedUrls.length === 0) {
-      setYoutubeUrlError('');
-      return;
-    }
-
-    const nextUrls = mergeScheduleYoutubeUrls(scheduleYoutubeUrls, normalizedUrls);
-    if (nextUrls.length === scheduleYoutubeUrls.length) {
-      setYoutubeUrlError('새 영상이 없습니다.');
-      return;
-    }
-
-    setYoutubeUrlInput('');
-    setScheduleYoutubeUrls(nextUrls);
-    setIsScheduleYoutubeVisible(true);
-    setShouldAutoplayScheduleYoutube(true);
-    setYoutubeUrlError('');
-    setIsYoutubePanelOpen(false);
   };
 
   const addScheduleYoutubeFavorite = () => {
@@ -3914,35 +4034,109 @@ export default function TimerPage() {
     setIsYoutubeFavoriteFormOpen(false);
   };
 
-  const insertScheduleYoutubeFavorite = (favorite: ScheduleYoutubeFavorite) => {
-    setYoutubeUrlInput((previous) => {
-      const previousValue = previous.trim();
-      const favoriteValue = favorite.urls.join('\n');
-      return previousValue.length > 0 ? `${previousValue}\n${favoriteValue}` : favoriteValue;
-    });
-    setYoutubeUrlError('');
-    window.setTimeout(() => {
-      youtubeUrlInputRef.current?.focus();
-    }, 0);
+  const addScheduleYoutubeFavoriteToPlaylist = (favorite: ScheduleYoutubeFavorite) => {
+    const nextUrls = mergeScheduleYoutubeUrls(scheduleYoutubeUrls, favorite.urls);
+
+    if (nextUrls.length === scheduleYoutubeUrls.length) {
+      setYoutubeSearchError('이미 추가된 영상입니다.');
+      return;
+    }
+
+    setScheduleYoutubeUrls(nextUrls);
+    setIsScheduleYoutubeVisible(true);
+    setShouldAutoplayScheduleYoutube(true);
+    setYoutubeSearchError('');
+  };
+
+  const searchScheduleYoutubeVideos = async () => {
+    const query = youtubeSearchInput.trim();
+
+    if (query.length === 0) {
+      setYoutubeSearchError('검색어를 입력하세요.');
+      return;
+    }
+
+    if (!YOUTUBE_SEARCH_API_KEY) {
+      window.open(buildScheduleYoutubeSearchUrl(query), '_blank', 'noopener,noreferrer');
+      setYoutubeSearchError('영상 URL을 복사해서 아래 입력칸에 붙여넣으면 바로 재생목록에 추가할 수 있습니다.');
+      return;
+    }
+
+    try {
+      setIsYoutubeSearching(true);
+      setYoutubeSearchError('');
+
+      const params = new URLSearchParams({
+        part: 'snippet',
+        type: 'video',
+        maxResults: String(YOUTUBE_SEARCH_MAX_RESULTS),
+        q: query,
+        key: YOUTUBE_SEARCH_API_KEY,
+        regionCode: 'KR',
+        relevanceLanguage: 'ko',
+        safeSearch: 'strict',
+      });
+      const response = await fetch(`${YOUTUBE_SEARCH_API_SRC}?${params.toString()}`);
+      const data = (await response.json()) as YoutubeSearchApiResponse;
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'YouTube 검색에 실패했습니다.');
+      }
+
+      const results = (data.items || []).reduce<ScheduleYoutubeSearchResult[]>((items, item) => {
+        const videoId = item.id?.videoId || '';
+        if (!YOUTUBE_VIDEO_ID_PATTERN.test(videoId)) return items;
+
+        items.push({
+          id: videoId,
+          title: item.snippet?.title || '제목 없음',
+          channelTitle: item.snippet?.channelTitle || '채널 정보 없음',
+          thumbnailUrl:
+            item.snippet?.thumbnails?.medium?.url ||
+            item.snippet?.thumbnails?.high?.url ||
+            item.snippet?.thumbnails?.default?.url ||
+            '',
+        });
+        return items;
+      }, []);
+
+      setYoutubeSearchResults(results);
+      if (results.length === 0) {
+        setYoutubeSearchError('검색 결과가 없습니다.');
+      }
+    } catch (error) {
+      console.error('YouTube search failed', error);
+      setYoutubeSearchResults([]);
+      setYoutubeSearchError(error instanceof Error ? error.message : 'YouTube 검색에 실패했습니다.');
+    } finally {
+      setIsYoutubeSearching(false);
+    }
+  };
+
+  const addScheduleYoutubeSearchResult = (result: ScheduleYoutubeSearchResult) => {
+    const nextUrl = buildScheduleYoutubeWatchUrl(result.id);
+    const nextUrls = mergeScheduleYoutubeUrls(scheduleYoutubeUrls, [nextUrl]);
+
+    if (nextUrls.length === scheduleYoutubeUrls.length) {
+      setYoutubeSearchError('이미 추가된 영상입니다.');
+      return;
+    }
+
+    setScheduleYoutubeUrls(nextUrls);
+    setIsScheduleYoutubeVisible(true);
+    setShouldAutoplayScheduleYoutube(true);
+    setYoutubeSearchError('');
   };
 
   const removeScheduleYoutubeFavorite = (favoriteId: string) => {
     setScheduleYoutubeFavorites((previous) => previous.filter((favorite) => favorite.id !== favoriteId));
-    setYoutubeUrlError('');
     setYoutubeFavoriteError('');
   };
 
   const clearScheduleYoutubeUrl = () => {
-    setYoutubeUrlInput('');
     setScheduleYoutubeUrls([]);
     setIsScheduleYoutubeVisible(false);
     setShouldAutoplayScheduleYoutube(false);
-    setYoutubeUrlError('');
-  };
-
-  const handleScheduleYoutubeSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    applyScheduleYoutubeUrl();
   };
 
   const saveNotice = () => {
@@ -3994,29 +4188,39 @@ export default function TimerPage() {
   const toggleBackgroundMusic = async (event?: React.MouseEvent<HTMLButtonElement>) => {
     event?.stopPropagation();
 
-    const audio = backgroundMusicRef.current;
+    const audio = backgroundMusicRef.current ?? getSharedBackgroundMusicAudio();
     if (!audio) return;
 
     if (!audio.paused) {
+      isMusicLoadingRef.current = false;
       setIsMusicLoading(false);
       audio.pause();
       return;
     }
 
-    if (isMusicLoading) return;
+    if (isMusicLoadingRef.current) return;
 
     try {
+      isMusicLoadingRef.current = true;
       setIsMusicLoading(true);
       setIsMusicAvailable(true);
-      if (audio.error || audio.readyState === 0) {
+      audio.volume = BACKGROUND_MUSIC_VOLUME;
+      audio.loop = true;
+      audio.preload = 'auto';
+
+      if (audio.error) {
+        audio.src = BACKGROUND_MUSIC_SRC;
+        audio.load();
+      } else if (audio.readyState === HTMLMediaElement.HAVE_NOTHING) {
         audio.load();
       }
-      audio.volume = BACKGROUND_MUSIC_VOLUME;
+
       await audio.play();
     } catch (error) {
       console.error('Background music playback failed', error);
       setIsMusicAvailable(false);
     } finally {
+      isMusicLoadingRef.current = false;
       setIsMusicLoading(false);
     }
   };
@@ -4982,27 +5186,6 @@ export default function TimerPage() {
 
   return (
     <div className="mascot-app h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
-      <audio
-        ref={backgroundMusicRef}
-        src="/background_music.mp3"
-        loop
-        preload="none"
-        className="hidden"
-        onCanPlay={() => setIsMusicAvailable(true)}
-        onPlay={() => {
-          setIsMusicPlaying(true);
-          setIsMusicLoading(false);
-        }}
-        onPause={() => {
-          setIsMusicPlaying(false);
-          setIsMusicLoading(false);
-        }}
-        onError={() => {
-          setIsMusicAvailable(false);
-          setIsMusicPlaying(false);
-          setIsMusicLoading(false);
-        }}
-      />
       <div className={`mascot-shell editorial-main-shell relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl transition-colors duration-1000 md:rounded-[3rem] ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''}`}>
         <style>{`
           @keyframes noticeFadeIn {
@@ -5706,8 +5889,7 @@ export default function TimerPage() {
 
             {isYoutubePanelOpen ? (
               <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
-                <form
-                  onSubmit={handleScheduleYoutubeSubmit}
+                <div
                   className="pointer-events-auto w-full max-w-[25rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
                 >
                   <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
@@ -5720,9 +5902,9 @@ export default function TimerPage() {
                           >
                             <button
                               type="button"
-                              onClick={() => insertScheduleYoutubeFavorite(favorite)}
+                              onClick={() => addScheduleYoutubeFavoriteToPlaylist(favorite)}
                               className="flex min-w-0 flex-1 items-center gap-1 rounded-full text-left text-[0.68rem] font-extrabold text-[#6E5139]"
-                              title={`${favorite.name} URL 입력`}
+                              title={`${favorite.name} 재생목록 추가`}
                             >
                               <Star size={12} className="shrink-0 fill-current text-[#C99245]" />
                               <span className="min-w-0 truncate">{favorite.name}</span>
@@ -5798,31 +5980,86 @@ export default function TimerPage() {
                         </div>
                       </div>
                     ) : null}
-                    <textarea
-                      ref={youtubeUrlInputRef}
-                      value={youtubeUrlInput}
-                      onChange={(event) => {
-                        setYoutubeUrlInput(event.target.value);
-                        if (youtubeUrlError) {
-                          setYoutubeUrlError('');
-                        }
-                      }}
-                      rows={5}
-                      className="time-input w-full resize-none rounded-[1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.9rem] font-bold leading-6 text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
-                      placeholder={
-                        hasScheduleYoutubePlaylist
-                          ? '더 붙여넣기\n여러 줄 가능'
-                          : '링크 또는 ID\n여러 줄 가능'
-                      }
-                      aria-label="유튜브 URL 목록"
-                    />
+                    <div className="mb-3 rounded-[1rem] border border-[#D7E2D1] bg-[#F8FCF6] p-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="relative min-w-0 flex-1">
+                          <Search
+                            size={15}
+                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7A9B87]"
+                          />
+                          <input
+                            ref={youtubeSearchInputRef}
+                            type="search"
+                            value={youtubeSearchInput}
+                            onChange={(event) => {
+                              setYoutubeSearchInput(event.target.value);
+                              if (youtubeSearchError) {
+                                setYoutubeSearchError('');
+                              }
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key !== 'Enter') return;
+                              event.preventDefault();
+                              void searchScheduleYoutubeVideos();
+                            }}
+                            className="time-input w-full rounded-[0.85rem] border border-[#D7E2D1] bg-white py-2 pl-8 pr-3 text-[0.82rem] font-bold text-[#3F2B20] outline-none transition-colors focus:border-[#8DBEA8]"
+                            placeholder="YouTube 검색"
+                            aria-label="YouTube 검색어"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void searchScheduleYoutubeVideos()}
+                          disabled={isYoutubeSearching}
+                          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-[0.85rem] bg-[#8DBEA8] px-3 text-[0.78rem] font-extrabold text-white transition-colors hover:bg-[#7AAD96] disabled:cursor-not-allowed disabled:opacity-55"
+                        >
+                          {isYoutubeSearching ? '검색 중' : YOUTUBE_SEARCH_API_KEY ? '검색' : 'YouTube'}
+                        </button>
+                      </div>
 
-                    {youtubeUrlError ? (
-                      <p className="mt-2 text-[0.76rem] font-bold leading-6 text-[#C7684A]">
-                        {youtubeUrlError}
-                      </p>
-                    ) : null}
+                      {youtubeSearchResults.length > 0 ? (
+                        <div className="mt-2 max-h-[13.5rem] space-y-1.5 overflow-y-auto pr-1">
+                          {youtubeSearchResults.map((result) => (
+                            <div
+                              key={result.id}
+                              className="grid grid-cols-[4.6rem_minmax(0,1fr)_3.1rem] items-center gap-2 rounded-[0.85rem] border border-[#E1E9DD] bg-white p-1.5"
+                            >
+                              <div className="aspect-video overflow-hidden rounded-[0.65rem] bg-[#EFE5D9]">
+                                {result.thumbnailUrl ? (
+                                  <img
+                                    src={result.thumbnailUrl}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : null}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="line-clamp-2 text-[0.72rem] font-extrabold leading-4 text-[#3F2B20]">
+                                  {result.title}
+                                </p>
+                                <p className="mt-0.5 truncate text-[0.65rem] font-bold text-[#8A6347]/75">
+                                  {result.channelTitle}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => addScheduleYoutubeSearchResult(result)}
+                                className="inline-flex min-h-8 items-center justify-center rounded-[0.7rem] bg-[#FFF7EC] text-[0.68rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF0DE]"
+                              >
+                                추가
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
 
+                      {youtubeSearchError ? (
+                        <p className="mt-2 text-[0.72rem] font-bold leading-5 text-[#C7684A]">
+                          {youtubeSearchError}
+                        </p>
+                      ) : null}
+                    </div>
                     <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
                       <button
                         type="button"
@@ -5837,21 +6074,9 @@ export default function TimerPage() {
                         <Star size={15} className="mr-1.5 fill-current" />
                         즐겨찾기
                       </button>
-                      <button
-                        type="submit"
-                        disabled={!hasYoutubeUrlInput}
-                        className="primary-cta inline-flex min-h-[2.6rem] items-center justify-center rounded-[0.95rem] px-4 py-2 text-[0.82rem] font-extrabold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100"
-                      >
-                        {hasScheduleYoutubePlaylist ? (
-                          <Plus size={15} className="mr-1.5" />
-                        ) : (
-                          <Play size={15} className="mr-1.5 fill-current" />
-                        )}
-                        {hasScheduleYoutubePlaylist ? '추가' : '재생'}
-                      </button>
                     </div>
                   </div>
-                </form>
+                </div>
               </div>
             ) : null}
           </div>
