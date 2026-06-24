@@ -186,7 +186,7 @@ const MEMO_NOTE_TEXT_COLORS = [
 ] as const;
 const DRAW_EMPTY_MESSAGE = '완료';
 const DRAW_RESET_MESSAGE = '섞는 중';
-const DRAW_SHORTCUT_LABEL = 'Enter';
+const DRAW_SHORTCUT_LABEL = 'ArrowRight';
 const DRAW_RESET_EFFECT_DURATION_MS = 940;
 const SECRET_DRAW_MAX_LENGTH = 240;
 const SECRET_DRAW_BUTTON_LABEL = '예약 결과';
@@ -3485,10 +3485,8 @@ export default function TimerPage() {
 
   useEffect(() => {
     const handleDrawCaseArrowShortcut = (event: KeyboardEvent) => {
-      const isPreviousKey = event.key === 'ArrowLeft' || event.code === 'ArrowLeft';
-      const isNextKey = event.key === 'ArrowRight' || event.code === 'ArrowRight';
-
-      if ((!isPreviousKey && !isNextKey) || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key !== 'ArrowLeft' && event.code !== 'ArrowLeft') return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (
         isSettingsOpen ||
         isMemoOpen ||
@@ -3503,7 +3501,7 @@ export default function TimerPage() {
 
       event.preventDefault();
       revealDrawCaseSwitchTemporarily();
-      selectAdjacentActiveDrawCase(isPreviousKey ? -1 : 1);
+      selectAdjacentActiveDrawCase(-1);
     };
 
     window.addEventListener('keydown', handleDrawCaseArrowShortcut);
@@ -3532,7 +3530,8 @@ export default function TimerPage() {
 
   useEffect(() => {
     const handleStudentDrawShortcut = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter' || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key !== 'ArrowRight' && event.code !== 'ArrowRight') return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (
         isSettingsOpen ||
         isMemoOpen ||

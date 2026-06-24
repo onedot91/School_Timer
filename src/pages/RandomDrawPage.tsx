@@ -77,7 +77,7 @@ const RANDOM_DRAW_STORAGE_KEY = 'school-random-draw-v1';
 const MIN_DRAW_NUMBER = 1;
 const MAX_DRAW_NUMBER = 999;
 const MAX_HISTORY_LENGTH = 2000;
-const ENTER_HOLD_RESET_MS = 700;
+const ARROW_RIGHT_HOLD_RESET_MS = 700;
 const DRAW_DURATION_MS = 1300;
 const DRAW_START_BREAK_MS = 180;
 const ROLL_TICK_START_MS = 104;
@@ -923,11 +923,11 @@ export default function RandomDrawPage() {
   const normalWinEffectTimeoutRef = useRef<number | null>(null);
   const autoResetTimeoutRef = useRef<number | null>(null);
   const resetEffectTimeoutRef = useRef<number | null>(null);
-  const enterHoldTimeoutRef = useRef<number | null>(null);
+  const arrowRightHoldTimeoutRef = useRef<number | null>(null);
   const secretQueueUnlockTimeoutRef = useRef<number | null>(null);
   const secretQueueTapCountRef = useRef(0);
-  const enterHoldTriggeredRef = useRef(false);
-  const enterPressedRef = useRef(false);
+  const arrowRightHoldTriggeredRef = useRef(false);
+  const arrowRightPressedRef = useRef(false);
   const queuedDrawAfterResetRef = useRef(false);
   const latestRollingValueRef = useRef<number | null>(null);
   const drawLaunchTokenRef = useRef(0);
@@ -973,7 +973,7 @@ export default function RandomDrawPage() {
   const activeDrawSnapshot = getDrawStartSnapshot(activeCase, repeatPickEnabled);
   const { drawData, hasDrawCandidate } = activeDrawSnapshot;
   const { minNumber, maxNumber, totalCount, historyEntries, availableNumbers, repeatableEntries } = drawData;
-  const shouldTriggerImmediateResetOnEnter =
+  const shouldTriggerImmediateResetOnArrowRight =
     totalCount > 0 && availableNumbers.length === 0 && activeDrawSnapshot.hiddenQueueInstruction === null;
   const shouldPreferStudentNames = hasNamedStudentsInRange(activeCase);
   const stageDisplayValue = repeatStageNumbers === null ? (isDrawing ? rollingValue : activeCase.currentResult) : null;
@@ -1345,10 +1345,10 @@ export default function RandomDrawPage() {
     void playRandomDrawSound('empty');
   };
 
-  const clearEnterHoldTimer = () => {
-    if (enterHoldTimeoutRef.current !== null) {
-      window.clearTimeout(enterHoldTimeoutRef.current);
-      enterHoldTimeoutRef.current = null;
+  const clearArrowRightHoldTimer = () => {
+    if (arrowRightHoldTimeoutRef.current !== null) {
+      window.clearTimeout(arrowRightHoldTimeoutRef.current);
+      arrowRightHoldTimeoutRef.current = null;
     }
   };
 
@@ -1600,7 +1600,7 @@ export default function RandomDrawPage() {
       clearAutoResetTimer();
       clearResetVisualState();
       clearAnimationTimers();
-      clearEnterHoldTimer();
+      clearArrowRightHoldTimer();
       if (secretQueueUnlockTimeoutRef.current !== null) {
         window.clearTimeout(secretQueueUnlockTimeoutRef.current);
       }
@@ -1767,22 +1767,23 @@ export default function RandomDrawPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter' || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key !== 'ArrowRight' && event.code !== 'ArrowRight') return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (isSettingsOpen || isEditableTarget(event.target)) return;
 
       event.preventDefault();
-      if (enterPressedRef.current || event.repeat) return;
+      if (arrowRightPressedRef.current || event.repeat) return;
 
       if (isResetImpacting) {
         queuedDrawAfterResetRef.current = true;
         return;
       }
 
-      if (shouldTriggerImmediateResetOnEnter) {
+      if (shouldTriggerImmediateResetOnArrowRight) {
         queuedDrawAfterResetRef.current = true;
-        enterPressedRef.current = false;
-        enterHoldTriggeredRef.current = false;
-        clearEnterHoldTimer();
+        arrowRightPressedRef.current = false;
+        arrowRightHoldTriggeredRef.current = false;
+        clearArrowRightHoldTimer();
         resetDrawBag();
         return;
       }
@@ -1790,26 +1791,26 @@ export default function RandomDrawPage() {
       if (hasDrawCandidate) {
         void prepareRandomDrawAudio();
       }
-      enterPressedRef.current = true;
-      enterHoldTriggeredRef.current = false;
-      clearEnterHoldTimer();
+      arrowRightPressedRef.current = true;
+      arrowRightHoldTriggeredRef.current = false;
+      clearArrowRightHoldTimer();
 
-      enterHoldTimeoutRef.current = window.setTimeout(() => {
-        enterHoldTriggeredRef.current = true;
+      arrowRightHoldTimeoutRef.current = window.setTimeout(() => {
+        arrowRightHoldTriggeredRef.current = true;
         resetDrawBag();
-      }, ENTER_HOLD_RESET_MS);
+      }, ARROW_RIGHT_HOLD_RESET_MS);
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter') return;
-      if (!enterPressedRef.current) return;
+      if (event.key !== 'ArrowRight' && event.code !== 'ArrowRight') return;
+      if (!arrowRightPressedRef.current) return;
 
       event.preventDefault();
-      enterPressedRef.current = false;
-      clearEnterHoldTimer();
+      arrowRightPressedRef.current = false;
+      clearArrowRightHoldTimer();
 
-      if (enterHoldTriggeredRef.current) {
-        enterHoldTriggeredRef.current = false;
+      if (arrowRightHoldTriggeredRef.current) {
+        arrowRightHoldTriggeredRef.current = false;
         return;
       }
 
@@ -1825,7 +1826,7 @@ export default function RandomDrawPage() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [cases, hasDrawCandidate, isSettingsOpen, repeatPickEnabled, resolvedActiveCaseId, shouldTriggerImmediateResetOnEnter]);
+  }, [cases, hasDrawCandidate, isSettingsOpen, repeatPickEnabled, resolvedActiveCaseId, shouldTriggerImmediateResetOnArrowRight]);
 
   useEffect(() => {
     if (isResetImpacting || isSettingsOpen) return;
