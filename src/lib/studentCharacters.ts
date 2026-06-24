@@ -6,13 +6,14 @@ export interface StudentCharacter {
   alt: string;
   themeColor?: string;
   speech?: string;
+  speechTop?: string;
   walkTransform?: {
     right: string;
     left: string;
   };
 }
 
-export const STUDENT_CHARACTER_WALK_SECONDS = 24;
+export const STUDENT_CHARACTER_WALK_SECONDS = 34;
 
 export const STUDENT_CHARACTERS: StudentCharacter[] = [
   {
@@ -62,6 +63,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     alt: '4번 학생이 만든 거북이 캐릭터',
     themeColor: '#4E9A62',
     speech: '저 포도를 먹고 말테야.',
+    speechTop: '20%',
     walkTransform: {
       right: 'rotate(90deg)',
       left: 'rotate(-90deg)',

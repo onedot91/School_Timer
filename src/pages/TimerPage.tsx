@@ -213,6 +213,7 @@ const MEMO_NOTE_MIN_FONT_SIZE = 40;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
 const SCHEDULE_YOUTUBE_URLS_STORAGE_KEY = 'scheduleYoutubeUrls-v2';
 const SCHEDULE_YOUTUBE_METADATA_STORAGE_KEY = 'scheduleYoutubeMetadata-v1';
+const DRAW_OVERLAY_DISMISS_DURATION_MS = 260;
 const DEFAULT_SUBJECT_CATALOG: SubjectCatalog = [
   '국어',
   '수학',
@@ -2896,10 +2897,10 @@ function ScheduleYoutubePlayer({
 
 const STUDENT_CHARACTER_WALK_PATHS = [
   {
-    startTop: '68%',
-    midTopA: '61%',
-    midTopB: '55%',
-    endTop: '52%',
+    startTop: '64vh',
+    midTopA: '60vh',
+    midTopB: '56vh',
+    endTop: '54vh',
     size: 'min(27vw, 29vh, 14rem)',
     scale: '0.94',
     bobDuration: '860ms',
@@ -2909,23 +2910,23 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 27,
   },
   {
-    startTop: '54%',
-    midTopA: '60%',
-    midTopB: '65%',
-    endTop: '62%',
+    startTop: '54vh',
+    midTopA: '58vh',
+    midTopB: '62vh',
+    endTop: '60vh',
     size: 'min(31vw, 33vh, 16rem)',
     scale: '1',
     bobDuration: '720ms',
     bobLift: '-0.52rem',
     bobTilt: '0.45deg',
-    easing: 'cubic-bezier(0.42, 0, 0.58, 1)',
+    easing: 'linear',
     zIndex: 30,
   },
   {
-    startTop: '60%',
-    midTopA: '51%',
-    midTopB: '57%',
-    endTop: '69%',
+    startTop: '58vh',
+    midTopA: '52vh',
+    midTopB: '56vh',
+    endTop: '65vh',
     size: 'min(29vw, 31vh, 15rem)',
     scale: '0.98',
     bobDuration: '940ms',
@@ -2935,23 +2936,23 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 32,
   },
   {
-    startTop: '48%',
-    midTopA: '53%',
-    midTopB: '60%',
-    endTop: '56%',
+    startTop: '50vh',
+    midTopA: '54vh',
+    midTopB: '59vh',
+    endTop: '56vh',
     size: 'min(25vw, 28vh, 13.5rem)',
     scale: '0.9',
     bobDuration: '780ms',
     bobLift: '-0.42rem',
     bobTilt: '0.6deg',
-    easing: 'cubic-bezier(0.36, 0, 0.64, 1)',
+    easing: 'linear',
     zIndex: 24,
   },
   {
-    startTop: '64%',
-    midTopA: '68%',
-    midTopB: '59%',
-    endTop: '50%',
+    startTop: '62vh',
+    midTopA: '65vh',
+    midTopB: '58vh',
+    endTop: '52vh',
     size: 'min(32vw, 34vh, 16.5rem)',
     scale: '1.04',
     bobDuration: '820ms',
@@ -3017,6 +3018,7 @@ function StudentCharacterShowcase({
     '--student-character-bob-tilt': path.bobTilt,
     '--student-character-depth-z': path.zIndex,
     '--student-character-image-transform': imageTransform,
+    '--student-character-speech-top': character.speechTop || '-0.65rem',
   } as React.CSSProperties;
 
   return (
@@ -3113,6 +3115,7 @@ export default function TimerPage() {
   const [rollingDrawNumber, setRollingDrawNumber] = useState<number | null>(null);
   const [isStudentDrawing, setIsStudentDrawing] = useState(false);
   const [drawOverlay, setDrawOverlay] = useState<DrawOverlayState | null>(null);
+  const [isDrawOverlayDismissing, setIsDrawOverlayDismissing] = useState(false);
   const [isDrawWinVisible, setIsDrawWinVisible] = useState(false);
   const [isDrawRepeatVisible, setIsDrawRepeatVisible] = useState(false);
   const [isDrawResetVisible, setIsDrawResetVisible] = useState(false);
@@ -3987,6 +3990,7 @@ export default function TimerPage() {
   const clearDrawFeedback = () => {
     clearDrawHideTimer();
     setDrawOverlay(null);
+    setIsDrawOverlayDismissing(false);
     setIsDrawWinVisible(false);
     setIsDrawRepeatVisible(false);
     setIsDrawResetVisible(false);
@@ -4014,6 +4018,7 @@ export default function TimerPage() {
 
     if (!animate) {
       setDrawOverlay(null);
+      setIsDrawOverlayDismissing(false);
       setIsDrawWinVisible(false);
       setIsDrawRepeatVisible(false);
       setIsDrawResetVisible(false);
@@ -4027,6 +4032,7 @@ export default function TimerPage() {
       kind: 'reset',
       number: null,
     });
+    setIsDrawOverlayDismissing(false);
     setIsDrawWinVisible(false);
     setIsDrawRepeatVisible(false);
     setIsDrawResetVisible(true);
@@ -4034,10 +4040,14 @@ export default function TimerPage() {
     void playRandomDrawSound('reset');
 
     drawHideTimeoutRef.current = window.setTimeout(() => {
-      drawHideTimeoutRef.current = null;
-      setDrawOverlay(null);
-      setIsDrawResetVisible(false);
-    }, DRAW_RESET_EFFECT_DURATION_MS);
+      setIsDrawOverlayDismissing(true);
+      drawHideTimeoutRef.current = window.setTimeout(() => {
+        drawHideTimeoutRef.current = null;
+        setDrawOverlay(null);
+        setIsDrawOverlayDismissing(false);
+        setIsDrawResetVisible(false);
+      }, DRAW_OVERLAY_DISMISS_DURATION_MS);
+    }, Math.max(0, DRAW_RESET_EFFECT_DURATION_MS - DRAW_OVERLAY_DISMISS_DURATION_MS));
   };
 
   const showDrawOverlayTemporarily = (
@@ -4046,24 +4056,30 @@ export default function TimerPage() {
   ) => {
     clearDrawHideTimer();
     setDrawOverlay(nextOverlay);
+    setIsDrawOverlayDismissing(false);
     setIsDrawWinVisible(nextOverlay.kind === 'normal');
     setIsDrawRepeatVisible(nextOverlay.kind === 'repeat');
     setIsDrawResetVisible(nextOverlay.kind === 'reset');
     setIsDrawAutoResetPending(Boolean(options?.autoResetCaseId));
 
     drawHideTimeoutRef.current = window.setTimeout(() => {
-      drawHideTimeoutRef.current = null;
-      if (options?.autoResetCaseId) {
-        performDrawCaseReset(options.autoResetCaseId, true);
-        return;
-      }
+      setIsDrawOverlayDismissing(true);
+      drawHideTimeoutRef.current = window.setTimeout(() => {
+        drawHideTimeoutRef.current = null;
+        if (options?.autoResetCaseId) {
+          setIsDrawOverlayDismissing(false);
+          performDrawCaseReset(options.autoResetCaseId, true);
+          return;
+        }
 
-      setDrawOverlay(null);
-      setIsDrawWinVisible(false);
-      setIsDrawRepeatVisible(false);
-      setIsDrawResetVisible(false);
-      setIsDrawAutoResetPending(false);
-    }, RANDOM_DRAW_RESULT_DISPLAY_MS);
+        setDrawOverlay(null);
+        setIsDrawOverlayDismissing(false);
+        setIsDrawWinVisible(false);
+        setIsDrawRepeatVisible(false);
+        setIsDrawResetVisible(false);
+        setIsDrawAutoResetPending(false);
+      }, DRAW_OVERLAY_DISMISS_DURATION_MS);
+    }, Math.max(0, RANDOM_DRAW_RESULT_DISPLAY_MS - DRAW_OVERLAY_DISMISS_DURATION_MS));
   };
 
   const getDrawCaseSnapshot = (caseId: string) =>
@@ -5430,6 +5446,7 @@ export default function TimerPage() {
     isDrawWinVisible ? ' random-board-win-impact' : ''
   }${isDrawRepeatVisible ? ' random-board-repeat-impact' : ''}${
     isDrawResetVisible ? ' random-board-reset-impact' : ''
+  }${isDrawOverlayDismissing ? ' random-board-overlay-dismissing' : ''
   }`;
   const drawOverlayNumberClass = `random-board-number${
     isDrawOverlayVisible ? ' random-board-number-active' : ''
@@ -6087,70 +6104,6 @@ export default function TimerPage() {
   const subjectSettingsPanel = (
     <div className="settings-panel-grid grid gap-4">
       <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">과목 목록</h3>
-          </div>
-          <span className="settings-count-pill inline-flex min-h-9 items-center rounded-full border border-[#D7E2D1] bg-white px-3 text-[0.82rem] font-extrabold text-[#3A5A3B]">
-            {subjectCatalog.length}개
-          </span>
-        </div>
-
-        <div className="subject-catalog-list grid gap-2">
-          {subjectCatalog.length === 0 ? (
-            <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-6 text-center font-medium text-[#8A6347]/60">
-              등록된 과목이 없습니다.
-            </div>
-          ) : (
-            subjectCatalog.map((subject, index) => (
-              <div key={`${subject}-${index}`} className="subject-catalog-row flex items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-2">
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(event) => updateSubjectCatalogItem(index, event.target.value)}
-                  className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                  aria-label={`${index + 1}번째 과목`}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeSubjectCatalogItem(index)}
-                  className="icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] text-[#B05A47] transition-colors hover:border-[#C74C3D] hover:bg-[#FFF1EC]"
-                  title="과목 삭제"
-                  aria-label={`${subject} 삭제`}
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            value={newSubjectName}
-            onChange={(event) => setNewSubjectName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                addSubjectCatalogItem();
-              }
-            }}
-            className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#D7E2D1] bg-white px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#9FC7B8] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-            placeholder="새 과목"
-          />
-          <button
-            type="button"
-            onClick={addSubjectCatalogItem}
-            className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#5C8D5D] bg-[#5C8D5D] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#476F48]"
-          >
-            <Plus size={18} />
-            과목 추가
-          </button>
-        </div>
-      </section>
-
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">주차별 과목</h3>
@@ -6254,6 +6207,70 @@ export default function TimerPage() {
             </table>
           </div>
         )}
+      </section>
+
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">과목 목록</h3>
+          </div>
+          <span className="settings-count-pill inline-flex min-h-9 items-center rounded-full border border-[#D7E2D1] bg-white px-3 text-[0.82rem] font-extrabold text-[#3A5A3B]">
+            {subjectCatalog.length}개
+          </span>
+        </div>
+
+        <div className="subject-catalog-list grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {subjectCatalog.length === 0 ? (
+            <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-6 text-center font-medium text-[#8A6347]/60 sm:col-span-2 xl:col-span-3">
+              등록된 과목이 없습니다.
+            </div>
+          ) : (
+            subjectCatalog.map((subject, index) => (
+              <div key={`${subject}-${index}`} className="subject-catalog-row flex min-w-0 items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-2">
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(event) => updateSubjectCatalogItem(index, event.target.value)}
+                  className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                  aria-label={`${index + 1}번째 과목`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeSubjectCatalogItem(index)}
+                  className="icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] text-[#B05A47] transition-colors hover:border-[#C74C3D] hover:bg-[#FFF1EC]"
+                  title="과목 삭제"
+                  aria-label={`${subject} 삭제`}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={newSubjectName}
+            onChange={(event) => setNewSubjectName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                addSubjectCatalogItem();
+              }
+            }}
+            className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#D7E2D1] bg-white px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#9FC7B8] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+            placeholder="새 과목"
+          />
+          <button
+            type="button"
+            onClick={addSubjectCatalogItem}
+            className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#5C8D5D] bg-[#5C8D5D] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#476F48]"
+          >
+            <Plus size={18} />
+            과목 추가
+          </button>
+        </div>
       </section>
     </div>
   );
