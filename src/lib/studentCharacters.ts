@@ -5,6 +5,7 @@ export interface StudentCharacter {
   imageSrc: string;
   alt: string;
   themeColor?: string;
+  speech?: string;
   walkTransform?: {
     right: string;
     left: string;
@@ -21,6 +22,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-1.png',
     alt: '1번 학생이 만든 호랑이 캐릭터',
     themeColor: '#D94A35',
+    speech: '호걸이 좋지',
     walkTransform: {
       right: 'none',
       left: 'scaleX(-1)',
@@ -33,6 +35,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-2.png',
     alt: '2번 학생이 만든 달리는 캐릭터',
     themeColor: '#D63D2E',
+    speech: '2026년 동안 잘 지내자.',
     walkTransform: {
       right: 'none',
       left: 'scaleX(-1)',
@@ -45,6 +48,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-3.png',
     alt: '3번 학생이 만든 자판기 캐릭터',
     themeColor: '#E65A3B',
+    speech: '저는 삼겹살을 먹고 싶어요.',
     walkTransform: {
       right: 'none',
       left: 'none',
@@ -57,6 +61,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-4.png',
     alt: '4번 학생이 만든 거북이 캐릭터',
     themeColor: '#4E9A62',
+    speech: '저 포도를 먹고 말테야.',
     walkTransform: {
       right: 'rotate(90deg)',
       left: 'rotate(-90deg)',
@@ -69,6 +74,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-5.png',
     alt: '5번 학생이 만든 별 캐릭터',
     themeColor: '#F26A1B',
+    speech: '공부 열심히 해.',
     walkTransform: {
       right: 'none',
       left: 'none',
@@ -81,6 +87,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-6.png',
     alt: '6번 학생이 만든 마법사 캐릭터',
     themeColor: '#6D45B8',
+    speech: '연금술사의 토큰이 있으면 나한테 오도록 해!',
     walkTransform: {
       right: 'none',
       left: 'none',
@@ -93,6 +100,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-8.png',
     alt: '8번 학생이 만든 태극 캐릭터',
     themeColor: '#1E5BD7',
+    speech: '뀨',
     walkTransform: {
       right: 'none',
       left: 'none',
@@ -105,6 +113,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-15.png',
     alt: '15번 학생이 만든 초록 외계인 캐릭터',
     themeColor: '#1FCF7A',
+    speech: '따랑해~',
     walkTransform: {
       right: 'none',
       left: 'none',
@@ -117,6 +126,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-23.png',
     alt: '23번 학생이 만든 꽃옷 캐릭터',
     themeColor: '#F08AB5',
+    speech: '안녕하세요. 할무니예유.',
     walkTransform: {
       right: 'none',
       left: 'scaleX(-1)',
@@ -129,6 +139,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-12.png',
     alt: '12번 학생이 만든 클로버 캐릭터',
     themeColor: '#A6C84A',
+    speech: '나를 먹지마!!!',
     walkTransform: {
       right: 'none',
       left: 'none',

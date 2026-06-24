@@ -88,6 +88,7 @@ interface SharedSchoolTimerSettings {
   version: 1;
   weeklySchedule: WeeklySchedule;
   weeklySubjects?: WeeklySubjectSchedule;
+  subjectCatalog?: SubjectCatalog;
   scheduleNotice: string;
   scheduleNoticeHighlights?: NoticeHighlightRange[];
   isNoticeEnabled: boolean;
@@ -183,6 +184,7 @@ type WeeklySchedule = {
   [key: number]: ScheduleSlot[]; // 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri
 };
 type WeeklySubjectSchedule = Record<string, Record<number, Record<string, string>>>;
+type SubjectCatalog = string[];
 
 const MORNING_ACTIVITY_LABEL = '\uC544\uCE68\uD65C\uB3D9';
 const MORNING_DEFAULT_DURATION = 15;
@@ -199,6 +201,7 @@ const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
 const ANNOUNCEMENT_NOTE_HIGHLIGHTS_STORAGE_KEY = 'announcementNoteHighlights-v1';
 const WEEKLY_SUBJECTS_STORAGE_KEY = 'weeklySubjects-v1';
+const SUBJECT_CATALOG_STORAGE_KEY = 'subjectCatalog-v1';
 const SCHEDULE_NOTICE_HIGHLIGHTS_STORAGE_KEY = 'scheduleNoticeHighlights-v1';
 const MEMO_NOTE_STORAGE_KEY = 'school-memo-note-v1';
 const MEMO_NOTE_PLACEHOLDER = '메모 입력';
@@ -210,6 +213,18 @@ const MEMO_NOTE_MIN_FONT_SIZE = 40;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
 const SCHEDULE_YOUTUBE_URLS_STORAGE_KEY = 'scheduleYoutubeUrls-v2';
 const SCHEDULE_YOUTUBE_METADATA_STORAGE_KEY = 'scheduleYoutubeMetadata-v1';
+const DEFAULT_SUBJECT_CATALOG: SubjectCatalog = [
+  '국어',
+  '수학',
+  '사회',
+  '과학',
+  '영어',
+  '체육',
+  '음악',
+  '미술',
+  '실과',
+  '도덕',
+];
 
 let sharedBackgroundMusicAudio: HTMLAudioElement | null = null;
 
@@ -1046,6 +1061,20 @@ const normalizeWeeklySubjects = (value: unknown): WeeklySubjectSchedule => {
   }, {});
 };
 
+const normalizeSubjectCatalog = (value: unknown, fallback: SubjectCatalog = DEFAULT_SUBJECT_CATALOG): SubjectCatalog => {
+  if (!Array.isArray(value)) return [...fallback];
+
+  const subjects = value.reduce<SubjectCatalog>((items, item) => {
+    const subject = typeof item === 'string' ? item.trim() : '';
+    if (subject.length > 0 && !items.includes(subject)) {
+      items.push(subject);
+    }
+    return items;
+  }, []);
+
+  return subjects;
+};
+
 const getWeeklySubject = (
   weeklySubjects: WeeklySubjectSchedule,
   weekKey: string,
@@ -1199,6 +1228,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
       : {};
   const weeklySchedule = normalizeWeeklySchedule((parsed.weeklySchedule || defaultWeeklySchedule) as WeeklySchedule);
   const weeklySubjects = normalizeWeeklySubjects(parsed.weeklySubjects);
+  const subjectCatalog = normalizeSubjectCatalog(parsed.subjectCatalog);
 
   return {
     version: 1,
@@ -1207,6 +1237,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
       Object.keys(weeklySubjects).length > 0
         ? weeklySubjects
         : buildWeeklySubjectsFromSchedule(weeklySchedule, getWeekKeyForDate(new Date())),
+    subjectCatalog,
     scheduleNotice: typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '',
     scheduleNoticeHighlights: normalizeNoticeHighlightRanges(
       parsed.scheduleNoticeHighlights,
@@ -2865,10 +2896,10 @@ function ScheduleYoutubePlayer({
 
 const STUDENT_CHARACTER_WALK_PATHS = [
   {
-    startTop: '58%',
-    midTopA: '51%',
-    midTopB: '45%',
-    endTop: '42%',
+    startTop: '68%',
+    midTopA: '61%',
+    midTopB: '55%',
+    endTop: '52%',
     size: 'min(27vw, 29vh, 14rem)',
     scale: '0.94',
     bobDuration: '860ms',
@@ -2878,10 +2909,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 27,
   },
   {
-    startTop: '44%',
-    midTopA: '50%',
-    midTopB: '55%',
-    endTop: '52%',
+    startTop: '54%',
+    midTopA: '60%',
+    midTopB: '65%',
+    endTop: '62%',
     size: 'min(31vw, 33vh, 16rem)',
     scale: '1',
     bobDuration: '720ms',
@@ -2891,10 +2922,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 30,
   },
   {
-    startTop: '50%',
-    midTopA: '41%',
-    midTopB: '47%',
-    endTop: '59%',
+    startTop: '60%',
+    midTopA: '51%',
+    midTopB: '57%',
+    endTop: '69%',
     size: 'min(29vw, 31vh, 15rem)',
     scale: '0.98',
     bobDuration: '940ms',
@@ -2904,10 +2935,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 32,
   },
   {
-    startTop: '38%',
-    midTopA: '43%',
-    midTopB: '50%',
-    endTop: '46%',
+    startTop: '48%',
+    midTopA: '53%',
+    midTopB: '60%',
+    endTop: '56%',
     size: 'min(25vw, 28vh, 13.5rem)',
     scale: '0.9',
     bobDuration: '780ms',
@@ -2917,10 +2948,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 24,
   },
   {
-    startTop: '54%',
-    midTopA: '58%',
-    midTopB: '49%',
-    endTop: '40%',
+    startTop: '64%',
+    midTopA: '68%',
+    midTopB: '59%',
+    endTop: '50%',
     size: 'min(32vw, 34vh, 16.5rem)',
     scale: '1.04',
     bobDuration: '820ms',
@@ -2937,7 +2968,13 @@ interface StudentCharacterWalker {
   direction: 'left' | 'right';
   path: (typeof STUDENT_CHARACTER_WALK_PATHS)[number];
   animationDelaySeconds: number;
+  shouldSpeak: boolean;
 }
+
+const shouldStudentCharacterSpeak = (spawnOrder: number, characterIndex: number, streamIndex: number) => {
+  const seed = (spawnOrder + 7) * 37 + (characterIndex + 3) * 19 + streamIndex * 11;
+  return seed % 17 === 0 || seed % 23 === 5 || seed % 29 === 9;
+};
 
 function StudentCharacterShowcase({
   character,
@@ -2945,6 +2982,7 @@ function StudentCharacterShowcase({
   direction,
   path,
   animationDelaySeconds,
+  shouldSpeak,
   onImageError,
 }: {
   character: StudentCharacter;
@@ -2952,6 +2990,7 @@ function StudentCharacterShowcase({
   direction: 'left' | 'right';
   path: (typeof STUDENT_CHARACTER_WALK_PATHS)[number];
   animationDelaySeconds: number;
+  shouldSpeak: boolean;
   onImageError: (characterId: string) => void;
 }) {
   const [initialAnimationDelaySeconds] = useState(animationDelaySeconds);
@@ -2988,6 +3027,11 @@ function StudentCharacterShowcase({
       style={frameStyle}
     >
       <div className="student-character-frame">
+        {shouldSpeak && character.speech ? (
+          <div className="student-character-speech" aria-hidden="true">
+            {character.speech}
+          </div>
+        ) : null}
         <img
           src={character.imageSrc}
           alt={character.alt}
@@ -3145,6 +3189,14 @@ export default function TimerPage() {
       getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
     );
   });
+  const [subjectCatalog, setSubjectCatalog] = useState<SubjectCatalog>(() => {
+    try {
+      return normalizeSubjectCatalog(JSON.parse(localStorage.getItem(SUBJECT_CATALOG_STORAGE_KEY) || 'null'));
+    } catch {
+      return [...DEFAULT_SUBJECT_CATALOG];
+    }
+  });
+  const [newSubjectName, setNewSubjectName] = useState('');
   const [selectedSubjectWeekKey, setSelectedSubjectWeekKey] = useState(() =>
     getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
   );
@@ -3321,6 +3373,7 @@ export default function TimerPage() {
     version: 1,
     weeklySchedule,
     weeklySubjects,
+    subjectCatalog,
     scheduleNotice,
     scheduleNoticeHighlights,
     isNoticeEnabled,
@@ -3346,6 +3399,7 @@ export default function TimerPage() {
     skipNextSharedSettingsSaveRef.current = true;
     setWeeklySchedule(remoteSettings.weeklySchedule);
     setWeeklySubjects(normalizeWeeklySubjects(remoteSettings.weeklySubjects));
+    setSubjectCatalog(normalizeSubjectCatalog(remoteSettings.subjectCatalog));
     setScheduleNotice(remoteSettings.scheduleNotice);
     setScheduleNoticeHighlights(remoteSettings.scheduleNoticeHighlights || []);
     setNoticeDraft(remoteSettings.scheduleNotice);
@@ -3423,6 +3477,10 @@ export default function TimerPage() {
     }
     localStorage.removeItem(WEEKLY_SUBJECTS_STORAGE_KEY);
   }, [weeklySubjects]);
+
+  useEffect(() => {
+    localStorage.setItem(SUBJECT_CATALOG_STORAGE_KEY, JSON.stringify(normalizeSubjectCatalog(subjectCatalog, [])));
+  }, [subjectCatalog]);
 
   useEffect(() => {
     localStorage.setItem('scheduleNotice', scheduleNotice);
@@ -3556,6 +3614,7 @@ export default function TimerPage() {
   }, [
     weeklySchedule,
     weeklySubjects,
+    subjectCatalog,
     scheduleNotice,
     scheduleNoticeHighlights,
     isNoticeEnabled,
@@ -4678,6 +4737,70 @@ export default function TimerPage() {
     });
   };
 
+  const replaceWeeklySubjectName = (previousName: string, nextName: string) => {
+    if (!previousName || !nextName || previousName === nextName) return;
+
+    setWeeklySubjects((previous) => {
+      let didChange = false;
+      const next = Object.entries(previous).reduce<WeeklySubjectSchedule>((weeks, [weekKey, weekValue]) => {
+        nextWeekLoop:
+        for (const dayValue of Object.values(weekValue)) {
+          if (Object.values(dayValue).includes(previousName)) {
+            didChange = true;
+            break nextWeekLoop;
+          }
+        }
+
+        next[weekKey] = Object.entries(weekValue).reduce<Record<number, Record<string, string>>>(
+          (days, [dayKey, dayValue]) => {
+            days[Number(dayKey)] = Object.entries(dayValue).reduce<Record<string, string>>(
+              (subjects, [subjectKey, subjectValue]) => {
+                const subject = typeof subjectValue === 'string' ? subjectValue : '';
+                subjects[subjectKey] = subject === previousName ? nextName : subject;
+                return subjects;
+              },
+              {},
+            );
+            return days;
+          },
+          {},
+        );
+        return next;
+      }, {});
+
+      return didChange ? next : previous;
+    });
+  };
+
+  const addSubjectCatalogItem = () => {
+    const subject = newSubjectName.trim();
+    if (!subject) return;
+
+    setSubjectCatalog((previous) => {
+      if (previous.includes(subject)) return previous;
+      return [...previous, subject];
+    });
+    setNewSubjectName('');
+  };
+
+  const updateSubjectCatalogItem = (index: number, value: string) => {
+    const nextSubject = value.trim();
+    const previousSubject = subjectCatalog[index];
+    if (previousSubject === undefined) return;
+    if (!nextSubject || subjectCatalog.some((subject, subjectIndex) => subjectIndex !== index && subject === nextSubject)) {
+      return;
+    }
+
+    const next = [...subjectCatalog];
+    next[index] = nextSubject;
+    setSubjectCatalog(next);
+    replaceWeeklySubjectName(previousSubject, nextSubject);
+  };
+
+  const removeSubjectCatalogItem = (index: number) => {
+    setSubjectCatalog((previous) => previous.filter((_, subjectIndex) => subjectIndex !== index));
+  };
+
   const addSlot = (day: number) => {
     setWeeklySchedule(prev => {
       const daySchedule = [...(prev[day] || [])];
@@ -4710,6 +4833,7 @@ export default function TimerPage() {
     const exportPayload = {
       weeklySchedule,
       weeklySubjects,
+      subjectCatalog,
       scheduleNotice,
       scheduleNoticeHighlights,
       scheduleNoticeEnabled: isNoticeEnabled,
@@ -4746,6 +4870,7 @@ export default function TimerPage() {
             ? parsed.weeklySchedule
             : parsed;
           const nextWeeklySubjects = normalizeWeeklySubjects(parsed.weeklySubjects);
+          const nextSubjectCatalog = normalizeSubjectCatalog(parsed.subjectCatalog);
           const nextNotice = typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '';
           const nextNoticeHighlights = normalizeNoticeHighlightRanges(parsed.scheduleNoticeHighlights, nextNotice);
           const nextNoticeEnabled = typeof parsed.scheduleNoticeEnabled === 'boolean'
@@ -4771,6 +4896,7 @@ export default function TimerPage() {
           clearDrawFeedback();
           setWeeklySchedule(normalizeWeeklySchedule(nextSchedule));
           setWeeklySubjects(nextWeeklySubjects);
+          setSubjectCatalog(nextSubjectCatalog);
           setScheduleNotice(nextNotice);
           setScheduleNoticeHighlights(nextNoticeHighlights);
           setIsNoticeEnabled(nextNoticeEnabled);
@@ -5347,6 +5473,7 @@ export default function TimerPage() {
     const character = visibleStudentCharacters[characterIndex];
     if (!character) return null;
     const pathIndex = (spawnOrder * 3 + characterIndex * 2) % STUDENT_CHARACTER_WALK_PATHS.length;
+    const shouldSpeak = Boolean(character.speech) && shouldStudentCharacterSpeak(spawnOrder, characterIndex, streamIndex);
 
     return {
       renderKey: `${streamIndex}-${walkCycle}-${characterIndex}-${character.id}`,
@@ -5354,14 +5481,21 @@ export default function TimerPage() {
       direction: spawnOrder % 2 === 0 ? 'right' : 'left',
       path: STUDENT_CHARACTER_WALK_PATHS[pathIndex],
       animationDelaySeconds: -(shiftedElapsedSeconds % STUDENT_CHARACTER_WALK_SECONDS),
+      shouldSpeak,
     };
   };
   const primaryStudentCharacterWalker = getStudentCharacterWalker(studentCharacterElapsedSeconds, 0, 0);
-  const secondaryStudentCharacterWalker = getStudentCharacterWalker(
+  let secondaryStudentCharacterWalker = getStudentCharacterWalker(
     studentCharacterElapsedSeconds,
     STUDENT_CHARACTER_WALK_SECONDS / 2,
     1,
   );
+  if (primaryStudentCharacterWalker?.shouldSpeak && secondaryStudentCharacterWalker?.shouldSpeak) {
+    secondaryStudentCharacterWalker = {
+      ...secondaryStudentCharacterWalker,
+      shouldSpeak: false,
+    };
+  }
   const activeStudentCharacterWalkers = [
     primaryStudentCharacterWalker,
     secondaryStudentCharacterWalker,
@@ -5953,6 +6087,70 @@ export default function TimerPage() {
   const subjectSettingsPanel = (
     <div className="settings-panel-grid grid gap-4">
       <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">과목 목록</h3>
+          </div>
+          <span className="settings-count-pill inline-flex min-h-9 items-center rounded-full border border-[#D7E2D1] bg-white px-3 text-[0.82rem] font-extrabold text-[#3A5A3B]">
+            {subjectCatalog.length}개
+          </span>
+        </div>
+
+        <div className="subject-catalog-list grid gap-2">
+          {subjectCatalog.length === 0 ? (
+            <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-6 text-center font-medium text-[#8A6347]/60">
+              등록된 과목이 없습니다.
+            </div>
+          ) : (
+            subjectCatalog.map((subject, index) => (
+              <div key={`${subject}-${index}`} className="subject-catalog-row flex items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-2">
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(event) => updateSubjectCatalogItem(index, event.target.value)}
+                  className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                  aria-label={`${index + 1}번째 과목`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeSubjectCatalogItem(index)}
+                  className="icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] text-[#B05A47] transition-colors hover:border-[#C74C3D] hover:bg-[#FFF1EC]"
+                  title="과목 삭제"
+                  aria-label={`${subject} 삭제`}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={newSubjectName}
+            onChange={(event) => setNewSubjectName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                addSubjectCatalogItem();
+              }
+            }}
+            className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#D7E2D1] bg-white px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#9FC7B8] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+            placeholder="새 과목"
+          />
+          <button
+            type="button"
+            onClick={addSubjectCatalogItem}
+            className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#5C8D5D] bg-[#5C8D5D] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#476F48]"
+          >
+            <Plus size={18} />
+            과목 추가
+          </button>
+        </div>
+      </section>
+
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">주차별 과목</h3>
@@ -6019,13 +6217,29 @@ export default function TimerPage() {
                           }`}
                         >
                           {slot ? (
-                            <input
-                              type="text"
-                              value={getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)}
-                              onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
-                              className="slot-subject-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                              placeholder="과목"
-                            />
+                            subjectCatalog.length > 0 ? (
+                              <select
+                                value={getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)}
+                                onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
+                                className="slot-subject-input slot-select w-full min-w-0 cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                                aria-label={`${DAYS[day]}요일 ${subjectKey}교시 과목`}
+                              >
+                                <option value="">과목</option>
+                                {subjectCatalog.map((subject) => (
+                                  <option key={subject} value={subject}>
+                                    {subject}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                value={getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)}
+                                onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
+                                className="slot-subject-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                                placeholder="과목"
+                              />
+                            )
                           ) : (
                             <span className="block rounded-xl border border-dashed border-[#E6D5C9] bg-[#F7F0E8]/70 px-3 py-2.5 text-center text-[0.9rem] font-bold text-[#B89E87]/70">
                               -
@@ -6480,6 +6694,7 @@ export default function TimerPage() {
               direction={walker.direction}
               path={walker.path}
               animationDelaySeconds={walker.animationDelaySeconds}
+              shouldSpeak={walker.shouldSpeak}
               onImageError={markStudentCharacterFailed}
             />
           </React.Fragment>
@@ -6974,6 +7189,7 @@ export default function TimerPage() {
                       const scheduleSubject = getWeeklySubject(weeklySubjects, currentSubjectWeekKey, today, s);
                       const periodNumber = getSchedulePeriodNumber(s);
                       const shouldShowSubject = s.type === 'class' && scheduleSubject.length > 0 && periodNumber !== null;
+                      const isCompactScheduleRow = s.type === 'morning' || s.type === 'break' || s.type === 'lunch';
 
                       return (
                         <li
@@ -6981,7 +7197,7 @@ export default function TimerPage() {
                           ref={(el) => {
                             scheduleSlotRefs.current[s.id] = el;
                           }}
-                          className={`schedule-row schedule-row-spacious flex items-center justify-between rounded-xl transition-colors ${isThisSlot ? 'schedule-row-active font-bold text-white shadow-md' : 'schedule-row-idle'}`}
+                          className={`schedule-row schedule-row-spacious ${isCompactScheduleRow ? 'schedule-row-compact' : ''} grid items-center rounded-xl transition-colors ${isThisSlot ? 'schedule-row-active font-bold text-white shadow-md' : 'schedule-row-idle'}`}
                         >
                           <span className="schedule-row-title-wrap min-w-0">
                             {shouldShowSubject ? (
