@@ -8991,6 +8991,7 @@ h3 {
   box-shadow: var(--floating-shadow) !important;
 }
 
+.editorial-random-legacy-font .random-board,
 .random-board-surface {
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   background: var(--house-green) !important;
@@ -10488,6 +10489,8 @@ h3 {
     inset 0.65rem 0.65rem 1.25rem rgba(255, 255, 255, 0.13) !important;
 }
 
+.editorial-random-legacy-font .random-board::before,
+.editorial-random-legacy-font .random-board::after,
 .random-board-surface::before,
 .random-board-surface::after {
   content: "";
@@ -10496,6 +10499,7 @@ h3 {
   pointer-events: none;
 }
 
+.editorial-random-legacy-font .random-board::before,
 .random-board-surface::before {
   inset: 7.5%;
   z-index: 0;
@@ -10505,6 +10509,7 @@ h3 {
     0 0 1.2rem rgba(203, 162, 88, 0.1);
 }
 
+.editorial-random-legacy-font .random-board::after,
 .random-board-surface::after {
   left: 21%;
   top: 17%;
