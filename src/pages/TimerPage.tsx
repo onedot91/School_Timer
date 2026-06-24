@@ -2863,17 +2863,79 @@ function ScheduleYoutubePlayer({
   return <div ref={containerRef} className="h-full w-full" />;
 }
 
-const STUDENT_CHARACTER_WALK_LANES = [
-  { top: '39%', size: 'min(28vw, 30vh, 14.5rem)' },
-  { top: '48%', size: 'min(31vw, 33vh, 16rem)' },
-  { top: '56%', size: 'min(27vw, 29vh, 14rem)' },
+const STUDENT_CHARACTER_WALK_PATHS = [
+  {
+    startTop: '58%',
+    midTopA: '51%',
+    midTopB: '45%',
+    endTop: '42%',
+    size: 'min(27vw, 29vh, 14rem)',
+    scale: '0.94',
+    bobDuration: '860ms',
+    bobLift: '-0.36rem',
+    bobTilt: '0.7deg',
+    easing: 'linear',
+    zIndex: 27,
+  },
+  {
+    startTop: '44%',
+    midTopA: '50%',
+    midTopB: '55%',
+    endTop: '52%',
+    size: 'min(31vw, 33vh, 16rem)',
+    scale: '1',
+    bobDuration: '720ms',
+    bobLift: '-0.52rem',
+    bobTilt: '0.45deg',
+    easing: 'cubic-bezier(0.42, 0, 0.58, 1)',
+    zIndex: 30,
+  },
+  {
+    startTop: '50%',
+    midTopA: '41%',
+    midTopB: '47%',
+    endTop: '59%',
+    size: 'min(29vw, 31vh, 15rem)',
+    scale: '0.98',
+    bobDuration: '940ms',
+    bobLift: '-0.3rem',
+    bobTilt: '0.9deg',
+    easing: 'linear',
+    zIndex: 32,
+  },
+  {
+    startTop: '38%',
+    midTopA: '43%',
+    midTopB: '50%',
+    endTop: '46%',
+    size: 'min(25vw, 28vh, 13.5rem)',
+    scale: '0.9',
+    bobDuration: '780ms',
+    bobLift: '-0.42rem',
+    bobTilt: '0.6deg',
+    easing: 'cubic-bezier(0.36, 0, 0.64, 1)',
+    zIndex: 24,
+  },
+  {
+    startTop: '54%',
+    midTopA: '58%',
+    midTopB: '49%',
+    endTop: '40%',
+    size: 'min(32vw, 34vh, 16.5rem)',
+    scale: '1.04',
+    bobDuration: '820ms',
+    bobLift: '-0.46rem',
+    bobTilt: '0.5deg',
+    easing: 'linear',
+    zIndex: 34,
+  },
 ] as const;
 
 interface StudentCharacterWalker {
   renderKey: string;
   character: StudentCharacter;
   direction: 'left' | 'right';
-  lane: (typeof STUDENT_CHARACTER_WALK_LANES)[number];
+  path: (typeof STUDENT_CHARACTER_WALK_PATHS)[number];
   animationDelaySeconds: number;
 }
 
@@ -2881,14 +2943,14 @@ function StudentCharacterShowcase({
   character,
   timerType,
   direction,
-  lane,
+  path,
   animationDelaySeconds,
   onImageError,
 }: {
   character: StudentCharacter;
   timerType: TimerType;
   direction: 'left' | 'right';
-  lane: (typeof STUDENT_CHARACTER_WALK_LANES)[number];
+  path: (typeof STUDENT_CHARACTER_WALK_PATHS)[number];
   animationDelaySeconds: number;
   onImageError: (characterId: string) => void;
 }) {
@@ -2902,10 +2964,19 @@ function StudentCharacterShowcase({
   const imageTransform = character.walkTransform?.[direction] || (direction === 'left' ? 'scaleX(-1)' : 'none');
   const frameStyle = {
     '--student-character-accent': character.themeColor || '#7AA160',
-    '--student-character-walk-top': lane.top,
-    '--student-character-walk-size': lane.size,
+    '--student-character-walk-start-top': path.startTop,
+    '--student-character-walk-mid-top-a': path.midTopA,
+    '--student-character-walk-mid-top-b': path.midTopB,
+    '--student-character-walk-end-top': path.endTop,
+    '--student-character-walk-size': path.size,
+    '--student-character-walk-scale': path.scale,
     '--student-character-walk-duration': `${STUDENT_CHARACTER_WALK_SECONDS}s`,
     '--student-character-walk-delay': `${initialAnimationDelaySeconds}s`,
+    '--student-character-walk-easing': path.easing,
+    '--student-character-bob-duration': path.bobDuration,
+    '--student-character-bob-lift': path.bobLift,
+    '--student-character-bob-tilt': path.bobTilt,
+    '--student-character-depth-z': path.zIndex,
     '--student-character-image-transform': imageTransform,
   } as React.CSSProperties;
 
@@ -5264,44 +5335,32 @@ export default function TimerPage() {
   const getStudentCharacterWalker = (
     elapsedSeconds: number,
     offsetSeconds: number,
-    activeCharacterId?: string,
+    streamIndex: number,
   ): StudentCharacterWalker | null => {
     if (!canShowStudentCharacter) return null;
+    if (streamIndex > 0 && visibleStudentCharacters.length === 1) return null;
 
     const shiftedElapsedSeconds = Math.max(0, elapsedSeconds + offsetSeconds);
     const walkCycle = Math.floor(shiftedElapsedSeconds / STUDENT_CHARACTER_WALK_SECONDS);
-    let characterIndex = walkCycle % visibleStudentCharacters.length;
-    if (
-      activeCharacterId &&
-      visibleStudentCharacters.length > 1 &&
-      visibleStudentCharacters[characterIndex]?.id === activeCharacterId
-    ) {
-      characterIndex = (characterIndex + 1) % visibleStudentCharacters.length;
-    }
-    if (
-      activeCharacterId &&
-      visibleStudentCharacters.length === 1 &&
-      visibleStudentCharacters[characterIndex]?.id === activeCharacterId
-    ) {
-      return null;
-    }
-
+    const spawnOrder = walkCycle * 2 + streamIndex;
+    const characterIndex = spawnOrder % visibleStudentCharacters.length;
     const character = visibleStudentCharacters[characterIndex];
     if (!character) return null;
+    const pathIndex = (spawnOrder * 3 + characterIndex * 2) % STUDENT_CHARACTER_WALK_PATHS.length;
 
     return {
-      renderKey: `${offsetSeconds}-${walkCycle}-${characterIndex}-${character.id}`,
+      renderKey: `${streamIndex}-${walkCycle}-${characterIndex}-${character.id}`,
       character,
-      direction: walkCycle % 2 === 0 ? 'right' : 'left',
-      lane: STUDENT_CHARACTER_WALK_LANES[walkCycle % STUDENT_CHARACTER_WALK_LANES.length],
+      direction: spawnOrder % 2 === 0 ? 'right' : 'left',
+      path: STUDENT_CHARACTER_WALK_PATHS[pathIndex],
       animationDelaySeconds: -(shiftedElapsedSeconds % STUDENT_CHARACTER_WALK_SECONDS),
     };
   };
-  const primaryStudentCharacterWalker = getStudentCharacterWalker(studentCharacterElapsedSeconds, 0);
+  const primaryStudentCharacterWalker = getStudentCharacterWalker(studentCharacterElapsedSeconds, 0, 0);
   const secondaryStudentCharacterWalker = getStudentCharacterWalker(
     studentCharacterElapsedSeconds,
     STUDENT_CHARACTER_WALK_SECONDS / 2,
-    primaryStudentCharacterWalker?.character.id,
+    1,
   );
   const activeStudentCharacterWalkers = [
     primaryStudentCharacterWalker,
@@ -6419,7 +6478,7 @@ export default function TimerPage() {
               character={walker.character}
               timerType={timerType}
               direction={walker.direction}
-              lane={walker.lane}
+              path={walker.path}
               animationDelaySeconds={walker.animationDelaySeconds}
               onImageError={markStudentCharacterFailed}
             />

@@ -131,7 +131,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     themeColor: '#A6C84A',
     walkTransform: {
       right: 'none',
-      left: 'scaleX(-1)',
+      left: 'none',
     },
   },
 ];
