@@ -6403,16 +6403,6 @@ h3 {
   animation: studentCharacterWalkBob var(--student-character-bob-duration) ease-in-out infinite;
 }
 
-.student-character-frame::before {
-  content: "";
-  position: absolute;
-  inset: 24% 8% 2%;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 50% 56%, color-mix(in srgb, var(--student-character-accent) 30%, transparent) 0, transparent 68%);
-  filter: blur(16px);
-}
-
 .student-character-image {
   position: relative;
   z-index: 1;

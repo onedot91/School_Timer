@@ -83,7 +83,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     themeColor: '#6D45B8',
     walkTransform: {
       right: 'none',
-      left: 'scaleX(-1)',
+      left: 'none',
     },
   },
   {
