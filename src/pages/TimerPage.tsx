@@ -763,6 +763,15 @@ const isEditableShortcutTarget = (target: EventTarget | null) => {
   );
 };
 
+const isTextEntryShortcutTarget = (target: EventTarget | null) => {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+
+  const tagName = element.tagName;
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
+};
+
 const sanitizeMemoHtml = (value: unknown) => {
   if (typeof value !== 'string' || value.trim().length === 0) return '';
 
@@ -2977,6 +2986,35 @@ const shouldStudentCharacterSpeak = (spawnOrder: number, characterIndex: number,
   return seed % 17 === 0 || seed % 23 === 5 || seed % 29 === 9;
 };
 
+const getStableHash = (value: string) => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const getSeededRandom = (seedValue: string) => {
+  let seed = getStableHash(seedValue) || 1;
+  return () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+};
+
+const getShuffledStudentCharacters = (characters: StudentCharacter[], seedValue: string) => {
+  if (characters.length <= 1) return characters;
+
+  const shuffled = [...characters];
+  const random = getSeededRandom(seedValue);
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+};
+
 function StudentCharacterShowcase({
   character,
   timerType,
@@ -4547,7 +4585,7 @@ export default function TimerPage() {
         isYoutubePanelOpen ||
         isLibraryOpen ||
         isEditingNotice ||
-        isEditableShortcutTarget(event.target) ||
+        isTextEntryShortcutTarget(event.target) ||
         event.repeat
       ) {
         return;
@@ -5467,14 +5505,27 @@ export default function TimerPage() {
   const visibleStudentCharacters = STUDENT_CHARACTERS.filter(
     (character) => !failedStudentCharacterIds.has(character.id),
   );
+  const studentCharacterOrderSeed = [
+    adjustedScheduleNow.getFullYear(),
+    adjustedScheduleNow.getMonth(),
+    adjustedScheduleNow.getDate(),
+    timerType,
+    activeScheduleSlot?.type ?? 'none',
+    activeScheduleSlot?.start ?? 'none',
+    activeScheduleSlot?.end ?? 'none',
+    visibleStudentCharacters.map((character) => character.id).join(','),
+  ].join(':');
+  const orderedStudentCharacters = getShuffledStudentCharacters(
+    visibleStudentCharacters,
+    studentCharacterOrderSeed,
+  );
   const shouldShowStudentCharacterBySchedule =
     timerType === 'none' ||
     ((timerType === 'break' || timerType === 'lunch') && activeScheduleSlot?.type === timerType);
   const canShowStudentCharacter =
     shouldShowStudentCharacterBySchedule &&
-    visibleStudentCharacters.length > 0 &&
-    !shouldHideStudentCharacterForNotification &&
-    !isDrawOverlayVisible;
+    orderedStudentCharacters.length > 0 &&
+    !shouldHideStudentCharacterForNotification;
   const studentCharacterElapsedSeconds =
     activeScheduleSlot && activeScheduleSlot.type === timerType && canShowStudentCharacter
       ? Math.max(0, currentScheduleSecondsOfDay - activeScheduleSlot.start * 60)
@@ -5485,13 +5536,13 @@ export default function TimerPage() {
     streamIndex: number,
   ): StudentCharacterWalker | null => {
     if (!canShowStudentCharacter) return null;
-    if (streamIndex > 0 && visibleStudentCharacters.length === 1) return null;
+    if (streamIndex > 0 && orderedStudentCharacters.length === 1) return null;
 
     const shiftedElapsedSeconds = Math.max(0, elapsedSeconds + offsetSeconds);
     const walkCycle = Math.floor(shiftedElapsedSeconds / STUDENT_CHARACTER_WALK_SECONDS);
     const spawnOrder = walkCycle * 2 + streamIndex;
-    const characterIndex = spawnOrder % visibleStudentCharacters.length;
-    const character = visibleStudentCharacters[characterIndex];
+    const characterIndex = spawnOrder % orderedStudentCharacters.length;
+    const character = orderedStudentCharacters[characterIndex];
     if (!character) return null;
     const pathIndex = (spawnOrder * 3 + characterIndex * 2) % STUDENT_CHARACTER_WALK_PATHS.length;
     const shouldSpeak = Boolean(character.speech) && shouldStudentCharacterSpeak(spawnOrder, characterIndex, streamIndex);
