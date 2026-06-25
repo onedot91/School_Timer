@@ -3192,6 +3192,9 @@ export default function TimerPage() {
   const [isWatchFaceBlinking, setIsWatchFaceBlinking] = useState(false);
   const [isWatchFaceReacting, setIsWatchFaceReacting] = useState(false);
   const [failedStudentCharacterIds, setFailedStudentCharacterIds] = useState<Set<string>>(() => new Set());
+  const [studentCharacterShuffleNonce, setStudentCharacterShuffleNonce] = useState(() =>
+    Math.random().toString(36).slice(2, 11),
+  );
 
   const isEditingNoticeRef = useRef(isEditingNotice);
   const skipNextNoticeTextClickRef = useRef(false);
@@ -5402,6 +5405,19 @@ export default function TimerPage() {
   const activeScheduleSlot = currentDaySchedule.find(
     (slot) => currentScheduleSecondsOfDay >= slot.start * 60 && currentScheduleSecondsOfDay < slot.end * 60,
   );
+  const studentCharacterShuffleScope = [
+    adjustedScheduleNow.getFullYear(),
+    adjustedScheduleNow.getMonth(),
+    adjustedScheduleNow.getDate(),
+    timerType,
+    activeScheduleSlot?.id ?? 'none',
+    activeScheduleSlot?.type ?? 'none',
+    activeScheduleSlot?.start ?? 'none',
+    activeScheduleSlot?.end ?? 'none',
+  ].join(':');
+  useEffect(() => {
+    setStudentCharacterShuffleNonce(Math.random().toString(36).slice(2, 11));
+  }, [studentCharacterShuffleScope]);
 
   const percentage = displayTotalTime > 0 ? displayTimeLeft / displayTotalTime : 0;
   const warningThreshold = 0.5;
@@ -5587,25 +5603,16 @@ export default function TimerPage() {
     (character) => !failedStudentCharacterIds.has(character.id),
   );
   const studentCharacterOrderSeed = [
-    adjustedScheduleNow.getFullYear(),
-    adjustedScheduleNow.getMonth(),
-    adjustedScheduleNow.getDate(),
-    timerType,
-    activeScheduleSlot?.type ?? 'none',
-    activeScheduleSlot?.start ?? 'none',
-    activeScheduleSlot?.end ?? 'none',
+    studentCharacterShuffleScope,
+    studentCharacterShuffleNonce,
     visibleStudentCharacters.map((character) => character.id).join(','),
   ].join(':');
-  const orderedStudentCharacters = getShuffledStudentCharacters(
-    visibleStudentCharacters,
-    studentCharacterOrderSeed,
-  );
   const shouldShowStudentCharacterBySchedule =
     timerType === 'none' ||
     ((timerType === 'break' || timerType === 'lunch') && activeScheduleSlot?.type === timerType);
   const canShowStudentCharacter =
     shouldShowStudentCharacterBySchedule &&
-    orderedStudentCharacters.length > 0 &&
+    visibleStudentCharacters.length > 0 &&
     !shouldHideStudentCharacterForNotification;
   const studentCharacterElapsedSeconds =
     activeScheduleSlot && activeScheduleSlot.type === timerType && canShowStudentCharacter
@@ -5617,13 +5624,18 @@ export default function TimerPage() {
     streamIndex: number,
   ): StudentCharacterWalker | null => {
     if (!canShowStudentCharacter) return null;
-    if (streamIndex > 0 && orderedStudentCharacters.length === 1) return null;
+    if (streamIndex > 0 && visibleStudentCharacters.length === 1) return null;
 
     const shiftedElapsedSeconds = Math.max(0, elapsedSeconds + offsetSeconds);
     const walkCycle = Math.floor(shiftedElapsedSeconds / STUDENT_CHARACTER_WALK_SECONDS);
     const spawnOrder = walkCycle * 2 + streamIndex;
-    const characterIndex = spawnOrder % orderedStudentCharacters.length;
-    const character = orderedStudentCharacters[characterIndex];
+    const characterRoundIndex = Math.floor(spawnOrder / visibleStudentCharacters.length);
+    const characterIndex = spawnOrder % visibleStudentCharacters.length;
+    const roundCharacters = getShuffledStudentCharacters(
+      visibleStudentCharacters,
+      `${studentCharacterOrderSeed}:round-${characterRoundIndex}`,
+    );
+    const character = roundCharacters[characterIndex];
     if (!character) return null;
     const pathIndex = (spawnOrder * 3 + characterIndex * 2) % STUDENT_CHARACTER_WALK_PATHS.length;
     const shouldSpeak = Boolean(character.speech) && shouldStudentCharacterSpeak(spawnOrder, characterIndex, streamIndex);
