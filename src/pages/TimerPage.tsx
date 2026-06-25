@@ -5374,6 +5374,10 @@ export default function TimerPage() {
   }
 
   const showTimerNotification = showCharacter || showClassEndImage;
+  const shouldHideStudentCharacterForNotification =
+    showClassEndImage ||
+    (shouldShowTimedMessage && displayTimeLeft === 0) ||
+    (shouldShowTimedMessage && percentage <= urgentThreshold);
   const timerNotificationMessage = activeClassEndImage?.message ?? characterMessage;
   const timerNotificationTextColorClass = showClassEndImage ? 'text-[#3F7C49]' : colorClass;
   const timerNotificationImageSrc = showClassEndImage
@@ -5469,7 +5473,7 @@ export default function TimerPage() {
   const canShowStudentCharacter =
     shouldShowStudentCharacterBySchedule &&
     visibleStudentCharacters.length > 0 &&
-    !showTimerNotification &&
+    !shouldHideStudentCharacterForNotification &&
     !isDrawOverlayVisible;
   const studentCharacterElapsedSeconds =
     activeScheduleSlot && activeScheduleSlot.type === timerType && canShowStudentCharacter
