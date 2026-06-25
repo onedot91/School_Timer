@@ -48,6 +48,7 @@ import {
 import {
   AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
+  AUCTION_WEEKDAY_LABELS,
   CURRENCY_STUDENT_NUMBERS,
   DEFAULT_CURRENCY_BALANCE,
   DEFAULT_AUCTION_ITEMS,
@@ -6841,20 +6842,21 @@ export default function TimerPage() {
           </span>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="grid gap-3">
           {auctionItems.map((item, index) => (
             <div
               key={item.id}
-              className="grid gap-2 rounded-[1.15rem] border border-[#D7E6DE] bg-[#F8FCF6] p-3 sm:grid-cols-[3.2rem_minmax(0,1fr)_9rem]"
+              className="grid gap-2 rounded-[1.15rem] border border-[#D7E6DE] bg-[#F8FCF6] p-3 sm:grid-cols-[3.2rem_minmax(0,1fr)_8.5rem]"
             >
               <div className="inline-flex h-11 items-center justify-center rounded-[0.9rem] bg-[#006241] font-mono text-[1rem] font-black text-white">
-                {index + 1}
+                {AUCTION_WEEKDAY_LABELS[index]}
               </div>
               <input
                 value={item.name}
                 onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
                 className="h-11 min-w-0 rounded-[0.9rem] border-2 border-[#CFE0D8] bg-white px-3 text-[0.95rem] font-extrabold text-[#1F2523] outline-none transition-colors focus:border-[#9FC7B8]"
-                aria-label={`${index + 1}번 물품 이름`}
+                aria-label={`${AUCTION_WEEKDAY_LABELS[index]}요일 물품 이름`}
+                placeholder={`${AUCTION_WEEKDAY_LABELS[index]}요일 물품`}
               />
               <input
                 type="number"
@@ -6863,7 +6865,7 @@ export default function TimerPage() {
                 value={item.startPrice}
                 onChange={(event) => updateAuctionItem(item.id, { startPrice: Number(event.target.value) })}
                 className="h-11 min-w-0 rounded-[0.9rem] border-2 border-[#CFE0D8] bg-white px-3 text-right font-mono text-[0.95rem] font-black text-[#1F2523] outline-none transition-colors focus:border-[#9FC7B8]"
-                aria-label={`${index + 1}번 물품 시작가`}
+                aria-label={`${AUCTION_WEEKDAY_LABELS[index]}요일 물품 시작가`}
               />
             </div>
           ))}

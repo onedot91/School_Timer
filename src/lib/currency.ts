@@ -17,15 +17,16 @@ export const DEFAULT_CURRENCY_BALANCE = 100;
 export const CURRENCY_BALANCE_MIN = 0;
 export const CURRENCY_BALANCE_MAX = 999999;
 export const CURRENCY_UNIT_LABEL = '고마';
-export const AUCTION_BID_STEP = 5;
+export const AUCTION_BID_STEP = 1;
 export const DEFAULT_AUCTION_ITEMS: AuctionItem[] = [
-  { id: 'item-a', name: 'A', startPrice: 10 },
-  { id: 'item-b', name: 'B', startPrice: 10 },
-  { id: 'item-c', name: 'C', startPrice: 10 },
-  { id: 'item-d', name: 'D', startPrice: 10 },
-  { id: 'item-e', name: 'E', startPrice: 10 },
+  { id: 'item-a', name: '월요일 물품', startPrice: 10 },
+  { id: 'item-b', name: '화요일 물품', startPrice: 10 },
+  { id: 'item-c', name: '수요일 물품', startPrice: 10 },
+  { id: 'item-d', name: '목요일 물품', startPrice: 10 },
+  { id: 'item-e', name: '금요일 물품', startPrice: 10 },
 ];
 export const AUCTION_ITEM_IDS = DEFAULT_AUCTION_ITEMS.map((item) => item.id);
+export const AUCTION_WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 
 export const formatCurrency = (value: number) =>
   `${value.toLocaleString('ko-KR')} ${CURRENCY_UNIT_LABEL}`;
@@ -74,6 +75,13 @@ export const normalizeAuctionItems = (value: unknown): AuctionItem[] => {
       startPrice: clampAuctionBidAmount(item.startPrice ?? defaultItem.startPrice),
     };
   });
+};
+
+export const getAuctionVisibleItemCount = (date = new Date()) => {
+  const day = date.getDay();
+  if (day === 0) return 0;
+  if (day >= 6) return AUCTION_ITEM_IDS.length;
+  return Math.min(day, AUCTION_ITEM_IDS.length);
 };
 
 export const normalizeAuctionBids = (value: unknown, itemIds: string[]): AuctionBids => {

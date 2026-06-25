@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Coins } from 'lucide-react';
+import { Coins, Lock, Sparkles, Trophy } from 'lucide-react';
 import {
   AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
+  AUCTION_WEEKDAY_LABELS,
   DEFAULT_CURRENCY_BALANCE,
   DEFAULT_AUCTION_ITEMS,
   clampAuctionBidAmount,
   formatCurrency,
+  getAuctionVisibleItemCount,
   normalizeAuctionBids,
   normalizeAuctionItems,
   normalizeCurrencyBalances,
@@ -25,29 +27,29 @@ interface AuctionPageProps {
 }
 
 const BIDDER_LABEL_COLORS = [
-  '#006241',
-  '#1D4ED8',
-  '#B91C1C',
-  '#7C3AED',
-  '#A16207',
-  '#0F766E',
-  '#3730A3',
-  '#BE185D',
-  '#C2410C',
-  '#0E7490',
-  '#4D7C0F',
-  '#9F1239',
-  '#1E3A8A',
-  '#6D28D9',
-  '#854D0E',
-  '#334155',
-  '#9D174D',
-  '#166534',
-  '#155E75',
-  '#581C87',
-  '#92400E',
-  '#047857',
-  '#27272A',
+  '#2F6F73',
+  '#315E9B',
+  '#A95545',
+  '#7A5A9E',
+  '#B2793A',
+  '#4F7F52',
+  '#8A4F76',
+  '#3E7895',
+  '#9A6642',
+  '#5E6F9F',
+  '#7A783C',
+  '#A34D64',
+  '#4D697E',
+  '#6F5C8F',
+  '#8D6A3D',
+  '#59646A',
+  '#8F4E86',
+  '#5A7B63',
+  '#4D7D88',
+  '#76548A',
+  '#9B5F3F',
+  '#3F7A6B',
+  '#6A5F58',
 ];
 
 const getBidderLabelStyle = (bidder: number) => ({
@@ -79,10 +81,16 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
   const reservedAmount = getReservedBidAmount(auctionBids, studentNumber);
   const availableBalance = Math.max(0, balance - reservedAmount);
+  const visibleItemCount = getAuctionVisibleItemCount();
+  const firstVisibleItem = auctionItems.find((_, index) => index < visibleItemCount) ?? null;
 
   const selectedItem = useMemo(
-    () => auctionItems.find((item) => item.id === selectedItemId) ?? auctionItems[0],
-    [auctionItems, selectedItemId],
+    () => {
+      const selectedIndex = auctionItems.findIndex((item) => item.id === selectedItemId);
+      if (selectedIndex >= 0 && selectedIndex < visibleItemCount) return auctionItems[selectedIndex];
+      return firstVisibleItem;
+    },
+    [auctionItems, firstVisibleItem, selectedItemId, visibleItemCount],
   );
 
   const refreshAuctionState = async () => {
@@ -122,6 +130,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   }, [studentNumber]);
 
   const selectItem = (item: AuctionItem) => {
+    const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
+    if (itemIndex < 0 || itemIndex >= visibleItemCount) return;
+
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     const minimumBid = getMinimumBid(item, currentBid.amount);
     setSelectedItemId(item.id);
@@ -215,68 +226,93 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   return (
-    <div className="auction-page min-h-[100dvh] w-full overflow-y-auto px-4 py-4 sm:px-6 md:py-5">
+    <div className="auction-page min-h-[100dvh] w-full overflow-y-auto px-3 py-3 sm:px-5 md:py-5">
       <main className="mx-auto w-full max-w-7xl">
-        <section className="rounded-[2rem] border border-[#D7E6DE] bg-white/94 p-4 shadow-[0_24px_60px_rgba(31,24,18,0.14)] sm:p-5">
-          <div className="mb-4 flex items-start justify-between gap-4 border-b border-[#E6D5C9] pb-4">
+        <section className="auction-room-shell overflow-hidden rounded-[2rem] border border-[#C8DED2] bg-[#FFFDF8] shadow-[0_24px_70px_rgba(31,24,18,0.16)]">
+          <div className="auction-room-header grid gap-3 border-b border-[#E6D5C9] bg-[#F8FCF6] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center md:p-5">
             <div className="min-w-0">
-              <p className="font-mono text-[1rem] font-black text-[#006241]">{studentNumber}번</p>
-              <h1 className="section-title mt-1 text-[1.8rem] font-extrabold leading-none text-[#2F241D]">
-                경매장
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[0.82rem] font-black text-[#006241] shadow-sm">
+                <Sparkles size={15} />
+                {studentNumber}번
+              </div>
+              <h1 className="section-title mt-2 text-[clamp(2rem,5vw,3.6rem)] font-extrabold leading-none text-[#2F241D]">
+                오늘의 경매
               </h1>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="inline-flex items-center gap-2 rounded-[1rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] px-3 py-2 text-[#006241]">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] bg-white">
+            <div className="grid grid-cols-2 gap-2 sm:w-[21rem]">
+              <div className="rounded-[1rem] border-2 border-[#9FC7B8] bg-white px-3 py-2 text-[#006241]">
+                <span className="mb-1 inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] bg-[#EAF6F0]">
                   <Coins size={18} />
                 </span>
-                <span className="flex flex-col items-end gap-1 leading-none">
-                  <span className="font-mono text-[1.08rem] font-black text-[#1F2523]">
-                    사용 가능 {isLoading ? '...' : formatCurrency(availableBalance)}
-                  </span>
-                  <span className="font-mono text-[0.72rem] font-black text-[#006241]">
-                    예약 {formatCurrency(reservedAmount)}
-                  </span>
+                <div className="font-mono text-[1.1rem] font-black leading-tight text-[#1F2523]">
+                  {isLoading ? '...' : formatCurrency(availableBalance)}
+                </div>
+                <div className="text-[0.72rem] font-black">사용 가능</div>
+              </div>
+              <div className="rounded-[1rem] border-2 border-[#E4D7C9] bg-white px-3 py-2 text-[#6E5139]">
+                <span className="mb-1 inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] bg-[#FFF7EC]">
+                  <Trophy size={18} />
                 </span>
+                <div className="font-mono text-[1.1rem] font-black leading-tight text-[#1F2523]">
+                  {formatCurrency(reservedAmount)}
+                </div>
+                <div className="text-[0.72rem] font-black">예약</div>
               </div>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 p-4 sm:grid-cols-2 md:p-5 lg:grid-cols-5">
             {auctionItems.map((item) => {
+              const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
               const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
-              const isSelected = item.id === selectedItem.id;
+              const isUnlocked = itemIndex < visibleItemCount;
+              const isSelected = selectedItem ? item.id === selectedItem.id : false;
+              const weekdayLabel = AUCTION_WEEKDAY_LABELS[itemIndex] ?? '';
 
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => selectItem(item)}
-                  className={`min-h-[9.4rem] rounded-[1.2rem] border p-3 text-left shadow-[0_10px_22px_rgba(31,24,18,0.08)] transition-all ${
-                    isSelected
+                  disabled={!isUnlocked}
+                  className={`auction-item-card group relative overflow-hidden rounded-[1.25rem] border p-3 text-left shadow-[0_10px_22px_rgba(31,24,18,0.08)] transition-all ${
+                    isUnlocked && isSelected
                       ? 'border-[#006241] bg-[#EAF6F0] ring-2 ring-[#9FC7B8]'
-                      : 'border-[#E8DDD0] bg-[#FFFDF8] hover:border-[#9FC7B8] hover:bg-[#F8FCF6]'
+                      : isUnlocked
+                        ? 'border-[#E8DDD0] bg-white hover:-translate-y-1 hover:border-[#9FC7B8] hover:bg-[#F8FCF6]'
+                        : 'cursor-not-allowed border-[#E5DFD8] bg-[#F4F0EA] opacity-78'
                   }`}
                 >
-                  <div className="mb-3 min-h-[2.25rem]">
-                    <div className="min-w-0">
-                      <h2 className="section-title text-[1.08rem] font-extrabold leading-tight text-[#2F241D]">
-                        {item.name}
-                      </h2>
+                  <div className="relative flex min-h-[4.7rem] items-center gap-3 rounded-[1rem] bg-[#EFF7F2] px-3 py-3">
+                    <span className={`inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full px-2 font-mono text-sm font-black shadow-md ${
+                      isUnlocked ? 'bg-[#006241] text-white' : 'bg-white text-[#8A7A6B]'
+                    }`}>
+                      {weekdayLabel}
+                    </span>
+                    <div className="section-title min-w-0 flex-1 text-[1.2rem] font-extrabold leading-tight text-[#2F241D]">
+                      {isUnlocked ? item.name : '비공개'}
                     </div>
+                    {!isUnlocked ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-[1rem] bg-[#1F2523]/48 text-white backdrop-blur-[2px]">
+                        <Lock size={28} />
+                        <span className="mt-1 font-black">{weekdayLabel}요일 공개</span>
+                      </div>
+                    ) : null}
                   </div>
 
-                  <div className="flex min-h-[4.7rem] items-center justify-between gap-2 rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-3 py-2.5">
-                    {currentBid.bidder ? (
-                      <span
-                        className="inline-flex h-8 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.82rem] font-black text-white"
-                        style={getBidderLabelStyle(currentBid.bidder)}
-                      >
-                        {currentBid.bidder}번
-                      </span>
-                    ) : null}
-                    <div className="min-w-0 flex-1 text-right font-mono text-[1.25rem] font-black leading-none text-[#006241]">
-                      {formatCurrency(currentBid.amount)}
+                  <div className="pt-2.5">
+                    <div className="flex min-h-[2.9rem] items-center justify-between gap-2 rounded-[0.9rem] border border-[#D7E6DE] bg-white px-3 py-2">
+                      {currentBid.bidder && isUnlocked ? (
+                        <span
+                          className="inline-flex h-8 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.82rem] font-black text-white"
+                          style={getBidderLabelStyle(currentBid.bidder)}
+                        >
+                          {currentBid.bidder}번
+                        </span>
+                      ) : null}
+                      <div className="min-w-0 flex-1 text-right font-mono text-[1.08rem] font-black leading-none text-[#006241]">
+                        {isUnlocked ? formatCurrency(currentBid.amount) : '???'}
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -300,11 +336,16 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               selectedBidAmount <= maxBid;
 
             return (
-              <div className="mt-4 rounded-[1.2rem] border-2 border-[#9FC7B8] bg-[#F8FCF6] p-3 shadow-[0_10px_22px_rgba(31,24,18,0.08)]">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h2 className="section-title min-w-0 text-[1.35rem] font-extrabold leading-tight text-[#2F241D]">
-                    {selectedItem.name}
-                  </h2>
+              <div className="mx-4 mb-4 rounded-[1.35rem] border-2 border-[#9FC7B8] bg-[#F8FCF6] p-3 shadow-[0_10px_22px_rgba(31,24,18,0.08)] md:mx-5 md:mb-5">
+                <div className="mb-3">
+                  <div>
+                    <h2 className="section-title min-w-0 text-[1.45rem] font-extrabold leading-tight text-[#2F241D]">
+                      {selectedItem.name}
+                    </h2>
+                    <p className="font-mono text-[0.9rem] font-black text-[#006241]">
+                      최고가 {formatCurrency(currentBid.amount)} · 시작가 {formatCurrency(selectedItem.startPrice)}
+                    </p>
+                  </div>
                 </div>
                 <div className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] gap-2 sm:grid-cols-[3.2rem_minmax(0,1fr)_3.2rem_10rem]">
                   <button
@@ -344,6 +385,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               </div>
             );
           })() : null}
+          {visibleItemCount === 0 ? (
+            <div className="mx-4 mb-4 rounded-[1.35rem] border-2 border-dashed border-[#D7E6DE] bg-white p-6 text-center text-[1.1rem] font-black text-[#6E5139] md:mx-5 md:mb-5">
+              월요일부터 하나씩 공개됩니다.
+            </div>
+          ) : null}
         </section>
       </main>
       {statusMessage ? (
