@@ -6355,10 +6355,10 @@ h3 {
 .student-character-showcase {
   --student-character-accent: #7aa160;
   --student-character-image-transform: none;
-  --student-character-walk-start-top: 59vh;
-  --student-character-walk-mid-top-a: 57vh;
-  --student-character-walk-mid-top-b: 61vh;
-  --student-character-walk-end-top: 59vh;
+  --student-character-walk-start-top: 88vh;
+  --student-character-walk-mid-top-a: 86vh;
+  --student-character-walk-mid-top-b: 89vh;
+  --student-character-walk-end-top: 87vh;
   --student-character-walk-size: min(31vw, 33vh, 16rem);
   --student-character-walk-scale: 1;
   --student-character-walk-duration: 34s;
@@ -6368,6 +6368,7 @@ h3 {
   --student-character-walk-mid-x-a: 20vw;
   --student-character-walk-mid-x-b: 66vw;
   --student-character-walk-end: 118vw;
+  --student-character-ground-clearance: clamp(1.35rem, 4vh, 3rem);
   --student-character-bob-duration: 780ms;
   --student-character-bob-lift: -0.42rem;
   --student-character-bob-tilt: 0.5deg;
@@ -6383,6 +6384,7 @@ h3 {
   max-width: 18rem;
   transform: translate3d(var(--student-character-walk-start), var(--student-character-walk-start-top), 0)
     translateX(-50%)
+    translateY(calc(-100% - var(--student-character-ground-clearance)))
     scale(var(--student-character-walk-scale));
   flex-direction: column;
   align-items: center;
@@ -6472,6 +6474,7 @@ h3 {
   0% {
     transform: translate3d(var(--student-character-walk-start), var(--student-character-walk-start-top), 0)
       translateX(-50%)
+      translateY(calc(-100% - var(--student-character-ground-clearance)))
       scale(var(--student-character-walk-scale));
     opacity: 0;
   }
@@ -6481,11 +6484,13 @@ h3 {
   28% {
     transform: translate3d(var(--student-character-walk-mid-x-a), var(--student-character-walk-mid-top-a), 0)
       translateX(-50%)
+      translateY(calc(-100% - var(--student-character-ground-clearance)))
       scale(var(--student-character-walk-scale));
   }
   62% {
     transform: translate3d(var(--student-character-walk-mid-x-b), var(--student-character-walk-mid-top-b), 0)
       translateX(-50%)
+      translateY(calc(-100% - var(--student-character-ground-clearance)))
       scale(var(--student-character-walk-scale));
   }
   96% {
@@ -6494,6 +6499,7 @@ h3 {
   100% {
     transform: translate3d(var(--student-character-walk-end), var(--student-character-walk-end-top), 0)
       translateX(-50%)
+      translateY(calc(-100% - var(--student-character-ground-clearance)))
       scale(var(--student-character-walk-scale));
     opacity: 0;
   }
