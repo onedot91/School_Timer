@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Coins, Gavel } from 'lucide-react';
+import { Coins } from 'lucide-react';
 import {
+  AUCTION_BID_STEP,
+  AUCTION_ITEM_IDS,
   DEFAULT_CURRENCY_BALANCE,
+  DEFAULT_AUCTION_ITEMS,
+  clampAuctionBidAmount,
   formatCurrency,
   normalizeAuctionBids,
+  normalizeAuctionItems,
   normalizeCurrencyBalances,
+  type AuctionItem,
   type AuctionBids,
   type CurrencyBalances,
 } from '../lib/currency';
@@ -18,54 +24,71 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
-interface AuctionItem {
-  id: string;
-  name: string;
-  startPrice: number;
-}
-
-const AUCTION_ITEMS: AuctionItem[] = [
-  { id: 'seat-pass', name: '자리 선택권', startPrice: 10 },
-  { id: 'helper-pass', name: '도우미 면제권', startPrice: 10 },
-  { id: 'music-pass', name: '노래 신청권', startPrice: 5 },
-  { id: 'draw-pass', name: '추첨 1회권', startPrice: 10 },
-  { id: 'bonus-pass', name: '보너스 쿠폰', startPrice: 20 },
+const BIDDER_LABEL_COLORS = [
+  '#006241',
+  '#1D4ED8',
+  '#B91C1C',
+  '#7C3AED',
+  '#A16207',
+  '#0F766E',
+  '#3730A3',
+  '#BE185D',
+  '#C2410C',
+  '#0E7490',
+  '#4D7C0F',
+  '#9F1239',
+  '#1E3A8A',
+  '#6D28D9',
+  '#854D0E',
+  '#334155',
+  '#9D174D',
+  '#166534',
+  '#155E75',
+  '#581C87',
+  '#92400E',
+  '#047857',
+  '#27272A',
 ];
 
-const AUCTION_ITEM_IDS = AUCTION_ITEMS.map((item) => item.id);
-const BID_STEP = 5;
-
-const clampBidAmount = (value: unknown) => {
-  const numericValue = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numericValue)) return 0;
-  return Math.max(0, Math.floor(numericValue / BID_STEP) * BID_STEP);
-};
+const getBidderLabelStyle = (bidder: number) => ({
+  backgroundColor: BIDDER_LABEL_COLORS[(bidder - 1) % BIDDER_LABEL_COLORS.length],
+});
 
 const getMinimumBid = (item: AuctionItem, currentAmount: number) => {
-  const baseAmount = currentAmount > 0 ? currentAmount + BID_STEP : item.startPrice;
-  return Math.max(item.startPrice, Math.ceil(baseAmount / BID_STEP) * BID_STEP);
+  const baseAmount = currentAmount > 0 ? currentAmount + AUCTION_BID_STEP : item.startPrice;
+  return Math.max(item.startPrice, Math.ceil(baseAmount / AUCTION_BID_STEP) * AUCTION_BID_STEP);
 };
+
+const getReservedBidAmount = (bids: AuctionBids, studentNumber: number, excludedItemId?: string) =>
+  Object.entries(bids).reduce((total, [itemId, bid]) => {
+    if (itemId === excludedItemId || bid.bidder !== studentNumber) return total;
+    return total + bid.amount;
+  }, 0);
 
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => normalizeCurrencyBalances(null));
+  const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
-  const [selectedItemId, setSelectedItemId] = useState(AUCTION_ITEMS[0]?.id ?? '');
+  const [selectedItemId, setSelectedItemId] = useState(DEFAULT_AUCTION_ITEMS[0]?.id ?? '');
   const [isLoading, setIsLoading] = useState(isSupabaseSettingsEnabled);
   const [isSubmittingItemId, setIsSubmittingItemId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
 
   const studentKey = String(studentNumber);
   const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const reservedAmount = getReservedBidAmount(auctionBids, studentNumber);
+  const availableBalance = Math.max(0, balance - reservedAmount);
 
   const selectedItem = useMemo(
-    () => AUCTION_ITEMS.find((item) => item.id === selectedItemId) ?? AUCTION_ITEMS[0],
-    [selectedItemId],
+    () => auctionItems.find((item) => item.id === selectedItemId) ?? auctionItems[0],
+    [auctionItems, selectedItemId],
   );
 
   const refreshAuctionState = async () => {
     if (!isSupabaseSettingsEnabled) {
       setCurrencyBalances(normalizeCurrencyBalances(null));
+      setAuctionItems(normalizeAuctionItems(null));
       setAuctionBids(normalizeAuctionBids(null, AUCTION_ITEM_IDS));
       setIsLoading(false);
       return;
@@ -74,13 +97,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     try {
       const row = await loadSharedSettingsRow();
       const value = row?.value && typeof row.value === 'object'
-        ? (row.value as { currencyBalances?: unknown; auctionBids?: unknown })
+        ? (row.value as { currencyBalances?: unknown; auctionBids?: unknown; auctionItems?: unknown })
         : {};
       setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
+      setAuctionItems(normalizeAuctionItems(value.auctionItems));
       setAuctionBids(normalizeAuctionBids(value.auctionBids, AUCTION_ITEM_IDS));
     } catch (error) {
       console.error('Failed to load auction state from Supabase.', error);
-      setStatusMessage('오류');
+      setStatusMessage('경매 정보를 불러오지 못했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +127,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setSelectedItemId(item.id);
     setBidAmounts((previous) => ({
       ...previous,
-      [item.id]: Math.max(minimumBid, clampBidAmount(previous[item.id] ?? minimumBid)),
+      [item.id]: Math.max(minimumBid, clampAuctionBidAmount(previous[item.id] ?? minimumBid)),
     }));
   };
 
@@ -112,15 +136,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     const minimumBid = getMinimumBid(item, currentBid.amount);
-    const bidAmount = clampBidAmount(bidAmounts[item.id] ?? minimumBid);
+    const bidAmount = clampAuctionBidAmount(bidAmounts[item.id] ?? minimumBid);
+    const reservedExcludingItem = getReservedBidAmount(auctionBids, studentNumber, item.id);
+    const availableForItem = Math.max(0, balance - reservedExcludingItem);
 
     if (bidAmount < minimumBid) {
-      setStatusMessage(`${formatCurrency(minimumBid)}부터`);
+      setStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
       return;
     }
 
-    if (bidAmount > balance) {
-      setStatusMessage('고마 부족');
+    if (bidAmount > availableForItem) {
+      setStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
       return;
     }
 
@@ -138,8 +164,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           const latestBalance = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
           const latestBid = currentBids[item.id] ?? { amount: 0, bidder: null };
           const latestMinimumBid = getMinimumBid(item, latestBid.amount);
+          const latestReservedExcludingItem = getReservedBidAmount(currentBids, studentNumber, item.id);
+          const latestAvailableForItem = Math.max(0, latestBalance - latestReservedExcludingItem);
 
-          if (bidAmount > latestBalance) {
+          if (bidAmount > latestAvailableForItem) {
             throw new Error('INSUFFICIENT_FUNDS');
           }
 
@@ -171,15 +199,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         }));
       }
 
-      setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + BID_STEP }));
-      setStatusMessage('완료');
+      setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
+      setStatusMessage('입찰이 완료되었습니다.');
     } catch (error) {
       console.error('Failed to submit auction bid.', error);
       setStatusMessage(error instanceof Error && error.message === 'INSUFFICIENT_FUNDS'
-        ? '고마 부족'
+        ? '예약금을 제외한 사용 가능 고마가 부족합니다.'
         : error instanceof Error && error.message === 'BID_TOO_LOW'
-          ? '더 높게'
-          : '다시 시도');
+          ? '현재 최고 입찰가보다 높게 입찰해야 합니다.'
+          : '입찰을 처리하지 못했습니다. 다시 시도해 주세요.');
       await refreshAuctionState();
     } finally {
       setIsSubmittingItemId(null);
@@ -190,35 +218,32 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     <div className="auction-page min-h-[100dvh] w-full overflow-y-auto px-4 py-4 sm:px-6 md:py-5">
       <main className="mx-auto w-full max-w-7xl">
         <section className="rounded-[2rem] border border-[#D7E6DE] bg-white/94 p-4 shadow-[0_24px_60px_rgba(31,24,18,0.14)] sm:p-5">
-          <div className="mb-4 border-b border-[#E6D5C9] pb-4">
+          <div className="mb-4 flex items-start justify-between gap-4 border-b border-[#E6D5C9] pb-4">
             <div className="min-w-0">
               <p className="font-mono text-[1rem] font-black text-[#006241]">{studentNumber}번</p>
               <h1 className="section-title mt-1 text-[1.8rem] font-extrabold leading-none text-[#2F241D]">
                 경매장
               </h1>
             </div>
-          </div>
-
-          <div className="mb-4 flex items-center justify-between gap-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] px-4 py-3">
-            <div className="inline-flex items-center gap-3 text-[#006241]">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-[0.85rem] bg-white">
-                <Coins size={20} />
-              </span>
-              <span className="text-[1rem] font-extrabold">내 화폐</span>
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-[1rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] px-3 py-2 text-[#006241]">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] bg-white">
+                  <Coins size={18} />
+                </span>
+                <span className="flex flex-col items-end gap-1 leading-none">
+                  <span className="font-mono text-[1.08rem] font-black text-[#1F2523]">
+                    사용 가능 {isLoading ? '...' : formatCurrency(availableBalance)}
+                  </span>
+                  <span className="font-mono text-[0.72rem] font-black text-[#006241]">
+                    예약 {formatCurrency(reservedAmount)}
+                  </span>
+                </span>
+              </div>
             </div>
-            <span className="font-mono text-[1.8rem] font-black leading-none text-[#1F2523]">
-              {isLoading ? '...' : formatCurrency(balance)}
-            </span>
           </div>
-
-          {statusMessage ? (
-            <div className="mb-3 rounded-[1rem] border border-[#E6D5C9] bg-[#FFFDF8] px-4 py-2.5 text-center text-[0.9rem] font-extrabold text-[#006241]">
-              {statusMessage}
-            </div>
-          ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {AUCTION_ITEMS.map((item) => {
+            {auctionItems.map((item) => {
               const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
               const isSelected = item.id === selectedItem.id;
 
@@ -233,24 +258,26 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                       : 'border-[#E8DDD0] bg-[#FFFDF8] hover:border-[#9FC7B8] hover:bg-[#F8FCF6]'
                   }`}
                 >
-                  <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="mb-3 min-h-[2.25rem]">
                     <div className="min-w-0">
                       <h2 className="section-title text-[1.08rem] font-extrabold leading-tight text-[#2F241D]">
                         {item.name}
                       </h2>
                     </div>
-                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.75rem] bg-white text-[#006241]">
-                      <Gavel size={17} />
-                    </span>
                   </div>
 
-                  <div className="flex min-h-[4.7rem] flex-col items-center justify-center gap-2 rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-2 py-2.5">
-                    <div className="font-mono text-[1.35rem] font-black leading-none text-[#006241]">
+                  <div className="flex min-h-[4.7rem] items-center justify-between gap-2 rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-3 py-2.5">
+                    {currentBid.bidder ? (
+                      <span
+                        className="inline-flex h-8 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.82rem] font-black text-white"
+                        style={getBidderLabelStyle(currentBid.bidder)}
+                      >
+                        {currentBid.bidder}번
+                      </span>
+                    ) : null}
+                    <div className="min-w-0 flex-1 text-right font-mono text-[1.25rem] font-black leading-none text-[#006241]">
                       {formatCurrency(currentBid.amount)}
                     </div>
-                    <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-[#006241] px-2.5 font-mono text-[0.78rem] font-black text-white">
-                      {currentBid.bidder ? `${currentBid.bidder}번` : '0번'}
-                    </span>
                   </div>
                 </button>
               );
@@ -260,8 +287,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           {selectedItem ? (() => {
             const currentBid = auctionBids[selectedItem.id] ?? { amount: 0, bidder: null };
             const minimumBid = getMinimumBid(selectedItem, currentBid.amount);
-            const maxBid = clampBidAmount(balance);
-            const selectedBidAmount = Math.max(minimumBid, clampBidAmount(bidAmounts[selectedItem.id] ?? minimumBid));
+            const reservedExcludingItem = getReservedBidAmount(auctionBids, studentNumber, selectedItem.id);
+            const maxBid = clampAuctionBidAmount(Math.max(0, balance - reservedExcludingItem));
+            const selectedBidAmount = Math.max(
+              minimumBid,
+              clampAuctionBidAmount(bidAmounts[selectedItem.id] ?? minimumBid),
+            );
             const canSubmit =
               !isLoading &&
               isSubmittingItemId === null &&
@@ -274,21 +305,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   <h2 className="section-title min-w-0 text-[1.35rem] font-extrabold leading-tight text-[#2F241D]">
                     {selectedItem.name}
                   </h2>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="font-mono text-[1.05rem] font-black text-[#006241]">
-                      {formatCurrency(currentBid.amount)}
-                    </span>
-                    <span className="inline-flex h-7 items-center justify-center rounded-full bg-[#006241] px-2.5 font-mono text-[0.78rem] font-black text-white">
-                      {currentBid.bidder ? `${currentBid.bidder}번` : '0번'}
-                    </span>
-                  </div>
                 </div>
                 <div className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] gap-2 sm:grid-cols-[3.2rem_minmax(0,1fr)_3.2rem_10rem]">
                   <button
                     type="button"
                     onClick={() => setBidAmounts((previous) => ({
                       ...previous,
-                      [selectedItem.id]: Math.max(minimumBid, selectedBidAmount - BID_STEP),
+                      [selectedItem.id]: Math.max(minimumBid, selectedBidAmount - AUCTION_BID_STEP),
                     }))}
                     className="inline-flex h-12 items-center justify-center rounded-[0.9rem] border-2 border-[#E4D7C9] bg-white text-[1.35rem] font-black text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
                     aria-label={`${selectedItem.name} 입찰가 낮추기`}
@@ -302,7 +325,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     type="button"
                     onClick={() => setBidAmounts((previous) => ({
                       ...previous,
-                      [selectedItem.id]: Math.min(maxBid, selectedBidAmount + BID_STEP),
+                      [selectedItem.id]: Math.min(maxBid, selectedBidAmount + AUCTION_BID_STEP),
                     }))}
                     className="inline-flex h-12 items-center justify-center rounded-[0.9rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] text-[1.35rem] font-black text-[#006241] transition-colors hover:bg-[#DDF0E8]"
                     aria-label={`${selectedItem.name} 입찰가 올리기`}
@@ -323,6 +346,30 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           })() : null}
         </section>
       </main>
+      {statusMessage ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"
+          role="presentation"
+          onClick={() => setStatusMessage('')}
+        >
+          <div
+            className="w-full max-w-[18rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.22)]"
+            role="dialog"
+            aria-modal="true"
+            aria-live="polite"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="font-mono text-[1.35rem] font-black text-[#006241]">{statusMessage}</p>
+            <button
+              type="button"
+              onClick={() => setStatusMessage('')}
+              className="mt-4 inline-flex h-10 min-w-[6.5rem] items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

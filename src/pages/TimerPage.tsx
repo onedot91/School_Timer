@@ -46,17 +46,26 @@ import {
   type StudentCharacter,
 } from '../lib/studentCharacters';
 import {
+  AUCTION_BID_STEP,
+  AUCTION_ITEM_IDS,
   CURRENCY_STUDENT_NUMBERS,
   DEFAULT_CURRENCY_BALANCE,
+  DEFAULT_AUCTION_ITEMS,
+  clampAuctionBidAmount,
   clampCurrencyBalance,
   createDefaultCurrencyBalances,
+  formatCurrencyAmount,
   formatCurrency,
+  normalizeAuctionBids,
+  normalizeAuctionItems,
   normalizeCurrencyBalances,
+  type AuctionBids,
+  type AuctionItem,
   type CurrencyBalances,
 } from '../lib/currency';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 interface ScheduleSlot {
   id: string;
@@ -111,6 +120,8 @@ interface SharedSchoolTimerSettings {
     isVisible: boolean;
   };
   currencyBalances: CurrencyBalances;
+  auctionItems: AuctionItem[];
+  auctionBids: AuctionBids;
 }
 
 interface NoticeHighlightRange {
@@ -1277,6 +1288,8 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
       isVisible: manualTimer.isVisible === true,
     },
     currencyBalances: normalizeCurrencyBalances(parsed.currencyBalances),
+    auctionItems: normalizeAuctionItems(parsed.auctionItems),
+    auctionBids: normalizeAuctionBids(parsed.auctionBids, AUCTION_ITEM_IDS),
   };
 };
 
@@ -3132,6 +3145,8 @@ export default function TimerPage() {
   const [isCurrencyPanelOpen, setIsCurrencyPanelOpen] = useState(false);
   const [editingCurrencyNumber, setEditingCurrencyNumber] = useState<number | null>(null);
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
+  const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
+  const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [scheduleYoutubeUrls, setScheduleYoutubeUrls] = useState<string[]>(initialScheduleYoutubeState.appliedUrls);
   const [scheduleYoutubeFavorites, setScheduleYoutubeFavorites] = useState<ScheduleYoutubeFavorite[]>(() =>
     getStoredScheduleYoutubeFavorites(),
@@ -3445,6 +3460,8 @@ export default function TimerPage() {
       isVisible: isExtraTimerVisible,
     },
     currencyBalances,
+    auctionItems,
+    auctionBids,
   });
 
   const applySharedSettingsSnapshot = (
@@ -3474,6 +3491,8 @@ export default function TimerPage() {
     setDrawCases(remoteSettings.randomDraw.cases);
     setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
     setCurrencyBalances(normalizeCurrencyBalances(remoteSettings.currencyBalances));
+    setAuctionItems(normalizeAuctionItems(remoteSettings.auctionItems));
+    setAuctionBids(normalizeAuctionBids(remoteSettings.auctionBids, AUCTION_ITEM_IDS));
     const canApplyManualTimer =
       options.applyManualTimer &&
       !manualTimerStateRef.current.isRunning &&
@@ -3684,6 +3703,8 @@ export default function TimerPage() {
     manualTotalTime,
     isExtraTimerVisible,
     currencyBalances,
+    auctionItems,
+    auctionBids,
   ]);
 
   useEffect(() => {
@@ -5244,6 +5265,28 @@ export default function TimerPage() {
     setEditingCurrencyNumber(null);
   };
 
+  const resetAuctionItems = () => {
+    setAuctionItems(normalizeAuctionItems(DEFAULT_AUCTION_ITEMS));
+  };
+
+  const resetAuctionBids = () => {
+    setAuctionBids(normalizeAuctionBids(null, AUCTION_ITEM_IDS));
+  };
+
+  const updateAuctionItem = (itemId: string, patch: Partial<Pick<AuctionItem, 'name' | 'startPrice'>>) => {
+    setAuctionItems((previous) => normalizeAuctionItems(previous.map((item) => (
+      item.id === itemId
+        ? {
+            ...item,
+            ...patch,
+            startPrice: patch.startPrice === undefined
+              ? item.startPrice
+              : clampAuctionBidAmount(patch.startPrice),
+          }
+        : item
+    ))));
+  };
+
   const applyNoticeDraft = (nextValue: string) => {
     setNoticeDraft(nextValue);
     const nextNotice = nextValue.trim();
@@ -6759,6 +6802,76 @@ export default function TimerPage() {
     </div>
   );
 
+  const auctionSettingsPanel = (
+    <div className="settings-panel-grid grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
+        <div className="mb-4">
+          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">경매 초기화</h3>
+        </div>
+        <div className="space-y-2.5">
+          <button
+            type="button"
+            onClick={resetAuctionItems}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-[#F8FCF6] px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
+          >
+            물품 초기화
+          </button>
+          <button
+            type="button"
+            onClick={resetAuctionBids}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#E4D7C9] bg-[#FFFDF8] px-4 py-2 text-[0.9rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+          >
+            입찰가 초기화
+          </button>
+          <button
+            type="button"
+            onClick={resetCurrencyBalances}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#F8FCF6]"
+          >
+            보유 화폐 초기화
+          </button>
+        </div>
+      </section>
+
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정</h3>
+          <span className="settings-count-pill inline-flex min-h-9 items-center rounded-full border border-[#D7E2D1] bg-white px-3 text-[0.82rem] font-extrabold text-[#3A5A3B]">
+            {auctionItems.length}개
+          </span>
+        </div>
+
+        <div className="space-y-2.5">
+          {auctionItems.map((item, index) => (
+            <div
+              key={item.id}
+              className="grid gap-2 rounded-[1.15rem] border border-[#D7E6DE] bg-[#F8FCF6] p-3 sm:grid-cols-[3.2rem_minmax(0,1fr)_9rem]"
+            >
+              <div className="inline-flex h-11 items-center justify-center rounded-[0.9rem] bg-[#006241] font-mono text-[1rem] font-black text-white">
+                {index + 1}
+              </div>
+              <input
+                value={item.name}
+                onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
+                className="h-11 min-w-0 rounded-[0.9rem] border-2 border-[#CFE0D8] bg-white px-3 text-[0.95rem] font-extrabold text-[#1F2523] outline-none transition-colors focus:border-[#9FC7B8]"
+                aria-label={`${index + 1}번 물품 이름`}
+              />
+              <input
+                type="number"
+                min={0}
+                step={AUCTION_BID_STEP}
+                value={item.startPrice}
+                onChange={(event) => updateAuctionItem(item.id, { startPrice: Number(event.target.value) })}
+                className="h-11 min-w-0 rounded-[0.9rem] border-2 border-[#CFE0D8] bg-white px-3 text-right font-mono text-[0.95rem] font-black text-[#1F2523] outline-none transition-colors focus:border-[#9FC7B8]"
+                aria-label={`${index + 1}번 물품 시작가`}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+
   return (
     <div className="mascot-app h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
       <div className={`mascot-shell editorial-main-shell relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl transition-colors duration-1000 md:rounded-[3rem] ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''}`}>
@@ -7625,7 +7738,7 @@ export default function TimerPage() {
                                 <span className="font-mono text-[1.2rem] font-black leading-none">{studentNumber}</span>
                               </div>
                               <div className="min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-3 py-2.5 text-right font-mono text-[1.08rem] font-black leading-none text-[#1F2523]">
-                                {formatCurrency(balance)}
+                                {formatCurrencyAmount(balance)}
                               </div>
                             </div>
                             {isEditingCurrency ? (
@@ -7855,7 +7968,7 @@ export default function TimerPage() {
             </div>
 
             <div className="settings-tab-strip shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
-              <div className="grid gap-2 md:grid-cols-3">
+              <div className="grid gap-2 md:grid-cols-4">
                 <button
                   type="button"
                   onClick={() => setSettingsPanel('schedule')}
@@ -7903,6 +8016,22 @@ export default function TimerPage() {
                     추첨
                   </div>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('auction')}
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'auction'
+                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'auction'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <Coins size={18} className={settingsPanel === 'auction' ? 'text-[#476152]' : 'text-[#8A6347]'} />
+                    경매
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -7911,7 +8040,9 @@ export default function TimerPage() {
                 ? scheduleSettingsPanel
                 : settingsPanel === 'subjects'
                   ? subjectSettingsPanel
-                  : drawSettingsPanel}
+                  : settingsPanel === 'draw'
+                    ? drawSettingsPanel
+                    : auctionSettingsPanel}
             </div>
              
             {false && (
