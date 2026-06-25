@@ -10201,6 +10201,11 @@ h3 {
   background: rgba(255, 255, 255, 0.52) !important;
 }
 
+.editorial-schedule-board .schedule-row-active.schedule-row-compact,
+.editorial-schedule-board .schedule-row-active.schedule-row-spacious.schedule-row-compact {
+  background: #004b35 !important;
+}
+
 .editorial-schedule-board .schedule-row-title-wrap {
   min-width: 0;
   display: flex;
@@ -10264,8 +10269,13 @@ h3 {
 
 .editorial-schedule-board .schedule-row-active .schedule-row-time,
 .editorial-schedule-board .schedule-row-active .schedule-row-title,
-.editorial-schedule-board .schedule-row-active .schedule-row-subject {
+.editorial-schedule-board .schedule-row-active .schedule-row-subject,
+.editorial-schedule-board .schedule-row-active .schedule-row-period-badge {
   color: #ffffff !important;
+}
+
+.editorial-schedule-board .schedule-row-active .schedule-row-period-badge {
+  background: rgba(255, 255, 255, 0.18) !important;
 }
 
 .speech-card {
