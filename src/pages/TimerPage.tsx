@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Copy, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Coins, Copy, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -45,6 +45,15 @@ import {
   STUDENT_CHARACTER_WALK_SECONDS,
   type StudentCharacter,
 } from '../lib/studentCharacters';
+import {
+  CURRENCY_STUDENT_NUMBERS,
+  DEFAULT_CURRENCY_BALANCE,
+  clampCurrencyBalance,
+  createDefaultCurrencyBalances,
+  formatCurrency,
+  normalizeCurrencyBalances,
+  type CurrencyBalances,
+} from '../lib/currency';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw';
@@ -101,6 +110,7 @@ interface SharedSchoolTimerSettings {
     totalTime: number;
     isVisible: boolean;
   };
+  currencyBalances: CurrencyBalances;
 }
 
 interface NoticeHighlightRange {
@@ -1266,6 +1276,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
           : DEFAULT_MANUAL_TIMER_STATE.totalTime,
       isVisible: manualTimer.isVisible === true,
     },
+    currencyBalances: normalizeCurrencyBalances(parsed.currencyBalances),
   };
 };
 
@@ -3118,6 +3129,9 @@ export default function TimerPage() {
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isYoutubePanelOpen, setIsYoutubePanelOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isCurrencyPanelOpen, setIsCurrencyPanelOpen] = useState(false);
+  const [editingCurrencyNumber, setEditingCurrencyNumber] = useState<number | null>(null);
+  const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
   const [scheduleYoutubeUrls, setScheduleYoutubeUrls] = useState<string[]>(initialScheduleYoutubeState.appliedUrls);
   const [scheduleYoutubeFavorites, setScheduleYoutubeFavorites] = useState<ScheduleYoutubeFavorite[]>(() =>
     getStoredScheduleYoutubeFavorites(),
@@ -3265,7 +3279,6 @@ export default function TimerPage() {
   const drawCaseSwitchKeyboardTimeoutRef = useRef<number | null>(null);
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
-  const manualTimerMenuRef = useRef<HTMLDivElement>(null);
   const youtubeSearchInputRef = useRef<HTMLInputElement>(null);
   const sharedSettingsHydratedRef = useRef(!isSupabaseSettingsEnabled);
   const sharedSettingsSaveTimeoutRef = useRef<number | null>(null);
@@ -3431,6 +3444,7 @@ export default function TimerPage() {
       totalTime: manualTotalTime,
       isVisible: isExtraTimerVisible,
     },
+    currencyBalances,
   });
 
   const applySharedSettingsSnapshot = (
@@ -3459,6 +3473,7 @@ export default function TimerPage() {
     setRepeatPickEnabled(remoteSettings.randomDraw.repeatPickEnabled);
     setDrawCases(remoteSettings.randomDraw.cases);
     setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
+    setCurrencyBalances(normalizeCurrencyBalances(remoteSettings.currencyBalances));
     const canApplyManualTimer =
       options.applyManualTimer &&
       !manualTimerStateRef.current.isRunning &&
@@ -3668,6 +3683,7 @@ export default function TimerPage() {
     resolvedActiveDrawCaseId,
     manualTotalTime,
     isExtraTimerVisible,
+    currencyBalances,
   ]);
 
   useEffect(() => {
@@ -3731,6 +3747,7 @@ export default function TimerPage() {
     if (!isSettingsOpen) return;
     setIsYoutubePanelOpen(false);
     setIsLibraryOpen(false);
+    setIsCurrencyPanelOpen(false);
   }, [isSettingsOpen]);
 
   useEffect(() => {
@@ -3909,6 +3926,7 @@ export default function TimerPage() {
     if (timerType === 'lunch') {
       setIsExtraTimerVisible(false);
       setIsYoutubePanelOpen(false);
+      setIsCurrencyPanelOpen(false);
       setIsLibraryOpen(true);
       return;
     }
@@ -3958,10 +3976,9 @@ export default function TimerPage() {
   const addManualPreset = (additionalSeconds: number) => {
     if (additionalSeconds <= 0) return;
 
-    const nextTotalTime = manualTotalTime + additionalSeconds;
     const nextTimeLeft = manualTimeLeft + additionalSeconds;
 
-    setManualTotalTime(nextTotalTime);
+    setManualTotalTime(nextTimeLeft);
     setManualTimeLeft(nextTimeLeft);
     setManualEndTime(manualIsRunning ? Date.now() + nextTimeLeft * 1000 : null);
     setIsExtraTimerVisible(true);
@@ -4538,6 +4555,7 @@ export default function TimerPage() {
         isMemoOpen ||
         isAnnouncementOpen ||
         isYoutubePanelOpen ||
+        isCurrencyPanelOpen ||
         isLibraryOpen ||
         isEditingNotice ||
         isEditableShortcutTarget(event.target)
@@ -4558,6 +4576,7 @@ export default function TimerPage() {
   }, [
     drawCases,
     isAnnouncementOpen,
+    isCurrencyPanelOpen,
     isEditingNotice,
     isLibraryOpen,
     isMemoOpen,
@@ -4583,6 +4602,7 @@ export default function TimerPage() {
         isMemoOpen ||
         isAnnouncementOpen ||
         isYoutubePanelOpen ||
+        isCurrencyPanelOpen ||
         isLibraryOpen ||
         isEditingNotice ||
         isTextEntryShortcutTarget(event.target) ||
@@ -4614,6 +4634,7 @@ export default function TimerPage() {
     };
   }, [
     isAnnouncementOpen,
+    isCurrencyPanelOpen,
     isDrawResetVisible,
     isEditingNotice,
     isLibraryOpen,
@@ -4649,6 +4670,7 @@ export default function TimerPage() {
       isMemoOpen ||
       isAnnouncementOpen ||
       isYoutubePanelOpen ||
+      isCurrencyPanelOpen ||
       isLibraryOpen ||
       isEditingNotice
     ) {
@@ -4660,6 +4682,7 @@ export default function TimerPage() {
     startStudentDraw();
   }, [
     isAnnouncementOpen,
+    isCurrencyPanelOpen,
     isDrawResetVisible,
     isEditingNotice,
     isLibraryOpen,
@@ -4989,6 +5012,7 @@ export default function TimerPage() {
     void playAnnouncementSound('pop');
     setIsYoutubePanelOpen(false);
     setIsLibraryOpen(false);
+    setIsCurrencyPanelOpen(false);
     setIsExtraTimerVisible(false);
     setIsWatchFaceReacting(true);
 
@@ -5205,6 +5229,19 @@ export default function TimerPage() {
     setIsScheduleYoutubeVisible(false);
     setShouldAutoplayScheduleYoutube(false);
     setIsScheduleYoutubePlaylistOpen(false);
+  };
+
+  const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
+    const key = String(studentNumber);
+    setCurrencyBalances((previous) => ({
+      ...previous,
+      [key]: clampCurrencyBalance((previous[key] ?? DEFAULT_CURRENCY_BALANCE) + delta),
+    }));
+  };
+
+  const resetCurrencyBalances = () => {
+    setCurrencyBalances(createDefaultCurrencyBalances());
+    setEditingCurrencyNumber(null);
   };
 
   const applyNoticeDraft = (nextValue: string) => {
@@ -5586,6 +5623,18 @@ export default function TimerPage() {
     (slot) => currentMinsForScheduleView >= slot.start && currentMinsForScheduleView < slot.end
   );
   const nextSlotIndex = currentDaySchedule.findIndex((slot) => currentMinsForScheduleView < slot.start);
+  const activeStatusSlot = activeSlotIndex !== -1 ? currentDaySchedule[activeSlotIndex] : null;
+  const nextStatusSlot = activeSlotIndex === -1 && nextSlotIndex !== -1 ? currentDaySchedule[nextSlotIndex] : null;
+  const scheduleStatusDetail = activeStatusSlot
+    ? `${formatMinutesToTime(activeStatusSlot.start)} - ${formatMinutesToTime(activeStatusSlot.end)}`
+    : nextStatusSlot
+      ? `다음 ${getScheduleSlotDisplayTitle(
+        nextStatusSlot,
+        getWeeklySubject(weeklySubjects, currentSubjectWeekKey, today, nextStatusSlot),
+      )} ${formatMinutesToTime(nextStatusSlot.start)}`
+      : currentDaySchedule.length > 0
+        ? '오늘 일정 종료'
+        : '오늘 일정 없음';
   const focusSlotIndex =
     activeSlotIndex !== -1
       ? activeSlotIndex
@@ -5797,6 +5846,7 @@ export default function TimerPage() {
         void playAnnouncementSound('pop');
         setIsYoutubePanelOpen(false);
         setIsLibraryOpen(false);
+        setIsCurrencyPanelOpen(false);
         setIsMemoOpen(true);
       }}
       className="inline-flex h-6 items-center justify-center gap-1 rounded-full border border-[#D7E2D1] bg-[rgba(240,246,237,0.94)] px-2 text-[0.64rem] font-extrabold text-[#5C8D6D] shadow-[0_8px_16px_rgba(93,118,84,0.1)] backdrop-blur-xl transition-all hover:bg-[rgba(248,251,246,0.98)] hover:scale-[1.02] hover:text-[#4F7258] sm:h-7 sm:px-2.25 sm:text-[0.68rem] md:h-8 md:px-2.5 md:text-[0.72rem]"
@@ -7088,11 +7138,148 @@ export default function TimerPage() {
               </div>
             </div>
             <div className="timer-status-row relative z-10 mt-3 flex w-full max-w-[40rem] flex-wrap items-center justify-center gap-3 md:mt-4 xl:max-w-[45rem]">
-              <div
-                className={`status-medallion timer-primary-chip inline-flex min-h-[4.3rem] min-w-[13rem] items-center justify-center gap-3 rounded-full border-2 px-5 py-3 text-[clamp(1.2rem,2.8vw,1.85rem)] font-extrabold leading-none tracking-[-0.01em] ${scheduleTypeBadgeClass}`}
-              >
-                {timerType === 'break' ? <Coffee size={30} strokeWidth={2.3} /> : timerType === 'lunch' ? <Utensils size={30} strokeWidth={2.3} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={30} strokeWidth={2.3} /> : <Timer size={30} strokeWidth={2.3} />}
-                <span className="min-w-0 truncate">{scheduleTypeLabel}</span>
+              <div className={`inline-manual-timer-shell ${isExtraTimerVisible ? 'inline-manual-timer-shell-open' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDrawCaseMenuOpen(false);
+                    setIsYoutubePanelOpen(false);
+                    setIsLibraryOpen(false);
+                    setIsCurrencyPanelOpen(false);
+                    setIsExtraTimerVisible((previous) => !previous);
+                  }}
+                  className={`status-medallion timer-primary-chip inline-manual-timer-button inline-flex min-h-[4.3rem] min-w-[13rem] items-center justify-center gap-3 rounded-full border-2 px-5 py-3 text-[clamp(1.2rem,2.8vw,1.85rem)] font-extrabold leading-none tracking-[-0.01em] ${scheduleTypeBadgeClass}`}
+                  aria-expanded={isExtraTimerVisible}
+                  aria-label={`${scheduleTypeLabel}, ${scheduleStatusDetail}. 보조 타이머 열기`}
+                  title={isExtraTimerVisible ? '보조 타이머 닫기' : '보조 타이머 열기'}
+                >
+                  {timerType === 'break' ? <Coffee size={30} strokeWidth={2.3} /> : timerType === 'lunch' ? <Utensils size={30} strokeWidth={2.3} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={30} strokeWidth={2.3} /> : <Timer size={30} strokeWidth={2.3} />}
+                  <span className="inline-manual-timer-label min-w-0 truncate">{scheduleTypeLabel}</span>
+                </button>
+                <div className="inline-manual-timer-panel" aria-hidden={!isExtraTimerVisible}>
+                  <div
+                    className={`manual-timer-display manual-timer-display-input inline-manual-timer-display flex items-baseline font-mono font-bold leading-none tracking-tight ${manualClockClass}`}
+                    aria-label="보조 타이머 시간"
+                    title="보조 타이머 시간 수정"
+                  >
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={isManualTimeEditing && manualEditingPart === 'minutes'
+                        ? manualMinutesInputValue
+                        : Math.floor(manualTimeLeft / 60).toString().padStart(2, '0')}
+                      onFocus={(event) => {
+                        setManualMinutesInputValue(Math.floor(manualTimeLeft / 60).toString().padStart(2, '0'));
+                        setIsManualTimeEditing(true);
+                        setManualEditingPart('minutes');
+                        event.currentTarget.select();
+                      }}
+                      onChange={(event) => {
+                        setManualMinutesInputValue(event.target.value.replace(/\D/g, '').slice(0, 3));
+                      }}
+                      onBlur={() => commitManualTimeInput('minutes')}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.currentTarget.blur();
+                          return;
+                        }
+
+                        if (event.key === 'Escape') {
+                          skipManualTimeCommitRef.current = true;
+                          event.currentTarget.blur();
+                        }
+                      }}
+                      className="manual-timer-display-part manual-timer-display-part-minutes bg-transparent text-right outline-none"
+                      aria-label="보조 타이머 분"
+                    />
+                    <span className="manual-timer-display-colon select-none" aria-hidden="true">:</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={isManualTimeEditing && manualEditingPart === 'seconds'
+                        ? manualSecondsInputValue
+                        : (manualTimeLeft % 60).toString().padStart(2, '0')}
+                      onFocus={(event) => {
+                        setManualSecondsInputValue((manualTimeLeft % 60).toString().padStart(2, '0'));
+                        setIsManualTimeEditing(true);
+                        setManualEditingPart('seconds');
+                        event.currentTarget.select();
+                      }}
+                      onChange={(event) => {
+                        setManualSecondsInputValue(event.target.value.replace(/\D/g, '').slice(0, 2));
+                      }}
+                      onBlur={() => commitManualTimeInput('seconds')}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.currentTarget.blur();
+                          return;
+                        }
+
+                        if (event.key === 'Escape') {
+                          skipManualTimeCommitRef.current = true;
+                          event.currentTarget.blur();
+                        }
+                      }}
+                      className="manual-timer-display-part manual-timer-display-part-seconds bg-transparent text-left outline-none"
+                      aria-label="보조 타이머 초"
+                    />
+                  </div>
+                  <div className="inline-manual-timer-actions">
+                    <button
+                      onClick={toggleTimer}
+                      className={`round-action inline-manual-action inline-flex items-center justify-center rounded-full text-white shadow-md ${
+                        manualIsRunning ? 'round-action-pause' : 'round-action-play'
+                      }`}
+                      type="button"
+                      title={manualIsRunning ? '보조 타이머 일시정지' : '보조 타이머 시작'}
+                      aria-label={manualIsRunning ? '보조 타이머 일시정지' : '보조 타이머 시작'}
+                    >
+                      {manualIsRunning ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+                    </button>
+                    <button
+                      onClick={resetTimer}
+                      className="round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md"
+                      type="button"
+                      title="보조 타이머 초기화"
+                      aria-label="보조 타이머 초기화"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                    <button
+                      onClick={clearManualTimer}
+                      className="round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md"
+                      type="button"
+                      title="보조 타이머 시간 초기화"
+                      aria-label="보조 타이머 시간 초기화"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                    <button
+                      onClick={() => setIsExtraTimerVisible(false)}
+                      className="round-action round-action-reset inline-manual-action inline-manual-close-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md"
+                      type="button"
+                      title="보조 타이머 닫기"
+                      aria-label="보조 타이머 닫기"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <div className="inline-manual-timer-progress" aria-hidden="true">
+                    <span style={{ width: `${manualProgress * 100}%` }} />
+                  </div>
+                  <div className="inline-manual-timer-presets">
+                    {MANUAL_TIMER_PRESETS.map((preset) => (
+                      <button
+                        key={preset.seconds}
+                        onClick={() => addManualPreset(preset.seconds)}
+                        className="manual-timer-preset-button inline-manual-preset"
+                        type="button"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -7145,6 +7332,7 @@ export default function TimerPage() {
                     onClick={() => {
                       setIsDrawCaseMenuOpen(false);
                       setIsLibraryOpen(false);
+                      setIsCurrencyPanelOpen(false);
                       setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
                       setIsSettingsOpen(true);
                     }}
@@ -7293,155 +7481,27 @@ export default function TimerPage() {
             </div>
 
             <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-4 gap-3">
-              <div ref={manualTimerMenuRef} className="relative min-w-0">
-                <div
-                  className={`manual-timer-popover absolute bottom-full left-0 z-30 mb-3 w-[20rem] max-w-[calc(100vw-2.5rem)] rounded-[1.6rem] border border-[#E6D5C9] bg-[#FFFCF7]/96 p-4 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm sm:w-[24rem] md:w-[32rem] ${
-                    isExtraTimerVisible
-                      ? ''
-                      : 'hidden'
-                  }`}
-                  aria-hidden={!isExtraTimerVisible}
-                >
-                    <div className="rounded-[1.45rem] border border-[#E6D5C9] bg-white/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                      <div className="flex items-end justify-between gap-3">
-                        <div
-                          className={`manual-timer-display manual-timer-display-input flex items-baseline font-mono text-[clamp(2.1rem,5vw,3rem)] font-bold leading-none tracking-tight ${manualClockClass}`}
-                          aria-label="보조 타이머 시간"
-                          title="보조 타이머 시간 수정"
-                        >
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={isManualTimeEditing && manualEditingPart === 'minutes'
-                              ? manualMinutesInputValue
-                              : Math.floor(manualTimeLeft / 60).toString().padStart(2, '0')}
-                            onFocus={(event) => {
-                              setManualMinutesInputValue(Math.floor(manualTimeLeft / 60).toString().padStart(2, '0'));
-                              setIsManualTimeEditing(true);
-                              setManualEditingPart('minutes');
-                              event.currentTarget.select();
-                            }}
-                            onChange={(event) => {
-                              setManualMinutesInputValue(event.target.value.replace(/\D/g, '').slice(0, 3));
-                            }}
-                            onBlur={() => commitManualTimeInput('minutes')}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter') {
-                                event.currentTarget.blur();
-                                return;
-                              }
-
-                              if (event.key === 'Escape') {
-                                skipManualTimeCommitRef.current = true;
-                                event.currentTarget.blur();
-                              }
-                            }}
-                            className="manual-timer-display-part manual-timer-display-part-minutes bg-transparent text-right outline-none"
-                            aria-label="보조 타이머 분"
-                          />
-                          <span className="manual-timer-display-colon select-none" aria-hidden="true">:</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={isManualTimeEditing && manualEditingPart === 'seconds'
-                              ? manualSecondsInputValue
-                              : (manualTimeLeft % 60).toString().padStart(2, '0')}
-                            onFocus={(event) => {
-                              setManualSecondsInputValue((manualTimeLeft % 60).toString().padStart(2, '0'));
-                              setIsManualTimeEditing(true);
-                              setManualEditingPart('seconds');
-                              event.currentTarget.select();
-                            }}
-                            onChange={(event) => {
-                              setManualSecondsInputValue(event.target.value.replace(/\D/g, '').slice(0, 2));
-                            }}
-                            onBlur={() => commitManualTimeInput('seconds')}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter') {
-                                event.currentTarget.blur();
-                                return;
-                              }
-
-                              if (event.key === 'Escape') {
-                                skipManualTimeCommitRef.current = true;
-                                event.currentTarget.blur();
-                              }
-                            }}
-                            className="manual-timer-display-part manual-timer-display-part-seconds bg-transparent text-left outline-none"
-                            aria-label="보조 타이머 초"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={toggleTimer}
-                            className={`round-action flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-md transition-transform hover:scale-105 active:scale-95 ${
-                              manualIsRunning ? 'round-action-pause' : 'round-action-play'
-                            }`}
-                            type="button"
-                            title={manualIsRunning ? '보조 타이머 일시정지' : '보조 타이머 시작'}
-                          >
-                            {manualIsRunning ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
-                          </button>
-                          <button
-                            onClick={resetTimer}
-                            className="round-action round-action-reset flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8A6347] shadow-md transition-transform hover:scale-105 active:scale-95"
-                            type="button"
-                            title="보조 타이머 초기화"
-                          >
-                            <RotateCcw size={18} />
-                          </button>
-                          <button
-                            onClick={clearManualTimer}
-                            className="round-action round-action-reset flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8A6347] shadow-md transition-transform hover:scale-105 active:scale-95"
-                            type="button"
-                            title="보조 타이머 시간 초기화"
-                            aria-label="보조 타이머 시간 초기화"
-                          >
-                            <Trash2 size={17} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EDE2D7]">
-                        <div
-                          className="h-full rounded-full bg-[#00754A] transition-all duration-300"
-                          style={{ width: `${manualProgress * 100}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="manual-timer-adjust-row manual-timer-adjust-row-presets-only mt-4">
-                      <div className="manual-timer-preset-grid">
-                        {MANUAL_TIMER_PRESETS.map((preset) => (
-                          <button
-                            key={preset.seconds}
-                            onClick={() => addManualPreset(preset.seconds)}
-                            className="manual-timer-preset-button rounded-2xl border border-[#E6D5C9] bg-white px-3 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#D5C0AD] hover:bg-[#FFF9F2]"
-                            type="button"
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                </div>
-
+              <div className="relative min-w-0">
                 <button
                   type="button"
                   onClick={() => {
-                    setIsDrawCaseMenuOpen(false);
+                    void playAnnouncementSound('pop');
+                    setIsExtraTimerVisible(false);
                     setIsYoutubePanelOpen(false);
                     setIsLibraryOpen(false);
-                    setIsExtraTimerVisible((previous) => !previous);
+                    setIsCurrencyPanelOpen((previous) => !previous);
                   }}
-                  className="manual-timer-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] border border-[#E6D5C9] bg-white/96 p-3 text-center text-[#006241] shadow-[0_14px_28px_rgba(95,71,50,0.1)] transition-all hover:border-[#D3BEA9] hover:bg-white"
+                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                    isCurrencyPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
+                  }`}
                   aria-haspopup="dialog"
-                  aria-expanded={isExtraTimerVisible}
-                  aria-label="보조 타이머"
-                  title="보조 타이머"
+                  aria-expanded={isCurrencyPanelOpen}
+                  aria-label={isCurrencyPanelOpen ? '화폐 닫기' : '화폐 열기'}
+                  title="화폐"
                 >
-                  <span className="announcement-launch-icon manual-timer-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
-                    <Timer size={22} className={manualClockClass} />
-                  </span>
+                  <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                    <Coins size={22} />
+                  </div>
                 </button>
               </div>
               <div className="relative min-w-0">
@@ -7450,6 +7510,7 @@ export default function TimerPage() {
                     void playAnnouncementSound('pop');
                     setIsExtraTimerVisible(false);
                     setIsLibraryOpen(false);
+                    setIsCurrencyPanelOpen(false);
                     setIsYoutubePanelOpen((previous) => !previous);
                   }}
                   className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -7473,6 +7534,7 @@ export default function TimerPage() {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
                   setIsExtraTimerVisible(false);
+                  setIsCurrencyPanelOpen(false);
                   setIsLibraryOpen((previous) => !previous);
                 }}
                 className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -7493,6 +7555,7 @@ export default function TimerPage() {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
                   setIsLibraryOpen(false);
+                  setIsCurrencyPanelOpen(false);
                   setIsAnnouncementOpen(true);
                 }}
                 className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
@@ -7505,6 +7568,99 @@ export default function TimerPage() {
                 </div>
               </button>
             </div>
+
+            {isCurrencyPanelOpen ? (
+              <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+                <div className="pointer-events-auto w-full max-w-[40rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
+                  <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                    <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#E9DED2] pb-3">
+                      <div className="min-w-0">
+                        <h3 className="section-title text-[1.05rem] font-extrabold text-[#3F2B20]">화폐</h3>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={resetCurrencyBalances}
+                          className="inline-flex h-8 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
+                          title="모두 100으로 초기화"
+                          aria-label="화폐 모두 100으로 초기화"
+                        >
+                          초기화
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCurrencyPanelOpen(false);
+                            setEditingCurrencyNumber(null);
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF7EC]"
+                          title="화폐 닫기"
+                          aria-label="화폐 닫기"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="currency-card-grid custom-scrollbar grid max-h-[24rem] grid-cols-2 gap-3 overflow-y-auto pr-1">
+                      {CURRENCY_STUDENT_NUMBERS.map((studentNumber) => {
+                        const balance = currencyBalances[String(studentNumber)] ?? DEFAULT_CURRENCY_BALANCE;
+                        const isEditingCurrency = editingCurrencyNumber === studentNumber;
+
+                        return (
+                          <button
+                            key={studentNumber}
+                            type="button"
+                            onClick={() => setEditingCurrencyNumber((previous) => previous === studentNumber ? null : studentNumber)}
+                            className={`rounded-[1.15rem] border-2 p-3 text-left shadow-[0_8px_18px_rgba(0,98,65,0.06)] transition-colors ${
+                              isEditingCurrency
+                                ? 'border-[#9FC7B8] bg-[#F1FAF6]'
+                                : 'border-[#DDE9E2] bg-[#F8FCF6] hover:border-[#BFD8CE] hover:bg-[#F3FAF7]'
+                            }`}
+                            aria-expanded={isEditingCurrency}
+                            aria-label={`${studentNumber}번 화폐 ${formatCurrency(balance)}, ${isEditingCurrency ? '조정 닫기' : '조정 열기'}`}
+                          >
+                            <div className="mb-2.5 flex items-center gap-2.5">
+                              <div className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]">
+                                <span className="font-mono text-[1.2rem] font-black leading-none">{studentNumber}</span>
+                              </div>
+                              <div className="min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-3 py-2.5 text-right font-mono text-[1.08rem] font-black leading-none text-[#1F2523]">
+                                {formatCurrency(balance)}
+                              </div>
+                            </div>
+                            {isEditingCurrency ? (
+                              <div
+                                className="grid grid-cols-2 gap-2"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => adjustCurrencyBalance(studentNumber, -10)}
+                                  className="inline-flex h-10 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white text-[1.15rem] font-black text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                                  aria-label={`${studentNumber}번 화폐 10 줄이기`}
+                                  title="-10"
+                                >
+                                  -
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => adjustCurrencyBalance(studentNumber, 10)}
+                                  className="inline-flex h-10 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] text-[1.15rem] font-black text-[#006241] transition-colors hover:bg-[#DDF0E8]"
+                                  aria-label={`${studentNumber}번 화폐 10 늘리기`}
+                                  title="+10"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {isYoutubePanelOpen ? (
               <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">

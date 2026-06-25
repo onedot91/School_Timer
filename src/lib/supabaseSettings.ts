@@ -63,6 +63,13 @@ export const saveSharedSettings = async (value: unknown) => {
   }
 };
 
+export const updateSharedSettings = async (updater: (currentValue: unknown) => unknown) => {
+  if (!supabase) return;
+
+  const currentRow = await loadSharedSettingsRow();
+  await saveSharedSettings(updater(currentRow?.value ?? null));
+};
+
 export const loadAnnouncementNote = async (dateKey: string) => {
   if (!supabase) return null;
 
