@@ -40,6 +40,7 @@ import {
   saveAnnouncementNote,
   saveSharedSettings,
 } from '../lib/supabaseSettings';
+import { playAuctionSound } from '../lib/auctionAudio';
 import {
   STUDENT_CHARACTERS,
   STUDENT_CHARACTER_WALK_SECONDS,
@@ -58,6 +59,7 @@ import {
   createDefaultCurrencyBalances,
   formatCurrencyAmount,
   formatCurrency,
+  getAuctionItemDisplayName,
   getAuctionVisibleDayCount,
   getStudentLabelStyle,
   normalizeAuctionAwards,
@@ -1318,10 +1320,6 @@ const CLASS_END_IMAGE_MESSAGES = ['우유 가져가!', '우유 갖다 놔!'];
 
 let announcementAudioContext: AudioContext | null = null;
 let announcementAudioPreparePromise: Promise<AudioContext | null> | null = null;
-let auctionAudioContext: AudioContext | null = null;
-let auctionAudioPreparePromise: Promise<AudioContext | null> | null = null;
-let auctionAudioMasterGain: GainNode | null = null;
-let auctionAudioCompressor: DynamicsCompressorNode | null = null;
 
 const createAnnouncementId = () => `announcement-${Math.random().toString(36).slice(2, 11)}`;
 const createEmptyAnnouncement = (): AnnouncementItem => ({ id: createAnnouncementId(), text: '' });
@@ -1405,152 +1403,6 @@ const playAnnouncementSound = async (kind: 'pop' | 'tada') => {
     playTone(1174, 0.2, 0.16, 'sine', 0.06);
   } catch {
     // Ignore browsers that block or do not support Web Audio.
-  }
-};
-
-const getAuctionAudioContext = () => {
-  try {
-    const AudioContextConstructor =
-      window.AudioContext ||
-      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextConstructor) return null;
-    if (!auctionAudioContext) {
-      auctionAudioContext = new AudioContextConstructor();
-    }
-    return auctionAudioContext;
-  } catch {
-    return null;
-  }
-};
-
-const getAuctionAudioOutput = (ctx: AudioContext) => {
-  if (!auctionAudioMasterGain || !auctionAudioCompressor) {
-    auctionAudioCompressor = ctx.createDynamicsCompressor();
-    auctionAudioCompressor.threshold.setValueAtTime(-18, ctx.currentTime);
-    auctionAudioCompressor.knee.setValueAtTime(18, ctx.currentTime);
-    auctionAudioCompressor.ratio.setValueAtTime(5, ctx.currentTime);
-    auctionAudioCompressor.attack.setValueAtTime(0.004, ctx.currentTime);
-    auctionAudioCompressor.release.setValueAtTime(0.18, ctx.currentTime);
-
-    auctionAudioMasterGain = ctx.createGain();
-    auctionAudioMasterGain.gain.setValueAtTime(0.62, ctx.currentTime);
-    auctionAudioMasterGain.connect(auctionAudioCompressor);
-    auctionAudioCompressor.connect(ctx.destination);
-  }
-
-  return auctionAudioMasterGain;
-};
-
-const prepareAuctionAudio = () => {
-  if (!auctionAudioPreparePromise) {
-    auctionAudioPreparePromise = (async () => {
-      try {
-        const ctx = getAuctionAudioContext();
-        if (!ctx) return null;
-
-        if (ctx.state === 'suspended') {
-          await ctx.resume();
-        }
-
-        getAuctionAudioOutput(ctx);
-        return ctx;
-      } catch {
-        return null;
-      } finally {
-        auctionAudioPreparePromise = null;
-      }
-    })();
-  }
-
-  return auctionAudioPreparePromise;
-};
-
-const playAuctionSound = async (kind: 'start' | 'bid' | 'final', stepIndex = 0) => {
-  try {
-    const ctx = await prepareAuctionAudio();
-    if (!ctx) return;
-
-    const outputNode = getAuctionAudioOutput(ctx);
-
-    const playTone = (
-      frequency: number,
-      startOffset: number,
-      duration: number,
-      type: OscillatorType,
-      volume: number,
-      endFrequency = frequency,
-    ) => {
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const startTime = ctx.currentTime + startOffset;
-      const endTime = startTime + duration;
-
-      oscillator.type = type;
-      oscillator.frequency.setValueAtTime(frequency, startTime);
-      oscillator.frequency.exponentialRampToValueAtTime(Math.max(80, endFrequency), endTime);
-
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(volume, startTime + Math.min(0.035, duration * 0.3));
-      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
-
-      oscillator.connect(gain);
-      gain.connect(outputNode);
-      oscillator.start(startTime);
-      oscillator.stop(endTime + 0.03);
-    };
-
-    const playNoise = (startOffset: number, duration: number, volume: number) => {
-      const sampleRate = ctx.sampleRate;
-      const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(sampleRate * duration)), sampleRate);
-      const channel = buffer.getChannelData(0);
-      for (let index = 0; index < channel.length; index += 1) {
-        const decay = 1 - index / channel.length;
-        channel[index] = (Math.random() * 2 - 1) * decay;
-      }
-
-      const source = ctx.createBufferSource();
-      const filter = ctx.createBiquadFilter();
-      const gain = ctx.createGain();
-      const startTime = ctx.currentTime + startOffset;
-      const endTime = startTime + duration;
-
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(980, startTime);
-      filter.frequency.exponentialRampToValueAtTime(180, endTime);
-
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
-
-      source.buffer = buffer;
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(outputNode);
-      source.start(startTime);
-      source.stop(endTime + 0.02);
-    };
-
-    if (kind === 'start') {
-      playNoise(0, 0.08, 0.16);
-      playTone(220, 0, 0.09, 'sine', 0.08, 150);
-      playTone(660, 0.055, 0.11, 'triangle', 0.06, 880);
-      return;
-    }
-
-    if (kind === 'bid') {
-      const baseFrequency = 620 + Math.min(stepIndex, 9) * 48;
-      playTone(baseFrequency, 0, 0.095, 'triangle', 0.075, baseFrequency * 1.42);
-      playTone(baseFrequency * 1.5, 0.035, 0.07, 'sine', 0.035, baseFrequency * 1.9);
-      return;
-    }
-
-    playNoise(0, 0.12, 0.2);
-    playTone(180, 0, 0.14, 'sine', 0.11, 92);
-    playTone(523.25, 0.12, 0.18, 'triangle', 0.09, 659.25);
-    playTone(783.99, 0.2, 0.22, 'triangle', 0.08, 987.77);
-    playTone(1046.5, 0.31, 0.28, 'sine', 0.07, 1318.51);
-  } catch {
-    // Audio is decorative; ignore browser autoplay or output failures.
   }
 };
 
@@ -7244,7 +7096,7 @@ export default function TimerPage() {
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정 및 현황</h3>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="auction-settings-day-list grid gap-3">
           {AUCTION_WEEKDAY_LABELS.map((weekdayLabel, dayIndex) => {
             const dayItems = auctionItems.filter((item) => item.dayIndex === dayIndex);
             const isDayPublic = dayIndex < auctionVisibleDayCount;
@@ -7254,26 +7106,34 @@ export default function TimerPage() {
             return (
               <div
                 key={weekdayLabel}
-                className={`rounded-[1.15rem] border p-3 shadow-[0_10px_22px_rgba(31,24,18,0.055)] ${
-                  isDayPublic ? 'border-[#E8DDD0] bg-[#FFFDF8]' : 'border-[#E5DFD8] bg-[#F7F3ED]'
+                className={`auction-settings-day-row grid gap-3 rounded-[1.25rem] border p-3 shadow-[0_10px_22px_rgba(31,24,18,0.045)] lg:grid-cols-[11.5rem_minmax(0,1fr)] ${
+                  isDayPublic ? 'border-[#D7E6DE] bg-white' : 'border-[#E5DFD8] bg-[#F7F3ED]'
                 }`}
               >
-                <div className="mb-3 flex min-h-[3.35rem] items-center justify-between gap-2 rounded-[0.95rem] bg-[#EFF7F2] px-3 py-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className={`inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.86rem] font-black shadow-md ${
-                      isDayPublic ? 'bg-[#006241] text-white' : 'bg-white text-[#8A7A6B]'
-                    }`}>
-                      {weekdayLabel}
-                    </span>
-                    <span className="section-title truncate text-[0.96rem] font-extrabold text-[#2F241D]">
+                <div className="auction-settings-day-head flex min-h-[3.25rem] items-center justify-between gap-3 border-b border-[#E8EFEA] px-1 pb-3 lg:min-h-0 lg:flex-col lg:items-start lg:justify-center lg:border-b-0 lg:border-r lg:pb-0 lg:pr-3">
+                  <div className="flex min-w-0 items-center gap-2.5 lg:w-full">
+                    <span
+                      aria-hidden="true"
+                      className={`h-8 w-1.5 shrink-0 rounded-full ${
+                        isDayPublic ? 'bg-[#007A57]' : 'bg-[#B5A89C]'
+                      }`}
+                    />
+                    <span className="section-title truncate text-[1.08rem] font-black text-[#1F2523]">
                       {weekdayLabel}요일
+                    </span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[0.68rem] font-black ${
+                      isDayPublic
+                        ? 'border-[#D7E6DE] bg-[#F6FBF8] text-[#007A57]'
+                        : 'border-[#E5DFD8] bg-white text-[#8A7A6B]'
+                    }`}>
+                      {isDayPublic ? '공개' : '비공개'}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => addAuctionItem(dayIndex)}
                     disabled={!canAddDayItem}
-                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-[#9FC7B8] bg-white px-3 text-[#006241] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:border-[#E5DFD8] disabled:bg-[#F4F0EA] disabled:text-[#8A7A6B]"
+                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#9FC7B8] bg-white px-3 text-[#007A57] transition-colors hover:bg-[#F6FBF8] disabled:cursor-not-allowed disabled:border-[#E5DFD8] disabled:bg-[#F4F0EA] disabled:text-[#8A7A6B] lg:w-full"
                     aria-label={`${weekdayLabel}요일 물품 추가`}
                     title={`${weekdayLabel}요일 물품 추가`}
                   >
@@ -7282,9 +7142,9 @@ export default function TimerPage() {
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="auction-settings-item-grid grid gap-2">
                   {dayItems.length === 0 ? (
-                    <div className="w-full rounded-[1rem] border border-dashed border-[#D7E6DE] bg-white/80 px-3 py-4 text-center text-[0.82rem] font-black text-[#8A7A6B]">
+                    <div className="auction-settings-empty w-full rounded-[1rem] border border-dashed border-[#D7E6DE] bg-white/80 px-3 py-4 text-center text-[0.82rem] font-black text-[#8A7A6B]">
                       물품 없음
                     </div>
                   ) : null}
@@ -7297,6 +7157,7 @@ export default function TimerPage() {
                     const isVisibleInSettings = isPublic || isTemporarilyVisible;
                     const canAward = isPublic && !award && currentBid.bidder !== null && currentBid.amount > 0;
                     const canRemoveItem = auctionItems.length > 1;
+                    const itemDisplayName = getAuctionItemDisplayName(item.name, item.dayIndex);
 
                     return (
                       <div
@@ -7309,28 +7170,23 @@ export default function TimerPage() {
                             return next;
                           });
                         }}
-                        className={`auction-item-card relative w-full rounded-[1rem] border p-2.5 shadow-[0_8px_16px_rgba(31,24,18,0.055)] sm:w-[16rem] ${
+                        className={`auction-item-card relative w-full rounded-[1rem] border p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] ${
                           isVisibleInSettings
                             ? 'border-[#D7E6DE] bg-white'
                             : 'border-[#E5DFD8] bg-[#F4F0EA] opacity-78'
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.76rem] font-black shadow-md ${
-                              isVisibleInSettings ? 'bg-[#006241] text-white' : 'bg-white text-[#8A7A6B]'
-                            }`}>
-                            {slotIndex + 1}
-                          </span>
                           {isVisibleInSettings ? (
                               <input
-                                value={item.name}
+                                value={itemDisplayName}
                                 onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
-                                className="section-title h-10 min-w-0 flex-1 rounded-[0.75rem] border-2 border-[#CFE0D8] bg-[#FFFDF8] px-3 text-[0.88rem] font-extrabold leading-tight text-[#2F241D] outline-none transition-colors focus:border-[#9FC7B8]"
+                                className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border border-[#D7E6DE] bg-[#FAFCFB] px-3 text-[1rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:border-[#007A57] focus:bg-white"
                                 aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 이름`}
-                                placeholder={`${weekdayLabel}요일 물품`}
+                                placeholder="물품 이름"
                               />
                           ) : (
-                            <div className="section-title h-10 min-w-0 flex-1 rounded-[0.75rem] border-2 border-[#E3DED7] bg-white/78 px-3 py-2 text-[0.88rem] font-extrabold leading-tight text-[#8A7A6B]">
+                            <div className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border border-[#E3DED7] bg-white/78 px-3 py-2.5 text-[1rem] font-black leading-tight text-[#8A7A6B]">
                               비공개
                             </div>
                           )}
@@ -7338,7 +7194,7 @@ export default function TimerPage() {
                             type="button"
                             onClick={() => removeAuctionItem(item.id)}
                             disabled={!canRemoveItem}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-[#E4D7C9] bg-[#FFFDF8] text-[#6E5139] transition-colors hover:bg-[#FFF7EC] disabled:cursor-not-allowed disabled:bg-[#F4F0EA] disabled:text-[#B5A89C]"
+                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E4D7C9] bg-[#FFFDF8] text-[#6E5139] transition-colors hover:bg-[#FFF7EC] disabled:cursor-not-allowed disabled:bg-[#F4F0EA] disabled:text-[#B5A89C]"
                             aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
                             title={canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
                           >
@@ -7351,18 +7207,18 @@ export default function TimerPage() {
                           ) : null}
                         </div>
 
-                        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_4.8rem] items-center gap-2">
-                          <div className="flex min-h-9 items-center justify-between gap-2 rounded-[0.75rem] border border-[#D7E6DE] bg-[#F8FCF6] px-2.5 py-1">
+                        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_5rem] items-center gap-2">
+                          <div className="flex min-h-10 items-center justify-between gap-2 rounded-[0.85rem] border border-[#E5ECE8] bg-[#FAFCFB] px-3 py-1.5">
                             {award && isVisibleInSettings ? (
                               <span
-                                className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.72rem] font-black text-white"
+                                className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.74rem] font-black text-white"
                                 style={getStudentLabelStyle(award.winner)}
                               >
                                 {award.winner}번
                               </span>
                             ) : currentBid.bidder && isVisibleInSettings ? (
                               <span
-                                className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.72rem] font-black text-white"
+                                className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.74rem] font-black text-white"
                                 style={getStudentLabelStyle(currentBid.bidder)}
                               >
                                 {currentBid.bidder}번
@@ -7372,7 +7228,7 @@ export default function TimerPage() {
                                 {isVisibleInSettings ? '대기' : '비공개'}
                               </span>
                             )}
-                            <div className="min-w-0 flex-1 whitespace-nowrap text-right font-mono text-[0.88rem] font-black leading-none text-[#006241]">
+                            <div className="min-w-0 flex-1 whitespace-nowrap text-right font-mono text-[1rem] font-black leading-none text-[#007A57]">
                               {isVisibleInSettings
                                 ? award
                                   ? formatCurrency(award.amount)
@@ -7384,7 +7240,7 @@ export default function TimerPage() {
                             type="button"
                             onClick={() => openAwardConfirm(item)}
                             disabled={!canAward}
-                            className={`inline-flex min-h-9 items-center justify-center rounded-[0.75rem] border-2 px-2 text-[0.76rem] font-extrabold transition-colors ${
+                            className={`inline-flex min-h-10 items-center justify-center rounded-[0.85rem] border px-2 text-[0.8rem] font-extrabold transition-colors ${
                               award
                                 ? 'cursor-default border-[#D7E6DE] bg-[#F8FCF6] text-[#006241]'
                                 : canAward
@@ -8609,7 +8465,7 @@ export default function TimerPage() {
             {pendingAwardItemId ? (() => {
               const item = auctionItems.find((auctionItem) => auctionItem.id === pendingAwardItemId);
               const currentBid = item ? auctionBids[item.id] ?? { amount: 0, bidder: null } : null;
-              const awardItemName = item?.name ?? '선택한 물품';
+              const awardItemName = item ? getAuctionItemDisplayName(item.name, item.dayIndex) : '선택한 물품';
               const lastAwardItemChar = awardItemName.trim().slice(-1);
               const awardItemParticle = lastAwardItemChar && (lastAwardItemChar.charCodeAt(0) - 0xac00) % 28 > 0
                 ? '을'
@@ -8671,34 +8527,33 @@ export default function TimerPage() {
                   className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1F2523]/55 px-4 backdrop-blur-sm"
                   role="dialog"
                   aria-modal="true"
-                  aria-labelledby="auction-award-animation-title"
+                  aria-label="낙찰 애니메이션"
                 >
-                  <div className={`auction-award-stage w-full max-w-[58rem] overflow-hidden rounded-[1.8rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
+                  <div className={`auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
                     awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
                   }`}>
-                    <div className="border-b border-[#E6D5C9] bg-[#F8FCF6] p-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 font-black text-[#006241] shadow-sm">
-                            <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-[#006241] px-2 font-mono text-white">
-                              {awardPresentation.weekdayLabel}
-                            </span>
-                            <span className="min-w-0 truncate">{awardPresentation.item.name}</span>
-                          </div>
-                          <h3 id="auction-award-animation-title" className="section-title mt-3 text-[1.8rem] font-extrabold leading-tight text-[#2F241D]">
-                            {awardPresentation.isComplete ? '낙찰 완료' : '입찰 기록 확인 중'}
-                          </h3>
-                        </div>
-                        <div className="rounded-[1rem] border border-[#D7E6DE] bg-white px-4 py-2.5 text-right">
-                          <div className="text-[0.72rem] font-black text-[#6E7A72]">
-                            진행 단계
-                          </div>
-                          <div className="mt-1 font-mono text-[1.1rem] font-black text-[#006241]">
+                    <div className="auction-award-confetti pointer-events-none absolute inset-0 overflow-hidden">
+                      {Array.from({ length: 18 }).map((_, index) => (
+                        <span
+                          key={`auction-award-confetti-${index}`}
+                          style={{
+                            left: `${6 + ((index * 17) % 88)}%`,
+                            animationDelay: `${index * 0.045}s`,
+                            backgroundColor: ['#007A57', '#B2793A', '#2E7D86', '#7A5BA8'][index % 4],
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="relative border-b border-[#E6D5C9] bg-[#F8FCF6] px-5 py-4">
+                      <div className="flex items-center justify-end">
+                        <div className="shrink-0 rounded-full border border-[#D7E6DE] bg-white px-4 py-2 text-right shadow-sm">
+                          <div className="font-mono text-[1.08rem] font-black leading-none text-[#006241]">
                             {activeStepIndex + 1} / {Math.max(awardPresentation.steps.length, 1)}
                           </div>
                         </div>
                       </div>
-                      <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#D7E6DE]">
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#D7E6DE]">
                         <div
                           className="auction-award-progress-fill h-full rounded-full bg-[#006241]"
                           style={{ width: `${progressPercent}%` }}
@@ -8706,21 +8561,10 @@ export default function TimerPage() {
                       </div>
                     </div>
 
-                    <div className="p-5">
-                      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.78fr)]">
-                        <div className="rounded-[1.35rem] border border-[#D7E6DE] bg-[#F8FCF6] p-4">
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <div>
-                              <div className="text-[0.78rem] font-black text-[#006241]">입찰 순서</div>
-                              <div className="section-title text-[1.15rem] font-extrabold text-[#2F241D]">
-                                가격이 올라간 기록
-                              </div>
-                            </div>
-                            <div className="rounded-full bg-white px-3 py-1 text-[0.78rem] font-black text-[#006241] shadow-sm">
-                              {awardPresentation.steps.length}회 입찰
-                            </div>
-                          </div>
-                          <div className="grid max-h-[22rem] gap-2 overflow-y-auto pr-1">
+                    <div className="relative p-4">
+                      <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.04fr)_minmax(17rem,0.74fr)]">
+                        <div className="rounded-[1.2rem] border border-[#D7E6DE] bg-[#F8FCF6] p-3">
+                          <div className="grid max-h-[19rem] gap-1.5 overflow-y-auto">
                             {awardPresentation.steps.map((step, stepIndex) => {
                               const isPast = stepIndex < activeStepIndex || awardPresentation.isComplete;
                               const isActive = stepIndex === activeStepIndex && !awardPresentation.isComplete;
@@ -8729,7 +8573,7 @@ export default function TimerPage() {
                               return (
                                 <div
                                   key={`award-step-row-${step.itemId}-${step.createdAt}-${stepIndex}`}
-                                  className={`auction-award-step-row grid grid-cols-[2.6rem_minmax(0,1fr)_7.2rem] items-center gap-2 rounded-[1rem] border px-3 py-2.5 transition-all ${
+                                  className={`auction-award-step-row grid min-h-[3.75rem] grid-cols-[2rem_4.6rem_minmax(0,1fr)] items-center gap-2 rounded-[0.9rem] border px-3 py-1.5 transition-all ${
                                     isActive
                                       ? 'auction-award-step-active border-[#006241] bg-white shadow-[0_12px_24px_rgba(0,98,65,0.14)]'
                                       : isWinnerStep
@@ -8739,18 +8583,15 @@ export default function TimerPage() {
                                           : 'border-[#E5DFD8] bg-[#F4F0EA] opacity-72'
                                   }`}
                                 >
-                                  <div className="font-mono text-[0.82rem] font-black text-[#6E7A72]">
+                                  <div className="font-mono text-[0.78rem] font-black text-[#6E7A72]">
                                     {stepIndex + 1}
                                   </div>
-                                  <div className="flex min-w-0 items-center gap-2">
+                                  <div className="flex min-w-0 items-center">
                                     <span
-                                      className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.88rem] font-black text-white"
+                                      className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.82rem] font-black text-white"
                                       style={getStudentLabelStyle(step.bidder)}
                                     >
                                       {step.bidder}번
-                                    </span>
-                                    <span className="min-w-0 truncate text-[0.92rem] font-extrabold text-[#2F241D]">
-                                      {isWinnerStep ? '최종 낙찰자' : isActive ? '현재 확인 중' : '입찰'}
                                     </span>
                                   </div>
                                   <div className="text-right font-mono text-[1rem] font-black text-[#006241]">
@@ -8762,15 +8603,12 @@ export default function TimerPage() {
                           </div>
                         </div>
 
-                        <div className={`auction-award-result-card rounded-[1.35rem] border-2 p-5 text-center ${
+                        <div className={`auction-award-result-card flex min-h-[19rem] flex-col items-center justify-center rounded-[1.2rem] border-2 p-5 text-center ${
                           awardPresentation.isComplete
                             ? 'border-[#9FC7B8] bg-[#F8FCF6]'
                             : 'border-[#D7E6DE] bg-white'
                         }`}>
-                          <div className="text-[0.82rem] font-black text-[#006241]">
-                            {awardPresentation.isComplete ? '최종 낙찰 결과' : '현재 최고 입찰'}
-                          </div>
-                          <div className="mt-4 flex justify-center">
+                          <div className="flex justify-center">
                             <div
                               key={`result-bidder-${awardPresentation.isComplete ? 'winner' : awardPresentation.currentIndex}`}
                               className={`auction-award-current-chip inline-flex h-24 min-w-24 items-center justify-center rounded-full px-5 font-mono text-[2rem] font-black text-white shadow-[0_18px_34px_rgba(31,24,18,0.22)] ${
@@ -8788,11 +8626,16 @@ export default function TimerPage() {
                             </div>
                           </div>
                           {awardPresentation.isComplete ? (
-                            <Trophy className="auction-award-trophy mx-auto mt-4 text-[#B2793A]" size={48} />
+                            <div className="mt-4 inline-flex max-w-full items-center justify-center gap-2.5 rounded-full border border-[#E2D3BE] bg-white px-3.5 py-2 shadow-sm">
+                              <Trophy className="auction-award-trophy shrink-0 text-[#B2793A]" size={34} />
+                              <span className="min-w-0 truncate text-[0.95rem] font-black text-[#6E5139]">
+                                {getAuctionItemDisplayName(awardPresentation.item.name, awardPresentation.item.dayIndex)}
+                              </span>
+                            </div>
                           ) : null}
                           <div
                             key={`result-price-${awardPresentation.isComplete ? 'final' : awardPresentation.currentIndex}`}
-                            className="auction-award-price mt-4 font-mono text-[2.35rem] font-black leading-tight text-[#006241]"
+                            className="auction-award-price mt-4 font-mono text-[2.45rem] font-black leading-tight text-[#006241]"
                           >
                             {awardPresentation.isComplete
                               ? formatCurrency(awardPresentation.award.amount)
@@ -8800,16 +8643,11 @@ export default function TimerPage() {
                                 ? formatCurrency(activeStep.amount)
                                 : formatCurrency(0)}
                           </div>
-                          <div className="mt-3 rounded-[1rem] border border-[#D7E6DE] bg-white px-4 py-3 text-[0.92rem] font-extrabold leading-6 text-[#6E5139]">
-                            {awardPresentation.isComplete
-                              ? `${awardPresentation.award.winner}번 학생에게 ${formatCurrency(awardPresentation.award.amount)}에 낙찰되었습니다.`
-                              : `${activeStep?.bidder ?? '-'}번 학생의 입찰가를 확인하고 있습니다.`}
-                          </div>
                           {awardPresentation.isComplete ? (
                             <button
                               type="button"
                               onClick={() => setAwardPresentation(null)}
-                              className="mt-5 inline-flex h-12 min-w-[8.5rem] items-center justify-center rounded-[0.95rem] bg-[#006241] px-6 text-[1rem] font-extrabold text-white shadow-[0_14px_24px_rgba(0,98,65,0.22)] transition-colors hover:bg-[#005336]"
+                              className="mt-5 inline-flex h-11 min-w-[7.5rem] items-center justify-center rounded-[0.9rem] bg-[#006241] px-5 text-[0.95rem] font-extrabold text-white shadow-[0_14px_24px_rgba(0,98,65,0.22)] transition-colors hover:bg-[#005336]"
                             >
                               확인
                             </button>

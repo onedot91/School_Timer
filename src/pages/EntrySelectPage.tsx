@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Clock, Store } from 'lucide-react';
 
 interface EntrySelectPageProps {
@@ -7,8 +8,33 @@ interface EntrySelectPageProps {
 const ENTRY_NUMBERS = Array.from({ length: 24 }, (_, index) => index);
 
 export default function EntrySelectPage({ onSelectNumber }: EntrySelectPageProps) {
+  const [zeroUnlockClickCount, setZeroUnlockClickCount] = useState(0);
+  const [isZeroVisible, setIsZeroVisible] = useState(false);
+  const visibleEntryNumbers = isZeroVisible ? ENTRY_NUMBERS : ENTRY_NUMBERS.filter((studentNumber) => studentNumber !== 0);
+
+  const handleZeroUnlockClick = () => {
+    if (isZeroVisible) return;
+
+    setZeroUnlockClickCount((previous) => {
+      const nextCount = previous + 1;
+      if (nextCount >= 5) {
+        setIsZeroVisible(true);
+        return 0;
+      }
+
+      return nextCount;
+    });
+  };
+
   return (
-    <div className="entry-select-page min-h-[100dvh] w-full overflow-y-auto px-4 py-6 sm:px-6 md:py-10">
+    <div className="entry-select-page relative min-h-[100dvh] w-full overflow-y-auto px-4 py-6 sm:px-6 md:py-10">
+      <button
+        type="button"
+        onClick={handleZeroUnlockClick}
+        className="absolute left-3 top-3 h-8 w-8 rounded-full border border-[#006241]/10 bg-white/20 text-[#006241]/15 transition-colors hover:bg-white/35 hover:text-[#006241]/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006241]/20"
+        aria-label="0번 표시 숨김 버튼"
+        title=""
+      />
       <main className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-5xl flex-col justify-center">
         <section className="rounded-[2rem] border border-[#D7E6DE] bg-white/92 p-5 shadow-[0_24px_60px_rgba(31,24,18,0.14)] sm:p-7 md:p-9">
           <div className="mb-6 flex flex-col gap-2 border-b border-[#E6D5C9] pb-5">
@@ -18,7 +44,7 @@ export default function EntrySelectPage({ onSelectNumber }: EntrySelectPageProps
           </div>
 
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-            {ENTRY_NUMBERS.map((studentNumber) => {
+            {visibleEntryNumbers.map((studentNumber) => {
               const isClockEntry = studentNumber === 0;
               return (
                 <button

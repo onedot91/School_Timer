@@ -82,14 +82,14 @@ select {
 
 @keyframes auctionAwardPulse {
   0% {
-    transform: scale(0.86);
+    transform: scale(0.82);
     opacity: 0.65;
     box-shadow: 0 0 0 rgba(0, 98, 65, 0);
   }
   50% {
-    transform: scale(1.16);
+    transform: scale(1.2);
     opacity: 1;
-    box-shadow: 0 12px 28px rgba(0, 98, 65, 0.16);
+    box-shadow: 0 16px 34px rgba(0, 98, 65, 0.2);
   }
   100% {
     transform: scale(1);
@@ -133,27 +133,51 @@ select {
 
 @keyframes auctionAwardWinner {
   0% {
-    transform: scale(0.78) rotate(-8deg);
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.68) rotate(-8deg);
   }
   55% {
-    transform: scale(1.18) rotate(5deg);
+    opacity: 1;
+    transform: translateY(-0.2rem) scale(1.22) rotate(5deg);
   }
   100% {
-    transform: scale(1) rotate(0);
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
   }
 }
 
 @keyframes auctionAwardConfetti {
   0% {
     opacity: 0;
-    transform: translateY(-2rem) rotate(0deg);
+    transform: translateY(-2rem) scale(0.6) rotate(0deg);
   }
   18% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: translateY(22rem) rotate(420deg);
+    transform: translateY(30rem) scale(1.08) rotate(540deg);
+  }
+}
+
+@keyframes auctionAwardStageIn {
+  0% {
+    opacity: 0;
+    transform: translateY(1.2rem) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes auctionAwardCompleteGlow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 rgba(0, 122, 87, 0), 0 18px 34px rgba(31, 24, 18, 0.08);
+  }
+  50% {
+    box-shadow: inset 0 0 42px rgba(0, 122, 87, 0.12), 0 24px 44px rgba(0, 98, 65, 0.16);
   }
 }
 
@@ -171,6 +195,10 @@ select {
 
 .auction-bid-flow-arrow {
   animation: auctionBidFlowArrow 1.15s ease-in-out infinite;
+}
+
+.auction-award-stage {
+  animation: auctionAwardStageIn 420ms cubic-bezier(0.16, 0.88, 0.24, 1) both;
 }
 
 .auction-award-arena {
@@ -210,14 +238,14 @@ select {
   position: absolute;
   top: -1.2rem;
   display: block;
-  width: 0.55rem;
-  height: 1rem;
-  border-radius: 999px;
+  width: 0.48rem;
+  height: 1.05rem;
+  border-radius: 0.2rem;
   opacity: 0;
 }
 
 .auction-award-stage-complete .auction-award-confetti span {
-  animation: auctionAwardConfetti 1.6s ease-out forwards;
+  animation: auctionAwardConfetti 1.8s ease-out forwards;
 }
 
 .auction-award-progress-fill {
@@ -244,11 +272,12 @@ select {
 }
 
 .auction-award-result-card {
-  transition: border-color 320ms ease, background-color 320ms ease, transform 320ms ease;
+  transition: border-color 320ms ease, background-color 320ms ease, transform 320ms ease, box-shadow 320ms ease;
 }
 
 .auction-award-stage-complete .auction-award-result-card {
   transform: translateY(-0.18rem);
+  animation: auctionAwardCompleteGlow 1.25s ease-in-out 2;
 }
 
 .auction-award-step-active,
@@ -11271,9 +11300,7 @@ h3 {
 
 .auction-page {
   background:
-    linear-gradient(120deg, rgba(247, 255, 250, 0.92), rgba(255, 248, 238, 0.94)),
-    radial-gradient(circle at 12% 18%, rgba(159, 199, 184, 0.34), transparent 32%),
-    radial-gradient(circle at 88% 6%, rgba(247, 213, 164, 0.34), transparent 28%);
+    linear-gradient(180deg, rgba(250, 252, 250, 0.98) 0%, rgba(255, 253, 249, 0.98) 100%);
 }
 
 .auction-room-shell {
@@ -11288,13 +11315,27 @@ h3 {
   content: "";
   position: absolute;
   inset: auto 6% -1px 6%;
-  height: 3px;
+  height: 1px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(0, 98, 65, 0.4), rgba(201, 146, 69, 0.45), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 122, 87, 0.22), transparent);
 }
 
 .auction-item-card {
   animation: auctionItemPop 560ms cubic-bezier(0.16, 0.88, 0.24, 1) both;
+}
+
+.auction-settings-item-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.auction-settings-empty {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 1280px) {
+  .auction-settings-item-grid {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
 }
 
 .auction-item-card:nth-child(2) {

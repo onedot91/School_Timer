@@ -48,15 +48,14 @@ const AUCTION_LEGACY_ITEM_IDS = ['item-a', 'item-b', 'item-c', 'item-d', 'item-e
 export const createAuctionItemTemplate = (dayIndex: number, slotIndex: number): AuctionItem => {
   const normalizedDayIndex = Math.max(0, Math.min(AUCTION_WEEKDAY_LABELS.length - 1, dayIndex));
   const normalizedSlotIndex = Math.max(0, Math.min(AUCTION_MAX_ITEMS_PER_DAY - 1, slotIndex));
-  const weekdayName = AUCTION_WEEKDAY_NAMES[normalizedDayIndex] ?? '경매';
 
   return {
     id: normalizedSlotIndex === 0
       ? AUCTION_LEGACY_ITEM_IDS[normalizedDayIndex] ?? `item-${normalizedDayIndex + 1}-1`
       : `item-${normalizedDayIndex + 1}-${normalizedSlotIndex + 1}`,
     name: normalizedSlotIndex === 0
-      ? `${weekdayName} 물품`
-      : `${weekdayName} 물품 ${normalizedSlotIndex + 1}`,
+      ? '물품'
+      : `물품 ${normalizedSlotIndex + 1}`,
     startPrice: 10,
     dayIndex: normalizedDayIndex,
   };
@@ -98,6 +97,8 @@ export const STUDENT_LABEL_COLORS = [
 
 export const getStudentLabelStyle = (studentNumber: number) => ({
   backgroundColor: STUDENT_LABEL_COLORS[(studentNumber - 1) % STUDENT_LABEL_COLORS.length],
+  color: '#FFFFFF',
+  textShadow: '0 1px 2px rgba(0, 0, 0, 0.28)',
 });
 
 export const formatCurrency = (value: number) =>
@@ -105,6 +106,17 @@ export const formatCurrency = (value: number) =>
 
 export const formatCurrencyAmount = (value: number) =>
   value.toLocaleString('ko-KR');
+
+export const getAuctionItemDisplayName = (itemName: string, dayIndex: number) => {
+  const weekdayName = AUCTION_WEEKDAY_NAMES[dayIndex];
+  if (!weekdayName) return itemName;
+
+  const prefix = `${weekdayName} `;
+  const trimmedName = itemName.trim();
+  if (!trimmedName.startsWith(prefix)) return trimmedName;
+
+  return trimmedName.slice(prefix.length).trim() || trimmedName;
+};
 
 export const clampCurrencyBalance = (value: unknown) => {
   const numericValue = typeof value === 'number' ? value : Number(value);
