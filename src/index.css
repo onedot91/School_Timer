@@ -6305,6 +6305,25 @@ h3 {
   pointer-events: none;
 }
 
+.morning-reading-notice-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.morning-reading-notice-button:focus-visible {
+  outline: 3px solid rgba(0, 117, 74, 0.18);
+  outline-offset: 0.45rem;
+}
+
+.morning-reading-notice-button:active {
+  transform: translateX(-50%) scale(0.992);
+}
+
 .morning-reading-bubble {
   position: relative;
   margin-bottom: 0.56rem;

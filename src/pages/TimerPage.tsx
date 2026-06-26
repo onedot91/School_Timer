@@ -49,6 +49,7 @@ import {
   AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
   AUCTION_WEEKDAY_LABELS,
+  CURRENCY_BALANCE_STEP,
   CURRENCY_STUDENT_NUMBERS,
   DEFAULT_CURRENCY_BALANCE,
   DEFAULT_AUCTION_ITEMS,
@@ -7134,14 +7135,21 @@ export default function TimerPage() {
                 />
               </svg>
               {shouldShowMorningReading ? (
-                <div className="morning-reading-overlay" aria-label="독서 시간입니다.">
+                <button
+                  type="button"
+                  onClick={toggleNoticeFromTimerCenter}
+                  className="morning-reading-overlay morning-reading-notice-button"
+                  title={isEditingNotice || (isNoticeEnabled && hasScheduleNotice) ? '공지 닫기' : '공지 편집 열기'}
+                  aria-label={isEditingNotice || (isNoticeEnabled && hasScheduleNotice) ? '공지 닫기' : '공지 편집 열기'}
+                >
                   <div className="morning-reading-bubble">독서 시간입니다.</div>
                   <img
                     src="/reading-bear-cutout.png?v=20260603"
                     alt="책을 읽고 있는 곰 캐릭터"
                     className="morning-reading-image"
+                    draggable={false}
                   />
-                </div>
+                </button>
               ) : (
                 <button
                   type="button"
@@ -7762,19 +7770,19 @@ export default function TimerPage() {
                               >
                                 <button
                                   type="button"
-                                  onClick={() => adjustCurrencyBalance(studentNumber, -10)}
+                                  onClick={() => adjustCurrencyBalance(studentNumber, -CURRENCY_BALANCE_STEP)}
                                   className="inline-flex h-10 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white text-[1.15rem] font-black text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
-                                  aria-label={`${studentNumber}번 화폐 10 줄이기`}
-                                  title="-10"
+                                  aria-label={`${studentNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
+                                  title={`-${CURRENCY_BALANCE_STEP}`}
                                 >
                                   -
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => adjustCurrencyBalance(studentNumber, 10)}
+                                  onClick={() => adjustCurrencyBalance(studentNumber, CURRENCY_BALANCE_STEP)}
                                   className="inline-flex h-10 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] text-[1.15rem] font-black text-[#006241] transition-colors hover:bg-[#DDF0E8]"
-                                  aria-label={`${studentNumber}번 화폐 10 늘리기`}
-                                  title="+10"
+                                  aria-label={`${studentNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
+                                  title={`+${CURRENCY_BALANCE_STEP}`}
                                 >
                                   +
                                 </button>

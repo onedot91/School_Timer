@@ -16,6 +16,7 @@ export const CURRENCY_STUDENT_NUMBERS = Array.from({ length: 23 }, (_, index) =>
 export const DEFAULT_CURRENCY_BALANCE = 100;
 export const CURRENCY_BALANCE_MIN = 0;
 export const CURRENCY_BALANCE_MAX = 999999;
+export const CURRENCY_BALANCE_STEP = 5;
 export const CURRENCY_UNIT_LABEL = '고마';
 export const AUCTION_BID_STEP = 1;
 export const DEFAULT_AUCTION_ITEMS: AuctionItem[] = [
