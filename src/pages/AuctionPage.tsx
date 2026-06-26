@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Coins, Lock, Sparkles, Trophy } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import AuctionRoom from '../components/AuctionRoom';
 import {
   AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
-  AUCTION_WEEKDAY_LABELS,
   DEFAULT_CURRENCY_BALANCE,
   DEFAULT_AUCTION_ITEMS,
   clampAuctionBidAmount,
   formatCurrency,
-  getAuctionVisibleItemCount,
+  getAuctionVisibleDayCount,
+  getMinimumAuctionBid,
+  getReservedAuctionBidAmount,
+  normalizeAuctionAwards,
+  normalizeAuctionBidHistory,
   normalizeAuctionBids,
   normalizeAuctionItems,
   normalizeCurrencyBalances,
+  type AuctionAwards,
+  type AuctionBidHistory,
   type AuctionItem,
   type AuctionBids,
   type CurrencyBalances,
@@ -26,71 +32,41 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
-const BIDDER_LABEL_COLORS = [
-  '#2F6F73',
-  '#315E9B',
-  '#A95545',
-  '#7A5A9E',
-  '#B2793A',
-  '#4F7F52',
-  '#8A4F76',
-  '#3E7895',
-  '#9A6642',
-  '#5E6F9F',
-  '#7A783C',
-  '#A34D64',
-  '#4D697E',
-  '#6F5C8F',
-  '#8D6A3D',
-  '#59646A',
-  '#8F4E86',
-  '#5A7B63',
-  '#4D7D88',
-  '#76548A',
-  '#9B5F3F',
-  '#3F7A6B',
-  '#6A5F58',
-];
-
-const getBidderLabelStyle = (bidder: number) => ({
-  backgroundColor: BIDDER_LABEL_COLORS[(bidder - 1) % BIDDER_LABEL_COLORS.length],
-});
-
-const getMinimumBid = (item: AuctionItem, currentAmount: number) => {
-  const baseAmount = currentAmount > 0 ? currentAmount + AUCTION_BID_STEP : item.startPrice;
-  return Math.max(item.startPrice, Math.ceil(baseAmount / AUCTION_BID_STEP) * AUCTION_BID_STEP);
-};
-
-const getReservedBidAmount = (bids: AuctionBids, studentNumber: number, excludedItemId?: string) =>
-  Object.entries(bids).reduce((total, [itemId, bid]) => {
-    if (itemId === excludedItemId || bid.bidder !== studentNumber) return total;
-    return total + bid.amount;
-  }, 0);
-
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => normalizeCurrencyBalances(null));
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
+  const [, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
+  const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [selectedItemId, setSelectedItemId] = useState(DEFAULT_AUCTION_ITEMS[0]?.id ?? '');
   const [isLoading, setIsLoading] = useState(isSupabaseSettingsEnabled);
   const [isSubmittingItemId, setIsSubmittingItemId] = useState<string | null>(null);
+  const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
 
   const studentKey = String(studentNumber);
   const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
-  const reservedAmount = getReservedBidAmount(auctionBids, studentNumber);
+  const activeAuctionItemIds = auctionItems.map((item) => item.id);
+  const reservedAmount = getReservedAuctionBidAmount(
+    auctionBids,
+    studentNumber,
+    undefined,
+    auctionAwards,
+    activeAuctionItemIds,
+  );
   const availableBalance = Math.max(0, balance - reservedAmount);
-  const visibleItemCount = getAuctionVisibleItemCount();
-  const firstVisibleItem = auctionItems.find((_, index) => index < visibleItemCount) ?? null;
+  const visibleDayCount = getAuctionVisibleDayCount();
+  const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
 
   const selectedItem = useMemo(
     () => {
       const selectedIndex = auctionItems.findIndex((item) => item.id === selectedItemId);
-      if (selectedIndex >= 0 && selectedIndex < visibleItemCount) return auctionItems[selectedIndex];
+      const selectedAuctionItem = selectedIndex >= 0 ? auctionItems[selectedIndex] : null;
+      if (selectedAuctionItem && selectedAuctionItem.dayIndex < visibleDayCount) return selectedAuctionItem;
       return firstVisibleItem;
     },
-    [auctionItems, firstVisibleItem, selectedItemId, visibleItemCount],
+    [auctionItems, firstVisibleItem, selectedItemId, visibleDayCount],
   );
 
   const refreshAuctionState = async () => {
@@ -98,6 +74,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyBalances(normalizeCurrencyBalances(null));
       setAuctionItems(normalizeAuctionItems(null));
       setAuctionBids(normalizeAuctionBids(null, AUCTION_ITEM_IDS));
+      setAuctionBidHistory(normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
+      setAuctionAwards(normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
       setIsLoading(false);
       return;
     }
@@ -105,11 +83,19 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     try {
       const row = await loadSharedSettingsRow();
       const value = row?.value && typeof row.value === 'object'
-        ? (row.value as { currencyBalances?: unknown; auctionBids?: unknown; auctionItems?: unknown })
+        ? (row.value as {
+            currencyBalances?: unknown;
+            auctionBids?: unknown;
+            auctionItems?: unknown;
+            auctionBidHistory?: unknown;
+            auctionAwards?: unknown;
+          })
         : {};
       setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
       setAuctionItems(normalizeAuctionItems(value.auctionItems));
       setAuctionBids(normalizeAuctionBids(value.auctionBids, AUCTION_ITEM_IDS));
+      setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
+      setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
     } catch (error) {
       console.error('Failed to load auction state from Supabase.', error);
       setStatusMessage('경매 정보를 불러오지 못했습니다.');
@@ -131,10 +117,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const selectItem = (item: AuctionItem) => {
     const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
-    if (itemIndex < 0 || itemIndex >= visibleItemCount) return;
+    if (itemIndex < 0 || item.dayIndex >= visibleDayCount) return;
 
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
-    const minimumBid = getMinimumBid(item, currentBid.amount);
+    const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
     setSelectedItemId(item.id);
     setBidAmounts((previous) => ({
       ...previous,
@@ -142,13 +128,23 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }));
   };
 
-  const submitBid = async (item: AuctionItem) => {
+  const submitBid = async (item: AuctionItem, confirmedBidAmount: number) => {
     if (isSubmittingItemId) return;
 
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
-    const minimumBid = getMinimumBid(item, currentBid.amount);
-    const bidAmount = clampAuctionBidAmount(bidAmounts[item.id] ?? minimumBid);
-    const reservedExcludingItem = getReservedBidAmount(auctionBids, studentNumber, item.id);
+    if (auctionAwards[item.id]) {
+      setStatusMessage('이미 낙찰된 물품입니다.');
+      return;
+    }
+    const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
+    const bidAmount = clampAuctionBidAmount(confirmedBidAmount);
+    const reservedExcludingItem = getReservedAuctionBidAmount(
+      auctionBids,
+      studentNumber,
+      item.id,
+      auctionAwards,
+      activeAuctionItemIds,
+    );
     const availableForItem = Math.max(0, balance - reservedExcludingItem);
 
     if (bidAmount < minimumBid) {
@@ -172,10 +168,21 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             : {};
           const currentBalances = normalizeCurrencyBalances(currentObject.currencyBalances);
           const currentBids = normalizeAuctionBids(currentObject.auctionBids, AUCTION_ITEM_IDS);
+          const currentHistory = normalizeAuctionBidHistory(currentObject.auctionBidHistory, AUCTION_ITEM_IDS);
+          const currentAwards = normalizeAuctionAwards(currentObject.auctionAwards, AUCTION_ITEM_IDS);
+          if (currentAwards[item.id]) {
+            throw new Error('ALREADY_AWARDED');
+          }
           const latestBalance = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
           const latestBid = currentBids[item.id] ?? { amount: 0, bidder: null };
-          const latestMinimumBid = getMinimumBid(item, latestBid.amount);
-          const latestReservedExcludingItem = getReservedBidAmount(currentBids, studentNumber, item.id);
+          const latestMinimumBid = getMinimumAuctionBid(item, latestBid.amount);
+          const latestReservedExcludingItem = getReservedAuctionBidAmount(
+            currentBids,
+            studentNumber,
+            item.id,
+            currentAwards,
+            activeAuctionItemIds,
+          );
           const latestAvailableForItem = Math.max(0, latestBalance - latestReservedExcludingItem);
 
           if (bidAmount > latestAvailableForItem) {
@@ -197,6 +204,19 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 bidder: studentNumber,
               },
             },
+            auctionBidHistory: {
+              ...currentHistory,
+              [item.id]: [
+                ...(currentHistory[item.id] ?? []),
+                {
+                  itemId: item.id,
+                  bidder: studentNumber,
+                  amount: bidAmount,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            },
+            auctionAwards: currentAwards,
           };
         });
         await refreshAuctionState();
@@ -208,6 +228,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             bidder: studentNumber,
           },
         }));
+        setAuctionBidHistory((previous) => ({
+          ...previous,
+          [item.id]: [
+            ...(previous[item.id] ?? []),
+            {
+              itemId: item.id,
+              bidder: studentNumber,
+              amount: bidAmount,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        }));
       }
 
       setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
@@ -218,6 +250,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         ? '예약금을 제외한 사용 가능 고마가 부족합니다.'
         : error instanceof Error && error.message === 'BID_TOO_LOW'
           ? '현재 최고 입찰가보다 높게 입찰해야 합니다.'
+          : error instanceof Error && error.message === 'ALREADY_AWARDED'
+            ? '이미 낙찰된 물품입니다.'
           : '입찰을 처리하지 못했습니다. 다시 시도해 주세요.');
       await refreshAuctionState();
     } finally {
@@ -225,105 +259,92 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
+  const openBidConfirm = (item: AuctionItem, bidAmount: number) => {
+    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+    if (auctionAwards[item.id]) {
+      setStatusMessage('이미 낙찰된 물품입니다.');
+      return;
+    }
+    const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
+    const confirmedAmount = clampAuctionBidAmount(bidAmount);
+    const reservedExcludingItem = getReservedAuctionBidAmount(
+      auctionBids,
+      studentNumber,
+      item.id,
+      auctionAwards,
+      activeAuctionItemIds,
+    );
+    const availableForItem = Math.max(0, balance - reservedExcludingItem);
+
+    if (confirmedAmount < minimumBid) {
+      setStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
+      return;
+    }
+
+    if (confirmedAmount > availableForItem) {
+      setStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
+      return;
+    }
+
+    setPendingBid({ itemId: item.id, amount: confirmedAmount });
+  };
+
+  const confirmPendingBid = async () => {
+    if (!pendingBid) return;
+    const item = auctionItems.find((auctionItem) => auctionItem.id === pendingBid.itemId);
+    if (!item) {
+      setPendingBid(null);
+      setStatusMessage('입찰할 물품을 찾지 못했습니다.');
+      return;
+    }
+
+    try {
+      await submitBid(item, pendingBid.amount);
+    } finally {
+      setPendingBid(null);
+    }
+  };
+
   return (
     <div className="auction-page min-h-[100dvh] w-full overflow-y-auto px-3 py-3 sm:px-5 md:py-5">
       <main className="mx-auto w-full max-w-7xl">
-        <section className="auction-room-shell overflow-hidden rounded-[2rem] border border-[#C8DED2] bg-[#FFFDF8] shadow-[0_24px_70px_rgba(31,24,18,0.16)]">
-          <div className="auction-room-header grid gap-3 border-b border-[#E6D5C9] bg-[#F8FCF6] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center md:p-5">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[0.82rem] font-black text-[#006241] shadow-sm">
-                <Sparkles size={15} />
-                {studentNumber}번
-              </div>
-              <h1 className="section-title mt-2 text-[clamp(2rem,5vw,3.6rem)] font-extrabold leading-none text-[#2F241D]">
-                오늘의 경매
-              </h1>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:w-[21rem]">
-              <div className="rounded-[1rem] border-2 border-[#9FC7B8] bg-white px-3 py-2 text-[#006241]">
-                <span className="mb-1 inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] bg-[#EAF6F0]">
-                  <Coins size={18} />
-                </span>
-                <div className="font-mono text-[1.1rem] font-black leading-tight text-[#1F2523]">
-                  {isLoading ? '...' : formatCurrency(availableBalance)}
-                </div>
-                <div className="text-[0.72rem] font-black">사용 가능</div>
-              </div>
-              <div className="rounded-[1rem] border-2 border-[#E4D7C9] bg-white px-3 py-2 text-[#6E5139]">
-                <span className="mb-1 inline-flex h-8 w-8 items-center justify-center rounded-[0.75rem] bg-[#FFF7EC]">
-                  <Trophy size={18} />
-                </span>
-                <div className="font-mono text-[1.1rem] font-black leading-tight text-[#1F2523]">
-                  {formatCurrency(reservedAmount)}
-                </div>
-                <div className="text-[0.72rem] font-black">예약</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 p-4 sm:grid-cols-2 md:p-5 lg:grid-cols-5">
-            {auctionItems.map((item) => {
-              const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
-              const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
-              const isUnlocked = itemIndex < visibleItemCount;
-              const isSelected = selectedItem ? item.id === selectedItem.id : false;
-              const weekdayLabel = AUCTION_WEEKDAY_LABELS[itemIndex] ?? '';
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => selectItem(item)}
-                  disabled={!isUnlocked}
-                  className={`auction-item-card group relative overflow-hidden rounded-[1.25rem] border p-3 text-left shadow-[0_10px_22px_rgba(31,24,18,0.08)] transition-all ${
-                    isUnlocked && isSelected
-                      ? 'border-[#006241] bg-[#EAF6F0] ring-2 ring-[#9FC7B8]'
-                      : isUnlocked
-                        ? 'border-[#E8DDD0] bg-white hover:-translate-y-1 hover:border-[#9FC7B8] hover:bg-[#F8FCF6]'
-                        : 'cursor-not-allowed border-[#E5DFD8] bg-[#F4F0EA] opacity-78'
-                  }`}
-                >
-                  <div className="relative flex min-h-[4.7rem] items-center gap-3 rounded-[1rem] bg-[#EFF7F2] px-3 py-3">
-                    <span className={`inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full px-2 font-mono text-sm font-black shadow-md ${
-                      isUnlocked ? 'bg-[#006241] text-white' : 'bg-white text-[#8A7A6B]'
-                    }`}>
-                      {weekdayLabel}
-                    </span>
-                    <div className="section-title min-w-0 flex-1 text-[1.2rem] font-extrabold leading-tight text-[#2F241D]">
-                      {isUnlocked ? item.name : '비공개'}
-                    </div>
-                    {!isUnlocked ? (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-[1rem] bg-[#1F2523]/48 text-white backdrop-blur-[2px]">
-                        <Lock size={28} />
-                        <span className="mt-1 font-black">{weekdayLabel}요일 공개</span>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="pt-2.5">
-                    <div className="flex min-h-[2.9rem] items-center justify-between gap-2 rounded-[0.9rem] border border-[#D7E6DE] bg-white px-3 py-2">
-                      {currentBid.bidder && isUnlocked ? (
-                        <span
-                          className="inline-flex h-8 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.82rem] font-black text-white"
-                          style={getBidderLabelStyle(currentBid.bidder)}
-                        >
-                          {currentBid.bidder}번
-                        </span>
-                      ) : null}
-                      <div className="min-w-0 flex-1 text-right font-mono text-[1.08rem] font-black leading-none text-[#006241]">
-                        {isUnlocked ? formatCurrency(currentBid.amount) : '???'}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedItem ? (() => {
+        <AuctionRoom
+          auctionItems={auctionItems}
+          auctionBids={auctionBids}
+          auctionAwards={auctionAwards}
+          availableBalance={availableBalance}
+          reservedAmount={reservedAmount}
+          visibleDayCount={visibleDayCount}
+          selectedItemId={selectedItem?.id ?? null}
+          studentLabel={`${studentNumber}번`}
+          isLoading={isLoading}
+          onSelectItem={selectItem}
+          footer={selectedItem ? (() => {
             const currentBid = auctionBids[selectedItem.id] ?? { amount: 0, bidder: null };
-            const minimumBid = getMinimumBid(selectedItem, currentBid.amount);
-            const reservedExcludingItem = getReservedBidAmount(auctionBids, studentNumber, selectedItem.id);
+            const award = auctionAwards[selectedItem.id] ?? null;
+            if (award) {
+              return (
+                <div className="mx-4 mb-4 rounded-[1.35rem] border-2 border-[#9FC7B8] bg-[#F8FCF6] p-4 text-center shadow-[0_10px_22px_rgba(31,24,18,0.08)] md:mx-5 md:mb-5">
+                  <h2 className="section-title text-[1.45rem] font-extrabold leading-tight text-[#2F241D]">
+                    {selectedItem.name}
+                  </h2>
+                  <div className="mt-3 rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-4 py-3">
+                    <div className="text-[0.9rem] font-black text-[#6E5139]">낙찰 완료</div>
+                    <div className="mt-1 font-mono text-[1.35rem] font-black text-[#006241]">
+                      {award.winner}번 · {formatCurrency(award.amount)}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            const minimumBid = getMinimumAuctionBid(selectedItem, currentBid.amount);
+            const reservedExcludingItem = getReservedAuctionBidAmount(
+              auctionBids,
+              studentNumber,
+              selectedItem.id,
+              auctionAwards,
+              activeAuctionItemIds,
+            );
             const maxBid = clampAuctionBidAmount(Math.max(0, balance - reservedExcludingItem));
             const selectedBidAmount = Math.max(
               minimumBid,
@@ -375,7 +396,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void submitBid(selectedItem)}
+                    onClick={() => openBidConfirm(selectedItem, selectedBidAmount)}
                     disabled={!canSubmit}
                     className="col-span-3 inline-flex h-12 w-full items-center justify-center rounded-[0.9rem] bg-[#006241] text-[1rem] font-extrabold text-white transition-colors hover:bg-[#005336] disabled:cursor-not-allowed disabled:bg-[#C9D4CD] disabled:text-white/82 sm:col-span-1"
                   >
@@ -385,13 +406,85 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               </div>
             );
           })() : null}
-          {visibleItemCount === 0 ? (
-            <div className="mx-4 mb-4 rounded-[1.35rem] border-2 border-dashed border-[#D7E6DE] bg-white p-6 text-center text-[1.1rem] font-black text-[#6E5139] md:mx-5 md:mb-5">
-              월요일부터 하나씩 공개됩니다.
-            </div>
-          ) : null}
-        </section>
+        />
       </main>
+      {pendingBid ? (() => {
+        const pendingItem = auctionItems.find((item) => item.id === pendingBid.itemId);
+        const pendingItemName = pendingItem?.name ?? '선택한 물품';
+        const lastPendingItemChar = pendingItemName.trim().slice(-1);
+        const pendingItemParticle = lastPendingItemChar && (lastPendingItemChar.charCodeAt(0) - 0xac00) % 28 > 0
+          ? '을'
+          : '를';
+        const pendingCurrentBid = pendingBid.itemId
+          ? auctionBids[pendingBid.itemId] ?? { amount: 0, bidder: null }
+          : { amount: 0, bidder: null };
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/32 px-4"
+            role="presentation"
+            onClick={() => {
+              if (!isSubmittingItemId) setPendingBid(null);
+            }}
+          >
+            <div
+              className="w-full max-w-[34rem] rounded-[1.75rem] border-2 border-[#9FC7B8] bg-white p-6 text-left shadow-[0_28px_70px_rgba(31,24,18,0.24)]"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="auction-bid-confirm-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h2 id="auction-bid-confirm-title" className="section-title text-center text-[1.65rem] font-extrabold leading-tight text-[#2F241D]">
+                {pendingItemName}{pendingItemParticle} 이 금액으로 입찰할까요?
+              </h2>
+
+              <div className="mt-5 rounded-[1.15rem] border border-[#D7E6DE] bg-[#F8FCF6] p-4">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] lg:items-center">
+                  <div className="rounded-[1rem] border border-[#D7E6DE] bg-white px-4 py-3">
+                    <div className="text-[0.76rem] font-black text-[#6E7A72]">현재 최고가</div>
+                    <div className="mt-1 font-mono text-[1.25rem] font-black leading-none text-[#2F241D]">
+                      {formatCurrency(pendingCurrentBid.amount)}
+                    </div>
+                  </div>
+                  <div className="auction-bid-flow-arrow hidden h-10 w-10 items-center justify-center rounded-full bg-white text-[#006241] shadow-sm ring-1 ring-[#D7E6DE] lg:inline-flex">
+                    <ArrowRight size={22} strokeWidth={3} />
+                  </div>
+                  <div className="rounded-[1rem] border-2 border-[#9FC7B8] bg-white px-4 py-3 text-right">
+                    <div className="text-[0.76rem] font-black text-[#006241]">당신의 입찰 금액</div>
+                    <div className="mt-1 font-mono text-[1.55rem] font-black leading-none text-[#006241]">
+                      {formatCurrency(pendingBid.amount)}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="mt-4 rounded-[1rem] border border-[#E4D7C9] bg-[#FFF8EC] px-4 py-3 text-[0.95rem] font-extrabold leading-6 text-[#6E5139]">
+                입찰 후에는 <strong className="text-[#B84A34] underline decoration-[#B84A34]/30 underline-offset-4">되돌릴 수 없습니다.</strong> 금액과 물품을 확인한 뒤 진행해 주세요.
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPendingBid(null)}
+                  disabled={isSubmittingItemId !== null}
+                  className="inline-flex h-12 items-center justify-center rounded-[0.95rem] border-2 border-[#E4D7C9] bg-white px-4 text-[1rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  다시 확인하기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmPendingBid()}
+                  disabled={isSubmittingItemId !== null}
+                  className="inline-flex h-12 items-center justify-center rounded-[0.95rem] bg-[#006241] px-4 text-[1rem] font-extrabold text-white transition-colors hover:bg-[#005336] disabled:cursor-not-allowed disabled:bg-[#C9D4CD]"
+                >
+                  {isSubmittingItemId ? '입찰 처리 중...' : '입찰하기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
       {statusMessage ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Coins, Copy, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Coins, Copy, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -46,21 +46,29 @@ import {
   type StudentCharacter,
 } from '../lib/studentCharacters';
 import {
-  AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
+  AUCTION_MAX_ITEMS_PER_DAY,
+  AUCTION_MAX_ITEM_COUNT,
   AUCTION_WEEKDAY_LABELS,
+  createAuctionItemTemplate,
   CURRENCY_BALANCE_STEP,
   CURRENCY_STUDENT_NUMBERS,
   DEFAULT_CURRENCY_BALANCE,
-  DEFAULT_AUCTION_ITEMS,
-  clampAuctionBidAmount,
   clampCurrencyBalance,
   createDefaultCurrencyBalances,
   formatCurrencyAmount,
   formatCurrency,
+  getAuctionVisibleDayCount,
+  getStudentLabelStyle,
+  normalizeAuctionAwards,
+  normalizeAuctionBidHistory,
   normalizeAuctionBids,
   normalizeAuctionItems,
   normalizeCurrencyBalances,
+  type AuctionAward,
+  type AuctionAwards,
+  type AuctionBidHistory,
+  type AuctionBidHistoryEntry,
   type AuctionBids,
   type AuctionItem,
   type CurrencyBalances,
@@ -69,6 +77,7 @@ import {
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
+type AuctionResetTarget = 'items' | 'bids' | 'currency';
 interface ScheduleSlot {
   id: string;
   name: string;
@@ -124,6 +133,8 @@ interface SharedSchoolTimerSettings {
   currencyBalances: CurrencyBalances;
   auctionItems: AuctionItem[];
   auctionBids: AuctionBids;
+  auctionBidHistory: AuctionBidHistory;
+  auctionAwards: AuctionAwards;
 }
 
 interface NoticeHighlightRange {
@@ -1292,6 +1303,8 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     currencyBalances: normalizeCurrencyBalances(parsed.currencyBalances),
     auctionItems: normalizeAuctionItems(parsed.auctionItems),
     auctionBids: normalizeAuctionBids(parsed.auctionBids, AUCTION_ITEM_IDS),
+    auctionBidHistory: normalizeAuctionBidHistory(parsed.auctionBidHistory, AUCTION_ITEM_IDS),
+    auctionAwards: normalizeAuctionAwards(parsed.auctionAwards, AUCTION_ITEM_IDS),
   };
 };
 
@@ -1305,6 +1318,10 @@ const CLASS_END_IMAGE_MESSAGES = ['우유 가져가!', '우유 갖다 놔!'];
 
 let announcementAudioContext: AudioContext | null = null;
 let announcementAudioPreparePromise: Promise<AudioContext | null> | null = null;
+let auctionAudioContext: AudioContext | null = null;
+let auctionAudioPreparePromise: Promise<AudioContext | null> | null = null;
+let auctionAudioMasterGain: GainNode | null = null;
+let auctionAudioCompressor: DynamicsCompressorNode | null = null;
 
 const createAnnouncementId = () => `announcement-${Math.random().toString(36).slice(2, 11)}`;
 const createEmptyAnnouncement = (): AnnouncementItem => ({ id: createAnnouncementId(), text: '' });
@@ -1388,6 +1405,152 @@ const playAnnouncementSound = async (kind: 'pop' | 'tada') => {
     playTone(1174, 0.2, 0.16, 'sine', 0.06);
   } catch {
     // Ignore browsers that block or do not support Web Audio.
+  }
+};
+
+const getAuctionAudioContext = () => {
+  try {
+    const AudioContextConstructor =
+      window.AudioContext ||
+      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return null;
+    if (!auctionAudioContext) {
+      auctionAudioContext = new AudioContextConstructor();
+    }
+    return auctionAudioContext;
+  } catch {
+    return null;
+  }
+};
+
+const getAuctionAudioOutput = (ctx: AudioContext) => {
+  if (!auctionAudioMasterGain || !auctionAudioCompressor) {
+    auctionAudioCompressor = ctx.createDynamicsCompressor();
+    auctionAudioCompressor.threshold.setValueAtTime(-18, ctx.currentTime);
+    auctionAudioCompressor.knee.setValueAtTime(18, ctx.currentTime);
+    auctionAudioCompressor.ratio.setValueAtTime(5, ctx.currentTime);
+    auctionAudioCompressor.attack.setValueAtTime(0.004, ctx.currentTime);
+    auctionAudioCompressor.release.setValueAtTime(0.18, ctx.currentTime);
+
+    auctionAudioMasterGain = ctx.createGain();
+    auctionAudioMasterGain.gain.setValueAtTime(0.62, ctx.currentTime);
+    auctionAudioMasterGain.connect(auctionAudioCompressor);
+    auctionAudioCompressor.connect(ctx.destination);
+  }
+
+  return auctionAudioMasterGain;
+};
+
+const prepareAuctionAudio = () => {
+  if (!auctionAudioPreparePromise) {
+    auctionAudioPreparePromise = (async () => {
+      try {
+        const ctx = getAuctionAudioContext();
+        if (!ctx) return null;
+
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
+
+        getAuctionAudioOutput(ctx);
+        return ctx;
+      } catch {
+        return null;
+      } finally {
+        auctionAudioPreparePromise = null;
+      }
+    })();
+  }
+
+  return auctionAudioPreparePromise;
+};
+
+const playAuctionSound = async (kind: 'start' | 'bid' | 'final', stepIndex = 0) => {
+  try {
+    const ctx = await prepareAuctionAudio();
+    if (!ctx) return;
+
+    const outputNode = getAuctionAudioOutput(ctx);
+
+    const playTone = (
+      frequency: number,
+      startOffset: number,
+      duration: number,
+      type: OscillatorType,
+      volume: number,
+      endFrequency = frequency,
+    ) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const startTime = ctx.currentTime + startOffset;
+      const endTime = startTime + duration;
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+      oscillator.frequency.exponentialRampToValueAtTime(Math.max(80, endFrequency), endTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(volume, startTime + Math.min(0.035, duration * 0.3));
+      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+
+      oscillator.connect(gain);
+      gain.connect(outputNode);
+      oscillator.start(startTime);
+      oscillator.stop(endTime + 0.03);
+    };
+
+    const playNoise = (startOffset: number, duration: number, volume: number) => {
+      const sampleRate = ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(sampleRate * duration)), sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let index = 0; index < channel.length; index += 1) {
+        const decay = 1 - index / channel.length;
+        channel[index] = (Math.random() * 2 - 1) * decay;
+      }
+
+      const source = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      const startTime = ctx.currentTime + startOffset;
+      const endTime = startTime + duration;
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(980, startTime);
+      filter.frequency.exponentialRampToValueAtTime(180, endTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+
+      source.buffer = buffer;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(outputNode);
+      source.start(startTime);
+      source.stop(endTime + 0.02);
+    };
+
+    if (kind === 'start') {
+      playNoise(0, 0.08, 0.16);
+      playTone(220, 0, 0.09, 'sine', 0.08, 150);
+      playTone(660, 0.055, 0.11, 'triangle', 0.06, 880);
+      return;
+    }
+
+    if (kind === 'bid') {
+      const baseFrequency = 620 + Math.min(stepIndex, 9) * 48;
+      playTone(baseFrequency, 0, 0.095, 'triangle', 0.075, baseFrequency * 1.42);
+      playTone(baseFrequency * 1.5, 0.035, 0.07, 'sine', 0.035, baseFrequency * 1.9);
+      return;
+    }
+
+    playNoise(0, 0.12, 0.2);
+    playTone(180, 0, 0.14, 'sine', 0.11, 92);
+    playTone(523.25, 0.12, 0.18, 'triangle', 0.09, 659.25);
+    playTone(783.99, 0.2, 0.22, 'triangle', 0.08, 987.77);
+    playTone(1046.5, 0.31, 0.28, 'sine', 0.07, 1318.51);
+  } catch {
+    // Audio is decorative; ignore browser autoplay or output failures.
   }
 };
 
@@ -2932,10 +3095,10 @@ function ScheduleYoutubePlayer({
 
 const STUDENT_CHARACTER_WALK_PATHS = [
   {
-    startTop: '88vh',
-    midTopA: '85vh',
-    midTopB: '82vh',
-    endTop: '84vh',
+    startTop: '82vh',
+    midTopA: '80vh',
+    midTopB: '78vh',
+    endTop: '80vh',
     size: 'min(27vw, 29vh, 14rem)',
     scale: '0.94',
     bobDuration: '860ms',
@@ -2945,10 +3108,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 27,
   },
   {
-    startTop: '84vh',
-    midTopA: '86vh',
-    midTopB: '89vh',
-    endTop: '88vh',
+    startTop: '80vh',
+    midTopA: '81vh',
+    midTopB: '83vh',
+    endTop: '82vh',
     size: 'min(31vw, 33vh, 16rem)',
     scale: '1',
     bobDuration: '720ms',
@@ -2958,10 +3121,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 30,
   },
   {
-    startTop: '86vh',
-    midTopA: '82vh',
-    midTopB: '85vh',
-    endTop: '91vh',
+    startTop: '81vh',
+    midTopA: '78vh',
+    midTopB: '80vh',
+    endTop: '84vh',
     size: 'min(29vw, 31vh, 15rem)',
     scale: '0.98',
     bobDuration: '940ms',
@@ -2971,10 +3134,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 32,
   },
   {
-    startTop: '82vh',
-    midTopA: '84vh',
-    midTopB: '87vh',
-    endTop: '85vh',
+    startTop: '78vh',
+    midTopA: '80vh',
+    midTopB: '82vh',
+    endTop: '81vh',
     size: 'min(25vw, 28vh, 13.5rem)',
     scale: '0.9',
     bobDuration: '780ms',
@@ -2984,10 +3147,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     zIndex: 24,
   },
   {
-    startTop: '89vh',
-    midTopA: '91vh',
-    midTopB: '86vh',
-    endTop: '83vh',
+    startTop: '83vh',
+    midTopA: '84vh',
+    midTopB: '81vh',
+    endTop: '79vh',
     size: 'min(32vw, 34vh, 16.5rem)',
     scale: '1.04',
     bobDuration: '820ms',
@@ -3065,6 +3228,10 @@ function StudentCharacterShowcase({
       : timerType === 'break'
         ? '쉬는시간'
         : '일정 없음';
+  const shouldUseSpeechImage = shouldSpeak && Boolean(character.speechImageSrc);
+  const characterImageSrc = shouldUseSpeechImage ? character.speechImageSrc || character.imageSrc : character.imageSrc;
+  const characterImageAlt =
+    shouldUseSpeechImage && character.speechImageAlt ? character.speechImageAlt : character.alt;
   const imageTransform = character.walkTransform?.[direction] || (direction === 'left' ? 'scaleX(-1)' : 'none');
   const frameStyle = {
     '--student-character-accent': character.themeColor || '#7AA160',
@@ -3093,14 +3260,14 @@ function StudentCharacterShowcase({
       style={frameStyle}
     >
       <div className="student-character-frame">
-        {shouldSpeak && character.speech ? (
+        {shouldSpeak && character.speech && !shouldUseSpeechImage ? (
           <div className="student-character-speech" aria-hidden="true">
             {character.speech}
           </div>
         ) : null}
         <img
-          src={character.imageSrc}
-          alt={character.alt}
+          src={characterImageSrc}
+          alt={characterImageAlt}
           className="student-character-image"
           draggable={false}
           onError={() => onImageError(character.id)}
@@ -3149,6 +3316,8 @@ export default function TimerPage() {
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
+  const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
+  const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [scheduleYoutubeUrls, setScheduleYoutubeUrls] = useState<string[]>(initialScheduleYoutubeState.appliedUrls);
   const [scheduleYoutubeFavorites, setScheduleYoutubeFavorites] = useState<ScheduleYoutubeFavorite[]>(() =>
     getStoredScheduleYoutubeFavorites(),
@@ -3280,11 +3449,28 @@ export default function TimerPage() {
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('schedule');
   const [editingDay, setEditingDay] = useState<number>(() => getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+  const [pendingAuctionReset, setPendingAuctionReset] = useState<AuctionResetTarget | null>(null);
+  const [pendingAwardItemId, setPendingAwardItemId] = useState<string | null>(null);
+  const [temporaryVisibleAuctionItemIds, setTemporaryVisibleAuctionItemIds] = useState<Set<string>>(() => new Set());
+  const [awardPresentation, setAwardPresentation] = useState<{
+    item: AuctionItem;
+    weekdayLabel: string;
+    steps: AuctionBidHistoryEntry[];
+    award: AuctionAward;
+    currentIndex: number;
+    isComplete: boolean;
+    hasFinalized: boolean;
+  } | null>(null);
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
+  const awardSoundPlaybackRef = useRef({
+    presentationKey: '',
+    stepIndex: -1,
+    finalPlayed: false,
+  });
   const isMusicLoadingRef = useRef(false);
   const skipNoticeAutoSaveRef = useRef(false);
   const scheduleListRef = useRef<HTMLUListElement>(null);
@@ -3363,6 +3549,13 @@ export default function TimerPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (isSettingsOpen && settingsPanel === 'auction') return;
+    setTemporaryVisibleAuctionItemIds((previous) => (
+      previous.size > 0 ? new Set() : previous
+    ));
+  }, [isSettingsOpen, settingsPanel]);
 
   const resolvedActiveDrawCaseId = activeDrawCase.id;
   const selectedDrawSettingsCaseIndex = drawCases.findIndex((caseState) => caseState.id === drawSettingsCaseId);
@@ -3467,6 +3660,8 @@ export default function TimerPage() {
     currencyBalances,
     auctionItems,
     auctionBids,
+    auctionBidHistory,
+    auctionAwards,
   });
 
   const applySharedSettingsSnapshot = (
@@ -3498,6 +3693,8 @@ export default function TimerPage() {
     setCurrencyBalances(normalizeCurrencyBalances(remoteSettings.currencyBalances));
     setAuctionItems(normalizeAuctionItems(remoteSettings.auctionItems));
     setAuctionBids(normalizeAuctionBids(remoteSettings.auctionBids, AUCTION_ITEM_IDS));
+    setAuctionBidHistory(normalizeAuctionBidHistory(remoteSettings.auctionBidHistory, AUCTION_ITEM_IDS));
+    setAuctionAwards(normalizeAuctionAwards(remoteSettings.auctionAwards, AUCTION_ITEM_IDS));
     const canApplyManualTimer =
       options.applyManualTimer &&
       !manualTimerStateRef.current.isRunning &&
@@ -3710,6 +3907,8 @@ export default function TimerPage() {
     currencyBalances,
     auctionItems,
     auctionBids,
+    auctionBidHistory,
+    auctionAwards,
   ]);
 
   useEffect(() => {
@@ -5271,26 +5470,242 @@ export default function TimerPage() {
   };
 
   const resetAuctionItems = () => {
-    setAuctionItems(normalizeAuctionItems(DEFAULT_AUCTION_ITEMS));
+    setAuctionItems(normalizeAuctionItems(null));
+    setTemporaryVisibleAuctionItemIds(new Set());
+  };
+
+  const addAuctionItem = (dayIndex: number) => {
+    setAuctionItems((previous) => {
+      const normalizedPrevious = normalizeAuctionItems(previous);
+      if (normalizedPrevious.length >= AUCTION_MAX_ITEM_COUNT) return normalizedPrevious;
+      const sameDayItemCount = normalizedPrevious.filter((item) => item.dayIndex === dayIndex).length;
+      if (sameDayItemCount >= AUCTION_MAX_ITEMS_PER_DAY) return normalizedPrevious;
+      const nextTemplate = createAuctionItemTemplate(dayIndex, sameDayItemCount);
+      return normalizeAuctionItems([...normalizedPrevious, nextTemplate]);
+    });
+  };
+
+  const removeAuctionItem = (itemId: string) => {
+    setAuctionItems((previous) => {
+      const normalizedPrevious = normalizeAuctionItems(previous);
+      if (normalizedPrevious.length <= 1) return normalizedPrevious;
+      return normalizeAuctionItems(normalizedPrevious.filter((item) => item.id !== itemId));
+    });
+    setAuctionBids((previous) => ({
+      ...previous,
+      [itemId]: { amount: 0, bidder: null },
+    }));
+    setAuctionBidHistory((previous) => ({
+      ...previous,
+      [itemId]: [],
+    }));
+    setAuctionAwards((previous) => ({
+      ...previous,
+      [itemId]: null,
+    }));
+    setTemporaryVisibleAuctionItemIds((previous) => {
+      const next = new Set(previous);
+      next.delete(itemId);
+      return next;
+    });
+    setPendingAwardItemId((previous) => (previous === itemId ? null : previous));
+    setAwardPresentation((previous) => (previous?.itemId === itemId ? null : previous));
   };
 
   const resetAuctionBids = () => {
-    setAuctionBids(normalizeAuctionBids(null, AUCTION_ITEM_IDS));
+    const emptyAuctionBids = normalizeAuctionBids(null, AUCTION_ITEM_IDS);
+    const emptyAuctionBidHistory = normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS);
+    const emptyAuctionAwards = normalizeAuctionAwards(null, AUCTION_ITEM_IDS);
+
+    setAuctionBids(emptyAuctionBids);
+    setAuctionBidHistory(emptyAuctionBidHistory);
+    setAuctionAwards(emptyAuctionAwards);
+    setPendingAwardItemId(null);
+    setAwardPresentation(null);
+
+    if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
+
+    if (sharedSettingsSaveTimeoutRef.current !== null) {
+      window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+      sharedSettingsSaveTimeoutRef.current = null;
+    }
+
+    void saveSharedSettings({
+      ...buildSharedSettingsSnapshot(),
+      auctionBids: emptyAuctionBids,
+      auctionBidHistory: emptyAuctionBidHistory,
+      auctionAwards: emptyAuctionAwards,
+    })
+      .then(() => {
+        lastSharedSettingsUpdatedAtRef.current = new Date().toISOString();
+      })
+      .catch((error) => {
+        console.error('Failed to reset auction bids in Supabase.', error);
+      });
   };
 
-  const updateAuctionItem = (itemId: string, patch: Partial<Pick<AuctionItem, 'name' | 'startPrice'>>) => {
-    setAuctionItems((previous) => normalizeAuctionItems(previous.map((item) => (
+  const getAwardSteps = (item: AuctionItem) => {
+    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+    const recordedSteps = (auctionBidHistory[item.id] ?? []).filter((entry) => entry.amount > 0);
+    if (recordedSteps.length > 0) return recordedSteps;
+    if (!currentBid.bidder || currentBid.amount <= 0) return [];
+    return [{
+      itemId: item.id,
+      bidder: currentBid.bidder,
+      amount: currentBid.amount,
+      createdAt: new Date().toISOString(),
+    }];
+  };
+
+  const openAwardConfirm = (item: AuctionItem) => {
+    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+    if (auctionAwards[item.id] || !currentBid.bidder || currentBid.amount <= 0) return;
+    setPendingAwardItemId(item.id);
+  };
+
+  const startAwardPresentation = () => {
+    if (!pendingAwardItemId) return;
+    const item = auctionItems.find((auctionItem) => auctionItem.id === pendingAwardItemId);
+    if (!item) {
+      setPendingAwardItemId(null);
+      return;
+    }
+
+    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+    if (auctionAwards[item.id] || !currentBid.bidder || currentBid.amount <= 0) {
+      setPendingAwardItemId(null);
+      return;
+    }
+
+    const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const steps = getAwardSteps(item);
+    const award = {
+      itemId: item.id,
+      winner: currentBid.bidder,
+      amount: currentBid.amount,
+      awardedAt: new Date().toISOString(),
+    };
+
+    void playAuctionSound('start');
+    setPendingAwardItemId(null);
+    setAwardPresentation({
+      item,
+      weekdayLabel: AUCTION_WEEKDAY_LABELS[item.dayIndex] ?? String(item.dayIndex + 1),
+      steps,
+      award,
+      currentIndex: prefersReducedMotion ? Math.max(steps.length - 1, 0) : 0,
+      isComplete: prefersReducedMotion || steps.length <= 1,
+      hasFinalized: false,
+    });
+  };
+
+  const confirmAuctionReset = () => {
+    if (pendingAuctionReset === 'items') {
+      resetAuctionItems();
+    } else if (pendingAuctionReset === 'bids') {
+      resetAuctionBids();
+    } else if (pendingAuctionReset === 'currency') {
+      resetCurrencyBalances();
+    }
+
+    setPendingAuctionReset(null);
+  };
+
+  const updateAuctionItem = (itemId: string, patch: Pick<AuctionItem, 'name'>) => {
+    setAuctionItems((previous) => previous.map((item) => (
       item.id === itemId
         ? {
             ...item,
-            ...patch,
-            startPrice: patch.startPrice === undefined
-              ? item.startPrice
-              : clampAuctionBidAmount(patch.startPrice),
+            name: patch.name.slice(0, 24),
           }
         : item
-    ))));
+    )));
   };
+
+  useEffect(() => {
+    if (!awardPresentation) {
+      awardSoundPlaybackRef.current = {
+        presentationKey: '',
+        stepIndex: -1,
+        finalPlayed: false,
+      };
+      return;
+    }
+
+    const presentationKey = awardPresentation.award.awardedAt;
+    if (awardSoundPlaybackRef.current.presentationKey !== presentationKey) {
+      awardSoundPlaybackRef.current = {
+        presentationKey,
+        stepIndex: -1,
+        finalPlayed: false,
+      };
+    }
+
+    if (awardPresentation.isComplete) {
+      if (!awardSoundPlaybackRef.current.finalPlayed) {
+        awardSoundPlaybackRef.current.finalPlayed = true;
+        void playAuctionSound('final', awardPresentation.currentIndex);
+      }
+      return;
+    }
+
+    if (awardSoundPlaybackRef.current.stepIndex !== awardPresentation.currentIndex) {
+      awardSoundPlaybackRef.current.stepIndex = awardPresentation.currentIndex;
+      void playAuctionSound('bid', awardPresentation.currentIndex);
+    }
+  }, [awardPresentation]);
+
+  useEffect(() => {
+    if (!awardPresentation || awardPresentation.isComplete) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setAwardPresentation((previous) => {
+        if (!previous || previous.isComplete) return previous;
+        const nextIndex = previous.currentIndex + 1;
+        if (nextIndex >= previous.steps.length) {
+          return {
+            ...previous,
+            currentIndex: Math.max(previous.steps.length - 1, 0),
+            isComplete: true,
+          };
+        }
+
+        return {
+          ...previous,
+          currentIndex: nextIndex,
+        };
+      });
+    }, 720);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [awardPresentation]);
+
+  useEffect(() => {
+    if (!awardPresentation?.isComplete || awardPresentation.hasFinalized) return;
+
+    setAuctionAwards((previous) => ({
+      ...previous,
+      [awardPresentation.award.itemId]: awardPresentation.award,
+    }));
+    setCurrencyBalances((previous) => {
+      const winnerKey = String(awardPresentation.award.winner);
+      return {
+        ...previous,
+        [winnerKey]: clampCurrencyBalance(
+          (previous[winnerKey] ?? DEFAULT_CURRENCY_BALANCE) - awardPresentation.award.amount,
+        ),
+      };
+    });
+    setAwardPresentation((previous) => (
+      previous
+        ? {
+            ...previous,
+            hasFinalized: true,
+          }
+        : previous
+    ));
+  }, [awardPresentation]);
 
   const applyNoticeDraft = (nextValue: string) => {
     setNoticeDraft(nextValue);
@@ -5762,6 +6177,10 @@ export default function TimerPage() {
   const studentNoticeTextClass = getNoticeTextClass(trimmedNotice);
   const draftNoticeTextClass = getNoticeTextClass(noticeDraft);
   const shouldShowNoticeCard = isEditingNotice || (isNoticeEnabled && hasScheduleNotice);
+  const selectedCurrencyBalance =
+    editingCurrencyNumber === null
+      ? null
+      : (currencyBalances[String(editingCurrencyNumber)] ?? DEFAULT_CURRENCY_BALANCE);
   const renderNoticeTextWithHighlights = (text: string) => {
     const ranges = normalizeNoticeHighlightRanges(scheduleNoticeHighlights, text);
     if (ranges.length === 0) return text;
@@ -6816,72 +7235,202 @@ export default function TimerPage() {
     </div>
   );
 
+  const auctionVisibleDayCount = getAuctionVisibleDayCount();
+
   const auctionSettingsPanel = (
-    <div className="settings-panel-grid grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
+    <div className="settings-panel-grid grid gap-4">
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
         <div className="mb-4">
-          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">경매 초기화</h3>
+          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정 및 현황</h3>
         </div>
-        <div className="space-y-2.5">
+
+        <div className="grid gap-3 xl:grid-cols-2">
+          {AUCTION_WEEKDAY_LABELS.map((weekdayLabel, dayIndex) => {
+            const dayItems = auctionItems.filter((item) => item.dayIndex === dayIndex);
+            const isDayPublic = dayIndex < auctionVisibleDayCount;
+            const canAddDayItem =
+              auctionItems.length < AUCTION_MAX_ITEM_COUNT && dayItems.length < AUCTION_MAX_ITEMS_PER_DAY;
+
+            return (
+              <div
+                key={weekdayLabel}
+                className={`rounded-[1.15rem] border p-3 shadow-[0_10px_22px_rgba(31,24,18,0.055)] ${
+                  isDayPublic ? 'border-[#E8DDD0] bg-[#FFFDF8]' : 'border-[#E5DFD8] bg-[#F7F3ED]'
+                }`}
+              >
+                <div className="mb-3 flex min-h-[3.35rem] items-center justify-between gap-2 rounded-[0.95rem] bg-[#EFF7F2] px-3 py-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className={`inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.86rem] font-black shadow-md ${
+                      isDayPublic ? 'bg-[#006241] text-white' : 'bg-white text-[#8A7A6B]'
+                    }`}>
+                      {weekdayLabel}
+                    </span>
+                    <span className="section-title truncate text-[0.96rem] font-extrabold text-[#2F241D]">
+                      {weekdayLabel}요일
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addAuctionItem(dayIndex)}
+                    disabled={!canAddDayItem}
+                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-[#9FC7B8] bg-white px-3 text-[#006241] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:border-[#E5DFD8] disabled:bg-[#F4F0EA] disabled:text-[#8A7A6B]"
+                    aria-label={`${weekdayLabel}요일 물품 추가`}
+                    title={`${weekdayLabel}요일 물품 추가`}
+                  >
+                    <Plus size={17} />
+                    <span className="section-title text-[0.78rem] font-extrabold">추가</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {dayItems.length === 0 ? (
+                    <div className="w-full rounded-[1rem] border border-dashed border-[#D7E6DE] bg-white/80 px-3 py-4 text-center text-[0.82rem] font-black text-[#8A7A6B]">
+                      물품 없음
+                    </div>
+                  ) : null}
+
+                  {dayItems.map((item, slotIndex) => {
+                    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+                    const award = auctionAwards[item.id] ?? null;
+                    const isPublic = item.dayIndex < auctionVisibleDayCount;
+                    const isTemporarilyVisible = !isPublic && temporaryVisibleAuctionItemIds.has(item.id);
+                    const isVisibleInSettings = isPublic || isTemporarilyVisible;
+                    const canAward = isPublic && !award && currentBid.bidder !== null && currentBid.amount > 0;
+                    const canRemoveItem = auctionItems.length > 1;
+
+                    return (
+                      <div
+                        key={item.id}
+                        onDoubleClick={() => {
+                          if (isPublic) return;
+                          setTemporaryVisibleAuctionItemIds((previous) => {
+                            const next = new Set(previous);
+                            next.add(item.id);
+                            return next;
+                          });
+                        }}
+                        className={`auction-item-card relative w-full rounded-[1rem] border p-2.5 shadow-[0_8px_16px_rgba(31,24,18,0.055)] sm:w-[16rem] ${
+                          isVisibleInSettings
+                            ? 'border-[#D7E6DE] bg-white'
+                            : 'border-[#E5DFD8] bg-[#F4F0EA] opacity-78'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.76rem] font-black shadow-md ${
+                              isVisibleInSettings ? 'bg-[#006241] text-white' : 'bg-white text-[#8A7A6B]'
+                            }`}>
+                            {slotIndex + 1}
+                          </span>
+                          {isVisibleInSettings ? (
+                              <input
+                                value={item.name}
+                                onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
+                                className="section-title h-10 min-w-0 flex-1 rounded-[0.75rem] border-2 border-[#CFE0D8] bg-[#FFFDF8] px-3 text-[0.88rem] font-extrabold leading-tight text-[#2F241D] outline-none transition-colors focus:border-[#9FC7B8]"
+                                aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 이름`}
+                                placeholder={`${weekdayLabel}요일 물품`}
+                              />
+                          ) : (
+                            <div className="section-title h-10 min-w-0 flex-1 rounded-[0.75rem] border-2 border-[#E3DED7] bg-white/78 px-3 py-2 text-[0.88rem] font-extrabold leading-tight text-[#8A7A6B]">
+                              비공개
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeAuctionItem(item.id)}
+                            disabled={!canRemoveItem}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-[#E4D7C9] bg-[#FFFDF8] text-[#6E5139] transition-colors hover:bg-[#FFF7EC] disabled:cursor-not-allowed disabled:bg-[#F4F0EA] disabled:text-[#B5A89C]"
+                            aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
+                            title={canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                          {!isPublic && isTemporarilyVisible ? (
+                            <span className="absolute right-3 top-[-0.55rem] rounded-full bg-white px-2 py-0.5 text-[0.58rem] font-black text-[#006241] shadow-sm">
+                              임시 공개
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_4.8rem] items-center gap-2">
+                          <div className="flex min-h-9 items-center justify-between gap-2 rounded-[0.75rem] border border-[#D7E6DE] bg-[#F8FCF6] px-2.5 py-1">
+                            {award && isVisibleInSettings ? (
+                              <span
+                                className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.72rem] font-black text-white"
+                                style={getStudentLabelStyle(award.winner)}
+                              >
+                                {award.winner}번
+                              </span>
+                            ) : currentBid.bidder && isVisibleInSettings ? (
+                              <span
+                                className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.72rem] font-black text-white"
+                                style={getStudentLabelStyle(currentBid.bidder)}
+                              >
+                                {currentBid.bidder}번
+                              </span>
+                            ) : (
+                              <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-[#EEF4F0] px-2.5 text-[0.72rem] font-black text-[#6E7A72]">
+                                {isVisibleInSettings ? '대기' : '비공개'}
+                              </span>
+                            )}
+                            <div className="min-w-0 flex-1 whitespace-nowrap text-right font-mono text-[0.88rem] font-black leading-none text-[#006241]">
+                              {isVisibleInSettings
+                                ? award
+                                  ? formatCurrency(award.amount)
+                                  : formatCurrency(currentBid.amount)
+                                : '???'}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openAwardConfirm(item)}
+                            disabled={!canAward}
+                            className={`inline-flex min-h-9 items-center justify-center rounded-[0.75rem] border-2 px-2 text-[0.76rem] font-extrabold transition-colors ${
+                              award
+                                ? 'cursor-default border-[#D7E6DE] bg-[#F8FCF6] text-[#006241]'
+                                : canAward
+                                  ? 'border-[#006241] bg-[#006241] text-white hover:bg-[#005336]'
+                                  : 'cursor-not-allowed border-[#D7E6DE] bg-[#F4F0EA] text-[#8A7A6B]'
+                            }`}
+                          >
+                            {award ? '완료' : canAward ? '낙찰' : '없음'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
+        <div className="mb-4">
+          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">경매 관리</h3>
+        </div>
+        <div className="grid gap-2.5 md:grid-cols-3">
           <button
             type="button"
-            onClick={resetAuctionItems}
+            onClick={() => setPendingAuctionReset('items')}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-[#F8FCF6] px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
           >
             물품 초기화
           </button>
           <button
             type="button"
-            onClick={resetAuctionBids}
+            onClick={() => setPendingAuctionReset('bids')}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#E4D7C9] bg-[#FFFDF8] px-4 py-2 text-[0.9rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
           >
             입찰가 초기화
           </button>
           <button
             type="button"
-            onClick={resetCurrencyBalances}
+            onClick={() => setPendingAuctionReset('currency')}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#F8FCF6]"
           >
             보유 화폐 초기화
           </button>
-        </div>
-      </section>
-
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정</h3>
-          <span className="settings-count-pill inline-flex min-h-9 items-center rounded-full border border-[#D7E2D1] bg-white px-3 text-[0.82rem] font-extrabold text-[#3A5A3B]">
-            {auctionItems.length}개
-          </span>
-        </div>
-
-        <div className="grid gap-3">
-          {auctionItems.map((item, index) => (
-            <div
-              key={item.id}
-              className="grid gap-2 rounded-[1.15rem] border border-[#D7E6DE] bg-[#F8FCF6] p-3 sm:grid-cols-[3.2rem_minmax(0,1fr)_8.5rem]"
-            >
-              <div className="inline-flex h-11 items-center justify-center rounded-[0.9rem] bg-[#006241] font-mono text-[1rem] font-black text-white">
-                {AUCTION_WEEKDAY_LABELS[index]}
-              </div>
-              <input
-                value={item.name}
-                onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
-                className="h-11 min-w-0 rounded-[0.9rem] border-2 border-[#CFE0D8] bg-white px-3 text-[0.95rem] font-extrabold text-[#1F2523] outline-none transition-colors focus:border-[#9FC7B8]"
-                aria-label={`${AUCTION_WEEKDAY_LABELS[index]}요일 물품 이름`}
-                placeholder={`${AUCTION_WEEKDAY_LABELS[index]}요일 물품`}
-              />
-              <input
-                type="number"
-                min={0}
-                step={AUCTION_BID_STEP}
-                value={item.startPrice}
-                onChange={(event) => updateAuctionItem(item.id, { startPrice: Number(event.target.value) })}
-                className="h-11 min-w-0 rounded-[0.9rem] border-2 border-[#CFE0D8] bg-white px-3 text-right font-mono text-[0.95rem] font-black text-[#1F2523] outline-none transition-colors focus:border-[#9FC7B8]"
-                aria-label={`${AUCTION_WEEKDAY_LABELS[index]}요일 물품 시작가`}
-              />
-            </div>
-          ))}
         </div>
       </section>
     </div>
@@ -7180,7 +7729,7 @@ export default function TimerPage() {
               )}
 
               {/* Character Notification Overlay (kept within the ring stage so it does not cover the timer text) */}
-              <div className={`absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showTimerNotification ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'}`}>
+              <div className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showTimerNotification ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
                 <div className="pointer-events-none flex flex-col items-center">
                   {/* Speech Bubble */}
                   {showTimerNotification ? (
@@ -7715,15 +8264,6 @@ export default function TimerPage() {
                       <div className="flex shrink-0 items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={resetCurrencyBalances}
-                          className="inline-flex h-8 items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-3 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
-                          title="모두 100으로 초기화"
-                          aria-label="화폐 모두 100으로 초기화"
-                        >
-                          초기화
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => {
                             setIsCurrencyPanelOpen(false);
                             setEditingCurrencyNumber(null);
@@ -7737,7 +8277,38 @@ export default function TimerPage() {
                       </div>
                     </div>
 
-                    <div className="currency-card-grid custom-scrollbar grid max-h-[24rem] grid-cols-2 gap-3 overflow-y-auto pr-1">
+                    {editingCurrencyNumber !== null && selectedCurrencyBalance !== null ? (
+                      <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]">
+                            <span className="font-mono text-[1.2rem] font-black leading-none">{editingCurrencyNumber}</span>
+                          </div>
+                          <div className="min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-3 py-2.5 text-right font-mono text-[1.08rem] font-black leading-none text-[#1F2523]">
+                            {formatCurrencyAmount(selectedCurrencyBalance)}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => adjustCurrencyBalance(editingCurrencyNumber, -CURRENCY_BALANCE_STEP)}
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white text-[1.15rem] font-black text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                            aria-label={`${editingCurrencyNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
+                            title={`-${CURRENCY_BALANCE_STEP}`}
+                          >
+                            -
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => adjustCurrencyBalance(editingCurrencyNumber, CURRENCY_BALANCE_STEP)}
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] text-[1.15rem] font-black text-[#006241] transition-colors hover:bg-[#DDF0E8]"
+                            aria-label={`${editingCurrencyNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
+                            title={`+${CURRENCY_BALANCE_STEP}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="currency-card-grid custom-scrollbar grid max-h-[24rem] grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-5">
                       {CURRENCY_STUDENT_NUMBERS.map((studentNumber) => {
                         const balance = currencyBalances[String(studentNumber)] ?? DEFAULT_CURRENCY_BALANCE;
                         const isEditingCurrency = editingCurrencyNumber === studentNumber;
@@ -7747,47 +8318,15 @@ export default function TimerPage() {
                             key={studentNumber}
                             type="button"
                             onClick={() => setEditingCurrencyNumber((previous) => previous === studentNumber ? null : studentNumber)}
-                            className={`rounded-[1.15rem] border-2 p-3 text-left shadow-[0_8px_18px_rgba(0,98,65,0.06)] transition-colors ${
+                            className={`inline-flex h-14 items-center justify-center rounded-[1rem] border-2 font-mono text-[1.2rem] font-black leading-none shadow-[0_6px_14px_rgba(0,98,65,0.06)] transition-colors ${
                               isEditingCurrency
-                                ? 'border-[#9FC7B8] bg-[#F1FAF6]'
-                                : 'border-[#DDE9E2] bg-[#F8FCF6] hover:border-[#BFD8CE] hover:bg-[#F3FAF7]'
+                                ? 'border-[#006241] bg-[#006241] text-white'
+                                : 'border-[#DDE9E2] bg-[#F8FCF6] text-[#006241] hover:border-[#BFD8CE] hover:bg-[#F3FAF7]'
                             }`}
                             aria-expanded={isEditingCurrency}
-                            aria-label={`${studentNumber}번 화폐 ${formatCurrency(balance)}, ${isEditingCurrency ? '조정 닫기' : '조정 열기'}`}
+                            aria-label={`${studentNumber}번 화폐 ${formatCurrency(balance)}, ${isEditingCurrency ? '선택 해제' : '조정 열기'}`}
                           >
-                            <div className="mb-2.5 flex items-center gap-2.5">
-                              <div className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]">
-                                <span className="font-mono text-[1.2rem] font-black leading-none">{studentNumber}</span>
-                              </div>
-                              <div className="min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-3 py-2.5 text-right font-mono text-[1.08rem] font-black leading-none text-[#1F2523]">
-                                {formatCurrencyAmount(balance)}
-                              </div>
-                            </div>
-                            {isEditingCurrency ? (
-                              <div
-                                className="grid grid-cols-2 gap-2"
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => adjustCurrencyBalance(studentNumber, -CURRENCY_BALANCE_STEP)}
-                                  className="inline-flex h-10 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white text-[1.15rem] font-black text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
-                                  aria-label={`${studentNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
-                                  title={`-${CURRENCY_BALANCE_STEP}`}
-                                >
-                                  -
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => adjustCurrencyBalance(studentNumber, CURRENCY_BALANCE_STEP)}
-                                  className="inline-flex h-10 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] text-[1.15rem] font-black text-[#006241] transition-colors hover:bg-[#DDF0E8]"
-                                  aria-label={`${studentNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
-                                  title={`+${CURRENCY_BALANCE_STEP}`}
-                                >
-                                  +
-                                </button>
-                              </div>
-                            ) : null}
+                            {studentNumber}
                           </button>
                         );
                       })}
@@ -8066,6 +8605,281 @@ export default function TimerPage() {
                     ? drawSettingsPanel
                     : auctionSettingsPanel}
             </div>
+
+            {pendingAwardItemId ? (() => {
+              const item = auctionItems.find((auctionItem) => auctionItem.id === pendingAwardItemId);
+              const currentBid = item ? auctionBids[item.id] ?? { amount: 0, bidder: null } : null;
+              const awardItemName = item?.name ?? '선택한 물품';
+              const lastAwardItemChar = awardItemName.trim().slice(-1);
+              const awardItemParticle = lastAwardItemChar && (lastAwardItemChar.charCodeAt(0) - 0xac00) % 28 > 0
+                ? '을'
+                : '를';
+
+              return (
+                <div
+                  className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4"
+                  role="presentation"
+                  onClick={() => setPendingAwardItemId(null)}
+                >
+                  <div
+                    className="w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="auction-award-confirm-title"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <h3 id="auction-award-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
+                      낙찰 처리할까요?
+                    </h3>
+                    <p className="mt-2 text-[1.05rem] font-black leading-7 text-[#006241]">
+                      {awardItemName}{awardItemParticle} {currentBid?.bidder ?? '-'}번 학생에게
+                      <br />
+                      {formatCurrency(currentBid?.amount ?? 0)}에 낙찰합니다.
+                    </p>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPendingAwardItemId(null)}
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={startAwardPresentation}
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+                      >
+                        낙찰
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })() : null}
+
+            {awardPresentation ? (() => {
+              const activeStep = awardPresentation.steps[awardPresentation.currentIndex] ?? awardPresentation.steps[0];
+              const activeStepIndex = awardPresentation.isComplete
+                ? Math.max(awardPresentation.steps.length - 1, 0)
+                : awardPresentation.currentIndex;
+              const progressPercent = awardPresentation.steps.length <= 1
+                ? 100
+                : Math.round((activeStepIndex / (awardPresentation.steps.length - 1)) * 100);
+
+              return (
+                <div
+                  className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1F2523]/55 px-4 backdrop-blur-sm"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="auction-award-animation-title"
+                >
+                  <div className={`auction-award-stage w-full max-w-[58rem] overflow-hidden rounded-[1.8rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
+                    awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
+                  }`}>
+                    <div className="border-b border-[#E6D5C9] bg-[#F8FCF6] p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 font-black text-[#006241] shadow-sm">
+                            <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-[#006241] px-2 font-mono text-white">
+                              {awardPresentation.weekdayLabel}
+                            </span>
+                            <span className="min-w-0 truncate">{awardPresentation.item.name}</span>
+                          </div>
+                          <h3 id="auction-award-animation-title" className="section-title mt-3 text-[1.8rem] font-extrabold leading-tight text-[#2F241D]">
+                            {awardPresentation.isComplete ? '낙찰 완료' : '입찰 기록 확인 중'}
+                          </h3>
+                        </div>
+                        <div className="rounded-[1rem] border border-[#D7E6DE] bg-white px-4 py-2.5 text-right">
+                          <div className="text-[0.72rem] font-black text-[#6E7A72]">
+                            진행 단계
+                          </div>
+                          <div className="mt-1 font-mono text-[1.1rem] font-black text-[#006241]">
+                            {activeStepIndex + 1} / {Math.max(awardPresentation.steps.length, 1)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#D7E6DE]">
+                        <div
+                          className="auction-award-progress-fill h-full rounded-full bg-[#006241]"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-5">
+                      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.78fr)]">
+                        <div className="rounded-[1.35rem] border border-[#D7E6DE] bg-[#F8FCF6] p-4">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-[0.78rem] font-black text-[#006241]">입찰 순서</div>
+                              <div className="section-title text-[1.15rem] font-extrabold text-[#2F241D]">
+                                가격이 올라간 기록
+                              </div>
+                            </div>
+                            <div className="rounded-full bg-white px-3 py-1 text-[0.78rem] font-black text-[#006241] shadow-sm">
+                              {awardPresentation.steps.length}회 입찰
+                            </div>
+                          </div>
+                          <div className="grid max-h-[22rem] gap-2 overflow-y-auto pr-1">
+                            {awardPresentation.steps.map((step, stepIndex) => {
+                              const isPast = stepIndex < activeStepIndex || awardPresentation.isComplete;
+                              const isActive = stepIndex === activeStepIndex && !awardPresentation.isComplete;
+                              const isWinnerStep = awardPresentation.isComplete && stepIndex === awardPresentation.steps.length - 1;
+
+                              return (
+                                <div
+                                  key={`award-step-row-${step.itemId}-${step.createdAt}-${stepIndex}`}
+                                  className={`auction-award-step-row grid grid-cols-[2.6rem_minmax(0,1fr)_7.2rem] items-center gap-2 rounded-[1rem] border px-3 py-2.5 transition-all ${
+                                    isActive
+                                      ? 'auction-award-step-active border-[#006241] bg-white shadow-[0_12px_24px_rgba(0,98,65,0.14)]'
+                                      : isWinnerStep
+                                        ? 'border-[#9FC7B8] bg-[#EAF6F0]'
+                                        : isPast
+                                          ? 'border-[#D7E6DE] bg-white'
+                                          : 'border-[#E5DFD8] bg-[#F4F0EA] opacity-72'
+                                  }`}
+                                >
+                                  <div className="font-mono text-[0.82rem] font-black text-[#6E7A72]">
+                                    {stepIndex + 1}
+                                  </div>
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span
+                                      className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.88rem] font-black text-white"
+                                      style={getStudentLabelStyle(step.bidder)}
+                                    >
+                                      {step.bidder}번
+                                    </span>
+                                    <span className="min-w-0 truncate text-[0.92rem] font-extrabold text-[#2F241D]">
+                                      {isWinnerStep ? '최종 낙찰자' : isActive ? '현재 확인 중' : '입찰'}
+                                    </span>
+                                  </div>
+                                  <div className="text-right font-mono text-[1rem] font-black text-[#006241]">
+                                    {formatCurrency(step.amount)}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className={`auction-award-result-card rounded-[1.35rem] border-2 p-5 text-center ${
+                          awardPresentation.isComplete
+                            ? 'border-[#9FC7B8] bg-[#F8FCF6]'
+                            : 'border-[#D7E6DE] bg-white'
+                        }`}>
+                          <div className="text-[0.82rem] font-black text-[#006241]">
+                            {awardPresentation.isComplete ? '최종 낙찰 결과' : '현재 최고 입찰'}
+                          </div>
+                          <div className="mt-4 flex justify-center">
+                            <div
+                              key={`result-bidder-${awardPresentation.isComplete ? 'winner' : awardPresentation.currentIndex}`}
+                              className={`auction-award-current-chip inline-flex h-24 min-w-24 items-center justify-center rounded-full px-5 font-mono text-[2rem] font-black text-white shadow-[0_18px_34px_rgba(31,24,18,0.22)] ${
+                                awardPresentation.isComplete ? 'auction-award-winner-chip' : ''
+                              }`}
+                              style={getStudentLabelStyle(awardPresentation.isComplete
+                                ? awardPresentation.award.winner
+                                : activeStep?.bidder ?? awardPresentation.award.winner)}
+                            >
+                              {awardPresentation.isComplete
+                                ? `${awardPresentation.award.winner}번`
+                                : activeStep
+                                  ? `${activeStep.bidder}번`
+                                  : '-'}
+                            </div>
+                          </div>
+                          {awardPresentation.isComplete ? (
+                            <Trophy className="auction-award-trophy mx-auto mt-4 text-[#B2793A]" size={48} />
+                          ) : null}
+                          <div
+                            key={`result-price-${awardPresentation.isComplete ? 'final' : awardPresentation.currentIndex}`}
+                            className="auction-award-price mt-4 font-mono text-[2.35rem] font-black leading-tight text-[#006241]"
+                          >
+                            {awardPresentation.isComplete
+                              ? formatCurrency(awardPresentation.award.amount)
+                              : activeStep
+                                ? formatCurrency(activeStep.amount)
+                                : formatCurrency(0)}
+                          </div>
+                          <div className="mt-3 rounded-[1rem] border border-[#D7E6DE] bg-white px-4 py-3 text-[0.92rem] font-extrabold leading-6 text-[#6E5139]">
+                            {awardPresentation.isComplete
+                              ? `${awardPresentation.award.winner}번 학생에게 ${formatCurrency(awardPresentation.award.amount)}에 낙찰되었습니다.`
+                              : `${activeStep?.bidder ?? '-'}번 학생의 입찰가를 확인하고 있습니다.`}
+                          </div>
+                          {awardPresentation.isComplete ? (
+                            <button
+                              type="button"
+                              onClick={() => setAwardPresentation(null)}
+                              className="mt-5 inline-flex h-12 min-w-[8.5rem] items-center justify-center rounded-[0.95rem] bg-[#006241] px-6 text-[1rem] font-extrabold text-white shadow-[0_14px_24px_rgba(0,98,65,0.22)] transition-colors hover:bg-[#005336]"
+                            >
+                              확인
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })() : null}
+
+            {pendingAuctionReset ? (() => {
+              const resetCopy = {
+                items: {
+                  title: '물품을 초기화할까요?',
+                  body: '경매 물품이 월요일부터 금요일까지 각 1개씩 기본값으로 돌아갑니다.',
+                  action: '물품 초기화',
+                },
+                bids: {
+                  title: '입찰가를 초기화할까요?',
+                  body: '모든 물품의 현재 최고 입찰가, 입찰 기록, 낙찰 결과가 지워집니다.',
+                  action: '입찰가 초기화',
+                },
+                currency: {
+                  title: '보유 화폐를 초기화할까요?',
+                  body: '모든 학생의 보유 고마가 기본값으로 돌아갑니다.',
+                  action: '보유 화폐 초기화',
+                },
+              }[pendingAuctionReset];
+
+              return (
+                <div
+                  className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4"
+                  role="presentation"
+                  onClick={() => setPendingAuctionReset(null)}
+                >
+                  <div
+                    className="w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="auction-reset-confirm-title"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <h3 id="auction-reset-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
+                      {resetCopy.title}
+                    </h3>
+                    <p className="mt-2 text-[0.95rem] font-extrabold leading-6 text-[#6E5139]">
+                      {resetCopy.body}
+                    </p>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPendingAuctionReset(null)}
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={confirmAuctionReset}
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+                      >
+                        {resetCopy.action}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })() : null}
              
             {false && (
               <>

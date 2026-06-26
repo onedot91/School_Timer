@@ -1,0 +1,801 @@
+{
+  "version": 1,
+  "randomDraw": {
+    "cases": [
+      {
+        "id": "case-a",
+        "label": "전체",
+        "rangeEnd": 23,
+        "rangeStart": 1,
+        "studentNames": {
+          "1": "제현",
+          "2": "민재",
+          "3": "수환",
+          "4": "연아",
+          "5": "지원",
+          "6": "지윤",
+          "7": "원진",
+          "8": "준호",
+          "9": "서진",
+          "10": "유주",
+          "11": "하준",
+          "12": "가인",
+          "13": "서현",
+          "14": "승우",
+          "15": "시은",
+          "16": "민서",
+          "17": "하윤",
+          "18": "다윤",
+          "19": "은재",
+          "20": "선우",
+          "21": "수아",
+          "22": "태준",
+          "23": "지민"
+        },
+        "currentResult": 11,
+        "historyEntries": [
+          {
+            "id": "draw-7o7d50ax3",
+            "kind": "normal",
+            "number": 11
+          },
+          {
+            "id": "draw-3bmbavaho",
+            "kind": "normal",
+            "number": 23
+          },
+          {
+            "id": "draw-hpc20zx3i",
+            "kind": "normal",
+            "number": 13
+          },
+          {
+            "id": "draw-yud53ddeo",
+            "kind": "normal",
+            "number": 8
+          },
+          {
+            "id": "draw-dpuzqyfyd",
+            "kind": "normal",
+            "number": 22
+          },
+          {
+            "id": "draw-t00ontjzg",
+            "kind": "normal",
+            "number": 2
+          },
+          {
+            "id": "draw-lco4nx48b",
+            "kind": "normal",
+            "number": 18
+          },
+          {
+            "id": "draw-lqq5arcjs",
+            "kind": "normal",
+            "number": 4
+          },
+          {
+            "id": "draw-08by2x2ji",
+            "kind": "normal",
+            "number": 21
+          },
+          {
+            "id": "draw-m4z0hv2ez",
+            "kind": "normal",
+            "number": 16
+          },
+          {
+            "id": "draw-5mt5lspk3",
+            "kind": "repeat",
+            "number": 10,
+            "sourceEntryId": "draw-mhvg8jq5z"
+          },
+          {
+            "id": "draw-mhvg8jq5z",
+            "kind": "normal",
+            "number": 10
+          }
+        ],
+        "hiddenNumberQueue": []
+      },
+      {
+        "id": "case-5tcxah06",
+        "label": "모둠",
+        "rangeEnd": 6,
+        "rangeStart": 1,
+        "studentNames": {
+          "1": "1모둠",
+          "2": "2모둠",
+          "3": "3모둠",
+          "4": "4모둠",
+          "5": "5모둠",
+          "6": "6모둠"
+        },
+        "currentResult": 4,
+        "historyEntries": [
+          {
+            "id": "draw-2n65xf85c",
+            "kind": "normal",
+            "number": 4
+          }
+        ],
+        "hiddenNumberQueue": []
+      }
+    ],
+    "activeCaseId": "case-a",
+    "repeatPickEnabled": true
+  },
+  "auctionBids": {
+    "item-a": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-b": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-c": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-d": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-e": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-1-2": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-1-3": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-1-4": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-2-2": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-2-3": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-2-4": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-3-2": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-3-3": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-3-4": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-4-2": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-4-3": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-4-4": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-5-2": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-5-3": {
+      "amount": 0,
+      "bidder": null
+    },
+    "item-5-4": {
+      "amount": 0,
+      "bidder": null
+    }
+  },
+  "manualTimer": {
+    "isVisible": false,
+    "totalTime": 600
+  },
+  "auctionItems": [
+    {
+      "id": "item-a",
+      "name": "월요일 물품",
+      "dayIndex": 0,
+      "startPrice": 10
+    },
+    {
+      "id": "item-b",
+      "name": "화요일 물품",
+      "dayIndex": 1,
+      "startPrice": 10
+    },
+    {
+      "id": "item-c",
+      "name": "수요일 물품",
+      "dayIndex": 2,
+      "startPrice": 10
+    },
+    {
+      "id": "item-d",
+      "name": "목요일 물품",
+      "dayIndex": 3,
+      "startPrice": 10
+    }
+  ],
+  "auctionAwards": {
+    "item-a": null,
+    "item-b": null,
+    "item-c": null,
+    "item-d": null,
+    "item-e": null,
+    "item-1-2": null,
+    "item-1-3": null,
+    "item-1-4": null,
+    "item-2-2": null,
+    "item-2-3": null,
+    "item-2-4": null,
+    "item-3-2": null,
+    "item-3-3": null,
+    "item-3-4": null,
+    "item-4-2": null,
+    "item-4-3": null,
+    "item-4-4": null,
+    "item-5-2": null,
+    "item-5-3": null,
+    "item-5-4": null
+  },
+  "scheduleNotice": "",
+  "subjectCatalog": [
+    "국어",
+    "수학",
+    "사회",
+    "과학",
+    "영어",
+    "체육",
+    "음악",
+    "미술",
+    "실과",
+    "도덕",
+    "동아리"
+  ],
+  "weeklySchedule": {
+    "1": [
+      {
+        "id": "6f70e0fnt",
+        "end": 530,
+        "name": "아침활동",
+        "type": "morning",
+        "start": 500,
+        "subject": ""
+      },
+      {
+        "id": "z5umaei0u",
+        "end": 570,
+        "name": "1교시",
+        "type": "class",
+        "start": 530,
+        "subject": ""
+      },
+      {
+        "id": "a46dn2l5m",
+        "end": 580,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 570,
+        "subject": ""
+      },
+      {
+        "id": "becelia6q",
+        "end": 620,
+        "name": "2교시",
+        "type": "class",
+        "start": 580,
+        "subject": ""
+      },
+      {
+        "id": "1bzyl3j6s",
+        "end": 630,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 620,
+        "subject": ""
+      },
+      {
+        "id": "4niu62754",
+        "end": 670,
+        "name": "3교시",
+        "type": "class",
+        "start": 630,
+        "subject": ""
+      },
+      {
+        "id": "nvjp4j0j1",
+        "end": 680,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 670,
+        "subject": ""
+      },
+      {
+        "id": "bvlutfxls",
+        "end": 720,
+        "name": "4교시",
+        "type": "class",
+        "start": 680,
+        "subject": ""
+      },
+      {
+        "id": "4xu5ivcfa",
+        "end": 770,
+        "name": "점심시간",
+        "type": "lunch",
+        "start": 720,
+        "subject": ""
+      },
+      {
+        "id": "c7gq7codh",
+        "end": 810,
+        "name": "5교시",
+        "type": "class",
+        "start": 770,
+        "subject": ""
+      }
+    ],
+    "2": [
+      {
+        "id": "nvlgdq3sq",
+        "end": 530,
+        "name": "아침활동",
+        "type": "morning",
+        "start": 500,
+        "subject": ""
+      },
+      {
+        "id": "jhiwzx09i",
+        "end": 570,
+        "name": "1교시",
+        "type": "class",
+        "start": 530,
+        "subject": ""
+      },
+      {
+        "id": "4d37yy54u",
+        "end": 580,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 570,
+        "subject": ""
+      },
+      {
+        "id": "8xrwd1teu",
+        "end": 620,
+        "name": "2교시",
+        "type": "class",
+        "start": 580,
+        "subject": ""
+      },
+      {
+        "id": "yg8lmkrrf",
+        "end": 630,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 620,
+        "subject": ""
+      },
+      {
+        "id": "6d3se95ka",
+        "end": 670,
+        "name": "3교시",
+        "type": "class",
+        "start": 630,
+        "subject": ""
+      },
+      {
+        "id": "gcq90bnl2",
+        "end": 680,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 670,
+        "subject": ""
+      },
+      {
+        "id": "dvrpif4b4",
+        "end": 720,
+        "name": "4교시",
+        "type": "class",
+        "start": 680,
+        "subject": ""
+      },
+      {
+        "id": "phmzxjn9g",
+        "end": 770,
+        "name": "점심시간",
+        "type": "lunch",
+        "start": 720,
+        "subject": ""
+      },
+      {
+        "id": "si2w63wpy",
+        "end": 810,
+        "name": "5교시",
+        "type": "class",
+        "start": 770,
+        "subject": ""
+      },
+      {
+        "id": "2s8zmwlru",
+        "end": 820,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 810,
+        "subject": ""
+      },
+      {
+        "id": "fvkzt2jpr",
+        "end": 860,
+        "name": "방과후",
+        "type": "class",
+        "start": 820,
+        "subject": ""
+      }
+    ],
+    "3": [
+      {
+        "id": "w429ij4kd",
+        "end": 520,
+        "name": "아침활동",
+        "type": "morning",
+        "start": 500,
+        "subject": ""
+      },
+      {
+        "id": "h48fn4bof",
+        "end": 560,
+        "name": "1교시",
+        "type": "class",
+        "start": 520,
+        "subject": ""
+      },
+      {
+        "id": "41nw1nz98",
+        "end": 600,
+        "name": "2교시",
+        "type": "class",
+        "start": 560,
+        "subject": ""
+      },
+      {
+        "id": "r0lk9o2ld",
+        "end": 610,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 600,
+        "subject": ""
+      },
+      {
+        "id": "ewcnceuuh",
+        "end": 650,
+        "name": "3교시",
+        "type": "class",
+        "start": 610,
+        "subject": ""
+      },
+      {
+        "id": "zwvtj9djg",
+        "end": 690,
+        "name": "4교시",
+        "type": "class",
+        "start": 650,
+        "subject": ""
+      },
+      {
+        "id": "n03rlq530",
+        "end": 700,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 690,
+        "subject": ""
+      },
+      {
+        "id": "dzbyeapy9",
+        "end": 740,
+        "name": "5교시",
+        "type": "class",
+        "start": 700,
+        "subject": ""
+      },
+      {
+        "id": "tm0sp5hoi",
+        "end": 790,
+        "name": "점심시간",
+        "type": "lunch",
+        "start": 740,
+        "subject": ""
+      },
+      {
+        "id": "6diqe6tyv",
+        "end": 830,
+        "name": "6교시",
+        "type": "class",
+        "start": 790,
+        "subject": ""
+      }
+    ],
+    "4": [
+      {
+        "id": "urw530h52",
+        "end": 530,
+        "name": "아침활동",
+        "type": "morning",
+        "start": 500,
+        "subject": ""
+      },
+      {
+        "id": "d4mp8j9gy",
+        "end": 570,
+        "name": "1교시",
+        "type": "class",
+        "start": 530,
+        "subject": ""
+      },
+      {
+        "id": "2t2322u0f",
+        "end": 580,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 570,
+        "subject": ""
+      },
+      {
+        "id": "2wzqnbakb",
+        "end": 620,
+        "name": "2교시",
+        "type": "class",
+        "start": 580,
+        "subject": ""
+      },
+      {
+        "id": "25ms37r6a",
+        "end": 630,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 620,
+        "subject": ""
+      },
+      {
+        "id": "5pg5avmcb",
+        "end": 670,
+        "name": "3교시",
+        "type": "class",
+        "start": 630,
+        "subject": ""
+      },
+      {
+        "id": "4ja320xhc",
+        "end": 680,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 670,
+        "subject": ""
+      },
+      {
+        "id": "l4rhcssvz",
+        "end": 720,
+        "name": "4교시",
+        "type": "class",
+        "start": 680,
+        "subject": ""
+      },
+      {
+        "id": "f97i5jqg5",
+        "end": 770,
+        "name": "점심시간",
+        "type": "lunch",
+        "start": 720,
+        "subject": ""
+      },
+      {
+        "id": "5xxiz3n24",
+        "end": 810,
+        "name": "5교시",
+        "type": "class",
+        "start": 770,
+        "subject": ""
+      }
+    ],
+    "5": [
+      {
+        "id": "51s7sqdiq",
+        "end": 530,
+        "name": "아침활동",
+        "type": "morning",
+        "start": 500,
+        "subject": ""
+      },
+      {
+        "id": "3l97d0osq",
+        "end": 570,
+        "name": "1교시",
+        "type": "class",
+        "start": 530,
+        "subject": ""
+      },
+      {
+        "id": "rf4muj9n2",
+        "end": 580,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 570,
+        "subject": ""
+      },
+      {
+        "id": "5attfqtwu",
+        "end": 620,
+        "name": "2교시",
+        "type": "class",
+        "start": 580,
+        "subject": ""
+      },
+      {
+        "id": "wrgj5jfw8",
+        "end": 630,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 620,
+        "subject": ""
+      },
+      {
+        "id": "a5sc6o9gr",
+        "end": 670,
+        "name": "3교시",
+        "type": "class",
+        "start": 630,
+        "subject": ""
+      },
+      {
+        "id": "jmvtqk9us",
+        "end": 680,
+        "name": "쉬는 시간",
+        "type": "break",
+        "start": 670,
+        "subject": ""
+      },
+      {
+        "id": "twnop6qn7",
+        "end": 720,
+        "name": "4교시",
+        "type": "class",
+        "start": 680,
+        "subject": ""
+      },
+      {
+        "id": "9l2r89b3n",
+        "end": 770,
+        "name": "점심시간",
+        "type": "lunch",
+        "start": 720,
+        "subject": ""
+      },
+      {
+        "id": "1f8cuzclx",
+        "end": 810,
+        "name": "5교시",
+        "type": "class",
+        "start": 770,
+        "subject": ""
+      }
+    ]
+  },
+  "weeklySubjects": {
+    "2026-06-22": {
+      "3": {
+        "1": "현체",
+        "2": "현체",
+        "3": "현체",
+        "4": "현체",
+        "5": "현체",
+        "6": "국어"
+      },
+      "4": {
+        "1": "영어",
+        "2": "체육",
+        "3": "사회",
+        "4": "동아리",
+        "5": "동아리"
+      },
+      "5": {
+        "1": "수학",
+        "2": "국어",
+        "3": "미술",
+        "4": "미술",
+        "5": "음악"
+      }
+    }
+  },
+  "isNoticeEnabled": false,
+  "currencyBalances": {
+    "1": 100,
+    "2": 100,
+    "3": 95,
+    "4": 100,
+    "5": 100,
+    "6": 100,
+    "7": 100,
+    "8": 110,
+    "9": 100,
+    "10": 100,
+    "11": 100,
+    "12": 100,
+    "13": 100,
+    "14": 95,
+    "15": 100,
+    "16": 110,
+    "17": 95,
+    "18": 105,
+    "19": 100,
+    "20": 100,
+    "21": 100,
+    "22": 95,
+    "23": 100
+  },
+  "auctionBidHistory": {
+    "item-a": [],
+    "item-b": [],
+    "item-c": [],
+    "item-d": [],
+    "item-e": [],
+    "item-1-2": [],
+    "item-1-3": [],
+    "item-1-4": [],
+    "item-2-2": [],
+    "item-2-3": [],
+    "item-2-4": [],
+    "item-3-2": [],
+    "item-3-3": [],
+    "item-3-4": [],
+    "item-4-2": [],
+    "item-4-3": [],
+    "item-4-4": [],
+    "item-5-2": [],
+    "item-5-3": [],
+    "item-5-4": []
+  },
+  "scheduleYoutubeUrls": [],
+  "isScheduleYoutubeVisible": false,
+  "scheduleNoticeHighlights": [],
+  "scheduleYoutubeFavorites": [
+    {
+      "id": "youtube-favorite-mq4031fs-z5h5pw",
+      "name": "🎶",
+      "urls": [
+        "https://www.youtube.com/watch?v=tQl-xYFLu34"
+      ]
+    },
+    {
+      "id": "youtube-favorite-mqs1dv7h-2jo7vl",
+      "name": "뱅뱅",
+      "urls": [
+        "https://www.youtube.com/watch?v=1LpU_nXky40"
+      ],
+      "title": "IVE (아이브) &#39;Bang Bang&#39; (Color Coded Lyrics)",
+      "channelTitle": "Jaeguchi",
+      "thumbnailUrl": "https://i.ytimg.com/vi/1LpU_nXky40/mqdefault.jpg"
+    }
+  ],
+  "scheduleClockOffsetSeconds": 55
+}

@@ -3,6 +3,8 @@ export interface StudentCharacter {
   name: string;
   creatorName?: string;
   imageSrc: string;
+  speechImageSrc?: string;
+  speechImageAlt?: string;
   alt: string;
   themeColor?: string;
   speech?: string;
@@ -122,6 +124,20 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     },
   },
   {
+    id: 'student-9-heart',
+    name: '하트 자캐',
+    creatorName: '9번',
+    imageSrc: '/student-characters/character-9.png',
+    speechImageSrc: '/student-characters/character-9-speaking.png',
+    speechImageAlt: '말풍선이 있는 9번 하트 캐릭터',
+    alt: '9번 학생이 만든 하트 캐릭터',
+    themeColor: '#E23A3A',
+    walkTransform: {
+      right: 'none',
+      left: 'none',
+    },
+  },
+  {
     id: 'student-10-magic-bear',
     name: '마법 곰 자캐',
     creatorName: '10번',
@@ -161,11 +177,11 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     },
   },
   {
-    id: 'student-14-raongi',
+    id: 'student-22-raongi',
     name: '라옹이 자캐',
-    creatorName: '14번',
-    imageSrc: '/student-characters/character-14.png',
-    alt: '14번 학생이 만든 라옹이 캐릭터',
+    creatorName: '22번',
+    imageSrc: '/student-characters/character-22.png',
+    alt: '22번 학생이 만든 라옹이 캐릭터',
     themeColor: '#F4C21F',
     speech: '이건 라옹이야.',
     walkTransform: {
@@ -184,6 +200,19 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     walkTransform: {
       right: 'none',
       left: 'none',
+    },
+  },
+  {
+    id: 'student-16-melon-turtle',
+    name: '메론빵 거북이 자캐',
+    creatorName: '16번',
+    imageSrc: '/student-characters/character-16.png',
+    alt: '16번 학생이 만든 메론빵 거북이 캐릭터',
+    themeColor: '#74C947',
+    speech: '안녕 나는 메론빵 거북이야.',
+    walkTransform: {
+      right: 'rotate(90deg)',
+      left: 'rotate(-90deg)',
     },
   },
   {

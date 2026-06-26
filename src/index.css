@@ -80,6 +80,202 @@ select {
   font-family: var(--font-body);
 }
 
+@keyframes auctionAwardPulse {
+  0% {
+    transform: scale(0.86);
+    opacity: 0.65;
+    box-shadow: 0 0 0 rgba(0, 98, 65, 0);
+  }
+  50% {
+    transform: scale(1.16);
+    opacity: 1;
+    box-shadow: 0 12px 28px rgba(0, 98, 65, 0.16);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 rgba(0, 98, 65, 0);
+  }
+}
+
+@keyframes auctionAwardOrbitBeat {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.16);
+  }
+}
+
+@keyframes auctionAwardBidderPop {
+  0% {
+    scale: 1;
+  }
+  48% {
+    scale: 1.34;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+@keyframes auctionAwardHalo {
+  0% {
+    opacity: 0.78;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.28);
+  }
+}
+
+@keyframes auctionAwardWinner {
+  0% {
+    transform: scale(0.78) rotate(-8deg);
+  }
+  55% {
+    transform: scale(1.18) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes auctionAwardConfetti {
+  0% {
+    opacity: 0;
+    transform: translateY(-2rem) rotate(0deg);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(22rem) rotate(420deg);
+  }
+}
+
+@keyframes auctionBidFlowArrow {
+  0%,
+  100% {
+    transform: translateX(-3px);
+    box-shadow: 0 8px 18px rgba(0, 98, 65, 0.08);
+  }
+  50% {
+    transform: translateX(5px);
+    box-shadow: 0 12px 26px rgba(0, 98, 65, 0.2);
+  }
+}
+
+.auction-bid-flow-arrow {
+  animation: auctionBidFlowArrow 1.15s ease-in-out infinite;
+}
+
+.auction-award-arena {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0, 98, 65, 0.12), transparent 28%),
+    radial-gradient(circle at 20% 20%, rgba(178, 121, 58, 0.12), transparent 22%),
+    linear-gradient(180deg, #fbfff8 0%, #f1faf6 100%);
+}
+
+.auction-award-rings {
+  background:
+    radial-gradient(circle at center, transparent 0 18%, rgba(159, 199, 184, 0.4) 18.4% 18.8%, transparent 19.2% 31%, rgba(159, 199, 184, 0.28) 31.4% 31.8%, transparent 32.2% 44%, rgba(228, 215, 201, 0.42) 44.4% 44.8%, transparent 45.2%);
+  animation: auctionAwardOrbitBeat 1.44s ease-in-out infinite;
+}
+
+.auction-award-core-halo {
+  animation: auctionAwardHalo 1.15s ease-out infinite;
+}
+
+.auction-award-bidder {
+  transition: filter 240ms ease, opacity 240ms ease;
+}
+
+.auction-award-bidder-active {
+  animation: auctionAwardBidderPop 0.72s ease-in-out;
+  z-index: 8;
+}
+
+.auction-award-bidder-winner,
+.auction-award-winner-chip,
+.auction-award-trophy,
+.auction-award-final-price {
+  animation: auctionAwardWinner 0.72s cubic-bezier(0.2, 0.9, 0.2, 1.12);
+}
+
+.auction-award-confetti span {
+  position: absolute;
+  top: -1.2rem;
+  display: block;
+  width: 0.55rem;
+  height: 1rem;
+  border-radius: 999px;
+  opacity: 0;
+}
+
+.auction-award-stage-complete .auction-award-confetti span {
+  animation: auctionAwardConfetti 1.6s ease-out forwards;
+}
+
+.auction-award-progress-fill {
+  transition: width 420ms cubic-bezier(0.2, 0.85, 0.2, 1);
+}
+
+.auction-award-step-row {
+  position: relative;
+}
+
+.auction-award-step-row::before {
+  content: "";
+  position: absolute;
+  left: 1.85rem;
+  top: -0.65rem;
+  width: 0.18rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: #d7e6de;
+}
+
+.auction-award-step-row:first-child::before {
+  display: none;
+}
+
+.auction-award-result-card {
+  transition: border-color 320ms ease, background-color 320ms ease, transform 320ms ease;
+}
+
+.auction-award-stage-complete .auction-award-result-card {
+  transform: translateY(-0.18rem);
+}
+
+.auction-award-step-active,
+.auction-award-price,
+.auction-award-current-chip {
+  animation: auctionAwardPulse 0.72s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auction-award-rings,
+  .auction-award-core-halo,
+  .auction-award-bidder-active,
+  .auction-award-bidder-winner,
+  .auction-award-winner-chip,
+  .auction-award-trophy,
+  .auction-award-final-price,
+  .auction-award-stage-complete .auction-award-confetti span,
+  .auction-award-step-active,
+  .auction-award-price,
+  .auction-award-current-chip,
+  .auction-award-progress-fill,
+  .auction-bid-flow-arrow {
+    animation: none;
+    transition: none;
+  }
+}
+
 .mascot-app {
   position: relative;
   display: flex;
@@ -6263,7 +6459,7 @@ h3 {
 .timer-watch-face {
   position: absolute;
   inset: 56% auto auto 50%;
-  z-index: 3;
+  z-index: 45;
   width: min(40%, 17.5rem);
   aspect-ratio: 1.32 / 1;
   transform: translate(-50%, -50%);
@@ -6294,7 +6490,7 @@ h3 {
   position: absolute;
   left: 50%;
   top: 15%;
-  z-index: 8;
+  z-index: 45;
   display: flex;
   width: min(36vw, 36vh, 16.5rem);
   max-width: 48%;
@@ -6374,10 +6570,10 @@ h3 {
 .student-character-showcase {
   --student-character-accent: #7aa160;
   --student-character-image-transform: none;
-  --student-character-walk-start-top: 88vh;
-  --student-character-walk-mid-top-a: 86vh;
-  --student-character-walk-mid-top-b: 89vh;
-  --student-character-walk-end-top: 87vh;
+  --student-character-walk-start-top: 82vh;
+  --student-character-walk-mid-top-a: 80vh;
+  --student-character-walk-mid-top-b: 83vh;
+  --student-character-walk-end-top: 81vh;
   --student-character-walk-size: min(31vw, 33vh, 16rem);
   --student-character-walk-scale: 1;
   --student-character-walk-duration: 34s;
@@ -6387,7 +6583,7 @@ h3 {
   --student-character-walk-mid-x-a: 20vw;
   --student-character-walk-mid-x-b: 66vw;
   --student-character-walk-end: 118vw;
-  --student-character-ground-clearance: clamp(1.35rem, 4vh, 3rem);
+  --student-character-ground-clearance: clamp(2.25rem, 6vh, 4.75rem);
   --student-character-bob-duration: 780ms;
   --student-character-bob-lift: -0.42rem;
   --student-character-bob-tilt: 0.5deg;
