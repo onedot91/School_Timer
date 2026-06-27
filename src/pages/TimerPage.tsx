@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Coins, Copy, Download, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Coins, Copy, Download, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -47,6 +47,7 @@ import {
   type StudentCharacter,
 } from '../lib/studentCharacters';
 import {
+  AUCTION_DAY_ACCENTS,
   AUCTION_ITEM_IDS,
   AUCTION_MAX_ITEMS_PER_DAY,
   AUCTION_MAX_ITEM_COUNT,
@@ -7098,6 +7099,7 @@ export default function TimerPage() {
 
         <div className="auction-settings-day-list grid gap-3">
           {AUCTION_WEEKDAY_LABELS.map((weekdayLabel, dayIndex) => {
+            const accent = AUCTION_DAY_ACCENTS[dayIndex] ?? AUCTION_DAY_ACCENTS[0];
             const dayItems = auctionItems.filter((item) => item.dayIndex === dayIndex);
             const isDayPublic = dayIndex < auctionVisibleDayCount;
             const canAddDayItem =
@@ -7107,33 +7109,36 @@ export default function TimerPage() {
               <div
                 key={weekdayLabel}
                 className={`auction-settings-day-row grid gap-3 rounded-[1.25rem] border p-3 shadow-[0_10px_22px_rgba(31,24,18,0.045)] lg:grid-cols-[11.5rem_minmax(0,1fr)] ${
-                  isDayPublic ? 'border-[#D7E6DE] bg-white' : 'border-[#E5DFD8] bg-[#F7F3ED]'
+                  isDayPublic ? 'bg-white' : 'opacity-90'
                 }`}
+                style={{
+                  borderColor: accent.border,
+                  backgroundColor: isDayPublic ? '#FFFFFF' : accent.soft,
+                }}
               >
-                <div className="auction-settings-day-head flex min-h-[3.25rem] items-center justify-between gap-3 border-b border-[#E8EFEA] px-1 pb-3 lg:min-h-0 lg:flex-col lg:items-start lg:justify-center lg:border-b-0 lg:border-r lg:pb-0 lg:pr-3">
+                <div
+                  className="auction-settings-day-head flex min-h-[3.25rem] items-center justify-between gap-3 border-b px-1 pb-3 lg:min-h-0 lg:flex-col lg:items-start lg:justify-center lg:border-b-0 lg:border-r lg:pb-0 lg:pr-3"
+                  style={{ borderColor: accent.border }}
+                >
                   <div className="flex min-w-0 items-center gap-2.5 lg:w-full">
                     <span
                       aria-hidden="true"
-                      className={`h-8 w-1.5 shrink-0 rounded-full ${
-                        isDayPublic ? 'bg-[#007A57]' : 'bg-[#B5A89C]'
-                      }`}
+                      className="h-8 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: accent.chip }}
                     />
-                    <span className="section-title truncate text-[1.08rem] font-black text-[#1F2523]">
+                    <span
+                      className="section-title truncate text-[1.08rem] font-black"
+                      style={{ color: accent.chip }}
+                    >
                       {weekdayLabel}요일
-                    </span>
-                    <span className={`rounded-full border px-2 py-0.5 text-[0.68rem] font-black ${
-                      isDayPublic
-                        ? 'border-[#D7E6DE] bg-[#F6FBF8] text-[#007A57]'
-                        : 'border-[#E5DFD8] bg-white text-[#8A7A6B]'
-                    }`}>
-                      {isDayPublic ? '공개' : '비공개'}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => addAuctionItem(dayIndex)}
                     disabled={!canAddDayItem}
-                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#9FC7B8] bg-white px-3 text-[#007A57] transition-colors hover:bg-[#F6FBF8] disabled:cursor-not-allowed disabled:border-[#E5DFD8] disabled:bg-[#F4F0EA] disabled:text-[#8A7A6B] lg:w-full"
+                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border bg-white px-3 transition-colors disabled:cursor-not-allowed disabled:border-[#E5DFD8] disabled:bg-[#F4F0EA] disabled:text-[#8A7A6B] lg:w-full"
+                    style={canAddDayItem ? { borderColor: accent.border, color: accent.chip } : undefined}
                     aria-label={`${weekdayLabel}요일 물품 추가`}
                     title={`${weekdayLabel}요일 물품 추가`}
                   >
@@ -7144,7 +7149,10 @@ export default function TimerPage() {
 
                 <div className="auction-settings-item-grid grid gap-2">
                   {dayItems.length === 0 ? (
-                    <div className="auction-settings-empty w-full rounded-[1rem] border border-dashed border-[#D7E6DE] bg-white/80 px-3 py-4 text-center text-[0.82rem] font-black text-[#8A7A6B]">
+                    <div
+                      className="auction-settings-empty w-full rounded-[1rem] border border-dashed bg-white/80 px-3 py-4 text-center text-[0.82rem] font-black text-[#8A7A6B]"
+                      style={{ borderColor: accent.border }}
+                    >
                       물품 없음
                     </div>
                   ) : null}
@@ -7172,85 +7180,130 @@ export default function TimerPage() {
                         }}
                         className={`auction-item-card relative w-full rounded-[1rem] border p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] ${
                           isVisibleInSettings
-                            ? 'border-[#D7E6DE] bg-white'
-                            : 'border-[#E5DFD8] bg-[#F4F0EA] opacity-78'
+                            ? 'bg-white'
+                            : 'auction-item-card-locked opacity-90'
                         }`}
+                        style={{
+                          borderColor: accent.border,
+                          backgroundColor: isVisibleInSettings ? '#FFFFFF' : accent.soft,
+                        }}
                       >
-                        <div className="flex items-center gap-2">
-                          {isVisibleInSettings ? (
+                        {isVisibleInSettings ? (
+                          <>
+                            <div className="flex items-center gap-2">
                               <input
                                 value={itemDisplayName}
                                 onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
-                                className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border border-[#D7E6DE] bg-[#FAFCFB] px-3 text-[1rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:border-[#007A57] focus:bg-white"
+                                className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border bg-[#FAFCFB] px-3 text-[1rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:bg-white"
+                                style={{ borderColor: accent.border }}
                                 aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 이름`}
                                 placeholder="물품 이름"
                               />
-                          ) : (
-                            <div className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border border-[#E3DED7] bg-white/78 px-3 py-2.5 text-[1rem] font-black leading-tight text-[#8A7A6B]">
-                              비공개
+                              <button
+                                type="button"
+                                onClick={() => removeAuctionItem(item.id)}
+                                disabled={!canRemoveItem}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-[#6E5139] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B5A89C]"
+                                style={{ borderColor: accent.border, color: canRemoveItem ? accent.chip : '#B5A89C' }}
+                                aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
+                                title={canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                              {!isPublic && isTemporarilyVisible ? (
+                                <span className="absolute right-3 top-[-0.55rem] rounded-full bg-white px-2 py-0.5 text-[0.58rem] font-black text-[#006241] shadow-sm">
+                                  임시 공개
+                                </span>
+                              ) : null}
                             </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeAuctionItem(item.id)}
-                            disabled={!canRemoveItem}
-                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E4D7C9] bg-[#FFFDF8] text-[#6E5139] transition-colors hover:bg-[#FFF7EC] disabled:cursor-not-allowed disabled:bg-[#F4F0EA] disabled:text-[#B5A89C]"
-                            aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
-                            title={canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                          {!isPublic && isTemporarilyVisible ? (
-                            <span className="absolute right-3 top-[-0.55rem] rounded-full bg-white px-2 py-0.5 text-[0.58rem] font-black text-[#006241] shadow-sm">
-                              임시 공개
-                            </span>
-                          ) : null}
-                        </div>
 
-                        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_5rem] items-center gap-2">
-                          <div className="flex min-h-10 items-center justify-between gap-2 rounded-[0.85rem] border border-[#E5ECE8] bg-[#FAFCFB] px-3 py-1.5">
-                            {award && isVisibleInSettings ? (
-                              <span
-                                className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.74rem] font-black text-white"
-                                style={getStudentLabelStyle(award.winner)}
+                            <div className="mt-2 grid grid-cols-[minmax(0,1fr)_5rem] items-center gap-2">
+                              <div
+                                className="flex min-h-10 items-center justify-between gap-2 rounded-[0.85rem] border bg-[#FAFCFB] px-3 py-1.5"
+                                style={{ borderColor: accent.border }}
                               >
-                                {award.winner}번
-                              </span>
-                            ) : currentBid.bidder && isVisibleInSettings ? (
-                              <span
-                                className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.74rem] font-black text-white"
-                                style={getStudentLabelStyle(currentBid.bidder)}
+                                {award ? (
+                                  <span
+                                    className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.74rem] font-black text-white"
+                                    style={getStudentLabelStyle(award.winner)}
+                                  >
+                                    {award.winner}번
+                                  </span>
+                                ) : currentBid.bidder ? (
+                                  <span
+                                    className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.74rem] font-black text-white"
+                                    style={getStudentLabelStyle(currentBid.bidder)}
+                                  >
+                                    {currentBid.bidder}번
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-[#EEF4F0] px-2.5 text-[0.72rem] font-black text-[#6E7A72]">
+                                    대기
+                                  </span>
+                                )}
+                                <div
+                                  className="min-w-0 flex-1 whitespace-nowrap text-right font-mono text-[1rem] font-black leading-none"
+                                  style={{ color: accent.chip }}
+                                >
+                                  {award ? formatCurrency(award.amount) : formatCurrency(currentBid.amount)}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => openAwardConfirm(item)}
+                                disabled={!canAward}
+                                className={`inline-flex min-h-10 items-center justify-center rounded-[0.85rem] border px-2 text-[0.8rem] font-extrabold transition-colors ${
+                                  award
+                                    ? 'cursor-default bg-white'
+                                    : canAward
+                                      ? 'text-white'
+                                      : 'cursor-not-allowed bg-white/72'
+                                }`}
+                                style={{
+                                  borderColor: accent.border,
+                                  backgroundColor: canAward ? accent.chip : undefined,
+                                  color: canAward ? '#FFFFFF' : award ? accent.chip : '#8A7A6B',
+                                }}
                               >
-                                {currentBid.bidder}번
-                              </span>
-                            ) : (
-                              <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-[#EEF4F0] px-2.5 text-[0.72rem] font-black text-[#6E7A72]">
-                                {isVisibleInSettings ? '대기' : '비공개'}
-                              </span>
-                            )}
-                            <div className="min-w-0 flex-1 whitespace-nowrap text-right font-mono text-[1rem] font-black leading-none text-[#007A57]">
-                              {isVisibleInSettings
-                                ? award
-                                  ? formatCurrency(award.amount)
-                                  : formatCurrency(currentBid.amount)
-                                : '???'}
+                                {award ? '완료' : canAward ? '낙찰' : '없음'}
+                              </button>
                             </div>
+                          </>
+                        ) : (
+                          <div className="flex items-start gap-2">
+                            <div className="relative min-h-[4.55rem] flex-1 overflow-hidden rounded-[0.85rem] border border-[#E6EEE9] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                              <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent.chip }} />
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="mb-3 flex items-center gap-2">
+                                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#18211E] text-white shadow-[0_8px_16px_rgba(28,45,40,0.16)]">
+                                      <Lock size={17} color="#FFFFFF" strokeWidth={3.4} />
+                                    </span>
+                                    <span className="h-7 w-12 rounded-full border border-[#DDE8E2] bg-[#F7FAF8]" />
+                                  </div>
+                                  <div className="grid gap-1.5">
+                                    <span className="h-3 w-4/5 rounded-full bg-[#DCE6E0]" />
+                                    <span className="h-3 w-3/5 rounded-full bg-[#E9EFEA]" />
+                                  </div>
+                                </div>
+                                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[0.9rem] border border-[#DDE8E2] bg-[#F7FAF8] text-[#8EA099]">
+                                  <Sparkles size={18} />
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeAuctionItem(item.id)}
+                              disabled={!canRemoveItem}
+                              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-[#6E5139] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B5A89C]"
+                              style={{ borderColor: accent.border, color: canRemoveItem ? accent.chip : '#B5A89C' }}
+                              aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
+                              title={canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => openAwardConfirm(item)}
-                            disabled={!canAward}
-                            className={`inline-flex min-h-10 items-center justify-center rounded-[0.85rem] border px-2 text-[0.8rem] font-extrabold transition-colors ${
-                              award
-                                ? 'cursor-default border-[#D7E6DE] bg-[#F8FCF6] text-[#006241]'
-                                : canAward
-                                  ? 'border-[#006241] bg-[#006241] text-white hover:bg-[#005336]'
-                                  : 'cursor-not-allowed border-[#D7E6DE] bg-[#F4F0EA] text-[#8A7A6B]'
-                            }`}
-                          >
-                            {award ? '완료' : canAward ? '낙찰' : '없음'}
-                          </button>
-                        </div>
+                        )}
                       </div>
                     );
                   })}

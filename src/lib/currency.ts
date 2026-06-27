@@ -40,6 +40,13 @@ export const CURRENCY_UNIT_LABEL = '고마';
 export const AUCTION_BID_STEP = 5;
 export const AUCTION_WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 export const AUCTION_WEEKDAY_NAMES = ['월요일', '화요일', '수요일', '목요일', '금요일'];
+export const AUCTION_DAY_ACCENTS = [
+  { border: '#9CCDBE', soft: '#F6FBF8', chip: '#007A57' },
+  { border: '#E1C38F', soft: '#FFFBF3', chip: '#9A6418' },
+  { border: '#9CCFDA', soft: '#F6FCFD', chip: '#1C7D88' },
+  { border: '#BFADE0', soft: '#FBF9FE', chip: '#6A4B9B' },
+  { border: '#E3AAA5', soft: '#FFFAF9', chip: '#A34F45' },
+] as const;
 export const DEFAULT_AUCTION_ITEM_COUNT = AUCTION_WEEKDAY_LABELS.length;
 export const AUCTION_MAX_ITEMS_PER_DAY = 4;
 export const AUCTION_MAX_ITEM_COUNT = 20;

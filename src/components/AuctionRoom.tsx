@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Coins, Lock, Sparkles, Trophy } from 'lucide-react';
 import {
+  AUCTION_DAY_ACCENTS,
   AUCTION_WEEKDAY_LABELS,
   formatCurrency,
   getAuctionItemDisplayName,
@@ -9,14 +10,6 @@ import {
   type AuctionBids,
   type AuctionItem,
 } from '../lib/currency';
-
-const AUCTION_DAY_ACCENTS = [
-  { border: '#9CCDBE', soft: '#F6FBF8', chip: '#007A57' },
-  { border: '#E1C38F', soft: '#FFFBF3', chip: '#9A6418' },
-  { border: '#9CCFDA', soft: '#F6FCFD', chip: '#1C7D88' },
-  { border: '#BFADE0', soft: '#FBF9FE', chip: '#6A4B9B' },
-  { border: '#E3AAA5', soft: '#FFFAF9', chip: '#A34F45' },
-];
 
 interface AuctionRoomProps {
   auctionItems: AuctionItem[];
@@ -86,33 +79,33 @@ export default function AuctionRoom({
             오늘의 경매
           </h1>
         </div>
-        <div className={`grid grid-cols-2 gap-2 ${isCompact ? 'sm:w-[17.5rem]' : 'sm:w-[21rem]'}`}>
-          <div className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[1rem] border border-[#DCE7E1] bg-[#FAFCFB] text-[#007A57] ${
-            isCompact ? 'px-2.5 py-2' : 'px-3 py-2.5'
+        <div className={`grid grid-cols-2 gap-2 ${isCompact ? 'sm:w-[17.5rem]' : 'sm:w-[25rem]'}`}>
+          <div className={`grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#F2FBF7] text-[#007A57] ${
+            isCompact ? 'gap-3 px-2.5 py-2' : 'gap-3.5 px-4 py-3.5 shadow-[0_14px_28px_rgba(0,122,87,0.12)]'
           }`}>
-            <span className={`inline-flex items-center justify-center rounded-[0.75rem] bg-white ring-1 ring-[#DCE7E1] ${
-              isCompact ? 'h-8 w-8' : 'h-9 w-9'
+            <span className={`inline-flex items-center justify-center rounded-[0.8rem] bg-white ring-2 ring-[#CFE7DD] ${
+              isCompact ? 'h-8 w-8' : 'h-11 w-11 shadow-sm'
             }`}>
-              <Coins size={isCompact ? 16 : 18} />
+              <Coins size={isCompact ? 16 : 22} strokeWidth={2.8} />
             </span>
             <div className="min-w-0">
-              <div className="text-[0.7rem] font-black leading-none text-[#007A57]">사용 가능</div>
-              <div className={`mt-1 font-mono font-black leading-tight text-[#1F2523] ${isCompact ? 'text-[0.95rem]' : 'text-[1.08rem]'}`}>
+              <div className={`font-black leading-none text-[#007A57] ${isCompact ? 'text-[0.7rem]' : 'text-[0.82rem]'}`}>사용 가능</div>
+              <div className={`mt-1 font-mono font-black leading-tight text-[#18211E] ${isCompact ? 'text-[0.95rem]' : 'text-[1.35rem]'}`}>
                 {isLoading ? '...' : formatCurrency(availableBalance)}
               </div>
             </div>
           </div>
-          <div className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[1rem] border border-[#E6DED3] bg-[#FFFDF9] text-[#8A5A1F] ${
-            isCompact ? 'px-2.5 py-2' : 'px-3 py-2.5'
+          <div className={`grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#E1C38F] bg-[#FFFAF1] text-[#8A5A1F] ${
+            isCompact ? 'gap-3 px-2.5 py-2' : 'gap-3.5 px-4 py-3.5 shadow-[0_14px_28px_rgba(154,100,24,0.12)]'
           }`}>
-            <span className={`inline-flex items-center justify-center rounded-[0.75rem] bg-white ring-1 ring-[#E6DED3] ${
-              isCompact ? 'h-8 w-8' : 'h-9 w-9'
+            <span className={`inline-flex items-center justify-center rounded-[0.8rem] bg-white ring-2 ring-[#EBD9BC] ${
+              isCompact ? 'h-8 w-8' : 'h-11 w-11 shadow-sm'
             }`}>
-              <Trophy size={isCompact ? 16 : 18} />
+              <Trophy size={isCompact ? 16 : 22} strokeWidth={2.8} />
             </span>
             <div className="min-w-0">
-              <div className="text-[0.7rem] font-black leading-none text-[#8A5A1F]">예약</div>
-              <div className={`mt-1 font-mono font-black leading-tight text-[#1F2523] ${isCompact ? 'text-[0.95rem]' : 'text-[1.08rem]'}`}>
+              <div className={`font-black leading-none text-[#8A5A1F] ${isCompact ? 'text-[0.7rem]' : 'text-[0.82rem]'}`}>예약</div>
+              <div className={`mt-1 font-mono font-black leading-tight text-[#18211E] ${isCompact ? 'text-[0.95rem]' : 'text-[1.35rem]'}`}>
                 {formatCurrency(reservedAmount)}
               </div>
             </div>
@@ -131,11 +124,11 @@ export default function AuctionRoom({
               key={weekdayLabel}
               className={`overflow-hidden border bg-white shadow-[0_10px_24px_rgba(28,45,40,0.045)] ${
                 isCompact ? 'rounded-[1rem]' : 'rounded-[1.2rem]'
-              } ${isDayUnlocked ? '' : 'opacity-78'}`}
+              } ${isDayUnlocked ? '' : 'opacity-90'}`}
               style={{ borderColor: '#E4E9E6' }}
             >
               <div
-                className={`flex items-center justify-between gap-2 border-b bg-white px-3 ${
+                className={`flex items-center gap-2 border-b bg-white px-3 ${
                   isCompact ? 'min-h-[2.75rem] py-2' : 'min-h-[3.1rem] py-2.5'
                 }`}
                 style={{ borderColor: '#EEF2EF' }}
@@ -151,11 +144,6 @@ export default function AuctionRoom({
                     {weekdayLabel}요일
                   </div>
                 </div>
-                <span className={`rounded-full border border-[#E5ECE8] bg-[#FAFCFB] px-2 py-0.5 text-[0.62rem] font-black ${
-                  isDayUnlocked ? 'text-[#007A57]' : 'text-[#8A7A6B]'
-                }`}>
-                  {isDayUnlocked ? '공개' : '비공개'}
-                </span>
               </div>
 
               <div className={`grid ${
@@ -179,7 +167,7 @@ export default function AuctionRoom({
                       className={`auction-item-card group relative overflow-hidden border text-left transition-all ${
                         isUnlocked
                           ? 'bg-white hover:-translate-y-0.5'
-                          : 'cursor-not-allowed border-[#E5DFD8] bg-[#F4F0EA]'
+                          : 'auction-item-card-locked cursor-not-allowed border-[#E3EBE6] bg-[#F8FAF8]'
                       } ${isCompact ? 'rounded-[0.95rem] p-3' : 'rounded-[1.05rem] p-3.5'}`}
                       style={
                         isUnlocked
@@ -193,21 +181,36 @@ export default function AuctionRoom({
                           : undefined
                       }
                     >
-                      <div className="relative">
+                      {isUnlocked ? (
                         <div className="min-w-0">
                           <div className={`section-title truncate font-black leading-tight text-[#18211E] ${
                             isCompact ? 'text-[0.98rem]' : 'text-[1.1rem]'
                           }`}>
-                            {isUnlocked ? itemDisplayName : '비공개'}
+                            {itemDisplayName}
                           </div>
                         </div>
-                        {!isUnlocked ? (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-[0.85rem] bg-[#18211E]/54 text-white backdrop-blur-[2px]">
-                            <Lock size={24} />
-                            <span className="mt-1 font-black">비공개</span>
+                      ) : (
+                        <div className="relative min-h-[4.55rem] overflow-hidden rounded-[0.85rem] border border-[#E6EEE9] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                          <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent.chip }} />
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-3 flex items-center gap-2">
+                                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#18211E] text-white shadow-[0_8px_16px_rgba(28,45,40,0.16)]">
+                                  <Lock size={17} color="#FFFFFF" strokeWidth={3.4} />
+                                </span>
+                                <span className="h-7 w-12 rounded-full border border-[#DDE8E2] bg-[#F7FAF8]" />
+                              </div>
+                              <div className="grid gap-1.5">
+                                <span className="h-3 w-4/5 rounded-full bg-[#DCE6E0]" />
+                                <span className="h-3 w-3/5 rounded-full bg-[#E9EFEA]" />
+                              </div>
+                            </div>
+                            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[0.9rem] border border-[#DDE8E2] bg-[#F7FAF8] text-[#8EA099]">
+                              <Sparkles size={18} />
+                            </div>
                           </div>
-                        ) : null}
-                      </div>
+                        </div>
+                      )}
 
                       <div className={`mt-4 flex items-end justify-between gap-2 border-t border-[#EDF2EF] ${
                         isCompact ? 'pt-2.5' : 'pt-3.5'
@@ -240,7 +243,7 @@ export default function AuctionRoom({
                             ? award
                               ? formatCurrency(award.amount)
                               : formatCurrency(currentBid.amount)
-                            : '???'}
+                            : null}
                         </div>
                       </div>
                     </button>
