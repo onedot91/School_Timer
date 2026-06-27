@@ -3190,6 +3190,7 @@ export default function TimerPage() {
   const [activeScheduleYoutubeIndex, setActiveScheduleYoutubeIndex] = useState(0);
   const [scheduleYoutubeSelectionRequestId, setScheduleYoutubeSelectionRequestId] = useState(0);
   const [isScheduleYoutubePlaylistOpen, setIsScheduleYoutubePlaylistOpen] = useState(false);
+  const [isScheduleYoutubeFavoritesEditing, setIsScheduleYoutubeFavoritesEditing] = useState(false);
   const [scheduleClockOffsetSeconds, setScheduleClockOffsetSeconds] = useState(() => {
     const saved = localStorage.getItem('scheduleClockOffsetSeconds');
     return saved === null ? 0 : clampScheduleClockOffsetSeconds(saved);
@@ -5197,6 +5198,12 @@ export default function TimerPage() {
     }
   };
 
+  const closeScheduleYoutubeSearch = () => {
+    setYoutubeSearchInput('');
+    setYoutubeSearchResults([]);
+    setYoutubeSearchError('');
+  };
+
   const addScheduleYoutubeSearchResult = (result: ScheduleYoutubeSearchResult) => {
     const nextUrl = buildScheduleYoutubeWatchUrl(result.id);
     const nextUrls = mergeScheduleYoutubeUrls(scheduleYoutubeUrls, [nextUrl]);
@@ -5244,7 +5251,28 @@ export default function TimerPage() {
   };
 
   const removeScheduleYoutubeFavorite = (favoriteId: string) => {
-    setScheduleYoutubeFavorites((previous) => previous.filter((favorite) => favorite.id !== favoriteId));
+    setScheduleYoutubeFavorites((previous) => {
+      const nextFavorites = previous.filter((favorite) => favorite.id !== favoriteId);
+      if (nextFavorites.length === 0) {
+        setIsScheduleYoutubeFavoritesEditing(false);
+      }
+      return nextFavorites;
+    });
+  };
+
+  const moveScheduleYoutubeFavorite = (favoriteId: string, direction: -1 | 1) => {
+    setScheduleYoutubeFavorites((previous) => {
+      const currentIndex = previous.findIndex((favorite) => favorite.id === favoriteId);
+      const nextIndex = currentIndex + direction;
+
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= previous.length) {
+        return previous;
+      }
+
+      const nextFavorites = [...previous];
+      [nextFavorites[currentIndex], nextFavorites[nextIndex]] = [nextFavorites[nextIndex], nextFavorites[currentIndex]];
+      return nextFavorites;
+    });
   };
 
   const updateScheduleYoutubeFavoriteName = (favoriteId: string, nextName: string) => {
@@ -8252,49 +8280,85 @@ export default function TimerPage() {
                 >
                   <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     {hasScheduleYoutubeFavorites ? (
-                      <div className="mb-3 grid max-h-[4.75rem] grid-cols-3 gap-1.5 overflow-y-auto pr-1">
-                        {scheduleYoutubeFavorites.map((favorite) => (
-                          <div
-                            key={favorite.id}
-                            className="group flex h-8 min-w-0 items-center gap-1 rounded-full border border-[#D7E2D1] bg-[#FFFDF8] px-1.5 transition-colors hover:border-[#BFD4B2] hover:bg-[#F8FCF6]"
+                      <div className="mb-3">
+                        <div className="mb-1.5 flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setIsScheduleYoutubeFavoritesEditing((previous) => !previous)}
+                            className={`inline-flex h-7 items-center justify-center rounded-full border px-3 text-[0.68rem] font-extrabold transition-colors ${
+                              isScheduleYoutubeFavoritesEditing
+                                ? 'border-[#8DBEA8] bg-[#EAF6F0] text-[#28634D]'
+                                : 'border-[#D7E2D1] bg-[#FFFDF8] text-[#8A6347] hover:bg-[#F8FCF6]'
+                            }`}
+                            aria-pressed={isScheduleYoutubeFavoritesEditing}
                           >
-                            <button
-                              type="button"
-                              onClick={() => addScheduleYoutubeFavoriteToPlaylist(favorite)}
-                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#C99245] transition-colors hover:bg-[#FFF2E3]"
-                              title={`${favorite.name} 재생목록 추가`}
-                              aria-label={`${favorite.name} 재생목록 추가`}
+                            {isScheduleYoutubeFavoritesEditing ? '완료' : '편집'}
+                          </button>
+                        </div>
+                        <div
+                          className={`grid max-h-[4.75rem] gap-1.5 overflow-y-auto pr-1 ${
+                            isScheduleYoutubeFavoritesEditing ? 'grid-cols-2' : 'grid-cols-3'
+                          }`}
+                        >
+                          {scheduleYoutubeFavorites.map((favorite, index) => (
+                            <div
+                              key={favorite.id}
+                              className={`group flex min-w-0 items-center gap-1 rounded-full border border-[#D7E2D1] bg-[#FFFDF8] transition-colors hover:border-[#BFD4B2] hover:bg-[#F8FCF6] ${
+                                isScheduleYoutubeFavoritesEditing ? 'h-9 px-1.5' : 'h-8 px-2'
+                              }`}
                             >
-                              <Star size={12} className="shrink-0 fill-current text-[#C99245]" />
-                            </button>
-                            <input
-                              type="text"
-                              value={favorite.name}
-                              onChange={(event) => updateScheduleYoutubeFavoriteName(favorite.id, event.target.value)}
-                              onBlur={() => normalizeScheduleYoutubeFavoriteName(favorite.id)}
-                              onFocus={(event) => event.currentTarget.select()}
-                              onKeyDown={(event) => {
-                                if (event.key !== 'Enter') return;
-                                event.preventDefault();
-                                normalizeScheduleYoutubeFavoriteName(favorite.id);
-                                event.currentTarget.blur();
-                              }}
-                              className="min-w-0 flex-1 bg-transparent text-[0.68rem] font-extrabold text-[#6E5139] outline-none placeholder:text-[#A98261]/70"
-                              placeholder="이름"
-                              aria-label={`${favorite.name || '즐겨찾기'} 이름 수정`}
-                              title="즐겨찾기 이름 수정"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeScheduleYoutubeFavorite(favorite.id)}
-                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#A98261] transition-colors hover:bg-[#FFF2E3] hover:text-[#C7684A]"
-                              title={`${favorite.name} 삭제`}
-                              aria-label={`${favorite.name} 삭제`}
-                            >
-                              <Trash2 size={11} />
-                            </button>
-                          </div>
-                        ))}
+                              {isScheduleYoutubeFavoritesEditing ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveScheduleYoutubeFavorite(favorite.id, -1)}
+                                    disabled={index === 0}
+                                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF2E3] disabled:cursor-not-allowed disabled:opacity-30"
+                                    title={`${favorite.name} 왼쪽으로 이동`}
+                                    aria-label={`${favorite.name} 왼쪽으로 이동`}
+                                  >
+                                    <ChevronLeft size={13} />
+                                  </button>
+                                  <span
+                                    className="min-w-0 flex-1 truncate px-0.5 text-[0.68rem] font-extrabold text-[#6E5139]"
+                                    title={favorite.name || '이름 없음'}
+                                  >
+                                    {favorite.name || '이름 없음'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveScheduleYoutubeFavorite(favorite.id, 1)}
+                                    disabled={index === scheduleYoutubeFavorites.length - 1}
+                                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF2E3] disabled:cursor-not-allowed disabled:opacity-30"
+                                    title={`${favorite.name} 오른쪽으로 이동`}
+                                    aria-label={`${favorite.name} 오른쪽으로 이동`}
+                                  >
+                                    <ChevronRight size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeScheduleYoutubeFavorite(favorite.id)}
+                                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#A98261] transition-colors hover:bg-[#FFF2E3] hover:text-[#C7684A]"
+                                    title={`${favorite.name} 삭제`}
+                                    aria-label={`${favorite.name} 삭제`}
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => addScheduleYoutubeFavoriteToPlaylist(favorite)}
+                                  className="min-w-0 flex-1 truncate rounded-full px-1 text-left text-[0.68rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF2E3]"
+                                  title={`${favorite.name} 재생목록 추가`}
+                                  aria-label={`${favorite.name} 재생목록 추가`}
+                                >
+                                  {favorite.name || '이름 없음'}
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ) : null}
                     <div className="mb-3 rounded-[1rem] border border-[#D7E2D1] bg-[#F8FCF6] p-2.5">
@@ -8306,7 +8370,7 @@ export default function TimerPage() {
                           />
                           <input
                             ref={youtubeSearchInputRef}
-                            type="search"
+                            type="text"
                             value={youtubeSearchInput}
                             onChange={(event) => {
                               setYoutubeSearchInput(event.target.value);
@@ -8319,10 +8383,21 @@ export default function TimerPage() {
                               event.preventDefault();
                               void searchScheduleYoutubeVideos();
                             }}
-                            className="time-input w-full rounded-[0.85rem] border border-[#D7E2D1] bg-white py-2 pl-8 pr-3 text-[0.82rem] font-bold text-[#3F2B20] outline-none transition-colors focus:border-[#8DBEA8]"
+                            className="time-input w-full rounded-[0.85rem] border border-[#D7E2D1] bg-white py-2 pl-8 pr-9 text-[0.82rem] font-bold text-[#3F2B20] outline-none transition-colors focus:border-[#8DBEA8]"
                             placeholder="YouTube 검색"
                             aria-label="YouTube 검색어"
                           />
+                          {youtubeSearchInput || youtubeSearchResults.length > 0 || youtubeSearchError ? (
+                            <button
+                              type="button"
+                              onClick={closeScheduleYoutubeSearch}
+                              className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF7EC] hover:text-[#C7684A]"
+                              title="검색 닫기"
+                              aria-label="검색 닫기"
+                            >
+                              <X size={13} />
+                            </button>
+                          ) : null}
                         </div>
                         <button
                           type="button"
