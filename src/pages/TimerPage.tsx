@@ -1764,6 +1764,7 @@ function AnnouncementNotebookOverlay({
   const noteDisplayRef = useRef<HTMLDivElement>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const hasRestoredRef = useRef(false);
+  const hasEditedNoteTextRef = useRef(false);
   const remoteLoadTokenRef = useRef(0);
   const remoteSaveTimeoutRef = useRef<number | null>(null);
   const [noteRuleGapPx, setNoteRuleGapPx] = useState(104);
@@ -1893,6 +1894,7 @@ function AnnouncementNotebookOverlay({
   };
 
   const handleNoteTextChange = (nextText: string) => {
+    hasEditedNoteTextRef.current = true;
     setPendingNoteHighlightRange(null);
     setNoteText(nextText);
   };
@@ -1990,6 +1992,7 @@ function AnnouncementNotebookOverlay({
     const nextText = `${before}${ANNOUNCEMENT_SAFETY_PHRASE}${after}`;
     const cursorPosition = before.length + ANNOUNCEMENT_SAFETY_PHRASE.length;
 
+    hasEditedNoteTextRef.current = true;
     setNoteText(nextText);
     void playAnnouncementSound('pop');
 
@@ -2010,6 +2013,7 @@ function AnnouncementNotebookOverlay({
     const nextText = `${noteText.slice(0, selectionStart)}\n${noteText.slice(selectionEnd)}`;
     const cursorPosition = selectionStart + 1;
 
+    hasEditedNoteTextRef.current = true;
     setNoteText(nextText);
 
     window.requestAnimationFrame(() => {
@@ -2072,6 +2076,7 @@ function AnnouncementNotebookOverlay({
 
   const selectAnnouncementHistoryRecord = (record: AnnouncementNoteRecord) => {
     const nextDateText = normalizeAnnouncementDateText(record.date_text || record.date_key);
+    hasEditedNoteTextRef.current = false;
     setDateText(nextDateText);
     setNoteText(record.note);
     setRemoteLoadedDateKey(record.date_key);
@@ -2141,6 +2146,7 @@ function AnnouncementNotebookOverlay({
     if (currentAnnouncementDateKey === todayAnnouncementDateKey) return;
 
     setDateText(getTodayAnnouncementDateText());
+    hasEditedNoteTextRef.current = false;
     setNoteText('');
     setRemoteLoadedDateKey(isSupabaseSettingsEnabled ? null : todayAnnouncementDateKey);
     setAnnouncementSaveState(isSupabaseSettingsEnabled ? 'idle' : 'saved');
@@ -2167,8 +2173,11 @@ function AnnouncementNotebookOverlay({
         if (remoteLoadTokenRef.current !== loadToken) return;
 
         if (record) {
-          setDateText(normalizeAnnouncementDateText(record.date_text || record.date_key));
-          setNoteText(record.note);
+          const nextDateText = normalizeAnnouncementDateText(record.date_text || record.date_key);
+          setDateText(nextDateText);
+          if (!hasEditedNoteTextRef.current) {
+            setNoteText(record.note);
+          }
         }
 
         setRemoteLoadedDateKey(dateKey);
@@ -2356,7 +2365,11 @@ function AnnouncementNotebookOverlay({
                     value={noteText}
                     onChange={(event) => handleNoteTextChange(event.target.value)}
                     onKeyDown={handleNoteTextareaKeyDown}
-                    onKeyUp={applyNoteSelectionHighlight}
+                    onKeyUp={(event) => {
+                      if (!event.nativeEvent.isComposing) {
+                        applyNoteSelectionHighlight();
+                      }
+                    }}
                     onMouseUp={applyNoteSelectionHighlight}
                     onTouchEnd={applyNoteSelectionHighlight}
                     onScroll={syncNoteDisplayScroll}
@@ -3544,10 +3557,12 @@ export default function TimerPage() {
     setWeeklySchedule(remoteSettings.weeklySchedule);
     setWeeklySubjects(normalizeWeeklySubjects(remoteSettings.weeklySubjects));
     setSubjectCatalog(normalizeSubjectCatalog(remoteSettings.subjectCatalog));
-    setScheduleNotice(remoteSettings.scheduleNotice);
-    setScheduleNoticeHighlights(remoteSettings.scheduleNoticeHighlights || []);
-    setNoticeDraft(remoteSettings.scheduleNotice);
-    setIsNoticeEnabled(remoteSettings.isNoticeEnabled);
+    if (!isEditingNoticeRef.current) {
+      setScheduleNotice(remoteSettings.scheduleNotice);
+      setScheduleNoticeHighlights(remoteSettings.scheduleNoticeHighlights || []);
+      setNoticeDraft(remoteSettings.scheduleNotice);
+      setIsNoticeEnabled(remoteSettings.isNoticeEnabled);
+    }
     setScheduleClockOffsetSeconds(remoteSettings.scheduleClockOffsetSeconds);
     setScheduleYoutubeUrls(remoteSettings.scheduleYoutubeUrls);
     setScheduleYoutubeFavorites(remoteSettings.scheduleYoutubeFavorites);
@@ -3790,7 +3805,7 @@ export default function TimerPage() {
     let isChecking = false;
 
     const syncSharedSettingsFromRemote = async () => {
-      if (!sharedSettingsHydratedRef.current || isChecking) return;
+      if (!sharedSettingsHydratedRef.current || isChecking || isEditingNoticeRef.current) return;
       isChecking = true;
 
       try {
@@ -5650,13 +5665,18 @@ export default function TimerPage() {
 
   const applyNoticeDraft = (nextValue: string) => {
     setNoticeDraft(nextValue);
-    const nextNotice = nextValue.trim();
+    const nextNotice = nextValue;
     setScheduleNotice(nextNotice);
-    setScheduleNoticeHighlights((previous) => normalizeNoticeHighlightRanges(previous, nextNotice));
-    setIsNoticeEnabled(nextNotice.length > 0);
+    setScheduleNoticeHighlights((previous) => normalizeNoticeHighlightRanges(previous, nextNotice.trim()));
+    setIsNoticeEnabled(nextNotice.trim().length > 0);
   };
 
   const closeNoticeEdit = () => {
+    const nextNotice = noticeDraft.trim();
+    setNoticeDraft(nextNotice);
+    setScheduleNotice(nextNotice);
+    setScheduleNoticeHighlights((previous) => normalizeNoticeHighlightRanges(previous, nextNotice));
+    setIsNoticeEnabled(nextNotice.length > 0);
     skipNoticeAutoSaveRef.current = true;
     setIsEditingNotice(false);
   };
@@ -6290,7 +6310,11 @@ export default function TimerPage() {
                 value={noticeDraft}
                 onChange={(e) => applyNoticeDraft(e.target.value)}
                 onBlur={handleNoticeBlur}
-                onKeyUp={applyNoticeDraftSelectionHighlight}
+                onKeyUp={(e) => {
+                  if (!e.nativeEvent.isComposing) {
+                    applyNoticeDraftSelectionHighlight();
+                  }
+                }}
                 onMouseUp={applyNoticeDraftSelectionHighlight}
                 onTouchEnd={applyNoticeDraftSelectionHighlight}
                 onKeyDown={(e) => {
