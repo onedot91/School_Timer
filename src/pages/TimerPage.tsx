@@ -263,6 +263,7 @@ const DEFAULT_SUBJECT_CATALOG: SubjectCatalog = [
   '실과',
   '도덕',
 ];
+const MAX_SUBJECT_NAME_LENGTH = 24;
 
 let sharedBackgroundMusicAudio: HTMLAudioElement | null = null;
 
@@ -1108,11 +1109,19 @@ const normalizeWeeklySubjects = (value: unknown): WeeklySubjectSchedule => {
   }, {});
 };
 
+const normalizeSubjectName = (value: unknown) => (
+  typeof value === 'string'
+    ? value.replace(/\s+/g, ' ').trim().slice(0, MAX_SUBJECT_NAME_LENGTH)
+    : ''
+);
+
 const normalizeSubjectCatalog = (value: unknown, fallback: SubjectCatalog = DEFAULT_SUBJECT_CATALOG): SubjectCatalog => {
-  if (!Array.isArray(value)) return [...fallback];
+  if (!Array.isArray(value)) {
+    return normalizeSubjectCatalog(fallback, []);
+  }
 
   const subjects = value.reduce<SubjectCatalog>((items, item) => {
-    const subject = typeof item === 'string' ? item.trim() : '';
+    const subject = normalizeSubjectName(item);
     if (subject.length > 0 && !items.includes(subject)) {
       items.push(subject);
     }
@@ -4888,7 +4897,7 @@ export default function TimerPage() {
   const updateWeeklySubject = (weekKey: string, day: number, slot: ScheduleSlot, value: string) => {
     if (!isSubjectEditableClassSlot(slot)) return;
     const subjectKey = getScheduleSubjectKey(slot);
-    const subject = value.trim();
+    const subject = normalizeSubjectName(value);
     if (!subjectKey) return;
 
     setWeeklySubjects((previous) => {
@@ -4954,8 +4963,9 @@ export default function TimerPage() {
   };
 
   const addSubjectCatalogItem = () => {
-    const subject = newSubjectName.trim();
+    const subject = normalizeSubjectName(newSubjectName);
     if (!subject) return;
+    if (subjectCatalog.includes(subject)) return;
 
     setSubjectCatalog((previous) => {
       if (previous.includes(subject)) return previous;
@@ -4965,7 +4975,7 @@ export default function TimerPage() {
   };
 
   const updateSubjectCatalogItem = (index: number, value: string) => {
-    const nextSubject = value.trim();
+    const nextSubject = normalizeSubjectName(value);
     const previousSubject = subjectCatalog[index];
     if (previousSubject === undefined) return;
     if (!nextSubject || subjectCatalog.some((subject, subjectIndex) => subjectIndex !== index && subject === nextSubject)) {
@@ -6737,6 +6747,7 @@ export default function TimerPage() {
                   type="text"
                   value={subject}
                   onChange={(event) => updateSubjectCatalogItem(index, event.target.value)}
+                  maxLength={MAX_SUBJECT_NAME_LENGTH}
                   className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
                   aria-label={`${index + 1}번째 과목`}
                 />
@@ -6759,6 +6770,7 @@ export default function TimerPage() {
             type="text"
             value={newSubjectName}
             onChange={(event) => setNewSubjectName(event.target.value)}
+            maxLength={MAX_SUBJECT_NAME_LENGTH}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
@@ -6771,7 +6783,8 @@ export default function TimerPage() {
           <button
             type="button"
             onClick={addSubjectCatalogItem}
-            className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#5C8D5D] bg-[#5C8D5D] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#476F48]"
+            disabled={!normalizeSubjectName(newSubjectName) || subjectCatalog.includes(normalizeSubjectName(newSubjectName))}
+            className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#5C8D5D] bg-[#5C8D5D] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#476F48] disabled:cursor-not-allowed disabled:border-[#C9D8C9] disabled:bg-[#8FA98F]"
           >
             <Plus size={18} />
             과목 추가
