@@ -9787,6 +9787,70 @@ h3 {
   min-width: 0;
 }
 
+.settings-dialog .slot-subject-input.slot-subject-input-configured {
+  border-color: #3f8f6b !important;
+  background: linear-gradient(180deg, #f0fbf5 0%, #e4f4ec 100%) !important;
+  color: #173f2d !important;
+  font-weight: 900 !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(63, 143, 107, 0.28),
+    0 8px 18px rgba(63, 143, 107, 0.12) !important;
+}
+
+.settings-dialog .slot-subject-input.slot-subject-input-configured:hover {
+  border-color: #267454 !important;
+  background: #def1e7 !important;
+}
+
+.settings-dialog .slot-subject-input.slot-subject-input-empty {
+  border-style: dashed !important;
+  border-color: #d7c9b8 !important;
+  background: #fffaf1 !important;
+  color: #8a7a6b !important;
+  font-weight: 800 !important;
+}
+
+.settings-dialog .slot-subject-input.slot-subject-input-empty:hover {
+  border-color: #b58363 !important;
+  background: #fff5e4 !important;
+}
+
+.settings-dialog .slot-subject-input.slot-subject-input-empty::placeholder {
+  color: #a9937c !important;
+}
+
+.settings-dialog .subject-catalog-list {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 18rem)) !important;
+  align-items: start;
+}
+
+.settings-dialog .subject-catalog-row {
+  width: 100%;
+  max-width: 18rem;
+  border-radius: 1rem !important;
+  padding: 0.38rem !important;
+}
+
+.settings-dialog .subject-catalog-row .subject-catalog-input {
+  min-height: 2.65rem;
+  padding: 0.55rem 0.8rem !important;
+}
+
+.settings-dialog .subject-catalog-row .icon-button {
+  width: 2.65rem !important;
+  height: 2.65rem !important;
+  border-radius: 0.9rem !important;
+}
+
+.settings-dialog .subject-catalog-add-row {
+  max-width: 37rem;
+}
+
+.settings-dialog .subject-catalog-add-row .add-subject-button {
+  min-height: 2.75rem;
+  white-space: nowrap;
+}
+
 .settings-dialog .slot-time-input {
   width: 8.8rem;
   max-width: 100%;

@@ -264,6 +264,7 @@ const DEFAULT_SUBJECT_CATALOG: SubjectCatalog = [
   '도덕',
 ];
 const MAX_SUBJECT_NAME_LENGTH = 24;
+const SUBJECT_UNSET_LABEL = '과목';
 
 let sharedBackgroundMusicAudio: HTMLAudioElement | null = null;
 
@@ -1086,7 +1087,7 @@ const normalizeWeeklySubjects = (value: unknown): WeeklySubjectSchedule => {
           (subjects, [subjectKey, subjectValue]) => {
             const key = subjectKey.trim();
             const subject = typeof subjectValue === 'string' ? subjectValue.trim() : '';
-            if (key.length > 0 && subject.length > 0) {
+            if (key.length > 0 && subject.length > 0 && subject !== SUBJECT_UNSET_LABEL) {
               subjects[key] = subject;
             }
             return subjects;
@@ -1115,6 +1116,11 @@ const normalizeSubjectName = (value: unknown) => (
     : ''
 );
 
+const normalizeAssignedSubjectName = (value: unknown) => {
+  const subject = normalizeSubjectName(value);
+  return subject === SUBJECT_UNSET_LABEL ? '' : subject;
+};
+
 const normalizeSubjectCatalog = (value: unknown, fallback: SubjectCatalog = DEFAULT_SUBJECT_CATALOG): SubjectCatalog => {
   if (!Array.isArray(value)) {
     return normalizeSubjectCatalog(fallback, []);
@@ -1139,7 +1145,7 @@ const getWeeklySubject = (
 ) => {
   if (!isSubjectEditableClassSlot(slot)) return '';
   const subjectKey = getScheduleSubjectKey(slot);
-  return weeklySubjects[weekKey]?.[day]?.[subjectKey] ?? '';
+  return normalizeAssignedSubjectName(weeklySubjects[weekKey]?.[day]?.[subjectKey] ?? '');
 };
 
 const buildWeeklySubjectsFromSchedule = (
@@ -4897,7 +4903,7 @@ export default function TimerPage() {
   const updateWeeklySubject = (weekKey: string, day: number, slot: ScheduleSlot, value: string) => {
     if (!isSubjectEditableClassSlot(slot)) return;
     const subjectKey = getScheduleSubjectKey(slot);
-    const subject = normalizeSubjectName(value);
+    const subject = normalizeAssignedSubjectName(value);
     if (!subjectKey) return;
 
     setWeeklySubjects((previous) => {
@@ -6677,6 +6683,12 @@ export default function TimerPage() {
                       const slot = subjectClassSlotsByDay[day].find(
                         (classSlot) => getScheduleSubjectKey(classSlot) === subjectKey,
                       );
+                      const weeklySubjectValue = slot
+                        ? getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)
+                        : '';
+                      const subjectStatusClass = weeklySubjectValue.trim()
+                        ? 'slot-subject-input-configured'
+                        : 'slot-subject-input-empty';
 
                       return (
                         <td
@@ -6688,9 +6700,9 @@ export default function TimerPage() {
                           {slot ? (
                             subjectCatalog.length > 0 ? (
                               <select
-                                value={getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)}
+                                value={weeklySubjectValue}
                                 onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
-                                className="slot-subject-input slot-select w-full min-w-0 cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                                className={`slot-subject-input slot-select w-full min-w-0 cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
                                 aria-label={`${DAYS[day]}요일 ${subjectKey}교시 과목`}
                               >
                                 <option value="">과목</option>
@@ -6703,9 +6715,9 @@ export default function TimerPage() {
                             ) : (
                               <input
                                 type="text"
-                                value={getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)}
+                                value={weeklySubjectValue}
                                 onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
-                                className="slot-subject-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
+                                className={`slot-subject-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
                                 placeholder="과목"
                               />
                             )
@@ -6735,7 +6747,7 @@ export default function TimerPage() {
           </span>
         </div>
 
-        <div className="subject-catalog-list grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="subject-catalog-list grid gap-2">
           {subjectCatalog.length === 0 ? (
             <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-6 text-center font-medium text-[#8A6347]/60 sm:col-span-2 xl:col-span-3">
               등록된 과목이 없습니다.
@@ -6765,13 +6777,14 @@ export default function TimerPage() {
           )}
         </div>
 
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <div className="subject-catalog-add-row mt-3 flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             value={newSubjectName}
             onChange={(event) => setNewSubjectName(event.target.value)}
             maxLength={MAX_SUBJECT_NAME_LENGTH}
             onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
               if (event.key === 'Enter') {
                 event.preventDefault();
                 addSubjectCatalogItem();
