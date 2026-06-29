@@ -5,9 +5,29 @@ import TimerPage from './pages/TimerPage';
 
 const SELECTED_ENTRY_NUMBER_STORAGE_KEY = 'school-timer-entry-number-v1';
 
-const isChromeOS = () => {
-  if (typeof window === 'undefined') return false;
-  return window.navigator.userAgent.includes('CrOS');
+const getPlatformText = () => {
+  if (typeof window === 'undefined') return '';
+
+  const navigatorWithUserAgentData = window.navigator as Navigator & {
+    userAgentData?: {
+      platform?: string;
+    };
+  };
+
+  return [
+    window.navigator.userAgent,
+    window.navigator.platform,
+    navigatorWithUserAgentData.userAgentData?.platform,
+  ]
+    .filter(Boolean)
+    .join(' ');
+};
+
+const isChromeOS = () => /CrOS|Chrome OS|Chromebook/i.test(getPlatformText());
+
+const usesMetaEntryResetShortcut = () => {
+  const platformText = getPlatformText();
+  return /Windows|Win32|Win64|Macintosh|MacIntel|MacPPC|Mac68K/i.test(platformText);
 };
 
 const getStoredEntryNumber = () => {
@@ -51,12 +71,14 @@ export default function RootApp() {
 
   useEffect(() => {
     const handleEntryResetShortcut = (event: KeyboardEvent) => {
-      const isEnter = event.key === 'Enter' || event.code === 'Enter';
+      const isEnter = event.key === 'Enter' || event.code === 'Enter' || event.code === 'NumpadEnter';
       if (!isEnter) return;
 
       const isEntryResetShortcut = isChromeOS()
         ? event.altKey && event.ctrlKey && !event.metaKey
-        : event.altKey && event.metaKey && !event.ctrlKey;
+        : usesMetaEntryResetShortcut()
+          ? event.altKey && event.metaKey && !event.ctrlKey
+          : event.altKey && event.ctrlKey && !event.metaKey;
       if (!isEntryResetShortcut) return;
 
       event.preventDefault();
