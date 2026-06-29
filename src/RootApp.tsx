@@ -5,6 +5,11 @@ import TimerPage from './pages/TimerPage';
 
 const SELECTED_ENTRY_NUMBER_STORAGE_KEY = 'school-timer-entry-number-v1';
 
+const isChromeOS = () => {
+  if (typeof window === 'undefined') return false;
+  return window.navigator.userAgent.includes('CrOS');
+};
+
 const getStoredEntryNumber = () => {
   if (typeof window === 'undefined') return null;
   const savedValue = window.localStorage.getItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY);
@@ -49,7 +54,10 @@ export default function RootApp() {
       const isEnter = event.key === 'Enter' || event.code === 'Enter';
       if (!isEnter) return;
 
-      if (!event.altKey || (!event.metaKey && !event.ctrlKey)) return;
+      const isEntryResetShortcut = isChromeOS()
+        ? event.altKey && event.ctrlKey && !event.metaKey
+        : event.altKey && event.metaKey && !event.ctrlKey;
+      if (!isEntryResetShortcut) return;
 
       event.preventDefault();
       changeEntryNumber();
