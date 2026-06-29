@@ -49,7 +49,7 @@ export default function RootApp() {
       const isEnter = event.key === 'Enter' || event.code === 'Enter';
       if (!isEnter) return;
 
-      if (!event.altKey || !event.metaKey) return;
+      if (!event.altKey || (!event.metaKey && !event.ctrlKey)) return;
 
       event.preventDefault();
       changeEntryNumber();
