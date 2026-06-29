@@ -6488,7 +6488,7 @@ h3 {
 .timer-watch-face {
   position: absolute;
   inset: 56% auto auto 50%;
-  z-index: 45;
+  z-index: 12;
   width: min(40%, 17.5rem);
   aspect-ratio: 1.32 / 1;
   transform: translate(-50%, -50%);
@@ -6518,8 +6518,8 @@ h3 {
 .morning-reading-overlay {
   position: absolute;
   left: 50%;
-  top: 15%;
-  z-index: 45;
+  top: 8%;
+  z-index: 22;
   display: flex;
   width: min(36vw, 36vh, 16.5rem);
   max-width: 48%;
@@ -6536,8 +6536,13 @@ h3 {
   padding: 0;
   color: inherit;
   cursor: pointer;
-  pointer-events: auto;
+  pointer-events: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+.morning-reading-notice-button .morning-reading-bubble,
+.morning-reading-notice-button .morning-reading-image {
+  pointer-events: auto;
 }
 
 .morning-reading-notice-button:focus-visible {

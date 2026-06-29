@@ -313,7 +313,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   return (
-    <div className="auction-page min-h-[100dvh] w-full overflow-y-auto px-3 py-3 sm:px-5 md:py-5">
+    <div className="auction-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5">
       <main className="mx-auto w-full max-w-7xl">
         <AuctionRoom
           auctionItems={auctionItems}
