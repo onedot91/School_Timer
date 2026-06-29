@@ -216,6 +216,19 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     },
   },
   {
+    id: 'student-18-cat-girl',
+    name: '고양이 소녀 자캐',
+    creatorName: '18번',
+    imageSrc: '/student-characters/character-18.png',
+    alt: '18번 학생이 만든 고양이 소녀 캐릭터',
+    themeColor: '#F08AB5',
+    speech: '나랑 잘 지내자.',
+    walkTransform: {
+      right: 'none',
+      left: 'scaleX(-1)',
+    },
+  },
+  {
     id: 'student-21-star-capsule',
     name: '별 캡슐 자캐',
     creatorName: '21번',
