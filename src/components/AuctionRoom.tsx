@@ -9,12 +9,14 @@ import {
   type AuctionAwards,
   type AuctionBids,
   type AuctionItem,
+  type AuctionMission,
 } from '../lib/currency';
 
 interface AuctionRoomProps {
   auctionItems: AuctionItem[];
   auctionBids: AuctionBids;
   auctionAwards?: AuctionAwards;
+  auctionMissions: AuctionMission[];
   availableBalance: number;
   reservedAmount: number;
   visibleDayCount: number;
@@ -30,6 +32,7 @@ export default function AuctionRoom({
   auctionItems,
   auctionBids,
   auctionAwards,
+  auctionMissions,
   availableBalance,
   reservedAmount,
   visibleDayCount,
@@ -112,6 +115,45 @@ export default function AuctionRoom({
           </div>
         </div>
       </div>
+
+      {auctionMissions.length > 0 ? (
+        <section className={`border-b border-[#E4E9E6] bg-[#FFFDF8] ${
+          isCompact ? 'px-3 py-3 md:px-4' : 'px-4 py-4 md:px-5'
+        }`}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className={`section-title font-extrabold leading-tight text-[#18211E] ${
+              isCompact ? 'text-[1.05rem]' : 'text-[1.2rem]'
+            }`}>
+              오늘의 미션
+            </h2>
+          </div>
+          <div className={`mt-3 grid ${
+            isCompact ? 'gap-2' : 'gap-2.5 md:grid-cols-2'
+          }`}>
+            {auctionMissions.map((mission) => (
+              <div
+                key={mission.id}
+                className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[1rem] border border-[#E4D7C9] bg-white shadow-[0_8px_18px_rgba(154,100,24,0.06)] ${
+                  isCompact ? 'px-3 py-2.5' : 'px-4 py-3'
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className={`font-extrabold leading-snug text-[#2F241D] ${
+                    isCompact ? 'text-[0.94rem]' : 'text-[1.02rem]'
+                  }`}>
+                    {mission.content}
+                  </div>
+                </div>
+                <div className={`rounded-[0.8rem] border border-[#CFE2D8] bg-[#F2FBF7] font-mono font-black leading-none text-[#007A57] ${
+                  isCompact ? 'px-2.5 py-2 text-[0.85rem]' : 'px-3 py-2.5 text-[0.95rem]'
+                }`}>
+                  {formatCurrency(mission.rewardAmount)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className={`grid ${
         isCompact ? 'gap-2.5 p-3 md:grid-cols-5 md:p-4' : 'gap-4 p-4 md:p-5 lg:grid-cols-5'

@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-06-30T22:01:41.173Z",
+  "command": "npx tsx .omo/evidence/mission-feature/f2-blockers-proof.ts",
+  "scenarios": [
+    {
+      "name": "teacher blank mission draft does not erase persisted missions",
+      "invocation": "static source assertion plus runtime persistence-boundary check",
+      "observable": "update/add handlers do not call normalizeAuctionMissions; shared snapshot uses getPersistableAuctionMissions; blank draft returns last persisted nonblank mission list instead of []"
+    },
+    {
+      "name": "teacher explicit mission delete can persist empty",
+      "invocation": "runtime persistence-boundary check",
+      "observable": "empty mission list with no blank draft returns [] so the delete button path can persist deletion"
+    },
+    {
+      "name": "student Supabase mode does not render stale local missions",
+      "invocation": "static source assertion on AuctionPage initialization and load-failure branch",
+      "observable": "initial missions are [] when isSupabaseSettingsEnabled; remote failure calls setAuctionMissions([]); local-only branch still reads localStorage"
+    }
+  ]
+}

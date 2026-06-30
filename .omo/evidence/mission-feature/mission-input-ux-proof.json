@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-06-30T22:01:41.195Z",
+  "command": "npx tsx .omo/evidence/mission-feature/mission-input-ux-proof.ts",
+  "assertions": [
+    "mission edit ref exists",
+    "shared autosave skips active mission edit",
+    "mission input has focus/blur edit guards",
+    "remote apply skips active mission edit"
+  ]
+}

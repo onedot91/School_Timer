@@ -4,6 +4,7 @@ import AuctionRoom from '../components/AuctionRoom';
 import {
   AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
+  AUCTION_MISSIONS_STORAGE_KEY,
   DEFAULT_CURRENCY_BALANCE,
   DEFAULT_AUCTION_ITEMS,
   clampAuctionBidAmount,
@@ -16,10 +17,12 @@ import {
   normalizeAuctionBidHistory,
   normalizeAuctionBids,
   normalizeAuctionItems,
+  normalizeAuctionMissions,
   normalizeCurrencyBalances,
   type AuctionAwards,
   type AuctionBidHistory,
   type AuctionItem,
+  type AuctionMission,
   type AuctionBids,
   type CurrencyBalances,
 } from '../lib/currency';
@@ -34,12 +37,27 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
+const getStoredAuctionMissions = (): AuctionMission[] => {
+  try {
+    const saved = localStorage.getItem(AUCTION_MISSIONS_STORAGE_KEY);
+    return saved ? normalizeAuctionMissions(JSON.parse(saved)) : [];
+  } catch (error) {
+    if (error instanceof Error) return [];
+    throw error;
+  }
+};
+
+const getInitialAuctionMissions = (): AuctionMission[] => (
+  isSupabaseSettingsEnabled ? [] : getStoredAuctionMissions()
+);
+
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => normalizeCurrencyBalances(null));
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+  const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [selectedItemId, setSelectedItemId] = useState(DEFAULT_AUCTION_ITEMS[0]?.id ?? '');
   const [isLoading, setIsLoading] = useState(isSupabaseSettingsEnabled);
@@ -78,6 +96,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionBids(normalizeAuctionBids(null, AUCTION_ITEM_IDS));
       setAuctionBidHistory(normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
       setAuctionAwards(normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+      setAuctionMissions(getStoredAuctionMissions());
       setIsLoading(false);
       return;
     }
@@ -91,6 +110,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             auctionItems?: unknown;
             auctionBidHistory?: unknown;
             auctionAwards?: unknown;
+            auctionMissions?: unknown;
           })
         : {};
       setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
@@ -98,8 +118,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionBids(normalizeAuctionBids(value.auctionBids, AUCTION_ITEM_IDS));
       setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
       setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
+      setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
     } catch (error) {
       console.error('Failed to load auction state from Supabase.', error);
+      setAuctionMissions([]);
       setStatusMessage('경매 정보를 불러오지 못했습니다.');
     } finally {
       setIsLoading(false);
@@ -319,6 +341,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           auctionItems={auctionItems}
           auctionBids={auctionBids}
           auctionAwards={auctionAwards}
+          auctionMissions={auctionMissions}
           availableBalance={availableBalance}
           reservedAmount={reservedAmount}
           visibleDayCount={visibleDayCount}

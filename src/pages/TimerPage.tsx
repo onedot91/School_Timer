@@ -51,11 +51,15 @@ import {
   AUCTION_ITEM_IDS,
   AUCTION_MAX_ITEMS_PER_DAY,
   AUCTION_MAX_ITEM_COUNT,
+  AUCTION_MISSION_CONTENT_MAX_LENGTH,
+  AUCTION_MISSIONS_STORAGE_KEY,
   AUCTION_WEEKDAY_LABELS,
   createAuctionItemTemplate,
+  CURRENCY_BALANCE_MAX,
   CURRENCY_BALANCE_STEP,
   CURRENCY_STUDENT_NUMBERS,
   DEFAULT_CURRENCY_BALANCE,
+  clampAuctionMissionRewardAmount,
   clampCurrencyBalance,
   createDefaultCurrencyBalances,
   formatCurrencyAmount,
@@ -67,7 +71,9 @@ import {
   normalizeAuctionBidHistory,
   normalizeAuctionBids,
   normalizeAuctionItems,
+  normalizeAuctionMissions,
   normalizeCurrencyBalances,
+  type AuctionMission,
   type AuctionAward,
   type AuctionAwards,
   type AuctionBidHistory,
@@ -138,6 +144,7 @@ interface SharedSchoolTimerSettings {
   auctionBids: AuctionBids;
   auctionBidHistory: AuctionBidHistory;
   auctionAwards: AuctionAwards;
+  auctionMissions: AuctionMission[];
 }
 
 interface NoticeHighlightRange {
@@ -1323,8 +1330,22 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     auctionBids: normalizeAuctionBids(parsed.auctionBids, AUCTION_ITEM_IDS),
     auctionBidHistory: normalizeAuctionBidHistory(parsed.auctionBidHistory, AUCTION_ITEM_IDS),
     auctionAwards: normalizeAuctionAwards(parsed.auctionAwards, AUCTION_ITEM_IDS),
+    auctionMissions: normalizeAuctionMissions(parsed.auctionMissions),
   };
 };
+
+const getStoredAuctionMissions = (): AuctionMission[] => {
+  try {
+    const saved = localStorage.getItem(AUCTION_MISSIONS_STORAGE_KEY);
+    return saved ? normalizeAuctionMissions(JSON.parse(saved)) : [];
+  } catch (error) {
+    if (error instanceof Error) return [];
+    throw error;
+  }
+};
+
+const hasBlankAuctionMissionDraft = (missions: AuctionMission[]) =>
+  missions.some((mission) => mission.content.trim().length === 0);
 
 const DAYS = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
 const ANNOUNCEMENT_STORAGE_KEY = 'school-announcements-v4';
@@ -3199,6 +3220,11 @@ export default function TimerPage() {
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+  const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getStoredAuctionMissions);
+  const [auctionMissionEditCommitVersion, setAuctionMissionEditCommitVersion] = useState(0);
+  const hasBlankAuctionMissionDraftRef = useRef(false);
+  const isEditingAuctionMissionRef = useRef(false);
+  const lastPersistedAuctionMissionsRef = useRef<AuctionMission[]>(auctionMissions);
   const [scheduleYoutubeUrls, setScheduleYoutubeUrls] = useState<string[]>(initialScheduleYoutubeState.appliedUrls);
   const [scheduleYoutubeFavorites, setScheduleYoutubeFavorites] = useState<ScheduleYoutubeFavorite[]>(() =>
     getStoredScheduleYoutubeFavorites(),
@@ -3521,6 +3547,11 @@ export default function TimerPage() {
   const hasScheduleYoutubePlaylist = scheduleYoutubeCount > 0;
   const hasScheduleYoutubeFavorites = scheduleYoutubeFavorites.length > 0;
 
+  const getPersistableAuctionMissions = () =>
+    hasBlankAuctionMissionDraft(auctionMissions)
+      ? lastPersistedAuctionMissionsRef.current
+      : normalizeAuctionMissions(auctionMissions);
+
   const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
     version: 1,
     weeklySchedule,
@@ -3547,6 +3578,7 @@ export default function TimerPage() {
     auctionBids,
     auctionBidHistory,
     auctionAwards,
+    auctionMissions: getPersistableAuctionMissions(),
   });
 
   const applySharedSettingsSnapshot = (
@@ -3582,6 +3614,11 @@ export default function TimerPage() {
     setAuctionBids(normalizeAuctionBids(remoteSettings.auctionBids, AUCTION_ITEM_IDS));
     setAuctionBidHistory(normalizeAuctionBidHistory(remoteSettings.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(remoteSettings.auctionAwards, AUCTION_ITEM_IDS));
+    if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
+      const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
+      lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
+      setAuctionMissions(remoteAuctionMissions);
+    }
     const canApplyManualTimer =
       options.applyManualTimer &&
       !manualTimerStateRef.current.isRunning &&
@@ -3702,6 +3739,20 @@ export default function TimerPage() {
   }, [isScheduleYoutubeVisible, scheduleYoutubeUrls]);
 
   useEffect(() => {
+    const hasBlankDraft = hasBlankAuctionMissionDraft(auctionMissions);
+    hasBlankAuctionMissionDraftRef.current = hasBlankDraft;
+    if (hasBlankDraft) return;
+
+    const normalizedMissions = normalizeAuctionMissions(auctionMissions);
+    lastPersistedAuctionMissionsRef.current = normalizedMissions;
+    if (normalizedMissions.length > 0) {
+      localStorage.setItem(AUCTION_MISSIONS_STORAGE_KEY, JSON.stringify(normalizedMissions));
+      return;
+    }
+    localStorage.removeItem(AUCTION_MISSIONS_STORAGE_KEY);
+  }, [auctionMissions]);
+
+  useEffect(() => {
     if (scheduleYoutubeVideoIds.length === 0) {
       setHasMountedScheduleYoutubePlayer(false);
       setShouldAutoplayScheduleYoutube(false);
@@ -3754,6 +3805,8 @@ export default function TimerPage() {
       return;
     }
 
+    if (isEditingAuctionMissionRef.current) return;
+
     if (sharedSettingsSaveTimeoutRef.current !== null) {
       window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
     }
@@ -3796,6 +3849,8 @@ export default function TimerPage() {
     auctionBids,
     auctionBidHistory,
     auctionAwards,
+    auctionMissions,
+    auctionMissionEditCommitVersion,
   ]);
 
   useEffect(() => {
@@ -5500,6 +5555,61 @@ export default function TimerPage() {
       });
   };
 
+  const addAuctionMission = () => {
+    setAuctionMissions((previous) => [
+      ...previous,
+      {
+        id: `mission-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        content: `새 미션 ${previous.length + 1}`,
+        rewardAmount: 0,
+      },
+    ]);
+  };
+
+  const beginAuctionMissionEdit = () => {
+    isEditingAuctionMissionRef.current = true;
+    if (sharedSettingsSaveTimeoutRef.current !== null) {
+      window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+      sharedSettingsSaveTimeoutRef.current = null;
+    }
+  };
+
+  const endAuctionMissionEdit = () => {
+    if (!isEditingAuctionMissionRef.current) return;
+    isEditingAuctionMissionRef.current = false;
+    setAuctionMissionEditCommitVersion((previous) => previous + 1);
+  };
+
+  const updateAuctionMissionContent = (missionId: string, nextContent: string) => {
+    setAuctionMissions((previous) =>
+      previous.map((mission) =>
+        mission.id === missionId
+          ? {
+              ...mission,
+              content: nextContent.slice(0, AUCTION_MISSION_CONTENT_MAX_LENGTH),
+            }
+          : mission,
+      ),
+    );
+  };
+
+  const updateAuctionMissionRewardAmount = (missionId: string, nextRewardAmount: string) => {
+    setAuctionMissions((previous) =>
+      previous.map((mission) =>
+        mission.id === missionId
+          ? {
+              ...mission,
+              rewardAmount: clampAuctionMissionRewardAmount(nextRewardAmount),
+            }
+          : mission,
+      ),
+    );
+  };
+
+  const removeAuctionMission = (missionId: string) => {
+    setAuctionMissions((previous) => previous.filter((mission) => mission.id !== missionId));
+  };
+
   const getAwardSteps = (item: AuctionItem) => {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     const recordedSteps = (auctionBidHistory[item.id] ?? []).filter((entry) => entry.amount > 0);
@@ -6015,7 +6125,9 @@ export default function TimerPage() {
     const character = roundCharacters[characterIndex];
     if (!character) return null;
     const pathIndex = (spawnOrder * 3 + characterIndex * 2) % STUDENT_CHARACTER_WALK_PATHS.length;
-    const shouldSpeak = Boolean(character.speech) && shouldStudentCharacterSpeak(spawnOrder, characterIndex, streamIndex);
+    const shouldSpeak =
+      Boolean(character.speech || character.speechImageSrc) &&
+      shouldStudentCharacterSpeak(spawnOrder, characterIndex, streamIndex);
 
     return {
       renderKey: `${streamIndex}-${walkCycle}-${characterIndex}-${character.id}`,
@@ -7434,6 +7546,87 @@ export default function TimerPage() {
             );
           })}
         </div>
+      </section>
+
+      <section className="settings-card rounded-[1.7rem] border border-[#DDEBDD] bg-[#F8FCF6] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">미션</h3>
+            <p className="mt-1 text-[0.82rem] font-bold leading-5 text-[#6F7D70]">
+              학생 화면에 보여 줄 학급 공통 미션과 보상 고마를 정합니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={addAuctionMission}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#9CCDBE] bg-white px-4 text-[0.86rem] font-extrabold text-[#006241] shadow-[0_8px_16px_rgba(31,98,65,0.08)] transition-colors hover:bg-[#EAF6F0]"
+          >
+            <Plus size={16} />
+            미션 추가
+          </button>
+        </div>
+
+        {auctionMissions.length === 0 ? (
+          <div className="rounded-[1.1rem] border border-dashed border-[#BBD8CB] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[#6F7D70]">
+            등록된 미션이 없습니다.
+          </div>
+        ) : (
+          <div className="grid gap-2.5">
+            {auctionMissions.map((mission, index) => (
+              <div
+                key={mission.id}
+                className="grid gap-2 rounded-[1.15rem] border border-[#CFE3D8] bg-white p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] md:grid-cols-[minmax(0,1fr)_9.25rem_2.75rem] md:items-end"
+              >
+                <label className="grid min-w-0 gap-1.5">
+                  <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">
+                    미션 내용 {index + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={mission.content}
+                    onChange={(event) => updateAuctionMissionContent(mission.id, event.target.value)}
+                    onFocus={beginAuctionMissionEdit}
+                    onBlur={endAuctionMissionEdit}
+                    className="section-title h-11 min-w-0 rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] px-3 text-[0.95rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:border-[#7FB59F] focus:bg-white"
+                    aria-label={`미션 ${index + 1} 내용`}
+                    placeholder="예: 책상 정리하기"
+                  />
+                </label>
+
+                <label className="grid gap-1.5">
+                  <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">
+                    보상
+                  </span>
+                  <div className="grid grid-cols-[minmax(0,1fr)_2.8rem] overflow-hidden rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] focus-within:border-[#7FB59F] focus-within:bg-white">
+                    <input
+                      type="number"
+                      min={0}
+                      max={CURRENCY_BALANCE_MAX}
+                      step={CURRENCY_BALANCE_STEP}
+                      value={mission.rewardAmount}
+                      onChange={(event) => updateAuctionMissionRewardAmount(mission.id, event.target.value)}
+                      className="h-11 min-w-0 bg-transparent px-3 text-right font-mono text-[0.95rem] font-black text-[#006241] outline-none"
+                      aria-label={`미션 ${index + 1} 보상`}
+                    />
+                    <span className="flex h-11 items-center justify-center border-l border-[#CFE3D8] text-[0.78rem] font-extrabold text-[#6F7D70]">
+                      고마
+                    </span>
+                  </div>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => removeAuctionMission(mission.id)}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-[0.85rem] border border-[#E4D7C9] bg-[#FFFDF8] text-[#8A6347] transition-colors hover:bg-[#FFF7EC] md:w-11"
+                  aria-label={`미션 ${index + 1} 삭제`}
+                  title="미션 삭제"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">

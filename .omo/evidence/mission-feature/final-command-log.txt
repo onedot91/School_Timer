@@ -1,0 +1,91 @@
+=== Todo 4 integrated verification command log ===
+Workspace: /Users/ibyeonghyeon/Documents/GitHub/School_Timer
+URL: http://127.0.0.1:3000
+Browser QA mode: deterministic no-Supabase run. Vite was started with VITE_SUPABASE_URL= and VITE_SUPABASE_ANON_KEY= so localStorage fallback was the active persistence surface.
+
+Setup retries encountered and resolved:
+- macOS had no `timeout` command; bounded execution was retried with another wrapper.
+- Repo did not include Playwright; `@playwright/test` was installed temporarily under .omo/evidence/mission-feature/ for QA and removed during cleanup.
+- Some intermediate server/browser retries failed while stabilizing the QA harness. The final clean run below is the authoritative passing run and screenshots/action log were regenerated from it.
+
+$ npx tsx .omo/evidence/mission-feature/mission-normalization-proof.ts
+mission normalization proof passed
+exit=0
+
+$ npm run lint
+
+> react-example@0.0.0 lint
+> tsc --noEmit
+
+exit=0
+
+$ npm run build
+
+> react-example@0.0.0 build
+> vite build
+
+vite v6.4.1 building for production...
+transforming...
+✓ 1724 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   1.33 kB │ gzip:   0.60 kB
+dist/assets/index-Dx4ug98N.css  279.86 kB │ gzip:  52.07 kB
+dist/assets/index-B9xKprpj.js   648.09 kB │ gzip: 182.80 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.05s
+exit=0
+
+$ npm run dev -- --host=127.0.0.1 --port=3000
+Initial required invocation was run. Port 3000 was already occupied by workspace Vite PID 54715, so that pre-existing workspace listener was stopped and the server was restarted in a controlled session for QA.
+
+$ VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run dev -- --host=127.0.0.1 --port=3000
+Final clean controlled QA session: exec_session_id=33712
+Final clean listener before browser QA:
+Final clean no-Supabase QA server listener before run:
+COMMAND   PID         USER   FD   TYPE            DEVICE SIZE/OFF NODE NAME
+node    67426 ibyeonghyeon   16u  IPv4 0x9bc95ee80fbdd71      0t0  TCP localhost:hbci (LISTEN)
+
+$ curl -i --max-time 5 http://127.0.0.1:3000/
+HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 1506
+
+$ .omo/evidence/mission-feature/node_modules/.bin/playwright test .omo/evidence/mission-feature/mission-browser-qa.spec.ts --browser=chromium --reporter=line --timeout=60000
+
+Running 2 tests using 1 worker
+
+
+(node:67447) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/2] [chromium] › .omo/evidence/mission-feature/mission-browser-qa.spec.ts:125:1 › mission feature integrated browser QA - desktop
+[2/2] [chromium] › .omo/evidence/mission-feature/mission-browser-qa.spec.ts:130:1 › mission feature integrated browser QA - mobile
+  2 passed (25.3s)
+exit=0
+
+$ lsof -iTCP:3000 -sTCP:LISTEN
+(no listening process)
+cleanup_exit=0
+=== Browser QA fallback command retry 2026-06-30T16:08:23Z ===
+Surface: Chromium Playwright web UI, URL http://127.0.0.1:3000
+$ .omo/evidence/mission-feature/node_modules/.bin/playwright test .omo/evidence/mission-feature/mission-browser-fallback-qa.spec.ts --browser=chromium --reporter=line --timeout=60000
+zsh:6: no such file or directory: .omo/evidence/mission-feature/node_modules/.bin/playwright
+browser_fallback_qa_exit=127
+=== Browser QA npx final rerun 2026-06-30T16:08:56Z ===
+exec_session_id=39777
+$ VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run dev -- --host=127.0.0.1 --port=3000 --strictPort
+Surface: Chromium Playwright web UI, URL http://127.0.0.1:3000
+$ npx -y -p @playwright/test@1.61.1 playwright test .omo/evidence/mission-feature/mission-browser-qa.spec.ts --browser=chromium --reporter=line --timeout=60000
+Error: Cannot find package '@playwright/test' imported from /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/mission-feature/mission-browser-qa.spec.ts
+    at eval (<anonymous>:1:1)
+
+Error: No tests found.
+Make sure that arguments are regular expressions matching test files.
+You may need to escape symbols like "$" or "*" and quote the arguments.
+
+browser_npx_final_exit=1

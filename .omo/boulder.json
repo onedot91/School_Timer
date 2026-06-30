@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "active_work_id": "mission-feature",
+  "works": {
+    "mission-feature": {
+      "work_id": "mission-feature",
+      "active_plan": ".omo/plans/mission-feature.md",
+      "plan_name": "mission-feature",
+      "session_ids": ["codex:mission-feature-current"],
+      "status": "active",
+      "worktree_path": null
+    }
+  }
+}

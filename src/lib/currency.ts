@@ -11,6 +11,12 @@ export interface AuctionItem {
   dayIndex: number;
 }
 
+export interface AuctionMission {
+  id: string;
+  content: string;
+  rewardAmount: number;
+}
+
 export type AuctionBids = Record<string, AuctionBid>;
 
 export interface AuctionBidHistoryEntry {
@@ -38,6 +44,8 @@ export const CURRENCY_BALANCE_MAX = 999999;
 export const CURRENCY_BALANCE_STEP = 5;
 export const CURRENCY_UNIT_LABEL = '고마';
 export const AUCTION_BID_STEP = 5;
+export const AUCTION_MISSIONS_STORAGE_KEY = 'auctionMissions-v1';
+export const AUCTION_MISSION_CONTENT_MAX_LENGTH = 80;
 export const AUCTION_WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 export const AUCTION_WEEKDAY_NAMES = ['월요일', '화요일', '수요일', '목요일', '금요일'];
 export const AUCTION_DAY_ACCENTS = [
@@ -137,6 +145,12 @@ export const clampAuctionBidAmount = (value: unknown) => {
   return Math.max(0, Math.floor(numericValue / AUCTION_BID_STEP) * AUCTION_BID_STEP);
 };
 
+export const clampAuctionMissionRewardAmount = (value: unknown) => {
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numericValue)) return 0;
+  return Math.max(CURRENCY_BALANCE_MIN, Math.min(CURRENCY_BALANCE_MAX, Math.floor(numericValue)));
+};
+
 export const createDefaultCurrencyBalances = (): CurrencyBalances =>
   CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((balances, studentNumber) => {
     balances[String(studentNumber)] = DEFAULT_CURRENCY_BALANCE;
@@ -197,6 +211,54 @@ export const normalizeAuctionItems = (value: unknown): AuctionItem[] => {
   });
 
   return normalizedItems.length > 0 ? normalizedItems : DEFAULT_AUCTION_ITEMS.map((item) => ({ ...item }));
+};
+
+const getObjectField = (value: unknown, field: string): unknown => {
+  if (!value || typeof value !== 'object' || !(field in value)) return undefined;
+  return Reflect.get(value, field);
+};
+
+const createUniqueMissionId = (index: number, usedIds: ReadonlySet<string>) => {
+  const baseId = `mission-${index + 1}`;
+  if (!usedIds.has(baseId)) return baseId;
+
+  let suffix = 2;
+  let candidateId = `${baseId}-${suffix}`;
+  while (usedIds.has(candidateId)) {
+    suffix += 1;
+    candidateId = `${baseId}-${suffix}`;
+  }
+  return candidateId;
+};
+
+export const normalizeAuctionMissions = (value: unknown): AuctionMission[] => {
+  if (!Array.isArray(value)) return [];
+
+  const usedIds = new Set<string>();
+  const normalizedMissions: AuctionMission[] = [];
+
+  value.forEach((rawMission, index) => {
+    const rawContent = getObjectField(rawMission, 'content');
+    const content = typeof rawContent === 'string'
+      ? rawContent.trim().slice(0, AUCTION_MISSION_CONTENT_MAX_LENGTH)
+      : '';
+    if (!content) return;
+
+    const rawId = getObjectField(rawMission, 'id');
+    const trimmedId = typeof rawId === 'string' ? rawId.trim() : '';
+    const id = trimmedId && !usedIds.has(trimmedId)
+      ? trimmedId
+      : createUniqueMissionId(index, usedIds);
+    usedIds.add(id);
+
+    normalizedMissions.push({
+      id,
+      content,
+      rewardAmount: clampAuctionMissionRewardAmount(getObjectField(rawMission, 'rewardAmount')),
+    });
+  });
+
+  return normalizedMissions;
 };
 
 export const getMinimumAuctionBid = (item: AuctionItem, currentAmount: number) => {

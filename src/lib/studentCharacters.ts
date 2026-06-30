@@ -185,7 +185,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     themeColor: '#F4C21F',
     speech: '이건 라옹이야.',
     walkTransform: {
-      right: 'none',
+      right: 'scaleX(-1)',
       left: 'none',
     },
   },
