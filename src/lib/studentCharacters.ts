@@ -235,7 +235,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-21.png',
     alt: '21번 학생이 만든 별 캡슐 캐릭터',
     themeColor: '#F4D12E',
-    speech: '사랑해♥',
+    speech: '사룽해♥',
     walkTransform: {
       right: 'none',
       left: 'none',
