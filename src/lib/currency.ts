@@ -127,10 +127,10 @@ export const getAuctionItemDisplayName = (itemName: string, dayIndex: number) =>
   if (!weekdayName) return itemName;
 
   const prefix = `${weekdayName} `;
-  const trimmedName = itemName.trim();
-  if (!trimmedName.startsWith(prefix)) return trimmedName;
+  if (!itemName.startsWith(prefix)) return itemName;
 
-  return trimmedName.slice(prefix.length).trim() || trimmedName;
+  const displayName = itemName.slice(prefix.length);
+  return displayName.length > 0 ? displayName : itemName;
 };
 
 export const clampCurrencyBalance = (value: unknown) => {

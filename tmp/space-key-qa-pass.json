@@ -1,0 +1,9 @@
+{
+  "scenario": "auction item name input, type Space before QA at end of text",
+  "originalValue": "물품",
+  "expected": "복숭아 QA",
+  "actual": "복숭아 QA",
+  "pass": true,
+  "cleanup": "filled input back to originalValue; closed Playwright context/browser; Supabase requests aborted",
+  "screenshotPath": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/space-key-qa-pass.png"
+}
