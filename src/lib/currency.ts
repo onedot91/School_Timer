@@ -39,6 +39,7 @@ export type AuctionAwards = Record<string, AuctionAward | null>;
 
 export const CURRENCY_STUDENT_NUMBERS = Array.from({ length: 23 }, (_, index) => index + 1);
 export const DEFAULT_CURRENCY_BALANCE = 100;
+export const WEEKLY_CURRENCY_ALLOWANCE = 100;
 export const CURRENCY_BALANCE_MIN = 0;
 export const CURRENCY_BALANCE_MAX = 999999;
 export const CURRENCY_BALANCE_STEP = 5;
@@ -165,6 +166,20 @@ export const normalizeCurrencyBalances = (value: unknown): CurrencyBalances => {
     return balances;
   }, {});
 };
+
+export const collectCurrencyTax = (balances: CurrencyBalances): CurrencyBalances =>
+  CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((nextBalances, studentNumber) => {
+    const key = String(studentNumber);
+    nextBalances[key] = clampCurrencyBalance(Math.ceil((balances[key] ?? DEFAULT_CURRENCY_BALANCE) / 2));
+    return nextBalances;
+  }, {});
+
+export const grantWeeklyCurrencyAllowance = (balances: CurrencyBalances): CurrencyBalances =>
+  CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((nextBalances, studentNumber) => {
+    const key = String(studentNumber);
+    nextBalances[key] = clampCurrencyBalance((balances[key] ?? DEFAULT_CURRENCY_BALANCE) + WEEKLY_CURRENCY_ALLOWANCE);
+    return nextBalances;
+  }, {});
 
 export const normalizeAuctionItems = (value: unknown): AuctionItem[] => {
   const parsedItems = Array.isArray(value) ? value : [];

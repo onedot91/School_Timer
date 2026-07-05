@@ -61,12 +61,14 @@ import {
   DEFAULT_CURRENCY_BALANCE,
   clampAuctionMissionRewardAmount,
   clampCurrencyBalance,
+  collectCurrencyTax,
   createDefaultCurrencyBalances,
   formatCurrencyAmount,
   formatCurrency,
   getAuctionItemDisplayName,
   getAuctionVisibleDayCount,
   getStudentLabelStyle,
+  grantWeeklyCurrencyAllowance,
   normalizeAuctionAwards,
   normalizeAuctionBidHistory,
   normalizeAuctionBids,
@@ -5504,6 +5506,14 @@ export default function TimerPage() {
     setEditingCurrencyNumber(null);
   };
 
+  const collectTaxFromAllStudents = () => {
+    setCurrencyBalances((previous) => collectCurrencyTax(normalizeCurrencyBalances(previous)));
+  };
+
+  const grantWeeklyAllowanceToAllStudents = () => {
+    setCurrencyBalances((previous) => grantWeeklyCurrencyAllowance(normalizeCurrencyBalances(previous)));
+  };
+
   const resetAuctionItems = () => {
     setAuctionItems(normalizeAuctionItems(null));
     setTemporaryVisibleAuctionItemIds(new Set());
@@ -7661,7 +7671,7 @@ export default function TimerPage() {
         <div className="mb-4">
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">경매 관리</h3>
         </div>
-        <div className="grid gap-2.5 md:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-5">
           <button
             type="button"
             onClick={() => setPendingAuctionReset('items')}
@@ -7682,6 +7692,20 @@ export default function TimerPage() {
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#F8FCF6]"
           >
             보유 화폐 초기화
+          </button>
+          <button
+            type="button"
+            onClick={collectTaxFromAllStudents}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#E4D7C9] bg-[#FFF7EC] px-4 py-2 text-[0.9rem] font-extrabold text-[#7A4C24] transition-colors hover:bg-[#FBEBD8]"
+          >
+            세금 징수
+          </button>
+          <button
+            type="button"
+            onClick={grantWeeklyAllowanceToAllStudents}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-[#F8FCF6] px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
+          >
+            주급 제공
           </button>
         </div>
       </section>
