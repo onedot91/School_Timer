@@ -3349,6 +3349,7 @@ export default function TimerPage() {
       return [...DEFAULT_SUBJECT_CATALOG];
     }
   });
+  const [subjectCatalogEditCommitVersion, setSubjectCatalogEditCommitVersion] = useState(0);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [selectedSubjectWeekKey, setSelectedSubjectWeekKey] = useState(() =>
     getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
@@ -3401,6 +3402,7 @@ export default function TimerPage() {
   const sharedSettingsSaveTimeoutRef = useRef<number | null>(null);
   const lastSharedSettingsUpdatedAtRef = useRef<string | null>(null);
   const skipNextSharedSettingsSaveRef = useRef(false);
+  const isEditingSubjectCatalogRef = useRef(false);
   const activeDrawCase =
     drawCases.find((caseState) => caseState.id === activeDrawCaseId) ??
     drawCases[0] ??
@@ -3588,7 +3590,9 @@ export default function TimerPage() {
     skipNextSharedSettingsSaveRef.current = true;
     setWeeklySchedule(remoteSettings.weeklySchedule);
     setWeeklySubjects(normalizeWeeklySubjects(remoteSettings.weeklySubjects));
-    setSubjectCatalog(normalizeSubjectCatalog(remoteSettings.subjectCatalog));
+    if (!isEditingSubjectCatalogRef.current) {
+      setSubjectCatalog(normalizeSubjectCatalog(remoteSettings.subjectCatalog));
+    }
     if (!isEditingNoticeRef.current) {
       setScheduleNotice(remoteSettings.scheduleNotice);
       setScheduleNoticeHighlights(remoteSettings.scheduleNoticeHighlights || []);
@@ -3805,7 +3809,7 @@ export default function TimerPage() {
       return;
     }
 
-    if (isEditingAuctionMissionRef.current) return;
+    if (isEditingSubjectCatalogRef.current || isEditingAuctionMissionRef.current) return;
 
     if (sharedSettingsSaveTimeoutRef.current !== null) {
       window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
@@ -3850,6 +3854,7 @@ export default function TimerPage() {
     auctionBidHistory,
     auctionAwards,
     auctionMissions,
+    subjectCatalogEditCommitVersion,
     auctionMissionEditCommitVersion,
   ]);
 
@@ -3860,7 +3865,12 @@ export default function TimerPage() {
     let isChecking = false;
 
     const syncSharedSettingsFromRemote = async () => {
-      if (!sharedSettingsHydratedRef.current || isChecking || isEditingNoticeRef.current) return;
+      if (
+        !sharedSettingsHydratedRef.current ||
+        isChecking ||
+        isEditingNoticeRef.current ||
+        isEditingSubjectCatalogRef.current
+      ) return;
       isChecking = true;
 
       try {
@@ -5017,7 +5027,7 @@ export default function TimerPage() {
           }
         }
 
-        next[weekKey] = Object.entries(weekValue).reduce<Record<number, Record<string, string>>>(
+        weeks[weekKey] = Object.entries(weekValue).reduce<Record<number, Record<string, string>>>(
           (days, [dayKey, dayValue]) => {
             days[Number(dayKey)] = Object.entries(dayValue).reduce<Record<string, string>>(
               (subjects, [subjectKey, subjectValue]) => {
@@ -5031,7 +5041,7 @@ export default function TimerPage() {
           },
           {},
         );
-        return next;
+        return weeks;
       }, {});
 
       return didChange ? next : previous;
@@ -5048,6 +5058,20 @@ export default function TimerPage() {
       return [...previous, subject];
     });
     setNewSubjectName('');
+  };
+
+  const beginSubjectCatalogEdit = () => {
+    isEditingSubjectCatalogRef.current = true;
+    if (sharedSettingsSaveTimeoutRef.current !== null) {
+      window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+      sharedSettingsSaveTimeoutRef.current = null;
+    }
+  };
+
+  const endSubjectCatalogEdit = () => {
+    if (!isEditingSubjectCatalogRef.current) return;
+    isEditingSubjectCatalogRef.current = false;
+    setSubjectCatalogEditCommitVersion((previous) => previous + 1);
   };
 
   const updateSubjectCatalogItem = (index: number, value: string) => {
@@ -6890,11 +6914,13 @@ export default function TimerPage() {
             </div>
           ) : (
             subjectCatalog.map((subject, index) => (
-              <div key={`${subject}-${index}`} className="subject-catalog-row flex min-w-0 items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-2">
+              <div key={`subject-catalog-${index}`} className="subject-catalog-row flex min-w-0 items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-2">
                 <input
                   type="text"
                   value={subject}
                   onChange={(event) => updateSubjectCatalogItem(index, event.target.value)}
+                  onFocus={beginSubjectCatalogEdit}
+                  onBlur={endSubjectCatalogEdit}
                   maxLength={MAX_SUBJECT_NAME_LENGTH}
                   className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
                   aria-label={`${index + 1}번째 과목`}
@@ -6918,6 +6944,8 @@ export default function TimerPage() {
             type="text"
             value={newSubjectName}
             onChange={(event) => setNewSubjectName(event.target.value)}
+            onFocus={beginSubjectCatalogEdit}
+            onBlur={endSubjectCatalogEdit}
             maxLength={MAX_SUBJECT_NAME_LENGTH}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
