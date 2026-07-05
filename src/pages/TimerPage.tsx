@@ -88,7 +88,7 @@ import {
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
-type AuctionResetTarget = 'items' | 'bids' | 'currency';
+type AuctionManagementAction = 'items' | 'bids' | 'currency' | 'tax' | 'allowance';
 interface ScheduleSlot {
   id: string;
   name: string;
@@ -3361,7 +3361,7 @@ export default function TimerPage() {
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('schedule');
   const [editingDay, setEditingDay] = useState<number>(() => getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
-  const [pendingAuctionReset, setPendingAuctionReset] = useState<AuctionResetTarget | null>(null);
+  const [pendingAuctionAction, setPendingAuctionAction] = useState<AuctionManagementAction | null>(null);
   const [pendingAwardItemId, setPendingAwardItemId] = useState<string | null>(null);
   const [temporaryVisibleAuctionItemIds, setTemporaryVisibleAuctionItemIds] = useState<Set<string>>(() => new Set());
   const [awardPresentation, setAwardPresentation] = useState<{
@@ -5700,16 +5700,20 @@ export default function TimerPage() {
     });
   };
 
-  const confirmAuctionReset = () => {
-    if (pendingAuctionReset === 'items') {
+  const confirmAuctionManagementAction = () => {
+    if (pendingAuctionAction === 'items') {
       resetAuctionItems();
-    } else if (pendingAuctionReset === 'bids') {
+    } else if (pendingAuctionAction === 'bids') {
       resetAuctionBids();
-    } else if (pendingAuctionReset === 'currency') {
+    } else if (pendingAuctionAction === 'currency') {
       resetCurrencyBalances();
+    } else if (pendingAuctionAction === 'tax') {
+      collectTaxFromAllStudents();
+    } else if (pendingAuctionAction === 'allowance') {
+      grantWeeklyAllowanceToAllStudents();
     }
 
-    setPendingAuctionReset(null);
+    setPendingAuctionAction(null);
   };
 
   const updateAuctionItem = (itemId: string, patch: Pick<AuctionItem, 'name'>) => {
@@ -7674,35 +7678,35 @@ export default function TimerPage() {
         <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-5">
           <button
             type="button"
-            onClick={() => setPendingAuctionReset('items')}
+            onClick={() => setPendingAuctionAction('items')}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-[#F8FCF6] px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
           >
             물품 초기화
           </button>
           <button
             type="button"
-            onClick={() => setPendingAuctionReset('bids')}
+            onClick={() => setPendingAuctionAction('bids')}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#E4D7C9] bg-[#FFFDF8] px-4 py-2 text-[0.9rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
           >
             입찰가 초기화
           </button>
           <button
             type="button"
-            onClick={() => setPendingAuctionReset('currency')}
+            onClick={() => setPendingAuctionAction('currency')}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#F8FCF6]"
           >
             보유 화폐 초기화
           </button>
           <button
             type="button"
-            onClick={collectTaxFromAllStudents}
+            onClick={() => setPendingAuctionAction('tax')}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#E4D7C9] bg-[#FFF7EC] px-4 py-2 text-[0.9rem] font-extrabold text-[#7A4C24] transition-colors hover:bg-[#FBEBD8]"
           >
             세금 징수
           </button>
           <button
             type="button"
-            onClick={grantWeeklyAllowanceToAllStudents}
+            onClick={() => setPendingAuctionAction('allowance')}
             className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-[#F8FCF6] px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
           >
             주급 제공
@@ -9156,8 +9160,8 @@ export default function TimerPage() {
               );
             })() : null}
 
-            {pendingAuctionReset ? (() => {
-              const resetCopy = {
+            {pendingAuctionAction ? (() => {
+              const actionCopy = {
                 items: {
                   title: '물품을 초기화할까요?',
                   body: '경매 물품이 월요일부터 금요일까지 각 1개씩 기본값으로 돌아갑니다.',
@@ -9173,13 +9177,23 @@ export default function TimerPage() {
                   body: '모든 학생의 보유 고마가 기본값으로 돌아갑니다.',
                   action: '보유 화폐 초기화',
                 },
-              }[pendingAuctionReset];
+                tax: {
+                  title: '세금을 징수할까요?',
+                  body: '모든 학생의 보유 고마가 절반으로 줄어듭니다. 소수점이 생기면 많은 쪽으로 올립니다.',
+                  action: '세금 징수',
+                },
+                allowance: {
+                  title: '주급을 제공할까요?',
+                  body: '모든 학생에게 100고마씩 지급됩니다.',
+                  action: '주급 제공',
+                },
+              }[pendingAuctionAction];
 
               return (
                 <div
                   className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4"
                   role="presentation"
-                  onClick={() => setPendingAuctionReset(null)}
+                  onClick={() => setPendingAuctionAction(null)}
                 >
                   <div
                     className="w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
@@ -9189,25 +9203,25 @@ export default function TimerPage() {
                     onClick={(event) => event.stopPropagation()}
                   >
                     <h3 id="auction-reset-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
-                      {resetCopy.title}
+                      {actionCopy.title}
                     </h3>
                     <p className="mt-2 text-[0.95rem] font-extrabold leading-6 text-[#6E5139]">
-                      {resetCopy.body}
+                      {actionCopy.body}
                     </p>
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setPendingAuctionReset(null)}
+                        onClick={() => setPendingAuctionAction(null)}
                         className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
                       >
                         취소
                       </button>
                       <button
                         type="button"
-                        onClick={confirmAuctionReset}
+                        onClick={confirmAuctionManagementAction}
                         className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
                       >
-                        {resetCopy.action}
+                        {actionCopy.action}
                       </button>
                     </div>
                   </div>
