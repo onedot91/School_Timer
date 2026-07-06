@@ -391,6 +391,12 @@ export const getMinimumAuctionBid = (item: AuctionItem, currentAmount: number) =
   return Math.max(item.startPrice, Math.ceil(baseAmount / AUCTION_BID_STEP) * AUCTION_BID_STEP);
 };
 
+export const hasAuctionBidAmount = (
+  history: AuctionBidHistory,
+  itemId: string,
+  amount: number,
+) => (history[itemId] ?? []).some((entry) => entry.amount === amount);
+
 export const getReservedAuctionBidAmount = (
   bids: AuctionBids,
   studentNumber: number,

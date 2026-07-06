@@ -13,6 +13,7 @@ import {
   getAuctionVisibleDayCount,
   getMinimumAuctionBid,
   getReservedAuctionBidAmount,
+  hasAuctionBidAmount,
   normalizeAuctionAwards,
   normalizeAuctionBidHistory,
   normalizeAuctionBids,
@@ -55,7 +56,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => normalizeCurrencyBalances(null));
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
-  const [, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
+  const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
@@ -176,6 +177,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       return;
     }
 
+    if (hasAuctionBidAmount(auctionBidHistory, item.id, bidAmount)) {
+      setStatusMessage('이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.');
+      return;
+    }
+
     if (bidAmount > availableForItem) {
       setStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
       return;
@@ -215,6 +221,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
           if (bidAmount < latestMinimumBid) {
             throw new Error('BID_TOO_LOW');
+          }
+
+          if (hasAuctionBidAmount(currentHistory, item.id, bidAmount)) {
+            throw new Error('DUPLICATE_BID_AMOUNT');
           }
 
           return {
@@ -277,7 +287,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           ? '현재 최고 입찰가보다 높게 입찰해야 합니다.'
           : error instanceof Error && error.message === 'ALREADY_AWARDED'
             ? '이미 낙찰된 물품입니다.'
-          : '입찰을 처리하지 못했습니다. 다시 시도해 주세요.');
+            : error instanceof Error && error.message === 'DUPLICATE_BID_AMOUNT'
+              ? '이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.'
+              : '입찰을 처리하지 못했습니다. 다시 시도해 주세요.');
       await refreshAuctionState();
     } finally {
       setIsSubmittingItemId(null);
@@ -305,6 +317,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     if (confirmedAmount < minimumBid) {
       setStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
+      return;
+    }
+
+    if (hasAuctionBidAmount(auctionBidHistory, item.id, confirmedAmount)) {
+      setStatusMessage('이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.');
       return;
     }
 

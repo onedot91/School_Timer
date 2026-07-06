@@ -3230,6 +3230,8 @@ export default function TimerPage() {
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+  const [auctionItemEditCommitVersion, setAuctionItemEditCommitVersion] = useState(0);
+  const isEditingAuctionItemRef = useRef(false);
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getStoredAuctionMissions);
   const [auctionMissionEditCommitVersion, setAuctionMissionEditCommitVersion] = useState(0);
   const hasBlankAuctionMissionDraftRef = useRef(false);
@@ -3627,7 +3629,9 @@ export default function TimerPage() {
     setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
     setCurrencyBalances(normalizeCurrencyBalances(remoteSettings.currencyBalances));
     setCurrencyHistory(normalizeCurrencyHistory(remoteSettings.currencyHistory));
-    setAuctionItems(normalizeAuctionItems(remoteSettings.auctionItems));
+    if (!isEditingAuctionItemRef.current) {
+      setAuctionItems(normalizeAuctionItems(remoteSettings.auctionItems));
+    }
     setAuctionBids(normalizeAuctionBids(remoteSettings.auctionBids, AUCTION_ITEM_IDS));
     setAuctionBidHistory(normalizeAuctionBidHistory(remoteSettings.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(remoteSettings.auctionAwards, AUCTION_ITEM_IDS));
@@ -3822,7 +3826,11 @@ export default function TimerPage() {
       return;
     }
 
-    if (isEditingSubjectCatalogRef.current || isEditingAuctionMissionRef.current) return;
+    if (
+      isEditingSubjectCatalogRef.current ||
+      isEditingAuctionItemRef.current ||
+      isEditingAuctionMissionRef.current
+    ) return;
 
     if (sharedSettingsSaveTimeoutRef.current !== null) {
       window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
@@ -3869,6 +3877,7 @@ export default function TimerPage() {
     auctionAwards,
     auctionMissions,
     subjectCatalogEditCommitVersion,
+    auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
   ]);
 
@@ -3883,7 +3892,8 @@ export default function TimerPage() {
         !sharedSettingsHydratedRef.current ||
         isChecking ||
         isEditingNoticeRef.current ||
-        isEditingSubjectCatalogRef.current
+        isEditingSubjectCatalogRef.current ||
+        isEditingAuctionItemRef.current
       ) return;
       isChecking = true;
 
@@ -5787,6 +5797,20 @@ export default function TimerPage() {
     setPendingAuctionAction(null);
   };
 
+  const beginAuctionItemEdit = () => {
+    isEditingAuctionItemRef.current = true;
+    if (sharedSettingsSaveTimeoutRef.current !== null) {
+      window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+      sharedSettingsSaveTimeoutRef.current = null;
+    }
+  };
+
+  const endAuctionItemEdit = () => {
+    if (!isEditingAuctionItemRef.current) return;
+    isEditingAuctionItemRef.current = false;
+    setAuctionItemEditCommitVersion((previous) => previous + 1);
+  };
+
   const updateAuctionItem = (itemId: string, patch: Pick<AuctionItem, 'name'>) => {
     setAuctionItems((previous) => previous.map((item) => (
       item.id === itemId
@@ -7545,6 +7569,8 @@ export default function TimerPage() {
                               <input
                                 value={itemDisplayName}
                                 onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
+                                onFocus={beginAuctionItemEdit}
+                                onBlur={endAuctionItemEdit}
                                 className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border bg-[#FAFCFB] px-3 text-[1rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:bg-white"
                                 style={{ borderColor: accent.border }}
                                 aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 이름`}

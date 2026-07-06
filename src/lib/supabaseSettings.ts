@@ -28,6 +28,8 @@ const supabase = isSupabaseSettingsEnabled
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
+const SHARED_SETTINGS_UPDATE_RETRY_LIMIT = 5;
+
 export const loadSharedSettings = async () => {
   const data = await loadSharedSettingsRow();
   return data?.value ?? null;
@@ -66,8 +68,42 @@ export const saveSharedSettings = async (value: unknown) => {
 export const updateSharedSettings = async (updater: (currentValue: unknown) => unknown) => {
   if (!supabase) return;
 
-  const currentRow = await loadSharedSettingsRow();
-  await saveSharedSettings(updater(currentRow?.value ?? null));
+  for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
+    const currentRow = await loadSharedSettingsRow();
+    const nextValue = updater(currentRow?.value ?? null);
+    const updatedAt = new Date().toISOString();
+
+    if (!currentRow) {
+      const { error } = await supabase.from('app_settings').insert({
+        id: SHARED_SETTINGS_ID,
+        value: nextValue,
+        updated_at: updatedAt,
+      });
+
+      if (!error) return;
+      if (error.code === '23505') continue;
+      throw error;
+    }
+
+    const { data, error } = await supabase
+      .from('app_settings')
+      .update({
+        value: nextValue,
+        updated_at: updatedAt,
+      })
+      .eq('id', SHARED_SETTINGS_ID)
+      .eq('updated_at', currentRow.updated_at ?? '')
+      .select('id')
+      .maybeSingle<{ id: string }>();
+
+    if (error) {
+      throw error;
+    }
+
+    if (data) return;
+  }
+
+  throw new Error('SHARED_SETTINGS_CONFLICT');
 };
 
 export const loadAnnouncementNote = async (dateKey: string) => {
