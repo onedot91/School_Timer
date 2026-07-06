@@ -1,4 +1,25 @@
 export type CurrencyBalances = Record<string, number>;
+
+export type CurrencyHistoryReason =
+  | 'manual'
+  | 'reset'
+  | 'tax'
+  | 'allowance'
+  | 'auction_award'
+  | 'bulk_adjust';
+
+export interface CurrencyHistoryEntry {
+  id: string;
+  studentNumber: number;
+  delta: number;
+  before: number;
+  after: number;
+  reason: CurrencyHistoryReason;
+  createdAt: string;
+}
+
+export type CurrencyHistory = Record<string, CurrencyHistoryEntry[]>;
+
 export interface AuctionBid {
   amount: number;
   bidder: number | null;
@@ -44,6 +65,7 @@ export const CURRENCY_BALANCE_MIN = 0;
 export const CURRENCY_BALANCE_MAX = 999999;
 export const CURRENCY_BALANCE_STEP = 5;
 export const CURRENCY_UNIT_LABEL = '고마';
+export const CURRENCY_HISTORY_LIMIT_PER_STUDENT = 30;
 export const AUCTION_BID_STEP = 1;
 export const AUCTION_MISSIONS_STORAGE_KEY = 'auctionMissions-v1';
 export const AUCTION_MISSION_CONTENT_MAX_LENGTH = 80;
@@ -158,6 +180,12 @@ export const createDefaultCurrencyBalances = (): CurrencyBalances =>
     return balances;
   }, {});
 
+export const createDefaultCurrencyHistory = (): CurrencyHistory =>
+  CURRENCY_STUDENT_NUMBERS.reduce<CurrencyHistory>((history, studentNumber) => {
+    history[String(studentNumber)] = [];
+    return history;
+  }, {});
+
 export const normalizeCurrencyBalances = (value: unknown): CurrencyBalances => {
   const parsed = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
   return CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((balances, studentNumber) => {
@@ -165,6 +193,88 @@ export const normalizeCurrencyBalances = (value: unknown): CurrencyBalances => {
     balances[key] = key in parsed ? clampCurrencyBalance(parsed[key]) : DEFAULT_CURRENCY_BALANCE;
     return balances;
   }, {});
+};
+
+const CURRENCY_HISTORY_REASONS = [
+  'manual',
+  'reset',
+  'tax',
+  'allowance',
+  'auction_award',
+  'bulk_adjust',
+] as const satisfies readonly CurrencyHistoryReason[];
+
+const isCurrencyHistoryReason = (value: unknown): value is CurrencyHistoryReason =>
+  typeof value === 'string' && CURRENCY_HISTORY_REASONS.some((reason) => reason === value);
+
+const createCurrencyHistoryId = (studentNumber: number, createdAt: string, reason: CurrencyHistoryReason) =>
+  `currency-${studentNumber}-${createdAt}-${reason}-${Math.random().toString(36).slice(2, 8)}`;
+
+export const normalizeCurrencyHistory = (value: unknown): CurrencyHistory => {
+  const parsed = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return CURRENCY_STUDENT_NUMBERS.reduce<CurrencyHistory>((history, studentNumber) => {
+    const key = String(studentNumber);
+    const rawEntries = Array.isArray(parsed[key]) ? parsed[key] : [];
+    history[key] = rawEntries
+      .map((rawEntry): CurrencyHistoryEntry | null => {
+        const entry = rawEntry && typeof rawEntry === 'object' ? (rawEntry as Record<string, unknown>) : {};
+        const entryStudentNumber = typeof entry.studentNumber === 'number' && CURRENCY_STUDENT_NUMBERS.includes(entry.studentNumber)
+          ? entry.studentNumber
+          : studentNumber;
+        const before = clampCurrencyBalance(entry.before);
+        const after = clampCurrencyBalance(entry.after);
+        const createdAt = typeof entry.createdAt === 'string' && entry.createdAt.trim()
+          ? entry.createdAt.trim()
+          : '';
+        const reason = isCurrencyHistoryReason(entry.reason) ? entry.reason : null;
+
+        if (entryStudentNumber !== studentNumber || !createdAt || !reason) return null;
+
+        return {
+          id: typeof entry.id === 'string' && entry.id.trim()
+            ? entry.id.trim()
+            : createCurrencyHistoryId(studentNumber, createdAt, reason),
+          studentNumber,
+          delta: after - before,
+          before,
+          after,
+          reason,
+          createdAt,
+        };
+      })
+      .filter((entry): entry is CurrencyHistoryEntry => entry !== null)
+      .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0))
+      .slice(0, CURRENCY_HISTORY_LIMIT_PER_STUDENT);
+    return history;
+  }, {});
+};
+
+export const appendCurrencyHistoryEntry = (
+  history: CurrencyHistory,
+  entry: Omit<CurrencyHistoryEntry, 'id' | 'delta' | 'createdAt'> & { createdAt?: string },
+): CurrencyHistory => {
+  const normalizedHistory = normalizeCurrencyHistory(history);
+  const studentKey = String(entry.studentNumber);
+  const createdAt = entry.createdAt ?? new Date().toISOString();
+  const before = clampCurrencyBalance(entry.before);
+  const after = clampCurrencyBalance(entry.after);
+  if (before === after) return normalizedHistory;
+
+  return {
+    ...normalizedHistory,
+    [studentKey]: [
+      {
+        id: createCurrencyHistoryId(entry.studentNumber, createdAt, entry.reason),
+        studentNumber: entry.studentNumber,
+        delta: after - before,
+        before,
+        after,
+        reason: entry.reason,
+        createdAt,
+      },
+      ...(normalizedHistory[studentKey] ?? []),
+    ].slice(0, CURRENCY_HISTORY_LIMIT_PER_STUDENT),
+  };
 };
 
 export const collectCurrencyTax = (balances: CurrencyBalances): CurrencyBalances =>

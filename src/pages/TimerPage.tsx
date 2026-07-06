@@ -59,10 +59,12 @@ import {
   CURRENCY_BALANCE_STEP,
   CURRENCY_STUDENT_NUMBERS,
   DEFAULT_CURRENCY_BALANCE,
+  appendCurrencyHistoryEntry,
   clampAuctionMissionRewardAmount,
   clampCurrencyBalance,
   collectCurrencyTax,
   createDefaultCurrencyBalances,
+  createDefaultCurrencyHistory,
   formatCurrencyAmount,
   formatCurrency,
   getAuctionItemDisplayName,
@@ -75,6 +77,9 @@ import {
   normalizeAuctionItems,
   normalizeAuctionMissions,
   normalizeCurrencyBalances,
+  normalizeCurrencyHistory,
+  type CurrencyHistory,
+  type CurrencyHistoryReason,
   type AuctionMission,
   type AuctionAward,
   type AuctionAwards,
@@ -142,6 +147,7 @@ interface SharedSchoolTimerSettings {
     isVisible: boolean;
   };
   currencyBalances: CurrencyBalances;
+  currencyHistory: CurrencyHistory;
   auctionItems: AuctionItem[];
   auctionBids: AuctionBids;
   auctionBidHistory: AuctionBidHistory;
@@ -1328,6 +1334,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
       isVisible: manualTimer.isVisible === true,
     },
     currencyBalances: normalizeCurrencyBalances(parsed.currencyBalances),
+    currencyHistory: normalizeCurrencyHistory(parsed.currencyHistory),
     auctionItems: normalizeAuctionItems(parsed.auctionItems),
     auctionBids: normalizeAuctionBids(parsed.auctionBids, AUCTION_ITEM_IDS),
     auctionBidHistory: normalizeAuctionBidHistory(parsed.auctionBidHistory, AUCTION_ITEM_IDS),
@@ -3218,6 +3225,7 @@ export default function TimerPage() {
   const [isCurrencyPanelOpen, setIsCurrencyPanelOpen] = useState(false);
   const [editingCurrencyNumber, setEditingCurrencyNumber] = useState<number | null>(null);
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
+  const [currencyHistory, setCurrencyHistory] = useState<CurrencyHistory>(() => createDefaultCurrencyHistory());
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
@@ -3227,6 +3235,7 @@ export default function TimerPage() {
   const hasBlankAuctionMissionDraftRef = useRef(false);
   const isEditingAuctionMissionRef = useRef(false);
   const lastPersistedAuctionMissionsRef = useRef<AuctionMission[]>(auctionMissions);
+  const finalizedAwardPresentationKeysRef = useRef<Set<string>>(new Set());
   const [scheduleYoutubeUrls, setScheduleYoutubeUrls] = useState<string[]>(initialScheduleYoutubeState.appliedUrls);
   const [scheduleYoutubeFavorites, setScheduleYoutubeFavorites] = useState<ScheduleYoutubeFavorite[]>(() =>
     getStoredScheduleYoutubeFavorites(),
@@ -3578,6 +3587,7 @@ export default function TimerPage() {
       isVisible: isExtraTimerVisible,
     },
     currencyBalances,
+    currencyHistory,
     auctionItems,
     auctionBids,
     auctionBidHistory,
@@ -3616,6 +3626,7 @@ export default function TimerPage() {
     setDrawCases(remoteSettings.randomDraw.cases);
     setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
     setCurrencyBalances(normalizeCurrencyBalances(remoteSettings.currencyBalances));
+    setCurrencyHistory(normalizeCurrencyHistory(remoteSettings.currencyHistory));
     setAuctionItems(normalizeAuctionItems(remoteSettings.auctionItems));
     setAuctionBids(normalizeAuctionBids(remoteSettings.auctionBids, AUCTION_ITEM_IDS));
     setAuctionBidHistory(normalizeAuctionBidHistory(remoteSettings.auctionBidHistory, AUCTION_ITEM_IDS));
@@ -3851,6 +3862,7 @@ export default function TimerPage() {
     manualTotalTime,
     isExtraTimerVisible,
     currencyBalances,
+    currencyHistory,
     auctionItems,
     auctionBids,
     auctionBidHistory,
@@ -5493,25 +5505,84 @@ export default function TimerPage() {
     setIsScheduleYoutubePlaylistOpen(false);
   };
 
+  const recordCurrencyChange = (
+    studentNumber: number,
+    before: number,
+    after: number,
+    reason: CurrencyHistoryReason,
+    createdAt = new Date().toISOString(),
+  ) => {
+    setCurrencyHistory((previous) =>
+      appendCurrencyHistoryEntry(previous, {
+        studentNumber,
+        before,
+        after,
+        reason,
+        createdAt,
+      }),
+    );
+  };
+
+  const appendCurrencyChangesToHistory = (
+    history: CurrencyHistory,
+    previousBalances: CurrencyBalances,
+    nextBalances: CurrencyBalances,
+    reason: CurrencyHistoryReason,
+    createdAt: string,
+  ) =>
+    CURRENCY_STUDENT_NUMBERS.reduce<CurrencyHistory>((nextHistory, studentNumber) => {
+      const key = String(studentNumber);
+      return appendCurrencyHistoryEntry(nextHistory, {
+        studentNumber,
+        before: previousBalances[key] ?? DEFAULT_CURRENCY_BALANCE,
+        after: nextBalances[key] ?? DEFAULT_CURRENCY_BALANCE,
+        reason,
+        createdAt,
+      });
+    }, history);
+
+  const recordCurrencyChanges = (
+    previousBalances: CurrencyBalances,
+    nextBalances: CurrencyBalances,
+    reason: CurrencyHistoryReason,
+  ) => {
+    const createdAt = new Date().toISOString();
+    setCurrencyHistory((previousHistory) =>
+      appendCurrencyChangesToHistory(previousHistory, previousBalances, nextBalances, reason, createdAt),
+    );
+  };
+
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
     const key = String(studentNumber);
+    const before = currencyBalances[key] ?? DEFAULT_CURRENCY_BALANCE;
+    const after = clampCurrencyBalance(before + delta);
+    recordCurrencyChange(studentNumber, before, after, 'manual');
     setCurrencyBalances((previous) => ({
       ...previous,
-      [key]: clampCurrencyBalance((previous[key] ?? DEFAULT_CURRENCY_BALANCE) + delta),
+      [key]: after,
     }));
   };
 
   const resetCurrencyBalances = () => {
-    setCurrencyBalances(createDefaultCurrencyBalances());
+    const normalizedPrevious = normalizeCurrencyBalances(currencyBalances);
+    const nextBalances = createDefaultCurrencyBalances();
+    recordCurrencyChanges(normalizedPrevious, nextBalances, 'reset');
+    setCurrencyBalances(nextBalances);
     setEditingCurrencyNumber(null);
   };
 
   const collectTaxFromAllStudents = () => {
-    setCurrencyBalances((previous) => collectCurrencyTax(normalizeCurrencyBalances(previous)));
+    const normalizedPrevious = normalizeCurrencyBalances(currencyBalances);
+    const nextBalances = collectCurrencyTax(normalizedPrevious);
+    recordCurrencyChanges(normalizedPrevious, nextBalances, 'tax');
+    setCurrencyBalances(nextBalances);
   };
 
   const grantWeeklyAllowanceToAllStudents = () => {
-    setCurrencyBalances((previous) => grantWeeklyCurrencyAllowance(normalizeCurrencyBalances(previous)));
+    const normalizedPrevious = normalizeCurrencyBalances(currencyBalances);
+    const nextBalances = grantWeeklyCurrencyAllowance(normalizedPrevious);
+    recordCurrencyChanges(normalizedPrevious, nextBalances, 'allowance');
+    setCurrencyBalances(nextBalances);
   };
 
   const resetAuctionItems = () => {
@@ -5787,18 +5858,22 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (!awardPresentation?.isComplete || awardPresentation.hasFinalized) return;
+    const awardPresentationKey = `${awardPresentation.award.itemId}:${awardPresentation.award.awardedAt}`;
+    if (finalizedAwardPresentationKeysRef.current.has(awardPresentationKey)) return;
+    finalizedAwardPresentationKeysRef.current.add(awardPresentationKey);
 
     setAuctionAwards((previous) => ({
       ...previous,
       [awardPresentation.award.itemId]: awardPresentation.award,
     }));
+    const winnerKey = String(awardPresentation.award.winner);
+    const beforeBalance = currencyBalances[winnerKey] ?? DEFAULT_CURRENCY_BALANCE;
+    const afterBalance = clampCurrencyBalance(beforeBalance - awardPresentation.award.amount);
+    recordCurrencyChange(awardPresentation.award.winner, beforeBalance, afterBalance, 'auction_award');
     setCurrencyBalances((previous) => {
-      const winnerKey = String(awardPresentation.award.winner);
       return {
         ...previous,
-        [winnerKey]: clampCurrencyBalance(
-          (previous[winnerKey] ?? DEFAULT_CURRENCY_BALANCE) - awardPresentation.award.amount,
-        ),
+        [winnerKey]: afterBalance,
       };
     });
     setAwardPresentation((previous) => (
