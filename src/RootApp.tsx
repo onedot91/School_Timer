@@ -32,7 +32,13 @@ const usesMetaEntryResetShortcut = () => {
 
 const getStoredEntryNumber = () => {
   if (typeof window === 'undefined') return null;
-  const savedValue = window.localStorage.getItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY);
+  let savedValue: string | null;
+  try {
+    savedValue = window.localStorage.getItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY);
+  } catch (error) {
+    if (error instanceof Error) return null;
+    throw error;
+  }
   if (savedValue === null) return null;
   const parsedValue = Number.parseInt(savedValue, 10);
   return Number.isInteger(parsedValue) && parsedValue >= 0 && parsedValue <= 23
@@ -40,17 +46,35 @@ const getStoredEntryNumber = () => {
     : null;
 };
 
+const storeEntryNumber = (studentNumber: number) => {
+  try {
+    window.localStorage.setItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY, String(studentNumber));
+  } catch (error) {
+    if (error instanceof Error) return;
+    throw error;
+  }
+};
+
+const clearStoredEntryNumber = () => {
+  try {
+    window.localStorage.removeItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY);
+  } catch (error) {
+    if (error instanceof Error) return;
+    throw error;
+  }
+};
+
 export default function RootApp() {
   const [hasRuntimeError, setHasRuntimeError] = useState(false);
   const [selectedEntryNumber, setSelectedEntryNumber] = useState<number | null>(() => getStoredEntryNumber());
 
   const selectEntryNumber = (studentNumber: number) => {
-    window.localStorage.setItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY, String(studentNumber));
+    storeEntryNumber(studentNumber);
     setSelectedEntryNumber(studentNumber);
   };
 
   const changeEntryNumber = () => {
-    window.localStorage.removeItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY);
+    clearStoredEntryNumber();
     setSelectedEntryNumber(null);
   };
 
