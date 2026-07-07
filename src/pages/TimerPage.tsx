@@ -826,6 +826,11 @@ const isTextEntryShortcutTarget = (target: EventTarget | null) => {
   return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
 };
 
+const isComposingKeyboardEvent = (event: KeyboardEvent | React.KeyboardEvent<HTMLElement>) => {
+  const nativeEvent = 'nativeEvent' in event ? event.nativeEvent : event;
+  return nativeEvent.isComposing;
+};
+
 const sanitizeMemoHtml = (value: unknown) => {
   if (typeof value !== 'string' || value.trim().length === 0) return '';
 
@@ -2274,6 +2279,7 @@ function AnnouncementNotebookOverlay({
     if (!isOpen) return;
 
     const handleAnnouncementShortcuts = (event: KeyboardEvent) => {
+      if (isComposingKeyboardEvent(event)) return;
       if (event.key === 'Escape') {
         onClose();
         return;
@@ -2319,6 +2325,7 @@ function AnnouncementNotebookOverlay({
                       setDateText((prev) => normalizeAnnouncementDateText(prev));
                     }}
                     onKeyDown={(event) => {
+                      if (isComposingKeyboardEvent(event)) return;
                       if (event.key === 'Enter') {
                         event.preventDefault();
                         setIsViewingHistoryRecord(false);
@@ -2608,6 +2615,7 @@ function MemoNotebookOverlay({
     if (!isOpen) return;
 
     const handleMemoShortcuts = (event: KeyboardEvent) => {
+      if (isComposingKeyboardEvent(event)) return;
       if (event.key !== 'Escape') return;
 
       event.preventDefault();
@@ -4034,6 +4042,7 @@ export default function TimerPage() {
     if (!isScheduleYoutubeFavoritesEditing) return;
 
     const handleYoutubeFavoritesEditKeyDown = (event: KeyboardEvent) => {
+      if (isComposingKeyboardEvent(event)) return;
       if (event.key !== 'Escape') return;
       setDraggingScheduleYoutubeFavoriteId(null);
       setIsScheduleYoutubeFavoritesEditing(false);
@@ -6567,6 +6576,7 @@ export default function TimerPage() {
                 onMouseUp={applyNoticeDraftSelectionHighlight}
                 onTouchEnd={applyNoticeDraftSelectionHighlight}
                 onKeyDown={(e) => {
+                  if (isComposingKeyboardEvent(e)) return;
                   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     e.preventDefault();
                     closeNoticeEdit();
@@ -7061,7 +7071,7 @@ export default function TimerPage() {
             onBlur={endSubjectCatalogEdit}
             maxLength={MAX_SUBJECT_NAME_LENGTH}
             onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+              if (isComposingKeyboardEvent(event) || event.altKey || event.ctrlKey || event.metaKey) return;
               if (event.key === 'Enter') {
                 event.preventDefault();
                 addSubjectCatalogItem();
@@ -8244,6 +8254,7 @@ export default function TimerPage() {
                       }}
                       onBlur={() => commitManualTimeInput('minutes')}
                       onKeyDown={(event) => {
+                        if (isComposingKeyboardEvent(event)) return;
                         if (event.key === 'Enter') {
                           event.currentTarget.blur();
                           return;
@@ -8275,6 +8286,7 @@ export default function TimerPage() {
                       }}
                       onBlur={() => commitManualTimeInput('seconds')}
                       onKeyDown={(event) => {
+                        if (isComposingKeyboardEvent(event)) return;
                         if (event.key === 'Enter') {
                           event.currentTarget.blur();
                           return;
@@ -8780,6 +8792,7 @@ export default function TimerPage() {
                                     onBlur={() => normalizeScheduleYoutubeFavoriteName(favorite.id)}
                                     onFocus={(event) => event.currentTarget.select()}
                                     onKeyDown={(event) => {
+                                      if (isComposingKeyboardEvent(event)) return;
                                       if (event.key !== 'Enter') return;
                                       event.preventDefault();
                                       normalizeScheduleYoutubeFavoriteName(favorite.id);
@@ -8852,6 +8865,7 @@ export default function TimerPage() {
                               }
                             }}
                             onKeyDown={(event) => {
+                              if (isComposingKeyboardEvent(event)) return;
                               if (event.key !== 'Enter') return;
                               event.preventDefault();
                               void searchScheduleYoutubeVideos();
