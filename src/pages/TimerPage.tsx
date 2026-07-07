@@ -5610,14 +5610,28 @@ export default function TimerPage() {
   };
 
   const addAuctionItem = (dayIndex: number) => {
-    setAuctionItems((previous) => {
-      const normalizedPrevious = normalizeAuctionItems(previous);
-      if (normalizedPrevious.length >= AUCTION_MAX_ITEM_COUNT) return normalizedPrevious;
-      const sameDayItemCount = normalizedPrevious.filter((item) => item.dayIndex === dayIndex).length;
-      if (sameDayItemCount >= AUCTION_MAX_ITEMS_PER_DAY) return normalizedPrevious;
-      const nextTemplate = createAuctionItemTemplate(dayIndex, sameDayItemCount);
-      return normalizeAuctionItems([...normalizedPrevious, nextTemplate]);
-    });
+    const normalizedItems = normalizeAuctionItems(auctionItems);
+    if (normalizedItems.length >= AUCTION_MAX_ITEM_COUNT) return;
+    const sameDayItemCount = normalizedItems.filter((item) => item.dayIndex === dayIndex).length;
+    if (sameDayItemCount >= AUCTION_MAX_ITEMS_PER_DAY) return;
+
+    const nextTemplate = createAuctionItemTemplate(dayIndex, sameDayItemCount);
+    const addedItemId = nextTemplate.id;
+    setAuctionItems(normalizeAuctionItems([...normalizedItems, nextTemplate]));
+    setAuctionBids((previous) => ({
+      ...previous,
+      [addedItemId]: { amount: 0, bidder: null },
+    }));
+    setAuctionBidHistory((previous) => ({
+      ...previous,
+      [addedItemId]: [],
+    }));
+    setAuctionAwards((previous) => ({
+      ...previous,
+      [addedItemId]: null,
+    }));
+    setPendingAwardItemId((previous) => (previous === addedItemId ? null : previous));
+    setAwardPresentation((previous) => (previous?.itemId === addedItemId ? null : previous));
   };
 
   const removeAuctionItem = (itemId: string) => {
