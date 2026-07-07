@@ -1771,10 +1771,16 @@ function AnnouncementNotebookOverlay({
   isOpen,
   onClose,
   liveTimer,
+  awardableAuctionItems,
+  auctionBids,
+  onOpenAwardConfirm,
 }: {
   isOpen: boolean;
   onClose: () => void;
   liveTimer: AnnouncementOverlayTimerState;
+  awardableAuctionItems: AuctionItem[];
+  auctionBids: AuctionBids;
+  onOpenAwardConfirm: (item: AuctionItem) => void;
 }) {
   const [dateText, setDateText] = useState(() => getTodayAnnouncementDateText());
   const [noteText, setNoteText] = useState('');
@@ -1793,6 +1799,7 @@ function AnnouncementNotebookOverlay({
   const [remoteLoadedDateKey, setRemoteLoadedDateKey] = useState<string | null>(
     isSupabaseSettingsEnabled ? null : getTodayAnnouncementDateKey(),
   );
+  const [isAwardMenuOpen, setIsAwardMenuOpen] = useState(false);
 
   const noteEditorRef = useRef<HTMLDivElement>(null);
   const notePaperBodyRef = useRef<HTMLDivElement>(null);
@@ -1918,6 +1925,7 @@ function AnnouncementNotebookOverlay({
       : announcementSaveState === 'error'
         ? '저장 실패'
         : '저장됨';
+  const hasAwardableAuctionItems = awardableAuctionItems.length > 0;
 
   const focusNoteTextarea = () => {
     const textarea = noteTextareaRef.current;
@@ -2105,8 +2113,14 @@ function AnnouncementNotebookOverlay({
 
   const openAnnouncementHistory = () => {
     setIsHistoryOpen(true);
+    setIsAwardMenuOpen(false);
     void refreshAnnouncementHistory();
     void playAnnouncementSound('pop');
+  };
+
+  const openAwardConfirmFromAnnouncement = (item: AuctionItem) => {
+    setIsAwardMenuOpen(false);
+    onOpenAwardConfirm(item);
   };
 
   const selectAnnouncementHistoryRecord = (record: AnnouncementNoteRecord) => {
@@ -2291,10 +2305,17 @@ function AnnouncementNotebookOverlay({
     return () => window.removeEventListener('keydown', handleAnnouncementShortcuts);
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (!isOpen || awardableAuctionItems.length === 0) {
+      setIsAwardMenuOpen(false);
+    }
+  }, [awardableAuctionItems.length, isOpen]);
+
   const handleClose = () => {
     void playAnnouncementSound('pop');
     setIsViewingHistoryRecord(false);
     setIsHistoryOpen(false);
+    setIsAwardMenuOpen(false);
     onClose();
   };
 
@@ -2442,7 +2463,80 @@ function AnnouncementNotebookOverlay({
                       </button>
                     </div>
                   ) : null}
-                  <div className="announcement-note-inline-tools" data-capture-exclude="true">
+                  <div className="announcement-note-inline-tools gap-2" data-capture-exclude="true">
+                    {isAwardMenuOpen ? (
+                      <div
+                        className="pointer-events-auto absolute bottom-[4.2rem] right-0 z-[6] w-[min(21rem,calc(100vw-2.4rem))] rounded-[1.2rem] border border-[#D7E6DE] bg-white/95 p-2.5 shadow-[0_18px_34px_rgba(31,24,18,0.18)] backdrop-blur"
+                        role="menu"
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                          <span className="section-title text-[0.9rem] font-black text-[#006241]">낙찰 대기</span>
+                          <span className="shrink-0 rounded-full bg-[#EEF7F2] px-2 py-1 text-[0.72rem] font-black text-[#00754A]">
+                            {awardableAuctionItems.length}개
+                          </span>
+                        </div>
+                        <div className="custom-scrollbar grid max-h-[15rem] gap-1.5 overflow-y-auto pr-0.5">
+                          {awardableAuctionItems.map((item) => {
+                            const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+                            const weekdayLabel = AUCTION_WEEKDAY_LABELS[item.dayIndex] ?? `${item.dayIndex + 1}`;
+                            const itemDisplayName = getAuctionItemDisplayName(item.name, item.dayIndex);
+
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                role="menuitem"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => openAwardConfirmFromAnnouncement(item)}
+                                className="flex min-h-[3.75rem] w-full items-center justify-between gap-2 rounded-[0.95rem] border border-[#DCEBE4] bg-[#FCFFFC] px-3 py-2 text-left transition-colors hover:border-[#8DBEA8] hover:bg-[#F3FAF6]"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block truncate text-[0.95rem] font-black text-[#243832]">
+                                    {itemDisplayName}
+                                  </span>
+                                  <span className="mt-1 block text-[0.74rem] font-extrabold text-[#6E8078]">
+                                    {weekdayLabel}요일
+                                  </span>
+                                </span>
+                                <span className="flex shrink-0 items-center gap-1.5">
+                                  <span
+                                    className="inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-[0.74rem] font-black text-white"
+                                    style={getStudentLabelStyle(currentBid.bidder ?? 0)}
+                                  >
+                                    {currentBid.bidder ?? '-'}번
+                                  </span>
+                                  <span className="rounded-full border border-[#CDE8DD] bg-white px-2.5 py-1 text-[0.78rem] font-black text-[#00754A]">
+                                    {formatCurrency(currentBid.amount)}
+                                  </span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                    <button
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setIsAwardMenuOpen((previous) => (hasAwardableAuctionItems ? !previous : false))}
+                      disabled={!hasAwardableAuctionItems}
+                      className={`announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] items-center justify-center gap-2 rounded-full border px-4 font-black ${
+                        hasAwardableAuctionItems
+                          ? 'border-[#00754A] bg-[#00754A] text-white'
+                          : 'border-[#D9E4DE] text-[#8A7A6B]'
+                      }`}
+                      style={hasAwardableAuctionItems ? { background: '#00754A', borderColor: '#00754A', color: '#FFFFFF' } : undefined}
+                      type="button"
+                      title={hasAwardableAuctionItems ? '낙찰 발표' : '낙찰 대기 물품 없음'}
+                      aria-label={hasAwardableAuctionItems ? `낙찰 발표 ${awardableAuctionItems.length}건` : '낙찰 대기 물품 없음'}
+                      aria-expanded={isAwardMenuOpen}
+                      aria-haspopup="menu"
+                    >
+                      <Trophy size={18} className={hasAwardableAuctionItems ? 'text-white' : 'text-[#8A7A6B]'} />
+                      <span className="hidden text-[0.86rem] sm:inline">낙찰</span>
+                      {hasAwardableAuctionItems ? (
+                        <span className="rounded-full bg-white/18 px-1.5 text-[0.72rem]">{awardableAuctionItems.length}</span>
+                      ) : null}
+                    </button>
                     <button
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={insertSafetyPhrase}
@@ -7488,6 +7582,10 @@ export default function TimerPage() {
   );
 
   const auctionVisibleDayCount = getAuctionVisibleDayCount();
+  const awardableAuctionItems = auctionItems.filter((item) => {
+    const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+    return item.dayIndex < auctionVisibleDayCount && !auctionAwards[item.id] && currentBid.bidder !== null && currentBid.amount > 0;
+  });
 
   const auctionSettingsPanel = (
     <div className="settings-panel-grid grid gap-4">
@@ -9903,6 +10001,9 @@ export default function TimerPage() {
           timerTypeLabel: scheduleTypeLabel,
           currentSlotName,
         }}
+        awardableAuctionItems={awardableAuctionItems}
+        auctionBids={auctionBids}
+        onOpenAwardConfirm={openAwardConfirm}
       />
       <MemoNotebookOverlay
         isOpen={isMemoOpen}

@@ -60,6 +60,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
+  const [bidAmountDrafts, setBidAmountDrafts] = useState<Record<string, string>>({});
   const [selectedItemId, setSelectedItemId] = useState(DEFAULT_AUCTION_ITEMS[0]?.id ?? '');
   const [isLoading, setIsLoading] = useState(isSupabaseSettingsEnabled);
   const [isSubmittingItemId, setIsSubmittingItemId] = useState<string | null>(null);
@@ -147,10 +148,32 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
     setSelectedItemId(item.id);
+    setBidAmountDrafts((previous) => ({
+      ...previous,
+      [item.id]: previous[item.id] ?? String(Math.max(minimumBid, clampAuctionBidAmount(bidAmounts[item.id] ?? minimumBid))),
+    }));
     setBidAmounts((previous) => ({
       ...previous,
       [item.id]: Math.max(minimumBid, clampAuctionBidAmount(previous[item.id] ?? minimumBid)),
     }));
+  };
+
+  const updateBidAmountDraft = (itemId: string, nextValue: string) => {
+    const numericText = nextValue.replace(/[^\d]/g, '');
+    setBidAmountDrafts((previous) => ({ ...previous, [itemId]: numericText }));
+    setBidAmounts((previous) => ({
+      ...previous,
+      [itemId]: numericText ? clampAuctionBidAmount(Number(numericText)) : 0,
+    }));
+  };
+
+  const commitBidAmountDraft = (itemId: string, minimumBid: number, maxBid: number) => {
+    const parsedAmount = Number(bidAmountDrafts[itemId] ?? '');
+    const nextAmount = Number.isFinite(parsedAmount) && parsedAmount > 0
+      ? Math.min(maxBid, Math.max(minimumBid, clampAuctionBidAmount(parsedAmount)))
+      : minimumBid;
+    setBidAmountDrafts((previous) => ({ ...previous, [itemId]: String(nextAmount) }));
+    setBidAmounts((previous) => ({ ...previous, [itemId]: nextAmount }));
   };
 
   const submitBid = async (item: AuctionItem, confirmedBidAmount: number) => {
@@ -277,6 +300,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
 
       setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
+      setBidAmountDrafts((previous) => ({ ...previous, [item.id]: String(bidAmount + AUCTION_BID_STEP) }));
       void playAuctionSound('bid');
       setStatusMessage('입찰이 완료되었습니다.');
     } catch (error) {
@@ -372,7 +396,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             const selectedItemDisplayName = getAuctionItemDisplayName(selectedItem.name, selectedItem.dayIndex);
             if (award) {
               return (
-                <div className="mx-4 mb-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:mb-5">
+                <div className="mx-4 my-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:my-5">
                   <h2 className="section-title text-[1.45rem] font-extrabold leading-tight text-[#18211E]">
                     {selectedItemDisplayName}
                   </h2>
@@ -395,9 +419,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             );
             const maxBid = clampAuctionBidAmount(Math.max(0, balance - reservedExcludingItem));
             const selectedBidAmount = Math.max(
-              minimumBid,
               clampAuctionBidAmount(bidAmounts[selectedItem.id] ?? minimumBid),
             );
+            const bidAmountDraft = bidAmountDrafts[selectedItem.id] ?? String(selectedBidAmount || minimumBid);
             const canSubmit =
               !isLoading &&
               isSubmittingItemId === null &&
@@ -405,7 +429,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               selectedBidAmount <= maxBid;
 
             return (
-              <div className="mx-4 mb-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:mb-5">
+              <div className="mx-4 my-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:my-5">
                 <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
                     <h2 className="section-title min-w-0 truncate text-[1.35rem] font-extrabold leading-tight text-[#18211E]">
@@ -419,37 +443,34 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     입찰 단위 {formatCurrency(AUCTION_BID_STEP)}
                   </div>
                 </div>
-                <div className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] gap-2 sm:grid-cols-[3.2rem_minmax(0,1fr)_3.2rem_10rem]">
-                  <button
-                    type="button"
-                    onClick={() => setBidAmounts((previous) => ({
-                      ...previous,
-                      [selectedItem.id]: Math.max(minimumBid, selectedBidAmount - AUCTION_BID_STEP),
-                    }))}
-                    className="inline-flex h-12 items-center justify-center rounded-[0.9rem] border border-[#E6DED3] bg-[#FFFDF9] text-[1.35rem] font-black text-[#8A5A1F] transition-colors hover:bg-[#FFF8EC]"
-                    aria-label={`${selectedItemDisplayName} 입찰가 낮추기`}
-                  >
-                    -
-                  </button>
-                  <div className="inline-flex h-12 items-center justify-center rounded-[0.9rem] border border-[#DCE7E1] bg-[#FAFCFB] px-2 text-center font-mono text-[1.28rem] font-black text-[#18211E]">
-                    {formatCurrency(selectedBidAmount)}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setBidAmounts((previous) => ({
-                      ...previous,
-                      [selectedItem.id]: Math.min(maxBid, selectedBidAmount + AUCTION_BID_STEP),
-                    }))}
-                    className="inline-flex h-12 items-center justify-center rounded-[0.9rem] border border-[#CFE2D8] bg-[#F6FBF8] text-[1.35rem] font-black text-[#007A57] transition-colors hover:bg-[#EAF7F1]"
-                    aria-label={`${selectedItemDisplayName} 입찰가 올리기`}
-                  >
-                    +
-                  </button>
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                  <label className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[#DCE7E1] bg-[#FAFCFB] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={bidAmountDraft}
+                      onChange={(event) => updateBidAmountDraft(selectedItem.id, event.target.value)}
+                      onBlur={() => commitBidAmountDraft(selectedItem.id, minimumBid, maxBid)}
+                      onKeyDown={(event) => {
+                        if (event.nativeEvent.isComposing) return;
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          commitBidAmountDraft(selectedItem.id, minimumBid, maxBid);
+                          openBidConfirm(selectedItem, selectedBidAmount);
+                        }
+                      }}
+                      className="h-full min-w-0 bg-transparent text-center font-mono text-[1.28rem] font-black text-[#18211E] outline-none"
+                      aria-label={`${selectedItemDisplayName} 입찰 금액`}
+                      placeholder={String(minimumBid)}
+                    />
+                    <span className="pl-2 font-mono text-[1.02rem] font-black text-[#007A57]">고마</span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => openBidConfirm(selectedItem, selectedBidAmount)}
                     disabled={!canSubmit}
-                    className="col-span-3 inline-flex h-12 w-full items-center justify-center rounded-[0.9rem] bg-[#007A57] text-[1rem] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.14)] transition-colors hover:bg-[#006B4D] disabled:cursor-not-allowed disabled:bg-[#C9D4CD] disabled:text-white/82 sm:col-span-1"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-[0.9rem] bg-[#007A57] text-[1rem] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.14)] transition-colors hover:bg-[#006B4D] disabled:cursor-not-allowed disabled:bg-[#C9D4CD] disabled:text-white/82"
                   >
                     {isSubmittingItemId === selectedItem.id ? '...' : '입찰'}
                   </button>

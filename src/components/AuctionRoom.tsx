@@ -155,6 +155,8 @@ export default function AuctionRoom({
         </section>
       ) : null}
 
+      {footer}
+
       <div className={`grid ${
         isCompact ? 'gap-2.5 p-3 md:grid-cols-5 md:p-4' : 'gap-4 p-4 md:p-5 lg:grid-cols-5'
       }`}>
@@ -297,7 +299,6 @@ export default function AuctionRoom({
         })}
       </div>
 
-      {footer}
       {visibleDayCount === 0 ? (
         <div className={`rounded-[1.35rem] border-2 border-dashed border-[#D7E6DE] bg-white text-center font-black text-[#6E5139] ${
           isCompact ? 'mx-3 mb-3 p-4 text-[1rem]' : 'mx-4 mb-4 p-6 text-[1.1rem] md:mx-5 md:mb-5'
