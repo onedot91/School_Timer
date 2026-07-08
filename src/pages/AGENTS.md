@@ -19,6 +19,7 @@
 - `TimerPage.tsx` is the operational hub. Before editing it, search the file for the relevant storage key, panel name, and Supabase field.
 - Keep page state resilient to missing Supabase. `isSupabaseSettingsEnabled` is a behavior gate, not just a loading hint.
 - `AuctionPage.tsx` refreshes shared state on an interval. Preserve conflict-tolerant reads and normalized writes.
+- Auction/currency QA must not leave real `고마` balances, bids, awards, or currency history changed. Use fake isolated state when possible; otherwise snapshot the exact affected fields before testing and restore them before reporting completion.
 - Korean UI labels are expected. Match existing classroom tone and avoid mixing untranslated copy into user surfaces.
 - Page-level UI relies heavily on Tailwind class strings. Keep layout constraints explicit to avoid text overlap on classroom displays.
 
@@ -28,6 +29,7 @@
 - Do not update only page-local draw code when changing draw behavior; check `src/lib/randomDraw.ts` and the standalone `RandomDrawPage.tsx`.
 - Do not remove runtime fallback in `RootApp` when touching screen selection behavior.
 - Do not assume `localStorage` data is current-shape JSON; legacy keys and migration paths exist in `TimerPage.tsx`.
+- Do not run auction award flows against real classroom data without a restoration plan. If a test changes `auctionAwards`, `auctionBids`, `currencyBalances`, or `currencyHistory`, revert those fields to their pre-test values before ending the turn.
 
 ## VERIFICATION
 
