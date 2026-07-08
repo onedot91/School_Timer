@@ -184,6 +184,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStatusMessage('이미 낙찰된 물품입니다.');
       return;
     }
+    if (currentBid.bidder === studentNumber) {
+      setStatusMessage('다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.');
+      return;
+    }
     const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
     const bidAmount = clampAuctionBidAmount(confirmedBidAmount);
     const reservedExcludingItem = getReservedAuctionBidAmount(
@@ -237,6 +241,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             activeAuctionItemIds,
           );
           const latestAvailableForItem = Math.max(0, latestBalance - latestReservedExcludingItem);
+
+          if (latestBid.bidder === studentNumber) {
+            throw new Error('ALREADY_HIGHEST_BIDDER');
+          }
 
           if (bidAmount > latestAvailableForItem) {
             throw new Error('INSUFFICIENT_FUNDS');
@@ -309,11 +317,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         ? '예약금을 제외한 사용 가능 고마가 부족합니다.'
         : error instanceof Error && error.message === 'BID_TOO_LOW'
           ? '현재 최고 입찰가보다 높게 입찰해야 합니다.'
-          : error instanceof Error && error.message === 'ALREADY_AWARDED'
-            ? '이미 낙찰된 물품입니다.'
-            : error instanceof Error && error.message === 'DUPLICATE_BID_AMOUNT'
-              ? '이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.'
-              : '입찰을 처리하지 못했습니다. 다시 시도해 주세요.');
+          : error instanceof Error && error.message === 'ALREADY_HIGHEST_BIDDER'
+            ? '다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.'
+            : error instanceof Error && error.message === 'ALREADY_AWARDED'
+              ? '이미 낙찰된 물품입니다.'
+              : error instanceof Error && error.message === 'DUPLICATE_BID_AMOUNT'
+                ? '이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.'
+                : '입찰을 처리하지 못했습니다. 다시 시도해 주세요.');
       await refreshAuctionState();
     } finally {
       setIsSubmittingItemId(null);
@@ -326,6 +336,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     if (auctionAwards[item.id]) {
       setStatusMessage('이미 낙찰된 물품입니다.');
+      return;
+    }
+    if (currentBid.bidder === studentNumber) {
+      setStatusMessage('다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.');
       return;
     }
     const minimumBid = getMinimumAuctionBid(item, currentBid.amount);

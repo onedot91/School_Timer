@@ -1528,6 +1528,12 @@ const getAnnouncementDateKey = (value: string) => {
   return `${year}-${month}-${day}`;
 };
 
+const getAnnouncementAuctionDayIndex = (value: string) => {
+  const day = (parseAnnouncementDate(value) ?? new Date()).getDay();
+  if (day < 1 || day > AUCTION_WEEKDAY_LABELS.length) return null;
+  return day - 1;
+};
+
 const formatAnnouncementUpdatedAt = (value?: string) => {
   if (!value) return '';
 
@@ -1774,6 +1780,7 @@ function AnnouncementNotebookOverlay({
   awardableAuctionItems,
   auctionBids,
   onOpenAwardConfirm,
+  onStartAwardQueue,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -1781,6 +1788,7 @@ function AnnouncementNotebookOverlay({
   awardableAuctionItems: AuctionItem[];
   auctionBids: AuctionBids;
   onOpenAwardConfirm: (item: AuctionItem) => void;
+  onStartAwardQueue: (items: AuctionItem[]) => void;
 }) {
   const [dateText, setDateText] = useState(() => getTodayAnnouncementDateText());
   const [noteText, setNoteText] = useState('');
@@ -1925,7 +1933,11 @@ function AnnouncementNotebookOverlay({
       : announcementSaveState === 'error'
         ? '저장 실패'
         : '저장됨';
-  const hasAwardableAuctionItems = awardableAuctionItems.length > 0;
+  const announcementAuctionDayIndex = getAnnouncementAuctionDayIndex(dateText);
+  const announcementDayAwardableAuctionItems = announcementAuctionDayIndex === null
+    ? []
+    : awardableAuctionItems.filter((item) => item.dayIndex === announcementAuctionDayIndex);
+  const hasAwardableAuctionItems = announcementDayAwardableAuctionItems.length > 0;
 
   const focusNoteTextarea = () => {
     const textarea = noteTextareaRef.current;
@@ -2121,6 +2133,16 @@ function AnnouncementNotebookOverlay({
   const openAwardConfirmFromAnnouncement = (item: AuctionItem) => {
     setIsAwardMenuOpen(false);
     onOpenAwardConfirm(item);
+  };
+
+  const startAnnouncementDayAwards = () => {
+    if (announcementDayAwardableAuctionItems.length === 0) {
+      setIsAwardMenuOpen(false);
+      return;
+    }
+
+    setIsAwardMenuOpen(false);
+    onStartAwardQueue(announcementDayAwardableAuctionItems);
   };
 
   const selectAnnouncementHistoryRecord = (record: AnnouncementNoteRecord) => {
@@ -2472,11 +2494,11 @@ function AnnouncementNotebookOverlay({
                         <div className="mb-2 flex items-center justify-between gap-2 px-1">
                           <span className="section-title text-[0.9rem] font-black text-[#006241]">낙찰 대기</span>
                           <span className="shrink-0 rounded-full bg-[#EEF7F2] px-2 py-1 text-[0.72rem] font-black text-[#00754A]">
-                            {awardableAuctionItems.length}개
+                            {announcementDayAwardableAuctionItems.length}개
                           </span>
                         </div>
                         <div className="custom-scrollbar grid max-h-[15rem] gap-1.5 overflow-y-auto pr-0.5">
-                          {awardableAuctionItems.map((item) => {
+                          {announcementDayAwardableAuctionItems.map((item) => {
                             const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
                             const weekdayLabel = AUCTION_WEEKDAY_LABELS[item.dayIndex] ?? `${item.dayIndex + 1}`;
                             const itemDisplayName = getAuctionItemDisplayName(item.name, item.dayIndex);
@@ -2517,7 +2539,7 @@ function AnnouncementNotebookOverlay({
                     ) : null}
                     <button
                       onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => setIsAwardMenuOpen((previous) => (hasAwardableAuctionItems ? !previous : false))}
+                      onClick={startAnnouncementDayAwards}
                       disabled={!hasAwardableAuctionItems}
                       className={`announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] items-center justify-center gap-2 rounded-full border px-4 font-black ${
                         hasAwardableAuctionItems
@@ -2526,15 +2548,13 @@ function AnnouncementNotebookOverlay({
                       }`}
                       style={hasAwardableAuctionItems ? { background: '#00754A', borderColor: '#00754A', color: '#FFFFFF' } : undefined}
                       type="button"
-                      title={hasAwardableAuctionItems ? '낙찰 발표' : '낙찰 대기 물품 없음'}
-                      aria-label={hasAwardableAuctionItems ? `낙찰 발표 ${awardableAuctionItems.length}건` : '낙찰 대기 물품 없음'}
-                      aria-expanded={isAwardMenuOpen}
-                      aria-haspopup="menu"
+                      title={hasAwardableAuctionItems ? '해당 날짜 낙찰 발표' : '해당 날짜 낙찰 대기 물품 없음'}
+                      aria-label={hasAwardableAuctionItems ? `해당 날짜 낙찰 발표 ${announcementDayAwardableAuctionItems.length}건` : '해당 날짜 낙찰 대기 물품 없음'}
                     >
                       <Trophy size={18} className={hasAwardableAuctionItems ? 'text-white' : 'text-[#8A7A6B]'} />
                       <span className="hidden text-[0.86rem] sm:inline">낙찰</span>
                       {hasAwardableAuctionItems ? (
-                        <span className="rounded-full bg-white/18 px-1.5 text-[0.72rem]">{awardableAuctionItems.length}</span>
+                        <span className="rounded-full bg-white/18 px-1.5 text-[0.72rem]">{announcementDayAwardableAuctionItems.length}</span>
                       ) : null}
                     </button>
                     <button
@@ -3476,6 +3496,7 @@ export default function TimerPage() {
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [pendingAuctionAction, setPendingAuctionAction] = useState<AuctionManagementAction | null>(null);
   const [pendingAwardItemId, setPendingAwardItemId] = useState<string | null>(null);
+  const [queuedAwardItems, setQueuedAwardItems] = useState<AuctionItem[]>([]);
   const [temporaryVisibleAuctionItemIds, setTemporaryVisibleAuctionItemIds] = useState<Set<string>>(() => new Set());
   const [awardPresentation, setAwardPresentation] = useState<{
     item: AuctionItem;
@@ -5858,24 +5879,14 @@ export default function TimerPage() {
   const openAwardConfirm = (item: AuctionItem) => {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     if (auctionAwards[item.id] || !currentBid.bidder || currentBid.amount <= 0) return;
+    setQueuedAwardItems([]);
     setPendingAwardItemId(item.id);
   };
 
-  const startAwardPresentation = () => {
-    if (!pendingAwardItemId) return;
-    const item = auctionItems.find((auctionItem) => auctionItem.id === pendingAwardItemId);
-    if (!item) {
-      setPendingAwardItemId(null);
-      return;
-    }
-
+  const startAwardPresentationForItem = (item: AuctionItem) => {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
-    if (auctionAwards[item.id] || !currentBid.bidder || currentBid.amount <= 0) {
-      setPendingAwardItemId(null);
-      return;
-    }
+    if (auctionAwards[item.id] || !currentBid.bidder || currentBid.amount <= 0) return false;
 
-    const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const steps = getAwardSteps(item);
     const award = {
@@ -5896,6 +5907,34 @@ export default function TimerPage() {
       isComplete: prefersReducedMotion || steps.length <= 1,
       hasFinalized: false,
     });
+    return true;
+  };
+
+  const startAwardPresentation = () => {
+    if (!pendingAwardItemId) return;
+    const item = auctionItems.find((auctionItem) => auctionItem.id === pendingAwardItemId);
+    if (!item) {
+      setPendingAwardItemId(null);
+      return;
+    }
+
+    if (!startAwardPresentationForItem(item)) {
+      setPendingAwardItemId(null);
+    }
+  };
+
+  const startAwardPresentationQueue = (items: AuctionItem[]) => {
+    const eligibleItems = items.filter((item) => {
+      const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+      return !auctionAwards[item.id] && currentBid.bidder !== null && currentBid.amount > 0;
+    });
+    const [firstItem, ...remainingItems] = eligibleItems;
+    if (!firstItem) return;
+
+    setPendingAwardItemId(null);
+    setQueuedAwardItems(remainingItems);
+    setIsAnnouncementOpen(false);
+    startAwardPresentationForItem(firstItem);
   };
 
   const confirmAuctionManagementAction = () => {
@@ -6026,6 +6065,33 @@ export default function TimerPage() {
         : previous
     ));
   }, [awardPresentation]);
+
+  useEffect(() => {
+    if (!awardPresentation?.isComplete || !awardPresentation.hasFinalized || queuedAwardItems.length === 0) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const nextIndex = queuedAwardItems.findIndex((item) => {
+        const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
+        return !auctionAwards[item.id] && currentBid.bidder !== null && currentBid.amount > 0;
+      });
+
+      if (nextIndex < 0) {
+        setQueuedAwardItems([]);
+        return;
+      }
+
+      const nextItem = queuedAwardItems[nextIndex];
+      if (!nextItem) {
+        setQueuedAwardItems([]);
+        return;
+      }
+
+      setQueuedAwardItems(queuedAwardItems.slice(nextIndex + 1));
+      startAwardPresentationForItem(nextItem);
+    }, 900);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [awardPresentation, queuedAwardItems, auctionBids, auctionAwards]);
 
   const applyNoticeDraft = (nextValue: string) => {
     setNoticeDraft(nextValue);
@@ -9248,6 +9314,7 @@ export default function TimerPage() {
               const progressPercent = awardPresentation.steps.length <= 1
                 ? 100
                 : Math.round((activeStepIndex / (awardPresentation.steps.length - 1)) * 100);
+              const hasQueuedAwardPresentations = queuedAwardItems.length > 0;
 
               return (
                 <div
@@ -9373,10 +9440,15 @@ export default function TimerPage() {
                           {awardPresentation.isComplete ? (
                             <button
                               type="button"
-                              onClick={() => setAwardPresentation(null)}
-                              className="mt-5 inline-flex h-11 min-w-[7.5rem] items-center justify-center rounded-[0.9rem] bg-[#006241] px-5 text-[0.95rem] font-extrabold text-white shadow-[0_14px_24px_rgba(0,98,65,0.22)] transition-colors hover:bg-[#005336]"
+                              onClick={() => {
+                                if (!hasQueuedAwardPresentations) {
+                                  setAwardPresentation(null);
+                                }
+                              }}
+                              disabled={hasQueuedAwardPresentations}
+                              className="mt-5 inline-flex h-11 min-w-[7.5rem] items-center justify-center rounded-[0.9rem] bg-[#006241] px-5 text-[0.95rem] font-extrabold text-white shadow-[0_14px_24px_rgba(0,98,65,0.22)] transition-colors hover:bg-[#005336] disabled:cursor-wait disabled:bg-[#6F8A65]"
                             >
-                              확인
+                              {hasQueuedAwardPresentations ? '다음 낙찰 준비 중' : '확인'}
                             </button>
                           ) : null}
                         </div>
@@ -9990,6 +10062,158 @@ export default function TimerPage() {
           </div>
         </div>
       )}
+      {!isSettingsOpen && awardPresentation ? (() => {
+        const activeStep = awardPresentation.steps[awardPresentation.currentIndex] ?? awardPresentation.steps[0];
+        const activeStepIndex = awardPresentation.isComplete
+          ? Math.max(awardPresentation.steps.length - 1, 0)
+          : awardPresentation.currentIndex;
+        const progressPercent = awardPresentation.steps.length <= 1
+          ? 100
+          : Math.round((activeStepIndex / (awardPresentation.steps.length - 1)) * 100);
+        const hasQueuedAwardPresentations = queuedAwardItems.length > 0;
+
+        return (
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1F2523]/55 px-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-label="낙찰 애니메이션"
+          >
+            <div className={`auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
+              awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
+            }`}>
+              <div className="auction-award-confetti pointer-events-none absolute inset-0 overflow-hidden">
+                {Array.from({ length: 18 }).map((_, index) => (
+                  <span
+                    key={`auction-award-confetti-standalone-${index}`}
+                    style={{
+                      left: `${6 + ((index * 17) % 88)}%`,
+                      animationDelay: `${index * 0.045}s`,
+                      backgroundColor: ['#007A57', '#B2793A', '#2E7D86', '#7A5BA8'][index % 4],
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="relative border-b border-[#E6D5C9] bg-[#F8FCF6] px-5 py-4">
+                <div className="flex items-center justify-end">
+                  <div className="shrink-0 rounded-full border border-[#D7E6DE] bg-white px-4 py-2 text-right shadow-sm">
+                    <div className="font-mono text-[1.08rem] font-black leading-none text-[#006241]">
+                      {activeStepIndex + 1} / {Math.max(awardPresentation.steps.length, 1)}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#D7E6DE]">
+                  <div
+                    className="auction-award-progress-fill h-full rounded-full bg-[#006241]"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="relative p-4">
+                <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.04fr)_minmax(17rem,0.74fr)]">
+                  <div className="rounded-[1.2rem] border border-[#D7E6DE] bg-[#F8FCF6] p-3">
+                    <div className="grid max-h-[19rem] gap-1.5 overflow-y-auto">
+                      {awardPresentation.steps.map((step, stepIndex) => {
+                        const isPast = stepIndex < activeStepIndex || awardPresentation.isComplete;
+                        const isActive = stepIndex === activeStepIndex && !awardPresentation.isComplete;
+                        const isWinnerStep = awardPresentation.isComplete && stepIndex === awardPresentation.steps.length - 1;
+
+                        return (
+                          <div
+                            key={`award-step-row-standalone-${step.itemId}-${step.createdAt}-${stepIndex}`}
+                            className={`auction-award-step-row grid min-h-[3.75rem] grid-cols-[2rem_4.6rem_minmax(0,1fr)] items-center gap-2 rounded-[0.9rem] border px-3 py-1.5 transition-all ${
+                              isActive
+                                ? 'auction-award-step-active border-[#006241] bg-white shadow-[0_12px_24px_rgba(0,98,65,0.14)]'
+                                : isWinnerStep
+                                  ? 'border-[#9FC7B8] bg-[#EAF6F0]'
+                                  : isPast
+                                    ? 'border-[#D7E6DE] bg-white'
+                                    : 'border-[#E5DFD8] bg-[#F4F0EA] opacity-72'
+                            }`}
+                          >
+                            <div className="font-mono text-[0.78rem] font-black text-[#6E7A72]">
+                              {stepIndex + 1}
+                            </div>
+                            <div className="flex min-w-0 items-center">
+                              <span
+                                className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.82rem] font-black text-white"
+                                style={getStudentLabelStyle(step.bidder)}
+                              >
+                                {step.bidder}번
+                              </span>
+                            </div>
+                            <div className="text-right font-mono text-[1rem] font-black text-[#006241]">
+                              {formatCurrency(step.amount)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className={`auction-award-result-card flex min-h-[19rem] flex-col items-center justify-center rounded-[1.2rem] border-2 p-5 text-center ${
+                    awardPresentation.isComplete
+                      ? 'border-[#9FC7B8] bg-[#F8FCF6]'
+                      : 'border-[#D7E6DE] bg-white'
+                  }`}>
+                    <div className="flex justify-center">
+                      <div
+                        key={`result-bidder-standalone-${awardPresentation.isComplete ? 'winner' : awardPresentation.currentIndex}`}
+                        className={`auction-award-current-chip inline-flex h-24 min-w-24 items-center justify-center rounded-full px-5 font-mono text-[2rem] font-black text-white shadow-[0_18px_34px_rgba(31,24,18,0.22)] ${
+                          awardPresentation.isComplete ? 'auction-award-winner-chip' : ''
+                        }`}
+                        style={getStudentLabelStyle(awardPresentation.isComplete
+                          ? awardPresentation.award.winner
+                          : activeStep?.bidder ?? awardPresentation.award.winner)}
+                      >
+                        {awardPresentation.isComplete
+                          ? `${awardPresentation.award.winner}번`
+                          : activeStep
+                            ? `${activeStep.bidder}번`
+                            : '-'}
+                      </div>
+                    </div>
+                    {awardPresentation.isComplete ? (
+                      <div className="mt-4 inline-flex max-w-full items-center justify-center gap-2.5 rounded-full border border-[#E2D3BE] bg-white px-3.5 py-2 shadow-sm">
+                        <Trophy className="auction-award-trophy shrink-0 text-[#B2793A]" size={34} />
+                        <span className="min-w-0 truncate text-[0.95rem] font-black text-[#6E5139]">
+                          {getAuctionItemDisplayName(awardPresentation.item.name, awardPresentation.item.dayIndex)}
+                        </span>
+                      </div>
+                    ) : null}
+                    <div
+                      key={`result-price-standalone-${awardPresentation.isComplete ? 'final' : awardPresentation.currentIndex}`}
+                      className="auction-award-price mt-4 font-mono text-[2.45rem] font-black leading-tight text-[#006241]"
+                    >
+                      {awardPresentation.isComplete
+                        ? formatCurrency(awardPresentation.award.amount)
+                        : activeStep
+                          ? formatCurrency(activeStep.amount)
+                          : formatCurrency(0)}
+                    </div>
+                    {awardPresentation.isComplete ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!hasQueuedAwardPresentations) {
+                            setAwardPresentation(null);
+                          }
+                        }}
+                        disabled={hasQueuedAwardPresentations}
+                        className="mt-5 inline-flex h-11 min-w-[7.5rem] items-center justify-center rounded-[0.9rem] bg-[#006241] px-5 text-[0.95rem] font-extrabold text-white shadow-[0_14px_24px_rgba(0,98,65,0.22)] transition-colors hover:bg-[#005336] disabled:cursor-wait disabled:bg-[#6F8A65]"
+                      >
+                        {hasQueuedAwardPresentations ? '다음 낙찰 준비 중' : '확인'}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
       <AnnouncementNotebookOverlay
         isOpen={isAnnouncementOpen}
         onClose={() => setIsAnnouncementOpen(false)}
@@ -10004,6 +10228,7 @@ export default function TimerPage() {
         awardableAuctionItems={awardableAuctionItems}
         auctionBids={auctionBids}
         onOpenAwardConfirm={openAwardConfirm}
+        onStartAwardQueue={startAwardPresentationQueue}
       />
       <MemoNotebookOverlay
         isOpen={isMemoOpen}

@@ -40,6 +40,8 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 body::before,
@@ -78,6 +80,19 @@ input,
 textarea,
 select {
   font-family: var(--font-body);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+[contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+img {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 @keyframes auctionAwardPulse {
@@ -8765,8 +8780,9 @@ h3 {
 }
 
 .notice-text-selectable {
-  cursor: text;
-  user-select: text;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .notice-highlight-text {
