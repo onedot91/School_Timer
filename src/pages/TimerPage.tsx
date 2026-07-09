@@ -8704,6 +8704,11 @@ export default function TimerPage() {
                       const scheduleSubject = getWeeklySubject(weeklySubjects, currentSubjectWeekKey, today, s);
                       const periodNumber = getSchedulePeriodNumber(s);
                       const shouldShowSubject = s.type === 'class' && scheduleSubject.length > 0 && periodNumber !== null;
+                      const scheduleRowTitle = shouldShowSubject
+                        ? `${periodNumber}. ${scheduleSubject}`
+                        : periodNumber !== null
+                          ? `${periodNumber}교시`
+                          : getScheduleSlotDisplayTitle(s, scheduleSubject);
                       const isCompactScheduleRow = s.type === 'morning' || s.type === 'break' || s.type === 'lunch';
 
                       return (
@@ -8716,13 +8721,10 @@ export default function TimerPage() {
                         >
                           <span className="schedule-row-title-wrap min-w-0">
                             {shouldShowSubject ? (
-                              <>
-                                <span className="schedule-row-subject">{scheduleSubject}</span>
-                                <span className="schedule-row-period-badge">{periodNumber}교시</span>
-                              </>
+                              <span className="schedule-row-subject">{scheduleRowTitle}</span>
                             ) : (
                               <span className="schedule-row-title font-semibold">
-                                {periodNumber !== null ? `${periodNumber}교시` : getScheduleSlotDisplayTitle(s, scheduleSubject)}
+                                {scheduleRowTitle}
                               </span>
                             )}
                           </span>
