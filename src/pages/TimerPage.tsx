@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Coins, Copy, Download, GripVertical, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
@@ -6533,7 +6533,7 @@ export default function TimerPage() {
     return () => window.clearTimeout(timeoutId);
   }, [displayIsRunning, displayTimeLeft, displayTotalTime]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (focusSlotIndex < 0) return;
     const focusSlot = currentDaySchedule[focusSlotIndex];
     if (!focusSlot) return;
@@ -6542,19 +6542,15 @@ export default function TimerPage() {
     if (!node || !list) return;
 
     const nodeTop = node.offsetTop;
-    const nodeBottom = nodeTop + node.offsetHeight;
-    const viewportTop = list.scrollTop;
-    const viewportBottom = viewportTop + list.clientHeight;
-    const isVisible = nodeTop >= viewportTop && nodeBottom <= viewportBottom;
+    const targetTop = nodeTop - (list.clientHeight - node.offsetHeight) / 2;
+    const maxTop = Math.max(0, list.scrollHeight - list.clientHeight);
+    const nextScrollTop = Math.min(Math.max(0, targetTop), maxTop);
+    if (Math.abs(list.scrollTop - nextScrollTop) < 4) return;
 
-    if (!isVisible) {
-      const targetTop = nodeTop - (list.clientHeight - node.offsetHeight) / 2;
-      const maxTop = Math.max(0, list.scrollHeight - list.clientHeight);
-      list.scrollTo({
-        top: Math.min(Math.max(0, targetTop), maxTop),
-        behavior: 'smooth',
-      });
-    }
+    list.scrollTo({
+      top: nextScrollTop,
+      behavior: 'smooth',
+    });
   }, [today, currentSlotName, weeklySchedule, focusSlotIndex, currentDaySchedule, scheduleFocusTick]);
 
   const trimmedNotice = scheduleNotice.trim();
