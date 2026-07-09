@@ -252,6 +252,7 @@ const ANNOUNCEMENT_MIN_RULE_GAP_PX = 52;
 const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
 const ANNOUNCEMENT_NOTE_HIGHLIGHTS_STORAGE_KEY = 'announcementNoteHighlights-v1';
+const AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS = 1400;
 const WEEKLY_SUBJECTS_STORAGE_KEY = 'weeklySubjects-v1';
 const SUBJECT_CATALOG_STORAGE_KEY = 'subjectCatalog-v1';
 const SCHEDULE_NOTICE_HIGHLIGHTS_STORAGE_KEY = 'scheduleNoticeHighlights-v1';
@@ -6046,16 +6047,6 @@ export default function TimerPage() {
       ...previous,
       [awardPresentation.award.itemId]: awardPresentation.award,
     }));
-    const winnerKey = String(awardPresentation.award.winner);
-    const beforeBalance = currencyBalances[winnerKey] ?? DEFAULT_CURRENCY_BALANCE;
-    const afterBalance = clampCurrencyBalance(beforeBalance - awardPresentation.award.amount);
-    recordCurrencyChange(awardPresentation.award.winner, beforeBalance, afterBalance, 'auction_award');
-    setCurrencyBalances((previous) => {
-      return {
-        ...previous,
-        [winnerKey]: afterBalance,
-      };
-    });
     setAwardPresentation((previous) => (
       previous
         ? {
@@ -6088,7 +6079,7 @@ export default function TimerPage() {
 
       setQueuedAwardItems(queuedAwardItems.slice(nextIndex + 1));
       startAwardPresentationForItem(nextItem);
-    }, 900);
+    }, AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS);
 
     return () => window.clearTimeout(timeoutId);
   }, [awardPresentation, queuedAwardItems, auctionBids, auctionAwards]);
