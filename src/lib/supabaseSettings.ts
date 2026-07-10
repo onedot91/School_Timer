@@ -52,17 +52,21 @@ export const loadSharedSettingsRow = async () => {
 };
 
 export const saveSharedSettings = async (value: unknown) => {
-  if (!supabase) return;
+  if (!supabase) return null;
+
+  const updatedAt = new Date().toISOString();
 
   const { error } = await supabase.from('app_settings').upsert({
     id: SHARED_SETTINGS_ID,
     value,
-    updated_at: new Date().toISOString(),
+    updated_at: updatedAt,
   });
 
   if (error) {
     throw error;
   }
+
+  return updatedAt;
 };
 
 export const updateSharedSettings = async (updater: (currentValue: unknown) => unknown) => {

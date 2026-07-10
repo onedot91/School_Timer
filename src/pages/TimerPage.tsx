@@ -3539,11 +3539,17 @@ export default function TimerPage() {
   const sharedSettingsSaveTimeoutRef = useRef<number | null>(null);
   const lastSharedSettingsUpdatedAtRef = useRef<string | null>(null);
   const skipNextSharedSettingsSaveRef = useRef(false);
+  const isSharedSettingsSavePendingRef = useRef(false);
+  const currencyBalancesRef = useRef(currencyBalances);
+  const currencyHistoryRef = useRef(currencyHistory);
   const isEditingSubjectCatalogRef = useRef(false);
   const activeDrawCase =
     drawCases.find((caseState) => caseState.id === activeDrawCaseId) ??
     drawCases[0] ??
     createDefaultCaseState(getCaseLabelByIndex(0));
+
+  currencyBalancesRef.current = currencyBalances;
+  currencyHistoryRef.current = currencyHistory;
 
   useEffect(() => {
     const audio = getSharedBackgroundMusicAudio();
@@ -3960,14 +3966,18 @@ export default function TimerPage() {
       window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
     }
 
+    isSharedSettingsSavePendingRef.current = true;
     sharedSettingsSaveTimeoutRef.current = window.setTimeout(() => {
       sharedSettingsSaveTimeoutRef.current = null;
       void saveSharedSettings(buildSharedSettingsSnapshot())
-        .then(() => {
-          lastSharedSettingsUpdatedAtRef.current = new Date().toISOString();
+        .then((updatedAt) => {
+          lastSharedSettingsUpdatedAtRef.current = updatedAt;
         })
         .catch((error) => {
           console.error('Failed to save shared settings to Supabase.', error);
+        })
+        .finally(() => {
+          isSharedSettingsSavePendingRef.current = false;
         });
     }, 700);
 
@@ -3976,6 +3986,7 @@ export default function TimerPage() {
         window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
         sharedSettingsSaveTimeoutRef.current = null;
       }
+      isSharedSettingsSavePendingRef.current = false;
     };
   }, [
     weeklySchedule,
@@ -4015,6 +4026,7 @@ export default function TimerPage() {
       if (
         !sharedSettingsHydratedRef.current ||
         isChecking ||
+        isSharedSettingsSavePendingRef.current ||
         isEditingNoticeRef.current ||
         isEditingSubjectCatalogRef.current ||
         isEditingAuctionItemRef.current
@@ -5640,24 +5652,6 @@ export default function TimerPage() {
     setIsScheduleYoutubePlaylistOpen(false);
   };
 
-  const recordCurrencyChange = (
-    studentNumber: number,
-    before: number,
-    after: number,
-    reason: CurrencyHistoryReason,
-    createdAt = new Date().toISOString(),
-  ) => {
-    setCurrencyHistory((previous) =>
-      appendCurrencyHistoryEntry(previous, {
-        studentNumber,
-        before,
-        after,
-        reason,
-        createdAt,
-      }),
-    );
-  };
-
   const appendCurrencyChangesToHistory = (
     history: CurrencyHistory,
     previousBalances: CurrencyBalances,
@@ -5682,42 +5676,65 @@ export default function TimerPage() {
     reason: CurrencyHistoryReason,
   ) => {
     const createdAt = new Date().toISOString();
-    setCurrencyHistory((previousHistory) =>
-      appendCurrencyChangesToHistory(previousHistory, previousBalances, nextBalances, reason, createdAt),
+    const nextHistory = appendCurrencyChangesToHistory(
+      currencyHistoryRef.current,
+      previousBalances,
+      nextBalances,
+      reason,
+      createdAt,
     );
+    currencyHistoryRef.current = nextHistory;
+    setCurrencyHistory(nextHistory);
+  };
+
+  const commitCurrencyState = (nextBalances: CurrencyBalances, nextHistory: CurrencyHistory) => {
+    currencyBalancesRef.current = nextBalances;
+    currencyHistoryRef.current = nextHistory;
+    setCurrencyBalances(nextBalances);
+    setCurrencyHistory(nextHistory);
   };
 
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
     const key = String(studentNumber);
-    const before = currencyBalances[key] ?? DEFAULT_CURRENCY_BALANCE;
+    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
+    const before = previousBalances[key] ?? DEFAULT_CURRENCY_BALANCE;
     const after = clampCurrencyBalance(before + delta);
-    recordCurrencyChange(studentNumber, before, after, 'manual');
-    setCurrencyBalances((previous) => ({
-      ...previous,
+    const nextBalances = {
+      ...previousBalances,
       [key]: after,
-    }));
+    };
+    const nextHistory = appendCurrencyHistoryEntry(currencyHistoryRef.current, {
+      studentNumber,
+      before,
+      after,
+      reason: 'manual',
+    });
+    commitCurrencyState(nextBalances, nextHistory);
   };
 
   const resetCurrencyBalances = () => {
-    const normalizedPrevious = normalizeCurrencyBalances(currencyBalances);
+    const normalizedPrevious = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = createDefaultCurrencyBalances();
     recordCurrencyChanges(normalizedPrevious, nextBalances, 'reset');
     setCurrencyBalances(nextBalances);
+    currencyBalancesRef.current = nextBalances;
     setEditingCurrencyNumber(null);
   };
 
   const collectTaxFromAllStudents = () => {
-    const normalizedPrevious = normalizeCurrencyBalances(currencyBalances);
+    const normalizedPrevious = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = collectCurrencyTax(normalizedPrevious);
     recordCurrencyChanges(normalizedPrevious, nextBalances, 'tax');
     setCurrencyBalances(nextBalances);
+    currencyBalancesRef.current = nextBalances;
   };
 
   const grantWeeklyAllowanceToAllStudents = () => {
-    const normalizedPrevious = normalizeCurrencyBalances(currencyBalances);
+    const normalizedPrevious = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = grantWeeklyCurrencyAllowance(normalizedPrevious);
     recordCurrencyChanges(normalizedPrevious, nextBalances, 'allowance');
     setCurrencyBalances(nextBalances);
+    currencyBalancesRef.current = nextBalances;
   };
 
   const resetAuctionItems = () => {
@@ -5795,17 +5812,21 @@ export default function TimerPage() {
       sharedSettingsSaveTimeoutRef.current = null;
     }
 
+    isSharedSettingsSavePendingRef.current = true;
     void saveSharedSettings({
       ...buildSharedSettingsSnapshot(),
       auctionBids: emptyAuctionBids,
       auctionBidHistory: emptyAuctionBidHistory,
       auctionAwards: emptyAuctionAwards,
     })
-      .then(() => {
-        lastSharedSettingsUpdatedAtRef.current = new Date().toISOString();
+      .then((updatedAt) => {
+        lastSharedSettingsUpdatedAtRef.current = updatedAt;
       })
       .catch((error) => {
         console.error('Failed to reset auction bids in Supabase.', error);
+      })
+      .finally(() => {
+        isSharedSettingsSavePendingRef.current = false;
       });
   };
 
