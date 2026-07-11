@@ -18,6 +18,10 @@ View your app in AI Studio: https://ai.studio/apps/7afc0c45-932b-42d8-bbda-7fc70
 2. Run the app:
    `npm run dev`
 
+If Chrome closes unexpectedly while code is being edited, run the app without
+Vite HMR:
+   `npm run dev:stable`
+
 ## Deploy
 
 No API key is required.

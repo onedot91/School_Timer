@@ -9057,9 +9057,9 @@ export default function TimerPage() {
             ) : null}
 
             {isQuestionSubmissionPanelOpen ? (
-              <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[150] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
-                <div className="pointer-events-auto w-full max-w-[76rem] rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
-                  <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <div className="question-submission-panel pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[150] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+                <div className="question-submission-panel-card pointer-events-auto w-full max-w-[76rem] rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
+                  <div className="question-submission-panel-scroll overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#E4EDE7] pb-3">
                       <div className="flex items-center gap-2 rounded-full bg-[#F8FCF6] px-3 py-1.5 text-[0.76rem] font-extrabold text-[#3F2B20]">
                         <span className="sr-only">질문 제출 현황</span>
@@ -9102,11 +9102,11 @@ export default function TimerPage() {
                     ) : null}
 
                     {questionSubmissionStatuses.length > 0 ? (
-                      <div className="grid grid-cols-[repeat(auto-fit,minmax(4.85rem,1fr))] gap-2">
+                      <div className="question-submission-grid grid grid-cols-[repeat(auto-fit,minmax(4.85rem,1fr))] gap-2">
                         {questionSubmissionStatuses.map((status) => (
                           <div
                             key={status.number}
-                            className={`flex min-h-[5.25rem] flex-col items-center justify-between rounded-[0.9rem] border-2 px-2 py-2.5 shadow-[0_6px_14px_rgba(31,24,18,0.045)] ${
+                            className={`question-submission-status-card flex min-h-[5.25rem] flex-col items-center justify-between rounded-[0.9rem] border-2 px-2 py-2.5 shadow-[0_6px_14px_rgba(31,24,18,0.045)] ${
                               status.personalSubmitted || status.topicSubmitted
                                 ? 'border-[#8FD6BB] bg-[#E8F9F0]'
                                 : 'border-[#DCCCA8] bg-white'

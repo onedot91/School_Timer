@@ -10561,6 +10561,43 @@ h3 {
   color: #004b35 !important;
 }
 
+.question-submission-panel {
+  --question-panel-bottom-offset: 7.25rem;
+  --question-panel-viewport-gap: 1rem;
+}
+
+.question-submission-panel-card {
+  max-height: calc(100dvh - var(--question-panel-bottom-offset) - var(--question-panel-viewport-gap));
+  overflow: hidden;
+}
+
+.question-submission-panel-scroll {
+  max-height: min(42rem, calc(100dvh - var(--question-panel-bottom-offset) - 2.5rem));
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.question-submission-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(4rem, 100%), 1fr)) !important;
+}
+
+.question-submission-status-card {
+  min-height: 4.15rem !important;
+  padding-block: 0.72rem !important;
+}
+
+@media (min-width: 640px) {
+  .question-submission-panel {
+    --question-panel-bottom-offset: 8rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .question-submission-panel {
+    --question-panel-bottom-offset: 9rem;
+  }
+}
+
 .manual-timer-popover {
   border-color: rgba(0, 98, 65, 0.16) !important;
   width: calc(400% + 2.25rem) !important;
