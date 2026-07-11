@@ -40,8 +40,14 @@ for (const viewport of viewports) {
   await page.reload({ waitUntil: 'networkidle' });
 
   await page.getByTitle('질문 제출 현황').click();
-  await page.getByText('질문 제출 현황').waitFor({ state: 'visible', timeout: 10_000 });
-  await page.waitForTimeout(2_000);
+  await page.getByTitle('제출 현황 새로고침').waitFor({ state: 'visible', timeout: 10_000 });
+  await page.waitForResponse(
+    (response) => response.url().includes('/api/question-submission-status') && response.status() === 200,
+    { timeout: 10_000 },
+  );
+  const firstApiResponseCount = apiResponses.length;
+  await page.waitForTimeout(16_500);
+  const autoRefreshApiResponseCount = apiResponses.length;
 
   const panelText = await page.locator('body').innerText();
   const hasRefreshButton = await page.getByTitle('제출 현황 새로고침').count();
@@ -50,6 +56,7 @@ for (const viewport of viewports) {
   results.push({
     viewport,
     apiResponses,
+    autoRefreshTriggered: autoRefreshApiResponseCount > firstApiResponseCount,
     hasPanelTitle: panelText.includes('질문 제출 현황'),
     hasPersonalSummary: panelText.includes('개인질문'),
     hasTopicSummary: panelText.includes('주제질문'),

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
@@ -257,6 +257,7 @@ const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
 const ANNOUNCEMENT_NOTE_HIGHLIGHTS_STORAGE_KEY = 'announcementNoteHighlights-v1';
 const AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS = 1400;
+const QUESTION_SUBMISSION_AUTO_REFRESH_MS = 15_000;
 const WEEKLY_SUBJECTS_STORAGE_KEY = 'weeklySubjects-v1';
 const SUBJECT_CATALOG_STORAGE_KEY = 'subjectCatalog-v1';
 const SCHEDULE_NOTICE_HIGHLIGHTS_STORAGE_KEY = 'scheduleNoticeHighlights-v1';
@@ -3363,7 +3364,7 @@ export default function TimerPage() {
   const [questionSubmissionStatuses, setQuestionSubmissionStatuses] = useState<QuestionSubmissionStatus[]>([]);
   const [isQuestionSubmissionLoading, setIsQuestionSubmissionLoading] = useState(false);
   const [questionSubmissionError, setQuestionSubmissionError] = useState('');
-  const [questionSubmissionLoadedAt, setQuestionSubmissionLoadedAt] = useState<string | null>(null);
+  const isQuestionSubmissionRefreshInFlightRef = useRef(false);
   const [editingCurrencyNumber, setEditingCurrencyNumber] = useState<number | null>(null);
   const [currencyStudentNumberInput, setCurrencyStudentNumberInput] = useState('');
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
@@ -3436,19 +3437,16 @@ export default function TimerPage() {
     isEditingNoticeRef.current = isEditingNotice;
   }, [isEditingNotice]);
 
-  const refreshQuestionSubmissionStatuses = async () => {
+  const refreshQuestionSubmissionStatuses = useCallback(async () => {
+    if (isQuestionSubmissionRefreshInFlightRef.current) return;
+
+    isQuestionSubmissionRefreshInFlightRef.current = true;
     setIsQuestionSubmissionLoading(true);
     setQuestionSubmissionError('');
 
     try {
       const records = await loadQuestionSubmissionStatuses();
       setQuestionSubmissionStatuses(records);
-      setQuestionSubmissionLoadedAt(
-        new Date().toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-      );
     } catch (error) {
       if (error instanceof Error) {
         setQuestionSubmissionError(
@@ -3461,15 +3459,38 @@ export default function TimerPage() {
 
       setQuestionSubmissionError('question-news 제출 현황을 불러오지 못했습니다.');
     } finally {
+      isQuestionSubmissionRefreshInFlightRef.current = false;
       setIsQuestionSubmissionLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (!isQuestionSubmissionPanelOpen || questionSubmissionLoadedAt !== null || isQuestionSubmissionLoading) return;
+    if (!isQuestionSubmissionPanelOpen) return;
 
     void refreshQuestionSubmissionStatuses();
-  }, [isQuestionSubmissionPanelOpen]);
+
+    const intervalId = window.setInterval(() => {
+      void refreshQuestionSubmissionStatuses();
+    }, QUESTION_SUBMISSION_AUTO_REFRESH_MS);
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void refreshQuestionSubmissionStatuses();
+    };
+
+    const refreshWhenFocused = () => {
+      void refreshQuestionSubmissionStatuses();
+    };
+
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenFocused);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenFocused);
+    };
+  }, [isQuestionSubmissionPanelOpen, refreshQuestionSubmissionStatuses]);
 
   const prevSlotIdRef = useRef<string | null>(null);
   const previousWatchFaceRunningRef = useRef<boolean | null>(null);
