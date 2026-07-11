@@ -63,7 +63,7 @@ LSP/codegraph tools were not available during generation; centrality below is fr
 - Browser-only APIs are common. Check SSR guards before moving code outside React effects or event handlers.
 - Shared settings normalize unknown Supabase/localStorage payloads before use. Preserve that defensive boundary.
 - User-facing copy is mostly Korean. Keep new classroom UI text Korean unless matching an existing English API/error.
-- Treat classroom currency (`고마`) and auction state as live user data. Code changes and QA must not leave balances, bids, awards, or currency history changed; if testing requires mutation, take a targeted backup first and restore the affected Supabase/localStorage fields before finishing.
+- Treat classroom currency (`고마`) and auction state as live user data. QA must not click or invoke controls that mutate real balances, bids, awards, or currency history, even when an inverse action appears to restore the value. Verify mutation paths with isolated fake state, a disposable local profile, mocks, or code-level checks only. If an exceptional test truly requires real-data mutation, stop and obtain explicit user approval after taking a complete targeted backup of every affected Supabase/localStorage field; restore and compare every field byte-for-byte before finishing.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
@@ -74,7 +74,7 @@ LSP/codegraph tools were not available during generation; centrality below is fr
 - Do not remove Supabase fallback behavior; the app must run without Supabase env vars.
 - Do not replace `vite.config.ts` HMR logic; the file explicitly warns it prevents flicker during agent edits.
 - Avoid `as any`, `@ts-ignore`, and type suppression. Use narrowed browser API types instead.
-- Do not use real student currency balances as disposable QA data. Prefer isolated fake IDs/state; if real data is touched, explicitly revert balances, bids, awards, and history to the pre-test values.
+- Never use real student currency balances as disposable QA data or test `+/-` by applying and reversing live changes. Inverse actions are not valid restoration because clamping, concurrent writes, and history entries can still alter data. Use isolated fake IDs/state, a disposable local profile, mocks, or read-only UI inspection instead.
 
 ## UNIQUE STYLES
 

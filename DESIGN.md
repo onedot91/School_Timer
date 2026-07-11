@@ -238,6 +238,12 @@ Lander Tall (the Rewards serif) is custom — open-source substitutes: **Iowan O
 
 ### Inputs & Forms
 
+**Compact Target Selector (classroom utility panels)**
+- Two equal-width choices inside one pale-green rounded track; selected choice uses a solid white or Starbucks Green surface depending on action scope.
+- Labels stay to one short noun per choice (for example `개인` / `전체`) and use `aria-pressed` so the current scope is announced without helper copy.
+- Switching scope replaces the dependent control in place instead of stacking both workflows. Controls retain a minimum `40px` touch height and clear focus/active contrast.
+- Mutating stepper actions compress briefly on press, while the fixed scope badge changes from its range to `±값 적용` for about one second. The badge uses a single short opacity fade with no overlapping exit/enter or scale transition, and is exposed through a polite live region without changing row geometry.
+
 **Floating Label Input**
 - Label floats above the input border when focused/filled
 - Desktop label font size: `1.9rem` default, animates to `1.4rem` when active
