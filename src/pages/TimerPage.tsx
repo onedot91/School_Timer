@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -3326,6 +3327,7 @@ function StudentCharacterShowcase({
 }
 
 export default function TimerPage() {
+  const shouldReduceMotion = useReducedMotion();
   const initialState = getInitialAppState();
   const [initialRandomDrawState] = useState(() => getInitialRandomDrawState());
   const [initialScheduleYoutubeState] = useState(() => getInitialScheduleYoutubeState());
@@ -5491,6 +5493,7 @@ export default function TimerPage() {
 
     if (isEditingNoticeRef.current) {
       closeNoticeEdit();
+      setIsNoticeEnabled(false);
     } else if (isNoticeEnabled && hasScheduleNotice) {
       setIsNoticeEnabled(false);
     } else {
@@ -6245,25 +6248,6 @@ export default function TimerPage() {
 
   const closeMemoNotebook = () => {
     setIsMemoOpen(false);
-    setIsNoticeEnabled(false);
-    setIsEditingNotice(false);
-  };
-
-  const handleNoticeBlur = (event: React.FocusEvent<HTMLTextAreaElement>) => {
-    const nextFocusedElement = event.relatedTarget;
-    if (
-      nextFocusedElement instanceof HTMLElement &&
-      (nextFocusedElement.closest('[data-notice-memo-button="true"]') ||
-        nextFocusedElement.closest('[data-notice-highlight-popover="true"]'))
-    ) {
-      return;
-    }
-
-    if (skipNoticeAutoSaveRef.current) {
-      skipNoticeAutoSaveRef.current = false;
-      return;
-    }
-    closeNoticeEdit();
   };
 
   const toggleBackgroundMusic = async (event?: React.MouseEvent<HTMLButtonElement>) => {
@@ -6824,13 +6808,6 @@ export default function TimerPage() {
       noticeInputRef.current?.setSelectionRange(nextCursorPosition, nextCursorPosition);
     }
   };
-  const noticeCardStyle = isEditingNotice
-    ? { animation: 'noticeFadeIn 220ms ease-out' }
-    : undefined;
-  const noticeHandleToneClass = shouldShowNoticeCard ? 'notice-toggle-open' : 'notice-toggle-closed';
-  const noticeHandleButtonClass = `notice-toggle ${noticeHandleToneClass} group relative inline-flex h-8 min-w-[9.5rem] items-center justify-center rounded-[1rem] border-2 px-5 transition-all hover:-translate-y-px active:translate-y-0 sm:min-w-[11rem] md:min-w-[12.5rem]`;
-  const noticeHandleIconClass = `inline-flex h-5 min-w-[3.25rem] items-center justify-center rounded-full border ${shouldShowNoticeCard ? 'notice-toggle-icon-open' : 'notice-toggle-icon-closed'}`;
-  const noticeHandleLineClass = `pointer-events-none absolute inset-x-1.5 top-[3px] h-px rounded-full ${shouldShowNoticeCard ? 'notice-toggle-line-open' : 'notice-toggle-line-closed'}`;
   const musicButtonLabel = isMusicPlaying ? '배경 음악 끄기' : '배경 음악 켜기';
   const noticeMemoButton = (
     <button
@@ -6851,11 +6828,32 @@ export default function TimerPage() {
       <span>메모</span>
     </button>
   );
-  const noticeBanner = shouldShowNoticeCard ? (
-    <div className="relative z-30 shrink-0 px-4 pb-1 pt-3 sm:px-5 sm:pt-4 md:px-6 md:pt-[1.15rem] lg:px-7 xl:px-8">
+  const noticeBanner = (
+    <AnimatePresence initial={false}>
+      {shouldShowNoticeCard ? (
+        <motion.div
+          key="schedule-notice"
+          className="relative z-30 shrink-0 overflow-hidden px-4 pb-1 pt-3 sm:px-5 sm:pt-4 md:px-6 md:pt-[1.15rem] lg:px-7 xl:px-8"
+          initial={shouldReduceMotion
+            ? { height: 0, opacity: 0 }
+            : { height: 0, opacity: 0, y: -8, scale: 0.996 }}
+          animate={{ height: 'auto', opacity: 1, y: 0, scale: 1 }}
+          exit={shouldReduceMotion
+            ? { height: 0, opacity: 0 }
+            : { height: 0, opacity: 0, y: -8, scale: 0.996 }}
+          transition={shouldReduceMotion
+            ? { duration: 0.16, ease: 'easeOut' }
+            : {
+                height: { duration: 0.26, ease: [0.22, 1, 0.36, 1] },
+                y: { type: 'spring', stiffness: 420, damping: 40, mass: 0.78 },
+                scale: { type: 'spring', stiffness: 420, damping: 40, mass: 0.78 },
+                opacity: { duration: 0.16, ease: 'easeOut' },
+              }}
+          style={{ transformOrigin: '50% 0%', willChange: 'transform, opacity' }}
+          data-notice-motion="true"
+        >
       <div
         className={`notice-card relative mx-auto w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[#FFFBF6] px-1 pb-1 pt-1 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] md:px-1.5 md:pb-1.5 ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading'}`}
-        style={noticeCardStyle}
       >
         {isEditingNotice ? (
           <div className="notice-editor relative grid min-h-[3.6rem] grid-rows-[1.45rem_minmax(0,1fr)_1.45rem] rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-1.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[3.85rem] sm:grid-rows-[1.55rem_minmax(0,1fr)_1.55rem] sm:px-3 md:min-h-[4.1rem] md:grid-rows-[1.7rem_minmax(0,1fr)_1.7rem]">
@@ -6865,7 +6863,6 @@ export default function TimerPage() {
                 ref={noticeInputRef}
                 value={noticeDraft}
                 onChange={(e) => applyNoticeDraft(e.target.value)}
-                onBlur={handleNoticeBlur}
                 onKeyUp={(e) => {
                   if (!e.nativeEvent.isComposing) {
                     applyNoticeDraftSelectionHighlight();
@@ -6873,17 +6870,6 @@ export default function TimerPage() {
                 }}
                 onMouseUp={applyNoticeDraftSelectionHighlight}
                 onTouchEnd={applyNoticeDraftSelectionHighlight}
-                onKeyDown={(e) => {
-                  if (isComposingKeyboardEvent(e)) return;
-                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    closeNoticeEdit();
-                  }
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    closeNoticeEdit();
-                  }
-                }}
                 rows={1}
                 maxLength={160}
                 placeholder="공지 입력"
@@ -6919,37 +6905,12 @@ export default function TimerPage() {
                 </button>
               </div>
             ) : null}
-            <div className="row-start-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={closeNoticeEdit}
-                  className="inline-flex h-7 items-center justify-center rounded-full px-2.5 text-[0.68rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
-                >
-                  닫기
-                </button>
-              </div>
+            <div className="row-start-3 flex items-center justify-end gap-2">
               {noticeMemoButton}
             </div>
           </div>
         ) : (
           <>
-            <div className="absolute left-1/2 top-0 z-20 flex -translate-x-1/2 -translate-y-[128%] flex-col items-center">
-              <div className="notice-reveal-zone -m-3 p-3">
-                <button
-                  onClick={() => setIsNoticeEnabled(false)}
-                  className={noticeHandleButtonClass}
-                  title="공지 닫기"
-                  aria-label="공지 닫기"
-                  type="button"
-                >
-                  <span aria-hidden="true" className={noticeHandleLineClass} />
-                  <span aria-hidden="true" className={noticeHandleIconClass}>
-                    <ChevronDown size={10} strokeWidth={2.7} className="rotate-180" />
-                  </span>
-                </button>
-              </div>
-            </div>
             <div className="notice-content relative grid min-h-[3.6rem] w-full grid-rows-[1.45rem_minmax(0,1fr)_1.45rem] rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-1.5 transition-colors hover:bg-white sm:min-h-[3.85rem] sm:grid-rows-[1.55rem_minmax(0,1fr)_1.55rem] sm:px-3 md:min-h-[4.1rem] md:grid-rows-[1.7rem_minmax(0,1fr)_1.7rem]">
               <div aria-hidden="true" className="row-start-1" />
               <div
@@ -7008,9 +6969,11 @@ export default function TimerPage() {
             </div>
           </>
         )}
-      </div>
-    </div>
-  ) : null;
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
   const scheduleSettingsPanel = (
     <div className="settings-panel-grid grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
       <aside className="flex flex-col gap-4 xl:sticky xl:top-0 xl:self-start">

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Todo 1 recovery: selected and confirmation states only",
+  "startedAt": "2026-07-11T13:10:35.095Z",
+  "cases": [
+    {
+      "id": "auction-selected",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "recovery-screenshots/auction-selected-recovery-1440x900.png",
+      "visible": true,
+      "overflow": false
+    },
+    {
+      "id": "auction-selected",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "screenshot": "recovery-screenshots/auction-selected-recovery-390x844.png",
+      "visible": true,
+      "overflow": false
+    },
+    {
+      "id": "auction-confirmation",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "recovery-screenshots/auction-confirmation-recovery-1440x900.png",
+      "dialog": true,
+      "overflow": false
+    },
+    {
+      "id": "auction-confirmation",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "screenshot": "recovery-screenshots/auction-confirmation-recovery-390x844.png",
+      "dialog": true,
+      "overflow": false
+    }
+  ],
+  "adversarial": {
+    "stale_state": {
+      "verdict": "PASS",
+      "evidence": "new browser context plus fixture reset before state setup"
+    },
+    "hung_commands": {
+      "verdict": "PASS",
+      "evidence": "entire scenario completed within a 15000ms deadline"
+    },
+    "flaky_tests": {
+      "verdict": "PASS",
+      "evidence": "clock fixed at 2026-07-06T10:00:00.000Z; no retry used"
+    },
+    "misleading_success_output": {
+      "verdict": "PASS",
+      "evidence": "four PNG outputs were stat-checked and DOM/write assertions passed before success"
+    }
+  },
+  "requestAudit": {
+    "observedSupabaseRequests": [
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      }
+    ],
+    "fixtureHosts": [
+      "127.0.0.1:54329"
+    ],
+    "allSupabaseRequestsLocal": true,
+    "writesBefore": 0,
+    "writesAtConfirmation": 0,
+    "outputs": [
+      {
+        "screenshot": "recovery-screenshots/auction-selected-recovery-1440x900.png",
+        "bytes": 110398
+      },
+      {
+        "screenshot": "recovery-screenshots/auction-selected-recovery-390x844.png",
+        "bytes": 59338
+      },
+      {
+        "screenshot": "recovery-screenshots/auction-confirmation-recovery-1440x900.png",
+        "bytes": 161569
+      },
+      {
+        "screenshot": "recovery-screenshots/auction-confirmation-recovery-390x844.png",
+        "bytes": 70963
+      }
+    ]
+  },
+  "console": [
+    {
+      "level": "debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "level": "debug",
+      "text": "[vite] connected."
+    },
+    {
+      "level": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    },
+    {
+      "level": "debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "level": "debug",
+      "text": "[vite] connected."
+    },
+    {
+      "level": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    }
+  ],
+  "errors": [],
+  "completedAt": "2026-07-11T13:10:38.096Z"
+}

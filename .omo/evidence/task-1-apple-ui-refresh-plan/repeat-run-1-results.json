@@ -1,0 +1,1005 @@
+{
+  "schemaVersion": 2,
+  "canonical": true,
+  "purpose": "Todo 1 fresh bounded baseline; supersedes prior split/recovery records",
+  "startedAt": "2026-07-11T13:21:34.025Z",
+  "wholeRunDeadlineMs": 110000,
+  "cases": [
+    {
+      "id": "entry",
+      "criterionReference": "EntrySelectPage Korean entry and hidden admin contract",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/entry-1440x900.png",
+          "bytes": 58926,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/entry-390x844.png",
+          "bytes": 44421,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {}
+    },
+    {
+      "id": "admin",
+      "criterionReference": "RootApp entry 0 and character asset baseline",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/admin-1440x900.png",
+          "bytes": 425642,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/admin-390x844.png",
+          "bytes": 154109,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {
+        "characterAssets": 3
+      }
+    },
+    {
+      "id": "runtime-fallback",
+      "criterionReference": "RootApp runtime fallback Korean labels/action; intentional console error allowed",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/runtime-fallback-1440x900.png",
+          "bytes": 24698,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/runtime-fallback-390x844.png",
+          "bytes": 20154,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {
+        "expectedConsoleError": "School Timer runtime failed."
+      }
+    },
+    {
+      "id": "shortcut-alt-ctrl-enter",
+      "criterionReference": "RootApp ChromeOS/fallback Alt+Ctrl+Enter entry reset branch",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/shortcut-alt-ctrl-enter-1440x900.png",
+          "bytes": 58926,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/shortcut-alt-ctrl-enter-390x844.png",
+          "bytes": 44421,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {
+        "altCtrlEnter": "PASS"
+      }
+    },
+    {
+      "id": "auction-loading",
+      "criterionReference": "AuctionPage delayed shared settings loading",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/auction-loading-1440x900.png",
+          "bytes": 98461,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/auction-loading-390x844.png",
+          "bytes": 67306,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {}
+    },
+    {
+      "id": "auction-empty",
+      "criterionReference": "AuctionPage fixed Saturday empty state",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/auction-empty-1440x900.png",
+          "bytes": 98189,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/auction-empty-390x844.png",
+          "bytes": 84333,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {}
+    },
+    {
+      "id": "auction-selected",
+      "criterionReference": "AuctionPage selected synthetic Monday item; black-block recovery integrated",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/auction-selected-1440x900.png",
+          "bytes": 109931,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/auction-selected-390x844.png",
+          "bytes": 59321,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          },
+          "largestOpaqueBlackComponentPixels": 0
+        }
+      ],
+      "assertions": {
+        "syntheticItemSelected": "PASS"
+      }
+    },
+    {
+      "id": "auction-confirmation",
+      "criterionReference": "AuctionPage confirmation before bid write",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/auction-confirmation-1440x900.png",
+          "bytes": 161567,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/auction-confirmation-390x844.png",
+          "bytes": 70963,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {
+        "writesBeforeConfirmation": 0
+      }
+    },
+    {
+      "id": "auction-local-error",
+      "criterionReference": "AuctionPage local fake Supabase error boundary; intentional console error allowed",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/auction-local-error-1440x900.png",
+          "bytes": 141430,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/auction-local-error-390x844.png",
+          "bytes": 74374,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {
+        "expectedConsoleError": "Failed to load auction state from Supabase."
+      }
+    },
+    {
+      "id": "supabase-disabled-localstorage",
+      "criterionReference": "Supabase-disabled localStorage fallback has no REST traffic",
+      "surface": "isolated Playwright Chromium fresh context, fixed clock",
+      "captures": [
+        {
+          "file": "screenshots/supabase-disabled-localstorage-1440x900.png",
+          "bytes": 116593,
+          "dimensions": {
+            "width": 1440,
+            "height": 900
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 1440,
+            "viewportWidth": 1440
+          }
+        },
+        {
+          "file": "screenshots/supabase-disabled-localstorage-390x844.png",
+          "bytes": 57820,
+          "dimensions": {
+            "width": 390,
+            "height": 844
+          },
+          "overflow": {
+            "horizontal": false,
+            "scrollWidth": 390,
+            "viewportWidth": 390
+          }
+        }
+      ],
+      "assertions": {
+        "localStorageFallback": "PASS"
+      }
+    }
+  ],
+  "contracts": {
+    "koreanCopyPreserved": "PASS",
+    "characterAssets": "PASS",
+    "altCtrlEnter": "PASS",
+    "supabaseDisabledLocalStorageFallback": "PASS",
+    "confirmationBeforeWrite": "PASS",
+    "selectedMobileRecovery": "PASS"
+  },
+  "console": {
+    "expectedErrors": [
+      {
+        "scenario": "runtime-fallback",
+        "level": "error",
+        "text": "School Timer runtime failed. Error: QA intentional runtime fallback\n    at eval (eval at evaluate (:303:30), <anonymous>:1:61)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "error",
+        "text": "Failed to load auction state from Supabase. {code: QA_FORCED_ERROR, message: fixture forced error}"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "error",
+        "text": "Failed to load auction state from Supabase. {code: QA_FORCED_ERROR, message: fixture forced error}"
+      }
+    ],
+    "unexpectedErrors": [],
+    "events": [
+      {
+        "scenario": "entry",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "entry",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "entry",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "admin",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "admin",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "admin",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "runtime-fallback",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "runtime-fallback",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "runtime-fallback",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "runtime-fallback",
+        "level": "error",
+        "text": "School Timer runtime failed. Error: QA intentional runtime fallback\n    at eval (eval at evaluate (:303:30), <anonymous>:1:61)\n    at UtilityScript.evaluate (<anonymous>:305:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)"
+      },
+      {
+        "scenario": "shortcut-alt-ctrl-enter",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "shortcut-alt-ctrl-enter",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "shortcut-alt-ctrl-enter",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "shortcut-alt-ctrl-enter",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "shortcut-alt-ctrl-enter",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "shortcut-alt-ctrl-enter",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-loading",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-loading",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-loading",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-loading",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-loading",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-loading",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-empty",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-empty",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-empty",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-empty",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-empty",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-empty",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-selected",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-selected",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-selected",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-selected",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-selected",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-selected",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-confirmation",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-confirmation",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-confirmation",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-confirmation",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-confirmation",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-confirmation",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "error",
+        "text": "Failed to load auction state from Supabase. {code: QA_FORCED_ERROR, message: fixture forced error}"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "error",
+        "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      },
+      {
+        "scenario": "auction-local-error",
+        "level": "error",
+        "text": "Failed to load auction state from Supabase. {code: QA_FORCED_ERROR, message: fixture forced error}"
+      },
+      {
+        "scenario": "supabase-disabled-localstorage",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "supabase-disabled-localstorage",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "supabase-disabled-localstorage",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "scenario": "supabase-disabled-localstorage",
+        "level": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "scenario": "supabase-disabled-localstorage",
+        "level": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "scenario": "supabase-disabled-localstorage",
+        "level": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      }
+    ]
+  },
+  "requestAudit": {
+    "runs": [
+      {
+        "label": "auction-loading",
+        "observedSupabaseRequests": [
+          {
+            "scenario": "auction-loading",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          },
+          {
+            "scenario": "auction-loading",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          }
+        ],
+        "fixtureHosts": [
+          "127.0.0.1:54329"
+        ],
+        "restCount": 2,
+        "liveSupabaseRequestCount": 0,
+        "allSupabaseRequestsLocal": true
+      },
+      {
+        "label": "auction-empty",
+        "observedSupabaseRequests": [
+          {
+            "scenario": "auction-empty",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          },
+          {
+            "scenario": "auction-empty",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          }
+        ],
+        "fixtureHosts": [
+          "127.0.0.1:54329"
+        ],
+        "restCount": 2,
+        "liveSupabaseRequestCount": 0,
+        "allSupabaseRequestsLocal": true
+      },
+      {
+        "label": "auction-selected",
+        "observedSupabaseRequests": [
+          {
+            "scenario": "auction-selected",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          },
+          {
+            "scenario": "auction-selected",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          }
+        ],
+        "fixtureHosts": [
+          "127.0.0.1:54329"
+        ],
+        "restCount": 2,
+        "liveSupabaseRequestCount": 0,
+        "allSupabaseRequestsLocal": true
+      },
+      {
+        "label": "auction-confirmation",
+        "observedSupabaseRequests": [
+          {
+            "scenario": "auction-confirmation",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          },
+          {
+            "scenario": "auction-confirmation",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          }
+        ],
+        "fixtureHosts": [
+          "127.0.0.1:54329"
+        ],
+        "restCount": 2,
+        "liveSupabaseRequestCount": 0,
+        "allSupabaseRequestsLocal": true
+      },
+      {
+        "label": "auction-local-error",
+        "observedSupabaseRequests": [
+          {
+            "scenario": "auction-local-error",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          },
+          {
+            "scenario": "auction-local-error",
+            "method": "GET",
+            "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+          }
+        ],
+        "fixtureHosts": [
+          "127.0.0.1:54329"
+        ],
+        "restCount": 2,
+        "liveSupabaseRequestCount": 0,
+        "allSupabaseRequestsLocal": true
+      },
+      {
+        "label": "supabase-disabled-localstorage",
+        "observedSupabaseRequests": [],
+        "fixtureHosts": [
+          "127.0.0.1:54329"
+        ],
+        "restCount": 0,
+        "liveSupabaseRequestCount": 0,
+        "allSupabaseRequestsLocal": true
+      }
+    ]
+  },
+  "pngAudit": [
+    {
+      "file": "screenshots/entry-1440x900.png",
+      "bytes": 58926,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/entry-390x844.png",
+      "bytes": 44421,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/admin-1440x900.png",
+      "bytes": 425642,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/admin-390x844.png",
+      "bytes": 154109,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/runtime-fallback-1440x900.png",
+      "bytes": 24698,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/runtime-fallback-390x844.png",
+      "bytes": 20154,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/shortcut-alt-ctrl-enter-1440x900.png",
+      "bytes": 58926,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/shortcut-alt-ctrl-enter-390x844.png",
+      "bytes": 44421,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/auction-loading-1440x900.png",
+      "bytes": 98461,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/auction-loading-390x844.png",
+      "bytes": 67306,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/auction-empty-1440x900.png",
+      "bytes": 98189,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/auction-empty-390x844.png",
+      "bytes": 84333,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/auction-selected-1440x900.png",
+      "bytes": 109931,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/auction-selected-390x844.png",
+      "bytes": 59321,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/auction-confirmation-1440x900.png",
+      "bytes": 161567,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/auction-confirmation-390x844.png",
+      "bytes": 70963,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/auction-local-error-1440x900.png",
+      "bytes": 141430,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/auction-local-error-390x844.png",
+      "bytes": 74374,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "screenshots/supabase-disabled-localstorage-1440x900.png",
+      "bytes": 116593,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "screenshots/supabase-disabled-localstorage-390x844.png",
+      "bytes": 57820,
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "adversarial": {
+    "stale_state": {
+      "verdict": "PASS",
+      "evidence": "every scenario created a fresh browser context; fixture reset/control state and fixed clocks are recorded per case"
+    },
+    "dirty_worktree": {
+      "verdict": "PASS",
+      "evidence": "src staged/unstaged diff guards are captured in final verification; unrelated status is preserved"
+    },
+    "hung_commands": {
+      "verdict": "PASS",
+      "evidence": "each scenario deadline=15000ms; whole run deadline=110000ms; owned PID cleanup is recorded"
+    },
+    "flaky_tests": {
+      "verdict": "PASS",
+      "evidence": "the complete canonical matrix is run twice by the outer invocation; fixed clocks and no retry concealment"
+    },
+    "misleading_success_output": {
+      "verdict": "PASS",
+      "evidence": "success is gated on all 20 stat+dimension-valid PNGs, REST-host audit, expected-vs-unexpected console policy, and zero runner errors"
+    }
+  },
+  "processCleanup": {
+    "owned": [
+      {
+        "label": "fake-supabase",
+        "pid": 20475,
+        "command": "/usr/local/bin/node /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/fixtures/fake-supabase.mjs",
+        "stdout": "FAKE_SUPABASE_READY 127.0.0.1:54329\n",
+        "stderr": "",
+        "stopped": true
+      },
+      {
+        "label": "vite-supabase-enabled",
+        "pid": 20490,
+        "command": "npm run dev -- --port 4175 --host 127.0.0.1",
+        "stdout": "\n> react-example@0.0.0 dev\n> vite --port=3000 --host=0.0.0.0 --port 4175 --host 127.0.0.1\n\n\n  VITE v6.4.1  ready in 88 ms\n\n  ➜  Local:   http://127.0.0.1:4175/\n",
+        "stderr": "",
+        "stopped": true
+      },
+      {
+        "label": "vite-supabase-disabled",
+        "pid": 21434,
+        "command": "npm run dev -- --port 4175 --host 127.0.0.1",
+        "stdout": "\n> react-example@0.0.0 dev\n> vite --port=3000 --host=0.0.0.0 --port 4175 --host 127.0.0.1\n\n\n  VITE v6.4.1  ready in 112 ms\n\n  ➜  Local:   http://127.0.0.1:4175/\n",
+        "stderr": "",
+        "stopped": true
+      }
+    ],
+    "finalPortChecks": [
+      {
+        "port": 4175,
+        "listeners": "",
+        "free": true
+      },
+      {
+        "port": 54329,
+        "listeners": "",
+        "free": true
+      }
+    ]
+  },
+  "errors": [],
+  "revisions": {
+    "gitHead": "a527c4acc22b3c7f33f11520ccd04896af4ebfad",
+    "source": {
+      "src/RootApp.tsx": "b3c9d557a07363e0c35c184a9eb1a7fbeffe32e031404f1e0818263277485a3c",
+      "src/pages/EntrySelectPage.tsx": "e1c2392ce0cf059820a87a7151a69fbd574acdc15c61aac2343c90fc83475a8f",
+      "src/pages/AuctionPage.tsx": "918832eceaeef3335185ef5e1c092c0487499818c2891419280c3eb12d4fd7ab",
+      "src/components/AuctionRoom.tsx": "c9dbc6e6ff7fe2f6bfc214e1c637e3958ab73d401ad7dfb5aeab7beab20fae2c",
+      "src/lib/supabaseSettings.ts": "8fc85a68a550d562f02e8a301a20482953b13360208d12877cc40661e4a9c9ca",
+      "src/index.css": "b2b52c82fdfd1b352df27efc6d08a3b6c025b4ce373dcff0decd8de6d4162d57"
+    },
+    "fixturesBeforeRun": {
+      "fake-supabase.mjs": "de04c91b6e46a7920e8d085ee9aaaea0283a6ddb4003a15fbca0e7ca74bd0351",
+      "task-1-baseline.mjs": "2133f0e6f9d3c45ff44af03e4cb44d2d0f11587ceb3e6cea2f38c4b660ba32b2"
+    }
+  },
+  "completedAt": "2026-07-11T13:21:52.804Z",
+  "success": true
+}
