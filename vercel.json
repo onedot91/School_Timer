@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/question-submission-status",
+      "destination": "https://question-news.vercel.app/api/submission-status"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -6660,6 +6660,11 @@ h3 {
   animation-delay: var(--student-character-walk-delay);
 }
 
+.question-submission-panel-open .student-character-showcase {
+  opacity: 0;
+  visibility: hidden;
+}
+
 .student-character-walk-left {
   --student-character-walk-start: 118vw;
   --student-character-walk-mid-x-a: 80vw;
@@ -10532,7 +10537,7 @@ h3 {
 }
 
 .editorial-quick-actions {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .editorial-utility-button {

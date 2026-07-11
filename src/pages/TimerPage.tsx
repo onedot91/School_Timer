@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Coffee, Coins, Copy, Download, GripVertical, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -41,6 +41,10 @@ import {
   saveSharedSettings,
 } from '../lib/supabaseSettings';
 import { playAuctionSound } from '../lib/auctionAudio';
+import {
+  loadQuestionSubmissionStatuses,
+  type QuestionSubmissionStatus,
+} from '../lib/questionSubmissionStatus';
 import {
   STUDENT_CHARACTERS,
   STUDENT_CHARACTER_WALK_SECONDS,
@@ -3355,6 +3359,11 @@ export default function TimerPage() {
   const [isYoutubePanelOpen, setIsYoutubePanelOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isCurrencyPanelOpen, setIsCurrencyPanelOpen] = useState(false);
+  const [isQuestionSubmissionPanelOpen, setIsQuestionSubmissionPanelOpen] = useState(false);
+  const [questionSubmissionStatuses, setQuestionSubmissionStatuses] = useState<QuestionSubmissionStatus[]>([]);
+  const [isQuestionSubmissionLoading, setIsQuestionSubmissionLoading] = useState(false);
+  const [questionSubmissionError, setQuestionSubmissionError] = useState('');
+  const [questionSubmissionLoadedAt, setQuestionSubmissionLoadedAt] = useState<string | null>(null);
   const [editingCurrencyNumber, setEditingCurrencyNumber] = useState<number | null>(null);
   const [currencyStudentNumberInput, setCurrencyStudentNumberInput] = useState('');
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
@@ -3426,6 +3435,41 @@ export default function TimerPage() {
   useEffect(() => {
     isEditingNoticeRef.current = isEditingNotice;
   }, [isEditingNotice]);
+
+  const refreshQuestionSubmissionStatuses = async () => {
+    setIsQuestionSubmissionLoading(true);
+    setQuestionSubmissionError('');
+
+    try {
+      const records = await loadQuestionSubmissionStatuses();
+      setQuestionSubmissionStatuses(records);
+      setQuestionSubmissionLoadedAt(
+        new Date().toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        setQuestionSubmissionError(
+          error.message.startsWith('QUESTION_SUBMISSION_STATUS')
+            ? 'question-news 제출 현황을 불러오지 못했습니다.'
+            : error.message,
+        );
+        return;
+      }
+
+      setQuestionSubmissionError('question-news 제출 현황을 불러오지 못했습니다.');
+    } finally {
+      setIsQuestionSubmissionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isQuestionSubmissionPanelOpen || questionSubmissionLoadedAt !== null || isQuestionSubmissionLoading) return;
+
+    void refreshQuestionSubmissionStatuses();
+  }, [isQuestionSubmissionPanelOpen]);
 
   const prevSlotIdRef = useRef<string | null>(null);
   const previousWatchFaceRunningRef = useRef<boolean | null>(null);
@@ -8065,7 +8109,7 @@ export default function TimerPage() {
 
   return (
     <div className="mascot-app h-[100dvh] w-full overflow-hidden">
-      <div className={`mascot-shell editorial-main-shell timer-main-shell relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none shadow-none transition-colors duration-1000 ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''}`}>
+      <div className={`mascot-shell editorial-main-shell timer-main-shell relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none shadow-none transition-colors duration-1000 ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''} ${isQuestionSubmissionPanelOpen ? 'question-submission-panel-open' : ''}`}>
         <style>{`
           @keyframes noticeFadeIn {
             0% {
@@ -8730,6 +8774,7 @@ export default function TimerPage() {
                       setIsDrawCaseMenuOpen(false);
                       setIsLibraryOpen(false);
                       setIsCurrencyPanelOpen(false);
+                      setIsQuestionSubmissionPanelOpen(false);
                       setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
                       setIsSettingsOpen(true);
                     }}
@@ -8787,7 +8832,7 @@ export default function TimerPage() {
               </div>
             </div>
 
-            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-4 gap-3">
+            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-5 gap-3">
               <div className="relative min-w-0">
                 <button
                   type="button"
@@ -8796,6 +8841,7 @@ export default function TimerPage() {
                     setIsExtraTimerVisible(false);
                     setIsYoutubePanelOpen(false);
                     setIsLibraryOpen(false);
+                    setIsQuestionSubmissionPanelOpen(false);
                     setIsCurrencyPanelOpen((previous) => !previous);
                   }}
                   className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -8818,6 +8864,7 @@ export default function TimerPage() {
                     setIsExtraTimerVisible(false);
                     setIsLibraryOpen(false);
                     setIsCurrencyPanelOpen(false);
+                    setIsQuestionSubmissionPanelOpen(false);
                     setIsYoutubePanelOpen((previous) => !previous);
                   }}
                   className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -8842,6 +8889,7 @@ export default function TimerPage() {
                   setIsYoutubePanelOpen(false);
                   setIsExtraTimerVisible(false);
                   setIsCurrencyPanelOpen(false);
+                  setIsQuestionSubmissionPanelOpen(false);
                   setIsLibraryOpen((previous) => !previous);
                 }}
                 className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -8863,6 +8911,29 @@ export default function TimerPage() {
                   setIsYoutubePanelOpen(false);
                   setIsLibraryOpen(false);
                   setIsCurrencyPanelOpen(false);
+                  setIsExtraTimerVisible(false);
+                  setIsQuestionSubmissionPanelOpen((previous) => !previous);
+                }}
+                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                  isQuestionSubmissionPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
+                }`}
+                aria-haspopup="dialog"
+                aria-expanded={isQuestionSubmissionPanelOpen}
+                aria-label={isQuestionSubmissionPanelOpen ? '질문 제출 현황 닫기' : '질문 제출 현황 열기'}
+                title="질문 제출 현황"
+                type="button"
+              >
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                  <ClipboardCheck size={22} />
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  void playAnnouncementSound('pop');
+                  setIsYoutubePanelOpen(false);
+                  setIsLibraryOpen(false);
+                  setIsCurrencyPanelOpen(false);
+                  setIsQuestionSubmissionPanelOpen(false);
                   setIsAnnouncementOpen(true);
                 }}
                 className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
@@ -8959,6 +9030,95 @@ export default function TimerPage() {
                       </div>
                     ) : null}
 
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {isQuestionSubmissionPanelOpen ? (
+              <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[150] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+                <div className="pointer-events-auto w-full max-w-[76rem] rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
+                  <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#E4EDE7] pb-3">
+                      <div className="flex items-center gap-2 rounded-full bg-[#F8FCF6] px-3 py-1.5 text-[0.76rem] font-extrabold text-[#3F2B20]">
+                        <span className="sr-only">질문 제출 현황</span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span aria-hidden="true" className="h-3 w-3 rounded-full bg-[#168657]" />
+                          개인
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span aria-hidden="true" className="h-3 w-3 rounded-full bg-[#347FC4]" />
+                          주제
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void refreshQuestionSubmissionStatuses()}
+                          disabled={isQuestionSubmissionLoading}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#BFD8CB] bg-[#F1FAF6] text-[#006241] transition-colors hover:bg-[#E6F4ED] disabled:cursor-not-allowed disabled:opacity-60"
+                          title="제출 현황 새로고침"
+                          aria-label="제출 현황 새로고침"
+                        >
+                          <RotateCcw size={14} className={isQuestionSubmissionLoading ? 'animate-spin' : ''} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsQuestionSubmissionPanelOpen(false)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF7EC]"
+                          title="질문 제출 현황 닫기"
+                          aria-label="질문 제출 현황 닫기"
+                        >
+                          <X size={17} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {questionSubmissionError ? (
+                      <div className="mb-3 rounded-[1rem] border border-[#E4C5B9] bg-[#FFF7EC] px-3 py-2.5 text-[0.78rem] font-bold leading-5 text-[#A34F45]">
+                        {questionSubmissionError}
+                      </div>
+                    ) : null}
+
+                    {questionSubmissionStatuses.length > 0 ? (
+                      <div className="grid grid-cols-[repeat(auto-fit,minmax(4.85rem,1fr))] gap-2">
+                        {questionSubmissionStatuses.map((status) => (
+                          <div
+                            key={status.number}
+                            className={`flex min-h-[5.25rem] flex-col items-center justify-between rounded-[0.9rem] border-2 px-2 py-2.5 shadow-[0_6px_14px_rgba(31,24,18,0.045)] ${
+                              status.personalSubmitted || status.topicSubmitted
+                                ? 'border-[#8FD6BB] bg-[#E8F9F0]'
+                                : 'border-[#DCCCA8] bg-white'
+                            }`}
+                            aria-label={`${status.number}번 개인질문 ${
+                              status.personalSubmitted ? '제출' : '미제출'
+                            }, 주제질문 ${status.topicSubmitted ? '제출' : '미제출'}`}
+                          >
+                            <span className={`font-mono text-[1.45rem] font-black leading-none ${
+                              status.personalSubmitted || status.topicSubmitted ? 'text-[#176244]' : 'text-[#665F56]'
+                            }`}>
+                              {status.number}
+                            </span>
+                            <span className="flex items-center justify-center gap-2" aria-hidden="true">
+                              <span
+                                className={`h-3.5 w-3.5 rounded-full ${
+                                  status.personalSubmitted ? 'bg-[#168657]' : 'bg-[#DDE5EC]'
+                                }`}
+                              />
+                              <span
+                                className={`h-3.5 w-3.5 rounded-full ${
+                                  status.topicSubmitted ? 'bg-[#347FC4]' : 'bg-[#DDE5EC]'
+                                }`}
+                              />
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-[1rem] border border-dashed border-[#CFE3D8] bg-[#F8FCF6] px-4 py-5 text-center text-[0.82rem] font-extrabold text-[#6F7D70]">
+                        {isQuestionSubmissionLoading ? '제출 현황을 확인하고 있습니다.' : '새로고침을 눌러 제출 현황을 확인하세요.'}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
