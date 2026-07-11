@@ -7017,14 +7017,12 @@ h3 {
     inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
-.schedule-board-header {
-  min-height: 3.1rem;
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid rgba(159, 199, 184, 0.34);
-}
-
 .schedule-panel-actions {
   flex: 0 1 auto;
+}
+
+.schedule-content-area {
+  isolation: isolate;
 }
 
 .schedule-settings-button {
@@ -10234,6 +10232,12 @@ h3 {
   box-shadow:
     0 30px 90px rgba(31, 24, 18, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+
+.timer-main-shell {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 .editorial-main-shell::before {

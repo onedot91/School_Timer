@@ -93,7 +93,7 @@ import {
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
-type AuctionManagementAction = 'items' | 'bids' | 'currency' | 'tax' | 'allowance';
+type AuctionManagementAction = 'weeklyClose' | 'currency';
 interface ScheduleSlot {
   id: string;
   name: string;
@@ -1064,6 +1064,15 @@ const formatDateKey = (date: Date) => {
 };
 
 const getWeekKeyForDate = (date: Date) => formatDateKey(getWeekStartDate(date));
+
+const getDefaultSubjectWeekKeyForDate = (date: Date) => {
+  const targetDate = new Date(date);
+  const day = targetDate.getDay();
+  if (day === 0 || day === 6) {
+    targetDate.setDate(targetDate.getDate() + 7);
+  }
+  return getWeekKeyForDate(targetDate);
+};
 
 const getWeekOfMonthByMonday = (weekStart: Date) => {
   const firstDayOfMonth = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1);
@@ -3347,6 +3356,7 @@ export default function TimerPage() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isCurrencyPanelOpen, setIsCurrencyPanelOpen] = useState(false);
   const [editingCurrencyNumber, setEditingCurrencyNumber] = useState<number | null>(null);
+  const [currencyStudentNumberInput, setCurrencyStudentNumberInput] = useState('');
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
   const [currencyHistory, setCurrencyHistory] = useState<CurrencyHistory>(() => createDefaultCurrencyHistory());
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
@@ -3475,7 +3485,7 @@ export default function TimerPage() {
     }
     return buildWeeklySubjectsFromSchedule(
       weeklySchedule,
-      getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
     );
   });
   const [subjectCatalog, setSubjectCatalog] = useState<SubjectCatalog>(() => {
@@ -3488,14 +3498,15 @@ export default function TimerPage() {
   const [subjectCatalogEditCommitVersion, setSubjectCatalogEditCommitVersion] = useState(0);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [selectedSubjectWeekKey, setSelectedSubjectWeekKey] = useState(() =>
-    getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+    getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
   );
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('schedule');
+  const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('subjects');
   const [editingDay, setEditingDay] = useState<number>(() => getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [pendingAuctionAction, setPendingAuctionAction] = useState<AuctionManagementAction | null>(null);
+  const [isCurrencyResetDangerVisible, setIsCurrencyResetDangerVisible] = useState(false);
   const [pendingAwardItemId, setPendingAwardItemId] = useState<string | null>(null);
   const [queuedAwardItems, setQueuedAwardItems] = useState<AuctionItem[]>([]);
   const [temporaryVisibleAuctionItemIds, setTemporaryVisibleAuctionItemIds] = useState<Set<string>>(() => new Set());
@@ -3533,6 +3544,7 @@ export default function TimerPage() {
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawCaseMenuRef = useRef<HTMLDivElement>(null);
   const youtubeSearchInputRef = useRef<HTMLInputElement>(null);
+  const currencyStudentNumberInputRef = useRef<HTMLInputElement>(null);
   const youtubeFavoriteLongPressTimeoutRef = useRef<number | null>(null);
   const skipNextYoutubeFavoriteClickRef = useRef(false);
   const sharedSettingsHydratedRef = useRef(!isSupabaseSettingsEnabled);
@@ -3550,6 +3562,20 @@ export default function TimerPage() {
 
   currencyBalancesRef.current = currencyBalances;
   currencyHistoryRef.current = currencyHistory;
+
+  useEffect(() => {
+    if (!isCurrencyPanelOpen) {
+      setCurrencyStudentNumberInput('');
+      setEditingCurrencyNumber(null);
+      return;
+    }
+
+    const focusTimeoutId = window.setTimeout(() => {
+      currencyStudentNumberInputRef.current?.focus();
+      currencyStudentNumberInputRef.current?.select();
+    }, 0);
+    return () => window.clearTimeout(focusTimeoutId);
+  }, [isCurrencyPanelOpen]);
 
   useEffect(() => {
     const audio = getSharedBackgroundMusicAudio();
@@ -3612,6 +3638,13 @@ export default function TimerPage() {
       previous.size > 0 ? new Set() : previous
     ));
   }, [isSettingsOpen, settingsPanel]);
+
+  useEffect(() => {
+    if (!isSettingsOpen || settingsPanel !== 'subjects') return;
+    setSelectedSubjectWeekKey(
+      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+    );
+  }, [isSettingsOpen, settingsPanel, scheduleClockOffsetSeconds]);
 
   const resolvedActiveDrawCaseId = activeDrawCase.id;
   const selectedDrawSettingsCaseIndex = drawCases.findIndex((caseState) => caseState.id === drawSettingsCaseId);
@@ -5694,6 +5727,19 @@ export default function TimerPage() {
     setCurrencyHistory(nextHistory);
   };
 
+  const handleCurrencyStudentNumberInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextInput = event.target.value.replace(/\D/g, '').slice(0, 2);
+    setCurrencyStudentNumberInput(nextInput);
+
+    const nextStudentNumber = Number(nextInput);
+    if (CURRENCY_STUDENT_NUMBERS.includes(nextStudentNumber)) {
+      setEditingCurrencyNumber(nextStudentNumber);
+      return;
+    }
+
+    setEditingCurrencyNumber(null);
+  };
+
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
     const key = String(studentNumber);
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
@@ -5719,27 +5765,7 @@ export default function TimerPage() {
     setCurrencyBalances(nextBalances);
     currencyBalancesRef.current = nextBalances;
     setEditingCurrencyNumber(null);
-  };
-
-  const collectTaxFromAllStudents = () => {
-    const normalizedPrevious = normalizeCurrencyBalances(currencyBalancesRef.current);
-    const nextBalances = collectCurrencyTax(normalizedPrevious);
-    recordCurrencyChanges(normalizedPrevious, nextBalances, 'tax');
-    setCurrencyBalances(nextBalances);
-    currencyBalancesRef.current = nextBalances;
-  };
-
-  const grantWeeklyAllowanceToAllStudents = () => {
-    const normalizedPrevious = normalizeCurrencyBalances(currencyBalancesRef.current);
-    const nextBalances = grantWeeklyCurrencyAllowance(normalizedPrevious);
-    recordCurrencyChanges(normalizedPrevious, nextBalances, 'allowance');
-    setCurrencyBalances(nextBalances);
-    currencyBalancesRef.current = nextBalances;
-  };
-
-  const resetAuctionItems = () => {
-    setAuctionItems(normalizeAuctionItems(null));
-    setTemporaryVisibleAuctionItemIds(new Set());
+    setCurrencyStudentNumberInput('');
   };
 
   const addAuctionItem = (dayIndex: number) => {
@@ -5794,16 +5820,39 @@ export default function TimerPage() {
     setAwardPresentation((previous) => (previous?.itemId === itemId ? null : previous));
   };
 
-  const resetAuctionBids = () => {
+  const completeWeeklyAuctionCycle = () => {
+    const nextAuctionItems = normalizeAuctionItems(null);
     const emptyAuctionBids = normalizeAuctionBids(null, AUCTION_ITEM_IDS);
     const emptyAuctionBidHistory = normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS);
     const emptyAuctionAwards = normalizeAuctionAwards(null, AUCTION_ITEM_IDS);
+    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
+    const taxedBalances = collectCurrencyTax(previousBalances);
+    const nextBalances = grantWeeklyCurrencyAllowance(taxedBalances);
+    const taxHistoryCreatedAt = new Date().toISOString();
+    const allowanceHistoryCreatedAt = new Date().toISOString();
+    const historyAfterTax = appendCurrencyChangesToHistory(
+      currencyHistoryRef.current,
+      previousBalances,
+      taxedBalances,
+      'tax',
+      taxHistoryCreatedAt,
+    );
+    const nextHistory = appendCurrencyChangesToHistory(
+      historyAfterTax,
+      taxedBalances,
+      nextBalances,
+      'allowance',
+      allowanceHistoryCreatedAt,
+    );
 
+    setAuctionItems(nextAuctionItems);
+    setTemporaryVisibleAuctionItemIds(new Set());
     setAuctionBids(emptyAuctionBids);
     setAuctionBidHistory(emptyAuctionBidHistory);
     setAuctionAwards(emptyAuctionAwards);
     setPendingAwardItemId(null);
     setAwardPresentation(null);
+    commitCurrencyState(nextBalances, nextHistory);
 
     if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
 
@@ -5815,6 +5864,9 @@ export default function TimerPage() {
     isSharedSettingsSavePendingRef.current = true;
     void saveSharedSettings({
       ...buildSharedSettingsSnapshot(),
+      currencyBalances: nextBalances,
+      currencyHistory: nextHistory,
+      auctionItems: nextAuctionItems,
       auctionBids: emptyAuctionBids,
       auctionBidHistory: emptyAuctionBidHistory,
       auctionAwards: emptyAuctionAwards,
@@ -5823,7 +5875,7 @@ export default function TimerPage() {
         lastSharedSettingsUpdatedAtRef.current = updatedAt;
       })
       .catch((error) => {
-        console.error('Failed to reset auction bids in Supabase.', error);
+        console.error('Failed to complete weekly auction cycle in Supabase.', error);
       })
       .finally(() => {
         isSharedSettingsSavePendingRef.current = false;
@@ -5960,16 +6012,10 @@ export default function TimerPage() {
   };
 
   const confirmAuctionManagementAction = () => {
-    if (pendingAuctionAction === 'items') {
-      resetAuctionItems();
-    } else if (pendingAuctionAction === 'bids') {
-      resetAuctionBids();
+    if (pendingAuctionAction === 'weeklyClose') {
+      completeWeeklyAuctionCycle();
     } else if (pendingAuctionAction === 'currency') {
       resetCurrencyBalances();
-    } else if (pendingAuctionAction === 'tax') {
-      collectTaxFromAllStudents();
-    } else if (pendingAuctionAction === 'allowance') {
-      grantWeeklyAllowanceToAllStudents();
     }
 
     setPendingAuctionAction(null);
@@ -6432,6 +6478,7 @@ export default function TimerPage() {
   const canShowStudentCharacter =
     shouldShowStudentCharacterBySchedule &&
     visibleStudentCharacters.length > 0 &&
+    !isCurrencyPanelOpen &&
     !shouldHideStudentCharacterForNotification;
   const studentCharacterElapsedSeconds =
     activeScheduleSlot && activeScheduleSlot.type === timerType && canShowStudentCharacter
@@ -6578,6 +6625,10 @@ export default function TimerPage() {
   const studentNoticeTextClass = getNoticeTextClass(trimmedNotice);
   const draftNoticeTextClass = getNoticeTextClass(noticeDraft);
   const shouldShowNoticeCard = isEditingNotice || (isNoticeEnabled && hasScheduleNotice);
+  const hasCurrencyStudentNumberInput = currencyStudentNumberInput.length > 0;
+  const parsedCurrencyStudentNumber = Number(currencyStudentNumberInput);
+  const isCurrencyStudentNumberInvalid =
+    hasCurrencyStudentNumberInput && !CURRENCY_STUDENT_NUMBERS.includes(parsedCurrencyStudentNumber);
   const selectedCurrencyBalance =
     editingCurrencyNumber === null
       ? null
@@ -7972,50 +8023,49 @@ export default function TimerPage() {
         <div className="mb-4">
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">경매 관리</h3>
         </div>
-        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="space-y-3">
           <button
             type="button"
-            onClick={() => setPendingAuctionAction('items')}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-[#F8FCF6] px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
+            onClick={() => setPendingAuctionAction('weeklyClose')}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#006241] px-4 py-3 text-[0.98rem] font-extrabold text-white shadow-[0_8px_18px_rgba(0,98,65,0.14)] transition-colors hover:bg-[#005336]"
           >
-            물품 초기화
+            주간 경매 마감
           </button>
-          <button
-            type="button"
-            onClick={() => setPendingAuctionAction('bids')}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#E4D7C9] bg-[#FFFDF8] px-4 py-2 text-[0.9rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
-          >
-            입찰가 초기화
-          </button>
-          <button
-            type="button"
-            onClick={() => setPendingAuctionAction('currency')}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-white px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#F8FCF6]"
-          >
-            보유 화폐 초기화
-          </button>
-          <button
-            type="button"
-            onClick={() => setPendingAuctionAction('tax')}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#E4D7C9] bg-[#FFF7EC] px-4 py-2 text-[0.9rem] font-extrabold text-[#7A4C24] transition-colors hover:bg-[#FBEBD8]"
-          >
-            세금 징수
-          </button>
-          <button
-            type="button"
-            onClick={() => setPendingAuctionAction('allowance')}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border-2 border-[#D7E6DE] bg-[#F8FCF6] px-4 py-2 text-[0.9rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
-          >
-            주급 제공
-          </button>
+          <p className="text-center text-[0.82rem] font-bold leading-5 text-[#6E5139]">
+            물품 초기화, 입찰가 초기화, 세금 징수, 주급 제공을 순서대로 처리합니다.
+          </p>
+          <div className="rounded-[1rem] border border-[#E4D7C9] bg-white/70 p-3">
+            <button
+              type="button"
+              onClick={() => setIsCurrencyResetDangerVisible((previous) => !previous)}
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-[#FFFDF8] px-4 py-2 text-[0.86rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+              aria-expanded={isCurrencyResetDangerVisible}
+            >
+              위험 작업 열기
+            </button>
+            {isCurrencyResetDangerVisible ? (
+              <div className="mt-3 rounded-[0.9rem] border-2 border-[#D8B6A2] bg-[#FFF7EC] p-3">
+                <p className="mb-2 text-center text-[0.82rem] font-bold leading-5 text-[#7A4C24]">
+                  보유 화폐 초기화는 모든 학생의 고마를 100으로 되돌립니다.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPendingAuctionAction('currency')}
+                  className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border-2 border-[#B9876A] bg-white px-4 py-2 text-[0.86rem] font-extrabold text-[#7A351C] transition-colors hover:bg-[#FBEBD8]"
+                >
+                  보유 화폐 초기화
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
     </div>
   );
 
   return (
-    <div className="mascot-app h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
-      <div className={`mascot-shell editorial-main-shell relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl transition-colors duration-1000 md:rounded-[3rem] ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''}`}>
+    <div className="mascot-app h-[100dvh] w-full overflow-hidden">
+      <div className={`mascot-shell editorial-main-shell timer-main-shell relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none shadow-none transition-colors duration-1000 ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''}`}>
         <style>{`
           @keyframes noticeFadeIn {
             0% {
@@ -8563,56 +8613,11 @@ export default function TimerPage() {
               </div>
             ) : null}
             <div className="schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0">
-              <div className="schedule-board-header flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="section-title text-[1.08rem] font-extrabold text-[#3F2B20]">오늘 시간표</h3>
-                </div>
-                <div className="schedule-panel-actions flex min-w-0 flex-wrap items-center justify-end gap-2">
-                  {scheduleYoutubeCount > 0 ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsScheduleYoutubeVisible(true);
-                          setHasMountedScheduleYoutubePlayer(true);
-                          setIsScheduleYoutubePlaylistOpen((previous) => !previous);
-                        }}
-                        className={`inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-1.5 text-[0.76rem] font-extrabold transition-colors ${
-                          isScheduleYoutubePlaylistOpen
-                            ? 'border-[#9FC7B8] bg-[#EEF7E8] text-[#006241]'
-                            : 'border-[#D9C8B6] bg-white text-[#8A6347] hover:border-[#9FC7B8] hover:bg-[#F3FAF7]'
-                        }`}
-                        title={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
-                        aria-label={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
-                        aria-expanded={isScheduleYoutubePlaylistOpen}
-                      >
-                        {scheduleYoutubeCount}개 영상
-                      </button>
-                    </>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsDrawCaseMenuOpen(false);
-                      setIsLibraryOpen(false);
-                      setIsCurrencyPanelOpen(false);
-                      setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
-                      setIsSettingsOpen(true);
-                    }}
-                    className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E6DE] bg-white text-[#006241] transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7]"
-                    title="설정"
-                    aria-label="설정"
-                  >
-                    <Settings size={19} strokeWidth={2.35} />
-                  </button>
-                </div>
-              </div>
-
               {hasMountedScheduleYoutubePlayer && scheduleYoutubeVideoIds.length > 0 ? (
                 <div
                   className={`shrink-0 overflow-hidden rounded-[1.8rem] bg-[#FFFDF8] transition-all duration-300 ${
                     isScheduleYoutubeVisible
-                      ? 'mt-4 max-h-[42rem] border border-[#E6D5C9] opacity-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]'
+                      ? 'mb-3 max-h-[42rem] border border-[#E6D5C9] opacity-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]'
                       : 'pointer-events-none mt-0 max-h-0 border border-transparent opacity-0 shadow-none'
                   }`}
                   aria-hidden={!isScheduleYoutubeVisible}
@@ -8697,16 +8702,53 @@ export default function TimerPage() {
                 </div>
               ) : null}
 
-              <div className="mt-3 min-h-0 flex flex-1 flex-col">
+              <div className="schedule-content-area relative min-h-0 flex flex-1 flex-col">
+                <div className="schedule-panel-actions absolute right-3 top-3 z-20 flex min-w-0 flex-wrap items-center justify-end gap-2">
+                  {scheduleYoutubeCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsScheduleYoutubeVisible(true);
+                        setHasMountedScheduleYoutubePlayer(true);
+                        setIsScheduleYoutubePlaylistOpen((previous) => !previous);
+                      }}
+                      className={`inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-1.5 text-[0.76rem] font-extrabold transition-colors ${
+                        isScheduleYoutubePlaylistOpen
+                          ? 'border-[#9FC7B8] bg-[#EEF7E8] text-[#006241]'
+                          : 'border-[#D9C8B6] bg-white text-[#8A6347] hover:border-[#9FC7B8] hover:bg-[#F3FAF7]'
+                      }`}
+                      title={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
+                      aria-label={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
+                      aria-expanded={isScheduleYoutubePlaylistOpen}
+                    >
+                      {scheduleYoutubeCount}개 영상
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDrawCaseMenuOpen(false);
+                      setIsLibraryOpen(false);
+                      setIsCurrencyPanelOpen(false);
+                      setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
+                      setIsSettingsOpen(true);
+                    }}
+                    className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E6DE] bg-white text-[#006241] transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7]"
+                    title="설정"
+                    aria-label="설정"
+                  >
+                    <Settings size={19} strokeWidth={2.35} />
+                  </button>
+                </div>
                 {currentDaySchedule.length === 0 ? (
-                  <div className="schedule-empty-state my-1 flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-8 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
+                  <div className="schedule-empty-state flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-12 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
                     <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F8F1] text-[#6B8B63] shadow-inner shadow-[#E8F0E4]">
                       <CalendarClock size={26} />
                     </div>
                     <p className="text-[1.55rem] font-bold leading-tight text-[#B89E87] sm:text-[1.8rem]">일정이 없습니다.</p>
                   </div>
                 ) : (
-                  <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pr-2 text-base text-[#8A6347]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
+                  <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pb-1 pr-2 pt-14 text-base text-[#8A6347]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
                     {currentDaySchedule.map((s) => {
                       const isThisSlot = currentMinsForScheduleView >= s.start && currentMinsForScheduleView < s.end;
                       const scheduleSubject = getWeeklySubject(weeklySubjects, currentSubjectWeekKey, today, s);
@@ -8835,9 +8877,9 @@ export default function TimerPage() {
             </div>
 
             {isCurrencyPanelOpen ? (
-              <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+              <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[120] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
                 <div className="pointer-events-auto w-full max-w-[40rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
-                  <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                  <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#E9DED2] pb-3">
                       <div className="min-w-0">
                         <h3 className="section-title text-[1.05rem] font-extrabold text-[#3F2B20]">화폐</h3>
@@ -8856,6 +8898,34 @@ export default function TimerPage() {
                           <X size={16} />
                         </button>
                       </div>
+                    </div>
+
+                    <div className="mb-3 rounded-[1.15rem] border-2 border-[#DDE9E2] bg-[#F8FCF6] p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[0.95rem] bg-[#EAF6F0] text-[#006241]">
+                          <Search size={18} strokeWidth={2.5} />
+                        </div>
+                        <input
+                          ref={currencyStudentNumberInputRef}
+                          id="currency-student-number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={2}
+                          value={currencyStudentNumberInput}
+                          onChange={handleCurrencyStudentNumberInputChange}
+                          className="h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]"
+                          placeholder="번호"
+                          aria-label="학생 번호 입력"
+                          aria-invalid={isCurrencyStudentNumberInvalid}
+                          aria-describedby={isCurrencyStudentNumberInvalid ? 'currency-student-number-error' : undefined}
+                        />
+                      </div>
+                      {isCurrencyStudentNumberInvalid ? (
+                        <p id="currency-student-number-error" className="mt-2 text-[0.78rem] font-bold text-[#A34F45]">
+                          1~23번만 입력할 수 있어요.
+                        </p>
+                      ) : null}
                     </div>
 
                     {editingCurrencyNumber !== null && selectedCurrencyBalance !== null ? (
@@ -8889,29 +8959,6 @@ export default function TimerPage() {
                       </div>
                     ) : null}
 
-                    <div className="currency-card-grid custom-scrollbar grid max-h-[24rem] grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-5">
-                      {CURRENCY_STUDENT_NUMBERS.map((studentNumber) => {
-                        const balance = currencyBalances[String(studentNumber)] ?? DEFAULT_CURRENCY_BALANCE;
-                        const isEditingCurrency = editingCurrencyNumber === studentNumber;
-
-                        return (
-                          <button
-                            key={studentNumber}
-                            type="button"
-                            onClick={() => setEditingCurrencyNumber((previous) => previous === studentNumber ? null : studentNumber)}
-                            className={`inline-flex h-14 items-center justify-center rounded-[1rem] border-2 font-mono text-[1.2rem] font-black leading-none shadow-[0_6px_14px_rgba(0,98,65,0.06)] transition-colors ${
-                              isEditingCurrency
-                                ? 'border-[#006241] bg-[#006241] text-white'
-                                : 'border-[#DDE9E2] bg-[#F8FCF6] text-[#006241] hover:border-[#BFD8CE] hover:bg-[#F3FAF7]'
-                            }`}
-                            aria-expanded={isEditingCurrency}
-                            aria-label={`${studentNumber}번 화폐 ${formatCurrency(balance)}, ${isEditingCurrency ? '선택 해제' : '조정 열기'}`}
-                          >
-                            {studentNumber}
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -9191,22 +9238,6 @@ export default function TimerPage() {
               <div className="grid gap-2 md:grid-cols-4">
                 <button
                   type="button"
-                  onClick={() => setSettingsPanel('schedule')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'schedule'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'schedule'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <CalendarClock size={18} className={settingsPanel === 'schedule' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    시간표
-                  </div>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => setSettingsPanel('subjects')}
                   className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
                     settingsPanel === 'subjects'
@@ -9223,22 +9254,6 @@ export default function TimerPage() {
 
                 <button
                   type="button"
-                  onClick={() => setSettingsPanel('draw')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'draw'
-                      ? 'settings-mode-tab-active border-[#B58363] bg-[#FBF0E4] shadow-[0_12px_24px_rgba(181,131,99,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'draw'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <Sparkles size={18} className={settingsPanel === 'draw' ? 'text-[#B58363]' : 'text-[#8A6347]'} />
-                    추첨
-                  </div>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => setSettingsPanel('auction')}
                   className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
                     settingsPanel === 'auction'
@@ -9250,6 +9265,38 @@ export default function TimerPage() {
                   <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
                     <Coins size={18} className={settingsPanel === 'auction' ? 'text-[#476152]' : 'text-[#8A6347]'} />
                     경매
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('schedule')}
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'schedule'
+                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'schedule'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <CalendarClock size={18} className={settingsPanel === 'schedule' ? 'text-[#476152]' : 'text-[#8A6347]'} />
+                    시간표
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('draw')}
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'draw'
+                      ? 'settings-mode-tab-active border-[#B58363] bg-[#FBF0E4] shadow-[0_12px_24px_rgba(181,131,99,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'draw'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <Sparkles size={18} className={settingsPanel === 'draw' ? 'text-[#B58363]' : 'text-[#8A6347]'} />
+                    추첨
                   </div>
                 </button>
               </div>
@@ -9471,30 +9518,15 @@ export default function TimerPage() {
 
             {pendingAuctionAction ? (() => {
               const actionCopy = {
-                items: {
-                  title: '물품을 초기화할까요?',
-                  body: '경매 물품이 월요일부터 금요일까지 각 1개씩 기본값으로 돌아갑니다.',
-                  action: '물품 초기화',
-                },
-                bids: {
-                  title: '입찰가를 초기화할까요?',
-                  body: '모든 물품의 현재 최고 입찰가, 입찰 기록, 낙찰 결과가 지워집니다.',
-                  action: '입찰가 초기화',
+                weeklyClose: {
+                  title: '이번 주 경매를 마감할까요?',
+                  body: '물품 초기화, 입찰가 초기화, 세금 징수, 주급 제공을 순서대로 처리합니다.',
+                  action: '주간 마감',
                 },
                 currency: {
-                  title: '보유 화폐를 초기화할까요?',
-                  body: '모든 학생의 보유 고마가 기본값으로 돌아갑니다.',
+                  title: '보유 화폐를 정말 초기화할까요?',
+                  body: '모든 학생의 보유 고마가 100으로 돌아갑니다. 주간 마감에는 사용하지 않는 별도 위험 작업입니다.',
                   action: '보유 화폐 초기화',
-                },
-                tax: {
-                  title: '세금을 징수할까요?',
-                  body: '모든 학생의 보유 고마가 절반으로 줄어듭니다. 소수점이 생기면 많은 쪽으로 올립니다.',
-                  action: '세금 징수',
-                },
-                allowance: {
-                  title: '주급을 제공할까요?',
-                  body: '모든 학생에게 100고마씩 지급됩니다.',
-                  action: '주급 제공',
                 },
               }[pendingAuctionAction];
 
