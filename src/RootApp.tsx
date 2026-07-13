@@ -115,16 +115,16 @@ export default function RootApp() {
 
   if (hasRuntimeError) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F7F2E8] p-6 text-[#26322A]">
-        <section className="w-full max-w-md rounded-2xl border border-[#D7E2D1] bg-white p-6 text-center shadow-lg">
-          <h1 className="text-2xl font-extrabold">화면을 다시 불러와 주세요</h1>
-          <p className="mt-3 text-sm font-bold text-[#5D6B60]">
+      <main className="runtime-fallback-page">
+        <section className="runtime-fallback-surface">
+          <h1 className="runtime-fallback-title">화면을 다시 불러와 주세요</h1>
+          <p className="runtime-fallback-description">
             설정을 적용하는 중 문제가 생겼습니다. 새로고침하면 저장된 설정으로 다시 시작합니다.
           </p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-5 rounded-xl bg-[#5C8D5D] px-5 py-3 text-sm font-extrabold text-white"
+            className="runtime-fallback-action"
           >
             새로고침
           </button>

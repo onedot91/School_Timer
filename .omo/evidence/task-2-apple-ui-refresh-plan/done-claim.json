@@ -1,0 +1,183 @@
+{
+  "todo": 2,
+  "status": "COMPLETE_CORRECTED_AFTER_VERIFIER_NEEDS_FIX",
+  "supersedes": "The initial COMPLETE claim and both earlier completion ledger events are superseded. The final correction also covers the standalone announcement-to-award queue handoff with a durable focus return target.",
+  "changedFiles": [
+    "DESIGN.md",
+    "src/index.css",
+    "src/lib/useModalFocus.ts",
+    "src/pages/AuctionPage.tsx",
+    "src/pages/TimerPage.tsx",
+    "src/pages/RandomDrawPage.tsx"
+  ],
+  "redEvidence": {
+    "source": ".omo/evidence/task-1-apple-ui-refresh-plan/complete-visible-text-oracle.json",
+    "records": 357,
+    "sub44Targets": 2424,
+    "focusDefects": [
+      "timer settings had no dialog semantics, focus escaped, Escape did not close",
+      "auction confirmation focus escaped and Escape did not close",
+      "standalone draw settings had no dialog semantics, focus escaped, Escape did not close",
+      "modal backgrounds were not isolated"
+    ]
+  },
+  "greenEvidence": {
+    "oracle": ".omo/evidence/task-1-apple-ui-refresh-plan/task-2-visible-text-oracle.json",
+    "success": true,
+    "records": 357,
+    "exactVisibleTextComparisonExit": 0,
+    "horizontalOverflowRecords": 0,
+    "sub44Targets": 1376,
+    "liveSupabaseRequests": 0,
+    "externalQuestionRequests": 0,
+    "focusLifecycle": {
+      "surfaces": [
+        "timer settings",
+        "timer auction award confirmation",
+        "timer auction award presentation in settings and standalone paths",
+        "timer auction reset confirmation",
+        "auction bid confirmation",
+        "standalone draw settings"
+      ],
+      "initialFocusInside": true,
+      "tabContained": true,
+      "shiftTabContained": true,
+      "safeEscapeClosesTopLayer": true,
+      "triggerFocusReturned": true,
+      "backgroundSiblingsInert": true
+    },
+    "awardPresentation": {
+      "initialFocusInside": true,
+      "timedPhaseEscapeBlocked": true,
+      "safePhaseEscapeCloses": true,
+      "disabledTriggerFallsBackToRestoredParent": true,
+      "settingsParentResumesModalOwnership": true
+    },
+    "standaloneAwardPresentation": {
+      "source": "announcement award queue",
+      "durableReturnTarget": "connected and enabled 알림장 toolbar button",
+      "initialFocusInside": true,
+      "tabAndShiftTabContained": true,
+      "timedPhaseEscapeBlocked": true,
+      "safePhaseEscapeCloses": true,
+      "backgroundInertDuringPresentation": true,
+      "backgroundRestoredAfterClose": true,
+      "focusReturnedToDurableTrigger": true
+    },
+    "externalNetwork": {
+      "blockedAttempts": 20,
+      "blockedHosts": [
+        "fonts.googleapis.com",
+        "librarylibrary.vercel.app"
+      ],
+      "allowedExternal": 0
+    },
+    "pointerDown": {
+      "firstLatencyMs": 61.7,
+      "firstScale": 0.983962,
+      "secondLatencyMs": 63.7,
+      "secondScale": 0.98,
+      "repeatedRetargetWithoutLockout": true
+    },
+    "materialMotion": {
+      "layer": ".apple-material-layer",
+      "durationMs": 260,
+      "properties": [
+        "opacity",
+        "transform",
+        "filter"
+      ],
+      "singleLayer": true,
+      "conditionalUnmountPolicy": "Entry is animated on the one material-bearing shell. Existing conditional unmount remains immediate; no invented close delay or transient focus-behind state was added.",
+      "reducedMotionOpacityOnly": true,
+      "reducedTransparencyNoBlur": true
+    }
+  },
+  "commands": [
+    {
+      "command": "npm run lint",
+      "result": "PASS: tsc --noEmit exited 0"
+    },
+    {
+      "command": "npm run build",
+      "result": "PASS: vite build exited 0; pre-existing large chunk warning remains"
+    },
+    {
+      "command": "NODE_PATH=/Users/ibyeonghyeon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules node /tmp/task-2-complete-oracle.mjs",
+      "result": "PASS corrected run: 357/357 isolated records, exact visible text preserved, award presentation lifecycle passed, 19 external attempts blocked and zero allowed"
+    },
+    {
+      "command": "NODE_PATH=/Users/ibyeonghyeon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules node /tmp/task2-manual.mjs",
+      "result": "PASS corrected run: real Chromium pointer-down repeated retarget, single-layer material keyframes, focus, reduced motion/transparency/contrast, forced colors, and external blocking"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "bun run .../check-no-excuse-rules.ts changed TypeScript files",
+      "result": "NOT RUN: bun is not installed"
+    },
+    {
+      "command": "node .../check-no-excuse-rules.ts changed TypeScript files",
+      "result": "NOT RUN: the external script cannot resolve its TypeScript package from its plugin path; npm run lint is the authoritative project type gate"
+    }
+  ],
+  "manualArtifacts": [
+    ".omo/evidence/task-2-apple-ui-refresh-plan/manual-qa.json",
+    ".omo/evidence/task-2-apple-ui-refresh-plan/default-390x844.png",
+    ".omo/evidence/task-2-apple-ui-refresh-plan/modal-focus-390x844.png",
+    ".omo/evidence/task-2-apple-ui-refresh-plan/preferences-390x844.png",
+    ".omo/evidence/task-2-apple-ui-refresh-plan/forced-colors-390x844.png"
+  ],
+  "cleanup": {
+    "chromiumClosed": true,
+    "contextsClosed": true,
+    "fakeSupabaseStopped": true,
+    "viteStopped": true,
+    "port4175Free": true,
+    "port54329Free": true,
+    "realClassroomMutations": 0
+  },
+  "cssOwnership": {
+    "startAnchorCount": 1,
+    "endAnchorCount": 1,
+    "orderedSections": [
+      "FOUNDATION",
+      "ENTRY_ROOT",
+      "AUCTION",
+      "TIMER_HOME",
+      "TIMER_OVERLAYS",
+      "RANDOM_DRAW",
+      "PREFERENCES"
+    ],
+    "deviation": "The comment checker reported the plan-mandated anchors as comments twice while partially applying both patches. Duplicate blocks were mechanically removed; the final file contains exactly one required anchored block. The temporary named-layer fallback was removed."
+  },
+  "postWriteReview": {
+    "newHookPureLoc": 116,
+    "oversizedLegacyFiles": {
+      "src/pages/AuctionPage.tsx": 569,
+      "src/pages/TimerPage.tsx": 9675,
+      "src/pages/RandomDrawPage.tsx": 2169
+    },
+    "decision": "Pre-existing size debt is explicitly accepted by the approved plan. Wiring is limited to refs, semantics, and hook calls; broad extraction is prohibited in this todo.",
+    "escapeHatchesAdded": false,
+    "dependenciesAdded": false,
+    "visibleStringsChanged": false,
+    "businessDataStorageChanges": false
+  },
+  "ultraqa": {
+    "staleState": "PASS: corrected final oracle reran after verifier repairs",
+    "dirtyWorktree": "PASS: pre-existing plan/evidence dirt preserved and not reverted",
+    "hungCommands": "PASS: all owned processes stopped and QA ports free",
+    "flakyTests": "PASS: full corrected final oracle and manual pointer sampler exited 0",
+    "misleadingOutput": "PASS: initial incomplete completion and all intermediate focus/sampler failures are disclosed and superseded",
+    "hostIsolation": "PASS: 19 non-local attempts blocked, zero external allowed, zero live Supabase and external question requests",
+    "dataMutation": "PASS: isolated synthetic fixture only"
+  },
+  "risks": [
+    "1,376 legacy sub-44 target measurements remain for later surface-owned todos",
+    "The production bundle retains its pre-existing greater-than-500-kB warning",
+    "TimerPage, RandomDrawPage, and AuctionPage remain oversized legacy modules by approved scope"
+  ]
+}

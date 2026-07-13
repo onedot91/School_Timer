@@ -1,0 +1,670 @@
+{
+  "purpose": "Timer overlay material, interaction taxonomy, focus lifecycle, reflow, exact-copy, and isolation QA",
+  "states": [
+    {
+      "id": "timer/settings-shell",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/settings-shell",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/announcement-default",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/announcement-default",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/announcement-history",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/announcement-history",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/memo",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/memo",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/currency-personal",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/currency-personal",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/question-submitted",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "exactTextMatch": false,
+      "repairedQuestionFixture": true,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/question-submitted",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "exactTextMatch": false,
+      "repairedQuestionFixture": true,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/library",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    },
+    {
+      "id": "timer/library",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "exactTextMatch": true,
+      "repairedQuestionFixture": false,
+      "viewportOverflow": false,
+      "surfaceOverflow": false,
+      "clipped": false,
+      "targetsBelow44": []
+    }
+  ],
+  "focus": [
+    {
+      "id": "settings",
+      "trapped": true,
+      "escapeClosed": true,
+      "triggerReturned": true
+    },
+    {
+      "id": "announcement-history-parent",
+      "drawerFirst": true,
+      "parentSecond": true,
+      "triggerReturned": true
+    },
+    {
+      "id": "memo",
+      "escapeClosed": true,
+      "triggerReturned": true
+    },
+    {
+      "id": "timer/currency-personal",
+      "modal": false,
+      "inert": false,
+      "escapeClosed": true,
+      "triggerReturned": true
+    },
+    {
+      "id": "timer/question-submitted",
+      "modal": false,
+      "inert": false,
+      "escapeClosed": true,
+      "triggerReturned": true
+    },
+    {
+      "id": "timer/library",
+      "modal": false,
+      "inert": false,
+      "escapeClosed": true,
+      "triggerReturned": true
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/@vite/client",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/main.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/@react-refresh",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/react.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/react-dom_client.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/App.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/index.css",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/chunk-S73QDKPN.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/vite/dist/client/env.mjs",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/RootApp.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/chunk-Z5AKTONR.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/pages/AuctionPage.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/pages/EntrySelectPage.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/pages/TimerPage.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/lucide-react.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/components/AuctionRoom.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/currency.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/supabaseSettings.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/auctionAudio.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/useModalFocus.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/@supabase_supabase-js.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/motion_react.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/randomDraw.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/questionSubmissionStatus.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/studentCharacters.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/chunk-3JZST3TF.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/character.png?v=20260301",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/background_music.mp3",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-16.png",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-15.png",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-11.png",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-2.png",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/@vite/client",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/main.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/@react-refresh",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/react.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/react-dom_client.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/App.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/index.css",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/vite/dist/client/env.mjs",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/chunk-S73QDKPN.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/RootApp.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/pages/AuctionPage.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/pages/EntrySelectPage.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/pages/TimerPage.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/chunk-Z5AKTONR.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/lucide-react.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/components/AuctionRoom.tsx",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/currency.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/supabaseSettings.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/auctionAudio.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/useModalFocus.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/@supabase_supabase-js.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/motion_react.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/randomDraw.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/questionSubmissionStatus.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/src/lib/studentCharacters.ts",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/node_modules/.vite/deps/chunk-3JZST3TF.js?v=09e86cee",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/character.png?v=20260301",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/background_music.mp3",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-22.png",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-11.png",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-12.png",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/announcement_notes?select=date_key%2Cdate_text%2Cnote%2Cupdated_at&date_key=eq.2026-07-06",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/announcement_notes?select=date_key%2Cdate_text%2Cnote%2Cupdated_at&order=date_key.desc&limit=120",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-22.png",
+      "blocked": false
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:4178/student-characters/character-12.png",
+      "blocked": false
+    }
+  ],
+  "console": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-6-apple-ui-refresh-plan/timer-settings-shell-1440x900.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-6-apple-ui-refresh-plan/timer-announcement-default-1440x900.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-6-apple-ui-refresh-plan/timer-announcement-history-1440x900.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-6-apple-ui-refresh-plan/timer-memo-1440x900.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-6-apple-ui-refresh-plan/timer-currency-personal-1440x900.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-6-apple-ui-refresh-plan/timer-question-submitted-1440x900.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-6-apple-ui-refresh-plan/timer-library-1440x900.png"
+  ],
+  "cleanup": {
+    "browserClosed": true,
+    "serversStopped": true
+  },
+  "dataAudit": {
+    "fixtureWrites": 0,
+    "liveRequests": 0
+  }
+}

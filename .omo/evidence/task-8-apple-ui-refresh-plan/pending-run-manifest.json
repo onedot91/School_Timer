@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "generatedAt": "2026-07-13T03:21:48.085Z",
+  "productSources": {
+    "timer": {
+      "source": "src/pages/TimerPage.tsx",
+      "sha256": "a4b9339917a71ce66ab08992c6e504a871112b349a0642f5d735e92232f3876f"
+    },
+    "random": {
+      "source": "src/pages/RandomDrawPage.tsx",
+      "sha256": "3e0147d1060ca8a4e25e297e5904f9d9a9562bb6db5aa325d1aef8935c4f9ae8"
+    },
+    "auction": {
+      "source": "src/pages/AuctionPage.tsx",
+      "sha256": "e12a61f84699a38d21b9dc22ca44e685f48f36a43e404529eefb955dc333abfc"
+    }
+  },
+  "exactVisibleText": {
+    "source": ".omo/evidence/task-5-apple-ui-refresh-plan/complete-current-oracle.json",
+    "sha256": "e7638181f0a50fb77e819a2e17107b1bb64b84619f74feb480cd344b7143d311",
+    "completedAt": "2026-07-13T03:07:11.329Z",
+    "expectedRecords": 357,
+    "actualRecords": 357,
+    "success": true
+  },
+  "fullPngMatrix": {
+    "source": ".omo/evidence/task-6-apple-ui-refresh-plan/complete-current.json",
+    "sha256": "2e0a2c1ff1528d8526d04afd45c575275dd864f4d13566e19c53847e95fdf4b3",
+    "completedAt": "2026-07-13T03:21:08.541Z",
+    "expectedEntries": 456,
+    "actualEntries": 456,
+    "supplementalEntries": 9,
+    "success": true
+  },
+  "materialRuntime": {
+    "source": ".omo/evidence/task-8-apple-ui-refresh-plan/material-motion-runtime.json",
+    "sha256": "5fd94b8bc9a35b053ace1b9937a86e4a8539f5ff55630805a5a34e86dd1e4735",
+    "completedAt": "2026-07-13T03:03:12.070Z",
+    "success": true
+  },
+  "motionActionability": {
+    "source": ".omo/evidence/task-8-apple-ui-refresh-plan/motion-actionability-matrix.json",
+    "sha256": "740fe6f81dd5a4cd1e4314107118087a0c3f57ce183e99ed1b138bc60bfdb1b9",
+    "generatedAt": "2026-07-13T03:21:48.043Z",
+    "status": "PASS"
+  },
+  "liveClassroomDataMutations": 0
+}

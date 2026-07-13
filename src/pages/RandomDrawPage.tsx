@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Play, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react';
+import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import { RANDOM_DRAW_RESULT_DISPLAY_MS } from '../lib/randomDraw';
+import { useModalFocus } from '../lib/useModalFocus';
 
 type RandomDrawHistoryKind = 'normal' | 'repeat';
 type StudentNameMap = Record<string, string>;
@@ -890,6 +892,7 @@ const playRandomDrawSound = async (kind: 'tick' | 'pop' | 'repeat' | 'empty' | '
 };
 
 export default function RandomDrawPage() {
+  const shouldReduceMotion = useReducedMotion();
   const [initialState] = useState(() => getInitialRandomDrawState());
   const [activeCaseId, setActiveCaseId] = useState(initialState.activeCaseId);
   const [repeatPickEnabled, setRepeatPickEnabled] = useState(initialState.repeatPickEnabled);
@@ -899,6 +902,29 @@ export default function RandomDrawPage() {
   const [isDrawPending, setIsDrawPending] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSettingsMaterialMounted, setIsSettingsMaterialMounted] = useState(false);
+  const isSettingsOpenRef = useRef(isSettingsOpen);
+  const settingsMaterialProgress = useMotionValue(0);
+  const settingsMaterialScale = useTransform(settingsMaterialProgress, [0, 1], [0.965, 1]);
+  const settingsMaterialFilter = useTransform(settingsMaterialProgress, (progress) => `blur(${(1 - progress) * 10}px) saturate(${0.92 + progress * 0.08})`);
+  isSettingsOpenRef.current = isSettingsOpen;
+  useEffect(() => {
+    if (isSettingsOpen) setIsSettingsMaterialMounted(true);
+  }, [isSettingsOpen]);
+  useEffect(() => {
+    if (!isSettingsMaterialMounted) return;
+    const target = isSettingsOpen ? 1 : 0;
+    const controls = animateMotion(settingsMaterialProgress, target, {
+      duration: shouldReduceMotion ? 0.16 : 0.34,
+      ease: shouldReduceMotion ? 'easeOut' : [0.2, 0.8, 0.2, 1],
+      onComplete: () => {
+        if (target === 0 && !isSettingsOpenRef.current) {
+          setIsSettingsMaterialMounted(false);
+        }
+      },
+    });
+    return () => controls.stop();
+  }, [isSettingsMaterialMounted, isSettingsOpen, settingsMaterialProgress, shouldReduceMotion]);
   const [studentRosterBulkInput, setStudentRosterBulkInput] = useState('');
   const [hiddenNumberQueueInput, setHiddenNumberQueueInput] = useState('');
   const [isSecretQueueVisible, setIsSecretQueueVisible] = useState(false);
@@ -914,6 +940,8 @@ export default function RandomDrawPage() {
   const casesRef = useRef(cases);
   const repeatPickEnabledRef = useRef(repeatPickEnabled);
   const boardRef = useRef<HTMLDivElement | null>(null);
+  const settingsDialogRef = useRef<HTMLDivElement | null>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const pickedBallRefs = useRef(new Map<string, HTMLSpanElement>());
   const rosterInputRefs = useRef(new Map<number, HTMLInputElement>());
   const drawStartTimeoutRef = useRef<number | null>(null);
@@ -1050,6 +1078,7 @@ export default function RandomDrawPage() {
     secretQueueTapCountRef.current = 0;
     setIsSecretQueueVisible(false);
     setSettingsSelectedCaseId(resolvedActiveCaseId);
+    setIsSettingsMaterialMounted(true);
     setIsSettingsOpen(true);
   };
 
@@ -1062,6 +1091,13 @@ export default function RandomDrawPage() {
     setIsSecretQueueVisible(false);
     setIsSettingsOpen(false);
   };
+
+  useModalFocus({
+    dialogRef: settingsDialogRef,
+    isOpen: isSettingsMaterialMounted,
+    onDismiss: closeSettingsModal,
+    returnFocusRef: settingsTriggerRef,
+  });
 
   const handleSettingsHeaderSecretTap = () => {
     secretQueueTapCountRef.current += 1;
@@ -1837,7 +1873,7 @@ export default function RandomDrawPage() {
   }, [isResetImpacting, isSettingsOpen, cases, repeatPickEnabled, resolvedActiveCaseId]);
 
   return (
-    <div className="mascot-app editorial-random-legacy-font h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
+    <div className="random-draw-page mascot-app editorial-random-legacy-font h-[100dvh] w-full overflow-hidden p-3 sm:p-4 md:p-8">
       <div className="random-page-shell mascot-shell editorial-main-shell app-tone-calm relative flex h-full w-full max-w-screen-2xl flex-col overflow-hidden rounded-[2rem] shadow-2xl md:rounded-[3rem]">
         {isNormalWinImpactVisible && <div aria-hidden="true" className="random-shell-win-flash" />}
         <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
@@ -1853,6 +1889,7 @@ export default function RandomDrawPage() {
           >
             <div className="random-stage-toolbar random-stage-toolbar-single mb-2 w-full shrink-0">
               <button
+                ref={settingsTriggerRef}
                 type="button"
                 onClick={openSettingsModal}
                 disabled={isDrawLocked}
@@ -2192,12 +2229,27 @@ export default function RandomDrawPage() {
         </div>
       </div>
 
-      {isSettingsOpen && (
-        <div className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm md:p-6">
-          <div className="random-settings-modal settings-dialog editorial-settings-dialog random-settings-shell flex max-h-[90vh] w-full max-w-[68rem] flex-col overflow-hidden rounded-[2rem] border-[4px] border-[#B58363] bg-[#FDFBF7] shadow-2xl">
+      {isSettingsMaterialMounted && (
+        <motion.div
+          key="random-settings-material"
+          className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm md:p-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isSettingsOpen ? 1 : 0, pointerEvents: isSettingsOpen ? 'auto' : 'none' }}
+          transition={{ duration: shouldReduceMotion ? 0.16 : 0.18, ease: 'easeOut' }}
+        >
+          <motion.div
+            ref={settingsDialogRef}
+            className="apple-material-layer random-settings-modal settings-dialog editorial-settings-dialog random-settings-shell flex max-h-[90vh] w-full max-w-[68rem] flex-col overflow-hidden rounded-[2rem] border-[4px] border-[#B58363] bg-[#FDFBF7] shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="random-draw-settings-title"
+            style={shouldReduceMotion
+              ? { opacity: settingsMaterialProgress }
+              : { opacity: settingsMaterialProgress, scale: settingsMaterialScale, filter: settingsMaterialFilter }}
+          >
             <div className="settings-header random-settings-header-panel flex shrink-0 items-start justify-between border-b border-[#E6D5C9] p-4 md:p-5 lg:p-6">
               <div onClick={handleSettingsHeaderSecretTap}>
-                <h2 className="section-title text-[1.7rem] font-extrabold text-[#3F2B20] md:text-[1.95rem]">{SETTINGS_LABEL}</h2>
+                <h2 id="random-draw-settings-title" className="section-title text-[1.7rem] font-extrabold text-[#3F2B20] md:text-[1.95rem]">{SETTINGS_LABEL}</h2>
               </div>
               <button
                 type="button"
@@ -2455,8 +2507,8 @@ export default function RandomDrawPage() {
                 </section>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

@@ -1,0 +1,1894 @@
+{
+  "purpose": "Timer home Apple hierarchy, reflow, keyboard, exact-copy, and read-only QA",
+  "failingFirst": {
+    "source": "Todo1 timer/default 1440x900 baseline",
+    "targetsBelow44": [
+      "이전 추첨 상황 40x40",
+      "다음 추첨 상황 40x40",
+      "설정 40x40"
+    ],
+    "timerHomeThemeRules": 0
+  },
+  "states": [
+    {
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "text": [
+        "\n    ",
+        "00:00",
+        "일정 없음",
+        "아침활동",
+        "08:45",
+        " - ",
+        "09:00",
+        "1교시",
+        "09:00",
+        " - ",
+        "09:40",
+        "쉬는 시간",
+        "09:40",
+        " - ",
+        "09:50",
+        "2교시",
+        "09:50",
+        " - ",
+        "10:30",
+        "쉬는 시간",
+        "10:30",
+        " - ",
+        "10:40",
+        "3교시",
+        "10:40",
+        " - ",
+        "11:20",
+        "쉬는 시간",
+        "11:20",
+        " - ",
+        "11:30",
+        "4교시",
+        "11:30",
+        " - ",
+        "12:10",
+        "점심시간",
+        "12:10",
+        " - ",
+        "13:00",
+        "5교시",
+        "13:00",
+        " - ",
+        "13:40",
+        "쉬는 시간",
+        "13:40",
+        " - ",
+        "13:50",
+        "6교시",
+        "13:50",
+        " - ",
+        "14:30",
+        "\n    ",
+        "\n      <a href=\"/privacy.html\">개인정보처리방침</a>\n    ",
+        "\n    ",
+        "\n  \n\n"
+      ],
+      "targets": [
+        {
+          "name": "배경 음악 켜기",
+          "width": 50.38,
+          "height": 50.38
+        },
+        {
+          "name": "공지 편집 열기",
+          "width": 102.56,
+          "height": 77.69
+        },
+        {
+          "name": "이전 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "다음 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+          "width": 208,
+          "height": 68.8
+        },
+        {
+          "name": "설정",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "화폐 열기",
+          "width": 47.67,
+          "height": 48
+        },
+        {
+          "name": "유튜브 재생목록",
+          "width": 47.69,
+          "height": 48
+        },
+        {
+          "name": "도서관 열기",
+          "width": 47.67,
+          "height": 48
+        },
+        {
+          "name": "질문 제출 현황 열기",
+          "width": 47.69,
+          "height": 48
+        },
+        {
+          "name": "알림장",
+          "width": 47.69,
+          "height": 48
+        }
+      ],
+      "targetsBelow44": [],
+      "viewportOverflow": false,
+      "shellOverflow": false,
+      "shellWidth": {
+        "scrollWidth": 294,
+        "clientWidth": 294
+      },
+      "shellRectOverflow": [
+        {
+          "className": "",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "mascot-orb mascot-orb-one",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "mascot-orb mascot-orb-two",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "mascot-leaf mascot-leaf-one",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "mascot-leaf mascot-leaf-two",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "student-character-showcase student-character-walk-right",
+          "left": 362,
+          "right": 393.20001220703125,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "student-character-frame",
+          "left": 361.75018310546875,
+          "right": 393.4497985839844,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "student-character-image",
+          "left": 361.85430908203125,
+          "right": 393.34576416015625,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "inline-manual-timer-panel",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "manual-timer-display manual-timer-display-input inline-manual-timer-display flex items-baseline font-mono font-bold leading-none tracking-tight text-[#006241]",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "manual-timer-display-part manual-timer-display-part-minutes bg-transparent text-right outline-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "manual-timer-display-colon select-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "manual-timer-display-part manual-timer-display-part-seconds bg-transparent text-left outline-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "inline-manual-timer-actions",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "round-action inline-manual-action inline-flex items-center justify-center rounded-full text-white shadow-md round-action-play",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": "round-action round-action-reset inline-manual-action inline-manual-close-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 307.203125
+        }
+      ],
+      "homeOverflow": false,
+      "overflowingElements": [
+        {
+          "className": "pointer-events-none flex flex-col items-center",
+          "scrollWidth": 206,
+          "clientWidth": 192
+        },
+        {
+          "className": "mascot-figure-stage relative shrink-0 w-48 h-48 md:w-64 md:h-64",
+          "scrollWidth": 206,
+          "clientWidth": 192
+        },
+        {
+          "className": "truncate",
+          "scrollWidth": 38,
+          "clientWidth": 30
+        }
+      ],
+      "activeElement": "",
+      "exactTextMatch": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "text": [
+        "\n    ",
+        "00:00",
+        "일정 없음",
+        "아침활동",
+        "08:45",
+        " - ",
+        "09:00",
+        "1교시",
+        "09:00",
+        " - ",
+        "09:40",
+        "쉬는 시간",
+        "09:40",
+        " - ",
+        "09:50",
+        "2교시",
+        "09:50",
+        " - ",
+        "10:30",
+        "쉬는 시간",
+        "10:30",
+        " - ",
+        "10:40",
+        "3교시",
+        "10:40",
+        " - ",
+        "11:20",
+        "쉬는 시간",
+        "11:20",
+        " - ",
+        "11:30",
+        "4교시",
+        "11:30",
+        " - ",
+        "12:10",
+        "점심시간",
+        "12:10",
+        " - ",
+        "13:00",
+        "5교시",
+        "13:00",
+        " - ",
+        "13:40",
+        "쉬는 시간",
+        "13:40",
+        " - ",
+        "13:50",
+        "6교시",
+        "13:50",
+        " - ",
+        "14:30",
+        "\n    ",
+        "\n      <a href=\"/privacy.html\">개인정보처리방침</a>\n    ",
+        "\n    ",
+        "\n  \n\n"
+      ],
+      "targets": [
+        {
+          "name": "배경 음악 켜기",
+          "width": 50.38,
+          "height": 50.38
+        },
+        {
+          "name": "공지 편집 열기",
+          "width": 109,
+          "height": 82.56
+        },
+        {
+          "name": "이전 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "다음 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+          "width": 208,
+          "height": 68.8
+        },
+        {
+          "name": "설정",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "화폐 열기",
+          "width": 61.67,
+          "height": 52
+        },
+        {
+          "name": "유튜브 재생목록",
+          "width": 61.69,
+          "height": 52
+        },
+        {
+          "name": "도서관 열기",
+          "width": 61.67,
+          "height": 52
+        },
+        {
+          "name": "질문 제출 현황 열기",
+          "width": 61.69,
+          "height": 52
+        },
+        {
+          "name": "알림장",
+          "width": 61.69,
+          "height": 52
+        }
+      ],
+      "targetsBelow44": [],
+      "viewportOverflow": false,
+      "shellOverflow": false,
+      "shellWidth": {
+        "scrollWidth": 364,
+        "clientWidth": 364
+      },
+      "shellRectOverflow": [
+        {
+          "className": "",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "mascot-orb mascot-orb-one",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "mascot-orb mascot-orb-two",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "mascot-leaf mascot-leaf-one",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "mascot-leaf mascot-leaf-two",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "student-character-showcase student-character-walk-right",
+          "left": 442.45703125,
+          "right": 477.9429626464844,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "student-character-frame",
+          "left": 442.2558898925781,
+          "right": 478.14410400390625,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "student-character-image",
+          "left": 442.32354736328125,
+          "right": 478.07647705078125,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "inline-manual-timer-panel",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "manual-timer-display manual-timer-display-input inline-manual-timer-display flex items-baseline font-mono font-bold leading-none tracking-tight text-[#006241]",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "manual-timer-display-part manual-timer-display-part-minutes bg-transparent text-right outline-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "manual-timer-display-colon select-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "manual-timer-display-part manual-timer-display-part-seconds bg-transparent text-left outline-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "inline-manual-timer-actions",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "round-action inline-manual-action inline-flex items-center justify-center rounded-full text-white shadow-md round-action-play",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": "round-action round-action-reset inline-manual-action inline-manual-close-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 12.796875,
+          "shellRight": 377.203125
+        }
+      ],
+      "homeOverflow": false,
+      "overflowingElements": [
+        {
+          "className": "pointer-events-none flex flex-col items-center",
+          "scrollWidth": 206,
+          "clientWidth": 192
+        },
+        {
+          "className": "mascot-figure-stage relative shrink-0 w-48 h-48 md:w-64 md:h-64",
+          "scrollWidth": 206,
+          "clientWidth": 192
+        }
+      ],
+      "activeElement": "",
+      "exactTextMatch": true
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "text": [
+        "\n    ",
+        "00:00",
+        "일정 없음",
+        "아침활동",
+        "08:45",
+        " - ",
+        "09:00",
+        "1교시",
+        "09:00",
+        " - ",
+        "09:40",
+        "쉬는 시간",
+        "09:40",
+        " - ",
+        "09:50",
+        "2교시",
+        "09:50",
+        " - ",
+        "10:30",
+        "쉬는 시간",
+        "10:30",
+        " - ",
+        "10:40",
+        "3교시",
+        "10:40",
+        " - ",
+        "11:20",
+        "쉬는 시간",
+        "11:20",
+        " - ",
+        "11:30",
+        "4교시",
+        "11:30",
+        " - ",
+        "12:10",
+        "점심시간",
+        "12:10",
+        " - ",
+        "13:00",
+        "5교시",
+        "13:00",
+        " - ",
+        "13:40",
+        "쉬는 시간",
+        "13:40",
+        " - ",
+        "13:50",
+        "6교시",
+        "13:50",
+        " - ",
+        "14:30",
+        "\n    ",
+        "\n      <a href=\"/privacy.html\">개인정보처리방침</a>\n    ",
+        "\n    ",
+        "\n  \n\n"
+      ],
+      "targets": [
+        {
+          "name": "배경 음악 켜기",
+          "width": 53.39,
+          "height": 53.39
+        },
+        {
+          "name": "공지 편집 열기",
+          "width": 141.4,
+          "height": 107.11
+        },
+        {
+          "name": "이전 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "다음 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+          "width": 182.39,
+          "height": 68.8
+        },
+        {
+          "name": "설정",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "화폐 열기",
+          "width": 137.59,
+          "height": 78
+        },
+        {
+          "name": "유튜브 재생목록",
+          "width": 137.59,
+          "height": 78
+        },
+        {
+          "name": "도서관 열기",
+          "width": 137.61,
+          "height": 78
+        },
+        {
+          "name": "질문 제출 현황 열기",
+          "width": 137.59,
+          "height": 78
+        },
+        {
+          "name": "알림장",
+          "width": 137.61,
+          "height": 78
+        }
+      ],
+      "targetsBelow44": [],
+      "viewportOverflow": false,
+      "shellOverflow": false,
+      "shellWidth": {
+        "scrollWidth": 768,
+        "clientWidth": 768
+      },
+      "shellRectOverflow": [
+        {
+          "className": "student-character-showcase student-character-walk-right",
+          "left": 797.1077880859375,
+          "right": 1015.3721923828125,
+          "shellLeft": 0,
+          "shellRight": 768
+        },
+        {
+          "className": "student-character-frame",
+          "left": 795.8858032226562,
+          "right": 1016.5941772460938,
+          "shellLeft": 0,
+          "shellRight": 768
+        },
+        {
+          "className": "student-character-image",
+          "left": 795.8858032226562,
+          "right": 1016.5941772460938,
+          "shellLeft": 0,
+          "shellRight": 768
+        }
+      ],
+      "homeOverflow": false,
+      "overflowingElements": [
+        {
+          "className": "pointer-events-none flex flex-col items-center",
+          "scrollWidth": 288,
+          "clientWidth": 256
+        },
+        {
+          "className": "mascot-figure-stage relative shrink-0 w-48 h-48 md:w-64 md:h-64",
+          "scrollWidth": 288,
+          "clientWidth": 256
+        }
+      ],
+      "activeElement": "",
+      "exactTextMatch": true
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "text": [
+        "\n    ",
+        "00:00",
+        "일정 없음",
+        "아침활동",
+        "08:45",
+        " - ",
+        "09:00",
+        "1교시",
+        "09:00",
+        " - ",
+        "09:40",
+        "쉬는 시간",
+        "09:40",
+        " - ",
+        "09:50",
+        "2교시",
+        "09:50",
+        " - ",
+        "10:30",
+        "쉬는 시간",
+        "10:30",
+        " - ",
+        "10:40",
+        "3교시",
+        "10:40",
+        " - ",
+        "11:20",
+        "쉬는 시간",
+        "11:20",
+        " - ",
+        "11:30",
+        "4교시",
+        "11:30",
+        " - ",
+        "12:10",
+        "점심시간",
+        "12:10",
+        " - ",
+        "13:00",
+        "5교시",
+        "13:00",
+        " - ",
+        "13:40",
+        "쉬는 시간",
+        "13:40",
+        " - ",
+        "13:50",
+        "6교시",
+        "13:50",
+        " - ",
+        "14:30",
+        "\n    ",
+        "\n      <a href=\"/privacy.html\">개인정보처리방침</a>\n    ",
+        "\n    ",
+        "\n  \n\n"
+      ],
+      "targets": [
+        {
+          "name": "배경 음악 켜기",
+          "width": 53.39,
+          "height": 53.39
+        },
+        {
+          "name": "공지 편집 열기",
+          "width": 194.78,
+          "height": 147.55
+        },
+        {
+          "name": "이전 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "다음 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+          "width": 182.39,
+          "height": 68.8
+        },
+        {
+          "name": "설정",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "화폐 열기",
+          "width": 77.86,
+          "height": 78
+        },
+        {
+          "name": "유튜브 재생목록",
+          "width": 77.86,
+          "height": 78
+        },
+        {
+          "name": "도서관 열기",
+          "width": 77.86,
+          "height": 78
+        },
+        {
+          "name": "질문 제출 현황 열기",
+          "width": 77.86,
+          "height": 78
+        },
+        {
+          "name": "알림장",
+          "width": 77.88,
+          "height": 78
+        }
+      ],
+      "targetsBelow44": [],
+      "viewportOverflow": false,
+      "shellOverflow": false,
+      "shellWidth": {
+        "scrollWidth": 1024,
+        "clientWidth": 1024
+      },
+      "shellRectOverflow": [
+        {
+          "className": "student-character-showcase student-character-walk-right",
+          "left": 1091.66162109375,
+          "right": 1324.9781494140625,
+          "shellLeft": 0,
+          "shellRight": 1024
+        },
+        {
+          "className": "student-character-frame",
+          "left": 1090.9677734375,
+          "right": 1325.6719970703125,
+          "shellLeft": 0,
+          "shellRight": 1024
+        },
+        {
+          "className": "student-character-image",
+          "left": 1090.9677734375,
+          "right": 1325.6719970703125,
+          "shellLeft": 0,
+          "shellRight": 1024
+        }
+      ],
+      "homeOverflow": false,
+      "overflowingElements": [
+        {
+          "className": "pointer-events-none flex flex-col items-center",
+          "scrollWidth": 288,
+          "clientWidth": 256
+        },
+        {
+          "className": "mascot-figure-stage relative shrink-0 w-48 h-48 md:w-64 md:h-64",
+          "scrollWidth": 288,
+          "clientWidth": 256
+        }
+      ],
+      "activeElement": "",
+      "exactTextMatch": true
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "text": [
+        "\n    ",
+        "00:00",
+        "일정 없음",
+        "아침활동",
+        "08:45",
+        " - ",
+        "09:00",
+        "1교시",
+        "09:00",
+        " - ",
+        "09:40",
+        "쉬는 시간",
+        "09:40",
+        " - ",
+        "09:50",
+        "2교시",
+        "09:50",
+        " - ",
+        "10:30",
+        "쉬는 시간",
+        "10:30",
+        " - ",
+        "10:40",
+        "3교시",
+        "10:40",
+        " - ",
+        "11:20",
+        "쉬는 시간",
+        "11:20",
+        " - ",
+        "11:30",
+        "4교시",
+        "11:30",
+        " - ",
+        "12:10",
+        "점심시간",
+        "12:10",
+        " - ",
+        "13:00",
+        "5교시",
+        "13:00",
+        " - ",
+        "13:40",
+        "쉬는 시간",
+        "13:40",
+        " - ",
+        "13:50",
+        "6교시",
+        "13:50",
+        " - ",
+        "14:30",
+        "\n    ",
+        "\n      <a href=\"/privacy.html\">개인정보처리방침</a>\n    ",
+        "\n    ",
+        "\n  \n\n"
+      ],
+      "targets": [
+        {
+          "name": "배경 음악 켜기",
+          "width": 53.39,
+          "height": 53.39
+        },
+        {
+          "name": "공지 편집 열기",
+          "width": 169.84,
+          "height": 128.67
+        },
+        {
+          "name": "이전 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "다음 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+          "width": 208,
+          "height": 68.8
+        },
+        {
+          "name": "설정",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "화폐 열기",
+          "width": 74.81,
+          "height": 72
+        },
+        {
+          "name": "유튜브 재생목록",
+          "width": 74.81,
+          "height": 72
+        },
+        {
+          "name": "도서관 열기",
+          "width": 74.81,
+          "height": 72
+        },
+        {
+          "name": "질문 제출 현황 열기",
+          "width": 74.81,
+          "height": 72
+        },
+        {
+          "name": "알림장",
+          "width": 74.81,
+          "height": 72
+        }
+      ],
+      "targetsBelow44": [],
+      "viewportOverflow": false,
+      "shellOverflow": false,
+      "shellWidth": {
+        "scrollWidth": 1280,
+        "clientWidth": 1280
+      },
+      "shellRectOverflow": [
+        {
+          "className": "student-character-showcase student-character-walk-right",
+          "left": 1401.0380859375,
+          "right": 1619.7618408203125,
+          "shellLeft": 0,
+          "shellRight": 1280
+        },
+        {
+          "className": "student-character-frame",
+          "left": 1400.2515869140625,
+          "right": 1620.54833984375,
+          "shellLeft": 0,
+          "shellRight": 1280
+        },
+        {
+          "className": "student-character-image",
+          "left": 1400.2515869140625,
+          "right": 1620.54833984375,
+          "shellLeft": 0,
+          "shellRight": 1280
+        }
+      ],
+      "homeOverflow": false,
+      "overflowingElements": [
+        {
+          "className": "pointer-events-none flex flex-col items-center",
+          "scrollWidth": 288,
+          "clientWidth": 256
+        },
+        {
+          "className": "mascot-figure-stage relative shrink-0 w-48 h-48 md:w-64 md:h-64",
+          "scrollWidth": 288,
+          "clientWidth": 256
+        }
+      ],
+      "activeElement": "",
+      "exactTextMatch": true
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "text": [
+        "\n    ",
+        "00:00",
+        "일정 없음",
+        "아침활동",
+        "08:45",
+        " - ",
+        "09:00",
+        "1교시",
+        "09:00",
+        " - ",
+        "09:40",
+        "쉬는 시간",
+        "09:40",
+        " - ",
+        "09:50",
+        "2교시",
+        "09:50",
+        " - ",
+        "10:30",
+        "쉬는 시간",
+        "10:30",
+        " - ",
+        "10:40",
+        "3교시",
+        "10:40",
+        " - ",
+        "11:20",
+        "쉬는 시간",
+        "11:20",
+        " - ",
+        "11:30",
+        "4교시",
+        "11:30",
+        " - ",
+        "12:10",
+        "점심시간",
+        "12:10",
+        " - ",
+        "13:00",
+        "5교시",
+        "13:00",
+        " - ",
+        "13:40",
+        "쉬는 시간",
+        "13:40",
+        " - ",
+        "13:50",
+        "6교시",
+        "13:50",
+        " - ",
+        "14:30",
+        "\n    ",
+        "\n      <a href=\"/privacy.html\">개인정보처리방침</a>\n    ",
+        "\n    ",
+        "\n  \n\n"
+      ],
+      "targets": [
+        {
+          "name": "배경 음악 켜기",
+          "width": 53.39,
+          "height": 53.39
+        },
+        {
+          "name": "공지 편집 열기",
+          "width": 235.61,
+          "height": 178.49
+        },
+        {
+          "name": "이전 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "다음 추첨 상황",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+          "width": 208,
+          "height": 68.8
+        },
+        {
+          "name": "설정",
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "화폐 열기",
+          "width": 73.78,
+          "height": 72
+        },
+        {
+          "name": "유튜브 재생목록",
+          "width": 73.78,
+          "height": 72
+        },
+        {
+          "name": "도서관 열기",
+          "width": 73.8,
+          "height": 72
+        },
+        {
+          "name": "질문 제출 현황 열기",
+          "width": 73.78,
+          "height": 72
+        },
+        {
+          "name": "알림장",
+          "width": 73.78,
+          "height": 72
+        }
+      ],
+      "targetsBelow44": [],
+      "viewportOverflow": false,
+      "shellOverflow": false,
+      "shellWidth": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440
+      },
+      "shellRectOverflow": [
+        {
+          "className": "student-character-showcase student-character-walk-right",
+          "left": 1581.5999755859375,
+          "right": 1816.800048828125,
+          "shellLeft": 0,
+          "shellRight": 1440
+        },
+        {
+          "className": "student-character-frame",
+          "left": 1579.4315185546875,
+          "right": 1818.9683837890625,
+          "shellLeft": 0,
+          "shellRight": 1440
+        },
+        {
+          "className": "student-character-image",
+          "left": 1579.4315185546875,
+          "right": 1818.9683837890625,
+          "shellLeft": 0,
+          "shellRight": 1440
+        }
+      ],
+      "homeOverflow": false,
+      "overflowingElements": [
+        {
+          "className": "pointer-events-none flex flex-col items-center",
+          "scrollWidth": 288,
+          "clientWidth": 256
+        },
+        {
+          "className": "mascot-figure-stage relative shrink-0 w-48 h-48 md:w-64 md:h-64",
+          "scrollWidth": 288,
+          "clientWidth": 256
+        }
+      ],
+      "activeElement": "",
+      "exactTextMatch": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "zoom": 2
+      },
+      "text": [
+        "\n    ",
+        "00:00",
+        "일정 없음",
+        "아침활동",
+        "08:45",
+        " - ",
+        "09:00",
+        "1교시",
+        "09:00",
+        " - ",
+        "09:40",
+        "쉬는 시간",
+        "09:40",
+        " - ",
+        "09:50",
+        "2교시",
+        "09:50",
+        " - ",
+        "10:30",
+        "쉬는 시간",
+        "10:30",
+        " - ",
+        "10:40",
+        "3교시",
+        "10:40",
+        " - ",
+        "11:20",
+        "쉬는 시간",
+        "11:20",
+        " - ",
+        "11:30",
+        "4교시",
+        "11:30",
+        " - ",
+        "12:10",
+        "점심시간",
+        "12:10",
+        " - ",
+        "13:00",
+        "5교시",
+        "13:00",
+        " - ",
+        "13:40",
+        "쉬는 시간",
+        "13:40",
+        " - ",
+        "13:50",
+        "6교시",
+        "13:50",
+        " - ",
+        "14:30",
+        "\n    ",
+        "\n      <a href=\"/privacy.html\">개인정보처리방침</a>\n    ",
+        "\n    ",
+        "\n  \n\n"
+      ],
+      "targets": [
+        {
+          "name": "배경 음악 켜기",
+          "width": 100.76,
+          "height": 100.76
+        },
+        {
+          "name": "공지 편집 열기",
+          "width": 104.23,
+          "height": 88.6
+        },
+        {
+          "name": "이전 추첨 상황",
+          "width": 88,
+          "height": 88
+        },
+        {
+          "name": "다음 추첨 상황",
+          "width": 88,
+          "height": 88
+        },
+        {
+          "name": "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+          "width": 202.41,
+          "height": 137.59
+        },
+        {
+          "name": "설정",
+          "width": 88,
+          "height": 88
+        },
+        {
+          "name": "화폐 열기",
+          "width": 45.36,
+          "height": 104
+        },
+        {
+          "name": "유튜브 재생목록",
+          "width": 45.36,
+          "height": 104
+        },
+        {
+          "name": "도서관 열기",
+          "width": 45.36,
+          "height": 104
+        },
+        {
+          "name": "질문 제출 현황 열기",
+          "width": 45.36,
+          "height": 104
+        },
+        {
+          "name": "알림장",
+          "width": 45.36,
+          "height": 104
+        }
+      ],
+      "targetsBelow44": [],
+      "viewportOverflow": false,
+      "shellOverflow": false,
+      "shellWidth": {
+        "scrollWidth": 169,
+        "clientWidth": 169
+      },
+      "shellRectOverflow": [
+        {
+          "className": "",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "mascot-orb mascot-orb-one",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "mascot-orb mascot-orb-two",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "mascot-leaf mascot-leaf-one",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "mascot-leaf mascot-leaf-two",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "student-character-showcase student-character-walk-right",
+          "left": 884.9140625,
+          "right": 955.8859252929688,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "student-character-frame",
+          "left": 884.0404052734375,
+          "right": 956.7596435546875,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "student-character-image",
+          "left": 884.3345336914062,
+          "right": 956.4654541015625,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "pointer-events-none flex flex-col items-center",
+          "left": 22.200000762939453,
+          "right": 367.79997634887695,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "mascot-figure-stage relative shrink-0 w-48 h-48 md:w-64 md:h-64",
+          "left": 22.200000762939453,
+          "right": 367.79997634887695,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "absolute inset-0 z-10 h-full w-full object-contain drop-shadow-2xl scale-[1.15] md:scale-[1.25]",
+          "left": -3.7199859619140625,
+          "right": 393.71995544433594,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "inline-manual-timer-panel",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "manual-timer-display manual-timer-display-input inline-manual-timer-display flex items-baseline font-mono font-bold leading-none tracking-tight text-[#006241]",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "manual-timer-display-part manual-timer-display-part-minutes bg-transparent text-right outline-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "manual-timer-display-colon select-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "manual-timer-display-part manual-timer-display-part-seconds bg-transparent text-left outline-none",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "inline-manual-timer-actions",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "round-action inline-manual-action inline-flex items-center justify-center rounded-full text-white shadow-md round-action-play",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": "round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md",
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        },
+        {
+          "className": {},
+          "left": 0,
+          "right": 0,
+          "shellLeft": 25.59375,
+          "shellRight": 364.40625
+        }
+      ],
+      "homeOverflow": false,
+      "overflowingElements": [
+        {
+          "className": "pointer-events-none absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 opacity-0 scale-90",
+          "scrollWidth": 181,
+          "clientWidth": 141
+        },
+        {
+          "className": "pointer-events-none flex flex-col items-center",
+          "scrollWidth": 206,
+          "clientWidth": 192
+        },
+        {
+          "className": "mascot-figure-stage relative shrink-0 w-48 h-48 md:w-64 md:h-64",
+          "scrollWidth": 206,
+          "clientWidth": 192
+        },
+        {
+          "className": "timer-draw-switch absolute left-1/2 top-[7.2%] z-30 grid min-h-[3.2rem] w-[min(16.5rem,62%)] -translate-x-1/2 grid-cols-[2.35rem_minmax(0,1fr)_2.35rem] items-center gap-1 rounded-full border border-[#9FC7B8]/80 bg-[#F7FBF8]/88 px-2 py-1 text-[#006241] shadow-[0_4px_10px_rgba(0,98,65,0.12),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-md transition-all duration-200 md:min-h-[3.45rem] md:w-[min(18.75rem,52%)] pointer-events-none -translate-y-2 opacity-0",
+          "scrollWidth": 98,
+          "clientWidth": 91
+        },
+        {
+          "className": "inline-flex min-w-0 items-center justify-center gap-1.5 text-[clamp(0.98rem,1.95vw,1.28rem)] font-extrabold",
+          "scrollWidth": 7,
+          "clientWidth": 0
+        },
+        {
+          "className": "truncate",
+          "scrollWidth": 38,
+          "clientWidth": 0
+        },
+        {
+          "className": "schedule-row-time font-mono",
+          "scrollWidth": 105,
+          "clientWidth": 96
+        },
+        {
+          "className": "schedule-row-time font-mono",
+          "scrollWidth": 105,
+          "clientWidth": 96
+        },
+        {
+          "className": "schedule-row-time font-mono",
+          "scrollWidth": 105,
+          "clientWidth": 96
+        },
+        {
+          "className": "schedule-row-time font-mono",
+          "scrollWidth": 105,
+          "clientWidth": 96
+        },
+        {
+          "className": "schedule-row-time font-mono",
+          "scrollWidth": 105,
+          "clientWidth": 96
+        },
+        {
+          "className": "schedule-row-time font-mono",
+          "scrollWidth": 105,
+          "clientWidth": 96
+        },
+        {
+          "className": "announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ",
+          "scrollWidth": 35,
+          "clientWidth": 21
+        },
+        {
+          "className": "announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ",
+          "scrollWidth": 35,
+          "clientWidth": 21
+        },
+        {
+          "className": "announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ",
+          "scrollWidth": 35,
+          "clientWidth": 21
+        },
+        {
+          "className": "announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ",
+          "scrollWidth": 35,
+          "clientWidth": 21
+        },
+        {
+          "className": "announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all",
+          "scrollWidth": 35,
+          "clientWidth": 21
+        }
+      ],
+      "activeElement": "",
+      "exactTextMatch": true
+    }
+  ],
+  "interactions": {
+    "manualTimer": {
+      "triggerFocus": "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+      "opened": true,
+      "inputFocus": {
+        "outlineColor": "rgb(0, 122, 87)",
+        "outlineWidth": "2px",
+        "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, color(srgb 0 0.478431 0.341176 / 0.22) 0px 0px 0px 5px"
+      },
+      "closed": true
+    },
+    "keyboardOrder": [
+      "설정",
+      "",
+      "화폐 열기",
+      "유튜브 재생목록",
+      "도서관 열기",
+      "질문 제출 현황 열기",
+      "알림장",
+      "",
+      "배경 음악 켜기",
+      "공지 편집 열기",
+      "이전 추첨 상황",
+      "다음 추첨 상황",
+      "일정 없음, 오늘 일정 종료. 보조 타이머 열기",
+      "설정"
+    ],
+    "audioUnavailable": {
+      "label": "배경 음악 다시 시도",
+      "title": "배경 음악 다시 시도",
+      "disabled": false,
+      "failurePath": "HTMLMediaElement.play rejected with local NotSupportedError"
+    },
+    "emptySchedule": {
+      "visible": true,
+      "targetsBelow44": []
+    }
+  },
+  "network": {
+    "browserMutations": [
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      }
+    ],
+    "externalRequests": [
+      {
+        "method": "GET",
+        "url": "https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;700;800&family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&display=swap"
+      }
+    ],
+    "fixtureMutations": []
+  },
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/timer-home/default-320x568.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/timer-home/default-390x844.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/timer-home/default-768x1024.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/timer-home/default-1024x768.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/timer-home/default-1280x720.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/timer-home/default-1440x900.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/timer-home/default-390x844-200pct.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/timer-home/empty-schedule-390x844.png"
+  ],
+  "errors": [],
+  "success": true,
+  "servers": [
+    {
+      "command": "/usr/local/bin/node .omo/evidence/fixtures/fake-supabase.mjs",
+      "stdout": "FAKE_SUPABASE_READY 127.0.0.1:54329\n",
+      "stderr": ""
+    },
+    {
+      "command": "npm run dev -- --port 4177 --host 127.0.0.1",
+      "stdout": "\n> react-example@0.0.0 dev\n> vite --port=3000 --host=0.0.0.0 --port 4177 --host 127.0.0.1\n\n\n  VITE v6.4.1  ready in 135 ms\n\n  ➜  Local:   http://127.0.0.1:4177/\n",
+      "stderr": ""
+    }
+  ]
+}

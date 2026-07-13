@@ -1,0 +1,37 @@
+{
+  "baselineSource": ".omo/evidence/task-1-apple-ui-refresh-plan/complete-visible-text-oracle-run-2.json",
+  "currentSource": ".omo/evidence/task-3-apple-ui-refresh-plan/post-change-oracle.json",
+  "auctionStateCount": 10,
+  "viewportCount": 7,
+  "baselineRecords": 70,
+  "currentRecords": 70,
+  "visibleTextMatches": 70,
+  "visibleTextMismatches": [],
+  "targetsBelow44Count": 0,
+  "targetsBelow44": [],
+  "horizontalOverflow": [],
+  "fullOracle": {
+    "success": true,
+    "expected": 357,
+    "actual": 357,
+    "liveSupabase": 0,
+    "externalQuestion": 0,
+    "unexpectedConsole": 0,
+    "errors": [],
+    "cleanup": [
+      {
+        "label": "fake-supabase",
+        "stopped": true,
+        "exitCode": 0,
+        "signalCode": null
+      },
+      {
+        "label": "vite",
+        "stopped": true,
+        "exitCode": 143,
+        "signalCode": null
+      }
+    ]
+  },
+  "note": "Computed directly from the two named oracle artifacts after the 45px target repair."
+}

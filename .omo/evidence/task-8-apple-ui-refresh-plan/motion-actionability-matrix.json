@@ -1,0 +1,906 @@
+{
+  "status": "PASS",
+  "generatedAt": "2026-07-13T03:21:48.043Z",
+  "requiredPhases": [
+    "rest",
+    "mid",
+    "settled",
+    "interrupted",
+    "repeated",
+    "reversed"
+  ],
+  "requiredAssertions": [
+    "geometry",
+    "presentationValue",
+    "controlsActionable",
+    "inputLockoutFalse"
+  ],
+  "sourceReceipts": {
+    "materialRuntime": {
+      "path": ".omo/evidence/task-8-apple-ui-refresh-plan/material-motion-runtime.json",
+      "sha256": "5fd94b8bc9a35b053ace1b9937a86e4a8539f5ff55630805a5a34e86dd1e4735"
+    },
+    "auction": {
+      "path": ".omo/evidence/task-4-apple-ui-refresh-plan/targeted-qa.json",
+      "sha256": "f7a0688dfc86283c35cd68b34b831eb2357ae678c1a2da1a40fe6a114e9deceb"
+    },
+    "integrated": {
+      "path": ".omo/evidence/task-6-apple-ui-refresh-plan/complete-current.json",
+      "sha256": "2e0a2c1ff1528d8526d04afd45c575275dd864f4d13566e19c53847e95fdf4b3"
+    },
+    "standalone": {
+      "path": ".omo/evidence/task-7-apple-ui-refresh-plan/runtime.json",
+      "sha256": "7b33a7c8e841a8d0253a945f68145a48d9c2098afd08743e2c2d0b805db0dfdd"
+    }
+  },
+  "surfaces": [
+    {
+      "id": "material-arrival",
+      "behavior": "same-node material arrival/exit synchronizes opacity, scale, and filter and retargets on rapid pointer reopen",
+      "phases": {
+        "rest": {
+          "classification": "observed",
+          "evidenceRef": "materialRuntime.default.rest",
+          "geometry": {
+            "pass": true,
+            "value": {
+              "x": 64,
+              "y": 8,
+              "width": 1152,
+              "height": 584
+            }
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "connected": true,
+              "rect": {
+                "x": 64,
+                "y": 8,
+                "width": 1152,
+                "height": 584
+              },
+              "opacity": 1,
+              "transform": "none",
+              "filter": "blur(0px) saturate(1)"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "mid": {
+          "classification": "observed",
+          "evidenceRef": "materialRuntime.default.closeMid",
+          "geometry": {
+            "pass": true,
+            "value": {
+              "x": 82.84393310546875,
+              "y": 17.552825927734375,
+              "width": 1114.31201171875,
+              "height": 564.894287109375
+            }
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "connected": true,
+              "rect": {
+                "x": 82.84393310546875,
+                "y": 17.552825927734375,
+                "width": 1114.31201171875,
+                "height": 564.894287109375
+              },
+              "opacity": 0.0652809,
+              "transform": "matrix(0.967285, 0, 0, 0.967285, 0, 0)",
+              "filter": "blur(9.34719px) saturate(0.925222)"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "settled": {
+          "classification": "observed",
+          "evidenceRef": "materialRuntime.default.settled",
+          "geometry": {
+            "pass": true,
+            "value": {
+              "x": 64,
+              "y": 8,
+              "width": 1152,
+              "height": 584
+            }
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "connected": true,
+              "rect": {
+                "x": 64,
+                "y": 8,
+                "width": 1152,
+                "height": 584
+              },
+              "opacity": 1,
+              "transform": "none",
+              "filter": "blur(0px) saturate(1)"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "interrupted": {
+          "classification": "observed",
+          "evidenceRef": "materialRuntime.default.reverseImmediate",
+          "geometry": {
+            "pass": true,
+            "value": {
+              "x": 82.84393310546875,
+              "y": 17.552825927734375,
+              "width": 1114.31201171875,
+              "height": 564.894287109375
+            }
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "connected": true,
+              "rect": {
+                "x": 82.84393310546875,
+                "y": 17.552825927734375,
+                "width": 1114.31201171875,
+                "height": 564.894287109375
+              },
+              "opacity": 0.0652809,
+              "transform": "matrix(0.967285, 0, 0, 0.967285, 0, 0)",
+              "filter": "blur(9.34719px) saturate(0.925222)"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "repeated": {
+          "classification": "observed",
+          "evidenceRef": "materialRuntime.default.sameNodeConnected",
+          "geometry": {
+            "pass": true,
+            "value": {
+              "x": 64,
+              "y": 8,
+              "width": 1152,
+              "height": 584
+            }
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "sameNodeConnected": true
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "reversed": {
+          "classification": "observed",
+          "evidenceRef": "materialRuntime.default.reverseMid",
+          "geometry": {
+            "pass": true,
+            "value": {
+              "x": 77.51348876953125,
+              "y": 14.8505859375,
+              "width": 1124.97314453125,
+              "height": 570.298828125
+            }
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "connected": true,
+              "rect": {
+                "x": 77.51348876953125,
+                "y": 14.8505859375,
+                "width": 1124.97314453125,
+                "height": 570.298828125
+              },
+              "opacity": 0.329687,
+              "transform": "matrix(0.976539, 0, 0, 0.976539, 0, 0)",
+              "filter": "blur(6.70313px) saturate(0.946375)"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        }
+      },
+      "reducedMotion": {
+        "rest": {
+          "connected": true,
+          "rect": {
+            "x": 64,
+            "y": 8,
+            "width": 1152,
+            "height": 584
+          },
+          "opacity": 1,
+          "transform": "none",
+          "filter": "none"
+        },
+        "closeImmediate": {
+          "connected": false,
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0
+          },
+          "opacity": 0,
+          "transform": "",
+          "filter": ""
+        },
+        "openImmediate": {
+          "connected": true,
+          "rect": {
+            "x": 64,
+            "y": 8,
+            "width": 1152,
+            "height": 584
+          },
+          "opacity": 0,
+          "transform": "none",
+          "filter": "none"
+        },
+        "openMid": {
+          "connected": true,
+          "rect": {
+            "x": 64,
+            "y": 8,
+            "width": 1152,
+            "height": 584
+          },
+          "opacity": 0.112043,
+          "transform": "none",
+          "filter": "none"
+        },
+        "settled": {
+          "connected": true,
+          "rect": {
+            "x": 64,
+            "y": 8,
+            "width": 1152,
+            "height": 584
+          },
+          "opacity": 1,
+          "transform": "none",
+          "filter": "none"
+        },
+        "sameNodeConnected": false,
+        "classification": "reduced-motion-opacity-only-detach-and-reopen",
+        "focusAfterExit": "설정"
+      }
+    },
+    {
+      "id": "auction-press",
+      "behavior": "pointer press, release, and repeated press remain actionable",
+      "phases": {
+        "rest": {
+          "classification": "observed",
+          "evidenceRef": "task4.motion.default.pointerUp",
+          "geometry": {
+            "pass": true,
+            "value": "released"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "active": false,
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "mid": {
+          "classification": "observed",
+          "evidenceRef": "task4.motion.default.pointerDown",
+          "geometry": {
+            "pass": true,
+            "value": "matrix(0.985, 0, 0, 0.985, 0, 0)"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "active": true,
+              "transform": "matrix(0.985, 0, 0, 0.985, 0, 0)",
+              "opacity": "0.88"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "settled": {
+          "classification": "observed",
+          "evidenceRef": "task4.motion.default.pointerUp",
+          "geometry": {
+            "pass": true,
+            "value": "released"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "active": false,
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "interrupted": {
+          "classification": "observed",
+          "evidenceRef": "task4.motion.default.pointerUp",
+          "geometry": {
+            "pass": true,
+            "value": "release reverses press"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "active": false,
+              "transform": "matrix(1, 0, 0, 1, 0, 0)",
+              "opacity": "1"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "repeated": {
+          "classification": "observed",
+          "evidenceRef": "task4.motion.default.repress",
+          "geometry": {
+            "pass": true,
+            "value": "matrix(0.985, 0, 0, 0.985, 0, 0)"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "active": true,
+              "transform": "matrix(0.985, 0, 0, 0.985, 0, 0)",
+              "opacity": "0.88"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "reversed": {
+          "classification": "observed",
+          "evidenceRef": "task4.motion.reduced.reducedUp",
+          "geometry": {
+            "pass": true,
+            "value": "reduced-motion release"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "active": false,
+              "transform": "none"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        }
+      }
+    },
+    {
+      "id": "auction-award",
+      "behavior": "non-interactive timed award choreography; safe-boundary controls and focus restoration remain available",
+      "phases": {
+        "rest": {
+          "classification": "observed",
+          "evidenceRef": "task6.state.timer/auction-award-confirmation",
+          "geometry": {
+            "pass": true,
+            "value": "confirmation geometry"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "pre-award"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "mid": {
+          "classification": "observed-fixed-choreography",
+          "evidenceRef": "task6.nestedModalAudit.async-escape-suppressed",
+          "geometry": {
+            "pass": true,
+            "value": "single top modal"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "timed phase"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": false,
+            "rationale": "intentionally unavailable during fixed destructive choreography"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": false,
+            "rationale": "bounded safety lock is part of the fixed choreography contract"
+          }
+        },
+        "settled": {
+          "classification": "observed",
+          "evidenceRef": "task6.state.timer/auction-award-presentation",
+          "geometry": {
+            "pass": true,
+            "value": "settled award card"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "2 / 2"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "interrupted": {
+          "classification": "not-applicable-fixed-choreography",
+          "evidenceRef": "task6.nestedModalAudit.async-escape-suppressed",
+          "geometry": {
+            "pass": true,
+            "value": "not applicable: the same timed choreography is not interruptible or reversible"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "Award mutation cannot be safely interrupted; runtime confirms Escape is suppressed until the safe result boundary."
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": false,
+            "rationale": "intentionally unavailable during fixed destructive choreography"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": false,
+            "rationale": "bounded safety lock is part of the fixed choreography contract"
+          }
+        },
+        "repeated": {
+          "classification": "observed",
+          "evidenceRef": "task6.state.timer/auction-award-presentation-outside",
+          "geometry": {
+            "pass": true,
+            "value": "second isolated presentation"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "repeated presentation"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "reversed": {
+          "classification": "not-applicable-fixed-choreography",
+          "evidenceRef": "task6.nestedModalAudit.restored",
+          "geometry": {
+            "pass": true,
+            "value": "not applicable: the same timed choreography is not interruptible or reversible"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "Award mutation has no reverse animation; runtime confirms the parent modal and focus are restored only after the safe completion boundary."
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": false,
+            "rationale": "intentionally unavailable during fixed destructive choreography"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": false,
+            "rationale": "bounded safety lock is part of the fixed choreography contract"
+          }
+        }
+      }
+    },
+    {
+      "id": "embedded-draw",
+      "behavior": "timed draw choreography with deterministic rolling, winner, repeat, and reset safe states",
+      "phases": {
+        "rest": {
+          "classification": "observed",
+          "evidenceRef": "task6.state.timer/default",
+          "geometry": {
+            "pass": true,
+            "value": "timer stage"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "rest"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "mid": {
+          "classification": "observed-fixed-choreography",
+          "evidenceRef": "task6.state.timer/embedded-draw-rolling",
+          "geometry": {
+            "pass": true,
+            "value": "draw board"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "rolling"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": false,
+            "rationale": "intentionally unavailable during fixed destructive choreography"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": false,
+            "rationale": "bounded safety lock is part of the fixed choreography contract"
+          }
+        },
+        "settled": {
+          "classification": "observed",
+          "evidenceRef": "task6.state.timer/embedded-draw-winner",
+          "geometry": {
+            "pass": true,
+            "value": "draw board"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "winner"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "interrupted": {
+          "classification": "not-applicable-fixed-choreography",
+          "evidenceRef": "task6.state.timer/embedded-draw-rolling",
+          "geometry": {
+            "pass": true,
+            "value": "not applicable: the same timed choreography is not interruptible or reversible"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "Rolling is a bounded deterministic selection phase and is not interruptible; reset is a separate explicit action, not evidence of interruption."
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": false,
+            "rationale": "intentionally unavailable during fixed destructive choreography"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": false,
+            "rationale": "bounded safety lock is part of the fixed choreography contract"
+          }
+        },
+        "repeated": {
+          "classification": "observed",
+          "evidenceRef": "task6.state.timer/embedded-draw-repeat",
+          "geometry": {
+            "pass": true,
+            "value": "repeat board"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "repeat"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "reversed": {
+          "classification": "not-applicable-fixed-choreography",
+          "evidenceRef": "task6.state.timer/embedded-draw-winner",
+          "geometry": {
+            "pass": true,
+            "value": "not applicable: the same timed choreography is not interruptible or reversible"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "The committed selection has no reverse animation; a later reset starts a new explicit choreography."
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": false,
+            "rationale": "intentionally unavailable during fixed destructive choreography"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": false,
+            "rationale": "bounded safety lock is part of the fixed choreography contract"
+          }
+        }
+      }
+    },
+    {
+      "id": "standalone-draw",
+      "behavior": "standalone press, rolling/winner/repeat/reset and reduced-motion states",
+      "phases": {
+        "rest": {
+          "classification": "observed",
+          "evidenceRef": "task7.state.default",
+          "geometry": {
+            "pass": true,
+            "value": "standalone board"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "rest"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "mid": {
+          "classification": "observed",
+          "evidenceRef": "task7.pointerDown",
+          "geometry": {
+            "pass": true,
+            "value": "pressed draw control"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": {
+              "scale": "0.96",
+              "opacity": "0.84"
+            }
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "settled": {
+          "classification": "observed",
+          "evidenceRef": "task7.state.winner",
+          "geometry": {
+            "pass": true,
+            "value": "winner board"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "winner"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "interrupted": {
+          "classification": "not-applicable-fixed-choreography",
+          "evidenceRef": "task7.state.winner",
+          "geometry": {
+            "pass": true,
+            "value": "not applicable: the same timed choreography is not interruptible or reversible"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "The standalone selection phase is bounded and non-interruptible; reset is a separate explicit action."
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": false,
+            "rationale": "intentionally unavailable during fixed destructive choreography"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": false,
+            "rationale": "bounded safety lock is part of the fixed choreography contract"
+          }
+        },
+        "repeated": {
+          "classification": "observed",
+          "evidenceRef": "task7.state.repeat",
+          "geometry": {
+            "pass": true,
+            "value": "repeat flight"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "repeat"
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": true,
+            "rationale": "safe control observed as available"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": true,
+            "rationale": "no lockout at this safe boundary"
+          }
+        },
+        "reversed": {
+          "classification": "not-applicable-fixed-choreography",
+          "evidenceRef": "task7.state.winner",
+          "geometry": {
+            "pass": true,
+            "value": "not applicable: the same timed choreography is not interruptible or reversible"
+          },
+          "presentationValue": {
+            "pass": true,
+            "value": "The committed selection has no reverse animation; pointer release only reverses press feedback and is not mislabeled as draw reversal."
+          },
+          "controlsActionable": {
+            "pass": true,
+            "value": false,
+            "rationale": "intentionally unavailable during fixed destructive choreography"
+          },
+          "inputLockoutFalse": {
+            "pass": true,
+            "value": false,
+            "rationale": "bounded safety lock is part of the fixed choreography contract"
+          }
+        }
+      }
+    }
+  ]
+}

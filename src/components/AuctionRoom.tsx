@@ -82,8 +82,8 @@ export default function AuctionRoom({
             오늘의 경매
           </h1>
         </div>
-        <div className={`grid grid-cols-2 gap-2 ${isCompact ? 'sm:w-[17.5rem]' : 'sm:w-[25rem]'}`}>
-          <div className={`grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#F2FBF7] text-[#007A57] ${
+        <div className={`auction-balance-grid grid grid-cols-2 gap-2 ${isCompact ? 'sm:w-[17.5rem]' : 'sm:w-[25rem]'}`}>
+          <div className={`auction-balance-item grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#F2FBF7] text-[#007A57] ${
             isCompact ? 'gap-3 px-2.5 py-2' : 'gap-3.5 px-4 py-3.5 shadow-[0_14px_28px_rgba(0,122,87,0.12)]'
           }`}>
             <span className={`inline-flex items-center justify-center rounded-[0.8rem] bg-white ring-2 ring-[#CFE7DD] ${
@@ -98,7 +98,7 @@ export default function AuctionRoom({
               </div>
             </div>
           </div>
-          <div className={`grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#E1C38F] bg-[#FFFAF1] text-[#8A5A1F] ${
+          <div className={`auction-balance-item grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#E1C38F] bg-[#FFFAF1] text-[#8A5A1F] ${
             isCompact ? 'gap-3 px-2.5 py-2' : 'gap-3.5 px-4 py-3.5 shadow-[0_14px_28px_rgba(154,100,24,0.12)]'
           }`}>
             <span className={`inline-flex items-center justify-center rounded-[0.8rem] bg-white ring-2 ring-[#EBD9BC] ${
@@ -157,7 +157,7 @@ export default function AuctionRoom({
 
       {footer}
 
-      <div className={`grid ${
+      <div className={`auction-day-grid grid ${
         isCompact ? 'gap-2.5 p-3 md:grid-cols-5 md:p-4' : 'gap-4 p-4 md:p-5 lg:grid-cols-5'
       }`}>
         {auctionDayGroups.map(({ weekdayLabel, dayIndex, items, accent }) => {
@@ -166,7 +166,7 @@ export default function AuctionRoom({
           return (
             <div
               key={weekdayLabel}
-              className={`overflow-hidden border bg-white shadow-[0_10px_24px_rgba(28,45,40,0.045)] ${
+              className={`auction-day-column overflow-hidden border bg-white shadow-[0_10px_24px_rgba(28,45,40,0.045)] ${
                 isCompact ? 'rounded-[1rem]' : 'rounded-[1.2rem]'
               } ${isDayUnlocked ? '' : 'opacity-90'}`}
               style={{ borderColor: '#E4E9E6' }}
@@ -208,7 +208,8 @@ export default function AuctionRoom({
                         if (isUnlocked) onSelectItem?.(item);
                       }}
                       disabled={!isUnlocked}
-                      className={`auction-item-card group relative overflow-hidden border text-left transition-all ${
+                      aria-pressed={isUnlocked ? isSelected : undefined}
+                      className={`auction-item-card group relative overflow-hidden border text-left ${
                         isUnlocked
                           ? 'bg-white hover:-translate-y-0.5'
                           : 'auction-item-card-locked cursor-not-allowed border-[#E3EBE6] bg-[#F8FAF8]'

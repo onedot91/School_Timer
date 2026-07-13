@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import AuctionRoom from '../components/AuctionRoom';
 import {
   AUCTION_BID_STEP,
@@ -33,6 +34,7 @@ import {
   updateSharedSettings,
 } from '../lib/supabaseSettings';
 import { playAuctionSound, prepareAuctionAudio } from '../lib/auctionAudio';
+import { useModalFocus } from '../lib/useModalFocus';
 
 interface AuctionPageProps {
   studentNumber: number;
@@ -53,6 +55,7 @@ const getInitialAuctionMissions = (): AuctionMission[] => (
 );
 
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
+  const shouldReduceMotion = useReducedMotion();
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => normalizeCurrencyBalances(null));
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
@@ -66,6 +69,139 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [isSubmittingItemId, setIsSubmittingItemId] = useState<string | null>(null);
   const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [activeModal, setActiveModal] = useState<'bid' | 'status' | null>(null);
+  const [renderedPendingBid, setRenderedPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
+  const [renderedStatusMessage, setRenderedStatusMessage] = useState('');
+  const bidMaterialProgress = useMotionValue(0);
+  const bidMaterialScale = useTransform(bidMaterialProgress, [0, 1], [0.965, 1]);
+  const bidMaterialFilter = useTransform(bidMaterialProgress, (progress) => `blur(${(1 - progress) * 10}px) saturate(${0.92 + progress * 0.08})`);
+  const statusMaterialProgress = useMotionValue(0);
+  const statusMaterialScale = useTransform(statusMaterialProgress, [0, 1], [0.965, 1]);
+  const statusMaterialFilter = useTransform(statusMaterialProgress, (progress) => `blur(${(1 - progress) * 10}px) saturate(${0.92 + progress * 0.08})`);
+  const pendingBidStateRef = useRef(pendingBid);
+  const statusMessageStateRef = useRef(statusMessage);
+  pendingBidStateRef.current = pendingBid;
+  statusMessageStateRef.current = statusMessage;
+  const bidDialogRef = useRef<HTMLDivElement>(null);
+  const [bidDialogElement, setBidDialogElement] = useState<HTMLDivElement | null>(null);
+  const setBidDialogNode = useCallback((node: HTMLDivElement | null) => {
+    bidDialogRef.current = node;
+    setBidDialogElement(node);
+  }, []);
+  const bidTriggerRef = useRef<HTMLButtonElement>(null);
+  const statusDialogRef = useRef<HTMLDivElement>(null);
+  const [statusDialogElement, setStatusDialogElement] = useState<HTMLDivElement | null>(null);
+  const setStatusDialogNode = useCallback((node: HTMLDivElement | null) => {
+    statusDialogRef.current = node;
+    setStatusDialogElement(node);
+  }, []);
+  const statusReturnFocusRef = useRef<HTMLElement>(null);
+  const shouldReturnStatusFocusRef = useRef(false);
+
+  const focusAuctionReturnTarget = useCallback(() => {
+    const storedTarget = statusReturnFocusRef.current;
+    const bidTarget = document.getElementById('auction-bid-trigger');
+    const bidTargetCanFocus = bidTarget?.isConnected
+      && !bidTarget.matches(':disabled, [aria-disabled="true"]');
+    const amountTarget = document.getElementById('auction-bid-amount-input');
+    const returnTarget = bidTargetCanFocus
+      ? bidTarget
+      : amountTarget?.isConnected
+        ? amountTarget
+        : storedTarget;
+    if (returnTarget?.isConnected && !returnTarget.matches(':disabled, [aria-disabled="true"]')) {
+      returnTarget.focus({ preventScroll: true });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (pendingBid) {
+      setRenderedPendingBid(pendingBid);
+      if (activeModal === null || activeModal === 'bid') setActiveModal('bid');
+      return;
+    }
+    if (activeModal === null && statusMessage) {
+      setRenderedStatusMessage(statusMessage);
+      setActiveModal('status');
+    }
+  }, [activeModal, pendingBid, statusMessage]);
+
+  useEffect(() => {
+    if (activeModal !== 'bid' || !renderedPendingBid) return;
+    const target = pendingBid ? 1 : 0;
+    const controls = animateMotion(bidMaterialProgress, target, {
+      duration: shouldReduceMotion ? 0.16 : 0.34,
+      ease: shouldReduceMotion ? 'easeOut' : [0.2, 0.8, 0.2, 1],
+      onComplete: () => {
+        if (target !== 0 || pendingBidStateRef.current) return;
+        setRenderedPendingBid(null);
+        if (statusMessageStateRef.current) {
+          setRenderedStatusMessage(statusMessageStateRef.current);
+          setActiveModal('status');
+        } else {
+          setActiveModal(null);
+          window.requestAnimationFrame(focusAuctionReturnTarget);
+        }
+      },
+    });
+    return () => controls.stop();
+  }, [activeModal, bidMaterialProgress, focusAuctionReturnTarget, pendingBid, renderedPendingBid, shouldReduceMotion]);
+
+  useEffect(() => {
+    if (activeModal !== 'status' || !renderedStatusMessage) return;
+    const target = statusMessage ? 1 : 0;
+    const controls = animateMotion(statusMaterialProgress, target, {
+      duration: shouldReduceMotion ? 0.16 : 0.34,
+      ease: shouldReduceMotion ? 'easeOut' : [0.2, 0.8, 0.2, 1],
+      onComplete: () => {
+        if (target !== 0 || statusMessageStateRef.current) return;
+        setRenderedStatusMessage('');
+        setActiveModal(null);
+        shouldReturnStatusFocusRef.current = false;
+        window.requestAnimationFrame(focusAuctionReturnTarget);
+      },
+    });
+    return () => controls.stop();
+  }, [activeModal, focusAuctionReturnTarget, renderedStatusMessage, shouldReduceMotion, statusMaterialProgress, statusMessage]);
+
+  const showStatusMessage = (message: string) => {
+    const activeElement = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    statusReturnFocusRef.current = activeElement && !bidDialogRef.current?.contains(activeElement)
+      ? activeElement
+      : bidTriggerRef.current;
+    if (bidDialogRef.current) {
+      setPendingBid(null);
+      window.requestAnimationFrame(() => setStatusMessage(message));
+      return;
+    }
+    setRenderedStatusMessage(message);
+    setActiveModal('status');
+    setStatusMessage(message);
+  };
+
+  const dismissStatusMessage = () => {
+    shouldReturnStatusFocusRef.current = true;
+    setStatusMessage('');
+  };
+
+  useModalFocus({
+    dialogRef: bidDialogRef,
+    isOpen: activeModal === 'bid' && bidDialogElement !== null,
+    onDismiss: () => {
+      if (!isSubmittingItemId) setPendingBid(null);
+    },
+    isDismissible: isSubmittingItemId === null,
+    returnFocusRef: bidTriggerRef,
+  });
+
+  useModalFocus({
+    dialogRef: statusDialogRef,
+    isOpen: activeModal === 'status' && statusDialogElement !== null,
+    onDismiss: dismissStatusMessage,
+    returnFocusRef: statusReturnFocusRef,
+  });
 
   const studentKey = String(studentNumber);
   const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
@@ -124,7 +260,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     } catch (error) {
       console.error('Failed to load auction state from Supabase.', error);
       setAuctionMissions([]);
-      setStatusMessage('경매 정보를 불러오지 못했습니다.');
+      showStatusMessage('경매 정보를 불러오지 못했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -181,11 +317,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     if (auctionAwards[item.id]) {
-      setStatusMessage('이미 낙찰된 물품입니다.');
+      showStatusMessage('이미 낙찰된 물품입니다.');
       return;
     }
     if (currentBid.bidder === studentNumber) {
-      setStatusMessage('다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.');
+      showStatusMessage('다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.');
       return;
     }
     const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
@@ -200,17 +336,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const availableForItem = Math.max(0, balance - reservedExcludingItem);
 
     if (bidAmount < minimumBid) {
-      setStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
+      showStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
       return;
     }
 
     if (hasAuctionBidAmount(auctionBidHistory, item.id, bidAmount)) {
-      setStatusMessage('이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.');
+      showStatusMessage('이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.');
       return;
     }
 
     if (bidAmount > availableForItem) {
-      setStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
+      showStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
       return;
     }
 
@@ -310,10 +446,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
       setBidAmountDrafts((previous) => ({ ...previous, [item.id]: String(bidAmount + AUCTION_BID_STEP) }));
       void playAuctionSound('bid');
-      setStatusMessage('입찰이 완료되었습니다.');
+      showStatusMessage('입찰이 완료되었습니다.');
     } catch (error) {
       console.error('Failed to submit auction bid.', error);
-      setStatusMessage(error instanceof Error && error.message === 'INSUFFICIENT_FUNDS'
+      showStatusMessage(error instanceof Error && error.message === 'INSUFFICIENT_FUNDS'
         ? '예약금을 제외한 사용 가능 고마가 부족합니다.'
         : error instanceof Error && error.message === 'BID_TOO_LOW'
           ? '현재 최고 입찰가보다 높게 입찰해야 합니다.'
@@ -335,11 +471,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     if (auctionAwards[item.id]) {
-      setStatusMessage('이미 낙찰된 물품입니다.');
+      showStatusMessage('이미 낙찰된 물품입니다.');
       return;
     }
     if (currentBid.bidder === studentNumber) {
-      setStatusMessage('다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.');
+      showStatusMessage('다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.');
       return;
     }
     const minimumBid = getMinimumAuctionBid(item, currentBid.amount);
@@ -354,21 +490,24 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const availableForItem = Math.max(0, balance - reservedExcludingItem);
 
     if (confirmedAmount < minimumBid) {
-      setStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
+      showStatusMessage(`${formatCurrency(minimumBid)}부터 입찰할 수 있습니다.`);
       return;
     }
 
     if (hasAuctionBidAmount(auctionBidHistory, item.id, confirmedAmount)) {
-      setStatusMessage('이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.');
+      showStatusMessage('이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.');
       return;
     }
 
     if (confirmedAmount > availableForItem) {
-      setStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
+      showStatusMessage('예약금을 제외한 사용 가능 고마가 부족합니다.');
       return;
     }
 
-    setPendingBid({ itemId: item.id, amount: confirmedAmount });
+    const nextPendingBid = { itemId: item.id, amount: confirmedAmount };
+    setRenderedPendingBid(nextPendingBid);
+    setActiveModal('bid');
+    setPendingBid(nextPendingBid);
   };
 
   const confirmPendingBid = async () => {
@@ -378,7 +517,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const item = auctionItems.find((auctionItem) => auctionItem.id === pendingBid.itemId);
     if (!item) {
       setPendingBid(null);
-      setStatusMessage('입찰할 물품을 찾지 못했습니다.');
+      showStatusMessage('입찰할 물품을 찾지 못했습니다.');
       return;
     }
 
@@ -410,7 +549,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             const selectedItemDisplayName = getAuctionItemDisplayName(selectedItem.name, selectedItem.dayIndex);
             if (award) {
               return (
-                <div className="mx-4 my-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:my-5">
+                <div className="auction-bid-panel mx-4 my-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:my-5">
                   <h2 className="section-title text-[1.45rem] font-extrabold leading-tight text-[#18211E]">
                     {selectedItemDisplayName}
                   </h2>
@@ -443,7 +582,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               selectedBidAmount <= maxBid;
 
             return (
-              <div className="mx-4 my-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:my-5">
+              <div className="auction-bid-panel mx-4 my-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:my-5">
                 <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
                     <h2 className="section-title min-w-0 truncate text-[1.35rem] font-extrabold leading-tight text-[#18211E]">
@@ -460,6 +599,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
                   <label className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[#DCE7E1] bg-[#FAFCFB] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
                     <input
+                      id="auction-bid-amount-input"
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
@@ -481,6 +621,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     <span className="pl-2 font-mono text-[1.02rem] font-black text-[#007A57]">고마</span>
                   </label>
                   <button
+                    id="auction-bid-trigger"
+                    ref={bidTriggerRef}
                     type="button"
                     onClick={() => openBidConfirm(selectedItem, selectedBidAmount)}
                     disabled={!canSubmit}
@@ -494,8 +636,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           })() : null}
         />
       </main>
-      {pendingBid ? (() => {
-        const pendingItem = auctionItems.find((item) => item.id === pendingBid.itemId);
+      {activeModal === 'bid' && renderedPendingBid ? (() => {
+        const pendingItem = auctionItems.find((item) => item.id === renderedPendingBid.itemId);
         const pendingItemName = pendingItem
           ? getAuctionItemDisplayName(pendingItem.name, pendingItem.dayIndex)
           : '선택한 물품';
@@ -503,27 +645,35 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         const pendingItemParticle = lastPendingItemChar && (lastPendingItemChar.charCodeAt(0) - 0xac00) % 28 > 0
           ? '을'
           : '를';
-        const pendingCurrentBid = pendingBid.itemId
-          ? auctionBids[pendingBid.itemId] ?? { amount: 0, bidder: null }
+        const pendingCurrentBid = renderedPendingBid.itemId
+          ? auctionBids[renderedPendingBid.itemId] ?? { amount: 0, bidder: null }
           : { amount: 0, bidder: null };
 
         return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/32 px-4"
+          <motion.div
+            key="auction-confirm-material"
+            className="auction-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/32 px-4"
             role="presentation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: pendingBid ? 1 : 0, pointerEvents: pendingBid ? 'auto' : 'none' }}
+            transition={{ duration: shouldReduceMotion ? 0.16 : 0.18, ease: 'easeOut' }}
             onClick={() => {
               if (!isSubmittingItemId) setPendingBid(null);
             }}
           >
-            <div
-              className="w-full max-w-[34rem] rounded-[1.75rem] border-2 border-[#8DC9B7] bg-white p-6 text-left shadow-[0_28px_70px_rgba(28,45,40,0.24)]"
+            <motion.div
+              ref={setBidDialogNode}
+              className="apple-material-layer auction-confirm-dialog w-full max-w-[34rem] break-keep rounded-[1.75rem] border-2 border-[#8DC9B7] bg-white p-6 text-left shadow-[0_28px_70px_rgba(28,45,40,0.24)]"
               role="dialog"
               aria-modal="true"
               aria-labelledby="auction-bid-confirm-title"
               onClick={(event) => event.stopPropagation()}
+              style={shouldReduceMotion
+                ? { opacity: bidMaterialProgress }
+                : { opacity: bidMaterialProgress, scale: bidMaterialScale, filter: bidMaterialFilter }}
             >
               <h2 id="auction-bid-confirm-title" className="section-title text-center text-[1.65rem] font-extrabold leading-tight text-[#18211E]">
-                {pendingItemName}{pendingItemParticle} 이 금액으로 입찰할까요?
+                {pendingItemName}{pendingItemParticle}{' 이\u00a0금액으로 입찰할까요?'}
               </h2>
 
               <div className="mt-5 rounded-[1.15rem] border border-[#D7E6DE] bg-[#F6FCF9] p-4">
@@ -540,7 +690,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   <div className="rounded-[1rem] border-2 border-[#8DC9B7] bg-white px-4 py-3 text-right">
                     <div className="text-[0.76rem] font-black text-[#007A57]">당신의 입찰 금액</div>
                     <div className="mt-1 font-mono text-[1.55rem] font-black leading-none text-[#007A57]">
-                      {formatCurrency(pendingBid.amount)}
+                      {formatCurrency(renderedPendingBid.amount)}
                     </div>
                   </div>
                 </div>
@@ -569,33 +719,41 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   {isSubmittingItemId ? '입찰 처리 중...' : '입찰하기'}
                 </button>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         );
       })() : null}
-      {statusMessage ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"
+      {activeModal === 'status' && renderedStatusMessage ? (
+        <motion.div
+          key="auction-status-material"
+          className="auction-modal-backdrop auction-status-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"
           role="presentation"
-          onClick={() => setStatusMessage('')}
+          onClick={dismissStatusMessage}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: statusMessage ? 1 : 0, pointerEvents: statusMessage ? 'auto' : 'none' }}
+          transition={{ duration: shouldReduceMotion ? 0.16 : 0.18, ease: 'easeOut' }}
         >
-          <div
-            className="w-full max-w-[18rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.22)]"
+          <motion.div
+            ref={setStatusDialogNode}
+            className="apple-material-layer auction-status-dialog w-full max-w-[18rem] break-keep rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.22)]"
             role="dialog"
             aria-modal="true"
-            aria-live="polite"
+            aria-labelledby="auction-status-message"
             onClick={(event) => event.stopPropagation()}
+            style={shouldReduceMotion
+              ? { opacity: statusMaterialProgress }
+              : { opacity: statusMaterialProgress, scale: statusMaterialScale, filter: statusMaterialFilter }}
           >
-            <p className="font-mono text-[1.35rem] font-black text-[#006241]">{statusMessage}</p>
+            <p id="auction-status-message" aria-live="polite" className="font-mono text-[1.35rem] font-black text-[#006241]">{renderedStatusMessage}</p>
             <button
               type="button"
-              onClick={() => setStatusMessage('')}
-              className="mt-4 inline-flex h-10 min-w-[6.5rem] items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+              onClick={dismissStatusMessage}
+              className="mt-4 inline-flex min-h-[2.875rem] min-w-[6.5rem] items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
             >
               확인
             </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       ) : null}
     </div>
   );

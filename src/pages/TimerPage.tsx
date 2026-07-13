@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
   createDefaultCaseState,
@@ -42,6 +42,7 @@ import {
   saveSharedSettings,
 } from '../lib/supabaseSettings';
 import { playAuctionSound } from '../lib/auctionAudio';
+import { useModalFocus } from '../lib/useModalFocus';
 import {
   loadQuestionSubmissionStatuses,
   type QuestionSubmissionStatus,
@@ -1834,11 +1835,21 @@ function AnnouncementNotebookOverlay({
   const notePaperBodyRef = useRef<HTMLDivElement>(null);
   const noteDisplayRef = useRef<HTMLDivElement>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const announcementDialogRef = useRef<HTMLDivElement>(null);
+  const announcementHistoryTriggerRef = useRef<HTMLButtonElement>(null);
   const hasRestoredRef = useRef(false);
   const hasEditedNoteTextRef = useRef(false);
   const remoteLoadTokenRef = useRef(0);
   const remoteSaveTimeoutRef = useRef<number | null>(null);
   const [noteRuleGapPx, setNoteRuleGapPx] = useState(104);
+
+  useModalFocus({
+    dialogRef: announcementDialogRef,
+    isOpen,
+    onDismiss: onClose,
+    initialFocusRef: noteTextareaRef,
+    isDismissible: !isHistoryOpen,
+  });
 
   useEffect(() => {
     if (hasRestoredRef.current) return;
@@ -2337,16 +2348,17 @@ function AnnouncementNotebookOverlay({
 
     const handleAnnouncementShortcuts = (event: KeyboardEvent) => {
       if (isComposingKeyboardEvent(event)) return;
-      if (event.key === 'Escape') {
-        onClose();
-        return;
-      }
+      if (event.key !== 'Escape' || !isHistoryOpen) return;
 
+      event.preventDefault();
+      event.stopPropagation();
+      setIsHistoryOpen(false);
+      announcementHistoryTriggerRef.current?.focus({ preventScroll: true });
     };
 
     window.addEventListener('keydown', handleAnnouncementShortcuts);
     return () => window.removeEventListener('keydown', handleAnnouncementShortcuts);
-  }, [isOpen, onClose]);
+  }, [isHistoryOpen, isOpen]);
 
   useEffect(() => {
     if (!isOpen || awardableAuctionItems.length === 0) {
@@ -2366,7 +2378,14 @@ function AnnouncementNotebookOverlay({
 
   return (
     <div className="announcement-overlay fixed inset-0 z-[60] p-2 sm:p-3 md:p-5">
-      <div className="announcement-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-1.5rem)] w-full max-w-[1220px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]">
+      <div
+        ref={announcementDialogRef}
+        className="apple-material-layer announcement-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-1.5rem)] w-full max-w-[1220px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]"
+        role="dialog"
+        aria-modal="true"
+        aria-label="알림장"
+        tabIndex={-1}
+      >
         <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
@@ -2416,6 +2435,7 @@ function AnnouncementNotebookOverlay({
                       {saveStateLabel}
                     </span>
                     <button
+                      ref={announcementHistoryTriggerRef}
                       onClick={openAnnouncementHistory}
                       className="announcement-date-action-history announcement-chip-button announcement-action-button inline-flex items-center justify-center rounded-full border border-[#dcc7ae] text-[#8A6347]"
                       type="button"
@@ -2599,13 +2619,14 @@ function AnnouncementNotebookOverlay({
             <aside className="announcement-history-panel flex h-full w-full max-w-[38rem] flex-col overflow-hidden rounded-[1.5rem] border border-[#D7E2D1] bg-[#FCFFFC] shadow-2xl">
               <div className="announcement-history-header flex shrink-0 items-center justify-between border-b border-[#D7E2D1] px-5 py-4">
                 <div>
-                  <h3 className="section-title text-xl font-extrabold text-[#006241]">알림장 기록</h3>
+                  <h3 className="announcement-history-title section-title text-xl font-extrabold text-[#006241]">알림장 기록</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     setIsHistoryOpen(false);
                     void playAnnouncementSound('pop');
+                    window.requestAnimationFrame(() => announcementHistoryTriggerRef.current?.focus({ preventScroll: true }));
                   }}
                   className="icon-button rounded-full p-2 text-[#8A6347]/70 transition-colors hover:bg-[#F7F0E7] hover:text-[#8A6347]"
                   title="기록 닫기"
@@ -2687,6 +2708,7 @@ function MemoNotebookOverlay({
   });
   const [memoFontScale, setMemoFontScale] = useState(MEMO_NOTE_DEFAULT_FONT_SCALE);
   const memoEditorRef = useRef<HTMLDivElement>(null);
+  const memoDialogRef = useRef<HTMLDivElement>(null);
   const memoEditorStyle = {
     '--memo-note-font-size': `${getMemoFontSizeFromScale(memoFontScale)}px`,
   } as React.CSSProperties;
@@ -2746,23 +2768,6 @@ function MemoNotebookOverlay({
     return () => window.cancelAnimationFrame(frame);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleMemoShortcuts = (event: KeyboardEvent) => {
-      if (isComposingKeyboardEvent(event)) return;
-      if (event.key !== 'Escape') return;
-
-      event.preventDefault();
-      syncMemoHtmlFromEditor(true);
-      void playAnnouncementSound('pop');
-      onClose();
-    };
-
-    window.addEventListener('keydown', handleMemoShortcuts);
-    return () => window.removeEventListener('keydown', handleMemoShortcuts);
-  }, [isOpen, onClose]);
-
   const clearMemo = () => {
     setMemoHtml('');
     void playAnnouncementSound('pop');
@@ -2820,11 +2825,25 @@ function MemoNotebookOverlay({
     onClose();
   };
 
+  useModalFocus({
+    dialogRef: memoDialogRef,
+    isOpen,
+    onDismiss: handleClose,
+    initialFocusRef: memoEditorRef,
+  });
+
   if (!isOpen) return null;
 
   return (
     <div className="announcement-overlay fixed inset-0 z-[60] p-2 sm:p-3 md:p-5">
-      <div className="memo-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-1.5rem)] w-full max-w-[1220px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]">
+      <div
+        ref={memoDialogRef}
+        className="apple-material-layer memo-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-1.5rem)] w-full max-w-[1220px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]"
+        role="dialog"
+        aria-modal="true"
+        aria-label="메모"
+        tabIndex={-1}
+      >
         <div aria-hidden="true" className="mascot-orb mascot-orb-one" />
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
@@ -3576,6 +3595,32 @@ export default function TimerPage() {
   );
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSettingsMaterialMounted, setIsSettingsMaterialMounted] = useState(false);
+  const isSettingsOpenRef = useRef(isSettingsOpen);
+  const settingsMaterialProgress = useMotionValue(0);
+  const settingsMaterialScale = useTransform(settingsMaterialProgress, [0, 1], [0.965, 1]);
+  const settingsMaterialFilter = useTransform(
+    settingsMaterialProgress,
+    (progress) => `blur(${(1 - progress) * 10}px) saturate(${0.92 + progress * 0.08})`,
+  );
+  isSettingsOpenRef.current = isSettingsOpen;
+  useEffect(() => {
+    if (isSettingsOpen) setIsSettingsMaterialMounted(true);
+  }, [isSettingsOpen]);
+  useEffect(() => {
+    if (!isSettingsMaterialMounted) return;
+    const target = isSettingsOpen ? 1 : 0;
+    const controls = animateMotion(settingsMaterialProgress, target, {
+      duration: shouldReduceMotion ? 0.16 : 0.34,
+      ease: shouldReduceMotion ? 'easeOut' : [0.2, 0.8, 0.2, 1],
+      onComplete: () => {
+        if (target === 0 && !isSettingsOpenRef.current) {
+          setIsSettingsMaterialMounted(false);
+        }
+      },
+    });
+    return () => controls.stop();
+  }, [animateMotion, isSettingsMaterialMounted, isSettingsOpen, settingsMaterialProgress, shouldReduceMotion]);
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('subjects');
   const [editingDay, setEditingDay] = useState<number>(() => getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
@@ -3596,6 +3641,18 @@ export default function TimerPage() {
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
+  const settingsDialogRef = useRef<HTMLDivElement>(null);
+  const awardConfirmDialogRef = useRef<HTMLDivElement>(null);
+  const awardPresentationDialogRef = useRef<HTMLDivElement>(null);
+  const awardReturnFocusRef = useRef<HTMLElement>(null);
+  const auctionActionDialogRef = useRef<HTMLDivElement>(null);
+  const auctionActionReturnFocusRef = useRef<HTMLButtonElement>(null);
+  const announcementLaunchButtonRef = useRef<HTMLButtonElement>(null);
+  const currencyPanelTriggerRef = useRef<HTMLButtonElement>(null);
+  const youtubePanelTriggerRef = useRef<HTMLButtonElement>(null);
+  const libraryPanelTriggerRef = useRef<HTMLButtonElement>(null);
+  const questionPanelTriggerRef = useRef<HTMLButtonElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
   const awardSoundPlaybackRef = useRef({
@@ -3608,6 +3665,36 @@ export default function TimerPage() {
   const scheduleListRef = useRef<HTMLUListElement>(null);
   const scheduleSlotRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const drawCasesRef = useRef(drawCases);
+  const hasSettingsChildModal = pendingAwardItemId !== null
+    || pendingAuctionAction !== null
+    || awardPresentation !== null;
+
+  useModalFocus({
+    dialogRef: settingsDialogRef,
+    isOpen: isSettingsMaterialMounted,
+    onDismiss: () => setIsSettingsOpen(false),
+    isDismissible: !hasSettingsChildModal,
+    returnFocusRef: settingsTriggerRef,
+  });
+  useModalFocus({
+    dialogRef: awardConfirmDialogRef,
+    isOpen: pendingAwardItemId !== null,
+    onDismiss: () => setPendingAwardItemId(null),
+    returnFocusRef: awardReturnFocusRef,
+  });
+  useModalFocus({
+    dialogRef: auctionActionDialogRef,
+    isOpen: pendingAuctionAction !== null,
+    onDismiss: () => setPendingAuctionAction(null),
+    returnFocusRef: auctionActionReturnFocusRef,
+  });
+  useModalFocus({
+    dialogRef: awardPresentationDialogRef,
+    isOpen: awardPresentation !== null,
+    onDismiss: () => setAwardPresentation(null),
+    isDismissible: awardPresentation?.isComplete === true && queuedAwardItems.length === 0,
+    returnFocusRef: awardReturnFocusRef,
+  });
   const repeatPickEnabledRef = useRef(repeatPickEnabled);
   const drawRollingTimeoutRef = useRef<number | null>(null);
   const drawResolveTimeoutRef = useRef<number | null>(null);
@@ -5125,20 +5212,29 @@ export default function TimerPage() {
   ]);
 
   useEffect(() => {
-    if (!isLibraryOpen) return;
+    if (!isCurrencyPanelOpen && !isYoutubePanelOpen && !isLibraryOpen && !isQuestionSubmissionPanelOpen) return;
 
-    const handleLibraryEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsLibraryOpen(false);
-      }
+    const handleUtilityPaneEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+
+      const activeTrigger = isCurrencyPanelOpen
+        ? currencyPanelTriggerRef.current
+        : isYoutubePanelOpen
+          ? youtubePanelTriggerRef.current
+          : isLibraryOpen
+            ? libraryPanelTriggerRef.current
+            : questionPanelTriggerRef.current;
+      event.preventDefault();
+      setIsCurrencyPanelOpen(false);
+      setIsYoutubePanelOpen(false);
+      setIsLibraryOpen(false);
+      setIsQuestionSubmissionPanelOpen(false);
+      window.requestAnimationFrame(() => activeTrigger?.focus({ preventScroll: true }));
     };
 
-    window.addEventListener('keydown', handleLibraryEscape);
-
-    return () => {
-      window.removeEventListener('keydown', handleLibraryEscape);
-    };
-  }, [isLibraryOpen]);
+    window.addEventListener('keydown', handleUtilityPaneEscape);
+    return () => window.removeEventListener('keydown', handleUtilityPaneEscape);
+  }, [isCurrencyPanelOpen, isLibraryOpen, isQuestionSubmissionPanelOpen, isYoutubePanelOpen]);
 
   useEffect(() => {
     if (
@@ -6055,9 +6151,11 @@ export default function TimerPage() {
     }];
   };
 
-  const openAwardConfirm = (item: AuctionItem) => {
+  const openAwardConfirm = (item: AuctionItem, trigger?: HTMLElement) => {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     if (auctionAwards[item.id] || !currentBid.bidder || currentBid.amount <= 0) return;
+    awardReturnFocusRef.current = trigger
+      ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     setQueuedAwardItems([]);
     setPendingAwardItemId(item.id);
   };
@@ -6110,6 +6208,7 @@ export default function TimerPage() {
     const [firstItem, ...remainingItems] = eligibleItems;
     if (!firstItem) return;
 
+    awardReturnFocusRef.current = announcementLaunchButtonRef.current;
     setPendingAwardItemId(null);
     setQueuedAwardItems(remainingItems);
     setIsAnnouncementOpen(false);
@@ -7466,7 +7565,7 @@ export default function TimerPage() {
                     : 'settings-case-card-idle border-[#E8DCCD] bg-[rgba(255,252,247,0.88)]'
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="draw-case-heading-row flex items-start gap-3">
                   <div className="min-w-0 flex-1">
                     <input
                       type="text"
@@ -7694,7 +7793,7 @@ export default function TimerPage() {
                   {settingsStudentNumbers.map((studentNumber, index) => (
                     <label
                       key={studentNumber}
-                      className="grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[#E6D5C9] bg-white/90 px-3 py-2.5"
+                      className="draw-roster-row grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[#E6D5C9] bg-white/90 px-3 py-2.5"
                     >
                       <span className="inline-flex items-center justify-center rounded-full bg-[#F7E8D7] px-2 py-2 text-center font-mono text-sm font-extrabold text-[#8A6347]">
                         {studentNumber}
@@ -7877,7 +7976,7 @@ export default function TimerPage() {
                       >
                         {isVisibleInSettings ? (
                           <>
-                            <div className="flex items-center gap-2">
+                            <div className="auction-item-name-row flex items-center gap-2">
                               <input
                                 value={itemDisplayName}
                                 onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
@@ -7939,7 +8038,7 @@ export default function TimerPage() {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => openAwardConfirm(item)}
+                                onClick={(event) => openAwardConfirm(item, event.currentTarget)}
                                 disabled={!canAward}
                                 className={`inline-flex min-h-10 items-center justify-center rounded-[0.85rem] border px-2 text-[0.8rem] font-extrabold transition-colors ${
                                   award
@@ -8091,7 +8190,10 @@ export default function TimerPage() {
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => setPendingAuctionAction('weeklyClose')}
+            onClick={(event) => {
+              auctionActionReturnFocusRef.current = event.currentTarget;
+              setPendingAuctionAction('weeklyClose');
+            }}
             className="inline-flex min-h-12 w-full items-center justify-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#006241] px-4 py-3 text-[0.98rem] font-extrabold text-white shadow-[0_8px_18px_rgba(0,98,65,0.14)] transition-colors hover:bg-[#005336]"
           >
             주간 경매 마감
@@ -8115,7 +8217,10 @@ export default function TimerPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setPendingAuctionAction('currency')}
+                  onClick={(event) => {
+                    auctionActionReturnFocusRef.current = event.currentTarget;
+                    setPendingAuctionAction('currency');
+                  }}
                   className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border-2 border-[#B9876A] bg-white px-4 py-2 text-[0.86rem] font-extrabold text-[#7A351C] transition-colors hover:bg-[#FBEBD8]"
                 >
                   보유 화폐 초기화
@@ -8130,7 +8235,7 @@ export default function TimerPage() {
 
   return (
     <div className="mascot-app h-[100dvh] w-full overflow-hidden">
-      <div className={`mascot-shell editorial-main-shell timer-main-shell relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none shadow-none transition-colors duration-1000 ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''} ${isQuestionSubmissionPanelOpen ? 'question-submission-panel-open' : ''}`}>
+      <div className={`mascot-shell editorial-main-shell timer-main-shell relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none shadow-none transition-colors duration-1000 ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''} ${isQuestionSubmissionPanelOpen ? 'question-submission-panel-open' : ''} ${isLibraryOpen ? 'library-panel-open' : ''}`}>
         <style>{`
           @keyframes noticeFadeIn {
             0% {
@@ -8665,8 +8770,8 @@ export default function TimerPage() {
           {/* Right: Controls & Presets */}
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
             {isLibraryOpen ? (
-              <div className="pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[60] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
-                <div className="pointer-events-auto relative min-h-0 flex-1 overflow-hidden rounded-[1.7rem] border border-[#DDE9E2] bg-white shadow-[0_18px_36px_rgba(37,28,21,0.14),inset_0_1px_0_rgba(255,255,255,0.88)] ring-1 ring-white/70">
+              <div className="library-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[60] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
+                <div className="library-panel-card utility-pane-card pointer-events-auto relative min-h-0 flex-1 overflow-hidden rounded-[1.7rem] border border-[#DDE9E2] bg-white shadow-[0_18px_36px_rgba(37,28,21,0.14),inset_0_1px_0_rgba(255,255,255,0.88)] ring-1 ring-white/70">
                   <iframe
                     src={LIBRARY_SITE_URL}
                     title="도서관"
@@ -8790,6 +8895,7 @@ export default function TimerPage() {
                     </button>
                   ) : null}
                   <button
+                    ref={settingsTriggerRef}
                     type="button"
                     onClick={() => {
                       setIsDrawCaseMenuOpen(false);
@@ -8797,6 +8903,7 @@ export default function TimerPage() {
                       setIsCurrencyPanelOpen(false);
                       setIsQuestionSubmissionPanelOpen(false);
                       setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
+                      setIsSettingsMaterialMounted(true);
                       setIsSettingsOpen(true);
                     }}
                     className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E6DE] bg-white text-[#006241] transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7]"
@@ -8856,6 +8963,7 @@ export default function TimerPage() {
             <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-5 gap-3">
               <div className="relative min-w-0">
                 <button
+                  ref={currencyPanelTriggerRef}
                   type="button"
                   onClick={() => {
                     void playAnnouncementSound('pop');
@@ -8868,7 +8976,6 @@ export default function TimerPage() {
                   className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
                     isCurrencyPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
                   }`}
-                  aria-haspopup="dialog"
                   aria-expanded={isCurrencyPanelOpen}
                   aria-label={isCurrencyPanelOpen ? '화폐 닫기' : '화폐 열기'}
                   title="화폐"
@@ -8880,6 +8987,7 @@ export default function TimerPage() {
               </div>
               <div className="relative min-w-0">
                 <button
+                  ref={youtubePanelTriggerRef}
                   onClick={() => {
                     void playAnnouncementSound('pop');
                     setIsExtraTimerVisible(false);
@@ -8893,7 +9001,6 @@ export default function TimerPage() {
                       ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]'
                       : ''
                   }`}
-                  aria-haspopup="dialog"
                   aria-expanded={isYoutubePanelOpen}
                   aria-label="유튜브 재생목록"
                   title="유튜브 재생목록"
@@ -8904,8 +9011,9 @@ export default function TimerPage() {
                   </div>
                 </button>
               </div>
-              <button
-                onClick={() => {
+                <button
+                  ref={libraryPanelTriggerRef}
+                  onClick={() => {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
                   setIsExtraTimerVisible(false);
@@ -8916,7 +9024,6 @@ export default function TimerPage() {
                 className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
                   isLibraryOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
                 }`}
-                aria-haspopup="dialog"
                 aria-expanded={isLibraryOpen}
                 aria-label={isLibraryOpen ? '도서관 닫기' : '도서관 열기'}
                 title="도서관"
@@ -8927,6 +9034,7 @@ export default function TimerPage() {
                 </div>
               </button>
               <button
+                ref={questionPanelTriggerRef}
                 onClick={() => {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
@@ -8938,7 +9046,6 @@ export default function TimerPage() {
                 className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
                   isQuestionSubmissionPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
                 }`}
-                aria-haspopup="dialog"
                 aria-expanded={isQuestionSubmissionPanelOpen}
                 aria-label={isQuestionSubmissionPanelOpen ? '질문 제출 현황 닫기' : '질문 제출 현황 열기'}
                 title="질문 제출 현황"
@@ -8949,6 +9056,7 @@ export default function TimerPage() {
                 </div>
               </button>
               <button
+                ref={announcementLaunchButtonRef}
                 onClick={() => {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
@@ -8969,8 +9077,8 @@ export default function TimerPage() {
             </div>
 
             {isCurrencyPanelOpen ? (
-              <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[120] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
-                <div className="pointer-events-auto w-full max-w-[40rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
+              <div className="currency-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[120] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+                <div className="utility-pane-card pointer-events-auto w-full max-w-[40rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
                   <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#E9DED2] pb-3">
                       <div className="min-w-0">
@@ -9029,7 +9137,7 @@ export default function TimerPage() {
 
                     {currencyAdjustmentTarget === 'student' ? (
                       <div className="mb-3 rounded-[1.15rem] border-2 border-[#DDE9E2] bg-[#F8FCF6] p-3">
-                        <div className="flex items-center gap-2">
+                        <div className="currency-student-number-row flex items-center gap-2">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[0.95rem] bg-[#EAF6F0] text-[#006241]">
                             <Search size={18} strokeWidth={2.5} />
                           </div>
@@ -9088,7 +9196,7 @@ export default function TimerPage() {
                       </div>
                     ) : currencyAdjustmentTarget === 'all' ? (
                       <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
-                        <div className="flex items-center gap-2.5">
+                        <div className="currency-all-action-row flex items-center gap-2.5">
                           <div
                             className="flex h-11 w-16 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] px-1 text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]"
                             role="status"
@@ -9146,8 +9254,8 @@ export default function TimerPage() {
             ) : null}
 
             {isQuestionSubmissionPanelOpen ? (
-              <div className="question-submission-panel pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[150] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
-                <div className="question-submission-panel-card pointer-events-auto w-full max-w-[76rem] rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
+              <div className="question-submission-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[150] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+                <div className="question-submission-panel-card utility-pane-card pointer-events-auto w-full max-w-[76rem] rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
                   <div className="question-submission-panel-scroll overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#E4EDE7] pb-3">
                       <div className="flex items-center gap-2 rounded-full bg-[#F8FCF6] px-3 py-1.5 text-[0.76rem] font-extrabold text-[#3F2B20]">
@@ -9235,9 +9343,9 @@ export default function TimerPage() {
             ) : null}
 
             {isYoutubePanelOpen ? (
-              <div className="pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+              <div className="youtube-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
                 <div
-                  className="pointer-events-auto w-full max-w-[25rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
+                  className="utility-pane-card pointer-events-auto w-full max-w-[25rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
                 >
                   <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     {hasScheduleYoutubeFavorites ? (
@@ -9462,11 +9570,31 @@ export default function TimerPage() {
       </div>
 
       {/* Settings Modal */}
-      {isSettingsOpen && (
-        <div className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm md:p-8">
-          <div className="settings-dialog editorial-settings-dialog app-settings-modal flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border-4 border-[#E6D5C9] bg-[#FDFBF7] shadow-2xl">
+      {isSettingsMaterialMounted && (
+        <motion.div
+          key="timer-settings-material"
+          className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm md:p-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isSettingsOpen ? 1 : 0, pointerEvents: isSettingsOpen ? 'auto' : 'none' }}
+          transition={{ duration: shouldReduceMotion ? 0.16 : 0.18, ease: 'easeOut' }}
+        >
+          <motion.div
+            ref={settingsDialogRef}
+            className="apple-material-layer settings-dialog editorial-settings-dialog app-settings-modal flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border-4 border-[#E6D5C9] bg-[#FDFBF7] shadow-2xl"
+            role={!hasSettingsChildModal ? 'dialog' : undefined}
+            aria-modal={!hasSettingsChildModal ? 'true' : undefined}
+            aria-labelledby="timer-settings-title"
+            tabIndex={-1}
+            style={shouldReduceMotion
+              ? { opacity: settingsMaterialProgress }
+              : { opacity: settingsMaterialProgress, scale: settingsMaterialScale, filter: settingsMaterialFilter }}
+          >
+            <div
+              className="settings-parent-content flex min-h-0 flex-1 flex-col"
+              aria-hidden={hasSettingsChildModal ? 'true' : undefined}
+            >
             <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
-              <h2 className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">
+              <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">
                 <Settings size={24} className="md:w-7 md:h-7" />
                 설정
               </h2>
@@ -9581,6 +9709,7 @@ export default function TimerPage() {
                     ? drawSettingsPanel
                     : auctionSettingsPanel}
             </div>
+            </div>
 
             {pendingAwardItemId ? (() => {
               const item = auctionItems.find((auctionItem) => auctionItem.id === pendingAwardItemId);
@@ -9598,7 +9727,8 @@ export default function TimerPage() {
                   onClick={() => setPendingAwardItemId(null)}
                 >
                   <div
-                    className="w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                    ref={awardConfirmDialogRef}
+                    className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="auction-award-confirm-title"
@@ -9645,12 +9775,13 @@ export default function TimerPage() {
 
               return (
                 <div
+                  ref={awardPresentationDialogRef}
                   className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1F2523]/55 px-4 backdrop-blur-sm"
                   role="dialog"
                   aria-modal="true"
                   aria-label="낙찰 애니메이션"
                 >
-                  <div className={`auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
+                  <div className={`apple-material-layer auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
                     awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
                   }`}>
                     <div className="auction-award-confetti pointer-events-none absolute inset-0 overflow-hidden">
@@ -9677,7 +9808,7 @@ export default function TimerPage() {
                       <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#D7E6DE]">
                         <div
                           className="auction-award-progress-fill h-full rounded-full bg-[#006241]"
-                          style={{ width: `${progressPercent}%` }}
+                          style={{ transform: `scaleX(${progressPercent / 100})` }}
                         />
                       </div>
                     </div>
@@ -9807,7 +9938,8 @@ export default function TimerPage() {
                   onClick={() => setPendingAuctionAction(null)}
                 >
                   <div
-                    className="w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                    ref={auctionActionDialogRef}
+                    className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="auction-reset-confirm-title"
@@ -9907,8 +10039,8 @@ export default function TimerPage() {
                     >
                       취소
                     </button>
-                    <button 
-                      onClick={() => {
+              <button
+                onClick={() => {
                         setWeeklySchedule(prev => {
                           const current = prev[editingDay] || [];
                           const createCopy = () => normalizeDaySchedule(current.map(slot => ({ ...slot, id: createSlotId() })));
@@ -10068,7 +10200,7 @@ export default function TimerPage() {
                                 : 'border-[#E8DCCD] bg-[rgba(255,252,247,0.88)]'
                             }`}
                           >
-                            <div className="flex items-start gap-3">
+                            <div className="draw-case-heading-row flex items-start gap-3">
                               <div className="min-w-0 flex-1">
                                 <input
                                   type="text"
@@ -10212,7 +10344,7 @@ export default function TimerPage() {
                               {settingsStudentNumbers.map((studentNumber, index) => (
                                 <label
                                   key={studentNumber}
-                                  className="grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[#E6D5C9] bg-white/90 px-3 py-2.5"
+                                  className="draw-roster-row grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[#E6D5C9] bg-white/90 px-3 py-2.5"
                                 >
                                   <span className="inline-flex items-center justify-center rounded-full bg-[#F7E8D7] px-2 py-2 text-center font-mono text-sm font-extrabold text-[#8A6347]">
                                     {studentNumber}
@@ -10371,8 +10503,8 @@ export default function TimerPage() {
                 </div>
               </>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
       {!isSettingsOpen && awardPresentation ? (() => {
         const activeStep = awardPresentation.steps[awardPresentation.currentIndex] ?? awardPresentation.steps[0];
@@ -10386,12 +10518,13 @@ export default function TimerPage() {
 
         return (
           <div
+            ref={awardPresentationDialogRef}
             className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1F2523]/55 px-4 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
             aria-label="낙찰 애니메이션"
           >
-            <div className={`auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
+            <div className={`apple-material-layer auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
               awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
             }`}>
               <div className="auction-award-confetti pointer-events-none absolute inset-0 overflow-hidden">
@@ -10416,10 +10549,10 @@ export default function TimerPage() {
                   </div>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#D7E6DE]">
-                  <div
-                    className="auction-award-progress-fill h-full rounded-full bg-[#006241]"
-                    style={{ width: `${progressPercent}%` }}
-                  />
+                <div
+                  className="auction-award-progress-fill h-full rounded-full bg-[#006241]"
+                  style={{ transform: `scaleX(${progressPercent / 100})` }}
+                />
                 </div>
               </div>
 

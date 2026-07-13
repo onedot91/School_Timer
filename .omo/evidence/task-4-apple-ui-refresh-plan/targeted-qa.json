@@ -1,0 +1,300 @@
+{
+  "purpose": "Todo 4 deterministic auction interaction, motion, request, and visual QA",
+  "statusLifecycle": {
+    "success-390x844": {
+      "initial": "확인",
+      "afterTab": "확인",
+      "afterShiftTab": "확인",
+      "backgroundInert": true,
+      "closed": true,
+      "expectedReturnId": "auction-bid-trigger",
+      "returnedToIntendedParent": true,
+      "returnedActive": {
+        "text": "입찰",
+        "tag": "BUTTON"
+      },
+      "triggerState": {
+        "connected": true,
+        "disabled": false
+      }
+    },
+    "insufficient-390x844": {
+      "initial": "확인",
+      "afterTab": "확인",
+      "afterShiftTab": "확인",
+      "backgroundInert": true,
+      "closed": true,
+      "expectedReturnId": "auction-bid-amount-input",
+      "returnedToIntendedParent": true,
+      "returnedActive": {
+        "text": "",
+        "tag": "INPUT"
+      },
+      "triggerState": {
+        "connected": true,
+        "disabled": true
+      }
+    },
+    "write-error-390x844": {
+      "initial": "확인",
+      "afterTab": "확인",
+      "afterShiftTab": "확인",
+      "backgroundInert": true,
+      "closed": true,
+      "expectedReturnId": "auction-bid-trigger",
+      "returnedToIntendedParent": true,
+      "returnedActive": {
+        "text": "입찰",
+        "tag": "BUTTON"
+      },
+      "triggerState": {
+        "connected": true,
+        "disabled": false
+      }
+    }
+  },
+  "submittingLock": {
+    "afterEscape": 1,
+    "afterBackdrop": 1,
+    "completed": true
+  },
+  "motion": {
+    "materialContinuity": {
+      "closeImmediate": {
+        "connected": true,
+        "opacity": 0.999392,
+        "transform": "matrix(0.999979, 0, 0, 0.999979, 0, 0)",
+        "filter": "blur(0.00607624px) saturate(0.999951)"
+      },
+      "closeMid": {
+        "connected": true,
+        "opacity": 0.880812,
+        "transform": "matrix(0.995828, 0, 0, 0.995828, 0, 0)",
+        "filter": "blur(1.19188px) saturate(0.990465)"
+      },
+      "reverseImmediate": {
+        "connected": true,
+        "opacity": 0.880812,
+        "transform": "matrix(0.995828, 0, 0, 0.995828, 0, 0)",
+        "filter": "blur(1.19188px) saturate(0.990465)"
+      },
+      "sameNode": true,
+      "reverseMid": {
+        "connected": true,
+        "opacity": 0.946597,
+        "transform": "matrix(0.998131, 0, 0, 0.998131, 0, 0)",
+        "filter": "blur(0.534033px) saturate(0.995728)"
+      },
+      "protocol": "synthetic renderer-local MutationObserver retarget; trusted opener actionability covered by openConfirmation"
+    },
+    "default": {
+      "pointerDown": {
+        "active": true,
+        "transform": "matrix(0.985, 0, 0, 0.985, 0, 0)",
+        "opacity": "0.88"
+      },
+      "pointerUp": {
+        "active": false,
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "opacity": "1"
+      },
+      "repress": {
+        "active": true,
+        "transform": "matrix(0.985, 0, 0, 0.985, 0, 0)",
+        "opacity": "0.88"
+      },
+      "selectionAfterRepress": "true"
+    },
+    "reduced": {
+      "reducedDown": {
+        "active": true,
+        "transform": "none"
+      },
+      "reducedUp": {
+        "active": false,
+        "transform": "none"
+      }
+    }
+  },
+  "polling": {
+    "count": 15,
+    "requestArrivalIntervals": [
+      1,
+      499,
+      1259,
+      363,
+      492,
+      249,
+      138,
+      500,
+      1257,
+      364,
+      492,
+      249,
+      138,
+      500
+    ],
+    "configuredDelays": [
+      30000,
+      30000,
+      3000,
+      3000
+    ],
+    "expectedMs": 3000
+  },
+  "requests": {
+    "finalPollingRun": [
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "OPTIONS",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "OPTIONS",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "OPTIONS",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "OPTIONS",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "OPTIONS",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "OPTIONS",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      },
+      {
+        "method": "GET",
+        "host": "127.0.0.1:54329",
+        "path": "/rest/v1/app_settings"
+      }
+    ],
+    "allLocal": true
+  },
+  "screenshots": [
+    "loading-390x844",
+    "error-390x844",
+    "empty-390x844",
+    "confirmation-settled-390x844",
+    "loading-1440x900",
+    "error-1440x900",
+    "empty-1440x900",
+    "confirmation-settled-1440x900",
+    "success-390x844",
+    "insufficient-390x844",
+    "write-error-390x844",
+    "submitting-390x844"
+  ],
+  "console": [
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load auction state from Supabase. {code: QA_FORCED_ERROR, message: fixture forced error}",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load auction state from Supabase. {code: QA_FORCED_ERROR, message: fixture forced error}",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load auction state from Supabase. {code: QA_FORCED_ERROR, message: fixture forced error}",
+    "Failed to load auction state from Supabase. {code: QA_FORCED_ERROR, message: fixture forced error}",
+    "Failed to submit auction bid. Error: INSUFFICIENT_FUNDS\n    at http://127.0.0.1:4175/src/pages/AuctionPage.tsx:324:19\n    at updateSharedSettings (http://127.0.0.1:4175/src/lib/supabaseSettings.ts:37:23)\n    at async submitBid (http://127.0.0.1:4175/src/pages/AuctionPage.tsx:300:9)\n    at async confirmPendingBid (http://127.0.0.1:4175/src/pages/AuctionPage.tsx:440:7)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to submit auction bid. {code: QA_FORCED_ERROR, message: fixture forced error}"
+  ],
+  "cleanup": [
+    {
+      "label": "vite",
+      "stopped": true,
+      "exitCode": 143,
+      "signalCode": null,
+      "stderr": ""
+    },
+    {
+      "label": "fake-supabase",
+      "stopped": true,
+      "exitCode": null,
+      "signalCode": "SIGKILL",
+      "stderr": ""
+    }
+  ],
+  "errors": [],
+  "success": true
+}

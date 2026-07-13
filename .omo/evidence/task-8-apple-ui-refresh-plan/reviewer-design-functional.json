@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "reviewer": "/root/apple_overlays_todo6/todo6_visual_integrity",
+  "timestamp": "2026-07-13T03:21:08.541Z",
+  "identityManifestSha256": "23cf32a487d16df8c613fbaa00372ce3dc6fa081429ddba029252a7fa5c945b4",
+  "sourceManifestSha256": "2e0a2c1ff1528d8526d04afd45c575275dd864f4d13566e19c53847e95fdf4b3",
+  "sourceCompletedAt": "2026-07-13T03:21:08.541Z",
+  "motionMatrixSha256": "740fe6f81dd5a4cd1e4314107118087a0c3f57ce183e99ed1b138bc60bfdb1b9",
+  "inspectedCount": 465,
+  "verdict": "PASS",
+  "confidence": "HIGH",
+  "blockers": [],
+  "findings": [
+    "456 core and 9 supplemental PNGs are complete and current",
+    "Mounted MotionValue transitions preserve same-node opacity, scale, and filter continuity",
+    "Auction manual sequencing is equivalent to mode=wait and preserves focus and inert isolation",
+    "Timer and Random settings retain focus containment, inert ownership, and dialog semantics through the complete exit",
+    "Final 200% Korean wrapping is coherent and has no horizontal overflow"
+  ]
+}

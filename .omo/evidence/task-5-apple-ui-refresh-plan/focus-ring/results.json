@@ -1,0 +1,1556 @@
+{
+  "purpose": "Read-only keyboard focus verification for text fields",
+  "modes": {
+    "normal": {
+      "topAnnouncement": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep text-center font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 text-[clamp(3rem,6.8vw,3.75rem)] leading-[1.06] tracking-[-0.024em]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "0px",
+        "outlineColor": "rgba(0, 0, 0, 0)",
+        "outlineOffset": "0px",
+        "border": "0px solid rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "announcementTabs": 1,
+      "announcement": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "announcement-note-textarea",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 122, 87)",
+        "outlineOffset": "1px",
+        "border": "0px none rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "announcementMouse": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "announcement-note-textarea",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 122, 87)",
+        "outlineOffset": "1px",
+        "border": "0px none rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "currencyTabs": 0,
+      "currency": {
+        "tag": "INPUT",
+        "id": "currency-student-number",
+        "className": "h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 98, 65)",
+        "outlineOffset": "1px",
+        "border": "2px solid rgb(207, 224, 216)",
+        "borderColor": "rgb(207, 224, 216)",
+        "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, color(srgb 0 0.478431 0.341176 / 0.22) 0px 0px 0px 5px"
+      },
+      "currencyMouse": {
+        "tag": "INPUT",
+        "id": "currency-student-number",
+        "className": "h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 98, 65)",
+        "outlineOffset": "1px",
+        "border": "2px solid rgb(207, 224, 216)",
+        "borderColor": "rgb(207, 224, 216)",
+        "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, color(srgb 0 0.478431 0.341176 / 0.22) 0px 0px 0px 5px"
+      }
+    },
+    "forced-colors": {
+      "topAnnouncement": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep text-center font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 text-[clamp(3rem,6.8vw,3.75rem)] leading-[1.06] tracking-[-0.024em]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgba(5, 0, 73, 0.8)",
+        "outlineOffset": "1px",
+        "border": "1px solid rgba(5, 0, 73, 0.8)",
+        "borderColor": "rgba(5, 0, 73, 0.8)",
+        "boxShadow": "none"
+      },
+      "announcementTabs": 0,
+      "announcement": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "announcement-note-textarea",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 0, 0)",
+        "outlineOffset": "1px",
+        "border": "0px none rgba(5, 0, 73, 0.8)",
+        "borderColor": "rgba(5, 0, 73, 0.8)",
+        "boxShadow": "none"
+      },
+      "announcementMouse": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "announcement-note-textarea",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 0, 0)",
+        "outlineOffset": "1px",
+        "border": "0px none rgba(5, 0, 73, 0.8)",
+        "borderColor": "rgba(5, 0, 73, 0.8)",
+        "boxShadow": "none"
+      },
+      "currencyTabs": 1,
+      "currency": {
+        "tag": "INPUT",
+        "id": "currency-student-number",
+        "className": "h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgba(5, 0, 73, 0.8)",
+        "outlineOffset": "1px",
+        "border": "1px solid rgb(0, 0, 0)",
+        "borderColor": "rgb(0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "currencyMouse": {
+        "tag": "INPUT",
+        "id": "currency-student-number",
+        "className": "h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgba(5, 0, 73, 0.8)",
+        "outlineOffset": "1px",
+        "border": "1px solid rgb(0, 0, 0)",
+        "borderColor": "rgb(0, 0, 0)",
+        "boxShadow": "none"
+      }
+    },
+    "contrast-more": {
+      "topAnnouncement": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep text-center font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 text-[clamp(3rem,6.8vw,3.75rem)] leading-[1.06] tracking-[-0.024em]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "0px",
+        "outlineColor": "rgba(0, 0, 0, 0)",
+        "outlineOffset": "0px",
+        "border": "0px solid rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "announcementTabs": 3,
+      "announcement": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "announcement-note-textarea",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 122, 87)",
+        "outlineOffset": "1px",
+        "border": "0px none rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "announcementMouse": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "announcement-note-textarea",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 122, 87)",
+        "outlineOffset": "1px",
+        "border": "0px none rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "currencyTabs": 0,
+      "currency": {
+        "tag": "INPUT",
+        "id": "currency-student-number",
+        "className": "h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 98, 65)",
+        "outlineOffset": "1px",
+        "border": "2px solid rgb(207, 224, 216)",
+        "borderColor": "rgb(207, 224, 216)",
+        "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, color(srgb 0 0.478431 0.341176 / 0.22) 0px 0px 0px 5px"
+      },
+      "currencyMouse": {
+        "tag": "INPUT",
+        "id": "currency-student-number",
+        "className": "h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 98, 65)",
+        "outlineOffset": "1px",
+        "border": "2px solid rgb(207, 224, 216)",
+        "borderColor": "rgb(207, 224, 216)",
+        "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, color(srgb 0 0.478431 0.341176 / 0.22) 0px 0px 0px 5px"
+      }
+    },
+    "reduced-transparency": {
+      "topAnnouncement": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "notice-draft-body block w-full resize-none overflow-hidden bg-transparent p-0 break-keep text-center font-bold text-[#3E2D20] outline-none placeholder:text-[#6E8265]/72 text-[clamp(3rem,6.8vw,3.75rem)] leading-[1.06] tracking-[-0.024em]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "0px",
+        "outlineColor": "rgba(0, 0, 0, 0)",
+        "outlineOffset": "0px",
+        "border": "0px solid rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "announcementTabs": 1,
+      "announcement": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "announcement-note-textarea",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 122, 87)",
+        "outlineOffset": "1px",
+        "border": "0px none rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "announcementMouse": {
+        "tag": "TEXTAREA",
+        "id": "",
+        "className": "announcement-note-textarea",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 122, 87)",
+        "outlineOffset": "1px",
+        "border": "0px none rgba(0, 0, 0, 0)",
+        "borderColor": "rgba(0, 0, 0, 0)",
+        "boxShadow": "none"
+      },
+      "currencyTabs": 0,
+      "currency": {
+        "tag": "INPUT",
+        "id": "currency-student-number",
+        "className": "h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 98, 65)",
+        "outlineOffset": "1px",
+        "border": "2px solid rgb(207, 224, 216)",
+        "borderColor": "rgb(207, 224, 216)",
+        "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, color(srgb 0 0.478431 0.341176 / 0.22) 0px 0px 0px 5px"
+      },
+      "currencyMouse": {
+        "tag": "INPUT",
+        "id": "currency-student-number",
+        "className": "h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]",
+        "focus": true,
+        "focusVisible": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "2px",
+        "outlineColor": "rgb(0, 98, 65)",
+        "outlineOffset": "1px",
+        "border": "2px solid rgb(207, 224, 216)",
+        "borderColor": "rgb(207, 224, 216)",
+        "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, color(srgb 0 0.478431 0.341176 / 0.22) 0px 0px 0px 5px"
+      }
+    }
+  },
+  "network": {
+    "requests": [
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/@vite/client"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/main.tsx"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/@react-refresh"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react-dom_client.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/App.tsx"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/index.css"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-S73QDKPN.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/vite/dist/client/env.mjs"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/RootApp.tsx"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/AuctionPage.tsx"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/EntrySelectPage.tsx"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/TimerPage.tsx"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-Z5AKTONR.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/lucide-react.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/components/AuctionRoom.tsx"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/currency.ts"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/supabaseSettings.ts"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/auctionAudio.ts"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/useModalFocus.ts"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/@supabase_supabase-js.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/motion_react.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/randomDraw.ts"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/questionSubmissionStatus.ts"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/studentCharacters.ts"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-3JZST3TF.js?v=f49db783"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;700;800&family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&display=swap"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/character.png?v=20260301"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/background_music.mp3"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-6.png"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-7.png"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-16.png"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-23.png"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "normal",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/announcement_notes?select=date_key%2Cdate_text%2Cnote%2Cupdated_at&date_key=eq.2026-07-12"
+      },
+      {
+        "mode": "normal",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      },
+      {
+        "mode": "normal",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/announcement_notes"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/@vite/client"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/main.tsx"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/@react-refresh"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react-dom_client.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/App.tsx"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/index.css"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/vite/dist/client/env.mjs"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-S73QDKPN.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/RootApp.tsx"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/AuctionPage.tsx"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/EntrySelectPage.tsx"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/TimerPage.tsx"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-Z5AKTONR.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/lucide-react.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/components/AuctionRoom.tsx"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/currency.ts"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/supabaseSettings.ts"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/auctionAudio.ts"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/useModalFocus.ts"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/@supabase_supabase-js.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/motion_react.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/randomDraw.ts"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/questionSubmissionStatus.ts"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/studentCharacters.ts"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-3JZST3TF.js?v=f49db783"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;700;800&family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&display=swap"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/character.png?v=20260301"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/background_music.mp3"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-15.png"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-18.png"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-5.png"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-8.png"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/announcement_notes?select=date_key%2Cdate_text%2Cnote%2Cupdated_at&date_key=eq.2026-07-12"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/@vite/client"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/main.tsx"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/@react-refresh"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react-dom_client.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/App.tsx"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/index.css"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/vite/dist/client/env.mjs"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-S73QDKPN.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/RootApp.tsx"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/AuctionPage.tsx"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/EntrySelectPage.tsx"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/TimerPage.tsx"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-Z5AKTONR.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/lucide-react.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/components/AuctionRoom.tsx"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/currency.ts"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/supabaseSettings.ts"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/auctionAudio.ts"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/useModalFocus.ts"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/@supabase_supabase-js.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/motion_react.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/randomDraw.ts"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/questionSubmissionStatus.ts"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/studentCharacters.ts"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-3JZST3TF.js?v=f49db783"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;700;800&family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&display=swap"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/character.png?v=20260301"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/background_music.mp3"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-9-speaking.png"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-13.png"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-3.png"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-12.png"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-16.png"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/announcement_notes?select=date_key%2Cdate_text%2Cnote%2Cupdated_at&date_key=eq.2026-07-12"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/@vite/client"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/main.tsx"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/@react-refresh"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/react-dom_client.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/App.tsx"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/index.css"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/vite/dist/client/env.mjs"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-S73QDKPN.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-G3PMV62Z.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/RootApp.tsx"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/AuctionPage.tsx"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/EntrySelectPage.tsx"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/pages/TimerPage.tsx"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-Z5AKTONR.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/lucide-react.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/components/AuctionRoom.tsx"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/currency.ts"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/supabaseSettings.ts"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/auctionAudio.ts"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/useModalFocus.ts"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/@supabase_supabase-js.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/motion_react.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/randomDraw.ts"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/questionSubmissionStatus.ts"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/src/lib/studentCharacters.ts"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/node_modules/.vite/deps/chunk-3JZST3TF.js?v=f49db783"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;700;800&family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&display=swap"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/character.png?v=20260301"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/background_music.mp3"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-12.png"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-11.png"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-15.png"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:4176/student-characters/character-22.png"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings?select=id%2Cvalue%2Cupdated_at&id=eq.school-timer-main"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "GET",
+        "url": "http://127.0.0.1:54329/rest/v1/announcement_notes?select=date_key%2Cdate_text%2Cnote%2Cupdated_at&date_key=eq.2026-07-12"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      }
+    ],
+    "mutations": [
+      {
+        "mode": "normal",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      },
+      {
+        "mode": "normal",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/announcement_notes"
+      },
+      {
+        "mode": "forced-colors",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      },
+      {
+        "mode": "contrast-more",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      },
+      {
+        "mode": "reduced-transparency",
+        "method": "POST",
+        "url": "http://127.0.0.1:54329/rest/v1/app_settings"
+      }
+    ],
+    "mutationsBlockedBeforeNetwork": 5
+  },
+  "visibleText": {
+    "normal": {
+      "announcement": "안녕하세요. 할무니예유.\nA상황\n00:00\n일정 없음\n\n일정이 없습니다.\n\n00:00\n일정 없음\n저장 중\n차 조심, 낯선 사람 조심!\n낙찰",
+      "currency": "A상황\n00:00\n일정 없음\n\n일정이 없습니다.\n\n화폐\n개인\n전체"
+    },
+    "forced-colors": {
+      "announcement": "공부 열심히 해.\nA상황\n00:00\n일정 없음\n\n일정이 없습니다.\n\n00:00\n일정 없음\n저장됨\n알림장을 입력하세요\n낙찰",
+      "currency": "A상황\n00:00\n일정 없음\n\n일정이 없습니다.\n\n화폐\n개인\n전체"
+    },
+    "contrast-more": {
+      "announcement": "A상황\n00:00\n일정 없음\n\n일정이 없습니다.\n\n00:00\n일정 없음\n저장됨\n알림장을 입력하세요\n낙찰",
+      "currency": "A상황\n00:00\n일정 없음\n\n일정이 없습니다.\n\n화폐\n개인\n전체"
+    },
+    "reduced-transparency": {
+      "announcement": "A상황\n00:00\n일정 없음\n\n일정이 없습니다.\n\n00:00\n일정 없음\n저장됨\n알림장을 입력하세요\n낙찰",
+      "currency": "A상황\n00:00\n일정 없음\n\n일정이 없습니다.\n\n화폐\n개인\n전체"
+    }
+  },
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/normal-top-announcement.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/normal-announcement.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/normal-currency.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/forced-colors-top-announcement.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/forced-colors-announcement.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/forced-colors-currency.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/contrast-more-top-announcement.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/contrast-more-announcement.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/contrast-more-currency.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/reduced-transparency-top-announcement.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/reduced-transparency-announcement.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/task-5-apple-ui-refresh-plan/focus-ring/reduced-transparency-currency.png"
+  ],
+  "errors": [],
+  "fixtureRequestLog": [
+    {
+      "at": "2026-07-12T07:51:44.020Z",
+      "method": "OPTIONS",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:44.020Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:44.120Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:44.121Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:45.889Z",
+      "method": "OPTIONS",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:45.890Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:46.286Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:47.022Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:48.889Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:49.121Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:50.020Z",
+      "method": "OPTIONS",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:50.020Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:51.286Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:51.889Z",
+      "method": "OPTIONS",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:51.890Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:53.020Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:54.120Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:54.889Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:56.020Z",
+      "method": "OPTIONS",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:56.020Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:56.286Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:57.889Z",
+      "method": "OPTIONS",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:57.889Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:59.019Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:51:59.120Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:52:00.889Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:52:01.009Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/announcement_notes",
+      "query": {
+        "select": "date_key,date_text,note,updated_at",
+        "date_key": "eq.2026-07-12"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:52:01.287Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/rest/v1/app_settings",
+      "query": {
+        "select": "id,value,updated_at",
+        "id": "eq.school-timer-main"
+      },
+      "body": {}
+    },
+    {
+      "at": "2026-07-12T07:52:01.627Z",
+      "method": "GET",
+      "host": "127.0.0.1:54329",
+      "path": "/__qa/state",
+      "query": {},
+      "body": {}
+    }
+  ],
+  "visibleTextInvariant": "The focus-only stylesheet selectors contain no content declarations; captured body text is retained as an audit sample, not compared across asynchronous fixture loads.",
+  "success": true
+}

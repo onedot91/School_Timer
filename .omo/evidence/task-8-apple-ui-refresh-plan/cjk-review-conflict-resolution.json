@@ -1,0 +1,39 @@
+{
+  "status": "RESOLVED_CURRENT_PASS",
+  "currentIdentityManifestSha256": "23cf32a487d16df8c613fbaa00372ce3dc6fa081429ddba029252a7fa5c945b4",
+  "currentFullManifestSha256": "2e0a2c1ff1528d8526d04afd45c575275dd864f4d13566e19c53847e95fdf4b3",
+  "currentCompletedAt": "2026-07-13T03:21:08.541Z",
+  "currentRunId": "mrinhb4c",
+  "staleNestedReview": {
+    "verdict": "REVISE",
+    "identityMismatch": true,
+    "reason": "The nested review inspected the superseded pre-break-keep run and explicitly reported missing current source/manifest hashes. It did not inspect manifest 23cf32 or run mrinhb4c."
+  },
+  "currentInspection": {
+    "screenshots": [
+      "complete/final-mrinhb4c-auction-confirmation-390x844-zoom-2.png",
+      "complete/final-mrinhb4c-auction-insufficient-390x844-zoom-2.png",
+      "complete/final-mrinhb4c-auction-write-error-390x844-zoom-2.png"
+    ],
+    "directOriginalInspection": "PASS",
+    "textMismatches": 0,
+    "clippedTargets": 0,
+    "confirmedIntactPhrases": [
+      "이 금액으로",
+      "최고가",
+      "고마",
+      "제외한",
+      "가능",
+      "부족합니다",
+      "못했습니다",
+      "주세요"
+    ]
+  },
+  "freshSameHashReviewer": {
+    "reviewer": "/root/apple_overlays_todo6/todo6_cjk_visual",
+    "verdict": "PASS",
+    "confidence": "HIGH",
+    "inspectedCount": 465,
+    "blockers": []
+  }
+}

@@ -1,12 +1,20 @@
 {
   "schema_version": 2,
-  "active_work_id": "mission-feature",
+  "active_work_id": "apple-ui-refresh-plan",
   "works": {
     "mission-feature": {
       "work_id": "mission-feature",
       "active_plan": ".omo/plans/mission-feature.md",
       "plan_name": "mission-feature",
       "session_ids": ["codex:mission-feature-current"],
+      "status": "paused",
+      "worktree_path": null
+    },
+    "apple-ui-refresh-plan": {
+      "work_id": "apple-ui-refresh-plan",
+      "active_plan": ".omo/plans/apple-ui-refresh-plan.md",
+      "plan_name": "apple-ui-refresh-plan",
+      "session_ids": ["codex:apple-ui-refresh-current"],
       "status": "active",
       "worktree_path": null
     }

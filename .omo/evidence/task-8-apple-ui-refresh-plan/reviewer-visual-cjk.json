@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "reviewer": "/root/apple_overlays_todo6/todo6_cjk_visual",
+  "timestamp": "2026-07-13T03:21:08.541Z",
+  "identityManifestSha256": "23cf32a487d16df8c613fbaa00372ce3dc6fa081429ddba029252a7fa5c945b4",
+  "sourceManifestSha256": "2e0a2c1ff1528d8526d04afd45c575275dd864f4d13566e19c53847e95fdf4b3",
+  "sourceCompletedAt": "2026-07-13T03:21:08.541Z",
+  "runId": "mrinhb4c",
+  "inspectedCount": 465,
+  "verdict": "PASS",
+  "confidence": "HIGH",
+  "blockers": [],
+  "findings": [
+    "이 금액으로 remains an intact semantic phrase at 200%",
+    "최고가, 고마, 제외한, 가능, 부족합니다, 못했습니다, 주세요 remain intact",
+    "No CJK orphan, clipping, overlap, or overflow remains"
+  ]
+}

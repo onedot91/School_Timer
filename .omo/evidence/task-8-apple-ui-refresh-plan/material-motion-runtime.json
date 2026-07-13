@@ -1,0 +1,171 @@
+{
+  "success": true,
+  "completedAt": "2026-07-13T03:03:12.070Z",
+  "errors": [],
+  "default": {
+    "rest": {
+      "connected": true,
+      "rect": {
+        "x": 64,
+        "y": 8,
+        "width": 1152,
+        "height": 584
+      },
+      "opacity": 1,
+      "transform": "none",
+      "filter": "blur(0px) saturate(1)"
+    },
+    "closeImmediate": {
+      "connected": true,
+      "rect": {
+        "x": 64,
+        "y": 8,
+        "width": 1152,
+        "height": 584
+      },
+      "opacity": 1,
+      "transform": "none",
+      "filter": "blur(0px) saturate(1)"
+    },
+    "closeMid": {
+      "connected": true,
+      "rect": {
+        "x": 82.84393310546875,
+        "y": 17.552825927734375,
+        "width": 1114.31201171875,
+        "height": 564.894287109375
+      },
+      "opacity": 0.0652809,
+      "transform": "matrix(0.967285, 0, 0, 0.967285, 0, 0)",
+      "filter": "blur(9.34719px) saturate(0.925222)"
+    },
+    "reverseImmediate": {
+      "connected": true,
+      "rect": {
+        "x": 82.84393310546875,
+        "y": 17.552825927734375,
+        "width": 1114.31201171875,
+        "height": 564.894287109375
+      },
+      "opacity": 0.0652809,
+      "transform": "matrix(0.967285, 0, 0, 0.967285, 0, 0)",
+      "filter": "blur(9.34719px) saturate(0.925222)"
+    },
+    "reverseMid": {
+      "connected": true,
+      "rect": {
+        "x": 77.51348876953125,
+        "y": 14.8505859375,
+        "width": 1124.97314453125,
+        "height": 570.298828125
+      },
+      "opacity": 0.329687,
+      "transform": "matrix(0.976539, 0, 0, 0.976539, 0, 0)",
+      "filter": "blur(6.70313px) saturate(0.946375)"
+    },
+    "settled": {
+      "connected": true,
+      "rect": {
+        "x": 64,
+        "y": 8,
+        "width": 1152,
+        "height": 584
+      },
+      "opacity": 1,
+      "transform": "none",
+      "filter": "blur(0px) saturate(1)"
+    },
+    "sameNodeConnected": true,
+    "trustedInitialOpen": true,
+    "rendererCoordination": {
+      "protocol": "same-page synthetic close/reopen MouseEvents + style MutationObserver",
+      "attempts": 1,
+      "exitDurationSeconds": 0.34
+    },
+    "exitOwnership": {
+      "opacity": 0.0711618,
+      "activeInside": true,
+      "backgroundInert": true,
+      "role": "dialog",
+      "ariaModal": "true"
+    },
+    "focusAfterExit": "설정"
+  },
+  "reduced": {
+    "rest": {
+      "connected": true,
+      "rect": {
+        "x": 64,
+        "y": 8,
+        "width": 1152,
+        "height": 584
+      },
+      "opacity": 1,
+      "transform": "none",
+      "filter": "none"
+    },
+    "closeImmediate": {
+      "connected": false,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0
+      },
+      "opacity": 0,
+      "transform": "",
+      "filter": ""
+    },
+    "openImmediate": {
+      "connected": true,
+      "rect": {
+        "x": 64,
+        "y": 8,
+        "width": 1152,
+        "height": 584
+      },
+      "opacity": 0,
+      "transform": "none",
+      "filter": "none"
+    },
+    "openMid": {
+      "connected": true,
+      "rect": {
+        "x": 64,
+        "y": 8,
+        "width": 1152,
+        "height": 584
+      },
+      "opacity": 0.112043,
+      "transform": "none",
+      "filter": "none"
+    },
+    "settled": {
+      "connected": true,
+      "rect": {
+        "x": 64,
+        "y": 8,
+        "width": 1152,
+        "height": 584
+      },
+      "opacity": 1,
+      "transform": "none",
+      "filter": "none"
+    },
+    "sameNodeConnected": false,
+    "classification": "reduced-motion-opacity-only-detach-and-reopen",
+    "focusAfterExit": "설정"
+  },
+  "cleanup": [
+    {
+      "label": "vite",
+      "stopped": true,
+      "stderr": ""
+    },
+    {
+      "label": "fake-supabase",
+      "stopped": true,
+      "stderr": ""
+    }
+  ]
+}
