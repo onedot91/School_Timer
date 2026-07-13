@@ -85,6 +85,14 @@ export const findPersonalQuestionForWeek = (
   entry.week_key === weekKey
 )) ?? null;
 
+export const hasWeeklyMissionReward = (
+  currencyHistory: unknown,
+  studentNumber: number,
+  weekKey: string,
+) => (
+  normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
+).some((entry) => entry.id === `weekly-mission-${studentNumber}-${weekKey}`);
+
 export const claimWeeklyMissionRewardInSettings = (
   value: unknown,
   studentNumber: number,

@@ -42,6 +42,7 @@ import { useModalFocus } from '../lib/useModalFocus';
 import {
   claimWeeklyMissionRewardInSettings,
   getKoreanIsoWeekKey,
+  hasWeeklyMissionReward,
   syncPersonalQuestionWeeklyMission,
   type WeeklyMissionStatus,
 } from '../lib/weeklyMission';
@@ -260,6 +261,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             auctionBidHistory?: unknown;
             auctionAwards?: unknown;
             auctionMissions?: unknown;
+            currencyHistory?: unknown;
           })
         : {};
       setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
@@ -268,6 +270,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
       setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
       setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
+      if (hasWeeklyMissionReward(value.currencyHistory, studentNumber, getKoreanIsoWeekKey())) {
+        setWeeklyMissionStatus('completed');
+      }
     } catch (error) {
       console.error('Failed to load auction state from Supabase.', error);
       setAuctionMissions([]);

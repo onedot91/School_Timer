@@ -4,6 +4,7 @@ import {
   claimWeeklyMissionRewardInSettings,
   findPersonalQuestionForWeek,
   getKoreanIsoWeekKey,
+  hasWeeklyMissionReward,
   parseQuestionStudentResponse,
   parseWeeklyMissionResult,
 } from './weeklyMission';
@@ -67,6 +68,8 @@ test('fallback weekly mission claim awards once per student and week', () => {
   assert.equal(second.awarded, false);
   assert.equal(second.balance, 205);
   assert.deepEqual(second.value, first.value);
+  assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-29'), true);
+  assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-30'), false);
 });
 
 test('question status fallback clears only students with a personal submission', () => {
