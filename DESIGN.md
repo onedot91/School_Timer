@@ -63,6 +63,9 @@ Existing semantic success, warning, and destructive colors remain feature-owned 
 | `--apple-radius-panel` | `1.75rem` | large sheets and panels |
 | `--apple-radius-pill` | `999px` | segmented and capsule controls |
 | `--apple-control-min` | `2.75rem` | minimum interactive target |
+| `--apple-page-gutter` | `clamp(0.75rem, 1vw, 1.25rem)` | desktop shell breathing room |
+| `--apple-pane-gap` | `clamp(0.75rem, 1vw, 1.25rem)` | separation between primary and control panes |
+| `--apple-control-pane-width` | `clamp(30rem, 29vw, 34rem)` | desktop schedule/control pane width |
 
 The spacing base is `0.25rem`. New spacing uses multiples of that base and scales with text when it affects reflow.
 
