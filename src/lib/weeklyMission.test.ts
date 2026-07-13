@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
+  CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   claimWeeklyMissionRewardInSettings,
   findPersonalQuestionForWeek,
   getKoreanIsoWeekKey,
@@ -49,11 +51,11 @@ test('weekly mission response parser rejects incomplete server payloads', () => 
   });
 });
 
-test('fallback weekly mission claim awards once per student and week', () => {
+test('fallback weekly mission claim awards once per student, week, and mission type', () => {
   const first = claimWeeklyMissionRewardInSettings({
     currencyBalances: { 6: 200 },
     currencyHistory: { 6: [] },
-  }, 6, '2026-29', '2026-07-13T14:00:00.000Z');
+  }, 6, '2026-29', 'personal_question', '2026-07-13T14:00:00.000Z');
 
   assert.equal(first.awarded, true);
   assert.equal(first.balance, 205);
@@ -62,14 +64,34 @@ test('fallback weekly mission claim awards once per student and week', () => {
     first.value,
     6,
     '2026-29',
+    'personal_question',
     '2026-07-13T14:01:00.000Z',
   );
 
   assert.equal(second.awarded, false);
   assert.equal(second.balance, 205);
   assert.deepEqual(second.value, first.value);
-  assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-29'), true);
-  assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-30'), false);
+  const third = claimWeeklyMissionRewardInSettings(
+    first.value,
+    6,
+    '2026-29',
+    CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+    '2026-07-13T14:02:00.000Z',
+  );
+  const fourth = claimWeeklyMissionRewardInSettings(
+    third.value,
+    6,
+    '2026-29',
+    CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
+    '2026-07-13T14:03:00.000Z',
+  );
+
+  assert.equal(third.balance, 210);
+  assert.equal(fourth.balance, 215);
+  assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-29', 'personal_question'), true);
+  assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-30', 'personal_question'), false);
+  assert.equal(hasWeeklyMissionReward(fourth.value.currencyHistory, 6, '2026-29', CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE), true);
+  assert.equal(hasWeeklyMissionReward(fourth.value.currencyHistory, 6, '2026-29', CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE), true);
 });
 
 test('question status fallback clears only students with a personal submission', () => {

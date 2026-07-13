@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { CheckCircle2, Circle, Coins, Lock, Sparkles, Trophy } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Circle, Coins, LoaderCircle, Lock, Sparkles, Trophy } from 'lucide-react';
 import {
   AUCTION_DAY_ACCENTS,
   AUCTION_WEEKDAY_LABELS,
@@ -12,8 +12,8 @@ import {
   type AuctionMission,
 } from '../lib/currency';
 import {
-  PERSONAL_QUESTION_WEEKLY_REWARD,
-  type WeeklyMissionStatus,
+  WEEKLY_MISSION_DEFINITIONS,
+  type WeeklyMissionStatuses,
 } from '../lib/weeklyMission';
 
 interface AuctionRoomProps {
@@ -21,7 +21,7 @@ interface AuctionRoomProps {
   auctionBids: AuctionBids;
   auctionAwards?: AuctionAwards;
   auctionMissions: AuctionMission[];
-  weeklyMissionStatus: WeeklyMissionStatus;
+  weeklyMissionStatuses: WeeklyMissionStatuses;
   availableBalance: number;
   reservedAmount: number;
   visibleDayCount: number;
@@ -38,7 +38,7 @@ export default function AuctionRoom({
   auctionBids,
   auctionAwards,
   auctionMissions,
-  weeklyMissionStatus,
+  weeklyMissionStatuses,
   availableBalance,
   reservedAmount,
   visibleDayCount,
@@ -143,7 +143,11 @@ export default function AuctionRoom({
       </div>
 
       <div className={`auction-mission-strip grid border-b border-[#E4E9E6] bg-[#FAFCFB] ${
-        isCompact ? 'gap-2 px-3 py-3 md:px-4' : 'gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.8fr)] md:px-5'
+        isCompact
+          ? 'gap-2 px-3 py-3 md:px-4'
+          : `gap-3 px-4 py-3 md:px-5 ${auctionMissions.length > 0
+              ? 'md:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.8fr)]'
+              : 'md:grid-cols-1'}`
       }`}>
         {auctionMissions.length > 0 ? (
           <section className="auction-mission-group grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[1rem] border border-[#E4D7C9] bg-white px-3 py-2.5">
@@ -160,47 +164,60 @@ export default function AuctionRoom({
         ) : null}
         <section
           className={`auction-mission-group grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-[1rem] border px-3 py-2.5 ${
-            weeklyMissionStatus === 'completed'
+            WEEKLY_MISSION_DEFINITIONS.every((mission) => weeklyMissionStatuses[mission.type] === 'completed')
               ? 'border-[#9FC7B8] bg-[#F2FBF7]'
               : 'border-[#DCE7E1] bg-white'
           }`}
-          aria-busy={weeklyMissionStatus === 'loading'}
+          aria-busy={WEEKLY_MISSION_DEFINITIONS.some((mission) => weeklyMissionStatuses[mission.type] === 'loading')}
         >
           <h2 className="section-title whitespace-nowrap pt-2 text-[0.92rem] font-extrabold text-[#2F3834]">주간 미션</h2>
           <div className="auction-weekly-mission-list grid min-w-0 gap-2">
-            <div className="auction-weekly-mission-row grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${
-                weeklyMissionStatus === 'completed'
-                  ? 'bg-[#007A57] text-white'
-                  : 'bg-[#EEF4F1] text-[#7A8780]'
-              }`} aria-hidden="true">
-                {weeklyMissionStatus === 'completed'
-                  ? <CheckCircle2 size={20} strokeWidth={2.8} />
-                  : <Circle size={20} strokeWidth={2.4} />}
-              </span>
-              <div className={`min-w-0 truncate text-[0.94rem] font-extrabold leading-snug ${
-                weeklyMissionStatus === 'completed' ? 'text-[#006B4D]' : 'text-[#2F3834]'
-              }`}>
-                신문에 개인 질문하기
-              </div>
-              <div className={`whitespace-nowrap rounded-full border px-3 py-2 font-mono text-[0.85rem] font-black leading-none ${
-                weeklyMissionStatus === 'completed'
-                  ? 'border-[#9FC7B8] bg-white text-[#007A57]'
-                  : 'border-[#CFE2D8] bg-[#F2FBF7] text-[#007A57]'
-              }`}>
-                +{formatCurrency(PERSONAL_QUESTION_WEEKLY_REWARD)}
-              </div>
-            </div>
+            {WEEKLY_MISSION_DEFINITIONS.map((mission) => {
+              const status = weeklyMissionStatuses[mission.type];
+              return (
+                <div key={mission.type} className="auction-weekly-mission-row grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+                  <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${
+                    status === 'completed'
+                      ? 'bg-[#007A57] text-white'
+                      : status === 'unavailable'
+                        ? 'bg-[#FFF4E8] text-[#9A6418]'
+                        : status === 'loading'
+                          ? 'bg-[#EAF5F1] text-[#007A57]'
+                          : 'bg-[#EEF4F1] text-[#7A8780]'
+                  }`} aria-hidden="true">
+                    {status === 'completed'
+                      ? <CheckCircle2 size={20} strokeWidth={2.8} />
+                      : status === 'unavailable'
+                        ? <AlertCircle size={20} strokeWidth={2.4} />
+                        : status === 'loading'
+                          ? <LoaderCircle className="animate-spin" size={20} strokeWidth={2.4} />
+                          : <Circle size={20} strokeWidth={2.4} />}
+                  </span>
+                  <div className={`min-w-0 truncate text-[0.94rem] font-extrabold leading-snug ${
+                    status === 'completed' ? 'text-[#006B4D]' : 'text-[#2F3834]'
+                  }`}>
+                    {mission.label}
+                  </div>
+                  <div className={`whitespace-nowrap rounded-full border px-3 py-2 font-mono text-[0.85rem] font-black leading-none ${
+                    status === 'completed'
+                      ? 'border-[#9FC7B8] bg-white text-[#007A57]'
+                      : 'border-[#CFE2D8] bg-[#F2FBF7] text-[#007A57]'
+                  }`}>
+                    +{formatCurrency(mission.rewardAmount)}
+                  </div>
+                  <span className="sr-only">
+                    {status === 'completed'
+                      ? '완료'
+                      : status === 'incomplete'
+                        ? '미완료'
+                        : status === 'loading'
+                          ? '확인 중'
+                          : '확인 불가'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-          <span className="sr-only">
-            {weeklyMissionStatus === 'completed'
-              ? '완료'
-              : weeklyMissionStatus === 'incomplete'
-                ? '미완료'
-                : weeklyMissionStatus === 'loading'
-                  ? '확인 중'
-                  : '확인 불가'}
-          </span>
         </section>
       </div>
 

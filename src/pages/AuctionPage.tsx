@@ -40,11 +40,14 @@ import {
 } from '../lib/questionSubmissionStatus';
 import { useModalFocus } from '../lib/useModalFocus';
 import {
+  createWeeklyMissionStatuses,
+  PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   claimWeeklyMissionRewardInSettings,
   getKoreanIsoWeekKey,
   hasWeeklyMissionReward,
-  syncPersonalQuestionWeeklyMission,
-  type WeeklyMissionStatus,
+  syncWeeklyMissions,
+  WEEKLY_MISSION_TYPES,
+  type WeeklyMissionStatuses,
 } from '../lib/weeklyMission';
 
 interface AuctionPageProps {
@@ -73,7 +76,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
-  const [weeklyMissionStatus, setWeeklyMissionStatus] = useState<WeeklyMissionStatus>('loading');
+  const [weeklyMissionStatuses, setWeeklyMissionStatuses] = useState<WeeklyMissionStatuses>(() => (
+    createWeeklyMissionStatuses('loading')
+  ));
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [bidAmountDrafts, setBidAmountDrafts] = useState<Record<string, string>>({});
   const [selectedItemId, setSelectedItemId] = useState(DEFAULT_AUCTION_ITEMS[0]?.id ?? '');
@@ -270,9 +275,16 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
       setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
       setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
-      if (hasWeeklyMissionReward(value.currencyHistory, studentNumber, getKoreanIsoWeekKey())) {
-        setWeeklyMissionStatus('completed');
-      }
+      const weekKey = getKoreanIsoWeekKey();
+      setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
+        (statuses, missionType) => ({
+          ...statuses,
+          [missionType]: hasWeeklyMissionReward(value.currencyHistory, studentNumber, weekKey, missionType)
+            ? 'completed'
+            : previous[missionType],
+        }),
+        previous,
+      ));
     } catch (error) {
       console.error('Failed to load auction state from Supabase.', error);
       setAuctionMissions([]);
@@ -298,18 +310,25 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     const syncWeeklyMission = async () => {
       try {
-        const result = await syncPersonalQuestionWeeklyMission(studentNumber);
+        const result = await syncWeeklyMissions(studentNumber);
         if (!isActive) return;
-        setWeeklyMissionStatus(result.completed ? 'completed' : 'incomplete');
+        setWeeklyMissionStatuses(result.missions.reduce<WeeklyMissionStatuses>(
+          (statuses, mission) => ({
+            ...statuses,
+            [mission.missionType]: mission.completed ? 'completed' : 'incomplete',
+          }),
+          createWeeklyMissionStatuses('incomplete'),
+        ));
+        const finalBalance = Math.max(...result.missions.map((mission) => mission.balance));
         setCurrencyBalances((previous) => ({
           ...previous,
-          [String(studentNumber)]: result.balance,
+          [String(studentNumber)]: finalBalance,
         }));
       } catch (error) {
         if (!isActive) return;
         const isExpectedLocalApiAbsence = import.meta.env.DEV
           && error instanceof Error
-          && error.message === 'WEEKLY_MISSION_HTTP_404';
+          && error.message === 'WEEKLY_MISSIONS_HTTP_404';
         if (!isExpectedLocalApiAbsence) console.warn('Failed to sync weekly mission.', error);
 
         try {
@@ -317,7 +336,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           if (!isActive) return;
           const isCompleted = hasPersonalQuestionSubmission(submissionStatuses, studentNumber);
           if (!isCompleted) {
-            setWeeklyMissionStatus('incomplete');
+            setWeeklyMissionStatuses((previous) => ({
+              ...previous,
+              [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'incomplete',
+              classword_word_entry: previous.classword_word_entry === 'completed' ? 'completed' : 'unavailable',
+              classword_quiz_correct: previous.classword_quiz_correct === 'completed' ? 'completed' : 'unavailable',
+            }));
             return;
           }
 
@@ -327,12 +351,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               currentValue,
               studentNumber,
               getKoreanIsoWeekKey(),
+              PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
             );
             claimedBalance = claim.balance;
             return claim.value;
           });
           if (!isActive) return;
-          setWeeklyMissionStatus('completed');
+          setWeeklyMissionStatuses((previous) => ({
+            ...previous,
+            [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'completed',
+            classword_word_entry: previous.classword_word_entry === 'completed' ? 'completed' : 'unavailable',
+            classword_quiz_correct: previous.classword_quiz_correct === 'completed' ? 'completed' : 'unavailable',
+          }));
           if (claimedBalance !== null) {
             setCurrencyBalances((previous) => ({
               ...previous,
@@ -342,12 +372,24 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         } catch (fallbackError) {
           if (!isActive) return;
           console.warn('Failed to load weekly mission completion fallback.', fallbackError);
-          setWeeklyMissionStatus('unavailable');
+          setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
+            (statuses, missionType) => ({
+              ...statuses,
+              [missionType]: previous[missionType] === 'completed' ? 'completed' : 'unavailable',
+            }),
+            previous,
+          ));
         }
       }
     };
 
-    setWeeklyMissionStatus('loading');
+    setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
+      (statuses, missionType) => ({
+        ...statuses,
+        [missionType]: previous[missionType] === 'completed' ? 'completed' : 'loading',
+      }),
+      previous,
+    ));
     void syncWeeklyMission();
     const intervalId = window.setInterval(() => void syncWeeklyMission(), 60_000);
 
@@ -616,7 +658,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           auctionBids={auctionBids}
           auctionAwards={auctionAwards}
           auctionMissions={auctionMissions}
-          weeklyMissionStatus={weeklyMissionStatus}
+          weeklyMissionStatuses={weeklyMissionStatuses}
           availableBalance={availableBalance}
           reservedAmount={reservedAmount}
           visibleDayCount={visibleDayCount}

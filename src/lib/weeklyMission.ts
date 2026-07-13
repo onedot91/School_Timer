@@ -1,10 +1,41 @@
 export const PERSONAL_QUESTION_WEEKLY_MISSION_TYPE = 'personal_question';
+export const CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE = 'classword_word_entry';
+export const CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE = 'classword_quiz_correct';
 export const PERSONAL_QUESTION_WEEKLY_REWARD = 5;
 
+export const WEEKLY_MISSION_TYPES = [
+  PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
+  CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+  CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
+] as const;
+
+export type WeeklyMissionType = typeof WEEKLY_MISSION_TYPES[number];
+
+const isWeeklyMissionType = (value: unknown): value is WeeklyMissionType => (
+  typeof value === 'string' && WEEKLY_MISSION_TYPES.some((missionType) => missionType === value)
+);
+
+export const WEEKLY_MISSION_DEFINITIONS = [
+  { type: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE, label: '신문에 개인 질문하기', rewardAmount: 5 },
+  { type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE, label: 'ㄱㄴㄷ 게임 낱말 넣기', rewardAmount: 5 },
+  { type: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE, label: 'ㄱㄴㄷ 게임 낱말 퀴즈', rewardAmount: 5 },
+] as const satisfies readonly {
+  readonly type: WeeklyMissionType;
+  readonly label: string;
+  readonly rewardAmount: number;
+}[];
+
 export type WeeklyMissionStatus = 'loading' | 'incomplete' | 'completed' | 'unavailable';
+export type WeeklyMissionStatuses = Record<WeeklyMissionType, WeeklyMissionStatus>;
+
+export const createWeeklyMissionStatuses = (status: WeeklyMissionStatus): WeeklyMissionStatuses => ({
+  personal_question: status,
+  classword_word_entry: status,
+  classword_quiz_correct: status,
+});
 
 export interface WeeklyMissionResult {
-  missionType: typeof PERSONAL_QUESTION_WEEKLY_MISSION_TYPE;
+  missionType: WeeklyMissionType;
   weekKey: string;
   completed: boolean;
   awarded: boolean;
@@ -16,6 +47,10 @@ export interface WeeklyMissionClaim {
   value: Record<string, unknown>;
   awarded: boolean;
   balance: number;
+}
+
+export interface WeeklyMissionsResult {
+  missions: WeeklyMissionResult[];
 }
 
 interface QuestionHistoryRecord {
@@ -89,14 +124,24 @@ export const hasWeeklyMissionReward = (
   currencyHistory: unknown,
   studentNumber: number,
   weekKey: string,
+  missionType: WeeklyMissionType,
 ) => (
   normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
-).some((entry) => entry.id === `weekly-mission-${studentNumber}-${weekKey}`);
+).some((entry) => entry.id === getWeeklyMissionRewardId(studentNumber, weekKey, missionType));
+
+const getWeeklyMissionRewardId = (
+  studentNumber: number,
+  weekKey: string,
+  missionType: WeeklyMissionType,
+) => missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
+  ? `weekly-mission-${studentNumber}-${weekKey}`
+  : `weekly-mission-${missionType}-${studentNumber}-${weekKey}`;
 
 export const claimWeeklyMissionRewardInSettings = (
   value: unknown,
   studentNumber: number,
   weekKey: string,
+  missionType: WeeklyMissionType,
   createdAt = new Date().toISOString(),
 ): WeeklyMissionClaim => {
   const currentValue = value && typeof value === 'object'
@@ -105,7 +150,7 @@ export const claimWeeklyMissionRewardInSettings = (
   const balances = normalizeCurrencyBalances(currentValue.currencyBalances);
   const history = normalizeCurrencyHistory(currentValue.currencyHistory);
   const studentKey = String(studentNumber);
-  const rewardId = `weekly-mission-${studentNumber}-${weekKey}`;
+  const rewardId = getWeeklyMissionRewardId(studentNumber, weekKey, missionType);
   const existingEntries = history[studentKey] ?? [];
 
   if (existingEntries.some((entry) => entry.id === rewardId)) {
@@ -144,7 +189,7 @@ export const claimWeeklyMissionRewardInSettings = (
 export const parseWeeklyMissionResult = (value: unknown): WeeklyMissionResult => {
   if (
     !isRecord(value) ||
-    value.missionType !== PERSONAL_QUESTION_WEEKLY_MISSION_TYPE ||
+    !isWeeklyMissionType(value.missionType) ||
     typeof value.weekKey !== 'string' ||
     typeof value.completed !== 'boolean' ||
     typeof value.awarded !== 'boolean' ||
@@ -155,13 +200,31 @@ export const parseWeeklyMissionResult = (value: unknown): WeeklyMissionResult =>
   }
 
   return {
-    missionType: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
+    missionType: value.missionType,
     weekKey: value.weekKey,
     completed: value.completed,
     awarded: value.awarded,
     rewardAmount: value.rewardAmount,
     balance: value.balance,
   };
+};
+
+export const parseWeeklyMissionsResult = (value: unknown): WeeklyMissionsResult => {
+  if (!isRecord(value) || !Array.isArray(value.missions)) {
+    throw new Error('WEEKLY_MISSIONS_INVALID_RESPONSE');
+  }
+
+  const missions = value.missions.map(parseWeeklyMissionResult);
+  if (
+    missions.length !== WEEKLY_MISSION_TYPES.length ||
+    !WEEKLY_MISSION_TYPES.every((missionType) => (
+      missions.filter((mission) => mission.missionType === missionType).length === 1
+    ))
+  ) {
+    throw new Error('WEEKLY_MISSIONS_INVALID_RESPONSE');
+  }
+
+  return { missions };
 };
 
 export const syncPersonalQuestionWeeklyMission = async (studentNumber: number) => {
@@ -179,6 +242,23 @@ export const syncPersonalQuestionWeeklyMission = async (studentNumber: number) =
   }
 
   return parseWeeklyMissionResult(await response.json());
+};
+
+export const syncWeeklyMissions = async (studentNumber: number) => {
+  const response = await fetch('/api/weekly-missions', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ studentNumber }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`WEEKLY_MISSIONS_HTTP_${response.status}`);
+  }
+
+  return parseWeeklyMissionsResult(await response.json());
 };
 import {
   CURRENCY_BALANCE_MAX,

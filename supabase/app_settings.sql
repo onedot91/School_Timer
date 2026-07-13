@@ -57,19 +57,46 @@ with check (true);
 create table if not exists weekly_mission_rewards (
   student_number smallint not null check (student_number between 1 and 23),
   week_key text not null check (week_key ~ '^\d{4}-\d{2}$'),
-  mission_type text not null default 'personal_question' check (mission_type = 'personal_question'),
+  mission_type text not null default 'personal_question' check (mission_type in ('personal_question', 'classword_word_entry', 'classword_quiz_correct')),
   reward_amount integer not null default 5 check (reward_amount = 5),
-  source_question_id text not null,
+  source_event_id text not null,
   completed_at timestamptz not null default now(),
   primary key (student_number, week_key, mission_type)
 );
 
 alter table weekly_mission_rewards enable row level security;
 
-create or replace function claim_personal_question_weekly_reward(
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'weekly_mission_rewards'
+      and column_name = 'source_question_id'
+  ) and not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'weekly_mission_rewards'
+      and column_name = 'source_event_id'
+  ) then
+    alter table weekly_mission_rewards rename column source_question_id to source_event_id;
+  end if;
+end;
+$$;
+
+alter table weekly_mission_rewards
+  drop constraint if exists weekly_mission_rewards_mission_type_check;
+alter table weekly_mission_rewards
+  add constraint weekly_mission_rewards_mission_type_check
+  check (mission_type in ('personal_question', 'classword_word_entry', 'classword_quiz_correct'));
+
+create or replace function claim_weekly_mission_reward(
   p_student_number integer,
   p_week_key text,
-  p_source_question_id text default null
+  p_mission_type text,
+  p_source_event_id text default null
 )
 returns jsonb
 language plpgsql
@@ -93,21 +120,24 @@ begin
   if p_week_key !~ '^\d{4}-\d{2}$' then
     raise exception 'INVALID_WEEK_KEY';
   end if;
+  if p_mission_type not in ('personal_question', 'classword_word_entry', 'classword_quiz_correct') then
+    raise exception 'INVALID_MISSION_TYPE';
+  end if;
 
-  if p_source_question_id is not null and btrim(p_source_question_id) <> '' then
+  if p_source_event_id is not null and btrim(p_source_event_id) <> '' then
     insert into weekly_mission_rewards (
       student_number,
       week_key,
       mission_type,
       reward_amount,
-      source_question_id
+      source_event_id
     )
     values (
       p_student_number,
       p_week_key,
-      'personal_question',
+      p_mission_type,
       5,
-      p_source_question_id
+      p_source_event_id
     )
     on conflict (student_number, week_key, mission_type) do nothing;
     get diagnostics v_inserted_count = row_count;
@@ -116,10 +146,10 @@ begin
 
   select exists (
     select 1
-    from weekly_mission_rewards
-    where student_number = p_student_number
-      and week_key = p_week_key
-      and mission_type = 'personal_question'
+    from weekly_mission_rewards as rewards
+    where rewards.student_number = p_student_number
+      and rewards.week_key = p_week_key
+      and rewards.mission_type = p_mission_type
   ) into v_completed;
 
   select value
@@ -163,7 +193,11 @@ begin
     );
 
     v_history := jsonb_build_array(jsonb_build_object(
-      'id', concat('weekly-mission-', p_student_number, '-', p_week_key),
+      'id', case
+        when p_mission_type = 'personal_question'
+          then concat('weekly-mission-', p_student_number, '-', p_week_key)
+        else concat('weekly-mission-', p_mission_type, '-', p_student_number, '-', p_week_key)
+      end,
       'studentNumber', p_student_number,
       'delta', v_after - v_before,
       'before', v_before,
@@ -199,7 +233,7 @@ begin
   end if;
 
   return jsonb_build_object(
-    'missionType', 'personal_question',
+    'missionType', p_mission_type,
     'weekKey', p_week_key,
     'completed', v_completed,
     'awarded', v_awarded,
@@ -208,6 +242,29 @@ begin
   );
 end;
 $$;
+
+create or replace function claim_personal_question_weekly_reward(
+  p_student_number integer,
+  p_week_key text,
+  p_source_question_id text default null
+)
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select claim_weekly_mission_reward(
+    p_student_number,
+    p_week_key,
+    'personal_question',
+    p_source_question_id
+  );
+$$;
+
+revoke all on function claim_weekly_mission_reward(integer, text, text, text) from public;
+revoke all on function claim_weekly_mission_reward(integer, text, text, text) from anon;
+revoke all on function claim_weekly_mission_reward(integer, text, text, text) from authenticated;
+grant execute on function claim_weekly_mission_reward(integer, text, text, text) to service_role;
 
 revoke all on function claim_personal_question_weekly_reward(integer, text, text) from public;
 revoke all on function claim_personal_question_weekly_reward(integer, text, text) from anon;
