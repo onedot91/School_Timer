@@ -8282,19 +8282,6 @@ export default function TimerPage() {
         <div aria-hidden="true" className="mascot-orb mascot-orb-two" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
-        {activeStudentCharacterWalkers.map((walker) => (
-          <React.Fragment key={walker.renderKey}>
-            <StudentCharacterShowcase
-              character={walker.character}
-              timerType={timerType}
-              direction={walker.direction}
-              path={walker.path}
-              animationDelaySeconds={walker.animationDelaySeconds}
-              shouldSpeak={walker.shouldSpeak}
-              onImageError={markStudentCharacterFailed}
-            />
-          </React.Fragment>
-        ))}
         {noticeBanner}
         <div
           className={`editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid ${
@@ -8305,6 +8292,21 @@ export default function TimerPage() {
         >
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
+            <div className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">
+              {activeStudentCharacterWalkers.map((walker) => (
+                <React.Fragment key={walker.renderKey}>
+                  <StudentCharacterShowcase
+                    character={walker.character}
+                    timerType={timerType}
+                    direction={walker.direction}
+                    path={walker.path}
+                    animationDelaySeconds={walker.animationDelaySeconds}
+                    shouldSpeak={walker.shouldSpeak}
+                    onImageError={markStudentCharacterFailed}
+                  />
+                </React.Fragment>
+              ))}
+            </div>
             <div className="bgm-reveal-zone absolute left-1 top-1 z-40 flex items-start p-3 sm:left-2 sm:top-2 md:left-3 md:top-3">
               <button
                 onClick={toggleBackgroundMusic}
@@ -8613,12 +8615,12 @@ export default function TimerPage() {
                 </button>
               </div>
             </div>
-            <div className="relative z-10 mt-2 shrink-0 md:mt-3 lg:mt-4">
+            <div className="relative z-[60] mt-2 shrink-0 md:mt-3 lg:mt-4">
               <div className={`clock-display editorial-clock-display text-[clamp(3.7rem,8.5vw,9.8rem)] leading-none font-bold tracking-tight transition-colors duration-1000 xl:text-[clamp(4.1rem,7.8vw,10.2rem)] ${colorClass}`}>
                 {formatTime(displayTimeLeft)}
               </div>
             </div>
-            <div className="timer-status-row relative z-10 mt-3 flex w-full max-w-[40rem] flex-wrap items-center justify-center gap-3 md:mt-4 xl:max-w-[45rem]">
+            <div className="timer-status-row relative z-[60] mt-3 flex w-full max-w-[40rem] flex-wrap items-center justify-center gap-3 md:mt-4 xl:max-w-[45rem]">
               <div className={`inline-manual-timer-shell ${isExtraTimerVisible ? 'inline-manual-timer-shell-open' : ''}`}>
                 <button
                   type="button"
@@ -8873,7 +8875,7 @@ export default function TimerPage() {
               ) : null}
 
               <div className="schedule-content-area relative min-h-0 flex flex-1 flex-col">
-                <div className="schedule-panel-actions absolute right-3 top-3 z-20 flex min-w-0 flex-wrap items-center justify-end gap-2">
+                <div className="schedule-panel-actions relative z-20 flex min-h-10 min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
                   {scheduleYoutubeCount > 0 ? (
                     <button
                       type="button"
@@ -8921,7 +8923,7 @@ export default function TimerPage() {
                     <p className="text-[1.55rem] font-bold leading-tight text-[#B89E87] sm:text-[1.8rem]">일정이 없습니다.</p>
                   </div>
                 ) : (
-                  <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pb-1 pr-2 pt-14 text-base text-[#8A6347]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
+                  <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pb-1 pr-2 pt-2 text-base text-[#8A6347]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
                     {currentDaySchedule.map((s) => {
                       const isThisSlot = currentMinsForScheduleView >= s.start && currentMinsForScheduleView < s.end;
                       const scheduleSubject = getWeeklySubject(weeklySubjects, currentSubjectWeekKey, today, s);

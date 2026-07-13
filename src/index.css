@@ -11584,6 +11584,8 @@ h3 {
   --apple-page-gutter: clamp(0.75rem, 1vw, 1.25rem);
   --apple-pane-gap: clamp(0.75rem, 1vw, 1.25rem);
   --apple-control-pane-width: clamp(30rem, 29vw, 34rem);
+  --apple-tv-safe-inline: max(3.5vw, env(safe-area-inset-left), env(safe-area-inset-right));
+  --apple-tv-safe-block: max(3.5vh, env(safe-area-inset-top), env(safe-area-inset-bottom));
   --apple-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05);
   --apple-shadow-2: 0 12px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
   --apple-shadow-3: 0 28px 80px rgba(0, 0, 0, 0.16), 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -12226,8 +12228,13 @@ a[href]:active {
   overflow: clip;
 }
 
+.timer-main-shell .student-character-stage {
+  z-index: 80;
+  isolation: isolate;
+}
+
 .timer-main-shell .student-character-showcase {
-  position: fixed;
+  position: absolute;
 }
 
 .timer-main-shell .timer-ring-svg {
@@ -12362,9 +12369,11 @@ a[href]:active {
 
 .timer-main-shell .schedule-scroll-stack {
   scrollbar-gutter: stable;
+  scroll-snap-type: y mandatory;
 }
 
 .timer-main-shell .schedule-row {
+  scroll-snap-align: start;
   border: 1px solid transparent;
   border-radius: var(--apple-radius-control) !important;
   box-shadow: none !important;
@@ -12452,7 +12461,58 @@ a[href]:active {
   .timer-main-shell .editorial-home-layout {
     grid-template-columns: minmax(0, 1fr) var(--apple-control-pane-width) !important;
     gap: var(--apple-pane-gap);
-    padding: var(--apple-page-gutter);
+    padding: var(--apple-tv-safe-block) var(--apple-tv-safe-inline);
+  }
+
+  .timer-main-shell .editorial-timer-pane {
+    z-index: 45;
+  }
+
+  .timer-main-shell .student-character-stage {
+    --student-character-timer-inline-padding: 3rem;
+    z-index: 80;
+    width: calc(
+      100cqw + var(--student-character-timer-inline-padding) + var(--apple-pane-gap) + var(--apple-control-pane-width)
+    );
+    overflow: visible;
+  }
+
+  .timer-main-shell .editorial-ring-stage {
+    z-index: 60;
+  }
+
+  .timer-main-shell .student-character-showcase {
+    --student-character-main-left: 0cqw;
+    --student-character-main-right: calc(
+      100cqw + var(--student-character-timer-inline-padding) + var(--apple-pane-gap) + var(--apple-control-pane-width)
+    );
+    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size)) !important;
+    --student-character-walk-mid-x-a: clamp(
+      calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2),
+      24cqw,
+      calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2)
+    ) !important;
+    --student-character-walk-mid-x-b: clamp(
+      calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2),
+      72cqw,
+      calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2)
+    ) !important;
+    --student-character-walk-end: calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2) !important;
+  }
+
+  .timer-main-shell .student-character-walk-left {
+    --student-character-walk-start: calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-mid-x-a: clamp(
+      calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2),
+      72cqw,
+      calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2)
+    ) !important;
+    --student-character-walk-mid-x-b: clamp(
+      calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2),
+      32cqw,
+      calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2)
+    ) !important;
+    --student-character-walk-end: calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2) !important;
   }
 
   .timer-main-shell .editorial-control-pane {
@@ -12465,6 +12525,19 @@ a[href]:active {
   }
 }
 
+@media (min-width: 80rem) {
+  .timer-main-shell .student-character-stage {
+    --student-character-timer-inline-padding: 4rem;
+  }
+}
+
+@media (min-width: 64rem) and (max-height: 50rem) {
+  .timer-main-shell .student-character-showcase {
+    --student-character-walk-size: clamp(5.5rem, 22dvh, 10rem) !important;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 63.999rem) {
   .timer-main-shell .editorial-home-layout {
     overflow-x: clip;
@@ -12474,6 +12547,27 @@ a[href]:active {
 
   .timer-main-shell .editorial-timer-pane {
     min-height: min(58dvh, 36rem);
+  }
+
+  .timer-main-shell .student-character-showcase {
+    --student-character-walk-start-top: min(50dvh, 32rem) !important;
+    --student-character-walk-mid-top-a: min(48dvh, 30rem) !important;
+    --student-character-walk-mid-top-b: min(51dvh, 32rem) !important;
+    --student-character-walk-end-top: min(49dvh, 31rem) !important;
+    --student-character-main-left: 0cqw;
+    --student-character-main-right: 100cqw;
+    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size)) !important;
+    --student-character-walk-mid-x-a: 24cqw !important;
+    --student-character-walk-mid-x-b: 72cqw !important;
+    --student-character-walk-end: calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2) !important;
+    --student-character-ground-clearance: clamp(0.75rem, 2.5dvh, 1.5rem);
+  }
+
+  .timer-main-shell .student-character-walk-left {
+    --student-character-walk-start: calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-mid-x-a: 72cqw !important;
+    --student-character-walk-mid-x-b: 32cqw !important;
+    --student-character-walk-end: calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2) !important;
   }
 
   .timer-main-shell .editorial-control-pane {
@@ -12495,7 +12589,6 @@ a[href]:active {
   .timer-main-shell .student-character-showcase {
     --student-character-walk-size: clamp(3rem, 14vw, 5.5rem) !important;
     --student-character-walk-scale: 0.65 !important;
-    position: fixed;
     z-index: 2 !important;
     min-width: 0;
   }
@@ -12544,12 +12637,11 @@ a[href]:active {
   }
 
   .timer-main-shell .schedule-panel-actions {
-    right: 0.5rem;
-    top: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
   .timer-main-shell .schedule-scroll-stack {
-    padding-top: 3.25rem !important;
+    padding-top: 0 !important;
     padding-right: 0 !important;
   }
 

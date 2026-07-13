@@ -66,6 +66,8 @@ Existing semantic success, warning, and destructive colors remain feature-owned 
 | `--apple-page-gutter` | `clamp(0.75rem, 1vw, 1.25rem)` | desktop shell breathing room |
 | `--apple-pane-gap` | `clamp(0.75rem, 1vw, 1.25rem)` | separation between primary and control panes |
 | `--apple-control-pane-width` | `clamp(30rem, 29vw, 34rem)` | desktop schedule/control pane width |
+| `--apple-tv-safe-inline` | `max(3.5vw, env(safe-area-inset-left), env(safe-area-inset-right))` | TV overscan-safe left and right inset |
+| `--apple-tv-safe-block` | `max(3.5vh, env(safe-area-inset-top), env(safe-area-inset-bottom))` | TV overscan-safe top and bottom inset |
 
 The spacing base is `0.25rem`. New spacing uses multiples of that base and scales with text when it affects reflow.
 
@@ -130,6 +132,8 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - At 200% text zoom, controls wrap or scroll within their own task surface; the page never gains horizontal overflow.
 - Korean copy is not rewritten to fit. Containers reflow around the exact existing text.
 - Fixed toolbars and overlays respect safe-area insets.
+- Desktop timer content stays inside a 3.5% TV-safe frame. Student walkers may travel from the timer pane across the schedule pane as a pointer-transparent foreground layer and always render above the face, clock, status, and schedule pane.
+- Low-height 16:9 displays reduce walker size without shrinking the clock, status control, or schedule type below their responsive scales.
 
 ## 7. Accessibility Constraints
 

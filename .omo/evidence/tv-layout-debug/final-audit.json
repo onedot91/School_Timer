@@ -1,0 +1,99 @@
+{
+  "build": "current working tree after TV safe-area and character-stage changes",
+  "reference": {
+    "tvPhotoAvailable": false,
+    "note": "The referenced ChatGPT conversation did not include the attached TV image bytes. The prior 1920x1080 monitor capture is a composition baseline only, not an exact pixel target."
+  },
+  "viewports": [
+    {
+      "name": "Full HD TV / monitor",
+      "width": 1920,
+      "height": 1080,
+      "coreInsideTimerPane": true,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "scheduleActionOverlapsFirstRow": false,
+      "timerInset": { "inline": 67.195, "block": 37.797 },
+      "panelInset": { "inline": 67.195, "block": 37.797 }
+    },
+    {
+      "name": "HD TV",
+      "width": 1366,
+      "height": 768,
+      "coreInsideTimerPane": true,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "scheduleActionOverlapsFirstRow": false,
+      "timerInset": { "inline": 47.805, "block": 26.875 },
+      "panelInset": { "inline": 47.805, "block": 26.875 }
+    },
+    {
+      "name": "Full HD at 150% zoom equivalent",
+      "width": 1280,
+      "height": 720,
+      "safeFrame": true,
+      "coreInsideTimerPane": true,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "scheduleActionOverlapsFirstRow": false,
+      "timerInset": { "inline": 44.797, "block": 25.195 },
+      "panelInset": { "inline": 44.797, "block": 25.195 }
+    },
+    {
+      "name": "1280x720 at 125% zoom equivalent",
+      "width": 1024,
+      "height": 576,
+      "safeFrame": true,
+      "coreInsideTimerPane": true,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "scheduleActionOverlapsFirstRow": false,
+      "timerInset": { "inline": 35.836, "block": 20.156 },
+      "panelInset": { "inline": 35.836, "block": 20.156 }
+    },
+    {
+      "name": "Tablet portrait regression",
+      "width": 768,
+      "height": 1024,
+      "safeFrame": true,
+      "coreInsideTimerPane": true,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "characterVisibleInsideTimerPane": true,
+      "scheduleActionOverlapsFirstRow": false
+    },
+    {
+      "name": "Tall tablet portrait regression",
+      "width": 800,
+      "height": 1280,
+      "coreInsideTimerPane": true,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "characterVisibleInsideTimerPane": true,
+      "scheduleActionOverlapsFirstRow": false
+    },
+    {
+      "name": "Mobile portrait regression",
+      "width": 390,
+      "height": 844,
+      "safeFrame": true,
+      "coreInsideTimerPane": true,
+      "horizontalOverflow": false,
+      "verticalOverflow": false,
+      "characterRouteInsideTimerPane": true,
+      "scheduleActionOverlapsFirstRow": false
+    }
+  ],
+  "characterBoundary": {
+    "stageParentIsTimerPane": true,
+    "stageMatchesTimerPaneBounds": true,
+    "stageStopsBeforeSchedulePane": true,
+    "stageOverflow": "hidden",
+    "walkerPosition": "absolute",
+    "routeUnit": "cqw",
+    "compactRouteVerticalUnit": "dvh",
+    "routesPaneRelative": true,
+    "layerOrder": { "stage": 5, "clockAndStatus": 10, "schedulePane": 40 }
+  },
+  "dataMutation": false
+}

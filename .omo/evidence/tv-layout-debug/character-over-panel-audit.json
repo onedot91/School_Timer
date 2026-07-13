@@ -1,0 +1,57 @@
+{
+  "build": "current working tree after foreground walker route change",
+  "intent": "Student characters may move across and render above the desktop schedule panel.",
+  "foregroundOrder": "character stage 80 > face/clock/status 60 > schedule panel 40",
+  "desktop": [
+    {
+      "viewport": [1366, 768],
+      "stageMatchesScheduleRightEdge": true,
+      "stageOverflow": "visible",
+      "timerPaneZIndex": 45,
+      "characterStageZIndex": 80,
+      "schedulePaneZIndex": 40,
+      "clockAndStatusZIndex": 60,
+      "characterAlwaysForeground": true,
+      "horizontalOverflow": false,
+      "verticalOverflow": false
+    },
+    {
+      "viewport": [1024, 576],
+      "stageMatchesScheduleRightEdge": true,
+      "stageOverflow": "visible",
+      "horizontalOverflow": false,
+      "verticalOverflow": false
+    }
+  ],
+  "compactRegression": [
+    {
+      "viewport": [768, 1024],
+      "stageOverflow": "hidden",
+      "characterStageZIndex": 80,
+      "horizontalOverflow": false,
+      "verticalOverflow": false
+    },
+    {
+      "viewport": [390, 844],
+      "stageOverflow": "hidden",
+      "characterStageZIndex": 80,
+      "horizontalOverflow": false,
+      "verticalOverflow": false
+    }
+  ],
+  "capturedCrossing": {
+    "viewport": [1117, 837],
+    "schedulePaneX": [597.906, 1077.906],
+    "characterX": [869.7, 1064.1],
+    "intersectsSchedulePane": true,
+    "screenshot": "character-over-panel-final-current.jpg"
+  },
+  "foregroundScreenshot": "character-always-foreground-current-final.jpg",
+  "mobileCaptureReceipt": {
+    "viewport": [390, 844],
+    "documentSize": [390, 844],
+    "horizontalOverflow": false,
+    "verticalOverflow": false
+  },
+  "dataMutation": false
+}
