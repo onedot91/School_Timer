@@ -93,7 +93,7 @@ export default function AuctionRoom({
         : 'rounded-[2rem] shadow-[0_22px_54px_rgba(28,45,40,0.1)]'
     }`}>
       <div className={`auction-room-header grid gap-3 border-b border-[#E4E9E6] bg-white sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
-        isCompact ? 'p-3 md:p-4' : 'p-4 md:p-5'
+        isCompact ? 'p-3 md:p-4' : 'p-3.5 md:px-5 md:py-4'
       }`}>
         <div className="min-w-0">
           <div className={`inline-flex items-center gap-2 rounded-full border border-[#DCE7E1] bg-[#FAFCFB] font-black text-[#007A57] ${
@@ -103,7 +103,7 @@ export default function AuctionRoom({
             {studentLabel}
           </div>
           <h1 className={`section-title mt-2 font-extrabold leading-none text-[#18211E] ${
-            isCompact ? 'text-[1.85rem] md:text-[2.15rem]' : 'text-[clamp(2rem,5vw,3.6rem)]'
+            isCompact ? 'text-[1.85rem] md:text-[2.15rem]' : 'text-[clamp(2rem,4.5vw,3.2rem)]'
           }`}>
             오늘의 경매
           </h1>
@@ -142,81 +142,77 @@ export default function AuctionRoom({
         </div>
       </div>
 
-      <div className={`auction-mission-strip grid border-b border-[#E4E9E6] bg-[#FAFCFB] ${
-        isCompact
-          ? 'gap-2 px-3 py-3 md:px-4'
-          : `gap-3 px-4 py-3 md:px-5 ${auctionMissions.length > 0
-              ? 'md:grid-cols-[minmax(0,1.45fr)_minmax(20rem,0.8fr)]'
-              : 'md:grid-cols-1'}`
+      <div className={`auction-mission-strip border-b border-[#E4E9E6] bg-[#FAFCFB] ${
+        isCompact ? 'px-3 py-2.5 md:px-4' : 'px-4 py-2.5 md:px-5'
       }`}>
-        {auctionMissions.length > 0 ? (
-          <section className="auction-mission-group grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[1rem] border border-[#E4D7C9] bg-white px-3 py-2.5">
-            <h2 className="section-title whitespace-nowrap text-[0.92rem] font-extrabold text-[#6E5139]">일일 미션</h2>
-            <div className="flex min-w-0 flex-wrap gap-2">
-              {auctionMissions.map((mission) => (
-                <div key={mission.id} className="inline-flex min-w-0 shrink-0 items-center gap-2 rounded-full bg-[#FFF8EC] px-3 py-2">
-                  <span className="max-w-[14rem] truncate text-[0.92rem] font-extrabold text-[#2F241D]">{mission.content}</span>
-                  <span className="font-mono text-[0.84rem] font-black text-[#007A57]">{formatCurrency(mission.rewardAmount)}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
         <section
-          className={`auction-mission-group grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-[1rem] border px-3 py-2.5 ${
+          className={`auction-mission-board overflow-hidden rounded-[1rem] border bg-white ${
             WEEKLY_MISSION_DEFINITIONS.every((mission) => weeklyMissionStatuses[mission.type] === 'completed')
-              ? 'border-[#9FC7B8] bg-[#F2FBF7]'
-              : 'border-[#DCE7E1] bg-white'
+              ? 'border-[#9FC7B8]'
+              : 'border-[#DCE7E1]'
           }`}
           aria-busy={WEEKLY_MISSION_DEFINITIONS.some((mission) => weeklyMissionStatuses[mission.type] === 'loading')}
         >
-          <h2 className="section-title whitespace-nowrap pt-2 text-[0.92rem] font-extrabold text-[#2F3834]">주간 미션</h2>
-          <div className="auction-weekly-mission-list grid min-w-0 gap-2">
-            {WEEKLY_MISSION_DEFINITIONS.map((mission) => {
-              const status = weeklyMissionStatuses[mission.type];
-              return (
-                <div key={mission.type} className="auction-weekly-mission-row grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-                  <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${
-                    status === 'completed'
-                      ? 'bg-[#007A57] text-white'
-                      : status === 'unavailable'
-                        ? 'bg-[#FFF4E8] text-[#9A6418]'
-                        : status === 'loading'
-                          ? 'bg-[#EAF5F1] text-[#007A57]'
-                          : 'bg-[#EEF4F1] text-[#7A8780]'
-                  }`} aria-hidden="true">
-                    {status === 'completed'
-                      ? <CheckCircle2 size={20} strokeWidth={2.8} />
-                      : status === 'unavailable'
-                        ? <AlertCircle size={20} strokeWidth={2.4} />
-                        : status === 'loading'
-                          ? <LoaderCircle className="animate-spin" size={20} strokeWidth={2.4} />
-                          : <Circle size={20} strokeWidth={2.4} />}
-                  </span>
-                  <div className={`min-w-0 truncate text-[0.94rem] font-extrabold leading-snug ${
-                    status === 'completed' ? 'text-[#006B4D]' : 'text-[#2F3834]'
-                  }`}>
-                    {mission.label}
+          {auctionMissions.length > 0 ? (
+            <div className="auction-mission-board-row grid min-w-0 grid-cols-[5.25rem_minmax(0,1fr)] items-center border-b border-[#E8ECEA] px-3 py-2">
+              <h2 className="section-title whitespace-nowrap text-[0.86rem] font-extrabold text-[#6E5139]">일일 미션</h2>
+              <div className="flex min-w-0 flex-wrap gap-1.5">
+                {auctionMissions.map((mission) => (
+                  <div key={mission.id} className="inline-flex min-w-0 items-center gap-2 rounded-full bg-[#FFF8EC] px-3 py-1.5">
+                    <span className="max-w-[13rem] truncate text-[0.86rem] font-extrabold text-[#2F241D]">{mission.content}</span>
+                    <span className="whitespace-nowrap font-mono text-[0.8rem] font-black text-[#007A57]">{formatCurrency(mission.rewardAmount)}</span>
                   </div>
-                  <div className={`whitespace-nowrap rounded-full border px-3 py-2 font-mono text-[0.85rem] font-black leading-none ${
-                    status === 'completed'
-                      ? 'border-[#9FC7B8] bg-white text-[#007A57]'
-                      : 'border-[#CFE2D8] bg-[#F2FBF7] text-[#007A57]'
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="auction-mission-board-row grid min-w-0 grid-cols-[5.25rem_minmax(0,1fr)] items-center px-3 py-2">
+            <h2 className="section-title whitespace-nowrap text-[0.86rem] font-extrabold text-[#2F3834]">주간 미션</h2>
+            <div className="auction-weekly-mission-list grid min-w-0 grid-cols-1 gap-1.5 lg:grid-cols-3">
+              {WEEKLY_MISSION_DEFINITIONS.map((mission) => {
+                const status = weeklyMissionStatuses[mission.type];
+                return (
+                  <div key={mission.type} className={`auction-weekly-mission-row grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[0.8rem] px-2 py-1 ${
+                    status === 'completed' ? 'bg-[#F2FBF7]' : 'bg-[#FAFCFB]'
                   }`}>
-                    +{formatCurrency(mission.rewardAmount)}
+                    <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
+                      status === 'completed'
+                        ? 'bg-[#007A57] text-white'
+                        : status === 'unavailable'
+                          ? 'bg-[#FFF4E8] text-[#9A6418]'
+                          : status === 'loading'
+                            ? 'bg-[#EAF5F1] text-[#007A57]'
+                            : 'bg-[#EEF4F1] text-[#7A8780]'
+                    }`} aria-hidden="true">
+                      {status === 'completed'
+                        ? <CheckCircle2 size={17} strokeWidth={2.8} />
+                        : status === 'unavailable'
+                          ? <AlertCircle size={17} strokeWidth={2.4} />
+                          : status === 'loading'
+                            ? <LoaderCircle className="animate-spin" size={17} strokeWidth={2.4} />
+                            : <Circle size={17} strokeWidth={2.4} />}
+                    </span>
+                    <div className={`min-w-0 truncate text-[0.84rem] font-extrabold leading-snug ${
+                      status === 'completed' ? 'text-[#006B4D]' : 'text-[#2F3834]'
+                    }`}>
+                      {mission.label}
+                    </div>
+                    <div className="whitespace-nowrap font-mono text-[0.78rem] font-black leading-none text-[#007A57]">
+                      +{formatCurrency(mission.rewardAmount)}
+                    </div>
+                    <span className="sr-only">
+                      {status === 'completed'
+                        ? '완료'
+                        : status === 'incomplete'
+                          ? '미완료'
+                          : status === 'loading'
+                            ? '확인 중'
+                            : '확인 불가'}
+                    </span>
                   </div>
-                  <span className="sr-only">
-                    {status === 'completed'
-                      ? '완료'
-                      : status === 'incomplete'
-                        ? '미완료'
-                        : status === 'loading'
-                          ? '확인 중'
-                          : '확인 불가'}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </section>
       </div>

@@ -12084,7 +12084,7 @@ a[href]:active {
 }
 
 .auction-balance-item {
-  min-height: 4.75rem;
+  min-height: 4.25rem;
 }
 
 .auction-day-grid {
@@ -12095,13 +12095,8 @@ a[href]:active {
   align-items: stretch;
 }
 
-.auction-mission-group {
-  min-height: 3.75rem;
-}
-
-.auction-weekly-mission-row + .auction-weekly-mission-row {
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--apple-separator);
+.auction-mission-board-row {
+  min-height: 3rem;
 }
 
 .auction-day-tab {
