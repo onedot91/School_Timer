@@ -68,6 +68,14 @@ const getInitialAuctionMissions = (): AuctionMission[] => (
   isSupabaseSettingsEnabled ? [] : getStoredAuctionMissions()
 );
 
+const getInitialSelectedAuctionItemId = () => {
+  const visibleDayCount = getAuctionVisibleDayCount();
+  const currentDayIndex = Math.max(0, visibleDayCount - 1);
+  return DEFAULT_AUCTION_ITEMS.find((item) => item.dayIndex === currentDayIndex)?.id
+    ?? DEFAULT_AUCTION_ITEMS[0]?.id
+    ?? '';
+};
+
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const shouldReduceMotion = useReducedMotion();
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => normalizeCurrencyBalances(null));
@@ -81,7 +89,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [bidAmountDrafts, setBidAmountDrafts] = useState<Record<string, string>>({});
-  const [selectedItemId, setSelectedItemId] = useState(DEFAULT_AUCTION_ITEMS[0]?.id ?? '');
+  const [selectedItemId, setSelectedItemId] = useState(getInitialSelectedAuctionItemId);
   const [isLoading, setIsLoading] = useState(isSupabaseSettingsEnabled);
   const [isSubmittingItemId, setIsSubmittingItemId] = useState<string | null>(null);
   const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);

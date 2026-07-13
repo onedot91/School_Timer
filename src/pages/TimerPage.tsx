@@ -7431,6 +7431,7 @@ export default function TimerPage() {
                                 value={weeklySubjectValue}
                                 onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
                                 className={`slot-subject-input slot-select w-full min-w-0 cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
+                                data-subject-state={weeklySubjectValue.trim() ? 'configured' : 'empty'}
                                 aria-label={`${DAYS[day]}요일 ${subjectKey}교시 과목`}
                               >
                                 <option value="">과목</option>
@@ -7446,6 +7447,7 @@ export default function TimerPage() {
                                 value={weeklySubjectValue}
                                 onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
                                 className={`slot-subject-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
+                                data-subject-state={weeklySubjectValue.trim() ? 'configured' : 'empty'}
                                 placeholder="과목"
                               />
                             )
@@ -8338,22 +8340,24 @@ export default function TimerPage() {
               : 'lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]'
           }`}
         >
-          <div className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">
-            {activeStudentCharacterWalkers.map((walker) => (
-              <React.Fragment key={walker.renderKey}>
-                <StudentCharacterShowcase
-                  character={walker.character}
-                  timerType={timerType}
-                  direction={walker.direction}
-                  path={walker.path}
-                  animationDelaySeconds={walker.animationDelaySeconds}
-                  spawnScale={walker.spawnScale}
-                  shouldSpeak={walker.shouldSpeak}
-                  onImageError={markStudentCharacterFailed}
-                />
-              </React.Fragment>
-            ))}
-          </div>
+          {!isSettingsOpen && !isSettingsMaterialMounted ? (
+            <div className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">
+              {activeStudentCharacterWalkers.map((walker) => (
+                <React.Fragment key={walker.renderKey}>
+                  <StudentCharacterShowcase
+                    character={walker.character}
+                    timerType={timerType}
+                    direction={walker.direction}
+                    path={walker.path}
+                    animationDelaySeconds={walker.animationDelaySeconds}
+                    spawnScale={walker.spawnScale}
+                    shouldSpeak={walker.shouldSpeak}
+                    onImageError={markStudentCharacterFailed}
+                  />
+                </React.Fragment>
+              ))}
+            </div>
+          ) : null}
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
             <div className="bgm-reveal-zone absolute left-1 top-1 z-40 flex items-start p-3 sm:left-2 sm:top-2 md:left-3 md:top-3">

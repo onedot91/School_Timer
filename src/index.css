@@ -9862,38 +9862,6 @@ h3 {
   min-width: 0;
 }
 
-.settings-dialog .slot-subject-input.slot-subject-input-configured {
-  border-color: #3f8f6b !important;
-  background: linear-gradient(180deg, #f0fbf5 0%, #e4f4ec 100%) !important;
-  color: #173f2d !important;
-  font-weight: 900 !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(63, 143, 107, 0.28),
-    0 8px 18px rgba(63, 143, 107, 0.12) !important;
-}
-
-.settings-dialog .slot-subject-input.slot-subject-input-configured:hover {
-  border-color: #267454 !important;
-  background: #def1e7 !important;
-}
-
-.settings-dialog .slot-subject-input.slot-subject-input-empty {
-  border-style: dashed !important;
-  border-color: #d7c9b8 !important;
-  background: #fffaf1 !important;
-  color: #8a7a6b !important;
-  font-weight: 800 !important;
-}
-
-.settings-dialog .slot-subject-input.slot-subject-input-empty:hover {
-  border-color: #b58363 !important;
-  background: #fff5e4 !important;
-}
-
-.settings-dialog .slot-subject-input.slot-subject-input-empty::placeholder {
-  color: #a9937c !important;
-}
-
 .settings-dialog .subject-catalog-list {
   grid-template-columns: repeat(auto-fill, minmax(14rem, 18rem)) !important;
   align-items: start;
@@ -13040,6 +13008,38 @@ a[href]:active {
   background: var(--apple-surface) !important;
   box-shadow: inset 0 1px 2px rgba(29, 29, 31, 0.035) !important;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease !important;
+}
+
+.settings-dialog :is(select, input).slot-subject-input[data-subject-state="configured"] {
+  border-color: #16815e !important;
+  color: #07583e !important;
+  background: linear-gradient(180deg, #edf9f3 0%, #dff3e9 100%) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(22, 129, 94, 0.22),
+    0 6px 14px rgba(22, 129, 94, 0.1) !important;
+}
+
+.settings-dialog :is(select, input).slot-subject-input[data-subject-state="configured"]:hover {
+  border-color: #267454 !important;
+  background: #def1e7 !important;
+}
+
+.settings-dialog :is(select, input).slot-subject-input[data-subject-state="empty"] {
+  border-style: dashed !important;
+  border-color: #c8c8cc !important;
+  color: #8e8e93 !important;
+  background: #f2f2f7 !important;
+  box-shadow: none !important;
+}
+
+.settings-dialog :is(select, input).slot-subject-input[data-subject-state="empty"]:hover {
+  border-color: #9d9da3 !important;
+  background: #eaeaef !important;
+}
+
+.settings-dialog :is(select, input).slot-subject-input[data-subject-state="empty"]::placeholder,
+.settings-dialog :is(select, input).slot-subject-input[data-subject-state="empty"] option[value=""] {
+  color: #8e8e93 !important;
 }
 
 .settings-dialog :is(input:not([type="range"]):not([type="checkbox"]), textarea, select):focus,
