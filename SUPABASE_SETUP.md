@@ -24,7 +24,7 @@
 2. `supabase/app_settings.sql` 파일 내용을 복사합니다.
 3. SQL Editor에 붙여넣고 실행합니다.
 
-이미 이전 설정 테이블을 만들었더라도 같은 파일을 다시 실행하면 됩니다. 새로 필요한 알림장 테이블과 정책만 추가됩니다.
+이미 이전 설정 테이블을 만들었더라도 같은 파일을 다시 실행하면 됩니다. 알림장과 주간 미션 지급 기록 테이블, 중복 지급 방지 함수가 함께 추가됩니다.
 
 ### 3. API 키 복사하기
 
@@ -32,6 +32,7 @@ Supabase 프로젝트에서 `Project Settings` -> `API`로 이동한 뒤 아래 
 
 - `Project URL`
 - `anon public` key
+- `service_role` key
 
 ### 4. 로컬 환경변수 만들기
 
@@ -41,6 +42,14 @@ Supabase 프로젝트에서 `Project Settings` -> `API`로 이동한 뒤 아래 
 VITE_SUPABASE_URL=여기에_Project_URL
 VITE_SUPABASE_ANON_KEY=여기에_anon_public_key
 ```
+
+배포 환경에는 아래 서버 전용 변수도 추가합니다.
+
+```env
+SUPABASE_SERVICE_ROLE_KEY=여기에_service_role_key
+```
+
+이 키는 주간 개인질문 미션을 확인한 서버 함수에서만 사용합니다. 브라우저 코드에 노출되는 `VITE_` 접두사를 붙이면 안 됩니다.
 
 ### 5. 앱 다시 실행하기
 
@@ -54,5 +63,6 @@ npm run dev
 ## 주의
 
 - `.env` 파일은 Git에 올리지 마세요.
+- `SUPABASE_SERVICE_ROLE_KEY`는 브라우저 코드나 공개 저장소에 절대 넣지 마세요.
 - 같은 설정을 공유하려는 모든 PC는 같은 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`를 써야 합니다.
 - Supabase 환경변수가 없으면 앱은 기존처럼 브라우저 로컬 저장소만 사용합니다.

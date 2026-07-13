@@ -24,4 +24,12 @@ Vite HMR:
 
 ## Deploy
 
-No API key is required.
+기본 화면은 API 키 없이 실행할 수 있습니다. Supabase 공유 설정과 주간 미션 자동 지급을 사용하려면 다음 환경변수가 필요합니다.
+
+```env
+VITE_SUPABASE_URL=Supabase_Project_URL
+VITE_SUPABASE_ANON_KEY=Supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=Supabase_service_role_key
+```
+
+`SUPABASE_SERVICE_ROLE_KEY`는 Vercel의 서버 환경변수에만 저장하며 `VITE_` 접두사를 붙이지 않습니다.

@@ -6625,6 +6625,7 @@ h3 {
   --student-character-walk-end-top: 81vh;
   --student-character-walk-size: min(31vw, 33vh, 16rem);
   --student-character-walk-scale: 1;
+  --student-character-spawn-scale: 1;
   --student-character-walk-duration: 34s;
   --student-character-walk-delay: 0s;
   --student-character-walk-easing: linear;
@@ -6688,6 +6689,15 @@ h3 {
   display: flex;
   width: 100%;
   transform: scale(var(--student-character-walk-scale));
+  flex-direction: column;
+  align-items: center;
+  transform-origin: center bottom;
+}
+
+.student-character-spawn-scale {
+  display: flex;
+  width: 100%;
+  transform: scale(var(--student-character-spawn-scale));
   flex-direction: column;
   align-items: center;
   transform-origin: center bottom;
@@ -12081,6 +12091,41 @@ a[href]:active {
   align-items: start;
 }
 
+.auction-mission-strip {
+  align-items: stretch;
+}
+
+.auction-mission-group {
+  min-height: 3.75rem;
+}
+
+.auction-day-tab {
+  transition:
+    transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    opacity 120ms linear;
+}
+
+.auction-day-tab:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--apple-accent) 48%, var(--apple-separator));
+  background: color-mix(in srgb, var(--apple-accent) 6%, white);
+}
+
+.auction-day-tab:not(:disabled):active {
+  transform: scale(0.98);
+  opacity: 0.88;
+}
+
+.auction-current-day {
+  box-shadow: 0 12px 28px rgb(28 45 40 / 7%);
+}
+
+.auction-bid-area {
+  align-self: start;
+}
+
 .auction-day-column {
   border-radius: var(--apple-radius-card) !important;
 }
@@ -12525,8 +12570,8 @@ a[href]:active {
   }
 
   .timer-main-shell .student-character-showcase {
-    --student-character-main-left: 0cqw;
-    --student-character-main-right: 100cqw;
+    --student-character-main-left: 0dvw;
+    --student-character-main-right: 100dvw;
     --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
     --student-character-walk-end: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
   }
@@ -12573,8 +12618,8 @@ a[href]:active {
     --student-character-depth-mid-a: 48000 !important;
     --student-character-depth-mid-b: 51000 !important;
     --student-character-depth-end: 49000 !important;
-    --student-character-main-left: 0cqw;
-    --student-character-main-right: 100cqw;
+    --student-character-main-left: 0dvw;
+    --student-character-main-right: 100dvw;
     --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
     --student-character-walk-end: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
     --student-character-ground-clearance: clamp(0.75rem, 2.5dvh, 1.5rem);

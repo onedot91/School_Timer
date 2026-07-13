@@ -53,3 +53,8 @@ export const loadQuestionSubmissionStatuses = async () => {
 
   return parseQuestionSubmissionStatuses(await response.json());
 };
+
+export const hasPersonalQuestionSubmission = (
+  statuses: readonly QuestionSubmissionStatus[],
+  studentNumber: number,
+) => statuses.some((status) => status.number === studentNumber && status.personalSubmitted);

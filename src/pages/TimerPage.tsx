@@ -3260,8 +3260,11 @@ interface StudentCharacterWalker {
   direction: 'left' | 'right';
   path: (typeof STUDENT_CHARACTER_WALK_PATHS)[number];
   animationDelaySeconds: number;
+  spawnScale: number;
   shouldSpeak: boolean;
 }
+
+const STUDENT_CHARACTER_SPAWN_SCALES = [0.85, 0.9, 0.95, 0.95, 1, 1, 1, 1.05, 1.05, 1.1, 1.15] as const;
 
 const shouldStudentCharacterSpeak = (spawnOrder: number, characterIndex: number, streamIndex: number) => {
   const seed = (spawnOrder + 7) * 37 + (characterIndex + 3) * 19 + streamIndex * 11;
@@ -3276,6 +3279,9 @@ const getStableHash = (value: string) => {
   }
   return hash >>> 0;
 };
+
+const getStudentCharacterSpawnScale = (seedValue: string) =>
+  STUDENT_CHARACTER_SPAWN_SCALES[getStableHash(seedValue) % STUDENT_CHARACTER_SPAWN_SCALES.length];
 
 const getSeededRandom = (seedValue: string) => {
   let seed = getStableHash(seedValue) || 1;
@@ -3303,6 +3309,7 @@ function StudentCharacterShowcase({
   direction,
   path,
   animationDelaySeconds,
+  spawnScale,
   shouldSpeak,
   onImageError,
 }: {
@@ -3311,6 +3318,7 @@ function StudentCharacterShowcase({
   direction: 'left' | 'right';
   path: (typeof STUDENT_CHARACTER_WALK_PATHS)[number];
   animationDelaySeconds: number;
+  spawnScale: number;
   shouldSpeak: boolean;
   onImageError: (characterId: string) => void;
 }) {
@@ -3336,6 +3344,7 @@ function StudentCharacterShowcase({
     '--student-character-walk-scale': path.scale,
     '--student-character-walk-duration': `${STUDENT_CHARACTER_WALK_SECONDS}s`,
     '--student-character-walk-delay': `${initialAnimationDelaySeconds}s`,
+    '--student-character-spawn-scale': spawnScale,
     '--student-character-walk-easing': path.easing,
     '--student-character-bob-duration': path.bobDuration,
     '--student-character-bob-lift': path.bobLift,
@@ -3358,19 +3367,21 @@ function StudentCharacterShowcase({
     >
       <div className="student-character-path">
         <div className="student-character-scale">
-          <div className="student-character-frame">
-            {shouldSpeak && character.speech && !shouldUseSpeechImage ? (
-              <div className="student-character-speech" aria-hidden="true">
-                {character.speech}
-              </div>
-            ) : null}
-            <img
-              src={characterImageSrc}
-              alt={characterImageAlt}
-              className="student-character-image"
-              draggable={false}
-              onError={() => onImageError(character.id)}
-            />
+          <div className="student-character-spawn-scale">
+            <div className="student-character-frame">
+              {shouldSpeak && character.speech && !shouldUseSpeechImage ? (
+                <div className="student-character-speech" aria-hidden="true">
+                  {character.speech}
+                </div>
+              ) : null}
+              <img
+                src={characterImageSrc}
+                alt={characterImageAlt}
+                className="student-character-image"
+                draggable={false}
+                onError={() => onImageError(character.id)}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -6728,12 +6739,14 @@ export default function TimerPage() {
       Boolean(character.speech || character.speechImageSrc) &&
       shouldStudentCharacterSpeak(spawnOrder, characterIndex, streamIndex);
 
+    const renderKey = `${streamIndex}-${walkCycle}-${characterIndex}-${character.id}`;
     return {
-      renderKey: `${streamIndex}-${walkCycle}-${characterIndex}-${character.id}`,
+      renderKey,
       character,
       direction: spawnOrder % 2 === 0 ? 'right' : 'left',
       path: STUDENT_CHARACTER_WALK_PATHS[pathIndex],
       animationDelaySeconds: -(shiftedElapsedSeconds % STUDENT_CHARACTER_WALK_SECONDS),
+      spawnScale: getStudentCharacterSpawnScale(renderKey),
       shouldSpeak,
     };
   };
@@ -8325,23 +8338,24 @@ export default function TimerPage() {
               : 'lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]'
           }`}
         >
+          <div className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">
+            {activeStudentCharacterWalkers.map((walker) => (
+              <React.Fragment key={walker.renderKey}>
+                <StudentCharacterShowcase
+                  character={walker.character}
+                  timerType={timerType}
+                  direction={walker.direction}
+                  path={walker.path}
+                  animationDelaySeconds={walker.animationDelaySeconds}
+                  spawnScale={walker.spawnScale}
+                  shouldSpeak={walker.shouldSpeak}
+                  onImageError={markStudentCharacterFailed}
+                />
+              </React.Fragment>
+            ))}
+          </div>
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">
-            <div className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">
-              {activeStudentCharacterWalkers.map((walker) => (
-                <React.Fragment key={walker.renderKey}>
-                  <StudentCharacterShowcase
-                    character={walker.character}
-                    timerType={timerType}
-                    direction={walker.direction}
-                    path={walker.path}
-                    animationDelaySeconds={walker.animationDelaySeconds}
-                    shouldSpeak={walker.shouldSpeak}
-                    onImageError={markStudentCharacterFailed}
-                  />
-                </React.Fragment>
-              ))}
-            </div>
             <div className="bgm-reveal-zone absolute left-1 top-1 z-40 flex items-start p-3 sm:left-2 sm:top-2 md:left-3 md:top-3">
               <button
                 onClick={toggleBackgroundMusic}

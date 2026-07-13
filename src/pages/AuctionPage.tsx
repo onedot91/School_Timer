@@ -34,7 +34,17 @@ import {
   updateSharedSettings,
 } from '../lib/supabaseSettings';
 import { playAuctionSound, prepareAuctionAudio } from '../lib/auctionAudio';
+import {
+  hasPersonalQuestionSubmission,
+  loadQuestionSubmissionStatuses,
+} from '../lib/questionSubmissionStatus';
 import { useModalFocus } from '../lib/useModalFocus';
+import {
+  claimWeeklyMissionRewardInSettings,
+  getKoreanIsoWeekKey,
+  syncPersonalQuestionWeeklyMission,
+  type WeeklyMissionStatus,
+} from '../lib/weeklyMission';
 
 interface AuctionPageProps {
   studentNumber: number;
@@ -62,6 +72,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
+  const [weeklyMissionStatus, setWeeklyMissionStatus] = useState<WeeklyMissionStatus>('loading');
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [bidAmountDrafts, setBidAmountDrafts] = useState<Record<string, string>>({});
   const [selectedItemId, setSelectedItemId] = useState(DEFAULT_AUCTION_ITEMS[0]?.id ?? '');
@@ -275,6 +286,70 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }, 3000);
 
     return () => window.clearInterval(intervalId);
+  }, [studentNumber]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const syncWeeklyMission = async () => {
+      try {
+        const result = await syncPersonalQuestionWeeklyMission(studentNumber);
+        if (!isActive) return;
+        setWeeklyMissionStatus(result.completed ? 'completed' : 'incomplete');
+        setCurrencyBalances((previous) => ({
+          ...previous,
+          [String(studentNumber)]: result.balance,
+        }));
+      } catch (error) {
+        if (!isActive) return;
+        const isExpectedLocalApiAbsence = import.meta.env.DEV
+          && error instanceof Error
+          && error.message === 'WEEKLY_MISSION_HTTP_404';
+        if (!isExpectedLocalApiAbsence) console.warn('Failed to sync weekly mission.', error);
+
+        try {
+          const submissionStatuses = await loadQuestionSubmissionStatuses();
+          if (!isActive) return;
+          const isCompleted = hasPersonalQuestionSubmission(submissionStatuses, studentNumber);
+          if (!isCompleted) {
+            setWeeklyMissionStatus('incomplete');
+            return;
+          }
+
+          let claimedBalance: number | null = null;
+          await updateSharedSettings((currentValue) => {
+            const claim = claimWeeklyMissionRewardInSettings(
+              currentValue,
+              studentNumber,
+              getKoreanIsoWeekKey(),
+            );
+            claimedBalance = claim.balance;
+            return claim.value;
+          });
+          if (!isActive) return;
+          setWeeklyMissionStatus('completed');
+          if (claimedBalance !== null) {
+            setCurrencyBalances((previous) => ({
+              ...previous,
+              [String(studentNumber)]: claimedBalance ?? previous[String(studentNumber)],
+            }));
+          }
+        } catch (fallbackError) {
+          if (!isActive) return;
+          console.warn('Failed to load weekly mission completion fallback.', fallbackError);
+          setWeeklyMissionStatus('unavailable');
+        }
+      }
+    };
+
+    setWeeklyMissionStatus('loading');
+    void syncWeeklyMission();
+    const intervalId = window.setInterval(() => void syncWeeklyMission(), 60_000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
   }, [studentNumber]);
 
   const selectItem = (item: AuctionItem) => {
@@ -536,6 +611,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           auctionBids={auctionBids}
           auctionAwards={auctionAwards}
           auctionMissions={auctionMissions}
+          weeklyMissionStatus={weeklyMissionStatus}
           availableBalance={availableBalance}
           reservedAmount={reservedAmount}
           visibleDayCount={visibleDayCount}
@@ -549,11 +625,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             const selectedItemDisplayName = getAuctionItemDisplayName(selectedItem.name, selectedItem.dayIndex);
             if (award) {
               return (
-                <div className="auction-bid-panel mx-4 my-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:my-5">
-                  <h2 className="section-title text-[1.45rem] font-extrabold leading-tight text-[#18211E]">
-                    {selectedItemDisplayName}
-                  </h2>
-                  <div className="mt-3 rounded-[1rem] border border-[#E5ECE8] bg-[#FAFCFB] px-4 py-3">
+                <div className="auction-bid-panel rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
+                  <div className="rounded-[1rem] border border-[#E5ECE8] bg-[#FAFCFB] px-4 py-3">
                     <div className="text-[0.9rem] font-black text-[#8A5A1F]">낙찰 완료</div>
                     <div className="mt-1 font-mono text-[1.35rem] font-black text-[#007A57]">
                       {award.winner}번 · {formatCurrency(award.amount)}
@@ -582,7 +655,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               selectedBidAmount <= maxBid;
 
             return (
-              <div className="auction-bid-panel mx-4 my-4 rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)] md:mx-5 md:my-5">
+              <div className="auction-bid-panel rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
                 <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
                     <h2 className="section-title min-w-0 truncate text-[1.35rem] font-extrabold leading-tight text-[#18211E]">
