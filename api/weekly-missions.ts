@@ -2,7 +2,7 @@ import {
   getClasswordMissionEvidence,
   getKoreanWeekDateRange,
   parseClasswordMissionStatus,
-} from '../src/lib/classwordWeeklyMission';
+} from '../src/lib/classwordWeeklyMission.js';
 import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
@@ -13,7 +13,7 @@ import {
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   type WeeklyMissionResult,
   type WeeklyMissionType,
-} from '../src/lib/weeklyMission';
+} from '../src/lib/weeklyMission.js';
 
 interface ApiRequest {
   method?: string;

@@ -3,7 +3,7 @@ import {
   getKoreanIsoWeekKey,
   parseQuestionStudentResponse,
   parseWeeklyMissionResult,
-} from '../src/lib/weeklyMission';
+} from '../src/lib/weeklyMission.js';
 
 interface ApiRequest {
   method?: string;

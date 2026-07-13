@@ -265,4 +265,4 @@ import {
   CURRENCY_HISTORY_LIMIT_PER_STUDENT,
   normalizeCurrencyBalances,
   normalizeCurrencyHistory,
-} from './currency';
+} from './currency.js';
