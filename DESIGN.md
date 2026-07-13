@@ -110,7 +110,7 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - Disabled state remains visually distinct and does not animate on press.
 - Mutually exclusive settings tabs use a filled accent selected state with white label and icon; unselected tabs remain quiet and neutral.
 - The schedule pane header shows only the adjusted current date on the left and the settings action on the right; month/day is larger and stronger while the weekday is smaller and secondary, and no redundant schedule title is added.
-- Student auction missions use two explicit groups: teacher-configured items appear under `일일 미션`, and the fixed personal-question reward appears under `주간 미션`. Completion is communicated by the existing green success treatment and a check icon without explanatory copy.
+- Student auction missions use two explicit groups: teacher-configured items appear under `일일 미션`, and weekly rewards appear under `주간 미션`. On the Chromebook auction surface, daily mission chips wrap into visible rows and weekly missions stack as visible rows instead of hiding behind horizontal scrolling. Completion is communicated by the existing green success treatment and a check icon without explanatory copy.
 - The student auction is a Chromebook-only operational surface. Its main auction area gives the current unlocked weekday dominant scale, keeps the item list and bid controls in one desktop workspace, and presents every other weekday as compact secondary navigation. The selected item uses an accent fill, inset edge, and pressed state rather than a detached duplicate summary.
 - Body copy and form content remain selectable. Decorative images may remain non-selectable.
 

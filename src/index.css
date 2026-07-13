@@ -12099,6 +12099,11 @@ a[href]:active {
   min-height: 3.75rem;
 }
 
+.auction-weekly-mission-row + .auction-weekly-mission-row {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--apple-separator);
+}
+
 .auction-day-tab {
   transition:
     transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1),
