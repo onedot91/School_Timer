@@ -3179,6 +3179,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     bobTilt: '0.7deg',
     easing: 'linear',
     zIndex: 27,
+    depthStart: 82000,
+    depthMidA: 80000,
+    depthMidB: 78000,
+    depthEnd: 80000,
   },
   {
     startTop: '80vh',
@@ -3192,6 +3196,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     bobTilt: '0.45deg',
     easing: 'linear',
     zIndex: 30,
+    depthStart: 80000,
+    depthMidA: 81000,
+    depthMidB: 83000,
+    depthEnd: 82000,
   },
   {
     startTop: '81vh',
@@ -3205,6 +3213,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     bobTilt: '0.9deg',
     easing: 'linear',
     zIndex: 32,
+    depthStart: 81000,
+    depthMidA: 78000,
+    depthMidB: 80000,
+    depthEnd: 84000,
   },
   {
     startTop: '78vh',
@@ -3218,6 +3230,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     bobTilt: '0.6deg',
     easing: 'linear',
     zIndex: 24,
+    depthStart: 78000,
+    depthMidA: 80000,
+    depthMidB: 82000,
+    depthEnd: 81000,
   },
   {
     startTop: '83vh',
@@ -3231,6 +3247,10 @@ const STUDENT_CHARACTER_WALK_PATHS = [
     bobTilt: '0.5deg',
     easing: 'linear',
     zIndex: 34,
+    depthStart: 83000,
+    depthMidA: 84000,
+    depthMidB: 81000,
+    depthEnd: 79000,
   },
 ] as const;
 
@@ -3321,6 +3341,10 @@ function StudentCharacterShowcase({
     '--student-character-bob-lift': path.bobLift,
     '--student-character-bob-tilt': path.bobTilt,
     '--student-character-depth-z': path.zIndex,
+    '--student-character-depth-start': path.depthStart,
+    '--student-character-depth-mid-a': path.depthMidA,
+    '--student-character-depth-mid-b': path.depthMidB,
+    '--student-character-depth-end': path.depthEnd,
     '--student-character-image-transform': imageTransform,
     '--student-character-speech-top': character.speechTop || '-0.65rem',
   } as React.CSSProperties;
@@ -3332,19 +3356,23 @@ function StudentCharacterShowcase({
       aria-label={`${modeLabel} 자캐`}
       style={frameStyle}
     >
-      <div className="student-character-frame">
-        {shouldSpeak && character.speech && !shouldUseSpeechImage ? (
-          <div className="student-character-speech" aria-hidden="true">
-            {character.speech}
+      <div className="student-character-path">
+        <div className="student-character-scale">
+          <div className="student-character-frame">
+            {shouldSpeak && character.speech && !shouldUseSpeechImage ? (
+              <div className="student-character-speech" aria-hidden="true">
+                {character.speech}
+              </div>
+            ) : null}
+            <img
+              src={characterImageSrc}
+              alt={characterImageAlt}
+              className="student-character-image"
+              draggable={false}
+              onError={() => onImageError(character.id)}
+            />
           </div>
-        ) : null}
-        <img
-          src={characterImageSrc}
-          alt={characterImageAlt}
-          className="student-character-image"
-          draggable={false}
-          onError={() => onImageError(character.id)}
-        />
+        </div>
       </div>
     </div>
   );
@@ -6433,6 +6461,13 @@ export default function TimerPage() {
   const isScheduleIdle = displayTotalTime === 0;
   const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
   const today = adjustedScheduleNow.getDay();
+  const scheduleMonthDayLabel = adjustedScheduleNow.toLocaleDateString('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+  });
+  const scheduleWeekdayLabel = adjustedScheduleNow.toLocaleDateString('ko-KR', {
+    weekday: 'long',
+  });
   const currentSubjectWeekKey = getWeekKeyForDate(adjustedScheduleNow);
   const currentDaySchedule = weeklySchedule[today] || [];
   const currentScheduleSecondsOfDay =
@@ -8875,45 +8910,58 @@ export default function TimerPage() {
               ) : null}
 
               <div className="schedule-content-area relative min-h-0 flex flex-1 flex-col">
-                <div className="schedule-panel-actions relative z-20 flex min-h-10 min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
-                  {scheduleYoutubeCount > 0 ? (
+                <div className="schedule-panel-header relative z-20 flex min-h-12 min-w-0 shrink-0 items-center justify-between gap-3 border-b border-[#D7E2D1] pb-3">
+                  <time
+                    dateTime={formatDateKey(adjustedScheduleNow)}
+                    className="flex min-w-0 items-baseline gap-[clamp(0.4rem,1.6cqw,0.65rem)] whitespace-nowrap text-[#1D1D1F]"
+                  >
+                    <span className="truncate text-[clamp(1.75rem,8cqw,2.125rem)] font-extrabold leading-none tracking-[-0.035em]">
+                      {scheduleMonthDayLabel}
+                    </span>
+                    <span className="shrink-0 text-[clamp(1.1rem,4.5cqw,1.35rem)] font-semibold leading-none tracking-[-0.02em] text-[#77777D]">
+                      {scheduleWeekdayLabel}
+                    </span>
+                  </time>
+                  <div className="schedule-panel-actions flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
+                    {scheduleYoutubeCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsScheduleYoutubeVisible(true);
+                          setHasMountedScheduleYoutubePlayer(true);
+                          setIsScheduleYoutubePlaylistOpen((previous) => !previous);
+                        }}
+                        className={`inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-1.5 text-[0.76rem] font-extrabold transition-colors ${
+                          isScheduleYoutubePlaylistOpen
+                            ? 'border-[#9FC7B8] bg-[#EEF7E8] text-[#006241]'
+                            : 'border-[#D9C8B6] bg-white text-[#8A6347] hover:border-[#9FC7B8] hover:bg-[#F3FAF7]'
+                        }`}
+                        title={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
+                        aria-label={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
+                        aria-expanded={isScheduleYoutubePlaylistOpen}
+                      >
+                        {scheduleYoutubeCount}개 영상
+                      </button>
+                    ) : null}
                     <button
+                      ref={settingsTriggerRef}
                       type="button"
                       onClick={() => {
-                        setIsScheduleYoutubeVisible(true);
-                        setHasMountedScheduleYoutubePlayer(true);
-                        setIsScheduleYoutubePlaylistOpen((previous) => !previous);
+                        setIsDrawCaseMenuOpen(false);
+                        setIsLibraryOpen(false);
+                        setIsCurrencyPanelOpen(false);
+                        setIsQuestionSubmissionPanelOpen(false);
+                        setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
+                        setIsSettingsMaterialMounted(true);
+                        setIsSettingsOpen(true);
                       }}
-                      className={`inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-1.5 text-[0.76rem] font-extrabold transition-colors ${
-                        isScheduleYoutubePlaylistOpen
-                          ? 'border-[#9FC7B8] bg-[#EEF7E8] text-[#006241]'
-                          : 'border-[#D9C8B6] bg-white text-[#8A6347] hover:border-[#9FC7B8] hover:bg-[#F3FAF7]'
-                      }`}
-                      title={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
-                      aria-label={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
-                      aria-expanded={isScheduleYoutubePlaylistOpen}
+                      className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E6DE] bg-white text-[#006241] transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7]"
+                      title="설정"
+                      aria-label="설정"
                     >
-                      {scheduleYoutubeCount}개 영상
+                      <Settings size={19} strokeWidth={2.35} />
                     </button>
-                  ) : null}
-                  <button
-                    ref={settingsTriggerRef}
-                    type="button"
-                    onClick={() => {
-                      setIsDrawCaseMenuOpen(false);
-                      setIsLibraryOpen(false);
-                      setIsCurrencyPanelOpen(false);
-                      setIsQuestionSubmissionPanelOpen(false);
-                      setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
-                      setIsSettingsMaterialMounted(true);
-                      setIsSettingsOpen(true);
-                    }}
-                    className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E6DE] bg-white text-[#006241] transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7]"
-                    title="설정"
-                    aria-label="설정"
-                  >
-                    <Settings size={19} strokeWidth={2.35} />
-                  </button>
+                  </div>
                 </div>
                 {currentDaySchedule.length === 0 ? (
                   <div className="schedule-empty-state flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-12 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
@@ -9363,7 +9411,7 @@ export default function TimerPage() {
                           {scheduleYoutubeFavorites.map((favorite, index) => (
                             <div
                               key={favorite.id}
-                              className={`group flex min-w-0 items-center gap-1 rounded-full border border-[#D7E2D1] bg-[#FFFDF8] transition-colors hover:border-[#BFD4B2] hover:bg-[#F8FCF6] ${
+                              className={`youtube-favorite-chip group flex min-w-0 items-center gap-1 rounded-full border border-[#D7E2D1] bg-[#FFFDF8] transition-[border-color,background-color,box-shadow] ${
                                 isScheduleYoutubeFavoritesEditing ? 'h-8 px-1.5' : 'h-8 px-2'
                               } ${
                                 draggingScheduleYoutubeFavoriteId === favorite.id
@@ -9443,8 +9491,7 @@ export default function TimerPage() {
 
                                     addScheduleYoutubeFavoriteToPlaylist(favorite);
                                   }}
-                                  className="min-w-0 flex-1 truncate rounded-full px-1 text-left text-[0.68rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF2E3]"
-                                  title={`${favorite.name} 재생목록 추가`}
+                                  className="h-full min-h-0 min-w-0 flex-1 truncate px-1 text-left text-[0.68rem] font-extrabold text-[#6E5139] transition-colors group-hover:text-[#006241]"
                                   aria-label={`${favorite.name} 재생목록 추가`}
                                 >
                                   {favorite.name || '이름 없음'}

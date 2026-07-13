@@ -6629,14 +6629,16 @@ h3 {
   --student-character-walk-delay: 0s;
   --student-character-walk-easing: linear;
   --student-character-walk-start: -18vw;
-  --student-character-walk-mid-x-a: 20vw;
-  --student-character-walk-mid-x-b: 66vw;
   --student-character-walk-end: 118vw;
   --student-character-ground-clearance: clamp(2.25rem, 6vh, 4.75rem);
   --student-character-bob-duration: 780ms;
   --student-character-bob-lift: -0.42rem;
   --student-character-bob-tilt: 0.5deg;
   --student-character-depth-z: 18;
+  --student-character-depth-start: 82000;
+  --student-character-depth-mid-a: 80000;
+  --student-character-depth-mid-b: 83000;
+  --student-character-depth-end: 81000;
   --student-character-speech-top: -0.65rem;
   position: absolute;
   left: 0;
@@ -6646,17 +6648,16 @@ h3 {
   width: var(--student-character-walk-size);
   min-width: 7.5rem;
   max-width: 18rem;
-  transform: translate3d(var(--student-character-walk-start), var(--student-character-walk-start-top), 0)
-    translateX(-50%)
-    translateY(calc(-100% - var(--student-character-ground-clearance)))
-    scale(var(--student-character-walk-scale));
+  transform: translate3d(var(--student-character-walk-start), 0, 0) translateX(-50%);
   flex-direction: column;
   align-items: center;
   transform-origin: center bottom;
   pointer-events: none;
   backface-visibility: hidden;
   will-change: transform, opacity;
-  animation: studentCharacterWalkAcross var(--student-character-walk-duration) var(--student-character-walk-easing) both;
+  animation:
+    studentCharacterWalkAcross var(--student-character-walk-duration) var(--student-character-walk-easing) both,
+    studentCharacterWalkDepth var(--student-character-walk-duration) var(--student-character-walk-easing) both;
   animation-delay: var(--student-character-walk-delay);
 }
 
@@ -6667,9 +6668,29 @@ h3 {
 
 .student-character-walk-left {
   --student-character-walk-start: 118vw;
-  --student-character-walk-mid-x-a: 80vw;
-  --student-character-walk-mid-x-b: 34vw;
   --student-character-walk-end: -18vw;
+}
+
+.student-character-path {
+  display: flex;
+  width: 100%;
+  transform: translateY(
+    calc(var(--student-character-walk-start-top) - 100% - var(--student-character-ground-clearance))
+  );
+  flex-direction: column;
+  align-items: center;
+  will-change: transform;
+  animation: studentCharacterWalkPath var(--student-character-walk-duration) var(--student-character-walk-easing) both;
+  animation-delay: var(--student-character-walk-delay);
+}
+
+.student-character-scale {
+  display: flex;
+  width: 100%;
+  transform: scale(var(--student-character-walk-scale));
+  flex-direction: column;
+  align-items: center;
+  transform-origin: center bottom;
 }
 
 .student-character-frame {
@@ -6741,36 +6762,56 @@ h3 {
 
 @keyframes studentCharacterWalkAcross {
   0% {
-    transform: translate3d(var(--student-character-walk-start), var(--student-character-walk-start-top), 0)
-      translateX(-50%)
-      translateY(calc(-100% - var(--student-character-ground-clearance)))
-      scale(var(--student-character-walk-scale));
+    transform: translate3d(var(--student-character-walk-start), 0, 0) translateX(-50%);
     opacity: 0;
   }
   4% {
     opacity: 1;
   }
-  28% {
-    transform: translate3d(var(--student-character-walk-mid-x-a), var(--student-character-walk-mid-top-a), 0)
-      translateX(-50%)
-      translateY(calc(-100% - var(--student-character-ground-clearance)))
-      scale(var(--student-character-walk-scale));
-  }
-  62% {
-    transform: translate3d(var(--student-character-walk-mid-x-b), var(--student-character-walk-mid-top-b), 0)
-      translateX(-50%)
-      translateY(calc(-100% - var(--student-character-ground-clearance)))
-      scale(var(--student-character-walk-scale));
-  }
   96% {
     opacity: 1;
   }
   100% {
-    transform: translate3d(var(--student-character-walk-end), var(--student-character-walk-end-top), 0)
-      translateX(-50%)
-      translateY(calc(-100% - var(--student-character-ground-clearance)))
-      scale(var(--student-character-walk-scale));
+    transform: translate3d(var(--student-character-walk-end), 0, 0) translateX(-50%);
     opacity: 0;
+  }
+}
+
+@keyframes studentCharacterWalkPath {
+  0% {
+    transform: translateY(
+      calc(var(--student-character-walk-start-top) - 100% - var(--student-character-ground-clearance))
+    );
+  }
+  28% {
+    transform: translateY(
+      calc(var(--student-character-walk-mid-top-a) - 100% - var(--student-character-ground-clearance))
+    );
+  }
+  62% {
+    transform: translateY(
+      calc(var(--student-character-walk-mid-top-b) - 100% - var(--student-character-ground-clearance))
+    );
+  }
+  100% {
+    transform: translateY(
+      calc(var(--student-character-walk-end-top) - 100% - var(--student-character-ground-clearance))
+    );
+  }
+}
+
+@keyframes studentCharacterWalkDepth {
+  0% {
+    z-index: var(--student-character-depth-start);
+  }
+  28% {
+    z-index: var(--student-character-depth-mid-a);
+  }
+  62% {
+    z-index: var(--student-character-depth-mid-b);
+  }
+  100% {
+    z-index: var(--student-character-depth-end);
   }
 }
 
@@ -12229,7 +12270,12 @@ a[href]:active {
 }
 
 .timer-main-shell .student-character-stage {
+  position: fixed;
+  inset: 0;
   z-index: 80;
+  width: 100dvw;
+  height: 100dvh;
+  overflow: visible;
   isolation: isolate;
 }
 
@@ -12469,11 +12515,8 @@ a[href]:active {
   }
 
   .timer-main-shell .student-character-stage {
-    --student-character-timer-inline-padding: 3rem;
     z-index: 80;
-    width: calc(
-      100cqw + var(--student-character-timer-inline-padding) + var(--apple-pane-gap) + var(--apple-control-pane-width)
-    );
+    width: 100dvw;
     overflow: visible;
   }
 
@@ -12483,36 +12526,14 @@ a[href]:active {
 
   .timer-main-shell .student-character-showcase {
     --student-character-main-left: 0cqw;
-    --student-character-main-right: calc(
-      100cqw + var(--student-character-timer-inline-padding) + var(--apple-pane-gap) + var(--apple-control-pane-width)
-    );
-    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size)) !important;
-    --student-character-walk-mid-x-a: clamp(
-      calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2),
-      24cqw,
-      calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2)
-    ) !important;
-    --student-character-walk-mid-x-b: clamp(
-      calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2),
-      72cqw,
-      calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2)
-    ) !important;
-    --student-character-walk-end: calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2) !important;
+    --student-character-main-right: 100cqw;
+    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-end: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
   }
 
   .timer-main-shell .student-character-walk-left {
-    --student-character-walk-start: calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2) !important;
-    --student-character-walk-mid-x-a: clamp(
-      calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2),
-      72cqw,
-      calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2)
-    ) !important;
-    --student-character-walk-mid-x-b: clamp(
-      calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2),
-      32cqw,
-      calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2)
-    ) !important;
-    --student-character-walk-end: calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-start: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-end: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
   }
 
   .timer-main-shell .editorial-control-pane {
@@ -12522,12 +12543,6 @@ a[href]:active {
     border-radius: var(--apple-radius-panel);
     padding: clamp(1rem, 1.6vw, 1.5rem) !important;
     box-shadow: var(--apple-shadow-2) !important;
-  }
-}
-
-@media (min-width: 80rem) {
-  .timer-main-shell .student-character-stage {
-    --student-character-timer-inline-padding: 4rem;
   }
 }
 
@@ -12554,20 +12569,20 @@ a[href]:active {
     --student-character-walk-mid-top-a: min(48dvh, 30rem) !important;
     --student-character-walk-mid-top-b: min(51dvh, 32rem) !important;
     --student-character-walk-end-top: min(49dvh, 31rem) !important;
+    --student-character-depth-start: 50000 !important;
+    --student-character-depth-mid-a: 48000 !important;
+    --student-character-depth-mid-b: 51000 !important;
+    --student-character-depth-end: 49000 !important;
     --student-character-main-left: 0cqw;
     --student-character-main-right: 100cqw;
-    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size)) !important;
-    --student-character-walk-mid-x-a: 24cqw !important;
-    --student-character-walk-mid-x-b: 72cqw !important;
-    --student-character-walk-end: calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-end: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
     --student-character-ground-clearance: clamp(0.75rem, 2.5dvh, 1.5rem);
   }
 
   .timer-main-shell .student-character-walk-left {
-    --student-character-walk-start: calc(var(--student-character-main-right) - var(--student-character-walk-size) / 2) !important;
-    --student-character-walk-mid-x-a: 72cqw !important;
-    --student-character-walk-mid-x-b: 32cqw !important;
-    --student-character-walk-end: calc(var(--student-character-main-left) + var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-start: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-end: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
   }
 
   .timer-main-shell .editorial-control-pane {
@@ -12589,7 +12604,6 @@ a[href]:active {
   .timer-main-shell .student-character-showcase {
     --student-character-walk-size: clamp(3rem, 14vw, 5.5rem) !important;
     --student-character-walk-scale: 0.65 !important;
-    z-index: 2 !important;
     min-width: 0;
   }
 
@@ -12908,9 +12922,27 @@ a[href]:active {
 }
 
 .settings-dialog .settings-mode-tab[aria-pressed="true"] {
-  color: var(--apple-text-primary) !important;
-  background: var(--apple-surface) !important;
+  color: var(--apple-surface) !important;
+  background: var(--apple-accent) !important;
   box-shadow: var(--apple-shadow-1) !important;
+}
+
+.settings-dialog .settings-mode-tab[aria-pressed="true"] svg {
+  color: inherit !important;
+}
+
+.youtube-panel .youtube-favorite-chip:hover {
+  border-color: #8dbea8 !important;
+  background: #eaf6f0 !important;
+  box-shadow: 0 2px 8px rgba(0, 98, 65, 0.12) !important;
+}
+
+.youtube-panel .youtube-favorite-chip:hover > button {
+  color: #006241 !important;
+}
+
+.timer-main-shell .schedule-panel-header .schedule-panel-actions {
+  margin-bottom: 0;
 }
 
 .settings-dialog .settings-body {

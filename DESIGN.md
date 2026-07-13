@@ -98,6 +98,8 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - An interaction may retarget while moving. It begins from the current presentation value and never locks input to finish a transition.
 - Timed draw and award sequences may keep choreography, but safe cancellation boundaries and reduced-motion equivalents are required.
 - Reduced motion removes large translation, rotation, looping decoration, and elastic overshoot while retaining short opacity or color feedback.
+- Student walkers keep one constant horizontal speed across the full route; path height variation and footstep bobbing run on nested layers so they cannot alter forward velocity.
+- When student walkers overlap, the walker whose feet are lower on screen renders in front; depth follows the same linear timeline as the vertical path.
 
 ## 5. Components and Interaction Classes
 
@@ -106,6 +108,8 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - Minimum target size is 44 CSS px in both dimensions.
 - Keyboard focus uses a two-layer high-contrast ring with offset; it is never removed without an equivalent.
 - Disabled state remains visually distinct and does not animate on press.
+- Mutually exclusive settings tabs use a filled accent selected state with white label and icon; unselected tabs remain quiet and neutral.
+- The schedule pane header shows only the adjusted current date on the left and the settings action on the right; month/day is larger and stronger while the weekday is smaller and secondary, and no redundant schedule title is added.
 - Body copy and form content remain selectable. Decorative images may remain non-selectable.
 
 ### True modals
