@@ -120,19 +120,29 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     classwordUrl.searchParams.set('startDate', range.startDate);
     classwordUrl.searchParams.set('endDate', range.endDate);
 
-    const [questionValue, classwordValue] = await Promise.all([
-      fetchJson(questionUrl),
-      fetchJson(classwordUrl),
+    const [questionResult, classwordResult] = await Promise.allSettled([
+      fetchJson(questionUrl).then((value) => findPersonalQuestionForWeek(
+        parseQuestionStudentResponse(value),
+        studentNumber,
+        weekKey,
+      )),
+      fetchJson(classwordUrl).then((value) => getClasswordMissionEvidence(
+        parseClasswordMissionStatus(value, studentNumber, range.startDate, range.endDate),
+        range.today,
+      )),
     ]);
-    const personalQuestion = findPersonalQuestionForWeek(
-      parseQuestionStudentResponse(questionValue),
-      studentNumber,
-      weekKey,
-    );
-    const evidence = getClasswordMissionEvidence(
-      parseClasswordMissionStatus(classwordValue, studentNumber, range.startDate, range.endDate),
-      range.today,
-    );
+    if (questionResult.status === 'rejected') {
+      console.warn('Failed to load personal-question mission evidence.', questionResult.reason);
+    }
+    if (classwordResult.status === 'rejected') {
+      console.warn('Failed to load classword mission evidence.', classwordResult.reason);
+    }
+    const personalQuestion = questionResult.status === 'fulfilled'
+      ? questionResult.value
+      : null;
+    const evidence = classwordResult.status === 'fulfilled'
+      ? classwordResult.value
+      : { wordEntryEventDate: null, quizCorrectEventDate: null };
     const claims: readonly MissionClaimInput[] = [
       { missionType: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE, sourceEventId: personalQuestion?.id ?? null },
       {
@@ -144,9 +154,28 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         sourceEventId: evidence.quizCorrectEventDate === null ? null : `${evidence.quizCorrectEventDate}:quiz_correct`,
       },
     ];
-    const missions = await Promise.all(claims.map((claim) => (
+    const claimResults = await Promise.allSettled(claims.map((claim) => (
       claimMission(supabaseUrl, serviceRoleKey, studentNumber, weekKey, claim)
     )));
+    const successfulClaims = claimResults.flatMap((result) => (
+      result.status === 'fulfilled' ? [result.value] : []
+    ));
+    if (successfulClaims.length === 0) {
+      throw new Error('WEEKLY_MISSION_RPC_ALL_FAILED');
+    }
+    const fallbackBalance = Math.max(...successfulClaims.map((mission) => mission.balance));
+    const missions = claimResults.map((result, index): WeeklyMissionResult => {
+      if (result.status === 'fulfilled') return result.value;
+      console.warn('Failed to claim one weekly mission reward.', result.reason);
+      return {
+        missionType: claims[index].missionType,
+        weekKey,
+        completed: false,
+        awarded: false,
+        rewardAmount: 5,
+        balance: fallbackBalance,
+      };
+    });
 
     response.status(200).json({ missions });
   } catch (error) {

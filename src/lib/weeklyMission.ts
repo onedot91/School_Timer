@@ -129,6 +129,19 @@ export const hasWeeklyMissionReward = (
   normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
 ).some((entry) => entry.id === getWeeklyMissionRewardId(studentNumber, weekKey, missionType));
 
+export const getWeeklyMissionRewardIds = (currencyHistory: unknown) => new Set(
+  Object.values(normalizeCurrencyHistory(currencyHistory))
+    .flat()
+    .filter((entry) => entry.reason === 'weekly_mission')
+    .map((entry) => entry.id),
+);
+
+export const getAuctionAwardKeys = (auctionAwards: unknown) => new Set(
+  Object.values(normalizeAuctionAwards(auctionAwards, AUCTION_ITEM_IDS))
+    .filter((award) => award !== null)
+    .map((award) => `${award.itemId}:${award.awardedAt}`),
+);
+
 const getWeeklyMissionRewardId = (
   studentNumber: number,
   weekKey: string,
@@ -158,7 +171,11 @@ export const claimWeeklyMissionRewardInSettings = (
   }
 
   const before = balances[studentKey];
-  const after = Math.min(CURRENCY_BALANCE_MAX, before + PERSONAL_QUESTION_WEEKLY_REWARD);
+  if (before > CURRENCY_BALANCE_MAX - PERSONAL_QUESTION_WEEKLY_REWARD) {
+    return { value: currentValue, awarded: false, balance: before };
+  }
+
+  const after = before + PERSONAL_QUESTION_WEEKLY_REWARD;
   const nextHistory = {
     ...history,
     [studentKey]: [
@@ -172,7 +189,7 @@ export const claimWeeklyMissionRewardInSettings = (
         createdAt,
       },
       ...existingEntries,
-    ].slice(0, CURRENCY_HISTORY_LIMIT_PER_STUDENT),
+    ],
   };
 
   return {
@@ -183,6 +200,82 @@ export const claimWeeklyMissionRewardInSettings = (
     },
     awarded: true,
     balance: after,
+  };
+};
+
+export const mergeConcurrentCurrencyUpdatesIntoSettings = (
+  remoteValue: unknown,
+  nextValue: unknown,
+  knownRewardIds: ReadonlySet<string> | null = null,
+  knownAwardKeys: ReadonlySet<string> | null = null,
+  preserveRemoteAuctionActivity = true,
+): Record<string, unknown> => {
+  const remote = isRecord(remoteValue) ? remoteValue : {};
+  const next = isRecord(nextValue) ? nextValue : {};
+  const remoteHistory = normalizeCurrencyHistory(remote.currencyHistory);
+  const nextHistory = normalizeCurrencyHistory(next.currencyHistory);
+  const nextBalances = normalizeCurrencyBalances(next.currencyBalances);
+  const remoteAwards = normalizeAuctionAwards(remote.auctionAwards, AUCTION_ITEM_IDS);
+  const nextAwards = normalizeAuctionAwards(next.auctionAwards, AUCTION_ITEM_IDS);
+
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const missingRewards = remoteHistory[studentKey].filter((entry) => (
+      entry.reason === 'weekly_mission' &&
+      entry.delta === PERSONAL_QUESTION_WEEKLY_REWARD &&
+      (knownRewardIds === null || !knownRewardIds.has(entry.id)) &&
+      !existingIds.has(entry.id)
+    ));
+
+    if (missingRewards.length === 0) return;
+
+    const nextBalance = nextBalances[studentKey]
+      + missingRewards.length * PERSONAL_QUESTION_WEEKLY_REWARD;
+    if (nextBalance > CURRENCY_BALANCE_MAX) {
+      throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    }
+    nextBalances[studentKey] = nextBalance;
+    nextHistory[studentKey] = [
+      ...missingRewards,
+      ...nextHistory[studentKey],
+    ];
+  });
+
+  Object.entries(remoteAwards).forEach(([itemId, award]) => {
+    if (!award || nextAwards[itemId]) return;
+    const awardKey = `${award.itemId}:${award.awardedAt}`;
+    if (knownAwardKeys?.has(awardKey)) return;
+
+    const studentKey = String(award.winner);
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const awardEntry = remoteHistory[studentKey].find((entry) => (
+      entry.reason === 'auction_award' &&
+      entry.createdAt === award.awardedAt &&
+      entry.delta === -award.amount &&
+      !existingIds.has(entry.id)
+    ));
+    if (!awardEntry) return;
+
+    const nextBalance = nextBalances[studentKey] + awardEntry.delta;
+    if (nextBalance < 0) {
+      throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    }
+    nextBalances[studentKey] = nextBalance;
+    nextHistory[studentKey] = [awardEntry, ...nextHistory[studentKey]];
+    nextAwards[itemId] = award;
+  });
+
+  return {
+    ...next,
+    currencyBalances: nextBalances,
+    currencyHistory: nextHistory,
+    auctionAwards: nextAwards,
+    auctionBids: preserveRemoteAuctionActivity && remote.auctionBids !== undefined
+      ? remote.auctionBids
+      : next.auctionBids,
+    auctionBidHistory: preserveRemoteAuctionActivity && remote.auctionBidHistory !== undefined
+      ? remote.auctionBidHistory
+      : next.auctionBidHistory,
   };
 };
 
@@ -261,8 +354,9 @@ export const syncWeeklyMissions = async (studentNumber: number) => {
   return parseWeeklyMissionsResult(await response.json());
 };
 import {
+  AUCTION_ITEM_IDS,
   CURRENCY_BALANCE_MAX,
-  CURRENCY_HISTORY_LIMIT_PER_STUDENT,
   normalizeCurrencyBalances,
   normalizeCurrencyHistory,
+  normalizeAuctionAwards,
 } from './currency.js';

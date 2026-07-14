@@ -70,7 +70,7 @@ export const saveSharedSettings = async (value: unknown) => {
 };
 
 export const updateSharedSettings = async (updater: (currentValue: unknown) => unknown) => {
-  if (!supabase) return;
+  if (!supabase) return null;
 
   for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
     const currentRow = await loadSharedSettingsRow();
@@ -84,7 +84,7 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
         updated_at: updatedAt,
       });
 
-      if (!error) return;
+      if (!error) return updatedAt;
       if (error.code === '23505') continue;
       throw error;
     }
@@ -104,7 +104,7 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
       throw error;
     }
 
-    if (data) return;
+    if (data) return updatedAt;
   }
 
   throw new Error('SHARED_SETTINGS_CONFLICT');

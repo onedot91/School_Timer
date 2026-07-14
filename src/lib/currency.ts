@@ -66,7 +66,6 @@ export const CURRENCY_BALANCE_MIN = 0;
 export const CURRENCY_BALANCE_MAX = 999999;
 export const CURRENCY_BALANCE_STEP = 5;
 export const CURRENCY_UNIT_LABEL = '고마';
-export const CURRENCY_HISTORY_LIMIT_PER_STUDENT = 30;
 export const AUCTION_BID_STEP = 1;
 export const AUCTION_MISSIONS_STORAGE_KEY = 'auctionMissions-v1';
 export const AUCTION_MISSION_CONTENT_MAX_LENGTH = 80;
@@ -245,8 +244,7 @@ export const normalizeCurrencyHistory = (value: unknown): CurrencyHistory => {
         };
       })
       .filter((entry): entry is CurrencyHistoryEntry => entry !== null)
-      .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0))
-      .slice(0, CURRENCY_HISTORY_LIMIT_PER_STUDENT);
+      .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
     return history;
   }, {});
 };
@@ -275,7 +273,7 @@ export const appendCurrencyHistoryEntry = (
         createdAt,
       },
       ...(normalizedHistory[studentKey] ?? []),
-    ].slice(0, CURRENCY_HISTORY_LIMIT_PER_STUDENT),
+    ],
   };
 };
 
@@ -303,6 +301,54 @@ export const applyAuctionAwardToCurrencyState = (
   return {
     balances: nextBalances,
     history: nextHistory,
+  };
+};
+
+export const finalizeAuctionAwardInSettings = (
+  value: unknown,
+  award: AuctionAward,
+): {
+  value: Record<string, unknown>;
+  awarded: boolean;
+  balances: CurrencyBalances;
+  history: CurrencyHistory;
+  awards: AuctionAwards;
+} => {
+  const current = value && typeof value === 'object'
+    ? { ...(value as Record<string, unknown>) }
+    : {};
+  const balances = normalizeCurrencyBalances(current.currencyBalances);
+  const history = normalizeCurrencyHistory(current.currencyHistory);
+  const awards = normalizeAuctionAwards(current.auctionAwards, AUCTION_ITEM_IDS);
+
+  if (awards[award.itemId]) {
+    return { value: current, awarded: false, balances, history, awards };
+  }
+
+  const bids = normalizeAuctionBids(current.auctionBids, AUCTION_ITEM_IDS);
+  const currentBid = bids[award.itemId];
+  if (currentBid?.bidder !== award.winner || currentBid.amount !== award.amount) {
+    throw new Error('AUCTION_BID_CHANGED');
+  }
+
+  const studentKey = String(award.winner);
+  if (balances[studentKey] < award.amount) {
+    throw new Error('INSUFFICIENT_CURRENCY_FOR_AUCTION_AWARD');
+  }
+
+  const nextCurrency = applyAuctionAwardToCurrencyState(balances, history, award);
+  const nextAwards = { ...awards, [award.itemId]: award };
+  return {
+    value: {
+      ...current,
+      currencyBalances: nextCurrency.balances,
+      currencyHistory: nextCurrency.history,
+      auctionAwards: nextAwards,
+    },
+    awarded: true,
+    balances: nextCurrency.balances,
+    history: nextCurrency.history,
+    awards: nextAwards,
   };
 };
 

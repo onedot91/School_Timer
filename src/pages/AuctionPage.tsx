@@ -42,7 +42,6 @@ import { useModalFocus } from '../lib/useModalFocus';
 import {
   createWeeklyMissionStatuses,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
-  claimWeeklyMissionRewardInSettings,
   getKoreanIsoWeekKey,
   hasWeeklyMissionReward,
   syncWeeklyMissions,
@@ -353,30 +352,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             return;
           }
 
-          let claimedBalance: number | null = null;
-          await updateSharedSettings((currentValue) => {
-            const claim = claimWeeklyMissionRewardInSettings(
-              currentValue,
-              studentNumber,
-              getKoreanIsoWeekKey(),
-              PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
-            );
-            claimedBalance = claim.balance;
-            return claim.value;
-          });
-          if (!isActive) return;
           setWeeklyMissionStatuses((previous) => ({
             ...previous,
-            [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'completed',
+            [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'unavailable',
             classword_word_entry: previous.classword_word_entry === 'completed' ? 'completed' : 'unavailable',
             classword_quiz_correct: previous.classword_quiz_correct === 'completed' ? 'completed' : 'unavailable',
           }));
-          if (claimedBalance !== null) {
-            setCurrencyBalances((previous) => ({
-              ...previous,
-              [String(studentNumber)]: claimedBalance ?? previous[String(studentNumber)],
-            }));
-          }
         } catch (fallbackError) {
           if (!isActive) return;
           console.warn('Failed to load weekly mission completion fallback.', fallbackError);
@@ -399,11 +380,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       previous,
     ));
     void syncWeeklyMission();
-    const intervalId = window.setInterval(() => void syncWeeklyMission(), 60_000);
+    const intervalId = window.setInterval(() => void syncWeeklyMission(), 10_000);
+    const syncOnReturn = () => {
+      if (document.visibilityState === 'visible') void syncWeeklyMission();
+    };
+    window.addEventListener('focus', syncOnReturn);
+    document.addEventListener('visibilitychange', syncOnReturn);
 
     return () => {
       isActive = false;
       window.clearInterval(intervalId);
+      window.removeEventListener('focus', syncOnReturn);
+      document.removeEventListener('visibilitychange', syncOnReturn);
     };
   }, [studentNumber]);
 

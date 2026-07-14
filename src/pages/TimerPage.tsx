@@ -39,8 +39,13 @@ import {
   loadAnnouncementNoteHistory,
   loadSharedSettingsRow,
   saveAnnouncementNote,
-  saveSharedSettings,
+  updateSharedSettings,
 } from '../lib/supabaseSettings';
+import {
+  getAuctionAwardKeys,
+  getWeeklyMissionRewardIds,
+  mergeConcurrentCurrencyUpdatesIntoSettings,
+} from '../lib/weeklyMission';
 import { playAuctionSound } from '../lib/auctionAudio';
 import { useModalFocus } from '../lib/useModalFocus';
 import {
@@ -65,7 +70,7 @@ import {
   CURRENCY_BALANCE_STEP,
   CURRENCY_STUDENT_NUMBERS,
   DEFAULT_CURRENCY_BALANCE,
-  applyAuctionAwardToCurrencyState,
+  finalizeAuctionAwardInSettings,
   appendCurrencyHistoryEntry,
   clampAuctionMissionRewardAmount,
   clampCurrencyBalance,
@@ -3751,10 +3756,14 @@ export default function TimerPage() {
   const sharedSettingsHydratedRef = useRef(!isSupabaseSettingsEnabled);
   const sharedSettingsSaveTimeoutRef = useRef<number | null>(null);
   const lastSharedSettingsUpdatedAtRef = useRef<string | null>(null);
+  const knownWeeklyMissionRewardIdsRef = useRef<Set<string>>(new Set());
+  const knownAuctionAwardKeysRef = useRef<Set<string>>(new Set());
+  const currencyResetGenerationRef = useRef(0);
   const skipNextSharedSettingsSaveRef = useRef(false);
   const isSharedSettingsSavePendingRef = useRef(false);
   const currencyBalancesRef = useRef(currencyBalances);
   const currencyHistoryRef = useRef(currencyHistory);
+  const auctionAwardsRef = useRef(auctionAwards);
   const isEditingSubjectCatalogRef = useRef(false);
   const activeDrawCase =
     drawCases.find((caseState) => caseState.id === activeDrawCaseId) ??
@@ -3763,6 +3772,7 @@ export default function TimerPage() {
 
   currencyBalancesRef.current = currencyBalances;
   currencyHistoryRef.current = currencyHistory;
+  auctionAwardsRef.current = auctionAwards;
 
   useEffect(() => {
     if (!isCurrencyPanelOpen) {
@@ -4001,8 +4011,12 @@ export default function TimerPage() {
     setRepeatPickEnabled(remoteSettings.randomDraw.repeatPickEnabled);
     setDrawCases(remoteSettings.randomDraw.cases);
     setDrawSettingsCaseId(remoteSettings.randomDraw.activeCaseId);
-    setCurrencyBalances(normalizeCurrencyBalances(remoteSettings.currencyBalances));
-    setCurrencyHistory(normalizeCurrencyHistory(remoteSettings.currencyHistory));
+    const remoteBalances = normalizeCurrencyBalances(remoteSettings.currencyBalances);
+    const remoteHistory = normalizeCurrencyHistory(remoteSettings.currencyHistory);
+    knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(remoteHistory);
+    knownAuctionAwardKeysRef.current = getAuctionAwardKeys(remoteSettings.auctionAwards);
+    setCurrencyBalances(remoteBalances);
+    setCurrencyHistory(remoteHistory);
     if (!isEditingAuctionItemRef.current) {
       setAuctionItems(normalizeAuctionItems(remoteSettings.auctionItems));
     }
@@ -4042,7 +4056,17 @@ export default function TimerPage() {
         if (remoteSettings) {
           applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: true });
         } else {
-          void saveSharedSettings(buildSharedSettingsSnapshot()).catch((error) => {
+          const initialSnapshot = buildSharedSettingsSnapshot();
+          void updateSharedSettings((currentValue) => (
+            currentValue === null
+              ? initialSnapshot
+              : mergeConcurrentCurrencyUpdatesIntoSettings(
+                currentValue,
+                initialSnapshot,
+                new Set(),
+                new Set(),
+              )
+          )).catch((error) => {
             console.error('Failed to initialize shared settings in Supabase.', error);
           });
         }
@@ -4213,9 +4237,62 @@ export default function TimerPage() {
     isSharedSettingsSavePendingRef.current = true;
     sharedSettingsSaveTimeoutRef.current = window.setTimeout(() => {
       sharedSettingsSaveTimeoutRef.current = null;
-      void saveSharedSettings(buildSharedSettingsSnapshot())
+      const snapshot = buildSharedSettingsSnapshot();
+      const savedCurrencyInput = JSON.stringify({
+        balances: normalizeCurrencyBalances(snapshot.currencyBalances),
+        history: normalizeCurrencyHistory(snapshot.currencyHistory),
+        awards: normalizeAuctionAwards(snapshot.auctionAwards, AUCTION_ITEM_IDS),
+      });
+      const resetGenerationAtSave = currencyResetGenerationRef.current;
+      let savedSnapshot: Record<string, unknown> = { ...snapshot };
+      void updateSharedSettings((currentValue) => {
+        savedSnapshot = mergeConcurrentCurrencyUpdatesIntoSettings(
+          currentValue,
+          snapshot,
+          knownWeeklyMissionRewardIdsRef.current,
+          knownAuctionAwardKeysRef.current,
+        );
+        return savedSnapshot;
+      })
         .then((updatedAt) => {
           lastSharedSettingsUpdatedAtRef.current = updatedAt;
+          const currentCurrencyInput = JSON.stringify({
+            balances: currencyBalancesRef.current,
+            history: currencyHistoryRef.current,
+            awards: auctionAwardsRef.current,
+          });
+          if (currentCurrencyInput !== savedCurrencyInput) {
+            if (currencyResetGenerationRef.current !== resetGenerationAtSave) {
+              knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(savedSnapshot.currencyHistory);
+              knownAuctionAwardKeysRef.current = getAuctionAwardKeys(savedSnapshot.auctionAwards);
+            }
+            return;
+          }
+          knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(savedSnapshot.currencyHistory);
+          knownAuctionAwardKeysRef.current = getAuctionAwardKeys(savedSnapshot.auctionAwards);
+          const savedBalances = normalizeCurrencyBalances(savedSnapshot.currencyBalances);
+          const savedHistory = normalizeCurrencyHistory(savedSnapshot.currencyHistory);
+          if (
+            JSON.stringify(savedBalances) !== JSON.stringify(currencyBalancesRef.current) ||
+            JSON.stringify(savedHistory) !== JSON.stringify(currencyHistoryRef.current)
+          ) {
+            commitCurrencyState(savedBalances, savedHistory);
+          }
+          const savedAwards = normalizeAuctionAwards(savedSnapshot.auctionAwards, AUCTION_ITEM_IDS);
+          if (JSON.stringify(savedAwards) !== JSON.stringify(auctionAwards)) {
+            setAuctionAwards(savedAwards);
+          }
+          const savedBids = normalizeAuctionBids(savedSnapshot.auctionBids, AUCTION_ITEM_IDS);
+          if (JSON.stringify(savedBids) !== JSON.stringify(auctionBids)) {
+            setAuctionBids(savedBids);
+          }
+          const savedBidHistory = normalizeAuctionBidHistory(
+            savedSnapshot.auctionBidHistory,
+            AUCTION_ITEM_IDS,
+          );
+          if (JSON.stringify(savedBidHistory) !== JSON.stringify(auctionBidHistory)) {
+            setAuctionBidHistory(savedBidHistory);
+          }
         })
         .catch((error) => {
           console.error('Failed to save shared settings to Supabase.', error);
@@ -6000,6 +6077,7 @@ export default function TimerPage() {
   };
 
   const resetCurrencyBalances = () => {
+    currencyResetGenerationRef.current += 1;
     const normalizedPrevious = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = createDefaultCurrencyBalances();
     recordCurrencyChanges(normalizedPrevious, nextBalances, 'reset');
@@ -6103,7 +6181,7 @@ export default function TimerPage() {
     }
 
     isSharedSettingsSavePendingRef.current = true;
-    void saveSharedSettings({
+    const snapshot = {
       ...buildSharedSettingsSnapshot(),
       currencyBalances: nextBalances,
       currencyHistory: nextHistory,
@@ -6111,9 +6189,30 @@ export default function TimerPage() {
       auctionBids: emptyAuctionBids,
       auctionBidHistory: emptyAuctionBidHistory,
       auctionAwards: emptyAuctionAwards,
+    };
+    let savedSnapshot: Record<string, unknown> = { ...snapshot };
+    void updateSharedSettings((currentValue) => {
+      savedSnapshot = mergeConcurrentCurrencyUpdatesIntoSettings(
+        currentValue,
+        snapshot,
+        knownWeeklyMissionRewardIdsRef.current,
+        knownAuctionAwardKeysRef.current,
+        false,
+      );
+      return savedSnapshot;
     })
       .then((updatedAt) => {
         lastSharedSettingsUpdatedAtRef.current = updatedAt;
+        knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(savedSnapshot.currencyHistory);
+        knownAuctionAwardKeysRef.current = getAuctionAwardKeys(savedSnapshot.auctionAwards);
+        commitCurrencyState(
+          normalizeCurrencyBalances(savedSnapshot.currencyBalances),
+          normalizeCurrencyHistory(savedSnapshot.currencyHistory),
+        );
+        const savedAwards = normalizeAuctionAwards(savedSnapshot.auctionAwards, AUCTION_ITEM_IDS);
+        if (JSON.stringify(savedAwards) !== JSON.stringify(auctionAwards)) {
+          setAuctionAwards(savedAwards);
+        }
       })
       .catch((error) => {
         console.error('Failed to complete weekly auction cycle in Supabase.', error);
@@ -6353,26 +6452,44 @@ export default function TimerPage() {
     const awardPresentationKey = `${awardPresentation.award.itemId}:${awardPresentation.award.awardedAt}`;
     if (finalizedAwardPresentationKeysRef.current.has(awardPresentationKey)) return;
     finalizedAwardPresentationKeysRef.current.add(awardPresentationKey);
+    const award = awardPresentation.award;
+    const applyFinalizedState = (result: ReturnType<typeof finalizeAuctionAwardInSettings>) => {
+      setAuctionAwards((previous) => ({ ...previous, ...result.awards }));
+      commitCurrencyState(result.balances, result.history);
+      setAwardPresentation((previous) => (
+        previous ? { ...previous, hasFinalized: true } : previous
+      ));
+    };
 
-    const nextCurrencyState = applyAuctionAwardToCurrencyState(
-      currencyBalancesRef.current,
-      currencyHistoryRef.current,
-      awardPresentation.award,
-    );
+    if (!isSupabaseSettingsEnabled) {
+      try {
+        applyFinalizedState(finalizeAuctionAwardInSettings({
+          currencyBalances: currencyBalancesRef.current,
+          currencyHistory: currencyHistoryRef.current,
+          auctionBids,
+          auctionAwards,
+        }, award));
+      } catch (error) {
+        finalizedAwardPresentationKeysRef.current.delete(awardPresentationKey);
+        console.error('Failed to finalize auction award.', error);
+        setAwardPresentation(null);
+      }
+      return;
+    }
 
-    setAuctionAwards((previous) => ({
-      ...previous,
-      [awardPresentation.award.itemId]: awardPresentation.award,
-    }));
-    commitCurrencyState(nextCurrencyState.balances, nextCurrencyState.history);
-    setAwardPresentation((previous) => (
-      previous
-        ? {
-            ...previous,
-            hasFinalized: true,
-          }
-        : previous
-    ));
+    let finalizedState: ReturnType<typeof finalizeAuctionAwardInSettings> | null = null;
+    void updateSharedSettings((currentValue) => {
+      finalizedState = finalizeAuctionAwardInSettings(currentValue, award);
+      return finalizedState.value;
+    })
+      .then(() => {
+        if (finalizedState) applyFinalizedState(finalizedState);
+      })
+      .catch((error) => {
+        finalizedAwardPresentationKeysRef.current.delete(awardPresentationKey);
+        console.error('Failed to finalize auction award in Supabase.', error);
+        setAwardPresentation(null);
+      });
   }, [awardPresentation]);
 
   useEffect(() => {

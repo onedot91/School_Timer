@@ -124,7 +124,42 @@ begin
     raise exception 'INVALID_MISSION_TYPE';
   end if;
 
-  if p_source_event_id is not null and btrim(p_source_event_id) <> '' then
+  select value
+  into v_value
+  from app_settings
+  where id = 'school-timer-main'
+  for update;
+
+  if not found then
+    insert into app_settings (id, value)
+    values ('school-timer-main', '{}'::jsonb)
+    on conflict (id) do nothing;
+
+    select value
+    into v_value
+    from app_settings
+    where id = 'school-timer-main'
+    for update;
+  end if;
+
+  v_value := coalesce(v_value, '{}'::jsonb);
+  if jsonb_typeof(v_value -> 'currencyBalances') is distinct from 'object' then
+    v_value := jsonb_set(v_value, '{currencyBalances}', '{}'::jsonb, true);
+  end if;
+  if jsonb_typeof(v_value -> 'currencyHistory') is distinct from 'object' then
+    v_value := jsonb_set(v_value, '{currencyHistory}', '{}'::jsonb, true);
+  end if;
+
+  if (v_value -> 'currencyBalances' ->> v_student_key) ~ '^\d+$' then
+    v_before := least(999999, greatest(0, (v_value -> 'currencyBalances' ->> v_student_key)::integer));
+  end if;
+  v_after := v_before;
+
+  if
+    p_source_event_id is not null and
+    btrim(p_source_event_id) <> '' and
+    v_before <= 999994
+  then
     insert into weekly_mission_rewards (
       student_number,
       week_key,
@@ -152,39 +187,8 @@ begin
       and rewards.mission_type = p_mission_type
   ) into v_completed;
 
-  select value
-  into v_value
-  from app_settings
-  where id = 'school-timer-main'
-  for update;
-
-  if not found then
-    insert into app_settings (id, value)
-    values ('school-timer-main', '{}'::jsonb)
-    on conflict (id) do nothing;
-
-    select value
-    into v_value
-    from app_settings
-    where id = 'school-timer-main'
-    for update;
-  end if;
-
-  v_value := coalesce(v_value, '{}'::jsonb);
-  if jsonb_typeof(v_value -> 'currencyBalances') <> 'object' then
-    v_value := jsonb_set(v_value, '{currencyBalances}', '{}'::jsonb, true);
-  end if;
-  if jsonb_typeof(v_value -> 'currencyHistory') <> 'object' then
-    v_value := jsonb_set(v_value, '{currencyHistory}', '{}'::jsonb, true);
-  end if;
-
-  if (v_value -> 'currencyBalances' ->> v_student_key) ~ '^\d+$' then
-    v_before := least(999999, greatest(0, (v_value -> 'currencyBalances' ->> v_student_key)::integer));
-  end if;
-  v_after := v_before;
-
   if v_awarded then
-    v_after := least(999999, v_before + 5);
+    v_after := v_before + 5;
     v_value := jsonb_set(
       v_value,
       array['currencyBalances', v_student_key],
@@ -209,15 +213,6 @@ begin
         then v_value -> 'currencyHistory' -> v_student_key
       else '[]'::jsonb
     end;
-
-    select coalesce(jsonb_agg(entry order by position), '[]'::jsonb)
-    into v_history
-    from (
-      select entry, position
-      from jsonb_array_elements(v_history) with ordinality as items(entry, position)
-      order by position
-      limit 30
-    ) as limited_history;
 
     v_value := jsonb_set(
       v_value,
