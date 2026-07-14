@@ -265,3 +265,160 @@ revoke all on function claim_personal_question_weekly_reward(integer, text, text
 revoke all on function claim_personal_question_weekly_reward(integer, text, text) from anon;
 revoke all on function claim_personal_question_weekly_reward(integer, text, text) from authenticated;
 grant execute on function claim_personal_question_weekly_reward(integer, text, text) to service_role;
+
+create table if not exists class_donation_requests (
+  request_id text primary key,
+  result jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table class_donation_requests enable row level security;
+revoke all on table class_donation_requests from public;
+revoke all on table class_donation_requests from anon;
+revoke all on table class_donation_requests from authenticated;
+
+create or replace function donate_to_class_goal(
+  p_student_number integer,
+  p_amount integer,
+  p_request_id text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_value jsonb;
+  v_student_key text := p_student_number::text;
+  v_donation jsonb;
+  v_balance integer := 100;
+  v_reserved integer := 0;
+  v_target integer := 0;
+  v_total integer := 0;
+  v_created_at timestamptz := now();
+  v_donation_history jsonb;
+  v_currency_history jsonb;
+  v_result jsonb;
+begin
+  if p_student_number < 1 or p_student_number > 23 then
+    raise exception 'INVALID_STUDENT_NUMBER';
+  end if;
+  if p_amount < 1 then
+    raise exception 'INVALID_DONATION_AMOUNT';
+  end if;
+  if p_request_id is null or btrim(p_request_id) = '' or length(p_request_id) > 100 then
+    raise exception 'INVALID_DONATION_REQUEST_ID';
+  end if;
+
+  select value into v_value
+  from app_settings
+  where id = 'school-timer-main'
+  for update;
+
+  if not found then
+    raise exception 'SHARED_SETTINGS_NOT_FOUND';
+  end if;
+
+  select result into v_result
+  from class_donation_requests
+  where request_id = p_request_id;
+  if found then return v_result; end if;
+
+  v_value := coalesce(v_value, '{}'::jsonb);
+  v_donation := case
+    when jsonb_typeof(v_value -> 'classDonation') = 'object' then v_value -> 'classDonation'
+    else '{}'::jsonb
+  end;
+  if coalesce((v_donation ->> 'enabled')::boolean, false) is not true then
+    raise exception 'CLASS_DONATION_DISABLED';
+  end if;
+
+  v_target := greatest(1, least(999999, coalesce((v_donation ->> 'targetAmount')::integer, 500)));
+  v_total := greatest(0, least(v_target, coalesce((v_donation ->> 'totalAmount')::integer, 0)));
+  v_donation_history := case
+    when jsonb_typeof(v_donation -> 'history') = 'array' then v_donation -> 'history'
+    else '[]'::jsonb
+  end;
+
+  if v_total >= v_target then
+    raise exception 'CLASS_DONATION_COMPLETED';
+  end if;
+  if p_amount > v_target - v_total then
+    raise exception 'CLASS_DONATION_EXCEEDS_REMAINING';
+  end if;
+
+  if (v_value -> 'currencyBalances' ->> v_student_key) ~ '^\d+$' then
+    v_balance := greatest(0, least(999999, (v_value -> 'currencyBalances' ->> v_student_key)::integer));
+  end if;
+
+  select coalesce(sum((bid.value ->> 'amount')::integer), 0)
+  into v_reserved
+  from jsonb_each(case
+    when jsonb_typeof(v_value -> 'auctionBids') = 'object' then v_value -> 'auctionBids'
+    else '{}'::jsonb
+  end) bid
+  where (bid.value ->> 'bidder')::integer = p_student_number
+    and not (
+      jsonb_typeof(v_value -> 'auctionAwards') = 'object' and
+      v_value -> 'auctionAwards' ? bid.key and
+      v_value -> 'auctionAwards' -> bid.key <> 'null'::jsonb
+    );
+
+  if p_amount > greatest(0, v_balance - v_reserved) then
+    raise exception 'INSUFFICIENT_AVAILABLE_CURRENCY';
+  end if;
+
+  v_donation_history := jsonb_build_array(jsonb_build_object(
+    'id', p_request_id,
+    'studentNumber', p_student_number,
+    'amount', p_amount,
+    'createdAt', v_created_at
+  )) || v_donation_history;
+  select coalesce(jsonb_agg(entry.value order by entry.ordinality), '[]'::jsonb)
+  into v_donation_history
+  from jsonb_array_elements(v_donation_history) with ordinality entry(value, ordinality)
+  where entry.ordinality <= 500;
+
+  v_donation := jsonb_set(v_donation, '{totalAmount}', to_jsonb(v_total + p_amount), true);
+  v_donation := jsonb_set(v_donation, '{history}', v_donation_history, true);
+  v_value := jsonb_set(v_value, '{classDonation}', v_donation, true);
+  v_value := jsonb_set(v_value, array['currencyBalances', v_student_key], to_jsonb(v_balance - p_amount), true);
+
+  if jsonb_typeof(v_value -> 'currencyHistory') is distinct from 'object' then
+    v_value := jsonb_set(v_value, '{currencyHistory}', '{}'::jsonb, true);
+  end if;
+  v_currency_history := jsonb_build_array(jsonb_build_object(
+    'id', concat('class-donation-', p_request_id),
+    'studentNumber', p_student_number,
+    'delta', -p_amount,
+    'before', v_balance,
+    'after', v_balance - p_amount,
+    'reason', 'class_donation',
+    'createdAt', v_created_at
+  )) || case
+    when jsonb_typeof(v_value -> 'currencyHistory' -> v_student_key) = 'array'
+      then v_value -> 'currencyHistory' -> v_student_key
+    else '[]'::jsonb
+  end;
+  v_value := jsonb_set(v_value, array['currencyHistory', v_student_key], v_currency_history, true);
+
+  update app_settings
+  set value = v_value, updated_at = v_created_at
+  where id = 'school-timer-main';
+
+  v_result := jsonb_build_object(
+    'donatedAmount', p_amount,
+    'balance', v_balance - p_amount,
+    'totalAmount', v_total + p_amount,
+    'targetAmount', v_target,
+    'completed', v_total + p_amount >= v_target
+  );
+  insert into class_donation_requests (request_id, result, created_at)
+  values (p_request_id, v_result, v_created_at);
+  return v_result;
+end;
+$$;
+
+revoke all on function donate_to_class_goal(integer, integer, text) from public;
+grant execute on function donate_to_class_goal(integer, integer, text) to anon;
+grant execute on function donate_to_class_goal(integer, integer, text) to authenticated;

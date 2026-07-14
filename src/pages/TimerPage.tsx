@@ -47,6 +47,10 @@ import {
   mergeConcurrentCurrencyUpdatesIntoSettings,
 } from '../lib/weeklyMission';
 import { playAuctionSound } from '../lib/auctionAudio';
+import {
+  normalizeClassDonationSettings,
+  type ClassDonationSettings,
+} from '../lib/classDonation';
 import { useModalFocus } from '../lib/useModalFocus';
 import {
   loadQuestionSubmissionStatuses,
@@ -170,6 +174,7 @@ interface SharedSchoolTimerSettings {
   auctionBidHistory: AuctionBidHistory;
   auctionAwards: AuctionAwards;
   auctionMissions: AuctionMission[];
+  classDonation: ClassDonationSettings;
 }
 
 interface NoticeHighlightRange {
@@ -1373,6 +1378,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     auctionBidHistory: normalizeAuctionBidHistory(parsed.auctionBidHistory, AUCTION_ITEM_IDS),
     auctionAwards: normalizeAuctionAwards(parsed.auctionAwards, AUCTION_ITEM_IDS),
     auctionMissions: normalizeAuctionMissions(parsed.auctionMissions),
+    classDonation: normalizeClassDonationSettings(parsed.classDonation),
   };
 };
 
@@ -3446,6 +3452,7 @@ export default function TimerPage() {
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+  const [classDonation, setClassDonation] = useState<ClassDonationSettings>(() => normalizeClassDonationSettings(null));
   const [auctionItemEditCommitVersion, setAuctionItemEditCommitVersion] = useState(0);
   const isEditingAuctionItemRef = useRef(false);
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getStoredAuctionMissions);
@@ -3979,6 +3986,7 @@ export default function TimerPage() {
     auctionBidHistory,
     auctionAwards,
     auctionMissions: getPersistableAuctionMissions(),
+    classDonation,
   });
 
   const applySharedSettingsSnapshot = (
@@ -4023,6 +4031,7 @@ export default function TimerPage() {
     setAuctionBids(normalizeAuctionBids(remoteSettings.auctionBids, AUCTION_ITEM_IDS));
     setAuctionBidHistory(normalizeAuctionBidHistory(remoteSettings.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(remoteSettings.auctionAwards, AUCTION_ITEM_IDS));
+    setClassDonation(normalizeClassDonationSettings(remoteSettings.classDonation));
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -4332,6 +4341,7 @@ export default function TimerPage() {
     auctionBidHistory,
     auctionAwards,
     auctionMissions,
+    classDonation,
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
@@ -8051,8 +8061,102 @@ export default function TimerPage() {
     return item.dayIndex < auctionVisibleDayCount && !auctionAwards[item.id] && currentBid.bidder !== null && currentBid.amount > 0;
   });
 
+  const resetClassDonation = async () => {
+    const resetState = { ...classDonation, totalAmount: 0, history: [] };
+    setClassDonation(resetState);
+    if (!isSupabaseSettingsEnabled) return;
+    try {
+      await updateSharedSettings((currentValue) => {
+        const current = currentValue && typeof currentValue === 'object'
+          ? currentValue as Record<string, unknown>
+          : {};
+        return { ...current, classDonation: resetState };
+      });
+    } catch (error) {
+      if (error instanceof Error) console.error('Failed to reset class donation.', error);
+    }
+  };
+
   const auctionSettingsPanel = (
     <div className="settings-panel-grid grid gap-4">
+      <section className="settings-card rounded-[1.7rem] border border-[#CFE3D8] bg-[#F7FBF9] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학급 기부</h3>
+          <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#B9D7CA] bg-white px-4 font-extrabold text-[#006B4D]">
+            <input
+              type="checkbox"
+              checked={classDonation.enabled}
+              onChange={(event) => setClassDonation((previous) => ({ ...previous, enabled: event.target.checked }))}
+              className="h-5 w-5 accent-[#007A57]"
+            />
+            사용
+          </label>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
+          <label className="grid gap-1.5">
+            <span className="section-title text-[0.76rem] font-black text-[#6F7D70]">기부 물품명</span>
+            <input
+              type="text"
+              value={classDonation.itemName}
+              onChange={(event) => setClassDonation((previous) => ({
+                ...previous,
+                itemName: event.target.value.slice(0, 60),
+              }))}
+              className="h-11 rounded-[0.85rem] border border-[#CFE3D8] bg-white px-3 font-extrabold text-[#1F2523] outline-none focus:border-[#7FB59F]"
+              placeholder="교사용 물품명"
+            />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="section-title text-[0.76rem] font-black text-[#6F7D70]">목표 고마</span>
+            <input
+              type="number"
+              min="1"
+              max={CURRENCY_BALANCE_MAX}
+              value={classDonation.targetAmount}
+              onChange={(event) => {
+                if (event.target.value === '') return;
+                const targetAmount = Math.max(
+                  classDonation.totalAmount,
+                  Math.min(CURRENCY_BALANCE_MAX, Math.floor(Number(event.target.value) || 1)),
+                );
+                setClassDonation((previous) => ({
+                  ...previous,
+                  targetAmount,
+                }));
+              }}
+              className="h-11 rounded-[0.85rem] border border-[#CFE3D8] bg-white px-3 text-right font-mono font-black text-[#1F2523] outline-none focus:border-[#7FB59F]"
+            />
+          </label>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[1rem] border border-[#DCEAE3] bg-white px-4 py-3">
+          <div className="font-mono text-[1rem] font-black text-[#007A57]">
+            {formatCurrency(classDonation.totalAmount)} / {formatCurrency(classDonation.targetAmount)}
+          </div>
+          <button
+            type="button"
+            onClick={() => void resetClassDonation()}
+            disabled={classDonation.totalAmount === 0 && classDonation.history.length === 0}
+            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#CFE3D8] bg-white px-4 text-[0.84rem] font-extrabold text-[#006B4D] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            새 목표로 초기화
+          </button>
+        </div>
+
+        {classDonation.history.length > 0 ? (
+          <div className="custom-scrollbar mt-3 max-h-44 overflow-y-auto rounded-[1rem] border border-[#DCEAE3] bg-white p-2">
+            {classDonation.history.map((entry) => (
+              <div key={entry.id} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-[#EDF2EF] px-2 py-2 last:border-b-0">
+                <span className="font-extrabold text-[#38423D]">{entry.studentNumber}번</span>
+                <span className="text-[0.78rem] font-bold text-[#7A8780]">{new Date(entry.createdAt).toLocaleString('ko-KR')}</span>
+                <span className="font-mono font-black text-[#007A57]">{formatCurrency(entry.amount)}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
       <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
         <div className="mb-4">
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정 및 현황</h3>

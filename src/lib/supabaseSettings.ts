@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { parseClassDonationResult } from './classDonation.js';
 
 export const SHARED_SETTINGS_ID = 'school-timer-main';
 
@@ -108,6 +109,21 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
   }
 
   throw new Error('SHARED_SETTINGS_CONFLICT');
+};
+
+export const donateToClassGoal = async (
+  studentNumber: number,
+  amount: number,
+  requestId: string,
+) => {
+  if (!supabase) throw new Error('CLASS_DONATION_NOT_CONFIGURED');
+  const { data, error } = await supabase.rpc('donate_to_class_goal', {
+    p_student_number: studentNumber,
+    p_amount: amount,
+    p_request_id: requestId,
+  });
+  if (error) throw error;
+  return parseClassDonationResult(data);
 };
 
 export const loadAnnouncementNote = async (dateKey: string) => {

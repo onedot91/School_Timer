@@ -172,6 +172,40 @@ test('stale settings saves preserve a concurrent auction award once', () => {
   assert.equal((mergedAgain.currencyBalances as Record<string, number>)['8'], 176);
 });
 
+test('stale settings saves preserve a concurrent class donation once', () => {
+  const donationEntry = {
+    id: 'class-donation-request-1',
+    studentNumber: 8,
+    delta: -20,
+    before: 100,
+    after: 80,
+    reason: 'class_donation',
+    createdAt: '2026-07-14T02:00:00.000Z',
+  } as const;
+  const remote = {
+    currencyBalances: { 8: 80 },
+    currencyHistory: { 8: [donationEntry] },
+    classDonation: {
+      enabled: true,
+      targetAmount: 500,
+      totalAmount: 20,
+      history: [{ id: 'request-1', studentNumber: 8, amount: 20, createdAt: donationEntry.createdAt }],
+    },
+  };
+  const stale = {
+    currencyBalances: { 8: 100 },
+    currencyHistory: { 8: [] },
+    classDonation: { enabled: true, targetAmount: 500, totalAmount: 0, history: [] },
+  };
+
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale);
+  assert.equal((merged.currencyBalances as Record<string, number>)['8'], 80);
+  assert.equal((merged.classDonation as { totalAmount: number }).totalAmount, 20);
+
+  const mergedAgain = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
+  assert.equal((mergedAgain.currencyBalances as Record<string, number>)['8'], 80);
+});
+
 test('ordinary settings saves preserve the latest remote bid activity', () => {
   const merged = mergeConcurrentCurrencyUpdatesIntoSettings({
     auctionBids: { 'item-a': { bidder: 8, amount: 40 } },

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import AuctionRoom from '../components/AuctionRoom';
 import {
@@ -30,9 +30,15 @@ import {
 } from '../lib/currency';
 import {
   isSupabaseSettingsEnabled,
+  donateToClassGoal,
   loadSharedSettingsRow,
   updateSharedSettings,
 } from '../lib/supabaseSettings';
+import {
+  getClassDonationMaximum,
+  getClassDonationPublicState,
+  type ClassDonationPublicState,
+} from '../lib/classDonation';
 import { playAuctionSound, prepareAuctionAudio } from '../lib/auctionAudio';
 import {
   hasPersonalQuestionSubmission,
@@ -83,6 +89,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
+  const [classDonation, setClassDonation] = useState<ClassDonationPublicState>(() => getClassDonationPublicState(null));
   const [weeklyMissionStatuses, setWeeklyMissionStatuses] = useState<WeeklyMissionStatuses>(() => (
     createWeeklyMissionStatuses('loading')
   ));
@@ -93,6 +100,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [isSubmittingItemId, setIsSubmittingItemId] = useState<string | null>(null);
   const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [isDonationOpen, setIsDonationOpen] = useState(false);
+  const [donationAmountDraft, setDonationAmountDraft] = useState('1');
+  const [isDonating, setIsDonating] = useState(false);
+  const [donationError, setDonationError] = useState('');
   const [activeModal, setActiveModal] = useState<'bid' | 'status' | null>(null);
   const [renderedPendingBid, setRenderedPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [renderedStatusMessage, setRenderedStatusMessage] = useState('');
@@ -120,6 +131,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStatusDialogElement(node);
   }, []);
   const statusReturnFocusRef = useRef<HTMLElement>(null);
+  const donationDialogRef = useRef<HTMLDivElement>(null);
+  const donationTriggerRef = useRef<HTMLButtonElement>(null);
+  const donationRequestIdRef = useRef('');
   const shouldReturnStatusFocusRef = useRef(false);
 
   const focusAuctionReturnTarget = useCallback(() => {
@@ -221,6 +235,16 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   });
 
   useModalFocus({
+    dialogRef: donationDialogRef,
+    isOpen: isDonationOpen,
+    onDismiss: () => {
+      if (!isDonating) setIsDonationOpen(false);
+    },
+    isDismissible: !isDonating,
+    returnFocusRef: donationTriggerRef,
+  });
+
+  useModalFocus({
     dialogRef: statusDialogRef,
     isOpen: activeModal === 'status' && statusDialogElement !== null,
     onDismiss: dismissStatusMessage,
@@ -238,6 +262,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     activeAuctionItemIds,
   );
   const availableBalance = Math.max(0, balance - reservedAmount);
+  const maximumDonation = getClassDonationMaximum(classDonation, availableBalance);
+  const donationAmount = Math.floor(Number(donationAmountDraft));
+  const isDonationAmountValid = Number.isInteger(donationAmount)
+    && donationAmount >= 1
+    && donationAmount <= maximumDonation;
   const visibleDayCount = getAuctionVisibleDayCount();
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
 
@@ -259,6 +288,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionBidHistory(normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
       setAuctionAwards(normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
       setAuctionMissions(getStoredAuctionMissions());
+      setClassDonation(getClassDonationPublicState(null));
       setIsLoading(false);
       return;
     }
@@ -274,6 +304,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             auctionAwards?: unknown;
             auctionMissions?: unknown;
             currencyHistory?: unknown;
+            classDonation?: unknown;
           })
         : {};
       setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
@@ -282,6 +313,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
       setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
       setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
+      setClassDonation(getClassDonationPublicState(value.classDonation));
       const weekKey = getKoreanIsoWeekKey();
       setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
         (statuses, missionType) => ({
@@ -646,6 +678,38 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
+  const openDonation = () => {
+    if (!classDonation.enabled || maximumDonation < 1 || activeModal !== null) return;
+    setDonationAmountDraft('');
+    setDonationError('');
+    donationRequestIdRef.current = `class-donation-${studentNumber}-${crypto.randomUUID()}`;
+    setIsDonationOpen(true);
+  };
+
+  const confirmDonation = async () => {
+    if (!isDonationAmountValid || isDonating) return;
+    setIsDonating(true);
+    try {
+      const result = await donateToClassGoal(studentNumber, donationAmount, donationRequestIdRef.current);
+      setCurrencyBalances((previous) => ({ ...previous, [studentKey]: result.balance }));
+      setClassDonation((previous) => ({
+        ...previous,
+        targetAmount: result.targetAmount,
+        totalAmount: result.totalAmount,
+      }));
+      setIsDonationOpen(false);
+      donationRequestIdRef.current = '';
+      showStatusMessage(`${formatCurrency(result.donatedAmount)}를 기부했습니다.`);
+      await refreshAuctionState();
+    } catch (error) {
+      console.error('Failed to donate to class goal.', error);
+      setDonationError('처리 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.');
+      await refreshAuctionState();
+    } finally {
+      setIsDonating(false);
+    }
+  };
+
   return (
     <div className="auction-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5">
       <main className="mx-auto w-full max-w-7xl">
@@ -662,6 +726,40 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           studentLabel={`${studentNumber}번`}
           isLoading={isLoading}
           onSelectItem={selectItem}
+          donationWidget={classDonation.enabled ? (
+            <button
+              ref={donationTriggerRef}
+              type="button"
+              onClick={openDonation}
+              disabled={maximumDonation < 1 || isLoading}
+              className="group grid min-h-[13.5rem] w-full grid-cols-[9.5rem_minmax(0,1fr)] items-center gap-4 rounded-[1.5rem] border border-[#B9DCCB] bg-[#F7FBF9] px-4 py-4 text-left shadow-[0_14px_30px_rgba(28,45,40,0.08)] transition-[transform,background-color] hover:bg-white active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
+              title="학급 기부"
+              aria-label={`학급 기부 ${formatCurrency(classDonation.totalAmount)} / ${formatCurrency(classDonation.targetAmount)}`}
+            >
+              <img
+                src="/donation-bear.png?v=3"
+                alt=""
+                width="152"
+                height="152"
+                className="h-[9.5rem] w-[9.5rem] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+              />
+              <span className="grid min-w-0 content-center gap-1.5 pr-1">
+                <span className="section-title text-[1rem] font-black text-[#006B4D]">
+                  학급 기부 목표량
+                </span>
+                <span className="whitespace-nowrap font-mono text-[1.45rem] font-black tracking-normal text-[#18211E]">
+                  {classDonation.totalAmount}/{classDonation.targetAmount}
+                </span>
+                <span className="text-[0.78rem] font-extrabold text-[#6E7A72]">다 모이면 어떤 일이 일어날까?</span>
+                <span className="h-2 w-full overflow-hidden rounded-full bg-[#DDEAE4]">
+                  <span
+                    className="block h-full rounded-full bg-[#007A57]"
+                    style={{ width: `${Math.min(100, (classDonation.totalAmount / classDonation.targetAmount) * 100)}%` }}
+                  />
+                </span>
+              </span>
+            </button>
+          ) : null}
           footer={selectedItem ? (() => {
             const currentBid = auctionBids[selectedItem.id] ?? { amount: 0, bidder: null };
             const award = auctionAwards[selectedItem.id] ?? null;
@@ -752,6 +850,97 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           })() : null}
         />
       </main>
+      {isDonationOpen ? (
+        <div
+          className="auction-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/32 px-4"
+          role="presentation"
+          onClick={() => {
+            if (!isDonating) setIsDonationOpen(false);
+          }}
+        >
+          <div
+            ref={donationDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="class-donation-title"
+            onClick={(event) => event.stopPropagation()}
+            className="apple-material-layer w-full max-w-[28rem] rounded-[1.75rem] border-2 border-[#8DC9B7] bg-white p-5 shadow-[0_28px_70px_rgba(28,45,40,0.24)]"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="class-donation-title" className="section-title text-[1.45rem] font-extrabold text-[#18211E]">학급 기부</h2>
+              <button
+                type="button"
+                onClick={() => setIsDonationOpen(false)}
+                disabled={isDonating}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#DCE7E1] text-[#38423D] disabled:opacity-50"
+                aria-label="기부 창 닫기"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-[1rem] border border-[#DCEAE3] bg-[#F7FBF9] p-3">
+              <div className="font-mono text-[1.25rem] font-black text-[#007A57]">
+                {formatCurrency(classDonation.totalAmount)} / {formatCurrency(classDonation.targetAmount)}
+              </div>
+              <span className="mt-2 block h-2 overflow-hidden rounded-full bg-[#DDEAE4]">
+                <span
+                  className="block h-full rounded-full bg-[#007A57]"
+                  style={{ width: `${Math.min(100, (classDonation.totalAmount / classDonation.targetAmount) * 100)}%` }}
+                />
+              </span>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="sr-only">기부할 고마</span>
+              <div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border-2 border-[#9FC7B8] bg-white px-4 focus-within:border-[#007A57]">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={donationAmountDraft}
+                  onChange={(event) => setDonationAmountDraft(event.target.value.replace(/\D/g, ''))}
+                  disabled={isDonating}
+                  placeholder="금액 입력"
+                  className="h-full min-w-0 bg-transparent text-center font-mono text-[1.25rem] font-black text-[#18211E] outline-none placeholder:font-sans placeholder:text-[0.95rem] placeholder:text-[#8A9991]"
+                  autoFocus
+                />
+                <span className="font-mono font-black text-[#007A57]">고마</span>
+              </div>
+            </label>
+
+            <p className="mt-2 text-right text-[0.82rem] font-extrabold text-[#6E7A72]">
+              기부 후 {formatCurrency(Math.max(0, availableBalance - (isDonationAmountValid ? donationAmount : 0)))}
+            </p>
+            {!isDonationAmountValid && donationAmountDraft !== '' ? (
+              <p className="mt-2 text-[0.8rem] font-extrabold text-[#B84A34]">
+                1 이상 {formatCurrency(maximumDonation)} 이하로 입력해 주세요.
+              </p>
+            ) : null}
+            {donationError ? (
+              <p className="mt-2 text-[0.8rem] font-extrabold text-[#B84A34]">{donationError}</p>
+            ) : null}
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsDonationOpen(false)}
+                disabled={isDonating}
+                className="h-12 rounded-[0.9rem] border-2 border-[#DCE7E1] bg-white font-extrabold text-[#38423D] disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDonation()}
+                disabled={!isDonationAmountValid || isDonating}
+                className="h-12 rounded-[0.9rem] bg-[#007A57] font-extrabold text-white disabled:cursor-not-allowed disabled:bg-[#C9D4CD]"
+              >
+                {isDonating ? '처리 중...' : '기부하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {activeModal === 'bid' && renderedPendingBid ? (() => {
         const pendingItem = auctionItems.find((item) => item.id === renderedPendingBid.itemId);
         const pendingItemName = pendingItem

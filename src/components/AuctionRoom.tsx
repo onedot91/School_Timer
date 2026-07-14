@@ -30,6 +30,7 @@ interface AuctionRoomProps {
   isLoading?: boolean;
   variant?: 'page' | 'compact';
   footer?: ReactNode;
+  donationWidget?: ReactNode;
   onSelectItem?: (item: AuctionItem) => void;
 }
 
@@ -47,6 +48,7 @@ export default function AuctionRoom({
   isLoading = false,
   variant = 'page',
   footer,
+  donationWidget,
   onSelectItem,
 }: AuctionRoomProps) {
   const isCompact = variant === 'compact';
@@ -244,7 +246,7 @@ export default function AuctionRoom({
             })}
           </nav>
 
-          <div className={`auction-main-layout mt-3 grid gap-3 ${footer ? 'lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]' : ''}`}>
+          <div className={`auction-main-layout mt-3 grid gap-3 ${footer || donationWidget ? 'lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]' : ''}`}>
             <section className="auction-current-day overflow-hidden rounded-[1.25rem] border border-[#DCE7E1] bg-white">
               <div className="flex min-h-14 items-center gap-3 border-b border-[#E9EFEB] px-4 py-3">
                 <span className="h-2.5 w-8 rounded-full" style={{ backgroundColor: activeDayGroup.accent.chip }} />
@@ -344,7 +346,12 @@ export default function AuctionRoom({
                 })}
               </div>
             </section>
-            {footer ? <aside className="auction-bid-area min-w-0">{footer}</aside> : null}
+            {footer || donationWidget ? (
+              <aside className="auction-bid-area grid min-w-0 content-start gap-3">
+                {footer}
+                {donationWidget}
+              </aside>
+            ) : null}
           </div>
         </div>
       ) : null}

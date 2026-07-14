@@ -7,6 +7,7 @@ export type CurrencyHistoryReason =
   | 'allowance'
   | 'auction_award'
   | 'weekly_mission'
+  | 'class_donation'
   | 'bulk_adjust';
 
 export interface CurrencyHistoryEntry {
@@ -202,6 +203,7 @@ const CURRENCY_HISTORY_REASONS = [
   'allowance',
   'auction_award',
   'weekly_mission',
+  'class_donation',
   'bulk_adjust',
 ] as const satisfies readonly CurrencyHistoryReason[];
 

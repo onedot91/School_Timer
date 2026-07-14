@@ -265,6 +265,22 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     nextAwards[itemId] = award;
   });
 
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const missingDonations = remoteHistory[studentKey].filter((entry) => (
+      entry.reason === 'class_donation' &&
+      entry.delta < 0 &&
+      !existingIds.has(entry.id)
+    ));
+    if (missingDonations.length === 0) return;
+
+    const nextBalance = nextBalances[studentKey]
+      + missingDonations.reduce((total, entry) => total + entry.delta, 0);
+    if (nextBalance < 0) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    nextBalances[studentKey] = nextBalance;
+    nextHistory[studentKey] = [...missingDonations, ...nextHistory[studentKey]];
+  });
+
   return {
     ...next,
     currencyBalances: nextBalances,
@@ -276,6 +292,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     auctionBidHistory: preserveRemoteAuctionActivity && remote.auctionBidHistory !== undefined
       ? remote.auctionBidHistory
       : next.auctionBidHistory,
+    classDonation: mergeClassDonationActivity(remote.classDonation, next.classDonation),
   };
 };
 
@@ -360,3 +377,4 @@ import {
   normalizeCurrencyHistory,
   normalizeAuctionAwards,
 } from './currency.js';
+import { mergeClassDonationActivity } from './classDonation.js';
