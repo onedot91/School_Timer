@@ -79,8 +79,8 @@ export const AUCTION_DAY_ACCENTS = [
   { border: '#E3AAA5', soft: '#FFFAF9', chip: '#A34F45' },
 ] as const;
 export const DEFAULT_AUCTION_ITEM_COUNT = AUCTION_WEEKDAY_LABELS.length;
-export const AUCTION_MAX_ITEMS_PER_DAY = 4;
-export const AUCTION_MAX_ITEM_COUNT = 20;
+export const AUCTION_MAX_ITEMS_PER_DAY = 6;
+export const AUCTION_MAX_ITEM_COUNT = 30;
 const AUCTION_LEGACY_ITEM_IDS = ['item-a', 'item-b', 'item-c', 'item-d', 'item-e'];
 
 export const createAuctionItemTemplate = (dayIndex: number, slotIndex: number): AuctionItem => {

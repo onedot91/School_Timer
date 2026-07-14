@@ -2,11 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  AUCTION_ITEM_TEMPLATES,
+  AUCTION_MAX_ITEM_COUNT,
+  AUCTION_MAX_ITEMS_PER_DAY,
   applyAuctionAwardToCurrencyState,
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
   finalizeAuctionAwardInSettings,
 } from './currency.ts';
+
+test('요일별 경매 물품을 최대 6개까지 구성한다', () => {
+  assert.equal(AUCTION_MAX_ITEMS_PER_DAY, 6);
+  assert.equal(AUCTION_MAX_ITEM_COUNT, 30);
+  assert.equal(AUCTION_ITEM_TEMPLATES.length, 30);
+  assert.equal(AUCTION_ITEM_TEMPLATES.filter((item) => item.dayIndex === 0).length, 6);
+});
 
 test('낙찰 완료 시 낙찰자의 보유 고마를 낙찰가만큼 차감한다', () => {
   // Given
