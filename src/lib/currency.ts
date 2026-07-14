@@ -279,6 +279,33 @@ export const appendCurrencyHistoryEntry = (
   };
 };
 
+export const applyAuctionAwardToCurrencyState = (
+  balances: CurrencyBalances,
+  history: CurrencyHistory,
+  award: AuctionAward,
+): { balances: CurrencyBalances; history: CurrencyHistory } => {
+  const normalizedBalances = normalizeCurrencyBalances(balances);
+  const studentKey = String(award.winner);
+  const before = normalizedBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const after = clampCurrencyBalance(before - award.amount);
+  const nextBalances = {
+    ...normalizedBalances,
+    [studentKey]: after,
+  };
+  const nextHistory = appendCurrencyHistoryEntry(history, {
+    studentNumber: award.winner,
+    before,
+    after,
+    reason: 'auction_award',
+    createdAt: award.awardedAt,
+  });
+
+  return {
+    balances: nextBalances,
+    history: nextHistory,
+  };
+};
+
 export const collectCurrencyTax = (balances: CurrencyBalances): CurrencyBalances =>
   CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((nextBalances, studentNumber) => {
     const key = String(studentNumber);

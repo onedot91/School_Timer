@@ -65,6 +65,7 @@ import {
   CURRENCY_BALANCE_STEP,
   CURRENCY_STUDENT_NUMBERS,
   DEFAULT_CURRENCY_BALANCE,
+  applyAuctionAwardToCurrencyState,
   appendCurrencyHistoryEntry,
   clampAuctionMissionRewardAmount,
   clampCurrencyBalance,
@@ -6353,10 +6354,17 @@ export default function TimerPage() {
     if (finalizedAwardPresentationKeysRef.current.has(awardPresentationKey)) return;
     finalizedAwardPresentationKeysRef.current.add(awardPresentationKey);
 
+    const nextCurrencyState = applyAuctionAwardToCurrencyState(
+      currencyBalancesRef.current,
+      currencyHistoryRef.current,
+      awardPresentation.award,
+    );
+
     setAuctionAwards((previous) => ({
       ...previous,
       [awardPresentation.award.itemId]: awardPresentation.award,
     }));
+    commitCurrencyState(nextCurrencyState.balances, nextCurrencyState.history);
     setAwardPresentation((previous) => (
       previous
         ? {
