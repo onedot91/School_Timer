@@ -732,16 +732,16 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               type="button"
               onClick={openDonation}
               disabled={maximumDonation < 1 || isLoading}
-              className="group grid min-h-[13.5rem] w-full grid-cols-[9.5rem_minmax(0,1fr)] items-center gap-4 rounded-[1.5rem] border border-[#B9DCCB] bg-[#F7FBF9] px-4 py-4 text-left shadow-[0_14px_30px_rgba(28,45,40,0.08)] transition-[transform,background-color] hover:bg-white active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
+              className="group grid min-h-[13.5rem] w-full grid-cols-[11rem_minmax(0,1fr)] items-center gap-4 rounded-[1.5rem] border border-[#B9DCCB] bg-[#F7FBF9] px-4 py-4 text-left shadow-[0_14px_30px_rgba(28,45,40,0.08)] transition-[transform,background-color] hover:bg-white active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
               title="학급 기부"
               aria-label={`학급 기부 ${formatCurrency(classDonation.totalAmount)} / ${formatCurrency(classDonation.targetAmount)}`}
             >
               <img
-                src="/donation-bear.png?v=3"
+                src="/donation-bear.png?v=5"
                 alt=""
-                width="152"
-                height="152"
-                className="h-[9.5rem] w-[9.5rem] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+                width="176"
+                height="176"
+                className="h-[11rem] w-[11rem] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
               />
               <span className="grid min-w-0 content-center gap-1.5 pr-1">
                 <span className="section-title text-[1rem] font-black text-[#006B4D]">
@@ -750,7 +750,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 <span className="whitespace-nowrap font-mono text-[1.45rem] font-black tracking-normal text-[#18211E]">
                   {classDonation.totalAmount}/{classDonation.targetAmount}
                 </span>
-                <span className="text-[0.78rem] font-extrabold text-[#6E7A72]">다 모이면 어떤 일이 일어날까?</span>
+                <span className="whitespace-nowrap text-[0.68rem] font-extrabold text-[#6E7A72]">다 모이면 어떤 일이 일어날까?</span>
                 <span className="h-2 w-full overflow-hidden rounded-full bg-[#DDEAE4]">
                   <span
                     className="block h-full rounded-full bg-[#007A57]"
