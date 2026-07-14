@@ -864,7 +864,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             aria-modal="true"
             aria-labelledby="class-donation-title"
             onClick={(event) => event.stopPropagation()}
-            className="apple-material-layer w-full max-w-[28rem] rounded-[1.75rem] border-2 border-[#8DC9B7] bg-white p-5 shadow-[0_28px_70px_rgba(28,45,40,0.24)]"
+            className="class-donation-dialog apple-material-layer w-full max-w-[28rem] rounded-[1.75rem] border-2 border-[#8DC9B7] bg-white p-5 shadow-[0_28px_70px_rgba(28,45,40,0.24)]"
           >
             <div className="flex items-center justify-between gap-3">
               <h2 id="class-donation-title" className="section-title text-[1.45rem] font-extrabold text-[#18211E]">학급 기부</h2>
