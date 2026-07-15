@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   getClassDonationMaximum,
+  isClassDonationCompleted,
   getClassDonationPublicState,
   mergeClassDonationActivity,
   normalizeClassDonationSettings,
@@ -61,6 +62,11 @@ test('teacher autosave cannot shrink the target below donated currency', () => {
 test('donation maximum respects available balance and remaining target', () => {
   assert.equal(getClassDonationMaximum({ enabled: true, targetAmount: 500, totalAmount: 493 }, 130), 7);
   assert.equal(getClassDonationMaximum({ enabled: true, targetAmount: 500, totalAmount: 320 }, 12), 12);
+});
+
+test('completed donation goals remain identifiable after collection closes', () => {
+  assert.equal(isClassDonationCompleted({ enabled: false, targetAmount: 150, totalAmount: 149 }), false);
+  assert.equal(isClassDonationCompleted({ enabled: false, targetAmount: 150, totalAmount: 150 }), true);
 });
 
 test('donation settings normalize invalid persisted values', () => {

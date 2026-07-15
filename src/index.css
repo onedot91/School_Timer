@@ -301,6 +301,18 @@ img {
   animation: auctionAwardPulse 0.72s ease-in-out;
 }
 
+.auction-award-stage[data-award-speed="brisk"] :is(.auction-award-step-active, .auction-award-price, .auction-award-current-chip) {
+  animation-duration: 0.52s;
+}
+
+.auction-award-stage[data-award-speed="quick"] :is(.auction-award-step-active, .auction-award-price, .auction-award-current-chip) {
+  animation-duration: 0.38s;
+}
+
+.auction-award-stage[data-award-speed="fast"] :is(.auction-award-step-active, .auction-award-price, .auction-award-current-chip) {
+  animation-duration: 0.26s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .auction-award-rings,
   .auction-award-core-halo,

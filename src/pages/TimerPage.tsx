@@ -275,6 +275,16 @@ const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
 const ANNOUNCEMENT_NOTE_HIGHLIGHTS_STORAGE_KEY = 'announcementNoteHighlights-v1';
 const AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS = 1400;
+const getAuctionAwardStepDelayMs = (stepCount: number) => {
+  if (stepCount >= 12) return 260;
+  if (stepCount >= 8) return 380;
+  if (stepCount >= 5) return 520;
+  return 720;
+};
+
+const getAuctionAwardSpeed = (stepCount: number) => (
+  stepCount >= 12 ? 'fast' : stepCount >= 8 ? 'quick' : stepCount >= 5 ? 'brisk' : 'normal'
+);
 const QUESTION_SUBMISSION_AUTO_REFRESH_MS = 15_000;
 const WEEKLY_SUBJECTS_STORAGE_KEY = 'weeklySubjects-v1';
 const SUBJECT_CATALOG_STORAGE_KEY = 'subjectCatalog-v1';
@@ -1811,6 +1821,8 @@ function AnnouncementNotebookOverlay({
   isOpen,
   onClose,
   liveTimer,
+  auctionItems,
+  auctionAwards,
   awardableAuctionItems,
   auctionBids,
   onOpenAwardConfirm,
@@ -1819,6 +1831,8 @@ function AnnouncementNotebookOverlay({
   isOpen: boolean;
   onClose: () => void;
   liveTimer: AnnouncementOverlayTimerState;
+  auctionItems: AuctionItem[];
+  auctionAwards: AuctionAwards;
   awardableAuctionItems: AuctionItem[];
   auctionBids: AuctionBids;
   onOpenAwardConfirm: (item: AuctionItem) => void;
@@ -1829,6 +1843,7 @@ function AnnouncementNotebookOverlay({
   const [hasHydrated, setHasHydrated] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isViewingHistoryRecord, setIsViewingHistoryRecord] = useState(false);
+  const [isAwardQueueConfirmOpen, setIsAwardQueueConfirmOpen] = useState(false);
   const [announcementHistory, setAnnouncementHistory] = useState<AnnouncementNoteRecord[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [todayAnnouncementDateKey, setTodayAnnouncementDateKey] = useState(() => getTodayAnnouncementDateKey());
@@ -1982,6 +1997,12 @@ function AnnouncementNotebookOverlay({
     ? []
     : awardableAuctionItems.filter((item) => item.dayIndex === announcementAuctionDayIndex);
   const hasAwardableAuctionItems = announcementDayAwardableAuctionItems.length > 0;
+  const announcementDayAwardedAuctionItems = announcementAuctionDayIndex === null
+    ? []
+    : auctionItems.flatMap((item) => {
+      const award = auctionAwards[item.id];
+      return item.dayIndex === announcementAuctionDayIndex && award ? [{ item, award }] : [];
+    }).sort((left, right) => left.award.awardedAt.localeCompare(right.award.awardedAt));
 
   const focusNoteTextarea = () => {
     const textarea = noteTextareaRef.current;
@@ -2375,6 +2396,7 @@ function AnnouncementNotebookOverlay({
   useEffect(() => {
     if (!isOpen || awardableAuctionItems.length === 0) {
       setIsAwardMenuOpen(false);
+      setIsAwardQueueConfirmOpen(false);
     }
   }, [awardableAuctionItems.length, isOpen]);
 
@@ -2539,6 +2561,57 @@ function AnnouncementNotebookOverlay({
                     </div>
                   ) : null}
                   <div className="announcement-note-inline-tools gap-2" data-capture-exclude="true">
+                    {announcementDayAwardedAuctionItems.length > 0 ? (
+                      <div className="pointer-events-auto flex max-w-[min(34rem,calc(100vw-12rem))] items-center gap-1.5 overflow-x-auto rounded-full border border-[#D7E6DE] bg-white/95 px-2 py-1.5 shadow-[0_8px_18px_rgba(31,24,18,0.1)] backdrop-blur">
+                        <span className="shrink-0 px-1 text-[0.72rem] font-black text-[#006241]">낙찰 완료</span>
+                        {announcementDayAwardedAuctionItems.map(({ item, award }) => (
+                          <span
+                            key={award.itemId}
+                            className="shrink-0 rounded-full bg-[#EEF7F2] px-2 py-1 text-[0.72rem] font-black text-[#006241]"
+                          >
+                            {getAuctionItemDisplayName(item.name, item.dayIndex)} · {award.winner}번 · {formatCurrency(award.amount)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {isAwardQueueConfirmOpen ? (
+                      <div
+                        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4"
+                        role="presentation"
+                        onClick={() => setIsAwardQueueConfirmOpen(false)}
+                      >
+                        <div
+                          className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                          role="dialog"
+                          aria-modal="true"
+                          aria-labelledby="announcement-award-confirm-title"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <h3 id="announcement-award-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
+                            낙찰 처리할까요?
+                          </h3>
+                          <p className="mt-2 text-[0.95rem] font-extrabold leading-6 text-[#6E5139]">
+                            {announcementDayAwardableAuctionItems.length}개 물품의 최고 입찰자를 확정하고 낙찰가를 차감합니다.
+                          </p>
+                          <div className="mt-4 grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setIsAwardQueueConfirmOpen(false)}
+                              className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                            >
+                              취소
+                            </button>
+                            <button
+                              type="button"
+                              onClick={startAnnouncementDayAwards}
+                              className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+                            >
+                              낙찰 시작
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                     {isAwardMenuOpen ? (
                       <div
                         className="pointer-events-auto absolute bottom-[4.2rem] right-0 z-[6] w-[min(21rem,calc(100vw-2.4rem))] rounded-[1.2rem] border border-[#D7E6DE] bg-white/95 p-2.5 shadow-[0_18px_34px_rgba(31,24,18,0.18)] backdrop-blur"
@@ -2592,7 +2665,7 @@ function AnnouncementNotebookOverlay({
                     ) : null}
                     <button
                       onMouseDown={(event) => event.preventDefault()}
-                      onClick={startAnnouncementDayAwards}
+                      onClick={() => setIsAwardQueueConfirmOpen(true)}
                       disabled={!hasAwardableAuctionItems}
                       className={`announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] items-center justify-center gap-2 rounded-full border px-4 font-black ${
                         hasAwardableAuctionItems
@@ -6452,7 +6525,7 @@ export default function TimerPage() {
           currentIndex: nextIndex,
         };
       });
-    }, 720);
+    }, getAuctionAwardStepDelayMs(awardPresentation.steps.length));
 
     return () => window.clearTimeout(timeoutId);
   }, [awardPresentation]);
@@ -8060,6 +8133,12 @@ export default function TimerPage() {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     return item.dayIndex < auctionVisibleDayCount && !auctionAwards[item.id] && currentBid.bidder !== null && currentBid.amount > 0;
   });
+  const awardPresentationCompletedItems = awardPresentation
+    ? auctionItems.flatMap((item) => {
+      const award = auctionAwards[item.id];
+      return item.dayIndex === awardPresentation.item.dayIndex && award ? [{ item, award }] : [];
+    }).sort((left, right) => left.award.awardedAt.localeCompare(right.award.awardedAt))
+    : [];
 
   const resetClassDonation = async () => {
     const resetState = { ...classDonation, totalAmount: 0, history: [] };
@@ -10077,7 +10156,7 @@ export default function TimerPage() {
                   aria-modal="true"
                   aria-label="낙찰 애니메이션"
                 >
-                  <div className={`apple-material-layer auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
+                  <div data-award-speed={getAuctionAwardSpeed(awardPresentation.steps.length)} className={`apple-material-layer auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
                     awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
                   }`}>
                     <div className="auction-award-confetti pointer-events-none absolute inset-0 overflow-hidden">
@@ -10149,6 +10228,22 @@ export default function TimerPage() {
                               );
                             })}
                           </div>
+                          {awardPresentationCompletedItems.length > 0 ? (
+                            <div className="mt-3 border-t border-[#D7E6DE] pt-3">
+                              <div className="mb-1.5 text-[0.78rem] font-black text-[#006241]">낙찰 완료</div>
+                              <div className="grid gap-1">
+                                {awardPresentationCompletedItems.map(({ item, award }) => (
+                                  <div
+                                    key={award.itemId}
+                                    className="flex min-w-0 items-center justify-between gap-2 rounded-[0.65rem] bg-white px-2 py-1.5 text-[0.76rem] font-black text-[#46534B]"
+                                  >
+                                    <span className="min-w-0 truncate">{getAuctionItemDisplayName(item.name, item.dayIndex)}</span>
+                                    <span className="shrink-0 font-mono text-[#006241]">{award.winner}번 · {formatCurrency(award.amount)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
 
                         <div className={`auction-award-result-card flex min-h-[19rem] flex-col items-center justify-center rounded-[1.2rem] border-2 p-5 text-center ${
@@ -10820,7 +10915,7 @@ export default function TimerPage() {
             aria-modal="true"
             aria-label="낙찰 애니메이션"
           >
-            <div className={`apple-material-layer auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
+          <div data-award-speed={getAuctionAwardSpeed(awardPresentation.steps.length)} className={`apple-material-layer auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
               awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
             }`}>
               <div className="auction-award-confetti pointer-events-none absolute inset-0 overflow-hidden">
@@ -10892,6 +10987,22 @@ export default function TimerPage() {
                         );
                       })}
                     </div>
+                    {awardPresentationCompletedItems.length > 0 ? (
+                      <div className="mt-3 border-t border-[#D7E6DE] pt-3">
+                        <div className="mb-1.5 text-[0.78rem] font-black text-[#006241]">낙찰 완료</div>
+                        <div className="grid gap-1">
+                          {awardPresentationCompletedItems.map(({ item, award }) => (
+                            <div
+                              key={award.itemId}
+                              className="flex min-w-0 items-center justify-between gap-2 rounded-[0.65rem] bg-white px-2 py-1.5 text-[0.76rem] font-black text-[#46534B]"
+                            >
+                              <span className="min-w-0 truncate">{getAuctionItemDisplayName(item.name, item.dayIndex)}</span>
+                              <span className="shrink-0 font-mono text-[#006241]">{award.winner}번 · {formatCurrency(award.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className={`auction-award-result-card flex min-h-[19rem] flex-col items-center justify-center rounded-[1.2rem] border-2 p-5 text-center ${
@@ -10966,6 +11077,8 @@ export default function TimerPage() {
           timerTypeLabel: scheduleTypeLabel,
           currentSlotName,
         }}
+        auctionItems={auctionItems}
+        auctionAwards={auctionAwards}
         awardableAuctionItems={awardableAuctionItems}
         auctionBids={auctionBids}
         onOpenAwardConfirm={openAwardConfirm}

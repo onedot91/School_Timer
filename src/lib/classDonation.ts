@@ -100,6 +100,10 @@ export const getClassDonationMaximum = (
   state.targetAmount - state.totalAmount,
 ));
 
+export const isClassDonationCompleted = (state: ClassDonationPublicState) => (
+  state.totalAmount >= state.targetAmount
+);
+
 export const parseClassDonationResult = (value: unknown): ClassDonationResult => {
   if (!isRecord(value)) throw new Error('CLASS_DONATION_INVALID_RESPONSE');
   const donatedAmount = Number(value.donatedAmount);
