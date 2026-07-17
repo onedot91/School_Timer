@@ -2576,7 +2576,7 @@ function AnnouncementNotebookOverlay({
                     ) : null}
                     {isAwardQueueConfirmOpen ? (
                       <div
-                        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4"
+                        className="pointer-events-auto fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4"
                         role="presentation"
                         onClick={() => setIsAwardQueueConfirmOpen(false)}
                       >

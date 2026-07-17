@@ -4189,7 +4189,7 @@ img {
 
 .announcement-note-display,
 .announcement-note-textarea {
-  font-family: var(--font-display);
+  font-family: "Gowun Batang", "Malgun Gothic", serif;
   letter-spacing: 0.01em;
   font-size: var(--announcement-note-font-size);
   font-weight: 700;
@@ -13297,7 +13297,7 @@ a[href]:active {
 }
 
 .library-panel {
-  z-index: 200 !important;
+  z-index: 70 !important;
   isolation: isolate;
 }
 
@@ -13307,10 +13307,6 @@ a[href]:active {
 
 .library-panel-card iframe {
   background: var(--apple-surface);
-}
-
-.library-panel-open .student-character-showcase {
-  display: none !important;
 }
 
 .settings-dialog > [role="presentation"],
