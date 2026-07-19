@@ -6787,10 +6787,10 @@ h3 {
     transform: translate3d(var(--student-character-walk-start), 0, 0) translateX(-50%);
     opacity: 0;
   }
-  4% {
+  8% {
     opacity: 1;
   }
-  96% {
+  92% {
     opacity: 1;
   }
   100% {
