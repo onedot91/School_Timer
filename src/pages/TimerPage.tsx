@@ -83,6 +83,7 @@ import {
   createDefaultCurrencyHistory,
   formatCurrencyAmount,
   formatCurrency,
+  getAuctionAwardsForDay,
   getAuctionItemDisplayName,
   getAuctionVisibleDayCount,
   getStudentLabelStyle,
@@ -1999,10 +2000,7 @@ function AnnouncementNotebookOverlay({
   const hasAwardableAuctionItems = announcementDayAwardableAuctionItems.length > 0;
   const announcementDayAwardedAuctionItems = announcementAuctionDayIndex === null
     ? []
-    : auctionItems.flatMap((item) => {
-      const award = auctionAwards[item.id];
-      return item.dayIndex === announcementAuctionDayIndex && award ? [{ item, award }] : [];
-    }).sort((left, right) => left.award.awardedAt.localeCompare(right.award.awardedAt));
+    : getAuctionAwardsForDay(auctionItems, auctionAwards, announcementAuctionDayIndex);
 
   const focusNoteTextarea = () => {
     const textarea = noteTextareaRef.current;
@@ -2562,16 +2560,24 @@ function AnnouncementNotebookOverlay({
                   ) : null}
                   <div className="announcement-note-inline-tools gap-2" data-capture-exclude="true">
                     {announcementDayAwardedAuctionItems.length > 0 ? (
-                      <div className="pointer-events-auto flex max-w-[min(34rem,calc(100vw-12rem))] items-center gap-1.5 overflow-x-auto rounded-full border border-[#D7E6DE] bg-white/95 px-2 py-1.5 shadow-[0_8px_18px_rgba(31,24,18,0.1)] backdrop-blur">
-                        <span className="shrink-0 px-1 text-[0.72rem] font-black text-[#006241]">낙찰 완료</span>
-                        {announcementDayAwardedAuctionItems.map(({ item, award }) => (
-                          <span
-                            key={award.itemId}
-                            className="shrink-0 rounded-full bg-[#EEF7F2] px-2 py-1 text-[0.72rem] font-black text-[#006241]"
-                          >
-                            {getAuctionItemDisplayName(item.name, item.dayIndex)} · {award.winner}번 · {formatCurrency(award.amount)}
+                      <div className="pointer-events-auto w-[min(22rem,calc(100vw-8rem))] rounded-[1rem] border border-[#D7E6DE] bg-white/95 p-2.5 shadow-[0_8px_18px_rgba(31,24,18,0.1)] backdrop-blur">
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <span className="text-[0.78rem] font-black text-[#006241]">오늘 낙찰</span>
+                          <span className="rounded-full bg-[#EEF7F2] px-2 py-0.5 text-[0.68rem] font-black text-[#006241]">
+                            {announcementDayAwardedAuctionItems.length}건
                           </span>
-                        ))}
+                        </div>
+                        <div className="grid max-h-[8.75rem] gap-1 overflow-y-auto pr-0.5">
+                          {announcementDayAwardedAuctionItems.map(({ item, award }) => (
+                            <div
+                              key={award.itemId}
+                              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[0.65rem] bg-[#F5FAF7] px-2 py-1.5 text-[0.72rem] font-black text-[#46534B]"
+                            >
+                              <span className="min-w-0 truncate">{getAuctionItemDisplayName(item.name, item.dayIndex)}</span>
+                              <span className="shrink-0 font-mono text-[#006241]">{award.winner}번 · {formatCurrency(award.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ) : null}
                     {isAwardQueueConfirmOpen ? (
@@ -6433,7 +6439,6 @@ export default function TimerPage() {
     awardReturnFocusRef.current = announcementLaunchButtonRef.current;
     setPendingAwardItemId(null);
     setQueuedAwardItems(remainingItems);
-    setIsAnnouncementOpen(false);
     startAwardPresentationForItem(firstItem);
   };
 
@@ -6927,6 +6932,7 @@ export default function TimerPage() {
     elapsedSeconds: number,
     offsetSeconds: number,
     streamIndex: number,
+    excludedCharacterId?: string,
   ): StudentCharacterWalker | null => {
     if (!canShowStudentCharacter) return null;
     if (streamIndex > 0 && visibleStudentCharacters.length === 1) return null;
@@ -6935,12 +6941,23 @@ export default function TimerPage() {
     const walkCycle = Math.floor(shiftedElapsedSeconds / STUDENT_CHARACTER_WALK_SECONDS);
     const spawnOrder = walkCycle * 2 + streamIndex;
     const characterRoundIndex = Math.floor(spawnOrder / visibleStudentCharacters.length);
-    const characterIndex = spawnOrder % visibleStudentCharacters.length;
+    let characterIndex = spawnOrder % visibleStudentCharacters.length;
     const roundCharacters = getShuffledStudentCharacters(
       visibleStudentCharacters,
       `${studentCharacterOrderSeed}:round-${characterRoundIndex}`,
     );
-    const character = roundCharacters[characterIndex];
+    let character = roundCharacters[characterIndex];
+    if (character?.id === excludedCharacterId) {
+      for (let candidateOffset = 1; candidateOffset < roundCharacters.length; candidateOffset += 1) {
+        const candidateIndex = (characterIndex + candidateOffset) % roundCharacters.length;
+        const candidate = roundCharacters[candidateIndex];
+        if (candidate && candidate.id !== excludedCharacterId) {
+          characterIndex = candidateIndex;
+          character = candidate;
+          break;
+        }
+      }
+    }
     if (!character) return null;
     const pathIndex = (spawnOrder * 3 + characterIndex * 2) % STUDENT_CHARACTER_WALK_PATHS.length;
     const shouldSpeak =
@@ -6963,6 +6980,7 @@ export default function TimerPage() {
     studentCharacterElapsedSeconds,
     STUDENT_CHARACTER_WALK_SECONDS / 2,
     1,
+    primaryStudentCharacterWalker?.character.id,
   );
   if (primaryStudentCharacterWalker?.shouldSpeak && secondaryStudentCharacterWalker?.shouldSpeak) {
     secondaryStudentCharacterWalker = {
@@ -8134,10 +8152,7 @@ export default function TimerPage() {
     return item.dayIndex < auctionVisibleDayCount && !auctionAwards[item.id] && currentBid.bidder !== null && currentBid.amount > 0;
   });
   const awardPresentationCompletedItems = awardPresentation
-    ? auctionItems.flatMap((item) => {
-      const award = auctionAwards[item.id];
-      return item.dayIndex === awardPresentation.item.dayIndex && award ? [{ item, award }] : [];
-    }).sort((left, right) => left.award.awardedAt.localeCompare(right.award.awardedAt))
+    ? getAuctionAwardsForDay(auctionItems, auctionAwards, awardPresentation.item.dayIndex)
     : [];
 
   const resetClassDonation = async () => {

@@ -60,6 +60,11 @@ export interface AuctionAward {
 
 export type AuctionAwards = Record<string, AuctionAward | null>;
 
+export interface AuctionAwardedItem {
+  item: AuctionItem;
+  award: AuctionAward;
+}
+
 export const CURRENCY_STUDENT_NUMBERS = Array.from({ length: 23 }, (_, index) => index + 1);
 export const DEFAULT_CURRENCY_BALANCE = 100;
 export const WEEKLY_CURRENCY_ALLOWANCE = 100;
@@ -156,6 +161,17 @@ export const getAuctionItemDisplayName = (itemName: string, dayIndex: number) =>
   const displayName = itemName.slice(prefix.length);
   return displayName.length > 0 ? displayName : itemName;
 };
+
+export const getAuctionAwardsForDay = (
+  auctionItems: readonly AuctionItem[],
+  auctionAwards: AuctionAwards,
+  dayIndex: number,
+): AuctionAwardedItem[] => auctionItems
+  .flatMap((item) => {
+    const award = auctionAwards[item.id];
+    return item.dayIndex === dayIndex && award ? [{ item, award }] : [];
+  })
+  .sort((left, right) => left.award.awardedAt.localeCompare(right.award.awardedAt));
 
 export const clampCurrencyBalance = (value: unknown) => {
   const numericValue = typeof value === 'number' ? value : Number(value);

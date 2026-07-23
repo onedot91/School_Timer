@@ -9,6 +9,7 @@ import {
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
   finalizeAuctionAwardInSettings,
+  getAuctionAwardsForDay,
 } from './currency.ts';
 
 test('요일별 경매 물품을 최대 6개까지 구성한다', () => {
@@ -16,6 +17,26 @@ test('요일별 경매 물품을 최대 6개까지 구성한다', () => {
   assert.equal(AUCTION_MAX_ITEM_COUNT, 30);
   assert.equal(AUCTION_ITEM_TEMPLATES.length, 30);
   assert.equal(AUCTION_ITEM_TEMPLATES.filter((item) => item.dayIndex === 0).length, 6);
+});
+
+test('당일 낙찰 품목을 완료 시각 순서로 누적한다', () => {
+  const awardedItems = getAuctionAwardsForDay([
+    { id: 'item-4-1', name: '첫 번째 물품', startPrice: 10, dayIndex: 3 },
+    { id: 'item-4-2', name: '두 번째 물품', startPrice: 10, dayIndex: 3 },
+    { id: 'item-3-1', name: '수요일 물품', startPrice: 10, dayIndex: 2 },
+  ], {
+    'item-4-1': { itemId: 'item-4-1', winner: 8, amount: 120, awardedAt: '2026-07-23T01:10:00.000Z' },
+    'item-4-2': { itemId: 'item-4-2', winner: 15, amount: 95, awardedAt: '2026-07-23T01:05:00.000Z' },
+    'item-3-1': { itemId: 'item-3-1', winner: 3, amount: 80, awardedAt: '2026-07-22T01:00:00.000Z' },
+  }, 3);
+
+  assert.deepEqual(awardedItems.map(({ item, award }) => ({
+    itemId: item.id,
+    winner: award.winner,
+  })), [
+    { itemId: 'item-4-2', winner: 15 },
+    { itemId: 'item-4-1', winner: 8 },
+  ]);
 });
 
 test('낙찰 완료 시 낙찰자의 보유 고마를 낙찰가만큼 차감한다', () => {
