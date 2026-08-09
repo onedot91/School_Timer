@@ -28,6 +28,7 @@ interface AuctionRoomProps {
   selectedItemId?: string | null;
   studentLabel: string;
   isLoading?: boolean;
+  showStudentSummary?: boolean;
   variant?: 'page' | 'compact';
   footer?: ReactNode;
   donationWidget?: ReactNode;
@@ -46,6 +47,7 @@ export default function AuctionRoom({
   selectedItemId,
   studentLabel,
   isLoading = false,
+  showStudentSummary = true,
   variant = 'page',
   footer,
   donationWidget,
@@ -94,6 +96,7 @@ export default function AuctionRoom({
         ? 'rounded-[1.25rem] shadow-[0_10px_22px_rgba(28,45,40,0.07)]'
         : 'rounded-[2rem] shadow-[0_22px_54px_rgba(28,45,40,0.1)]'
     }`}>
+      {showStudentSummary ? <>
       <div className={`auction-room-header grid gap-3 border-b border-[#E4E9E6] bg-white sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
         isCompact ? 'p-3 md:p-4' : 'p-3.5 md:px-5 md:py-4'
       }`}>
@@ -218,6 +221,7 @@ export default function AuctionRoom({
           </div>
         </section>
       </div>
+      </> : null}
 
       {activeDayGroup ? (
         <div className={`auction-workspace ${isCompact ? 'p-3 md:p-4' : 'p-4 md:p-5'}`}>
@@ -253,7 +257,15 @@ export default function AuctionRoom({
                 <h2 className="section-title text-[1.22rem] font-black text-[#18211E]">{activeDayGroup.weekdayLabel}요일</h2>
               </div>
               <div className="auction-current-items grid gap-3 p-3 md:grid-cols-2">
-                {activeDayGroup.items.map((item) => {
+                {activeDayGroup.dayIndex >= visibleDayCount ? (
+                  <div className="auction-locked-day-state md:col-span-2">
+                    <span><Lock size={22} aria-hidden="true" /></span>
+                    <div>
+                      <strong>물품 공개 전</strong>
+                      <p>경매가 열리는 날 확인할 수 있어요.</p>
+                    </div>
+                  </div>
+                ) : activeDayGroup.items.map((item) => {
                   const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
                   const award = auctionAwards?.[item.id] ?? null;
                   const isUnlocked = item.dayIndex < visibleDayCount;
@@ -293,23 +305,15 @@ export default function AuctionRoom({
                           </div>
                         </div>
                       ) : (
-                        <div className="relative min-h-[4.55rem] overflow-hidden rounded-[0.85rem] border border-[#E6EEE9] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                        <div className="relative min-h-[4.55rem] overflow-hidden rounded-[0.85rem] border border-[#CBD8D1] bg-white/88 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                           <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: activeDayGroup.accent.chip }} />
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="mb-3 flex items-center gap-2">
-                                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#18211E] text-white shadow-[0_8px_16px_rgba(28,45,40,0.16)]">
-                                  <Lock size={17} color="#FFFFFF" strokeWidth={3.4} />
-                                </span>
-                                <span className="h-7 w-12 rounded-full border border-[#DDE8E2] bg-[#F7FAF8]" />
-                              </div>
-                              <div className="grid gap-1.5">
-                                <span className="h-3 w-4/5 rounded-full bg-[#DCE6E0]" />
-                                <span className="h-3 w-3/5 rounded-full bg-[#E9EFEA]" />
-                              </div>
-                            </div>
-                            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[0.9rem] border border-[#DDE8E2] bg-[#F7FAF8] text-[#8EA099]">
-                              <Sparkles size={18} />
+                          <div className="flex min-h-[4rem] items-center gap-3">
+                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#24312B] text-white shadow-[0_8px_16px_rgba(28,45,40,0.16)]">
+                              <Lock size={19} color="#FFFFFF" strokeWidth={3} />
+                            </span>
+                            <div className="min-w-0">
+                              <div className="section-title text-[1rem] font-black text-[#38423D]">잠긴 물품</div>
+                              <div className="mt-1 text-[0.78rem] font-extrabold text-[#66736C]">해당 요일에 공개됩니다</div>
                             </div>
                           </div>
                         </div>
@@ -356,13 +360,6 @@ export default function AuctionRoom({
         </div>
       ) : null}
 
-      {visibleDayCount === 0 ? (
-        <div className={`rounded-[1.35rem] border-2 border-dashed border-[#D7E6DE] bg-white text-center font-black text-[#6E5139] ${
-          isCompact ? 'mx-3 mb-3 p-4 text-[1rem]' : 'mx-4 mb-4 p-6 text-[1.1rem] md:mx-5 md:mb-5'
-        }`}>
-          오늘은 공개된 물품이 없습니다.
-        </div>
-      ) : null}
     </section>
   );
 }

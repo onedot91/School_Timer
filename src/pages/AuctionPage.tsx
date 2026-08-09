@@ -2,6 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import AuctionRoom from '../components/AuctionRoom';
+import StudentMissionsPage from '../components/student/StudentMissionsPage';
+import StudentOverviewPage from '../components/student/StudentOverviewPage';
+import StudentStorePage from '../components/student/StudentStorePage';
 import {
   AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
@@ -41,6 +44,7 @@ import {
   type ClassDonationPublicState,
 } from '../lib/classDonation';
 import { playAuctionSound, prepareAuctionAudio } from '../lib/auctionAudio';
+import { STUDENT_CHARACTERS } from '../lib/studentCharacters';
 import {
   hasPersonalQuestionSubmission,
   loadQuestionSubmissionStatuses,
@@ -59,6 +63,19 @@ import {
 interface AuctionPageProps {
   studentNumber: number;
 }
+
+type StudentView = 'overview' | 'missions' | 'store';
+
+const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
+  overview: '#student-overview',
+  missions: '#student-missions',
+  store: '#student-store',
+};
+
+const getStudentViewFromHash = (): StudentView => {
+  const matchedView = Object.entries(STUDENT_VIEW_HASHES).find(([, hash]) => hash === window.location.hash)?.[0];
+  return matchedView === 'missions' || matchedView === 'store' ? matchedView : 'overview';
+};
 
 const getStoredAuctionMissions = (): AuctionMission[] => {
   try {
@@ -94,6 +111,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [weeklyMissionStatuses, setWeeklyMissionStatuses] = useState<WeeklyMissionStatuses>(() => (
     createWeeklyMissionStatuses('loading')
   ));
+  const [hasWeeklyMissionSyncError, setHasWeeklyMissionSyncError] = useState(false);
+  const [activeStudentView, setActiveStudentView] = useState<StudentView>(getStudentViewFromHash);
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [bidAmountDrafts, setBidAmountDrafts] = useState<Record<string, string>>({});
   const [selectedItemId, setSelectedItemId] = useState(getInitialSelectedAuctionItemId);
@@ -136,6 +155,31 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const donationTriggerRef = useRef<HTMLButtonElement>(null);
   const donationRequestIdRef = useRef('');
   const shouldReturnStatusFocusRef = useRef(false);
+  const pageScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!Object.values(STUDENT_VIEW_HASHES).includes(window.location.hash)) {
+      window.history.replaceState(null, '', STUDENT_VIEW_HASHES.overview);
+    }
+
+    const syncViewFromHistory = () => {
+      setActiveStudentView(getStudentViewFromHash());
+      pageScrollRef.current?.scrollTo({ top: 0 });
+    };
+    window.addEventListener('hashchange', syncViewFromHistory);
+    window.addEventListener('popstate', syncViewFromHistory);
+    return () => {
+      window.removeEventListener('hashchange', syncViewFromHistory);
+      window.removeEventListener('popstate', syncViewFromHistory);
+    };
+  }, []);
+
+  const navigateStudentView = useCallback((view: StudentView) => {
+    const targetHash = STUDENT_VIEW_HASHES[view];
+    setActiveStudentView(view);
+    pageScrollRef.current?.scrollTo({ top: 0 });
+    if (window.location.hash !== targetHash) window.location.hash = targetHash;
+  }, []);
 
   const focusAuctionReturnTarget = useCallback(() => {
     const storedTarget = statusReturnFocusRef.current;
@@ -361,6 +405,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           }),
           createWeeklyMissionStatuses('incomplete'),
         ));
+        setHasWeeklyMissionSyncError(false);
         const finalBalance = Math.max(...result.missions.map((mission) => mission.balance));
         setCurrencyBalances((previous) => ({
           ...previous,
@@ -377,6 +422,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           const submissionStatuses = await loadQuestionSubmissionStatuses();
           if (!isActive) return;
           const isCompleted = hasPersonalQuestionSubmission(submissionStatuses, studentNumber);
+          setHasWeeklyMissionSyncError(false);
           if (!isCompleted) {
             setWeeklyMissionStatuses((previous) => ({
               ...previous,
@@ -396,6 +442,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         } catch (fallbackError) {
           if (!isActive) return;
           console.warn('Failed to load weekly mission completion fallback.', fallbackError);
+          setHasWeeklyMissionSyncError(true);
           setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
             (statuses, missionType) => ({
               ...statuses,
@@ -713,10 +760,43 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
+  const studentCharacter = STUDENT_CHARACTERS.find((character) => character.creatorName === `${studentNumber}번`);
+  const studentCharacterSrc = studentCharacter?.imageSrc ?? '/character.png';
+  const studentCharacterAlt = studentCharacter?.alt ?? `${studentNumber}번 학생 캐릭터`;
+
   return (
-    <div className="auction-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5">
+    <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5">
       <main className="mx-auto w-full max-w-7xl">
-        <AuctionRoom
+        {activeStudentView === 'overview' ? (
+          <StudentOverviewPage
+            studentLabel={`${studentNumber}번`}
+            characterSrc={studentCharacterSrc}
+            characterAlt={studentCharacterAlt}
+            balance={balance}
+            availableBalance={availableBalance}
+            reservedAmount={reservedAmount}
+            isLoading={isLoading}
+            onOpenMissions={() => navigateStudentView('missions')}
+            onOpenStore={() => navigateStudentView('store')}
+          />
+        ) : null}
+        {activeStudentView === 'missions' ? (
+          <StudentMissionsPage
+            auctionMissions={auctionMissions}
+            weeklyMissionStatuses={weeklyMissionStatuses}
+            hasSyncError={hasWeeklyMissionSyncError}
+            onBack={() => navigateStudentView('overview')}
+          />
+        ) : null}
+        {activeStudentView === 'store' ? (
+          <StudentStorePage
+            balance={balance}
+            availableBalance={availableBalance}
+            reservedAmount={reservedAmount}
+            isLoading={isLoading}
+            onBack={() => navigateStudentView('overview')}
+          >
+          <AuctionRoom
           auctionItems={auctionItems}
           auctionBids={auctionBids}
           auctionAwards={auctionAwards}
@@ -728,6 +808,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           selectedItemId={selectedItem?.id ?? null}
           studentLabel={`${studentNumber}번`}
           isLoading={isLoading}
+          showStudentSummary={false}
           onSelectItem={selectItem}
           donationWidget={shouldShowClassDonation ? (
             <button
@@ -853,7 +934,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               </div>
             );
           })() : null}
-        />
+          />
+          </StudentStorePage>
+        ) : null}
       </main>
       {isDonationOpen ? (
         <div

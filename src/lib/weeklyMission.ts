@@ -16,13 +16,33 @@ const isWeeklyMissionType = (value: unknown): value is WeeklyMissionType => (
 );
 
 export const WEEKLY_MISSION_DEFINITIONS = [
-  { type: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE, label: '신문에 개인 질문하기', rewardAmount: 5 },
-  { type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE, label: 'ㄱㄴㄷ 게임 낱말 넣기', rewardAmount: 5 },
-  { type: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE, label: 'ㄱㄴㄷ 게임 낱말 퀴즈', rewardAmount: 5 },
+  {
+    type: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
+    label: '신문에 개인 질문하기',
+    description: '이번 주 신문을 읽고 나만의 질문을 남겨 보세요.',
+    rewardAmount: 5,
+    destinationUrl: 'https://question-news.vercel.app/',
+  },
+  {
+    type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+    label: 'ㄱㄴㄷ 게임 낱말 넣기',
+    description: 'ㄱㄴㄷ 게임에 새로운 낱말을 등록해 보세요.',
+    rewardAmount: 5,
+    destinationUrl: 'https://classword.vercel.app/',
+  },
+  {
+    type: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
+    label: 'ㄱㄴㄷ 게임 낱말 퀴즈',
+    description: 'ㄱㄴㄷ 게임에서 낱말 퀴즈를 맞혀 보세요.',
+    rewardAmount: 5,
+    destinationUrl: 'https://classword.vercel.app/',
+  },
 ] as const satisfies readonly {
   readonly type: WeeklyMissionType;
   readonly label: string;
+  readonly description: string;
   readonly rewardAmount: number;
+  readonly destinationUrl: string;
 }[];
 
 export type WeeklyMissionStatus = 'loading' | 'incomplete' | 'completed' | 'unavailable';

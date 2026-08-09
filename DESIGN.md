@@ -19,7 +19,7 @@ Reference set:
 3. Materials communicate interaction class. Blocking work uses a scrim and one translucent outer material; parallel tools do not use a scrim.
 4. Glass never stacks. Cards inside translucent shells are opaque or tonal.
 5. Motion follows the source and returns along the same path. Interactive motion remains interruptible and reversible.
-6. Existing rendered strings, workflows, storage contracts, and character assets are immutable.
+6. Existing workflows, storage contracts, and character assets are immutable. Visible copy may change only when an approved feature specification requires a clearer task hierarchy.
 7. Accessibility preferences produce complete alternatives, not degraded remnants.
 
 ## 2. Semantic Tokens
@@ -110,9 +110,14 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - Disabled state remains visually distinct and does not animate on press.
 - Mutually exclusive settings tabs use a filled accent selected state with white label and icon; unselected tabs remain quiet and neutral.
 - The schedule pane header shows only the adjusted current date on the left and the settings action on the right; month/day is larger and stronger while the weekday is smaller and secondary, and no redundant schedule title is added.
-- Student auction missions use two explicit groups: teacher-configured items appear under `일일 미션`, and weekly rewards appear under `주간 미션`. On the Chromebook auction surface, daily mission chips wrap into visible rows and weekly missions stack as visible rows instead of hiding behind horizontal scrolling. Completion is communicated by the existing green success treatment and a check icon without explanatory copy.
+- Student mode uses three page-like views: `overview`, `missions`, and `store`. The overview is the default hub and contains one identity/character block, one grouped balance summary, and exactly two dominant destination cards. Mission and donation summaries appear only inside their matching destination card; mission details never appear in the store, and auction items never appear in the overview.
+- `StudentHeader` on task pages contains only the overview return action and the current page title. Student identity and character are not repeated outside the overview. `StudentBalanceSummary` presents total, available, and reserved 고마 as one grouped unit instead of three competing cards.
+- Student missions use two explicit groups: teacher-configured items appear under `일일 미션`, and synced rewards appear under `주간 미션`. Each mission card exposes status, reward, and an action. Only verified existing service destinations may become links; missions without a destination contract show a disabled classroom action instead of an invented URL.
+- External mission actions open a new tab with `noopener noreferrer`, identify themselves as external links in visible and accessible copy, and keep the current mission page available when the student returns.
 - The student auction is a Chromebook-only operational surface. Its main auction area gives the current unlocked weekday dominant scale, keeps the item list and bid controls in one desktop workspace, and presents every other weekday as compact secondary navigation. The selected item uses an accent fill, inset edge, and pressed state rather than a detached duplicate summary.
+- When no auction day is open, the item area shows one consolidated locked state instead of repeating an identical locked card for every private item. The overview return action uses the primary green treatment so it remains unmistakable in sparse task headers.
 - Class donation remains a secondary auction affordance: a generated baby-goma bear character, current/target figures, and one progress rail fill the open space below the bid or award panel in the right auction column. The character opens a true confirmation modal; it never performs a donation directly, and the private item name never appears on the student surface.
+- Student page navigation uses the `#student-overview`, `#student-missions`, and `#student-store` hashes. Hash changes create normal browser history entries, reload restores the selected view, and no routing dependency is introduced.
 - Body copy and form content remain selectable. Decorative images may remain non-selectable.
 
 ### True modals

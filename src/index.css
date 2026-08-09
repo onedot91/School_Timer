@@ -13933,6 +13933,691 @@ a[href]:active {
   }
 }
 
+.student-mode-page {
+  --student-mission: #9a6418;
+  --student-mission-soft: #fff8ec;
+  --student-store: #007a57;
+  --student-store-soft: #eef8f3;
+  color: var(--apple-text-primary);
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--apple-accent) 10%, transparent), transparent 30rem),
+    var(--apple-canvas-warm);
+}
+
+.student-view {
+  display: grid;
+  gap: clamp(0.75rem, 1.4vw, 1.25rem);
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.student-header {
+  display: flex;
+  min-height: 4.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem clamp(0.9rem, 1.6vw, 1.25rem);
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-panel);
+  background: color-mix(in srgb, var(--apple-material-thick) 94%, transparent);
+  box-shadow: var(--apple-shadow-1);
+  backdrop-filter: saturate(1.25) blur(18px);
+  -webkit-backdrop-filter: saturate(1.25) blur(18px);
+}
+
+.student-header-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: clamp(0.75rem, 1.4vw, 1.25rem);
+}
+
+.student-header-copy {
+  min-width: 0;
+}
+
+.student-header-copy h1,
+.student-group-heading h2,
+.student-section-card h2,
+.student-mission-card h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.035em;
+}
+
+.student-header-copy h1 {
+  margin: 0.15rem 0 0;
+  font-size: clamp(1.65rem, 3.2vw, 2.65rem);
+  font-weight: 850;
+  line-height: 1.04;
+}
+
+.student-eyebrow,
+.student-section-eyebrow,
+.student-group-heading span,
+.student-character-stage-card > div > span {
+  color: var(--apple-accent-pressed);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+}
+
+.student-header-character {
+  width: 4.75rem;
+  height: 4.75rem;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.student-back-button {
+  display: inline-flex;
+  min-width: var(--apple-control-min);
+  min-height: var(--apple-control-min);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-control);
+  border-color: var(--apple-accent);
+  color: #ffffff;
+  background: var(--apple-accent);
+  font-weight: 800;
+  box-shadow: var(--apple-shadow-1);
+}
+
+.student-back-button:hover {
+  background: var(--apple-accent-pressed);
+}
+
+.student-overview-hero {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.65fr) minmax(24rem, 1.35fr);
+  align-items: stretch;
+  gap: clamp(0.75rem, 1.4vw, 1.25rem);
+}
+
+.student-character-stage-card,
+.student-balance-summary,
+.student-overview-progress-list,
+.student-section-card,
+.student-mission-group {
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-card);
+  background: var(--apple-surface);
+  box-shadow: var(--apple-shadow-1);
+}
+
+.student-character-stage-card {
+  position: relative;
+  display: grid;
+  min-height: 10.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 0.8fr);
+  align-items: center;
+  overflow: hidden;
+  padding: 1rem 1.15rem;
+}
+
+.student-character-stage-card img {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  max-height: 10rem;
+  object-fit: contain;
+}
+
+.student-character-stage-card > div:last-child {
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.student-character-stage-card strong {
+  font-size: clamp(1.25rem, 2vw, 1.8rem);
+  font-weight: 850;
+  line-height: 1.12;
+}
+
+.student-character-halo {
+  position: absolute;
+  right: -2rem;
+  bottom: -3.5rem;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--apple-accent) 10%, var(--apple-canvas-warm));
+}
+
+.student-balance-summary {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.9fr) minmax(0, 1.25fr);
+  gap: 0.65rem;
+  padding: 0.75rem;
+}
+
+.student-balance-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.student-balance-summary-simple {
+  grid-template-columns: minmax(14rem, 1.2fr) minmax(8rem, 0.8fr);
+}
+
+.student-balance-empty-reservation {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.25rem;
+  border-radius: calc(var(--apple-radius-card) - 0.25rem);
+  color: var(--apple-text-secondary);
+  background: var(--apple-surface-muted);
+}
+
+.student-balance-empty-reservation span {
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.student-balance-empty-reservation strong {
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.student-balance-primary,
+.student-balance-detail {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  border-radius: calc(var(--apple-radius-card) - 0.25rem);
+}
+
+.student-balance-primary {
+  color: white;
+  background: var(--apple-accent);
+}
+
+.student-balance-primary span,
+.student-balance-detail span:not(.student-balance-detail-icon) {
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.student-balance-primary strong,
+.student-balance-detail strong {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: clamp(1.05rem, 1.8vw, 1.45rem);
+  font-weight: 900;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-balance-detail {
+  color: var(--apple-text-primary);
+  background: var(--apple-surface-muted);
+}
+
+.student-balance-reserved {
+  color: #754d19;
+  background: var(--student-mission-soft);
+}
+
+.student-balance-detail-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.65rem;
+  color: var(--apple-accent-pressed);
+  background: var(--apple-surface);
+}
+
+.student-overview-progress-list {
+  display: grid;
+  align-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.student-overview-progress {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.student-overview-progress > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+}
+
+.student-overview-progress span,
+.student-overview-progress strong {
+  font-weight: 800;
+}
+
+.student-progress-rail {
+  display: block;
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--apple-surface-muted);
+}
+
+.student-progress-rail > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--student-mission);
+  transition: width 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.student-overview-progress-donation .student-progress-rail > span {
+  background: var(--student-store);
+}
+
+.student-overview-destinations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.4vw, 1.25rem);
+}
+
+.student-section-card {
+  display: grid;
+  min-height: 10.5rem;
+  grid-template-rows: auto auto;
+  align-content: space-between;
+  gap: 0.9rem;
+  padding: clamp(1.1rem, 2vw, 1.5rem);
+}
+
+.student-section-card-mission {
+  border-color: color-mix(in srgb, var(--student-mission) 35%, var(--apple-separator));
+  background: linear-gradient(145deg, var(--apple-surface), var(--student-mission-soft));
+}
+
+.student-section-card-store {
+  border-color: color-mix(in srgb, var(--student-store) 30%, var(--apple-separator));
+  background: linear-gradient(145deg, var(--apple-surface), var(--student-store-soft));
+}
+
+.student-section-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.student-section-icon {
+  display: inline-flex;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  color: white;
+  background: var(--student-mission);
+}
+
+.student-section-card-store .student-section-icon,
+.student-section-card-store .student-section-action {
+  background: var(--student-store);
+}
+
+.student-section-card h2 {
+  margin: 0.15rem 0 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.8rem);
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.student-section-action,
+.student-mission-action {
+  display: inline-flex;
+  min-height: var(--apple-control-min);
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--apple-radius-control);
+  color: white;
+  background: var(--student-mission);
+  font-weight: 850;
+  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 120ms linear, background-color 160ms ease;
+}
+
+.student-section-action:active,
+.student-mission-action:not(:disabled):active,
+.student-back-button:active {
+  transform: scale(0.98);
+  opacity: 0.88;
+}
+
+.student-mission-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.student-mission-group {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.student-group-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.student-group-heading h2 {
+  margin: 0.15rem 0 0;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  font-weight: 850;
+}
+
+.student-group-heading > strong {
+  color: var(--apple-accent-pressed);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.student-mission-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.student-mission-card {
+  display: grid;
+  min-height: 13.75rem;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-card);
+  background: var(--apple-surface);
+}
+
+.student-mission-card-completed {
+  border-color: color-mix(in srgb, var(--apple-accent) 42%, var(--apple-separator));
+  background: var(--student-store-soft);
+}
+
+.student-mission-card-unavailable,
+.student-mission-card-error {
+  background: color-mix(in srgb, var(--student-mission-soft) 65%, var(--apple-surface));
+}
+
+.student-mission-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.student-mission-status,
+.student-mission-reward,
+.student-mission-awarded {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.student-mission-status {
+  color: var(--apple-text-secondary);
+}
+
+.student-mission-card-completed .student-mission-status,
+.student-mission-card-completed .student-mission-awarded {
+  color: var(--apple-accent-pressed);
+}
+
+.student-mission-card-error .student-mission-status {
+  color: #9b341c;
+}
+
+.student-mission-reward {
+  color: var(--apple-accent-pressed);
+  font-family: var(--font-mono);
+}
+
+.student-mission-copy h3 {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.student-mission-copy p {
+  margin: 0.5rem 0 0;
+  color: var(--apple-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 620;
+  line-height: 1.55;
+}
+
+.student-mission-awarded {
+  margin-top: 0.65rem;
+}
+
+.student-mission-action {
+  padding: 0.65rem 0.85rem;
+  color: white;
+  background: var(--apple-accent);
+  text-decoration: none;
+}
+
+.student-mission-action:disabled {
+  cursor: not-allowed;
+  color: var(--apple-text-tertiary);
+  background: var(--apple-surface-muted);
+  opacity: 0.82;
+}
+
+.student-empty-state {
+  padding: 2rem;
+  border: 1px dashed var(--apple-separator-strong);
+  border-radius: var(--apple-radius-card);
+  color: var(--apple-text-secondary);
+  background: var(--apple-surface-muted);
+  text-align: center;
+  font-weight: 750;
+}
+
+.student-store-content .auction-room-shell {
+  border-radius: var(--apple-radius-panel);
+}
+
+.student-store-content .auction-workspace {
+  padding: clamp(0.75rem, 1.5vw, 1.25rem);
+}
+
+.student-store-content .auction-locked-day-state {
+  display: flex;
+  min-height: 10rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  border: 1px dashed var(--apple-separator-strong);
+  border-radius: var(--apple-radius-card);
+  color: var(--apple-text-secondary);
+  background: var(--apple-surface-muted);
+  text-align: left;
+}
+
+.student-store-content .auction-locked-day-state > span {
+  display: inline-flex;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: white;
+  background: #24312b;
+}
+
+.student-store-content .auction-locked-day-state strong {
+  color: var(--apple-text-primary);
+  font-size: 1.05rem;
+  font-weight: 850;
+}
+
+.student-store-content .auction-locked-day-state p {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.student-store-content .auction-day-tab:disabled {
+  border-color: color-mix(in srgb, var(--apple-text-tertiary) 42%, var(--apple-separator)) !important;
+  color: var(--apple-text-secondary) !important;
+  background: color-mix(in srgb, var(--apple-surface-muted) 82%, var(--apple-surface)) !important;
+  opacity: 0.78;
+}
+
+.student-store-content .auction-day-tab[aria-pressed="true"]:disabled {
+  border-color: color-mix(in srgb, var(--apple-accent) 68%, var(--apple-separator)) !important;
+  color: var(--apple-accent-pressed) !important;
+  background: var(--student-store-soft) !important;
+  opacity: 1;
+}
+
+.student-spin {
+  animation: student-spin 900ms linear infinite;
+}
+
+@keyframes student-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 63.999rem) {
+  .student-overview-hero {
+    grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr);
+  }
+
+  .student-mission-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 47.999rem) {
+  .student-mode-page {
+    padding: 0.5rem !important;
+  }
+
+  .student-header {
+    min-height: 5.5rem;
+    border-radius: 1.35rem;
+  }
+
+  .student-header-character {
+    width: 3.8rem;
+    height: 3.8rem;
+  }
+
+  .student-back-button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .student-overview-hero,
+  .student-overview-destinations,
+  .student-mission-grid,
+  .student-balance-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-balance-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-balance-summary-simple {
+    grid-template-columns: minmax(0, 1.35fr) minmax(7rem, 0.65fr);
+  }
+
+  .student-character-stage-card {
+    min-height: 10rem;
+  }
+
+  .student-balance-primary,
+  .student-balance-detail {
+    min-height: 5rem;
+  }
+
+  .student-section-card {
+    min-height: 11rem;
+  }
+
+  .student-group-heading {
+    align-items: start;
+  }
+
+  .student-store-content .auction-day-tabs {
+    grid-template-columns: repeat(5, minmax(4.5rem, 1fr));
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-progress-rail > span {
+    transition: none;
+  }
+
+  .student-spin {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .student-header {
+    background: var(--apple-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .student-header,
+  .student-character-stage-card,
+  .student-balance-summary,
+  .student-overview-progress-list,
+  .student-section-card,
+  .student-mission-group,
+  .student-mission-card {
+    border-color: var(--apple-separator-strong);
+  }
+}
+
+@media (forced-colors: active) {
+  .student-balance-primary,
+  .student-section-icon,
+  .student-section-action,
+  .student-mission-action:not(:disabled) {
+    color: HighlightText;
+    background: Highlight;
+  }
+}
+
 /* PREFERENCES */
   @media (prefers-reduced-motion: reduce) {
   *,
