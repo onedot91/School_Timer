@@ -31,6 +31,11 @@ export default function StudentStorePage({
         reservedAmount={reservedAmount}
         isLoading={isLoading}
       />
+      <section className="student-store-heading" aria-labelledby="student-store-auction-title">
+        <div>
+          <h2 id="student-store-auction-title">경매장</h2>
+        </div>
+      </section>
       <div className="student-store-content">{children}</div>
     </div>
   );

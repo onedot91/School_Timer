@@ -1,4 +1,4 @@
-import { Gavel } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import StudentSectionCard from './StudentSectionCard';
 
 interface StudentPurchaseCardProps {
@@ -11,9 +11,9 @@ export default function StudentPurchaseCard({
   return (
     <StudentSectionCard
       tone="store"
-      icon={Gavel}
-      title="경매와 기부"
-      actionLabel="고마 사용하기"
+      icon={ShoppingBag}
+      title="고마 사용"
+      actionLabel="경매장·기부 보기"
       onClick={onOpen}
     />
   );

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -52,6 +52,17 @@ import {
   type ClassDonationSettings,
 } from '../lib/classDonation';
 import { useModalFocus } from '../lib/useModalFocus';
+import {
+  getKoreanLocalDateKey,
+  getStudentEmotion,
+  getStudentEmotionEntries,
+  getTodayStudentEmotionEntry,
+  loadStoredStudentEmotionHistory,
+  normalizeStudentEmotionHistory,
+  storeStudentEmotionHistory,
+  type StudentEmotionHistory,
+} from '../lib/studentEmotion';
+import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
 import {
   loadQuestionSubmissionStatuses,
   type QuestionSubmissionStatus,
@@ -176,6 +187,7 @@ interface SharedSchoolTimerSettings {
   auctionAwards: AuctionAwards;
   auctionMissions: AuctionMission[];
   classDonation: ClassDonationSettings;
+  studentEmotionHistory: StudentEmotionHistory;
 }
 
 interface NoticeHighlightRange {
@@ -1390,6 +1402,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     auctionAwards: normalizeAuctionAwards(parsed.auctionAwards, AUCTION_ITEM_IDS),
     auctionMissions: normalizeAuctionMissions(parsed.auctionMissions),
     classDonation: normalizeClassDonationSettings(parsed.classDonation),
+    studentEmotionHistory: normalizeStudentEmotionHistory(parsed.studentEmotionHistory),
   };
 };
 
@@ -3517,6 +3530,8 @@ export default function TimerPage() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isCurrencyPanelOpen, setIsCurrencyPanelOpen] = useState(false);
   const [isQuestionSubmissionPanelOpen, setIsQuestionSubmissionPanelOpen] = useState(false);
+  const [isEmotionPanelOpen, setIsEmotionPanelOpen] = useState(false);
+  const [selectedEmotionStudentNumber, setSelectedEmotionStudentNumber] = useState(1);
   const [questionSubmissionStatuses, setQuestionSubmissionStatuses] = useState<QuestionSubmissionStatus[]>([]);
   const [isQuestionSubmissionLoading, setIsQuestionSubmissionLoading] = useState(false);
   const [questionSubmissionError, setQuestionSubmissionError] = useState('');
@@ -3532,6 +3547,9 @@ export default function TimerPage() {
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [classDonation, setClassDonation] = useState<ClassDonationSettings>(() => normalizeClassDonationSettings(null));
+  const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
+    loadStoredStudentEmotionHistory,
+  );
   const [auctionItemEditCommitVersion, setAuctionItemEditCommitVersion] = useState(0);
   const isEditingAuctionItemRef = useRef(false);
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getStoredAuctionMissions);
@@ -3784,6 +3802,7 @@ export default function TimerPage() {
   const youtubePanelTriggerRef = useRef<HTMLButtonElement>(null);
   const libraryPanelTriggerRef = useRef<HTMLButtonElement>(null);
   const questionPanelTriggerRef = useRef<HTMLButtonElement>(null);
+  const emotionPanelTriggerRef = useRef<HTMLButtonElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
   const awardSoundPlaybackRef = useRef({
@@ -4066,6 +4085,7 @@ export default function TimerPage() {
     auctionAwards,
     auctionMissions: getPersistableAuctionMissions(),
     classDonation,
+    studentEmotionHistory,
   });
 
   const applySharedSettingsSnapshot = (
@@ -4111,6 +4131,7 @@ export default function TimerPage() {
     setAuctionBidHistory(normalizeAuctionBidHistory(remoteSettings.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(remoteSettings.auctionAwards, AUCTION_ITEM_IDS));
     setClassDonation(normalizeClassDonationSettings(remoteSettings.classDonation));
+    setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -4244,6 +4265,10 @@ export default function TimerPage() {
     }
     localStorage.removeItem(SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY);
   }, [isScheduleYoutubeVisible, scheduleYoutubeUrls]);
+
+  useEffect(() => {
+    storeStudentEmotionHistory(studentEmotionHistory);
+  }, [studentEmotionHistory]);
 
   useEffect(() => {
     const hasBlankDraft = hasBlankAuctionMissionDraft(auctionMissions);
@@ -4421,6 +4446,7 @@ export default function TimerPage() {
     auctionAwards,
     auctionMissions,
     classDonation,
+    studentEmotionHistory,
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
@@ -5418,7 +5444,7 @@ export default function TimerPage() {
   ]);
 
   useEffect(() => {
-    if (!isCurrencyPanelOpen && !isYoutubePanelOpen && !isLibraryOpen && !isQuestionSubmissionPanelOpen) return;
+    if (!isCurrencyPanelOpen && !isYoutubePanelOpen && !isLibraryOpen && !isQuestionSubmissionPanelOpen && !isEmotionPanelOpen) return;
 
     const handleUtilityPaneEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -5429,18 +5455,21 @@ export default function TimerPage() {
           ? youtubePanelTriggerRef.current
           : isLibraryOpen
             ? libraryPanelTriggerRef.current
-            : questionPanelTriggerRef.current;
+            : isQuestionSubmissionPanelOpen
+              ? questionPanelTriggerRef.current
+              : emotionPanelTriggerRef.current;
       event.preventDefault();
       setIsCurrencyPanelOpen(false);
       setIsYoutubePanelOpen(false);
       setIsLibraryOpen(false);
       setIsQuestionSubmissionPanelOpen(false);
+      setIsEmotionPanelOpen(false);
       window.requestAnimationFrame(() => activeTrigger?.focus({ preventScroll: true }));
     };
 
     window.addEventListener('keydown', handleUtilityPaneEscape);
     return () => window.removeEventListener('keydown', handleUtilityPaneEscape);
-  }, [isCurrencyPanelOpen, isLibraryOpen, isQuestionSubmissionPanelOpen, isYoutubePanelOpen]);
+  }, [isCurrencyPanelOpen, isEmotionPanelOpen, isLibraryOpen, isQuestionSubmissionPanelOpen, isYoutubePanelOpen]);
 
   useEffect(() => {
     if (
@@ -6911,6 +6940,13 @@ export default function TimerPage() {
   const visibleStudentCharacters = STUDENT_CHARACTERS.filter(
     (character) => !failedStudentCharacterIds.has(character.id),
   );
+  const emotionTodayKey = getKoreanLocalDateKey();
+  const selectedStudentEmotionEntries = getStudentEmotionEntries(
+    studentEmotionHistory,
+    selectedEmotionStudentNumber,
+  );
+  const todayEmotionStudentCount = Array.from({ length: 23 }, (_, index) => index + 1)
+    .filter((number) => getTodayStudentEmotionEntry(studentEmotionHistory, number) !== null).length;
   const studentCharacterOrderSeed = [
     studentCharacterShuffleScope,
     studentCharacterShuffleNonce,
@@ -9351,7 +9387,7 @@ export default function TimerPage() {
               </div>
             </div>
 
-            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-5 gap-3">
+            <div className="schedule-quick-actions editorial-quick-actions grid w-full shrink-0 grid-cols-6 gap-3">
               <div className="relative min-w-0">
                 <button
                   ref={currencyPanelTriggerRef}
@@ -9362,6 +9398,7 @@ export default function TimerPage() {
                     setIsYoutubePanelOpen(false);
                     setIsLibraryOpen(false);
                     setIsQuestionSubmissionPanelOpen(false);
+                    setIsEmotionPanelOpen(false);
                     setIsCurrencyPanelOpen((previous) => !previous);
                   }}
                   className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -9385,6 +9422,7 @@ export default function TimerPage() {
                     setIsLibraryOpen(false);
                     setIsCurrencyPanelOpen(false);
                     setIsQuestionSubmissionPanelOpen(false);
+                    setIsEmotionPanelOpen(false);
                     setIsYoutubePanelOpen((previous) => !previous);
                   }}
                   className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -9410,6 +9448,7 @@ export default function TimerPage() {
                   setIsExtraTimerVisible(false);
                   setIsCurrencyPanelOpen(false);
                   setIsQuestionSubmissionPanelOpen(false);
+                  setIsEmotionPanelOpen(false);
                   setIsLibraryOpen((previous) => !previous);
                 }}
                 className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -9432,6 +9471,7 @@ export default function TimerPage() {
                   setIsLibraryOpen(false);
                   setIsCurrencyPanelOpen(false);
                   setIsExtraTimerVisible(false);
+                  setIsEmotionPanelOpen(false);
                   setIsQuestionSubmissionPanelOpen((previous) => !previous);
                 }}
                 className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
@@ -9447,6 +9487,29 @@ export default function TimerPage() {
                 </div>
               </button>
               <button
+                ref={emotionPanelTriggerRef}
+                onClick={() => {
+                  void playAnnouncementSound('pop');
+                  setIsYoutubePanelOpen(false);
+                  setIsLibraryOpen(false);
+                  setIsCurrencyPanelOpen(false);
+                  setIsQuestionSubmissionPanelOpen(false);
+                  setIsExtraTimerVisible(false);
+                  setIsEmotionPanelOpen((previous) => !previous);
+                }}
+                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                  isEmotionPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
+                }`}
+                aria-expanded={isEmotionPanelOpen}
+                aria-label={isEmotionPanelOpen ? '감정 현황 닫기' : '감정 현황 열기'}
+                title="감정 현황"
+                type="button"
+              >
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                  <HeartPulse size={22} />
+                </div>
+              </button>
+              <button
                 ref={announcementLaunchButtonRef}
                 onClick={() => {
                   void playAnnouncementSound('pop');
@@ -9454,6 +9517,7 @@ export default function TimerPage() {
                   setIsLibraryOpen(false);
                   setIsCurrencyPanelOpen(false);
                   setIsQuestionSubmissionPanelOpen(false);
+                  setIsEmotionPanelOpen(false);
                   setIsAnnouncementOpen(true);
                 }}
                 className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
@@ -9641,6 +9705,72 @@ export default function TimerPage() {
 
                   </div>
                 </div>
+              </div>
+            ) : null}
+
+            {isEmotionPanelOpen ? (
+              <div className="emotion-status-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[155] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+                <section className="emotion-status-panel-card utility-pane-card pointer-events-auto w-full max-w-[76rem] rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]" aria-labelledby="emotion-status-title">
+                  <header className="emotion-status-header">
+                    <div>
+                      <h2 id="emotion-status-title">감정 현황</h2>
+                      <p>오늘 {todayEmotionStudentCount}/23명 기록</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEmotionPanelOpen(false)}
+                      aria-label="감정 현황 닫기"
+                      title="감정 현황 닫기"
+                    >
+                      <X size={18} />
+                    </button>
+                  </header>
+                  <div className="emotion-status-layout">
+                    <div className="emotion-status-student-grid" aria-label="학생별 오늘 감정">
+                      {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => {
+                        const entry = getTodayStudentEmotionEntry(studentEmotionHistory, number);
+                        const emotion = getStudentEmotion(entry?.emotionId);
+                        return (
+                          <button
+                            key={number}
+                            type="button"
+                            className="emotion-status-student"
+                            aria-pressed={selectedEmotionStudentNumber === number}
+                            onClick={() => setSelectedEmotionStudentNumber(number)}
+                          >
+                            <strong>{number}</strong>
+                            {emotion ? <StudentEmotionOrbVisual emotion={emotion} compact /> : <span className="emotion-status-empty-orb" aria-hidden="true" />}
+                            <span>{emotion?.label ?? '미기록'}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <aside className="emotion-status-history" aria-label={`${selectedEmotionStudentNumber}번 감정 기록`}>
+                      <div className="emotion-status-history-heading">
+                        <strong>{selectedEmotionStudentNumber}번 기록</strong>
+                        <span>{selectedStudentEmotionEntries.length}일</span>
+                      </div>
+                      {selectedStudentEmotionEntries.length > 0 ? (
+                        <ol>
+                          {selectedStudentEmotionEntries.map((entry) => {
+                            const emotion = getStudentEmotion(entry.emotionId);
+                            if (!emotion) return null;
+                            return (
+                              <li key={entry.id}>
+                                <StudentEmotionOrbVisual emotion={emotion} compact />
+                                <div>
+                                  <time dateTime={entry.dateKey}>{entry.dateKey === emotionTodayKey ? '오늘' : entry.dateKey.replaceAll('-', '. ')}</time>
+                                  <strong>{emotion.label}</strong>
+                                  <p>{entry.comment}</p>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      ) : <p className="emotion-status-history-empty">아직 작성한 감정 기록이 없습니다.</p>}
+                    </aside>
+                  </div>
+                </section>
               </div>
             ) : null}
 

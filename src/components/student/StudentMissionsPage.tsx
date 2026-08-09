@@ -19,6 +19,9 @@ export default function StudentMissionsPage({
   hasSyncError,
   onBack,
 }: StudentMissionsPageProps) {
+  const completedWeeklyMissionCount = WEEKLY_MISSION_DEFINITIONS.filter(
+    (mission) => weeklyMissionStatuses[mission.type] === 'completed',
+  ).length;
   const getPresentedStatus = (status: WeeklyMissionStatuses[keyof WeeklyMissionStatuses]): StudentMissionStatus => {
     if (hasSyncError && status !== 'completed') return 'error';
     return status;
@@ -32,27 +35,6 @@ export default function StudentMissionsPage({
       />
 
       <main className="student-mission-groups">
-        <section className="student-mission-group" aria-labelledby="weekly-mission-title">
-          <div className="student-group-heading">
-            <h2 id="weekly-mission-title">주간 미션</h2>
-            <strong>{WEEKLY_MISSION_DEFINITIONS.filter((mission) => weeklyMissionStatuses[mission.type] === 'completed').length}/{WEEKLY_MISSION_DEFINITIONS.length} 완료</strong>
-          </div>
-          <div className="student-mission-grid">
-            {WEEKLY_MISSION_DEFINITIONS.map((mission) => (
-              <div key={mission.type}>
-                <StudentMissionCard
-                  title={mission.label}
-                  description={mission.description}
-                  rewardAmount={mission.rewardAmount}
-                  status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
-                  destinationUrl={mission.destinationUrl}
-                  actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
           <div className="student-group-heading">
             <h2 id="daily-mission-title">일일 미션</h2>
@@ -75,6 +57,27 @@ export default function StudentMissionsPage({
           ) : (
             <div className="student-empty-state">지금 등록된 일일 미션이 없습니다.</div>
           )}
+        </section>
+
+        <section className="student-mission-group" aria-labelledby="weekly-mission-title">
+          <div className="student-group-heading">
+            <h2 id="weekly-mission-title">주간 미션</h2>
+            <strong>{completedWeeklyMissionCount}/{WEEKLY_MISSION_DEFINITIONS.length} 완료</strong>
+          </div>
+          <div className="student-mission-grid">
+            {WEEKLY_MISSION_DEFINITIONS.map((mission) => (
+              <div key={mission.type}>
+                <StudentMissionCard
+                  title={mission.label}
+                  description={mission.description}
+                  rewardAmount={mission.rewardAmount}
+                  status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
+                  destinationUrl={mission.destinationUrl}
+                  actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
+                />
+              </div>
+            ))}
+          </div>
         </section>
       </main>
     </div>

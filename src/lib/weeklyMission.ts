@@ -313,6 +313,10 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       ? remote.auctionBidHistory
       : next.auctionBidHistory,
     classDonation: mergeClassDonationActivity(remote.classDonation, next.classDonation),
+    studentEmotionHistory: mergeStudentEmotionHistories(
+      remote.studentEmotionHistory,
+      next.studentEmotionHistory,
+    ),
   };
 };
 
@@ -398,3 +402,4 @@ import {
   normalizeAuctionAwards,
 } from './currency.js';
 import { mergeClassDonationActivity } from './classDonation.js';
+import { mergeStudentEmotionHistories } from './studentEmotion.js';

@@ -1,28 +1,30 @@
 import { ClipboardCheck } from 'lucide-react';
+import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import StudentBalanceSummary from './StudentBalanceSummary';
+import StudentEmotionSummary from './StudentEmotionSummary';
 import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
 
 interface StudentOverviewPageProps {
-  studentLabel: string;
-  characterSrc: string;
-  characterAlt: string;
+  studentNumber: number;
   balance: number;
   availableBalance: number;
   reservedAmount: number;
   isLoading: boolean;
+  todayEmotion: StudentEmotionDefinition | null;
+  onOpenEmotions: () => void;
   onOpenMissions: () => void;
   onOpenStore: () => void;
 }
 
 export default function StudentOverviewPage({
-  studentLabel,
-  characterSrc,
-  characterAlt,
+  studentNumber,
   balance,
   availableBalance,
   reservedAmount,
   isLoading,
+  todayEmotion,
+  onOpenEmotions,
   onOpenMissions,
   onOpenStore,
 }: StudentOverviewPageProps) {
@@ -31,27 +33,26 @@ export default function StudentOverviewPage({
       <h1 className="sr-only">학생 개요</h1>
 
       <section className="student-overview-hero" aria-label="학생 개요">
-        <div className="student-character-stage-card">
-          <div className="student-character-halo" aria-hidden="true" />
-          <img src={characterSrc} alt={characterAlt} width="240" height="240" />
-          <div>
-            <strong>{studentLabel} 학생</strong>
-          </div>
+        <div className="student-character-stage-card" aria-label={`${studentNumber}번 학생 캐릭터 영역`}>
+          <strong className="student-character-stage-number">{studentNumber}번</strong>
         </div>
-        <StudentBalanceSummary
-          balance={balance}
-          availableBalance={availableBalance}
-          reservedAmount={reservedAmount}
-          isLoading={isLoading}
-        />
+        <div className="student-overview-status">
+          <StudentBalanceSummary
+            balance={balance}
+            availableBalance={availableBalance}
+            reservedAmount={reservedAmount}
+            isLoading={isLoading}
+          />
+          <StudentEmotionSummary emotion={todayEmotion} onOpen={onOpenEmotions} />
+        </div>
       </section>
 
       <div className="student-overview-destinations">
         <StudentSectionCard
           tone="mission"
           icon={ClipboardCheck}
-          title="이번 주 미션"
-          actionLabel="미션 하러 가기"
+          title="미션"
+          actionLabel="미션 시작"
           onClick={onOpenMissions}
         />
         <StudentPurchaseCard

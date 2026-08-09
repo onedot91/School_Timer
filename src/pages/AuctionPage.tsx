@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import AuctionRoom from '../components/AuctionRoom';
+import StudentEmotionPage from '../components/student/StudentEmotionPage';
 import StudentMissionsPage from '../components/student/StudentMissionsPage';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentStorePage from '../components/student/StudentStorePage';
@@ -44,7 +45,19 @@ import {
   type ClassDonationPublicState,
 } from '../lib/classDonation';
 import { playAuctionSound, prepareAuctionAudio } from '../lib/auctionAudio';
-import { STUDENT_CHARACTERS } from '../lib/studentCharacters';
+import {
+  createStudentEmotionEntry,
+  getStudentEmotionEntries,
+  getStudentEmotion,
+  getTodayStudentEmotionEntry,
+  loadStoredStudentEmotionHistory,
+  mergeStudentEmotionHistories,
+  normalizeStudentEmotionHistory,
+  storeStudentEmotionHistory,
+  upsertStudentEmotionEntry,
+  type StudentEmotionHistory,
+  type StudentEmotionId,
+} from '../lib/studentEmotion';
 import {
   hasPersonalQuestionSubmission,
   loadQuestionSubmissionStatuses,
@@ -64,17 +77,20 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'missions' | 'store';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'store';
 
 const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   overview: '#student-overview',
+  emotions: '#student-emotions',
   missions: '#student-missions',
   store: '#student-store',
 };
 
 const getStudentViewFromHash = (): StudentView => {
   const matchedView = Object.entries(STUDENT_VIEW_HASHES).find(([, hash]) => hash === window.location.hash)?.[0];
-  return matchedView === 'missions' || matchedView === 'store' ? matchedView : 'overview';
+  return matchedView === 'emotions' || matchedView === 'missions' || matchedView === 'store'
+    ? matchedView
+    : 'overview';
 };
 
 const getStoredAuctionMissions = (): AuctionMission[] => {
@@ -108,6 +124,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
   const [classDonation, setClassDonation] = useState<ClassDonationPublicState>(() => getClassDonationPublicState(null));
+  const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
+    loadStoredStudentEmotionHistory,
+  );
+  const [isEmotionSaving, setIsEmotionSaving] = useState(false);
   const [weeklyMissionStatuses, setWeeklyMissionStatuses] = useState<WeeklyMissionStatuses>(() => (
     createWeeklyMissionStatuses('loading')
   ));
@@ -297,6 +317,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   });
 
   const studentKey = String(studentNumber);
+  const todayEmotionEntry = getTodayStudentEmotionEntry(studentEmotionHistory, studentNumber);
+  const studentEmotionEntries = getStudentEmotionEntries(studentEmotionHistory, studentNumber);
+  const todayEmotion = getStudentEmotion(todayEmotionEntry?.emotionId);
   const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
   const activeAuctionItemIds = auctionItems.map((item) => item.id);
   const reservedAmount = getReservedAuctionBidAmount(
@@ -317,6 +340,38 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const visibleDayCount = getAuctionVisibleDayCount();
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
 
+  const saveStudentEmotion = useCallback(async (emotionId: StudentEmotionId, comment: string) => {
+    if (isEmotionSaving) return false;
+    setIsEmotionSaving(true);
+    try {
+      const entry = createStudentEmotionEntry(studentNumber, emotionId, comment, new Date(), todayEmotionEntry);
+      if (isSupabaseSettingsEnabled) {
+        let savedHistory: StudentEmotionHistory = {};
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          savedHistory = upsertStudentEmotionEntry(
+            mergeStudentEmotionHistories(current.studentEmotionHistory, studentEmotionHistory),
+            entry,
+          );
+          return { ...current, studentEmotionHistory: savedHistory };
+        });
+        setStudentEmotionHistory(savedHistory);
+      } else {
+        const savedHistory = upsertStudentEmotionEntry(studentEmotionHistory, entry);
+        if (!storeStudentEmotionHistory(savedHistory)) return false;
+        setStudentEmotionHistory(savedHistory);
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to save student emotion.', error);
+      return false;
+    } finally {
+      setIsEmotionSaving(false);
+    }
+  }, [isEmotionSaving, studentEmotionHistory, studentNumber, todayEmotionEntry]);
+
   const selectedItem = useMemo(
     () => {
       const selectedIndex = auctionItems.findIndex((item) => item.id === selectedItemId);
@@ -336,6 +391,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionAwards(normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
       setAuctionMissions(getStoredAuctionMissions());
       setClassDonation(getClassDonationPublicState(null));
+      setStudentEmotionHistory(loadStoredStudentEmotionHistory());
       setIsLoading(false);
       return;
     }
@@ -352,6 +408,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             auctionMissions?: unknown;
             currencyHistory?: unknown;
             classDonation?: unknown;
+            studentEmotionHistory?: unknown;
           })
         : {};
       setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
@@ -361,6 +418,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
       setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
       setClassDonation(getClassDonationPublicState(value.classDonation));
+      setStudentEmotionHistory(normalizeStudentEmotionHistory(value.studentEmotionHistory));
       const weekKey = getKoreanIsoWeekKey();
       setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
         (statuses, missionType) => ({
@@ -760,24 +818,29 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
-  const studentCharacter = STUDENT_CHARACTERS.find((character) => character.creatorName === `${studentNumber}번`);
-  const studentCharacterSrc = studentCharacter?.imageSrc ?? '/character.png';
-  const studentCharacterAlt = studentCharacter?.alt ?? `${studentNumber}번 학생 캐릭터`;
-
   return (
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5">
       <main className="mx-auto w-full max-w-7xl">
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage
-            studentLabel={`${studentNumber}번`}
-            characterSrc={studentCharacterSrc}
-            characterAlt={studentCharacterAlt}
+            studentNumber={studentNumber}
             balance={balance}
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
             isLoading={isLoading}
+            todayEmotion={todayEmotion}
+            onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}
             onOpenStore={() => navigateStudentView('store')}
+          />
+        ) : null}
+        {activeStudentView === 'emotions' ? (
+          <StudentEmotionPage
+            todayEntry={todayEmotionEntry}
+            history={studentEmotionEntries}
+            isSaving={isEmotionSaving}
+            onSave={saveStudentEmotion}
+            onBack={() => navigateStudentView('overview')}
           />
         ) : null}
         {activeStudentView === 'missions' ? (
@@ -842,6 +905,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     className="block h-full rounded-full bg-[#007A57]"
                     style={{ width: `${Math.min(100, (classDonation.totalAmount / classDonation.targetAmount) * 100)}%` }}
                   />
+                </span>
+                <span className="student-donation-action">
+                  {hasCompletedClassDonation ? '달성 완료' : '기부하기'}
+                  <ArrowRight size={15} aria-hidden="true" />
                 </span>
               </span>
             </button>
