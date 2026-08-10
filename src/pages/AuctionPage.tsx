@@ -38,6 +38,7 @@ import {
   isSupabaseSettingsEnabled,
   donateToClassGoal,
   loadSharedSettingsRow,
+  loadSharedSettingsUpdatedAt,
   updateSharedSettings,
 } from '../lib/supabaseSettings';
 import {
@@ -87,12 +88,32 @@ import {
   WEEKLY_MISSION_TYPES,
   type WeeklyMissionStatuses,
 } from '../lib/weeklyMission';
+import {
+  loadStudentSettingsSnapshot,
+  shouldLoadFullStudentSettings,
+  storeStudentSettingsSnapshot,
+  STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
+  STUDENT_SETTINGS_SYNC_INTERVAL_MS,
+} from '../lib/studentSettingsSync';
 
 interface AuctionPageProps {
   studentNumber: number;
 }
 
 type StudentView = 'overview' | 'emotions' | 'missions' | 'store';
+
+type SharedSettingsValue = {
+  currencyBalances?: unknown;
+  auctionBids?: unknown;
+  auctionItems?: unknown;
+  auctionBidHistory?: unknown;
+  auctionAwards?: unknown;
+  auctionMissions?: unknown;
+  currencyHistory?: unknown;
+  classDonation?: unknown;
+  studentEmotionHistory?: unknown;
+  studentPets?: unknown;
+};
 
 const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   overview: '#student-overview',
@@ -199,6 +220,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const donationRequestIdRef = useRef('');
   const shouldReturnStatusFocusRef = useRef(false);
   const pageScrollRef = useRef<HTMLDivElement>(null);
+  const sharedSettingsUpdatedAtRef = useRef<string | null>(null);
+  const isSharedSettingsRefreshInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!Object.values(STUDENT_VIEW_HASHES).includes(window.location.hash)) {
@@ -550,7 +573,29 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     [auctionItems, firstVisibleItem, selectedItemId, visibleDayCount],
   );
 
-  const refreshAuctionState = async () => {
+  const applySharedSettingsValue = useCallback((value: SharedSettingsValue) => {
+    setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
+    setAuctionItems(normalizeAuctionItems(value.auctionItems));
+    setAuctionBids(normalizeAuctionBids(value.auctionBids, AUCTION_ITEM_IDS));
+    setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
+    setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
+    setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
+    setClassDonation(getClassDonationPublicState(value.classDonation));
+    setStudentEmotionHistory(normalizeStudentEmotionHistory(value.studentEmotionHistory));
+    setStudentPetStates(normalizeStudentPetStates(value.studentPets));
+    const weekKey = getKoreanIsoWeekKey();
+    setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
+      (statuses, missionType) => ({
+        ...statuses,
+        [missionType]: hasWeeklyMissionReward(value.currencyHistory, studentNumber, weekKey, missionType)
+          ? 'completed'
+          : previous[missionType],
+      }),
+      previous,
+    ));
+  }, [studentNumber]);
+
+  const refreshAuctionState = useCallback(async ({ forceFull = false }: { forceFull?: boolean } = {}) => {
     if (!isSupabaseSettingsEnabled) {
       const localPetSnapshot = loadStoredStudentPetSnapshot();
       setCurrencyBalances(localPetSnapshot.currencyBalances);
@@ -566,62 +611,72 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       return;
     }
 
+    if (isSharedSettingsRefreshInFlightRef.current) return;
+    isSharedSettingsRefreshInFlightRef.current = true;
+
     try {
+      if (!forceFull && sharedSettingsUpdatedAtRef.current !== null) {
+        const updatedAt = await loadSharedSettingsUpdatedAt();
+        if (!shouldLoadFullStudentSettings(sharedSettingsUpdatedAtRef.current, updatedAt)) return;
+      }
+
       const row = await loadSharedSettingsRow();
       const value = row?.value && typeof row.value === 'object'
-        ? (row.value as {
-            currencyBalances?: unknown;
-            auctionBids?: unknown;
-            auctionItems?: unknown;
-            auctionBidHistory?: unknown;
-            auctionAwards?: unknown;
-            auctionMissions?: unknown;
-            currencyHistory?: unknown;
-            classDonation?: unknown;
-            studentEmotionHistory?: unknown;
-            studentPets?: unknown;
-          })
+        ? row.value as SharedSettingsValue
         : {};
-      setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
-      setAuctionItems(normalizeAuctionItems(value.auctionItems));
-      setAuctionBids(normalizeAuctionBids(value.auctionBids, AUCTION_ITEM_IDS));
-      setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
-      setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
-      setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
-      setClassDonation(getClassDonationPublicState(value.classDonation));
-      setStudentEmotionHistory(normalizeStudentEmotionHistory(value.studentEmotionHistory));
-      setStudentPetStates(normalizeStudentPetStates(value.studentPets));
-      const weekKey = getKoreanIsoWeekKey();
-      setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
-        (statuses, missionType) => ({
-          ...statuses,
-          [missionType]: hasWeeklyMissionReward(value.currencyHistory, studentNumber, weekKey, missionType)
-            ? 'completed'
-            : previous[missionType],
-        }),
-        previous,
-      ));
+      applySharedSettingsValue(value);
+      sharedSettingsUpdatedAtRef.current = row?.updated_at ?? null;
+      if (row?.updated_at && row.value && typeof row.value === 'object') {
+        storeStudentSettingsSnapshot({ updatedAt: row.updated_at, value });
+      }
     } catch (error) {
       console.error('Failed to load auction state from Supabase.', error);
-      setAuctionMissions([]);
-      showStatusMessage('경매 정보를 불러오지 못했습니다.');
     } finally {
+      isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
     }
-  };
+  }, [applySharedSettingsValue]);
 
   useEffect(() => {
-    void refreshAuctionState();
     if (!isSupabaseSettingsEnabled) return;
-
-    const intervalId = window.setInterval(() => {
-      void refreshAuctionState();
-    }, 3000);
-
-    return () => window.clearInterval(intervalId);
-  }, [studentNumber]);
+    const snapshot = loadStudentSettingsSnapshot();
+    if (!snapshot) return;
+    sharedSettingsUpdatedAtRef.current = snapshot.updatedAt;
+    applySharedSettingsValue(snapshot.value);
+    setIsLoading(false);
+  }, [applySharedSettingsValue]);
 
   useEffect(() => {
+    let lastForegroundRefreshAt = 0;
+    const refreshWhenVisible = (forceFull = false) => {
+      if (document.visibilityState === 'visible') void refreshAuctionState({ forceFull });
+    };
+    const isEntryRefreshView = activeStudentView === 'emotions' || activeStudentView === 'missions';
+    refreshWhenVisible(activeStudentView === 'store' || isEntryRefreshView);
+
+    const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[activeStudentView];
+    const intervalId = intervalMs === undefined
+      ? undefined
+      : window.setInterval(() => refreshWhenVisible(), intervalMs);
+    const refreshOnReturn = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastForegroundRefreshAt < STUDENT_FOREGROUND_SYNC_COOLDOWN_MS) return;
+      lastForegroundRefreshAt = now;
+      refreshWhenVisible();
+    };
+    window.addEventListener('focus', refreshOnReturn);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+
+    return () => {
+      if (intervalId !== undefined) window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshOnReturn);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+    };
+  }, [activeStudentView, refreshAuctionState]);
+
+  useEffect(() => {
+    if (activeStudentView !== 'missions') return;
     let isActive = true;
 
     const syncWeeklyMission = async () => {
@@ -692,7 +747,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       previous,
     ));
     void syncWeeklyMission();
-    const intervalId = window.setInterval(() => void syncWeeklyMission(), 10_000);
     const syncOnReturn = () => {
       if (document.visibilityState === 'visible') void syncWeeklyMission();
     };
@@ -701,11 +755,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     return () => {
       isActive = false;
-      window.clearInterval(intervalId);
       window.removeEventListener('focus', syncOnReturn);
       document.removeEventListener('visibilitychange', syncOnReturn);
     };
-  }, [studentNumber]);
+  }, [activeStudentView, studentNumber]);
 
   const selectItem = (item: AuctionItem) => {
     const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);

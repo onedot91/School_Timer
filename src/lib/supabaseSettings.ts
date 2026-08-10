@@ -52,6 +52,22 @@ export const loadSharedSettingsRow = async () => {
   return data ?? null;
 };
 
+export const loadSharedSettingsUpdatedAt = async () => {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('updated_at')
+    .eq('id', SHARED_SETTINGS_ID)
+    .maybeSingle<Pick<SettingsRow, 'updated_at'>>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.updated_at ?? null;
+};
+
 export const saveSharedSettings = async (value: unknown) => {
   if (!supabase) return null;
 
