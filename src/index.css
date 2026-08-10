@@ -14788,7 +14788,7 @@ a[href]:active {
 /* APPLE THEME END */
 
 .student-mode-page,
-.emotion-status-panel {
+.emotion-status-settings {
   --emotion-red: #b6453f;
   --emotion-red-soft: #f9e4df;
   --emotion-yellow: #c18a12;
@@ -15365,7 +15365,7 @@ a[href]:active {
   gap: .5rem;
   margin-bottom: .85rem;
 }
-.student-emotion-calendar-header h2 {
+.student-emotion-calendar-header :is(h2, h3) {
   color: var(--apple-text-primary);
   font-size: 1.2rem;
   font-weight: 900;
@@ -15582,7 +15582,7 @@ a[href]:active {
 }
 .student-emotion-monthly-summary > header div { display: grid; gap: .15rem; }
 .student-emotion-monthly-summary > header span { color: var(--apple-text-tertiary); font-size: .74rem; font-weight: 800; }
-.student-emotion-monthly-summary h2 { color: var(--apple-text-primary); font-size: 1.05rem; font-weight: 900; }
+.student-emotion-monthly-summary :is(h2, h3) { color: var(--apple-text-primary); font-size: 1.05rem; font-weight: 900; }
 .student-emotion-monthly-summary > header > strong { color: var(--apple-text-secondary); font-family: var(--font-mono); font-size: .9rem; }
 .student-emotion-monthly-bar {
   display: flex;
@@ -15619,30 +15619,22 @@ a[href]:active {
 .student-emotion-monthly-summary li strong { color: var(--apple-text-secondary); font-size: .78rem; font-weight: 850; }
 .student-emotion-monthly-summary li b { color: var(--apple-text-primary); font-family: var(--font-mono); font-size: .9rem; }
 
-.emotion-status-panel { z-index: 5000 !important; }
-.emotion-status-panel-card { max-height: min(72vh, 43rem); overflow-y: auto; }
+.emotion-status-settings { min-height: 0; }
 .emotion-status-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #e1e9e4; padding: .25rem .35rem .75rem; }
-.emotion-status-header h2 { color: #26352e; font-size: 1.15rem; font-weight: 950; }
+.emotion-status-header :is(h2, h3) { color: #26352e; font-size: 1.15rem; font-weight: 950; }
 .emotion-status-header p { color: #6f7c75; font-size: .78rem; font-weight: 800; }
 .emotion-status-header button { display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: 999px; color: #785a47; }
-.emotion-status-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; min-height: 0; padding-top: .75rem; }
-.emotion-status-student-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .45rem; align-content: start; overflow-y: auto; }
-.emotion-status-student { display: grid; min-height: 5.7rem; place-items: center; align-content: center; gap: .15rem; border: 2px solid #e0e7e2; border-radius: .9rem; background: #fff; color: #5a675f; font-size: .68rem; font-weight: 850; }
-.emotion-status-student > strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #26352e; font-size: .95rem; }
-.emotion-status-student[aria-pressed="true"] { border-color: #168657; background: #f2faf6; box-shadow: inset 0 0 0 1px #168657; }
-.emotion-status-student .student-emotion-orb { width: 2.2rem; height: 1.75rem; }
-.emotion-status-empty-orb { width: 2rem; height: 2rem; }
-.emotion-status-history { min-height: 0; overflow: hidden; border: 1px solid #dce5df; border-radius: 1rem; background: #f8fbf9; padding: .75rem; }
-.emotion-status-history-heading { display: flex; align-items: center; justify-content: space-between; padding: .15rem .15rem .65rem; }
-.emotion-status-history-heading strong { color: #26352e; }
-.emotion-status-history-heading span { color: #718078; font-size: .72rem; font-weight: 800; }
-.emotion-status-history ol { display: grid; max-height: 10rem; gap: .5rem; overflow-y: auto; }
-.emotion-status-history li { display: grid; grid-template-columns: auto 1fr; gap: .6rem; align-items: start; border-radius: .8rem; background: #fff; padding: .65rem; }
-.emotion-status-history li > div { display: grid; min-width: 0; gap: .08rem; }
-.emotion-status-history time { color: #7a8780; font-size: .65rem; font-weight: 800; }
-.emotion-status-history li strong { color: #314139; font-size: .82rem; }
-.emotion-status-history li p { color: #5e6c64; font-size: .74rem; line-height: 1.35; overflow-wrap: anywhere; }
-.emotion-status-history-empty { padding: 2rem .5rem; text-align: center; color: #7a8780; font-size: .78rem; font-weight: 800; }
+.emotion-status-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-height: 0; padding-top: 1rem; }
+.emotion-status-student-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: .4rem; align-content: start; }
+.emotion-status-student { display: flex; min-height: 3.15rem; align-items: center; justify-content: center; gap: .35rem; border: 1px solid #dce6e0; border-radius: .85rem; background: #fff; color: #5a675f; font-weight: 850; transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease; }
+.emotion-status-student:hover { border-color: #afd2bf; background: #f8fcf9; }
+.emotion-status-student > strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #314139; font-size: .82rem; }
+.emotion-status-student[aria-pressed="true"] { border-color: #168657; background: #eef8f2; box-shadow: inset 0 0 0 1px #168657; }
+.emotion-status-student .student-emotion-orb { width: 1.75rem; height: 1.55rem; }
+.emotion-status-empty-orb { width: 1rem; height: 1rem; border-width: 1.5px; }
+.emotion-status-settings .student-emotion-calendar-cell,
+.emotion-status-settings .student-emotion-calendar-cell > button { min-height: 4.15rem; }
+.emotion-status-settings .student-emotion-calendar-cell .student-emotion-orb-compact { width: 2.35rem; height: 2.35rem; }
 
 @media (max-width: 767px) {
   .student-emotion-calendar-layout { grid-template-columns: minmax(0, 1fr); }
@@ -15663,15 +15655,14 @@ a[href]:active {
   }
   .student-emotion-confirm-bar { grid-template-columns: 1fr; margin-top: -14.5rem; }
   .student-emotion-confirm-bar > button { width: 100%; }
-  .emotion-status-panel { bottom: 1rem !important; }
-  .emotion-status-panel-card { max-height: calc(100dvh - 2rem); }
   .emotion-status-layout { grid-template-columns: 1fr; overflow-y: auto; }
-  .emotion-status-student-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; }
-  .emotion-status-history ol { max-height: 13rem; }
+  .emotion-status-student-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .emotion-status-settings .student-emotion-calendar-cell,
+  .emotion-status-settings .student-emotion-calendar-cell > button { min-height: 3.9rem; }
 }
 
 @media (min-width: 768px) and (max-width: 1050px) {
-  .emotion-status-student-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .emotion-status-student-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
