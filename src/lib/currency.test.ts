@@ -5,12 +5,31 @@ import {
   AUCTION_ITEM_TEMPLATES,
   AUCTION_MAX_ITEM_COUNT,
   AUCTION_MAX_ITEMS_PER_DAY,
+  adjustCurrencyBalancesForStudents,
   applyAuctionAwardToCurrencyState,
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
   finalizeAuctionAwardInSettings,
   getAuctionAwardsForDay,
 } from './currency.ts';
+
+test('선택한 번호에만 화폐를 일괄 조정하고 중복 번호는 한 번만 반영한다', () => {
+  // Given
+  const balances = {
+    ...createDefaultCurrencyBalances(),
+    2: 20,
+    5: 999_995,
+  };
+
+  // When
+  const adjustedBalances = adjustCurrencyBalancesForStudents(balances, [2, 5, 5, 24], 10);
+
+  // Then
+  assert.equal(adjustedBalances['2'], 30);
+  assert.equal(adjustedBalances['5'], 999_999);
+  assert.equal(adjustedBalances['1'], 100);
+  assert.equal(adjustedBalances['24'], undefined);
+});
 
 test('요일별 경매 물품을 최대 6개까지 구성한다', () => {
   assert.equal(AUCTION_MAX_ITEMS_PER_DAY, 6);

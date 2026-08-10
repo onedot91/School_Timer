@@ -20,8 +20,19 @@ export const STUDENT_PET_KINDS = [
 
 export type StudentPetKind = (typeof STUDENT_PET_KINDS)[number]['id'];
 
+export interface StudentPet {
+  id: string;
+  kind: StudentPetKind;
+  name: string;
+  position: { x: number; y: number };
+}
+
 export interface StudentPetState {
   fedAmount: number;
+  eggKind: StudentPetKind;
+  ownedPets: StudentPet[];
+  activePetId: string | null;
+  pendingNamePetId: string | null;
   petKind: StudentPetKind | null;
   name: string;
   position: { x: number; y: number };
@@ -38,16 +49,77 @@ export interface StudentPetLocalSnapshot {
 const PET_KIND_IDS = new Set<string>(STUDENT_PET_KINDS.map((pet) => pet.id));
 const DEFAULT_POSITION = { x: 0.5, y: 0.68 };
 
+const isPetKind = (value: unknown): value is StudentPetKind => (
+  typeof value === 'string' && PET_KIND_IDS.has(value)
+);
+
 const clampPosition = (value: unknown, fallback: number) => {
   const numericValue = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(numericValue) ? Math.max(0.08, Math.min(0.92, numericValue)) : fallback;
 };
 
-export const createDefaultStudentPetState = (): StudentPetState => ({
+const normalizePosition = (value: unknown) => {
+  const rawPosition = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  return {
+    x: clampPosition(rawPosition.x, DEFAULT_POSITION.x),
+    y: clampPosition(rawPosition.y, DEFAULT_POSITION.y),
+  };
+};
+
+const normalizePet = (value: unknown, fallbackId: string): StudentPet | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const rawPet = value as Record<string, unknown>;
+  if (!isPetKind(rawPet.kind)) return null;
+  const id = typeof rawPet.id === 'string' && rawPet.id.trim().length > 0
+    ? rawPet.id.trim().slice(0, 64)
+    : fallbackId;
+  return {
+    id,
+    kind: rawPet.kind,
+    name: typeof rawPet.name === 'string' ? rawPet.name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH) : '',
+    position: normalizePosition(rawPet.position),
+  };
+};
+
+const getNextEggKind = (ownedPets: StudentPet[], previousKind: StudentPetKind) => {
+  const firstUnowned = STUDENT_PET_KINDS.find((kind) => !ownedPets.some((pet) => pet.kind === kind.id));
+  if (firstUnowned) return firstUnowned.id;
+  const currentIndex = STUDENT_PET_KINDS.findIndex((kind) => kind.id === previousKind);
+  return STUDENT_PET_KINDS[(currentIndex + 1) % STUDENT_PET_KINDS.length].id;
+};
+
+const createPetId = (kind: StudentPetKind, ownedPets: StudentPet[]) => {
+  let sequence = 1;
+  let id = `${kind}-${sequence}`;
+  while (ownedPets.some((pet) => pet.id === id)) {
+    sequence += 1;
+    id = `${kind}-${sequence}`;
+  }
+  return id;
+};
+
+const withActivePet = (state: Omit<StudentPetState, 'petKind' | 'name' | 'position'>): StudentPetState => {
+  const activePet = state.ownedPets.find((pet) => pet.id === state.activePetId) ?? null;
+  return {
+    ...state,
+    activePetId: activePet?.id ?? null,
+    pendingNamePetId: state.pendingNamePetId && state.ownedPets.some((pet) => pet.id === state.pendingNamePetId)
+      ? state.pendingNamePetId
+      : null,
+    petKind: activePet?.kind ?? null,
+    name: activePet?.name ?? '',
+    position: activePet?.position ?? { ...DEFAULT_POSITION },
+  };
+};
+
+export const createDefaultStudentPetState = (): StudentPetState => withActivePet({
   fedAmount: 0,
-  petKind: null,
-  name: '',
-  position: { ...DEFAULT_POSITION },
+  eggKind: STUDENT_PET_KINDS[0].id,
+  ownedPets: [],
+  activePetId: null,
+  pendingNamePetId: null,
 });
 
 export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
@@ -59,30 +131,48 @@ export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
     if (!rawState || typeof rawState !== 'object' || Array.isArray(rawState)) return states;
 
     const state = rawState as Record<string, unknown>;
-    const rawPosition = state.position && typeof state.position === 'object' && !Array.isArray(state.position)
-      ? state.position as Record<string, unknown>
-      : {};
     const fedAmount = Math.max(0, Math.min(
       STUDENT_PET_HATCH_AMOUNT,
       Math.floor((Number(state.fedAmount) || 0) / STUDENT_PET_FEED_AMOUNT) * STUDENT_PET_FEED_AMOUNT,
     ));
-    const petKind = typeof state.petKind === 'string' && PET_KIND_IDS.has(state.petKind)
-      ? state.petKind as StudentPetKind
-      : fedAmount >= STUDENT_PET_HATCH_AMOUNT
-        ? STUDENT_PET_KINDS[0].id
-        : null;
+    const rawPets = Array.isArray(state.ownedPets) ? state.ownedPets : [];
+    const ownedPets = rawPets.reduce<StudentPet[]>((pets, rawPet, index) => {
+      const pet = normalizePet(rawPet, `legacy-${index + 1}`);
+      if (pet && !pets.some((existingPet) => existingPet.id === pet.id)) pets.push(pet);
+      return pets;
+    }, []);
+    const legacyKind = isPetKind(state.petKind) ? state.petKind : null;
+    const legacyName = typeof state.name === 'string' ? state.name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH) : '';
+    const legacyPosition = normalizePosition(state.position);
 
-    states[studentKey] = {
-      fedAmount,
-      petKind,
-      name: typeof state.name === 'string'
-        ? state.name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH)
-        : '',
-      position: {
-        x: clampPosition(rawPosition.x, DEFAULT_POSITION.x),
-        y: clampPosition(rawPosition.y, DEFAULT_POSITION.y),
-      },
-    };
+    if (ownedPets.length === 0 && legacyKind) {
+      ownedPets.push({
+        id: createPetId(legacyKind, ownedPets),
+        kind: legacyKind,
+        name: legacyName,
+        position: legacyPosition,
+      });
+    }
+
+    const eggKind = isPetKind(state.eggKind)
+      ? state.eggKind
+      : getNextEggKind(ownedPets, legacyKind ?? STUDENT_PET_KINDS[0].id);
+    const requestedActivePetId = typeof state.activePetId === 'string' ? state.activePetId : null;
+    const activePetId = ownedPets.some((pet) => pet.id === requestedActivePetId)
+      ? requestedActivePetId
+      : ownedPets[0]?.id ?? null;
+    const requestedPendingNamePetId = typeof state.pendingNamePetId === 'string' ? state.pendingNamePetId : null;
+
+    const shouldMigrateHatchedLegacyPet = fedAmount >= STUDENT_PET_HATCH_AMOUNT && !Array.isArray(state.ownedPets);
+    states[studentKey] = withActivePet({
+      fedAmount: shouldMigrateHatchedLegacyPet ? 0 : fedAmount,
+      eggKind: shouldMigrateHatchedLegacyPet ? getNextEggKind(ownedPets, eggKind) : eggKind,
+      ownedPets,
+      activePetId,
+      pendingNamePetId: shouldMigrateHatchedLegacyPet && !legacyName
+        ? activePetId
+        : requestedPendingNamePetId,
+    });
     return states;
   }, {});
 };
@@ -98,6 +188,63 @@ export const getStudentPetKind = (kind: StudentPetKind | null) => (
 export const getStudentPetEggStage = (fedAmount: number) => (
   Math.min(5, Math.floor(Math.max(0, fedAmount) / 20))
 );
+
+export const feedStudentPetEgg = (state: StudentPetState): StudentPetState => {
+  const normalizedState = getStudentPetState({ 1: state }, 1);
+  const nextFedAmount = Math.min(STUDENT_PET_HATCH_AMOUNT, normalizedState.fedAmount + STUDENT_PET_FEED_AMOUNT);
+  if (nextFedAmount < STUDENT_PET_HATCH_AMOUNT) {
+    return withActivePet({ ...normalizedState, fedAmount: nextFedAmount });
+  }
+
+  const hatchedPet: StudentPet = {
+    id: createPetId(normalizedState.eggKind, normalizedState.ownedPets),
+    kind: normalizedState.eggKind,
+    name: '',
+    position: { ...DEFAULT_POSITION },
+  };
+  const ownedPets = [...normalizedState.ownedPets, hatchedPet];
+  return withActivePet({
+    ...normalizedState,
+    fedAmount: 0,
+    eggKind: getNextEggKind(ownedPets, normalizedState.eggKind),
+    ownedPets,
+    activePetId: hatchedPet.id,
+    pendingNamePetId: hatchedPet.id,
+  });
+};
+
+export const selectStudentPet = (state: StudentPetState, petId: string) => {
+  const normalizedState = getStudentPetState({ 1: state }, 1);
+  if (!normalizedState.ownedPets.some((pet) => pet.id === petId)) return null;
+  return withActivePet({ ...normalizedState, activePetId: petId });
+};
+
+export const nameStudentPet = (state: StudentPetState, name: string) => {
+  const normalizedState = getStudentPetState({ 1: state }, 1);
+  const targetPetId = normalizedState.pendingNamePetId;
+  if (!targetPetId) return null;
+  const nextName = name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH);
+  if (!nextName) return null;
+  return withActivePet({
+    ...normalizedState,
+    ownedPets: normalizedState.ownedPets.map((pet) => (
+      pet.id === targetPetId ? { ...pet, name: nextName } : pet
+    )),
+    pendingNamePetId: null,
+  });
+};
+
+export const moveStudentPet = (state: StudentPetState, position: StudentPetState['position']) => {
+  const normalizedState = getStudentPetState({ 1: state }, 1);
+  if (!normalizedState.activePetId) return null;
+  const nextPosition = normalizePosition(position);
+  return withActivePet({
+    ...normalizedState,
+    ownedPets: normalizedState.ownedPets.map((pet) => (
+      pet.id === normalizedState.activePetId ? { ...pet, position: nextPosition } : pet
+    )),
+  });
+};
 
 export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
   const fallback = {

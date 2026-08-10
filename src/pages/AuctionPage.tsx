@@ -68,14 +68,14 @@ import {
 import { useModalFocus } from '../lib/useModalFocus';
 import {
   STUDENT_PET_FEED_AMOUNT,
-  STUDENT_PET_HATCH_AMOUNT,
-  STUDENT_PET_KINDS,
-  STUDENT_PET_NAME_MAX_LENGTH,
+  feedStudentPetEgg,
   getStudentPetState,
   loadStoredStudentPetSnapshot,
+  moveStudentPet,
+  nameStudentPet,
   normalizeStudentPetStates,
+  selectStudentPet,
   storeStudentPetSnapshot,
-  type StudentPetKind,
   type StudentPetState,
   type StudentPetStates,
 } from '../lib/studentPet';
@@ -388,7 +388,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
 
   const feedStudentPet = async () => {
-    if (isPetSaving || studentPet.fedAmount >= STUDENT_PET_HATCH_AMOUNT) return false;
+    if (isPetSaving) return false;
     setIsPetSaving(true);
     try {
       let savedPet = studentPet;
@@ -413,17 +413,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             currentAwards,
             activeAuctionItemIds,
           );
-          if (currentPet.fedAmount >= STUDENT_PET_HATCH_AMOUNT) throw new Error('PET_ALREADY_HATCHED');
           if (latestBalance - latestReserved < STUDENT_PET_FEED_AMOUNT) throw new Error('INSUFFICIENT_FUNDS');
 
           const nextBalance = latestBalance - STUDENT_PET_FEED_AMOUNT;
-          savedPet = {
-            ...currentPet,
-            fedAmount: Math.min(STUDENT_PET_HATCH_AMOUNT, currentPet.fedAmount + STUDENT_PET_FEED_AMOUNT),
-            petKind: currentPet.fedAmount + STUDENT_PET_FEED_AMOUNT >= STUDENT_PET_HATCH_AMOUNT
-              ? currentPet.petKind ?? STUDENT_PET_KINDS[0].id
-              : currentPet.petKind,
-          };
+          savedPet = feedStudentPetEgg(currentPet);
           savedBalances = { ...currentBalances, [studentKey]: nextBalance };
           return {
             ...current,
@@ -441,16 +434,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         const snapshot = loadStoredStudentPetSnapshot();
         const currentPet = getStudentPetState(snapshot.studentPets, studentNumber);
         const latestBalance = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
-        if (currentPet.fedAmount >= STUDENT_PET_HATCH_AMOUNT) return false;
         if (latestBalance - reservedAmount < STUDENT_PET_FEED_AMOUNT) return false;
         const nextBalance = latestBalance - STUDENT_PET_FEED_AMOUNT;
-        savedPet = {
-          ...currentPet,
-          fedAmount: Math.min(STUDENT_PET_HATCH_AMOUNT, currentPet.fedAmount + STUDENT_PET_FEED_AMOUNT),
-          petKind: currentPet.fedAmount + STUDENT_PET_FEED_AMOUNT >= STUDENT_PET_HATCH_AMOUNT
-            ? currentPet.petKind ?? STUDENT_PET_KINDS[0].id
-            : currentPet.petKind,
-        };
+        savedPet = feedStudentPetEgg(currentPet);
         savedBalances = { ...snapshot.currencyBalances, [studentKey]: nextBalance };
         const stored = storeStudentPetSnapshot({
           studentPets: { ...snapshot.studentPets, [studentKey]: savedPet },
@@ -477,7 +463,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
-  const saveStudentPet = async (nextPet: StudentPetState) => {
+  const saveStudentPet = async (updatePet: (currentPet: StudentPetState) => StudentPetState | null) => {
     if (isPetSaving) return false;
     setIsPetSaving(true);
     try {
@@ -489,20 +475,22 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             : {};
           const currentPets = normalizeStudentPetStates(current.studentPets);
           const currentPet = getStudentPetState(currentPets, studentNumber);
-          if (currentPet.fedAmount < STUDENT_PET_HATCH_AMOUNT) throw new Error('PET_NOT_HATCHED');
+          const nextPet = updatePet(currentPet);
+          if (!nextPet) throw new Error('PET_UPDATE_REJECTED');
           savedPets = normalizeStudentPetStates({
             ...currentPets,
-            [studentKey]: { ...nextPet, fedAmount: currentPet.fedAmount },
+            [studentKey]: nextPet,
           });
           return { ...current, studentPets: savedPets };
         });
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         const currentPet = getStudentPetState(snapshot.studentPets, studentNumber);
-        if (currentPet.fedAmount < STUDENT_PET_HATCH_AMOUNT) return false;
+        const nextPet = updatePet(currentPet);
+        if (!nextPet) return false;
         savedPets = normalizeStudentPetStates({
           ...snapshot.studentPets,
-          [studentKey]: { ...nextPet, fedAmount: currentPet.fedAmount },
+          [studentKey]: nextPet,
         });
         if (!storeStudentPetSnapshot({ ...snapshot, studentPets: savedPets })) return false;
       }
@@ -516,20 +504,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
-  const nameStudentPet = (name: string) => saveStudentPet({
-    ...studentPet,
-    name: name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH),
-  });
+  const nameCurrentStudentPet = (name: string) => saveStudentPet((currentPet) => nameStudentPet(currentPet, name));
 
-  const changeStudentPet = (petKind: StudentPetKind) => saveStudentPet({
-    ...studentPet,
-    petKind,
-  });
+  const changeStudentPet = (petId: string) => saveStudentPet((currentPet) => selectStudentPet(currentPet, petId));
 
-  const moveStudentPet = (position: StudentPetState['position']) => saveStudentPet({
-    ...studentPet,
-    position,
-  });
+  const moveCurrentStudentPet = (position: StudentPetState['position']) => (
+    saveStudentPet((currentPet) => moveStudentPet(currentPet, position))
+  );
 
   const saveStudentEmotion = useCallback(async (emotionId: StudentEmotionId, comment: string) => {
     if (isEmotionSaving) return false;
@@ -1057,9 +1038,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             isPetSaving={isPetSaving}
             todayEmotion={todayEmotion}
             onFeedPet={feedStudentPet}
-            onNamePet={nameStudentPet}
+            onNamePet={nameCurrentStudentPet}
             onChangePet={changeStudentPet}
-            onMovePet={moveStudentPet}
+            onMovePet={moveCurrentStudentPet}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}
             onOpenStore={() => navigateStudentView('store')}

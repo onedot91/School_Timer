@@ -13,18 +13,25 @@ interface StudentPetStageProps {
 
 export default function StudentPetStage({ pet, onOpenPetPicker, onMovePet }: StudentPetStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    startPosition: StudentPetState['position'];
+  } | null>(null);
   const [position, setPosition] = useState(pet.position);
-  const isHatched = pet.fedAmount >= STUDENT_PET_HATCH_AMOUNT;
+  const hasActivePet = pet.petKind !== null;
   const petKind = getStudentPetKind(pet.petKind);
 
   useEffect(() => setPosition(pet.position), [pet.position]);
 
   const getPositionFromPointer = (event: PointerEvent<HTMLButtonElement>) => {
     const bounds = stageRef.current?.getBoundingClientRect();
-    if (!bounds) return position;
+    const drag = dragRef.current;
+    if (!bounds || !drag) return position;
     return {
-      x: Math.max(0.08, Math.min(0.92, (event.clientX - bounds.left) / bounds.width)),
-      y: Math.max(0.12, Math.min(0.88, (event.clientY - bounds.top) / bounds.height)),
+      x: Math.max(0.08, Math.min(0.92, drag.startPosition.x + (event.clientX - drag.startClientX) / bounds.width)),
+      y: Math.max(0.12, Math.min(0.88, drag.startPosition.y + (event.clientY - drag.startClientY) / bounds.height)),
     };
   };
 
@@ -55,11 +62,11 @@ export default function StudentPetStage({ pet, onOpenPetPicker, onMovePet }: Stu
     <div
       ref={stageRef}
       className="student-character-stage-card"
-      aria-label={isHatched ? '펫 배경. 두 번 누르면 펫을 바꿀 수 있습니다.' : '학생 캐릭터와 배경 이미지 영역'}
-      onDoubleClick={isHatched ? onOpenPetPicker : undefined}
+      aria-label={hasActivePet ? '펫 배경. 두 번 누르면 보유한 펫을 바꿀 수 있습니다.' : '학생 캐릭터와 배경 이미지 영역'}
+      onDoubleClick={hasActivePet ? onOpenPetPicker : undefined}
     >
       <div className="student-character-stage-placeholder" aria-hidden="true" />
-      {isHatched ? (
+      {hasActivePet ? (
         <button
           type="button"
           className="student-pet-stage-character"
@@ -72,18 +79,29 @@ export default function StudentPetStage({ pet, onOpenPetPicker, onMovePet }: Stu
           }}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId);
-            setPosition(getPositionFromPointer(event));
+            dragRef.current = {
+              pointerId: event.pointerId,
+              startClientX: event.clientX,
+              startClientY: event.clientY,
+              startPosition: position,
+            };
           }}
           onPointerMove={(event) => {
-            if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+            if (!event.currentTarget.hasPointerCapture(event.pointerId) || dragRef.current?.pointerId !== event.pointerId) return;
             setPosition(getPositionFromPointer(event));
           }}
           onPointerUp={(event) => {
-            if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+            if (!event.currentTarget.hasPointerCapture(event.pointerId) || dragRef.current?.pointerId !== event.pointerId) return;
             const nextPosition = getPositionFromPointer(event);
             event.currentTarget.releasePointerCapture(event.pointerId);
+            dragRef.current = null;
             setPosition(nextPosition);
-            onMovePet(nextPosition);
+            if (nextPosition.x !== position.x || nextPosition.y !== position.y) onMovePet(nextPosition);
+          }}
+          onPointerCancel={(event) => {
+            if (dragRef.current?.pointerId !== event.pointerId) return;
+            dragRef.current = null;
+            setPosition(pet.position);
           }}
           onKeyDown={handleKeyDown}
         >

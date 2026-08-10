@@ -87,6 +87,7 @@ import {
   AUCTION_MISSION_CONTENT_MAX_LENGTH,
   AUCTION_MISSIONS_STORAGE_KEY,
   AUCTION_WEEKDAY_LABELS,
+  adjustCurrencyBalancesForStudents,
   createAuctionItemTemplate,
   CURRENCY_BALANCE_MAX,
   CURRENCY_BALANCE_STEP,
@@ -130,10 +131,10 @@ type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'emotion';
 type AuctionSettingsSection = 'items' | 'missions';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 type AuctionManagementAction = 'weeklyClose' | 'currency';
-type CurrencyAdjustmentTarget = 'student' | 'all';
-type CurrencyAdjustmentFeedback = {
+type CurrencyAdjustmentTarget = 'student' | 'group' | 'all';
+type CurrencyAdjustmentSummary = {
+  readonly target: CurrencyAdjustmentTarget;
   readonly delta: number;
-  readonly id: number;
 };
 type EmotionCalendarDay = {
   readonly date: Date;
@@ -151,6 +152,11 @@ const emotionCalendarDateFormatter = new Intl.DateTimeFormat('ko-KR', {
   day: 'numeric',
   weekday: 'short',
 });
+
+const formatCurrencyAdjustmentSummary = ({ delta }: CurrencyAdjustmentSummary) => {
+  const sign = delta > 0 ? '+' : delta < 0 ? '−' : '';
+  return `${sign}${Math.abs(delta)}`;
+};
 
 const getEmotionCalendarDate = (dateKey: string) => {
   const [year, month, day] = dateKey.split('-').map(Number);
@@ -3591,8 +3597,9 @@ export default function TimerPage() {
   const isQuestionSubmissionRefreshInFlightRef = useRef(false);
   const [editingCurrencyNumber, setEditingCurrencyNumber] = useState<number | null>(null);
   const [currencyAdjustmentTarget, setCurrencyAdjustmentTarget] = useState<CurrencyAdjustmentTarget>('student');
-  const [currencyAdjustmentFeedback, setCurrencyAdjustmentFeedback] = useState<CurrencyAdjustmentFeedback | null>(null);
+  const [currencyAdjustmentSummary, setCurrencyAdjustmentSummary] = useState<CurrencyAdjustmentSummary | null>(null);
   const [currencyStudentNumberInput, setCurrencyStudentNumberInput] = useState('');
+  const [currencyGroupStudentNumbers, setCurrencyGroupStudentNumbers] = useState<number[]>([]);
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
   const [currencyHistory, setCurrencyHistory] = useState<CurrencyHistory>(() => createDefaultCurrencyHistory());
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
@@ -3947,7 +3954,8 @@ export default function TimerPage() {
       setCurrencyStudentNumberInput('');
       setEditingCurrencyNumber(null);
       setCurrencyAdjustmentTarget('student');
-      setCurrencyAdjustmentFeedback(null);
+      setCurrencyAdjustmentSummary(null);
+      setCurrencyGroupStudentNumbers([]);
       return;
     }
 
@@ -3959,12 +3967,6 @@ export default function TimerPage() {
     }, 0);
     return () => window.clearTimeout(focusTimeoutId);
   }, [currencyAdjustmentTarget, isCurrencyPanelOpen]);
-
-  useEffect(() => {
-    if (currencyAdjustmentFeedback === null) return;
-    const timeoutId = window.setTimeout(() => setCurrencyAdjustmentFeedback(null), 1200);
-    return () => window.clearTimeout(timeoutId);
-  }, [currencyAdjustmentFeedback]);
 
   useEffect(() => {
     const audio = getSharedBackgroundMusicAudio();
@@ -6206,9 +6208,21 @@ export default function TimerPage() {
     setCurrencyHistory(nextHistory);
   };
 
+  const recordCurrencyAdjustment = (target: CurrencyAdjustmentTarget, delta: number) => {
+    setCurrencyAdjustmentSummary((previousSummary) => (
+      previousSummary?.target === target
+        ? {
+            ...previousSummary,
+            delta: previousSummary.delta + delta,
+          }
+        : { target, delta }
+    ));
+  };
+
   const handleCurrencyStudentNumberInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextInput = event.target.value.replace(/\D/g, '').slice(0, 2);
     setCurrencyStudentNumberInput(nextInput);
+    setCurrencyAdjustmentSummary(null);
 
     const nextStudentNumber = Number(nextInput);
     if (CURRENCY_STUDENT_NUMBERS.includes(nextStudentNumber)) {
@@ -6235,6 +6249,7 @@ export default function TimerPage() {
       reason: 'manual',
     });
     commitCurrencyState(nextBalances, nextHistory);
+    recordCurrencyAdjustment('student', delta);
   };
 
   const adjustAllCurrencyBalances = (delta: number) => {
@@ -6254,7 +6269,35 @@ export default function TimerPage() {
       createdAt,
     );
     commitCurrencyState(nextBalances, nextHistory);
-    setCurrencyAdjustmentFeedback({ delta, id: Date.now() });
+    recordCurrencyAdjustment('all', delta);
+  };
+
+  const toggleCurrencyGroupStudentNumber = (studentNumber: number) => {
+    setCurrencyAdjustmentSummary(null);
+    setCurrencyGroupStudentNumbers((previousStudentNumbers) => (
+      previousStudentNumbers.includes(studentNumber)
+        ? previousStudentNumbers.filter((number) => number !== studentNumber)
+        : [...previousStudentNumbers, studentNumber]
+    ));
+  };
+
+  const adjustGroupCurrencyBalances = (delta: number) => {
+    const selectedStudentNumbers = CURRENCY_STUDENT_NUMBERS.filter((studentNumber) =>
+      currencyGroupStudentNumbers.includes(studentNumber),
+    );
+    if (selectedStudentNumbers.length === 0) return;
+
+    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
+    const nextBalances = adjustCurrencyBalancesForStudents(previousBalances, selectedStudentNumbers, delta);
+    const nextHistory = appendCurrencyChangesToHistory(
+      currencyHistoryRef.current,
+      previousBalances,
+      nextBalances,
+      'bulk_adjust',
+      new Date().toISOString(),
+    );
+    commitCurrencyState(nextBalances, nextHistory);
+    recordCurrencyAdjustment('group', delta);
   };
 
   const resetCurrencyBalances = () => {
@@ -7216,6 +7259,9 @@ export default function TimerPage() {
     editingCurrencyNumber === null
       ? null
       : (currencyBalances[String(editingCurrencyNumber)] ?? DEFAULT_CURRENCY_BALANCE);
+  const selectedCurrencyGroupCount = CURRENCY_STUDENT_NUMBERS.filter((studentNumber) =>
+    currencyGroupStudentNumbers.includes(studentNumber),
+  ).length;
   const renderNoticeTextWithHighlights = (text: string) => {
     const ranges = normalizeNoticeHighlightRanges(scheduleNoticeHighlights, text);
     if (ranges.length === 0) return text;
@@ -9811,13 +9857,16 @@ export default function TimerPage() {
                     </div>
 
                     <div
-                      className="mb-3 grid grid-cols-2 rounded-[1rem] border-2 border-[#DDE9E2] bg-[#F1F7F3] p-1"
+                      className="mb-3 grid grid-cols-3 rounded-[1rem] border-2 border-[#DDE9E2] bg-[#F1F7F3] p-1"
                       role="group"
                       aria-label="화폐 조정 대상"
                     >
                       <button
                         type="button"
-                        onClick={() => setCurrencyAdjustmentTarget('student')}
+                        onClick={() => {
+                          setCurrencyAdjustmentTarget('student');
+                          setCurrencyAdjustmentSummary(null);
+                        }}
                         className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-colors ${
                           currencyAdjustmentTarget === 'student'
                             ? 'bg-white text-[#006241] shadow-[0_2px_7px_rgba(48,86,68,0.12)]'
@@ -9830,7 +9879,25 @@ export default function TimerPage() {
                       <button
                         type="button"
                         onClick={() => {
+                          setCurrencyAdjustmentTarget('group');
+                          setCurrencyAdjustmentSummary(null);
+                          setCurrencyStudentNumberInput('');
+                          setEditingCurrencyNumber(null);
+                        }}
+                        className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-colors ${
+                          currencyAdjustmentTarget === 'group'
+                            ? 'bg-white text-[#006241] shadow-[0_2px_7px_rgba(48,86,68,0.12)]'
+                            : 'text-[#708078] hover:bg-white/60'
+                        }`}
+                        aria-pressed={currencyAdjustmentTarget === 'group'}
+                      >
+                        모둠
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
                           setCurrencyAdjustmentTarget('all');
+                          setCurrencyAdjustmentSummary(null);
                           setCurrencyStudentNumberInput('');
                           setEditingCurrencyNumber(null);
                         }}
@@ -9875,30 +9942,128 @@ export default function TimerPage() {
                       </div>
                     ) : null}
 
+                    {currencyAdjustmentTarget === 'group' ? (
+                      <div className="mb-3 rounded-[1.15rem] border-2 border-[#DDE9E2] bg-[#F8FCF6] p-3">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="text-[0.82rem] font-extrabold text-[#466258]" aria-live="polite">
+                            {selectedCurrencyGroupCount}명 선택
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCurrencyGroupStudentNumbers([...CURRENCY_STUDENT_NUMBERS]);
+                                setCurrencyAdjustmentSummary(null);
+                              }}
+                              className="h-8 rounded-[0.7rem] px-2.5 text-[0.72rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
+                            >
+                              전체 선택
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCurrencyGroupStudentNumbers([]);
+                                setCurrencyAdjustmentSummary(null);
+                              }}
+                              className="h-8 rounded-[0.7rem] px-2.5 text-[0.72rem] font-extrabold text-[#708078] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
+                              disabled={selectedCurrencyGroupCount === 0}
+                            >
+                              선택 해제
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6" role="group" aria-label="모둠 학생 번호 선택">
+                          {CURRENCY_STUDENT_NUMBERS.map((studentNumber) => {
+                            const isSelected = currencyGroupStudentNumbers.includes(studentNumber);
+                            return (
+                              <button
+                                key={studentNumber}
+                                type="button"
+                                onClick={() => toggleCurrencyGroupStudentNumber(studentNumber)}
+                                className={`h-10 rounded-[0.8rem] border-2 font-mono text-[0.92rem] font-black transition-colors ${
+                                  isSelected
+                                    ? 'border-[#006241] text-white'
+                                    : 'border-[#D5E4DC] bg-white text-[#385348] hover:border-[#9FC7B8] hover:bg-[#F1FAF6]'
+                                }`}
+                                aria-pressed={isSelected}
+                                aria-label={`${studentNumber}번 ${isSelected ? '선택 해제' : '선택'}`}
+                              >
+                                {studentNumber}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+
                     {currencyAdjustmentTarget === 'student' && editingCurrencyNumber !== null && selectedCurrencyBalance !== null ? (
                       <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
                         <div className="flex items-center gap-2.5">
                           <div className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]">
                             <span className="font-mono text-[1.2rem] font-black leading-none">{editingCurrencyNumber}</span>
                           </div>
-                          <div className="min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-3 py-2.5 text-right font-mono text-[1.08rem] font-black leading-none text-[#1F2523]">
-                            {formatCurrencyAmount(selectedCurrencyBalance)}
+                          <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-3 py-2.5 text-right font-mono text-[1.08rem] font-black leading-none text-[#1F2523]">
+                            <span>{formatCurrencyAmount(selectedCurrencyBalance)}</span>
+                            {currencyAdjustmentSummary?.target === 'student' ? (
+                              <span className="whitespace-nowrap text-[0.72rem] font-black text-[#006241]">
+                                {formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}
+                              </span>
+                            ) : null}
                           </div>
                           <button
                             type="button"
                             onClick={() => adjustCurrencyBalance(editingCurrencyNumber, -CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white text-[1.15rem] font-black text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white font-mono text-[1.15rem] font-black text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
                             aria-label={`${editingCurrencyNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
                             title={`-${CURRENCY_BALANCE_STEP}`}
                           >
-                            -
+                            −
                           </button>
                           <button
                             type="button"
                             onClick={() => adjustCurrencyBalance(editingCurrencyNumber, CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] text-[1.15rem] font-black text-[#006241] transition-colors hover:bg-[#DDF0E8]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] font-mono text-[1.15rem] font-black text-[#006241] transition-colors hover:bg-[#DDF0E8]"
                             aria-label={`${editingCurrencyNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
                             title={`+${CURRENCY_BALANCE_STEP}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ) : currencyAdjustmentTarget === 'group' ? (
+                      <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
+                        <div className="currency-all-action-row flex items-center gap-2.5">
+                          <div
+                            className="flex h-11 w-24 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] px-1 text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]"
+                            role="status"
+                            aria-live="polite"
+                          >
+                            {currencyAdjustmentSummary?.target === 'group' ? (
+                              <span className="whitespace-nowrap text-[0.72rem] font-black leading-none text-white">
+                                {formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}
+                              </span>
+                            ) : (
+                              <span className="whitespace-nowrap text-[0.78rem] font-black leading-none">{selectedCurrencyGroupCount}명</span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1" aria-hidden="true" />
+                          <button
+                            type="button"
+                            onClick={() => adjustGroupCurrencyBalances(-CURRENCY_BALANCE_STEP)}
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white font-mono text-[1.15rem] font-black text-[#6E5139] transition-[background-color,transform] hover:bg-[#FFF7EC] active:scale-90 active:bg-[#F4E8DC] disabled:cursor-not-allowed disabled:opacity-45"
+                            aria-label={`선택한 학생 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
+                            title={`선택한 학생 -${CURRENCY_BALANCE_STEP}`}
+                            disabled={selectedCurrencyGroupCount === 0}
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => adjustGroupCurrencyBalances(CURRENCY_BALANCE_STEP)}
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] font-mono text-[1.15rem] font-black text-[#006241] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC] disabled:cursor-not-allowed disabled:opacity-45"
+                            aria-label={`선택한 학생 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
+                            title={`선택한 학생 +${CURRENCY_BALANCE_STEP}`}
+                            disabled={selectedCurrencyGroupCount === 0}
                           >
                             +
                           </button>
@@ -9908,21 +10073,14 @@ export default function TimerPage() {
                       <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
                         <div className="currency-all-action-row flex items-center gap-2.5">
                           <div
-                            className="flex h-11 w-16 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] px-1 text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]"
+                            className="flex h-11 w-24 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] px-1 text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]"
                             role="status"
                             aria-live="polite"
                           >
-                            {currencyAdjustmentFeedback !== null ? (
-                              <motion.span
-                                key={currencyAdjustmentFeedback.id}
-                                initial={{ opacity: 0.45 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.12, ease: 'easeOut' }}
-                                className="whitespace-nowrap text-[0.72rem] font-black leading-none text-white"
-                              >
-                                {currencyAdjustmentFeedback.delta > 0 ? '+' : '−'}
-                                {CURRENCY_BALANCE_STEP} 적용
-                              </motion.span>
+                            {currencyAdjustmentSummary?.target === 'all' ? (
+                              <span className="whitespace-nowrap text-[0.72rem] font-black leading-none text-white">
+                                {formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}
+                              </span>
                             ) : (
                               <motion.span
                                 key="currency-range"
@@ -9939,16 +10097,16 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustAllCurrencyBalances(-CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white text-[1.15rem] font-black text-[#6E5139] transition-[background-color,transform] hover:bg-[#FFF7EC] active:scale-90 active:bg-[#F4E8DC]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white font-mono text-[1.15rem] font-black text-[#6E5139] transition-[background-color,transform] hover:bg-[#FFF7EC] active:scale-90 active:bg-[#F4E8DC]"
                             aria-label={`전체 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
                             title={`전체 -${CURRENCY_BALANCE_STEP}`}
                           >
-                            -
+                            −
                           </button>
                           <button
                             type="button"
                             onClick={() => adjustAllCurrencyBalances(CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] text-[1.15rem] font-black text-[#006241] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] font-mono text-[1.15rem] font-black text-[#006241] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC]"
                             aria-label={`전체 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
                             title={`전체 +${CURRENCY_BALANCE_STEP}`}
                           >

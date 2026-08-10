@@ -213,6 +213,21 @@ export const normalizeCurrencyBalances = (value: unknown): CurrencyBalances => {
   }, {});
 };
 
+export const adjustCurrencyBalancesForStudents = (
+  balances: CurrencyBalances,
+  studentNumbers: readonly number[],
+  delta: number,
+): CurrencyBalances => {
+  const normalizedBalances = normalizeCurrencyBalances(balances);
+  const selectedStudentNumbers = CURRENCY_STUDENT_NUMBERS.filter((studentNumber) => studentNumbers.includes(studentNumber));
+
+  return selectedStudentNumbers.reduce<CurrencyBalances>((nextBalances, studentNumber) => {
+    const key = String(studentNumber);
+    nextBalances[key] = clampCurrencyBalance((normalizedBalances[key] ?? DEFAULT_CURRENCY_BALANCE) + delta);
+    return nextBalances;
+  }, { ...normalizedBalances });
+};
+
 const CURRENCY_HISTORY_REASONS = [
   'manual',
   'reset',

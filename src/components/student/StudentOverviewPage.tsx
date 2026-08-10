@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ClipboardCheck, X } from 'lucide-react';
 import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import {
+  STUDENT_PET_FEED_AMOUNT,
   STUDENT_PET_HATCH_AMOUNT,
-  STUDENT_PET_KINDS,
   STUDENT_PET_NAME_MAX_LENGTH,
   getStudentPetKind,
-  type StudentPetKind,
   type StudentPetState,
 } from '../../lib/studentPet';
 import { useModalFocus } from '../../lib/useModalFocus';
@@ -28,7 +27,7 @@ interface StudentOverviewPageProps {
   todayEmotion: StudentEmotionDefinition | null;
   onFeedPet: () => Promise<boolean>;
   onNamePet: (name: string) => Promise<boolean>;
-  onChangePet: (kind: StudentPetKind) => Promise<boolean>;
+  onChangePet: (petId: string) => Promise<boolean>;
   onMovePet: (position: StudentPetState['position']) => Promise<boolean>;
   onOpenEmotions: () => void;
   onOpenMissions: () => void;
@@ -56,13 +55,13 @@ export default function StudentOverviewPage({
   const [petNameDraft, setPetNameDraft] = useState(pet.name);
   const [petError, setPetError] = useState('');
   const petDialogRef = useRef<HTMLElement>(null);
-  const isHatched = pet.fedAmount >= STUDENT_PET_HATCH_AMOUNT;
+  const needsPetName = pet.pendingNamePetId !== null;
   const petKind = getStudentPetKind(pet.petKind);
 
   useEffect(() => {
     setPetNameDraft(pet.name);
-    if (isHatched && !pet.name && activePetDialog === null) setActivePetDialog('name');
-  }, [activePetDialog, isHatched, pet.name]);
+    if (needsPetName && activePetDialog === null) setActivePetDialog('name');
+  }, [activePetDialog, needsPetName, pet.name]);
 
   useModalFocus({
     dialogRef: petDialogRef,
@@ -106,7 +105,7 @@ export default function StudentOverviewPage({
             availableBalance={availableBalance}
             isLoading={isLoading}
             isSaving={isPetSaving}
-            onFeed={() => {
+            onOpenFeed={() => {
               setPetError('');
               setActivePetDialog('feed');
             }}
@@ -165,7 +164,9 @@ export default function StudentOverviewPage({
                         setPetError('먹이를 주지 못했습니다. 잔액을 확인해 주세요.');
                         return;
                       }
-                      setActivePetDialog(pet.fedAmount + 5 >= STUDENT_PET_HATCH_AMOUNT ? 'name' : null);
+                      if (pet.fedAmount + STUDENT_PET_FEED_AMOUNT >= STUDENT_PET_HATCH_AMOUNT) {
+                        setActivePetDialog('name');
+                      }
                     });
                   }}
                 >
@@ -219,23 +220,26 @@ export default function StudentOverviewPage({
                   <h2 id="student-pet-dialog-title">함께할 펫을 골라 주세요</h2>
                 </div>
                 <div className="student-pet-picker">
-                  {STUDENT_PET_KINDS.map((kind) => (
+                  {pet.ownedPets.map((ownedPet) => {
+                    const ownedKind = getStudentPetKind(ownedPet.kind);
+                    return (
                     <button
-                      key={kind.id}
+                      key={ownedPet.id}
                       type="button"
-                      aria-pressed={pet.petKind === kind.id}
+                      aria-pressed={pet.activePetId === ownedPet.id}
                       disabled={isPetSaving}
                       onClick={() => {
-                        void onChangePet(kind.id).then((saved) => {
+                        void onChangePet(ownedPet.id).then((saved) => {
                           if (saved) closePetDialog();
                           else setPetError('펫을 바꾸지 못했습니다.');
                         });
                       }}
                     >
-                      <span aria-hidden="true">{kind.emoji}</span>
-                      <strong>{kind.label}</strong>
+                      <span aria-hidden="true">{ownedKind.emoji}</span>
+                      <strong>{ownedPet.name || ownedKind.label}</strong>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             ) : null}
