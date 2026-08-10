@@ -62,6 +62,10 @@ import {
   storeStudentEmotionHistory,
   type StudentEmotionHistory,
 } from '../lib/studentEmotion';
+import {
+  normalizeStudentPetStates,
+  type StudentPetStates,
+} from '../lib/studentPet';
 import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
 import {
   loadQuestionSubmissionStatuses,
@@ -188,6 +192,7 @@ interface SharedSchoolTimerSettings {
   auctionMissions: AuctionMission[];
   classDonation: ClassDonationSettings;
   studentEmotionHistory: StudentEmotionHistory;
+  studentPets: StudentPetStates;
 }
 
 interface NoticeHighlightRange {
@@ -1403,6 +1408,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     auctionMissions: normalizeAuctionMissions(parsed.auctionMissions),
     classDonation: normalizeClassDonationSettings(parsed.classDonation),
     studentEmotionHistory: normalizeStudentEmotionHistory(parsed.studentEmotionHistory),
+    studentPets: normalizeStudentPetStates(parsed.studentPets),
   };
 };
 
@@ -3550,6 +3556,7 @@ export default function TimerPage() {
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
     loadStoredStudentEmotionHistory,
   );
+  const [studentPetStates, setStudentPetStates] = useState<StudentPetStates>({});
   const [auctionItemEditCommitVersion, setAuctionItemEditCommitVersion] = useState(0);
   const isEditingAuctionItemRef = useRef(false);
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getStoredAuctionMissions);
@@ -4086,6 +4093,7 @@ export default function TimerPage() {
     auctionMissions: getPersistableAuctionMissions(),
     classDonation,
     studentEmotionHistory,
+    studentPets: studentPetStates,
   });
 
   const applySharedSettingsSnapshot = (
@@ -4132,6 +4140,7 @@ export default function TimerPage() {
     setAuctionAwards(normalizeAuctionAwards(remoteSettings.auctionAwards, AUCTION_ITEM_IDS));
     setClassDonation(normalizeClassDonationSettings(remoteSettings.classDonation));
     setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
+    setStudentPetStates(normalizeStudentPetStates(remoteSettings.studentPets));
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -4447,6 +4456,7 @@ export default function TimerPage() {
     auctionMissions,
     classDonation,
     studentEmotionHistory,
+    studentPetStates,
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,

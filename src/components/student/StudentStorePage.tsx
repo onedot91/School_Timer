@@ -22,7 +22,7 @@ export default function StudentStorePage({
   return (
     <div className="student-view student-store-view">
       <StudentHeader
-        title="고마 사용"
+        title="고마 쓰기"
         onBack={onBack}
       />
       <StudentBalanceSummary

@@ -14044,7 +14044,7 @@ a[href]:active {
 
 .student-overview-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
   align-items: stretch;
   gap: clamp(0.75rem, 1.4vw, 1.25rem);
 }
@@ -14061,8 +14061,12 @@ a[href]:active {
 
 .student-character-stage-card {
   position: relative;
-  display: grid;
-  min-height: var(--student-character-stage-min-height);
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  aspect-ratio: var(--student-character-stage-aspect-ratio);
+  align-self: start;
   align-items: center;
   overflow: hidden;
   padding: 1rem 1.5rem;
@@ -14070,20 +14074,34 @@ a[href]:active {
   background: var(--apple-surface);
 }
 
-.student-character-stage-number {
-  color: var(--apple-text-primary);
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 4vw, 3.5rem);
-  font-weight: 900;
-  letter-spacing: -0.06em;
-  line-height: 1;
+.student-character-stage-placeholder {
+  position: absolute;
+  inset: 0.65rem;
+  border: 2px dashed color-mix(in srgb, var(--apple-accent) 38%, var(--apple-separator));
+  border-radius: var(--apple-radius-card);
+  background:
+    linear-gradient(135deg, transparent 49.7%, color-mix(in srgb, var(--apple-accent) 12%, transparent) 50%, transparent 50.3%),
+    linear-gradient(45deg, transparent 49.7%, color-mix(in srgb, var(--apple-accent) 12%, transparent) 50%, transparent 50.3%),
+    color-mix(in srgb, var(--apple-accent) 5%, var(--apple-surface));
 }
 
 .student-overview-status {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: auto minmax(0, 1fr);
   gap: .75rem;
   min-width: 0;
+}
+
+.student-overview-status > .student-balance-summary {
+  grid-column: 1 / -1;
+  min-height: 0;
+  padding-block: .4rem;
+}
+
+.student-overview-status > .student-balance-summary .student-balance-primary {
+  gap: .2rem .5rem;
+  padding-block: .125rem;
 }
 
 .student-balance-summary {
@@ -14100,6 +14118,24 @@ a[href]:active {
   display: flex;
   flex: 0 0 auto;
   gap: 0.5rem;
+}
+
+.student-balance-student-number {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.25rem;
+  padding: 0.5rem 0.75rem 0.5rem 0.25rem;
+  border-right: 1px solid var(--apple-separator);
+  color: var(--apple-text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .student-balance-summary-simple {
@@ -14189,12 +14225,12 @@ a[href]:active {
 .student-section-card {
   position: relative;
   display: grid;
-  min-height: 10.5rem;
+  min-height: 9rem;
   grid-template-rows: auto auto;
   align-content: space-between;
-  gap: 0.9rem;
+  gap: 0.75rem;
   overflow: hidden;
-  padding: clamp(1.1rem, 2vw, 1.5rem);
+  padding: clamp(1rem, 1.5vw, 1.25rem);
 }
 
 .student-section-card-mission {
@@ -14523,7 +14559,7 @@ a[href]:active {
   }
 }
 
-@media (max-width: 47.999rem) {
+@media (max-width: 48rem) {
   .student-mode-page {
     padding: 0.5rem !important;
   }
@@ -14553,7 +14589,11 @@ a[href]:active {
   }
 
   .student-character-stage-card {
-    min-height: 13rem;
+    padding: 1rem;
+  }
+
+  .student-character-stage-placeholder {
+    inset: 0.5rem;
   }
 
   .student-balance-primary,
@@ -14566,7 +14606,7 @@ a[href]:active {
   }
 
   .student-section-card {
-    min-height: 11rem;
+    min-height: 9rem;
   }
 
   .student-group-heading {
@@ -14757,10 +14797,9 @@ a[href]:active {
   --emotion-blue-soft: #e5edf9;
   --emotion-green: #4f8a4f;
   --emotion-green-soft: #e6f1df;
-  --student-character-stage-min-height: 15rem;
-  --student-character-stage-image-size: 15rem;
+  --student-character-stage-aspect-ratio: 16 / 9;
   --student-balance-compact-height: 4rem;
-  --student-emotion-summary-size: 7.5rem;
+  --student-emotion-summary-size: clamp(7.25rem, 9vw, 8rem);
   --student-emotion-art-width: 6.5rem;
   --student-emotion-art-height: 6rem;
   --student-emotion-art-compact-width: 3.25rem;
@@ -14776,12 +14815,16 @@ a[href]:active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.25rem;
   margin: 0;
-  padding: .85rem 1rem;
-  border: 1px solid color-mix(in srgb, var(--apple-accent) 16%, var(--apple-separator));
+  padding: 1rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--student-emotion-summary-color) 28%, var(--apple-separator));
   border-radius: var(--apple-radius-card);
-  background: color-mix(in srgb, var(--apple-surface) 94%, var(--apple-canvas-warm));
+  background: linear-gradient(
+    155deg,
+    var(--apple-surface),
+    color-mix(in srgb, var(--student-emotion-summary-color) 7%, var(--apple-surface))
+  );
   box-shadow: var(--apple-shadow-1);
 }
 
@@ -14819,6 +14862,242 @@ a[href]:active {
   width: var(--student-emotion-summary-size);
   height: var(--student-emotion-summary-size);
 }
+
+.student-overview-status > .student-emotion-summary {
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: center;
+  align-items: center;
+  justify-content: stretch;
+  gap: .75rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.student-overview-status > .student-emotion-summary .student-emotion-summary-copy {
+  justify-items: center;
+}
+
+.student-overview-status > .student-emotion-summary .student-emotion-summary-action {
+  align-self: center;
+  justify-self: center;
+}
+
+.student-pet-card {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(6.5rem, .7fr) minmax(0, 1.3fr);
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: .45rem;
+  padding: .6rem .85rem;
+  border: 1px solid color-mix(in srgb, #5d8fb5 25%, var(--apple-separator));
+  border-radius: var(--apple-radius-card);
+  background:
+    radial-gradient(circle at 50% 43%, rgba(214, 236, 247, .72), transparent 38%),
+    linear-gradient(145deg, var(--apple-surface), #f2f8fb);
+  box-shadow: var(--apple-shadow-1);
+}
+
+.student-pet-card-heading {
+  display: flex;
+  grid-column: 2;
+  min-width: 0;
+  align-items: center;
+  gap: .65rem;
+}
+.student-pet-card-heading strong { color: var(--apple-text-primary); font-size: 1rem; font-weight: 900; }
+
+.student-pet-progress-row {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .65rem;
+}
+
+.student-pet-progress {
+  display: block;
+  height: .65rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dce9ef;
+}
+
+.student-pet-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #61a9d1, #2779aa);
+  transition: width 220ms ease;
+}
+
+.student-pet-progress-row strong { color: #316b91; font-family: var(--font-mono); font-size: .76rem; font-weight: 900; }
+.student-pet-egg-row { display: contents; }
+.student-pet-egg-art {
+  --student-pet-egg-stage: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 7.25rem;
+  grid-column: 1;
+  grid-row: 1 / 4;
+  border-radius: .75rem;
+  background-image: url('/pet-egg-stages.png');
+  background-repeat: no-repeat;
+  background-position: calc(var(--student-pet-egg-stage) * 20%) 35%;
+  background-size: 600% auto;
+}
+
+.student-pet-feed-button,
+.student-pet-dialog-primary {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  border-radius: .85rem;
+  color: #fff;
+  background: #316b91;
+  font-weight: 900;
+}
+
+.student-pet-feed-button { grid-column: 2; grid-row: 3; }
+
+.student-pet-feed-button:disabled,
+.student-pet-dialog-primary:disabled { color: var(--apple-text-tertiary); background: var(--apple-surface-muted); }
+.student-pet-hatched-summary { display: flex; min-height: 4rem; grid-column: 1 / -1; align-items: center; gap: .75rem; }
+.student-pet-card:has(.student-pet-hatched-summary) .student-pet-card-heading { grid-column: 1 / -1; }
+.student-pet-hatched-summary > span { font-size: 3rem; line-height: 1; }
+.student-pet-hatched-summary p { margin: 0; color: var(--apple-text-secondary); font-size: .75rem; font-weight: 800; line-height: 1.35; }
+
+.student-overview-status > .student-pet-card {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: .35rem;
+  padding: .75rem;
+}
+
+.student-overview-status > .student-pet-card .student-pet-card-heading {
+  grid-column: 1;
+  grid-row: 1;
+  justify-content: center;
+}
+
+.student-overview-status > .student-pet-card .student-pet-egg-art {
+  width: clamp(8.5rem, 13vw, 10rem);
+  height: auto;
+  min-height: 0;
+  grid-column: 1;
+  grid-row: 2;
+  align-self: center;
+  justify-self: center;
+  aspect-ratio: 341 / 491;
+  background-position: calc(var(--student-pet-egg-stage) * 20%) center;
+  background-size: 600% auto;
+  mix-blend-mode: multiply;
+}
+
+.student-overview-status > .student-pet-card .student-pet-progress-row {
+  width: min(100%, 12rem);
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: center;
+  gap: .75rem;
+}
+
+.student-overview-status > .student-pet-card .student-pet-progress {
+  height: .75rem;
+}
+
+.student-overview-status > .student-pet-card .student-pet-feed-button {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.student-overview-status > .student-pet-card .student-pet-hatched-summary {
+  grid-column: 1;
+  grid-row: 2 / -1;
+}
+
+@media (min-width: 48.001rem) {
+  .student-overview-status > .student-pet-card .student-pet-egg-art {
+    margin-block: -1.5rem;
+  }
+}
+
+@media (max-width: 39.999rem) {
+  .student-overview-status {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+
+  .student-overview-status > .student-balance-summary {
+    grid-column: 1;
+  }
+}
+
+.student-pet-stage-character {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  min-width: 5rem;
+  justify-items: center;
+  gap: .2rem;
+  padding: .25rem .45rem;
+  border-radius: 1rem;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.student-pet-stage-character:active { cursor: grabbing; }
+.student-pet-stage-character > span { font-size: clamp(4.5rem, 8vw, 7rem); line-height: 1; filter: drop-shadow(0 .5rem .55rem rgba(42, 62, 54, .2)); }
+.student-pet-stage-character > strong { padding: .25rem .65rem; border-radius: 999px; color: var(--apple-text-primary); background: rgba(255, 255, 255, .9); font-size: .8rem; font-weight: 900; box-shadow: var(--apple-shadow-1); }
+
+.student-pet-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--apple-scrim);
+}
+
+.student-pet-dialog {
+  position: relative;
+  display: grid;
+  width: min(100%, 30rem);
+  justify-items: stretch;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-panel);
+  background: var(--apple-material-thick);
+  box-shadow: var(--apple-shadow-3);
+  text-align: center;
+}
+
+.student-pet-dialog-close { position: absolute; top: .65rem; right: .65rem; display: inline-flex; width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; border-radius: 999px; color: var(--apple-text-secondary); }
+.student-pet-dialog-close:hover { background: var(--apple-surface-muted); }
+.student-pet-dialog-visual { font-size: 5.5rem; line-height: 1; }
+.student-pet-dialog-copy { display: grid; gap: .25rem; }
+.student-pet-dialog-copy > span { color: #316b91; font-size: .78rem; font-weight: 900; }
+.student-pet-dialog-copy h2 { margin: 0; color: var(--apple-text-primary); font-size: 1.55rem; font-weight: 900; }
+.student-pet-dialog-copy p { margin: .15rem 0 0; color: var(--apple-text-secondary); font-size: .82rem; font-weight: 750; }
+.student-pet-name-field { position: relative; display: grid; gap: .35rem; text-align: left; }
+.student-pet-name-field > span { color: var(--apple-text-secondary); font-size: .75rem; font-weight: 900; }
+.student-pet-name-field input { width: 100%; min-height: 3.25rem; border: 1px solid var(--apple-separator-strong); border-radius: .85rem; padding: 0 3rem 0 .9rem; color: var(--apple-text-primary); background: var(--apple-surface); font-weight: 850; }
+.student-pet-name-field small { position: absolute; right: .75rem; bottom: .95rem; color: var(--apple-text-tertiary); font-size: .68rem; }
+.student-pet-picker { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .55rem; }
+.student-pet-picker button { display: grid; min-height: 6.25rem; place-items: center; gap: .25rem; border: 1px solid var(--apple-separator); border-radius: 1rem; background: var(--apple-surface); }
+.student-pet-picker button[aria-pressed='true'] { border-color: #316b91; background: #e8f3f8; box-shadow: inset 0 0 0 1px #316b91; }
+.student-pet-picker button span { font-size: 2.5rem; line-height: 1; }
+.student-pet-picker button strong { font-size: .72rem; font-weight: 850; }
+.student-pet-dialog-error { margin: 0; color: #a34f45; font-size: .78rem; font-weight: 850; }
 
 .student-emotion-empty-orb,
 .emotion-status-empty-orb {
@@ -15107,28 +15386,37 @@ a[href]:active {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .student-emotion-calendar-weekdays {
-  padding: 0 .15rem .4rem;
+  gap: .35rem;
+  margin-bottom: .35rem;
   color: var(--apple-text-tertiary);
   font-size: .72rem;
   font-weight: 900;
   text-align: center;
 }
+.student-emotion-calendar-weekdays > span {
+  border-radius: .65rem;
+  background: var(--apple-surface-muted);
+  padding: .45rem .2rem;
+}
+.student-emotion-calendar-weekdays > span:first-child { color: var(--emotion-red); }
+.student-emotion-calendar-weekdays > span:last-child { color: var(--emotion-blue); }
+.student-emotion-calendar-grid { gap: .35rem; }
 .student-emotion-calendar-cell {
   min-width: 0;
   min-height: var(--student-emotion-calendar-cell-min-height);
-  padding: .15rem;
 }
 .student-emotion-calendar-cell > button {
   display: grid;
   width: 100%;
   height: 100%;
-  min-height: calc(var(--student-emotion-calendar-cell-min-height) - .3rem);
-  place-items: center;
-  align-content: space-between;
-  gap: .2rem;
-  border: 2px solid transparent;
+  min-height: var(--student-emotion-calendar-cell-min-height);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: start;
+  gap: .35rem;
+  border: 1px solid color-mix(in srgb, var(--apple-separator) 70%, transparent);
   border-radius: var(--apple-radius-control);
-  padding: .35rem .2rem .3rem;
+  background: color-mix(in srgb, var(--apple-surface) 96%, var(--apple-surface-muted));
+  padding: .5rem;
   color: var(--apple-text-primary);
 }
 .student-emotion-calendar-cell > button:hover { background: var(--apple-surface-muted); }
@@ -15157,31 +15445,53 @@ a[href]:active {
 .student-emotion-calendar-cell.is-selected[data-emotion-zone] > button {
   border-color: var(--calendar-emotion-color);
   background: color-mix(in srgb, var(--calendar-emotion-soft) 88%, var(--apple-surface));
-  box-shadow: inset 0 0 0 1px var(--calendar-emotion-color);
-}
-.student-emotion-calendar-cell.is-today .student-emotion-calendar-day-number {
-  color: var(--apple-accent-pressed);
-  font-weight: 950;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--calendar-emotion-color) 78%, transparent);
 }
 .student-emotion-calendar-cell.is-adjacent { opacity: .42; }
+.student-emotion-calendar-day-heading {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: .25rem;
+}
 .student-emotion-calendar-day-number {
-  align-self: start;
   font-family: var(--font-mono);
   font-size: .78rem;
   font-weight: 800;
   line-height: 1;
 }
-.student-emotion-calendar-cell .student-emotion-orb-compact {
-  width: 2.5rem;
-  height: 2.5rem;
-}
-.student-emotion-calendar-empty-dot {
-  display: block;
-  width: .45rem;
-  height: .45rem;
-  margin: auto 0 .85rem;
+.student-emotion-calendar-cell[data-weekday="0"]:not([data-emotion-zone]) .student-emotion-calendar-day-number { color: var(--emotion-red); }
+.student-emotion-calendar-cell[data-weekday="6"]:not([data-emotion-zone]) .student-emotion-calendar-day-number { color: var(--emotion-blue); }
+.student-emotion-calendar-today-badge {
   border-radius: 999px;
-  background: var(--apple-separator-strong);
+  background: var(--apple-accent);
+  padding: .18rem .42rem;
+  color: #fff;
+  font-size: .58rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.student-emotion-calendar-record {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  align-content: center;
+  gap: .1rem;
+  color: var(--calendar-emotion-color);
+}
+.student-emotion-calendar-record > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: .62rem;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.student-emotion-calendar-cell .student-emotion-orb-compact {
+  width: 2.75rem;
+  height: 2.75rem;
 }
 .student-emotion-calendar-detail {
   --calendar-detail-color: var(--apple-accent);

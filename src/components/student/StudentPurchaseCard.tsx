@@ -12,7 +12,7 @@ export default function StudentPurchaseCard({
     <StudentSectionCard
       tone="store"
       icon={ShoppingBag}
-      title="고마 사용"
+      title="고마 쓰기"
       actionLabel="경매장·기부 보기"
       onClick={onOpen}
     />

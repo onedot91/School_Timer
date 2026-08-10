@@ -340,7 +340,9 @@ export default function StudentEmotionPage({
               </header>
 
               <div className="student-emotion-calendar-weekdays" aria-hidden="true">
-                {calendarWeekdays.map((weekday) => <span key={weekday}>{weekday}</span>)}
+                {calendarWeekdays.map((weekday, index) => (
+                  <span key={weekday} data-weekday={index}>{weekday}</span>
+                ))}
               </div>
 
               <div className="student-emotion-calendar-grid" role="grid" aria-label="감정 기록 날짜">
@@ -356,18 +358,23 @@ export default function StudentEmotionPage({
                       aria-selected={isSelected}
                       className={`student-emotion-calendar-cell${day.isCurrentMonth ? '' : ' is-adjacent'}${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
                       data-emotion-zone={emotion?.zone}
+                      data-weekday={day.date.getDay()}
                     >
                       <button
                         type="button"
                         aria-label={`${calendarDateFormatter.format(day.date)}${emotion ? `, ${emotion.label}` : ', 기록 없음'}`}
                         onClick={() => selectHistoryDate(day)}
                       >
-                        <span className="student-emotion-calendar-day-number">{day.date.getDate()}</span>
-                        {emotion ? (
+                        <span className="student-emotion-calendar-day-heading">
+                          <span className="student-emotion-calendar-day-number">{day.date.getDate()}</span>
+                          {isToday && day.isCurrentMonth ? (
+                            <span className="student-emotion-calendar-today-badge">오늘</span>
+                          ) : null}
+                        </span>
+                        {emotion ? <span className="student-emotion-calendar-record">
                           <StudentEmotionOrbVisual emotion={emotion} compact />
-                        ) : (
-                          <span className="student-emotion-calendar-empty-dot" aria-hidden="true" />
-                        )}
+                          <span>{emotion.label}</span>
+                        </span> : null}
                       </button>
                     </div>
                   );

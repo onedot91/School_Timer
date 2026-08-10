@@ -206,6 +206,35 @@ test('stale settings saves preserve a concurrent class donation once', () => {
   assert.equal((mergedAgain.currencyBalances as Record<string, number>)['8'], 80);
 });
 
+test('stale teacher saves preserve a concurrent pet feed and pet state once', () => {
+  const petFeedEntry = {
+    id: 'pet-feed-8-1',
+    studentNumber: 8,
+    delta: -5,
+    before: 100,
+    after: 95,
+    reason: 'pet_feed',
+    createdAt: '2026-08-10T03:00:00.000Z',
+  } as const;
+  const remote = {
+    currencyBalances: { 8: 95 },
+    currencyHistory: { 8: [petFeedEntry] },
+    studentPets: { 8: { fedAmount: 5, petKind: null, name: '', position: { x: 0.5, y: 0.68 } } },
+  };
+  const stale = {
+    currencyBalances: { 8: 100 },
+    currencyHistory: { 8: [] },
+    studentPets: {},
+  };
+
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale);
+  assert.equal((merged.currencyBalances as Record<string, number>)['8'], 95);
+  assert.deepEqual(merged.studentPets, remote.studentPets);
+
+  const mergedAgain = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
+  assert.equal((mergedAgain.currencyBalances as Record<string, number>)['8'], 95);
+});
+
 test('ordinary settings saves preserve the latest remote bid activity', () => {
   const merged = mergeConcurrentCurrencyUpdatesIntoSettings({
     auctionBids: { 'item-a': { bidder: 8, amount: 40 } },

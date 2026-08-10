@@ -25,6 +25,8 @@ import {
   normalizeAuctionItems,
   normalizeAuctionMissions,
   normalizeCurrencyBalances,
+  normalizeCurrencyHistory,
+  appendCurrencyHistoryEntry,
   type AuctionAwards,
   type AuctionBidHistory,
   type AuctionItem,
@@ -63,6 +65,19 @@ import {
   loadQuestionSubmissionStatuses,
 } from '../lib/questionSubmissionStatus';
 import { useModalFocus } from '../lib/useModalFocus';
+import {
+  STUDENT_PET_FEED_AMOUNT,
+  STUDENT_PET_HATCH_AMOUNT,
+  STUDENT_PET_KINDS,
+  STUDENT_PET_NAME_MAX_LENGTH,
+  getStudentPetState,
+  loadStoredStudentPetSnapshot,
+  normalizeStudentPetStates,
+  storeStudentPetSnapshot,
+  type StudentPetKind,
+  type StudentPetState,
+  type StudentPetStates,
+} from '../lib/studentPet';
 import {
   createWeeklyMissionStatuses,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
@@ -117,7 +132,11 @@ const getInitialSelectedAuctionItemId = () => {
 
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const shouldReduceMotion = useReducedMotion();
-  const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => normalizeCurrencyBalances(null));
+  const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeCurrencyBalances(null)
+      : loadStoredStudentPetSnapshot().currencyBalances
+  ));
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
@@ -127,6 +146,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
     loadStoredStudentEmotionHistory,
   );
+  const [studentPetStates, setStudentPetStates] = useState<StudentPetStates>(() => (
+    isSupabaseSettingsEnabled ? {} : loadStoredStudentPetSnapshot().studentPets
+  ));
+  const [isPetSaving, setIsPetSaving] = useState(false);
   const [isEmotionSaving, setIsEmotionSaving] = useState(false);
   const [weeklyMissionStatuses, setWeeklyMissionStatuses] = useState<WeeklyMissionStatuses>(() => (
     createWeeklyMissionStatuses('loading')
@@ -317,6 +340,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   });
 
   const studentKey = String(studentNumber);
+  const studentPet = getStudentPetState(studentPetStates, studentNumber);
   const todayEmotionEntry = getTodayStudentEmotionEntry(studentEmotionHistory, studentNumber);
   const studentEmotionEntries = getStudentEmotionEntries(studentEmotionHistory, studentNumber);
   const todayEmotion = getStudentEmotion(todayEmotionEntry?.emotionId);
@@ -339,6 +363,150 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && donationAmount <= maximumDonation;
   const visibleDayCount = getAuctionVisibleDayCount();
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
+
+  const feedStudentPet = async () => {
+    if (isPetSaving || studentPet.fedAmount >= STUDENT_PET_HATCH_AMOUNT) return false;
+    setIsPetSaving(true);
+    try {
+      let savedPet = studentPet;
+      let savedBalances = currencyBalances;
+
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          const currentBalances = normalizeCurrencyBalances(current.currencyBalances);
+          const currentHistory = normalizeCurrencyHistory(current.currencyHistory);
+          const currentPets = normalizeStudentPetStates(current.studentPets);
+          const currentPet = getStudentPetState(currentPets, studentNumber);
+          const currentBids = normalizeAuctionBids(current.auctionBids, AUCTION_ITEM_IDS);
+          const currentAwards = normalizeAuctionAwards(current.auctionAwards, AUCTION_ITEM_IDS);
+          const latestBalance = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+          const latestReserved = getReservedAuctionBidAmount(
+            currentBids,
+            studentNumber,
+            undefined,
+            currentAwards,
+            activeAuctionItemIds,
+          );
+          if (currentPet.fedAmount >= STUDENT_PET_HATCH_AMOUNT) throw new Error('PET_ALREADY_HATCHED');
+          if (latestBalance - latestReserved < STUDENT_PET_FEED_AMOUNT) throw new Error('INSUFFICIENT_FUNDS');
+
+          const nextBalance = latestBalance - STUDENT_PET_FEED_AMOUNT;
+          savedPet = {
+            ...currentPet,
+            fedAmount: Math.min(STUDENT_PET_HATCH_AMOUNT, currentPet.fedAmount + STUDENT_PET_FEED_AMOUNT),
+            petKind: currentPet.fedAmount + STUDENT_PET_FEED_AMOUNT >= STUDENT_PET_HATCH_AMOUNT
+              ? currentPet.petKind ?? STUDENT_PET_KINDS[0].id
+              : currentPet.petKind,
+          };
+          savedBalances = { ...currentBalances, [studentKey]: nextBalance };
+          return {
+            ...current,
+            currencyBalances: savedBalances,
+            currencyHistory: appendCurrencyHistoryEntry(currentHistory, {
+              studentNumber,
+              before: latestBalance,
+              after: nextBalance,
+              reason: 'pet_feed',
+            }),
+            studentPets: { ...currentPets, [studentKey]: savedPet },
+          };
+        });
+      } else {
+        const snapshot = loadStoredStudentPetSnapshot();
+        const currentPet = getStudentPetState(snapshot.studentPets, studentNumber);
+        const latestBalance = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+        if (currentPet.fedAmount >= STUDENT_PET_HATCH_AMOUNT) return false;
+        if (latestBalance - reservedAmount < STUDENT_PET_FEED_AMOUNT) return false;
+        const nextBalance = latestBalance - STUDENT_PET_FEED_AMOUNT;
+        savedPet = {
+          ...currentPet,
+          fedAmount: Math.min(STUDENT_PET_HATCH_AMOUNT, currentPet.fedAmount + STUDENT_PET_FEED_AMOUNT),
+          petKind: currentPet.fedAmount + STUDENT_PET_FEED_AMOUNT >= STUDENT_PET_HATCH_AMOUNT
+            ? currentPet.petKind ?? STUDENT_PET_KINDS[0].id
+            : currentPet.petKind,
+        };
+        savedBalances = { ...snapshot.currencyBalances, [studentKey]: nextBalance };
+        const stored = storeStudentPetSnapshot({
+          studentPets: { ...snapshot.studentPets, [studentKey]: savedPet },
+          currencyBalances: savedBalances,
+          currencyHistory: appendCurrencyHistoryEntry(snapshot.currencyHistory, {
+            studentNumber,
+            before: latestBalance,
+            after: nextBalance,
+            reason: 'pet_feed',
+          }),
+        });
+        if (!stored) return false;
+      }
+
+      setCurrencyBalances(savedBalances);
+      setStudentPetStates((previous) => ({ ...previous, [studentKey]: savedPet }));
+      return true;
+    } catch (error) {
+      console.error('Failed to feed student pet.', error);
+      await refreshAuctionState();
+      return false;
+    } finally {
+      setIsPetSaving(false);
+    }
+  };
+
+  const saveStudentPet = async (nextPet: StudentPetState) => {
+    if (isPetSaving) return false;
+    setIsPetSaving(true);
+    try {
+      let savedPets = studentPetStates;
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          const currentPets = normalizeStudentPetStates(current.studentPets);
+          const currentPet = getStudentPetState(currentPets, studentNumber);
+          if (currentPet.fedAmount < STUDENT_PET_HATCH_AMOUNT) throw new Error('PET_NOT_HATCHED');
+          savedPets = normalizeStudentPetStates({
+            ...currentPets,
+            [studentKey]: { ...nextPet, fedAmount: currentPet.fedAmount },
+          });
+          return { ...current, studentPets: savedPets };
+        });
+      } else {
+        const snapshot = loadStoredStudentPetSnapshot();
+        const currentPet = getStudentPetState(snapshot.studentPets, studentNumber);
+        if (currentPet.fedAmount < STUDENT_PET_HATCH_AMOUNT) return false;
+        savedPets = normalizeStudentPetStates({
+          ...snapshot.studentPets,
+          [studentKey]: { ...nextPet, fedAmount: currentPet.fedAmount },
+        });
+        if (!storeStudentPetSnapshot({ ...snapshot, studentPets: savedPets })) return false;
+      }
+      setStudentPetStates(savedPets);
+      return true;
+    } catch (error) {
+      console.error('Failed to save student pet.', error);
+      return false;
+    } finally {
+      setIsPetSaving(false);
+    }
+  };
+
+  const nameStudentPet = (name: string) => saveStudentPet({
+    ...studentPet,
+    name: name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH),
+  });
+
+  const changeStudentPet = (petKind: StudentPetKind) => saveStudentPet({
+    ...studentPet,
+    petKind,
+  });
+
+  const moveStudentPet = (position: StudentPetState['position']) => saveStudentPet({
+    ...studentPet,
+    position,
+  });
 
   const saveStudentEmotion = useCallback(async (emotionId: StudentEmotionId, comment: string) => {
     if (isEmotionSaving) return false;
@@ -384,7 +552,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const refreshAuctionState = async () => {
     if (!isSupabaseSettingsEnabled) {
-      setCurrencyBalances(normalizeCurrencyBalances(null));
+      const localPetSnapshot = loadStoredStudentPetSnapshot();
+      setCurrencyBalances(localPetSnapshot.currencyBalances);
       setAuctionItems(normalizeAuctionItems(null));
       setAuctionBids(normalizeAuctionBids(null, AUCTION_ITEM_IDS));
       setAuctionBidHistory(normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
@@ -392,6 +561,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionMissions(getStoredAuctionMissions());
       setClassDonation(getClassDonationPublicState(null));
       setStudentEmotionHistory(loadStoredStudentEmotionHistory());
+      setStudentPetStates(localPetSnapshot.studentPets);
       setIsLoading(false);
       return;
     }
@@ -409,6 +579,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             currencyHistory?: unknown;
             classDonation?: unknown;
             studentEmotionHistory?: unknown;
+            studentPets?: unknown;
           })
         : {};
       setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
@@ -419,6 +590,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
       setClassDonation(getClassDonationPublicState(value.classDonation));
       setStudentEmotionHistory(normalizeStudentEmotionHistory(value.studentEmotionHistory));
+      setStudentPetStates(normalizeStudentPetStates(value.studentPets));
       const weekKey = getKoreanIsoWeekKey();
       setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
         (statuses, missionType) => ({
@@ -828,7 +1000,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
             isLoading={isLoading}
+            pet={studentPet}
+            isPetSaving={isPetSaving}
             todayEmotion={todayEmotion}
+            onFeedPet={feedStudentPet}
+            onNamePet={nameStudentPet}
+            onChangePet={changeStudentPet}
+            onMovePet={moveStudentPet}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}
             onOpenStore={() => navigateStudentView('store')}

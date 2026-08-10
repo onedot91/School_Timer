@@ -1,0 +1,41 @@
+# School Timer Pet Gate Review
+
+- recommendation: REJECT
+- blockers:
+  - violatedCriterion: ACCESSIBLE_INTERACTION
+    observation: 부화한 펫을 변경하는 picker가 포인터 `doubleClick`으로만 열리며 키보드 또는 일반 버튼 활성화 경로가 없다.
+    evidencePointer: `src/components/student/StudentPetStage.tsx:49-87` (`onDoubleClick`만 picker에 연결되고 포커스 가능한 button에는 `onClick`/Enter/Space picker 동작이 없음)
+- originalIntent: 학생 개요에 5고마 단위 먹이기, 100고마 부화, 단계별 알, 이름 지정, 5종 이모지 펫 변경, 16:9 배경 내 드래그 배치를 실제 기능으로 추가하고, 기존 Supabase JSONB/localStorage fallback·예약 고마 검증·동시 저장 병합을 유지한다. 1280px PC에서 불필요한 텍스트·겹침·낭비 여백 없이 직관적이고 접근 가능해야 한다.
+- desiredOutcome: 1280×800 학생 개요와 확인 모달이 겹침 없이 표시되고, 모든 펫 동작이 실제 컴포넌트 경로에서 포인터와 키보드로 조작되며, 먹이 차감은 최신 잔액과 예약액을 검증하고 동시 저장에 유실되지 않는다.
+- userOutcomeReview: 화면 구성, 먹이 확인, 단계형 알 자산, 5종 데이터, 이름 저장, 드래그/방향키 이동, Supabase/localStorage 저장과 동시성 보호는 구현되어 있다. 그러나 핵심 기능인 펫 변경 picker 진입이 더블클릭 전용이라 키보드 사용자는 기능을 완료할 수 없어 접근 가능한 상호작용 기준을 충족하지 못한다.
+- checkedArtifactPaths:
+  - `/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/pet-qa/overview-1280-final2.jpg`
+  - `/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/pet-qa/feed-modal-1280-final.jpg`
+  - `/Users/ibyeonghyeon/Downloads/ChatGPT Image 2026년 8월 10일 오전 02_53_56.png`
+  - `src/components/student/StudentPetCard.tsx`
+  - `src/components/student/StudentPetStage.tsx`
+  - `src/components/student/StudentOverviewPage.tsx`
+  - `src/pages/AuctionPage.tsx`
+  - `src/lib/studentPet.ts`
+  - `src/lib/currency.ts`
+  - `src/lib/weeklyMission.ts`
+  - `src/lib/weeklyMission.test.ts`
+  - `src/lib/supabaseSettings.ts`
+  - `src/index.css`
+  - `.omo/evidence/pet-visual-fidelity-gate-review.md`
+- verification:
+  - `npm run lint`: PASS (`tsc --noEmit`)
+  - `npm test -- --run src/lib/weeklyMission.test.ts`: PASS, 39/39 (프로젝트 script 특성상 lib/api 전체 테스트 실행)
+  - 1280 captures: stage/status 간 분리, CJK clipping 및 modal overlap 없음
+  - Supabase feed: CAS updater 안에서 최신 balance/bids/awards를 읽고 reservation 재계산 후 차감
+  - local fallback: 최신 pet snapshot과 balance/history를 함께 저장
+  - stale teacher merge: 원격 `pet_feed` ledger와 `studentPets` 보존 테스트 확인
+- slopOverfitReview: 직접 diff·production·test pass를 수행했다. 추가된 pet-feed 병합 테스트는 stale/remote 입력이 서로 달라 실제 동시성 선택을 검증하므로 tautology·삭제 확인형·구현 미러링 테스트가 아니다. 새 pet normalizer는 JSONB/localStorage 외부 경계에 필요하며 불필요한 parsing 추출로 보지 않는다. 신규 pet 컴포넌트는 실제 overview에서 사용된다. 기존 대형 모듈(`AuctionPage.tsx`, `currency.ts`, `weeklyMission.ts`)은 programming/remove-ai-slops 기준의 유지보수 NOTE이나, 이번 명시 기준 실패를 증명하지 않아 별도 blocker로 삼지 않았다.
+- reportCoverageReview: 기존 `.omo/evidence/pet-visual-fidelity-gate-review.md`에는 slop/overfit 직접 검토가 명시되어 있으나 기능·접근성·동시성 전체 범위의 code-review report는 발견되지 않았다. 본 직접 pass와 실행 증거로 기능/동시성은 확인했으며, 접근성 결함은 위 blocker로 기록했다.
+- exactEvidenceGaps:
+  - 제공된 캡처는 미부화 overview와 feed modal뿐이며, 부화·이름·5종 picker·드래그 완료 상태의 수동 캡처가 없다.
+  - 좁은 responsive breakpoint의 이번 펫 기능 캡처가 없다. 다만 사용자 명시 시각 타깃은 PC 1280px이므로 그 자체는 blocker가 아니다.
+  - 실제 Supabase 네트워크를 사용한 경쟁 저장 E2E는 없다. CAS 구현과 병합 단위 테스트로 확인했으며 별도 명시 artifact 요구가 없어 NOTE다.
+- notes:
+  - `StudentOverviewPage.tsx`는 236 pure LOC로 warning band이며 다음 확장 전 dialog 분리를 고려할 수 있으나 현재 성공 기준 차단 사유는 아니다.
+  - `omo ulw-loop status --json`은 현재 환경에서 command not found여서 규정에 따라 fallback report path를 사용했다.

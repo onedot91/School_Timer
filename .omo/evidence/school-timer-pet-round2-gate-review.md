@@ -1,0 +1,49 @@
+# School Timer Pet Round 2 Gate Review
+
+- recommendation: APPROVE
+- blockers: []
+- originalIntent: 학생 개요에 5고마 단위 먹이기, 누적 100고마 부화, 이름 지정, 5종 펫 변경, drag 및 keyboard 이동을 제공하고 불필요한 문구를 최소화한다. 이전 접근성 blocker였던 키보드 펫 변경 진입도 해소되어야 한다.
+- desiredOutcome: 1280×800 학생 개요와 먹이 확인 dialog가 겹침 없이 간결하게 보이고, 실제 저장 경로에서 5고마 차감·100고마 부화·이름·5종 선택·포인터/키보드 이동이 동작하며, 키보드 사용자가 펫 변경 picker를 열 수 있다.
+- userOutcomeReview: 요청 기능이 현재 source에 통합되어 있다. `StudentPetStage`의 포커스 가능한 button은 Enter/Space로 picker를 열고 방향키로 위치를 옮겨 저장하며, pointer capture drag도 완료 시 저장한다. 먹이는 5고마씩 차감되고 100고마에서 부화하며, 이름은 12자로 제한되고 5종 picker가 제공된다. Supabase 경로는 updater 안에서 최신 잔액과 예약액을 재검증하고, localStorage fallback은 pet·balance·history snapshot을 함께 저장한다. 제공된 1280 캡처에서는 overview와 modal의 겹침·잘림이 보이지 않고 문구도 간결하다.
+- checkedArtifactPaths:
+  - `/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/pet-qa/overview-1280-round2.jpg`
+  - `/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/pet-qa/feed-modal-1280-round2.jpg`
+  - `public/pet-egg-stages.png`
+  - `src/components/student/StudentPetStage.tsx`
+  - `src/components/student/StudentPetCard.tsx`
+  - `src/components/student/StudentOverviewPage.tsx`
+  - `src/pages/AuctionPage.tsx`
+  - `src/lib/studentPet.ts`
+  - `src/lib/currency.ts`
+  - `src/lib/weeklyMission.ts`
+  - `src/lib/weeklyMission.test.ts`
+  - `src/index.css`
+  - `.omo/evidence/pet-visual-fidelity-gate-review.md`
+  - `.omo/evidence/school-timer-pet-gate-review.md`
+- verification:
+  - `npm run lint`: PASS (`tsc --noEmit`)
+  - `npm test -- --run src/lib/weeklyMission.test.ts`: PASS, 39/39. 프로젝트 test script 특성상 `src/lib/*.test.ts`와 `api/*.test.ts` 전체가 실행됨.
+  - `npm run build`: PASS. 기존 Vite chunk-size warning만 발생.
+  - fresh captures: 1280×800 overview와 feed dialog에서 clipping, overlap, text collision 없음.
+  - keyboard picker regression: `StudentPetStage.tsx:31-35,63-88`에서 Enter/Space가 `onOpenPetPicker`를 호출함.
+  - keyboard movement: `StudentPetStage.tsx:37-51`에서 arrow key가 bounded position을 계산하고 `onMovePet`을 호출함.
+  - pointer movement: `StudentPetStage.tsx:73-87`에서 pointer capture 후 release 시 위치를 저장함.
+  - pet contract: `studentPet.ts:9-19`에 5고마, 100고마, 5종이 명시되고 `StudentOverviewPage.tsx:178-239`에 이름 및 picker dialog가 연결됨.
+  - persistence/integrity: `AuctionPage.tsx`의 feed updater가 최신 balance/reservation을 검사하고 `pet_feed` history를 기록하며, `weeklyMission.ts:304-318`이 concurrent pet feed와 remote pet state를 보존함.
+- slopOverfitReview: `omo:remove-ai-slops` 기준으로 scoped diff, production code, test를 직접 검토했다. 추가된 pet-feed 병합 테스트는 remote와 stale 입력을 다르게 두고 차감의 일회성 및 remote pet 보존을 검증하므로 deletion-only, requested-removal-only, tautological, implementation-mirroring test가 아니다. `studentPet` normalization은 Supabase JSONB/localStorage라는 외부 경계에 있으며 불필요한 parsing/extraction이 아니다. 새 pet components는 overview에서 직접 소비되고 dead abstraction이 아니다. 과도하거나 쓸모없는 추가 테스트는 발견하지 않았다.
+- programmingReview: 타입 억제(`any`, `@ts-ignore`, `@ts-expect-error`)나 새 의존성, 범위 밖 저장 계층은 추가되지 않았다. 기존 대형 파일인 `AuctionPage.tsx`, `currency.ts`, `weeklyMission.ts`, `index.css`와 249-line `StudentOverviewPage.tsx`는 유지보수 NOTE이나 이번 명시 성공 기준의 실패 증거는 아니다. 새 상호작용은 button/dialog/aria-modal/aria-labelledby/focus helper를 사용한다.
+- reportCoverageReview: 기존 `.omo/evidence/pet-visual-fidelity-gate-review.md`는 직접 slop/overfit 검토와 불필요한 extraction/normalization 점검을 명시한다. 기존 `.omo/evidence/school-timer-pet-gate-review.md`도 동일 기준을 직접 적용했으나 당시 keyboard picker 진입을 blocker로 기록했다. 이번 직접 pass는 해당 라인을 재검토해 blocker 수정과 동일 기준의 나머지 범위를 확인했다.
+- exactEvidenceGaps:
+  - fresh captures는 미부화 overview와 feed dialog만 포함하며, 부화 직후 이름 dialog, 5종 picker, drag/keyboard 이동 완료 상태의 fresh screenshot 또는 action log는 없다. source inspection으로 경로를 확인했으며 사용자 요청이 해당 캡처 artifact를 필수 criterion으로 지정하지 않아 NOTE다.
+  - 실제 Supabase 네트워크 경쟁 저장 E2E는 없다. updater 내부 재검증, merge production code, 39-test pass로 확인했으며 별도 필수 artifact criterion이 없어 NOTE다.
+  - exact UI reference는 제공되지 않았고 egg image만 asset reference이므로 pixel-match 판정은 적용할 수 없다.
+- findings:
+  - product: 명시 기능 및 이전 keyboard picker blocker가 source와 재현 검증 기준에서 충족됨. blocking finding 없음.
+  - evidence: 부화 후 interaction의 fresh visual/manual artifact는 부족하지만, 필수 성공 criterion과 연결되지 않아 non-blocking evidence gap으로 기록함.
+- whatIsGood:
+  - overview와 feed dialog가 1280×800에서 명확하고 간결하며 겹침이 없다.
+  - keyboard picker, arrow movement, pointer drag가 동일한 stage control에 응집되어 있다.
+  - 차감 시 최신 예약액을 고려하고 history 및 concurrent merge를 보존한다.
+  - 외부 persisted state는 경계에서 normalize되고 local fallback도 유지된다.
+- notes:
+  - ULW status 결과는 `ULW_LOOP_PLAN_MISSING`이므로 지침에 따라 `.omo/evidence/` fallback 경로를 사용했다.

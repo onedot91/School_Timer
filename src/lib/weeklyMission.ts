@@ -301,8 +301,23 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     nextHistory[studentKey] = [...missingDonations, ...nextHistory[studentKey]];
   });
 
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const missingPetFeeds = remoteHistory[studentKey].filter((entry) => (
+      entry.reason === 'pet_feed' && entry.delta < 0 && !existingIds.has(entry.id)
+    ));
+    if (missingPetFeeds.length === 0) return;
+
+    const nextBalance = nextBalances[studentKey]
+      + missingPetFeeds.reduce((total, entry) => total + entry.delta, 0);
+    if (nextBalance < 0) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    nextBalances[studentKey] = nextBalance;
+    nextHistory[studentKey] = [...missingPetFeeds, ...nextHistory[studentKey]];
+  });
+
   return {
     ...next,
+    studentPets: remote.studentPets ?? next.studentPets,
     currencyBalances: nextBalances,
     currencyHistory: nextHistory,
     auctionAwards: nextAwards,
