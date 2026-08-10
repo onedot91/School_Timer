@@ -6,6 +6,7 @@ import {
 } from './currency';
 
 export const STUDENT_PET_STORAGE_KEY = 'school-timer-student-pets-v1';
+export const STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY = 'school-timer-student-pet-position-overrides-v1';
 export const STUDENT_PET_FEED_AMOUNT = 5;
 export const STUDENT_PET_HATCH_AMOUNT = 100;
 export const STUDENT_PET_NAME_MAX_LENGTH = 12;
@@ -33,6 +34,7 @@ export interface StudentPetState {
   ownedPets: StudentPet[];
   activePetId: string | null;
   pendingNamePetId: string | null;
+  gomaPosition: { x: number; y: number };
   petKind: StudentPetKind | null;
   name: string;
   position: { x: number; y: number };
@@ -46,8 +48,17 @@ export interface StudentPetLocalSnapshot {
   currencyHistory: CurrencyHistory;
 }
 
+export interface StudentPetPositionOverride {
+  petId: string | null;
+  position: { x: number; y: number };
+  gomaPosition: { x: number; y: number };
+}
+
+export type StudentPetPositionOverrides = Record<string, StudentPetPositionOverride>;
+
 const PET_KIND_IDS = new Set<string>(STUDENT_PET_KINDS.map((pet) => pet.id));
 const DEFAULT_POSITION = { x: 0.5, y: 0.68 };
+const DEFAULT_GOMA_POSITION = { x: 0.24, y: 0.67 };
 
 const isPetKind = (value: unknown): value is StudentPetKind => (
   typeof value === 'string' && PET_KIND_IDS.has(value)
@@ -120,6 +131,7 @@ export const createDefaultStudentPetState = (): StudentPetState => withActivePet
   ownedPets: [],
   activePetId: null,
   pendingNamePetId: null,
+  gomaPosition: { ...DEFAULT_GOMA_POSITION },
 });
 
 export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
@@ -144,6 +156,7 @@ export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
     const legacyKind = isPetKind(state.petKind) ? state.petKind : null;
     const legacyName = typeof state.name === 'string' ? state.name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH) : '';
     const legacyPosition = normalizePosition(state.position);
+    const gomaPosition = normalizePosition(state.gomaPosition ?? DEFAULT_GOMA_POSITION);
 
     if (ownedPets.length === 0 && legacyKind) {
       ownedPets.push({
@@ -172,6 +185,7 @@ export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
       pendingNamePetId: shouldMigrateHatchedLegacyPet && !legacyName
         ? activePetId
         : requestedPendingNamePetId,
+      gomaPosition,
     });
     return states;
   }, {});
@@ -244,6 +258,116 @@ export const moveStudentPet = (state: StudentPetState, position: StudentPetState
       pet.id === normalizedState.activePetId ? { ...pet, position: nextPosition } : pet
     )),
   });
+};
+
+export const moveGomaCharacter = (state: StudentPetState, position: StudentPetState['gomaPosition']) => {
+  const normalizedState = getStudentPetState({ 1: state }, 1);
+  return withActivePet({
+    ...normalizedState,
+    gomaPosition: normalizePosition(position),
+  });
+};
+
+const normalizeStudentPetPositionOverrides = (input: unknown): StudentPetPositionOverrides => {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+
+  return Object.entries(input).reduce<StudentPetPositionOverrides>((overrides, [studentKey, rawOverride]) => {
+    const studentNumber = Number(studentKey);
+    if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) return overrides;
+    if (!rawOverride || typeof rawOverride !== 'object' || Array.isArray(rawOverride)) return overrides;
+    const override = rawOverride as Record<string, unknown>;
+    overrides[studentKey] = {
+      petId: typeof override.petId === 'string' && override.petId.trim().length > 0
+        ? override.petId.trim().slice(0, 64)
+        : null,
+      position: normalizePosition(override.position),
+      gomaPosition: normalizePosition(override.gomaPosition),
+    };
+    return overrides;
+  }, {});
+};
+
+export const loadStudentPetPositionOverrides = (): StudentPetPositionOverrides => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const saved = window.localStorage.getItem(STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY);
+    return saved ? normalizeStudentPetPositionOverrides(JSON.parse(saved)) : {};
+  } catch {
+    return {};
+  }
+};
+
+export const storeStudentPetPositionOverride = (studentNumber: number, state: StudentPetState) => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const overrides = loadStudentPetPositionOverrides();
+    const normalizedState = getStudentPetState({ [studentNumber]: state }, studentNumber);
+    overrides[String(studentNumber)] = {
+      petId: normalizedState.activePetId,
+      position: normalizedState.position,
+      gomaPosition: normalizedState.gomaPosition,
+    };
+    window.localStorage.setItem(STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY, JSON.stringify(overrides));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const arePositionsEqual = (
+  first: StudentPetPositionOverride,
+  second: StudentPetPositionOverride,
+) => (
+  first.petId === second.petId
+  && first.position.x === second.position.x
+  && first.position.y === second.position.y
+  && first.gomaPosition.x === second.gomaPosition.x
+  && first.gomaPosition.y === second.gomaPosition.y
+);
+
+export const clearStudentPetPositionOverride = (
+  studentNumber: number,
+  expectedState?: StudentPetState,
+) => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const overrides = loadStudentPetPositionOverrides();
+    const studentKey = String(studentNumber);
+    const existing = overrides[studentKey];
+    if (!existing) return true;
+    if (expectedState) {
+      const expected = getStudentPetState({ [studentKey]: expectedState }, studentNumber);
+      if (!arePositionsEqual(existing, {
+        petId: expected.activePetId,
+        position: expected.position,
+        gomaPosition: expected.gomaPosition,
+      })) return true;
+    }
+    delete overrides[studentKey];
+    window.localStorage.setItem(STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY, JSON.stringify(overrides));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const applyStudentPetPositionOverrides = (states: unknown): StudentPetStates => {
+  const normalizedStates = normalizeStudentPetStates(states);
+  const overrides = loadStudentPetPositionOverrides();
+
+  return Object.entries(overrides).reduce<StudentPetStates>((nextStates, [studentKey, override]) => {
+    const studentNumber = Number(studentKey);
+    const currentState = getStudentPetState(nextStates, studentNumber);
+    const ownedPets = currentState.ownedPets.map((pet) => (
+      pet.id === override.petId ? { ...pet, position: override.position } : pet
+    ));
+    nextStates[studentKey] = withActivePet({
+      ...currentState,
+      ownedPets,
+      gomaPosition: override.gomaPosition,
+    });
+    return nextStates;
+  }, normalizedStates);
 };
 
 export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {

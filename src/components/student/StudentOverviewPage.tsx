@@ -29,6 +29,7 @@ interface StudentOverviewPageProps {
   onNamePet: (name: string) => Promise<boolean>;
   onChangePet: (petId: string) => Promise<boolean>;
   onMovePet: (position: StudentPetState['position']) => Promise<boolean>;
+  onMoveGoma: (position: StudentPetState['gomaPosition']) => Promise<boolean>;
   onOpenEmotions: () => void;
   onOpenMissions: () => void;
   onOpenStore: () => void;
@@ -47,6 +48,7 @@ export default function StudentOverviewPage({
   onNamePet,
   onChangePet,
   onMovePet,
+  onMoveGoma,
   onOpenEmotions,
   onOpenMissions,
   onOpenStore,
@@ -90,6 +92,7 @@ export default function StudentOverviewPage({
             setActivePetDialog('picker');
           }}
           onMovePet={(position) => { void onMovePet(position); }}
+          onMoveGoma={(position) => { void onMoveGoma(position); }}
         />
         <div className="student-overview-status">
           <StudentBalanceSummary

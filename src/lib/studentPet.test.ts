@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   STUDENT_PET_HATCH_AMOUNT,
+  applyStudentPetPositionOverrides,
   feedStudentPetEgg,
   getStudentPetState,
   moveStudentPet,
+  moveGomaCharacter,
   nameStudentPet,
   normalizeStudentPetStates,
   selectStudentPet,
+  storeStudentPetPositionOverride,
 } from './studentPet';
 
 test('a completed legacy egg becomes an owned pet and starts a new egg', () => {
@@ -64,6 +67,56 @@ test('only an owned pet can be selected and moved', () => {
   assert.equal(selectStudentPet(pet, 'fox-1'), null);
   const moved = moveStudentPet(pet, { x: 0.7, y: 0.3 });
   assert.deepEqual(moved?.position, { x: 0.7, y: 0.3 });
+});
+
+test('Goma character position is saved independently from the active pet', () => {
+  const pet = getStudentPetState({ 2: { fedAmount: 0 } }, 2);
+  const moved = moveGomaCharacter(pet, { x: 0.72, y: 0.46 });
+
+  assert.deepEqual(moved.gomaPosition, { x: 0.72, y: 0.46 });
+  assert.deepEqual(moved.position, pet.position);
+});
+
+test('pending pet and Goma positions survive a shared-state reload', () => {
+  const storage = new Map<string, string>();
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+      },
+    },
+  });
+
+  try {
+    const storedPet = getStudentPetState({
+      2: {
+        ownedPets: [{ id: 'cat-1', kind: 'cat', name: '냥냥이', position: { x: 0.4, y: 0.6 } }],
+        activePetId: 'cat-1',
+        gomaPosition: { x: 0.3, y: 0.7 },
+      },
+    }, 2);
+    const movedPet = moveStudentPet(storedPet, { x: 0.74, y: 0.38 });
+    const movedState = moveGomaCharacter(movedPet!, { x: 0.62, y: 0.48 });
+
+    assert.equal(storeStudentPetPositionOverride(2, movedState), true);
+
+    const reloaded = applyStudentPetPositionOverrides({
+      2: {
+        ownedPets: [{ id: 'cat-1', kind: 'cat', name: '냥냥이', position: { x: 0.4, y: 0.6 } }],
+        activePetId: 'cat-1',
+        gomaPosition: { x: 0.3, y: 0.7 },
+      },
+    });
+
+    assert.deepEqual(reloaded['2']?.position, { x: 0.74, y: 0.38 });
+    assert.deepEqual(reloaded['2']?.gomaPosition, { x: 0.62, y: 0.48 });
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
 });
 
 test('a newly hatched pet needs a name before the name request is cleared', () => {

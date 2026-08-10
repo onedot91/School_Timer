@@ -68,13 +68,16 @@ import {
 import { useModalFocus } from '../lib/useModalFocus';
 import {
   STUDENT_PET_FEED_AMOUNT,
+  applyStudentPetPositionOverrides,
   feedStudentPetEgg,
   getStudentPetState,
   loadStoredStudentPetSnapshot,
   moveStudentPet,
+  moveGomaCharacter,
   nameStudentPet,
   normalizeStudentPetStates,
   selectStudentPet,
+  storeStudentPetPositionOverride,
   storeStudentPetSnapshot,
   type StudentPetState,
   type StudentPetStates,
@@ -168,15 +171,23 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     loadStoredStudentEmotionHistory,
   );
   const [studentPetStates, setStudentPetStates] = useState<StudentPetStates>(() => (
-    isSupabaseSettingsEnabled ? {} : loadStoredStudentPetSnapshot().studentPets
+    isSupabaseSettingsEnabled
+      ? applyStudentPetPositionOverrides({ [String(studentNumber)]: getStudentPetState({}, studentNumber) })
+      : loadStoredStudentPetSnapshot().studentPets
   ));
   const [isPetSaving, setIsPetSaving] = useState(false);
+  const studentPetStatesRef = useRef(studentPetStates);
+  const petPositionSaveQueueRef = useRef(Promise.resolve());
   const [isEmotionSaving, setIsEmotionSaving] = useState(false);
   const [weeklyMissionStatuses, setWeeklyMissionStatuses] = useState<WeeklyMissionStatuses>(() => (
     createWeeklyMissionStatuses('loading')
   ));
   const [hasWeeklyMissionSyncError, setHasWeeklyMissionSyncError] = useState(false);
   const [activeStudentView, setActiveStudentView] = useState<StudentView>(getStudentViewFromHash);
+
+  useEffect(() => {
+    studentPetStatesRef.current = studentPetStates;
+  }, [studentPetStates]);
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [bidAmountDrafts, setBidAmountDrafts] = useState<Record<string, string>>({});
   const [selectedItemId, setSelectedItemId] = useState(getInitialSelectedAuctionItemId);
@@ -508,8 +519,61 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const changeStudentPet = (petId: string) => saveStudentPet((currentPet) => selectStudentPet(currentPet, petId));
 
+  const saveStudentPetPosition = (
+    target: 'pet' | 'goma',
+    position: StudentPetState['position'],
+  ) => {
+    const currentPet = getStudentPetState(studentPetStatesRef.current, studentNumber);
+    const nextPet = target === 'pet'
+      ? moveStudentPet(currentPet, position)
+      : moveGomaCharacter(currentPet, position);
+    if (!nextPet) return Promise.resolve(false);
+
+    const nextPets = normalizeStudentPetStates({
+      ...studentPetStatesRef.current,
+      [studentKey]: nextPet,
+    });
+    studentPetStatesRef.current = nextPets;
+    setStudentPetStates(nextPets);
+
+    if (!isSupabaseSettingsEnabled) {
+      const snapshot = loadStoredStudentPetSnapshot();
+      return Promise.resolve(storeStudentPetSnapshot({ ...snapshot, studentPets: nextPets }));
+    }
+
+    storeStudentPetPositionOverride(studentNumber, nextPet);
+    const scheduledSave = petPositionSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          const currentPets = normalizeStudentPetStates(current.studentPets);
+          const currentPetAtSave = getStudentPetState(currentPets, studentNumber);
+          const savedPet = target === 'pet'
+            ? moveStudentPet(currentPetAtSave, position)
+            : moveGomaCharacter(currentPetAtSave, position);
+          if (!savedPet) throw new Error('PET_POSITION_UPDATE_REJECTED');
+          return {
+            ...current,
+            studentPets: normalizeStudentPetStates({ ...currentPets, [studentKey]: savedPet }),
+          };
+        });
+      });
+    petPositionSaveQueueRef.current = scheduledSave;
+    void scheduledSave.catch((error) => {
+      console.error('Failed to save student pet position.', error);
+    });
+    return Promise.resolve(true);
+  };
+
   const moveCurrentStudentPet = (position: StudentPetState['position']) => (
-    saveStudentPet((currentPet) => moveStudentPet(currentPet, position))
+    saveStudentPetPosition('pet', position)
+  );
+
+  const moveCurrentGomaCharacter = (position: StudentPetState['gomaPosition']) => (
+    saveStudentPetPosition('goma', position)
   );
 
   const saveStudentEmotion = useCallback(async (emotionId: StudentEmotionId, comment: string) => {
@@ -563,7 +627,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
     setClassDonation(getClassDonationPublicState(value.classDonation));
     setStudentEmotionHistory(normalizeStudentEmotionHistory(value.studentEmotionHistory));
-    setStudentPetStates(normalizeStudentPetStates(value.studentPets));
+    const normalizedPetStates = applyStudentPetPositionOverrides(value.studentPets);
+    studentPetStatesRef.current = normalizedPetStates;
+    setStudentPetStates(normalizedPetStates);
     const weekKey = getKoreanIsoWeekKey();
     setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
       (statuses, missionType) => ({
@@ -1041,6 +1107,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onNamePet={nameCurrentStudentPet}
             onChangePet={changeStudentPet}
             onMovePet={moveCurrentStudentPet}
+            onMoveGoma={moveCurrentGomaCharacter}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}
             onOpenStore={() => navigateStudentView('store')}

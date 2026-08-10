@@ -14044,7 +14044,7 @@ a[href]:active {
 
 .student-overview-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(24rem, 1fr);
   align-items: stretch;
   gap: clamp(0.75rem, 1.4vw, 1.25rem);
 }
@@ -14071,25 +14071,23 @@ a[href]:active {
   overflow: hidden;
   padding: 1rem 1.5rem;
   border-color: color-mix(in srgb, var(--apple-accent) 20%, var(--apple-separator));
-  background: var(--apple-surface);
+  background: url('/student-overview-home.png') center / cover no-repeat;
 }
 
 .student-character-stage-placeholder {
   position: absolute;
   inset: 0.65rem;
-  border: 2px dashed color-mix(in srgb, var(--apple-accent) 38%, var(--apple-separator));
+  border: 0;
   border-radius: var(--apple-radius-card);
-  background:
-    linear-gradient(135deg, transparent 49.7%, color-mix(in srgb, var(--apple-accent) 12%, transparent) 50%, transparent 50.3%),
-    linear-gradient(45deg, transparent 49.7%, color-mix(in srgb, var(--apple-accent) 12%, transparent) 50%, transparent 50.3%),
-    color-mix(in srgb, var(--apple-accent) 5%, var(--apple-surface));
+  background: transparent;
 }
 
 .student-overview-status {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: auto minmax(0, 20rem);
+  grid-template-rows: auto minmax(20rem, 1fr);
   align-self: start;
+  aspect-ratio: 32 / 27;
   gap: .75rem;
   min-width: 0;
 }
@@ -14879,6 +14877,14 @@ a[href]:active {
   justify-items: center;
 }
 
+.student-overview-status > .student-emotion-summary .student-emotion-summary-copy strong {
+  max-width: 12rem;
+  font-size: clamp(1.2rem, 1.9vw, 1.55rem);
+  line-height: 1.12;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
 .student-overview-status > .student-emotion-summary .student-emotion-summary-action {
   align-self: center;
   justify-self: center;
@@ -14994,7 +15000,7 @@ a[href]:active {
   background-position: calc(var(--student-pet-egg-stage) * 20%) center;
   background-size: 600% auto;
   mix-blend-mode: multiply;
-  transform: translateX(-5%);
+  transform: translateX(-3%);
 }
 
 .student-overview-status > .student-pet-card .student-pet-progress-row {
@@ -15009,6 +15015,12 @@ a[href]:active {
   height: .75rem;
 }
 
+@media (max-width: 70rem) and (min-width: 48.001rem) {
+  .student-overview-status {
+    grid-template-rows: auto minmax(15.5rem, 1fr);
+  }
+}
+
 @media (max-width: 39.999rem) {
   .student-overview-status {
     grid-template-columns: minmax(0, 1fr);
@@ -15018,6 +15030,7 @@ a[href]:active {
   .student-overview-status > .student-balance-summary {
     grid-column: 1;
   }
+
 }
 
 .student-pet-stage-character {
@@ -15039,6 +15052,23 @@ a[href]:active {
 .student-pet-stage-character:active { cursor: grabbing; transition: none; }
 .student-pet-stage-character > span { font-size: clamp(4.5rem, 8vw, 7rem); line-height: 1; filter: drop-shadow(0 .5rem .55rem rgba(42, 62, 54, .2)); }
 .student-pet-stage-character > strong { order: -1; color: var(--apple-text-primary); font-size: .9rem; font-weight: 950; line-height: 1; text-shadow: 0 .08rem .2rem rgba(255, 255, 255, .95), 0 0 .35rem rgba(255, 255, 255, .9); }
+
+.student-goma-stage-character {
+  position: absolute;
+  z-index: 1;
+  width: clamp(8rem, 18vw, 14rem);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: left 160ms ease-out, top 160ms ease-out;
+}
+
+.student-goma-stage-character:active { cursor: grabbing; transition: none; }
+.student-goma-stage-character > img { display: block; width: 100%; height: auto; filter: drop-shadow(0 .55rem .6rem rgba(42, 62, 54, .18)); pointer-events: none; }
 
 .student-pet-dialog-backdrop {
   position: fixed;
