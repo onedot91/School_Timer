@@ -14,7 +14,7 @@ import {
   parseWeeklyMissionResult,
 } from './weeklyMission';
 import { hasPersonalQuestionSubmission } from './questionSubmissionStatus';
-import { finalizeAuctionAwardInSettings } from './currency';
+import { claimDailyEmotionRewardInSettings, finalizeAuctionAwardInSettings, hasDailyEmotionReward } from './currency';
 
 test('Korean ISO week key matches the question site contract', () => {
   assert.equal(getKoreanIsoWeekKey(new Date('2026-07-13T03:25:42.181Z')), '2026-29');
@@ -130,6 +130,22 @@ test('stale settings saves preserve a concurrent weekly mission reward', () => {
 
   const mergedAgain = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
   assert.deepEqual(mergedAgain, merged);
+});
+
+test('stale settings saves preserve a concurrent daily emotion reward', () => {
+  const remote = claimDailyEmotionRewardInSettings({
+    currencyBalances: { 6: 200 },
+    currencyHistory: { 6: [] },
+  }, 6, '2026-08-11', '2026-08-11T01:00:00.000Z').value;
+
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, {
+    scheduleNotice: '수정된 공지',
+    currencyBalances: { 6: 200 },
+    currencyHistory: { 6: [] },
+  });
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['6'], 205);
+  assert.equal(hasDailyEmotionReward(merged.currencyHistory, 6, '2026-08-11'), true);
 });
 
 test('an intentional reset does not restore rewards from before the last sync', () => {

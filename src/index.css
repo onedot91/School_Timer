@@ -14798,7 +14798,7 @@ a[href]:active {
   --emotion-green-soft: #e6f1df;
   --student-character-stage-aspect-ratio: 16 / 9;
   --student-balance-compact-height: 4rem;
-  --student-emotion-summary-size: clamp(7.25rem, 9vw, 8rem);
+  --student-emotion-summary-size: clamp(8.5rem, 12vw, 10rem);
   --student-emotion-art-width: 6.5rem;
   --student-emotion-art-height: 6rem;
   --student-emotion-art-compact-width: 3.25rem;
@@ -14865,28 +14865,33 @@ a[href]:active {
 .student-overview-status > .student-emotion-summary {
   display: grid;
   grid-template-rows: auto auto;
-  align-content: center;
+  align-content: space-between;
   align-items: center;
   justify-content: stretch;
-  gap: .75rem;
-  padding: 1rem;
+  gap: .5rem;
+  padding: 1.25rem 1rem 1rem;
   text-align: center;
 }
 
 .student-overview-status > .student-emotion-summary .student-emotion-summary-copy {
+  align-self: start;
   justify-items: center;
 }
 
 .student-overview-status > .student-emotion-summary .student-emotion-summary-copy strong {
   max-width: 12rem;
-  font-size: clamp(1.2rem, 1.9vw, 1.55rem);
-  line-height: 1.12;
+  font-size: clamp(1.65rem, 2.7vw, 2.2rem);
+  line-height: 1.05;
   word-break: keep-all;
   text-wrap: balance;
 }
 
+.student-overview-status > .student-emotion-summary .student-emotion-summary-copy span {
+  font-size: 1.125rem;
+}
+
 .student-overview-status > .student-emotion-summary .student-emotion-summary-action {
-  align-self: center;
+  align-self: end;
   justify-self: center;
 }
 

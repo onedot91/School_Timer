@@ -120,7 +120,7 @@ export default function StudentOverviewPage({
         <StudentSectionCard
           tone="mission"
           icon={ClipboardCheck}
-          title="미션"
+          title="고마 벌기"
           actionLabel="미션 시작"
           onClick={onOpenMissions}
         />

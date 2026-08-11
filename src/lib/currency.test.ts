@@ -9,8 +9,10 @@ import {
   applyAuctionAwardToCurrencyState,
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
+  claimDailyEmotionRewardInSettings,
   finalizeAuctionAwardInSettings,
   getAuctionAwardsForDay,
+  hasDailyEmotionReward,
 } from './currency.ts';
 
 test('선택한 번호에만 화폐를 일괄 조정하고 중복 번호는 한 번만 반영한다', () => {
@@ -114,6 +116,26 @@ test('같은 낙찰은 공유 설정에서 한 번만 차감한다', () => {
   assert.equal(second.awarded, false);
   assert.equal(second.balances['7'], 70);
   assert.equal(second.history['7'].filter((entry) => entry.reason === 'auction_award').length, 1);
+});
+
+test('감정 구슬 일일 미션은 같은 날짜에 한 번만 5고마를 지급한다', () => {
+  // Given
+  const initial = {
+    currencyBalances: { 7: 100 },
+    currencyHistory: { 7: [] },
+  };
+
+  // When
+  const first = claimDailyEmotionRewardInSettings(initial, 7, '2026-08-11', '2026-08-11T01:00:00.000Z');
+  const second = claimDailyEmotionRewardInSettings(first.value, 7, '2026-08-11', '2026-08-11T02:00:00.000Z');
+
+  // Then
+  assert.equal(first.awarded, true);
+  assert.equal(first.balance, 105);
+  assert.equal(second.awarded, false);
+  assert.equal(second.balance, 105);
+  assert.equal(hasDailyEmotionReward(second.value.currencyHistory, 7, '2026-08-11'), true);
+  assert.equal(second.history['7'].filter((entry) => entry.reason === 'daily_emotion').length, 1);
 });
 
 test('잔액보다 큰 낙찰과 확정 중 변경된 입찰은 거부한다', () => {

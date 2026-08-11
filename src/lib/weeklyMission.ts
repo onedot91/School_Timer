@@ -261,6 +261,26 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     ];
   });
 
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const missingDailyEmotionRewards = remoteHistory[studentKey].filter((entry) => (
+      entry.reason === 'daily_emotion' && entry.delta > 0 && !existingIds.has(entry.id)
+    ));
+
+    if (missingDailyEmotionRewards.length === 0) return;
+
+    const rewardAmount = missingDailyEmotionRewards.reduce((total, entry) => total + entry.delta, 0);
+    const nextBalance = nextBalances[studentKey] + rewardAmount;
+    if (nextBalance > CURRENCY_BALANCE_MAX) {
+      throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    }
+    nextBalances[studentKey] = nextBalance;
+    nextHistory[studentKey] = [
+      ...missingDailyEmotionRewards,
+      ...nextHistory[studentKey],
+    ];
+  });
+
   Object.entries(remoteAwards).forEach(([itemId, award]) => {
     if (!award || nextAwards[itemId]) return;
     const awardKey = `${award.itemId}:${award.awardedAt}`;

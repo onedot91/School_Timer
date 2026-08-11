@@ -27,12 +27,15 @@ import {
   normalizeCurrencyBalances,
   normalizeCurrencyHistory,
   appendCurrencyHistoryEntry,
+  claimDailyEmotionRewardInSettings,
+  hasDailyEmotionReward,
   type AuctionAwards,
   type AuctionBidHistory,
   type AuctionItem,
   type AuctionMission,
   type AuctionBids,
   type CurrencyBalances,
+  type CurrencyHistory,
 } from '../lib/currency';
 import {
   isSupabaseSettingsEnabled,
@@ -160,6 +163,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     isSupabaseSettingsEnabled
       ? normalizeCurrencyBalances(null)
       : loadStoredStudentPetSnapshot().currencyBalances
+  ));
+  const [currencyHistory, setCurrencyHistory] = useState<CurrencyHistory>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeCurrencyHistory(null)
+      : loadStoredStudentPetSnapshot().currencyHistory
   ));
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
@@ -378,6 +386,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const todayEmotionEntry = getTodayStudentEmotionEntry(studentEmotionHistory, studentNumber);
   const studentEmotionEntries = getStudentEmotionEntries(studentEmotionHistory, studentNumber);
   const todayEmotion = getStudentEmotion(todayEmotionEntry?.emotionId);
+  const hasCompletedDailyEmotionMission = todayEmotionEntry !== null
+    && hasDailyEmotionReward(currencyHistory, studentNumber, todayEmotionEntry.dateKey);
   const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
   const activeAuctionItemIds = auctionItems.map((item) => item.id);
   const reservedAmount = getReservedAuctionBidAmount(
@@ -581,8 +591,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setIsEmotionSaving(true);
     try {
       const entry = createStudentEmotionEntry(studentNumber, emotionId, comment, new Date(), todayEmotionEntry);
+      let savedHistory: StudentEmotionHistory = {};
+      let savedCurrencyHistory: CurrencyHistory = currencyHistory;
+      let savedBalances = currencyBalances;
       if (isSupabaseSettingsEnabled) {
-        let savedHistory: StudentEmotionHistory = {};
         await updateSharedSettings((currentValue) => {
           const current = currentValue && typeof currentValue === 'object'
             ? currentValue as Record<string, unknown>
@@ -591,14 +603,32 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             mergeStudentEmotionHistories(current.studentEmotionHistory, studentEmotionHistory),
             entry,
           );
-          return { ...current, studentEmotionHistory: savedHistory };
+          const reward = claimDailyEmotionRewardInSettings(
+            { ...current, studentEmotionHistory: savedHistory },
+            studentNumber,
+            entry.dateKey,
+            entry.updatedAt,
+          );
+          savedBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
+          savedCurrencyHistory = reward.history;
+          return reward.value;
         });
-        setStudentEmotionHistory(savedHistory);
       } else {
-        const savedHistory = upsertStudentEmotionEntry(studentEmotionHistory, entry);
+        savedHistory = upsertStudentEmotionEntry(studentEmotionHistory, entry);
         if (!storeStudentEmotionHistory(savedHistory)) return false;
-        setStudentEmotionHistory(savedHistory);
+        const snapshot = loadStoredStudentPetSnapshot();
+        const reward = claimDailyEmotionRewardInSettings(snapshot, studentNumber, entry.dateKey, entry.updatedAt);
+        savedBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
+        savedCurrencyHistory = reward.history;
+        if (reward.awarded && !storeStudentPetSnapshot({
+          ...snapshot,
+          currencyBalances: savedBalances,
+          currencyHistory: savedCurrencyHistory,
+        })) return false;
       }
+      setStudentEmotionHistory(savedHistory);
+      setCurrencyBalances(savedBalances);
+      setCurrencyHistory(savedCurrencyHistory);
       return true;
     } catch (error) {
       console.error('Failed to save student emotion.', error);
@@ -606,7 +636,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     } finally {
       setIsEmotionSaving(false);
     }
-  }, [isEmotionSaving, studentEmotionHistory, studentNumber, todayEmotionEntry]);
+  }, [currencyBalances, currencyHistory, isEmotionSaving, studentEmotionHistory, studentNumber, todayEmotionEntry]);
 
   const selectedItem = useMemo(
     () => {
@@ -620,6 +650,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const applySharedSettingsValue = useCallback((value: SharedSettingsValue) => {
     setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
+    setCurrencyHistory(normalizeCurrencyHistory(value.currencyHistory));
     setAuctionItems(normalizeAuctionItems(value.auctionItems));
     setAuctionBids(normalizeAuctionBids(value.auctionBids, AUCTION_ITEM_IDS));
     setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
@@ -646,6 +677,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     if (!isSupabaseSettingsEnabled) {
       const localPetSnapshot = loadStoredStudentPetSnapshot();
       setCurrencyBalances(localPetSnapshot.currencyBalances);
+      setCurrencyHistory(localPetSnapshot.currencyHistory);
       setAuctionItems(normalizeAuctionItems(null));
       setAuctionBids(normalizeAuctionBids(null, AUCTION_ITEM_IDS));
       setAuctionBidHistory(normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
@@ -1127,6 +1159,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             auctionMissions={auctionMissions}
             weeklyMissionStatuses={weeklyMissionStatuses}
             hasSyncError={hasWeeklyMissionSyncError}
+            isDailyEmotionMissionCompleted={hasCompletedDailyEmotionMission}
+            onOpenEmotions={() => navigateStudentView('emotions')}
             onBack={() => navigateStudentView('overview')}
           />
         ) : null}

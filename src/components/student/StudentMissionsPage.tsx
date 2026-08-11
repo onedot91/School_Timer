@@ -10,6 +10,8 @@ interface StudentMissionsPageProps {
   auctionMissions: AuctionMission[];
   weeklyMissionStatuses: WeeklyMissionStatuses;
   hasSyncError: boolean;
+  isDailyEmotionMissionCompleted: boolean;
+  onOpenEmotions: () => void;
   onBack: () => void;
 }
 
@@ -17,6 +19,8 @@ export default function StudentMissionsPage({
   auctionMissions,
   weeklyMissionStatuses,
   hasSyncError,
+  isDailyEmotionMissionCompleted,
+  onOpenEmotions,
   onBack,
 }: StudentMissionsPageProps) {
   const completedWeeklyMissionCount = WEEKLY_MISSION_DEFINITIONS.filter(
@@ -38,25 +42,29 @@ export default function StudentMissionsPage({
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
           <div className="student-group-heading">
             <h2 id="daily-mission-title">일일 미션</h2>
-            <strong>{auctionMissions.length}개</strong>
+            <strong>{auctionMissions.length + 1}개</strong>
           </div>
-          {auctionMissions.length > 0 ? (
-            <div className="student-mission-grid">
-              {auctionMissions.map((mission) => (
-                <div key={mission.id}>
-                  <StudentMissionCard
-                    title={mission.content}
-                    description="교실에서 수행한 뒤 선생님의 안내에 따라 확인받으세요."
-                    rewardAmount={mission.rewardAmount}
-                    status="incomplete"
-                    actionLabel="교실에서 수행"
-                  />
-                </div>
-              ))}
+          <div className="student-mission-grid">
+            <div>
+              <StudentMissionCard
+                title="감정 구슬 넣기"
+                rewardAmount={5}
+                status={isDailyEmotionMissionCompleted ? 'completed' : 'incomplete'}
+                actionLabel={isDailyEmotionMissionCompleted ? '감정 다시 고르기' : '감정 고르기'}
+                onAction={onOpenEmotions}
+              />
             </div>
-          ) : (
-            <div className="student-empty-state">지금 등록된 일일 미션이 없습니다.</div>
-          )}
+            {auctionMissions.map((mission) => (
+              <div key={mission.id}>
+                <StudentMissionCard
+                  title={mission.content}
+                  rewardAmount={mission.rewardAmount}
+                  status="incomplete"
+                  actionLabel="교실에서 수행"
+                />
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="student-mission-group" aria-labelledby="weekly-mission-title">
@@ -69,7 +77,6 @@ export default function StudentMissionsPage({
               <div key={mission.type}>
                 <StudentMissionCard
                   title={mission.label}
-                  description={mission.description}
                   rewardAmount={mission.rewardAmount}
                   status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
                   destinationUrl={mission.destinationUrl}

@@ -5,10 +5,10 @@ export type StudentMissionStatus = 'incomplete' | 'loading' | 'completed' | 'una
 
 interface StudentMissionCardProps {
   title: string;
-  description: string;
   rewardAmount: number;
   status: StudentMissionStatus;
   destinationUrl?: string;
+  onAction?: () => void;
   actionLabel: string;
 }
 
@@ -22,10 +22,10 @@ const STATUS_CONTENT: Record<StudentMissionStatus, { label: string; icon: typeof
 
 export default function StudentMissionCard({
   title,
-  description,
   rewardAmount,
   status,
   destinationUrl,
+  onAction,
   actionLabel,
 }: StudentMissionCardProps) {
   const statusContent = STATUS_CONTENT[status];
@@ -42,7 +42,6 @@ export default function StudentMissionCard({
       </div>
       <div className="student-mission-copy">
         <h3>{title}</h3>
-        <p>{description}</p>
         {status === 'completed' ? <span className="student-mission-awarded">보상 지급 완료</span> : null}
       </div>
       {destinationUrl ? (
@@ -56,6 +55,10 @@ export default function StudentMissionCard({
           <span>{actionLabel}</span>
           <ExternalLink size={18} aria-hidden="true" />
         </a>
+      ) : onAction ? (
+        <button type="button" className="student-mission-action" onClick={onAction}>
+          {actionLabel}
+        </button>
       ) : (
         <button type="button" className="student-mission-action" disabled>
           {actionLabel}

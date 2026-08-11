@@ -7,6 +7,7 @@ export type CurrencyHistoryReason =
   | 'allowance'
   | 'auction_award'
   | 'weekly_mission'
+  | 'daily_emotion'
   | 'class_donation'
   | 'pet_feed'
   | 'bulk_adjust';
@@ -73,6 +74,7 @@ export const CURRENCY_BALANCE_MIN = 0;
 export const CURRENCY_BALANCE_MAX = 999999;
 export const CURRENCY_BALANCE_STEP = 5;
 export const CURRENCY_UNIT_LABEL = '고마';
+export const DAILY_EMOTION_MISSION_REWARD = 5;
 export const AUCTION_BID_STEP = 1;
 export const AUCTION_MISSIONS_STORAGE_KEY = 'auctionMissions-v1';
 export const AUCTION_MISSION_CONTENT_MAX_LENGTH = 80;
@@ -235,6 +237,7 @@ const CURRENCY_HISTORY_REASONS = [
   'allowance',
   'auction_award',
   'weekly_mission',
+  'daily_emotion',
   'class_donation',
   'pet_feed',
   'bulk_adjust',
@@ -309,6 +312,73 @@ export const appendCurrencyHistoryEntry = (
       },
       ...(normalizedHistory[studentKey] ?? []),
     ],
+  };
+};
+
+const getDailyEmotionRewardId = (studentNumber: number, dateKey: string) => (
+  `daily-emotion-${studentNumber}-${dateKey}`
+);
+
+export const hasDailyEmotionReward = (
+  currencyHistory: unknown,
+  studentNumber: number,
+  dateKey: string,
+) => (
+  normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
+).some((entry) => entry.id === getDailyEmotionRewardId(studentNumber, dateKey));
+
+export const claimDailyEmotionRewardInSettings = (
+  value: unknown,
+  studentNumber: number,
+  dateKey: string,
+  createdAt = new Date().toISOString(),
+): {
+  value: Record<string, unknown>;
+  awarded: boolean;
+  balance: number;
+  history: CurrencyHistory;
+} => {
+  const current = value && typeof value === 'object'
+    ? { ...(value as Record<string, unknown>) }
+    : {};
+  const balances = normalizeCurrencyBalances(current.currencyBalances);
+  const history = normalizeCurrencyHistory(current.currencyHistory);
+  const studentKey = String(studentNumber);
+  const rewardId = getDailyEmotionRewardId(studentNumber, dateKey);
+  const existingEntries = history[studentKey] ?? [];
+  const before = balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+
+  if (existingEntries.some((entry) => entry.id === rewardId) || before > CURRENCY_BALANCE_MAX - DAILY_EMOTION_MISSION_REWARD) {
+    return { value: current, awarded: false, balance: before, history };
+  }
+
+  const after = before + DAILY_EMOTION_MISSION_REWARD;
+  const nextHistory = {
+    ...history,
+    [studentKey]: [
+      {
+        id: rewardId,
+        studentNumber,
+        delta: DAILY_EMOTION_MISSION_REWARD,
+        before,
+        after,
+        reason: 'daily_emotion' as const,
+        createdAt,
+      },
+      ...existingEntries,
+    ],
+  };
+  const nextBalances = { ...balances, [studentKey]: after };
+
+  return {
+    value: {
+      ...current,
+      currencyBalances: nextBalances,
+      currencyHistory: nextHistory,
+    },
+    awarded: true,
+    balance: after,
+    history: nextHistory,
   };
 };
 
