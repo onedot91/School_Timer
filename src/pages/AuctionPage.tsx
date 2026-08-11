@@ -4,8 +4,11 @@ import { animate as animateMotion, motion, useMotionValue, useReducedMotion, use
 import AuctionRoom from '../components/AuctionRoom';
 import StudentEmotionPage from '../components/student/StudentEmotionPage';
 import StudentMissionsPage from '../components/student/StudentMissionsPage';
+import StudentMailboxPage from '../components/student/StudentMailboxPage';
+import StudentLibraryPage from '../components/student/StudentLibraryPage';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentStorePage from '../components/student/StudentStorePage';
+import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
   AUCTION_BID_STEP,
   AUCTION_ITEM_IDS,
@@ -86,6 +89,13 @@ import {
   type StudentPetStates,
 } from '../lib/studentPet';
 import {
+  applyStudentEconomyAction,
+  getStudentEconomyState,
+  normalizeStudentEconomyStates,
+  type StudentEconomyAction,
+  type StudentEconomyStates,
+} from '../lib/studentEconomy';
+import {
   createWeeklyMissionStatuses,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   getKoreanIsoWeekKey,
@@ -101,12 +111,24 @@ import {
   STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
 } from '../lib/studentSettingsSync';
+import {
+  addStudentBook,
+  createStudentLetter,
+  getStudentBooks,
+  getStudentLetters,
+  getUnreadStudentLetterCount,
+  loadStoredStudentLifeState,
+  markStudentLetterRead,
+  normalizeStudentLifeState,
+  storeStudentLifeState,
+  type StudentLifeState,
+} from '../lib/studentLife';
 
 interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'store';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'mailbox' | 'library' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -119,20 +141,42 @@ type SharedSettingsValue = {
   classDonation?: unknown;
   studentEmotionHistory?: unknown;
   studentPets?: unknown;
+  studentEconomy?: unknown;
+  studentLife?: unknown;
 };
 
 const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   overview: '#student-overview',
   emotions: '#student-emotions',
   missions: '#student-missions',
+  mailbox: '#student-mailbox',
+  library: '#student-library',
   store: '#student-store',
+  'store-bank': '#student-store-bank',
+  'store-shop': '#student-store-shop',
+  'store-auction': '#student-store-auction',
+  'store-securities': '#student-store-securities',
+  'store-donation': '#student-store-donation',
 };
+
+const STORE_VIEW_BY_SECTION: Record<StudentStoreSection, StudentView> = {
+  plaza: 'store',
+  bank: 'store-bank',
+  shop: 'store-shop',
+  auction: 'store-auction',
+  securities: 'store-securities',
+  donation: 'store-donation',
+};
+
+const getStoreSection = (view: StudentView): StudentStoreSection => (
+  Object.entries(STORE_VIEW_BY_SECTION).find(([, storeView]) => storeView === view)?.[0] as StudentStoreSection | undefined
+) ?? 'plaza';
+
+const isStudentStoreView = (view: StudentView) => view === 'store' || view.startsWith('store-');
 
 const getStudentViewFromHash = (): StudentView => {
   const matchedView = Object.entries(STUDENT_VIEW_HASHES).find(([, hash]) => hash === window.location.hash)?.[0];
-  return matchedView === 'emotions' || matchedView === 'missions' || matchedView === 'store'
-    ? matchedView
-    : 'overview';
+  return matchedView && matchedView in STUDENT_VIEW_HASHES ? matchedView as StudentView : 'overview';
 };
 
 const getStoredAuctionMissions = (): AuctionMission[] => {
@@ -183,7 +227,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       ? applyStudentPetPositionOverrides({ [String(studentNumber)]: getStudentPetState({}, studentNumber) })
       : loadStoredStudentPetSnapshot().studentPets
   ));
+  const [studentEconomyStates, setStudentEconomyStates] = useState<StudentEconomyStates>(() => (
+    isSupabaseSettingsEnabled ? {} : loadStoredStudentPetSnapshot().studentEconomy
+  ));
+  const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
+    isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
+  ));
+  const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
   const [isPetSaving, setIsPetSaving] = useState(false);
+  const [isEconomySaving, setIsEconomySaving] = useState(false);
   const studentPetStatesRef = useRef(studentPetStates);
   const petPositionSaveQueueRef = useRef(Promise.resolve());
   const [isEmotionSaving, setIsEmotionSaving] = useState(false);
@@ -398,6 +450,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     activeAuctionItemIds,
   );
   const availableBalance = Math.max(0, balance - reservedAmount);
+  const activeStoreSection = getStoreSection(activeStudentView);
+  const studentEconomy = getStudentEconomyState(studentEconomyStates, studentNumber);
   const maximumDonation = getClassDonationMaximum(classDonation, availableBalance);
   const hasCompletedClassDonation = isClassDonationCompleted(classDonation);
   const shouldShowClassDonation = classDonation.enabled || hasCompletedClassDonation;
@@ -407,6 +461,46 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && donationAmount <= maximumDonation;
   const visibleDayCount = getAuctionVisibleDayCount();
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
+  const studentLetters = getStudentLetters(studentLife, studentNumber);
+  const studentBooks = getStudentBooks(studentLife, studentNumber);
+  const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber);
+
+  const saveStudentLifeChange = async (change: (current: StudentLifeState) => StudentLifeState) => {
+    if (isStudentLifeSaving) return false;
+    setIsStudentLifeSaving(true);
+    try {
+      let saved = studentLife;
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object' ? currentValue as Record<string, unknown> : {};
+          saved = change(normalizeStudentLifeState(current.studentLife));
+          return { ...current, studentLife: saved };
+        });
+      } else {
+        saved = change(loadStoredStudentLifeState());
+        storeStudentLifeState(saved);
+      }
+      setStudentLife(saved);
+      return true;
+    } catch (error) {
+      if (error instanceof Error) return false;
+      throw error;
+    } finally {
+      setIsStudentLifeSaving(false);
+    }
+  };
+
+  const sendStudentLetter = (recipient: number, title: string, content: string, replyToId?: string) => saveStudentLifeChange((current) => createStudentLetter(current, {
+    id: crypto.randomUUID(), recipient, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
+  }));
+
+  const readStudentLetter = async (letterId: string) => {
+    await saveStudentLifeChange((current) => markStudentLetterRead(current, studentNumber, letterId, new Date().toISOString()));
+  };
+
+  const addStudentBookEntry = (title: string, pageCount: number) => saveStudentLifeChange((current) => addStudentBook(current, {
+    id: crypto.randomUUID(), studentNumber, title, pageCount, createdAt: new Date().toISOString(),
+  }));
 
   const feedStudentPet = async () => {
     if (isPetSaving) return false;
@@ -468,6 +562,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             after: nextBalance,
             reason: 'pet_feed',
           }),
+          studentEconomy: snapshot.studentEconomy,
         });
         if (!stored) return false;
       }
@@ -661,6 +756,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const normalizedPetStates = applyStudentPetPositionOverrides(value.studentPets);
     studentPetStatesRef.current = normalizedPetStates;
     setStudentPetStates(normalizedPetStates);
+    setStudentEconomyStates(normalizeStudentEconomyStates(value.studentEconomy));
+    setStudentLife(normalizeStudentLifeState(value.studentLife));
     const weekKey = getKoreanIsoWeekKey();
     setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
       (statuses, missionType) => ({
@@ -686,6 +783,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setClassDonation(getClassDonationPublicState(null));
       setStudentEmotionHistory(loadStoredStudentEmotionHistory());
       setStudentPetStates(localPetSnapshot.studentPets);
+      setStudentEconomyStates(localPetSnapshot.studentEconomy);
+      setStudentLife(loadStoredStudentLifeState());
       setIsLoading(false);
       return;
     }
@@ -730,10 +829,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const refreshWhenVisible = (forceFull = false) => {
       if (document.visibilityState === 'visible') void refreshAuctionState({ forceFull });
     };
-    const isEntryRefreshView = activeStudentView === 'emotions' || activeStudentView === 'missions';
-    refreshWhenVisible(activeStudentView === 'store' || isEntryRefreshView);
+    const isEntryRefreshView = activeStudentView === 'emotions'
+      || activeStudentView === 'missions'
+      || activeStudentView === 'mailbox'
+      || activeStudentView === 'library';
+    refreshWhenVisible(isStudentStoreView(activeStudentView) || isEntryRefreshView);
 
-    const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[activeStudentView];
+    const syncView = isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
+    const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView];
     const intervalId = intervalMs === undefined
       ? undefined
       : window.setInterval(() => refreshWhenVisible(), intervalMs);
@@ -1122,6 +1225,113 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
+  const runStudentEconomyAction = async (action: StudentEconomyAction) => {
+    if (isEconomySaving) return false;
+    setIsEconomySaving(true);
+    const requestId = `student-economy-${studentNumber}-${crypto.randomUUID()}`;
+    try {
+      let savedBalance = balance;
+      let savedHistory = currencyHistory;
+      let savedEconomyStates = studentEconomyStates;
+      let resultMessage = '';
+
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          const currentBalances = normalizeCurrencyBalances(current.currencyBalances);
+          const currentHistory = normalizeCurrencyHistory(current.currencyHistory);
+          const currentEconomyStates = normalizeStudentEconomyStates(current.studentEconomy);
+          const currentBids = normalizeAuctionBids(current.auctionBids, AUCTION_ITEM_IDS);
+          const currentAwards = normalizeAuctionAwards(current.auctionAwards, AUCTION_ITEM_IDS);
+          const currentWallet = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+          const currentReserved = getReservedAuctionBidAmount(
+            currentBids,
+            studentNumber,
+            undefined,
+            currentAwards,
+            activeAuctionItemIds,
+          );
+          const result = applyStudentEconomyAction({
+            state: currentEconomyStates[studentKey],
+            action,
+            wallet: currentWallet,
+            availableWallet: Math.max(0, currentWallet - currentReserved),
+            requestId,
+          });
+          savedBalance = result.wallet;
+          resultMessage = result.message;
+          savedEconomyStates = { ...currentEconomyStates, [studentKey]: result.state };
+          savedHistory = result.applied && result.wallet !== currentWallet
+            ? appendCurrencyHistoryEntry(currentHistory, {
+                studentNumber,
+                before: currentWallet,
+                after: result.wallet,
+                reason: result.reason,
+              })
+            : currentHistory;
+          return {
+            ...current,
+            currencyBalances: { ...currentBalances, [studentKey]: result.wallet },
+            currencyHistory: savedHistory,
+            studentEconomy: savedEconomyStates,
+          };
+        });
+      } else {
+        const snapshot = loadStoredStudentPetSnapshot();
+        const currentWallet = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+        const result = applyStudentEconomyAction({
+          state: snapshot.studentEconomy[studentKey],
+          action,
+          wallet: currentWallet,
+          availableWallet: Math.max(0, currentWallet - reservedAmount),
+          requestId,
+        });
+        savedBalance = result.wallet;
+        resultMessage = result.message;
+        savedEconomyStates = { ...snapshot.studentEconomy, [studentKey]: result.state };
+        savedHistory = result.applied && result.wallet !== currentWallet
+          ? appendCurrencyHistoryEntry(snapshot.currencyHistory, {
+              studentNumber,
+              before: currentWallet,
+              after: result.wallet,
+              reason: result.reason,
+            })
+          : snapshot.currencyHistory;
+        if (!storeStudentPetSnapshot({
+          ...snapshot,
+          currencyBalances: { ...snapshot.currencyBalances, [studentKey]: result.wallet },
+          currencyHistory: savedHistory,
+          studentEconomy: savedEconomyStates,
+        })) return false;
+      }
+
+      setCurrencyBalances((previous) => ({ ...previous, [studentKey]: savedBalance }));
+      setCurrencyHistory(savedHistory);
+      setStudentEconomyStates(savedEconomyStates);
+      showStatusMessage(resultMessage);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      const userMessage = message === 'INSUFFICIENT_AVAILABLE_CURRENCY'
+        ? '사용 가능한 고마가 부족합니다.'
+        : message === 'INSUFFICIENT_BANK_BALANCE'
+          ? '예금 잔액이 부족합니다.'
+          : message === 'EXCESSIVE_LOAN_REPAYMENT'
+            ? '대출 잔액보다 많이 갚을 수 없습니다.'
+            : message === 'NO_STOCK_HOLDING'
+              ? '보유한 주식이 없습니다.'
+              : message === 'HOUSE_ALREADY_REPAIRED'
+                ? '이미 집을 고쳤습니다.'
+              : '처리하지 못했습니다. 다시 시도해 주세요.';
+      showStatusMessage(userMessage);
+      return false;
+    } finally {
+      setIsEconomySaving(false);
+    }
+  };
+
   return (
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5">
       <main className="mx-auto w-full max-w-7xl">
@@ -1135,6 +1345,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             pet={studentPet}
             isPetSaving={isPetSaving}
             todayEmotion={todayEmotion}
+            hasUnreadMail={unreadLetterCount > 0}
+            isHouseRepaired={(studentEconomy.inventory.house_repair ?? 0) > 0}
             onFeedPet={feedStudentPet}
             onNamePet={nameCurrentStudentPet}
             onChangePet={changeStudentPet}
@@ -1143,6 +1355,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}
             onOpenStore={() => navigateStudentView('store')}
+            onOpenMailbox={() => navigateStudentView('mailbox')}
+            onOpenLibrary={() => navigateStudentView('library')}
           />
         ) : null}
         {activeStudentView === 'emotions' ? (
@@ -1164,13 +1378,44 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onBack={() => navigateStudentView('overview')}
           />
         ) : null}
-        {activeStudentView === 'store' ? (
+        {activeStudentView === 'mailbox' ? (
+          <StudentMailboxPage
+            studentNumber={studentNumber}
+            letters={studentLetters}
+            isSaving={isStudentLifeSaving}
+            onRead={readStudentLetter}
+            onSend={sendStudentLetter}
+            onBack={() => navigateStudentView('overview')}
+          />
+        ) : null}
+        {activeStudentView === 'library' ? (
+          <StudentLibraryPage
+            books={studentBooks}
+            isSaving={isStudentLifeSaving}
+            onAdd={addStudentBookEntry}
+            onBack={() => navigateStudentView('overview')}
+          />
+        ) : null}
+        {isStudentStoreView(activeStudentView) ? (
           <StudentStorePage
             balance={balance}
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
             isLoading={isLoading}
-            onBack={() => navigateStudentView('overview')}
+            section={activeStoreSection}
+            economyState={studentEconomy}
+            isEconomySaving={isEconomySaving}
+            donation={{
+              totalAmount: classDonation.totalAmount,
+              targetAmount: classDonation.targetAmount,
+              canDonate: shouldShowClassDonation && maximumDonation >= 1 && !isLoading,
+              isCompleted: hasCompletedClassDonation,
+              triggerRef: donationTriggerRef,
+              onDonate: openDonation,
+            }}
+            onEconomyAction={runStudentEconomyAction}
+            onOpenSection={(section) => navigateStudentView(STORE_VIEW_BY_SECTION[section])}
+            onBack={() => navigateStudentView(activeStoreSection === 'plaza' ? 'overview' : 'store')}
           >
           <AuctionRoom
           auctionItems={auctionItems}
@@ -1186,46 +1431,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           isLoading={isLoading}
           showStudentSummary={false}
           onSelectItem={selectItem}
-          donationWidget={shouldShowClassDonation ? (
-            <button
-              ref={donationTriggerRef}
-              type="button"
-              onClick={openDonation}
-              disabled={hasCompletedClassDonation || maximumDonation < 1 || isLoading}
-              className="group grid min-h-[13.5rem] w-full grid-cols-[11rem_minmax(0,1fr)] items-center gap-4 rounded-[1.5rem] border border-[#B9DCCB] bg-[#F7FBF9] px-4 py-4 text-left shadow-[0_14px_30px_rgba(28,45,40,0.08)] transition-[transform,background-color] hover:bg-white active:scale-[0.98] disabled:cursor-default disabled:opacity-70"
-              title={hasCompletedClassDonation ? '학급 기부 목표 달성' : '학급 기부'}
-              aria-label={`${hasCompletedClassDonation ? '학급 기부 목표 달성' : '학급 기부'} ${formatCurrency(classDonation.totalAmount)} / ${formatCurrency(classDonation.targetAmount)}`}
-            >
-              <img
-                src="/donation-bear.png?v=5"
-                alt=""
-                width="176"
-                height="176"
-                className="h-[11rem] w-[11rem] object-contain transition-transform duration-200 group-hover:scale-[1.03]"
-              />
-                <span className="grid min-w-0 content-center gap-1.5 pr-1">
-                  <span className="section-title text-[1rem] font-black text-[#006B4D]">
-                    {hasCompletedClassDonation ? '학급 기부 목표 달성' : '학급 기부 목표량'}
-                  </span>
-                <span className="whitespace-nowrap font-mono text-[1.45rem] font-black tracking-normal text-[#18211E]">
-                  {classDonation.totalAmount}/{classDonation.targetAmount}
-                </span>
-                  <span className="whitespace-nowrap text-[0.68rem] font-extrabold text-[#6E7A72]">
-                    {hasCompletedClassDonation ? '모두 모였어요!' : '다 모이면 어떤 일이 일어날까?'}
-                  </span>
-                <span className="h-2 w-full overflow-hidden rounded-full bg-[#DDEAE4]">
-                  <span
-                    className="block h-full rounded-full bg-[#007A57]"
-                    style={{ width: `${Math.min(100, (classDonation.totalAmount / classDonation.targetAmount) * 100)}%` }}
-                  />
-                </span>
-                <span className="student-donation-action">
-                  {hasCompletedClassDonation ? '달성 완료' : '기부하기'}
-                  <ArrowRight size={15} aria-hidden="true" />
-                </span>
-              </span>
-            </button>
-          ) : null}
+          donationWidget={null}
           footer={selectedItem ? (() => {
             const currentBid = auctionBids[selectedItem.id] ?? { amount: 0, bidder: null };
             const award = auctionAwards[selectedItem.id] ?? null;

@@ -4,6 +4,10 @@ import {
   type CurrencyBalances,
   type CurrencyHistory,
 } from './currency';
+import {
+  normalizeStudentEconomyStates,
+  type StudentEconomyStates,
+} from './studentEconomy';
 
 export const STUDENT_PET_STORAGE_KEY = 'school-timer-student-pets-v1';
 export const STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY = 'school-timer-student-pet-position-overrides-v1';
@@ -46,6 +50,7 @@ export interface StudentPetLocalSnapshot {
   studentPets: StudentPetStates;
   currencyBalances: CurrencyBalances;
   currencyHistory: CurrencyHistory;
+  studentEconomy: StudentEconomyStates;
 }
 
 export interface StudentPetPositionOverride {
@@ -375,6 +380,7 @@ export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
     studentPets: {},
     currencyBalances: normalizeCurrencyBalances(null),
     currencyHistory: normalizeCurrencyHistory(null),
+    studentEconomy: {},
   };
   if (typeof window === 'undefined') return fallback;
 
@@ -386,6 +392,7 @@ export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
       studentPets: normalizeStudentPetStates(parsed.studentPets),
       currencyBalances: normalizeCurrencyBalances(parsed.currencyBalances),
       currencyHistory: normalizeCurrencyHistory(parsed.currencyHistory),
+      studentEconomy: normalizeStudentEconomyStates(parsed.studentEconomy),
     };
   } catch (error) {
     if (error instanceof Error) return fallback;
@@ -400,6 +407,7 @@ export const storeStudentPetSnapshot = (snapshot: StudentPetLocalSnapshot) => {
       studentPets: normalizeStudentPetStates(snapshot.studentPets),
       currencyBalances: normalizeCurrencyBalances(snapshot.currencyBalances),
       currencyHistory: normalizeCurrencyHistory(snapshot.currencyHistory),
+      studentEconomy: normalizeStudentEconomyStates(snapshot.studentEconomy),
     }));
     return true;
   } catch (error) {

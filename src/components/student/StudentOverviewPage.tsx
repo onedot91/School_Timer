@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Check, ClipboardCheck, X } from 'lucide-react';
 import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import {
   STUDENT_PET_FEED_AMOUNT,
   STUDENT_PET_HATCH_AMOUNT,
   STUDENT_PET_NAME_MAX_LENGTH,
+  getStudentPetEggStage,
   getStudentPetKind,
   type StudentPetState,
 } from '../../lib/studentPet';
@@ -25,6 +26,8 @@ interface StudentOverviewPageProps {
   pet: StudentPetState;
   isPetSaving: boolean;
   todayEmotion: StudentEmotionDefinition | null;
+  hasUnreadMail: boolean;
+  isHouseRepaired: boolean;
   onFeedPet: () => Promise<boolean>;
   onNamePet: (name: string) => Promise<boolean>;
   onChangePet: (petId: string) => Promise<boolean>;
@@ -33,6 +36,8 @@ interface StudentOverviewPageProps {
   onOpenEmotions: () => void;
   onOpenMissions: () => void;
   onOpenStore: () => void;
+  onOpenMailbox: () => void;
+  onOpenLibrary: () => void;
 }
 
 export default function StudentOverviewPage({
@@ -44,6 +49,8 @@ export default function StudentOverviewPage({
   pet,
   isPetSaving,
   todayEmotion,
+  hasUnreadMail,
+  isHouseRepaired,
   onFeedPet,
   onNamePet,
   onChangePet,
@@ -52,6 +59,8 @@ export default function StudentOverviewPage({
   onOpenEmotions,
   onOpenMissions,
   onOpenStore,
+  onOpenMailbox,
+  onOpenLibrary,
 }: StudentOverviewPageProps) {
   const [activePetDialog, setActivePetDialog] = useState<'feed' | 'name' | 'picker' | null>(null);
   const [petNameDraft, setPetNameDraft] = useState(pet.name);
@@ -59,6 +68,7 @@ export default function StudentOverviewPage({
   const petDialogRef = useRef<HTMLElement>(null);
   const needsPetName = pet.pendingNamePetId !== null;
   const petKind = getStudentPetKind(pet.petKind);
+  const eggStage = getStudentPetEggStage(pet.fedAmount);
 
   useEffect(() => {
     setPetNameDraft(pet.name);
@@ -87,6 +97,10 @@ export default function StudentOverviewPage({
       <section className="student-overview-hero" aria-label="학생 개요">
         <StudentPetStage
           pet={pet}
+          hasUnreadMail={hasUnreadMail}
+          isHouseRepaired={isHouseRepaired}
+          onOpenMailbox={onOpenMailbox}
+          onOpenLibrary={onOpenLibrary}
           onOpenPetPicker={() => {
             setPetError('');
             setActivePetDialog('picker');
@@ -151,10 +165,20 @@ export default function StudentOverviewPage({
 
             {activePetDialog === 'feed' ? (
               <>
-                <span className="student-pet-dialog-visual" aria-hidden="true">🥚</span>
+                <span
+                  className="student-pet-dialog-egg-art"
+                  style={{ '--student-pet-egg-stage': eggStage } as CSSProperties}
+                  aria-hidden="true"
+                />
                 <div className="student-pet-dialog-copy">
-                  <h2 id="student-pet-dialog-title">5 고마 먹이기</h2>
-                  <p>{availableBalance} → {Math.max(0, availableBalance - 5)} 고마</p>
+                  <h2 id="student-pet-dialog-title">알 성장</h2>
+                  <div className="student-pet-dialog-progress" aria-label={`알 성장 ${pet.fedAmount} / ${STUDENT_PET_HATCH_AMOUNT} 고마`}>
+                    <div className="student-pet-dialog-progress-track" aria-hidden="true">
+                      <span style={{ width: `${(pet.fedAmount / STUDENT_PET_HATCH_AMOUNT) * 100}%` }} />
+                    </div>
+                    <strong>{pet.fedAmount} / {STUDENT_PET_HATCH_AMOUNT}</strong>
+                  </div>
+                  <p>부화까지 {STUDENT_PET_HATCH_AMOUNT - pet.fedAmount} 고마</p>
                 </div>
                 <button
                   type="button"

@@ -4,12 +4,14 @@ import type { ReactNode } from 'react';
 interface StudentHeaderProps {
   title: string;
   onBack: () => void;
+  backLabel?: string;
   actions?: ReactNode;
 }
 
 export default function StudentHeader({
   title,
   onBack,
+  backLabel = '개요로 돌아가기',
   actions,
 }: StudentHeaderProps) {
   return (
@@ -18,8 +20,8 @@ export default function StudentHeader({
         <button
           type="button"
           className="student-back-button"
-          aria-label="개요로 돌아가기"
-          title="개요로 돌아가기"
+          aria-label={backLabel}
+          title={backLabel}
           onClick={onBack}
         >
           <ArrowLeft size={20} aria-hidden="true" />

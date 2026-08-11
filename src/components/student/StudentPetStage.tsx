@@ -7,12 +7,16 @@ import {
 
 interface StudentPetStageProps {
   pet: StudentPetState;
+  hasUnreadMail: boolean;
+  isHouseRepaired: boolean;
+  onOpenMailbox: () => void;
+  onOpenLibrary: () => void;
   onOpenPetPicker: () => void;
   onMovePet: (position: StudentPetState['position']) => void;
   onMoveGoma: (position: StudentPetState['gomaPosition']) => void;
 }
 
-export default function StudentPetStage({ pet, onOpenPetPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
+export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, onOpenMailbox, onOpenLibrary, onOpenPetPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -99,10 +103,20 @@ export default function StudentPetStage({ pet, onOpenPetPicker, onMovePet, onMov
     <div
       ref={stageRef}
       className="student-character-stage-card"
+      data-unread-mail={hasUnreadMail ? 'true' : 'false'}
       aria-label={hasActivePet ? '펫 배경. 두 번 누르면 보유한 펫을 바꿀 수 있습니다.' : '학생 캐릭터와 배경 이미지 영역'}
       onDoubleClick={hasActivePet ? onOpenPetPicker : undefined}
     >
       <div className="student-character-stage-placeholder" aria-hidden="true" />
+      <img
+        className="student-home-house"
+        src={isHouseRepaired ? '/student-house-after.png' : '/student-house-before.png'}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+      />
+      <button type="button" className="student-home-hotspot student-home-hotspot-mailbox" onClick={onOpenMailbox} aria-label={hasUnreadMail ? '새 편지가 있는 우편함 열기' : '우편함 열기'} />
+      <button type="button" className="student-home-hotspot student-home-hotspot-library" onClick={onOpenLibrary} aria-label="책방 열기" />
       <button
         type="button"
         className="student-goma-stage-character"

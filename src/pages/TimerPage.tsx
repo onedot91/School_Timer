@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, Lock, Music, NotebookText, Pause, Play, Plus, RotateCcw, Search, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, Lock, Mail, Music, NotebookText, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -69,6 +69,14 @@ import {
   normalizeStudentPetStates,
   type StudentPetStates,
 } from '../lib/studentPet';
+import {
+  createStudentLetter,
+  getTeacherLetters,
+  loadStoredStudentLifeState,
+  normalizeStudentLifeState,
+  storeStudentLifeState,
+  type StudentLifeState,
+} from '../lib/studentLife';
 import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
 import {
   loadQuestionSubmissionStatuses,
@@ -127,7 +135,7 @@ import {
 } from '../lib/currency';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'emotion';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'emotion' | 'mail';
 type AuctionSettingsSection = 'items' | 'missions';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 type AuctionManagementAction = 'weeklyClose' | 'currency';
@@ -241,6 +249,7 @@ interface SharedSchoolTimerSettings {
   classDonation: ClassDonationSettings;
   studentEmotionHistory: StudentEmotionHistory;
   studentPets: StudentPetStates;
+  studentLife: StudentLifeState;
 }
 
 interface NoticeHighlightRange {
@@ -1457,6 +1466,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     classDonation: normalizeClassDonationSettings(parsed.classDonation),
     studentEmotionHistory: normalizeStudentEmotionHistory(parsed.studentEmotionHistory),
     studentPets: normalizeStudentPetStates(parsed.studentPets),
+    studentLife: normalizeStudentLifeState(parsed.studentLife),
   };
 };
 
@@ -3621,6 +3631,16 @@ export default function TimerPage() {
     setSelectedEmotionHistoryDateKey(dateKey);
   }, [selectedEmotionStudentNumber, studentEmotionHistory]);
   const [studentPetStates, setStudentPetStates] = useState<StudentPetStates>({});
+  const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
+    isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
+  ));
+  const [mailRecipient, setMailRecipient] = useState(1);
+  const [mailTitle, setMailTitle] = useState('');
+  const [mailContent, setMailContent] = useState('');
+  const [mailReplyToId, setMailReplyToId] = useState<string | undefined>();
+  const [selectedTeacherLetterId, setSelectedTeacherLetterId] = useState('');
+  const [isMailSending, setIsMailSending] = useState(false);
+  const [mailStatus, setMailStatus] = useState('');
   const [auctionItemEditCommitVersion, setAuctionItemEditCommitVersion] = useState(0);
   const isEditingAuctionItemRef = useRef(false);
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getStoredAuctionMissions);
@@ -4152,6 +4172,7 @@ export default function TimerPage() {
     classDonation,
     studentEmotionHistory,
     studentPets: studentPetStates,
+    studentLife,
   });
 
   const applySharedSettingsSnapshot = (
@@ -4199,6 +4220,7 @@ export default function TimerPage() {
     setClassDonation(normalizeClassDonationSettings(remoteSettings.classDonation));
     setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
     setStudentPetStates(normalizeStudentPetStates(remoteSettings.studentPets));
+    setStudentLife(normalizeStudentLifeState(remoteSettings.studentLife));
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -8325,6 +8347,126 @@ export default function TimerPage() {
     ? getAuctionAwardsForDay(auctionItems, auctionAwards, awardPresentation.item.dayIndex)
     : [];
 
+  const sendTeacherLetter = async () => {
+    const content = mailContent.trim();
+    if (!content || isMailSending) return;
+    setIsMailSending(true);
+    setMailStatus('');
+    const letter = {
+      id: crypto.randomUUID(),
+      recipient: mailRecipient,
+      senderLabel: '선생님',
+      senderStudentNumber: null,
+      replyToId: mailReplyToId,
+      title: mailTitle.trim(),
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      let savedState = createStudentLetter(studentLife, letter);
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          savedState = createStudentLetter(normalizeStudentLifeState(current.studentLife), letter);
+          return { ...current, studentLife: savedState };
+        });
+      } else {
+        savedState = createStudentLetter(loadStoredStudentLifeState(), letter);
+        storeStudentLifeState(savedState);
+      }
+      setStudentLife(savedState);
+      setMailTitle('');
+      setMailContent('');
+      setMailReplyToId(undefined);
+      setMailStatus(`${mailRecipient}번에게 보냈습니다.`);
+    } catch (error) {
+      console.error('Failed to send teacher letter.', error);
+      setMailStatus('편지를 보내지 못했습니다.');
+    } finally {
+      setIsMailSending(false);
+    }
+  };
+
+  const teacherLetters = getTeacherLetters(studentLife);
+  const selectedTeacherLetter = teacherLetters.find((letter) => letter.id === selectedTeacherLetterId)
+    ?? teacherLetters[0]
+    ?? null;
+
+  const replyToStudentLetter = () => {
+    if (!selectedTeacherLetter?.senderStudentNumber) return;
+    setMailRecipient(selectedTeacherLetter.senderStudentNumber);
+    setMailTitle(selectedTeacherLetter.title.startsWith('답장:')
+      ? selectedTeacherLetter.title
+      : `답장: ${selectedTeacherLetter.title || '편지'}`);
+    setMailContent('');
+    setMailReplyToId(selectedTeacherLetter.id);
+  };
+
+  const mailSettingsPanel = (
+    <section className="settings-card teacher-mail-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-mail-title">
+      <div className="teacher-mail-inbox">
+        <header className="teacher-mail-section-header">
+          <h3 id="teacher-mail-title">받은 편지</h3>
+          <span>{teacherLetters.length}개</span>
+        </header>
+        {teacherLetters.length === 0 ? (
+          <p className="teacher-mail-empty">학생이 선생님께 보낸 편지가 여기에 표시됩니다.</p>
+        ) : (
+          <div className="teacher-mail-reader">
+            <div className="teacher-mail-list" aria-label="선생님 받은 편지 목록">
+              {teacherLetters.map((letter) => (
+                <button key={letter.id} type="button" className={letter.id === selectedTeacherLetter?.id ? 'is-selected' : ''} onClick={() => setSelectedTeacherLetterId(letter.id)}>
+                  <strong>{letter.senderLabel}</strong>
+                  <span>{letter.title || '편지가 도착했어요'}</span>
+                </button>
+              ))}
+            </div>
+            {selectedTeacherLetter ? (
+              <article className="teacher-letter-paper">
+                <span>{selectedTeacherLetter.senderLabel}</span>
+                <h4>{selectedTeacherLetter.title || '편지가 도착했어요'}</h4>
+                <p>{selectedTeacherLetter.content}</p>
+                <button type="button" onClick={replyToStudentLetter} disabled={!selectedTeacherLetter.senderStudentNumber}>
+                  <Reply size={17} aria-hidden="true" />답장하기
+                </button>
+              </article>
+            ) : null}
+          </div>
+        )}
+      </div>
+      <div className="teacher-mail-composer">
+        <header className="teacher-mail-section-header">
+          <h3>{mailReplyToId ? '답장 쓰기' : '학생에게 편지'}</h3>
+          <span className="teacher-mail-recipient-preview">받는 사람 · {mailRecipient}번</span>
+        </header>
+        <div className="grid gap-3 md:grid-cols-[9rem_minmax(0,1fr)]">
+        <label className="grid gap-2 text-sm font-extrabold text-[#476152]">
+          받는 학생
+          <select value={mailRecipient} onChange={(event) => setMailRecipient(Number(event.target.value))} className="min-h-11 rounded-xl border border-[#D7E3DC] bg-white px-3 text-[#26352E]">
+            {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}번</option>)}
+          </select>
+        </label>
+        <label className="grid gap-2 text-sm font-extrabold text-[#476152]">
+          제목
+          <input value={mailTitle} maxLength={40} onChange={(event) => setMailTitle(event.target.value)} className="min-h-11 rounded-xl border border-[#D7E3DC] bg-white px-3 text-[#26352E]" placeholder="제목" />
+        </label>
+        </div>
+        <label className="grid gap-2 text-sm font-extrabold text-[#476152]">
+          내용
+          <textarea value={mailContent} maxLength={300} onChange={(event) => setMailContent(event.target.value)} className="min-h-32 resize-y rounded-xl border border-[#D7E3DC] bg-white p-3 text-[#26352E]" placeholder="학생에게 전할 내용을 적어 주세요" />
+        </label>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span role="status" className="text-sm font-bold text-[#476152]">{mailStatus}</span>
+          <button type="button" onClick={() => void sendTeacherLetter()} disabled={isMailSending || mailContent.trim().length === 0} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#006241] px-5 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-45">
+            <Send size={18} aria-hidden="true" />{isMailSending ? '보내는 중' : '보내기'}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+
   const emotionSettingsPanel = (
     <section className="emotion-status-settings settings-card rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5" aria-labelledby="emotion-status-title">
       <header className="emotion-status-header">
@@ -10500,7 +10642,7 @@ export default function TimerPage() {
             </div>
 
             <div className="settings-tab-strip shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
-              <div className="grid gap-2 md:grid-cols-5">
+              <div className="grid gap-2 md:grid-cols-6">
                 <button
                   type="button"
                   onClick={() => setSettingsPanel('subjects')}
@@ -10580,6 +10722,22 @@ export default function TimerPage() {
                     감정
                   </div>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('mail')}
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'mail'
+                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'mail'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <Mail size={18} className={settingsPanel === 'mail' ? 'text-[#476152]' : 'text-[#8A6347]'} />
+                    편지
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -10592,7 +10750,9 @@ export default function TimerPage() {
                     ? drawSettingsPanel
                     : settingsPanel === 'emotion'
                       ? emotionSettingsPanel
-                      : auctionSettingsPanel}
+                      : settingsPanel === 'mail'
+                        ? mailSettingsPanel
+                        : auctionSettingsPanel}
             </div>
             </div>
 

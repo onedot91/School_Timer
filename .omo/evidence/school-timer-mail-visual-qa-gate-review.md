@@ -1,0 +1,23 @@
+# Visual QA Gate Review
+
+- recommendation: APPROVE
+- blockers: []
+- originalIntent: 두 우편 화면의 시각 계층, 글자 크기, 간격, 학생 답장 명확성, 교사 수신자 확인을 독립적으로 검수한다.
+- desiredOutcome: 학생은 답장 중임과 수신자가 선생님임을 즉시 이해하고, 교사는 발송 대상 학생을 명확히 확인할 수 있으며, 화면에 심각한 가독성·배치 문제가 없다.
+- userOutcomeReview: 두 화면 모두 핵심 제목과 폼 구조가 명확하고, 입력 라벨과 본문 크기가 읽기 가능하며, 주요 요소 사이 간격이 일관적이다. 학생 화면은 `답장을 쓰고 있어요`, 수신자 `선생님`, 제목 `답장: 안녕`으로 답장 맥락이 분명하다. 교사 화면은 선택값 `1번`과 별도 확인 배지 `받는 사람: 1번`이 함께 보여 발송 대상 확인이 명확하다. 심각한 겹침, 잘림, 대비 저하, 모호한 수신자 표시는 관찰되지 않았다.
+- checkedArtifacts:
+  - `/private/tmp/school-timer-mail-reply-fixed.png`
+  - `/private/tmp/school-timer-teacher-mail-fixed.png`
+- evidenceChecks:
+  - 두 파일 모두 1280x720이며 완전히 합성된 화면으로 직접 열어 확인했다.
+  - visual hierarchy: PASS
+  - text size/readability: PASS
+  - spacing: PASS
+  - student reply clarity: PASS
+  - teacher recipient confirmation: PASS
+  - remove-ai-slops/programming perspective: 코드·diff·테스트 변경이 제공되지 않은 정적 시각 검수이므로 적용할 생산 코드 또는 과적합 테스트가 없다.
+- notes:
+  - 두 파일은 `.png` 확장자이지만 실제 파일 시그니처는 JPEG/JFIF이다. 현재 표시 품질과 요청된 시각 기준에는 영향을 주지 않아 비차단 NOTE로 기록한다.
+- exactEvidenceGaps:
+  - 정적 캡처만 제공되어 클릭, 키보드 포커스, 반응형 동작은 검증하지 않았다. 해당 항목은 요청된 판정 범위가 아니다.
+  - 원본 brief, diff, executor evidence, code review report, manual QA matrix, notepad path는 제공되지 않았다. 이번 요청은 지정된 두 이미지의 독립 시각 QA로 한정되어 있어 차단하지 않는다.

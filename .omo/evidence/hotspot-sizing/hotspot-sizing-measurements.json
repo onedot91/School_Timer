@@ -1,0 +1,23 @@
+{
+  "viewport": { "width": 1280, "height": 720 },
+  "overview": {
+    "surface": "#student-overview / activeStudentView=overview",
+    "invocation": "Browser tab.goto(http://127.0.0.1:3000/#student-overview); viewport.set({width:1280,height:720}); reload; getByRole(button,{name:'우편함 열기'}).press('Tab')",
+    "stageRect": { "x": 20, "y": 20, "width": 733.25, "height": 412.453125 },
+    "mailboxHotspotRect": { "x": 68.53125, "y": 193.3828125, "width": 131.625, "height": 184.71875 },
+    "mailboxHotspotWidthOfStage": 0.18,
+    "focus": { "tabIndex": 0, "ariaLabel": "우편함 열기", "outline": "rgb(0, 122, 87) solid 3px", "outlineOffset": "-1px" },
+    "overflow": { "viewportWidth": 1280, "documentScrollWidth": 1280, "bodyScrollWidth": 1280 }
+  },
+  "store": {
+    "surface": "#student-store / activeStudentView=store",
+    "invocation": "Browser tab.goto(http://127.0.0.1:3000/#student-store); viewport.set({width:1280,height:720}); getByRole(button,{name:'기부하러 이동'}).press('Tab')",
+    "plazaRect": { "x": 42.5, "y": 17.3984375, "width": 1184, "height": 666.3515625 },
+    "donationHotspotRect": { "x": 859.078125, "y": 436.9375, "width": 236.40625, "height": 186.0234375 },
+    "characterRect": { "x": 877.28125, "y": 450.078125, "width": 200, "height": 159.7421875 },
+    "characterCenterDeltaWithinHotspot": { "x": 0, "y": 0 },
+    "characterToHotspotRatio": { "width": 0.846, "height": 0.859 },
+    "focus": { "tabIndex": 0, "ariaLabel": "기부하러 이동", "focusVisible": true, "border": "3px solid rgb(255, 255, 255)", "boxShadow": "0 0 0 4px green accent mix" },
+    "overflow": { "viewportWidth": 1280, "documentScrollWidth": 1280, "bodyScrollWidth": 1280 }
+  }
+}

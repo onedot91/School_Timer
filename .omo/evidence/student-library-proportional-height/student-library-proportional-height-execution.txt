@@ -1,0 +1,24 @@
+Manual QA read-only execution evidence
+
+Surface invocation:
+- Student Library page capture: view_image(path=/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/student-library-proportional-height/library-1280x720.jpg, detail=original)
+- Height calculation: node --import tsx -e "import {getBookHeightCm,getBookStackHeightCm} from './src/lib/studentLife.ts'; ..."
+
+Reproduced calculation output:
+{"p30":0.15,"p121":0.6,"stack":0.75,"px30":18,"px121":72,"ratio":4}
+
+Command: npm test
+Exit code: 0
+Result: 62 tests passed, 0 failed, 0 skipped.
+
+Command: npm run lint
+Exit code: 0
+Result: tsc --noEmit completed without diagnostics.
+
+Capture validation:
+- JPEG signature: JPEG image data, JFIF standard 1.01, 1280x720, 3 components.
+- Source timestamps precede capture timestamp: source 2026-08-12 00:23:12; capture 2026-08-12 00:25:05.
+
+Tooling limitation:
+- `omo ulw-loop status --json`: unavailable (`omo: command not found`); caller evidence directory used.
+- No browser automation package/binary or `multi_agent` tool was available for a fresh action log or independent oracle pass.

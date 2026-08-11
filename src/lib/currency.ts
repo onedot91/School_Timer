@@ -10,6 +10,9 @@ export type CurrencyHistoryReason =
   | 'daily_emotion'
   | 'class_donation'
   | 'pet_feed'
+  | 'bank_transfer'
+  | 'shop_purchase'
+  | 'stock_trade'
   | 'bulk_adjust';
 
 export interface CurrencyHistoryEntry {
@@ -240,6 +243,9 @@ const CURRENCY_HISTORY_REASONS = [
   'daily_emotion',
   'class_donation',
   'pet_feed',
+  'bank_transfer',
+  'shop_purchase',
+  'stock_trade',
   'bulk_adjust',
 ] as const satisfies readonly CurrencyHistoryReason[];
 
