@@ -14,6 +14,7 @@ import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentEmotionSummary from './StudentEmotionSummary';
 import StudentPetCard from './StudentPetCard';
 import StudentPetStage from './StudentPetStage';
+import type { StudentCharacterPrizeId, StudentCustomHouseTheme, StudentHouseDesignId } from '../../lib/studentEconomy';
 import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
 
@@ -28,6 +29,9 @@ interface StudentOverviewPageProps {
   todayEmotion: StudentEmotionDefinition | null;
   hasUnreadMail: boolean;
   isHouseRepaired: boolean;
+  activeCharacterId: StudentCharacterPrizeId | null;
+  activeHouseId: StudentHouseDesignId | 'custom' | null;
+  customHouseTheme: StudentCustomHouseTheme | null;
   onFeedPet: () => Promise<boolean>;
   onNamePet: (name: string) => Promise<boolean>;
   onChangePet: (petId: string) => Promise<boolean>;
@@ -51,6 +55,9 @@ export default function StudentOverviewPage({
   todayEmotion,
   hasUnreadMail,
   isHouseRepaired,
+  activeCharacterId,
+  activeHouseId,
+  customHouseTheme,
   onFeedPet,
   onNamePet,
   onChangePet,
@@ -99,6 +106,9 @@ export default function StudentOverviewPage({
           pet={pet}
           hasUnreadMail={hasUnreadMail}
           isHouseRepaired={isHouseRepaired}
+          activeCharacterId={activeCharacterId}
+          activeHouseId={activeHouseId}
+          customHouseTheme={customHouseTheme}
           onOpenMailbox={onOpenMailbox}
           onOpenLibrary={onOpenLibrary}
           onOpenPetPicker={() => {

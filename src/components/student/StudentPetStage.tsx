@@ -4,11 +4,15 @@ import {
   getStudentPetKind,
   type StudentPetState,
 } from '../../lib/studentPet';
+import { STUDENT_CHARACTER_PRIZES, STUDENT_HOUSE_DESIGNS, type StudentCharacterPrizeId, type StudentCustomHouseTheme, type StudentHouseDesignId } from '../../lib/studentEconomy';
 
 interface StudentPetStageProps {
   pet: StudentPetState;
   hasUnreadMail: boolean;
   isHouseRepaired: boolean;
+  activeCharacterId: StudentCharacterPrizeId | null;
+  activeHouseId: StudentHouseDesignId | 'custom' | null;
+  customHouseTheme: StudentCustomHouseTheme | null;
   onOpenMailbox: () => void;
   onOpenLibrary: () => void;
   onOpenPetPicker: () => void;
@@ -16,7 +20,7 @@ interface StudentPetStageProps {
   onMoveGoma: (position: StudentPetState['gomaPosition']) => void;
 }
 
-export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, onOpenMailbox, onOpenLibrary, onOpenPetPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
+export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, activeCharacterId, activeHouseId, customHouseTheme, onOpenMailbox, onOpenLibrary, onOpenPetPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -34,6 +38,8 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, o
   const [gomaPosition, setGomaPosition] = useState(pet.gomaPosition);
   const hasActivePet = pet.petKind !== null;
   const petKind = getStudentPetKind(pet.petKind);
+  const activeCharacter = STUDENT_CHARACTER_PRIZES.find((character) => character.id === activeCharacterId);
+  const activeHouse = STUDENT_HOUSE_DESIGNS.find((house) => house.id === activeHouseId);
 
   useEffect(() => setPosition(pet.position), [pet.position]);
   useEffect(() => setGomaPosition(pet.gomaPosition), [pet.gomaPosition]);
@@ -109,8 +115,8 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, o
     >
       <div className="student-character-stage-placeholder" aria-hidden="true" />
       <img
-        className="student-home-house"
-        src={isHouseRepaired ? '/student-house-after.png' : '/student-house-before.png'}
+        className={`student-home-house${activeHouseId === 'custom' && customHouseTheme ? ` student-home-house-${customHouseTheme}` : ''}`}
+        src={activeHouse?.imageSrc ?? (isHouseRepaired ? '/student-house-after.png' : '/student-house-before.png')}
         alt=""
         aria-hidden="true"
         draggable={false}
@@ -152,7 +158,11 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, o
         }}
         onKeyDown={handleGomaKeyDown}
       >
-        <img src="/goma-canvas-character.png" alt="" draggable={false} />
+        {activeCharacter ? (
+          <img className="student-goma-selected-character" src={activeCharacter.imageSrc} alt={activeCharacter.name} draggable={false} />
+        ) : (
+          <img src="/goma-canvas-character.png" alt="" draggable={false} />
+        )}
       </button>
       {hasActivePet ? (
         <button

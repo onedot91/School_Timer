@@ -338,6 +338,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
   return {
     ...next,
     studentPets: remote.studentPets ?? next.studentPets,
+    studentEconomy: next.studentEconomy ?? remote.studentEconomy,
     currencyBalances: nextBalances,
     currencyHistory: nextHistory,
     auctionAwards: nextAwards,

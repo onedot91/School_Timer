@@ -78,7 +78,7 @@ Existing semantic success, warning, and destructive colors remain feature-owned 
 | `--student-emotion-summary-size` | `clamp(8.5rem, 12vw, 10rem)` | enlarged overview emotion artwork control, paired with a prominent summary label and name for faster scanning |
 | `--student-emotion-art-width` / `--student-emotion-art-height` | `6.5rem` / `6rem` | large picker emotion artwork frame |
 | `--student-emotion-art-compact-width` / `--student-emotion-art-compact-height` | `3.25rem` / `3rem` | summary and calendar artwork frame |
-| `--student-emotion-art-mobile-width` / `--student-emotion-art-mobile-height` | `5.25rem` / `4.75rem` | phone picker artwork frame |
+| `--student-emotion-art-mobile-width` / `--student-emotion-art-mobile-height` | `5.25rem` / `4.75rem` | legacy compact fallback artwork frame; not a student-mode design target |
 | `--student-emotion-calendar-max-width` | `68rem` | monthly emotion history surface width |
 | `--student-emotion-calendar-cell-min-height` | `5.5rem` | calendar day target height |
 
@@ -138,6 +138,7 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - The store begins with one supplied 16:9 plaza illustration. Bank, shop, auction, securities, and donation are keyboard-focusable hotspots aligned to the depicted buildings and bottom-right lot. Existing labels drawn into the scene are not repeated as detached copy; hover and focus use one clear outline. The donation hotspot shows one of three supplied speech-bubble character cutouts selected from the Korean local date, remains stable for that day, and renders no detached label below it.
 - Bank, shop, securities, auction, and donation render as separate store subpages. Bank supports compact deposit, savings, and loan transactions; the shop lists fixed-price items; securities shows deterministic daily classroom prices with one-share buy/sell controls; the existing auction workspace remains functionally unchanged; donation retains its confirmation modal. All spend paths validate auction-reserved currency before changing the existing shared balance.
 - Store economy state is kept as a compact `studentEconomy` object inside the existing shared settings value and local snapshot. Transaction request IDs make Supabase updater retries idempotent without a new table, migration, dependency, or polling path.
+- The student shop is a Chromebook-first three-part destination: `물품`, `캐릭터 뽑기`, and `집`. Teacher-authored fixed-price goods and per-student purchase counts share the existing settings JSON. Character draws cost 100 고마 and immediately become the active home-canvas character. The house workshop stays locked until `집 고치기`; market houses cost 100 고마 and a custom design coupon costs 150 고마. Avoid mobile-only rearrangements for this surface; validate at 1024, 1280, and 1366px widths.
 - Student page navigation uses `#student-overview`, `#student-emotions`, `#student-missions`, `#student-store`, and `#student-store-*` hashes. Hash changes create normal browser history entries, reload restores the selected view, and no routing dependency is introduced.
 - Student shared-state syncing is egress-aware: the last successful normalized settings payload is cached locally, then the client checks only `app_settings.updated_at` before fetching the full settings value. In conservative free-plan mode, overview checks at most every five minutes while visible and the active store checks at most every 30 seconds. Missions/emotions refresh on entry, save, or foreground return; foreground events are coalesced for 30 seconds. Hidden tabs do not poll; concurrent refreshes are ignored so one student view never overlaps full settings requests.
 - Body copy and form content remain selectable. Decorative images may remain non-selectable.
@@ -161,11 +162,12 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 
 ## 6. Responsive Behavior
 
-- Required widths: 320, 390, 768, 1024, 1280, and 1440 CSS px, including low-height landscape displays.
-- The student auction is exempt from phone-specific layout work and is validated at Chromebook-class widths (1024, 1280, and 1366 CSS px). It must remain usable without horizontal overflow at those widths and at 200% text zoom.
+- Admin and timer surfaces retain their existing broad responsive coverage, including low-height landscape displays.
+- All student-mode pages are Chromebook-first. Their required design and visual-QA widths are 1024, 1280, and 1366 CSS px; phone-specific proportions, mobile-only compositions, and touch-first rearrangements are outside scope unless explicitly requested.
+- Student-mode pages must remain usable without horizontal overflow at the required Chromebook widths and at 200% text zoom. Fluid sizing may absorb normal Chromebook window variation, but it must not compromise the desktop information hierarchy to optimize for phone widths.
 - Layout uses `min-height: 100dvh` where viewport height is required.
 - At 200% text zoom, controls wrap or scroll within their own task surface; the page never gains horizontal overflow.
-- Emotion zone grids use three equal columns with 44px minimum targets. At phone widths only one zone catalog is visible, while all four zone selectors remain reachable without horizontal scrolling.
+- Student emotion zone grids use three equal columns with 44px minimum targets. One active zone catalog is visible at a time, while all four zone selectors remain reachable without horizontal scrolling at Chromebook widths.
 - Korean copy is not rewritten to fit. Containers reflow around the exact existing text.
 - Fixed toolbars and overlays respect safe-area insets.
 - Desktop timer content stays inside a 3.5% TV-safe frame. Student walkers may travel from the timer pane across the schedule pane as a pointer-transparent foreground layer and always render above the face, clock, status, and schedule pane.
@@ -177,7 +179,7 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - `prefers-reduced-motion`, `prefers-reduced-transparency`, `prefers-contrast: more`, and `forced-colors: active` each have an explicit system response.
 - Forced colors preserve control boundaries, selection, focus, and disabled states using system colors.
 - Dialog names come from existing visible headings or non-rendered accessible attributes; no new visible copy is introduced.
-- Emotion zones belong to one labelled radio group on desktop and the active labelled zone group on mobile. Arrow keys move and select among visible orbs; tab controls use roving focus and connected tab panels. Every orb exposes its Korean emotion label and selected state without relying on color alone; zone descriptions and icons reinforce but never replace text.
+- Emotion zones use the active labelled zone group on student Chromebook screens. Arrow keys move and select among visible orbs; tab controls use roving focus and connected tab panels. Every orb exposes its Korean emotion label and selected state without relying on color alone; zone descriptions and icons reinforce but never replace text.
 - Text selection is enabled globally except for controls and decorative media.
 
 ## 8. Accepted Debt and Handoff

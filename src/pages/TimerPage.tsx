@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, Lock, Mail, Music, NotebookText, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -66,9 +66,18 @@ import {
   type StudentEmotionZoneId,
 } from '../lib/studentEmotion';
 import {
+  loadStoredStudentPetSnapshot,
   normalizeStudentPetStates,
   type StudentPetStates,
 } from '../lib/studentPet';
+import {
+  loadStoredStudentShopCatalog,
+  normalizeStudentEconomyStates,
+  normalizeStudentShopCatalog,
+  storeStudentShopCatalog,
+  type StudentEconomyStates,
+  type StudentShopCatalogItem,
+} from '../lib/studentEconomy';
 import {
   createStudentLetter,
   getTeacherLetters,
@@ -135,7 +144,7 @@ import {
 } from '../lib/currency';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'emotion' | 'mail';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'shop' | 'emotion' | 'mail';
 type AuctionSettingsSection = 'items' | 'missions';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 type AuctionManagementAction = 'weeklyClose' | 'currency';
@@ -250,6 +259,8 @@ interface SharedSchoolTimerSettings {
   studentEmotionHistory: StudentEmotionHistory;
   studentPets: StudentPetStates;
   studentLife: StudentLifeState;
+  studentEconomy?: StudentEconomyStates;
+  studentShopCatalog: StudentShopCatalogItem[];
 }
 
 interface NoticeHighlightRange {
@@ -1467,6 +1478,8 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     studentEmotionHistory: normalizeStudentEmotionHistory(parsed.studentEmotionHistory),
     studentPets: normalizeStudentPetStates(parsed.studentPets),
     studentLife: normalizeStudentLifeState(parsed.studentLife),
+    studentEconomy: normalizeStudentEconomyStates(parsed.studentEconomy),
+    studentShopCatalog: normalizeStudentShopCatalog(parsed.studentShopCatalog),
   };
 };
 
@@ -3631,6 +3644,14 @@ export default function TimerPage() {
     setSelectedEmotionHistoryDateKey(dateKey);
   }, [selectedEmotionStudentNumber, studentEmotionHistory]);
   const [studentPetStates, setStudentPetStates] = useState<StudentPetStates>({});
+  const [studentEconomyStates, setStudentEconomyStates] = useState<StudentEconomyStates>(() => (
+    isSupabaseSettingsEnabled ? {} : loadStoredStudentPetSnapshot().studentEconomy
+  ));
+  const [studentShopCatalog, setStudentShopCatalog] = useState<StudentShopCatalogItem[]>(() => (
+    isSupabaseSettingsEnabled ? normalizeStudentShopCatalog(undefined) : loadStoredStudentShopCatalog()
+  ));
+  const [newShopItemName, setNewShopItemName] = useState('');
+  const [newShopItemPrice, setNewShopItemPrice] = useState('');
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
   ));
@@ -4173,6 +4194,7 @@ export default function TimerPage() {
     studentEmotionHistory,
     studentPets: studentPetStates,
     studentLife,
+    studentShopCatalog,
   });
 
   const applySharedSettingsSnapshot = (
@@ -4221,6 +4243,8 @@ export default function TimerPage() {
     setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
     setStudentPetStates(normalizeStudentPetStates(remoteSettings.studentPets));
     setStudentLife(normalizeStudentLifeState(remoteSettings.studentLife));
+    setStudentEconomyStates(normalizeStudentEconomyStates(remoteSettings.studentEconomy));
+    setStudentShopCatalog(normalizeStudentShopCatalog(remoteSettings.studentShopCatalog));
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -4358,6 +4382,10 @@ export default function TimerPage() {
   useEffect(() => {
     storeStudentEmotionHistory(studentEmotionHistory);
   }, [studentEmotionHistory]);
+
+  useEffect(() => {
+    if (!isSupabaseSettingsEnabled) storeStudentShopCatalog(studentShopCatalog);
+  }, [studentShopCatalog]);
 
   useEffect(() => {
     const hasBlankDraft = hasBlankAuctionMissionDraft(auctionMissions);
@@ -4537,6 +4565,7 @@ export default function TimerPage() {
     classDonation,
     studentEmotionHistory,
     studentPetStates,
+    studentShopCatalog,
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
@@ -8404,6 +8433,58 @@ export default function TimerPage() {
     setMailReplyToId(selectedTeacherLetter.id);
   };
 
+  const addStudentShopItem = () => {
+    const name = newShopItemName.trim().slice(0, 30);
+    const price = Math.max(1, Math.min(999_999, Math.floor(Number(newShopItemPrice))));
+    if (!name || !Number.isFinite(price)) return;
+    setStudentShopCatalog((current) => normalizeStudentShopCatalog([
+      ...current,
+      { id: `item-${Date.now().toString(36)}`, name, price, isActive: true },
+    ]));
+    setNewShopItemName('');
+    setNewShopItemPrice('');
+  };
+
+  const shopSettingsPanel = (
+    <section className="settings-card teacher-shop-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-shop-title">
+      <div className="teacher-shop-catalog">
+        <header>
+          <div><h3 id="teacher-shop-title">물품 상점</h3><p>학생에게 판매할 물품</p></div>
+          <span>{studentShopCatalog.filter((item) => item.isActive).length}개 판매 중</span>
+        </header>
+        <div className="teacher-shop-add-row">
+          <label>물품명<input value={newShopItemName} maxLength={30} onChange={(event) => setNewShopItemName(event.target.value)} placeholder="예: 우선 급식권" /></label>
+          <label>가격<input value={newShopItemPrice} inputMode="numeric" onChange={(event) => setNewShopItemPrice(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="고마" /></label>
+          <button type="button" onClick={addStudentShopItem} disabled={!newShopItemName.trim() || !newShopItemPrice}><Plus size={18} />추가</button>
+        </div>
+        <div className="teacher-shop-item-list">
+          {studentShopCatalog.map((item) => (
+            <article key={item.id}>
+              <Package aria-hidden="true" />
+              <input aria-label={`${item.name} 이름`} value={item.name} maxLength={30} onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} onBlur={() => setStudentShopCatalog((current) => normalizeStudentShopCatalog(current))} />
+              <label><input aria-label={`${item.name} 가격`} value={item.price} type="number" min="1" max="999999" onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, price: Number(event.target.value) } : candidate))} /> 고마</label>
+              <button type="button" className={item.isActive ? 'is-active' : ''} onClick={() => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, isActive: !candidate.isActive } : candidate))}>{item.isActive ? '판매 중' : '숨김'}</button>
+              <button type="button" className="is-delete" aria-label={`${item.name} 삭제`} onClick={() => setStudentShopCatalog((current) => current.filter((candidate) => candidate.id !== item.id))}><Trash2 size={17} /></button>
+            </article>
+          ))}
+        </div>
+      </div>
+      <div className="teacher-shop-purchases">
+        <header><div><h3>구매 현황</h3><p>학생별 구매 물품</p></div></header>
+        <div className="teacher-shop-student-list">
+          {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => {
+            const inventory = studentEconomyStates[String(number)]?.inventory ?? {};
+            const purchases = [
+              ...studentShopCatalog.flatMap((item) => (inventory[item.id] ?? 0) > 0 ? [`${item.name} ${inventory[item.id]}개`] : []),
+              ...((inventory.house_repair ?? 0) > 0 ? ['집 고치기'] : []),
+            ];
+            return <div key={number}><strong>{number}번</strong><span>{purchases.length > 0 ? purchases.join(' · ') : '구매 없음'}</span></div>;
+          })}
+        </div>
+      </div>
+    </section>
+  );
+
   const mailSettingsPanel = (
     <section className="settings-card teacher-mail-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-mail-title">
       <div className="teacher-mail-inbox">
@@ -10642,7 +10723,7 @@ export default function TimerPage() {
             </div>
 
             <div className="settings-tab-strip shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
-              <div className="grid gap-2 md:grid-cols-6">
+              <div className="grid gap-2 md:grid-cols-7">
                 <button
                   type="button"
                   onClick={() => setSettingsPanel('subjects')}
@@ -10672,6 +10753,22 @@ export default function TimerPage() {
                   <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
                     <Coins size={18} className={settingsPanel === 'auction' ? 'text-[#476152]' : 'text-[#8A6347]'} />
                     경매
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('shop')}
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'shop'
+                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'shop'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <Package size={18} className={settingsPanel === 'shop' ? 'text-[#476152]' : 'text-[#8A6347]'} />
+                    상점
                   </div>
                 </button>
 
@@ -10748,11 +10845,13 @@ export default function TimerPage() {
                   ? subjectSettingsPanel
                   : settingsPanel === 'draw'
                     ? drawSettingsPanel
+                    : settingsPanel === 'shop'
+                      ? shopSettingsPanel
                     : settingsPanel === 'emotion'
-                      ? emotionSettingsPanel
-                      : settingsPanel === 'mail'
-                        ? mailSettingsPanel
-                        : auctionSettingsPanel}
+                        ? emotionSettingsPanel
+                        : settingsPanel === 'mail'
+                          ? mailSettingsPanel
+                          : auctionSettingsPanel}
             </div>
             </div>
 

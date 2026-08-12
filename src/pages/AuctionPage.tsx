@@ -91,9 +91,12 @@ import {
 import {
   applyStudentEconomyAction,
   getStudentEconomyState,
+  loadStoredStudentShopCatalog,
   normalizeStudentEconomyStates,
+  normalizeStudentShopCatalog,
   type StudentEconomyAction,
   type StudentEconomyStates,
+  type StudentShopCatalogItem,
 } from '../lib/studentEconomy';
 import {
   createWeeklyMissionStatuses,
@@ -142,6 +145,7 @@ type SharedSettingsValue = {
   studentEmotionHistory?: unknown;
   studentPets?: unknown;
   studentEconomy?: unknown;
+  studentShopCatalog?: unknown;
   studentLife?: unknown;
 };
 
@@ -229,6 +233,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [studentEconomyStates, setStudentEconomyStates] = useState<StudentEconomyStates>(() => (
     isSupabaseSettingsEnabled ? {} : loadStoredStudentPetSnapshot().studentEconomy
+  ));
+  const [studentShopCatalog, setStudentShopCatalog] = useState<StudentShopCatalogItem[]>(() => (
+    isSupabaseSettingsEnabled ? normalizeStudentShopCatalog(undefined) : loadStoredStudentShopCatalog()
   ));
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
@@ -757,6 +764,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     studentPetStatesRef.current = normalizedPetStates;
     setStudentPetStates(normalizedPetStates);
     setStudentEconomyStates(normalizeStudentEconomyStates(value.studentEconomy));
+    setStudentShopCatalog(normalizeStudentShopCatalog(value.studentShopCatalog));
     setStudentLife(normalizeStudentLifeState(value.studentLife));
     const weekKey = getKoreanIsoWeekKey();
     setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
@@ -784,6 +792,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentEmotionHistory(loadStoredStudentEmotionHistory());
       setStudentPetStates(localPetSnapshot.studentPets);
       setStudentEconomyStates(localPetSnapshot.studentEconomy);
+      setStudentShopCatalog(loadStoredStudentShopCatalog());
       setStudentLife(loadStoredStudentLifeState());
       setIsLoading(false);
       return;
@@ -1259,6 +1268,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             wallet: currentWallet,
             availableWallet: Math.max(0, currentWallet - currentReserved),
             requestId,
+            shopCatalog: current.studentShopCatalog,
           });
           savedBalance = result.wallet;
           resultMessage = result.message;
@@ -1287,6 +1297,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           wallet: currentWallet,
           availableWallet: Math.max(0, currentWallet - reservedAmount),
           requestId,
+          shopCatalog: studentShopCatalog,
         });
         savedBalance = result.wallet;
         resultMessage = result.message;
@@ -1324,6 +1335,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               ? '보유한 주식이 없습니다.'
               : message === 'HOUSE_ALREADY_REPAIRED'
                 ? '이미 집을 고쳤습니다.'
+                : message === 'HOUSE_SHOP_LOCKED'
+                  ? '집을 먼저 고쳐야 합니다.'
+                  : message === 'ALL_CHARACTERS_OWNED'
+                    ? '모든 캐릭터를 모았습니다.'
+                    : message === 'CUSTOM_HOUSE_COUPON_REQUIRED'
+                      ? '집 만들기 쿠폰이 필요합니다.'
               : '처리하지 못했습니다. 다시 시도해 주세요.';
       showStatusMessage(userMessage);
       return false;
@@ -1347,6 +1364,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             todayEmotion={todayEmotion}
             hasUnreadMail={unreadLetterCount > 0}
             isHouseRepaired={(studentEconomy.inventory.house_repair ?? 0) > 0}
+            activeCharacterId={studentEconomy.activeCharacterId}
+            activeHouseId={studentEconomy.activeHouseId}
+            customHouseTheme={studentEconomy.customHouseDesign?.theme ?? null}
             onFeedPet={feedStudentPet}
             onNamePet={nameCurrentStudentPet}
             onChangePet={changeStudentPet}
@@ -1404,6 +1424,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             isLoading={isLoading}
             section={activeStoreSection}
             economyState={studentEconomy}
+            shopCatalog={studentShopCatalog}
             isEconomySaving={isEconomySaving}
             donation={{
               totalAmount: classDonation.totalAmount,

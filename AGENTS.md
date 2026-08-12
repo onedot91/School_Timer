@@ -63,6 +63,7 @@ LSP/codegraph tools were not available during generation; centrality below is fr
 - Browser-only APIs are common. Check SSR guards before moving code outside React effects or event handlers.
 - Shared settings normalize unknown Supabase/localStorage payloads before use. Preserve that defensive boundary.
 - User-facing copy is mostly Korean. Keep new classroom UI text Korean unless matching an existing English API/error.
+- Student-facing UI is Chromebook-first and does not require phone-specific proportions or mobile-only rearrangements unless the user explicitly requests them. Design and visually verify student screens at 1024, 1280, and 1366 CSS px; preserve text zoom, keyboard access, and overflow safety at those widths.
 - Treat classroom currency (`고마`) and auction state as live user data. QA must not click or invoke controls that mutate real balances, bids, awards, or currency history, even when an inverse action appears to restore the value. Verify mutation paths with isolated fake state, a disposable local profile, mocks, or code-level checks only. If an exceptional test truly requires real-data mutation, stop and obtain explicit user approval after taking a complete targeted backup of every affected Supabase/localStorage field; restore and compare every field byte-for-byte before finishing.
 
 ## ANTI-PATTERNS (THIS PROJECT)

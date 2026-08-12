@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react';
-import type { StudentEconomyAction, StudentEconomyState } from '../../lib/studentEconomy';
+import type { StudentEconomyAction, StudentEconomyState, StudentShopCatalogItem } from '../../lib/studentEconomy';
 import StudentBankPage from './StudentBankPage';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentDonationPage from './StudentDonationPage';
@@ -16,6 +16,7 @@ interface StudentStorePageProps {
   section: StudentStoreSection;
   children?: ReactNode;
   economyState: StudentEconomyState;
+  shopCatalog: StudentShopCatalogItem[];
   isEconomySaving: boolean;
   donation: {
     totalAmount: number;
@@ -38,6 +39,7 @@ export default function StudentStorePage({
   section,
   children,
   economyState,
+  shopCatalog,
   isEconomySaving,
   donation,
   onEconomyAction,
@@ -66,7 +68,7 @@ export default function StudentStorePage({
       <div className="student-store-content">
         {section === 'plaza' ? <StudentPlaza onOpen={onOpenSection} /> : null}
         {section === 'bank' ? <StudentBankPage state={economyState} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
-        {section === 'shop' ? <StudentShopPage state={economyState} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
+        {section === 'shop' ? <StudentShopPage state={economyState} catalog={shopCatalog} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'auction' ? children : null}
         {section === 'securities' ? <StudentSecuritiesPage state={economyState} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'donation' ? <StudentDonationPage {...donation} /> : null}

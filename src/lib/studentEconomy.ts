@@ -3,11 +3,39 @@ import type { CurrencyHistoryReason } from './currency';
 export const STUDENT_ECONOMY_AMOUNT_STEP = 5;
 export const STUDENT_ECONOMY_AMOUNT_MAX = 500;
 
+export const STUDENT_CHARACTER_DRAW_PRICE = 100;
+export const STUDENT_CUSTOM_HOUSE_COUPON_PRICE = 150;
+
+export interface StudentShopCatalogItem {
+  id: string;
+  name: string;
+  price: number;
+  isActive: boolean;
+}
+
+export const DEFAULT_STUDENT_SHOP_CATALOG: StudentShopCatalogItem[] = [
+  { id: 'pencil', name: '연필', price: 10, isActive: true },
+  { id: 'snack', name: '간식 쿠폰', price: 25, isActive: true },
+  { id: 'seat', name: '자리 선택권', price: 50, isActive: true },
+];
+
 export const STUDENT_SHOP_ITEMS = [
   { id: 'pencil', name: '연필', emoji: '✏️', price: 10 },
   { id: 'snack', name: '간식 쿠폰', emoji: '🍪', price: 25 },
   { id: 'seat', name: '자리 선택권', emoji: '🪑', price: 50 },
   { id: 'house_repair', name: '집 고치기', imageSrc: '/student-house-after.png', price: 100 },
+] as const;
+
+export const STUDENT_CHARACTER_PRIZES = [
+  { id: 'character-1', name: '초록 친구', imageSrc: '/student-characters/character-1.png' },
+  { id: 'character-2', name: '파랑 친구', imageSrc: '/student-characters/character-2.png' },
+  { id: 'character-3', name: '노랑 친구', imageSrc: '/student-characters/character-3.png' },
+  { id: 'character-4', name: '분홍 친구', imageSrc: '/student-characters/character-4.png' },
+  { id: 'character-5', name: '보라 친구', imageSrc: '/student-characters/character-5.png' },
+] as const;
+
+export const STUDENT_HOUSE_DESIGNS = [
+  { id: 'cozy-wood', name: '포근한 나무집', imageSrc: '/student-house-after.png', price: 100 },
 ] as const;
 
 export const STUDENT_STOCKS = [
@@ -16,15 +44,29 @@ export const STUDENT_STOCKS = [
   { id: 'cloud', name: '구름운수', emoji: '☁️', basePrice: 35 },
 ] as const;
 
-export type StudentShopItemId = (typeof STUDENT_SHOP_ITEMS)[number]['id'];
+export type StudentShopItemId = string;
 export type StudentStockId = (typeof STUDENT_STOCKS)[number]['id'];
+export type StudentCharacterPrizeId = (typeof STUDENT_CHARACTER_PRIZES)[number]['id'];
+export type StudentHouseDesignId = (typeof STUDENT_HOUSE_DESIGNS)[number]['id'];
+export type StudentCustomHouseTheme = 'natural' | 'blue' | 'green';
+
+export interface StudentCustomHouseDesign {
+  name: string;
+  theme: StudentCustomHouseTheme;
+}
 
 export interface StudentEconomyState {
   deposit: number;
   savings: number;
   loan: number;
-  inventory: Partial<Record<StudentShopItemId, number>>;
+  inventory: Record<StudentShopItemId, number>;
   holdings: Partial<Record<StudentStockId, number>>;
+  ownedCharacterIds: StudentCharacterPrizeId[];
+  activeCharacterId: StudentCharacterPrizeId | null;
+  ownedHouseIds: StudentHouseDesignId[];
+  activeHouseId: StudentHouseDesignId | 'custom' | null;
+  hasCustomHouseCoupon: boolean;
+  customHouseDesign: StudentCustomHouseDesign | null;
   processedRequestIds: string[];
 }
 
@@ -37,6 +79,12 @@ export type StudentEconomyAction =
   | { type: 'borrow'; amount: number }
   | { type: 'repay'; amount: number }
   | { type: 'buy_item'; itemId: StudentShopItemId }
+  | { type: 'draw_character' }
+  | { type: 'select_character'; characterId: StudentCharacterPrizeId }
+  | { type: 'buy_house'; houseId: StudentHouseDesignId }
+  | { type: 'select_house'; houseId: StudentHouseDesignId }
+  | { type: 'buy_custom_house_coupon' }
+  | { type: 'register_custom_house'; name: string; theme: StudentCustomHouseTheme }
   | { type: 'buy_stock'; stockId: StudentStockId; dateKey: string }
   | { type: 'sell_stock'; stockId: StudentStockId; dateKey: string };
 
@@ -49,8 +97,9 @@ export interface StudentEconomyResult {
 }
 
 const MAX_PROCESSED_REQUESTS = 24;
-const SHOP_ITEM_IDS = new Set<string>(STUDENT_SHOP_ITEMS.map((item) => item.id));
 const STOCK_IDS = new Set<string>(STUDENT_STOCKS.map((stock) => stock.id));
+const CHARACTER_IDS = new Set<string>(STUDENT_CHARACTER_PRIZES.map((character) => character.id));
+const HOUSE_IDS = new Set<string>(STUDENT_HOUSE_DESIGNS.map((house) => house.id));
 
 const clampAmount = (value: unknown) => {
   const amount = typeof value === 'number' ? value : Number(value);
@@ -67,12 +116,65 @@ const normalizeCountMap = <T extends string>(value: unknown, allowed: Set<string
   }, {});
 };
 
+const normalizeInventory = (value: unknown) => {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  return Object.entries(source).reduce<Record<string, number>>((result, [key, count]) => {
+    if (/^[a-z0-9][a-z0-9_-]{0,63}$/.test(key)) result[key] = clampAmount(count);
+    return result;
+  }, {});
+};
+
+const normalizeIdList = <T extends string>(value: unknown, allowed: Set<string>) => (
+  Array.isArray(value)
+    ? [...new Set(value.filter((id): id is T => typeof id === 'string' && allowed.has(id)))]
+    : []
+);
+
+export const normalizeStudentShopCatalog = (value: unknown): StudentShopCatalogItem[] => {
+  if (!Array.isArray(value)) return DEFAULT_STUDENT_SHOP_CATALOG.map((item) => ({ ...item }));
+  const normalized = value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+    const source = entry as Record<string, unknown>;
+    const id = typeof source.id === 'string' ? source.id.trim() : '';
+    const name = typeof source.name === 'string' ? source.name.trim().slice(0, 30) : '';
+    const price = clampAmount(source.price);
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(id) || !name || price < 1) return [];
+    return [{ id, name, price, isActive: source.isActive !== false }];
+  });
+  return normalized.slice(0, 24);
+};
+
+const STUDENT_SHOP_CATALOG_STORAGE_KEY = 'school-timer-student-shop-catalog-v1';
+
+export const loadStoredStudentShopCatalog = () => {
+  if (typeof window === 'undefined') return normalizeStudentShopCatalog(undefined);
+  try {
+    const raw = window.localStorage.getItem(STUDENT_SHOP_CATALOG_STORAGE_KEY);
+    return raw === null ? normalizeStudentShopCatalog(undefined) : normalizeStudentShopCatalog(JSON.parse(raw));
+  } catch {
+    return normalizeStudentShopCatalog(undefined);
+  }
+};
+
+export const storeStudentShopCatalog = (catalog: unknown) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(STUDENT_SHOP_CATALOG_STORAGE_KEY, JSON.stringify(normalizeStudentShopCatalog(catalog)));
+};
+
 export const createStudentEconomyState = (): StudentEconomyState => ({
   deposit: 0,
   savings: 0,
   loan: 0,
   inventory: {},
   holdings: {},
+  ownedCharacterIds: [],
+  activeCharacterId: null,
+  ownedHouseIds: [],
+  activeHouseId: null,
+  hasCustomHouseCoupon: false,
+  customHouseDesign: null,
   processedRequestIds: [],
 });
 
@@ -84,8 +186,25 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
     deposit: clampAmount(source.deposit),
     savings: clampAmount(source.savings),
     loan: clampAmount(source.loan),
-    inventory: normalizeCountMap<StudentShopItemId>(source.inventory, SHOP_ITEM_IDS),
+    inventory: normalizeInventory(source.inventory),
     holdings: normalizeCountMap<StudentStockId>(source.holdings, STOCK_IDS),
+    ownedCharacterIds: normalizeIdList<StudentCharacterPrizeId>(source.ownedCharacterIds, CHARACTER_IDS),
+    activeCharacterId: typeof source.activeCharacterId === 'string' && CHARACTER_IDS.has(source.activeCharacterId)
+      ? source.activeCharacterId as StudentCharacterPrizeId
+      : null,
+    ownedHouseIds: normalizeIdList<StudentHouseDesignId>(source.ownedHouseIds, HOUSE_IDS),
+    activeHouseId: source.activeHouseId === 'custom' || (typeof source.activeHouseId === 'string' && HOUSE_IDS.has(source.activeHouseId))
+      ? source.activeHouseId as StudentHouseDesignId | 'custom'
+      : null,
+    hasCustomHouseCoupon: source.hasCustomHouseCoupon === true,
+    customHouseDesign: source.customHouseDesign && typeof source.customHouseDesign === 'object' && !Array.isArray(source.customHouseDesign)
+      && typeof (source.customHouseDesign as Record<string, unknown>).name === 'string'
+      && ['natural', 'blue', 'green'].includes(String((source.customHouseDesign as Record<string, unknown>).theme))
+      ? {
+          name: String((source.customHouseDesign as Record<string, unknown>).name).trim().slice(0, 20),
+          theme: (source.customHouseDesign as Record<string, unknown>).theme as StudentCustomHouseTheme,
+        }
+      : null,
     processedRequestIds: Array.isArray(source.processedRequestIds)
       ? source.processedRequestIds.filter((id): id is string => typeof id === 'string').slice(-MAX_PROCESSED_REQUESTS)
       : [],
@@ -130,12 +249,14 @@ export const applyStudentEconomyAction = ({
   wallet,
   availableWallet,
   requestId,
+  shopCatalog,
 }: {
   state: unknown;
   action: StudentEconomyAction;
   wallet: number;
   availableWallet: number;
   requestId: string;
+  shopCatalog?: unknown;
 }): StudentEconomyResult => {
   const state = normalizeStudentEconomyState(rawState);
   if (state.processedRequestIds.includes(requestId)) {
@@ -174,7 +295,8 @@ export const applyStudentEconomyAction = ({
     nextState = { ...state, loan: state.loan - action.amount };
     message = `${action.amount} 고마를 갚았습니다.`;
   } else if (action.type === 'buy_item') {
-    const item = STUDENT_SHOP_ITEMS.find((candidate) => candidate.id === action.itemId);
+    const item = STUDENT_SHOP_ITEMS.find((candidate) => candidate.id === action.itemId)
+      ?? normalizeStudentShopCatalog(shopCatalog).find((candidate) => candidate.id === action.itemId && candidate.isActive);
     if (!item) throw new Error('UNKNOWN_SHOP_ITEM');
     if (item.id === 'house_repair' && (state.inventory.house_repair ?? 0) > 0) {
       throw new Error('HOUSE_ALREADY_REPAIRED');
@@ -183,6 +305,48 @@ export const applyStudentEconomyAction = ({
     reason = 'shop_purchase';
     nextState = { ...state, inventory: { ...state.inventory, [item.id]: (state.inventory[item.id] ?? 0) + 1 } };
     message = `${item.name}을(를) 샀습니다.`;
+  } else if (action.type === 'draw_character') {
+    const remaining = STUDENT_CHARACTER_PRIZES.filter((character) => !state.ownedCharacterIds.includes(character.id));
+    if (remaining.length < 1) throw new Error('ALL_CHARACTERS_OWNED');
+    spend(STUDENT_CHARACTER_DRAW_PRICE);
+    const character = remaining[hashText(requestId) % remaining.length];
+    reason = 'shop_purchase';
+    nextState = {
+      ...state,
+      ownedCharacterIds: [...state.ownedCharacterIds, character.id],
+      activeCharacterId: character.id,
+    };
+    message = `${character.name}을(를) 뽑았습니다.`;
+  } else if (action.type === 'select_character') {
+    if (!state.ownedCharacterIds.includes(action.characterId)) throw new Error('CHARACTER_NOT_OWNED');
+    nextState = { ...state, activeCharacterId: action.characterId };
+    message = '캐릭터를 바꿨습니다.';
+  } else if (action.type === 'buy_house') {
+    if ((state.inventory.house_repair ?? 0) < 1) throw new Error('HOUSE_SHOP_LOCKED');
+    const house = STUDENT_HOUSE_DESIGNS.find((candidate) => candidate.id === action.houseId);
+    if (!house) throw new Error('UNKNOWN_HOUSE');
+    if (state.ownedHouseIds.includes(house.id)) throw new Error('HOUSE_ALREADY_OWNED');
+    spend(house.price);
+    reason = 'shop_purchase';
+    nextState = { ...state, ownedHouseIds: [...state.ownedHouseIds, house.id], activeHouseId: house.id };
+    message = `${house.name}을(를) 샀습니다.`;
+  } else if (action.type === 'select_house') {
+    if (!state.ownedHouseIds.includes(action.houseId)) throw new Error('HOUSE_NOT_OWNED');
+    nextState = { ...state, activeHouseId: action.houseId };
+    message = '집을 바꿨습니다.';
+  } else if (action.type === 'buy_custom_house_coupon') {
+    if ((state.inventory.house_repair ?? 0) < 1) throw new Error('HOUSE_SHOP_LOCKED');
+    if (state.hasCustomHouseCoupon) throw new Error('CUSTOM_HOUSE_COUPON_OWNED');
+    spend(STUDENT_CUSTOM_HOUSE_COUPON_PRICE);
+    reason = 'shop_purchase';
+    nextState = { ...state, hasCustomHouseCoupon: true };
+    message = '집 만들기 쿠폰을 샀습니다.';
+  } else if (action.type === 'register_custom_house') {
+    if (!state.hasCustomHouseCoupon) throw new Error('CUSTOM_HOUSE_COUPON_REQUIRED');
+    const name = action.name.trim().slice(0, 20);
+    if (!name) throw new Error('CUSTOM_HOUSE_NAME_REQUIRED');
+    nextState = { ...state, customHouseDesign: { name, theme: action.theme }, activeHouseId: 'custom' };
+    message = `${name} 디자인을 적용했습니다.`;
   } else {
     const quote = getDailyStockQuotes(action.dateKey).find((candidate) => candidate.id === action.stockId);
     if (!quote) throw new Error('UNKNOWN_STOCK');
