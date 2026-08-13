@@ -18,9 +18,9 @@ export default function StudentBankPage({ state, isSaving, onAction }: StudentBa
   return (
     <section className="student-economy-panel" aria-labelledby="student-bank-title">
       <div className="student-economy-title-row">
-        <h2 id="student-bank-title">은행</h2>
+        <h2 id="student-bank-title" className="sr-only">은행 거래</h2>
         <label className="student-economy-amount">
-          <span className="sr-only">거래 금액</span>
+          <span className="student-economy-amount-label">거래 금액</span>
           <input
             type="number"
             min="5"

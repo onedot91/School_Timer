@@ -1,0 +1,650 @@
+{
+  "generatedAt": "2026-08-13T07:58:03.815Z",
+  "allEvidenceMetrics": [
+    {
+      "width": 1024,
+      "state": "student-overview",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-emotions",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-missions",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-mailbox",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-library",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-store",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-store-bank",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-store-shop",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-store-auction",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-store-securities",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-store-donation",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-emotions-history",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-store-shop-skins",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1024,
+      "state": "student-store-shop-houses",
+      "doc": [
+        1024,
+        800
+      ],
+      "viewport": [
+        1024,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-overview",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-emotions",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-missions",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-mailbox",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-library",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-store",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-store-bank",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-store-shop",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-store-auction",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-store-securities",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-store-donation",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-emotions-history",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-store-shop-skins",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1280,
+      "state": "student-store-shop-houses",
+      "doc": [
+        1280,
+        800
+      ],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-overview",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-emotions",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-missions",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-mailbox",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-library",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-store",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-store-bank",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-store-shop",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-store-auction",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-store-securities",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-store-donation",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-emotions-history",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-store-shop-skins",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    },
+    {
+      "width": 1366,
+      "state": "student-store-shop-houses",
+      "doc": [
+        1366,
+        800
+      ],
+      "viewport": [
+        1366,
+        800
+      ]
+    }
+  ],
+  "smallTextAudit": [
+    {
+      "hash": "student-overview",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-emotions",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-missions",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-mailbox",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-library",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-store",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-store-bank",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-store-shop",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-store-auction",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-store-securities",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    },
+    {
+      "hash": "student-store-donation",
+      "doc": [
+        1280,
+        800
+      ],
+      "small": [],
+      "viewport": [
+        1280,
+        800
+      ]
+    }
+  ],
+  "modalFocus": {
+    "active": "TEXTAREA",
+    "dialogs": 1,
+    "placeholder": "짧게 적어 주세요",
+    "afterEscape": 0
+  },
+  "stateCoverageNote": "Visual states use current read-only student data. Purchase, donation, bid, save, and balance mutations were not invoked. Economy transition branches are covered by 68 automated tests."
+}

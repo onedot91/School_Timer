@@ -14,7 +14,7 @@ export default function StudentSecuritiesPage({ state, isSaving, onAction }: Stu
   const dateKey = getKoreanDateKey();
   return (
     <section className="student-economy-panel" aria-labelledby="student-securities-title">
-      <div className="student-economy-title-row"><h2 id="student-securities-title">증권사</h2><span>{dateKey}</span></div>
+      <div className="student-economy-title-row"><h2 id="student-securities-title" className="sr-only">증권사 거래</h2><span>{dateKey}</span></div>
       <div className="student-stock-grid">
         {getDailyStockQuotes(dateKey).map((stock) => {
           const count = state.holdings[stock.id] ?? 0;

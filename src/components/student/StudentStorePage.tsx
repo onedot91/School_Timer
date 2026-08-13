@@ -51,11 +51,12 @@ export default function StudentStorePage({
     plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '증권사', donation: '기부',
   };
   return (
-    <div className="student-view student-store-view">
+    <div className="student-view student-store-view" data-store-section={section}>
       <StudentHeader
         title={titles[section]}
         onBack={onBack}
         backLabel={isPlaza ? '개요로 돌아가기' : '광장으로 돌아가기'}
+        backText={isPlaza ? '홈' : '광장'}
         actions={(
           <StudentBalanceSummary
             balance={balance}

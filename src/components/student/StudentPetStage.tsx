@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { CircleDashed } from 'lucide-react';
 import {
   STUDENT_PET_HATCH_AMOUNT,
   getStudentPetKind,
   type StudentPetState,
 } from '../../lib/studentPet';
+import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import { STUDENT_CHARACTER_PRIZES, STUDENT_HOUSE_DESIGNS, type StudentCharacterPrizeId, type StudentCustomHouseTheme, type StudentHouseDesignId } from '../../lib/studentEconomy';
+import { StudentEmotionOrbVisual } from './StudentEmotionOrb';
 
 interface StudentPetStageProps {
   pet: StudentPetState;
@@ -13,14 +16,17 @@ interface StudentPetStageProps {
   activeCharacterId: StudentCharacterPrizeId | null;
   activeHouseId: StudentHouseDesignId | 'custom' | null;
   customHouseTheme: StudentCustomHouseTheme | null;
+  todayEmotion: StudentEmotionDefinition | null;
   onOpenMailbox: () => void;
   onOpenLibrary: () => void;
+  onOpenEmotions: () => void;
+  onOpenEgg: () => void;
   onOpenPetPicker: () => void;
   onMovePet: (position: StudentPetState['position']) => void;
   onMoveGoma: (position: StudentPetState['gomaPosition']) => void;
 }
 
-export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, activeCharacterId, activeHouseId, customHouseTheme, onOpenMailbox, onOpenLibrary, onOpenPetPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
+export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, activeCharacterId, activeHouseId, customHouseTheme, todayEmotion, onOpenMailbox, onOpenLibrary, onOpenEmotions, onOpenEgg, onOpenPetPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -121,8 +127,27 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
         aria-hidden="true"
         draggable={false}
       />
+      <button
+        type="button"
+        className="student-home-hotspot student-home-hotspot-egg"
+        onClick={onOpenEgg}
+        aria-label={`알 성장 ${pet.fedAmount} / ${STUDENT_PET_HATCH_AMOUNT} 고마. 알 성장 창 열기`}
+      />
       <button type="button" className="student-home-hotspot student-home-hotspot-mailbox" onClick={onOpenMailbox} aria-label={hasUnreadMail ? '새 편지가 있는 우편함 열기' : '우편함 열기'} />
       <button type="button" className="student-home-hotspot student-home-hotspot-library" onClick={onOpenLibrary} aria-label="책방 열기" />
+      <button
+        type="button"
+        className={`student-home-emotion-sun${todayEmotion ? '' : ' is-empty'}`}
+        onClick={onOpenEmotions}
+        aria-label={todayEmotion ? `오늘의 감정 ${todayEmotion.label}. 감정 바꾸기` : '오늘의 감정 고르기'}
+        title={todayEmotion ? `오늘의 감정 ${todayEmotion.label}` : '오늘의 감정 고르기'}
+      >
+        {todayEmotion ? (
+          <StudentEmotionOrbVisual emotion={todayEmotion} />
+        ) : (
+          <CircleDashed aria-hidden="true" />
+        )}
+      </button>
       <button
         type="button"
         className="student-goma-stage-character"

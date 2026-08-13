@@ -27,11 +27,21 @@ export const STUDENT_SHOP_ITEMS = [
 ] as const;
 
 export const STUDENT_CHARACTER_PRIZES = [
-  { id: 'character-1', name: '초록 친구', imageSrc: '/student-characters/character-1.png' },
-  { id: 'character-2', name: '파랑 친구', imageSrc: '/student-characters/character-2.png' },
-  { id: 'character-3', name: '노랑 친구', imageSrc: '/student-characters/character-3.png' },
-  { id: 'character-4', name: '분홍 친구', imageSrc: '/student-characters/character-4.png' },
-  { id: 'character-5', name: '보라 친구', imageSrc: '/student-characters/character-5.png' },
+  { id: 'character-1', name: '늑대 고마', imageSrc: '/goma-skins/늑대 고마.png' },
+  { id: 'character-2', name: '돼지 고마', imageSrc: '/goma-skins/돼지 고마.png' },
+  { id: 'character-3', name: '배드민턴 고마', imageSrc: '/goma-skins/배드민턴 고마.png' },
+  { id: 'character-4', name: '상어 고마', imageSrc: '/goma-skins/상어 고마.png' },
+  { id: 'character-5', name: '야구 고마', imageSrc: '/goma-skins/야구 고마.png' },
+  { id: 'character-6', name: '여우 고마', imageSrc: '/goma-skins/여우 고마.png' },
+  { id: 'character-7', name: '오리너구리 고마', imageSrc: '/goma-skins/오리너구리 고마.png' },
+  { id: 'character-8', name: '축구 고마', imageSrc: '/goma-skins/축구 고마.png' },
+  { id: 'character-9', name: '카멜레온 고마', imageSrc: '/goma-skins/카멜레온 고마.png' },
+  { id: 'character-10', name: '피구 고마', imageSrc: '/goma-skins/피구 고마.png' },
+  { id: 'character-11', name: '강아지 고마', imageSrc: '/goma-skins/강아지 고마.png' },
+  { id: 'character-12', name: '고래 고마', imageSrc: '/goma-skins/고래 고마.png' },
+  { id: 'character-13', name: '고릴라 고마', imageSrc: '/goma-skins/고릴라 고마.png' },
+  { id: 'character-14', name: '고양이 고마', imageSrc: '/goma-skins/고양이 고마.png' },
+  { id: 'character-15', name: '농구 고마', imageSrc: '/goma-skins/농구 고마.png' },
 ] as const;
 
 export const STUDENT_HOUSE_DESIGNS = [
@@ -316,11 +326,11 @@ export const applyStudentEconomyAction = ({
       ownedCharacterIds: [...state.ownedCharacterIds, character.id],
       activeCharacterId: character.id,
     };
-    message = `${character.name}을(를) 뽑았습니다.`;
+    message = `${character.name} 스킨을 뽑았습니다.`;
   } else if (action.type === 'select_character') {
     if (!state.ownedCharacterIds.includes(action.characterId)) throw new Error('CHARACTER_NOT_OWNED');
     nextState = { ...state, activeCharacterId: action.characterId };
-    message = '캐릭터를 바꿨습니다.';
+    message = '고마 스킨을 바꿨습니다.';
   } else if (action.type === 'buy_house') {
     if ((state.inventory.house_repair ?? 0) < 1) throw new Error('HOUSE_SHOP_LOCKED');
     const house = STUDENT_HOUSE_DESIGNS.find((candidate) => candidate.id === action.houseId);

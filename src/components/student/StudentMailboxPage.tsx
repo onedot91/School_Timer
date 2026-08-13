@@ -58,7 +58,7 @@ export default function StudentMailboxPage({ studentNumber, letters, isSaving, o
       />
 
       {mode === 'inbox' ? (
-        <section className="student-mailbox-layout" aria-label="받은 편지">
+        <section className="student-mailbox-layout" data-empty={letters.length === 0 ? 'true' : undefined} aria-label="받은 편지">
           <div className="student-letter-list">
             {letters.length === 0 ? <p className="student-empty-state">아직 편지가 없어요.</p> : letters.map((letter) => (
               <button key={letter.id} type="button" className={letter.id === selectedLetter?.id ? 'is-selected' : ''} onClick={() => openLetter(letter)}>
@@ -68,7 +68,7 @@ export default function StudentMailboxPage({ studentNumber, letters, isSaving, o
               </button>
             ))}
           </div>
-          <article className="student-letter-detail student-letter-paper">
+          {letters.length > 0 ? <article className="student-letter-detail student-letter-paper">
             {selectedLetter ? (
               <>
                 <span>{selectedLetter.senderLabel}</span>
@@ -80,8 +80,8 @@ export default function StudentMailboxPage({ studentNumber, letters, isSaving, o
                   </button>
                 ) : null}
               </>
-            ) : <p className="student-empty-state">{letters.length === 0 ? '받은 편지가 여기에 모여요.' : '편지를 선택해 주세요.'}</p>}
-          </article>
+            ) : <p className="student-empty-state">편지를 선택해 주세요.</p>}
+          </article> : null}
         </section>
       ) : (
         <form className="student-compose-card student-letter-paper student-letter-compose-paper" onSubmit={(event) => {

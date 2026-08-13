@@ -5,6 +5,7 @@ interface StudentHeaderProps {
   title: string;
   onBack: () => void;
   backLabel?: string;
+  backText?: string;
   actions?: ReactNode;
 }
 
@@ -12,6 +13,7 @@ export default function StudentHeader({
   title,
   onBack,
   backLabel = '개요로 돌아가기',
+  backText = '홈',
   actions,
 }: StudentHeaderProps) {
   return (
@@ -25,6 +27,7 @@ export default function StudentHeader({
           onClick={onBack}
         >
           <ArrowLeft size={20} aria-hidden="true" />
+          <span>{backText}</span>
         </button>
         <div className="student-header-copy">
           <h1>{title}</h1>

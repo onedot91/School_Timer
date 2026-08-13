@@ -11,8 +11,6 @@ import {
 } from '../../lib/studentPet';
 import { useModalFocus } from '../../lib/useModalFocus';
 import StudentBalanceSummary from './StudentBalanceSummary';
-import StudentEmotionSummary from './StudentEmotionSummary';
-import StudentPetCard from './StudentPetCard';
 import StudentPetStage from './StudentPetStage';
 import type { StudentCharacterPrizeId, StudentCustomHouseTheme, StudentHouseDesignId } from '../../lib/studentEconomy';
 import StudentPurchaseCard from './StudentPurchaseCard';
@@ -109,8 +107,14 @@ export default function StudentOverviewPage({
           activeCharacterId={activeCharacterId}
           activeHouseId={activeHouseId}
           customHouseTheme={customHouseTheme}
+          todayEmotion={todayEmotion}
           onOpenMailbox={onOpenMailbox}
           onOpenLibrary={onOpenLibrary}
+          onOpenEmotions={onOpenEmotions}
+          onOpenEgg={() => {
+            setPetError('');
+            setActivePetDialog('feed');
+          }}
           onOpenPetPicker={() => {
             setPetError('');
             setActivePetDialog('picker');
@@ -118,26 +122,6 @@ export default function StudentOverviewPage({
           onMovePet={(position) => { void onMovePet(position); }}
           onMoveGoma={(position) => { void onMoveGoma(position); }}
         />
-        <div className="student-overview-status">
-          <StudentBalanceSummary
-            studentNumber={studentNumber}
-            balance={balance}
-            availableBalance={availableBalance}
-            reservedAmount={reservedAmount}
-            isLoading={isLoading}
-          />
-          <StudentEmotionSummary emotion={todayEmotion} onOpen={onOpenEmotions} />
-          <StudentPetCard
-            pet={pet}
-            availableBalance={availableBalance}
-            isLoading={isLoading}
-            isSaving={isPetSaving}
-            onOpenFeed={() => {
-              setPetError('');
-              setActivePetDialog('feed');
-            }}
-          />
-        </div>
       </section>
 
       <div className="student-overview-destinations">
@@ -146,8 +130,18 @@ export default function StudentOverviewPage({
           icon={ClipboardCheck}
           title="고마 벌기"
           actionLabel="미션 시작"
+          direction="left"
           onClick={onOpenMissions}
         />
+        <div className="student-overview-balance-dock">
+          <StudentBalanceSummary
+            studentNumber={studentNumber}
+            balance={balance}
+            availableBalance={availableBalance}
+            reservedAmount={reservedAmount}
+            isLoading={isLoading}
+          />
+        </div>
         <StudentPurchaseCard
           onOpen={onOpenStore}
         />

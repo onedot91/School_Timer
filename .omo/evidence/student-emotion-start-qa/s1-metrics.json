@@ -1,0 +1,70 @@
+{
+  "emotionSummary": null,
+  "emotionSun": {
+    "ariaLabel": "오늘의 감정 분노하다. 감정 바꾸기",
+    "aspectRatio": "auto",
+    "display": "grid",
+    "overflow": "visible",
+    "rect": {
+      "height": 128,
+      "width": 128,
+      "x": 951.4609375,
+      "y": 117.6953125
+    },
+    "selector": ".student-home-emotion-sun"
+  },
+  "emotionSunStyle": {
+    "height": 128,
+    "position": "absolute",
+    "right": "71.5391px",
+    "top": "28.6953px",
+    "width": 128,
+    "zIndex": "2"
+  },
+  "hero": {
+    "ariaLabel": "학생 개요",
+    "aspectRatio": "auto",
+    "display": "flex",
+    "overflow": "visible",
+    "rect": {
+      "height": 576,
+      "width": 1256,
+      "x": 12,
+      "y": 88
+    },
+    "selector": ".student-overview-hero"
+  },
+  "petCard": null,
+  "scroll": {
+    "bodyScrollHeight": 800,
+    "bodyScrollWidth": 1280,
+    "x": 0,
+    "y": 0
+  },
+  "stage": {
+    "ariaLabel": "학생 캐릭터와 배경 이미지 영역",
+    "aspectRatio": "16 / 9",
+    "display": "flex",
+    "overflow": "hidden",
+    "rect": {
+      "height": 576,
+      "width": 1024,
+      "x": 128,
+      "y": 88
+    },
+    "selector": ".student-character-stage-card",
+    "aspectRatioObserved": 1.7777777777777777,
+    "fillsHeroHeight": true,
+    "maxWidthConstrainedBy16to9": true
+  },
+  "viewport": {
+    "devicePixelRatio": 2,
+    "height": 800,
+    "width": 1280
+  },
+  "capture": {
+    "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/student-emotion-start-qa/s1-student-start-1280x800-valid.png",
+    "signature": "PNG",
+    "dimensions": "1280x800"
+  }
+}

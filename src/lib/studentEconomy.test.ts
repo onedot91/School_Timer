@@ -104,7 +104,7 @@ test('교사가 등록한 물품을 정가로 구매할 수 있다', () => {
   assert.equal(result.state.inventory['teacher-notebook'], 1);
 });
 
-test('캐릭터 뽑기는 100고마를 차감하고 캐릭터를 캔버스에 적용한다', () => {
+test('고마 스킨 뽑기는 100고마를 차감하고 고마에 적용한다', () => {
   const result = applyStudentEconomyAction({
     state: null,
     action: { type: 'draw_character' },

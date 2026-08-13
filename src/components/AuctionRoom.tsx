@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { AlertCircle, CheckCircle2, Circle, Coins, LoaderCircle, Lock, Sparkles, Trophy } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Circle, Coins, LoaderCircle, Lock, Package, Sparkles, Trophy } from 'lucide-react';
 import {
   AUCTION_DAY_ACCENTS,
   AUCTION_WEEKDAY_LABELS,
@@ -299,7 +299,8 @@ export default function AuctionRoom({
                       }
                     >
                       {isUnlocked ? (
-                        <div className="min-w-0">
+                        <div className="auction-item-identity min-w-0">
+                          <span className="auction-item-art" aria-hidden="true"><Package /></span>
                           <div className="section-title truncate text-[1.18rem] font-black leading-tight text-[#18211E]">
                             {itemDisplayName}
                           </div>

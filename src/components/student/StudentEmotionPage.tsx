@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, PencilLine } from 'lucide-react';
 import {
   STUDENT_EMOTION_COMMENT_MAX_LENGTH,
@@ -15,6 +15,7 @@ import {
 } from '../../lib/studentEmotion';
 import StudentEmotionOrb, { StudentEmotionOrbVisual } from './StudentEmotionOrb';
 import StudentHeader from './StudentHeader';
+import { useModalFocus } from '../../lib/useModalFocus';
 
 interface EmotionZonePanelProps {
   key?: string;
@@ -120,6 +121,8 @@ export default function StudentEmotionPage({
   const [activeZone, setActiveZone] = useState<StudentEmotionZoneId>(selectedEmotion?.zone ?? 'yellow');
   const [isEmotionDialogOpen, setIsEmotionDialogOpen] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const emotionDialogRef = useRef<HTMLElement>(null);
+  const emotionCommentRef = useRef<HTMLTextAreaElement>(null);
   const initialHistoryDateKey = getInitialHistoryDateKey(todayEntry, history);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const initialDate = getLocalDateFromKey(initialHistoryDateKey);
@@ -127,6 +130,13 @@ export default function StudentEmotionPage({
   });
   const [selectedHistoryDateKey, setSelectedHistoryDateKey] = useState(initialHistoryDateKey);
   const draftEmotion = useMemo(() => getStudentEmotion(draftEmotionId), [draftEmotionId]);
+  useModalFocus({
+    dialogRef: emotionDialogRef,
+    isOpen: isEmotionDialogOpen,
+    onDismiss: () => setIsEmotionDialogOpen(false),
+    initialFocusRef: emotionCommentRef,
+    isDismissible: !isSaving,
+  });
   const historyByDate = useMemo(
     () => new Map(history.map((entry) => [entry.dateKey, entry])),
     [history],
@@ -225,7 +235,7 @@ export default function StudentEmotionPage({
   };
 
   return (
-    <div className="student-view student-emotion-view">
+    <div className={`student-view student-emotion-view student-emotion-view-${activeSection}`}>
       <StudentHeader title="감정 구슬" onBack={onBack} actions={<div className="student-emotion-section-tabs" role="tablist" aria-label="감정 구슬 메뉴">
         <button
           type="button"
@@ -443,7 +453,7 @@ export default function StudentEmotionPage({
       )}
 
       {isEmotionDialogOpen && draftEmotion ? <div className="student-emotion-dialog-backdrop" role="presentation">
-        <section className="student-emotion-dialog" role="dialog" aria-modal="true" aria-labelledby="emotion-dialog-title">
+        <section ref={emotionDialogRef} className="student-emotion-dialog" role="dialog" aria-modal="true" aria-labelledby="emotion-dialog-title">
           <button
             type="button"
             className="student-emotion-dialog-close"
@@ -460,7 +470,7 @@ export default function StudentEmotionPage({
           <label className="student-emotion-comment-field">
             <span>왜 이런 기분이 들었나요?</span>
             <textarea
-              autoFocus
+              ref={emotionCommentRef}
               value={comment}
               maxLength={STUDENT_EMOTION_COMMENT_MAX_LENGTH}
               rows={3}

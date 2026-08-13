@@ -1,0 +1,73 @@
+{
+  "surface": "학생 시작 화면 → 감정 선택 화면",
+  "invocation": "1280×800에서 button.student-home-emotion-sun (ARIA: 오늘의 감정 분노하다. 감정 바꾸기) 클릭",
+  "preClickRect": {
+    "height": 128,
+    "width": 128,
+    "x": 951.4609375,
+    "y": 117.6953125
+  },
+  "postClickMetrics": {
+    "emotionView": true,
+    "optionCount": 45,
+    "saveButtons": [],
+    "startView": false,
+    "tabs": [
+      {
+        "selected": "true",
+        "text": "선택하기"
+      },
+      {
+        "selected": "false",
+        "text": "내 기록"
+      },
+      {
+        "selected": "true",
+        "text": "빨강"
+      },
+      {
+        "selected": "false",
+        "text": "노랑"
+      },
+      {
+        "selected": "false",
+        "text": "파랑"
+      },
+      {
+        "selected": "false",
+        "text": "초록"
+      }
+    ],
+    "url": "http://127.0.0.1:3001/#student-emotions",
+    "body": {
+      "scrollHeight": 800,
+      "scrollWidth": 1280
+    },
+    "page": {
+      "scrollHeight": 800,
+      "scrollWidth": 1280
+    },
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    },
+    "visibleContent": {
+      "dialogOpen": false,
+      "heading": "감정 구슬",
+      "selectedEmotionCount": 2,
+      "textareaCount": 0
+    }
+  },
+  "prohibitedActions": [
+    "감정 구슬 선택",
+    "댓글 입력",
+    "저장/확인 클릭",
+    "잔액/구매/기록 변경"
+  ],
+  "observed": "감정 선택 화면으로 전환됨",
+  "capture": {
+    "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/student-emotion-start-qa/s2-emotion-selection-after-click-1280x800-valid.png",
+    "signature": "PNG",
+    "dimensions": "1280x800"
+  }
+}
