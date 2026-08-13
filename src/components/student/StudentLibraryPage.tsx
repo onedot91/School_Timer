@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BookPlus } from 'lucide-react';
 import { getBookHeightCm, getBookStackHeightCm } from '../../lib/studentLife';
 import type { StudentBook } from '../../lib/studentLife';
+import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentHeader from './StudentHeader';
 
 const BOOK_SPINE_PIXELS_PER_CM = 200;
@@ -20,6 +21,7 @@ interface StudentLibraryPageProps {
 export default function StudentLibraryPage({ books, isSaving, onAdd, onBack }: StudentLibraryPageProps) {
   const [title, setTitle] = useState('');
   const [pageCount, setPageCount] = useState('');
+  const [pendingBook, setPendingBook] = useState<{ title: string; pageCount: number } | null>(null);
   const visibleBooks = books.slice(0, 18);
   const stackHeightCm = getBookStackHeightCm(visibleBooks);
   return (
@@ -28,11 +30,7 @@ export default function StudentLibraryPage({ books, isSaving, onAdd, onBack }: S
       <section className="student-library-layout">
         <form className="student-book-form" onSubmit={(event) => {
           event.preventDefault();
-          void onAdd(title, Number(pageCount)).then((saved) => {
-            if (!saved) return;
-            setTitle('');
-            setPageCount('');
-          });
+          setPendingBook({ title: title.trim(), pageCount: Number(pageCount) });
         }}>
           <BookPlus size={32} aria-hidden="true" />
           <label><span>책 제목</span><input value={title} maxLength={50} required onChange={(event) => setTitle(event.target.value)} placeholder="읽은 책" /></label>
@@ -65,6 +63,24 @@ export default function StudentLibraryPage({ books, isSaving, onAdd, onBack }: S
           <div className="student-bookshelf-base" />
         </div>
       </section>
+      <StudentConfirmDialog
+        isOpen={pendingBook !== null}
+        kicker={pendingBook?.title}
+        title="이 책을 쌓을까요?"
+        description={pendingBook ? `${pendingBook.pageCount}쪽으로 기록해요.` : ''}
+        confirmLabel="책 쌓기"
+        isPending={isSaving}
+        onCancel={() => setPendingBook(null)}
+        onConfirm={() => {
+          if (!pendingBook) return;
+          void onAdd(pendingBook.title, pendingBook.pageCount).then((saved) => {
+            if (!saved) return;
+            setPendingBook(null);
+            setTitle('');
+            setPageCount('');
+          });
+        }}
+      />
     </div>
   );
 }

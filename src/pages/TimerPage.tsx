@@ -73,12 +73,19 @@ import {
   type StudentPetStates,
 } from '../lib/studentPet';
 import {
+  STUDENT_STOCKS,
   loadStoredStudentShopCatalog,
+  loadStoredStudentStockMarket,
   normalizeStudentEconomyStates,
   normalizeStudentShopCatalog,
+  normalizeStudentStockMarket,
+  storeStudentStockMarket,
   storeStudentShopCatalog,
+  upsertStudentStockMarketEntry,
   type StudentEconomyStates,
   type StudentShopCatalogItem,
+  type StudentStockId,
+  type StudentStockMarket,
 } from '../lib/studentEconomy';
 import {
   createStudentLetter,
@@ -146,7 +153,7 @@ import {
 } from '../lib/currency';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'shop' | 'emotion' | 'mail';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'shop' | 'stocks' | 'emotion' | 'mail';
 type AuctionSettingsSection = 'items' | 'missions';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 type AuctionManagementAction = 'weeklyClose' | 'currency' | 'studentRecords' | 'secondStudentShopPurchases';
@@ -263,6 +270,7 @@ interface SharedSchoolTimerSettings {
   studentLife: StudentLifeState;
   studentEconomy?: StudentEconomyStates;
   studentShopCatalog: StudentShopCatalogItem[];
+  studentStockMarket: StudentStockMarket;
 }
 
 interface NoticeHighlightRange {
@@ -1482,6 +1490,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     studentLife: normalizeStudentLifeState(parsed.studentLife),
     studentEconomy: normalizeStudentEconomyStates(parsed.studentEconomy),
     studentShopCatalog: normalizeStudentShopCatalog(parsed.studentShopCatalog),
+    studentStockMarket: normalizeStudentStockMarket(parsed.studentStockMarket),
   };
 };
 
@@ -3652,6 +3661,26 @@ export default function TimerPage() {
   const [studentShopCatalog, setStudentShopCatalog] = useState<StudentShopCatalogItem[]>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentShopCatalog(undefined) : loadStoredStudentShopCatalog()
   ));
+  const [studentStockMarket, setStudentStockMarket] = useState<StudentStockMarket>(() => (
+    isSupabaseSettingsEnabled ? normalizeStudentStockMarket(undefined) : loadStoredStudentStockMarket()
+  ));
+  const [stockMarketDateKey, setStockMarketDateKey] = useState(getKoreanLocalDateKey);
+  const [stockMarketDrafts, setStockMarketDrafts] = useState<Record<StudentStockId, { changeAmount: string; comment: string }>>(() => (
+    STUDENT_STOCKS.reduce<Record<StudentStockId, { changeAmount: string; comment: string }>>((drafts, stock) => {
+      drafts[stock.id] = { changeAmount: '0', comment: '' };
+      return drafts;
+    }, {} as Record<StudentStockId, { changeAmount: string; comment: string }>)
+  ));
+  useEffect(() => {
+    setStockMarketDrafts(STUDENT_STOCKS.reduce<Record<StudentStockId, { changeAmount: string; comment: string }>>((drafts, stock) => {
+      const entry = studentStockMarket[stock.id]?.find((item) => item.dateKey === stockMarketDateKey);
+      drafts[stock.id] = {
+        changeAmount: String(entry?.changeAmount ?? 0),
+        comment: entry?.comment ?? '',
+      };
+      return drafts;
+    }, {} as Record<StudentStockId, { changeAmount: string; comment: string }>));
+  }, [stockMarketDateKey, studentStockMarket]);
   const [newShopItemName, setNewShopItemName] = useState('');
   const [newShopItemPrice, setNewShopItemPrice] = useState('');
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
@@ -4200,6 +4229,7 @@ export default function TimerPage() {
     studentLife,
     studentEconomy: studentEconomyStates,
     studentShopCatalog,
+    studentStockMarket,
   });
 
   const applySharedSettingsSnapshot = (
@@ -4250,6 +4280,7 @@ export default function TimerPage() {
     setStudentLife(normalizeStudentLifeState(remoteSettings.studentLife));
     setStudentEconomyStates(normalizeStudentEconomyStates(remoteSettings.studentEconomy));
     setStudentShopCatalog(normalizeStudentShopCatalog(remoteSettings.studentShopCatalog));
+    setStudentStockMarket(normalizeStudentStockMarket(remoteSettings.studentStockMarket));
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -4391,6 +4422,10 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) storeStudentShopCatalog(studentShopCatalog);
   }, [studentShopCatalog]);
+
+  useEffect(() => {
+    if (!isSupabaseSettingsEnabled) storeStudentStockMarket(studentStockMarket);
+  }, [studentStockMarket]);
 
   useEffect(() => {
     const hasBlankDraft = hasBlankAuctionMissionDraft(auctionMissions);
@@ -4573,6 +4608,7 @@ export default function TimerPage() {
     studentLife,
     studentEconomyStates,
     studentShopCatalog,
+    studentStockMarket,
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
@@ -8634,6 +8670,44 @@ export default function TimerPage() {
     </section>
   );
 
+  const saveStockMarketEntry = (stockId: StudentStockId) => {
+    const draft = stockMarketDrafts[stockId];
+    const changeAmount = Math.max(-20, Math.min(20, Math.round(Number(draft.changeAmount))));
+    if (!Number.isFinite(changeAmount) || !draft.comment.trim()) return;
+    setStudentStockMarket((current) => upsertStudentStockMarketEntry(current, stockId, {
+      dateKey: stockMarketDateKey,
+      changeAmount,
+      comment: draft.comment,
+    }));
+  };
+
+  const stockSettingsPanel = (
+    <section className="settings-card teacher-stock-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-stock-title">
+      <header className="teacher-stock-heading">
+        <div><h3 id="teacher-stock-title">증권 시황</h3><p>날짜마다 오르거나 내릴 고마와 그 이유를 정하세요.</p></div>
+        <label>적용 날짜<input type="date" value={stockMarketDateKey} onChange={(event) => setStockMarketDateKey(event.target.value)} /></label>
+      </header>
+      <div className="teacher-stock-grid">
+        {STUDENT_STOCKS.map((stock) => {
+          const todayEntry = studentStockMarket[stock.id]?.find((entry) => entry.dateKey === stockMarketDateKey);
+          const previousEntries = (studentStockMarket[stock.id] ?? []).filter((entry) => entry.dateKey !== stockMarketDateKey);
+          return (
+            <article key={stock.id}>
+              <header><span aria-hidden="true">{stock.emoji}</span><div><h4>{stock.name}</h4><p>기준가 {stock.basePrice} 고마</p></div></header>
+              {todayEntry ? <div className="teacher-stock-current"><strong>{todayEntry.changeAmount > 0 ? '+' : ''}{todayEntry.changeAmount} 고마</strong><p>{todayEntry.comment}</p></div> : <p className="teacher-stock-empty">선택한 날짜의 시황이 없습니다.</p>}
+              <div className="teacher-stock-editor">
+                <label>변화 (+/- 고마)<input type="number" min="-20" max="20" value={stockMarketDrafts[stock.id].changeAmount} onChange={(event) => setStockMarketDrafts((current) => ({ ...current, [stock.id]: { ...current[stock.id], changeAmount: event.target.value } }))} /></label>
+                <label>등락 이유<textarea maxLength={120} value={stockMarketDrafts[stock.id].comment} onChange={(event) => setStockMarketDrafts((current) => ({ ...current, [stock.id]: { ...current[stock.id], comment: event.target.value } }))} placeholder="예: 새 학용품 출시로 주문이 늘었어요." /></label>
+                <button type="button" onClick={() => saveStockMarketEntry(stock.id)} disabled={!stockMarketDateKey || !stockMarketDrafts[stock.id].comment.trim()}>{todayEntry ? '시황 수정' : '시황 등록'}</button>
+              </div>
+              <details className="teacher-stock-history"><summary>이전 등락 이유 {previousEntries.length}건</summary><div>{previousEntries.slice(0, 5).map((entry) => <p key={entry.dateKey}><time>{entry.dateKey}</time><strong>{entry.changeAmount > 0 ? '+' : ''}{entry.changeAmount}</strong><span>{entry.comment || '코멘트 없음'}</span></p>)}</div></details>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+
   const mailSettingsPanel = (
     <section className="settings-card teacher-mail-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-mail-title">
       <div className="teacher-mail-inbox">
@@ -10872,7 +10946,7 @@ export default function TimerPage() {
             </div>
 
             <div className="settings-tab-strip shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
-              <div className="grid gap-2 md:grid-cols-7">
+              <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-8">
                 <button
                   type="button"
                   onClick={() => setSettingsPanel('subjects')}
@@ -10918,6 +10992,22 @@ export default function TimerPage() {
                   <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
                     <Package size={18} className={settingsPanel === 'shop' ? 'text-[#476152]' : 'text-[#8A6347]'} />
                     상점
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('stocks')}
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'stocks'
+                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'stocks'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <Star size={18} className={settingsPanel === 'stocks' ? 'text-[#476152]' : 'text-[#8A6347]'} />
+                    증권
                   </div>
                 </button>
 
@@ -10996,6 +11086,8 @@ export default function TimerPage() {
                     ? drawSettingsPanel
                     : settingsPanel === 'shop'
                       ? shopSettingsPanel
+                    : settingsPanel === 'stocks'
+                      ? stockSettingsPanel
                     : settingsPanel === 'emotion'
                         ? emotionSettingsPanel
                         : settingsPanel === 'mail'

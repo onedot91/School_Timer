@@ -1,33 +1,60 @@
-import { getDailyStockQuotes, type StudentEconomyAction, type StudentEconomyState } from '../../lib/studentEconomy';
+import { ArrowRight, BriefcaseBusiness } from 'lucide-react';
+import {
+  getDailyStockQuotes,
+  type StudentEconomyState,
+  type StudentStockMarket,
+} from '../../lib/studentEconomy';
+import { StudentStockIcon, StudentStockTrend } from './StudentStockTrend';
 
 interface StudentSecuritiesPageProps {
   state: StudentEconomyState;
-  isSaving: boolean;
-  onAction: (action: StudentEconomyAction) => Promise<boolean>;
+  market: StudentStockMarket;
+  onOpenMarket: () => void;
 }
 
 const getKoreanDateKey = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date());
 
-export default function StudentSecuritiesPage({ state, isSaving, onAction }: StudentSecuritiesPageProps) {
+export default function StudentSecuritiesPage({ state, market, onOpenMarket }: StudentSecuritiesPageProps) {
   const dateKey = getKoreanDateKey();
+  const quotes = getDailyStockQuotes(dateKey, market);
+  const ownedQuotes = quotes.filter((stock) => (state.holdings[stock.id] ?? 0) > 0);
+  const totalProfit = ownedQuotes.reduce((sum, stock) => sum + stock.changeAmount, 0);
+  const investedAmount = ownedQuotes.reduce((sum, stock) => sum + (state.stockPurchases[stock.id]?.price ?? stock.price), 0);
+  const totalValue = investedAmount + totalProfit;
+
   return (
-    <section className="student-economy-panel" aria-labelledby="student-securities-title">
-      <div className="student-economy-title-row"><h2 id="student-securities-title" className="sr-only">증권사 거래</h2><span>{dateKey}</span></div>
-      <div className="student-stock-grid">
-        {getDailyStockQuotes(dateKey).map((stock) => {
-          const count = state.holdings[stock.id] ?? 0;
-          return (
-            <article key={stock.id}>
-              <span className="student-product-emoji" aria-hidden="true">{stock.emoji}</span>
-              <div><h3>{stock.name}</h3><strong>{stock.price} 고마</strong><span className={stock.change >= 0 ? 'student-stock-up' : 'student-stock-down'}>{stock.change >= 0 ? '+' : ''}{stock.change}</span></div>
-              <span>보유 {count}주</span>
-              <div><button disabled={isSaving} onClick={() => void onAction({ type: 'buy_stock', stockId: stock.id, dateKey })}>매수</button><button disabled={isSaving || count < 1} onClick={() => void onAction({ type: 'sell_stock', stockId: stock.id, dateKey })}>매도</button></div>
-            </article>
-          );
-        })}
+    <section className="student-securities student-securities-overview" aria-label="내 투자 현황">
+      <div className="student-portfolio-summary">
+        <div><span>내가 넣은 고마</span><strong>{investedAmount} 고마</strong></div>
+        <div><span>지금 가진 가치</span><strong>{totalValue} 고마</strong></div>
+        <div><span>나의 결과</span><StudentStockTrend amount={totalProfit} label="전체 투자 결과" /></div>
+        <button type="button" onClick={onOpenMarket}>종목 고르기 <ArrowRight aria-hidden="true" /></button>
       </div>
+
+      <section className="student-portfolio-owned" aria-labelledby="owned-stocks-title">
+        <h2 id="owned-stocks-title">내 종목</h2>
+        {ownedQuotes.length > 0 ? (
+          <div className="student-owned-stock-grid">
+            {ownedQuotes.map((stock) => (
+              <article key={stock.id}>
+                <StudentStockIcon stockId={stock.id} />
+                <div><h3>{stock.name}</h3><span>내가 가진 수 1개</span></div>
+                <div className="student-owned-stock-result">
+                  <span>지금 결과</span>
+                  <StudentStockTrend amount={stock.changeAmount} label={`${stock.name} 투자 결과`} />
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="student-stock-empty-state">
+            <BriefcaseBusiness aria-hidden="true" />
+            <div><strong>아직 투자한 종목이 없어요</strong><span>마음에 드는 종목을 하나 골라 보세요.</span></div>
+          </div>
+        )}
+      </section>
     </section>
   );
 }

@@ -91,12 +91,15 @@ import {
 import {
   applyStudentEconomyAction,
   getStudentEconomyState,
+  loadStoredStudentStockMarket,
   loadStoredStudentShopCatalog,
   normalizeStudentEconomyStates,
   normalizeStudentShopCatalog,
+  normalizeStudentStockMarket,
   type StudentEconomyAction,
   type StudentEconomyStates,
   type StudentShopCatalogItem,
+  type StudentStockMarket,
 } from '../lib/studentEconomy';
 import {
   createWeeklyMissionStatuses,
@@ -131,7 +134,7 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'mailbox' | 'library' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'mailbox' | 'library' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -146,6 +149,7 @@ type SharedSettingsValue = {
   studentPets?: unknown;
   studentEconomy?: unknown;
   studentShopCatalog?: unknown;
+  studentStockMarket?: unknown;
   studentLife?: unknown;
 };
 
@@ -160,6 +164,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   'store-shop': '#student-store-shop',
   'store-auction': '#student-store-auction',
   'store-securities': '#student-store-securities',
+  'store-securities-trade': '#student-store-securities-trade',
   'store-donation': '#student-store-donation',
 };
 
@@ -169,6 +174,7 @@ const STORE_VIEW_BY_SECTION: Record<StudentStoreSection, StudentView> = {
   shop: 'store-shop',
   auction: 'store-auction',
   securities: 'store-securities',
+  'securities-trade': 'store-securities-trade',
   donation: 'store-donation',
 };
 
@@ -236,6 +242,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [studentShopCatalog, setStudentShopCatalog] = useState<StudentShopCatalogItem[]>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentShopCatalog(undefined) : loadStoredStudentShopCatalog()
+  ));
+  const [studentStockMarket, setStudentStockMarket] = useState<StudentStockMarket>(() => (
+    isSupabaseSettingsEnabled ? normalizeStudentStockMarket(undefined) : loadStoredStudentStockMarket()
   ));
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
@@ -765,6 +774,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStudentPetStates(normalizedPetStates);
     setStudentEconomyStates(normalizeStudentEconomyStates(value.studentEconomy));
     setStudentShopCatalog(normalizeStudentShopCatalog(value.studentShopCatalog));
+    setStudentStockMarket(normalizeStudentStockMarket(value.studentStockMarket));
     setStudentLife(normalizeStudentLifeState(value.studentLife));
     const weekKey = getKoreanIsoWeekKey();
     setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
@@ -1269,6 +1279,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             availableWallet: Math.max(0, currentWallet - currentReserved),
             requestId,
             shopCatalog: current.studentShopCatalog,
+            stockMarket: current.studentStockMarket,
           });
           savedBalance = result.wallet;
           resultMessage = result.message;
@@ -1298,6 +1309,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           availableWallet: Math.max(0, currentWallet - reservedAmount),
           requestId,
           shopCatalog: studentShopCatalog,
+          stockMarket: studentStockMarket,
         });
         savedBalance = result.wallet;
         resultMessage = result.message;
@@ -1331,8 +1343,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           ? '예금 잔액이 부족합니다.'
           : message === 'EXCESSIVE_LOAN_REPAYMENT'
             ? '대출 잔액보다 많이 갚을 수 없습니다.'
-            : message === 'NO_STOCK_HOLDING'
-              ? '보유한 주식이 없습니다.'
+            : message === 'STOCK_ALREADY_OWNED'
+                ? '이미 보유한 종목입니다.'
+              : message === 'STOCK_NOT_OWNED'
+                ? '보유한 종목만 팔 수 있습니다.'
               : message === 'HOUSE_ALREADY_REPAIRED'
                 ? '이미 집을 고쳤습니다.'
                 : message === 'HOUSE_SHOP_LOCKED'
@@ -1425,6 +1439,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             section={activeStoreSection}
             economyState={studentEconomy}
             shopCatalog={studentShopCatalog}
+            stockMarket={studentStockMarket}
             isEconomySaving={isEconomySaving}
             donation={{
               totalAmount: classDonation.totalAmount,
@@ -1436,7 +1451,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             }}
             onEconomyAction={runStudentEconomyAction}
             onOpenSection={(section) => navigateStudentView(STORE_VIEW_BY_SECTION[section])}
-            onBack={() => navigateStudentView(activeStoreSection === 'plaza' ? 'overview' : 'store')}
+            onBack={() => navigateStudentView(activeStoreSection === 'plaza' ? 'overview' : activeStoreSection === 'securities-trade' ? 'store-securities' : 'store')}
           >
           <AuctionRoom
           auctionItems={auctionItems}
@@ -1495,11 +1510,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     <h2 className="section-title min-w-0 truncate text-[1.35rem] font-extrabold leading-tight text-[#18211E]">
                       {selectedItemDisplayName}
                     </h2>
-                    <p className="font-mono text-[0.9rem] font-black text-[#007A57]">
+                    <p className="font-mono text-[1.05rem] font-black text-[#007A57]">
                       최고가 {formatCurrency(currentBid.amount)} · 시작가 {formatCurrency(selectedItem.startPrice)}
                     </p>
                   </div>
-                  <div className="text-[0.78rem] font-black text-[#7A8780]">
+                  <div className="text-[0.95rem] font-black text-[#6E7A72]">
                     입찰 단위 {formatCurrency(AUCTION_BID_STEP)}
                   </div>
                 </div>

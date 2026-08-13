@@ -37,7 +37,6 @@ function EmotionZonePanel({
       <div className="student-emotion-zone-heading">
         <div>
           <h2 id={`emotion-zone-${zone.id}`}>{zone.label}</h2>
-          <p>{zone.description}</p>
         </div>
       </div>
       <div className="student-emotion-orb-grid">
@@ -114,11 +113,9 @@ export default function StudentEmotionPage({
   onSave,
   onBack,
 }: StudentEmotionPageProps) {
-  const selectedEmotion = getStudentEmotion(todayEntry?.emotionId);
   const [activeSection, setActiveSection] = useState<'pick' | 'history'>('pick');
   const [draftEmotionId, setDraftEmotionId] = useState<StudentEmotionId | null>(todayEntry?.emotionId ?? null);
   const [comment, setComment] = useState(todayEntry?.comment ?? '');
-  const [activeZone, setActiveZone] = useState<StudentEmotionZoneId>(selectedEmotion?.zone ?? 'yellow');
   const [isEmotionDialogOpen, setIsEmotionDialogOpen] = useState(false);
   const [saveError, setSaveError] = useState('');
   const emotionDialogRef = useRef<HTMLElement>(null);
@@ -172,14 +169,8 @@ export default function StudentEmotionPage({
     setComment(todayEntry?.comment ?? '');
   }, [todayEntry?.emotionId, todayEntry?.comment, todayEntry?.updatedAt]);
 
-  useEffect(() => {
-    const currentEmotion = getStudentEmotion(todayEntry?.emotionId);
-    if (currentEmotion) setActiveZone(currentEmotion.zone);
-  }, [todayEntry?.emotionId]);
-
   const selectEmotion = (emotion: StudentEmotionDefinition) => {
     setDraftEmotionId(emotion.id as StudentEmotionId);
-    setActiveZone(emotion.zone);
     setSaveError('');
     setIsEmotionDialogOpen(true);
   };
@@ -193,13 +184,7 @@ export default function StudentEmotionPage({
     return true;
   };
 
-  const activeZoneDefinition = STUDENT_EMOTION_ZONES.find((zone) => zone.id === activeZone)
-    ?? STUDENT_EMOTION_ZONES[0];
   const firstDesktopEmotionId = STUDENT_EMOTIONS[0].id;
-  const firstMobileEmotionId = getStudentEmotionsByZone(activeZoneDefinition.id)[0]?.id ?? firstDesktopEmotionId;
-  const mobileFocusableEmotionId = draftEmotion?.zone === activeZone
-    ? draftEmotion.id as StudentEmotionId
-    : firstMobileEmotionId;
   const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const tablist = event.currentTarget.closest('[role="tablist"]');
@@ -265,34 +250,13 @@ export default function StudentEmotionPage({
         </button>
       </div>} />
 
-      {activeSection === 'pick' ? <div className="student-emotion-mobile-zone-tabs" role="tablist" aria-label="감정 영역">
-        {STUDENT_EMOTION_ZONES.map((zone) => (
-          <button
-            key={zone.id}
-            type="button"
-            role="tab"
-            id={`emotion-zone-${zone.id}-tab`}
-            aria-controls="emotion-mobile-zone-panel"
-            aria-selected={zone.id === activeZone}
-            tabIndex={zone.id === activeZone ? 0 : -1}
-            className="student-emotion-zone-tab"
-            data-zone={zone.id}
-            onClick={() => setActiveZone(zone.id)}
-            onKeyDown={handleTabKeyDown}
-          >
-            <span aria-hidden="true" />
-            {zone.label.replace(' 영역', '')}
-          </button>
-        ))}
-      </div> : null}
-
       {activeSection === 'pick' ? <main
         id="emotion-section-pick-panel"
         role="tabpanel"
         aria-labelledby="emotion-section-pick-tab"
         className="student-emotion-picker"
       >
-        <div className="student-emotion-desktop-grid" role="radiogroup" aria-label="오늘의 감정 구슬">
+        <div className="student-emotion-desktop-grid" role="radiogroup" aria-label="오늘의 감정 36개">
           {STUDENT_EMOTION_ZONES.map((zone) => (
             <EmotionZonePanel
               key={zone.id}
@@ -302,21 +266,6 @@ export default function StudentEmotionPage({
               onSelect={selectEmotion}
             />
           ))}
-        </div>
-        <div
-          id="emotion-mobile-zone-panel"
-          role="tabpanel"
-          aria-labelledby={`emotion-zone-${activeZone}-tab`}
-          className="student-emotion-mobile-panel"
-        >
-          <div role="radiogroup" aria-label={`${activeZoneDefinition.label} 감정 구슬`}>
-          <EmotionZonePanel
-            zone={activeZoneDefinition}
-            selectedEmotionId={draftEmotionId}
-            firstFocusableEmotionId={mobileFocusableEmotionId}
-            onSelect={selectEmotion}
-          />
-          </div>
         </div>
       </main> : (
         <main

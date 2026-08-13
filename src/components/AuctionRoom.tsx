@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { AlertCircle, CheckCircle2, Circle, Coins, LoaderCircle, Lock, Package, Sparkles, Trophy } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Circle, Coins, LoaderCircle, Lock, Sparkles, Trophy } from 'lucide-react';
 import {
   AUCTION_DAY_ACCENTS,
   AUCTION_WEEKDAY_LABELS,
@@ -82,6 +82,9 @@ export default function AuctionRoom({
   const activeDayGroup = auctionDayGroups.find((group) => group.dayIndex === activeDayIndex)
     ?? auctionDayGroups.find((group) => group.dayIndex === currentDayIndex)
     ?? auctionDayGroups[0];
+  const activeAuctionSlots = activeDayGroup
+    ? Array.from({ length: 6 }, (_, slotIndex) => activeDayGroup.items[slotIndex] ?? null)
+    : [];
 
   const selectDay = (dayIndex: number) => {
     if (dayIndex >= visibleDayCount) return;
@@ -224,7 +227,10 @@ export default function AuctionRoom({
       </> : null}
 
       {activeDayGroup ? (
-        <div className={`auction-workspace ${isCompact ? 'p-3 md:p-4' : 'p-4 md:p-5'}`}>
+        <div
+          className={`auction-workspace ${isCompact ? 'p-3 md:p-4' : 'p-4 md:p-5'}`}
+          data-active-item-count={activeDayGroup.items.length}
+        >
           <nav className="auction-day-tabs grid grid-cols-5 gap-2" aria-label="경매 요일">
             {auctionDayGroups.map(({ weekdayLabel, dayIndex, items, accent }) => {
               const isUnlocked = dayIndex < visibleDayCount;
@@ -237,7 +243,7 @@ export default function AuctionRoom({
                   disabled={!isUnlocked}
                   onClick={() => selectDay(dayIndex)}
                   aria-pressed={isActive}
-                  className={`auction-day-tab inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border px-3 font-extrabold ${
+                  className={`auction-day-tab inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border px-3 text-[1.05rem] font-extrabold ${
                     isActive ? 'text-white' : isUnlocked ? 'bg-white text-[#38423D]' : 'cursor-not-allowed bg-[#F4F6F5] text-[#9AA39E]'
                   }`}
                   style={isActive ? { backgroundColor: accent.chip, borderColor: accent.chip } : undefined}
@@ -250,13 +256,19 @@ export default function AuctionRoom({
             })}
           </nav>
 
-          <div className={`auction-main-layout mt-3 grid gap-3 ${footer || donationWidget ? 'lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]' : ''}`}>
-            <section className="auction-current-day overflow-hidden rounded-[1.25rem] border border-[#DCE7E1] bg-white">
+          <div
+            className={`auction-main-layout mt-3 grid gap-3 ${footer || donationWidget ? 'lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]' : ''}`}
+            data-active-item-count={activeDayGroup.items.length}
+          >
+            <section
+              className="auction-current-day overflow-hidden rounded-[1.25rem] border border-[#DCE7E1] bg-white"
+              data-item-count={activeDayGroup.items.length}
+            >
               <div className="flex min-h-14 items-center gap-3 border-b border-[#E9EFEB] px-4 py-3">
                 <span className="h-2.5 w-8 rounded-full" style={{ backgroundColor: activeDayGroup.accent.chip }} />
                 <h2 className="section-title text-[1.22rem] font-black text-[#18211E]">{activeDayGroup.weekdayLabel}요일</h2>
               </div>
-              <div className="auction-current-items grid gap-3 p-3 md:grid-cols-2">
+              <div className="auction-current-items grid gap-3 p-3 md:grid-cols-2" data-item-count={activeDayGroup.items.length}>
                 {activeDayGroup.dayIndex >= visibleDayCount ? (
                   <div className="auction-locked-day-state md:col-span-2">
                     <span><Lock size={22} aria-hidden="true" /></span>
@@ -265,7 +277,15 @@ export default function AuctionRoom({
                       <p>경매가 열리는 날 확인할 수 있어요.</p>
                     </div>
                   </div>
-                ) : activeDayGroup.items.map((item) => {
+                ) : activeAuctionSlots.map((item, slotIndex) => {
+                  if (!item) {
+                    return (
+                      <div key={`empty-${slotIndex}`} className="auction-item-slot-empty" aria-hidden="true">
+                        <span>빈 자리</span>
+                      </div>
+                    );
+                  }
+
                   const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
                   const award = auctionAwards?.[item.id] ?? null;
                   const isUnlocked = item.dayIndex < visibleDayCount;
@@ -300,8 +320,7 @@ export default function AuctionRoom({
                     >
                       {isUnlocked ? (
                         <div className="auction-item-identity min-w-0">
-                          <span className="auction-item-art" aria-hidden="true"><Package /></span>
-                          <div className="section-title truncate text-[1.18rem] font-black leading-tight text-[#18211E]">
+                          <div className="section-title truncate text-[1.35rem] font-black leading-tight text-[#18211E]">
                             {itemDisplayName}
                           </div>
                         </div>
@@ -320,8 +339,8 @@ export default function AuctionRoom({
                         </div>
                       )}
 
-                      <div className="mt-4 flex items-end justify-between gap-2 border-t border-[#EDF2EF] pt-3.5">
-                        <div className="min-w-[3.6rem]">
+                      <div className="auction-item-bid-summary mt-4 flex items-end justify-between gap-2 border-t border-[#EDF2EF] pt-3.5">
+                        <div className="auction-item-bidder min-w-[3.6rem]">
                           {award && isUnlocked ? (
                             <span
                               className="inline-flex h-8 items-center justify-center rounded-full px-2.5 font-mono text-[0.84rem] font-black text-white"
@@ -338,12 +357,13 @@ export default function AuctionRoom({
                             </span>
                           ) : null}
                         </div>
-                        <div className="min-w-0 flex-1 text-right font-mono text-[1.26rem] font-black leading-none" style={{ color: isUnlocked ? activeDayGroup.accent.chip : '#6E7A72' }}>
-                          {isUnlocked
-                            ? award
-                              ? formatCurrency(award.amount)
-                              : formatCurrency(currentBid.amount)
-                            : null}
+                        <div className="auction-item-current-bid min-w-0 flex-1 text-right" style={{ color: isUnlocked ? activeDayGroup.accent.chip : '#6E7A72' }}>
+                          {isUnlocked ? (
+                            <>
+                              <span>현재가</span>
+                              <strong>{award ? formatCurrency(award.amount) : formatCurrency(currentBid.amount)}</strong>
+                            </>
+                          ) : null}
                         </div>
                       </div>
                     </button>

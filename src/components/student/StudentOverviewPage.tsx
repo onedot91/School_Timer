@@ -11,6 +11,7 @@ import {
 } from '../../lib/studentPet';
 import { useModalFocus } from '../../lib/useModalFocus';
 import StudentBalanceSummary from './StudentBalanceSummary';
+import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentPetStage from './StudentPetStage';
 import type { StudentCharacterPrizeId, StudentCustomHouseTheme, StudentHouseDesignId } from '../../lib/studentEconomy';
 import StudentPurchaseCard from './StudentPurchaseCard';
@@ -70,7 +71,9 @@ export default function StudentOverviewPage({
   const [activePetDialog, setActivePetDialog] = useState<'feed' | 'name' | 'picker' | null>(null);
   const [petNameDraft, setPetNameDraft] = useState(pet.name);
   const [petError, setPetError] = useState('');
+  const [isFeedConfirmationOpen, setIsFeedConfirmationOpen] = useState(false);
   const petDialogRef = useRef<HTMLElement>(null);
+  const feedButtonRef = useRef<HTMLButtonElement>(null);
   const needsPetName = pet.pendingNamePetId !== null;
   const petKind = getStudentPetKind(pet.petKind);
   const eggStage = getStudentPetEggStage(pet.fedAmount);
@@ -129,7 +132,6 @@ export default function StudentOverviewPage({
           tone="mission"
           icon={ClipboardCheck}
           title="고마 벌기"
-          actionLabel="미션 시작"
           direction="left"
           onClick={onOpenMissions}
         />
@@ -185,20 +187,13 @@ export default function StudentOverviewPage({
                   <p>부화까지 {STUDENT_PET_HATCH_AMOUNT - pet.fedAmount} 고마</p>
                 </div>
                 <button
+                  ref={feedButtonRef}
                   type="button"
                   className="student-pet-dialog-primary"
                   disabled={isPetSaving || availableBalance < 5}
                   onClick={() => {
                     setPetError('');
-                    void onFeedPet().then((saved) => {
-                      if (!saved) {
-                        setPetError('먹이를 주지 못했습니다. 잔액을 확인해 주세요.');
-                        return;
-                      }
-                      if (pet.fedAmount + STUDENT_PET_FEED_AMOUNT >= STUDENT_PET_HATCH_AMOUNT) {
-                        setActivePetDialog('name');
-                      }
-                    });
+                    setIsFeedConfirmationOpen(true);
                   }}
                 >
                   <Check size={20} aria-hidden="true" />
@@ -279,6 +274,29 @@ export default function StudentOverviewPage({
           </section>
         </div>
       ) : null}
+      <StudentConfirmDialog
+        isOpen={isFeedConfirmationOpen}
+        kicker="알 먹이기"
+        title={`${STUDENT_PET_FEED_AMOUNT} 고마를 사용할까요?`}
+        description="먹이를 주면 사용 가능한 고마가 줄어요."
+        confirmLabel="먹이기"
+        isPending={isPetSaving}
+        returnFocusRef={feedButtonRef}
+        onCancel={() => setIsFeedConfirmationOpen(false)}
+        onConfirm={() => {
+          void onFeedPet().then((saved) => {
+            if (!saved) {
+              setPetError('먹이를 주지 못했습니다. 잔액을 확인해 주세요.');
+              setIsFeedConfirmationOpen(false);
+              return;
+            }
+            setIsFeedConfirmationOpen(false);
+            if (pet.fedAmount + STUDENT_PET_FEED_AMOUNT >= STUDENT_PET_HATCH_AMOUNT) {
+              setActivePetDialog('name');
+            }
+          });
+        }}
+      />
     </div>
   );
 }

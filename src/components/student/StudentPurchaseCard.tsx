@@ -13,7 +13,6 @@ export default function StudentPurchaseCard({
       tone="store"
       icon={ShoppingBag}
       title="고마 쓰기"
-      actionLabel="경매장·기부 보기"
       onClick={onOpen}
     />
   );

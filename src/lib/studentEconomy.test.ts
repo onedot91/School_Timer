@@ -4,8 +4,63 @@ import test from 'node:test';
 import {
   applyStudentEconomyAction,
   getDailyStockQuotes,
+  normalizeStudentStockMarket,
   normalizeStudentShopCatalog,
+  STUDENT_STOCKS,
+  upsertStudentStockMarketEntry,
 } from './studentEconomy.ts';
+
+test('학생 증권은 4개 종목과 날짜별 등락 이유를 유지한다', () => {
+  assert.equal(STUDENT_STOCKS.length, 4);
+  const market = upsertStudentStockMarketEntry({}, 'sunny', {
+    dateKey: '2026-08-12', changeAmount: 3, comment: '새 문구류가 인기를 얻었어요.',
+  });
+  const updated = upsertStudentStockMarketEntry(market, 'sunny', {
+    dateKey: '2026-08-13', changeAmount: -2, comment: '재료비가 올랐어요.',
+  });
+  const quote = getDailyStockQuotes('2026-08-13', updated).find((stock) => stock.id === 'sunny');
+  assert.equal(quote?.changeAmount, -2);
+  assert.equal(quote?.comment, '재료비가 올랐어요.');
+  assert.deepEqual(quote?.history.map((entry) => entry.dateKey), ['2026-08-13', '2026-08-12']);
+  assert.equal(quote?.price, 15);
+});
+
+test('같은 날짜의 증권 코멘트는 최신 내용으로 교체된다', () => {
+  const market = upsertStudentStockMarketEntry({}, 'sprout', {
+    dateKey: '2026-08-13', changeAmount: 1, comment: '첫 소식',
+  });
+  const updated = upsertStudentStockMarketEntry(market, 'sprout', {
+    dateKey: '2026-08-13', changeAmount: 4, comment: '수정된 소식',
+  });
+  assert.deepEqual(normalizeStudentStockMarket(updated).sprout, [{
+    dateKey: '2026-08-13', changeAmount: 4, comment: '수정된 소식',
+  }]);
+});
+
+test('학생은 기준가로 사고 보유한 종목을 다시 살 수 없다', () => {
+  const market = upsertStudentStockMarketEntry({}, 'sunny', {
+    dateKey: '2026-08-13', changeAmount: 3, comment: '주문 증가',
+  });
+  const result = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'buy_stock', stockId: 'sunny', dateKey: '2026-08-13' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'market-stock-buy',
+    stockMarket: market,
+  });
+  assert.equal(result.wallet, 85);
+  assert.equal(result.state.holdings.sunny, 1);
+  assert.deepEqual(result.state.stockPurchases.sunny, { dateKey: '2026-08-13', price: 15 });
+  assert.throws(() => applyStudentEconomyAction({
+    state: result.state,
+    action: { type: 'buy_stock', stockId: 'sunny', dateKey: '2026-08-13' },
+    wallet: result.wallet,
+    availableWallet: result.wallet,
+    requestId: 'market-stock-buy-again',
+    stockMarket: market,
+  }), /STOCK_ALREADY_OWNED/);
+});
 
 test('예약 고마를 제외한 금액만 은행에 맡길 수 있다', () => {
   assert.throws(() => applyStudentEconomyAction({
@@ -48,7 +103,7 @@ test('집 고치기는 학생별로 한 번만 구매할 수 있다', () => {
   }), /HOUSE_ALREADY_REPAIRED/);
 });
 
-test('주가는 날짜별로 결정되고 매수와 매도가 보유 수량을 보존한다', () => {
+test('보유 종목을 팔면 오늘 등락 고마를 반영해 직접 정산한다', () => {
   const quote = getDailyStockQuotes('2026-08-11')[0];
   const bought = applyStudentEconomyAction({
     state: null,
@@ -57,15 +112,28 @@ test('주가는 날짜별로 결정되고 매수와 매도가 보유 수량을 �
     availableWallet: 100,
     requestId: 'stock-buy-1',
   });
+  const market = upsertStudentStockMarketEntry({}, quote.id, {
+    dateKey: '2026-08-12', changeAmount: 3, comment: '좋은 소식이 생겼어요.',
+  });
   const sold = applyStudentEconomyAction({
     state: bought.state,
-    action: { type: 'sell_stock', stockId: quote.id, dateKey: '2026-08-11' },
+    action: { type: 'sell_stock', stockId: quote.id, dateKey: '2026-08-12' },
     wallet: bought.wallet,
     availableWallet: bought.wallet,
     requestId: 'stock-sell-1',
+    stockMarket: market,
   });
-  assert.equal(sold.wallet, 100);
-  assert.equal(sold.state.holdings[quote.id], 0);
+  assert.equal(sold.wallet, 103);
+  assert.equal(sold.state.holdings[quote.id], undefined);
+  assert.equal(sold.state.stockPurchases[quote.id], undefined);
+  assert.throws(() => applyStudentEconomyAction({
+    state: sold.state,
+    action: { type: 'sell_stock', stockId: quote.id, dateKey: '2026-08-12' },
+    wallet: sold.wallet,
+    availableWallet: sold.wallet,
+    requestId: 'stock-sell-again',
+    stockMarket: market,
+  }), /STOCK_NOT_OWNED/);
 });
 
 test('같은 요청 식별자는 두 번 반영하지 않는다', () => {

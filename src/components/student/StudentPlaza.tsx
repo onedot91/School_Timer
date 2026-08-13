@@ -1,10 +1,10 @@
 import { getDailyDonationCharacterSource } from '../../lib/dailyDonationCharacter';
 import { getKoreanLocalDateKey } from '../../lib/studentEmotion';
 
-export type StudentStoreSection = 'plaza' | 'bank' | 'shop' | 'auction' | 'securities' | 'donation';
+export type StudentStoreSection = 'plaza' | 'bank' | 'shop' | 'auction' | 'securities' | 'securities-trade' | 'donation';
 
 interface StudentPlazaProps {
-  onOpen: (section: Exclude<StudentStoreSection, 'plaza'>) => void;
+  onOpen: (section: Exclude<StudentStoreSection, 'plaza' | 'securities-trade'>) => void;
 }
 
 const HOTSPOTS = [

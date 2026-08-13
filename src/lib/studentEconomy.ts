@@ -52,6 +52,7 @@ export const STUDENT_STOCKS = [
   { id: 'sunny', name: '햇살문구', emoji: '☀️', basePrice: 15 },
   { id: 'sprout', name: '새싹식품', emoji: '🌱', basePrice: 25 },
   { id: 'cloud', name: '구름운수', emoji: '☁️', basePrice: 35 },
+  { id: 'star', name: '별빛미디어', emoji: '⭐', basePrice: 20 },
 ] as const;
 
 export type StudentShopItemId = string;
@@ -71,6 +72,7 @@ export interface StudentEconomyState {
   loan: number;
   inventory: Record<StudentShopItemId, number>;
   holdings: Partial<Record<StudentStockId, number>>;
+  stockPurchases: Partial<Record<StudentStockId, StudentStockPurchase>>;
   ownedCharacterIds: StudentCharacterPrizeId[];
   activeCharacterId: StudentCharacterPrizeId | null;
   ownedHouseIds: StudentHouseDesignId[];
@@ -81,6 +83,19 @@ export interface StudentEconomyState {
 }
 
 export type StudentEconomyStates = Record<string, StudentEconomyState>;
+
+export interface StudentStockPurchase {
+  dateKey: string;
+  price: number;
+}
+
+export interface StudentStockMarketEntry {
+  dateKey: string;
+  changeAmount: number;
+  comment: string;
+}
+
+export type StudentStockMarket = Partial<Record<StudentStockId, StudentStockMarketEntry[]>>;
 
 export type StudentEconomyAction =
   | { type: 'deposit'; amount: number }
@@ -107,6 +122,7 @@ export interface StudentEconomyResult {
 }
 
 const MAX_PROCESSED_REQUESTS = 24;
+const MAX_STOCK_MARKET_HISTORY = 30;
 const STOCK_IDS = new Set<string>(STUDENT_STOCKS.map((stock) => stock.id));
 const CHARACTER_IDS = new Set<string>(STUDENT_CHARACTER_PRIZES.map((character) => character.id));
 const HOUSE_IDS = new Set<string>(STUDENT_HOUSE_DESIGNS.map((house) => house.id));
@@ -141,6 +157,68 @@ const normalizeIdList = <T extends string>(value: unknown, allowed: Set<string>)
     ? [...new Set(value.filter((id): id is T => typeof id === 'string' && allowed.has(id)))]
     : []
 );
+
+const normalizeStockMarketEntry = (value: unknown): StudentStockMarketEntry | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const source = value as Record<string, unknown>;
+  const dateKey = typeof source.dateKey === 'string' ? source.dateKey : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const rawAmount = typeof source.changeAmount === 'number'
+    ? source.changeAmount
+    : Number(source.changeAmount ?? source.changePercent);
+  const changeAmount = Number.isFinite(rawAmount)
+    ? Math.max(-20, Math.min(20, Math.round(rawAmount)))
+    : 0;
+  const comment = typeof source.comment === 'string' ? source.comment.trim().slice(0, 120) : '';
+  return { dateKey, changeAmount, comment };
+};
+
+export const normalizeStudentStockMarket = (value: unknown): StudentStockMarket => {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  return STUDENT_STOCKS.reduce<StudentStockMarket>((market, stock) => {
+    const entries = Array.isArray(source[stock.id]) ? source[stock.id] as unknown[] : [];
+    const uniqueEntries = new Map<string, StudentStockMarketEntry>();
+    entries.forEach((entry) => {
+      const normalized = normalizeStockMarketEntry(entry);
+      if (normalized) uniqueEntries.set(normalized.dateKey, normalized);
+    });
+    market[stock.id] = [...uniqueEntries.values()]
+      .sort((left, right) => right.dateKey.localeCompare(left.dateKey))
+      .slice(0, MAX_STOCK_MARKET_HISTORY);
+    return market;
+  }, {});
+};
+
+export const upsertStudentStockMarketEntry = (
+  value: unknown,
+  stockId: StudentStockId,
+  entry: StudentStockMarketEntry,
+) => {
+  const market = normalizeStudentStockMarket(value);
+  return normalizeStudentStockMarket({
+    ...market,
+    [stockId]: [...(market[stockId] ?? []), entry],
+  });
+};
+
+const STUDENT_STOCK_MARKET_STORAGE_KEY = 'school-timer-student-stock-market-v1';
+
+export const loadStoredStudentStockMarket = () => {
+  if (typeof window === 'undefined') return normalizeStudentStockMarket(undefined);
+  try {
+    const raw = window.localStorage.getItem(STUDENT_STOCK_MARKET_STORAGE_KEY);
+    return raw === null ? normalizeStudentStockMarket(undefined) : normalizeStudentStockMarket(JSON.parse(raw));
+  } catch {
+    return normalizeStudentStockMarket(undefined);
+  }
+};
+
+export const storeStudentStockMarket = (market: unknown) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(STUDENT_STOCK_MARKET_STORAGE_KEY, JSON.stringify(normalizeStudentStockMarket(market)));
+};
 
 export const normalizeStudentShopCatalog = (value: unknown): StudentShopCatalogItem[] => {
   if (!Array.isArray(value)) return DEFAULT_STUDENT_SHOP_CATALOG.map((item) => ({ ...item }));
@@ -179,6 +257,7 @@ export const createStudentEconomyState = (): StudentEconomyState => ({
   loan: 0,
   inventory: {},
   holdings: {},
+  stockPurchases: {},
   ownedCharacterIds: [],
   activeCharacterId: null,
   ownedHouseIds: [],
@@ -198,6 +277,7 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
     loan: clampAmount(source.loan),
     inventory: normalizeInventory(source.inventory),
     holdings: normalizeCountMap<StudentStockId>(source.holdings, STOCK_IDS),
+    stockPurchases: normalizeStudentStockPurchases(source.stockPurchases),
     ownedCharacterIds: normalizeIdList<StudentCharacterPrizeId>(source.ownedCharacterIds, CHARACTER_IDS),
     activeCharacterId: typeof source.activeCharacterId === 'string' && CHARACTER_IDS.has(source.activeCharacterId)
       ? source.activeCharacterId as StudentCharacterPrizeId
@@ -239,13 +319,35 @@ const hashText = (value: string) => Array.from(value).reduce((hash, character) =
   (hash * 31 + character.charCodeAt(0)) >>> 0
 ), 7);
 
-export const getDailyStockQuotes = (dateKey: string) => STUDENT_STOCKS.map((stock) => {
-  const todayOffset = (hashText(`${dateKey}-${stock.id}`) % 11) - 5;
-  const previousOffset = (hashText(`${dateKey}-previous-${stock.id}`) % 11) - 5;
-  const price = Math.max(5, stock.basePrice + todayOffset);
-  const previousPrice = Math.max(5, stock.basePrice + previousOffset);
-  return { ...stock, price, change: price - previousPrice };
-});
+export const getDailyStockQuotes = (dateKey: string, marketValue?: unknown) => {
+  const market = normalizeStudentStockMarket(marketValue);
+  return STUDENT_STOCKS.map((stock) => {
+    const history = (market[stock.id] ?? []).filter((entry) => entry.dateKey <= dateKey);
+    const currentEntry = history.find((entry) => entry.dateKey === dateKey) ?? null;
+    return {
+      ...stock,
+      price: stock.basePrice,
+      changeAmount: currentEntry?.changeAmount ?? 0,
+      comment: currentEntry?.comment ?? '',
+      history,
+    };
+  });
+};
+
+const normalizeStudentStockPurchases = (value: unknown) => {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  return STUDENT_STOCKS.reduce<Partial<Record<StudentStockId, StudentStockPurchase>>>((purchases, stock) => {
+    const rawPurchase = source[stock.id];
+    if (!rawPurchase || typeof rawPurchase !== 'object' || Array.isArray(rawPurchase)) return purchases;
+    const purchase = rawPurchase as Record<string, unknown>;
+    const dateKey = typeof purchase.dateKey === 'string' ? purchase.dateKey : '';
+    const price = clampAmount(purchase.price);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey) && price > 0) purchases[stock.id] = { dateKey, price };
+    return purchases;
+  }, {});
+};
 
 const assertTransactionAmount = (amount: number) => {
   if (!Number.isInteger(amount) || amount < STUDENT_ECONOMY_AMOUNT_STEP || amount > STUDENT_ECONOMY_AMOUNT_MAX) {
@@ -260,6 +362,7 @@ export const applyStudentEconomyAction = ({
   availableWallet,
   requestId,
   shopCatalog,
+  stockMarket,
 }: {
   state: unknown;
   action: StudentEconomyAction;
@@ -267,6 +370,7 @@ export const applyStudentEconomyAction = ({
   availableWallet: number;
   requestId: string;
   shopCatalog?: unknown;
+  stockMarket?: unknown;
 }): StudentEconomyResult => {
   const state = normalizeStudentEconomyState(rawState);
   if (state.processedRequestIds.includes(requestId)) {
@@ -357,22 +461,31 @@ export const applyStudentEconomyAction = ({
     if (!name) throw new Error('CUSTOM_HOUSE_NAME_REQUIRED');
     nextState = { ...state, customHouseDesign: { name, theme: action.theme }, activeHouseId: 'custom' };
     message = `${name} 디자인을 적용했습니다.`;
-  } else {
-    const quote = getDailyStockQuotes(action.dateKey).find((candidate) => candidate.id === action.stockId);
+  } else if (action.type === 'buy_stock') {
+    const quote = getDailyStockQuotes(action.dateKey, stockMarket).find((candidate) => candidate.id === action.stockId);
     if (!quote) throw new Error('UNKNOWN_STOCK');
     reason = 'stock_trade';
-    const currentCount = state.holdings[quote.id] ?? 0;
-    if (action.type === 'buy_stock') {
-      spend(quote.price);
-      nextWallet = wallet - quote.price;
-      nextState = { ...state, holdings: { ...state.holdings, [quote.id]: currentCount + 1 } };
-      message = `${quote.name} 1주를 샀습니다.`;
-    } else {
-      if (currentCount < 1) throw new Error('NO_STOCK_HOLDING');
-      nextWallet += quote.price;
-      nextState = { ...state, holdings: { ...state.holdings, [quote.id]: currentCount - 1 } };
-      message = `${quote.name} 1주를 팔았습니다.`;
-    }
+    if ((state.holdings[quote.id] ?? 0) > 0) throw new Error('STOCK_ALREADY_OWNED');
+    spend(quote.price);
+    nextState = {
+      ...state,
+      holdings: { ...state.holdings, [quote.id]: 1 },
+      stockPurchases: { ...state.stockPurchases, [quote.id]: { dateKey: action.dateKey, price: quote.price } },
+    };
+    message = `${quote.name} 1주를 샀습니다.`;
+  } else {
+    const quote = getDailyStockQuotes(action.dateKey, stockMarket).find((candidate) => candidate.id === action.stockId);
+    if (!quote) throw new Error('UNKNOWN_STOCK');
+    if ((state.holdings[quote.id] ?? 0) < 1) throw new Error('STOCK_NOT_OWNED');
+    const purchasePrice = state.stockPurchases[quote.id]?.price ?? quote.price;
+    const nextHoldings = { ...state.holdings };
+    const nextPurchases = { ...state.stockPurchases };
+    delete nextHoldings[quote.id];
+    delete nextPurchases[quote.id];
+    reason = 'stock_trade';
+    nextWallet += Math.max(0, purchasePrice + quote.changeAmount);
+    nextState = { ...state, holdings: nextHoldings, stockPurchases: nextPurchases };
+    message = `${quote.name} 1주를 팔았습니다.`;
   }
 
   return {
