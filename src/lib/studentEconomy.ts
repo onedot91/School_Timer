@@ -57,6 +57,8 @@ export const STUDENT_STOCKS = [
 
 export type StudentShopItemId = string;
 export type StudentStockId = (typeof STUDENT_STOCKS)[number]['id'];
+export type StudentInvestmentStage = 'big_rise' | 'rise' | 'flat' | 'fall' | 'big_fall';
+export type StudentInvestmentRounding = 'round' | 'floor' | 'ceil';
 export type StudentCharacterPrizeId = (typeof STUDENT_CHARACTER_PRIZES)[number]['id'];
 export type StudentHouseDesignId = (typeof STUDENT_HOUSE_DESIGNS)[number]['id'];
 export type StudentCustomHouseTheme = 'natural' | 'blue' | 'green';
@@ -73,6 +75,7 @@ export interface StudentEconomyState {
   inventory: Record<StudentShopItemId, number>;
   holdings: Partial<Record<StudentStockId, number>>;
   stockPurchases: Partial<Record<StudentStockId, StudentStockPurchase>>;
+  investments: Partial<Record<StudentStockId, StudentInvestmentPosition>>;
   ownedCharacterIds: StudentCharacterPrizeId[];
   activeCharacterId: StudentCharacterPrizeId | null;
   ownedHouseIds: StudentHouseDesignId[];
@@ -89,13 +92,83 @@ export interface StudentStockPurchase {
   price: number;
 }
 
+export interface StudentInvestmentPosition {
+  investedAmount: number;
+  currentAmount: number;
+  lastSettledDateKey: string;
+  lastChangeAmount: number;
+  lastStage: StudentInvestmentStage;
+}
+
+export interface StudentInvestmentSettings {
+  multipliers: Record<StudentInvestmentStage, number>;
+  rounding: StudentInvestmentRounding;
+  minimumAmount: number;
+  maximumAmount: number;
+}
+
+export const DEFAULT_STUDENT_INVESTMENT_SETTINGS: StudentInvestmentSettings = {
+  multipliers: { big_rise: 1.2, rise: 1.1, flat: 1, fall: 0.9, big_fall: 0.8 },
+  rounding: 'round',
+  minimumAmount: 5,
+  maximumAmount: 500,
+};
+
+const INVESTMENT_STAGE_PRESENTATION: Record<StudentInvestmentStage, { symbol: string; studentLabel: string }> = {
+  big_rise: { symbol: '▲▲', studentLabel: '많이 올랐어요' },
+  rise: { symbol: '▲', studentLabel: '올랐어요' },
+  flat: { symbol: '─', studentLabel: '그대로예요' },
+  fall: { symbol: '▼', studentLabel: '내렸어요' },
+  big_fall: { symbol: '▼▼', studentLabel: '많이 내렸어요' },
+};
+
+export const getInvestmentStagePresentation = (stage: StudentInvestmentStage) => INVESTMENT_STAGE_PRESENTATION[stage];
+
+export const investmentPercentToMultiplier = (percent: number) => (
+  1 + Math.max(-50, Math.min(50, Math.round(percent))) / 100
+);
+
+export const investmentMultiplierToPercent = (multiplier: number) => (
+  Math.max(-50, Math.min(50, Math.round((multiplier - 1) * 100)))
+);
+
+export const getInvestmentStageFromPercent = (percent: number): StudentInvestmentStage => {
+  const normalizedPercent = Math.max(-50, Math.min(50, Math.round(percent)));
+  if (normalizedPercent >= 30) return 'big_rise';
+  if (normalizedPercent > 0) return 'rise';
+  if (normalizedPercent <= -30) return 'big_fall';
+  if (normalizedPercent < 0) return 'fall';
+  return 'flat';
+};
+
+export const getInvestmentWeekDateKeys = (dateKey: string) => {
+  const selectedDate = new Date(`${dateKey}T12:00:00Z`);
+  const selectedDay = selectedDate.getUTCDay();
+  const daysFromMonday = selectedDay === 0 ? 6 : selectedDay - 1;
+  selectedDate.setUTCDate(selectedDate.getUTCDate() - daysFromMonday);
+  return Array.from({ length: 5 }, (_, index) => {
+    const weekday = new Date(selectedDate);
+    weekday.setUTCDate(selectedDate.getUTCDate() + index);
+    return weekday.toISOString().slice(0, 10);
+  });
+};
+
+export const calculateInvestmentAmount = (
+  amount: number,
+  multiplier: number,
+  rounding: StudentInvestmentRounding,
+) => Math.max(0, Math[rounding](amount * multiplier));
+
 export interface StudentStockMarketEntry {
   dateKey: string;
-  changeAmount: number;
+  stage: StudentInvestmentStage;
+  returnPercent?: number;
   comment: string;
 }
 
-export type StudentStockMarket = Partial<Record<StudentStockId, StudentStockMarketEntry[]>>;
+export type StudentStockMarket = Partial<Record<StudentStockId, StudentStockMarketEntry[]>> & {
+  settings?: StudentInvestmentSettings;
+};
 
 export type StudentEconomyAction =
   | { type: 'deposit'; amount: number }
@@ -110,8 +183,9 @@ export type StudentEconomyAction =
   | { type: 'select_house'; houseId: StudentHouseDesignId }
   | { type: 'buy_custom_house_coupon' }
   | { type: 'register_custom_house'; name: string; theme: StudentCustomHouseTheme }
-  | { type: 'buy_stock'; stockId: StudentStockId; dateKey: string }
-  | { type: 'sell_stock'; stockId: StudentStockId; dateKey: string };
+  | { type: 'invest'; stockId: StudentStockId; amount: number; dateKey: string }
+  | { type: 'withdraw_investment'; stockId: StudentStockId; dateKey: string }
+  | { type: 'settle_investments'; dateKey: string };
 
 export interface StudentEconomyResult {
   state: StudentEconomyState;
@@ -126,6 +200,7 @@ const MAX_STOCK_MARKET_HISTORY = 30;
 const STOCK_IDS = new Set<string>(STUDENT_STOCKS.map((stock) => stock.id));
 const CHARACTER_IDS = new Set<string>(STUDENT_CHARACTER_PRIZES.map((character) => character.id));
 const HOUSE_IDS = new Set<string>(STUDENT_HOUSE_DESIGNS.map((house) => house.id));
+const INVESTMENT_STAGES = new Set<StudentInvestmentStage>(['big_rise', 'rise', 'flat', 'fall', 'big_fall']);
 
 const clampAmount = (value: unknown) => {
   const amount = typeof value === 'number' ? value : Number(value);
@@ -163,33 +238,62 @@ const normalizeStockMarketEntry = (value: unknown): StudentStockMarketEntry | nu
   const source = value as Record<string, unknown>;
   const dateKey = typeof source.dateKey === 'string' ? source.dateKey : '';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
-  const rawAmount = typeof source.changeAmount === 'number'
-    ? source.changeAmount
-    : Number(source.changeAmount ?? source.changePercent);
-  const changeAmount = Number.isFinite(rawAmount)
-    ? Math.max(-20, Math.min(20, Math.round(rawAmount)))
-    : 0;
+  const rawAmount = Number(source.changeAmount ?? source.changePercent ?? 0);
+  const legacyStage: StudentInvestmentStage = rawAmount >= 5 ? 'big_rise'
+    : rawAmount > 0 ? 'rise'
+      : rawAmount <= -5 ? 'big_fall'
+        : rawAmount < 0 ? 'fall' : 'flat';
+  const rawReturnPercent = Number(source.returnPercent);
+  const returnPercent = Number.isFinite(rawReturnPercent)
+    ? Math.max(-50, Math.min(50, Math.round(rawReturnPercent)))
+    : null;
+  const stage = returnPercent === null
+    ? typeof source.stage === 'string' && INVESTMENT_STAGES.has(source.stage as StudentInvestmentStage)
+      ? source.stage as StudentInvestmentStage
+      : legacyStage
+    : getInvestmentStageFromPercent(returnPercent);
   const comment = typeof source.comment === 'string' ? source.comment.trim().slice(0, 120) : '';
-  return { dateKey, changeAmount, comment };
+  return returnPercent === null ? { dateKey, stage, comment } : { dateKey, stage, returnPercent, comment };
+};
+
+export const normalizeStudentInvestmentSettings = (value: unknown): StudentInvestmentSettings => {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const rawMultipliers = source.multipliers && typeof source.multipliers === 'object' && !Array.isArray(source.multipliers)
+    ? source.multipliers as Record<string, unknown> : {};
+  const multipliers = Object.fromEntries([...INVESTMENT_STAGES].map((stage) => {
+    const candidate = Number(rawMultipliers[stage]);
+    return [stage, Number.isFinite(candidate) && candidate >= 0.5 && candidate <= 1.5 ? candidate : DEFAULT_STUDENT_INVESTMENT_SETTINGS.multipliers[stage]];
+  })) as Record<StudentInvestmentStage, number>;
+  const minimumAmount = Math.max(1, Math.min(999_999, Math.round(Number(source.minimumAmount) || DEFAULT_STUDENT_INVESTMENT_SETTINGS.minimumAmount)));
+  const maximumAmount = Math.max(minimumAmount, Math.min(999_999, Math.round(Number(source.maximumAmount) || DEFAULT_STUDENT_INVESTMENT_SETTINGS.maximumAmount)));
+  const rounding = source.rounding === 'floor' || source.rounding === 'ceil' ? source.rounding : 'round';
+  return { multipliers, minimumAmount, maximumAmount, rounding };
 };
 
 export const normalizeStudentStockMarket = (value: unknown): StudentStockMarket => {
   const source = value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
-  return STUDENT_STOCKS.reduce<StudentStockMarket>((market, stock) => {
+  const market = STUDENT_STOCKS.reduce<StudentStockMarket>((result, stock) => {
     const entries = Array.isArray(source[stock.id]) ? source[stock.id] as unknown[] : [];
     const uniqueEntries = new Map<string, StudentStockMarketEntry>();
     entries.forEach((entry) => {
       const normalized = normalizeStockMarketEntry(entry);
       if (normalized) uniqueEntries.set(normalized.dateKey, normalized);
     });
-    market[stock.id] = [...uniqueEntries.values()]
+    result[stock.id] = [...uniqueEntries.values()]
       .sort((left, right) => right.dateKey.localeCompare(left.dateKey))
       .slice(0, MAX_STOCK_MARKET_HISTORY);
-    return market;
+    return result;
   }, {});
+  market.settings = normalizeStudentInvestmentSettings(source.settings);
+  return market;
 };
+
+export const updateStudentInvestmentSettings = (value: unknown, settings: StudentInvestmentSettings) => ({
+  ...normalizeStudentStockMarket(value),
+  settings: normalizeStudentInvestmentSettings(settings),
+});
 
 export const upsertStudentStockMarketEntry = (
   value: unknown,
@@ -258,6 +362,7 @@ export const createStudentEconomyState = (): StudentEconomyState => ({
   inventory: {},
   holdings: {},
   stockPurchases: {},
+  investments: {},
   ownedCharacterIds: [],
   activeCharacterId: null,
   ownedHouseIds: [],
@@ -278,6 +383,7 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
     inventory: normalizeInventory(source.inventory),
     holdings: normalizeCountMap<StudentStockId>(source.holdings, STOCK_IDS),
     stockPurchases: normalizeStudentStockPurchases(source.stockPurchases),
+    investments: normalizeStudentInvestments(source.investments),
     ownedCharacterIds: normalizeIdList<StudentCharacterPrizeId>(source.ownedCharacterIds, CHARACTER_IDS),
     activeCharacterId: typeof source.activeCharacterId === 'string' && CHARACTER_IDS.has(source.activeCharacterId)
       ? source.activeCharacterId as StudentCharacterPrizeId
@@ -326,12 +432,68 @@ export const getDailyStockQuotes = (dateKey: string, marketValue?: unknown) => {
     const currentEntry = history.find((entry) => entry.dateKey === dateKey) ?? null;
     return {
       ...stock,
-      price: stock.basePrice,
-      changeAmount: currentEntry?.changeAmount ?? 0,
+      stage: currentEntry?.stage ?? 'flat',
+      changeAmount: currentEntry?.stage === 'big_rise' ? 2 : currentEntry?.stage === 'rise' ? 1 : currentEntry?.stage === 'fall' ? -1 : currentEntry?.stage === 'big_fall' ? -2 : 0,
       comment: currentEntry?.comment ?? '',
       history,
     };
   });
+};
+
+const normalizeStudentInvestments = (value: unknown) => {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return STUDENT_STOCKS.reduce<Partial<Record<StudentStockId, StudentInvestmentPosition>>>((positions, stock) => {
+    const raw = source[stock.id];
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return positions;
+    const position = raw as Record<string, unknown>;
+    const investedAmount = clampAmount(position.investedAmount);
+    const currentAmount = clampAmount(position.currentAmount);
+    const lastSettledDateKey = typeof position.lastSettledDateKey === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(position.lastSettledDateKey) ? position.lastSettledDateKey : '';
+    const lastStage = typeof position.lastStage === 'string' && INVESTMENT_STAGES.has(position.lastStage as StudentInvestmentStage) ? position.lastStage as StudentInvestmentStage : 'flat';
+    const lastChangeAmount = Number.isFinite(Number(position.lastChangeAmount)) ? Math.round(Number(position.lastChangeAmount)) : 0;
+    if (investedAmount > 0 && currentAmount >= 0 && lastSettledDateKey) positions[stock.id] = { investedAmount, currentAmount, lastSettledDateKey, lastChangeAmount, lastStage };
+    return positions;
+  }, {});
+};
+
+const isWeekdayDateKey = (dateKey: string) => {
+  const day = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
+  return day >= 1 && day <= 5;
+};
+
+const getPendingWeekdayDateKeys = (afterDateKey: string, throughDateKey: string) => {
+  const cursor = new Date(`${afterDateKey}T12:00:00Z`);
+  const end = new Date(`${throughDateKey}T12:00:00Z`);
+  const dateKeys: string[] = [];
+  cursor.setUTCDate(cursor.getUTCDate() + 1);
+  while (cursor <= end) {
+    const dateKey = cursor.toISOString().slice(0, 10);
+    if (isWeekdayDateKey(dateKey)) dateKeys.push(dateKey);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dateKeys;
+};
+
+const settleStudentInvestments = (state: StudentEconomyState, dateKey: string, marketValue: unknown) => {
+  const market = normalizeStudentStockMarket(marketValue);
+  const settings = market.settings ?? DEFAULT_STUDENT_INVESTMENT_SETTINGS;
+  const investments = { ...state.investments };
+  STUDENT_STOCKS.forEach((stock) => {
+    const current = investments[stock.id];
+    if (!current) return;
+    let next = current;
+    getPendingWeekdayDateKeys(current.lastSettledDateKey, dateKey).forEach((pendingDateKey) => {
+      const entry = (market[stock.id] ?? []).find((candidate) => candidate.dateKey === pendingDateKey);
+      const stage = entry?.stage ?? 'flat';
+      const multiplier = entry?.returnPercent === undefined
+        ? settings.multipliers[stage]
+        : investmentPercentToMultiplier(entry.returnPercent);
+      const nextAmount = calculateInvestmentAmount(next.currentAmount, multiplier, settings.rounding);
+      next = { ...next, currentAmount: nextAmount, lastChangeAmount: nextAmount - next.currentAmount, lastStage: stage, lastSettledDateKey: pendingDateKey };
+    });
+    investments[stock.id] = next;
+  });
+  return { ...state, investments };
 };
 
 const normalizeStudentStockPurchases = (value: unknown) => {
@@ -461,31 +623,45 @@ export const applyStudentEconomyAction = ({
     if (!name) throw new Error('CUSTOM_HOUSE_NAME_REQUIRED');
     nextState = { ...state, customHouseDesign: { name, theme: action.theme }, activeHouseId: 'custom' };
     message = `${name} 디자인을 적용했습니다.`;
-  } else if (action.type === 'buy_stock') {
-    const quote = getDailyStockQuotes(action.dateKey, stockMarket).find((candidate) => candidate.id === action.stockId);
-    if (!quote) throw new Error('UNKNOWN_STOCK');
+  } else if (action.type === 'settle_investments') {
+    const settledState = settleStudentInvestments(state, action.dateKey, stockMarket);
+    const hasChangedPosition = STUDENT_STOCKS.some((stock) => settledState.investments[stock.id] !== state.investments[stock.id]);
+    if (!hasChangedPosition) return { state, wallet, reason: 'stock_trade', message: '', applied: false };
+    nextState = settledState;
     reason = 'stock_trade';
-    if ((state.holdings[quote.id] ?? 0) > 0) throw new Error('STOCK_ALREADY_OWNED');
-    spend(quote.price);
+    message = '';
+  } else if (action.type === 'invest') {
+    if (!STOCK_IDS.has(action.stockId)) throw new Error('UNKNOWN_STOCK');
+    if (!isWeekdayDateKey(action.dateKey)) throw new Error('STOCK_MARKET_CLOSED');
+    const settings = normalizeStudentStockMarket(stockMarket).settings ?? DEFAULT_STUDENT_INVESTMENT_SETTINGS;
+    if (!Number.isInteger(action.amount) || action.amount < settings.minimumAmount || action.amount > settings.maximumAmount) throw new Error('INVALID_INVESTMENT_AMOUNT');
+    const settledState = settleStudentInvestments(state, action.dateKey, stockMarket);
+    const current = settledState.investments[action.stockId];
+    if ((current?.currentAmount ?? 0) + action.amount > settings.maximumAmount) throw new Error('INVESTMENT_LIMIT_EXCEEDED');
+    spend(action.amount);
+    reason = 'stock_trade';
     nextState = {
-      ...state,
-      holdings: { ...state.holdings, [quote.id]: 1 },
-      stockPurchases: { ...state.stockPurchases, [quote.id]: { dateKey: action.dateKey, price: quote.price } },
+      ...settledState,
+      investments: { ...settledState.investments, [action.stockId]: {
+        investedAmount: (current?.investedAmount ?? 0) + action.amount,
+        currentAmount: (current?.currentAmount ?? 0) + action.amount,
+        lastSettledDateKey: action.dateKey,
+        lastChangeAmount: current?.lastChangeAmount ?? 0,
+        lastStage: current?.lastStage ?? 'flat',
+      } },
     };
-    message = `${quote.name} 1주를 샀습니다.`;
+    message = `${action.amount} 고마를 투자했습니다.`;
   } else {
-    const quote = getDailyStockQuotes(action.dateKey, stockMarket).find((candidate) => candidate.id === action.stockId);
-    if (!quote) throw new Error('UNKNOWN_STOCK');
-    if ((state.holdings[quote.id] ?? 0) < 1) throw new Error('STOCK_NOT_OWNED');
-    const purchasePrice = state.stockPurchases[quote.id]?.price ?? quote.price;
-    const nextHoldings = { ...state.holdings };
-    const nextPurchases = { ...state.stockPurchases };
-    delete nextHoldings[quote.id];
-    delete nextPurchases[quote.id];
+    if (!isWeekdayDateKey(action.dateKey)) throw new Error('STOCK_MARKET_CLOSED');
+    const settledState = settleStudentInvestments(state, action.dateKey, stockMarket);
+    const position = settledState.investments[action.stockId];
+    if (!position) throw new Error('INVESTMENT_NOT_FOUND');
+    const investments = { ...settledState.investments };
+    delete investments[action.stockId];
     reason = 'stock_trade';
-    nextWallet += Math.max(0, purchasePrice + quote.changeAmount);
-    nextState = { ...state, holdings: nextHoldings, stockPurchases: nextPurchases };
-    message = `${quote.name} 1주를 팔았습니다.`;
+    nextWallet += position.currentAmount;
+    nextState = { ...settledState, investments };
+    message = `${position.currentAmount} 고마를 찾았습니다.`;
   }
 
   return {

@@ -11,7 +11,7 @@ const HOTSPOTS = [
   { section: 'bank', label: '은행', className: 'student-plaza-hotspot-bank' },
   { section: 'shop', label: '상점', className: 'student-plaza-hotspot-shop' },
   { section: 'auction', label: '경매장', className: 'student-plaza-hotspot-auction' },
-  { section: 'securities', label: '증권사', className: 'student-plaza-hotspot-securities' },
+  { section: 'securities', label: '투자', className: 'student-plaza-hotspot-securities' },
 ] as const;
 
 export default function StudentPlaza({ onOpen }: StudentPlazaProps) {
@@ -19,7 +19,7 @@ export default function StudentPlaza({ onOpen }: StudentPlazaProps) {
 
   return (
     <section className="student-plaza" aria-label="고마 광장">
-      <img src="/student-plaza.png" alt="은행, 상점, 경매장, 증권사가 있는 고마 광장" />
+      <img src="/student-plaza.png" alt="은행, 상점, 경매장, 투자 공간이 있는 고마 광장" />
       {HOTSPOTS.map((hotspot) => (
         <button
           key={hotspot.section}

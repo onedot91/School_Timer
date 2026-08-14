@@ -77,16 +77,24 @@ import {
   loadStoredStudentShopCatalog,
   loadStoredStudentStockMarket,
   normalizeStudentEconomyStates,
+  normalizeStudentInvestmentSettings,
   normalizeStudentShopCatalog,
   normalizeStudentStockMarket,
   storeStudentStockMarket,
   storeStudentShopCatalog,
   upsertStudentStockMarketEntry,
+  updateStudentInvestmentSettings,
+  getInvestmentStagePresentation,
+  getInvestmentStageFromPercent,
+  getInvestmentWeekDateKeys,
+  investmentMultiplierToPercent,
   type StudentEconomyStates,
   type StudentShopCatalogItem,
   type StudentStockId,
   type StudentStockMarket,
+  type StudentInvestmentRounding,
 } from '../lib/studentEconomy';
+
 import {
   createStudentLetter,
   getTeacherLetters,
@@ -105,6 +113,13 @@ import {
   STUDENT_CHARACTER_WALK_SECONDS,
   type StudentCharacter,
 } from '../lib/studentCharacters';
+
+type StockMarketDraft = {
+  returnPercent: number | '';
+  comment: string;
+};
+
+type StockMarketWeekDrafts = Record<string, Record<StudentStockId, StockMarketDraft>>;
 import {
   AUCTION_DAY_ACCENTS,
   AUCTION_ITEM_IDS,
@@ -3665,22 +3680,24 @@ export default function TimerPage() {
     isSupabaseSettingsEnabled ? normalizeStudentStockMarket(undefined) : loadStoredStudentStockMarket()
   ));
   const [stockMarketDateKey, setStockMarketDateKey] = useState(getKoreanLocalDateKey);
-  const [stockMarketDrafts, setStockMarketDrafts] = useState<Record<StudentStockId, { changeAmount: string; comment: string }>>(() => (
-    STUDENT_STOCKS.reduce<Record<StudentStockId, { changeAmount: string; comment: string }>>((drafts, stock) => {
-      drafts[stock.id] = { changeAmount: '0', comment: '' };
-      return drafts;
-    }, {} as Record<StudentStockId, { changeAmount: string; comment: string }>)
-  ));
+  const [stockMarketWeekDrafts, setStockMarketWeekDrafts] = useState<StockMarketWeekDrafts>({});
+  const [stockMarketSaveStatus, setStockMarketSaveStatus] = useState('');
+  const stockMarketWeekStartDateKey = getInvestmentWeekDateKeys(stockMarketDateKey)[0];
   useEffect(() => {
-    setStockMarketDrafts(STUDENT_STOCKS.reduce<Record<StudentStockId, { changeAmount: string; comment: string }>>((drafts, stock) => {
-      const entry = studentStockMarket[stock.id]?.find((item) => item.dateKey === stockMarketDateKey);
-      drafts[stock.id] = {
-        changeAmount: String(entry?.changeAmount ?? 0),
-        comment: entry?.comment ?? '',
-      };
-      return drafts;
-    }, {} as Record<StudentStockId, { changeAmount: string; comment: string }>));
-  }, [stockMarketDateKey, studentStockMarket]);
+    const settings = normalizeStudentInvestmentSettings(studentStockMarket.settings);
+    setStockMarketWeekDrafts(getInvestmentWeekDateKeys(stockMarketWeekStartDateKey).reduce<StockMarketWeekDrafts>((weekDrafts, dateKey) => {
+      weekDrafts[dateKey] = STUDENT_STOCKS.reduce<Record<StudentStockId, StockMarketDraft>>((dayDrafts, stock) => {
+        const entry = studentStockMarket[stock.id]?.find((item) => item.dateKey === dateKey);
+        dayDrafts[stock.id] = {
+          returnPercent: entry ? entry.returnPercent ?? investmentMultiplierToPercent(settings.multipliers[entry.stage]) : '',
+          comment: entry?.comment ?? '',
+        };
+        return dayDrafts;
+      }, {} as Record<StudentStockId, StockMarketDraft>);
+      return weekDrafts;
+    }, {}));
+    setStockMarketSaveStatus('');
+  }, [stockMarketWeekStartDateKey, studentStockMarket]);
   const [newShopItemName, setNewShopItemName] = useState('');
   const [newShopItemPrice, setNewShopItemPrice] = useState('');
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
@@ -8670,41 +8687,135 @@ export default function TimerPage() {
     </section>
   );
 
-  const saveStockMarketEntry = (stockId: StudentStockId) => {
-    const draft = stockMarketDrafts[stockId];
-    const changeAmount = Math.max(-20, Math.min(20, Math.round(Number(draft.changeAmount))));
-    if (!Number.isFinite(changeAmount) || !draft.comment.trim()) return;
-    setStudentStockMarket((current) => upsertStudentStockMarketEntry(current, stockId, {
-      dateKey: stockMarketDateKey,
-      changeAmount,
-      comment: draft.comment,
+  const investmentSettings = normalizeStudentInvestmentSettings(studentStockMarket.settings);
+  const updateInvestmentSetting = (
+    key: 'minimumAmount' | 'maximumAmount' | 'rounding',
+    value: number | StudentInvestmentRounding,
+  ) => setStudentStockMarket((current) => updateStudentInvestmentSettings(current, { ...investmentSettings, [key]: value }));
+  const investmentReturnPercentOptions = [-50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50] as const;
+  const formatInvestmentPercent = (percent: number) => `${percent > 0 ? '+' : ''}${percent}%`;
+  const stockMarketWeekDateKeys = getInvestmentWeekDateKeys(stockMarketDateKey);
+  const selectedStockMarketWeekday = stockMarketWeekDateKeys.includes(stockMarketDateKey)
+    ? stockMarketDateKey
+    : stockMarketWeekDateKeys[4];
+  const stockMarketWeekdayLabels = ['월', '화', '수', '목', '금'] as const;
+  const formatStockMarketDate = (dateKey: string) => {
+    const date = new Date(`${dateKey}T12:00:00Z`);
+    return `${date.getUTCMonth() + 1}.${date.getUTCDate()}`;
+  };
+  const shiftStockMarketWeek = (dayOffset: number) => {
+    const nextDate = new Date(`${stockMarketWeekDateKeys[0]}T12:00:00Z`);
+    nextDate.setUTCDate(nextDate.getUTCDate() + dayOffset);
+    setStockMarketDateKey(nextDate.toISOString().slice(0, 10));
+  };
+  const updateStockMarketWeekDraft = (
+    dateKey: string,
+    stockId: StudentStockId,
+    patch: Partial<StockMarketDraft>,
+  ) => setStockMarketWeekDrafts((current) => {
+    const existingDraft = current[dateKey]?.[stockId] ?? { returnPercent: '', comment: '' };
+    return {
+      ...current,
+      [dateKey]: {
+        ...current[dateKey],
+        [stockId]: { ...existingDraft, ...patch },
+      },
+    };
+  });
+  const saveStockMarketWeek = () => {
+    const entries = stockMarketWeekDateKeys.flatMap((dateKey) => STUDENT_STOCKS.flatMap((stock) => {
+      const draft = stockMarketWeekDrafts[dateKey]?.[stock.id];
+      return !draft || draft.returnPercent === '' ? [] : [{ dateKey, stockId: stock.id, draft }];
     }));
+    if (entries.length === 0) {
+      setStockMarketSaveStatus('등록할 등락을 먼저 선택해 주세요.');
+      return;
+    }
+    setStudentStockMarket((current) => entries.reduce<StudentStockMarket>((market, { dateKey, stockId, draft }) => (
+      upsertStudentStockMarketEntry(market, stockId, {
+        dateKey,
+        stage: getInvestmentStageFromPercent(draft.returnPercent),
+        returnPercent: draft.returnPercent,
+        comment: draft.comment,
+      })
+    ), current));
+    setStockMarketSaveStatus(`이번 주 등락 ${entries.length}개를 저장했습니다.`);
   };
 
   const stockSettingsPanel = (
-    <section className="settings-card teacher-stock-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-stock-title">
-      <header className="teacher-stock-heading">
-        <div><h3 id="teacher-stock-title">증권 시황</h3><p>날짜마다 오르거나 내릴 고마와 그 이유를 정하세요.</p></div>
-        <label>적용 날짜<input type="date" value={stockMarketDateKey} onChange={(event) => setStockMarketDateKey(event.target.value)} /></label>
-      </header>
-      <div className="teacher-stock-grid">
-        {STUDENT_STOCKS.map((stock) => {
-          const todayEntry = studentStockMarket[stock.id]?.find((entry) => entry.dateKey === stockMarketDateKey);
-          const previousEntries = (studentStockMarket[stock.id] ?? []).filter((entry) => entry.dateKey !== stockMarketDateKey);
-          return (
-            <article key={stock.id}>
-              <header><span aria-hidden="true">{stock.emoji}</span><div><h4>{stock.name}</h4><p>기준가 {stock.basePrice} 고마</p></div></header>
-              {todayEntry ? <div className="teacher-stock-current"><strong>{todayEntry.changeAmount > 0 ? '+' : ''}{todayEntry.changeAmount} 고마</strong><p>{todayEntry.comment}</p></div> : <p className="teacher-stock-empty">선택한 날짜의 시황이 없습니다.</p>}
-              <div className="teacher-stock-editor">
-                <label>변화 (+/- 고마)<input type="number" min="-20" max="20" value={stockMarketDrafts[stock.id].changeAmount} onChange={(event) => setStockMarketDrafts((current) => ({ ...current, [stock.id]: { ...current[stock.id], changeAmount: event.target.value } }))} /></label>
-                <label>등락 이유<textarea maxLength={120} value={stockMarketDrafts[stock.id].comment} onChange={(event) => setStockMarketDrafts((current) => ({ ...current, [stock.id]: { ...current[stock.id], comment: event.target.value } }))} placeholder="예: 새 학용품 출시로 주문이 늘었어요." /></label>
-                <button type="button" onClick={() => saveStockMarketEntry(stock.id)} disabled={!stockMarketDateKey || !stockMarketDrafts[stock.id].comment.trim()}>{todayEntry ? '시황 수정' : '시황 등록'}</button>
-              </div>
-              <details className="teacher-stock-history"><summary>이전 등락 이유 {previousEntries.length}건</summary><div>{previousEntries.slice(0, 5).map((entry) => <p key={entry.dateKey}><time>{entry.dateKey}</time><strong>{entry.changeAmount > 0 ? '+' : ''}{entry.changeAmount}</strong><span>{entry.comment || '코멘트 없음'}</span></p>)}</div></details>
-            </article>
-          );
-        })}
-      </div>
+    <section className="settings-card teacher-stock-settings" aria-labelledby="teacher-stock-title">
+      <section className="teacher-stock-week" aria-labelledby="teacher-stock-title">
+        <header>
+          <div>
+            <h3 id="teacher-stock-title">이번 주 등락</h3>
+            <span>{formatStockMarketDate(stockMarketWeekDateKeys[0])} ~ {formatStockMarketDate(stockMarketWeekDateKeys[4])} · 미등록 칸은 저장하지 않습니다.</span>
+          </div>
+          <div className="teacher-stock-week-actions">
+            <button type="button" onClick={() => shiftStockMarketWeek(-7)} aria-label="이전 주"><ChevronLeft size={18} /></button>
+            <button type="button" onClick={() => setStockMarketDateKey(getKoreanLocalDateKey())}>이번 주</button>
+            <button type="button" onClick={() => shiftStockMarketWeek(7)} aria-label="다음 주"><ChevronRight size={18} /></button>
+            <label className="teacher-stock-week-date"><span>포함 날짜</span><input type="date" value={stockMarketDateKey} onChange={(event) => setStockMarketDateKey(event.target.value)} /></label>
+            <button type="button" className="is-primary" onClick={saveStockMarketWeek}>이번 주 저장</button>
+          </div>
+        </header>
+        <div className="teacher-stock-week-table" role="table" aria-label="이번 주 종목별 등락 편집표">
+          <div className="teacher-stock-week-row is-heading" role="row">
+            <strong role="columnheader">종목</strong>
+            {stockMarketWeekDateKeys.map((dateKey, index) => (
+              <button key={dateKey} type="button" role="columnheader" className={dateKey === selectedStockMarketWeekday ? 'is-selected' : ''} onClick={() => setStockMarketDateKey(dateKey)}>
+                <span>{stockMarketWeekdayLabels[index]}</span><b>{formatStockMarketDate(dateKey)}</b>
+              </button>
+            ))}
+          </div>
+          {STUDENT_STOCKS.map((stock) => (
+            <div key={stock.id} className="teacher-stock-week-row" role="row">
+              <div className="teacher-stock-week-name" role="rowheader"><span aria-hidden="true">{stock.emoji}</span><strong>{stock.name}</strong></div>
+              {stockMarketWeekDateKeys.map((dateKey) => {
+                const draft = stockMarketWeekDrafts[dateKey]?.[stock.id];
+                const percent = draft?.returnPercent ?? '';
+                const presentation = percent === '' ? null : getInvestmentStagePresentation(getInvestmentStageFromPercent(percent));
+                return (
+                  <label key={dateKey} role="cell" className={percent === '' ? 'is-empty' : percent > 0 ? 'is-up' : percent < 0 ? 'is-down' : 'is-flat'}>
+                    <select aria-label={`${dateKey} ${stock.name} 수익률`} value={percent} onChange={(event) => updateStockMarketWeekDraft(dateKey, stock.id, { returnPercent: event.target.value === '' ? '' : Number(event.target.value) })}>
+                      <option value="">미등록</option>
+                      {investmentReturnPercentOptions.map((optionPercent) => <option key={optionPercent} value={optionPercent}>{formatInvestmentPercent(optionPercent)}</option>)}
+                    </select>
+                    <span>{presentation ? `${presentation.symbol} ${presentation.studentLabel}` : '결과 없음'}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <p className="teacher-stock-save-status" role="status">{stockMarketSaveStatus}</p>
+      </section>
+      <section className="teacher-stock-comments" aria-labelledby="teacher-stock-comments-title">
+        <header><div><h4 id="teacher-stock-comments-title">{formatStockMarketDate(selectedStockMarketWeekday)} 등락 이유</h4><p>필요한 종목만 짧게 적어 주세요.</p></div></header>
+        <div>
+          {STUDENT_STOCKS.map((stock) => (
+            <label key={stock.id}><span>{stock.emoji} {stock.name}</span><input maxLength={120} value={stockMarketWeekDrafts[selectedStockMarketWeekday]?.[stock.id]?.comment ?? ''} onChange={(event) => updateStockMarketWeekDraft(selectedStockMarketWeekday, stock.id, { comment: event.target.value })} placeholder="이유 (선택)" /></label>
+          ))}
+        </div>
+      </section>
+      <section className="teacher-return-guide" aria-labelledby="teacher-return-guide-title">
+        <header><h4 id="teacher-return-guide-title">학생에게 보이는 말</h4><span>학생 화면에는 %가 표시되지 않습니다.</span></header>
+        <div>
+          {[-40, -10, 0, 10, 40].map((percent) => {
+            const presentation = getInvestmentStagePresentation(getInvestmentStageFromPercent(percent));
+            const range = percent === -40 ? '-50% ~ -30%' : percent === -10 ? '-20% ~ -10%' : percent === 0 ? '0%' : percent === 10 ? '+10% ~ +20%' : '+30% ~ +50%';
+            return <p key={percent} className={percent > 0 ? 'is-up' : percent < 0 ? 'is-down' : 'is-flat'}><b>{range}</b><span>{presentation.symbol} {presentation.studentLabel}</span></p>;
+          })}
+        </div>
+      </section>
+      <section className="teacher-investment-status" aria-labelledby="teacher-investment-status-title"><h4 id="teacher-investment-status-title">학생별 투자 현황</h4><div>{Array.from({ length: 23 }, (_, index) => index + 1).map((studentNumber) => { const state = studentEconomyStates[String(studentNumber)]; const positions = STUDENT_STOCKS.flatMap((stock) => { const position = state?.investments[stock.id]; return position ? [position] : []; }); const invested = positions.reduce((sum, position) => sum + position.investedAmount, 0); const current = positions.reduce((sum, position) => sum + position.currentAmount, 0); return <article key={studentNumber}><strong>{studentNumber}번</strong><span>{positions.length}종목</span><span>투자 {invested}</span><span className={current - invested > 0 ? 'is-up' : current - invested < 0 ? 'is-down' : ''}>{current - invested > 0 ? '+' : ''}{current - invested} 고마</span><b>현재 {current}</b></article>; })}</div></section>
+      <section className="teacher-investment-controls" aria-labelledby="teacher-investment-rules-title">
+        <header><div><h4 id="teacher-investment-rules-title">투자 운영 규칙</h4><p>처음 정한 뒤 자주 바꾸지 않는 설정입니다.</p></div></header>
+        <div className="teacher-investment-rules">
+          <label><span>최소 투자</span><div><input type="number" min="1" value={investmentSettings.minimumAmount} onChange={(event) => updateInvestmentSetting('minimumAmount', Number(event.target.value))} /><b>고마</b></div></label>
+          <label><span>최대 투자</span><div><input type="number" min={investmentSettings.minimumAmount} value={investmentSettings.maximumAmount} onChange={(event) => updateInvestmentSetting('maximumAmount', Number(event.target.value))} /><b>고마</b></div></label>
+          <label><span>소수점 계산</span><select value={investmentSettings.rounding} onChange={(event) => updateInvestmentSetting('rounding', event.target.value as StudentInvestmentRounding)}><option value="round">반올림</option><option value="floor">버림</option><option value="ceil">올림</option></select></label>
+        </div>
+      </section>
     </section>
   );
 

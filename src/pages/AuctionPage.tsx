@@ -1333,7 +1333,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyBalances((previous) => ({ ...previous, [studentKey]: savedBalance }));
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
-      showStatusMessage(resultMessage);
+      if (resultMessage) showStatusMessage(resultMessage);
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
@@ -1343,10 +1343,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           ? '예금 잔액이 부족합니다.'
           : message === 'EXCESSIVE_LOAN_REPAYMENT'
             ? '대출 잔액보다 많이 갚을 수 없습니다.'
-            : message === 'STOCK_ALREADY_OWNED'
-                ? '이미 보유한 종목입니다.'
-              : message === 'STOCK_NOT_OWNED'
-                ? '보유한 종목만 팔 수 있습니다.'
+            : message === 'STOCK_MARKET_CLOSED'
+              ? '토·일은 휴장입니다.'
+              : message === 'INVESTMENT_LIMIT_EXCEEDED'
+                ? '최대 투자 금액을 넘을 수 없습니다.'
+                : message === 'INVALID_INVESTMENT_AMOUNT'
+                  ? '투자할 고마를 다시 확인해 주세요.'
+                  : message === 'INVESTMENT_NOT_FOUND'
+                    ? '찾을 투자금이 없습니다.'
               : message === 'HOUSE_ALREADY_REPAIRED'
                 ? '이미 집을 고쳤습니다.'
                 : message === 'HOUSE_SHOP_LOCKED'

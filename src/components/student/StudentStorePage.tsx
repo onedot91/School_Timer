@@ -51,7 +51,7 @@ export default function StudentStorePage({
 }: StudentStorePageProps) {
   const isPlaza = section === 'plaza';
   const titles: Record<StudentStoreSection, string> = {
-    plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '내 투자', 'securities-trade': '종목 고르기', donation: '기부',
+    plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '내 투자', 'securities-trade': '투자하기', donation: '기부',
   };
   return (
     <div className="student-view student-store-view" data-store-section={section}>
@@ -74,8 +74,8 @@ export default function StudentStorePage({
         {section === 'bank' ? <StudentBankPage state={economyState} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'shop' ? <StudentShopPage state={economyState} catalog={shopCatalog} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'auction' ? children : null}
-        {section === 'securities' ? <StudentSecuritiesPage state={economyState} market={stockMarket} onOpenMarket={() => onOpenSection('securities-trade')} /> : null}
-        {section === 'securities-trade' ? <StudentStockMarketPage state={economyState} market={stockMarket} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
+        {section === 'securities' ? <StudentSecuritiesPage state={economyState} market={stockMarket} onAction={onEconomyAction} onOpenMarket={() => onOpenSection('securities-trade')} /> : null}
+        {section === 'securities-trade' ? <StudentStockMarketPage state={economyState} market={stockMarket} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'donation' ? <StudentDonationPage {...donation} /> : null}
       </div>
     </div>

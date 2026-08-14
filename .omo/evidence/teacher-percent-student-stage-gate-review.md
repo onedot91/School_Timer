@@ -1,0 +1,23 @@
+# Gate Review: teacher percent selector / student stage display
+
+- recommendation: APPROVE
+- blockers: []
+- originalIntent: At 1280x800, make the teacher understand the -50%..+50% mapping while students see only coherent stage labels, without clipping or loss of legacy stage records.
+- desiredOutcome: Teacher-facing percent controls and mapping guide; percent-free student cards; coherent five-stage labels; usable 1280x800 layout; persisted legacy records retained or compatibly normalized.
+- userOutcomeReview: PASS. The teacher screenshot shows all five percent bands and their student-facing labels. The student screenshot contains no percent text and shows four complete cards without horizontal or component clipping. Vertical teacher content uses a visible scroll container rather than being clipped. Code maps the eleven selectable values to five stages consistently and normalizes both existing `stage` records and older `changeAmount` records.
+- checkedArtifacts:
+  - /private/tmp/school-timer-investment-teacher-1280x800.png
+  - /private/tmp/school-timer-investment-student-1280x800.png
+  - current git diff in /Users/ibyeonghyeon/Documents/GitHub/School_Timer
+  - src/pages/TimerPage.tsx
+  - src/components/student/StudentStockMarketPage.tsx
+  - src/lib/studentEconomy.ts
+  - src/lib/studentEconomy.test.ts
+- reproducedEvidence:
+  - `npm run lint`: PASS
+  - `npm test -- --runInBand`: PASS, 79/79
+  - `git diff --check`: PASS
+  - direct normalization: `stage: big_rise` remained `big_rise`; legacy `changeAmount: -7` normalized to `big_fall`.
+  - mapping test: -50/-40/-30 => big_fall; -20/-10 => fall; 0 => flat; +10/+20 => rise; +30/+40/+50 => big_rise.
+- slopAndProgrammingReview: No criterion-blocking overfit/slop found. Mapping tests assert behavior rather than deleted text or implementation-only structure. No deletion-only/tautological test or unnecessary extraction was introduced in the reviewed path. Typecheck is green. Existing large-file architecture and inline complexity are non-blocking because they do not violate this task's stated criteria.
+- evidenceGaps: No screenshot shows the teacher dropdown expanded, but the closed-screen guide exposes the complete mapping and the diff defines all eleven options. This is not a stated-criterion failure.
