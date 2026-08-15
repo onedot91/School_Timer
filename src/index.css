@@ -15076,6 +15076,18 @@ a[href]:active {
 .student-stock-down { color: var(--student-stock-down) !important; }
 
 .student-securities { display: grid; min-height: 0; align-content: start; gap: .75rem; }
+.student-securities-flow { display: grid; min-height: 0; gap: 1.25rem; padding-bottom: var(--student-shell-gap); }
+.student-securities-flow .student-stock-empty-state { min-height: 10rem; }
+.student-investment-market-section { display: grid; gap: .75rem; scroll-margin-top: var(--student-shell-gap); }
+.student-investment-market-section > h2 { margin: 0; color: var(--apple-text-primary); font-size: 1.35rem; font-weight: 950; }
+.student-investment-action-panel { display: grid; gap: .75rem; padding: 1rem; border: 1px solid color-mix(in srgb, var(--apple-accent) 28%, var(--apple-separator)); border-radius: var(--apple-radius-card); background: color-mix(in srgb, var(--apple-accent) 6%, var(--apple-surface)); box-shadow: var(--apple-shadow-1); }
+.student-investment-action-panel h2 { margin: 0; color: var(--apple-text-primary); font-size: 1.35rem; font-weight: 950; }
+.student-investment-action-controls { display: grid; grid-template-columns: minmax(10rem, .8fr) minmax(12rem, 1fr) minmax(12rem, .9fr) minmax(16rem, 1fr); gap: .75rem; align-items: end; }
+.student-investment-action-controls > label { display: grid; gap: .25rem; color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 850; }
+.student-investment-action-controls select { width: 100%; min-height: var(--student-investment-control-height); border: 1px solid var(--apple-separator-strong); border-radius: var(--apple-radius-control); background: var(--apple-surface); padding-inline: .75rem; color: var(--apple-text-primary); font-size: 1rem; font-weight: 900; }
+.student-investment-selected-state { display: grid; min-height: var(--student-investment-control-height); align-content: center; gap: .2rem; border-radius: var(--apple-radius-control); background: var(--apple-surface); padding: .45rem .75rem; }
+.student-investment-selected-state span { color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 850; }
+.student-investment-selected-state strong { color: var(--apple-accent-pressed); font-family: var(--font-mono); font-size: 1.05rem; }
 
 .student-portfolio-summary { display: grid; grid-template-columns: minmax(12rem, 1.15fr) minmax(11rem, 1fr) minmax(7rem, .65fr) minmax(12rem, auto); gap: .5rem; padding: .75rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-card); background: var(--apple-surface); box-shadow: var(--apple-shadow-1); }
 .student-portfolio-summary > div { display: grid; align-content: center; gap: .25rem; padding: .2rem .9rem; border-right: 1px solid var(--apple-separator); }
@@ -15212,8 +15224,8 @@ a[href]:active {
 .student-investment-grid .student-investment-delta strong { font-size: var(--student-investment-result-size); }
 
 .student-stock-market-page { gap: var(--student-shell-gap); }
-.student-market-closed { display: flex; min-height: 3.5rem; align-items: center; justify-content: center; gap: var(--student-shell-gap); border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); color: var(--apple-text-secondary); }
-.student-market-closed strong { color: var(--apple-text-primary); font-size: 1.15rem; }
+.student-market-closed { display: inline-flex; min-height: 2.75rem; align-items: center; justify-self: start; gap: .5rem; border: 1px solid color-mix(in srgb, var(--apple-accent) 24%, var(--apple-separator)); border-radius: var(--apple-radius-pill); background: color-mix(in srgb, var(--apple-accent) 8%, var(--apple-surface)); padding-inline: .85rem; color: var(--apple-text-secondary); }
+.student-market-closed strong { color: var(--apple-text-primary); font-size: 1rem; }
 .student-market-card > header { justify-content: flex-start; }
 .student-market-stage { display: grid; min-height: 4.5rem; place-content: center; justify-items: center; gap: .25rem; border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); }
 .student-market-stage strong { font-family: var(--font-mono); font-size: 1.65rem; }
@@ -15222,6 +15234,7 @@ a[href]:active {
 .student-market-card.stage-big_fall .student-market-stage, .student-market-card.stage-fall .student-market-stage { background: var(--student-stock-down-soft); color: var(--student-stock-down); }
 .student-market-reason { min-height: 3.75rem; padding: .5rem .25rem; }
 .student-market-reason.is-empty { visibility: hidden; }
+.student-market-card.is-closed .student-market-reason { display: none; }
 .student-market-position { display: flex; min-height: var(--apple-control-min); align-items: center; justify-content: space-between; gap: .5rem; border-radius: var(--apple-radius-control); background: color-mix(in srgb, var(--apple-accent) 8%, var(--apple-surface)); padding: .5rem; }
 .student-market-position span, .student-investment-input > span { color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 850; }
 .student-market-position strong { color: var(--apple-accent-pressed); font-family: var(--font-mono); font-size: 1.05rem; white-space: nowrap; }

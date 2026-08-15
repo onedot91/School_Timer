@@ -4,6 +4,7 @@ import StudentBankPage from './StudentBankPage';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentDonationPage from './StudentDonationPage';
 import StudentHeader from './StudentHeader';
+import StudentInvestmentActionPanel from './StudentInvestmentActionPanel';
 import StudentPlaza, { type StudentStoreSection } from './StudentPlaza';
 import StudentSecuritiesPage from './StudentSecuritiesPage';
 import StudentShopPage from './StudentShopPage';
@@ -50,16 +51,17 @@ export default function StudentStorePage({
   onBack,
 }: StudentStorePageProps) {
   const isPlaza = section === 'plaza';
+  const isSecurities = section === 'securities' || section === 'securities-trade';
   const titles: Record<StudentStoreSection, string> = {
-    plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '내 투자', 'securities-trade': '투자하기', donation: '기부',
+    plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '내 투자', 'securities-trade': '내 투자', donation: '기부',
   };
   return (
     <div className="student-view student-store-view" data-store-section={section}>
       <StudentHeader
         title={titles[section]}
         onBack={onBack}
-        backLabel={isPlaza ? '개요로 돌아가기' : section === 'securities-trade' ? '내 투자로 돌아가기' : '광장으로 돌아가기'}
-        backText={isPlaza ? '홈' : section === 'securities-trade' ? '내 투자' : '광장'}
+        backLabel={isPlaza ? '개요로 돌아가기' : '광장으로 돌아가기'}
+        backText={isPlaza ? '홈' : '광장'}
         actions={(
           <StudentBalanceSummary
             balance={balance}
@@ -74,8 +76,19 @@ export default function StudentStorePage({
         {section === 'bank' ? <StudentBankPage state={economyState} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'shop' ? <StudentShopPage state={economyState} catalog={shopCatalog} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'auction' ? children : null}
-        {section === 'securities' ? <StudentSecuritiesPage state={economyState} market={stockMarket} onAction={onEconomyAction} onOpenMarket={() => onOpenSection('securities-trade')} /> : null}
-        {section === 'securities-trade' ? <StudentStockMarketPage state={economyState} market={stockMarket} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
+        {isSecurities ? (
+          <div className="student-securities-flow">
+            <StudentSecuritiesPage
+              state={economyState}
+              market={stockMarket}
+            />
+            <section id="student-investment-market" className="student-investment-market-section" aria-labelledby="student-investment-market-title">
+              <h2 id="student-investment-market-title">종목별 오늘의 변화</h2>
+              <StudentStockMarketPage state={economyState} market={stockMarket} onAction={onEconomyAction} />
+            </section>
+            <StudentInvestmentActionPanel state={economyState} market={stockMarket} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} />
+          </div>
+        ) : null}
         {section === 'donation' ? <StudentDonationPage {...donation} /> : null}
       </div>
     </div>
