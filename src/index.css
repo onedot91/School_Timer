@@ -16805,7 +16805,7 @@ a[href]:active {
   .teacher-shop-student-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 16rem; }
 }
 
-@media (min-width: 64rem) and (max-height: 53.125rem) {
+@media (min-width: 64rem) {
   .student-mode-page {
     --student-shell-inset: .75rem;
     --student-shell-gap: .75rem;
@@ -16888,6 +16888,8 @@ a[href]:active {
 
   .student-overview-view {
     width: min(100%, var(--student-overview-content-width), calc(177.7778dvh - 16.4444rem));
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) var(--student-overview-action-height);
     margin-inline: auto;
   }
