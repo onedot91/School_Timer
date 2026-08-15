@@ -4,6 +4,7 @@ import {
   getInvestmentStagePresentation,
   type StudentEconomyAction,
   type StudentEconomyState,
+  type StudentStockId,
   type StudentStockMarket,
 } from '../../lib/studentEconomy';
 import { StudentStockIcon } from './StudentStockTrend';
@@ -11,6 +12,8 @@ import { StudentStockIcon } from './StudentStockTrend';
 interface StudentStockMarketPageProps {
   state: StudentEconomyState;
   market: StudentStockMarket;
+  selectedStockId: StudentStockId;
+  onSelectStock: (stockId: StudentStockId) => void;
   onAction: (action: StudentEconomyAction) => Promise<boolean>;
 }
 
@@ -23,7 +26,7 @@ const isWeekend = (dateKey: string) => {
   return day === 0 || day === 6;
 };
 
-export default function StudentStockMarketPage({ state, market, onAction }: StudentStockMarketPageProps) {
+export default function StudentStockMarketPage({ state, market, selectedStockId, onSelectStock, onAction }: StudentStockMarketPageProps) {
   const dateKey = getKoreanDateKey();
   const settledDateRef = useRef('');
 
@@ -37,20 +40,27 @@ export default function StudentStockMarketPage({ state, market, onAction }: Stud
 
   return (
     <section className="student-stock-market-page" aria-label="종목별 오늘의 변화">
-      {closed ? <div className="student-market-closed"><strong>토·일은 휴장</strong><span>월요일에 다시 만나요.</span></div> : null}
       <div className="student-stock-market">
         {getDailyStockQuotes(dateKey, market).map((stock) => {
           const position = state.investments[stock.id];
           const presentation = getInvestmentStagePresentation(stock.stage);
           return (
-            <article key={stock.id} className={`student-market-card stage-${stock.stage}${position ? ' is-owned' : ''}${closed ? ' is-closed' : ''}`}>
-              <header><StudentStockIcon stockId={stock.id} /><h2>{stock.name}</h2></header>
-              <div className="student-market-stage" aria-label={closed ? '오늘 휴장' : `오늘 ${presentation.studentLabel}`}>
-                <strong>{presentation.symbol}</strong><span>{closed ? '휴장' : presentation.studentLabel}</span>
-              </div>
-              {stock.comment && !closed ? <p className="student-market-reason">{stock.comment}</p> : <div className="student-market-reason is-empty" />}
-              {position ? <div className="student-market-position"><span>현재 투자 금액</span><strong>{position.currentAmount} 고마</strong></div> : null}
-            </article>
+            <button
+              key={stock.id}
+              type="button"
+              className={`student-market-card stage-${stock.stage}${position ? ' is-owned' : ''}${closed ? ' is-closed' : ''}${selectedStockId === stock.id ? ' is-selected' : ''}`}
+              aria-pressed={selectedStockId === stock.id}
+              onClick={() => onSelectStock(stock.id)}
+            >
+              <span className="student-market-card-header">
+                <StudentStockIcon stockId={stock.id} />
+                <strong>{stock.name}</strong>
+                <span className={`student-market-trend stage-${stock.stage}`} aria-label={closed ? '오늘 휴장' : `오늘 ${presentation.studentLabel}`}>
+                  {closed ? '휴장' : `${presentation.symbol} ${presentation.studentLabel}`}
+                </span>
+              </span>
+              {stock.comment && !closed ? <span className="student-market-reason">{stock.comment}</span> : null}
+            </button>
           );
         })}
       </div>

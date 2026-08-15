@@ -1,4 +1,3 @@
-import { BriefcaseBusiness } from 'lucide-react';
 import {
   getDailyStockQuotes,
   getInvestmentStagePresentation,
@@ -51,7 +50,7 @@ export default function StudentSecuritiesPage({ state, market }: StudentSecuriti
           </div>
         </>
       ) : (
-        <div className="student-stock-empty-state"><BriefcaseBusiness aria-hidden="true" /><h2>아직 투자한 고마가 없어요</h2></div>
+        <p className="student-investment-empty-summary">아직 투자한 고마가 없어요.</p>
       )}
     </section>
   );

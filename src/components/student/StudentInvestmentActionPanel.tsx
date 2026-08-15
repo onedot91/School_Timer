@@ -13,6 +13,7 @@ import {
 interface StudentInvestmentActionPanelProps {
   state: StudentEconomyState;
   market: StudentStockMarket;
+  selectedStockId: StudentStockId;
   availableBalance: number;
   isSaving: boolean;
   onAction: (action: StudentEconomyAction) => Promise<boolean>;
@@ -29,10 +30,9 @@ const isWeekend = (dateKey: string) => {
   return day === 0 || day === 6;
 };
 
-export default function StudentInvestmentActionPanel({ state, market, availableBalance, isSaving, onAction }: StudentInvestmentActionPanelProps) {
+export default function StudentInvestmentActionPanel({ state, market, selectedStockId, availableBalance, isSaving, onAction }: StudentInvestmentActionPanelProps) {
   const dateKey = getKoreanDateKey();
   const quotes = getDailyStockQuotes(dateKey, market);
-  const [selectedStockId, setSelectedStockId] = useState<StudentStockId>('sunny');
   const [amount, setAmount] = useState('');
   const [draft, setDraft] = useState<InvestmentDraft | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -48,6 +48,10 @@ export default function StudentInvestmentActionPanel({ state, market, availableB
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [draft, isSaving]);
+
+  useEffect(() => {
+    setAmount('');
+  }, [selectedStockId]);
 
   if (!selectedStock) return null;
 
@@ -70,24 +74,17 @@ export default function StudentInvestmentActionPanel({ state, market, availableB
 
   return (
     <section id="student-investment-actions" className="student-investment-action-panel" aria-labelledby="student-investment-action-title">
-      <h2 id="student-investment-action-title">투자하기 · 투자금 찾기</h2>
+      <h2 id="student-investment-action-title">거래</h2>
       <div className="student-investment-action-controls">
-        <label>
-          <span>종목 고르기</span>
-          <select value={selectedStock.id} disabled={isSaving} onChange={(event) => {
-            const nextStock = quotes.find((stock) => stock.id === event.target.value);
-            if (!nextStock) return;
-            setSelectedStockId(nextStock.id);
-            setAmount('');
-          }}>
-            {quotes.map((stock) => <option key={stock.id} value={stock.id}>{stock.name}</option>)}
-          </select>
-        </label>
+        <div className="student-investment-stock-choice" aria-live="polite">
+          <span>선택 종목</span>
+          <strong>{selectedStock.name}</strong>
+          <small>현재 투자 {position?.currentAmount ?? 0} 고마</small>
+        </div>
         <label className="student-investment-input">
           <span>투자할 고마</span>
           <div><input type="number" min={settings.minimumAmount} max={maximum} step="1" inputMode="numeric" value={amount} disabled={isWeekend(dateKey) || isSaving || maximum < settings.minimumAmount} onChange={(event) => setAmount(event.target.value)} /><span>고마</span></div>
         </label>
-        <div className="student-investment-selected-state"><span>선택한 종목의 현재 투자 금액</span><strong>{position?.currentAmount ?? 0} 고마</strong></div>
         <div className="student-investment-actions">
           <button type="button" disabled={!canInvest} onClick={() => setDraft({ type: 'invest', amount: investmentAmount })}>투자하기</button>
           <button type="button" className="is-secondary" disabled={!canWithdraw} onClick={() => position && setDraft({ type: 'withdraw', amount: position.currentAmount })}>투자금 찾기</button>

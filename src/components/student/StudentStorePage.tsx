@@ -1,5 +1,5 @@
-import type { ReactNode, RefObject } from 'react';
-import type { StudentEconomyAction, StudentEconomyState, StudentShopCatalogItem, StudentStockMarket } from '../../lib/studentEconomy';
+import { useState, type ReactNode, type RefObject } from 'react';
+import type { StudentEconomyAction, StudentEconomyState, StudentShopCatalogItem, StudentStockId, StudentStockMarket } from '../../lib/studentEconomy';
 import StudentBankPage from './StudentBankPage';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentDonationPage from './StudentDonationPage';
@@ -52,6 +52,7 @@ export default function StudentStorePage({
 }: StudentStorePageProps) {
   const isPlaza = section === 'plaza';
   const isSecurities = section === 'securities' || section === 'securities-trade';
+  const [selectedStockId, setSelectedStockId] = useState<StudentStockId>('sunny');
   const titles: Record<StudentStoreSection, string> = {
     plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '내 투자', 'securities-trade': '내 투자', donation: '기부',
   };
@@ -84,9 +85,22 @@ export default function StudentStorePage({
             />
             <section id="student-investment-market" className="student-investment-market-section" aria-labelledby="student-investment-market-title">
               <h2 id="student-investment-market-title">종목별 오늘의 변화</h2>
-              <StudentStockMarketPage state={economyState} market={stockMarket} onAction={onEconomyAction} />
+              <StudentStockMarketPage
+                state={economyState}
+                market={stockMarket}
+                selectedStockId={selectedStockId}
+                onSelectStock={setSelectedStockId}
+                onAction={onEconomyAction}
+              />
             </section>
-            <StudentInvestmentActionPanel state={economyState} market={stockMarket} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} />
+            <StudentInvestmentActionPanel
+              state={economyState}
+              market={stockMarket}
+              selectedStockId={selectedStockId}
+              availableBalance={availableBalance}
+              isSaving={isEconomySaving}
+              onAction={onEconomyAction}
+            />
           </div>
         ) : null}
         {section === 'donation' ? <StudentDonationPage {...donation} /> : null}
