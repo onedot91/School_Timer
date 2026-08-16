@@ -1,4 +1,6 @@
 import type { RefObject } from 'react';
+import { getDailyDonationCharacterSource } from '../../lib/dailyDonationCharacter';
+import { getKoreanLocalDateKey } from '../../lib/studentEmotion';
 
 interface StudentDonationPageProps {
   totalAmount: number;
@@ -11,9 +13,10 @@ interface StudentDonationPageProps {
 
 export default function StudentDonationPage({ totalAmount, targetAmount, canDonate, isCompleted, triggerRef, onDonate }: StudentDonationPageProps) {
   const progress = targetAmount > 0 ? Math.min(100, (totalAmount / targetAmount) * 100) : 0;
+  const donationCharacterSource = getDailyDonationCharacterSource(getKoreanLocalDateKey());
   return (
     <section className="student-donation-page" aria-labelledby="student-donation-title">
-      <img src="/donation-bear.png?v=5" alt="학급 기부 캐릭터" />
+      <img src={donationCharacterSource} alt="학급 기부 캐릭터" />
       <div>
         <h2 id="student-donation-title">학급 기부</h2>
         <strong>{totalAmount} / {targetAmount}</strong>

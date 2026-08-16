@@ -1,0 +1,44 @@
+Donation daily-character visual QA evidence
+Captured: 2026-08-16 (Asia/Seoul)
+
+Surfaces inspected (read-only):
+- Plaza: .omo/evidence/donation-detail/donation-plaza-current.jpg
+- Donation detail: .omo/evidence/donation-detail/donation-detail-current.jpg
+
+Capture validation:
+- `file .../donation-plaza-current.jpg .../donation-detail-current.jpg`
+  - Both files: JPEG image data, JFIF, 938x703, 3 components.
+- `stat -f '%Sm %N' ...`
+  - donation-detail-current.jpg: 2026-08-16 22:38:54
+  - donation-plaza-current.jpg: 2026-08-16 22:40:02
+  - Source/asset edits precede these captures: StudentDonationPage.tsx 22:26:28;
+    dailyDonationCharacter.ts 22:09:15; donation-character-1..4.png 22:36:26.
+
+Daily selection verification:
+- Invocation: `node -e "const d='2026-08-16'; const h=[...d].reduce((v,c)=>(v*31+c.charCodeAt(0))>>>0,7); console.log(h,h%4+1)"`
+- Result: `1468116678 3`; expected source is `/donation-character-3.png`.
+- Source path list: `src/lib/dailyDonationCharacter.ts` contains
+  `/donation-character-1.png` through `/donation-character-4.png`.
+- `src/components/student/StudentPlaza.tsx` and
+  `src/components/student/StudentDonationPage.tsx` both call
+  `getDailyDonationCharacterSource(getKoreanLocalDateKey())`.
+
+Asset integrity:
+- `sips -g hasAlpha -g format -g pixelWidth -g pixelHeight public/donation-character-3.png`
+  - `hasAlpha: yes`, `format: png`, `pixelWidth: 1243`, `pixelHeight: 1265`.
+- The opened asset has transparent pixels around the bear and speech bubble; no green
+  matte/background is present.
+
+Visual observations from opened captures:
+- Plaza current: the daily bear with green scarf and `기부하고마` bubble is fully inside
+  the donation hotspot; feet, scarf, outline, and bubble are visible with no crop or
+  stretched aspect ratio.
+- Detail current: the same standing daily bear and bubble are shown on the white detail
+  card; the bubble text is legible as `기부하고마` on one line, with no CJK orphaning,
+  tofu, clipping, or green rectangle behind the asset.
+- The detail view is not the legacy `donation-bear`: source JSX no longer references
+  `/donation-bear.png`; it uses the shared daily source helper.
+
+Non-mutating checks:
+- `npm run lint` -> `tsc --noEmit` completed successfully.
+- `node --import tsx --test src/lib/dailyDonationCharacter.test.ts` -> 2 passed, 0 failed.

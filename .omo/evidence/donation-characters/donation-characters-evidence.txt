@@ -1,0 +1,33 @@
+Manual QA evidence — donation plaza character replacement
+Date: 2026-08-16 (Asia/Seoul)
+Mode: read-only; no donation controls invoked and no live data mutated.
+
+Surface invocation
+- Screenshot: view_image(.omo/evidence/donation-characters/donation-plaza.png)
+- Rotation source: sed -n '1,100p' src/lib/dailyDonationCharacter.ts
+- Plaza render: sed -n '1,120p' src/components/student/StudentPlaza.tsx
+- Plaza CSS: rg -n -C 8 "student-plaza|donation" src/index.css
+- Rotation regression test: node --import tsx --test src/lib/dailyDonationCharacter.test.ts
+- Asset signatures: file public/donation-character-{1,2,3,4}.png .omo/evidence/donation-characters/donation-plaza.png
+- Alpha inspection: read-only Node PNG parser over public/donation-character-{1,2,3,4}.png
+
+Observed rendered screenshot
+- 938x703 screenshot; plaza image is fully composited with the character in the lower-right donation garden.
+- No green rectangle/halo is visible behind the character; the garden/path remains visible around it.
+- Character edges remain inside the hotspot/garden, with no cut-off limbs or speech bubble.
+- Character proportions remain natural; no visible horizontal/vertical stretch.
+- Speech bubble is present and its Korean label is visible without clipping. It is small at this 938px capture but remains intact.
+
+Asset signature and alpha output
+- donation-character-1.png: PNG 1254x1254 RGBA; alpha=0 56.7%; all sampled outer-edge pixels transparent.
+- donation-character-2.png: PNG 1312x1199 RGBA; alpha=0 52.8%; 5010/5018 sampled outer-edge pixels transparent.
+- donation-character-3.png: PNG 1254x1254 RGBA; alpha=0 58.4%; all sampled outer-edge pixels transparent.
+- donation-character-4.png: PNG 1254x1254 RGBA; alpha=0 54.9%; 5011/5012 sampled outer-edge pixels transparent.
+
+Rotation test output
+✔ 기부 캐릭터는 같은 날짜에 동일하게 유지된다
+✔ 기부 캐릭터는 날짜에 따라 네 캐릭터를 순환한다
+tests 2; pass 2; fail 0; skipped 0
+
+Evidence defect
+- `file` and the first bytes show `.omo/evidence/donation-characters/donation-plaza.png` is JPEG/JFIF, not a PNG. The rendered pixels were inspectable, but the artifact extension/signature mismatch prevents an evidence-clean final PASS.

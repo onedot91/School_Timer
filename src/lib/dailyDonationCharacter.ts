@@ -2,6 +2,7 @@ const DONATION_CHARACTER_SOURCES = [
   '/donation-character-1.png',
   '/donation-character-2.png',
   '/donation-character-3.png',
+  '/donation-character-4.png',
 ] as const;
 
 export const getDailyDonationCharacterSource = (dateKey: string) => {
