@@ -284,6 +284,65 @@ test('고마 스킨 뽑기는 100고마를 차감하고 고마에 적용한다',
   assert.equal(result.state.activeCharacterId, result.state.ownedCharacterIds[0]);
 });
 
+test('기본 고마는 보유 스킨과 관계없이 다시 선택할 수 있다', () => {
+  const drawn = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'draw_character' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'character-default-draw',
+  });
+  const result = applyStudentEconomyAction({
+    state: drawn.state,
+    action: { type: 'select_character', characterId: null },
+    wallet: drawn.wallet,
+    availableWallet: drawn.wallet,
+    requestId: 'character-default-select',
+  });
+  assert.equal(result.wallet, drawn.wallet);
+  assert.equal(result.state.activeCharacterId, null);
+});
+
+test('고마 스킨 뽑기는 미보유 스킨을 순서대로 지급하고 요청을 한 번만 처리한다', () => {
+  const first = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'draw_character' },
+    wallet: 300,
+    availableWallet: 300,
+    requestId: 'character-draw-sequential-1',
+  });
+  const repeated = applyStudentEconomyAction({
+    state: first.state,
+    action: { type: 'draw_character' },
+    wallet: first.wallet,
+    availableWallet: first.wallet,
+    requestId: 'character-draw-sequential-1',
+  });
+  const second = applyStudentEconomyAction({
+    state: first.state,
+    action: { type: 'draw_character' },
+    wallet: first.wallet,
+    availableWallet: first.wallet,
+    requestId: 'character-draw-sequential-2',
+  });
+
+  assert.equal(repeated.applied, false);
+  assert.equal(repeated.wallet, 200);
+  assert.equal(second.wallet, 100);
+  assert.equal(second.state.ownedCharacterIds.length, 2);
+  assert.notEqual(first.state.activeCharacterId, second.state.activeCharacterId);
+});
+
+test('사용 가능한 고마가 부족하면 고마 스킨을 뽑을 수 없다', () => {
+  assert.throws(() => applyStudentEconomyAction({
+    state: null,
+    action: { type: 'draw_character' },
+    wallet: 100,
+    availableWallet: 99,
+    requestId: 'character-draw-insufficient',
+  }), /INSUFFICIENT_AVAILABLE_CURRENCY/);
+});
+
 test('집 상점은 집 고치기 전에는 잠기고 수리 후 집과 만들기 쿠폰을 살 수 있다', () => {
   assert.throws(() => applyStudentEconomyAction({
     state: null,

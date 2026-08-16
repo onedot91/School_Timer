@@ -75,7 +75,7 @@ export default function StudentStorePage({
       <div className="student-store-content">
         {section === 'plaza' ? <StudentPlaza onOpen={onOpenSection} /> : null}
         {section === 'bank' ? <StudentBankPage state={economyState} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
-        {section === 'shop' ? <StudentShopPage state={economyState} catalog={shopCatalog} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
+        {section === 'shop' ? <StudentShopPage state={economyState} catalog={shopCatalog} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'auction' ? children : null}
         {isSecurities ? (
           <div className="student-securities-flow">

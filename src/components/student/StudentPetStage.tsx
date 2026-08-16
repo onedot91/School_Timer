@@ -22,11 +22,12 @@ interface StudentPetStageProps {
   onOpenEmotions: () => void;
   onOpenEgg: () => void;
   onOpenPetPicker: () => void;
+  onOpenSkinPicker?: () => void;
   onMovePet: (position: StudentPetState['position']) => void;
   onMoveGoma: (position: StudentPetState['gomaPosition']) => void;
 }
 
-export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, activeCharacterId, activeHouseId, customHouseTheme, todayEmotion, onOpenMailbox, onOpenLibrary, onOpenEmotions, onOpenEgg, onOpenPetPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
+export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, activeCharacterId, activeHouseId, customHouseTheme, todayEmotion, onOpenMailbox, onOpenLibrary, onOpenEmotions, onOpenEgg, onOpenPetPicker, onOpenSkinPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -40,6 +41,7 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
     startClientY: number;
     startPosition: StudentPetState['gomaPosition'];
   } | null>(null);
+  const lastGomaTapAtRef = useRef(0);
   const [position, setPosition] = useState(pet.position);
   const [gomaPosition, setGomaPosition] = useState(pet.gomaPosition);
   const hasActivePet = pet.petKind !== null;
@@ -94,6 +96,11 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
   };
 
   const handleGomaKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if ((event.key === 'Enter' || event.key === ' ') && onOpenSkinPicker) {
+      event.preventDefault();
+      onOpenSkinPicker();
+      return;
+    }
     const changes: Record<string, { x: number; y: number }> = {
       ArrowLeft: { x: -0.03, y: 0 },
       ArrowRight: { x: 0.03, y: 0 },
@@ -152,8 +159,12 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
         type="button"
         className="student-goma-stage-character"
         style={{ left: `${gomaPosition.x * 100}%`, top: `${gomaPosition.y * 100}%` }}
-        aria-label="고마 캐릭터 위치 옮기기"
-        title="드래그해서 위치를 옮기세요"
+        aria-label={onOpenSkinPicker ? '고마 캐릭터 위치 옮기기. 두 번 누르면 스킨 바꾸기' : '고마 캐릭터 위치 옮기기'}
+        title={onOpenSkinPicker ? '두 번 눌러 스킨을 바꾸거나 드래그해서 옮기세요' : '드래그해서 위치를 옮기세요'}
+        onDoubleClick={onOpenSkinPicker ? (event) => {
+          event.stopPropagation();
+          onOpenSkinPicker();
+        } : undefined}
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId);
           gomaDragRef.current = {
@@ -171,14 +182,26 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
           if (!event.currentTarget.hasPointerCapture(event.pointerId) || gomaDragRef.current?.pointerId !== event.pointerId) return;
           const drag = gomaDragRef.current;
           const nextPosition = getGomaPositionFromPointer(event);
+          const movedDistance = Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
           event.currentTarget.releasePointerCapture(event.pointerId);
           gomaDragRef.current = null;
+          if (movedDistance < 10) {
+            setGomaPosition(drag.startPosition);
+            if (onOpenSkinPicker) {
+              const isDoubleTap = lastGomaTapAtRef.current > 0 && event.timeStamp - lastGomaTapAtRef.current < 420;
+              lastGomaTapAtRef.current = isDoubleTap ? 0 : event.timeStamp;
+              if (isDoubleTap) onOpenSkinPicker();
+            }
+            return;
+          }
+          lastGomaTapAtRef.current = 0;
           setGomaPosition(nextPosition);
-          if (nextPosition.x !== drag.startPosition.x || nextPosition.y !== drag.startPosition.y) onMoveGoma(nextPosition);
+          onMoveGoma(nextPosition);
         }}
         onPointerCancel={(event) => {
           if (gomaDragRef.current?.pointerId !== event.pointerId) return;
           gomaDragRef.current = null;
+          lastGomaTapAtRef.current = 0;
           setGomaPosition(pet.gomaPosition);
         }}
         onKeyDown={handleGomaKeyDown}

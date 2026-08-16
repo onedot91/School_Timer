@@ -42,7 +42,29 @@ export const STUDENT_CHARACTER_PRIZES = [
   { id: 'character-13', name: '고릴라 고마', imageSrc: '/goma-skins/고릴라 고마.png' },
   { id: 'character-14', name: '고양이 고마', imageSrc: '/goma-skins/고양이 고마.png' },
   { id: 'character-15', name: '농구 고마', imageSrc: '/goma-skins/농구 고마.png' },
+  { id: 'character-16', name: '사마귀 고마', imageSrc: '/goma-skins/mantis-goma.png' },
+  { id: 'character-17', name: '배추흰나비 고마', imageSrc: '/goma-skins/cabbage-butterfly-goma.png' },
+  { id: 'character-18', name: '몽타주 고마', imageSrc: '/goma-skins/montage-goma.png' },
+  { id: 'character-19', name: '냉장고 고마', imageSrc: '/goma-skins/refrigerator-goma.png' },
+  { id: 'character-20', name: '거꾸로 고마', imageSrc: '/goma-skins/upside-down-goma.png' },
+  { id: 'character-21', name: '3D 고마', imageSrc: '/goma-skins/three-dimensional-goma.png' },
+  { id: 'character-22', name: '책상 고마', imageSrc: '/goma-skins/desk-goma.png' },
+  { id: 'character-23', name: '점묘법 고마', imageSrc: '/goma-skins/stipple-goma.png' },
+  { id: 'character-24', name: '장수풍뎅이 고마', imageSrc: '/goma-skins/stag-beetle-goma.png' },
+  { id: 'character-25', name: '컷아웃 고마', imageSrc: '/goma-skins/cutout-goma.png' },
+  { id: 'character-26', name: '카피바라 고마', imageSrc: '/goma-skins/capybara-goma.png' },
+  { id: 'character-27', name: '오리 고마', imageSrc: '/goma-skins/duck-goma.png' },
+  { id: 'character-28', name: '선풍기 고마', imageSrc: '/goma-skins/fan-goma.png' },
+  { id: 'character-29', name: '칠판 고마', imageSrc: '/goma-skins/chalkboard-goma.png' },
+  { id: 'character-30', name: '청소기 고마', imageSrc: '/goma-skins/vacuum-goma.png' },
+  { id: 'character-31', name: '사슴벌레 고마', imageSrc: '/goma-skins/beetle-goma.png' },
 ] as const;
+
+export const DEFAULT_STUDENT_CHARACTER = {
+  id: null,
+  name: '기본 고마',
+  imageSrc: '/goma-canvas-character.png',
+} as const;
 
 export const STUDENT_HOUSE_DESIGNS = [
   { id: 'cozy-wood', name: '포근한 나무집', imageSrc: '/student-house-after.png', price: 100 },
@@ -178,7 +200,7 @@ export type StudentEconomyAction =
   | { type: 'repay'; amount: number }
   | { type: 'buy_item'; itemId: StudentShopItemId }
   | { type: 'draw_character' }
-  | { type: 'select_character'; characterId: StudentCharacterPrizeId }
+  | { type: 'select_character'; characterId: StudentCharacterPrizeId | null }
   | { type: 'buy_house'; houseId: StudentHouseDesignId }
   | { type: 'select_house'; houseId: StudentHouseDesignId }
   | { type: 'buy_custom_house_coupon' }
@@ -594,9 +616,9 @@ export const applyStudentEconomyAction = ({
     };
     message = `${character.name} 스킨을 뽑았습니다.`;
   } else if (action.type === 'select_character') {
-    if (!state.ownedCharacterIds.includes(action.characterId)) throw new Error('CHARACTER_NOT_OWNED');
+    if (action.characterId !== null && !state.ownedCharacterIds.includes(action.characterId)) throw new Error('CHARACTER_NOT_OWNED');
     nextState = { ...state, activeCharacterId: action.characterId };
-    message = '고마 스킨을 바꿨습니다.';
+    message = action.characterId === null ? '기본 고마로 바꿨습니다.' : '고마 스킨을 바꿨습니다.';
   } else if (action.type === 'buy_house') {
     if ((state.inventory.house_repair ?? 0) < 1) throw new Error('HOUSE_SHOP_LOCKED');
     const house = STUDENT_HOUSE_DESIGNS.find((candidate) => candidate.id === action.houseId);

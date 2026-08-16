@@ -13,7 +13,7 @@ import { useModalFocus } from '../../lib/useModalFocus';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentPetStage from './StudentPetStage';
-import type { StudentCharacterPrizeId, StudentCustomHouseTheme, StudentHouseDesignId } from '../../lib/studentEconomy';
+import { DEFAULT_STUDENT_CHARACTER, STUDENT_CHARACTER_PRIZES, type StudentCharacterPrizeId, type StudentCustomHouseTheme, type StudentHouseDesignId } from '../../lib/studentEconomy';
 import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
 
@@ -28,7 +28,9 @@ interface StudentOverviewPageProps {
   todayEmotion: StudentEmotionDefinition | null;
   hasUnreadMail: boolean;
   isHouseRepaired: boolean;
+  ownedCharacterIds: readonly StudentCharacterPrizeId[];
   activeCharacterId: StudentCharacterPrizeId | null;
+  isCharacterSaving: boolean;
   activeHouseId: StudentHouseDesignId | 'custom' | null;
   customHouseTheme: StudentCustomHouseTheme | null;
   onFeedPet: () => Promise<boolean>;
@@ -36,6 +38,7 @@ interface StudentOverviewPageProps {
   onChangePet: (petId: string) => Promise<boolean>;
   onMovePet: (position: StudentPetState['position']) => Promise<boolean>;
   onMoveGoma: (position: StudentPetState['gomaPosition']) => Promise<boolean>;
+  onSelectCharacter: (characterId: StudentCharacterPrizeId | null) => Promise<boolean>;
   onOpenEmotions: () => void;
   onOpenMissions: () => void;
   onOpenStore: () => void;
@@ -54,7 +57,9 @@ export default function StudentOverviewPage({
   todayEmotion,
   hasUnreadMail,
   isHouseRepaired,
+  ownedCharacterIds,
   activeCharacterId,
+  isCharacterSaving,
   activeHouseId,
   customHouseTheme,
   onFeedPet,
@@ -62,6 +67,7 @@ export default function StudentOverviewPage({
   onChangePet,
   onMovePet,
   onMoveGoma,
+  onSelectCharacter,
   onOpenEmotions,
   onOpenMissions,
   onOpenStore,
@@ -72,11 +78,15 @@ export default function StudentOverviewPage({
   const [petNameDraft, setPetNameDraft] = useState(pet.name);
   const [petError, setPetError] = useState('');
   const [isFeedConfirmationOpen, setIsFeedConfirmationOpen] = useState(false);
+  const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
+  const [skinError, setSkinError] = useState('');
   const petDialogRef = useRef<HTMLElement>(null);
+  const skinDialogRef = useRef<HTMLElement>(null);
   const feedButtonRef = useRef<HTMLButtonElement>(null);
   const needsPetName = pet.pendingNamePetId !== null;
   const petKind = getStudentPetKind(pet.petKind);
   const eggStage = getStudentPetEggStage(pet.fedAmount);
+  const ownedCharacters = STUDENT_CHARACTER_PRIZES.filter((character) => ownedCharacterIds.includes(character.id));
 
   useEffect(() => {
     setPetNameDraft(pet.name);
@@ -92,10 +102,25 @@ export default function StudentOverviewPage({
     isDismissible: !isPetSaving,
   });
 
+  useModalFocus({
+    dialogRef: skinDialogRef,
+    isOpen: isSkinDialogOpen,
+    onDismiss: () => {
+      if (!isCharacterSaving) setIsSkinDialogOpen(false);
+    },
+    isDismissible: !isCharacterSaving,
+  });
+
   const closePetDialog = () => {
     if (isPetSaving) return;
     setPetError('');
     setActivePetDialog(null);
+  };
+
+  const closeSkinDialog = () => {
+    if (isCharacterSaving) return;
+    setSkinError('');
+    setIsSkinDialogOpen(false);
   };
 
   return (
@@ -121,6 +146,10 @@ export default function StudentOverviewPage({
           onOpenPetPicker={() => {
             setPetError('');
             setActivePetDialog('picker');
+          }}
+          onOpenSkinPicker={() => {
+            setSkinError('');
+            setIsSkinDialogOpen(true);
           }}
           onMovePet={(position) => { void onMovePet(position); }}
           onMoveGoma={(position) => { void onMoveGoma(position); }}
@@ -148,6 +177,61 @@ export default function StudentOverviewPage({
           onOpen={onOpenStore}
         />
       </div>
+
+      {isSkinDialogOpen ? (
+        <div className="student-pet-dialog-backdrop" role="presentation" onClick={closeSkinDialog}>
+          <section
+            ref={skinDialogRef}
+            className="student-pet-dialog student-skin-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="student-skin-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="student-pet-dialog-close"
+              onClick={closeSkinDialog}
+              disabled={isCharacterSaving}
+              aria-label="스킨 선택 창 닫기"
+            >
+              <X size={22} aria-hidden="true" />
+            </button>
+            <div className="student-pet-dialog-copy">
+              <span>스킨 고르기</span>
+              <h2 id="student-skin-dialog-title">함께할 고마를 골라 주세요</h2>
+            </div>
+            <div className="student-skin-picker">
+              {[DEFAULT_STUDENT_CHARACTER, ...ownedCharacters].map((character) => {
+                const active = activeCharacterId === character.id;
+                return (
+                  <button
+                    key={character.id}
+                    type="button"
+                    aria-pressed={active}
+                    disabled={isCharacterSaving || active}
+                    onClick={() => {
+                      setSkinError('');
+                      void onSelectCharacter(character.id).then((saved) => {
+                        if (saved) closeSkinDialog();
+                        else setSkinError('스킨을 바꾸지 못했습니다.');
+                      });
+                    }}
+                  >
+                    <img src={character.imageSrc} alt="" />
+                    <span>
+                      <strong>{character.name}</strong>
+                      <small>{active ? '사용 중' : '선택하기'}</small>
+                    </span>
+                    {active ? <Check size={20} aria-hidden="true" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+            {skinError ? <p className="student-pet-dialog-error" role="alert">{skinError}</p> : null}
+          </section>
+        </div>
+      ) : null}
 
       {activePetDialog ? (
         <div className="student-pet-dialog-backdrop" role="presentation" onClick={closePetDialog}>

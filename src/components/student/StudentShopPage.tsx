@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { Gamepad2, Hammer, LockKeyhole, Package, Sparkles } from 'lucide-react';
+import { Gamepad2, Hammer, LockKeyhole, Package } from 'lucide-react';
 import {
-  STUDENT_CHARACTER_DRAW_PRICE,
-  STUDENT_CHARACTER_PRIZES,
   STUDENT_CUSTOM_HOUSE_COUPON_PRICE,
   STUDENT_HOUSE_DESIGNS,
   STUDENT_SHOP_ITEMS,
@@ -12,10 +10,12 @@ import {
   type StudentShopCatalogItem,
 } from '../../lib/studentEconomy';
 import StudentConfirmDialog from './StudentConfirmDialog';
+import StudentCharacterGacha from './StudentCharacterGacha';
 
 interface StudentShopPageProps {
   state: StudentEconomyState;
   catalog: StudentShopCatalogItem[];
+  availableBalance: number;
   isSaving: boolean;
   onAction: (action: StudentEconomyAction) => Promise<boolean>;
 }
@@ -27,7 +27,7 @@ type PendingPurchase = {
   readonly price: number;
 };
 
-export default function StudentShopPage({ state, catalog, isSaving, onAction }: StudentShopPageProps) {
+export default function StudentShopPage({ state, catalog, availableBalance, isSaving, onAction }: StudentShopPageProps) {
   const [tab, setTab] = useState<ShopTab>('items');
   const [houseName, setHouseName] = useState(state.customHouseDesign?.name ?? '나의 집');
   const [houseTheme, setHouseTheme] = useState<StudentCustomHouseTheme>(state.customHouseDesign?.theme ?? 'natural');
@@ -40,7 +40,7 @@ export default function StudentShopPage({ state, catalog, isSaving, onAction }: 
       <h2 id="student-shop-title" className="sr-only">상점</h2>
       <nav className="student-shop-tabs" aria-label="상점 종류">
         <button className={tab === 'items' ? 'is-active' : ''} onClick={() => setTab('items')}><Package />물품</button>
-        <button className={tab === 'characters' ? 'is-active' : ''} onClick={() => setTab('characters')}><Gamepad2 />고마 스킨</button>
+        <button className={tab === 'characters' ? 'is-active' : ''} onClick={() => setTab('characters')}><Gamepad2 />고마 스킨 뽑기</button>
         <button className={tab === 'houses' ? 'is-active' : ''} onClick={() => setTab('houses')}><Hammer />집</button>
       </nav>
 
@@ -57,16 +57,7 @@ export default function StudentShopPage({ state, catalog, isSaving, onAction }: 
       ) : null}
 
       {tab === 'characters' ? (
-        <div className="student-character-arcade">
-          <div className="student-character-prize-row">
-            {STUDENT_CHARACTER_PRIZES.map((character) => {
-              const owned = state.ownedCharacterIds.includes(character.id);
-              const active = state.activeCharacterId === character.id;
-              return <button key={character.id} disabled={!owned || isSaving || active} onClick={() => void onAction({ type: 'select_character', characterId: character.id })} className={active ? 'is-active' : ''}><img src={character.imageSrc} alt="" /><span>{owned ? character.name : '?'}</span>{active ? <strong>사용 중</strong> : null}</button>;
-            })}
-          </div>
-          <button className="student-character-draw-button" disabled={isSaving || state.ownedCharacterIds.length === STUDENT_CHARACTER_PRIZES.length} onClick={() => setPendingPurchase({ action: { type: 'draw_character' }, name: '고마 스킨 뽑기', price: STUDENT_CHARACTER_DRAW_PRICE })}><Sparkles />{STUDENT_CHARACTER_DRAW_PRICE} 고마 스킨 뽑기</button>
-        </div>
+        <StudentCharacterGacha state={state} availableBalance={availableBalance} isSaving={isSaving} onAction={onAction} />
       ) : null}
 
       {tab === 'houses' ? (

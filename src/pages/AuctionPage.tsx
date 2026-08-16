@@ -1333,7 +1333,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyBalances((previous) => ({ ...previous, [studentKey]: savedBalance }));
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
-      if (resultMessage) showStatusMessage(resultMessage);
+      if (resultMessage && action.type !== 'draw_character') showStatusMessage(resultMessage);
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
@@ -1382,7 +1382,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             todayEmotion={todayEmotion}
             hasUnreadMail={unreadLetterCount > 0}
             isHouseRepaired={(studentEconomy.inventory.house_repair ?? 0) > 0}
+            ownedCharacterIds={studentEconomy.ownedCharacterIds}
             activeCharacterId={studentEconomy.activeCharacterId}
+            isCharacterSaving={isEconomySaving}
             activeHouseId={studentEconomy.activeHouseId}
             customHouseTheme={studentEconomy.customHouseDesign?.theme ?? null}
             onFeedPet={feedStudentPet}
@@ -1390,6 +1392,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onChangePet={changeStudentPet}
             onMovePet={moveCurrentStudentPet}
             onMoveGoma={moveCurrentGomaCharacter}
+            onSelectCharacter={(characterId) => runStudentEconomyAction({ type: 'select_character', characterId })}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}
             onOpenStore={() => navigateStudentView('store')}
