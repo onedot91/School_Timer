@@ -82,7 +82,7 @@ Existing semantic success, warning, and destructive colors remain feature-owned 
 | `--student-home-emotion-sun-top` / `--student-home-emotion-sun-right` | `3%` / `2.5%` | selected daily emotion position in the open upper-right sky, separated from the large cloud like the reference sun |
 | `--student-home-emotion-sun-size` | `clamp(5.5rem, 11vw, 8rem)` | sun-like daily emotion artwork size inside the overview canvas |
 | `--student-balance-compact-height` | `4.5rem` | shared overview and task-header balance height |
-| `--student-overview-balance-width` | `clamp(22rem, 30vw, 24rem)` | centered balance column width; 22rem minimum keeps all three balance groups inside the card |
+| `--student-overview-balance-width` | `clamp(22rem, 30vw, 24rem)` compact; `clamp(23.5rem, 31vw, 25rem)` desktop | centered balance column width; desktop gives the always-visible reserved amount enough room without competing with destination cards |
 | `--student-overview-content-width` | `72rem` | shared maximum width for the 16:9 overview canvas and its three-column destination dock |
 | `--student-emotion-summary-size` | `clamp(8.5rem, 12vw, 10rem)` | enlarged overview emotion artwork control, paired with a prominent summary label and name for faster scanning |
 | `--student-emotion-art-width` / `--student-emotion-art-height` | `6.5rem` / `6rem` | large picker emotion artwork frame |
@@ -212,6 +212,7 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - All student-mode pages are Chromebook-first. Their required design and visual-QA widths are 1024, 1280, and 1366 CSS px; phone-specific proportions, mobile-only compositions, and touch-first rearrangements are outside scope unless explicitly requested.
 - `1280×800` (`16:10`) is the authoritative student layout. At this viewport the shell itself remains fixed to `100dvh`; only the designated task-content region may scroll, and the primary action for the current task must be visible without document scrolling.
 - At 1024px the same information hierarchy is preserved with denser columns or one internal content scroll. At 1366px additional width increases breathing room but never enlarges the header or pushes actions below the 800px height budget.
+- Between phone and full Chromebook widths, the overview keeps its three-part destination dock in one row: mission, grouped balance, and store. Destination actions reduce only their internal spacing; they never grow into a second row that can be clipped by the fixed student shell.
 - Student-mode pages must remain usable without horizontal overflow at the required Chromebook widths and at 200% text zoom. Fluid sizing may absorb normal Chromebook window variation, but it must not compromise the desktop information hierarchy to optimize for phone widths.
 - Layout uses `min-height: 100dvh` where viewport height is required.
 - At 200% text zoom, controls wrap or scroll within their own task surface; the page never gains horizontal overflow.

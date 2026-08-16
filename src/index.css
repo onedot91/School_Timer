@@ -15508,6 +15508,104 @@ a[href]:active {
   .student-donation-page { grid-template-columns: minmax(0, 1fr); }
 }
 
+@media (min-width: 48.001rem) and (max-width: 63.999rem) {
+  .student-overview-view {
+    grid-template-rows: minmax(0, 1fr) var(--student-overview-action-height, 7rem);
+    min-height: 0;
+  }
+
+  .student-overview-destinations {
+    grid-template-columns: minmax(0, 1fr) var(--student-overview-balance-width) minmax(0, 1fr);
+    height: var(--student-overview-action-height, 7rem);
+  }
+
+  .student-overview-balance-dock {
+    display: flex;
+    min-width: 0;
+  }
+
+  .student-overview-balance-dock > .student-balance-summary {
+    display: grid;
+    width: 100%;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.4rem;
+    padding: var(--student-overview-header-padding-block, 0.4rem) 0.5rem;
+  }
+
+  .student-overview-balance-dock .student-balance-student-number {
+    min-width: 3.7rem;
+    padding-inline: 0.1rem 0.5rem;
+  }
+
+  .student-overview-balance-dock .student-balance-primary {
+    gap: 0.15rem 0.35rem;
+    padding-inline: 0.2rem;
+  }
+
+  .student-overview-balance-dock .student-balance-primary-heading,
+  .student-overview-balance-dock .student-balance-primary-heading > span,
+  .student-overview-balance-dock .student-balance-detail span:not(.student-balance-detail-icon) {
+    white-space: nowrap;
+  }
+
+  .student-overview-balance-dock .student-balance-primary-heading > span,
+  .student-overview-balance-dock .student-balance-detail span:not(.student-balance-detail-icon) {
+    font-size: var(--student-readable-text-min, 0.875rem);
+  }
+
+  .student-overview-balance-dock .student-balance-primary strong {
+    font-size: 1.35rem;
+  }
+
+  .student-overview-balance-dock .student-balance-detail {
+    min-width: 0;
+    grid-template-columns: auto;
+    gap: 0.1rem;
+    padding: 0.35rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--student-mission) 18%, transparent);
+    border-radius: var(--apple-radius-control);
+  }
+
+  .student-overview-balance-dock .student-balance-detail strong {
+    font-size: 0.95rem;
+  }
+
+  .student-overview-destinations .student-section-card {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) var(--student-compact-control-height, 2.75rem);
+    grid-template-rows: 1fr;
+    grid-template-areas: "heading action";
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .student-overview-destinations .student-section-card-direction-left {
+    grid-template-columns: var(--student-compact-control-height, 2.75rem) minmax(0, 1fr);
+    grid-template-areas: "action heading";
+  }
+
+  .student-overview-destinations .student-section-card-heading {
+    grid-area: heading;
+    gap: 0.45rem;
+  }
+
+  .student-overview-destinations .student-section-card-direction-left .student-section-card-heading {
+    flex-direction: row-reverse;
+  }
+
+  .student-overview-destinations .student-section-action {
+    width: var(--student-compact-control-height, 2.75rem);
+    min-width: var(--student-compact-control-height, 2.75rem);
+    grid-area: action;
+    padding: 0;
+  }
+
+  .student-overview-destinations .student-section-title {
+    font-size: 1.15rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .student-spin {
     animation: none;
@@ -17121,7 +17219,8 @@ a[href]:active {
     display: grid;
     width: 100%;
     min-height: var(--student-balance-compact-height);
-    grid-template-columns: auto minmax(8.75rem, 1fr) auto;
+    grid-template-columns: auto minmax(7.5rem, 1fr) minmax(10rem, auto);
+    grid-template-rows: minmax(0, 1fr);
     gap: .5rem;
     padding-block: var(--student-overview-header-padding-block);
     border-color: var(--apple-separator);
@@ -17155,13 +17254,20 @@ a[href]:active {
   }
 
   .student-overview-balance-dock .student-balance-detail {
-    min-width: 0;
-    grid-template-columns: auto auto;
+    width: min(10rem, 100%);
+    min-width: 10rem;
+    min-height: 0;
+    height: calc(var(--student-overview-action-height) - 1rem);
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
     align-items: center;
-    gap: .35rem;
-    padding: .45rem .6rem;
+    align-self: center;
+    justify-items: start;
+    gap: .1rem;
+    overflow: hidden;
+    padding: .45rem .8rem;
     border: 1px solid color-mix(in srgb, var(--student-mission) 18%, transparent);
-    border-radius: 999px;
+    border-radius: calc(var(--student-card-radius) - 0.25rem);
   }
 
   .student-overview-balance-dock .student-balance-detail span:not(.student-balance-detail-icon) {
@@ -17170,7 +17276,7 @@ a[href]:active {
   }
 
   .student-overview-balance-dock .student-balance-detail strong {
-    font-size: 1.05rem;
+    font-size: 1.25rem;
   }
 
   .student-character-stage-card {
@@ -17192,6 +17298,7 @@ a[href]:active {
   }
 
   .student-overview-destinations {
+    --student-overview-balance-width: clamp(23.5rem, 31vw, 25rem);
     width: 100%;
     height: var(--student-overview-action-height);
     grid-template-columns: minmax(0, 1fr) var(--student-overview-balance-width) minmax(0, 1fr);
