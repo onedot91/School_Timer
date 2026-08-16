@@ -13,9 +13,25 @@ import {
   normalizeStudentEconomyState,
   normalizeStudentStockMarket,
   normalizeStudentShopCatalog,
+  STUDENT_CHARACTER_PRIZES,
   STUDENT_STOCKS,
   upsertStudentStockMarketEntry,
 } from './studentEconomy.ts';
+
+test('추가한 25개 고마 스킨은 선택 가능한 카탈로그에 등록된다', () => {
+  const addedSkinNames = [
+    '간호사 고마', '경찰관 고마', '고전 게임 고마', '골판지 고마', '과학자 고마',
+    '교사 고마', '구름 고마', '군인 고마', '금속 고마', '나무 고마',
+    '리코더 고마', '무지개 고마', '물 고마', '바람 고마', '바이올린 고마',
+    '불 고마', '색종이 고마', '소방관 고마', '얼음 고마', '우쿨렐레 고마',
+    '유리 고마', '의사 고마', '전기 고마', '제빵사 고마', '피아노 고마',
+  ];
+
+  assert.deepEqual(
+    STUDENT_CHARACTER_PRIZES.slice(-25).map((character) => character.name),
+    addedSkinNames,
+  );
+});
 
 test('학생 증권은 4개 종목과 날짜별 등락 단계를 유지한다', () => {
   assert.equal(STUDENT_STOCKS.length, 4);

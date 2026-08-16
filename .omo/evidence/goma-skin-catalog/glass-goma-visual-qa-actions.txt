@@ -1,0 +1,22 @@
+Manual QA action log — glass goma replacement
+
+Surface and invocation
+- Surface: Web UI, Teacher Timer > 설정 > 상점 > 고마 스킨 도감.
+- Browser launch: `AGENT_BROWSER_SOCKET_DIR=/private/tmp/agent-browser-glass AGENT_BROWSER_SESSION=glass-goma-qa agent-browser open http://127.0.0.1:3000`.
+- Viewport: `AGENT_BROWSER_SOCKET_DIR=/private/tmp/agent-browser-glass AGENT_BROWSER_SESSION=glass-goma-qa agent-browser set viewport 1366 900`.
+- Navigation: unlock the hidden 0 entry with five `agent-browser click @e2` invocations; click `0번 학급 시계 선택`, then `설정`, then `상점`.
+- Fresh actual capture: `AGENT_BROWSER_SOCKET_DIR=/private/tmp/agent-browser-glass AGENT_BROWSER_SESSION=glass-goma-qa agent-browser screenshot /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/goma-skin-catalog/teacher-shop-glass-live.png`.
+- Scrolled actual capture: set `.teacher-shop-skin-list.scrollTop=400` and `.settings-body.scrollTop=430` via read-only `agent-browser eval`, then capture `teacher-shop-glass-live-scrolled2.png`.
+
+Observed browser output
+- `고마 스킨 도감`, `56종`, and the full `유리 고마` card are visible in the scrolled capture.
+- DOM lookup for the live card: `imgSrc=http://127.0.0.1:3000/goma-skins/glass-goma.png`, `naturalWidth=500`, `naturalHeight=500`, `complete=true`.
+- Live card box: x=452.078, y=750.781, width=146.734, height=67.187.
+- Live image box: x=461.078, y=760.375, width=48, height=48, `object-fit=contain`, visible, opacity=1.
+- Live label box: x=517.875, y=775.734, width=71.9375, height=17.2656; text `유리 고마`; `word-break=keep-all`; one line; no clipping observed.
+
+Evidence integrity
+- `teacher-shop-glass-live.png`: PNG, RGB, 1366×900, non-empty.
+- `teacher-shop-glass-live-scrolled2.png`: PNG, RGB, 1366×900, non-empty.
+- `public/goma-skins/glass-goma.png`: PNG, RGB, 500×500, no native alpha (`sips -g hasAlpha` reports `no`). The white background is visually merged with the white catalog card; no rectangular matte is visible in the captured UI.
+- No app data, balances, bids, awards, or inventory were mutated; only navigation and scroll position changed.

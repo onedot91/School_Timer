@@ -70,10 +70,10 @@ import {
   loadStoredStudentPetSnapshot,
   normalizeStudentPetStates,
   storeStudentPetSnapshot,
-  STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY,
   type StudentPetStates,
 } from '../lib/studentPet';
 import {
+  STUDENT_CHARACTER_PRIZES,
   STUDENT_STOCKS,
   loadStoredStudentShopCatalog,
   loadStoredStudentStockMarket,
@@ -172,7 +172,7 @@ type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'shop' | 'stocks' | 'emotion' | 'mail';
 type AuctionSettingsSection = 'items' | 'missions';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
-type AuctionManagementAction = 'weeklyClose' | 'currency' | 'studentRecords' | 'secondStudentShopPurchases';
+type AuctionManagementAction = 'weeklyClose' | 'currency';
 type CurrencyAdjustmentTarget = 'student' | 'group' | 'all';
 type CurrencyAdjustmentSummary = {
   readonly target: CurrencyAdjustmentTarget;
@@ -3704,8 +3704,6 @@ export default function TimerPage() {
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
   ));
-  const [isStudentRecordResetting, setIsStudentRecordResetting] = useState(false);
-  const [studentRecordResetStatus, setStudentRecordResetStatus] = useState('');
   const [mailRecipient, setMailRecipient] = useState(1);
   const [mailTitle, setMailTitle] = useState('');
   const [mailContent, setMailContent] = useState('');
@@ -6438,119 +6436,6 @@ export default function TimerPage() {
     setCurrencyStudentNumberInput('');
   };
 
-  const resetStudentRecords = async () => {
-    if (isStudentRecordResetting) return;
-
-    const emptyStudentLife: StudentLifeState = { letters: [], books: [] };
-    const resetSecondStudentHousePurchases = (states: StudentEconomyStates): StudentEconomyStates => {
-      const currentSecondStudentState = states['2'];
-      if (!currentSecondStudentState) return states;
-      return {
-        ...states,
-        2: {
-          ...currentSecondStudentState,
-          ownedHouseIds: [],
-          activeHouseId: null,
-          hasCustomHouseCoupon: false,
-          customHouseDesign: null,
-        },
-      };
-    };
-
-    setIsStudentRecordResetting(true);
-    setStudentRecordResetStatus('초기화하는 중입니다.');
-    try {
-      let nextEconomyStates: StudentEconomyStates;
-      if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          nextEconomyStates = resetSecondStudentHousePurchases(
-            normalizeStudentEconomyStates(current.studentEconomy),
-          );
-          return {
-            ...current,
-            studentEmotionHistory: {},
-            studentLife: emptyStudentLife,
-            studentPets: {},
-            studentEconomy: nextEconomyStates,
-          };
-        });
-      } else {
-        const snapshot = loadStoredStudentPetSnapshot();
-        nextEconomyStates = resetSecondStudentHousePurchases(snapshot.studentEconomy);
-        if (!storeStudentPetSnapshot({
-          ...snapshot,
-          studentPets: {},
-          studentEconomy: nextEconomyStates,
-        })) throw new Error('STUDENT_RECORD_RESET_STORAGE_FAILED');
-        storeStudentEmotionHistory({});
-        storeStudentLifeState(emptyStudentLife);
-      }
-
-      localStorage.removeItem(STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY);
-      setStudentEmotionHistory({});
-      setStudentLife(emptyStudentLife);
-      setStudentPetStates({});
-      setStudentEconomyStates(nextEconomyStates);
-      setSelectedTeacherLetterId('');
-      setMailReplyToId(undefined);
-      setMailStatus('학생 기록을 초기화했습니다.');
-      setStudentRecordResetStatus('학생 기록을 초기화했습니다.');
-    } catch (error) {
-      console.error('Failed to reset student records.', error);
-      setStudentRecordResetStatus('학생 기록을 초기화하지 못했습니다. 다시 시도해 주세요.');
-    } finally {
-      setIsStudentRecordResetting(false);
-    }
-  };
-
-  const resetSecondStudentShopPurchases = async () => {
-    if (isStudentRecordResetting) return;
-
-    const resetPurchases = (states: StudentEconomyStates): StudentEconomyStates => {
-      const currentSecondStudentState = states['2'];
-      if (!currentSecondStudentState) return states;
-      return {
-        ...states,
-        2: {
-          ...currentSecondStudentState,
-          inventory: {},
-        },
-      };
-    };
-
-    setIsStudentRecordResetting(true);
-    setStudentRecordResetStatus('2번 학생의 상점 구매를 초기화하는 중입니다.');
-    try {
-      let nextEconomyStates = studentEconomyStates;
-      if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          nextEconomyStates = resetPurchases(normalizeStudentEconomyStates(current.studentEconomy));
-          return { ...current, studentEconomy: nextEconomyStates };
-        });
-      } else {
-        const snapshot = loadStoredStudentPetSnapshot();
-        nextEconomyStates = resetPurchases(snapshot.studentEconomy);
-        if (!storeStudentPetSnapshot({ ...snapshot, studentEconomy: nextEconomyStates })) {
-          throw new Error('SECOND_STUDENT_SHOP_RESET_STORAGE_FAILED');
-        }
-      }
-
-      setStudentEconomyStates(nextEconomyStates);
-      setStudentRecordResetStatus('2번 학생의 상점 구매를 초기화했습니다.');
-    } catch (error) {
-      console.error('Failed to reset second student shop purchases.', error);
-      setStudentRecordResetStatus('2번 학생의 상점 구매를 초기화하지 못했습니다. 다시 시도해 주세요.');
-    } finally {
-      setIsStudentRecordResetting(false);
-    }
-  };
-
   const addAuctionItem = (dayIndex: number) => {
     const normalizedItems = normalizeAuctionItems(auctionItems);
     if (normalizedItems.length >= AUCTION_MAX_ITEM_COUNT) return;
@@ -6822,10 +6707,6 @@ export default function TimerPage() {
       completeWeeklyAuctionCycle();
     } else if (pendingAuctionAction === 'currency') {
       resetCurrencyBalances();
-    } else if (pendingAuctionAction === 'studentRecords') {
-      void resetStudentRecords();
-    } else if (pendingAuctionAction === 'secondStudentShopPurchases') {
-      void resetSecondStudentShopPurchases();
     }
 
     setPendingAuctionAction(null);
@@ -8675,29 +8556,21 @@ export default function TimerPage() {
           })}
         </div>
       </div>
-      <section className="mt-5 rounded-[1.2rem] border border-[#E8C9C1] bg-[#FFF6F3] p-4" aria-labelledby="student-record-reset-title">
-        <h3 id="student-record-reset-title" className="text-base font-extrabold text-[#8E4538]">학생 기록 초기화</h3>
-        <p className="mt-1 text-sm font-bold leading-6 text-[#805548]">감정 구슬, 책방, 우편함, 보유 펫을 모두 지우고 2번 학생의 집 구매만 초기화합니다.</p>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <span role="status" className="text-sm font-bold text-[#805548]">{studentRecordResetStatus}</span>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setPendingAuctionAction('secondStudentShopPurchases')}
-              disabled={isStudentRecordResetting}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#B45343] bg-white px-5 font-extrabold text-[#963D30] transition-colors hover:bg-[#FFF0EB] disabled:cursor-wait disabled:opacity-55"
-            >
-              <RotateCcw size={18} aria-hidden="true" />2번 상점 구매 초기화
-            </button>
-            <button
-              type="button"
-              onClick={() => setPendingAuctionAction('studentRecords')}
-              disabled={isStudentRecordResetting}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#B45343] px-5 font-extrabold text-white transition-colors hover:bg-[#963D30] disabled:cursor-wait disabled:opacity-55"
-            >
-              <RotateCcw size={18} aria-hidden="true" />{isStudentRecordResetting ? '초기화 중' : '학생 기록 초기화'}
-            </button>
+      <section className="teacher-shop-skins" aria-labelledby="teacher-shop-skins-title">
+        <header>
+          <div>
+            <h3 id="teacher-shop-skins-title">고마 스킨 도감</h3>
+            <p>학생이 인형 뽑기에서 얻을 수 있는 스킨</p>
           </div>
+          <span>{STUDENT_CHARACTER_PRIZES.length}종</span>
+        </header>
+        <div className="teacher-shop-skin-list">
+          {STUDENT_CHARACTER_PRIZES.map((character) => (
+            <article key={character.id}>
+              <img src={character.imageSrc} alt={character.name} />
+              <span>{character.name}</span>
+            </article>
+          ))}
         </div>
       </section>
     </section>
@@ -11456,16 +11329,6 @@ export default function TimerPage() {
                   title: '보유 화폐를 정말 초기화할까요?',
                   body: '모든 학생의 보유 고마가 100으로 돌아갑니다. 주간 마감에는 사용하지 않는 별도 위험 작업입니다.',
                   action: '보유 화폐 초기화',
-                },
-                studentRecords: {
-                  title: '학생 기록을 초기화할까요?',
-                  body: '모든 학생의 감정 구슬, 책방, 우편함, 보유 펫 기록을 지우고 2번 학생의 집 구매를 초기화합니다.',
-                  action: '학생 기록 초기화',
-                },
-                secondStudentShopPurchases: {
-                  title: '2번 학생의 상점 구매를 초기화할까요?',
-                  body: '2번 학생의 집 고치기를 포함한 상점 구매 내역만 초기화합니다. 다른 학생의 기록과 잔액은 유지됩니다.',
-                  action: '2번 상점 구매 초기화',
                 },
               }[pendingAuctionAction];
 
