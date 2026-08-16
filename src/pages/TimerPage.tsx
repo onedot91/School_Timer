@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
@@ -4650,7 +4651,7 @@ export default function TimerPage() {
 
       try {
         const remoteRow = await loadSharedSettingsRow();
-        if (isCancelled || !remoteRow?.updated_at) return;
+        if (isCancelled || isSharedSettingsSavePendingRef.current || !remoteRow?.updated_at) return;
         if (remoteRow.updated_at === lastSharedSettingsUpdatedAtRef.current) return;
 
         const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow.value);
@@ -6330,6 +6331,24 @@ export default function TimerPage() {
     ));
   };
 
+  const commitCurrencyAdjustment = (
+    nextBalances: CurrencyBalances,
+    nextHistory: CurrencyHistory,
+    target: CurrencyAdjustmentTarget,
+    delta: number,
+  ) => {
+    currencyBalancesRef.current = nextBalances;
+    currencyHistoryRef.current = nextHistory;
+    if (isSupabaseSettingsEnabled && sharedSettingsHydratedRef.current) {
+      isSharedSettingsSavePendingRef.current = true;
+    }
+    flushSync(() => {
+      setCurrencyBalances(nextBalances);
+      setCurrencyHistory(nextHistory);
+      recordCurrencyAdjustment(target, delta);
+    });
+  };
+
   const handleCurrencyStudentNumberInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextInput = event.target.value.replace(/\D/g, '').slice(0, 2);
     setCurrencyStudentNumberInput(nextInput);
@@ -6359,8 +6378,7 @@ export default function TimerPage() {
       after,
       reason: 'manual',
     });
-    commitCurrencyState(nextBalances, nextHistory);
-    recordCurrencyAdjustment('student', delta);
+    commitCurrencyAdjustment(nextBalances, nextHistory, 'student', delta);
   };
 
   const adjustAllCurrencyBalances = (delta: number) => {
@@ -6379,8 +6397,7 @@ export default function TimerPage() {
       'bulk_adjust',
       createdAt,
     );
-    commitCurrencyState(nextBalances, nextHistory);
-    recordCurrencyAdjustment('all', delta);
+    commitCurrencyAdjustment(nextBalances, nextHistory, 'all', delta);
   };
 
   const toggleCurrencyGroupStudentNumber = (studentNumber: number) => {
@@ -6407,8 +6424,7 @@ export default function TimerPage() {
       'bulk_adjust',
       new Date().toISOString(),
     );
-    commitCurrencyState(nextBalances, nextHistory);
-    recordCurrencyAdjustment('group', delta);
+    commitCurrencyAdjustment(nextBalances, nextHistory, 'group', delta);
   };
 
   const resetCurrencyBalances = () => {
@@ -10424,7 +10440,7 @@ export default function TimerPage() {
                           setCurrencyAdjustmentTarget('student');
                           setCurrencyAdjustmentSummary(null);
                         }}
-                        className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-colors ${
+                        className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
                           currencyAdjustmentTarget === 'student'
                             ? 'bg-white text-[#006241] shadow-[0_2px_7px_rgba(48,86,68,0.12)]'
                             : 'text-[#708078] hover:bg-white/60'
@@ -10441,7 +10457,7 @@ export default function TimerPage() {
                           setCurrencyStudentNumberInput('');
                           setEditingCurrencyNumber(null);
                         }}
-                        className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-colors ${
+                        className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
                           currencyAdjustmentTarget === 'group'
                             ? 'bg-white text-[#006241] shadow-[0_2px_7px_rgba(48,86,68,0.12)]'
                             : 'text-[#708078] hover:bg-white/60'
@@ -10458,7 +10474,7 @@ export default function TimerPage() {
                           setCurrencyStudentNumberInput('');
                           setEditingCurrencyNumber(null);
                         }}
-                        className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-colors ${
+                        className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
                           currencyAdjustmentTarget === 'all'
                             ? 'bg-[#006241] !text-white shadow-[0_3px_8px_rgba(0,98,65,0.2)]'
                             : 'text-[#708078] hover:bg-white/60'
@@ -10570,7 +10586,7 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustCurrencyBalance(editingCurrencyNumber, -CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white font-mono text-[1.15rem] font-black text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white font-mono text-[1.15rem] font-black text-[#6E5139] transition-[background-color,transform] hover:bg-[#FFF7EC] active:scale-90 active:bg-[#F4E8DC]"
                             aria-label={`${editingCurrencyNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
                             title={`-${CURRENCY_BALANCE_STEP}`}
                           >
@@ -10579,7 +10595,7 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustCurrencyBalance(editingCurrencyNumber, CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] font-mono text-[1.15rem] font-black text-[#006241] transition-colors hover:bg-[#DDF0E8]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] font-mono text-[1.15rem] font-black text-[#006241] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC]"
                             aria-label={`${editingCurrencyNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
                             title={`+${CURRENCY_BALANCE_STEP}`}
                           >

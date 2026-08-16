@@ -8,6 +8,7 @@ import {
   type StudentEconomyState,
 } from '../../lib/studentEconomy';
 import { getDailyGachaCapsules } from '../../lib/studentGachaCapsules';
+import { getStudentClawDropMotion } from '../../lib/studentGachaMotion';
 import { useModalFocus } from '../../lib/useModalFocus';
 import StudentConfirmDialog from './StudentConfirmDialog';
 
@@ -22,6 +23,8 @@ type GachaStage = 'ready' | 'aiming' | 'rolling' | 'result';
 
 interface ClawPositionStyle extends CSSProperties {
   readonly '--student-claw-x': string;
+  readonly '--student-claw-drop': string;
+  readonly '--student-claw-cable-scale': number;
 }
 
 const CLAW_POSITION_COUNT = 5;
@@ -47,15 +50,23 @@ export default function StudentCharacterGacha({ state, availableBalance, isSavin
   const [clawPosition, setClawPosition] = useState(INITIAL_CLAW_POSITION);
   const [drawnCharacterId, setDrawnCharacterId] = useState<StudentCharacterPrizeId | null>(null);
   const [isRollFinished, setIsRollFinished] = useState(false);
+  const [clawDropMotion, setClawDropMotion] = useState({ dropDistance: 0, cableScale: 1 });
   const ownedBeforeDrawRef = useRef<readonly StudentCharacterPrizeId[]>([]);
   const isDrawStartingRef = useRef(false);
   const resultDialogRef = useRef<HTMLElement>(null);
   const controlPanelRef = useRef<HTMLElement>(null);
+  const clawCableRef = useRef<HTMLElement>(null);
+  const caughtCapsuleRef = useRef<HTMLSpanElement>(null);
+  const selectedCapsuleRef = useRef<HTMLImageElement>(null);
 
   const ownedCharacters = STUDENT_CHARACTER_PRIZES.filter((character) => state.ownedCharacterIds.includes(character.id));
   const canDraw = availableBalance >= STUDENT_CHARACTER_DRAW_PRICE && ownedCharacters.length < STUDENT_CHARACTER_PRIZES.length;
   const drawnCharacter = getCharacterById(drawnCharacterId);
-  const clawStyle: ClawPositionStyle = { '--student-claw-x': getClawPosition(clawPosition) };
+  const clawStyle: ClawPositionStyle = {
+    '--student-claw-x': getClawPosition(clawPosition),
+    '--student-claw-drop': `${clawDropMotion.dropDistance}px`,
+    '--student-claw-cable-scale': clawDropMotion.cableScale,
+  };
   const dailyCapsules = getDailyGachaCapsules(getKoreanDateKey());
   const selectedCapsule = dailyCapsules[clawPosition];
 
@@ -92,6 +103,19 @@ export default function StudentCharacterGacha({ state, availableBalance, isSavin
 
   const startDraw = async () => {
     if (isDrawStartingRef.current || stage !== 'aiming') return;
+    const cable = clawCableRef.current;
+    const caughtCapsule = caughtCapsuleRef.current;
+    const targetCapsule = selectedCapsuleRef.current;
+    if (!cable || !caughtCapsule || !targetCapsule) return;
+
+    const cableRect = cable.getBoundingClientRect();
+    const caughtCapsuleRect = caughtCapsule.getBoundingClientRect();
+    const targetCapsuleRect = targetCapsule.getBoundingClientRect();
+    setClawDropMotion(getStudentClawDropMotion({
+      cableHeight: cableRect.height,
+      caughtCapsuleCenterY: caughtCapsuleRect.top + caughtCapsuleRect.height / 2,
+      targetCapsuleCenterY: targetCapsuleRect.top + targetCapsuleRect.height / 2,
+    }));
     isDrawStartingRef.current = true;
     ownedBeforeDrawRef.current = state.ownedCharacterIds;
     setDrawnCharacterId(null);
@@ -146,13 +170,14 @@ export default function StudentCharacterGacha({ state, availableBalance, isSavin
           <div className="student-claw-machine-glow" aria-hidden="true" />
           <div className="student-claw-machine-rail" aria-hidden="true" />
           <div className="student-claw-machine-claw" style={clawStyle} aria-hidden="true">
-            <i /><b /><em />
-            <span>{selectedCapsule ? <img src={selectedCapsule} alt="" draggable={false} /> : null}</span>
+            <i ref={clawCableRef} /><b /><em />
+            <span ref={caughtCapsuleRef}>{selectedCapsule ? <img src={selectedCapsule} alt="" draggable={false} /> : null}</span>
           </div>
           <div className="student-claw-machine-toys" aria-hidden="true">
             {dailyCapsules.map((src, index) => (
               <img
                 key={src}
+                ref={index === clawPosition ? selectedCapsuleRef : undefined}
                 className={index === clawPosition ? 'is-target' : undefined}
                 src={src}
                 alt=""
