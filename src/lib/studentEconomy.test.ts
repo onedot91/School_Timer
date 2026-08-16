@@ -28,7 +28,26 @@ test('추가한 25개 고마 스킨은 선택 가능한 카탈로그에 등록�
   ];
 
   assert.deepEqual(
-    STUDENT_CHARACTER_PRIZES.slice(-25).map((character) => character.name),
+    STUDENT_CHARACTER_PRIZES.slice(31, 56).map((character) => character.name),
+    addedSkinNames,
+  );
+});
+
+test('첨부한 46개 고마 스킨은 선택 가능한 카탈로그에 등록된다', () => {
+  const addedSkinNames = [
+    '구미호 고마', '굴인형 고마', '기사 고마', '나는 고마가 아니고마', '나무 마법사 고마',
+    '낙서 고마', '대두 고마', '도깨비 고마', '도적 고마', '독 마법사 고마',
+    '라부부 고마', '로블록스 고마', '마술사 고마', '마크 고마', '모나리자 고마',
+    '목사 고마', '몬치치 고마', '변신 로봇 고마', '별이 빛나는 고마', '보석 고마',
+    '복서 고마', '불 마법사 고마', '비눗방울 고마', '사또 고마', '후녀 고마',
+    '수묵 고마', '수염 고마', '스님 고마', '스케이트보드 고마', '스프레이 고마',
+    '악마 고마', '알록달록 고마', '얼룩덜룩 고마', '얼음 마법사 고마', '오방색 고마',
+    '유령 고마', '전기 마법사 고마', '전통무늬 고마', '절규 고마', '조각 고마',
+    '진주 귀걸이를 한 고마', '탈 고마', '팝아트 고마', '풍선 고마', '흑백 고마', '힐러 고마',
+  ];
+
+  assert.deepEqual(
+    STUDENT_CHARACTER_PRIZES.slice(-46).map((character) => character.name),
     addedSkinNames,
   );
 });
