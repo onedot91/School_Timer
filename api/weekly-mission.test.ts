@@ -50,8 +50,8 @@ test('server verifies a personal question and forwards only its id to the atomic
       weekKey: currentWeekKey,
       completed: true,
       awarded: true,
-      rewardAmount: 5,
-      balance: 105,
+      rewardAmount: 10,
+      balance: 110,
     });
   };
 

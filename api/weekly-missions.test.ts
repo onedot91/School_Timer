@@ -4,8 +4,10 @@ import handler from './weekly-missions';
 import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+  getWeeklyMissionRewardAmount,
   getKoreanIsoWeekKey,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
+  type WeeklyMissionType,
 } from '../src/lib/weeklyMission';
 import { getKoreanWeekDateRange } from '../src/lib/classwordWeeklyMission';
 
@@ -62,8 +64,8 @@ test('server checks both sources and claims each completed mission independently
       weekKey,
       completed: rpcBody.p_source_event_id !== null,
       awarded: rpcBody.p_source_event_id !== null,
-      rewardAmount: 5,
-      balance: 105,
+      rewardAmount: getWeeklyMissionRewardAmount(missionType as WeeklyMissionType),
+      balance: missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE ? 110 : 105,
     });
   };
 
@@ -136,8 +138,10 @@ test('a malformed question response does not block a valid classword reward', as
       weekKey,
       completed: rpcBody.p_source_event_id !== null,
       awarded: rpcBody.p_source_event_id !== null,
-      rewardAmount: 5,
-      balance: rpcBody.p_source_event_id !== null ? 105 : 100,
+      rewardAmount: getWeeklyMissionRewardAmount(missionType as WeeklyMissionType),
+      balance: rpcBody.p_source_event_id !== null
+        ? 100 + getWeeklyMissionRewardAmount(missionType as WeeklyMissionType)
+        : 100,
     });
   };
 

@@ -1,7 +1,8 @@
 export const PERSONAL_QUESTION_WEEKLY_MISSION_TYPE = 'personal_question';
 export const CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE = 'classword_word_entry';
 export const CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE = 'classword_quiz_correct';
-export const PERSONAL_QUESTION_WEEKLY_REWARD = 5;
+export const PERSONAL_QUESTION_WEEKLY_REWARD = 10;
+export const CLASSWORD_WEEKLY_REWARD = 5;
 
 export const WEEKLY_MISSION_TYPES = [
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
@@ -10,6 +11,12 @@ export const WEEKLY_MISSION_TYPES = [
 ] as const;
 
 export type WeeklyMissionType = typeof WEEKLY_MISSION_TYPES[number];
+
+export const getWeeklyMissionRewardAmount = (missionType: WeeklyMissionType) => (
+  missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
+    ? PERSONAL_QUESTION_WEEKLY_REWARD
+    : CLASSWORD_WEEKLY_REWARD
+);
 
 const isWeeklyMissionType = (value: unknown): value is WeeklyMissionType => (
   typeof value === 'string' && WEEKLY_MISSION_TYPES.some((missionType) => missionType === value)
@@ -20,21 +27,21 @@ export const WEEKLY_MISSION_DEFINITIONS = [
     type: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
     label: '신문에 개인 질문하기',
     description: '이번 주 신문을 읽고 나만의 질문을 남겨 보세요.',
-    rewardAmount: 5,
+    rewardAmount: PERSONAL_QUESTION_WEEKLY_REWARD,
     destinationUrl: 'https://question-news.vercel.app/',
   },
   {
     type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
     label: 'ㄱㄴㄷ 게임 낱말 넣기',
     description: 'ㄱㄴㄷ 게임에 새로운 낱말을 등록해 보세요.',
-    rewardAmount: 5,
+    rewardAmount: CLASSWORD_WEEKLY_REWARD,
     destinationUrl: 'https://classword.vercel.app/',
   },
   {
     type: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
     label: 'ㄱㄴㄷ 게임 낱말 퀴즈',
     description: 'ㄱㄴㄷ 게임에서 낱말 퀴즈를 맞혀 보세요.',
-    rewardAmount: 5,
+    rewardAmount: CLASSWORD_WEEKLY_REWARD,
     destinationUrl: 'https://classword.vercel.app/',
   },
 ] as const satisfies readonly {
@@ -184,6 +191,7 @@ export const claimWeeklyMissionRewardInSettings = (
   const history = normalizeCurrencyHistory(currentValue.currencyHistory);
   const studentKey = String(studentNumber);
   const rewardId = getWeeklyMissionRewardId(studentNumber, weekKey, missionType);
+  const rewardAmount = getWeeklyMissionRewardAmount(missionType);
   const existingEntries = history[studentKey] ?? [];
 
   if (existingEntries.some((entry) => entry.id === rewardId)) {
@@ -191,11 +199,11 @@ export const claimWeeklyMissionRewardInSettings = (
   }
 
   const before = balances[studentKey];
-  if (before > CURRENCY_BALANCE_MAX - PERSONAL_QUESTION_WEEKLY_REWARD) {
+  if (before > CURRENCY_BALANCE_MAX - rewardAmount) {
     return { value: currentValue, awarded: false, balance: before };
   }
 
-  const after = before + PERSONAL_QUESTION_WEEKLY_REWARD;
+  const after = before + rewardAmount;
   const nextHistory = {
     ...history,
     [studentKey]: [
@@ -242,15 +250,15 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
     const missingRewards = remoteHistory[studentKey].filter((entry) => (
       entry.reason === 'weekly_mission' &&
-      entry.delta === PERSONAL_QUESTION_WEEKLY_REWARD &&
+      (entry.delta === PERSONAL_QUESTION_WEEKLY_REWARD || entry.delta === CLASSWORD_WEEKLY_REWARD) &&
       (knownRewardIds === null || !knownRewardIds.has(entry.id)) &&
       !existingIds.has(entry.id)
     ));
 
     if (missingRewards.length === 0) return;
 
-    const nextBalance = nextBalances[studentKey]
-      + missingRewards.length * PERSONAL_QUESTION_WEEKLY_REWARD;
+    const rewardAmount = missingRewards.reduce((total, entry) => total + entry.delta, 0);
+    const nextBalance = nextBalances[studentKey] + rewardAmount;
     if (nextBalance > CURRENCY_BALANCE_MAX) {
       throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
     }

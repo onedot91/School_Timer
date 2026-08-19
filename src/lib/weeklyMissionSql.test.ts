@@ -11,8 +11,10 @@ test('weekly mission RPC preserves exact rewards and initializes empty settings'
 
   assert.match(functionSql, /jsonb_typeof\(v_value -> 'currencyBalances'\) is distinct from 'object'/);
   assert.match(functionSql, /jsonb_typeof\(v_value -> 'currencyHistory'\) is distinct from 'object'/);
-  assert.match(functionSql, /v_before <= 999994/);
-  assert.match(functionSql, /v_after := v_before \+ 5/);
+  assert.match(functionSql, /v_reward_amount := case when p_mission_type = 'personal_question' then 10 else 5 end/);
+  assert.match(functionSql, /v_before <= 999999 - v_reward_amount/);
+  assert.match(functionSql, /v_after := v_before \+ v_reward_amount/);
+  assert.match(functionSql, /'rewardAmount', v_reward_amount/);
   assert.doesNotMatch(functionSql, /limit 30/i);
   assert.ok(
     functionSql.indexOf("for update;") < functionSql.indexOf('insert into weekly_mission_rewards'),

@@ -6,12 +6,14 @@ import {
   claimWeeklyMissionRewardInSettings,
   findPersonalQuestionForWeek,
   getKoreanIsoWeekKey,
+  getWeeklyMissionRewardAmount,
   hasWeeklyMissionReward,
   getWeeklyMissionRewardIds,
   getAuctionAwardKeys,
   mergeConcurrentCurrencyUpdatesIntoSettings,
   parseQuestionStudentResponse,
   parseWeeklyMissionResult,
+  WEEKLY_MISSION_DEFINITIONS,
 } from './weeklyMission';
 import { hasPersonalQuestionSubmission } from './questionSubmissionStatus';
 import { claimDailyEmotionRewardInSettings, finalizeAuctionAwardInSettings, hasDailyEmotionReward } from './currency';
@@ -34,6 +36,19 @@ test('only a personal question from the requested student and week completes the
 
   assert.equal(findPersonalQuestionForWeek(response, 6, '2026-29')?.id, 'personal');
   assert.equal(findPersonalQuestionForWeek(response, 6, '2026-30'), null);
+});
+
+test('personal questions award 10 while both Classword missions remain at 5', () => {
+  assert.deepEqual(
+    WEEKLY_MISSION_DEFINITIONS.map(({ type, rewardAmount }) => ({ type, rewardAmount })),
+    [
+      { type: 'personal_question', rewardAmount: 10 },
+      { type: 'classword_word_entry', rewardAmount: 5 },
+      { type: 'classword_quiz_correct', rewardAmount: 5 },
+    ],
+  );
+  assert.equal(getWeeklyMissionRewardAmount('personal_question'), 10);
+  assert.equal(getWeeklyMissionRewardAmount(CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE), 5);
 });
 
 test('weekly mission response parser rejects incomplete server payloads', () => {
@@ -62,7 +77,7 @@ test('fallback weekly mission claim awards once per student, week, and mission t
   }, 6, '2026-29', 'personal_question', '2026-07-13T14:00:00.000Z');
 
   assert.equal(first.awarded, true);
-  assert.equal(first.balance, 205);
+  assert.equal(first.balance, 210);
 
   const second = claimWeeklyMissionRewardInSettings(
     first.value,
@@ -73,7 +88,7 @@ test('fallback weekly mission claim awards once per student, week, and mission t
   );
 
   assert.equal(second.awarded, false);
-  assert.equal(second.balance, 205);
+  assert.equal(second.balance, 210);
   assert.deepEqual(second.value, first.value);
   const third = claimWeeklyMissionRewardInSettings(
     first.value,
@@ -90,8 +105,8 @@ test('fallback weekly mission claim awards once per student, week, and mission t
     '2026-07-13T14:03:00.000Z',
   );
 
-  assert.equal(third.balance, 210);
-  assert.equal(fourth.balance, 215);
+  assert.equal(third.balance, 215);
+  assert.equal(fourth.balance, 220);
   assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-29', 'personal_question'), true);
   assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-30', 'personal_question'), false);
   assert.equal(hasWeeklyMissionReward(fourth.value.currencyHistory, 6, '2026-29', CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE), true);
@@ -124,7 +139,7 @@ test('stale settings saves preserve a concurrent weekly mission reward', () => {
     currencyHistory: { 6: [] },
   }, new Set());
 
-  assert.equal((merged.currencyBalances as Record<string, number>)['6'], 205);
+  assert.equal((merged.currencyBalances as Record<string, number>)['6'], 210);
   assert.equal(hasWeeklyMissionReward(merged.currencyHistory, 6, '2026-29', 'personal_question'), true);
   assert.equal(merged.scheduleNotice, '수정된 공지');
 

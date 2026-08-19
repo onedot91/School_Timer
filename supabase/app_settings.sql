@@ -58,7 +58,7 @@ create table if not exists weekly_mission_rewards (
   student_number smallint not null check (student_number between 1 and 23),
   week_key text not null check (week_key ~ '^\d{4}-\d{2}$'),
   mission_type text not null default 'personal_question' check (mission_type in ('personal_question', 'classword_word_entry', 'classword_quiz_correct')),
-  reward_amount integer not null default 5 check (reward_amount = 5),
+  reward_amount integer not null default 5 check (reward_amount in (5, 10)),
   source_event_id text not null,
   completed_at timestamptz not null default now(),
   primary key (student_number, week_key, mission_type)
@@ -91,6 +91,11 @@ alter table weekly_mission_rewards
 alter table weekly_mission_rewards
   add constraint weekly_mission_rewards_mission_type_check
   check (mission_type in ('personal_question', 'classword_word_entry', 'classword_quiz_correct'));
+alter table weekly_mission_rewards
+  drop constraint if exists weekly_mission_rewards_reward_amount_check;
+alter table weekly_mission_rewards
+  add constraint weekly_mission_rewards_reward_amount_check
+  check (reward_amount in (5, 10));
 
 create or replace function claim_weekly_mission_reward(
   p_student_number integer,
@@ -113,6 +118,7 @@ declare
   v_after integer := 100;
   v_created_at timestamptz := now();
   v_history jsonb;
+  v_reward_amount integer;
 begin
   if p_student_number < 1 or p_student_number > 23 then
     raise exception 'INVALID_STUDENT_NUMBER';
@@ -123,6 +129,7 @@ begin
   if p_mission_type not in ('personal_question', 'classword_word_entry', 'classword_quiz_correct') then
     raise exception 'INVALID_MISSION_TYPE';
   end if;
+  v_reward_amount := case when p_mission_type = 'personal_question' then 10 else 5 end;
 
   select value
   into v_value
@@ -158,7 +165,7 @@ begin
   if
     p_source_event_id is not null and
     btrim(p_source_event_id) <> '' and
-    v_before <= 999994
+    v_before <= 999999 - v_reward_amount
   then
     insert into weekly_mission_rewards (
       student_number,
@@ -171,7 +178,7 @@ begin
       p_student_number,
       p_week_key,
       p_mission_type,
-      5,
+      v_reward_amount,
       p_source_event_id
     )
     on conflict (student_number, week_key, mission_type) do nothing;
@@ -188,7 +195,7 @@ begin
   ) into v_completed;
 
   if v_awarded then
-    v_after := v_before + 5;
+    v_after := v_before + v_reward_amount;
     v_value := jsonb_set(
       v_value,
       array['currencyBalances', v_student_key],
@@ -232,7 +239,7 @@ begin
     'weekKey', p_week_key,
     'completed', v_completed,
     'awarded', v_awarded,
-    'rewardAmount', 5,
+    'rewardAmount', v_reward_amount,
     'balance', v_after
   );
 end;

@@ -7,6 +7,7 @@ import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   findPersonalQuestionForWeek,
+  getWeeklyMissionRewardAmount,
   getKoreanIsoWeekKey,
   parseQuestionStudentResponse,
   parseWeeklyMissionResult,
@@ -172,7 +173,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         weekKey,
         completed: false,
         awarded: false,
-        rewardAmount: 5,
+        rewardAmount: getWeeklyMissionRewardAmount(claims[index].missionType),
         balance: fallbackBalance,
       };
     });
