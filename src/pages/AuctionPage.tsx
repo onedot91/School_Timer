@@ -8,6 +8,7 @@ import StudentMailboxPage from '../components/student/StudentMailboxPage';
 import StudentLibraryPage from '../components/student/StudentLibraryPage';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentStorePage from '../components/student/StudentStorePage';
+import StudentSudokuPage from '../components/student/StudentSudokuPage';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
   AUCTION_BID_STEP,
@@ -130,12 +131,14 @@ import {
   type StudentLifeState,
 } from '../lib/studentLife';
 import { createBankMailboxLetters } from '../lib/bankMailbox';
+import { useStudentSudokuState } from '../lib/useStudentSudokuState';
+import type { SudokuDifficulty } from '../lib/sudoku';
 
 interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'mailbox' | 'library' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'sudoku' | 'mailbox' | 'library' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -152,12 +155,14 @@ type SharedSettingsValue = {
   studentShopCatalog?: unknown;
   studentStockMarket?: unknown;
   studentLife?: unknown;
+  studentSudoku?: unknown;
 };
 
 const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   overview: '#student-overview',
   emotions: '#student-emotions',
   missions: '#student-missions',
+  sudoku: '#student-sudoku',
   mailbox: '#student-mailbox',
   library: '#student-library',
   store: '#student-store',
@@ -224,6 +229,23 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       ? normalizeCurrencyHistory(null)
       : loadStoredStudentPetSnapshot().currencyHistory
   ));
+  const {
+    studentSudokuProgress,
+    rewardedSudokuPuzzleIds,
+    hasCompletedDailySudokuMission,
+    activeSudokuDifficulty,
+    completedSudokuDifficulty,
+    saveSudokuProgress,
+    startSudoku,
+    completeSudoku,
+    applySharedStudentSudoku,
+    refreshLocalStudentSudoku,
+  } = useStudentSudokuState({
+    studentNumber,
+    currencyHistory,
+    onCurrencyBalancesChange: setCurrencyBalances,
+    onCurrencyHistoryChange: setCurrencyHistory,
+  });
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
@@ -261,10 +283,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [hasWeeklyMissionSyncError, setHasWeeklyMissionSyncError] = useState(false);
   const [activeStudentView, setActiveStudentView] = useState<StudentView>(getStudentViewFromHash);
+  const [sudokuDifficulty, setSudokuDifficulty] = useState<SudokuDifficulty>(activeSudokuDifficulty ?? 'basic');
 
   useEffect(() => {
     studentPetStatesRef.current = studentPetStates;
   }, [studentPetStates]);
+
+  useEffect(() => {
+    if (activeSudokuDifficulty) setSudokuDifficulty(activeSudokuDifficulty);
+  }, [activeSudokuDifficulty]);
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [bidAmountDrafts, setBidAmountDrafts] = useState<Record<string, string>>({});
   const [selectedItemId, setSelectedItemId] = useState(getInitialSelectedAuctionItemId);
@@ -777,6 +804,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStudentShopCatalog(normalizeStudentShopCatalog(value.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(value.studentStockMarket));
     setStudentLife(normalizeStudentLifeState(value.studentLife));
+    applySharedStudentSudoku(value);
     const weekKey = getKoreanIsoWeekKey();
     setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
       (statuses, missionType) => ({
@@ -787,7 +815,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }),
       previous,
     ));
-  }, [studentNumber]);
+  }, [applySharedStudentSudoku, studentNumber]);
 
   const refreshAuctionState = useCallback(async ({ forceFull = false }: { forceFull?: boolean } = {}) => {
     if (!isSupabaseSettingsEnabled) {
@@ -805,6 +833,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentEconomyStates(localPetSnapshot.studentEconomy);
       setStudentShopCatalog(loadStoredStudentShopCatalog());
       setStudentLife(loadStoredStudentLifeState());
+      refreshLocalStudentSudoku();
       setIsLoading(false);
       return;
     }
@@ -833,7 +862,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
     }
-  }, [applySharedSettingsValue]);
+  }, [applySharedSettingsValue, refreshLocalStudentSudoku]);
 
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) return;
@@ -851,6 +880,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     };
     const isEntryRefreshView = activeStudentView === 'emotions'
       || activeStudentView === 'missions'
+      || activeStudentView === 'sudoku'
       || activeStudentView === 'mailbox'
       || activeStudentView === 'library';
     refreshWhenVisible(isStudentStoreView(activeStudentView) || isEntryRefreshView);
@@ -1472,8 +1502,31 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             weeklyMissionStatuses={weeklyMissionStatuses}
             hasSyncError={hasWeeklyMissionSyncError}
             isDailyEmotionMissionCompleted={hasCompletedDailyEmotionMission}
+            isSudokuMissionCompleted={hasCompletedDailySudokuMission}
+            activeSudokuDifficulty={activeSudokuDifficulty}
+            completedSudokuDifficulty={completedSudokuDifficulty}
             onOpenEmotions={() => navigateStudentView('emotions')}
+            onOpenSudoku={async (difficulty) => {
+              const startedDifficulty = await startSudoku(difficulty);
+              if (!startedDifficulty) {
+                showStatusMessage('스도쿠 설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+                return;
+              }
+              setSudokuDifficulty(startedDifficulty);
+              navigateStudentView('sudoku');
+            }}
             onBack={() => navigateStudentView('overview')}
+          />
+        ) : null}
+        {activeStudentView === 'sudoku' ? (
+          <StudentSudokuPage
+            studentNumber={studentNumber}
+            difficulty={sudokuDifficulty}
+            progress={studentSudokuProgress}
+            rewardedPuzzleIds={rewardedSudokuPuzzleIds}
+            onSave={saveSudokuProgress}
+            onComplete={completeSudoku}
+            onBack={() => navigateStudentView('missions')}
           />
         ) : null}
         {activeStudentView === 'mailbox' ? (

@@ -1,11 +1,12 @@
-import { AlertCircle, CheckCircle2, Circle, ExternalLink, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Circle, CircleDot, ExternalLink, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { formatCurrency } from '../../lib/currency';
 
-export type StudentMissionStatus = 'incomplete' | 'loading' | 'completed' | 'unavailable' | 'error';
+export type StudentMissionStatus = 'incomplete' | 'inProgress' | 'loading' | 'completed' | 'unavailable' | 'error';
 
 interface StudentMissionCardProps {
   title: string;
-  rewardAmount: number;
+  description?: string;
+  rewardAmount: number | readonly number[];
   status: StudentMissionStatus;
   destinationUrl?: string;
   onAction?: () => void;
@@ -14,6 +15,7 @@ interface StudentMissionCardProps {
 
 const STATUS_CONTENT: Record<StudentMissionStatus, { label: string; icon: typeof Circle }> = {
   incomplete: { label: '진행 전', icon: Circle },
+  inProgress: { label: '진행 중', icon: CircleDot },
   loading: { label: '확인 중', icon: LoaderCircle },
   completed: { label: '완료', icon: CheckCircle2 },
   unavailable: { label: '확인 불가', icon: AlertCircle },
@@ -22,6 +24,7 @@ const STATUS_CONTENT: Record<StudentMissionStatus, { label: string; icon: typeof
 
 export default function StudentMissionCard({
   title,
+  description,
   rewardAmount,
   status,
   destinationUrl,
@@ -30,6 +33,7 @@ export default function StudentMissionCard({
 }: StudentMissionCardProps) {
   const statusContent = STATUS_CONTENT[status];
   const StatusIcon = statusContent.icon;
+  const rewardAmounts = typeof rewardAmount === 'number' ? [rewardAmount] : rewardAmount;
 
   return (
     <article className={`student-mission-card student-mission-card-${status}`}>
@@ -38,10 +42,13 @@ export default function StudentMissionCard({
           <StatusIcon className={status === 'loading' ? 'student-spin' : ''} size={18} aria-hidden="true" />
           {statusContent.label}
         </span>
-        <span className="student-mission-reward">+{formatCurrency(rewardAmount)}</span>
+        <span className="student-mission-reward">
+          {rewardAmounts.map((amount) => `+${formatCurrency(amount)}`).join(' · ')}
+        </span>
       </div>
       <div className="student-mission-copy">
         <h3>{title}</h3>
+        {description ? <p>{description}</p> : null}
         {status === 'completed' ? <span className="student-mission-awarded">보상 지급 완료</span> : null}
       </div>
       {destinationUrl ? (

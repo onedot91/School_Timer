@@ -14280,6 +14280,15 @@ a[href]:active {
   --student-mission-soft: #fff8ec;
   --student-store: #007a57;
   --student-store-soft: #eef8f3;
+  --student-sudoku-cell-size: clamp(3.6rem, min(8.4vh, 6vw), 4.25rem);
+  --student-sudoku-selected: color-mix(in srgb, var(--apple-accent) 14%, var(--apple-surface));
+  --student-sudoku-matching: color-mix(in srgb, var(--apple-accent) 30%, var(--apple-surface));
+  --student-sudoku-conflict: #b6453f;
+  --student-motion-press: 120ms;
+  --student-motion-state: 180ms;
+  --student-motion-celebrate: 720ms;
+  --student-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --student-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   color: var(--apple-text-primary);
   background:
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--apple-accent) 10%, transparent), transparent 30rem),
@@ -14611,7 +14620,11 @@ a[href]:active {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 120ms linear, border-color 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform var(--student-motion-press) var(--student-ease-out),
+    opacity var(--student-motion-press) linear,
+    border-color var(--student-motion-state) ease,
+    box-shadow var(--student-motion-state) ease;
 }
 
 .student-section-card-mission {
@@ -14666,19 +14679,10 @@ a[href]:active {
   color: white;
   background: var(--student-mission);
   font-weight: 850;
-  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 120ms linear, background-color 160ms ease;
-}
-
-.student-section-action:active,
-.student-mission-action:not(:disabled):active,
-.student-back-button:active {
-  transform: scale(0.98);
-  opacity: 0.88;
-}
-
-.student-section-card:active {
-  transform: scale(0.98);
-  opacity: 0.88;
+  transition:
+    transform var(--student-motion-press) var(--student-ease-out),
+    opacity var(--student-motion-press) linear,
+    background-color var(--student-motion-state) ease;
 }
 
 .student-mission-groups {
@@ -14775,6 +14779,12 @@ a[href]:active {
   border: 1px solid var(--apple-separator);
   border-radius: var(--apple-radius-card);
   background: var(--apple-surface);
+  box-shadow: 0 .35rem 1rem color-mix(in srgb, var(--apple-text-primary) 6%, transparent);
+}
+
+.student-mission-card-inProgress {
+  border-color: color-mix(in srgb, var(--student-mission) 48%, var(--apple-separator));
+  background: linear-gradient(145deg, var(--apple-surface), var(--student-mission-soft));
 }
 
 .student-mission-card-completed {
@@ -14800,12 +14810,23 @@ a[href]:active {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.76rem;
+  font-size: var(--student-readable-text-min);
   font-weight: 850;
 }
 
 .student-mission-status {
+  min-height: 1.9rem;
+  padding: .25rem .55rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-pill);
   color: var(--apple-text-secondary);
+  background: var(--apple-surface-muted);
+}
+
+.student-mission-card-inProgress .student-mission-status {
+  border-color: color-mix(in srgb, var(--student-mission) 36%, var(--apple-separator));
+  color: var(--student-mission);
+  background: var(--student-mission-soft);
 }
 
 .student-mission-card-completed .student-mission-status,
@@ -14814,17 +14835,23 @@ a[href]:active {
 }
 
 .student-mission-card-error .student-mission-status {
-  color: #9b341c;
+  color: var(--student-sudoku-conflict);
 }
 
 .student-mission-reward {
+  min-height: 1.9rem;
+  padding: .25rem .55rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 22%, var(--apple-separator));
+  border-radius: var(--apple-radius-pill);
   color: var(--apple-accent-pressed);
+  background: var(--student-store-soft);
   font-family: var(--font-mono);
+  white-space: nowrap;
 }
 
 .student-mission-copy h3 {
   margin: 0;
-  font-size: 1.12rem;
+  font-size: 1.3rem;
   font-weight: 850;
   line-height: 1.25;
 }
@@ -14832,7 +14859,7 @@ a[href]:active {
 .student-mission-copy p {
   margin: 0.5rem 0 0;
   color: var(--apple-text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--student-readable-text-min);
   font-weight: 620;
   line-height: 1.55;
 }
@@ -14842,10 +14869,17 @@ a[href]:active {
 }
 
 .student-mission-action {
+  min-height: 3rem;
   padding: 0.65rem 0.85rem;
   color: white;
   background: var(--apple-accent);
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--apple-text-primary) 16%, transparent);
   text-decoration: none;
+  transition:
+    transform var(--student-motion-press) var(--student-ease-out),
+    opacity var(--student-motion-press) linear,
+    background-color var(--student-motion-state) ease,
+    box-shadow var(--student-motion-state) ease;
 }
 
 .student-mission-action:disabled {
@@ -14853,6 +14887,325 @@ a[href]:active {
   color: var(--apple-text-tertiary);
   background: var(--apple-surface-muted);
   opacity: 0.82;
+}
+
+.student-sudoku-main {
+  min-height: 0;
+  overflow: auto;
+  padding: var(--student-shell-gap);
+}
+
+.student-sudoku-panel {
+  display: grid;
+  width: min(100%, var(--student-overview-content-width));
+  min-height: 100%;
+  margin-inline: auto;
+  padding: .75rem;
+  place-items: center;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--student-card-radius);
+  background:
+    radial-gradient(circle at 24% 38%, color-mix(in srgb, var(--apple-accent) 7%, transparent), transparent 23rem),
+    var(--apple-surface);
+}
+
+.student-sudoku-header-state,
+.student-sudoku-save-state {
+  display: flex;
+  align-items: center;
+}
+
+.student-sudoku-header-state {
+  min-height: var(--student-compact-control-height);
+  gap: .5rem;
+  padding: .35rem .7rem;
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-text-secondary);
+  background: var(--apple-surface-muted);
+  font-size: .875rem;
+  font-weight: 750;
+}
+
+.student-sudoku-header-state > strong { color: var(--apple-accent-pressed); }
+
+.student-sudoku-save-state {
+  gap: .4rem;
+  padding-left: .5rem;
+  border-left: 1px solid var(--apple-separator-strong);
+  font-size: .8rem;
+  font-weight: 700;
+  transition: color var(--student-motion-state) ease, background-color var(--student-motion-state) ease;
+}
+
+.student-sudoku-save-state.is-saved { color: var(--apple-accent-pressed); }
+.student-sudoku-save-state.is-error { color: var(--student-sudoku-conflict); }
+
+.student-sudoku-workspace {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  width: min(100%, 68rem);
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.student-sudoku-view.is-basic { --student-sudoku-cell-size: clamp(4.75rem, min(10vh, 8vw), 6rem); }
+
+.student-sudoku-grid {
+  display: grid;
+  overflow: hidden;
+  border: 3px solid var(--apple-text-primary);
+  border-radius: var(--apple-radius-control);
+  background: var(--apple-surface);
+  box-shadow: 0 .75rem 2rem color-mix(in srgb, var(--apple-text-primary) 10%, transparent);
+}
+
+.student-sudoku-grid.is-size-6 { grid-template-columns: repeat(6, var(--student-sudoku-cell-size)); }
+.student-sudoku-grid.is-size-9 { grid-template-columns: repeat(9, var(--student-sudoku-cell-size)); }
+
+.student-sudoku-board-stage { position: relative; isolation: isolate; }
+
+.student-sudoku-grid button {
+  width: var(--student-sudoku-cell-size);
+  height: var(--student-sudoku-cell-size);
+  border: 0;
+  border-right: 1px solid var(--apple-separator-strong);
+  border-bottom: 1px solid var(--apple-separator-strong);
+  color: var(--apple-accent);
+  background: var(--apple-surface);
+  font-size: clamp(1.15rem, 2.5vh, 1.6rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--student-motion-state) var(--student-ease-in-out),
+    color var(--student-motion-state) ease,
+    box-shadow var(--student-motion-state) var(--student-ease-out),
+    filter var(--student-motion-state) ease;
+}
+
+.student-sudoku-grid.is-size-6 button { font-size: clamp(1.5rem, 3.2vh, 2rem); }
+.student-sudoku-grid button.is-box-end-column { border-right-width: 3px; border-right-color: var(--apple-text-primary); }
+.student-sudoku-grid button.is-box-end-row { border-bottom-width: 3px; border-bottom-color: var(--apple-text-primary); }
+.student-sudoku-grid button.is-last-column { border-right: 0; }
+.student-sudoku-grid button.is-last-row { border-bottom: 0; }
+.student-sudoku-grid button.is-given { color: var(--apple-text-primary); background: var(--apple-surface-muted); box-shadow: inset 0 -2px color-mix(in srgb, var(--apple-text-secondary) 18%, transparent); font-weight: 800; }
+.student-sudoku-grid button.is-entered { color: var(--apple-accent-pressed); background: color-mix(in srgb, var(--apple-accent) 4%, var(--apple-surface)); box-shadow: inset 0 -2px color-mix(in srgb, var(--apple-accent) 30%, transparent); font-weight: 850; }
+.student-sudoku-grid button.is-peer { background: var(--student-sudoku-selected); }
+.student-sudoku-grid button.is-matching { color: var(--apple-accent-pressed); background: var(--student-sudoku-matching); font-weight: 900; }
+.student-sudoku-grid button.is-selected { position: relative; z-index: 1; filter: brightness(.98); box-shadow: inset 0 0 0 3px var(--apple-accent), inset 0 0 0 5px color-mix(in srgb, var(--apple-surface) 78%, transparent); }
+.student-sudoku-grid button.is-conflict { color: var(--student-sudoku-conflict); background: color-mix(in srgb, var(--student-sudoku-conflict) 13%, var(--apple-surface)); box-shadow: inset 0 0 0 3px var(--student-sudoku-conflict); font-weight: 950; }
+.student-sudoku-grid.is-keyboard-mode button { transition-duration: 0ms; }
+
+.student-sudoku-digit { display: inline-grid; place-items: center; }
+.student-sudoku-digit.has-input-feedback { animation: studentSudokuDigitSet var(--student-motion-state) var(--student-ease-out) both; }
+.student-sudoku-digit.has-conflict-feedback { animation: studentSudokuConflictSet 220ms var(--student-ease-out) both; }
+.student-sudoku-clear-feedback { width: 38%; height: 38%; border: 2px solid color-mix(in srgb, var(--apple-text-secondary) 42%, transparent); border-radius: 50%; animation: studentSudokuClearSet var(--student-motion-state) var(--student-ease-out) both; }
+
+@keyframes studentSudokuDigitSet {
+  from { opacity: .62; transform: scale(.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes studentSudokuConflictSet {
+  0%, 100% { transform: translateX(0); }
+  30% { transform: translateX(-3px); }
+  65% { transform: translateX(3px); }
+}
+
+@keyframes studentSudokuClearSet {
+  from { opacity: .65; transform: scale(.72); }
+  to { opacity: 0; transform: scale(1.15); }
+}
+
+.student-sudoku-controls {
+  width: min(100%, 24rem);
+  padding: 1rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-card);
+  background: color-mix(in srgb, var(--apple-surface-muted) 70%, var(--apple-surface));
+  box-shadow: var(--apple-shadow-1);
+}
+
+.student-sudoku-controls > p {
+  display: flex;
+  min-height: 3rem;
+  align-items: flex-start;
+  gap: .55rem;
+  margin: 0 0 1rem;
+  color: var(--apple-text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.student-sudoku-controls > p.is-error { color: var(--student-sudoku-conflict); font-weight: 700; }
+.student-sudoku-controls > p.is-complete { color: var(--apple-accent-pressed); font-weight: 800; }
+.student-sudoku-controls > p svg { flex: 0 0 auto; margin-top: .1rem; }
+
+.student-sudoku-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(4rem, 1fr));
+  gap: .5rem;
+}
+
+.student-sudoku-keypad button {
+  min-height: 3.5rem;
+  border: 1px solid var(--apple-separator-strong);
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface-muted);
+  font-size: 1.25rem;
+  font-weight: 800;
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--apple-text-secondary) 13%, transparent);
+  transition:
+    transform var(--student-motion-press) var(--student-ease-out),
+    background-color var(--student-motion-state) ease,
+    border-color var(--student-motion-state) ease,
+    box-shadow var(--student-motion-state) ease;
+}
+
+.student-sudoku-keypad button.is-current {
+  border-color: var(--apple-accent);
+  color: white;
+  background: var(--apple-accent);
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--apple-text-primary) 18%, transparent);
+}
+
+.student-sudoku-keypad button.is-complete {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.student-sudoku-keypad .student-sudoku-erase {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  color: var(--apple-text-secondary);
+  font-size: 1rem;
+}
+
+.student-sudoku-grid button:focus-visible,
+.student-sudoku-settings-options button:focus-visible,
+.student-sudoku-keypad button:focus-visible {
+  position: relative;
+  z-index: 2;
+  outline: 3px solid var(--apple-focus);
+  outline-offset: -3px;
+}
+
+.student-sudoku-celebration {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--apple-radius-control);
+  pointer-events: none;
+}
+
+.student-sudoku-celebration-wave {
+  position: absolute;
+  inset: 18%;
+  border: 5px solid color-mix(in srgb, var(--apple-accent) 62%, white);
+  border-radius: 50%;
+  animation: studentSudokuCompletionWave var(--student-motion-celebrate) var(--student-ease-out) both;
+}
+
+.student-sudoku-celebration-particle {
+  --particle-x: 0%;
+  --particle-y: -145%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: .65rem;
+  height: .65rem;
+  border-radius: 30% 70% 45% 55%;
+  background: color-mix(in srgb, var(--apple-accent) 54%, var(--emotion-yellow-soft));
+  box-shadow: 0 0 .75rem color-mix(in srgb, var(--apple-accent) 55%, transparent);
+  animation: studentSudokuCompletionParticle 650ms var(--student-ease-out) both;
+}
+
+.student-sudoku-celebration-particle:nth-child(3) { --particle-x: 105%; --particle-y: -105%; animation-delay: 10ms; }
+.student-sudoku-celebration-particle:nth-child(4) { --particle-x: 145%; --particle-y: 0%; animation-delay: 20ms; }
+.student-sudoku-celebration-particle:nth-child(5) { --particle-x: 105%; --particle-y: 105%; animation-delay: 30ms; }
+.student-sudoku-celebration-particle:nth-child(6) { --particle-x: 0%; --particle-y: 145%; animation-delay: 40ms; }
+.student-sudoku-celebration-particle:nth-child(7) { --particle-x: -105%; --particle-y: 105%; animation-delay: 50ms; }
+.student-sudoku-celebration-particle:nth-child(8) { --particle-x: -145%; --particle-y: 0%; animation-delay: 60ms; }
+.student-sudoku-celebration-particle:nth-child(9) { --particle-x: -105%; --particle-y: -105%; animation-delay: 70ms; }
+
+@keyframes studentSudokuCompletionWave {
+  from { opacity: .72; transform: scale(.35); }
+  to { opacity: 0; transform: scale(1.55); }
+}
+
+@keyframes studentSudokuCompletionParticle {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.7) rotate(0deg); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y))) scale(1.1) rotate(90deg); }
+}
+
+.student-sudoku-board-stage.is-completed .student-sudoku-grid {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--apple-accent) 24%, transparent), 0 1rem 2.25rem color-mix(in srgb, var(--apple-accent) 16%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .student-sudoku-keypad button:not(:disabled):hover,
+  .student-sudoku-settings-options button:not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--apple-accent) 52%, var(--apple-separator-strong));
+    filter: brightness(.985);
+  }
+}
+
+.student-mode-page button:not(:disabled):active,
+.student-mode-page [role="button"]:not([aria-disabled="true"]):active,
+.student-mode-page a[href]:active {
+  scale: 1;
+  opacity: 1;
+}
+
+.student-section-action:active:not(:focus-visible),
+.student-mission-action:not(:disabled):active:not(:focus-visible),
+.student-back-button:active:not(:focus-visible),
+.student-section-card:active:not(:focus-visible),
+.student-sudoku-settings-options button:not(:disabled):active:not(:focus-visible),
+.student-sudoku-keypad button:not(:disabled):active:not(:focus-visible) {
+  transform: scale(.98);
+  opacity: .88;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .student-mission-action:not(:disabled):hover { background: var(--apple-accent-pressed); }
+}
+
+@media (max-width: 1100px) {
+  .student-mode-page { --student-sudoku-cell-size: 3.35rem; }
+  .student-sudoku-view.is-basic { --student-sudoku-cell-size: 4.75rem; }
+  .student-sudoku-workspace { gap: .75rem; }
+  .student-sudoku-controls { width: min(100%, 19rem); }
+  .student-sudoku-keypad { grid-template-columns: repeat(3, minmax(3.25rem, 1fr)); }
+}
+
+@media (max-width: 45rem) {
+  .student-mode-page { --student-sudoku-cell-size: min(3.35rem, calc((100vw - 4rem) / 9)); }
+  .student-sudoku-view.is-basic { --student-sudoku-cell-size: min(4.75rem, calc((100vw - 4rem) / 6)); }
+  .student-sudoku-view > .student-header { flex-wrap: wrap; }
+  .student-sudoku-view .student-header-copy h1 { white-space: nowrap; }
+  .student-sudoku-view .student-header-actions {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-end;
+  }
+  .student-sudoku-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    width: 100%;
+  }
+  .student-sudoku-controls { width: min(100%, 30rem); }
+  .student-sudoku-settings-options { grid-template-columns: minmax(0, 1fr); }
+  .student-sudoku-settings-options button { min-height: 6.5rem; }
 }
 
 .student-empty-state {
@@ -15412,6 +15765,154 @@ a[href]:active {
 .student-confirm-dialog-actions button { min-height: 3rem; border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); font-size: 1rem; font-weight: 900; }
 .student-confirm-dialog-actions button:last-child { background: var(--apple-accent); color: white; }
 .student-confirm-dialog :disabled { opacity: .55; }
+
+.student-confirm-dialog.student-sudoku-settings-dialog {
+  width: min(100%, 38rem);
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.student-sudoku-settings-dialog .student-confirm-dialog-kicker {
+  justify-self: center;
+  padding: .3rem .7rem;
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--apple-accent) 10%, var(--apple-surface));
+  letter-spacing: .02em;
+}
+
+.student-sudoku-settings-dialog h2 {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  letter-spacing: -.03em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.student-sudoku-settings-dialog > p {
+  color: var(--apple-text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.student-sudoku-settings-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
+  margin-top: .25rem;
+}
+
+.student-sudoku-settings-option {
+  display: grid;
+  min-height: 13rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: .75rem;
+  padding: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--apple-separator-strong);
+  border-radius: var(--apple-radius-card);
+  color: var(--apple-text-primary);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--apple-accent) 12%, transparent), transparent 8rem),
+    var(--apple-surface);
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--apple-text-primary) 6%, transparent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--student-motion-press) var(--student-ease-out),
+    border-color var(--student-motion-state) ease,
+    background-color var(--student-motion-state) ease,
+    box-shadow var(--student-motion-state) ease,
+    filter var(--student-motion-state) ease;
+}
+
+.student-sudoku-settings-option-size {
+  display: inline-grid;
+  min-width: 3.5rem;
+  min-height: 2.25rem;
+  place-items: center;
+  justify-self: start;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 32%, var(--apple-separator));
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-accent-pressed);
+  background: color-mix(in srgb, var(--apple-accent) 9%, var(--apple-surface));
+  font-family: var(--font-mono);
+  font-size: .9rem;
+  font-weight: 900;
+}
+
+.student-sudoku-settings-option-copy {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: .35rem;
+  align-content: start;
+}
+
+.student-sudoku-settings-option-copy > span {
+  font-size: 1.45rem;
+  font-weight: 950;
+  letter-spacing: -.02em;
+}
+
+.student-sudoku-settings-option-copy small {
+  color: var(--apple-text-secondary);
+  font-size: var(--student-readable-text-min);
+  font-weight: 700;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.student-sudoku-settings-option-reward {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .25rem;
+  align-self: end;
+  color: var(--apple-accent-pressed);
+}
+
+.student-sudoku-settings-option-reward strong {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.student-sudoku-settings-option-reward small {
+  font-size: .9rem;
+  font-weight: 850;
+}
+
+.student-sudoku-settings-option-action {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .55rem .7rem;
+  border-radius: var(--apple-radius-control);
+  color: white;
+  background: var(--apple-accent);
+  font-size: .9rem;
+  font-weight: 850;
+}
+
+.student-sudoku-settings-option-action svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 45rem) {
+  .student-confirm-dialog.student-sudoku-settings-dialog {
+    width: min(100%, 30rem);
+    padding: 1.25rem;
+  }
+
+  .student-sudoku-settings-options { grid-template-columns: minmax(0, 1fr); }
+  .student-sudoku-settings-option { min-height: 10rem; }
+}
 
 .teacher-stock-settings { display: grid; gap: 1rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-panel); background: var(--apple-surface); padding: 1.25rem; }
 .teacher-stock-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
@@ -16023,6 +16524,14 @@ a[href]:active {
   }
 
   .student-plaza-hotspot { transition: none; }
+  .student-sudoku-grid button { transition: background-color 100ms linear, color 100ms linear, box-shadow 100ms linear; }
+  .student-sudoku-digit { animation: none !important; }
+  .student-sudoku-clear-feedback { display: none; }
+  .student-sudoku-celebration-wave,
+  .student-sudoku-celebration-particle { display: none; }
+  .student-sudoku-keypad button,
+  .student-sudoku-settings-options button,
+  .student-mission-action { transform: none !important; }
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -16052,6 +16561,36 @@ a[href]:active {
   .student-mission-action:not(:disabled) {
     color: HighlightText;
     background: Highlight;
+  }
+
+  .student-sudoku-grid button.is-peer {
+    outline: 1px dashed CanvasText;
+    outline-offset: -4px;
+  }
+
+  .student-sudoku-grid button.is-entered {
+    text-decoration: underline 3px;
+    text-underline-offset: .15em;
+  }
+
+  .student-sudoku-grid button.is-matching {
+    outline: 3px double Highlight;
+    outline-offset: -5px;
+  }
+
+  .student-sudoku-grid button.is-selected {
+    outline: 4px solid Highlight;
+    outline-offset: -4px;
+  }
+
+  .student-sudoku-grid button.is-conflict {
+    outline: 3px dashed LinkText;
+    outline-offset: -3px;
+  }
+
+  .student-sudoku-keypad button.is-current {
+    outline: 3px double Highlight;
+    outline-offset: -4px;
   }
 }
 
@@ -17788,7 +18327,7 @@ a[href]:active {
   }
 
   .student-mission-copy h3 { font-size: 1rem; }
-  .student-mission-copy p { margin-top: .3rem; font-size: .8rem; line-height: 1.35; }
+  .student-mission-copy p { margin-top: .3rem; font-size: var(--student-readable-text-min); line-height: 1.35; }
   .student-mission-awarded { margin-top: .35rem; }
   .student-mission-action { min-height: var(--student-compact-control-height); padding: .45rem .7rem; }
 

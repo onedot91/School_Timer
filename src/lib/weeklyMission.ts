@@ -263,6 +263,21 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
 
   Object.keys(nextHistory).forEach((studentKey) => {
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const missingSudokuRewards = remoteHistory[studentKey].filter((entry) => (
+      entry.reason === 'sudoku_mission' && entry.delta > 0 && !existingIds.has(entry.id)
+    ));
+
+    if (missingSudokuRewards.length === 0) return;
+
+    const rewardAmount = missingSudokuRewards.reduce((total, entry) => total + entry.delta, 0);
+    const nextBalance = nextBalances[studentKey] + rewardAmount;
+    if (nextBalance > CURRENCY_BALANCE_MAX) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    nextBalances[studentKey] = nextBalance;
+    nextHistory[studentKey] = [...missingSudokuRewards, ...nextHistory[studentKey]];
+  });
+
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
     const missingDailyEmotionRewards = remoteHistory[studentKey].filter((entry) => (
       entry.reason === 'daily_emotion' && entry.delta > 0 && !existingIds.has(entry.id)
     ));
@@ -353,6 +368,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       remote.studentEmotionHistory,
       next.studentEmotionHistory,
     ),
+    studentSudoku: remote.studentSudoku ?? next.studentSudoku,
   };
 };
 

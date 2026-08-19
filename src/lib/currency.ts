@@ -10,6 +10,7 @@ export type CurrencyHistoryReason =
   | 'auction_award'
   | 'weekly_mission'
   | 'daily_emotion'
+  | 'sudoku_mission'
   | 'class_donation'
   | 'pet_feed'
   | 'bank_transfer'
@@ -248,6 +249,7 @@ const CURRENCY_HISTORY_REASONS = [
   'auction_award',
   'weekly_mission',
   'daily_emotion',
+  'sudoku_mission',
   'class_donation',
   'pet_feed',
   'bank_transfer',
@@ -389,6 +391,68 @@ export const claimDailyEmotionRewardInSettings = (
       currencyBalances: nextBalances,
       currencyHistory: nextHistory,
     },
+    awarded: true,
+    balance: after,
+    history: nextHistory,
+  };
+};
+
+export const hasSudokuReward = (
+  currencyHistory: unknown,
+  studentNumber: number,
+  puzzleId: string,
+) => (
+  normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
+).some((entry) => entry.id === `sudoku-reward-${puzzleId}`);
+
+export const claimSudokuRewardInSettings = (
+  value: unknown,
+  studentNumber: number,
+  puzzleId: string,
+  rewardAmount: number,
+  createdAt = new Date().toISOString(),
+): {
+  value: Record<string, unknown>;
+  awarded: boolean;
+  balance: number;
+  history: CurrencyHistory;
+} => {
+  const current = value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value))
+    : {};
+  const balances = normalizeCurrencyBalances(current.currencyBalances);
+  const history = normalizeCurrencyHistory(current.currencyHistory);
+  const studentKey = String(studentNumber);
+  const before = balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const rewardId = `sudoku-reward-${puzzleId}`;
+  const existingEntries = history[studentKey] ?? [];
+  if (
+    existingEntries.some((entry) => entry.id === rewardId)
+    || (rewardAmount !== 10 && rewardAmount !== 15)
+    || before > CURRENCY_BALANCE_MAX - rewardAmount
+  ) {
+    return { value: current, awarded: false, balance: before, history };
+  }
+  const after = before + rewardAmount;
+  const nextHistory: CurrencyHistory = {
+    ...history,
+    [studentKey]: [{
+      id: rewardId,
+      studentNumber,
+      delta: rewardAmount,
+      before,
+      after,
+      reason: 'sudoku_mission',
+      createdAt,
+    }, ...existingEntries],
+  };
+  const nextValue = {
+    ...current,
+    currencyBalances: { ...balances, [studentKey]: after },
+    currencyHistory: nextHistory,
+  };
+  return {
+    value: nextValue,
     awarded: true,
     balance: after,
     history: nextHistory,
