@@ -428,7 +428,7 @@ export const claimSudokuRewardInSettings = (
   const existingEntries = history[studentKey] ?? [];
   if (
     existingEntries.some((entry) => entry.id === rewardId)
-    || (rewardAmount !== 10 && rewardAmount !== 15)
+    || (rewardAmount !== 5 && rewardAmount !== 15)
     || before > CURRENCY_BALANCE_MAX - rewardAmount
   ) {
     return { value: current, awarded: false, balance: before, history };

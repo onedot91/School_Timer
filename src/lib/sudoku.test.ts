@@ -201,7 +201,7 @@ test('스도쿠 보상은 문제별로 정확히 한 번만 지급한다', () =>
   // Then
   assert.equal(first.awarded, true);
   assert.equal(second.awarded, false);
-  assert.equal(second.balance, 110);
+  assert.equal(second.balance, 105);
   assert.equal(hasSudokuReward(second.value.currencyHistory, 7, puzzleId), true);
   assert.equal(second.history['7'].filter((entry) => entry.reason === 'sudoku_mission').length, 1);
 });

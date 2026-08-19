@@ -30,7 +30,7 @@ export type SudokuProgressEntry = {
 export type StudentSudokuProgress = Record<string, SudokuProgressEntry>;
 
 export const SUDOKU_REWARDS: Record<SudokuDifficulty, number> = {
-  basic: 10,
+  basic: 5,
   challenge: 15,
 };
 
