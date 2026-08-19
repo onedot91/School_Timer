@@ -1,3 +1,5 @@
+import { applyStudentEconomyTax, normalizeStudentEconomyStates, type StudentEconomyStates } from './studentEconomy';
+
 export type CurrencyBalances = Record<string, number>;
 
 export type CurrencyHistoryReason =
@@ -26,6 +28,11 @@ export interface CurrencyHistoryEntry {
 }
 
 export type CurrencyHistory = Record<string, CurrencyHistoryEntry[]>;
+
+export interface CurrencyTaxResult {
+  balances: CurrencyBalances;
+  economy: StudentEconomyStates;
+}
 
 export interface AuctionBid {
   amount: number;
@@ -463,12 +470,21 @@ export const finalizeAuctionAwardInSettings = (
   };
 };
 
-export const collectCurrencyTax = (balances: CurrencyBalances): CurrencyBalances =>
-  CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((nextBalances, studentNumber) => {
+export const collectCurrencyTax = (balances: CurrencyBalances, economy: StudentEconomyStates): CurrencyTaxResult => {
+  const normalizedEconomy = normalizeStudentEconomyStates(economy);
+  return CURRENCY_STUDENT_NUMBERS.reduce<CurrencyTaxResult>((next, studentNumber) => {
     const key = String(studentNumber);
-    nextBalances[key] = clampCurrencyBalance(Math.ceil((balances[key] ?? DEFAULT_CURRENCY_BALANCE) / 2));
-    return nextBalances;
-  }, {});
+    const state = normalizedEconomy[key];
+    if (!state) {
+      next.balances[key] = clampCurrencyBalance(Math.ceil((balances[key] ?? DEFAULT_CURRENCY_BALANCE) / 2));
+      return next;
+    }
+    const result = applyStudentEconomyTax({ state, wallet: balances[key] ?? DEFAULT_CURRENCY_BALANCE });
+    next.balances[key] = clampCurrencyBalance(result.wallet);
+    next.economy[key] = result.state;
+    return next;
+  }, { balances: {}, economy: { ...normalizedEconomy } });
+};
 
 export const grantWeeklyCurrencyAllowance = (balances: CurrencyBalances): CurrencyBalances =>
   CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((nextBalances, studentNumber) => {

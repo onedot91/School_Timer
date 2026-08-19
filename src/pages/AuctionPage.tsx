@@ -129,6 +129,7 @@ import {
   storeStudentLifeState,
   type StudentLifeState,
 } from '../lib/studentLife';
+import { createBankMailboxLetters } from '../lib/bankMailbox';
 
 interface AuctionPageProps {
   studentNumber: number;
@@ -1250,9 +1251,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const requestId = `student-economy-${studentNumber}-${crypto.randomUUID()}`;
     try {
       let savedBalance = balance;
+      let savedBalances = currencyBalances;
       let savedHistory = currencyHistory;
       let savedEconomyStates = studentEconomyStates;
+      let savedStudentLife = studentLife;
       let resultMessage = '';
+      const bankMailCreatedAt = new Date().toISOString();
 
       if (isSupabaseSettingsEnabled) {
         await updateSharedSettings((currentValue) => {
@@ -1262,6 +1266,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           const currentBalances = normalizeCurrencyBalances(current.currencyBalances);
           const currentHistory = normalizeCurrencyHistory(current.currencyHistory);
           const currentEconomyStates = normalizeStudentEconomyStates(current.studentEconomy);
+          const currentStudentLife = normalizeStudentLifeState(current.studentLife);
           const currentBids = normalizeAuctionBids(current.auctionBids, AUCTION_ITEM_IDS);
           const currentAwards = normalizeAuctionAwards(current.auctionAwards, AUCTION_ITEM_IDS);
           const currentWallet = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
@@ -1284,6 +1289,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           savedBalance = result.wallet;
           resultMessage = result.message;
           savedEconomyStates = { ...currentEconomyStates, [studentKey]: result.state };
+          savedStudentLife = result.applied
+            ? createBankMailboxLetters({ action, studentNumber, requestId, createdAt: bankMailCreatedAt }).reduce(
+                (life, letter) => createStudentLetter(life, letter),
+                currentStudentLife,
+              )
+            : currentStudentLife;
+          let nextBalances = { ...currentBalances, [studentKey]: result.wallet };
           savedHistory = result.applied && result.wallet !== currentWallet
             ? appendCurrencyHistoryEntry(currentHistory, {
                 studentNumber,
@@ -1292,11 +1304,24 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 reason: result.reason,
               })
             : currentHistory;
+          if (result.applied && action.type === 'transfer') {
+            const recipientKey = String(action.recipientNumber);
+            const recipientWallet = currentBalances[recipientKey] ?? DEFAULT_CURRENCY_BALANCE;
+            nextBalances = { ...nextBalances, [recipientKey]: recipientWallet + action.amount };
+            savedHistory = appendCurrencyHistoryEntry(savedHistory, {
+              studentNumber: action.recipientNumber,
+              before: recipientWallet,
+              after: recipientWallet + action.amount,
+              reason: result.reason,
+            });
+          }
+          savedBalances = nextBalances;
           return {
             ...current,
-            currencyBalances: { ...currentBalances, [studentKey]: result.wallet },
+            currencyBalances: nextBalances,
             currencyHistory: savedHistory,
             studentEconomy: savedEconomyStates,
+            studentLife: savedStudentLife,
           };
         });
       } else {
@@ -1314,6 +1339,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         savedBalance = result.wallet;
         resultMessage = result.message;
         savedEconomyStates = { ...snapshot.studentEconomy, [studentKey]: result.state };
+        const currentStudentLife = loadStoredStudentLifeState();
+        savedStudentLife = result.applied
+          ? createBankMailboxLetters({ action, studentNumber, requestId, createdAt: bankMailCreatedAt }).reduce(
+              (life, letter) => createStudentLetter(life, letter),
+              currentStudentLife,
+            )
+          : currentStudentLife;
+        let nextBalances = { ...snapshot.currencyBalances, [studentKey]: result.wallet };
         savedHistory = result.applied && result.wallet !== currentWallet
           ? appendCurrencyHistoryEntry(snapshot.currencyHistory, {
               studentNumber,
@@ -1322,17 +1355,31 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               reason: result.reason,
             })
           : snapshot.currencyHistory;
+        if (result.applied && action.type === 'transfer') {
+          const recipientKey = String(action.recipientNumber);
+          const recipientWallet = snapshot.currencyBalances[recipientKey] ?? DEFAULT_CURRENCY_BALANCE;
+          nextBalances = { ...nextBalances, [recipientKey]: recipientWallet + action.amount };
+          savedHistory = appendCurrencyHistoryEntry(savedHistory, {
+            studentNumber: action.recipientNumber,
+            before: recipientWallet,
+            after: recipientWallet + action.amount,
+            reason: result.reason,
+          });
+        }
+        savedBalances = nextBalances;
         if (!storeStudentPetSnapshot({
           ...snapshot,
-          currencyBalances: { ...snapshot.currencyBalances, [studentKey]: result.wallet },
+          currencyBalances: nextBalances,
           currencyHistory: savedHistory,
           studentEconomy: savedEconomyStates,
         })) return false;
+        storeStudentLifeState(savedStudentLife);
       }
 
-      setCurrencyBalances((previous) => ({ ...previous, [studentKey]: savedBalance }));
+      setCurrencyBalances(savedBalances);
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
+      setStudentLife(savedStudentLife);
       if (resultMessage && action.type !== 'draw_character') showStatusMessage(resultMessage);
       return true;
     } catch (error) {
@@ -1343,6 +1390,16 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           ? '예금 잔액이 부족합니다.'
           : message === 'EXCESSIVE_LOAN_REPAYMENT'
             ? '대출 잔액보다 많이 갚을 수 없습니다.'
+            : message === 'DEPOSIT_NOT_AVAILABLE_TODAY'
+              ? '예금은 월요일부터 금요일까지만 들 수 있습니다.'
+              : message === 'DEPOSIT_NOT_MATURED'
+                ? '아직 만기 전입니다. 예금을 깨면 원금만 받을 수 있습니다.'
+                : message === 'LOAN_LIMIT_EXCEEDED'
+                  ? '대출은 한 번에 50고마까지 받을 수 있고, 기존 대출을 먼저 갚아야 합니다.'
+                  : message === 'TRANSFER_DAILY_LIMIT_REACHED'
+                    ? '이체는 하루에 한 번, 한 명에게만 보낼 수 있습니다.'
+                    : message === 'TRANSFER_AMOUNT_LIMIT_EXCEEDED'
+                      ? '한 번에 30고마까지만 보낼 수 있습니다.'
             : message === 'STOCK_MARKET_CLOSED'
               ? '토·일은 휴장입니다.'
               : message === 'INVESTMENT_LIMIT_EXCEEDED'
@@ -1439,6 +1496,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         ) : null}
         {isStudentStoreView(activeStudentView) ? (
           <StudentStorePage
+            studentNumber={studentNumber}
             balance={balance}
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}

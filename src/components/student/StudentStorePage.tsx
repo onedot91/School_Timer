@@ -11,6 +11,7 @@ import StudentShopPage from './StudentShopPage';
 import StudentStockMarketPage from './StudentStockMarketPage';
 
 interface StudentStorePageProps {
+  studentNumber: number;
   balance: number;
   availableBalance: number;
   reservedAmount: number;
@@ -35,6 +36,7 @@ interface StudentStorePageProps {
 }
 
 export default function StudentStorePage({
+  studentNumber,
   balance,
   availableBalance,
   reservedAmount,
@@ -74,7 +76,7 @@ export default function StudentStorePage({
       />
       <div className="student-store-content">
         {section === 'plaza' ? <StudentPlaza onOpen={onOpenSection} /> : null}
-        {section === 'bank' ? <StudentBankPage state={economyState} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
+        {section === 'bank' ? <StudentBankPage state={economyState} studentNumber={studentNumber} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'shop' ? <StudentShopPage state={economyState} catalog={shopCatalog} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
         {section === 'auction' ? children : null}
         {isSecurities ? (

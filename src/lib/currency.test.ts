@@ -10,10 +10,12 @@ import {
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
   claimDailyEmotionRewardInSettings,
+  collectCurrencyTax,
   finalizeAuctionAwardInSettings,
   getAuctionAwardsForDay,
   hasDailyEmotionReward,
 } from './currency.ts';
+import { normalizeStudentEconomyState } from './studentEconomy.ts';
 
 test('선택한 번호에만 화폐를 일괄 조정하고 중복 번호는 한 번만 반영한다', () => {
   // Given
@@ -31,6 +33,42 @@ test('선택한 번호에만 화폐를 일괄 조정하고 중복 번호는 한 
   assert.equal(adjustedBalances['5'], 999_999);
   assert.equal(adjustedBalances['1'], 100);
   assert.equal(adjustedBalances['24'], undefined);
+});
+
+test('세금은 예금 원금을 포함하고 대출 원금은 제외한다', () => {
+  // Given
+  const economy = {
+    '1': normalizeStudentEconomyState({
+      deposits: [{ id: 'deposit-1', principal: 30, openedOn: '2026-08-17', maturityDate: '2026-08-19', interest: 3 }],
+      loan: 55,
+      loanPrincipal: 50,
+    }),
+  };
+
+  // When
+  const result = collectCurrencyTax({ '1': 165 }, economy);
+
+  // Then
+  assert.equal(result.balances['1'], 93);
+  assert.equal(result.economy['1']?.deposits[0]?.principal, 30);
+  assert.equal(result.economy['1']?.loanPrincipal, 50);
+});
+
+test('사용 가능 고마가 부족하면 세금은 예금 원금에서만 추가로 차감한다', () => {
+  // Given
+  const economy = {
+    '1': normalizeStudentEconomyState({
+      deposits: [{ id: 'deposit-1', principal: 100, openedOn: '2026-08-17', maturityDate: '2026-08-19', interest: 10 }],
+    }),
+  };
+
+  // When
+  const result = collectCurrencyTax({ '1': 20 }, economy);
+
+  // Then
+  assert.equal(result.balances['1'], 0);
+  assert.equal(result.economy['1']?.deposits[0]?.principal, 60);
+  assert.equal(result.economy['1']?.deposits[0]?.interest, 6);
 });
 
 test('요일별 경매 물품을 최대 6개까지 구성한다', () => {

@@ -15004,7 +15004,6 @@ a[href]:active {
   gap: 0.85rem;
 }
 
-.student-bank-grid article,
 .student-product-grid article,
 .student-stock-grid article {
   display: grid;
@@ -15016,7 +15015,32 @@ a[href]:active {
   background: var(--apple-surface-muted);
 }
 
-.student-bank-grid article > span,
+.student-bank-grid article {
+  display: grid;
+  min-width: 0;
+  gap: 0.9rem;
+  padding: 1.15rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-card);
+  background: var(--apple-surface-muted);
+}
+
+.student-bank-grid article > span {
+  color: var(--apple-text-secondary);
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.student-bank-card-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 59 / 60;
+  object-fit: contain;
+  object-position: center;
+  border-radius: calc(var(--apple-radius-card) - .35rem);
+}
+
 .student-product-grid article span,
 .student-stock-grid article > span {
   color: var(--apple-text-secondary);
@@ -15024,13 +15048,204 @@ a[href]:active {
   font-weight: 800;
 }
 
-.student-bank-grid strong {
-  color: var(--apple-accent-pressed);
-  font-family: var(--font-mono);
-  font-size: clamp(1.6rem, 4vw, 2.5rem);
+.student-bank-card-amount {
+  display: grid;
+  gap: 0.2rem;
 }
 
-.student-bank-grid article > div,
+.student-bank-card-amount small {
+  color: var(--apple-text-secondary);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.student-bank-grid .student-bank-card-amount strong {
+  color: var(--apple-accent-pressed);
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 4vw, 2.65rem);
+  line-height: 1.1;
+}
+
+.student-bank-summary {
+  display: flex;
+  min-height: 6.5rem;
+  min-width: 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.student-bank-outcome,
+.student-bank-empty {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  padding-bottom: 0.2rem;
+  color: var(--apple-text-primary);
+  font-size: 1.05rem;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.student-bank-outcome span {
+  color: var(--apple-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.student-bank-empty { color: var(--apple-text-secondary); }
+
+.student-bank-loan-summary {
+  gap: 0.5rem;
+}
+
+.student-bank-loan-summary .student-bank-card-amount strong {
+  font-size: clamp(2rem, 4vw, 2.65rem);
+  white-space: nowrap;
+}
+
+.student-bank-loan-summary .student-bank-outcome {
+  flex: 0 0 auto;
+  padding-bottom: 0;
+  font-size: clamp(0.875rem, 1.1vw, 0.9rem);
+  white-space: nowrap;
+}
+
+.student-bank-amount-field,
+.student-bank-recipient {
+  display: flex;
+  min-height: var(--apple-control-min);
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--apple-separator-strong);
+  border-radius: var(--apple-radius-control);
+  background: var(--apple-surface);
+  color: var(--apple-text-primary);
+  font-weight: 850;
+}
+
+.student-bank-amount-field > span:first-child,
+.student-bank-recipient > span {
+  color: var(--apple-text-secondary);
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.student-bank-amount-field input,
+.student-bank-recipient select {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--apple-text-primary);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 900;
+  text-align: right;
+  outline: none;
+}
+
+.student-bank-recipient select { text-align: left; }
+
+.student-bank-amount-field input::placeholder {
+  color: var(--apple-text-tertiary);
+  font-family: var(--font-sans);
+  font-weight: 750;
+  opacity: 1;
+}
+
+.student-bank-amount-hint,
+.student-bank-amount-example {
+  margin: -0.25rem 0 0;
+  color: var(--apple-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.student-bank-amount-example {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-control);
+  background: color-mix(in srgb, var(--apple-surface-secondary) 76%, var(--apple-surface));
+}
+
+.student-bank-loan-example {
+  background: color-mix(in srgb, var(--emotion-yellow-soft) 54%, var(--apple-surface));
+}
+
+.student-bank-interest-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 26%, var(--apple-separator));
+  border-radius: var(--apple-radius-control);
+  background: color-mix(in srgb, var(--apple-accent) 9%, var(--apple-surface));
+}
+
+.student-bank-interest-flow > span,
+.student-bank-interest-flow > strong {
+  min-width: 0;
+  color: var(--apple-accent-pressed);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.student-bank-interest-flow > i {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--apple-text-secondary);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.student-bank-interest-flow > b {
+  grid-column: 3;
+  color: var(--apple-accent);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.student-bank-interest-flow > strong { grid-column: 3; }
+
+.student-bank-loan-flow {
+  border-color: color-mix(in srgb, var(--emotion-yellow) 42%, var(--apple-separator));
+  background: var(--emotion-yellow-soft);
+}
+
+.student-bank-loan-flow > span,
+.student-bank-loan-flow > strong { color: var(--apple-text-primary); }
+.student-bank-loan-flow > b { color: var(--apple-text-secondary); }
+
+.student-bank-rule { min-height: 2.9rem; }
+
+.student-bank-modal-form {
+  display: grid;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.student-confirm-dialog .student-bank-rule {
+  min-height: 0;
+  color: var(--apple-text-primary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.student-confirm-dialog .student-bank-deposit-list {
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
 .student-stock-grid article > div:last-child {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -15045,6 +15260,7 @@ a[href]:active {
   border-radius: var(--apple-radius-control);
   color: white;
   background: var(--apple-accent);
+  font-size: 1.05rem;
   font-weight: 850;
 }
 
@@ -15055,6 +15271,23 @@ a[href]:active {
   cursor: not-allowed;
   background: var(--apple-separator-strong);
   opacity: 0.7;
+}
+
+.student-bank-grid .student-bank-break-button {
+  background: var(--emotion-red);
+}
+
+.student-bank-grid .student-bank-break-button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--emotion-red) 86%, var(--apple-text-primary));
+}
+
+.student-bank-grid .student-bank-repay-button {
+  background: color-mix(in srgb, var(--emotion-yellow) 78%, var(--apple-text-primary));
+  color: var(--apple-surface);
+}
+
+.student-bank-grid .student-bank-repay-button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--emotion-yellow) 66%, var(--apple-text-primary));
 }
 
 .student-product-grid article,
@@ -15135,9 +15368,10 @@ a[href]:active {
 .student-market-card:not(:disabled):hover { border-color: color-mix(in srgb, var(--apple-accent) 62%, var(--apple-separator)); }
 .student-market-card:not(:disabled):active { transform: scale(.98); }
 .student-market-card:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 3px; }
-.student-market-card-header { display: flex; min-width: 0; min-height: 2rem; align-items: center; gap: .5rem; }
-.student-market-card-header > strong { font-size: 1.2rem; font-weight: 950; }
-.student-market-trend { flex: none; margin-left: auto; border-radius: var(--apple-radius-pill); background: var(--apple-surface-muted); padding: .35rem .55rem; color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 950; white-space: nowrap; }
+.student-market-card-header { display: grid; min-width: 0; min-height: 2rem; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "icon name" "trend trend"; align-items: center; column-gap: .5rem; row-gap: .5rem; }
+.student-market-card-header > .student-stock-icon { grid-area: icon; }
+.student-market-card-header > strong { min-width: 0; grid-area: name; font-size: 1.2rem; font-weight: 950; white-space: nowrap; word-break: keep-all; }
+.student-market-trend { grid-area: trend; justify-self: start; margin-left: 0; border-radius: var(--apple-radius-pill); background: var(--apple-surface-muted); padding: .35rem .55rem; color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 950; white-space: nowrap; }
 .student-market-card.stage-big_rise .student-market-trend, .student-market-card.stage-rise .student-market-trend { background: var(--student-stock-up-soft); color: var(--student-stock-up); }
 .student-market-card.stage-big_fall .student-market-trend, .student-market-card.stage-fall .student-market-trend { background: var(--student-stock-down-soft); color: var(--student-stock-down); }
 .student-market-reason { margin: 0; color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 800; line-height: 1.45; word-break: keep-all; }
@@ -15915,7 +16149,7 @@ a[href]:active {
   grid-row: 1 / 3;
   border: 0;
   border-radius: .75rem;
-  background-image: url('/pet-egg-stages.png');
+  background-image: url('/pet-egg-stages-transparent.png');
   background-repeat: no-repeat;
   background-position: calc(var(--student-pet-egg-stage) * 20%) 35%;
   background-size: 600% auto;
@@ -16080,7 +16314,7 @@ a[href]:active {
   width: 9.5rem;
   aspect-ratio: 341 / 491;
   justify-self: center;
-  background-image: url('/pet-egg-stages.png');
+  background-image: url('/pet-egg-stages-transparent.png');
   background-repeat: no-repeat;
   background-position: calc(var(--student-pet-egg-stage) * 20%) center;
   background-size: 600% auto;
@@ -17408,6 +17642,15 @@ a[href]:active {
   .student-store-view[data-store-section="securities"] .student-stock-grid { height: 100%; }
   .student-store-view[data-store-section="bank"] .student-bank-grid article,
   .student-store-view[data-store-section="securities"] .student-stock-grid article { align-content: center; }
+
+  .student-store-view[data-store-section="bank"] .student-bank-grid article {
+    grid-template-rows: auto auto auto;
+    align-content: center;
+  }
+
+  .student-store-view[data-store-section="bank"] .student-bank-card-scene {
+    height: auto;
+  }
   .student-bank-grid strong { font-size: 1.8rem; }
   .student-bank-grid button,
   .student-product-grid button,
@@ -17576,6 +17819,22 @@ a[href]:active {
 
   .student-mailbox-layout,
   .student-library-layout { height: 100%; }
+
+  .student-mailbox-layout {
+    overflow: hidden;
+  }
+
+  .student-mailbox-layout .student-letter-list {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .student-mailbox-layout .student-letter-detail {
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .student-mailbox-layout[data-empty="true"] { grid-template-columns: minmax(0, 1fr); }
   .student-mailbox-layout[data-empty="true"] .student-letter-list { place-items: center; align-content: center; }
   .student-mailbox-layout[data-empty="true"] .student-empty-state { width: min(28rem, 100%); font-size: 1.15rem; }

@@ -3649,6 +3649,7 @@ export default function TimerPage() {
   const [currencyAdjustmentTarget, setCurrencyAdjustmentTarget] = useState<CurrencyAdjustmentTarget>('student');
   const [currencyAdjustmentSummary, setCurrencyAdjustmentSummary] = useState<CurrencyAdjustmentSummary | null>(null);
   const [currencyStudentNumberInput, setCurrencyStudentNumberInput] = useState('');
+  const [currencyBalanceInput, setCurrencyBalanceInput] = useState('');
   const [currencyGroupStudentNumbers, setCurrencyGroupStudentNumbers] = useState<number[]>([]);
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
   const [currencyHistory, setCurrencyHistory] = useState<CurrencyHistory>(() => createDefaultCurrencyHistory());
@@ -4042,6 +4043,7 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isCurrencyPanelOpen) {
       setCurrencyStudentNumberInput('');
+      setCurrencyBalanceInput('');
       setEditingCurrencyNumber(null);
       setCurrencyAdjustmentTarget('student');
       setCurrencyAdjustmentSummary(null);
@@ -6355,10 +6357,28 @@ export default function TimerPage() {
     const nextStudentNumber = Number(nextInput);
     if (CURRENCY_STUDENT_NUMBERS.includes(nextStudentNumber)) {
       setEditingCurrencyNumber(nextStudentNumber);
+      setCurrencyBalanceInput(String(currencyBalancesRef.current[String(nextStudentNumber)] ?? DEFAULT_CURRENCY_BALANCE));
       return;
     }
 
+    setCurrencyBalanceInput('');
     setEditingCurrencyNumber(null);
+  };
+
+  const setCurrencyBalanceExactly = (studentNumber: number, amount: number) => {
+    const key = String(studentNumber);
+    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
+    const before = previousBalances[key] ?? DEFAULT_CURRENCY_BALANCE;
+    const after = clampCurrencyBalance(amount);
+    const nextBalances = { ...previousBalances, [key]: after };
+    const nextHistory = appendCurrencyHistoryEntry(currencyHistoryRef.current, {
+      studentNumber,
+      before,
+      after,
+      reason: 'manual',
+    });
+    commitCurrencyAdjustment(nextBalances, nextHistory, 'student', after - before);
+    setCurrencyBalanceInput(String(after));
   };
 
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
@@ -6494,7 +6514,9 @@ export default function TimerPage() {
     const emptyAuctionBidHistory = normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS);
     const emptyAuctionAwards = normalizeAuctionAwards(null, AUCTION_ITEM_IDS);
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
-    const taxedBalances = collectCurrencyTax(previousBalances);
+    const taxResult = collectCurrencyTax(previousBalances, studentEconomyStates);
+    const taxedBalances = taxResult.balances;
+    const taxedStudentEconomyStates = taxResult.economy;
     const nextBalances = grantWeeklyCurrencyAllowance(taxedBalances);
     const taxHistoryCreatedAt = new Date().toISOString();
     const allowanceHistoryCreatedAt = new Date().toISOString();
@@ -6520,6 +6542,7 @@ export default function TimerPage() {
     setAuctionAwards(emptyAuctionAwards);
     setPendingAwardItemId(null);
     setAwardPresentation(null);
+    setStudentEconomyStates(taxedStudentEconomyStates);
     commitCurrencyState(nextBalances, nextHistory);
 
     if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
@@ -6534,6 +6557,7 @@ export default function TimerPage() {
       ...buildSharedSettingsSnapshot(),
       currencyBalances: nextBalances,
       currencyHistory: nextHistory,
+      studentEconomy: taxedStudentEconomyStates,
       auctionItems: nextAuctionItems,
       auctionBids: emptyAuctionBids,
       auctionBidHistory: emptyAuctionBidHistory,
@@ -7384,6 +7408,11 @@ export default function TimerPage() {
     editingCurrencyNumber === null
       ? null
       : (currencyBalances[String(editingCurrencyNumber)] ?? DEFAULT_CURRENCY_BALANCE);
+  const parsedCurrencyBalanceInput = Number(currencyBalanceInput);
+  const isCurrencyBalanceInputInvalid = currencyBalanceInput.trim().length === 0
+    || !Number.isInteger(parsedCurrencyBalanceInput)
+    || parsedCurrencyBalanceInput < 0
+    || parsedCurrencyBalanceInput > CURRENCY_BALANCE_MAX;
   const selectedCurrencyGroupCount = CURRENCY_STUDENT_NUMBERS.filter((studentNumber) =>
     currencyGroupStudentNumbers.includes(studentNumber),
   ).length;
@@ -10473,6 +10502,30 @@ export default function TimerPage() {
                             title={`+${CURRENCY_BALANCE_STEP}`}
                           >
                             +
+                          </button>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] border border-[#CFE0D8] bg-white px-3">
+                            <span className="shrink-0 text-[0.76rem] font-extrabold text-[#466258]">직접 설정</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={CURRENCY_BALANCE_MAX}
+                              step={1}
+                              value={currencyBalanceInput}
+                              onChange={(event) => setCurrencyBalanceInput(event.target.value)}
+                              className="h-10 min-w-0 flex-1 bg-transparent text-right font-mono text-[1rem] font-black text-[#1F2523] outline-none"
+                              aria-label={`${editingCurrencyNumber}번 화폐 직접 설정`}
+                            />
+                            <span className="shrink-0 text-[0.76rem] font-extrabold text-[#466258]">고마</span>
+                          </label>
+                          <button
+                            type="button"
+                            disabled={isCurrencyBalanceInputInvalid}
+                            onClick={() => setCurrencyBalanceExactly(editingCurrencyNumber, parsedCurrencyBalanceInput)}
+                            className="h-10 shrink-0 rounded-[0.85rem] bg-[#006241] px-4 text-[0.82rem] font-extrabold text-white transition-colors hover:bg-[#004f35] disabled:cursor-not-allowed disabled:bg-[#9FB8AD]"
+                          >
+                            적용
                           </button>
                         </div>
                       </div>

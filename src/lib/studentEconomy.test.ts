@@ -15,6 +15,8 @@ import {
   normalizeStudentShopCatalog,
   STUDENT_CHARACTER_PRIZES,
   STUDENT_STOCKS,
+  getDepositMaturityDate,
+  getRelativeKoreanWeekdayLabel,
   upsertStudentStockMarketEntry,
 } from './studentEconomy.ts';
 
@@ -286,8 +288,103 @@ test('같은 요청 식별자는 두 번 반영하지 않는다', () => {
     requestId: 'loan-1',
   });
   assert.equal(second.wallet, 30);
-  assert.equal(second.state.loan, 10);
+  assert.equal(second.state.loan, 11);
   assert.equal(second.applied, false);
+});
+
+test('예금은 평일에만 열리고 목요일과 금요일 예금은 월요일에 만기된다', () => {
+  assert.equal(getDepositMaturityDate('2026-08-17'), '2026-08-19');
+  assert.equal(getDepositMaturityDate('2026-08-18'), '2026-08-20');
+  assert.equal(getDepositMaturityDate('2026-08-19'), '2026-08-21');
+  assert.equal(getDepositMaturityDate('2026-08-20'), '2026-08-24');
+  assert.equal(getDepositMaturityDate('2026-08-21'), '2026-08-24');
+  assert.throws(() => applyStudentEconomyAction({
+    state: null,
+    action: { type: 'open_deposit', amount: 20, dateKey: '2026-08-22' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'weekend-deposit',
+  }), /DEPOSIT_NOT_AVAILABLE_TODAY/);
+});
+
+test('은행 날짜는 이번주 또는 다음주 요일로 읽기 쉽게 표시한다', () => {
+  assert.equal(getRelativeKoreanWeekdayLabel('2026-08-19', '2026-08-21'), '이번주 금요일');
+  assert.equal(getRelativeKoreanWeekdayLabel('2026-08-21', '2026-08-24'), '다음주 월요일');
+});
+
+test('만기 예금은 실제 이자를 더해 돌려주고 중도 해지는 원금만 돌려준다', () => {
+  const opened = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'open_deposit', amount: 20, dateKey: '2026-08-20' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'deposit-open',
+  });
+  const depositId = opened.state.deposits[0]?.id;
+  assert.ok(depositId);
+  const closed = applyStudentEconomyAction({
+    state: opened.state,
+    action: { type: 'close_deposit', depositId },
+    wallet: opened.wallet,
+    availableWallet: opened.wallet,
+    requestId: 'deposit-close',
+  });
+  assert.equal(closed.wallet, 100);
+
+  const matured = applyStudentEconomyAction({
+    state: opened.state,
+    action: { type: 'claim_deposit', depositId, dateKey: '2026-08-24' },
+    wallet: opened.wallet,
+    availableWallet: opened.wallet,
+    requestId: 'deposit-claim',
+  });
+  assert.equal(matured.wallet, 102);
+});
+
+test('대출은 50고마 한도에서 일주일 뒤 실제 상환액을 만든다', () => {
+  const borrowed = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'borrow', amount: 50, dateKey: '2026-08-17' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'loan-open',
+  });
+  assert.equal(borrowed.wallet, 150);
+  assert.equal(borrowed.state.loan, 55);
+  assert.equal(borrowed.state.loanPrincipal, 50);
+  assert.equal(borrowed.state.loanDueDate, '2026-08-24');
+  assert.throws(() => applyStudentEconomyAction({
+    state: borrowed.state,
+    action: { type: 'borrow', amount: 10, dateKey: '2026-08-18' },
+    wallet: borrowed.wallet,
+    availableWallet: borrowed.wallet,
+    requestId: 'loan-over-limit',
+  }), /LOAN_LIMIT_EXCEEDED/);
+});
+
+test('이체는 하루 한 번, 한 명에게 30고마까지만 보낼 수 있다', () => {
+  const transferred = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'transfer', amount: 30, recipientNumber: 2, dateKey: '2026-08-17' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'transfer-first',
+  });
+  assert.equal(transferred.wallet, 70);
+  assert.throws(() => applyStudentEconomyAction({
+    state: transferred.state,
+    action: { type: 'transfer', amount: 5, recipientNumber: 3, dateKey: '2026-08-17' },
+    wallet: transferred.wallet,
+    availableWallet: transferred.wallet,
+    requestId: 'transfer-second',
+  }), /TRANSFER_DAILY_LIMIT_REACHED/);
+  assert.throws(() => applyStudentEconomyAction({
+    state: null,
+    action: { type: 'transfer', amount: 35, recipientNumber: 2, dateKey: '2026-08-17' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'transfer-over-limit',
+  }), /TRANSFER_AMOUNT_LIMIT_EXCEEDED/);
 });
 
 test('교사가 등록한 물품을 정가로 구매할 수 있다', () => {

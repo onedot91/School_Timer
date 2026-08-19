@@ -2,6 +2,10 @@ import type { CurrencyHistoryReason } from './currency';
 
 export const STUDENT_ECONOMY_AMOUNT_STEP = 5;
 export const STUDENT_ECONOMY_AMOUNT_MAX = 500;
+export const STUDENT_LOAN_MAXIMUM = 50;
+export const STUDENT_TRANSFER_MAXIMUM = 30;
+const STUDENT_BANK_AMOUNT_STEP = 10;
+const BANK_INTEREST_RATE = 0.1;
 
 export const STUDENT_CHARACTER_DRAW_PRICE = 100;
 export const STUDENT_CUSTOM_HOUSE_COUPON_PRICE = 150;
@@ -163,8 +167,13 @@ export interface StudentCustomHouseDesign {
 
 export interface StudentEconomyState {
   deposit: number;
+  deposits: StudentDeposit[];
   savings: number;
   loan: number;
+  loanPrincipal: number;
+  loanDueDate: string | null;
+  lastTransferDateKey: string | null;
+  lastTransferRecipientNumber: number | null;
   inventory: Record<StudentShopItemId, number>;
   holdings: Partial<Record<StudentStockId, number>>;
   stockPurchases: Partial<Record<StudentStockId, StudentStockPurchase>>;
@@ -176,6 +185,14 @@ export interface StudentEconomyState {
   hasCustomHouseCoupon: boolean;
   customHouseDesign: StudentCustomHouseDesign | null;
   processedRequestIds: string[];
+}
+
+export interface StudentDeposit {
+  id: string;
+  principal: number;
+  openedOn: string;
+  maturityDate: string;
+  interest: number;
 }
 
 export type StudentEconomyStates = Record<string, StudentEconomyState>;
@@ -267,8 +284,12 @@ export type StudentEconomyAction =
   | { type: 'deposit'; amount: number }
   | { type: 'withdraw'; amount: number }
   | { type: 'save'; amount: number }
-  | { type: 'borrow'; amount: number }
+  | { type: 'open_deposit'; amount: number; dateKey: string }
+  | { type: 'close_deposit'; depositId: string }
+  | { type: 'claim_deposit'; depositId: string; dateKey: string }
+  | { type: 'borrow'; amount: number; dateKey?: string }
   | { type: 'repay'; amount: number }
+  | { type: 'transfer'; amount: number; recipientNumber: number; dateKey: string }
   | { type: 'buy_item'; itemId: StudentShopItemId }
   | { type: 'draw_character' }
   | { type: 'select_character'; characterId: StudentCharacterPrizeId | null }
@@ -288,6 +309,11 @@ export interface StudentEconomyResult {
   applied: boolean;
 }
 
+export interface StudentEconomyTaxResult {
+  state: StudentEconomyState;
+  wallet: number;
+}
+
 const MAX_PROCESSED_REQUESTS = 24;
 const MAX_STOCK_MARKET_HISTORY = 30;
 const STOCK_IDS = new Set<string>(STUDENT_STOCKS.map((stock) => stock.id));
@@ -298,6 +324,74 @@ const INVESTMENT_STAGES = new Set<StudentInvestmentStage>(['big_rise', 'rise', '
 const clampAmount = (value: unknown) => {
   const amount = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(amount) ? Math.max(0, Math.min(999_999, Math.floor(amount))) : 0;
+};
+
+const isDateKey = (value: unknown): value is string => (
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+);
+
+const addDaysToDateKey = (dateKey: string, days: number) => {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+export const getDepositMaturityDate = (dateKey: string) => {
+  if (!isDateKey(dateKey)) throw new Error('INVALID_BANK_DATE');
+  const day = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
+  if (day === 0 || day === 6) throw new Error('DEPOSIT_NOT_AVAILABLE_TODAY');
+  return addDaysToDateKey(dateKey, day === 4 ? 4 : day === 5 ? 3 : 2);
+};
+
+export const getRelativeKoreanWeekdayLabel = (referenceDateKey: string, targetDateKey: string) => {
+  if (!isDateKey(referenceDateKey) || !isDateKey(targetDateKey)) throw new Error('INVALID_BANK_DATE');
+  const referenceDate = new Date(`${referenceDateKey}T12:00:00Z`);
+  const targetDate = new Date(`${targetDateKey}T12:00:00Z`);
+  const getMonday = (date: Date) => {
+    const monday = new Date(date);
+    const day = monday.getUTCDay();
+    monday.setUTCDate(monday.getUTCDate() - (day === 0 ? 6 : day - 1));
+    return monday;
+  };
+  const weekDifference = Math.round((getMonday(targetDate).getTime() - getMonday(referenceDate).getTime()) / (7 * 24 * 60 * 60 * 1000));
+  const weekLabel = weekDifference === 0
+    ? '이번주'
+    : weekDifference === 1
+      ? '다음주'
+      : weekDifference === -1
+        ? '지난주'
+        : weekDifference > 1
+          ? `${weekDifference}주 뒤`
+          : `${Math.abs(weekDifference)}주 전`;
+  const weekday = ['일', '월', '화', '수', '목', '금', '토'][targetDate.getUTCDay()];
+  return `${weekLabel} ${weekday}요일`;
+};
+
+export const getKoreanDateKey = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+const calculateBankInterest = (principal: number) => Math.round(principal * BANK_INTEREST_RATE);
+
+const normalizeStudentDeposits = (value: unknown): StudentDeposit[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+    const source = entry as Record<string, unknown>;
+    const id = typeof source.id === 'string' ? source.id : '';
+    const principal = clampAmount(source.principal);
+    const openedOn = isDateKey(source.openedOn) ? source.openedOn : '';
+    const maturityDate = isDateKey(source.maturityDate) ? source.maturityDate : '';
+    const interest = clampAmount(source.interest);
+    return id && principal > 0 ? [{ id, principal, openedOn, maturityDate, interest }] : [];
+  }).slice(-12);
 };
 
 const normalizeCountMap = <T extends string>(value: unknown, allowed: Set<string>) => {
@@ -450,8 +544,13 @@ export const storeStudentShopCatalog = (catalog: unknown) => {
 
 export const createStudentEconomyState = (): StudentEconomyState => ({
   deposit: 0,
+  deposits: [],
   savings: 0,
   loan: 0,
+  loanPrincipal: 0,
+  loanDueDate: null,
+  lastTransferDateKey: null,
+  lastTransferRecipientNumber: null,
   inventory: {},
   holdings: {},
   stockPurchases: {},
@@ -469,10 +568,30 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
   const source = value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
+  const deposits = normalizeStudentDeposits(source.deposits);
+  const legacyDeposit = deposits.length === 0 ? clampAmount(source.deposit) : 0;
+  const normalizedDeposits = legacyDeposit > 0
+    ? [{ id: 'legacy-deposit', principal: legacyDeposit, openedOn: '', maturityDate: '', interest: 0 }]
+    : deposits;
+  const loan = clampAmount(source.loan);
+  const storedLoanPrincipal = clampAmount(source.loanPrincipal);
+  const loanPrincipal = loan === 0
+    ? 0
+    : Math.min(loan, storedLoanPrincipal || Math.floor((loan * 10) / 11));
   return {
-    deposit: clampAmount(source.deposit),
+    deposit: normalizedDeposits.reduce((sum, deposit) => sum + deposit.principal, 0),
+    deposits: normalizedDeposits,
     savings: clampAmount(source.savings),
-    loan: clampAmount(source.loan),
+    loan,
+    loanPrincipal,
+    loanDueDate: isDateKey(source.loanDueDate) ? source.loanDueDate : null,
+    lastTransferDateKey: isDateKey(source.lastTransferDateKey) ? source.lastTransferDateKey : null,
+    lastTransferRecipientNumber: typeof source.lastTransferRecipientNumber === 'number'
+      && Number.isInteger(source.lastTransferRecipientNumber)
+      && source.lastTransferRecipientNumber >= 1
+      && source.lastTransferRecipientNumber <= 23
+      ? source.lastTransferRecipientNumber
+      : null,
     inventory: normalizeInventory(source.inventory),
     holdings: normalizeCountMap<StudentStockId>(source.holdings, STOCK_IDS),
     stockPurchases: normalizeStudentStockPurchases(source.stockPurchases),
@@ -513,6 +632,30 @@ export const normalizeStudentEconomyStates = (value: unknown): StudentEconomySta
 export const getStudentEconomyState = (states: unknown, studentNumber: number) => (
   normalizeStudentEconomyStates(states)[String(studentNumber)] ?? createStudentEconomyState()
 );
+
+export const applyStudentEconomyTax = ({ state: rawState, wallet: rawWallet }: StudentEconomyTaxResult): StudentEconomyTaxResult => {
+  const state = normalizeStudentEconomyState(rawState);
+  const wallet = clampAmount(rawWallet);
+  const depositPrincipal = state.deposits.reduce((sum, deposit) => sum + deposit.principal, 0);
+  const taxableAmount = Math.max(0, wallet + depositPrincipal - state.loanPrincipal);
+  let remainingTax = Math.floor(taxableAmount / 2);
+  const walletTax = Math.min(wallet, remainingTax);
+  remainingTax -= walletTax;
+  const deposits = state.deposits.flatMap((deposit) => {
+    const tax = Math.min(deposit.principal, remainingTax);
+    remainingTax -= tax;
+    const principal = deposit.principal - tax;
+    return principal > 0 ? [{ ...deposit, principal, interest: calculateBankInterest(principal) }] : [];
+  });
+  return {
+    wallet: wallet - walletTax,
+    state: {
+      ...state,
+      deposit: deposits.reduce((sum, deposit) => sum + deposit.principal, 0),
+      deposits,
+    },
+  };
+};
 
 const hashText = (value: string) => Array.from(value).reduce((hash, character) => (
   (hash * 31 + character.charCodeAt(0)) >>> 0
@@ -641,7 +784,56 @@ export const applyStudentEconomyAction = ({
     nextWallet -= amount;
   };
 
-  if (action.type === 'deposit' || action.type === 'save') {
+  if (action.type === 'open_deposit') {
+    if (!Number.isInteger(action.amount) || action.amount < STUDENT_BANK_AMOUNT_STEP || action.amount % STUDENT_BANK_AMOUNT_STEP !== 0) {
+      throw new Error('INVALID_BANK_AMOUNT');
+    }
+    const maturityDate = getDepositMaturityDate(action.dateKey);
+    spend(action.amount);
+    const interest = calculateBankInterest(action.amount);
+    const deposit = {
+      id: requestId,
+      principal: action.amount,
+      openedOn: action.dateKey,
+      maturityDate,
+      interest,
+    };
+    nextState = { ...state, deposit: state.deposit + action.amount, deposits: [...state.deposits, deposit] };
+    message = `${action.amount} 고마를 맡겼습니다. ${getRelativeKoreanWeekdayLabel(action.dateKey, maturityDate)}에 ${action.amount + interest} 고마를 받을 수 있습니다.`;
+  } else if (action.type === 'close_deposit') {
+    const deposit = state.deposits.find((candidate) => candidate.id === action.depositId);
+    if (!deposit) throw new Error('DEPOSIT_NOT_FOUND');
+    nextWallet += deposit.principal;
+    nextState = {
+      ...state,
+      deposit: state.deposit - deposit.principal,
+      deposits: state.deposits.filter((candidate) => candidate.id !== deposit.id),
+    };
+    message = `${deposit.principal} 고마를 찾았습니다. 중도 해지라 이자는 받지 못합니다.`;
+  } else if (action.type === 'claim_deposit') {
+    const deposit = state.deposits.find((candidate) => candidate.id === action.depositId);
+    if (!deposit) throw new Error('DEPOSIT_NOT_FOUND');
+    if (!deposit.maturityDate || action.dateKey < deposit.maturityDate) throw new Error('DEPOSIT_NOT_MATURED');
+    nextWallet += deposit.principal + deposit.interest;
+    nextState = {
+      ...state,
+      deposit: state.deposit - deposit.principal,
+      deposits: state.deposits.filter((candidate) => candidate.id !== deposit.id),
+    };
+    message = `${deposit.principal + deposit.interest} 고마를 받았습니다.`;
+  } else if (action.type === 'transfer') {
+    if (!Number.isInteger(action.amount) || action.amount < STUDENT_ECONOMY_AMOUNT_STEP) throw new Error('INVALID_ECONOMY_AMOUNT');
+    if (action.amount > STUDENT_TRANSFER_MAXIMUM) throw new Error('TRANSFER_AMOUNT_LIMIT_EXCEEDED');
+    if (!Number.isInteger(action.recipientNumber) || action.recipientNumber < 1 || action.recipientNumber > 23) throw new Error('INVALID_TRANSFER_RECIPIENT');
+    if (state.lastTransferDateKey === action.dateKey) throw new Error('TRANSFER_DAILY_LIMIT_REACHED');
+    spend(action.amount);
+    nextState = {
+      ...state,
+      lastTransferDateKey: action.dateKey,
+      lastTransferRecipientNumber: action.recipientNumber,
+    };
+    message = `${action.recipientNumber}번에게 ${action.amount} 고마를 보냈습니다.`;
+  } else if (action.type === 'deposit' || action.type === 'save') {
     assertTransactionAmount(action.amount);
     spend(action.amount);
     nextState = { ...state, [action.type === 'deposit' ? 'deposit' : 'savings']: state[action.type === 'deposit' ? 'deposit' : 'savings'] + action.amount };
@@ -650,18 +842,36 @@ export const applyStudentEconomyAction = ({
     assertTransactionAmount(action.amount);
     if (state.deposit < action.amount) throw new Error('INSUFFICIENT_BANK_BALANCE');
     nextWallet += action.amount;
-    nextState = { ...state, deposit: state.deposit - action.amount };
+    let remainingWithdrawal = action.amount;
+    const deposits = state.deposits.flatMap((deposit) => {
+      if (remainingWithdrawal === 0) return [deposit];
+      const withdrawn = Math.min(deposit.principal, remainingWithdrawal);
+      remainingWithdrawal -= withdrawn;
+      const principal = deposit.principal - withdrawn;
+      return principal > 0 ? [{ ...deposit, principal, interest: principal === deposit.principal ? deposit.interest : 0 }] : [];
+    });
+    nextState = { ...state, deposit: state.deposit - action.amount, deposits };
     message = `${action.amount} 고마를 찾았습니다.`;
   } else if (action.type === 'borrow') {
-    assertTransactionAmount(action.amount);
+    if (!Number.isInteger(action.amount) || action.amount < STUDENT_BANK_AMOUNT_STEP || action.amount > STUDENT_LOAN_MAXIMUM || action.amount % STUDENT_BANK_AMOUNT_STEP !== 0 || state.loan > 0) {
+      throw new Error('LOAN_LIMIT_EXCEEDED');
+    }
+    const borrowedOn = action.dateKey ?? getKoreanDateKey();
+    if (!isDateKey(borrowedOn)) throw new Error('INVALID_BANK_DATE');
     nextWallet += action.amount;
-    nextState = { ...state, loan: state.loan + action.amount };
-    message = `${action.amount} 고마를 빌렸습니다.`;
+    const repaymentAmount = action.amount + calculateBankInterest(action.amount);
+    const loanDueDate = addDaysToDateKey(borrowedOn, 7);
+    nextState = { ...state, loan: repaymentAmount, loanPrincipal: action.amount, loanDueDate };
+    message = `${action.amount} 고마를 빌렸습니다. ${getRelativeKoreanWeekdayLabel(borrowedOn, loanDueDate)}까지 ${repaymentAmount} 고마를 갚아야 합니다.`;
   } else if (action.type === 'repay') {
-    assertTransactionAmount(action.amount);
+    if (!Number.isInteger(action.amount) || action.amount < 1) throw new Error('INVALID_ECONOMY_AMOUNT');
     if (state.loan < action.amount) throw new Error('EXCESSIVE_LOAN_REPAYMENT');
     spend(action.amount);
-    nextState = { ...state, loan: state.loan - action.amount };
+    const remainingLoan = state.loan - action.amount;
+    const interest = Math.max(0, state.loan - state.loanPrincipal);
+    const repaidPrincipal = Math.max(0, action.amount - interest);
+    const loanPrincipal = Math.max(0, state.loanPrincipal - repaidPrincipal);
+    nextState = { ...state, loan: remainingLoan, loanPrincipal: remainingLoan > 0 ? loanPrincipal : 0, loanDueDate: remainingLoan > 0 ? state.loanDueDate : null };
     message = `${action.amount} 고마를 갚았습니다.`;
   } else if (action.type === 'buy_item') {
     const item = STUDENT_SHOP_ITEMS.find((candidate) => candidate.id === action.itemId)
