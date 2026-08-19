@@ -58,6 +58,19 @@ export default function StudentStockMarketPage({ state, market, selectedStockId,
                 <span className={`student-market-trend stage-${stock.stage}`} aria-label={closed ? '오늘 휴장' : `오늘 ${presentation.studentLabel}`}>
                   {closed ? '휴장' : `${presentation.symbol} ${presentation.studentLabel}`}
                 </span>
+                <span
+                  className={`student-market-position${position ? '' : ' is-empty'}`}
+                  aria-label={position ? `내 투자 ${position.currentAmount} 고마` : '투자 없음'}
+                >
+                  {position ? (
+                    <>
+                      <span>내 투자</span>
+                      <strong>{position.currentAmount} 고마</strong>
+                    </>
+                  ) : (
+                    <strong>투자 없음</strong>
+                  )}
+                </span>
               </span>
               {stock.comment && !closed ? <span className="student-market-reason">{stock.comment}</span> : null}
             </button>

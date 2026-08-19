@@ -387,6 +387,37 @@ test('이체는 하루 한 번, 한 명에게 30고마까지만 보낼 수 있�
   }), /TRANSFER_AMOUNT_LIMIT_EXCEEDED/);
 });
 
+test('예금·대출·이체는 1고마 단위의 양의 정수를 받는다', () => {
+  const deposited = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'open_deposit', amount: 7, dateKey: '2026-08-17' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'deposit-any-integer',
+  });
+  assert.equal(deposited.state.deposit, 7);
+  assert.equal(deposited.wallet, 93);
+
+  const borrowed = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'borrow', amount: 7, dateKey: '2026-08-17' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'loan-any-integer',
+  });
+  assert.equal(borrowed.state.loanPrincipal, 7);
+  assert.equal(borrowed.wallet, 107);
+
+  const transferred = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'transfer', amount: 7, recipientNumber: 2, dateKey: '2026-08-17' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'transfer-any-integer',
+  });
+  assert.equal(transferred.wallet, 93);
+});
+
 test('교사가 등록한 물품을 정가로 구매할 수 있다', () => {
   const catalog = normalizeStudentShopCatalog([
     { id: 'teacher-notebook', name: '칭찬 공책', price: 35, isActive: true },
@@ -478,7 +509,7 @@ test('사용 가능한 고마가 부족하면 고마 스킨을 뽑을 수 없다
 test('집 상점은 집 고치기 전에는 잠기고 수리 후 집과 만들기 쿠폰을 살 수 있다', () => {
   assert.throws(() => applyStudentEconomyAction({
     state: null,
-    action: { type: 'buy_house', houseId: 'cozy-wood' },
+    action: { type: 'buy_house', houseId: 'pink-cottage' },
     wallet: 300,
     availableWallet: 300,
     requestId: 'house-locked-1',
@@ -489,7 +520,7 @@ test('집 상점은 집 고치기 전에는 잠기고 수리 후 집과 만들�
   };
   const house = applyStudentEconomyAction({
     state: repairedState,
-    action: { type: 'buy_house', houseId: 'cozy-wood' },
+    action: { type: 'buy_house', houseId: 'pink-cottage' },
     wallet: 300,
     availableWallet: 300,
     requestId: 'house-buy-1',
@@ -502,8 +533,8 @@ test('집 상점은 집 고치기 전에는 잠기고 수리 후 집과 만들�
     requestId: 'house-coupon-1',
   });
   assert.equal(house.wallet, 200);
-  assert.deepEqual(house.state.ownedHouseIds, ['cozy-wood']);
-  assert.equal(house.state.activeHouseId, 'cozy-wood');
+  assert.deepEqual(house.state.ownedHouseIds, ['pink-cottage']);
+  assert.equal(house.state.activeHouseId, 'pink-cottage');
   assert.equal(coupon.wallet, 50);
   assert.equal(coupon.state.hasCustomHouseCoupon, true);
 });

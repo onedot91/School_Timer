@@ -30,6 +30,23 @@ const isWeekend = (dateKey: string) => {
   return day === 0 || day === 6;
 };
 
+interface InvestmentStatusMessageOptions {
+  isSaving: boolean;
+  marketClosed: boolean;
+  isBelowMinimum: boolean;
+  hasInvalidAmount: boolean;
+  hasPosition: boolean;
+}
+
+export const getInvestmentStatusMessage = ({ isSaving, marketClosed, isBelowMinimum, hasInvalidAmount, hasPosition }: InvestmentStatusMessageOptions) => {
+  if (isSaving) return '';
+  if (marketClosed) return '오늘은 휴장';
+  if (isBelowMinimum) return '투자 한도 없음';
+  if (hasInvalidAmount) return '입력 금액 확인';
+  if (!hasPosition) return '찾을 투자금 없음';
+  return '';
+};
+
 export default function StudentInvestmentActionPanel({ state, market, selectedStockId, availableBalance, isSaving, onAction }: StudentInvestmentActionPanelProps) {
   const dateKey = getKoreanDateKey();
   const quotes = getDailyStockQuotes(dateKey, market);
@@ -57,9 +74,20 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
 
   const position = state.investments[selectedStock.id];
   const investmentAmount = Number(amount);
+  const marketClosed = isWeekend(dateKey);
+  const hasEnteredAmount = amount.trim() !== '';
   const maximum = Math.min(settings.maximumAmount - (position?.currentAmount ?? 0), availableBalance);
-  const canInvest = !isWeekend(dateKey) && !isSaving && Number.isInteger(investmentAmount) && investmentAmount >= settings.minimumAmount && investmentAmount <= maximum;
-  const canWithdraw = !isWeekend(dateKey) && !isSaving && Boolean(position);
+  const canInvest = !marketClosed && !isSaving && Number.isInteger(investmentAmount) && investmentAmount >= settings.minimumAmount && investmentAmount <= maximum;
+  const canWithdraw = !marketClosed && !isSaving && Boolean(position);
+  const hasPosition = Boolean(position);
+  const statusMessage = getInvestmentStatusMessage({
+    isSaving,
+    marketClosed,
+    isBelowMinimum: maximum < settings.minimumAmount,
+    hasInvalidAmount: hasEnteredAmount && !canInvest,
+    hasPosition,
+  });
+  const footerStatusMessage = !hasPosition && statusMessage === '찾을 투자금 없음' ? '' : statusMessage;
 
   const confirm = async () => {
     if (!draft) return;
@@ -73,23 +101,22 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
   };
 
   return (
-    <section id="student-investment-actions" className="student-investment-action-panel" aria-labelledby="student-investment-action-title">
-      <h2 id="student-investment-action-title">거래</h2>
+    <section id="student-investment-actions" className="student-investment-action-panel" aria-label={`${selectedStock.name} 투자 거래`} aria-busy={isSaving}>
       <div className="student-investment-action-controls">
-        <div className="student-investment-stock-choice" aria-live="polite">
+        <div className="student-investment-stock-choice">
           <span>선택 종목</span>
           <strong>{selectedStock.name}</strong>
-          <small>현재 투자 {position?.currentAmount ?? 0} 고마</small>
         </div>
         <label className="student-investment-input">
           <span>투자할 고마</span>
-          <div><input type="number" min={settings.minimumAmount} max={maximum} step="1" inputMode="numeric" value={amount} disabled={isWeekend(dateKey) || isSaving || maximum < settings.minimumAmount} onChange={(event) => setAmount(event.target.value)} /><span>고마</span></div>
+          <div><input type="number" min={settings.minimumAmount} max={maximum} step="1" inputMode="numeric" aria-label="투자할 고마" value={amount} disabled={marketClosed || isSaving || maximum < settings.minimumAmount} onChange={(event) => setAmount(event.target.value)} /><span>고마</span></div>
         </label>
         <div className="student-investment-actions">
           <button type="button" disabled={!canInvest} onClick={() => setDraft({ type: 'invest', amount: investmentAmount })}>투자하기</button>
           <button type="button" className="is-secondary" disabled={!canWithdraw} onClick={() => position && setDraft({ type: 'withdraw', amount: position.currentAmount })}>투자금 찾기</button>
         </div>
       </div>
+      {footerStatusMessage ? <p className="student-investment-status-message" aria-live="polite">{footerStatusMessage}</p> : null}
       {draft ? (
         <div className="student-stock-dialog-backdrop">
           <section ref={dialogRef} className="student-stock-dialog" role="dialog" aria-modal="true" aria-labelledby="student-investment-dialog-title" tabIndex={-1}>
@@ -97,7 +124,7 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
             <span className="student-stock-dialog-kicker">{selectedStock.name}</span>
             <h2 id="student-investment-dialog-title">{draft.amount} 고마를 {draft.type === 'invest' ? '투자할까요?' : '찾을까요?'}</h2>
             <p>{draft.type === 'invest' ? '내가 가진 고마에서 빠져요.' : '현재 금액이 내 고마로 돌아와요.'}</p>
-            <div className="student-stock-dialog-actions"><button type="button" disabled={isSaving} onClick={() => setDraft(null)}>취소</button><button type="button" disabled={isSaving} onClick={() => void confirm()}>{isSaving ? '처리 중' : '확인'}</button></div>
+            <div className="student-stock-dialog-actions"><button type="button" disabled={isSaving} onClick={() => setDraft(null)}>취소</button><button type="button" disabled={isSaving} onClick={() => void confirm()}>확인</button></div>
           </section>
         </div>
       ) : null}

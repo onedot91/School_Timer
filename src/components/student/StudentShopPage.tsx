@@ -64,12 +64,12 @@ export default function StudentShopPage({ state, catalog, availableBalance, isSa
         repaired ? (
           <div className="student-house-workshop">
             <div className="student-house-market">
+              <article className="student-custom-house-card"><Hammer /><h3>내 집 만들기</h3>{state.hasCustomHouseCoupon ? <><input aria-label="집 이름" value={houseName} maxLength={20} onChange={(event) => setHouseName(event.target.value)} /><div className="student-house-theme-picker">{(['natural', 'blue', 'green'] as const).map((theme) => <button key={theme} className={houseTheme === theme ? 'is-active' : ''} aria-label={`${theme} 색상`} onClick={() => setHouseTheme(theme)} />)}</div><button disabled={isSaving || !houseName.trim()} onClick={() => void onAction({ type: 'register_custom_house', name: houseName, theme: houseTheme })}>디자인 적용</button></> : <button disabled={isSaving} onClick={() => setPendingPurchase({ action: { type: 'buy_custom_house_coupon' }, name: '내 집 만들기', price: STUDENT_CUSTOM_HOUSE_COUPON_PRICE })}>{STUDENT_CUSTOM_HOUSE_COUPON_PRICE} 고마</button>}</article>
               {STUDENT_HOUSE_DESIGNS.map((house) => {
                 const owned = state.ownedHouseIds.includes(house.id);
                 const active = state.activeHouseId === house.id;
                 return <article key={house.id}><img src={house.imageSrc} alt="" /><h3>{house.name}</h3><button disabled={isSaving || active} onClick={() => owned ? void onAction({ type: 'select_house', houseId: house.id }) : setPendingPurchase({ action: { type: 'buy_house', houseId: house.id }, name: house.name, price: house.price })}>{active ? '사용 중' : owned ? '사용하기' : `${house.price} 고마`}</button></article>;
               })}
-              <article className="student-custom-house-card"><Hammer /><h3>내 집 만들기</h3>{state.hasCustomHouseCoupon ? <><input aria-label="집 이름" value={houseName} maxLength={20} onChange={(event) => setHouseName(event.target.value)} /><div className="student-house-theme-picker">{(['natural', 'blue', 'green'] as const).map((theme) => <button key={theme} className={houseTheme === theme ? 'is-active' : ''} aria-label={`${theme} 색상`} onClick={() => setHouseTheme(theme)} />)}</div><button disabled={isSaving || !houseName.trim()} onClick={() => void onAction({ type: 'register_custom_house', name: houseName, theme: houseTheme })}>디자인 적용</button></> : <button disabled={isSaving} onClick={() => setPendingPurchase({ action: { type: 'buy_custom_house_coupon' }, name: '내 집 만들기', price: STUDENT_CUSTOM_HOUSE_COUPON_PRICE })}>{STUDENT_CUSTOM_HOUSE_COUPON_PRICE} 고마</button>}</article>
             </div>
           </div>
         ) : (

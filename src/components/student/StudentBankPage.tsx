@@ -29,14 +29,14 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
     && Boolean(activeDeposit.maturityDate)
     && activeDeposit.maturityDate <= today;
   const hasTransferredToday = state.lastTransferDateKey === today;
-  const numericDepositAmount = Math.floor(Number(depositAmount));
-  const numericLoanAmount = Math.floor(Number(loanAmount));
-  const numericTransferAmount = Math.floor(Number(transferAmount));
+  const numericDepositAmount = Number(depositAmount);
+  const numericLoanAmount = Number(loanAmount);
+  const numericTransferAmount = Number(transferAmount);
   const numericRecipientNumber = Math.floor(Number(recipientNumber));
-  const isValidBankAmount = (amount: number) => Number.isInteger(amount) && amount >= 10 && amount % 10 === 0;
+  const isValidBankAmount = (amount: number) => Number.isInteger(amount) && amount >= 1;
   const isDepositAmount = isValidBankAmount(numericDepositAmount);
   const isLoanAmount = isValidBankAmount(numericLoanAmount) && numericLoanAmount <= 50;
-  const isTransferAmount = Number.isInteger(numericTransferAmount) && numericTransferAmount >= 5 && numericTransferAmount <= 30;
+  const isTransferAmount = Number.isInteger(numericTransferAmount) && numericTransferAmount >= 1 && numericTransferAmount <= 30;
   const depositInterest = isDepositAmount ? Math.round(numericDepositAmount / 10) : 0;
   const loanRepayment = isLoanAmount ? numericLoanAmount + Math.round(numericLoanAmount / 10) : 0;
   const canTransfer = isTransferAmount && numericRecipientNumber !== studentNumber && numericRecipientNumber >= 1 && numericRecipientNumber <= 23;
@@ -120,21 +120,19 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
       >
         {activeModal === 'deposit' ? (
           <div className="student-bank-modal-form">
-            <label className="student-bank-amount-field"><span>맡길 고마</span><input type="number" min="10" max="500" step="10" placeholder="예: 20" aria-describedby="deposit-amount-hint" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
-            <p id="deposit-amount-hint" className="student-bank-amount-hint">10고마 단위 · 예: 20</p>
+            <label className="student-bank-amount-field"><span>맡길 고마</span><input type="number" min="1" max="500" step="1" placeholder="예: 20" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
             {isDepositAmount ? <div className="student-bank-interest-flow" aria-label={`${numericDepositAmount} 고마를 맡기면 ${numericDepositAmount + depositInterest} 고마를 받습니다.`}><span>{numericDepositAmount} 고마</span><i>보관</i><b>+{depositInterest} 고마</b><strong>{numericDepositAmount + depositInterest} 고마</strong></div> : <p className="student-bank-amount-example">20 고마 → 22 고마</p>}
             <p className="student-bank-rule">월~수: 이틀 뒤 · 목·금: 다음주 월요일 · 중도 해지: 원금만</p>
           </div>
         ) : null}
         {activeModal === 'loan' ? (
           <div className="student-bank-modal-form">
-            {state.loan > 0 ? <p className="student-bank-rule">갚을 고마 {state.loan} 고마 · 한 번에 모두 갚기</p> : <><label className="student-bank-amount-field"><span>빌릴 고마</span><input type="number" min="10" max="50" step="10" placeholder="예: 30" aria-describedby="loan-amount-hint" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label><p id="loan-amount-hint" className="student-bank-amount-hint">10고마 단위 · 예: 30</p>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : <p className="student-bank-amount-example student-bank-loan-example">30 고마 → 33 고마</p>}<p className="student-bank-rule">최대 50고마 · 일주일 안에 갚기</p></>}
+            {state.loan > 0 ? <p className="student-bank-rule">갚을 고마 {state.loan} 고마 · 한 번에 모두 갚기</p> : <><label className="student-bank-amount-field"><span>빌릴 고마</span><input type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : <p className="student-bank-amount-example student-bank-loan-example">30 고마 → 33 고마</p>}<p className="student-bank-rule">최대 50고마 · 일주일 안에 갚기</p></>}
           </div>
         ) : null}
         {activeModal === 'transfer' ? (
           <div className="student-bank-modal-form">
-            <label className="student-bank-amount-field"><span>보낼 고마</span><input type="number" min="5" max="30" step="5" placeholder="예: 20" aria-describedby="transfer-amount-hint" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} /><span>고마</span></label>
-            <p id="transfer-amount-hint" className="student-bank-amount-hint">5고마 단위 · 예: 20</p>
+            <label className="student-bank-amount-field"><span>보낼 고마</span><input type="number" min="1" max="30" step="1" placeholder="예: 20" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} /><span>고마</span></label>
             <label className="student-bank-recipient"><span>받는 학생</span><select value={recipientNumber} onChange={(event) => setRecipientNumber(event.target.value)}>{Array.from({ length: 23 }, (_, index) => index + 1).filter((number) => number !== studentNumber).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
             <p className="student-bank-rule">최대 30고마 · 오늘 한 명에게만</p>
           </div>

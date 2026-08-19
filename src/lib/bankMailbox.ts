@@ -3,7 +3,7 @@ import { getDepositMaturityDate, getRelativeKoreanWeekdayLabel, type StudentEcon
 export type BankMailboxLetter = {
   readonly id: string;
   readonly recipient: number;
-  readonly senderLabel: '은행원';
+  readonly senderLabel: '은행원 돝돝';
   readonly senderStudentNumber: null;
   readonly title: string;
   readonly content: string;
@@ -16,7 +16,7 @@ const bankerLetter = (
   title: string,
   content: string,
   createdAt: string,
-): BankMailboxLetter => ({ id, recipient, senderLabel: '은행원', senderStudentNumber: null, title, content, createdAt });
+): BankMailboxLetter => ({ id, recipient, senderLabel: '은행원 돝돝', senderStudentNumber: null, title, content, createdAt });
 
 export const createBankMailboxLetters = ({
   action,

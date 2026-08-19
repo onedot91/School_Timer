@@ -6,7 +6,6 @@ import StudentDonationPage from './StudentDonationPage';
 import StudentHeader from './StudentHeader';
 import StudentInvestmentActionPanel from './StudentInvestmentActionPanel';
 import StudentPlaza, { type StudentStoreSection } from './StudentPlaza';
-import StudentSecuritiesPage from './StudentSecuritiesPage';
 import StudentShopPage from './StudentShopPage';
 import StudentStockMarketPage from './StudentStockMarketPage';
 
@@ -56,7 +55,7 @@ export default function StudentStorePage({
   const isSecurities = section === 'securities' || section === 'securities-trade';
   const [selectedStockId, setSelectedStockId] = useState<StudentStockId>('sunny');
   const titles: Record<StudentStoreSection, string> = {
-    plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '내 투자', 'securities-trade': '내 투자', donation: '기부',
+    plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '종목별 오늘의 변화', 'securities-trade': '종목별 오늘의 변화', donation: '기부',
   };
   return (
     <div className="student-view student-store-view" data-store-section={section}>
@@ -81,12 +80,7 @@ export default function StudentStorePage({
         {section === 'auction' ? children : null}
         {isSecurities ? (
           <div className="student-securities-flow">
-            <StudentSecuritiesPage
-              state={economyState}
-              market={stockMarket}
-            />
-            <section id="student-investment-market" className="student-investment-market-section" aria-labelledby="student-investment-market-title">
-              <h2 id="student-investment-market-title">종목별 오늘의 변화</h2>
+            <section id="student-investment-market" className="student-investment-market-section" aria-label="종목별 오늘의 변화">
               <StudentStockMarketPage
                 state={economyState}
                 market={stockMarket}

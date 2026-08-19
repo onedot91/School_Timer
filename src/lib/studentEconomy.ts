@@ -4,7 +4,6 @@ export const STUDENT_ECONOMY_AMOUNT_STEP = 5;
 export const STUDENT_ECONOMY_AMOUNT_MAX = 500;
 export const STUDENT_LOAN_MAXIMUM = 50;
 export const STUDENT_TRANSFER_MAXIMUM = 30;
-const STUDENT_BANK_AMOUNT_STEP = 10;
 const BANK_INTEREST_RATE = 0.1;
 
 export const STUDENT_CHARACTER_DRAW_PRICE = 100;
@@ -142,7 +141,19 @@ export const DEFAULT_STUDENT_CHARACTER = {
 } as const;
 
 export const STUDENT_HOUSE_DESIGNS = [
-  { id: 'cozy-wood', name: '포근한 나무집', imageSrc: '/student-house-after.png', price: 100 },
+  { id: 'pink-cottage', name: '달콤한 분홍집', imageSrc: '/student-house-designs/pink-cottage.png', price: 100 },
+  { id: 'orange-roof-cottage', name: '꽃창가 주황집', imageSrc: '/student-house-designs/orange-roof-cottage.png', price: 100 },
+  { id: 'pink-heart-house', name: '분홍 하트집', imageSrc: '/student-house-designs/pink-heart-house.png', price: 100 },
+  { id: 'blue-roof-house', name: '푸른 기와집', imageSrc: '/student-house-designs/blue-roof-house.png', price: 100 },
+  { id: 'mint-heart-house', name: '민트 하트집', imageSrc: '/student-house-designs/mint-heart-house.png', price: 100 },
+  { id: 'purple-heart-house', name: '보랏빛 꽃집', imageSrc: '/student-house-designs/purple-heart-house.png', price: 100 },
+  { id: 'teal-roof-house', name: '청록 기와집', imageSrc: '/student-house-designs/teal-roof-house.png', price: 100 },
+  { id: 'golden-roof-house', name: '황금 지붕집', imageSrc: '/student-house-designs/golden-roof-house.png', price: 100 },
+  { id: 'coral-teal-house', name: '산호빛 지붕집', imageSrc: '/student-house-designs/coral-teal-house.png', price: 100 },
+  { id: 'modern-house', name: '모던 정원집', imageSrc: '/student-house-designs/modern-house.png', price: 100 },
+  { id: 'stone-cottage', name: '돌담 오두막', imageSrc: '/student-house-designs/stone-cottage.png', price: 100 },
+  { id: 'two-story-house', name: '이층 꽃집', imageSrc: '/student-house-designs/two-story-house.png', price: 100 },
+  { id: 'blue-wing-house', name: '푸른 날개집', imageSrc: '/student-house-designs/blue-wing-house.png', price: 100 },
 ] as const;
 
 export const STUDENT_STOCKS = [
@@ -785,7 +796,7 @@ export const applyStudentEconomyAction = ({
   };
 
   if (action.type === 'open_deposit') {
-    if (!Number.isInteger(action.amount) || action.amount < STUDENT_BANK_AMOUNT_STEP || action.amount % STUDENT_BANK_AMOUNT_STEP !== 0) {
+    if (!Number.isInteger(action.amount) || action.amount < 1) {
       throw new Error('INVALID_BANK_AMOUNT');
     }
     const maturityDate = getDepositMaturityDate(action.dateKey);
@@ -822,7 +833,7 @@ export const applyStudentEconomyAction = ({
     };
     message = `${deposit.principal + deposit.interest} 고마를 받았습니다.`;
   } else if (action.type === 'transfer') {
-    if (!Number.isInteger(action.amount) || action.amount < STUDENT_ECONOMY_AMOUNT_STEP) throw new Error('INVALID_ECONOMY_AMOUNT');
+    if (!Number.isInteger(action.amount) || action.amount < 1) throw new Error('INVALID_ECONOMY_AMOUNT');
     if (action.amount > STUDENT_TRANSFER_MAXIMUM) throw new Error('TRANSFER_AMOUNT_LIMIT_EXCEEDED');
     if (!Number.isInteger(action.recipientNumber) || action.recipientNumber < 1 || action.recipientNumber > 23) throw new Error('INVALID_TRANSFER_RECIPIENT');
     if (state.lastTransferDateKey === action.dateKey) throw new Error('TRANSFER_DAILY_LIMIT_REACHED');
@@ -853,7 +864,7 @@ export const applyStudentEconomyAction = ({
     nextState = { ...state, deposit: state.deposit - action.amount, deposits };
     message = `${action.amount} 고마를 찾았습니다.`;
   } else if (action.type === 'borrow') {
-    if (!Number.isInteger(action.amount) || action.amount < STUDENT_BANK_AMOUNT_STEP || action.amount > STUDENT_LOAN_MAXIMUM || action.amount % STUDENT_BANK_AMOUNT_STEP !== 0 || state.loan > 0) {
+    if (!Number.isInteger(action.amount) || action.amount < 1 || action.amount > STUDENT_LOAN_MAXIMUM || state.loan > 0) {
       throw new Error('LOAN_LIMIT_EXCEEDED');
     }
     const borrowedOn = action.dateKey ?? getKoreanDateKey();

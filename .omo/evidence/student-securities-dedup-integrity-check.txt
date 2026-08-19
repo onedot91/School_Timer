@@ -1,0 +1,12 @@
+Surface: web screenshot evidence integrity
+Exact invocation:
+  file /var/folders/kp/rl6bb8813rzcdv9h2_qvck5m0000gn/T/codex-clipboard-df510b70-e19b-419e-b291-3100c051dd9b.png .omo/evidence/student-securities-dedup-1024.png .omo/evidence/student-securities-dedup-1280.png .omo/evidence/student-securities-dedup-1366.png
+  sips -g pixelWidth -g pixelHeight .omo/evidence/student-securities-dedup-1024.png .omo/evidence/student-securities-dedup-1280.png .omo/evidence/student-securities-dedup-1366.png
+  node /Users/ibyeonghyeon/.codex/plugins/cache/sisyphuslabs/omo/4.19.4/skills/visual-qa/scripts/visual-qa.mjs image-diff /var/folders/kp/rl6bb8813rzcdv9h2_qvck5m0000gn/T/codex-clipboard-df510b70-e19b-419e-b291-3100c051dd9b.png .omo/evidence/student-securities-dedup-1280.png
+
+Observed:
+  reference: PNG, 2170 x 1350, RGBA
+  after 1024-named: JPEG, 723 x 565
+  after 1280-named: JPEG, 903 x 565
+  after 1366-named: JPEG, 964 x 565
+  visual-qa image-diff: visual-qa error: not a PNG file (bad signature)
