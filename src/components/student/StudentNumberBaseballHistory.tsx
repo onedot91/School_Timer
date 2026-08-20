@@ -12,6 +12,12 @@ type StudentNumberBaseballHistoryProps = {
 };
 
 export function StudentNumberBaseballHistory({ answer, attempts }: StudentNumberBaseballHistoryProps) {
+  const latestAttempt = attempts.at(-1);
+  const isComplete = latestAttempt
+    ? evaluateNumberBaseballGuess(answer, latestAttempt.guess).strikes === 3
+    : false;
+  const currentAttempt = !isComplete && attempts.length < 9 ? attempts.length + 1 : null;
+
   return (
     <section className="student-baseball-history" aria-label="내 기록">
       <div className="student-baseball-history-groups">
@@ -29,10 +35,18 @@ export function StudentNumberBaseballHistory({ answer, attempts }: StudentNumber
                 const attemptNumber = startAttempt + offset;
                 const attempt = attempts[attemptNumber - 1];
                 if (!attempt) {
+                  const isCurrent = attemptNumber === currentAttempt;
                   return (
-                    <li key={attemptNumber} className="is-empty" aria-label={`${attemptNumber}회, 입력 전`}>
+                    <li
+                      key={attemptNumber}
+                      className={`is-empty${isCurrent ? ' is-current' : ''}`}
+                      aria-current={isCurrent ? 'step' : undefined}
+                      aria-label={`${attemptNumber}회, ${isCurrent ? '다음 입력' : '입력 전'}`}
+                    >
                       <span className="student-baseball-history-order">{attemptNumber}회</span>
-                      <span className="student-baseball-history-placeholder">입력 전</span>
+                      <span className="student-baseball-history-placeholder">
+                        {isCurrent ? '다음 입력' : '입력 전'}
+                      </span>
                     </li>
                   );
                 }
