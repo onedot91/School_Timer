@@ -15284,6 +15284,13 @@ a[href]:active {
     box-shadow var(--student-motion-state) ease;
 }
 .student-baseball-keypad button[aria-pressed="true"] { border-color: var(--apple-accent); color: white; background: var(--apple-accent); }
+.student-baseball-keypad button.is-out {
+  border-color: var(--student-baseball-out);
+  color: var(--student-baseball-out);
+  background: var(--student-baseball-out-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--student-baseball-out) 18%, transparent);
+}
+.student-baseball-keypad button.is-out[aria-pressed="true"] { color: white; background: var(--student-baseball-out); }
 .student-baseball-keypad .student-baseball-delete { display: grid; place-items: center; color: var(--apple-text-secondary); }
 .student-baseball-keypad .student-baseball-delete svg { width: 1.2rem; }
 .student-baseball-submit { width: 100%; color: white; background: var(--apple-accent); }
@@ -15318,8 +15325,7 @@ a[href]:active {
 .student-baseball-history-tier {
   display: grid;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: .4rem;
+  grid-template-rows: minmax(0, 1fr);
   padding: .5rem;
   border-radius: var(--apple-radius-control);
   background: color-mix(in srgb, var(--student-baseball-tier-color, var(--apple-surface-muted)) 7%, var(--apple-surface));
@@ -15327,20 +15333,10 @@ a[href]:active {
 .student-baseball-history-tier.is-reward-15 { --student-baseball-tier-color: var(--student-baseball-strike); }
 .student-baseball-history-tier.is-reward-10 { --student-baseball-tier-color: var(--student-baseball-ball); }
 .student-baseball-history-tier.is-reward-5 { --student-baseball-tier-color: var(--apple-text-secondary); }
-.student-baseball-history-tier > header { display: flex; min-height: 1.5rem; align-items: center; justify-content: flex-end; padding-inline: .25rem; }
-.student-baseball-history-tier > header span {
-  padding: .25rem .6rem;
-  border: 0;
-  border-radius: var(--apple-radius-pill);
-  color: var(--student-baseball-tier-color);
-  background: color-mix(in srgb, var(--student-baseball-tier-color) 10%, var(--apple-surface));
-  font-family: var(--font-mono);
-  font-size: .95rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
 .student-baseball-history ol { display: grid; min-height: 0; align-content: stretch; gap: .35rem; margin: 0; padding: 0; list-style: none; }
-.student-baseball-history-tier.is-reward-15 ol { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.student-baseball-history-tier.is-reward-15 ol { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.student-baseball-history-tier.is-reward-15 li { grid-column: span 2; }
+.student-baseball-history-tier.is-reward-15 li:nth-child(n + 4) { grid-column: span 3; }
 .student-baseball-history-tier.is-reward-10 ol,
 .student-baseball-history-tier.is-reward-5 ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .student-baseball-history li {
@@ -15365,10 +15361,13 @@ a[href]:active {
 }
 .student-baseball-history li.is-current .student-baseball-history-placeholder { color: var(--student-baseball-tier-color); }
 .student-baseball-history-order { color: var(--apple-text-secondary); font-family: var(--font-mono); font-size: .95rem; font-weight: 850; }
-.student-baseball-history li > strong { justify-self: end; font-family: var(--font-mono); font-size: 1.35rem; letter-spacing: .1em; }
+.student-baseball-attempt-summary { display: flex; min-width: 0; grid-column: 1 / -1; align-self: center; align-items: center; justify-content: center; gap: .2rem; }
+.student-baseball-attempt-summary > strong { flex: 0 0 auto; font-family: var(--font-mono); font-size: 1.3rem; letter-spacing: .1em; }
+.student-baseball-attempt-result { display: flex; min-width: 0; align-items: center; justify-content: center; gap: .3rem; }
+.student-baseball-attempt-result > span { flex: 0 0 auto; color: var(--apple-text-tertiary); font-family: var(--font-mono); font-size: 1.1rem; font-weight: 900; line-height: 1; }
 .student-baseball-history-placeholder { grid-column: 1 / -1; align-self: center; justify-self: center; color: var(--apple-text-tertiary); font-size: .95rem; font-weight: 800; }
 
-.student-baseball-result-chips { display: flex; min-width: 0; grid-column: 1 / -1; align-self: center; justify-content: flex-start; flex-wrap: wrap; gap: .25rem; }
+.student-baseball-result-chips { display: flex; min-width: 0; align-self: center; justify-content: center; flex-wrap: wrap; gap: .25rem; }
 .student-baseball-result-chip { display: inline-flex; min-height: 2.5rem; align-items: center; gap: .3rem; padding: .3rem .6rem; border-radius: var(--apple-radius-pill); white-space: nowrap; }
 .student-baseball-result-chip { animation: studentBaseballResultReveal var(--student-motion-state) var(--student-ease-out) both; }
 .student-baseball-result-chip.is-ball { animation-delay: 35ms; }
@@ -15408,11 +15407,7 @@ a[href]:active {
 @media (min-width: 48.001rem) and (max-width: 70rem) {
   .student-baseball-panel { padding: .5rem; }
   .student-baseball-history-groups { grid-template-rows: minmax(0, 1.7fr) repeat(2, minmax(0, .82fr)); gap: .35rem; }
-  .student-baseball-history-tier { gap: .25rem; padding: .4rem; }
-  .student-baseball-history-tier > header { min-height: 1.25rem; }
-  .student-baseball-history-tier.is-reward-15 ol { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .student-baseball-history-tier.is-reward-15 li { grid-column: span 2; }
-  .student-baseball-history-tier.is-reward-15 li:nth-child(n + 4) { grid-column: span 3; }
+  .student-baseball-history-tier { padding: .4rem; }
 }
 
 @media (max-width: 48rem) {
@@ -15432,6 +15427,8 @@ a[href]:active {
   .student-baseball-history-tier.is-reward-15 ol,
   .student-baseball-history-tier.is-reward-10 ol,
   .student-baseball-history-tier.is-reward-5 ol { grid-template-columns: minmax(0, 1fr); }
+  .student-baseball-history-tier.is-reward-15 li,
+  .student-baseball-history-tier.is-reward-15 li:nth-child(n + 4) { grid-column: auto; }
   .student-baseball-history li,
   .student-baseball-history li.is-empty { min-height: 3.5rem; grid-template-columns: auto minmax(0, 1fr); }
   .student-baseball-history-placeholder { grid-column: auto; justify-self: end; }
@@ -16866,7 +16863,6 @@ a[href]:active {
   .student-baseball-result-chip.is-strike { border: 3px solid Highlight; }
   .student-baseball-result-chip.is-ball { border: 4px double CanvasText; }
   .student-baseball-result-chip.is-out { border: 3px dashed LinkText; }
-  .student-baseball-history-tier > header span { color: CanvasText; }
   .student-baseball-history li.is-empty { border: 2px dashed GrayText; }
   .student-baseball-history li.is-current { border: 3px solid Highlight; box-shadow: none; }
 }

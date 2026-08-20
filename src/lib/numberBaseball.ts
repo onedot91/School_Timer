@@ -97,6 +97,13 @@ export const evaluateNumberBaseballGuess = (
   return { strikes, balls, outs: 3 - strikes - balls };
 };
 
+export const getNumberBaseballOutDigits = (
+  answer: NumberBaseballGuess,
+  attempts: readonly NumberBaseballAttempt[],
+) => Array.from(new Set(attempts.flatMap(({ guess }) => (
+  evaluateNumberBaseballGuess(answer, guess).outs === 3 ? guess : []
+))));
+
 export const getNumberBaseballResultDisplays = (
   result: NumberBaseballResult,
 ): readonly NumberBaseballResultDisplay[] => {

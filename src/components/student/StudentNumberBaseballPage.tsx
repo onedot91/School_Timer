@@ -6,6 +6,7 @@ import {
   appendNumberBaseballAttempt,
   createNumberBaseballAnswer,
   evaluateNumberBaseballGuess,
+  getNumberBaseballOutDigits,
   getNumberBaseballReward,
   getNumberBaseballResultDisplays,
   getNumberBaseballStatus,
@@ -50,6 +51,7 @@ export default function StudentNumberBaseballPage({
   const isTerminal = status === 'completed' || status === 'exhausted';
   const remainingAttempts = NUMBER_BASEBALL_MAX_ATTEMPTS - entry.attempts.length;
   const attempts = entry.attempts;
+  const outDigits = getNumberBaseballOutDigits(answer, attempts);
   const solvedReward = status === 'completed' ? getNumberBaseballReward(entry.attempts.length) : null;
   const latestAttempt = entry.attempts.at(-1);
   const latestResult = latestAttempt ? evaluateNumberBaseballGuess(answer, latestAttempt.guess) : null;
@@ -174,16 +176,21 @@ export default function StudentNumberBaseballPage({
                   ))}
                 </div>
                 <div className="student-baseball-keypad" aria-label="숫자 선택">
-                  {Array.from({ length: 9 }, (_, index) => index + 1).map((digit) => (
-                    <button
-                      type="button"
-                      key={digit}
-                      aria-pressed={selectedDigits.includes(digit)}
-                      onClick={() => toggleDigit(digit)}
-                    >
-                      {digit}
-                    </button>
-                  ))}
+                  {Array.from({ length: 9 }, (_, index) => index + 1).map((digit) => {
+                    const isOutDigit = outDigits.includes(digit);
+                    return (
+                      <button
+                        type="button"
+                        key={digit}
+                        className={isOutDigit ? 'is-out' : undefined}
+                        aria-label={isOutDigit ? `${digit}, 아웃 숫자` : `${digit}`}
+                        aria-pressed={selectedDigits.includes(digit)}
+                        onClick={() => toggleDigit(digit)}
+                      >
+                        {digit}
+                      </button>
+                    );
+                  })}
                   <button
                     type="button"
                     className="student-baseball-delete"

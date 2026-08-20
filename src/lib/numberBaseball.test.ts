@@ -12,6 +12,7 @@ import {
   createNumberBaseballProgressEntry,
   evaluateNumberBaseballGuess,
   getNumberBaseballGameId,
+  getNumberBaseballOutDigits,
   getNumberBaseballResultDisplays,
   getNumberBaseballReward,
   getNumberBaseballStatus,
@@ -63,6 +64,22 @@ test('화면에는 스트라이크와 볼만 표시하고 세 숫자가 모두 �
     { kind: 'ball', value: '1B' },
   ]);
   assert.deepEqual(allOutDisplays, [{ kind: 'out', value: 'OUT' }]);
+});
+
+test('완전히 아웃된 시도의 숫자만 중복 없이 모은다', () => {
+  // Given
+  const answer = [1, 2, 3] as const;
+  const attempts = [
+    { guess: [4, 5, 6] as const, createdAt: '2026-08-20T01:00:00.000Z' },
+    { guess: [1, 4, 7] as const, createdAt: '2026-08-20T01:01:00.000Z' },
+    { guess: [4, 6, 9] as const, createdAt: '2026-08-20T01:02:00.000Z' },
+  ];
+
+  // When
+  const outDigits = getNumberBaseballOutDigits(answer, attempts);
+
+  // Then
+  assert.deepEqual(outDigits, [4, 5, 6, 9]);
 });
 
 test('정답 시도 횟수에 따라 15, 10, 5고마를 지급하고 열 번째 시도는 허용하지 않는다', () => {

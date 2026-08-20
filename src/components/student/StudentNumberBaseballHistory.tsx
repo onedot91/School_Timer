@@ -27,9 +27,6 @@ export function StudentNumberBaseballHistory({ answer, attempts }: StudentNumber
             className={`student-baseball-history-tier is-reward-${reward}`}
             aria-label={`${startAttempt}회부터 ${endAttempt}회까지, 성공하면 ${reward} 고마`}
           >
-            <header>
-              <span>+{reward} 고마</span>
-            </header>
             <ol start={startAttempt}>
               {Array.from({ length: endAttempt - startAttempt + 1 }, (_, offset) => {
                 const attemptNumber = startAttempt + offset;
@@ -41,11 +38,11 @@ export function StudentNumberBaseballHistory({ answer, attempts }: StudentNumber
                       key={attemptNumber}
                       className={`is-empty${isCurrent ? ' is-current' : ''}`}
                       aria-current={isCurrent ? 'step' : undefined}
-                      aria-label={`${attemptNumber}회, ${isCurrent ? '다음 입력' : '입력 전'}`}
+                      aria-label={`${attemptNumber}회, ${isCurrent ? `맞히면 ${reward} 고마` : '입력 전'}`}
                     >
                       <span className="student-baseball-history-order">{attemptNumber}회</span>
                       <span className="student-baseball-history-placeholder">
-                        {isCurrent ? '다음 입력' : '입력 전'}
+                        {isCurrent ? `+${reward} 고마` : '입력 전'}
                       </span>
                     </li>
                   );
@@ -53,8 +50,13 @@ export function StudentNumberBaseballHistory({ answer, attempts }: StudentNumber
                 return (
                   <li key={attemptNumber}>
                     <span className="student-baseball-history-order">{attemptNumber}회</span>
-                    <strong>{attempt.guess.join('')}</strong>
-                    <StudentNumberBaseballResult result={evaluateNumberBaseballGuess(answer, attempt.guess)} />
+                    <div className="student-baseball-attempt-summary">
+                      <strong>{attempt.guess.join('')}</strong>
+                      <div className="student-baseball-attempt-result">
+                        <span aria-hidden="true">→</span>
+                        <StudentNumberBaseballResult result={evaluateNumberBaseballGuess(answer, attempt.guess)} />
+                      </div>
+                    </div>
                   </li>
                 );
               })}
