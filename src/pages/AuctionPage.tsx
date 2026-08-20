@@ -257,7 +257,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     hasReward: hasNumberBaseballReward,
     dateKey: numberBaseballDateKey,
     gameId: numberBaseballGameId,
+    hasResumableGame: hasResumableNumberBaseballGame,
     startGame: startNumberBaseball,
+    continuePreviousGame: continuePreviousNumberBaseball,
     saveProgress: saveNumberBaseballProgress,
     completeGame: completeNumberBaseball,
     applySharedProgress: applySharedNumberBaseball,
@@ -1535,6 +1537,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             activeSudokuDifficulty={activeSudokuDifficulty}
             completedSudokuDifficulty={completedSudokuDifficulty}
             numberBaseballStatus={numberBaseballStatus}
+            hasResumableNumberBaseballGame={hasResumableNumberBaseballGame}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenSudoku={async (difficulty) => {
               const startedDifficulty = await startSudoku(difficulty);
@@ -1549,6 +1552,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               const started = await startNumberBaseball();
               if (!started) {
                 showStatusMessage('숫자야구를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+                return;
+              }
+              navigateStudentView('number-baseball');
+            }}
+            onContinueNumberBaseball={() => {
+              if (!continuePreviousNumberBaseball()) {
+                showStatusMessage('이어 할 숫자야구 기록을 찾지 못했습니다.');
                 return;
               }
               navigateStudentView('number-baseball');

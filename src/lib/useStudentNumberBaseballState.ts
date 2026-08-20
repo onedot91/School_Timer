@@ -10,6 +10,7 @@ import {
 import {
   createNumberBaseballAnswer,
   createNumberBaseballProgressEntry,
+  getLatestResumableNumberBaseballGame,
   getNumberBaseballGameId,
   getNumberBaseballProgressKey,
   getNumberBaseballStatus,
@@ -39,21 +40,27 @@ export const useStudentNumberBaseballState = ({
   const [progress, setProgress] = useState<StudentNumberBaseballProgress>(() => (
     isSupabaseSettingsEnabled ? {} : loadStoredStudentNumberBaseballProgress()
   ));
+  const todayDateKey = getKoreanDateKey();
+  const [dateKey, setDateKey] = useState(todayDateKey);
   const saveQueueRef = useRef(Promise.resolve(true));
-  const dateKey = getKoreanDateKey();
   const progressKey = getNumberBaseballProgressKey(studentNumber, dateKey);
   const gameId = getNumberBaseballGameId(studentNumber, dateKey);
   const progressEntry = progress[progressKey] ?? null;
   const answer = useMemo(() => createNumberBaseballAnswer(studentNumber, dateKey), [dateKey, studentNumber]);
   const status = progressEntry === null ? 'incomplete' : getNumberBaseballStatus(progressEntry, answer);
+  const resumableGame = useMemo(() => getLatestResumableNumberBaseballGame(
+    progress,
+    studentNumber,
+    todayDateKey,
+  ), [progress, studentNumber, todayDateKey]);
   const hasReward = useMemo(() => hasNumberBaseballReward(
     currencyHistory,
     studentNumber,
     gameId,
   ), [currencyHistory, gameId, studentNumber]);
 
-  const saveProgress = useCallback((entry: NumberBaseballProgressEntry) => {
-    setProgress((current) => ({ ...current, [progressKey]: entry }));
+  const saveProgressAtKey = useCallback((targetProgressKey: string, entry: NumberBaseballProgressEntry) => {
+    setProgress((current) => ({ ...current, [targetProgressKey]: entry }));
     saveQueueRef.current = saveQueueRef.current.then(async () => {
       try {
         let savedProgress: StudentNumberBaseballProgress = {};
@@ -61,7 +68,7 @@ export const useStudentNumberBaseballState = ({
           await updateSharedSettings((currentValue) => {
             savedProgress = {
               ...getStudentNumberBaseballProgressFromSettings(currentValue),
-              [progressKey]: entry,
+              [targetProgressKey]: entry,
             };
             const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
               ? Object.fromEntries(Object.entries(currentValue))
@@ -69,7 +76,7 @@ export const useStudentNumberBaseballState = ({
             return { ...current, studentNumberBaseball: savedProgress };
           });
         } else {
-          savedProgress = { ...loadStoredStudentNumberBaseballProgress(), [progressKey]: entry };
+          savedProgress = { ...loadStoredStudentNumberBaseballProgress(), [targetProgressKey]: entry };
           if (!storeStudentNumberBaseballProgress(savedProgress)) return false;
         }
         setProgress(savedProgress);
@@ -80,12 +87,25 @@ export const useStudentNumberBaseballState = ({
       }
     });
     return saveQueueRef.current;
-  }, [progressKey]);
+  }, []);
+
+  const saveProgress = useCallback((entry: NumberBaseballProgressEntry) => (
+    saveProgressAtKey(progressKey, entry)
+  ), [progressKey, saveProgressAtKey]);
 
   const startGame = useCallback(async () => {
-    if (progressEntry?.gameId === gameId) return true;
-    return saveProgress(createNumberBaseballProgressEntry(gameId));
-  }, [gameId, progressEntry?.gameId, saveProgress]);
+    const todayProgressKey = getNumberBaseballProgressKey(studentNumber, todayDateKey);
+    const todayGameId = getNumberBaseballGameId(studentNumber, todayDateKey);
+    setDateKey(todayDateKey);
+    if (progress[todayProgressKey]?.gameId === todayGameId) return true;
+    return saveProgressAtKey(todayProgressKey, createNumberBaseballProgressEntry(todayGameId));
+  }, [progress, saveProgressAtKey, studentNumber, todayDateKey]);
+
+  const continuePreviousGame = useCallback(() => {
+    if (!resumableGame) return false;
+    setDateKey(resumableGame.dateKey);
+    return true;
+  }, [resumableGame]);
 
   const completeGame = useCallback((entry: NumberBaseballProgressEntry, rewardAmount: number) => {
     saveQueueRef.current = saveQueueRef.current.then(async () => {
@@ -171,7 +191,9 @@ export const useStudentNumberBaseballState = ({
     hasReward,
     dateKey,
     gameId,
+    hasResumableGame: resumableGame !== null,
     startGame,
+    continuePreviousGame,
     saveProgress,
     completeGame,
     applySharedProgress,

@@ -12194,8 +12194,9 @@ a[href]:active {
   padding-inline: clamp(4.25rem, 6vw, 5.25rem) clamp(4.75rem, 7vw, 6rem);
 }
 .student-letter-detail > span { color: var(--apple-accent); font-size: var(--student-letter-sender-size); font-weight: 850; line-height: 1.45; letter-spacing: -.01em; }
-.student-letter-detail h2 { margin-top: .75rem; color: var(--apple-text-primary); font-size: var(--student-letter-title-size); font-weight: 900; line-height: 1.25; letter-spacing: -.035em; text-wrap: balance; }
+.student-letter-detail h2 { margin-top: .75rem; color: var(--apple-text-primary); font-size: var(--student-letter-title-size); font-weight: 900; line-height: 1.25; letter-spacing: -.035em; overflow-wrap: break-word; word-break: keep-all; text-wrap: balance; }
 .student-letter-detail p { max-inline-size: 34ch; margin-top: 1.75rem; color: var(--apple-text-primary); font-size: var(--student-letter-body-size); font-weight: 500; line-height: 1.65; letter-spacing: -.015em; overflow-wrap: break-word; word-break: keep-all; white-space: pre-wrap; }
+.student-bank-letter-signature { width: min(34ch, 100%); margin-top: clamp(2.5rem, 5vh, 4rem); color: var(--apple-text-secondary); font-size: var(--student-letter-sender-size); font-weight: 750; line-height: 1.5; text-align: right; }
 .student-empty-state { padding: 1.25rem; color: var(--apple-text-tertiary); font-weight: 800; }
 .student-compose-card { display: grid; width: min(46rem, 100%); gap: 1rem; padding: clamp(1.25rem, 3vw, 2.5rem); }
 .student-compose-card label,
@@ -14692,6 +14693,19 @@ a[href]:active {
     background-color var(--student-motion-state) ease;
 }
 
+.student-mission-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem;
+}
+
+.student-mission-action.is-secondary {
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 44%, var(--apple-separator));
+  color: var(--apple-accent-pressed);
+  background: var(--apple-surface);
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--apple-accent) 10%, transparent);
+}
+
 .student-mission-groups {
   display: grid;
   gap: 1rem;
@@ -15436,6 +15450,10 @@ a[href]:active {
 
 @media (hover: hover) and (pointer: fine) {
   .student-mission-action:not(:disabled):hover { background: var(--apple-accent-pressed); }
+  .student-mission-action.is-secondary:not(:disabled):hover {
+    color: white;
+    background: var(--apple-accent);
+  }
 }
 
 @media (max-width: 1100px) {

@@ -11,6 +11,8 @@ interface StudentMissionCardProps {
   destinationUrl?: string;
   onAction?: () => void;
   actionLabel: string;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 }
 
 const STATUS_CONTENT: Record<StudentMissionStatus, { label: string; icon: typeof Circle }> = {
@@ -31,6 +33,8 @@ export default function StudentMissionCard({
   destinationUrl,
   onAction,
   actionLabel,
+  secondaryActionLabel,
+  onSecondaryAction,
 }: StudentMissionCardProps) {
   const statusContent = STATUS_CONTENT[status];
   const StatusIcon = statusContent.icon;
@@ -58,7 +62,16 @@ export default function StudentMissionCard({
         {description ? <p>{description}</p> : null}
         {status === 'completed' ? <span className="student-mission-awarded">보상 지급 완료</span> : null}
       </div>
-      {destinationUrl ? (
+      {onAction && secondaryActionLabel && onSecondaryAction ? (
+        <div className="student-mission-actions">
+          <button type="button" className="student-mission-action" onClick={onAction}>
+            {actionLabel}
+          </button>
+          <button type="button" className="student-mission-action is-secondary" onClick={onSecondaryAction}>
+            {secondaryActionLabel}
+          </button>
+        </div>
+      ) : destinationUrl ? (
         <a
           className="student-mission-action"
           href={destinationUrl}

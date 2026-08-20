@@ -74,6 +74,9 @@ export default function StudentMailboxPage({ studentNumber, letters, isSaving, o
                 <span>{selectedLetter.senderLabel}</span>
                 <h2>{selectedLetter.title || '편지가 도착했어요'}</h2>
                 <p>{selectedLetter.content}</p>
+                {selectedLetter.senderLabel === '은행원 돝돝' ? (
+                  <footer className="student-bank-letter-signature">은행원 돝돝 드림</footer>
+                ) : null}
                 {(selectedLetter.senderStudentNumber !== null || selectedLetter.senderLabel === '선생님') ? (
                   <button type="button" className="student-letter-reply" onClick={() => startReply(selectedLetter)}>
                     <Reply size={20} aria-hidden="true" />답장하기

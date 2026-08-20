@@ -25,9 +25,11 @@ interface StudentMissionsPageProps {
   activeSudokuDifficulty: SudokuDifficulty | null;
   completedSudokuDifficulty: SudokuDifficulty | null;
   numberBaseballStatus: NumberBaseballStatus;
+  hasResumableNumberBaseballGame: boolean;
   onOpenEmotions: () => void;
   onOpenSudoku: (difficulty: SudokuDifficulty) => void;
   onOpenNumberBaseball: () => void;
+  onContinueNumberBaseball: () => void;
   onBack: () => void;
 }
 
@@ -50,9 +52,11 @@ export default function StudentMissionsPage({
   activeSudokuDifficulty,
   completedSudokuDifficulty,
   numberBaseballStatus,
+  hasResumableNumberBaseballGame,
   onOpenEmotions,
   onOpenSudoku,
   onOpenNumberBaseball,
+  onContinueNumberBaseball,
   onBack,
 }: StudentMissionsPageProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
@@ -128,7 +132,9 @@ export default function StudentMissionsPage({
             <motion.div className="student-number-baseball-mission" {...missionEntrance(2)}>
               <StudentMissionCard
                 title="3자리 숫자야구"
-                description={numberBaseballStatus === 'completed'
+                description={hasResumableNumberBaseballGame
+                  ? '지난 게임을 이어 하거나 오늘 게임을 새로 시작할 수 있어요.'
+                  : numberBaseballStatus === 'completed'
                   ? '오늘의 정답과 기록을 다시 볼 수 있어요.'
                   : numberBaseballStatus === 'exhausted'
                     ? '오늘의 기회를 모두 사용했어요.'
@@ -136,13 +142,17 @@ export default function StudentMissionsPage({
                       ? '오늘의 숫자를 맞히고 있어요.'
                       : '서로 다른 숫자 3개를 맞혀 보세요.'}
                 rewardAmount={NUMBER_BASEBALL_REWARDS}
-                status={numberBaseballStatus}
-                actionLabel={numberBaseballStatus === 'incomplete'
+                status={hasResumableNumberBaseballGame ? 'inProgress' : numberBaseballStatus}
+                actionLabel={hasResumableNumberBaseballGame
+                  ? '이어하기'
+                  : numberBaseballStatus === 'incomplete'
                   ? '게임 시작'
                   : numberBaseballStatus === 'inProgress'
                     ? '이어 하기'
                     : '결과 보기'}
-                onAction={onOpenNumberBaseball}
+                onAction={hasResumableNumberBaseballGame ? onContinueNumberBaseball : onOpenNumberBaseball}
+                secondaryActionLabel={hasResumableNumberBaseballGame ? '처음부터' : undefined}
+                onSecondaryAction={hasResumableNumberBaseballGame ? onOpenNumberBaseball : undefined}
               />
             </motion.div>
             {auctionMissions.map((mission, index) => (

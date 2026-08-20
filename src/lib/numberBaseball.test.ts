@@ -12,6 +12,7 @@ import {
   createNumberBaseballProgressEntry,
   evaluateNumberBaseballGuess,
   getNumberBaseballGameId,
+  getLatestResumableNumberBaseballGame,
   getNumberBaseballOutDigits,
   getNumberBaseballResultDisplays,
   getNumberBaseballReward,
@@ -111,6 +112,49 @@ test('아홉 번 안에서 정답을 맞히거나 기회를 모두 쓰면 더 �
   assert.equal(getNumberBaseballStatus(exhausted, answer), 'exhausted');
   assert.equal(appendNumberBaseballAttempt(solved, answer, [4, 5, 6]), null);
   assert.equal(appendNumberBaseballAttempt(exhausted, answer, [4, 5, 6]), null);
+});
+
+test('오늘 기록이 없으면 가장 최근의 끝나지 않은 지난 숫자야구를 이어 할 수 있다', () => {
+  // Given
+  const studentNumber = 7;
+  const olderDateKey = '2026-08-18';
+  const latestDateKey = '2026-08-19';
+  const completedDateKey = '2026-08-17';
+  const completedAnswer = createNumberBaseballAnswer(studentNumber, completedDateKey);
+  const completedEntry = appendNumberBaseballAttempt(
+    createNumberBaseballProgressEntry(getNumberBaseballGameId(studentNumber, completedDateKey)),
+    completedAnswer,
+    completedAnswer,
+    '2026-08-17T01:00:00.000Z',
+  );
+  const progress = {
+    [`${studentNumber}:${olderDateKey}`]: createNumberBaseballProgressEntry(getNumberBaseballGameId(studentNumber, olderDateKey)),
+    [`${studentNumber}:${latestDateKey}`]: createNumberBaseballProgressEntry(getNumberBaseballGameId(studentNumber, latestDateKey)),
+    [`${studentNumber}:${completedDateKey}`]: completedEntry ?? createNumberBaseballProgressEntry(getNumberBaseballGameId(studentNumber, completedDateKey)),
+  };
+
+  // When
+  const resumable = getLatestResumableNumberBaseballGame(progress, studentNumber, '2026-08-20');
+
+  // Then
+  assert.equal(resumable?.dateKey, latestDateKey);
+  assert.equal(resumable?.entry.gameId, getNumberBaseballGameId(studentNumber, latestDateKey));
+});
+
+test('오늘 숫자야구가 이미 시작됐으면 지난 게임을 이어 하라고 제안하지 않는다', () => {
+  // Given
+  const studentNumber = 7;
+  const todayDateKey = '2026-08-20';
+  const progress = {
+    [`${studentNumber}:2026-08-19`]: createNumberBaseballProgressEntry(getNumberBaseballGameId(studentNumber, '2026-08-19')),
+    [`${studentNumber}:${todayDateKey}`]: createNumberBaseballProgressEntry(getNumberBaseballGameId(studentNumber, todayDateKey)),
+  };
+
+  // When
+  const resumable = getLatestResumableNumberBaseballGame(progress, studentNumber, todayDateKey);
+
+  // Then
+  assert.equal(resumable, null);
 });
 
 test('저장 경계는 중복·0·열 번째 입력을 버리고 정답 이후 기록을 복구하지 않는다', () => {

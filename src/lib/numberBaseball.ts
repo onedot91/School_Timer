@@ -33,6 +33,10 @@ export type NumberBaseballProgressEntry = {
 
 export type StudentNumberBaseballProgress = Record<string, NumberBaseballProgressEntry>;
 export type NumberBaseballStatus = 'incomplete' | 'inProgress' | 'completed' | 'exhausted';
+export type ResumableNumberBaseballGame = {
+  readonly dateKey: string;
+  readonly entry: NumberBaseballProgressEntry;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -138,6 +142,23 @@ export const getNumberBaseballStatus = (
   }
   if (entry.attempts.length >= NUMBER_BASEBALL_MAX_ATTEMPTS) return 'exhausted';
   return 'inProgress';
+};
+
+export const getLatestResumableNumberBaseballGame = (
+  progress: StudentNumberBaseballProgress,
+  studentNumber: number,
+  todayDateKey: string,
+): ResumableNumberBaseballGame | null => {
+  if (progress[getNumberBaseballProgressKey(studentNumber, todayDateKey)]) return null;
+  const studentPrefix = `${studentNumber}:`;
+  const resumableGames = Object.entries(progress).flatMap(([key, entry]) => {
+    if (!key.startsWith(studentPrefix)) return [];
+    const dateKey = key.slice(studentPrefix.length);
+    if (dateKey >= todayDateKey) return [];
+    const answer = createNumberBaseballAnswer(studentNumber, dateKey);
+    return getNumberBaseballStatus(entry, answer) === 'inProgress' ? [{ dateKey, entry }] : [];
+  });
+  return resumableGames.sort((left, right) => right.dateKey.localeCompare(left.dateKey))[0] ?? null;
 };
 
 export const appendNumberBaseballAttempt = (
