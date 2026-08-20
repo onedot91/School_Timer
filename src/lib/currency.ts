@@ -11,6 +11,7 @@ export type CurrencyHistoryReason =
   | 'weekly_mission'
   | 'daily_emotion'
   | 'sudoku_mission'
+  | 'number_baseball_mission'
   | 'class_donation'
   | 'pet_feed'
   | 'bank_transfer'
@@ -250,6 +251,7 @@ const CURRENCY_HISTORY_REASONS = [
   'weekly_mission',
   'daily_emotion',
   'sudoku_mission',
+  'number_baseball_mission',
   'class_donation',
   'pet_feed',
   'bank_transfer',
@@ -457,6 +459,63 @@ export const claimSudokuRewardInSettings = (
     balance: after,
     history: nextHistory,
   };
+};
+
+export const hasNumberBaseballReward = (
+  currencyHistory: unknown,
+  studentNumber: number,
+  gameId: string,
+) => (
+  normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
+).some((entry) => entry.id === `number-baseball-reward-${gameId}`);
+
+export const claimNumberBaseballRewardInSettings = (
+  value: unknown,
+  studentNumber: number,
+  gameId: string,
+  rewardAmount: number,
+  createdAt = new Date().toISOString(),
+): {
+  value: Record<string, unknown>;
+  awarded: boolean;
+  balance: number;
+  history: CurrencyHistory;
+} => {
+  const current = value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value))
+    : {};
+  const balances = normalizeCurrencyBalances(current.currencyBalances);
+  const history = normalizeCurrencyHistory(current.currencyHistory);
+  const studentKey = String(studentNumber);
+  const before = balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const rewardId = `number-baseball-reward-${gameId}`;
+  const existingEntries = history[studentKey] ?? [];
+  if (
+    existingEntries.some((entry) => entry.id === rewardId)
+    || ![5, 10, 15].includes(rewardAmount)
+    || before > CURRENCY_BALANCE_MAX - rewardAmount
+  ) {
+    return { value: current, awarded: false, balance: before, history };
+  }
+  const after = before + rewardAmount;
+  const nextHistory: CurrencyHistory = {
+    ...history,
+    [studentKey]: [{
+      id: rewardId,
+      studentNumber,
+      delta: rewardAmount,
+      before,
+      after,
+      reason: 'number_baseball_mission',
+      createdAt,
+    }, ...existingEntries],
+  };
+  const nextValue = {
+    ...current,
+    currencyBalances: { ...balances, [studentKey]: after },
+    currencyHistory: nextHistory,
+  };
+  return { value: nextValue, awarded: true, balance: after, history: nextHistory };
 };
 
 export const applyAuctionAwardToCurrencyState = (

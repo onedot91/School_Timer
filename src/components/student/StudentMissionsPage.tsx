@@ -2,6 +2,7 @@ import { ArrowRight, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useRef, useState } from 'react';
 import type { AuctionMission } from '../../lib/currency';
+import { NUMBER_BASEBALL_REWARDS, type NumberBaseballStatus } from '../../lib/numberBaseball';
 import {
   SUDOKU_DIFFICULTIES,
   SUDOKU_REWARDS,
@@ -23,8 +24,10 @@ interface StudentMissionsPageProps {
   isSudokuMissionCompleted: boolean;
   activeSudokuDifficulty: SudokuDifficulty | null;
   completedSudokuDifficulty: SudokuDifficulty | null;
+  numberBaseballStatus: NumberBaseballStatus;
   onOpenEmotions: () => void;
   onOpenSudoku: (difficulty: SudokuDifficulty) => void;
+  onOpenNumberBaseball: () => void;
   onBack: () => void;
 }
 
@@ -46,8 +49,10 @@ export default function StudentMissionsPage({
   isSudokuMissionCompleted,
   activeSudokuDifficulty,
   completedSudokuDifficulty,
+  numberBaseballStatus,
   onOpenEmotions,
   onOpenSudoku,
+  onOpenNumberBaseball,
   onBack,
 }: StudentMissionsPageProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
@@ -88,7 +93,7 @@ export default function StudentMissionsPage({
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
           <div className="student-group-heading">
             <h2 id="daily-mission-title">일일 미션</h2>
-            <strong>{auctionMissions.length + 2}개</strong>
+            <strong>{auctionMissions.length + 3}개</strong>
           </div>
           <div className="student-mission-grid">
             <motion.div {...missionEntrance(0)}>
@@ -120,8 +125,28 @@ export default function StudentMissionsPage({
                 }}
               />
             </motion.div>
+            <motion.div className="student-number-baseball-mission" {...missionEntrance(2)}>
+              <StudentMissionCard
+                title="3자리 숫자야구"
+                description={numberBaseballStatus === 'completed'
+                  ? '오늘의 정답과 기록을 다시 볼 수 있어요.'
+                  : numberBaseballStatus === 'exhausted'
+                    ? '오늘의 기회를 모두 사용했어요.'
+                    : numberBaseballStatus === 'inProgress'
+                      ? '오늘의 숫자를 맞히고 있어요.'
+                      : '서로 다른 숫자 3개를 맞혀 보세요.'}
+                rewardAmount={NUMBER_BASEBALL_REWARDS}
+                status={numberBaseballStatus}
+                actionLabel={numberBaseballStatus === 'incomplete'
+                  ? '게임 시작'
+                  : numberBaseballStatus === 'inProgress'
+                    ? '이어 하기'
+                    : '결과 보기'}
+                onAction={onOpenNumberBaseball}
+              />
+            </motion.div>
             {auctionMissions.map((mission, index) => (
-              <motion.div key={mission.id} {...missionEntrance(index + 2)}>
+              <motion.div key={mission.id} {...missionEntrance(index + 3)}>
                 <StudentMissionCard
                   title={mission.content}
                   rewardAmount={mission.rewardAmount}
@@ -140,7 +165,7 @@ export default function StudentMissionsPage({
           </div>
           <div className="student-mission-grid">
             {WEEKLY_MISSION_DEFINITIONS.map((mission, index) => (
-              <motion.div key={mission.type} {...missionEntrance(index + auctionMissions.length + 2)}>
+              <motion.div key={mission.type} {...missionEntrance(index + auctionMissions.length + 3)}>
                 <StudentMissionCard
                   title={mission.label}
                   rewardAmount={mission.rewardAmount}

@@ -1,0 +1,92 @@
+{
+  "history-1280.png": {
+    "emptySlots": 9,
+    "lastSlotWithinWidth": true,
+    "pageOverflow": false,
+    "root": [
+      1075,
+      672
+    ],
+    "tiers": [
+      "1~5회+15 고마",
+      "6~7회+10 고마",
+      "8~9회+5 고마"
+    ],
+    "viewport": [
+      1075,
+      672
+    ]
+  },
+  "history-1366.png": {
+    "emptySlots": 9,
+    "lastSlotWithinWidth": true,
+    "pageOverflow": false,
+    "root": [
+      1148,
+      672
+    ],
+    "tiers": [
+      "1~5회+15 고마",
+      "6~7회+10 고마",
+      "8~9회+5 고마"
+    ],
+    "viewport": [
+      1148,
+      672
+    ]
+  },
+  "history-1024-scrolled.png": {
+    "emptySlots": 9,
+    "lastSlotWithinWidth": true,
+    "pageOverflow": false,
+    "root": [
+      860,
+      672
+    ],
+    "tiers": [
+      "1~5회+15 고마",
+      "6~7회+10 고마",
+      "8~9회+5 고마"
+    ],
+    "viewport": [
+      860,
+      672
+    ]
+  },
+  "history-effective-512-top.png": {
+    "emptySlots": 9,
+    "lastSlotWithinWidth": true,
+    "pageOverflow": false,
+    "root": [
+      430,
+      672
+    ],
+    "tiers": [
+      "1~5회+15 고마",
+      "6~7회+10 고마",
+      "8~9회+5 고마"
+    ],
+    "viewport": [
+      430,
+      672
+    ]
+  },
+  "history-effective-512-scrolled.png": {
+    "emptySlots": 9,
+    "lastSlotWithinWidth": true,
+    "pageOverflow": false,
+    "root": [
+      430,
+      672
+    ],
+    "tiers": [
+      "1~5회+15 고마",
+      "6~7회+10 고마",
+      "8~9회+5 고마"
+    ],
+    "viewport": [
+      430,
+      672
+    ]
+  }
+}

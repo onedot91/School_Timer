@@ -9,6 +9,7 @@ import StudentLibraryPage from '../components/student/StudentLibraryPage';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentStorePage from '../components/student/StudentStorePage';
 import StudentSudokuPage from '../components/student/StudentSudokuPage';
+import StudentNumberBaseballPage from '../components/student/StudentNumberBaseballPage';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
   AUCTION_BID_STEP,
@@ -132,13 +133,15 @@ import {
 } from '../lib/studentLife';
 import { createBankMailboxLetters } from '../lib/bankMailbox';
 import { useStudentSudokuState } from '../lib/useStudentSudokuState';
+import { useStudentNumberBaseballState } from '../lib/useStudentNumberBaseballState';
+import { createNumberBaseballProgressEntry } from '../lib/numberBaseball';
 import type { SudokuDifficulty } from '../lib/sudoku';
 
 interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'sudoku' | 'mailbox' | 'library' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -156,6 +159,7 @@ type SharedSettingsValue = {
   studentStockMarket?: unknown;
   studentLife?: unknown;
   studentSudoku?: unknown;
+  studentNumberBaseball?: unknown;
 };
 
 const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
@@ -163,6 +167,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   emotions: '#student-emotions',
   missions: '#student-missions',
   sudoku: '#student-sudoku',
+  'number-baseball': '#student-number-baseball',
   mailbox: '#student-mailbox',
   library: '#student-library',
   store: '#student-store',
@@ -241,6 +246,23 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     applySharedStudentSudoku,
     refreshLocalStudentSudoku,
   } = useStudentSudokuState({
+    studentNumber,
+    currencyHistory,
+    onCurrencyBalancesChange: setCurrencyBalances,
+    onCurrencyHistoryChange: setCurrencyHistory,
+  });
+  const {
+    progressEntry: numberBaseballEntry,
+    status: numberBaseballStatus,
+    hasReward: hasNumberBaseballReward,
+    dateKey: numberBaseballDateKey,
+    gameId: numberBaseballGameId,
+    startGame: startNumberBaseball,
+    saveProgress: saveNumberBaseballProgress,
+    completeGame: completeNumberBaseball,
+    applySharedProgress: applySharedNumberBaseball,
+    refreshLocalProgress: refreshLocalNumberBaseball,
+  } = useStudentNumberBaseballState({
     studentNumber,
     currencyHistory,
     onCurrencyBalancesChange: setCurrencyBalances,
@@ -361,6 +383,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     pageScrollRef.current?.scrollTo({ top: 0 });
     if (window.location.hash !== targetHash) window.location.hash = targetHash;
   }, []);
+
+  useEffect(() => {
+    pageScrollRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [activeStudentView]);
 
   const focusAuctionReturnTarget = useCallback(() => {
     const storedTarget = statusReturnFocusRef.current;
@@ -805,6 +831,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStudentStockMarket(normalizeStudentStockMarket(value.studentStockMarket));
     setStudentLife(normalizeStudentLifeState(value.studentLife));
     applySharedStudentSudoku(value);
+    applySharedNumberBaseball(value);
     const weekKey = getKoreanIsoWeekKey();
     setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
       (statuses, missionType) => ({
@@ -815,7 +842,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }),
       previous,
     ));
-  }, [applySharedStudentSudoku, studentNumber]);
+  }, [applySharedNumberBaseball, applySharedStudentSudoku, studentNumber]);
 
   const refreshAuctionState = useCallback(async ({ forceFull = false }: { forceFull?: boolean } = {}) => {
     if (!isSupabaseSettingsEnabled) {
@@ -834,6 +861,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentShopCatalog(loadStoredStudentShopCatalog());
       setStudentLife(loadStoredStudentLifeState());
       refreshLocalStudentSudoku();
+      refreshLocalNumberBaseball();
       setIsLoading(false);
       return;
     }
@@ -862,7 +890,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
     }
-  }, [applySharedSettingsValue, refreshLocalStudentSudoku]);
+  }, [applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku]);
 
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) return;
@@ -881,6 +909,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const isEntryRefreshView = activeStudentView === 'emotions'
       || activeStudentView === 'missions'
       || activeStudentView === 'sudoku'
+      || activeStudentView === 'number-baseball'
       || activeStudentView === 'mailbox'
       || activeStudentView === 'library';
     refreshWhenVisible(isStudentStoreView(activeStudentView) || isEntryRefreshView);
@@ -1505,6 +1534,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             isSudokuMissionCompleted={hasCompletedDailySudokuMission}
             activeSudokuDifficulty={activeSudokuDifficulty}
             completedSudokuDifficulty={completedSudokuDifficulty}
+            numberBaseballStatus={numberBaseballStatus}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenSudoku={async (difficulty) => {
               const startedDifficulty = await startSudoku(difficulty);
@@ -1514,6 +1544,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               }
               setSudokuDifficulty(startedDifficulty);
               navigateStudentView('sudoku');
+            }}
+            onOpenNumberBaseball={async () => {
+              const started = await startNumberBaseball();
+              if (!started) {
+                showStatusMessage('숫자야구를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+                return;
+              }
+              navigateStudentView('number-baseball');
             }}
             onBack={() => navigateStudentView('overview')}
           />
@@ -1526,6 +1564,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             rewardedPuzzleIds={rewardedSudokuPuzzleIds}
             onSave={saveSudokuProgress}
             onComplete={completeSudoku}
+            onBack={() => navigateStudentView('missions')}
+          />
+        ) : null}
+        {activeStudentView === 'number-baseball' ? (
+          <StudentNumberBaseballPage
+            studentNumber={studentNumber}
+            dateKey={numberBaseballDateKey}
+            entry={numberBaseballEntry ?? createNumberBaseballProgressEntry(numberBaseballGameId)}
+            hasReward={hasNumberBaseballReward}
+            onSave={saveNumberBaseballProgress}
+            onComplete={completeNumberBaseball}
             onBack={() => navigateStudentView('missions')}
           />
         ) : null}

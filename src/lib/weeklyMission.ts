@@ -286,6 +286,21 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
 
   Object.keys(nextHistory).forEach((studentKey) => {
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const missingNumberBaseballRewards = remoteHistory[studentKey].filter((entry) => (
+      entry.reason === 'number_baseball_mission' && entry.delta > 0 && !existingIds.has(entry.id)
+    ));
+
+    if (missingNumberBaseballRewards.length === 0) return;
+
+    const rewardAmount = missingNumberBaseballRewards.reduce((total, entry) => total + entry.delta, 0);
+    const nextBalance = nextBalances[studentKey] + rewardAmount;
+    if (nextBalance > CURRENCY_BALANCE_MAX) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    nextBalances[studentKey] = nextBalance;
+    nextHistory[studentKey] = [...missingNumberBaseballRewards, ...nextHistory[studentKey]];
+  });
+
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
     const missingDailyEmotionRewards = remoteHistory[studentKey].filter((entry) => (
       entry.reason === 'daily_emotion' && entry.delta > 0 && !existingIds.has(entry.id)
     ));
@@ -377,6 +392,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       next.studentEmotionHistory,
     ),
     studentSudoku: remote.studentSudoku ?? next.studentSudoku,
+    studentNumberBaseball: remote.studentNumberBaseball ?? next.studentNumberBaseball,
   };
 };
 

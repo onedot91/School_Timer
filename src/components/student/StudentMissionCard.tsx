@@ -1,7 +1,7 @@
-import { AlertCircle, CheckCircle2, Circle, CircleDot, ExternalLink, LoaderCircle, TriangleAlert } from 'lucide-react';
-import { formatCurrency } from '../../lib/currency';
+import { AlertCircle, CheckCircle2, Circle, CircleDot, ExternalLink, LoaderCircle, TriangleAlert, XCircle } from 'lucide-react';
+import { CURRENCY_UNIT_LABEL, formatCurrency, formatCurrencyAmount } from '../../lib/currency';
 
-export type StudentMissionStatus = 'incomplete' | 'inProgress' | 'loading' | 'completed' | 'unavailable' | 'error';
+export type StudentMissionStatus = 'incomplete' | 'inProgress' | 'loading' | 'completed' | 'exhausted' | 'unavailable' | 'error';
 
 interface StudentMissionCardProps {
   title: string;
@@ -18,6 +18,7 @@ const STATUS_CONTENT: Record<StudentMissionStatus, { label: string; icon: typeof
   inProgress: { label: '진행 중', icon: CircleDot },
   loading: { label: '확인 중', icon: LoaderCircle },
   completed: { label: '완료', icon: CheckCircle2 },
+  exhausted: { label: '기회 소진', icon: XCircle },
   unavailable: { label: '확인 불가', icon: AlertCircle },
   error: { label: '오류', icon: TriangleAlert },
 };
@@ -34,6 +35,12 @@ export default function StudentMissionCard({
   const statusContent = STATUS_CONTENT[status];
   const StatusIcon = statusContent.icon;
   const rewardAmounts = typeof rewardAmount === 'number' ? [rewardAmount] : rewardAmount;
+  const rewardLabel = rewardAmounts.length === 1
+    ? rewardAmounts.map((amount) => `+${formatCurrency(amount)}`).join('')
+    : `${[...rewardAmounts]
+      .sort((left, right) => left - right)
+      .map((amount) => `+${formatCurrencyAmount(amount)}`)
+      .join(' / ')} ${CURRENCY_UNIT_LABEL}`;
 
   return (
     <article className={`student-mission-card student-mission-card-${status}`}>
@@ -43,7 +50,7 @@ export default function StudentMissionCard({
           {statusContent.label}
         </span>
         <span className="student-mission-reward">
-          {rewardAmounts.map((amount) => `+${formatCurrency(amount)}`).join(' · ')}
+          {rewardLabel}
         </span>
       </div>
       <div className="student-mission-copy">
