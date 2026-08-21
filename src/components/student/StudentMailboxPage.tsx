@@ -50,6 +50,20 @@ const getLetterDisplayTitle = (title: string): string => (
   title.trim().replace(/^[◆◇▶▷•·]\s*/, '') || '편지가 도착했어요'
 );
 
+const preserveKoreanPhraseSpacing = (content: string): string => content
+  .replace(/([가-힣]+의) (?=[가-힣])/g, '$1\u00a0')
+  .replace(/([가-힣]+(?:을|를)) (?=[가-힣])/g, '$1\u00a0')
+  .replace(/(^|\s)(왜|어떻게|언제|어디서|무엇을|누가) (?=[가-힣])/g, '$1$2\u00a0')
+  .replace(
+    /(^|\s)(이번|다음|저번|지난|오는) (주(?:에는|는|에|부터|까지)?|달(?:에는|은|에|부터|까지)?|학기(?:에는|는|에|부터|까지)?)(?: ([가-힣]+))?/g,
+    (_match, leadingSpace: string, determiner: string, period: string, following = '') => (
+      `${leadingSpace}${determiner}\u00a0${period}${following ? `\u00a0${following}` : ''}`
+    ),
+  )
+  .replace(/([가-힣]+) (시간(?:에는|은|에|부터|까지)?)/g, '$1\u00a0$2')
+  .replace(/([가-힣]+) 한 ([가-힣]+)/g, '$1\u00a0한\u00a0$2')
+  .replace(/([가-힣]+(?:을|ㄹ)) 수 ([가-힣]+)/g, '$1\u00a0수\u00a0$2');
+
 export default function StudentMailboxPage({
   studentNumber,
   letters,
@@ -219,7 +233,7 @@ export default function StudentMailboxPage({
                     {isFromBank ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
                     ) : (
-                      <><Stamp size={17} /><span>{getStampLabel(kind)}</span></>
+                      <Stamp size={22} />
                     )}
                   </span>
                   <span className="student-mail-envelope-copy">
@@ -295,11 +309,11 @@ export default function StudentMailboxPage({
                     {selectedIsBankLetter ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
                     ) : (
-                      <><Stamp size={24} aria-hidden="true" /><span>{getStampLabel(getMailKind(selectedLetter))}</span></>
+                      <Stamp size={28} aria-hidden="true" />
                     )}
                   </span>
                 </header>
-                <p>{selectedLetter.content}</p>
+                <p>{preserveKoreanPhraseSpacing(selectedLetter.content)}</p>
                 <footer className="student-letter-footer">
                   <strong>{mode === 'sent' ? `${studentNumber}번 드림` : `${selectedLetter.senderLabel} 드림`}</strong>
                 </footer>
@@ -312,7 +326,7 @@ export default function StudentMailboxPage({
             </div>
           ) : (
             <div className="student-mail-empty-stage">
-              <img src="/goma-canvas-character.png" alt="" draggable={false} />
+              <img src="/mail-carrier-totgi.png" alt="" draggable={false} />
               <p>{activeLetters.length === 0
                 ? (folder === 'inbox' ? '도착한 편지가 없어요' : '아직 보낸 편지가 없어요')
                 : '편지를 골라 보세요'}</p>

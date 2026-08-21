@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, LibraryBig, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartPulse, LibraryBig, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -74,6 +74,7 @@ import {
 } from '../lib/studentPet';
 import {
   STUDENT_CHARACTER_PRIZES,
+  STUDENT_HOUSE_DESIGNS,
   STUDENT_STOCKS,
   loadStoredStudentShopCatalog,
   loadStoredStudentStockMarket,
@@ -178,8 +179,16 @@ import {
 } from '../lib/currency';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'bookstore';
-type AuctionSettingsSection = 'items' | 'missions';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'bookstore';
+type TeacherShopTab = 'items' | 'characters' | 'houses';
+type SettingsNavigationGroup = {
+  readonly label: string;
+  readonly items: readonly {
+    readonly panel: SettingsPanel;
+    readonly label: string;
+    readonly icon: LucideIcon;
+  }[];
+};
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 type AuctionManagementAction = 'weeklyClose' | 'currency';
 type CurrencyAdjustmentTarget = 'student' | 'group' | 'all';
@@ -192,6 +201,36 @@ type EmotionCalendarDay = {
   readonly dateKey: string;
   readonly isCurrentMonth: boolean;
 };
+
+const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
+  {
+    label: '수업 운영',
+    items: [
+      { panel: 'schedule', label: '시간표', icon: CalendarClock },
+      { panel: 'subjects', label: '과목', icon: BookOpen },
+      { panel: 'draw', label: '추첨', icon: Sparkles },
+    ],
+  },
+  {
+    label: '학생 생활',
+    items: [
+      { panel: 'emotion', label: '감정', icon: HeartPulse },
+      { panel: 'mail', label: '편지', icon: Mail },
+      { panel: 'bookstore', label: '책방', icon: LibraryBig },
+      { panel: 'missions', label: '미션', icon: ClipboardCheck },
+    ],
+  },
+  {
+    label: '고마 경제',
+    items: [
+      { panel: 'auction', label: '경매', icon: Coins },
+      { panel: 'donation', label: '기부', icon: HeartPulse },
+      { panel: 'shop', label: '상점', icon: Package },
+      { panel: 'stocks', label: '증권', icon: Star },
+    ],
+  },
+] as const;
+const SETTINGS_NAVIGATION_ITEMS = SETTINGS_NAVIGATION_GROUPS.flatMap((group) => group.items);
 
 const EMOTION_CALENDAR_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const emotionCalendarMonthFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -3646,7 +3685,6 @@ export default function TimerPage() {
   const [isCurrencyPanelOpen, setIsCurrencyPanelOpen] = useState(false);
   const [isQuestionSubmissionPanelOpen, setIsQuestionSubmissionPanelOpen] = useState(false);
   const [selectedEmotionStudentNumber, setSelectedEmotionStudentNumber] = useState(1);
-  const [auctionSettingsSection, setAuctionSettingsSection] = useState<AuctionSettingsSection>('items');
   const [emotionCalendarMonth, setEmotionCalendarMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -3714,6 +3752,7 @@ export default function TimerPage() {
   }, [stockMarketWeekStartDateKey, studentStockMarket]);
   const [newShopItemName, setNewShopItemName] = useState('');
   const [newShopItemPrice, setNewShopItemPrice] = useState('');
+  const [teacherShopTab, setTeacherShopTab] = useState<TeacherShopTab>('items');
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
   ));
@@ -3949,6 +3988,34 @@ export default function TimerPage() {
     return () => controls.stop();
   }, [animateMotion, isSettingsMaterialMounted, isSettingsOpen, settingsMaterialProgress, shouldReduceMotion]);
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('subjects');
+  const currentSettingsNavigationItem = SETTINGS_NAVIGATION_ITEMS.find((item) => item.panel === settingsPanel);
+  const handleSettingsNavigationKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    const navigationButtons: HTMLButtonElement[] = [
+      ...event.currentTarget.querySelectorAll<HTMLButtonElement>('[data-settings-nav-item]'),
+    ];
+    const currentIndex = navigationButtons.findIndex((button) => button === document.activeElement);
+    if (currentIndex < 0) return;
+
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % navigationButtons.length;
+    } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + navigationButtons.length) % navigationButtons.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = navigationButtons.length - 1;
+    } else {
+      return;
+    }
+
+    const nextButton = navigationButtons[nextIndex];
+    const nextItem = SETTINGS_NAVIGATION_ITEMS[nextIndex];
+    if (!nextButton || !nextItem) return;
+    event.preventDefault();
+    nextButton.focus();
+    setSettingsPanel(nextItem.panel);
+  }, []);
   const [editingDay, setEditingDay] = useState<number>(() => getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [pendingAuctionAction, setPendingAuctionAction] = useState<AuctionManagementAction | null>(null);
@@ -7775,14 +7842,39 @@ export default function TimerPage() {
             ))}
           </div>
 
+          <div className="settings-schedule-transfer mt-4 grid grid-cols-2 gap-2 border-t border-[#E6D5C9] pt-4">
+            <button
+              type="button"
+              onClick={exportSchedule}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[#D8C7B6] bg-white px-3 text-[0.84rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF9F2]"
+            >
+              <Download size={17} aria-hidden="true" />
+              시간표 백업
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[#D8C7B6] bg-white px-3 text-[0.84rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF9F2]"
+            >
+              <Upload size={17} aria-hidden="true" />
+              시간표 복구
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="sr-only"
+              onChange={importSchedule}
+            />
+          </div>
+
         </section>
 
         <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
           <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">학교 시계 보정</h3>
-          <div className="mt-1.5 space-y-1 text-[0.82rem] font-semibold leading-relaxed text-[#8A6347]/75">
-            <p>학교 종이 웹 타이머보다 빠르면 +, 늦으면 -로 입력하세요.</p>
-            <p>예: 학교 종이 10초 빠르면 10</p>
-          </div>
+          <p className="mt-1.5 text-[0.82rem] font-semibold leading-relaxed text-[#8A6347]/75">
+            학교 종이보다 빠르면 +, 늦으면 −초
+          </p>
           <label className="mt-3 flex items-center gap-2">
             <input
               type="number"
@@ -8499,6 +8591,9 @@ export default function TimerPage() {
   );
 
   const auctionVisibleDayCount = getAuctionVisibleDayCount();
+  const isAuctionScheduleClosed = auctionVisibleDayCount === 0;
+  const isAuctionConfigurationExpanded =
+    !isAuctionScheduleClosed || temporaryVisibleAuctionItemIds.size > 0;
   const awardableAuctionItems = auctionItems.filter((item) => {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     return item.dayIndex < auctionVisibleDayCount && !auctionAwards[item.id] && currentBid.bidder !== null && currentBid.amount > 0;
@@ -8617,9 +8712,7 @@ export default function TimerPage() {
     >
       <header className="teacher-bookstore-header">
         <div>
-          <span>학생 책방</span>
           <h3 id="teacher-bookstore-title">우수글 진열대</h3>
-          <p>공개한 글만 학생 책방에 위에서부터 차례대로 진열됩니다.</p>
         </div>
         <button type="button" onClick={addFeaturedWriting}>
           <Plus size={18} aria-hidden="true" /> 우수글 추가
@@ -8716,59 +8809,81 @@ export default function TimerPage() {
   );
 
   const shopSettingsPanel = (
-    <section className="settings-card teacher-shop-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-shop-title">
-      <div className="teacher-shop-catalog">
-        <header>
-          <div><h3 id="teacher-shop-title">물품 상점</h3><p>학생에게 판매할 물품</p></div>
-          <span>{studentShopCatalog.filter((item) => item.isActive).length}개 판매 중</span>
-        </header>
-        <div className="teacher-shop-add-row">
-          <label>물품명<input value={newShopItemName} maxLength={30} onChange={(event) => setNewShopItemName(event.target.value)} placeholder="예: 우선 급식권" /></label>
-          <label>가격<input value={newShopItemPrice} inputMode="numeric" onChange={(event) => setNewShopItemPrice(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="고마" /></label>
-          <button type="button" onClick={addStudentShopItem} disabled={!newShopItemName.trim() || !newShopItemPrice}><Plus size={18} />추가</button>
-        </div>
-        <div className="teacher-shop-item-list">
-          {studentShopCatalog.map((item) => (
-            <article key={item.id}>
-              <Package aria-hidden="true" />
-              <input aria-label={`${item.name} 이름`} value={item.name} maxLength={30} onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} onBlur={() => setStudentShopCatalog((current) => normalizeStudentShopCatalog(current))} />
-              <label><input aria-label={`${item.name} 가격`} value={item.price} type="number" min="1" max="999999" onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, price: Number(event.target.value) } : candidate))} /> 고마</label>
-              <button type="button" className={item.isActive ? 'is-active' : ''} onClick={() => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, isActive: !candidate.isActive } : candidate))}>{item.isActive ? '판매 중' : '숨김'}</button>
-              <button type="button" className="is-delete" aria-label={`${item.name} 삭제`} onClick={() => setStudentShopCatalog((current) => current.filter((candidate) => candidate.id !== item.id))}><Trash2 size={17} /></button>
-            </article>
-          ))}
-        </div>
-      </div>
-      <div className="teacher-shop-purchases">
-        <header><div><h3>구매 현황</h3><p>학생별 구매 물품</p></div></header>
-        <div className="teacher-shop-student-list">
-          {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => {
-            const inventory = studentEconomyStates[String(number)]?.inventory ?? {};
-            const purchases = [
-              ...studentShopCatalog.flatMap((item) => (inventory[item.id] ?? 0) > 0 ? [`${item.name} ${inventory[item.id]}개`] : []),
-              ...((inventory.house_repair ?? 0) > 0 ? ['집 고치기'] : []),
-            ];
-            return <div key={number}><strong>{number}번</strong><span>{purchases.length > 0 ? purchases.join(' · ') : '구매 없음'}</span></div>;
-          })}
-        </div>
-      </div>
-      <section className="teacher-shop-skins" aria-labelledby="teacher-shop-skins-title">
-        <header>
-          <div>
-            <h3 id="teacher-shop-skins-title">고마 스킨 도감</h3>
-            <p>학생이 인형 뽑기에서 얻을 수 있는 스킨</p>
+    <section className="teacher-shop-hub" aria-labelledby="teacher-shop-title">
+      <h2 id="teacher-shop-title" className="sr-only">상점 설정</h2>
+      <nav className="teacher-shop-tabs" aria-label="상점 세부 설정" role="tablist">
+        <button type="button" role="tab" id="teacher-shop-tab-items" aria-controls="teacher-shop-panel-items" aria-selected={teacherShopTab === 'items'} className={teacherShopTab === 'items' ? 'is-active' : ''} onClick={() => setTeacherShopTab('items')}><Package aria-hidden="true" /><span>물품</span></button>
+        <button type="button" role="tab" id="teacher-shop-tab-characters" aria-controls="teacher-shop-panel-characters" aria-selected={teacherShopTab === 'characters'} className={teacherShopTab === 'characters' ? 'is-active' : ''} onClick={() => setTeacherShopTab('characters')}><Gamepad2 aria-hidden="true" /><span>고마 스킨 뽑기</span></button>
+        <button type="button" role="tab" id="teacher-shop-tab-houses" aria-controls="teacher-shop-panel-houses" aria-selected={teacherShopTab === 'houses'} className={teacherShopTab === 'houses' ? 'is-active' : ''} onClick={() => setTeacherShopTab('houses')}><Hammer aria-hidden="true" /><span>집</span></button>
+      </nav>
+
+      {teacherShopTab === 'items' ? (
+        <section id="teacher-shop-panel-items" role="tabpanel" aria-labelledby="teacher-shop-tab-items" className="settings-card teacher-shop-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
+          <div className="teacher-shop-catalog">
+            <header>
+              <div><h3>물품 등록</h3><p>학생에게 판매할 물품</p></div>
+              <span>{studentShopCatalog.filter((item) => item.isActive).length}개 판매 중</span>
+            </header>
+            <div className="teacher-shop-add-row">
+              <label>물품명<input value={newShopItemName} maxLength={30} onChange={(event) => setNewShopItemName(event.target.value)} placeholder="예: 우선 급식권" /></label>
+              <label>가격<input value={newShopItemPrice} inputMode="numeric" onChange={(event) => setNewShopItemPrice(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="고마" /></label>
+              <button type="button" onClick={addStudentShopItem} disabled={!newShopItemName.trim() || !newShopItemPrice}><Plus size={18} />추가</button>
+            </div>
+            <div className="teacher-shop-item-list">
+              {studentShopCatalog.map((item) => (
+                <article key={item.id}>
+                  <Package aria-hidden="true" />
+                  <input aria-label={`${item.name} 이름`} value={item.name} maxLength={30} onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} onBlur={() => setStudentShopCatalog((current) => normalizeStudentShopCatalog(current))} />
+                  <label><input aria-label={`${item.name} 가격`} value={item.price} type="number" min="1" max="999999" onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, price: Number(event.target.value) } : candidate))} /> 고마</label>
+                  <button type="button" className={item.isActive ? 'is-active' : ''} onClick={() => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, isActive: !candidate.isActive } : candidate))}>{item.isActive ? '판매 중' : '숨김'}</button>
+                  <button type="button" className="is-delete" aria-label={`${item.name} 삭제`} onClick={() => setStudentShopCatalog((current) => current.filter((candidate) => candidate.id !== item.id))}><Trash2 size={17} /></button>
+                </article>
+              ))}
+            </div>
           </div>
-          <span>{STUDENT_CHARACTER_PRIZES.length}종</span>
-        </header>
-        <div className="teacher-shop-skin-list">
-          {STUDENT_CHARACTER_PRIZES.map((character) => (
-            <article key={character.id}>
-              <img src={character.imageSrc} alt={character.name} />
-              <span>{character.name}</span>
-            </article>
-          ))}
-        </div>
-      </section>
+          <div className="teacher-shop-purchases">
+            <header><div><h3>구매 현황</h3><p>학생별 구매 물품</p></div></header>
+            <div className="teacher-shop-student-list">
+              {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => {
+                const inventory = studentEconomyStates[String(number)]?.inventory ?? {};
+                const purchases = [
+                  ...studentShopCatalog.flatMap((item) => (inventory[item.id] ?? 0) > 0 ? [`${item.name} ${inventory[item.id]}개`] : []),
+                  ...((inventory.house_repair ?? 0) > 0 ? ['집 고치기'] : []),
+                ];
+                return <div key={number}><strong>{number}번</strong><span>{purchases.length > 0 ? purchases.join(' · ') : '구매 없음'}</span></div>;
+              })}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {teacherShopTab === 'characters' ? (
+        <section id="teacher-shop-panel-characters" role="tabpanel" aria-labelledby="teacher-shop-tab-characters" className="settings-card teacher-shop-collection teacher-shop-skins rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
+          <header><div><h3>고마 스킨 도감</h3><p>학생이 뽑을 수 있는 전체 스킨</p></div><span>{STUDENT_CHARACTER_PRIZES.length}종</span></header>
+          <div className="teacher-shop-skin-list">
+            {STUDENT_CHARACTER_PRIZES.map((character) => (
+              <article key={character.id}>
+                <img src={character.imageSrc} alt="" />
+                <span>{character.name}</span>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {teacherShopTab === 'houses' ? (
+        <section id="teacher-shop-panel-houses" role="tabpanel" aria-labelledby="teacher-shop-tab-houses" className="settings-card teacher-shop-collection teacher-shop-houses rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
+          <header><div><h3>구매 가능한 집</h3><p>학생 집 상점에 표시되는 목록</p></div><span>{STUDENT_HOUSE_DESIGNS.length}채</span></header>
+          <div className="teacher-shop-house-list">
+            {STUDENT_HOUSE_DESIGNS.map((house) => (
+              <article key={house.id}>
+                <img src={house.imageSrc} alt="" />
+                <div><strong>{house.name}</strong><span>{house.price} 고마</span></div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 
@@ -9149,35 +9264,11 @@ export default function TimerPage() {
 
   const auctionSettingsPanel = (
     <div className="settings-panel-grid grid gap-4">
-      <div className="grid grid-cols-2 gap-2 rounded-[1rem] border border-[#DCE8E2] bg-[#F4F8F5] p-1" role="tablist" aria-label="경매 설정 메뉴">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={auctionSettingsSection === 'items'}
-          onClick={() => setAuctionSettingsSection('items')}
-          className={`min-h-11 rounded-[0.75rem] text-[0.9rem] font-extrabold transition-colors ${
-            auctionSettingsSection === 'items' ? 'bg-white text-[#006241] shadow-sm' : 'text-[#6F7D70]'
-          }`}
-        >
-          물품
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={auctionSettingsSection === 'missions'}
-          onClick={() => setAuctionSettingsSection('missions')}
-          className={`min-h-11 rounded-[0.75rem] text-[0.9rem] font-extrabold transition-colors ${
-            auctionSettingsSection === 'missions' ? 'bg-white text-[#006241] shadow-sm' : 'text-[#6F7D70]'
-          }`}
-        >
-          미션
-        </button>
-      </div>
-
-      {auctionSettingsSection === 'items' ? <>
-      <section className="settings-card rounded-[1.7rem] border border-[#CFE3D8] bg-[#F7FBF9] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학급 기부</h3>
+      {settingsPanel === 'donation' ? (
+      <section
+        className="settings-card rounded-[1.7rem] border border-[#CFE3D8] bg-[#F7FBF9] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5"
+      >
+        <div className="flex items-center justify-end">
           <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#B9D7CA] bg-white px-4 font-extrabold text-[#006B4D]">
             <input
               type="checkbox"
@@ -9226,38 +9317,93 @@ export default function TimerPage() {
           </label>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[1rem] border border-[#DCEAE3] bg-white px-4 py-3">
-          <div className="font-mono text-[1rem] font-black text-[#007A57]">
-            {formatCurrency(classDonation.totalAmount)} / {formatCurrency(classDonation.targetAmount)}
+        <div className="mt-3 rounded-[1rem] border border-[#DCEAE3] bg-white px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[0.78rem] font-extrabold text-[#6F7D70]">진행</span>
+            <strong className="font-mono text-[1rem] font-black text-[#007A57]">
+              {formatCurrency(classDonation.totalAmount)} / {formatCurrency(classDonation.targetAmount)}
+            </strong>
           </div>
-          <button
-            type="button"
-            onClick={() => void resetClassDonation()}
-            disabled={classDonation.totalAmount === 0 && classDonation.history.length === 0}
-            className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#CFE3D8] bg-white px-4 text-[0.84rem] font-extrabold text-[#006B4D] disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            새 목표로 초기화
-          </button>
+          <progress
+            className="teacher-donation-progress mt-2 h-2.5 w-full overflow-hidden rounded-full"
+            value={classDonation.totalAmount}
+            max={Math.max(classDonation.targetAmount, 1)}
+            aria-label="기부 진행률"
+          />
         </div>
 
         {classDonation.history.length > 0 ? (
-          <div className="custom-scrollbar mt-3 max-h-44 overflow-y-auto rounded-[1rem] border border-[#DCEAE3] bg-white p-2">
-            {classDonation.history.map((entry) => (
-              <div key={entry.id} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-[#EDF2EF] px-2 py-2 last:border-b-0">
-                <span className="font-extrabold text-[#38423D]">{entry.studentNumber}번</span>
-                <span className="text-[0.78rem] font-bold text-[#7A8780]">{new Date(entry.createdAt).toLocaleString('ko-KR')}</span>
-                <span className="font-mono font-black text-[#007A57]">{formatCurrency(entry.amount)}</span>
-              </div>
-            ))}
-          </div>
+          <details className="settings-disclosure mt-3 rounded-[1rem] border border-[#DCEAE3] bg-white">
+            <summary className="min-h-11 cursor-pointer px-4 py-3 text-[0.84rem] font-extrabold text-[#46534B]">
+              기부 기록 {classDonation.history.length}건
+            </summary>
+            <div className="custom-scrollbar max-h-44 overflow-y-auto border-t border-[#EDF2EF] p-2">
+              {classDonation.history.map((entry) => (
+                <div key={entry.id} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-[#EDF2EF] px-2 py-2 last:border-b-0">
+                  <span className="font-extrabold text-[#38423D]">{entry.studentNumber}번</span>
+                  <span className="text-[0.78rem] font-bold text-[#7A8780]">{new Date(entry.createdAt).toLocaleString('ko-KR')}</span>
+                  <span className="font-mono font-black text-[#007A57]">{formatCurrency(entry.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </details>
         ) : null}
-      </section>
 
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <details className="settings-disclosure mt-3 rounded-[1rem] border border-[#E4D7C9] bg-white/70">
+          <summary className="min-h-11 cursor-pointer px-4 py-3 text-[0.84rem] font-extrabold text-[#6E5139]">
+            목표 관리
+          </summary>
+          <div className="border-t border-[#EEE4D6] p-3">
+            <button
+              type="button"
+              onClick={() => void resetClassDonation()}
+              disabled={classDonation.totalAmount === 0 && classDonation.history.length === 0}
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border border-[#D8B6A2] bg-white px-4 text-[0.84rem] font-extrabold text-[#7A4C24] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              새 목표로 초기화
+            </button>
+          </div>
+        </details>
+      </section>
+      ) : null}
+
+      {settingsPanel === 'auction' ? (
+      <section
+        className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5"
+      >
         <div className="mb-4">
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정 및 현황</h3>
         </div>
 
+        {isAuctionScheduleClosed ? (
+          <div className="auction-settings-closed-summary">
+            <div className="auction-settings-closed-copy">
+              <span className="auction-settings-closed-icon" aria-hidden="true">
+                <Lock size={18} />
+              </span>
+              <div>
+                <strong>경매 일정이 열려 있지 않음</strong>
+                <span>등록 물품 {auctionItems.length}개</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (isAuctionConfigurationExpanded) {
+                  setTemporaryVisibleAuctionItemIds(new Set());
+                  return;
+                }
+                setTemporaryVisibleAuctionItemIds(new Set(auctionItems.map((item) => item.id)));
+              }}
+              className="auction-settings-closed-action"
+              aria-expanded={isAuctionConfigurationExpanded}
+            >
+              {isAuctionConfigurationExpanded ? '물품 설정 닫기' : '물품 설정 열기'}
+            </button>
+          </div>
+        ) : null}
+
+        {isAuctionConfigurationExpanded ? (
         <div className="auction-settings-day-list grid gap-3">
           {AUCTION_WEEKDAY_LABELS.map((weekdayLabel, dayIndex) => {
             const accent = AUCTION_DAY_ACCENTS[dayIndex] ?? AUCTION_DAY_ACCENTS[0];
@@ -9309,15 +9455,6 @@ export default function TimerPage() {
                 </div>
 
                 <div className="auction-settings-item-grid grid gap-2">
-                  {dayItems.length === 0 ? (
-                    <div
-                      className="auction-settings-empty w-full rounded-[1rem] border border-dashed bg-white/80 px-3 py-4 text-center text-[0.82rem] font-black text-[#8A7A6B]"
-                      style={{ borderColor: accent.border }}
-                    >
-                      물품 없음
-                    </div>
-                  ) : null}
-
                   {dayItems.map((item, slotIndex) => {
                     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
                     const award = auctionAwards[item.id] ?? null;
@@ -9475,18 +9612,15 @@ export default function TimerPage() {
             );
           })}
         </div>
+        ) : null}
       </section>
-      </> : null}
+      ) : null}
 
-      {auctionSettingsSection === 'missions' ? (
-      <section className="settings-card rounded-[1.7rem] border border-[#DDEBDD] bg-[#F8FCF6] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">미션</h3>
-            <p className="mt-1 text-[0.82rem] font-bold leading-5 text-[#6F7D70]">
-              학생 화면에 보여 줄 학급 공통 미션과 보상 고마를 정합니다.
-            </p>
-          </div>
+      {settingsPanel === 'missions' ? (
+      <section
+        className="settings-card rounded-[1.7rem] border border-[#DDEBDD] bg-[#F8FCF6] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5"
+      >
+        <div className="mb-4 flex justify-end">
           <button
             type="button"
             onClick={addAuctionMission}
@@ -9499,7 +9633,7 @@ export default function TimerPage() {
 
         {auctionMissions.length === 0 ? (
           <div className="rounded-[1.1rem] border border-dashed border-[#BBD8CB] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[#6F7D70]">
-            등록된 미션이 없습니다.
+            등록된 미션 없음
           </div>
         ) : (
           <div className="grid gap-2.5">
@@ -9561,7 +9695,7 @@ export default function TimerPage() {
       </section>
       ) : null}
 
-      {auctionSettingsSection === 'items' ? (
+      {settingsPanel === 'auction' ? (
       <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
         <div className="mb-4">
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">경매 관리</h3>
@@ -9577,9 +9711,6 @@ export default function TimerPage() {
           >
             주간 경매 마감
           </button>
-          <p className="text-center text-[0.82rem] font-bold leading-5 text-[#6E5139]">
-            물품 초기화, 입찰가 초기화, 세금 징수, 주급 제공을 순서대로 처리합니다.
-          </p>
           <div className="rounded-[1rem] border border-[#E4D7C9] bg-white/70 p-3">
             <button
               type="button"
@@ -11144,206 +11275,78 @@ export default function TimerPage() {
                 <Settings size={24} className="md:w-7 md:h-7" />
                 설정
               </h2>
-              <div className="flex items-center gap-2 md:gap-4">
-                <button 
-                  onClick={exportSchedule}
-                  className="toolbar-button toolbar-button-green flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold text-[#5C8D5D] transition-colors"
-                  title="시간표 내보내기"
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="icon-button rounded-full p-2 text-[#8A6347]/60 transition-colors hover:bg-[#FDFBF7] hover:text-[#8A6347]"
+                  aria-label="설정 닫기"
+                  title="설정 닫기"
                 >
-                  <Download size={16} />
-                  <span className="hidden sm:inline">백업</span>
-                </button>
-                
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="toolbar-button toolbar-button-neutral flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold text-[#8A6347] transition-colors"
-                  title="시간표 불러오기"
-                >
-                  <Upload size={16} />
-                  <span className="hidden sm:inline">복구</span>
-                </button>
-                <input 
-                  type="file" 
-                  accept=".json" 
-                  ref={fileInputRef} 
-                  onChange={importSchedule} 
-                  className="hidden" 
-                />
-
-                <div className="w-px h-6 bg-[#E6D5C9] mx-1"></div>
-                
-                <button onClick={() => setIsSettingsOpen(false)} className="icon-button rounded-full p-2 text-[#8A6347]/60 transition-colors hover:bg-[#FDFBF7] hover:text-[#8A6347]">
                   <X size={24} className="md:w-7 md:h-7" />
                 </button>
               </div>
             </div>
 
-            <div className="settings-tab-strip shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
-              <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-9">
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('subjects')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'subjects'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'subjects'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <BookOpen size={18} className={settingsPanel === 'subjects' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    과목
-                  </div>
-                </button>
+            <div className="settings-workspace min-h-0 flex-1">
+              <nav
+                className="settings-navigation custom-scrollbar"
+                aria-label="설정 기능"
+                onKeyDown={handleSettingsNavigationKeyDown}
+              >
+                {SETTINGS_NAVIGATION_GROUPS.map((group) => (
+                  <section key={group.label} className="settings-navigation-group" aria-label={group.label}>
+                    <h3 className="settings-navigation-label">{group.label}</h3>
+                    <div className="settings-navigation-items">
+                      {group.items.map((item) => {
+                        const ItemIcon = item.icon;
+                        const isActive = settingsPanel === item.panel;
+                        return (
+                          <button
+                            key={item.panel}
+                            type="button"
+                            data-settings-nav-item
+                            onClick={() => setSettingsPanel(item.panel)}
+                            className="settings-navigation-item"
+                            aria-current={isActive ? 'page' : undefined}
+                            tabIndex={isActive ? 0 : -1}
+                          >
+                            <ItemIcon size={19} aria-hidden="true" />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </nav>
 
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('auction')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'auction'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'auction'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <Coins size={18} className={settingsPanel === 'auction' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    경매
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('shop')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'shop'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'shop'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <Package size={18} className={settingsPanel === 'shop' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    상점
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('stocks')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'stocks'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'stocks'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <Star size={18} className={settingsPanel === 'stocks' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    증권
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('schedule')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'schedule'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'schedule'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <CalendarClock size={18} className={settingsPanel === 'schedule' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    시간표
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('draw')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'draw'
-                      ? 'settings-mode-tab-active border-[#B58363] bg-[#FBF0E4] shadow-[0_12px_24px_rgba(181,131,99,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'draw'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <Sparkles size={18} className={settingsPanel === 'draw' ? 'text-[#B58363]' : 'text-[#8A6347]'} />
-                    추첨
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('emotion')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'emotion'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'emotion'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <HeartPulse size={18} className={settingsPanel === 'emotion' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    감정
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('mail')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'mail'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'mail'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <Mail size={18} className={settingsPanel === 'mail' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    편지
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsPanel('bookstore')}
-                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
-                    settingsPanel === 'bookstore'
-                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
-                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
-                  }`}
-                  aria-pressed={settingsPanel === 'bookstore'}
-                >
-                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
-                    <LibraryBig size={18} className={settingsPanel === 'bookstore' ? 'text-[#476152]' : 'text-[#8A6347]'} />
-                    책방
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <div className="settings-body custom-scrollbar flex-1 overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
-              {settingsPanel === 'schedule'
-                ? scheduleSettingsPanel
-                : settingsPanel === 'subjects'
-                  ? subjectSettingsPanel
-                  : settingsPanel === 'draw'
-                    ? drawSettingsPanel
-                    : settingsPanel === 'shop'
-                      ? shopSettingsPanel
-                    : settingsPanel === 'stocks'
-                      ? stockSettingsPanel
-                    : settingsPanel === 'emotion'
-                        ? emotionSettingsPanel
-                        : settingsPanel === 'mail'
-                          ? mailSettingsPanel
-                          : settingsPanel === 'bookstore'
-                            ? bookstoreSettingsPanel
-                            : auctionSettingsPanel}
+              <section
+                className="settings-content"
+                aria-label={`${currentSettingsNavigationItem?.label ?? '설정'} 설정`}
+              >
+                <div key={settingsPanel} className="settings-body custom-scrollbar overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
+                  {settingsPanel === 'schedule'
+                    ? scheduleSettingsPanel
+                    : settingsPanel === 'subjects'
+                      ? subjectSettingsPanel
+                      : settingsPanel === 'draw'
+                        ? drawSettingsPanel
+                        : settingsPanel === 'shop'
+                          ? shopSettingsPanel
+                        : settingsPanel === 'stocks'
+                          ? stockSettingsPanel
+                        : settingsPanel === 'emotion'
+                            ? emotionSettingsPanel
+                            : settingsPanel === 'mail'
+                              ? mailSettingsPanel
+                              : settingsPanel === 'bookstore'
+                                ? bookstoreSettingsPanel
+                                : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'
+                                  ? auctionSettingsPanel
+                                  : null}
+                </div>
+              </section>
             </div>
             </div>
 

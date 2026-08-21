@@ -121,13 +121,13 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
         {activeModal === 'deposit' ? (
           <div className="student-bank-modal-form">
             <label className="student-bank-amount-field"><span>맡길 고마</span><input type="number" min="1" max="500" step="1" placeholder="예: 20" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
-            {isDepositAmount ? <div className="student-bank-interest-flow" aria-label={`${numericDepositAmount} 고마를 맡기면 ${numericDepositAmount + depositInterest} 고마를 받습니다.`}><span>{numericDepositAmount} 고마</span><i>보관</i><b>+{depositInterest} 고마</b><strong>{numericDepositAmount + depositInterest} 고마</strong></div> : <p className="student-bank-amount-example">20 고마 → 22 고마</p>}
+            {isDepositAmount ? <div className="student-bank-interest-flow" aria-label={`${numericDepositAmount} 고마를 맡기면 ${numericDepositAmount + depositInterest} 고마를 받습니다.`}><span>{numericDepositAmount} 고마</span><i>보관</i><b>+{depositInterest} 고마</b><strong>{numericDepositAmount + depositInterest} 고마</strong></div> : null}
             <p className="student-bank-rule">월~수: 이틀 뒤 · 목·금: 다음주 월요일 · 중도 해지: 원금만</p>
           </div>
         ) : null}
         {activeModal === 'loan' ? (
           <div className="student-bank-modal-form">
-            {state.loan > 0 ? <p className="student-bank-rule">갚을 고마 {state.loan} 고마 · 한 번에 모두 갚기</p> : <><label className="student-bank-amount-field"><span>빌릴 고마</span><input type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : <p className="student-bank-amount-example student-bank-loan-example">30 고마 → 33 고마</p>}<p className="student-bank-rule">최대 50고마 · 일주일 안에 갚기</p></>}
+            {state.loan > 0 ? <p className="student-bank-rule">갚을 고마 {state.loan} 고마 · 한 번에 모두 갚기</p> : <><label className="student-bank-amount-field"><span>빌릴 고마</span><input type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : null}<p className="student-bank-rule">최대 50고마 · 일주일 안에 갚기</p></>}
           </div>
         ) : null}
         {activeModal === 'transfer' ? (
