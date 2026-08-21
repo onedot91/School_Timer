@@ -87,7 +87,7 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
     hasInvalidAmount: hasEnteredAmount && !canInvest,
     hasPosition,
   });
-  const footerStatusMessage = !hasPosition && statusMessage === '찾을 투자금 없음' ? '' : statusMessage;
+  const footerStatusMessage = marketClosed || (!hasPosition && statusMessage === '찾을 투자금 없음') ? '' : statusMessage;
 
   const confirm = async () => {
     if (!draft) return;

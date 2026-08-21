@@ -6,6 +6,7 @@ interface StudentHeaderProps {
   onBack: () => void;
   backLabel?: string;
   backText?: string;
+  status?: string;
   actions?: ReactNode;
 }
 
@@ -14,6 +15,7 @@ export default function StudentHeader({
   onBack,
   backLabel = '개요로 돌아가기',
   backText = '홈',
+  status,
   actions,
 }: StudentHeaderProps) {
   return (
@@ -31,6 +33,7 @@ export default function StudentHeader({
         </button>
         <div className="student-header-copy">
           <h1>{title}</h1>
+          {status ? <span className="student-header-status">{status}</span> : null}
         </div>
       </div>
       {actions ? <div className="student-header-actions">{actions}</div> : null}

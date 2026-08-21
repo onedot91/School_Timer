@@ -14564,8 +14564,24 @@ a[href]:active {
 }
 
 .student-header-copy {
+  display: flex;
   min-width: 0;
   max-width: 100%;
+  align-items: center;
+  gap: .75rem;
+}
+
+.student-header-status {
+  flex: 0 0 auto;
+  border: 1px solid var(--apple-separator);
+  border-radius: 999px;
+  background: var(--apple-surface-muted);
+  padding: .4rem .7rem;
+  color: var(--apple-text-secondary);
+  font-size: var(--student-readable-text-min, .875rem);
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .student-header-copy h1,
@@ -15855,7 +15871,7 @@ a[href]:active {
   width: 100%;
   height: auto;
   aspect-ratio: 59 / 60;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
   border-radius: calc(var(--apple-radius-card) - .35rem);
 }
@@ -18871,6 +18887,10 @@ a[href]:active {
 
   .student-store-view[data-store-section="bank"] .student-bank-card-scene {
     height: auto;
+  }
+  .student-store-view[data-store-section="bank"] .student-bank-summary {
+    height: 6.5rem;
+    min-height: 0;
   }
   .student-bank-grid strong { font-size: 1.8rem; }
   .student-bank-grid button,

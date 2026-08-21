@@ -47,12 +47,11 @@ export const StudentBookstorePage = ({
                       writingTriggerRef.current = event.currentTarget;
                       setSelectedWriting(writing);
                     }}
-                    aria-label={`${writing.title}, ${writing.author || '작성자 미상'} 글 읽기`}
+                    aria-label={`${writing.title} 글 읽기`}
                   >
                     <span className="student-featured-writing-number">추천 글 {index + 1}</span>
                     <strong>{writing.title}</strong>
-                    <span className="student-featured-writing-author">{writing.author || '작성자 미상'}</span>
-                    <p>{writing.summary || writing.content}</p>
+                    <p>{writing.content}</p>
                     <span className="student-featured-writing-action">전체 글 읽기 <ArrowRight aria-hidden="true" /></span>
                   </button>
                 ))}
@@ -102,8 +101,6 @@ export const StudentBookstorePage = ({
             </button>
             <span>우수글 진열대</span>
             <h2 id="student-featured-writing-dialog-title">{selectedWriting.title}</h2>
-            <strong>{selectedWriting.author || '작성자 미상'}</strong>
-            {selectedWriting.summary ? <p className="student-featured-writing-summary">{selectedWriting.summary}</p> : null}
             <div className="student-featured-writing-body">{selectedWriting.content}</div>
           </div>
         </div>

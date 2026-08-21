@@ -3661,6 +3661,7 @@ export default function TimerPage() {
   const [currencyAdjustmentSummary, setCurrencyAdjustmentSummary] = useState<CurrencyAdjustmentSummary | null>(null);
   const [currencyStudentNumberInput, setCurrencyStudentNumberInput] = useState('');
   const [currencyBalanceInput, setCurrencyBalanceInput] = useState('');
+  const [isCurrencyDirectInputVisible, setIsCurrencyDirectInputVisible] = useState(false);
   const [currencyGroupStudentNumbers, setCurrencyGroupStudentNumbers] = useState<number[]>([]);
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
   const [currencyHistory, setCurrencyHistory] = useState<CurrencyHistory>(() => createDefaultCurrencyHistory());
@@ -4059,6 +4060,7 @@ export default function TimerPage() {
     if (!isCurrencyPanelOpen) {
       setCurrencyStudentNumberInput('');
       setCurrencyBalanceInput('');
+      setIsCurrencyDirectInputVisible(false);
       setEditingCurrencyNumber(null);
       setCurrencyAdjustmentTarget('student');
       setCurrencyAdjustmentSummary(null);
@@ -6378,6 +6380,7 @@ export default function TimerPage() {
     const nextInput = event.target.value.replace(/\D/g, '').slice(0, 2);
     setCurrencyStudentNumberInput(nextInput);
     setCurrencyAdjustmentSummary(null);
+    setIsCurrencyDirectInputVisible(false);
 
     const nextStudentNumber = Number(nextInput);
     if (CURRENCY_STUDENT_NUMBERS.includes(nextStudentNumber)) {
@@ -8664,8 +8667,8 @@ export default function TimerPage() {
                 </div>
 
                 <div className="teacher-featured-writing-fields">
-                  <label>
-                    <span>글 제목</span>
+                  <label className="teacher-featured-writing-wide">
+                    <span>제목</span>
                     <input
                       value={writing.title}
                       maxLength={80}
@@ -8673,33 +8676,14 @@ export default function TimerPage() {
                       placeholder="예: 우리 반의 봄"
                     />
                   </label>
-                  <label>
-                    <span>작성자</span>
-                    <input
-                      value={writing.author}
-                      maxLength={30}
-                      onChange={(event) => updateFeaturedWriting(writing.id, (current) => ({ ...current, author: event.target.value }))}
-                      placeholder="예: 3번 김고마"
-                    />
-                  </label>
                   <label className="teacher-featured-writing-wide">
-                    <span>짧은 소개</span>
-                    <textarea
-                      value={writing.summary}
-                      maxLength={240}
-                      rows={2}
-                      onChange={(event) => updateFeaturedWriting(writing.id, (current) => ({ ...current, summary: event.target.value }))}
-                      placeholder="진열대 카드에서 먼저 보여 줄 소개"
-                    />
-                  </label>
-                  <label className="teacher-featured-writing-wide">
-                    <span>전체 본문</span>
+                    <span>본문</span>
                     <textarea
                       value={writing.content}
                       maxLength={10_000}
-                      rows={7}
+                      rows={2}
                       onChange={(event) => updateFeaturedWriting(writing.id, (current) => ({ ...current, content: event.target.value }))}
-                      placeholder="학생이 카드에서 열어 읽을 전체 글"
+                      placeholder="학생에게 보여 줄 글을 입력하세요"
                     />
                   </label>
                 </div>
@@ -10540,6 +10524,7 @@ export default function TimerPage() {
                           setCurrencyAdjustmentTarget('group');
                           setCurrencyAdjustmentSummary(null);
                           setCurrencyStudentNumberInput('');
+                          setIsCurrencyDirectInputVisible(false);
                           setEditingCurrencyNumber(null);
                         }}
                         className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
@@ -10557,6 +10542,7 @@ export default function TimerPage() {
                           setCurrencyAdjustmentTarget('all');
                           setCurrencyAdjustmentSummary(null);
                           setCurrencyStudentNumberInput('');
+                          setIsCurrencyDirectInputVisible(false);
                           setEditingCurrencyNumber(null);
                         }}
                         className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
@@ -10687,30 +10673,41 @@ export default function TimerPage() {
                             +
                           </button>
                         </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] border border-[#CFE0D8] bg-white px-3">
-                            <span className="shrink-0 text-[0.76rem] font-extrabold text-[#466258]">직접 설정</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={CURRENCY_BALANCE_MAX}
-                              step={1}
-                              value={currencyBalanceInput}
-                              onChange={(event) => setCurrencyBalanceInput(event.target.value)}
-                              className="h-10 min-w-0 flex-1 bg-transparent text-right font-mono text-[1rem] font-black text-[#1F2523] outline-none"
-                              aria-label={`${editingCurrencyNumber}번 화폐 직접 설정`}
-                            />
-                            <span className="shrink-0 text-[0.76rem] font-extrabold text-[#466258]">고마</span>
-                          </label>
-                          <button
-                            type="button"
-                            disabled={isCurrencyBalanceInputInvalid}
-                            onClick={() => setCurrencyBalanceExactly(editingCurrencyNumber, parsedCurrencyBalanceInput)}
-                            className="h-10 shrink-0 rounded-[0.85rem] bg-[#006241] px-4 text-[0.82rem] font-extrabold text-white transition-colors hover:bg-[#004f35] disabled:cursor-not-allowed disabled:bg-[#9FB8AD]"
-                          >
-                            적용
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-[0.85rem] border border-[#CFE0D8] bg-white text-[0.82rem] font-extrabold text-[#466258] transition-colors hover:bg-[#F7FBF9]"
+                          aria-expanded={isCurrencyDirectInputVisible}
+                          aria-controls="currency-direct-setting"
+                          onClick={() => setIsCurrencyDirectInputVisible((previous) => !previous)}
+                        >
+                          직접 설정
+                        </button>
+                        {isCurrencyDirectInputVisible ? (
+                          <div id="currency-direct-setting" className="mt-2 flex items-center gap-2">
+                            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] border border-[#CFE0D8] bg-white px-3">
+                              <input
+                                type="number"
+                                min={0}
+                                max={CURRENCY_BALANCE_MAX}
+                                step={1}
+                                value={currencyBalanceInput}
+                                onChange={(event) => setCurrencyBalanceInput(event.target.value)}
+                                className="h-10 min-w-0 flex-1 bg-transparent text-right font-mono text-[1rem] font-black text-[#1F2523] outline-none"
+                                aria-label={`${editingCurrencyNumber}번 화폐 직접 설정`}
+                                autoFocus
+                              />
+                              <span className="shrink-0 text-[0.76rem] font-extrabold text-[#466258]">고마</span>
+                            </label>
+                            <button
+                              type="button"
+                              disabled={isCurrencyBalanceInputInvalid}
+                              onClick={() => setCurrencyBalanceExactly(editingCurrencyNumber, parsedCurrencyBalanceInput)}
+                              className="h-10 shrink-0 rounded-[0.85rem] bg-[#006241] px-4 text-[0.82rem] font-extrabold text-white transition-colors hover:bg-[#004f35] disabled:cursor-not-allowed disabled:bg-[#9FB8AD]"
+                            >
+                              적용
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     ) : currencyAdjustmentTarget === 'group' ? (
                       <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">

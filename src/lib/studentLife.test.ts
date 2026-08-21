@@ -16,12 +16,13 @@ import {
   normalizeStudentLifeState,
 } from './studentLife.ts';
 
-test('책 두께는 현재 책장의 쪽수 범위에 비례하면서 화면을 덮지 않는다', () => {
+test('책 두께는 쪽당 0.005cm의 실제 높이를 따르면서 화면을 덮지 않는다', () => {
   const pageCounts = [15, 30, 37, 45];
 
-  assert.equal(getBookHeightCm(15), 0.23);
-  assert.equal(getBookHeightCm(100), 0.65);
-  assert.equal(getBookHeightCm(320), 1.75);
+  assert.equal(getBookHeightCm(280), 1.4);
+  assert.equal(getBookHeightCm(204), 1.02);
+  assert.equal(getBookHeightCm(152), 0.76);
+  assert.equal(getBookHeightCm(40), 0.2);
   assert.equal(getBookSpineHeightPx(15, pageCounts), 27);
   assert.equal(getBookSpineHeightPx(30, pageCounts), 36);
   assert.equal(getBookSpineHeightPx(37, pageCounts), 40.2);
@@ -37,7 +38,7 @@ test('책 두께는 현재 책장의 쪽수 범위에 비례하면서 화면을 
   assert.equal(getBookStackHeightCm([
     { id: 'book-1', studentNumber: 1, title: '첫 책', author: '', pageCount: 100, createdAt: '2026-08-11T01:00:00.000Z' },
     { id: 'book-2', studentNumber: 1, title: '둘째 책', author: '', pageCount: 320, createdAt: '2026-08-11T02:00:00.000Z' },
-  ]), 2.4);
+  ]), 2.1);
 });
 
 test('책 배치는 중심에서 왼쪽과 오른쪽을 번갈아 가면서 책장 안에 머문다', () => {

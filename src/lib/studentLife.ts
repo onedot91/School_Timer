@@ -41,7 +41,6 @@ export const TEACHER_LETTER_RECIPIENT = 0;
 const MAX_LETTERS = 600;
 const MAX_BOOKS = 600;
 const BOOK_PAPER_THICKNESS_PER_PAGE_CM = 0.005;
-const BOOK_COVER_AND_BINDING_THICKNESS_CM = 0.15;
 const BOOK_SPINE_MIN_HEIGHT_PX = 27;
 const BOOK_SPINE_MAX_HEIGHT_PX = 45;
 const BOOK_STACK_LAYOUTS: readonly BookStackLayout[] = [
@@ -158,7 +157,7 @@ export const getStudentBooks = (state: StudentLifeState, studentNumber: number):
 );
 
 const calculateBookHeightCm = (pageCount: number): number => (
-  pageCount * BOOK_PAPER_THICKNESS_PER_PAGE_CM + BOOK_COVER_AND_BINDING_THICKNESS_CM
+  pageCount * BOOK_PAPER_THICKNESS_PER_PAGE_CM
 );
 
 const roundBookHeightCm = (heightCm: number): number => Math.round((heightCm + Number.EPSILON) * 100) / 100;

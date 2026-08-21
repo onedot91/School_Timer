@@ -1,5 +1,5 @@
 import { useState, type ReactNode, type RefObject } from 'react';
-import type { StudentEconomyAction, StudentEconomyState, StudentShopCatalogItem, StudentStockId, StudentStockMarket } from '../../lib/studentEconomy';
+import { getKoreanDateKey, type StudentEconomyAction, type StudentEconomyState, type StudentShopCatalogItem, type StudentStockId, type StudentStockMarket } from '../../lib/studentEconomy';
 import StudentBankPage from './StudentBankPage';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentDonationPage from './StudentDonationPage';
@@ -53,6 +53,8 @@ export default function StudentStorePage({
 }: StudentStorePageProps) {
   const isPlaza = section === 'plaza';
   const isSecurities = section === 'securities' || section === 'securities-trade';
+  const marketDay = new Date(`${getKoreanDateKey()}T12:00:00Z`).getUTCDay();
+  const marketClosed = isSecurities && (marketDay === 0 || marketDay === 6);
   const [selectedStockId, setSelectedStockId] = useState<StudentStockId>('sunny');
   const titles: Record<StudentStoreSection, string> = {
     plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '종목별 오늘의 변화', 'securities-trade': '종목별 오늘의 변화', donation: '기부',
@@ -61,6 +63,7 @@ export default function StudentStorePage({
     <div className="student-view student-store-view" data-store-section={section}>
       <StudentHeader
         title={titles[section]}
+        status={marketClosed ? '오늘은 휴장' : undefined}
         onBack={onBack}
         backLabel={isPlaza ? '개요로 돌아가기' : '광장으로 돌아가기'}
         backText={isPlaza ? '홈' : '광장'}
