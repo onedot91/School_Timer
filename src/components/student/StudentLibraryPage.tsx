@@ -5,7 +5,7 @@ import type { StudentBook } from '../../lib/studentLife';
 import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentHeader from './StudentHeader';
 
-const BOOK_SPINE_PIXELS_PER_CM = 200;
+const BOOK_SPINE_PIXELS_PER_CM = 300;
 const BOOK_HEIGHT_FORMATTER = new Intl.NumberFormat('ko-KR', {
   minimumFractionDigits: 1,
   maximumFractionDigits: 2,
@@ -50,7 +50,7 @@ export default function StudentLibraryPage({ books, isSaving, onAdd, onBack }: S
                 key={book.id}
                 data-color={index % 6}
                 style={{
-                  height: `${getBookHeightCm(book.pageCount) * BOOK_SPINE_PIXELS_PER_CM}px`,
+                  height: `max(1.25rem, ${getBookHeightCm(book.pageCount) * BOOK_SPINE_PIXELS_PER_CM}px)`,
                   width: `${72 + ((index * 13) % 24)}%`,
                 }}
                 title={`${book.title} · ${book.pageCount}쪽 · 약 ${BOOK_HEIGHT_FORMATTER.format(getBookHeightCm(book.pageCount))}cm`}

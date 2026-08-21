@@ -12285,7 +12285,7 @@ a[href]:active {
 .student-library-layout { grid-template-columns: minmax(16rem, .55fr) minmax(0, 1.45fr); }
 .student-book-form { display: grid; align-content: start; gap: 1rem; padding: 1.5rem; }
 .student-book-form > svg { color: var(--apple-accent); }
-.student-bookshelf { display: flex; min-height: 35rem; flex-direction: column; justify-content: flex-end; overflow: hidden; padding: 2rem 3rem 3rem; background: linear-gradient(180deg, #fffdf8, #f4ead8); }
+.student-bookshelf { display: flex; min-height: 35rem; flex-direction: column; justify-content: flex-start; overflow-x: hidden; overflow-y: auto; padding: 2rem 3rem 3rem; background: linear-gradient(180deg, #fffdf8, #f4ead8); }
 .student-book-height {
   position: relative;
   align-self: center;
@@ -12314,9 +12314,9 @@ a[href]:active {
 .student-book-height strong { position: relative; z-index: 1; display: block; }
 .student-book-height span { font-size: .72rem; font-weight: 800; }
 .student-book-height strong { margin-top: .1rem; font-size: 1.05rem; font-weight: 950; }
-.student-book-stack { display: flex; min-height: 25rem; flex-direction: column; align-items: center; justify-content: flex-end; }
+.student-book-stack { display: flex; min-height: 25rem; flex-shrink: 0; flex-direction: column; align-items: center; justify-content: flex-end; margin-top: auto; }
 .student-book-stack > p { margin: auto; color: var(--apple-text-tertiary); font-weight: 850; }
-.student-book-stack article { display: flex; min-height: 0; align-items: center; justify-content: space-between; gap: .75rem; overflow: hidden; border: 2px solid color-mix(in srgb, currentColor 38%, transparent); border-radius: .45rem .85rem .85rem .45rem; padding: 0 1rem; color: #74462f; background: #efb26a; box-shadow: 0 5px 0 rgba(76, 48, 32, .12); }
+.student-book-stack article { display: flex; min-height: 0; flex-shrink: 0; align-items: center; justify-content: space-between; gap: .75rem; overflow: hidden; border: 2px solid color-mix(in srgb, currentColor 38%, transparent); border-radius: .45rem .85rem .85rem .45rem; padding: 0 1rem; color: #74462f; background: #efb26a; box-shadow: 0 5px 0 rgba(76, 48, 32, .12); }
 .student-book-stack article[data-color="1"] { color: #315f55; background: #8fc8ad; }
 .student-book-stack article[data-color="2"] { color: #4b5684; background: #a9b7eb; }
 .student-book-stack article[data-color="3"] { color: #7d4747; background: #eaa2a2; }
@@ -12330,7 +12330,7 @@ a[href]:active {
   white-space: nowrap;
 }
 .student-book-stack article span { flex: 0 0 auto; font-size: .7rem; font-weight: 850; line-height: 1; }
-.student-bookshelf-base { height: 1.25rem; border-radius: .3rem; background: #85583a; box-shadow: 0 .75rem 0 #67412a; }
+.student-bookshelf-base { height: 1.25rem; flex-shrink: 0; border-radius: .3rem; background: #85583a; box-shadow: 0 .75rem 0 #67412a; }
 
 @media (max-width: 767px) {
   .student-mailbox-layout,
