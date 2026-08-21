@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
-import { BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, GripVertical, HeartPulse, LibraryBig, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -104,6 +104,15 @@ import {
   storeStudentLifeState,
   type StudentLifeState,
 } from '../lib/studentLife';
+import {
+  createEmptyFeaturedWriting,
+  loadStoredBookstoreSettings,
+  moveFeaturedWriting,
+  normalizeBookstoreSettings,
+  storeBookstoreSettings,
+  type BookstoreSettings,
+  type FeaturedWriting,
+} from '../lib/bookstore';
 import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
 import {
   loadQuestionSubmissionStatuses,
@@ -169,7 +178,7 @@ import {
 } from '../lib/currency';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'shop' | 'stocks' | 'emotion' | 'mail';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'bookstore';
 type AuctionSettingsSection = 'items' | 'missions';
 type WatchFaceGlance = 'center' | 'left' | 'right' | 'up';
 type AuctionManagementAction = 'weeklyClose' | 'currency';
@@ -284,6 +293,7 @@ interface SharedSchoolTimerSettings {
   studentEmotionHistory: StudentEmotionHistory;
   studentPets: StudentPetStates;
   studentLife: StudentLifeState;
+  bookstoreSettings: BookstoreSettings;
   studentEconomy?: StudentEconomyStates;
   studentShopCatalog: StudentShopCatalogItem[];
   studentStockMarket: StudentStockMarket;
@@ -1504,6 +1514,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     studentEmotionHistory: normalizeStudentEmotionHistory(parsed.studentEmotionHistory),
     studentPets: normalizeStudentPetStates(parsed.studentPets),
     studentLife: normalizeStudentLifeState(parsed.studentLife),
+    bookstoreSettings: normalizeBookstoreSettings(parsed.bookstoreSettings),
     studentEconomy: normalizeStudentEconomyStates(parsed.studentEconomy),
     studentShopCatalog: normalizeStudentShopCatalog(parsed.studentShopCatalog),
     studentStockMarket: normalizeStudentStockMarket(parsed.studentStockMarket),
@@ -3705,6 +3716,10 @@ export default function TimerPage() {
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
   ));
+  const [bookstoreSettings, setBookstoreSettings] = useState<BookstoreSettings>(() => (
+    isSupabaseSettingsEnabled ? normalizeBookstoreSettings(null) : loadStoredBookstoreSettings()
+  ));
+  const isEditingBookstoreRef = useRef(false);
   const [mailRecipient, setMailRecipient] = useState(1);
   const [mailTitle, setMailTitle] = useState('');
   const [mailContent, setMailContent] = useState('');
@@ -4245,6 +4260,7 @@ export default function TimerPage() {
     studentEmotionHistory,
     studentPets: studentPetStates,
     studentLife,
+    bookstoreSettings: normalizeBookstoreSettings(bookstoreSettings),
     studentEconomy: studentEconomyStates,
     studentShopCatalog,
     studentStockMarket,
@@ -4296,6 +4312,9 @@ export default function TimerPage() {
     setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
     setStudentPetStates(normalizeStudentPetStates(remoteSettings.studentPets));
     setStudentLife(normalizeStudentLifeState(remoteSettings.studentLife));
+    if (!isEditingBookstoreRef.current) {
+      setBookstoreSettings(normalizeBookstoreSettings(remoteSettings.bookstoreSettings));
+    }
     setStudentEconomyStates(normalizeStudentEconomyStates(remoteSettings.studentEconomy));
     setStudentShopCatalog(normalizeStudentShopCatalog(remoteSettings.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(remoteSettings.studentStockMarket));
@@ -4444,6 +4463,10 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) storeStudentStockMarket(studentStockMarket);
   }, [studentStockMarket]);
+
+  useEffect(() => {
+    if (!isSupabaseSettingsEnabled) storeBookstoreSettings(bookstoreSettings);
+  }, [bookstoreSettings]);
 
   useEffect(() => {
     const hasBlankDraft = hasBlankAuctionMissionDraft(auctionMissions);
@@ -4624,6 +4647,7 @@ export default function TimerPage() {
     studentEmotionHistory,
     studentPetStates,
     studentLife,
+    bookstoreSettings,
     studentEconomyStates,
     studentShopCatalog,
     studentStockMarket,
@@ -4645,7 +4669,8 @@ export default function TimerPage() {
         isSharedSettingsSavePendingRef.current ||
         isEditingNoticeRef.current ||
         isEditingSubjectCatalogRef.current ||
-        isEditingAuctionItemRef.current
+        isEditingAuctionItemRef.current ||
+        isEditingBookstoreRef.current
       ) return;
       isChecking = true;
 
@@ -8548,6 +8573,164 @@ export default function TimerPage() {
     setNewShopItemPrice('');
   };
 
+  const addFeaturedWriting = () => {
+    const writing = createEmptyFeaturedWriting(crypto.randomUUID());
+    setBookstoreSettings((current) => ({
+      featuredWritings: [...current.featuredWritings, writing],
+    }));
+  };
+
+  const updateFeaturedWriting = (
+    writingId: string,
+    change: (writing: FeaturedWriting) => FeaturedWriting,
+  ) => {
+    setBookstoreSettings((current) => ({
+      featuredWritings: current.featuredWritings.map((writing) => (
+        writing.id === writingId ? change(writing) : writing
+      )),
+    }));
+  };
+
+  const deleteFeaturedWriting = (writing: FeaturedWriting) => {
+    const label = writing.title.trim() || '제목 없는 글';
+    if (!window.confirm(`“${label}” 우수글을 삭제할까요?`)) return;
+    setBookstoreSettings((current) => ({
+      featuredWritings: current.featuredWritings.filter((entry) => entry.id !== writing.id),
+    }));
+  };
+
+  const bookstoreSettingsPanel = (
+    <section
+      className="settings-card teacher-bookstore-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5"
+      aria-labelledby="teacher-bookstore-title"
+      onFocusCapture={() => {
+        isEditingBookstoreRef.current = true;
+      }}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          isEditingBookstoreRef.current = false;
+        }
+      }}
+    >
+      <header className="teacher-bookstore-header">
+        <div>
+          <span>학생 책방</span>
+          <h3 id="teacher-bookstore-title">우수글 진열대</h3>
+          <p>공개한 글만 학생 책방에 위에서부터 차례대로 진열됩니다.</p>
+        </div>
+        <button type="button" onClick={addFeaturedWriting}>
+          <Plus size={18} aria-hidden="true" /> 우수글 추가
+        </button>
+      </header>
+
+      {bookstoreSettings.featuredWritings.length > 0 ? (
+        <div className="teacher-featured-writing-list">
+          {bookstoreSettings.featuredWritings.map((writing, index) => {
+            const canPublish = writing.title.trim().length > 0 && writing.content.trim().length > 0;
+            return (
+              <article key={writing.id} className="teacher-featured-writing-card">
+                <div className="teacher-featured-writing-toolbar">
+                  <strong>진열 {index + 1}</strong>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setBookstoreSettings((current) => ({
+                        featuredWritings: moveFeaturedWriting(current.featuredWritings, writing.id, -1),
+                      }))}
+                      disabled={index === 0}
+                      aria-label={`${writing.title || '제목 없는 글'} 위로 이동`}
+                    >
+                      <ArrowUp size={17} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBookstoreSettings((current) => ({
+                        featuredWritings: moveFeaturedWriting(current.featuredWritings, writing.id, 1),
+                      }))}
+                      disabled={index === bookstoreSettings.featuredWritings.length - 1}
+                      aria-label={`${writing.title || '제목 없는 글'} 아래로 이동`}
+                    >
+                      <ArrowDown size={17} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="teacher-featured-writing-delete"
+                      onClick={() => deleteFeaturedWriting(writing)}
+                      aria-label={`${writing.title || '제목 없는 글'} 삭제`}
+                    >
+                      <Trash2 size={17} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="teacher-featured-writing-fields">
+                  <label>
+                    <span>글 제목</span>
+                    <input
+                      value={writing.title}
+                      maxLength={80}
+                      onChange={(event) => updateFeaturedWriting(writing.id, (current) => ({ ...current, title: event.target.value }))}
+                      placeholder="예: 우리 반의 봄"
+                    />
+                  </label>
+                  <label>
+                    <span>작성자</span>
+                    <input
+                      value={writing.author}
+                      maxLength={30}
+                      onChange={(event) => updateFeaturedWriting(writing.id, (current) => ({ ...current, author: event.target.value }))}
+                      placeholder="예: 3번 김고마"
+                    />
+                  </label>
+                  <label className="teacher-featured-writing-wide">
+                    <span>짧은 소개</span>
+                    <textarea
+                      value={writing.summary}
+                      maxLength={240}
+                      rows={2}
+                      onChange={(event) => updateFeaturedWriting(writing.id, (current) => ({ ...current, summary: event.target.value }))}
+                      placeholder="진열대 카드에서 먼저 보여 줄 소개"
+                    />
+                  </label>
+                  <label className="teacher-featured-writing-wide">
+                    <span>전체 본문</span>
+                    <textarea
+                      value={writing.content}
+                      maxLength={10_000}
+                      rows={7}
+                      onChange={(event) => updateFeaturedWriting(writing.id, (current) => ({ ...current, content: event.target.value }))}
+                      placeholder="학생이 카드에서 열어 읽을 전체 글"
+                    />
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  className={`teacher-featured-writing-publish${writing.isPublished ? ' is-published' : ''}`}
+                  onClick={() => updateFeaturedWriting(writing.id, (current) => ({
+                    ...current,
+                    isPublished: !current.isPublished,
+                  }))}
+                  disabled={!canPublish && !writing.isPublished}
+                  aria-pressed={writing.isPublished}
+                >
+                  <span aria-hidden="true" />
+                  {writing.isPublished ? '학생에게 공개 중' : canPublish ? '비공개 · 눌러서 공개' : '제목과 본문을 입력해 주세요'}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="teacher-bookstore-empty">
+          <BookOpen aria-hidden="true" />
+          <strong>등록된 우수글이 없습니다.</strong>
+          <p>‘우수글 추가’를 눌러 첫 글을 진열해 보세요.</p>
+        </div>
+      )}
+    </section>
+  );
+
   const shopSettingsPanel = (
     <section className="settings-card teacher-shop-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-shop-title">
       <div className="teacher-shop-catalog">
@@ -10999,7 +11182,7 @@ export default function TimerPage() {
             </div>
 
             <div className="settings-tab-strip shrink-0 border-b border-[#E6D5C9] bg-white/80 px-4 py-3 md:px-6">
-              <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-8">
+              <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-9">
                 <button
                   type="button"
                   onClick={() => setSettingsPanel('subjects')}
@@ -11127,6 +11310,22 @@ export default function TimerPage() {
                     편지
                   </div>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSettingsPanel('bookstore')}
+                  className={`settings-mode-tab rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+                    settingsPanel === 'bookstore'
+                      ? 'settings-mode-tab-active border-[#6F9A58] bg-[#ECF5E9] shadow-[0_12px_24px_rgba(95,125,102,0.12)]'
+                      : 'settings-mode-tab-idle border-[#E6D5C9] bg-[#FFFDF9] hover:border-[#CBB39D] hover:bg-[#FFFAF2]'
+                  }`}
+                  aria-pressed={settingsPanel === 'bookstore'}
+                >
+                  <div className="flex items-center gap-2 text-[1rem] font-extrabold text-[#3F2B20]">
+                    <LibraryBig size={18} className={settingsPanel === 'bookstore' ? 'text-[#476152]' : 'text-[#8A6347]'} />
+                    책방
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -11145,7 +11344,9 @@ export default function TimerPage() {
                         ? emotionSettingsPanel
                         : settingsPanel === 'mail'
                           ? mailSettingsPanel
-                          : auctionSettingsPanel}
+                          : settingsPanel === 'bookstore'
+                            ? bookstoreSettingsPanel
+                            : auctionSettingsPanel}
             </div>
             </div>
 

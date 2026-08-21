@@ -5,6 +5,7 @@ import AuctionRoom from '../components/AuctionRoom';
 import StudentEmotionPage from '../components/student/StudentEmotionPage';
 import StudentMissionsPage from '../components/student/StudentMissionsPage';
 import StudentMailboxPage from '../components/student/StudentMailboxPage';
+import { StudentBookstorePage } from '../components/student/StudentBookstorePage';
 import StudentLibraryPage from '../components/student/StudentLibraryPage';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentStorePage from '../components/student/StudentStorePage';
@@ -136,12 +137,17 @@ import { useStudentSudokuState } from '../lib/useStudentSudokuState';
 import { useStudentNumberBaseballState } from '../lib/useStudentNumberBaseballState';
 import { createNumberBaseballProgressEntry } from '../lib/numberBaseball';
 import type { SudokuDifficulty } from '../lib/sudoku';
+import {
+  loadStoredBookstoreSettings,
+  normalizeBookstoreSettings,
+  type BookstoreSettings,
+} from '../lib/bookstore';
 
 interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookshelf' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -160,6 +166,7 @@ type SharedSettingsValue = {
   studentLife?: unknown;
   studentSudoku?: unknown;
   studentNumberBaseball?: unknown;
+  bookstoreSettings?: unknown;
 };
 
 const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
@@ -170,6 +177,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   'number-baseball': '#student-number-baseball',
   mailbox: '#student-mailbox',
   library: '#student-library',
+  'library-bookshelf': '#student-library-bookshelf',
   store: '#student-store',
   'store-bank': '#student-store-bank',
   'store-shop': '#student-store-shop',
@@ -295,6 +303,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
+  ));
+  const [bookstoreSettings, setBookstoreSettings] = useState<BookstoreSettings>(() => (
+    isSupabaseSettingsEnabled ? normalizeBookstoreSettings(null) : loadStoredBookstoreSettings()
   ));
   const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
   const [isPetSaving, setIsPetSaving] = useState(false);
@@ -570,8 +581,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     await saveStudentLifeChange((current) => markStudentLetterRead(current, studentNumber, letterId, new Date().toISOString()));
   };
 
-  const addStudentBookEntry = (title: string, pageCount: number) => saveStudentLifeChange((current) => addStudentBook(current, {
-    id: crypto.randomUUID(), studentNumber, title, pageCount, createdAt: new Date().toISOString(),
+  const addStudentBookEntry = (title: string, author: string, pageCount: number) => saveStudentLifeChange((current) => addStudentBook(current, {
+    id: crypto.randomUUID(), studentNumber, title, author, pageCount, createdAt: new Date().toISOString(),
   }));
 
   const feedStudentPet = async () => {
@@ -832,6 +843,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStudentShopCatalog(normalizeStudentShopCatalog(value.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(value.studentStockMarket));
     setStudentLife(normalizeStudentLifeState(value.studentLife));
+    setBookstoreSettings(normalizeBookstoreSettings(value.bookstoreSettings));
     applySharedStudentSudoku(value);
     applySharedNumberBaseball(value);
     const weekKey = getKoreanIsoWeekKey();
@@ -862,6 +874,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentEconomyStates(localPetSnapshot.studentEconomy);
       setStudentShopCatalog(loadStoredStudentShopCatalog());
       setStudentLife(loadStoredStudentLifeState());
+      setBookstoreSettings(loadStoredBookstoreSettings());
       refreshLocalStudentSudoku();
       refreshLocalNumberBaseball();
       setIsLoading(false);
@@ -1599,11 +1612,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           />
         ) : null}
         {activeStudentView === 'library' ? (
+          <StudentBookstorePage
+            settings={bookstoreSettings}
+            onOpenBookshelf={() => navigateStudentView('library-bookshelf')}
+            onBack={() => navigateStudentView('overview')}
+          />
+        ) : null}
+        {activeStudentView === 'library-bookshelf' ? (
           <StudentLibraryPage
             books={studentBooks}
             isSaving={isStudentLifeSaving}
             onAdd={addStudentBookEntry}
-            onBack={() => navigateStudentView('overview')}
+            onBack={() => navigateStudentView('library')}
           />
         ) : null}
         {isStudentStoreView(activeStudentView) ? (

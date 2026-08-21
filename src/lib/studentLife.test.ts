@@ -5,6 +5,8 @@ import {
   addStudentBook,
   createStudentLetter,
   getBookHeightCm,
+  getBookSpineHeightPx,
+  getBookStackLayout,
   getBookStackHeightCm,
   getStudentBooks,
   getStudentLetters,
@@ -14,13 +16,41 @@ import {
   normalizeStudentLifeState,
 } from './studentLife.ts';
 
-test('책 높이는 쪽수에 비례하고 스택 높이는 각 책 높이의 합이다', () => {
-  assert.equal(getBookHeightCm(100), 0.5);
-  assert.equal(getBookHeightCm(320), 1.6);
+test('책 두께는 현재 책장의 쪽수 범위에 비례하면서 화면을 덮지 않는다', () => {
+  const pageCounts = [15, 30, 37, 45];
+
+  assert.equal(getBookHeightCm(15), 0.23);
+  assert.equal(getBookHeightCm(100), 0.65);
+  assert.equal(getBookHeightCm(320), 1.75);
+  assert.equal(getBookSpineHeightPx(15, pageCounts), 27);
+  assert.equal(getBookSpineHeightPx(30, pageCounts), 36);
+  assert.equal(getBookSpineHeightPx(37, pageCounts), 40.2);
+  assert.equal(getBookSpineHeightPx(45, pageCounts), 45);
+  assert.ok(getBookSpineHeightPx(1, [1, 2, 3]) < getBookSpineHeightPx(2, [1, 2, 3]));
+  assert.ok(getBookSpineHeightPx(2, [1, 2, 3]) < getBookSpineHeightPx(3, [1, 2, 3]));
+  assert.equal(
+    getBookSpineHeightPx(200, [100, 200, 300]) - getBookSpineHeightPx(100, [100, 200, 300]),
+    getBookSpineHeightPx(300, [100, 200, 300]) - getBookSpineHeightPx(200, [100, 200, 300]),
+  );
+  assert.equal(getBookSpineHeightPx(5000, [15, 5000]), 45);
+  assert.equal(getBookSpineHeightPx(320, [320]), 36);
   assert.equal(getBookStackHeightCm([
-    { id: 'book-1', studentNumber: 1, title: '첫 책', pageCount: 100, createdAt: '2026-08-11T01:00:00.000Z' },
-    { id: 'book-2', studentNumber: 1, title: '둘째 책', pageCount: 320, createdAt: '2026-08-11T02:00:00.000Z' },
-  ]), 2.1);
+    { id: 'book-1', studentNumber: 1, title: '첫 책', author: '', pageCount: 100, createdAt: '2026-08-11T01:00:00.000Z' },
+    { id: 'book-2', studentNumber: 1, title: '둘째 책', author: '', pageCount: 320, createdAt: '2026-08-11T02:00:00.000Z' },
+  ]), 2.4);
+});
+
+test('책 배치는 중심에서 왼쪽과 오른쪽을 번갈아 가면서 책장 안에 머문다', () => {
+  const layouts = Array.from({ length: 12 }, (_, index) => getBookStackLayout(index));
+
+  assert.ok(new Set(layouts.map((layout) => layout.widthPercent)).size >= 6);
+  assert.ok(layouts.every((layout, index) => (
+    layout.widthPercent >= 81
+    && layout.widthPercent <= 92
+    && Math.abs(layout.offsetPercent) <= 1.25
+    && (index % 2 === 0 ? layout.offsetPercent < 0 : layout.offsetPercent > 0)
+  )));
+  assert.deepEqual(getBookStackLayout(12), getBookStackLayout(0));
 });
 
 test('학생은 선생님에게 편지를 보내고 답장 연결 정보를 보존한다', () => {
@@ -83,6 +113,7 @@ test('같은 요청 ID의 편지와 책은 한 번만 저장된다', () => {
     id: 'same-book',
     studentNumber: 4,
     title: '어린 왕자',
+    author: '생텍쥐페리',
     pageCount: 120,
     createdAt: '2026-08-11T01:00:00.000Z',
   };
@@ -106,4 +137,18 @@ test('잘못된 학생 번호와 빈 기록은 정규화에서 제외된다', ()
 
   assert.equal(normalized.letters.length, 1);
   assert.equal(normalized.books.length, 1);
+  assert.equal(normalized.books[0]?.author, '');
+});
+
+test('새 책은 글쓴이를 정리해 저장한다', () => {
+  const state = addStudentBook(normalizeStudentLifeState(null), {
+    id: 'book-with-author',
+    studentNumber: 1,
+    title: '어린 왕자',
+    author: '  생텍쥐페리  ',
+    pageCount: 120,
+    createdAt: '2026-08-22T01:00:00.000Z',
+  });
+
+  assert.equal(state.books[0]?.author, '생텍쥐페리');
 });

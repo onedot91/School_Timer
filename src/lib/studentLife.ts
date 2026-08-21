@@ -14,9 +14,15 @@ export interface StudentBook {
   readonly id: string;
   readonly studentNumber: number;
   readonly title: string;
+  readonly author: string;
   readonly pageCount: number;
   readonly createdAt: string;
 }
+
+export type BookStackLayout = {
+  readonly widthPercent: number;
+  readonly offsetPercent: number;
+};
 
 export interface StudentLifeState {
   readonly letters: readonly StudentLetter[];
@@ -34,7 +40,24 @@ const MAX_STUDENT_NUMBER = 23;
 export const TEACHER_LETTER_RECIPIENT = 0;
 const MAX_LETTERS = 600;
 const MAX_BOOKS = 600;
-const BOOK_PAGE_HEIGHT_CM = 0.005;
+const BOOK_PAPER_THICKNESS_PER_PAGE_CM = 0.005;
+const BOOK_COVER_AND_BINDING_THICKNESS_CM = 0.15;
+const BOOK_SPINE_MIN_HEIGHT_PX = 27;
+const BOOK_SPINE_MAX_HEIGHT_PX = 45;
+const BOOK_STACK_LAYOUTS: readonly BookStackLayout[] = [
+  { widthPercent: 86, offsetPercent: -1.25 },
+  { widthPercent: 82, offsetPercent: 1.25 },
+  { widthPercent: 90, offsetPercent: -0.75 },
+  { widthPercent: 85, offsetPercent: 0.75 },
+  { widthPercent: 88, offsetPercent: -1 },
+  { widthPercent: 81, offsetPercent: 1 },
+  { widthPercent: 92, offsetPercent: -0.5 },
+  { widthPercent: 84, offsetPercent: 0.5 },
+  { widthPercent: 89, offsetPercent: -1.25 },
+  { widthPercent: 83, offsetPercent: 1.25 },
+  { widthPercent: 87, offsetPercent: -0.75 },
+  { widthPercent: 85, offsetPercent: 0.75 },
+];
 
 const isStudentNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_STUDENT_NUMBER
@@ -76,6 +99,7 @@ const parseBook = (value: unknown): StudentBook | null => {
     id: book.id.slice(0, 80),
     studentNumber: book.studentNumber,
     title: book.title.trim().slice(0, 50),
+    author: typeof book.author === 'string' ? book.author.trim().slice(0, 30) : '',
     pageCount: book.pageCount,
     createdAt: book.createdAt,
   };
@@ -133,12 +157,30 @@ export const getStudentBooks = (state: StudentLifeState, studentNumber: number):
   [...state.books].reverse().filter((book) => book.studentNumber === studentNumber)
 );
 
-export const getBookHeightCm = (pageCount: number): number => (
-  Number((pageCount * BOOK_PAGE_HEIGHT_CM).toFixed(2))
+const calculateBookHeightCm = (pageCount: number): number => (
+  pageCount * BOOK_PAPER_THICKNESS_PER_PAGE_CM + BOOK_COVER_AND_BINDING_THICKNESS_CM
+);
+
+const roundBookHeightCm = (heightCm: number): number => Math.round((heightCm + Number.EPSILON) * 100) / 100;
+
+export const getBookHeightCm = (pageCount: number): number => roundBookHeightCm(calculateBookHeightCm(pageCount));
+
+export const getBookSpineHeightPx = (pageCount: number, pageCounts: readonly number[]): number => {
+  if (pageCounts.length === 0) return BOOK_SPINE_MIN_HEIGHT_PX;
+  const minPageCount = Math.min(...pageCounts);
+  const maxPageCount = Math.max(...pageCounts);
+  if (minPageCount === maxPageCount) return (BOOK_SPINE_MIN_HEIGHT_PX + BOOK_SPINE_MAX_HEIGHT_PX) / 2;
+  const pageRatio = (pageCount - minPageCount) / (maxPageCount - minPageCount);
+  const boundedRatio = Math.min(1, Math.max(0, pageRatio));
+  return Number((BOOK_SPINE_MIN_HEIGHT_PX + boundedRatio * (BOOK_SPINE_MAX_HEIGHT_PX - BOOK_SPINE_MIN_HEIGHT_PX)).toFixed(2));
+};
+
+export const getBookStackLayout = (index: number): BookStackLayout => (
+  BOOK_STACK_LAYOUTS[index % BOOK_STACK_LAYOUTS.length] ?? { widthPercent: 82, offsetPercent: 0 }
 );
 
 export const getBookStackHeightCm = (books: readonly StudentBook[]): number => (
-  Number(books.reduce((height, book) => height + getBookHeightCm(book.pageCount), 0).toFixed(2))
+  roundBookHeightCm(books.reduce((height, book) => height + calculateBookHeightCm(book.pageCount), 0))
 );
 
 export const loadStoredStudentLifeState = (): StudentLifeState => {

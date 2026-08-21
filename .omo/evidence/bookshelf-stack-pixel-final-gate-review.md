@@ -1,0 +1,23 @@
+# Bookshelf stack final gate review
+
+- recommendation: APPROVE
+- blockers: none
+- originalIntent: Adapt the supplied reading-stack reference conceptually into the classroom bookshelf: an irregular tower of varied-width books, visibly alternating lateral offsets, and spine thickness driven by page count.
+- desiredOutcome: At 1024, 1280, and 1366 CSS px the stack should read as one stable, varied tower, stay inside its shelf, keep labels legible, and make thicker books visibly correspond to larger page counts.
+- userOutcomeReview: The actual captures satisfy the requested visual grammar at all three target widths. Widths vary strongly (70–92%), offsets alternate across both sides (-8% to +7%), and the 24/36/42-page spines are visibly thinner than the 180/210/260/320-page spines. The stack remains centered, contained, readable, and supported by the shelf base. The result is a conceptual adaptation rather than a literal clone, as requested.
+- checkedArtifacts:
+  - `/var/folders/kp/rl6bb8813rzcdv9h2_qvck5m0000gn/T/codex-clipboard-b6a42e7d-fac0-4d98-b916-b8c8d81a2bd3.png`
+  - `tmp/bookshelf-layout-qa/bookshelf-stack-1024.png`
+  - `tmp/bookshelf-layout-qa/bookshelf-stack-1280.png`
+  - `tmp/bookshelf-layout-qa/bookshelf-stack-1366.png`
+  - `src/components/student/StudentLibraryPage.tsx`
+  - `src/lib/studentLife.ts`
+  - `src/lib/studentLife.test.ts`
+  - `src/index.css`
+- formulaEvidence: `getBookSpineHeightPx(pageCount) = 20 + round(pageCount * 0.005, 2) * 32`; current fixtures therefore range from about 23.84 px (24 pages) to 71.2 px (320 pages), matching the captures. `BOOK_STACK_LAYOUTS` provides twelve deterministic width/offset pairs.
+- verification:
+  - `npm run lint`: pass
+  - `npm test -- --run`: pass, 133/133
+- slopOverfitReview: No blocker. The layout table is a small, direct representation of the requested irregular grammar. The tests assert meaningful behavioral classes (linear page-thickness response, width diversity, bidirectional offsets, containment bounds, deterministic cycle) rather than deleted text, implementation prose, or tautologies.
+- programmingReview: No success-criterion violation. Types are explicit, no suppression or unsafe escape hatch was introduced in the reviewed formula path, and the UI consumes the typed helpers directly.
+- notes: The pattern repeats after twelve books, but only 18 are displayed and deterministic repetition does not violate the requested visual outcome. No exact evidence gap remains for this review.

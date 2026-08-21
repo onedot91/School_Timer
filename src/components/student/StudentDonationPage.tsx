@@ -16,7 +16,13 @@ export default function StudentDonationPage({ totalAmount, targetAmount, canDona
   const donationCharacterSource = getDailyDonationCharacterSource(getKoreanLocalDateKey());
   return (
     <section className="student-donation-page" aria-labelledby="student-donation-title">
-      <img src={donationCharacterSource} alt="학급 기부 캐릭터" />
+      <picture className={`student-donation-animation${isCompleted ? ' is-completed' : ''}`}>
+        {isCompleted ? <source media="(prefers-reduced-motion: reduce)" srcSet="/donation-thanks-poster.png" /> : null}
+        <img
+          src={isCompleted ? '/donation-thanks-075x.gif' : donationCharacterSource}
+          alt={isCompleted ? '기부 감사합니다 애니메이션' : '학급 기부 캐릭터'}
+        />
+      </picture>
       <div>
         <h2 id="student-donation-title">학급 기부</h2>
         <strong>{totalAmount} / {targetAmount}</strong>

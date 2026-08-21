@@ -104,6 +104,8 @@ Existing semantic success, warning, and destructive colors remain feature-owned 
 | `--student-compact-control-height` | `2.75rem` | compact Chromebook control with a 44px minimum target |
 | `--student-readable-text-min` | `0.875rem` | minimum student-facing supporting text at the 1280×800 reference viewport |
 | `--student-readable-image-min` | `3rem` | minimum meaningful thumbnail or status artwork at the reference viewport |
+| `--student-donation-character-size` | `20rem` | 진행 중 기부 화면의 날짜별 일반 캐릭터 크기 |
+| `--student-donation-animation-size` | `clamp(22rem, 60vh, 32rem)` | 목표 달성 후 감사 애니메이션을 Chromebook 높이 안에서 주인공 요소로 크게 보여 주는 최대 크기 |
 | `--student-letter-sender-size` | `clamp(1.35rem, 1.8vw, 1.6rem)` | sender label inside the student letter paper |
 | `--student-letter-title-size` | `clamp(2.5rem, 3.5vw, 3.125rem)` | primary title inside the student letter paper |
 | `--student-letter-body-size` | `clamp(1.75rem, 2.45vw, 2.125rem)` | readable serif body copy inside the student letter paper |
@@ -139,6 +141,27 @@ The spacing base is `0.25rem`. New spacing uses multiples of that base and scale
 
 One surface uses one elevation signal. Avoid combining thick borders, large shadows, and glass on the same element.
 
+### Bookstore feature tokens
+
+| Token | Value | Role |
+| --- | --- | --- |
+| `--bookstore-paper` | `#fffdf7` | 우수글 표지와 읽기 종이 |
+| `--bookstore-paper-muted` | `#f7efe2` | 책방의 조용한 빈 상태와 보조 면 |
+| `--bookstore-wood` | `#8a5b3c` | 진열 선반과 책장 이동 카드의 구조색 |
+| `--bookstore-wood-dark` | `#68422d` | 선반 아래 깊이와 강조선 |
+| `--bookstore-ink` | `#3f2b20` | 우수글 제목과 본문 잉크색 |
+| `--bookstore-card-min` | `13.5rem` | 긴 한국어 제목을 무리 없이 담는 우수글 카드 최소 너비 |
+| `--book-spine-amber` / `--book-spine-amber-ink` | `#efb26a` / `#74462f` | 따뜻한 기본 책등과 잉크 |
+| `--book-spine-green` / `--book-spine-green-ink` | `#8fc8ad` / `#315f55` | 초록 책등과 잉크 |
+| `--book-spine-blue` / `--book-spine-blue-ink` | `#a9b7eb` / `#4b5684` | 파랑 책등과 잉크 |
+| `--book-spine-red` / `--book-spine-red-ink` | `#eaa2a2` / `#7d4747` | 빨강 책등과 잉크 |
+| `--book-spine-yellow` / `--book-spine-yellow-ink` | `#ead481` / `#725d2c` | 노랑 책등과 잉크 |
+| `--book-spine-purple` / `--book-spine-purple-ink` | `#c5a6e5` / `#5d477d` | 보라 책등과 잉크 |
+| book-stack width rhythm | `81%–92%` | 참고 이미지처럼 폭은 다양하지만 중심축은 안정된 책탑을 만드는 범위 |
+| book-stack offset rhythm | `-1.25%–1.25%` | 중앙축을 유지하며 첫 책부터 왼쪽·오른쪽이 번갈아 보이는 미세한 반복 배치 |
+| book-stack visual scale | `27px–45px relative range` | 현재 책장 안의 최소·최대 쪽수를 기준으로 두께를 비례 배분해 작은 차이는 보이게 하고 큰 쪽수도 화면을 덮지 않게 하는 범위 |
+| book physical height estimate | `쪽수 × 0.005cm + 권당 0.15cm` | 종이 두께에 각 책의 앞뒤 표지와 제본 두께를 더해 실제 쌓인 높이에 가깝게 표시 |
+
 ## 3. Materials
 
 - Regular material: compact floating toolbars and anchored utility panes; soft saturation and 20px blur.
@@ -159,7 +182,9 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - Student interaction motion follows the beui.dev `button`, `otp-input`, `animated-badge`, and centered-modal mechanisms: pointer/touch presses use a quick interruptible scale response, entered digits use a short scale-and-opacity settle, status labels crossfade in place, and the difficulty dialog scales from `0.96` at the viewport center. Keyboard number entry and arrow navigation never run transform motion; their color, border, and text state updates are immediate.
 - Sudoku conflicts use one restrained border/color pulse with at most 3px lateral displacement for pointer/touch input. The same keyboard or reduced-motion path uses only the conflict surface and inset border. Completion is the only celebratory sequence: one green board wave plus eight small light particles, finishing within `--student-motion-celebrate`, never blocking input or replaying when a completed puzzle is reopened.
 - Mission cards reveal once when the mission view becomes active with a 35ms stagger and no delayed interactivity. Difficulty modal entry/exit and action presses correspond to real navigation or selection changes; student pages never add looping decorative motion.
+- The donation page shows its date-stable donation character while the goal is open. Once the shared class target is complete, the character stage switches to the supplied thank-you animation at `0.75×` playback speed; reduced-motion mode holds the first frame.
 - Number-baseball digit slots adapt the beui.dev `otp-input` mechanism: pointer and keyboard input settle in place with opacity and scale only, never shifting neighboring slots. S/B/OUT result chips adapt `animated-badge` as a single short state reveal. A correct answer triggers one non-blocking completion halo and six light particles; reduced motion replaces every transform with immediate color and opacity state changes. Reopening a completed or exhausted game never replays completion motion.
+- The student bookstore reuses the shared task header and presents published writing cards on one horizontal wood shelf. Cards are real buttons with title, author, and preview; opening one uses the shared blocking-dialog material and focus trap. The separate bookshelf view reuses the existing book-stack form and data unchanged. The teacher bookstore editor uses the existing settings-card language, with explicit up/down ordering controls and a published-state toggle.
 - Student walkers keep one constant horizontal speed across the full route; path height variation and footstep bobbing run on nested layers so they cannot alter forward velocity.
 - When student walkers overlap, the walker whose feet are lower on screen renders in front; depth follows the same linear timeline as the vertical path.
 
@@ -173,7 +198,7 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 - Mutually exclusive settings tabs use a filled accent selected state with white label and icon; unselected tabs remain quiet and neutral.
 - The schedule pane header shows only the adjusted current date on the left and the settings action on the right; month/day is larger and stronger while the weekday is smaller and secondary, and no redundant schedule title is added.
 - Student mode uses page-like views for `overview`, `emotions`, `missions`, `store`, `mailbox`, and `library`. The overview is the default hub and contains one 16:9 home canvas with keyboard-accessible mailbox and library hotspots, then one compact grouped identity-and-balance summary centered between exactly two dominant destination cards: `고마 벌기` for missions and `고마 쓰기` for the economy plaza. The overview has no separate top header so the canvas receives the reclaimed vertical space, and no balance content overlays the canvas artwork. Every student starts with the damaged wooden house centered on the home canvas; the one-time `집 고치기` shop item costs 100 고마 and swaps only that student's house to the repaired artwork. An unread letter swaps the home artwork to its alert variant until the letter is opened. The student number remains at the leading edge of the centered balance summary. Mission details never appear in the store, and store details never appear in the overview.
-- Mail and reading records stay in one compact `studentLife` field inside the existing shared settings snapshot. The mailbox keeps received letters and supports student-to-student or teacher-to-student composition; opening an unread letter records its read time. The library records a title and page count and renders the student's latest books as a visual stack. Each book spine uses the same `1쪽 = 0.005cm` paper estimate and one shared pixels-per-centimetre scale, so thicker books remain visibly thicker; a `1.25rem` readable minimum applies only to very thin books and text zoom. Book spines never shrink below that height, and an oversized stack scrolls inside the bookshelf. The stack top shows the summed approximate height in centimetres for the books currently rendered. These views reuse the existing Supabase updater and localStorage fallback without another table, dependency, or polling loop.
+- Mail and reading records stay in one compact `studentLife` field inside the existing shared settings snapshot. The mailbox keeps received letters and supports student-to-student or teacher-to-student composition; opening an unread letter records its read time. The library records a title and page count and renders the student's latest books as a visual stack. Each book spine maps the current stack's minimum and maximum page counts linearly into a bounded `27px–45px` visual range, so page differences stay visible without one unusually long book dominating the canvas. The stack top separately shows the summed physical estimate using `1쪽 = 0.005cm` plus `0.15cm` per book for its covers and binding. An oversized stack scrolls inside the bookshelf. These views reuse the existing Supabase updater and localStorage fallback without another table, dependency, or polling loop.
 - `StudentHeader` on task pages contains the overview return action and the current page title. The overview intentionally omits this top header and places its compact `StudentBalanceSummary` in the center column between the two bottom destination cards. The store header additionally places one compact `StudentBalanceSummary` at the trailing edge so spendable and bid-reserved amounts remain visible without a separate body card; narrower screens wrap that grouped balance to a second header row. A balance nested inside a task header keeps the same two-line label/value hierarchy but removes its own outer border and shadow to avoid a card inside a card. Student identity and character are not repeated outside the overview. `StudentBalanceSummary` presents available and reserved 고마 as one grouped unit instead of competing cards; the reservation state remains visible at `0 고마` so a student can distinguish spendable and bid-reserved amounts immediately.
 - The student securities flow uses third-grade language and one question per screen. `내 투자` shows only owned-stock count, total result, total sell value, and the owned-stock list; invested cost and other duplicate summaries are omitted. When nothing is owned, one compact empty state and one `종목 고르기` action replace the summary and empty list. `종목 고르기` shows all four stocks in one `4×1` row at the 1280×800 Chromebook viewport, with ownership, one red-up/blue-down result, a market comment only when one is registered, one price, and separate `사기` and `팔기` actions. The unavailable action remains visible but disabled so the two directions never move or change meaning. Buying or selling always opens a short confirmation dialog and uses `개`, `사기`, `팔기`, and `고마` instead of specialist trading terms.
 - Teacher securities settings place the frequently edited weekly market first: all four stocks and Monday through Friday appear in one matrix and save as one weekly batch, while the selected day's short reasons remain directly below it. Long-lived minimum, maximum, and rounding rules stay at the bottom. Keep the weekly draft keyed by date and stock so a later paste or text-file importer can feed the same save path.
