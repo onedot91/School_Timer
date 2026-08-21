@@ -144,6 +144,10 @@ export const getStudentLetters = (state: StudentLifeState, studentNumber: number
   [...state.letters].reverse().filter((letter) => letter.recipient === studentNumber)
 );
 
+export const getStudentSentLetters = (state: StudentLifeState, studentNumber: number): readonly StudentLetter[] => (
+  [...state.letters].reverse().filter((letter) => letter.senderStudentNumber === studentNumber)
+);
+
 export const getTeacherLetters = (state: StudentLifeState): readonly StudentLetter[] => (
   [...state.letters].reverse().filter((letter) => letter.recipient === TEACHER_LETTER_RECIPIENT)
 );

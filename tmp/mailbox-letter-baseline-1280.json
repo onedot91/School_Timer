@@ -1,0 +1,39 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "dpr": 1
+  },
+  "horizontalOverflow": 0,
+  "backgroundPosition": "0px 0px, 0px 5px, 0px 0px, 0px 0px",
+  "rule": 32,
+  "offset": 5,
+  "body": [
+    {
+      "bottom": 443.09375,
+      "y": 420.09375,
+      "height": 23,
+      "deltaToRuleEnd": -0.03
+    },
+    {
+      "bottom": 443.09375,
+      "y": 420.09375,
+      "height": 23,
+      "deltaToRuleEnd": -0.03
+    },
+    {
+      "bottom": 475.09375,
+      "y": 452.09375,
+      "height": 23,
+      "deltaToRuleEnd": -0.03
+    }
+  ],
+  "footer": [
+    {
+      "bottom": 539.09375,
+      "y": 520.09375,
+      "height": 19,
+      "deltaToRuleEnd": -0.03
+    }
+  ]
+}

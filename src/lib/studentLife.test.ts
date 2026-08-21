@@ -10,6 +10,7 @@ import {
   getBookStackHeightCm,
   getStudentBooks,
   getStudentLetters,
+  getStudentSentLetters,
   getTeacherLetters,
   getUnreadStudentLetterCount,
   markStudentLetterRead,
@@ -97,6 +98,30 @@ test('편지는 수신 학생에게만 보이고 읽은 뒤 알림 수가 줄어
   const read = markStudentLetterRead(initial, 3, 'letter-1', '2026-08-11T02:00:00.000Z');
   assert.equal(getUnreadStudentLetterCount(read, 3), 0);
   assert.equal(getStudentLetters(read, 3)[0]?.readAt, '2026-08-11T02:00:00.000Z');
+});
+
+test('보낸 편지는 기존 발신자 번호로 구분하고 최신순으로 보여 준다', () => {
+  const first = createStudentLetter(normalizeStudentLifeState(null), {
+    id: 'sent-first',
+    recipient: 2,
+    senderLabel: '3번',
+    senderStudentNumber: 3,
+    title: '첫 편지',
+    content: '먼저 보낸 편지예요.',
+    createdAt: '2026-08-11T01:00:00.000Z',
+  });
+  const second = createStudentLetter(first, {
+    id: 'sent-second',
+    recipient: 0,
+    senderLabel: '3번',
+    senderStudentNumber: 3,
+    title: '둘째 편지',
+    content: '나중에 보낸 편지예요.',
+    createdAt: '2026-08-11T02:00:00.000Z',
+  });
+
+  assert.deepEqual(getStudentSentLetters(second, 3).map((letter) => letter.id), ['sent-second', 'sent-first']);
+  assert.equal(getStudentSentLetters(second, 2).length, 0);
 });
 
 test('같은 요청 ID의 편지와 책은 한 번만 저장된다', () => {

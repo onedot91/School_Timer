@@ -125,6 +125,7 @@ import {
   createStudentLetter,
   getStudentBooks,
   getStudentLetters,
+  getStudentSentLetters,
   getUnreadStudentLetterCount,
   loadStoredStudentLifeState,
   markStudentLetterRead,
@@ -545,6 +546,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const visibleDayCount = getAuctionVisibleDayCount();
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
   const studentLetters = getStudentLetters(studentLife, studentNumber);
+  const studentSentLetters = getStudentSentLetters(studentLife, studentNumber);
   const studentBooks = getStudentBooks(studentLife, studentNumber);
   const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber);
 
@@ -1605,6 +1607,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           <StudentMailboxPage
             studentNumber={studentNumber}
             letters={studentLetters}
+            sentLetters={studentSentLetters}
+            unreadCount={unreadLetterCount}
             isSaving={isStudentLifeSaving}
             onRead={readStudentLetter}
             onSend={sendStudentLetter}
