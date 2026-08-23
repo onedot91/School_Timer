@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookPlus } from 'lucide-react';
+import { BookOpen, BookPlus } from 'lucide-react';
 import {
   getBookHeightCm,
   getBookSpineHeightPx,
@@ -35,8 +35,8 @@ export default function StudentLibraryPage({ books, isSaving, onAdd, onBack }: S
       <StudentHeader
         title="책장"
         onBack={onBack}
-        backLabel="책방으로 돌아가기"
-        backText="책방"
+        backLabel="실패 전시관으로 돌아가기"
+        backText="실패 전시관"
       />
       <section className="student-library-layout">
         <form className="student-book-form" onSubmit={(event) => {
@@ -57,7 +57,12 @@ export default function StudentLibraryPage({ books, isSaving, onAdd, onBack }: S
                 <strong>약 {BOOK_HEIGHT_FORMATTER.format(stackHeightCm)}cm</strong>
               </div>
             ) : null}
-            {visibleBooks.length === 0 ? <p>첫 책을 쌓아 보세요.</p> : visibleBooks.map((book, index) => {
+            {visibleBooks.length === 0 ? (
+              <div className="student-bookshelf-empty">
+                <BookOpen aria-hidden="true" />
+                <p>첫 책을 쌓아 보세요.</p>
+              </div>
+            ) : visibleBooks.map((book, index) => {
               const layout = getBookStackLayout(index);
               return (
                 <article

@@ -42,16 +42,17 @@ test('책 두께는 쪽당 0.005cm의 실제 높이를 따르면서 화면을 �
   ]), 2.1);
 });
 
-test('책 배치는 중심에서 왼쪽과 오른쪽을 번갈아 가면서 책장 안에 머문다', () => {
+test('책 배치는 같은 너비로 중심에서 왼쪽과 오른쪽을 번갈아 가면서 책장 안에 머문다', () => {
   const layouts = Array.from({ length: 12 }, (_, index) => getBookStackLayout(index));
+  const totalOffset = layouts.reduce((sum, layout) => sum + layout.offsetPercent, 0);
 
-  assert.ok(new Set(layouts.map((layout) => layout.widthPercent)).size >= 6);
+  assert.equal(new Set(layouts.map((layout) => layout.widthPercent)).size, 1);
+  assert.ok(layouts.every((layout) => layout.widthPercent === 88));
   assert.ok(layouts.every((layout, index) => (
-    layout.widthPercent >= 81
-    && layout.widthPercent <= 92
-    && Math.abs(layout.offsetPercent) <= 1.25
+    Math.abs(layout.offsetPercent) <= 2
     && (index % 2 === 0 ? layout.offsetPercent < 0 : layout.offsetPercent > 0)
   )));
+  assert.ok(Math.abs(totalOffset) < 0.001);
   assert.deepEqual(getBookStackLayout(12), getBookStackLayout(0));
 });
 
@@ -177,4 +178,30 @@ test('새 책은 글쓴이를 정리해 저장한다', () => {
   });
 
   assert.equal(state.books[0]?.author, '생텍쥐페리');
+});
+
+test('학생 생활 상태는 유효한 실패 이야기와 익명 응원 도장을 복구한다', () => {
+  // Given
+  const saved = {
+    failureStories: [{
+      id: 'failure-1',
+      studentNumber: 7,
+      failure: '  발표할 말을 잊었어요.  ',
+      lesson: '천천히 다시 시작하면 된다는 걸 알았어요.',
+      stamps: [
+        { studentNumber: 3, stampId: 'cheer' },
+        { studentNumber: 3, stampId: 'me-too' },
+      ],
+      createdAt: '2026-08-23T01:00:00.000Z',
+      updatedAt: '2026-08-23T01:00:00.000Z',
+    }],
+  };
+
+  // When
+  const state = normalizeStudentLifeState(saved);
+
+  // Then
+  assert.equal(state.failureStories.length, 1);
+  assert.equal(state.failureStories[0]?.failure, '발표할 말을 잊었어요.');
+  assert.equal(state.failureStories[0]?.stamps.length, 1);
 });

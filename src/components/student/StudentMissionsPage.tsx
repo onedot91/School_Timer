@@ -38,11 +38,6 @@ const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
   challenge: '도전',
 };
 
-const DIFFICULTY_DESCRIPTIONS: Record<SudokuDifficulty, string> = {
-  basic: '6×6 판에서 1부터 6까지 풀어요.',
-  challenge: '9×9 판에서 1부터 9까지 풀어요.',
-};
-
 export default function StudentMissionsPage({
   auctionMissions,
   weeklyMissionStatuses,
@@ -239,7 +234,6 @@ export default function StudentMissionsPage({
                   </span>
                   <span className="student-sudoku-settings-option-copy">
                     <span>{DIFFICULTY_LABELS[difficulty]}</span>
-                    <small>{DIFFICULTY_DESCRIPTIONS[difficulty]}</small>
                   </span>
                   <span className="student-sudoku-settings-option-reward">
                     <strong>+{SUDOKU_REWARDS[difficulty]}</strong>

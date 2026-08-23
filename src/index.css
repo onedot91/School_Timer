@@ -312,13 +312,16 @@
 }
 
 .student-mail-envelope-stamp[data-bank="true"],
-.student-mail-postmark[data-bank="true"] {
+.student-mail-postmark[data-bank="true"],
+.student-mail-envelope-stamp[data-donation="true"],
+.student-mail-postmark[data-donation="true"] {
   overflow: hidden;
   border: 1px solid rgb(47 117 89 / 24%);
   background: rgb(231 244 233 / 82%);
 }
 
-.student-mail-envelope-stamp[data-bank="true"] {
+.student-mail-envelope-stamp[data-bank="true"],
+.student-mail-envelope-stamp[data-donation="true"] {
   top: .375rem;
   left: .375rem;
   width: 3.75rem;
@@ -327,7 +330,9 @@
 }
 
 .student-mail-envelope-stamp[data-bank="true"] img,
-.student-mail-postmark[data-bank="true"] img {
+.student-mail-postmark[data-bank="true"] img,
+.student-mail-envelope-stamp[data-donation="true"] img,
+.student-mail-postmark[data-donation="true"] img {
   display: block;
   width: 88%;
   height: 88%;
@@ -475,7 +480,8 @@
   transform: rotate(3deg);
 }
 
-.student-mail-postmark[data-bank="true"] {
+.student-mail-postmark[data-bank="true"],
+.student-mail-postmark[data-donation="true"] {
   width: 4.5rem;
   height: 4.5rem;
   transform: rotate(2deg);
@@ -12251,6 +12257,20 @@ h3 {
   --book-spine-yellow-ink: #725d2c;
   --book-spine-purple: #c5a6e5;
   --book-spine-purple-ink: #5d477d;
+  --failure-paper: #fffcf6;
+  --failure-paper-muted: #f7fbff;
+  --failure-lesson: #e5f6ee;
+  --failure-sky: #e8f4ff;
+  --failure-mint: #86d7bd;
+  --failure-ink: #40383f;
+  --failure-ink-muted: #6e6870;
+  --failure-stamp: #147a62;
+  --failure-coral: #ff8b82;
+  --failure-lavender: #c7b5f3;
+  --failure-butter: #ffe7a3;
+  --failure-wall: #eaf8f3;
+  --failure-wall-dark: #b8daca;
+  --failure-feed-measure: min(64rem, 1024px);
   --student-letter-sender-size: 1.125rem;
   --student-letter-title-size: clamp(2.25rem, 3vw, 2.75rem);
   --student-letter-body-size: clamp(1.35rem, 1.9vw, 1.55rem);
@@ -13150,6 +13170,582 @@ a[href]:active {
 .student-book-stack .student-book-pages { position: absolute; right: 1rem; }
 .student-bookshelf-base { height: 1.25rem; flex-shrink: 0; border-radius: .3rem; background: var(--bookstore-wood); box-shadow: 0 .75rem 0 var(--bookstore-wood-dark); }
 
+.student-failure-layout {
+  display: grid;
+  min-height: 35rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.student-failure-view .student-header-status {
+  border: 2px solid color-mix(in srgb, var(--failure-stamp) 42%, transparent);
+  background: linear-gradient(135deg, var(--failure-lesson), color-mix(in srgb, var(--failure-butter) 36%, var(--failure-paper)));
+  padding: .6rem 1rem;
+  color: var(--failure-stamp);
+  font-size: 1.125rem;
+  font-weight: 950;
+  letter-spacing: -.015em;
+  box-shadow: 0 .3rem .8rem color-mix(in srgb, var(--failure-stamp) 12%, transparent);
+}
+.student-failure-view .student-header-identity { gap: .5rem; }
+.student-failure-view .student-header-copy { gap: .5rem; }
+.student-failure-view .student-header-copy h1 { flex: 0 0 auto; white-space: nowrap; }
+.student-failure-gallery-shell {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--bookstore-wood) 32%, transparent);
+  border-radius: var(--apple-radius-panel);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--failure-wall-dark) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--failure-wall-dark) 16%, transparent) 1px, transparent 1px),
+    var(--failure-wall);
+  background-size: 2rem 2rem;
+  padding: .85rem;
+  box-shadow: inset 0 0 0 .35rem color-mix(in srgb, var(--failure-paper) 52%, transparent), var(--apple-shadow-1);
+}
+.student-failure-side {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(13rem, 15rem);
+}
+.student-failure-gallery {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: .7rem;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  padding: .35rem .3rem .6rem;
+}
+.student-failure-gallery[data-empty="false"] { padding-bottom: .6rem; }
+.student-failure-gallery[data-empty="true"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-content: stretch;
+}
+.student-failure-pinned {
+  display: grid;
+  width: min(100%, var(--failure-feed-measure));
+  gap: .4rem;
+  margin: 0 auto;
+}
+.student-failure-pinned > strong {
+  display: inline-flex;
+  min-height: 2rem;
+  width: fit-content;
+  align-items: center;
+  border-radius: var(--apple-radius-pill);
+  background: var(--failure-stamp);
+  padding: .35rem .75rem;
+  color: var(--failure-paper);
+  font-size: 1rem;
+  font-weight: 950;
+  letter-spacing: -.01em;
+  box-shadow: var(--apple-shadow-1);
+}
+.student-failure-pinned .student-failure-message {
+  border: 2px solid color-mix(in srgb, var(--failure-stamp) 48%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--failure-lesson) 72%, var(--failure-paper)), var(--failure-paper));
+  box-shadow: 0 .5rem 1.25rem color-mix(in srgb, var(--failure-stamp) 12%, transparent);
+}
+.student-failure-feed {
+  display: grid;
+  width: min(100%, var(--failure-feed-measure));
+  min-height: 0;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 54%, transparent);
+  border-radius: var(--apple-radius-card);
+  background: color-mix(in srgb, var(--failure-paper) 92%, transparent);
+  outline: 0;
+}
+.student-failure-feed-window {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  overflow: clip;
+}
+.student-failure-relay-item { min-width: 0; will-change: transform; }
+.student-failure-relay-item-motion { min-width: 0; }
+.student-failure-feed:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 3px; }
+.student-failure-relay {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.student-failure-pinned + .student-failure-relay { position: relative; }
+.student-failure-pinned + .student-failure-relay::before {
+  position: absolute;
+  top: -.5rem;
+  left: 50%;
+  width: min(72%, 44rem);
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--failure-stamp) 74%, transparent) 0 .55rem,
+    transparent .55rem .85rem
+  );
+  content: '';
+  mask-image: linear-gradient(90deg, transparent, black 7% 93%, transparent);
+  pointer-events: none;
+  transform: translateX(-50%);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 7% 93%, transparent);
+}
+.student-failure-relay-toolbar {
+  position: absolute;
+  z-index: 3;
+  right: .5rem;
+  bottom: 5.5rem;
+  display: flex;
+  width: 4rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border: 1px solid color-mix(in srgb, var(--failure-stamp) 18%, transparent);
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--failure-paper) 88%, transparent);
+  padding: .25rem;
+  box-shadow: var(--apple-shadow-1);
+}
+.student-failure-relay-toolbar button {
+  display: grid;
+  width: var(--apple-control-min);
+  height: var(--apple-control-min);
+  place-items: center;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--failure-stamp);
+  transition: transform var(--student-motion-press) var(--student-ease-out), background-color var(--student-motion-state) var(--student-ease-out);
+}
+.student-failure-relay-toolbar button:hover:not(:disabled) { background: color-mix(in srgb, var(--failure-stamp) 11%, transparent); }
+.student-failure-relay-toolbar button:active:not(:disabled) { transform: scale(.94); }
+.student-failure-relay-toolbar button:disabled { color: var(--apple-text-tertiary); opacity: .45; }
+.student-failure-relay-toolbar svg { width: 1.2rem; height: 1.2rem; }
+.student-failure-new-stories {
+  position: absolute;
+  z-index: 4;
+  top: 3.8rem;
+  left: 50%;
+  min-height: 2.75rem;
+  border-radius: var(--apple-radius-pill);
+  background: var(--failure-stamp);
+  padding: .55rem 1rem;
+  color: white;
+  font-size: 1rem;
+  font-weight: 900;
+  box-shadow: var(--apple-shadow-2);
+  transform: translateX(-50%);
+}
+.student-failure-message {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: .85rem;
+  padding: .85rem 1rem;
+  color: var(--failure-ink);
+  transition: background-color var(--student-motion-state) var(--student-ease-out);
+}
+.student-failure-message:nth-child(even) { background: color-mix(in srgb, var(--failure-lesson) 28%, transparent); }
+.student-failure-message:first-child { border-radius: var(--apple-radius-card) var(--apple-radius-card) 0 0; }
+.student-failure-message:last-child { border-radius: 0 0 var(--apple-radius-card) var(--apple-radius-card); }
+.student-failure-message:only-child { border-radius: var(--apple-radius-card); }
+.student-failure-message + .student-failure-message { border-top: 1px solid color-mix(in srgb, var(--failure-wall-dark) 38%, transparent); }
+.student-failure-message:hover,
+.student-failure-message:focus-within { background: color-mix(in srgb, var(--failure-lesson) 56%, var(--failure-paper)); }
+.student-failure-message-main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  align-items: start;
+  gap: .85rem;
+  border-radius: var(--apple-radius-control);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.student-failure-message-profile {
+  display: block;
+  width: 3rem;
+  height: 3rem;
+  overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--failure-stamp) 18%, var(--failure-paper));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--failure-stamp) 12%, var(--failure-paper));
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--failure-wall-dark) 36%, transparent);
+}
+.student-failure-message-profile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.student-failure-message-content { position: relative; display: grid; min-width: 0; gap: .55rem; }
+.student-failure-message-text {
+  display: -webkit-box;
+  color: var(--failure-ink);
+  font-size: 1.25rem;
+  font-weight: 750;
+  line-height: 1.55;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.student-failure-message-next {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: flex-start;
+  gap: .45rem;
+  color: color-mix(in srgb, var(--failure-stamp) 78%, var(--failure-ink));
+  font-size: 1.1rem;
+  font-weight: 650;
+  line-height: 1.55;
+}
+.student-failure-message-next svg { width: 1rem; height: 1rem; flex: 0 0 auto; margin-top: .22rem; }
+.student-failure-message-next span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.student-failure-message.is-expanded :is(.student-failure-message-text, .student-failure-message-next span) {
+  display: block;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.student-failure-message-actions { display: flex; gap: .25rem; opacity: .24; transition: opacity var(--student-motion-state) var(--student-ease-out); }
+.student-failure-message:hover .student-failure-message-actions,
+.student-failure-message:focus-within .student-failure-message-actions { opacity: 1; }
+.student-failure-message-actions button {
+  display: grid;
+  width: var(--apple-control-min);
+  height: var(--apple-control-min);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--apple-text-secondary);
+  transition: transform var(--student-motion-press) var(--student-ease-out), background-color var(--student-motion-state) var(--student-ease-out);
+}
+.student-failure-message-actions button:hover { background: color-mix(in srgb, var(--failure-wall-dark) 22%, transparent); }
+.student-failure-message-actions button:active { transform: scale(.96); }
+.student-failure-message-actions button:last-child { color: var(--alert); }
+.student-failure-message-actions svg { width: 1.1rem; height: 1.1rem; }
+.student-failure-message-reactions {
+  display: flex;
+  align-self: center;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .65rem;
+}
+.student-failure-stamp-control { position: relative; z-index: 3; display: grid; justify-items: end; }
+.student-failure-stamp-trigger {
+  display: inline-grid;
+  min-width: 7rem;
+  min-height: var(--apple-control-min);
+  flex: 0 0 auto;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .4rem;
+  border: 1px solid color-mix(in srgb, var(--failure-stamp) 22%, transparent);
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--failure-stamp) 7%, var(--failure-paper));
+  padding: .55rem .7rem .55rem .8rem;
+  color: var(--failure-stamp);
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1;
+  transition: transform var(--student-motion-press) var(--student-ease-out), background-color var(--student-motion-state) var(--student-ease-out), color var(--student-motion-state) var(--student-ease-out);
+}
+.student-failure-stamp-trigger:hover { background: color-mix(in srgb, var(--failure-stamp) 14%, var(--failure-paper)); }
+.student-failure-stamp-trigger:active { transform: scale(.96); }
+.student-failure-stamp-trigger.is-selected { background: var(--failure-stamp); color: white; }
+.student-failure-stamp-trigger svg { width: 1.15rem; height: 1.15rem; }
+.student-failure-stamp-trigger .student-failure-stamp-chevron { width: .95rem; height: .95rem; transition: transform var(--student-motion-state) var(--student-ease-out); }
+.student-failure-stamp-trigger[aria-expanded="true"] .student-failure-stamp-chevron { transform: rotate(180deg); }
+.student-failure-stamps {
+  display: grid;
+  grid-column: 1 / -1;
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .5rem;
+  border: 1px solid color-mix(in srgb, var(--failure-stamp) 20%, transparent);
+  border-radius: var(--apple-radius-control);
+  background: color-mix(in srgb, var(--failure-lesson) 78%, var(--failure-paper));
+  padding: .65rem;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 72%, transparent), var(--apple-shadow-1);
+  animation: studentFailureStampMenuIn var(--student-motion-state) var(--student-ease-out) both;
+}
+.student-failure-stamps-title {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: .4rem;
+  color: color-mix(in srgb, var(--failure-stamp) 86%, var(--failure-ink));
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+.student-failure-stamps-title svg { width: 1.1rem; height: 1.1rem; }
+.student-failure-stamps button {
+  min-height: 2.75rem;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: .5rem;
+  border: 1px solid color-mix(in srgb, var(--failure-stamp) 16%, transparent);
+  border-radius: .75rem;
+  background: var(--failure-paper);
+  padding: .6rem .7rem;
+  color: var(--failure-stamp);
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: left;
+  transition: transform var(--student-motion-press) var(--student-ease-out), background-color var(--student-motion-state) var(--student-ease-out), color var(--student-motion-state) var(--student-ease-out);
+}
+.student-failure-stamps button:hover { background: color-mix(in srgb, var(--failure-stamp) 9%, var(--failure-paper)); }
+.student-failure-stamps button.is-selected { border-color: var(--failure-stamp); background: color-mix(in srgb, var(--failure-stamp) 14%, var(--failure-paper)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--failure-stamp) 38%, transparent); }
+.student-failure-stamps button:active:not(:disabled) { transform: scale(.98); }
+.student-failure-stamp-choice-icon { display: grid; width: 1.75rem; height: 1.75rem; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--failure-stamp) 10%, var(--failure-paper)); }
+.student-failure-stamp-choice-icon svg { width: 1rem; height: 1rem; }
+.student-failure-stamps button.is-selected .student-failure-stamp-choice-icon { background: var(--failure-stamp); color: white; }
+.student-failure-create-fab {
+  position: absolute;
+  z-index: 2;
+  right: 1.6rem;
+  bottom: 1.6rem;
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, white 36%, var(--failure-stamp));
+  border-radius: 50%;
+  background: var(--failure-stamp);
+  color: white;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 38%, transparent), var(--apple-shadow-2);
+  transition: transform var(--student-motion-press) var(--student-ease-out), filter var(--student-motion-press) var(--student-ease-out);
+}
+.student-failure-create-fab:hover { transform: translateY(-.15rem); filter: brightness(1.06); }
+.student-failure-create-fab:active { transform: scale(.96); }
+.student-failure-create-fab svg { width: 1.65rem; height: 1.65rem; }
+.student-failure-compose-backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--apple-scrim);
+  animation: studentFailureBackdropIn var(--student-motion-state) var(--student-ease-out) both;
+}
+.student-failure-compose-dialog {
+  position: relative;
+  display: grid;
+  width: min(100%, 40rem);
+  max-height: min(90dvh, 44rem);
+  gap: 1rem;
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 68%, transparent);
+  border-radius: var(--apple-radius-panel);
+  background: var(--failure-paper);
+  padding: 1.75rem;
+  color: var(--failure-ink);
+  box-shadow: var(--apple-shadow-3);
+  outline: 0;
+  animation: studentFailureComposeIn var(--student-motion-state) var(--student-ease-out) both;
+}
+.student-failure-compose-heading { display: flex; align-items: center; gap: .75rem; border-bottom: 1px solid color-mix(in srgb, var(--failure-wall-dark) 54%, transparent); padding: 0 3.25rem 1rem 0; }
+.student-failure-compose-heading svg { width: 2rem; height: 2rem; flex: 0 0 auto; color: var(--failure-stamp); }
+.student-failure-compose-heading h2 { font-size: 2rem; font-weight: 950; line-height: 1.2; letter-spacing: -.02em; }
+.student-failure-compose-close {
+  position: absolute;
+  top: .85rem;
+  right: .85rem;
+  display: grid;
+  width: var(--apple-control-min);
+  height: var(--apple-control-min);
+  place-items: center;
+  border-radius: var(--apple-radius-pill);
+  background: var(--apple-surface-muted);
+  color: var(--apple-text-secondary);
+}
+.student-failure-compose-close svg { width: 1.2rem; height: 1.2rem; }
+.student-failure-cheer-dialog {
+  width: min(100%, 31rem);
+  justify-items: center;
+  gap: 1.2rem;
+  overflow: hidden;
+  padding: 2.35rem 2rem 2rem;
+  text-align: center;
+}
+.student-failure-cheer-icon {
+  display: grid;
+  width: 5rem;
+  height: 5rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--failure-mint) 58%, transparent);
+  border-radius: 1.65rem;
+  background: linear-gradient(145deg, var(--failure-lesson), var(--failure-sky));
+  color: var(--failure-stamp);
+  box-shadow: 0 .75rem 1.6rem color-mix(in srgb, var(--failure-stamp) 14%, transparent);
+  transform: rotate(-4deg);
+}
+.student-failure-cheer-icon svg { width: 2.65rem; height: 2.65rem; }
+.student-failure-cheer-copy { display: grid; justify-items: center; gap: .45rem; }
+.student-failure-cheer-copy > span { color: var(--failure-stamp); font-size: 1rem; font-weight: 900; }
+.student-failure-cheer-copy h2 { color: var(--failure-ink); font-size: 2rem; font-weight: 950; line-height: 1.2; letter-spacing: -.025em; }
+.student-failure-cheer-copy p { max-width: 24rem; color: var(--failure-ink-muted); font-size: 1.15rem; font-weight: 750; line-height: 1.6; word-break: keep-all; }
+.student-failure-cheer-confirm { width: 100%; min-height: 3.75rem; font-size: 1.15rem; }
+.student-failure-cheer-confirm svg { width: 1.35rem; height: 1.35rem; }
+.student-failure-form {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+.student-failure-form label,
+.student-failure-edit label { display: grid; gap: .45rem; color: var(--apple-text-secondary); font-size: 1.05rem; font-weight: 900; }
+.student-failure-form .student-failure-form-question {
+  gap: .7rem;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 56%, transparent);
+  border-radius: 1.1rem;
+  background: color-mix(in srgb, var(--failure-paper-muted) 88%, white);
+  padding: .9rem;
+}
+.student-failure-form .student-failure-form-question:nth-of-type(2) {
+  border-color: color-mix(in srgb, var(--failure-stamp) 24%, transparent);
+  background: color-mix(in srgb, var(--failure-lesson) 76%, white);
+}
+.student-failure-form-question-title {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  color: var(--failure-ink);
+  font-size: 1.35rem;
+  font-weight: 950;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+.student-failure-form-question-title b {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--failure-stamp);
+  color: white;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.student-failure-form textarea,
+.student-failure-edit textarea {
+  width: 100%;
+  min-height: 6.5rem;
+  resize: vertical;
+  border: 1px solid var(--apple-separator);
+  border-radius: .9rem;
+  background: var(--apple-surface);
+  padding: .8rem .9rem;
+  color: var(--apple-text-primary);
+  font-size: 1.1rem;
+  line-height: 1.55;
+}
+.student-failure-form textarea {
+  field-sizing: content;
+  height: auto;
+  min-height: 4.15rem;
+  max-height: 6.25rem;
+  resize: none;
+  overflow-y: auto;
+  background: var(--failure-paper);
+  padding: .75rem 1rem;
+  font-size: 1.35rem;
+  font-weight: 650;
+  line-height: 1.55;
+  transform-origin: top;
+}
+.student-failure-form textarea::placeholder { color: color-mix(in srgb, var(--apple-text-secondary) 76%, white); font-weight: 700; }
+.student-failure-form textarea:focus,
+.student-failure-edit textarea:focus { border-color: var(--apple-focus); outline: 3px solid color-mix(in srgb, var(--apple-focus) 22%, transparent); outline-offset: 1px; }
+.student-failure-form .student-primary-action { min-height: 3.75rem; margin-top: .1rem; font-size: 1.25rem; }
+.student-failure-form .student-primary-action svg { width: 1.3rem; height: 1.3rem; }
+.student-failure-bookshelf-entry {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .85rem;
+  border-color: color-mix(in srgb, var(--bookstore-wood-dark) 72%, transparent);
+  border-radius: var(--apple-radius-card);
+  min-height: 3.5rem;
+  padding: .45rem .7rem;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+}
+.student-failure-bookshelf-entry .student-bookshelf-entry-icon { width: 2.5rem; height: 2.5rem; border-radius: .8rem; }
+.student-failure-bookshelf-entry .student-bookshelf-entry-icon svg { width: 1.35rem; height: 1.35rem; }
+.student-failure-bookshelf-entry .student-bookshelf-entry-copy strong { font-size: 1rem; }
+.student-failure-bookshelf-entry .student-bookshelf-entry-arrow { justify-self: auto; }
+.student-failure-edit { display: grid; gap: .8rem; }
+.student-failure-edit textarea { min-height: 6.5rem; }
+.student-failure-edit > div { display: flex; justify-content: flex-end; gap: .5rem; }
+.student-failure-edit button { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .35rem; border-radius: .8rem; background: var(--apple-surface-muted); padding: .55rem .85rem; color: var(--apple-text-secondary); font-weight: 900; }
+.student-failure-edit button[type="submit"] { background: var(--failure-stamp); color: white; }
+.student-failure-edit svg { width: 1rem; height: 1rem; }
+.student-failure-empty {
+  display: grid;
+  min-height: 0;
+  height: 100%;
+  grid-column: 1 / -1;
+  place-items: center;
+  align-content: center;
+  gap: .75rem;
+  border: 1px dashed color-mix(in srgb, var(--bookstore-wood) 42%, transparent);
+  border-radius: var(--apple-radius-card);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 2rem, color-mix(in srgb, var(--failure-wall-dark) 18%, transparent) 2rem calc(2rem + 1px)),
+    var(--failure-paper-muted);
+  padding: 2rem;
+  color: var(--failure-stamp);
+  text-align: center;
+  box-shadow: inset 0 0 0 .3rem color-mix(in srgb, var(--failure-paper) 72%, transparent);
+}
+.student-failure-empty svg { width: 3rem; height: 3rem; }
+.student-failure-empty strong { color: var(--failure-ink); font-size: 1.25rem; font-weight: 950; }
+.student-failure-message :is(button, textarea):focus-visible,
+.student-failure-form :is(button, textarea):focus-visible,
+.student-failure-create-fab:focus-visible,
+.student-failure-compose-close:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 3px; }
+.student-failure-message button:disabled,
+.student-failure-form button:disabled,
+.student-failure-compose-close:disabled { cursor: not-allowed; opacity: .45; }
+
+@keyframes studentFailureBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes studentFailureComposeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes studentFailureStampMenuIn { from { opacity: 0; transform: translateY(.25rem); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .student-failure-compose-dialog { animation-name: studentFailureBackdropIn; }
+  .student-failure-stamps { animation-name: studentFailureBackdropIn; }
+  .student-failure-relay-item,
+  .student-failure-relay-item-motion { will-change: auto; }
+}
+
+@media (hover: none) {
+  .student-failure-message-actions { opacity: .72; }
+}
+
 @media (max-width: 767px) {
   .student-mailbox-layout,
   .student-library-layout { grid-template-columns: 1fr; min-height: 0; }
@@ -13160,6 +13756,263 @@ a[href]:active {
   .student-letter-compose-paper { padding-left: 3.5rem; }
   .teacher-mail-reader { grid-template-columns: 1fr; }
   .student-bookshelf { min-height: 28rem; padding-inline: 1.25rem; }
+  .student-failure-view > .student-header { flex-wrap: wrap; height: auto; }
+  .student-failure-view > .student-header .student-header-actions { width: 100%; max-width: none; }
+  .student-failure-side { width: 100%; grid-template-columns: minmax(0, 1fr); }
+  .student-failure-bookshelf-entry { min-height: 5.5rem; }
+  .student-failure-compose-dialog { padding: 1.25rem; }
+  .student-failure-compose-heading h2 { font-size: 1.8rem; }
+  .student-failure-form-question-title { font-size: 1.2rem; }
+  .student-failure-form textarea { min-height: 4.15rem; max-height: 6.25rem; }
+  .student-failure-message { padding: .9rem; }
+  .student-failure-message-main { grid-template-columns: 2.75rem minmax(0, 1fr); }
+  .student-failure-message-profile { width: 2.75rem; height: 2.75rem; }
+  .student-failure-message-actions { justify-self: end; }
+  .student-failure-stamp-control { grid-column: 1 / -1; justify-items: start; }
+  .student-failure-stamps { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .student-failure-gallery[data-empty="false"] { padding-right: 4.75rem; }
+}
+
+@media (max-height: 700px) and (min-width: 768px) {
+  .student-failure-message { padding-block: .65rem; }
+  .student-failure-message-content { gap: .35rem; }
+}
+
+.student-failure-view {
+  background:
+    radial-gradient(circle at 6% 4%, color-mix(in srgb, var(--failure-butter) 42%, transparent) 0, transparent 20rem),
+    radial-gradient(circle at 94% 92%, color-mix(in srgb, var(--failure-lavender) 28%, transparent) 0, transparent 24rem),
+    linear-gradient(145deg, var(--failure-wall), var(--failure-sky));
+}
+.student-failure-view > .student-header {
+  border-color: color-mix(in srgb, var(--failure-mint) 42%, transparent);
+  background: color-mix(in srgb, var(--failure-paper) 92%, transparent);
+  box-shadow: 0 .65rem 1.6rem color-mix(in srgb, var(--failure-stamp) 10%, transparent);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+.student-failure-view .student-header-status {
+  border-color: color-mix(in srgb, var(--failure-mint) 58%, transparent);
+  background: linear-gradient(135deg, var(--failure-lesson), color-mix(in srgb, var(--failure-butter) 36%, var(--failure-paper)));
+  color: var(--failure-stamp);
+}
+.student-failure-gallery-shell {
+  border-color: color-mix(in srgb, var(--failure-mint) 62%, transparent);
+  background:
+    radial-gradient(circle at 4% 6%, color-mix(in srgb, var(--failure-butter) 48%, transparent) 0, transparent 18rem),
+    radial-gradient(circle at 96% 8%, color-mix(in srgb, var(--failure-coral) 18%, transparent) 0, transparent 17rem),
+    radial-gradient(circle at 92% 96%, color-mix(in srgb, var(--failure-lavender) 30%, transparent) 0, transparent 22rem),
+    linear-gradient(145deg, var(--failure-wall), var(--failure-sky));
+  background-size: auto;
+  padding: 1rem;
+  box-shadow:
+    inset 0 0 0 .35rem color-mix(in srgb, var(--failure-paper) 44%, transparent),
+    0 .85rem 2rem color-mix(in srgb, var(--failure-stamp) 10%, transparent);
+}
+.student-failure-gallery { gap: .8rem; padding: .4rem .45rem 5.25rem; }
+.student-failure-gallery[data-empty="false"] { padding-bottom: 5.25rem; }
+.student-failure-feed {
+  border-color: color-mix(in srgb, var(--failure-mint) 30%, transparent);
+  background: color-mix(in srgb, var(--failure-paper) 94%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--failure-paper),
+    0 .65rem 1.8rem color-mix(in srgb, var(--failure-stamp) 9%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.student-failure-relay-toolbar {
+  min-height: var(--apple-control-min);
+  border-color: color-mix(in srgb, var(--failure-mint) 48%, transparent);
+  background: color-mix(in srgb, var(--failure-paper) 86%, transparent);
+  box-shadow: 0 .4rem 1rem color-mix(in srgb, var(--failure-stamp) 10%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.student-failure-relay-toolbar button { color: var(--failure-stamp); }
+.student-failure-relay-toolbar button:hover:not(:disabled) { background: var(--failure-lesson); }
+.student-failure-new-stories { background: var(--failure-stamp); color: var(--failure-paper); }
+.student-failure-feed {
+  gap: .65rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.student-failure-feed-window { gap: .65rem; }
+@media (max-width: 1100px) {
+  .student-failure-feed {
+    width: min(calc(100% - 5.25rem), var(--failure-feed-measure));
+    margin-right: 5.25rem;
+  }
+  .student-failure-feed-window { gap: .5rem; }
+  .student-failure-message { padding: .65rem .9rem; }
+  .student-failure-message-main { grid-template-columns: 3.35rem minmax(0, 1fr); gap: .85rem; }
+  .student-failure-message-profile { width: 3.35rem; height: 3.35rem; }
+}
+.student-failure-message {
+  gap: 1rem;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 44%, transparent);
+  border-radius: 1.1rem;
+  background: color-mix(in srgb, var(--failure-paper) 94%, transparent);
+  padding: .85rem 1.15rem;
+  color: var(--failure-ink);
+}
+.student-failure-message:first-child,
+.student-failure-message:last-child,
+.student-failure-message:only-child { border-radius: 1.1rem; }
+.student-failure-message:nth-child(even) { background: color-mix(in srgb, var(--failure-paper) 94%, transparent); }
+.student-failure-message + .student-failure-message { border-top-color: transparent; }
+.student-failure-message:hover,
+.student-failure-message:focus-within { background: color-mix(in srgb, var(--failure-sky) 38%, transparent); }
+.student-failure-message-main { grid-template-columns: 3.75rem minmax(0, 1fr); gap: 1rem; }
+.student-failure-message-profile {
+  width: 3.75rem;
+  height: 3.75rem;
+  border: 3px solid var(--failure-mint);
+  border-radius: 1.15rem;
+  background: var(--failure-sky);
+  box-shadow:
+    0 .25rem .75rem color-mix(in srgb, var(--failure-stamp) 15%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--failure-paper) 72%, transparent);
+}
+.student-failure-message-profile[data-profile-tone="1"] { border-color: var(--failure-coral); background: var(--failure-butter); }
+.student-failure-message-profile[data-profile-tone="2"] { border-color: var(--failure-lavender); background: var(--failure-sky); }
+.student-failure-message-profile[data-profile-tone="3"] { border-color: var(--failure-butter); background: var(--failure-lesson); }
+.student-failure-message-profile img { border-radius: calc(1.15rem - 3px); }
+.student-failure-message-content { gap: .35rem; }
+.student-failure-message-text {
+  color: var(--failure-ink);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.42;
+  letter-spacing: -.012em;
+}
+.student-failure-message-next {
+  width: 100%;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--failure-stamp);
+  font-size: 1.25rem;
+  font-weight: 750;
+  line-height: 1.42;
+  letter-spacing: -.008em;
+}
+.student-failure-message-next svg { color: var(--failure-coral); margin-top: 0; }
+.student-failure-message-actions button { color: var(--failure-ink-muted); }
+.student-failure-message-actions button:hover { background: var(--failure-sky); }
+.student-failure-message-actions button:last-child { color: color-mix(in srgb, var(--failure-coral) 72%, var(--failure-ink)); }
+.student-failure-message-reactions { flex-wrap: wrap; }
+.student-failure-stamp-trigger {
+  border-color: color-mix(in srgb, var(--failure-mint) 62%, transparent);
+  background: var(--failure-paper);
+  color: var(--failure-stamp);
+  box-shadow: 0 .2rem .6rem color-mix(in srgb, var(--failure-stamp) 8%, transparent);
+  font-size: 1.075rem;
+  font-weight: 900;
+}
+.student-failure-stamp-trigger:hover { background: var(--failure-lesson); }
+.student-failure-stamp-trigger.is-selected {
+  border-color: var(--failure-stamp);
+  background: var(--failure-stamp);
+  color: var(--failure-paper);
+  box-shadow: 0 .25rem .75rem color-mix(in srgb, var(--failure-coral) 26%, transparent);
+}
+.student-failure-stamps {
+  border-color: color-mix(in srgb, var(--failure-mint) 58%, transparent);
+  background: color-mix(in srgb, var(--failure-paper) 96%, transparent);
+}
+.student-failure-stamps-title { color: var(--failure-ink); }
+.student-failure-stamps button { border-color: color-mix(in srgb, var(--failure-mint) 46%, transparent); background: var(--failure-lesson); color: var(--failure-stamp); }
+.student-failure-stamps button:nth-of-type(2) { border-color: color-mix(in srgb, var(--failure-lavender) 72%, transparent); background: color-mix(in srgb, var(--failure-lavender) 22%, var(--failure-paper)); }
+.student-failure-stamps button:nth-of-type(3) { border-color: color-mix(in srgb, var(--failure-butter) 88%, transparent); background: color-mix(in srgb, var(--failure-butter) 34%, var(--failure-paper)); }
+.student-failure-stamps button:hover { background: var(--failure-sky); }
+.student-failure-stamps button.is-selected { border-color: var(--failure-stamp); background: var(--failure-lesson); box-shadow: inset 0 0 0 2px var(--failure-stamp); }
+.student-failure-stamp-choice-icon { background: var(--failure-paper); }
+.student-failure-stamps button.is-selected .student-failure-stamp-choice-icon { background: var(--failure-stamp); color: var(--failure-paper); }
+.student-failure-create-fab {
+  border-color: color-mix(in srgb, var(--failure-paper) 58%, var(--failure-mint));
+  background: linear-gradient(145deg, var(--failure-mint), var(--failure-stamp));
+  color: var(--failure-paper);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--failure-paper) 55%, transparent),
+    0 .7rem 1.4rem color-mix(in srgb, var(--failure-stamp) 25%, transparent);
+}
+.student-failure-compose-backdrop { background: color-mix(in srgb, var(--failure-ink) 42%, transparent); }
+.student-failure-compose-dialog {
+  border-color: color-mix(in srgb, var(--failure-mint) 58%, transparent);
+  background: var(--failure-paper);
+  color: var(--failure-ink);
+  box-shadow:
+    0 1.5rem 4rem color-mix(in srgb, var(--failure-ink) 28%, transparent),
+    0 0 0 .4rem color-mix(in srgb, var(--failure-mint) 16%, transparent);
+}
+.student-failure-compose-heading { border-bottom-color: color-mix(in srgb, var(--failure-mint) 38%, transparent); }
+.student-failure-compose-heading svg { color: var(--failure-stamp); }
+.student-failure-compose-close { background: var(--failure-sky); color: var(--failure-ink-muted); }
+.student-failure-form .student-failure-form-question {
+  border-color: color-mix(in srgb, var(--failure-sky) 82%, var(--failure-mint));
+  background: var(--failure-sky);
+}
+.student-failure-form .student-failure-form-question:nth-of-type(2) { border-color: color-mix(in srgb, var(--failure-mint) 58%, transparent); background: var(--failure-lesson); }
+.student-failure-form-question-title { color: var(--failure-ink); }
+.student-failure-form-question-title b { background: var(--failure-stamp); color: var(--failure-paper); }
+.student-failure-form textarea { border-color: color-mix(in srgb, var(--failure-mint) 40%, transparent); background: var(--failure-paper); color: var(--failure-ink); }
+.student-failure-form textarea::placeholder { color: var(--failure-ink-muted); }
+.student-failure-form .student-primary-action { background: var(--failure-stamp); color: var(--failure-paper); }
+.student-failure-bookshelf-entry {
+  border-color: color-mix(in srgb, var(--failure-coral) 52%, transparent);
+  background: var(--failure-paper);
+  color: var(--failure-ink);
+  box-shadow: 0 .3rem .8rem color-mix(in srgb, var(--failure-coral) 14%, transparent);
+}
+.student-failure-bookshelf-entry .student-bookshelf-entry-icon { background: color-mix(in srgb, var(--failure-coral) 24%, var(--failure-paper)); color: var(--failure-ink); }
+.student-failure-bookshelf-entry .student-bookshelf-entry-copy strong,
+.student-failure-bookshelf-entry .student-bookshelf-entry-arrow { color: var(--failure-ink); }
+.student-failure-empty {
+  border-color: color-mix(in srgb, var(--failure-mint) 60%, transparent);
+  background:
+    radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--failure-butter) 36%, transparent), transparent 16rem),
+    radial-gradient(circle at 88% 88%, color-mix(in srgb, var(--failure-lavender) 24%, transparent), transparent 18rem),
+    color-mix(in srgb, var(--failure-paper) 88%, transparent);
+  color: var(--failure-stamp);
+  box-shadow: inset 0 0 0 .3rem color-mix(in srgb, var(--failure-paper) 58%, transparent);
+}
+.student-failure-empty strong { color: var(--failure-ink); }
+
+@media (max-width: 767px) {
+  .student-failure-view > .student-header { flex-wrap: nowrap; }
+  .student-failure-view > .student-header .student-header-actions { width: auto; }
+  .student-failure-side { width: auto; grid-template-columns: minmax(9.5rem, 11.5rem); }
+  .student-failure-bookshelf-entry { min-height: var(--apple-control-min); padding: .35rem .55rem; }
+  .student-failure-bookshelf-entry .student-bookshelf-entry-icon { display: none; }
+  .student-failure-gallery-shell { padding: .65rem; }
+  .student-failure-gallery { padding: .25rem .2rem 4.75rem; }
+  .student-failure-gallery[data-empty="false"] { padding-bottom: 4.75rem; }
+  .student-failure-message { grid-template-columns: minmax(0, 1fr); gap: .55rem; padding: .8rem; }
+  .student-failure-message-main { grid-template-columns: 3.25rem minmax(0, 1fr); gap: .75rem; }
+  .student-failure-message-profile { width: 3.25rem; height: 3.25rem; }
+  .student-failure-message-actions { position: absolute; top: .55rem; right: .55rem; }
+  .student-failure-stamp-control { grid-column: auto; justify-items: end; }
+  .student-failure-stamps { grid-template-columns: minmax(0, 1fr); }
+  .student-failure-stamp-trigger { min-width: 6.8rem; }
+  .student-failure-create-fab { right: 1.1rem; bottom: 1.1rem; }
+  .student-failure-relay-toolbar { right: .25rem; bottom: 5.85rem; }
+}
+
+@media (max-width: 520px) {
+  .student-failure-view .student-header-status { display: none; }
+  .student-failure-view .student-header-copy h1 { font-size: 1.45rem; }
+  .student-failure-side { grid-template-columns: var(--apple-control-min); }
+  .student-failure-bookshelf-entry { width: var(--apple-control-min); min-width: var(--apple-control-min); grid-template-columns: 1fr; gap: 0; padding: 0; }
+  .student-failure-bookshelf-entry .student-bookshelf-entry-icon { display: grid; width: 2.25rem; height: 2.25rem; margin: auto; }
+  .student-failure-bookshelf-entry .student-bookshelf-entry-copy,
+  .student-failure-bookshelf-entry .student-bookshelf-entry-arrow { display: none; }
 }
 
 @media (forced-colors: active) {
@@ -16415,13 +17268,13 @@ a[href]:active {
   border-radius: var(--apple-radius-control);
   background: color-mix(in srgb, var(--student-baseball-tier-color, var(--apple-surface-muted)) 7%, var(--apple-surface));
 }
-.student-baseball-history-tier.is-reward-15 { --student-baseball-tier-color: var(--student-baseball-strike); }
+.student-baseball-history-tier.is-reward-20 { --student-baseball-tier-color: var(--student-baseball-strike); }
 .student-baseball-history-tier.is-reward-10 { --student-baseball-tier-color: var(--student-baseball-ball); }
 .student-baseball-history-tier.is-reward-5 { --student-baseball-tier-color: var(--apple-text-secondary); }
 .student-baseball-history ol { display: grid; min-height: 0; align-content: stretch; gap: .35rem; margin: 0; padding: 0; list-style: none; }
-.student-baseball-history-tier.is-reward-15 ol { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.student-baseball-history-tier.is-reward-15 li { grid-column: span 2; }
-.student-baseball-history-tier.is-reward-15 li:nth-child(n + 4) { grid-column: span 3; }
+.student-baseball-history-tier.is-reward-20 ol { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.student-baseball-history-tier.is-reward-20 li { grid-column: span 2; }
+.student-baseball-history-tier.is-reward-20 li:nth-child(n + 4) { grid-column: span 3; }
 .student-baseball-history-tier.is-reward-10 ol,
 .student-baseball-history-tier.is-reward-5 ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .student-baseball-history li {
@@ -16479,8 +17332,8 @@ a[href]:active {
 .student-baseball-celebration i:nth-child(5) { --particle-angle: 180deg; }
 .student-baseball-celebration i:nth-child(6) { --particle-angle: 240deg; }
 .student-baseball-celebration i:nth-child(7) { --particle-angle: 300deg; }
-.student-baseball-celebration.is-reward-15 .student-baseball-celebration-halo { border-width: 7px; }
-.student-baseball-celebration.is-reward-15 i { width: .78rem; height: .78rem; }
+.student-baseball-celebration.is-reward-20 .student-baseball-celebration-halo { border-width: 7px; }
+.student-baseball-celebration.is-reward-20 i { width: .78rem; height: .78rem; }
 .student-baseball-celebration.is-reward-5 i:nth-of-type(n + 5) { display: none; }
 @keyframes studentBaseballHalo { from { opacity: .65; transform: scale(.35); } to { opacity: 0; transform: scale(1.5); } }
 @keyframes studentBaseballParticle { from { opacity: 1; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateX(0) scale(.7); } to { opacity: 0; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateX(8rem) scale(1); } }
@@ -16509,11 +17362,11 @@ a[href]:active {
   .student-baseball-history { min-height: 0; }
   .student-baseball-history-groups { grid-template-rows: none; }
   .student-baseball-history-tier { grid-template-rows: auto auto; }
-  .student-baseball-history-tier.is-reward-15 ol,
+  .student-baseball-history-tier.is-reward-20 ol,
   .student-baseball-history-tier.is-reward-10 ol,
   .student-baseball-history-tier.is-reward-5 ol { grid-template-columns: minmax(0, 1fr); }
-  .student-baseball-history-tier.is-reward-15 li,
-  .student-baseball-history-tier.is-reward-15 li:nth-child(n + 4) { grid-column: auto; }
+  .student-baseball-history-tier.is-reward-20 li,
+  .student-baseball-history-tier.is-reward-20 li:nth-child(n + 4) { grid-column: auto; }
   .student-baseball-history li,
   .student-baseball-history li.is-empty { min-height: 3.5rem; grid-template-columns: auto minmax(0, 1fr); }
   .student-baseball-history-placeholder { grid-column: auto; justify-self: end; }
@@ -17182,14 +18035,6 @@ a[href]:active {
   font-size: 1.45rem;
   font-weight: 950;
   letter-spacing: -.02em;
-}
-
-.student-sudoku-settings-option-copy small {
-  color: var(--apple-text-secondary);
-  font-size: var(--student-readable-text-min);
-  font-weight: 700;
-  line-height: 1.45;
-  word-break: keep-all;
 }
 
 .student-sudoku-settings-option-reward {
@@ -19524,6 +20369,7 @@ a[href]:active {
   .student-mission-groups,
   .student-mailbox-layout,
   .student-library-layout,
+  .student-failure-layout,
   .student-emotion-picker,
   .student-emotion-history {
     min-height: 0;
@@ -19924,8 +20770,10 @@ a[href]:active {
   .student-emotion-monthly-summary { gap: .7rem; padding: .85rem 1rem 1rem; }
 
   .student-mailbox-layout,
-  .student-library-layout { height: 100%; }
+  .student-library-layout,
+  .student-failure-layout { height: 100%; }
 
+  .student-failure-layout { overflow: hidden; }
   .student-mailbox-layout {
     overflow: hidden;
   }
@@ -20078,4 +20926,148 @@ a[href]:active {
   .student-mailbox-view .student-mailbox-layout {
     grid-template-columns: minmax(17.5rem, 36fr) minmax(0, 64fr);
   }
+}
+
+.student-library-view {
+  --book-spine-amber: color-mix(in srgb, var(--failure-coral) 68%, var(--apple-surface));
+  --book-spine-amber-ink: color-mix(in srgb, var(--failure-ink) 90%, var(--failure-coral));
+  --book-spine-green: color-mix(in srgb, var(--failure-mint) 72%, var(--apple-surface));
+  --book-spine-green-ink: color-mix(in srgb, var(--failure-stamp) 88%, var(--failure-ink));
+  --book-spine-blue: color-mix(in srgb, var(--failure-sky) 62%, var(--failure-lavender));
+  --book-spine-blue-ink: color-mix(in srgb, var(--failure-ink) 84%, var(--failure-lavender));
+  --book-spine-red: color-mix(in srgb, var(--failure-coral) 46%, var(--failure-lavender));
+  --book-spine-red-ink: color-mix(in srgb, var(--failure-ink) 88%, var(--failure-coral));
+  --book-spine-yellow: color-mix(in srgb, var(--failure-sky) 54%, var(--failure-mint));
+  --book-spine-yellow-ink: color-mix(in srgb, var(--failure-stamp) 82%, var(--failure-ink));
+  --book-spine-purple: color-mix(in srgb, var(--failure-lavender) 72%, var(--apple-surface));
+  --book-spine-purple-ink: color-mix(in srgb, var(--failure-ink) 86%, var(--failure-lavender));
+  background:
+    radial-gradient(circle at 7% 5%, color-mix(in srgb, var(--failure-mint) 22%, transparent) 0, transparent 20rem),
+    radial-gradient(circle at 94% 92%, color-mix(in srgb, var(--failure-lavender) 20%, transparent) 0, transparent 24rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--failure-paper-muted) 74%, var(--failure-wall)), var(--failure-sky));
+}
+
+.student-library-view > .student-header {
+  border-color: color-mix(in srgb, var(--failure-mint) 42%, transparent);
+  background: color-mix(in srgb, var(--failure-paper) 92%, transparent);
+  box-shadow: 0 .65rem 1.6rem color-mix(in srgb, var(--failure-stamp) 10%, transparent);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.student-library-view .student-header-copy h1 { color: var(--failure-ink); }
+
+.student-library-view .student-book-form {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--failure-mint) 58%, transparent);
+  background: color-mix(in srgb, var(--failure-paper) 94%, transparent);
+  box-shadow:
+    inset 0 .35rem 0 color-mix(in srgb, var(--failure-mint) 72%, transparent),
+    0 .65rem 1.6rem color-mix(in srgb, var(--failure-stamp) 10%, transparent);
+}
+
+.student-library-view .student-book-form > svg {
+  box-sizing: content-box;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 1rem;
+  background: var(--failure-lesson);
+  padding: .75rem;
+  color: var(--failure-stamp);
+  box-shadow: 0 .25rem .7rem color-mix(in srgb, var(--failure-stamp) 12%, transparent);
+}
+
+.student-library-view .student-book-form label {
+  color: var(--failure-ink-muted);
+  font-weight: 900;
+}
+
+.student-library-view .student-book-form input {
+  border-color: color-mix(in srgb, var(--failure-mint) 44%, transparent);
+  background: color-mix(in srgb, var(--failure-sky) 38%, var(--failure-paper));
+  color: var(--failure-ink);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.student-library-view .student-book-form input:focus {
+  border-color: var(--failure-stamp);
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--failure-stamp) 18%, transparent);
+}
+
+.student-library-view .student-book-form .student-primary-action {
+  background: var(--failure-stamp);
+  color: var(--failure-paper);
+  box-shadow: 0 .35rem .8rem color-mix(in srgb, var(--failure-stamp) 18%, transparent);
+}
+
+.student-library-view .student-bookshelf {
+  border-color: color-mix(in srgb, var(--failure-mint) 62%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--failure-mint) 13%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--failure-mint) 13%, transparent) 1px, transparent 1px),
+    radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--failure-mint) 14%, transparent), transparent 18rem),
+    radial-gradient(circle at 92% 88%, color-mix(in srgb, var(--failure-lavender) 16%, transparent), transparent 22rem),
+    linear-gradient(145deg, var(--apple-surface), color-mix(in srgb, var(--failure-sky) 72%, var(--apple-surface)));
+  background-size: 2rem 2rem, 2rem 2rem, auto, auto, auto;
+  box-shadow:
+    inset 0 0 0 .35rem color-mix(in srgb, var(--failure-paper) 48%, transparent),
+    0 .85rem 2rem color-mix(in srgb, var(--failure-stamp) 10%, transparent);
+}
+
+.student-library-view .student-book-height {
+  border-color: color-mix(in srgb, var(--failure-mint) 70%, transparent);
+  background: var(--failure-paper);
+  color: var(--failure-stamp);
+  box-shadow: 0 .35rem .9rem color-mix(in srgb, var(--failure-stamp) 12%, transparent);
+}
+
+.student-library-view .student-book-height::after {
+  border-color: color-mix(in srgb, var(--failure-mint) 70%, transparent);
+  background: var(--failure-paper);
+}
+
+.student-library-view .student-book-stack article {
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--apple-surface) 46%, transparent),
+    0 .3rem 0 color-mix(in srgb, var(--bookstore-wood-dark) 14%, transparent),
+    0 .5rem 1rem color-mix(in srgb, var(--failure-stamp) 8%, transparent);
+}
+
+.student-library-view .student-bookshelf-base {
+  border: 2px solid color-mix(in srgb, var(--failure-coral) 34%, var(--bookstore-wood-dark));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--failure-coral) 22%, var(--bookstore-wood)), var(--bookstore-wood));
+  box-shadow: 0 .75rem 0 var(--bookstore-wood-dark), 0 1rem 1.5rem color-mix(in srgb, var(--failure-stamp) 12%, transparent);
+}
+
+.student-bookshelf-empty {
+  display: grid;
+  place-items: center;
+  gap: .75rem;
+  margin: auto;
+  color: var(--failure-stamp);
+  text-align: center;
+}
+
+.student-bookshelf-empty svg {
+  box-sizing: content-box;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--failure-paper) 80%, transparent);
+  padding: 1rem;
+  box-shadow: 0 .5rem 1.25rem color-mix(in srgb, var(--failure-stamp) 12%, transparent);
+}
+
+.student-bookshelf-empty p {
+  color: var(--failure-ink);
+  font-size: 1.125rem;
+  font-weight: 900;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .student-library-view > .student-header { background: var(--failure-paper); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }

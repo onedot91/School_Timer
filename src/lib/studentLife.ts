@@ -1,3 +1,5 @@
+import { normalizeFailureStories, type FailureStory } from './failureExhibition';
+
 export interface StudentLetter {
   readonly id: string;
   readonly recipient: number;
@@ -27,6 +29,7 @@ export type BookStackLayout = {
 export interface StudentLifeState {
   readonly letters: readonly StudentLetter[];
   readonly books: readonly StudentBook[];
+  readonly failureStories: readonly FailureStory[];
 }
 
 type LetterInput = Omit<StudentLetter, 'readAt' | 'senderStudentNumber' | 'replyToId'> & {
@@ -43,19 +46,20 @@ const MAX_BOOKS = 600;
 const BOOK_PAPER_THICKNESS_PER_PAGE_CM = 0.005;
 const BOOK_SPINE_MIN_HEIGHT_PX = 27;
 const BOOK_SPINE_MAX_HEIGHT_PX = 45;
+const BOOK_STACK_WIDTH_PERCENT = 88;
 const BOOK_STACK_LAYOUTS: readonly BookStackLayout[] = [
-  { widthPercent: 86, offsetPercent: -1.25 },
-  { widthPercent: 82, offsetPercent: 1.25 },
-  { widthPercent: 90, offsetPercent: -0.75 },
-  { widthPercent: 85, offsetPercent: 0.75 },
-  { widthPercent: 88, offsetPercent: -1 },
-  { widthPercent: 81, offsetPercent: 1 },
-  { widthPercent: 92, offsetPercent: -0.5 },
-  { widthPercent: 84, offsetPercent: 0.5 },
-  { widthPercent: 89, offsetPercent: -1.25 },
-  { widthPercent: 83, offsetPercent: 1.25 },
-  { widthPercent: 87, offsetPercent: -0.75 },
-  { widthPercent: 85, offsetPercent: 0.75 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: -1.8 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: 1.6 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: -1.2 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: 1.4 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: -1.55 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: 1.75 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: -0.9 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: 1.1 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: -2 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: 1.8 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: -1.3 },
+  { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: 1.1 },
 ];
 
 const isStudentNumber = (value: unknown): value is number => (
@@ -105,10 +109,11 @@ const parseBook = (value: unknown): StudentBook | null => {
 };
 
 export const normalizeStudentLifeState = (value: unknown): StudentLifeState => {
-  const parsed = value && typeof value === 'object' ? value as { letters?: unknown; books?: unknown } : {};
+  const parsed = value && typeof value === 'object' ? value as { letters?: unknown; books?: unknown; failureStories?: unknown } : {};
   return {
     letters: (Array.isArray(parsed.letters) ? parsed.letters : []).map(parseLetter).filter((entry): entry is StudentLetter => entry !== null).slice(-MAX_LETTERS),
     books: (Array.isArray(parsed.books) ? parsed.books : []).map(parseBook).filter((entry): entry is StudentBook => entry !== null).slice(-MAX_BOOKS),
+    failureStories: normalizeFailureStories(parsed.failureStories),
   };
 };
 
@@ -179,7 +184,7 @@ export const getBookSpineHeightPx = (pageCount: number, pageCounts: readonly num
 };
 
 export const getBookStackLayout = (index: number): BookStackLayout => (
-  BOOK_STACK_LAYOUTS[index % BOOK_STACK_LAYOUTS.length] ?? { widthPercent: 82, offsetPercent: 0 }
+  BOOK_STACK_LAYOUTS[index % BOOK_STACK_LAYOUTS.length] ?? { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: 0 }
 );
 
 export const getBookStackHeightCm = (books: readonly StudentBook[]): number => (

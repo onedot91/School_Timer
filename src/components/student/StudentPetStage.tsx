@@ -141,7 +141,7 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
         aria-label={`알 성장 ${pet.fedAmount} / ${STUDENT_PET_HATCH_AMOUNT} 고마. 알 성장 창 열기`}
       />
       <button type="button" className="student-home-hotspot student-home-hotspot-mailbox" onClick={onOpenMailbox} aria-label={hasUnreadMail ? '새 편지가 있는 우편함 열기' : '우편함 열기'} />
-      <button type="button" className="student-home-hotspot student-home-hotspot-library" onClick={onOpenLibrary} aria-label="책방 열기" />
+      <button type="button" className="student-home-hotspot student-home-hotspot-library" onClick={onOpenLibrary} aria-label="실패 전시관과 책장 열기" />
       <button
         type="button"
         className={`student-home-emotion-sun${todayEmotion ? '' : ' is-empty'}`}

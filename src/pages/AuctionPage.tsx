@@ -3,9 +3,9 @@ import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import AuctionRoom from '../components/AuctionRoom';
 import StudentEmotionPage from '../components/student/StudentEmotionPage';
+import StudentFailureExhibitionPage from '../components/student/StudentFailureExhibitionPage';
 import StudentMissionsPage from '../components/student/StudentMissionsPage';
 import StudentMailboxPage from '../components/student/StudentMailboxPage';
-import { StudentBookstorePage } from '../components/student/StudentBookstorePage';
 import StudentLibraryPage from '../components/student/StudentLibraryPage';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentStorePage from '../components/student/StudentStorePage';
@@ -51,6 +51,7 @@ import {
   updateSharedSettings,
 } from '../lib/supabaseSettings';
 import {
+  createClassDonationThankYouLetter,
   getClassDonationMaximum,
   getClassDonationPublicState,
   isClassDonationCompleted,
@@ -133,22 +134,23 @@ import {
   storeStudentLifeState,
   type StudentLifeState,
 } from '../lib/studentLife';
+import {
+  createFailureStory,
+  getFailureStoriesNewestFirst,
+  toggleFailureStamp,
+  type FailureStampId,
+} from '../lib/failureExhibition';
 import { createBankMailboxLetters } from '../lib/bankMailbox';
 import { useStudentSudokuState } from '../lib/useStudentSudokuState';
 import { useStudentNumberBaseballState } from '../lib/useStudentNumberBaseballState';
 import { createNumberBaseballProgressEntry } from '../lib/numberBaseball';
 import type { SudokuDifficulty } from '../lib/sudoku';
-import {
-  loadStoredBookstoreSettings,
-  normalizeBookstoreSettings,
-  type BookstoreSettings,
-} from '../lib/bookstore';
 
 interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookshelf' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -167,7 +169,6 @@ type SharedSettingsValue = {
   studentLife?: unknown;
   studentSudoku?: unknown;
   studentNumberBaseball?: unknown;
-  bookstoreSettings?: unknown;
 };
 
 const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
@@ -178,6 +179,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   'number-baseball': '#student-number-baseball',
   mailbox: '#student-mailbox',
   library: '#student-library',
+  'library-bookstore': '#student-library-bookstore',
   'library-bookshelf': '#student-library-bookshelf',
   store: '#student-store',
   'store-bank': '#student-store-bank',
@@ -304,9 +306,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
-  ));
-  const [bookstoreSettings, setBookstoreSettings] = useState<BookstoreSettings>(() => (
-    isSupabaseSettingsEnabled ? normalizeBookstoreSettings(null) : loadStoredBookstoreSettings()
   ));
   const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
   const [isPetSaving, setIsPetSaving] = useState(false);
@@ -548,6 +547,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const studentLetters = getStudentLetters(studentLife, studentNumber);
   const studentSentLetters = getStudentSentLetters(studentLife, studentNumber);
   const studentBooks = getStudentBooks(studentLife, studentNumber);
+  const failureStories = getFailureStoriesNewestFirst(studentLife.failureStories);
   const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber);
 
   const saveStudentLifeChange = async (change: (current: StudentLifeState) => StudentLifeState) => {
@@ -585,6 +585,21 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const addStudentBookEntry = (title: string, author: string, pageCount: number) => saveStudentLifeChange((current) => addStudentBook(current, {
     id: crypto.randomUUID(), studentNumber, title, author, pageCount, createdAt: new Date().toISOString(),
+  }));
+
+  const createStudentFailureStory = (failure: string, lesson: string) => saveStudentLifeChange((current) => {
+    const now = new Date().toISOString();
+    return {
+      ...current,
+      failureStories: createFailureStory(current.failureStories, {
+        id: crypto.randomUUID(), studentNumber, failure, lesson, createdAt: now, updatedAt: now,
+      }),
+    };
+  });
+
+  const stampStudentFailureStory = (storyId: string, stampId: FailureStampId) => saveStudentLifeChange((current) => ({
+    ...current,
+    failureStories: toggleFailureStamp(current.failureStories, storyId, studentNumber, stampId),
   }));
 
   const feedStudentPet = async () => {
@@ -845,7 +860,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStudentShopCatalog(normalizeStudentShopCatalog(value.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(value.studentStockMarket));
     setStudentLife(normalizeStudentLifeState(value.studentLife));
-    setBookstoreSettings(normalizeBookstoreSettings(value.bookstoreSettings));
     applySharedStudentSudoku(value);
     applySharedNumberBaseball(value);
     const weekKey = getKoreanIsoWeekKey();
@@ -876,7 +890,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentEconomyStates(localPetSnapshot.studentEconomy);
       setStudentShopCatalog(loadStoredStudentShopCatalog());
       setStudentLife(loadStoredStudentLifeState());
-      setBookstoreSettings(loadStoredBookstoreSettings());
       refreshLocalStudentSudoku();
       refreshLocalNumberBaseball();
       setIsLoading(false);
@@ -928,7 +941,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       || activeStudentView === 'sudoku'
       || activeStudentView === 'number-baseball'
       || activeStudentView === 'mailbox'
-      || activeStudentView === 'library';
+      || activeStudentView === 'library'
+      || activeStudentView === 'library-bookstore'
+      || activeStudentView === 'library-bookshelf';
     refreshWhenVisible(isStudentStoreView(activeStudentView) || isEntryRefreshView);
 
     const syncView = isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
@@ -1301,8 +1316,22 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     if (!isDonationAmountValid || isDonating) return;
     setIsDonating(true);
     try {
-      const result = await donateToClassGoal(studentNumber, donationAmount, donationRequestIdRef.current);
+      const requestId = donationRequestIdRef.current;
+      const letterCreatedAt = new Date().toISOString();
+      const result = await donateToClassGoal(studentNumber, donationAmount, requestId);
+      let savedStudentLife = studentLife;
+      await updateSharedSettings((currentValue) => {
+        const current = currentValue && typeof currentValue === 'object'
+          ? currentValue as Record<string, unknown>
+          : {};
+        savedStudentLife = createClassDonationThankYouLetter(
+          normalizeStudentLifeState(current.studentLife),
+          { studentNumber, donatedAmount: result.donatedAmount, requestId, createdAt: letterCreatedAt },
+        );
+        return { ...current, studentLife: savedStudentLife };
+      });
       setCurrencyBalances((previous) => ({ ...previous, [studentKey]: result.balance }));
+      setStudentLife(savedStudentLife);
       setClassDonation((previous) => ({
         ...previous,
         targetAmount: result.targetAmount,
@@ -1615,9 +1644,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onBack={() => navigateStudentView('overview')}
           />
         ) : null}
-        {activeStudentView === 'library' ? (
-          <StudentBookstorePage
-            settings={bookstoreSettings}
+        {activeStudentView === 'library' || activeStudentView === 'library-bookstore' ? (
+          <StudentFailureExhibitionPage
+            studentNumber={studentNumber}
+            stories={failureStories}
+            isSaving={isStudentLifeSaving}
+            onCreate={createStudentFailureStory}
+            onStamp={stampStudentFailureStory}
             onOpenBookshelf={() => navigateStudentView('library-bookshelf')}
             onBack={() => navigateStudentView('overview')}
           />

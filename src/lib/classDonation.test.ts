@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  createClassDonationThankYouLetter,
   getClassDonationMaximum,
   isClassDonationCompleted,
   getClassDonationPublicState,
@@ -8,6 +9,56 @@ import {
   normalizeClassDonationSettings,
   parseClassDonationResult,
 } from './classDonation';
+import { getStudentLetters, normalizeStudentLifeState } from './studentLife';
+
+test('기부 요청마다 아기고마 감사 편지를 정확히 한 장 만든다', () => {
+  // Given
+  const initial = normalizeStudentLifeState(null);
+  const input = {
+    studentNumber: 7,
+    donatedAmount: 20,
+    requestId: 'class-donation-7-request-1',
+    createdAt: '2026-08-23T01:00:00.000Z',
+  };
+
+  // When
+  const first = createClassDonationThankYouLetter(initial, input);
+  const second = createClassDonationThankYouLetter(first, input);
+
+  // Then
+  const letters = getStudentLetters(second, 7);
+  assert.equal(letters.length, 1);
+  assert.equal(letters[0]?.id, input.requestId);
+  assert.equal(letters[0]?.senderLabel, '아기고마');
+  assert.equal(letters[0]?.senderStudentNumber, null);
+});
+
+test('서로 다른 기부 요청에는 여러 감사 멘트가 안정적으로 배정된다', () => {
+  // Given
+  const initial = normalizeStudentLifeState(null);
+  const requestIds = Array.from({ length: 24 }, (_, index) => `class-donation-7-request-${index + 1}`);
+
+  // When
+  const messages = requestIds.map((requestId) => {
+    const state = createClassDonationThankYouLetter(initial, {
+      studentNumber: 7,
+      donatedAmount: 20,
+      requestId,
+      createdAt: '2026-08-23T01:00:00.000Z',
+    });
+    return state.letters[0]?.content;
+  });
+  const retried = createClassDonationThankYouLetter(initial, {
+    studentNumber: 7,
+    donatedAmount: 20,
+    requestId: requestIds[0] ?? '',
+    createdAt: '2026-08-23T01:00:00.000Z',
+  });
+
+  // Then
+  assert.ok(new Set(messages).size >= 4);
+  assert.equal(retried.letters[0]?.content, messages[0]);
+});
 
 test('student donation state never exposes the private item or history', () => {
   const publicState = getClassDonationPublicState({

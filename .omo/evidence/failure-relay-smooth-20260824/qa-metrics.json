@@ -1,0 +1,22 @@
+{
+  "primaryViewport": {
+    "width": 1280,
+    "height": 800,
+    "devicePixelRatio": 1
+  },
+  "motionFrames": {
+    "rest": "rest-fresh.png",
+    "midDelayMs": 320,
+    "mid": "mid-fresh.png",
+    "settledDelayMs": 1100,
+    "settled": "end-fresh.png"
+  },
+  "observations": {
+    "midFrameUsesTranslateY": true,
+    "retainedRowsMoveTogether": true,
+    "opacityOrBlurTransition": false,
+    "horizontalOverflowAt1024": 0,
+    "horizontalOverflowAt1366": 0,
+    "consoleErrors": 0
+  }
+}

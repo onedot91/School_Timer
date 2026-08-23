@@ -1,5 +1,6 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { Inbox, Mail, MailOpen, PenLine, Reply, Send, SendHorizontal, Stamp, X } from 'lucide-react';
+import { CLASS_DONATION_MAIL_IMAGE_SOURCE, CLASS_DONATION_MAIL_SENDER_LABEL } from '../../lib/classDonation';
 import { TEACHER_LETTER_RECIPIENT, type StudentLetter } from '../../lib/studentLife';
 import StudentHeader from './StudentHeader';
 
@@ -27,13 +28,17 @@ const formatLetterDate = (createdAt: string): string => new Intl.DateTimeFormat(
 }).format(new Date(createdAt));
 
 const getMailKind = (letter: StudentLetter): MailKind => {
-  if (letter.senderLabel.includes('은행') || letter.senderLabel.includes('시스템') || letter.senderLabel.includes('돝돝')) return 'system';
+  if (letter.senderLabel.includes('은행') || letter.senderLabel.includes('시스템') || letter.senderLabel.includes('돝돝') || letter.senderLabel === CLASS_DONATION_MAIL_SENDER_LABEL) return 'system';
   if (letter.senderLabel.includes('선생님')) return 'teacher';
   return (letter.senderStudentNumber ?? letter.recipient) % 2 === 0 ? 'friend-blue' : 'friend-pink';
 };
 
 const isBankLetter = (letter: StudentLetter): boolean => (
   letter.senderLabel.includes('은행') || letter.senderLabel.includes('돝돝')
+);
+
+const isDonationLetter = (letter: StudentLetter): boolean => (
+  letter.senderLabel === CLASS_DONATION_MAIL_SENDER_LABEL
 );
 
 const getStampLabel = (kind: MailKind): string => {
@@ -87,6 +92,7 @@ export default function StudentMailboxPage({
     [activeLetters, selectedId],
   );
   const selectedIsBankLetter = selectedLetter !== null && isBankLetter(selectedLetter);
+  const selectedIsDonationLetter = selectedLetter !== null && isDonationLetter(selectedLetter);
 
   const changeFolder = (nextFolder: MailboxFolder) => {
     setFolder(nextFolder);
@@ -210,6 +216,7 @@ export default function StudentMailboxPage({
               const isSelected = letter.id === selectedLetter?.id;
               const isUnread = folder === 'inbox' && letter.readAt === null;
               const isFromBank = isBankLetter(letter);
+              const isFromDonation = isDonationLetter(letter);
               const senderOrRecipient = folder === 'inbox' ? letter.senderLabel : `받는 사람 ${getRecipientLabel(letter)}`;
               const displayTitle = getLetterDisplayTitle(letter.title);
               return (
@@ -229,9 +236,11 @@ export default function StudentMailboxPage({
                   style={{ zIndex: activeLetters.length - index }}
                 >
                   <span className="student-mail-envelope-flap" aria-hidden="true" />
-                  <span className="student-mail-envelope-stamp" data-bank={isFromBank ? 'true' : undefined} aria-hidden="true">
+                  <span className="student-mail-envelope-stamp" data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} aria-hidden="true">
                     {isFromBank ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
+                    ) : isFromDonation ? (
+                      <img src={CLASS_DONATION_MAIL_IMAGE_SOURCE} alt="" draggable={false} />
                     ) : (
                       <Stamp size={22} />
                     )}
@@ -305,9 +314,11 @@ export default function StudentMailboxPage({
               <article className="student-letter-detail student-letter-paper" aria-labelledby="student-mail-letter-title">
                 <header className="student-letter-heading">
                   <h2 id="student-mail-letter-title">{getLetterDisplayTitle(selectedLetter.title)}</h2>
-                  <span className="student-mail-postmark" data-kind={getMailKind(selectedLetter)} data-bank={selectedIsBankLetter ? 'true' : undefined} aria-label={selectedIsBankLetter ? '은행원 돝돝' : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
+                  <span className="student-mail-postmark" data-kind={getMailKind(selectedLetter)} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} aria-label={selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
                     {selectedIsBankLetter ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
+                    ) : selectedIsDonationLetter ? (
+                      <img src={CLASS_DONATION_MAIL_IMAGE_SOURCE} alt="" draggable={false} />
                     ) : (
                       <Stamp size={28} aria-hidden="true" />
                     )}

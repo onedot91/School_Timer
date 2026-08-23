@@ -492,7 +492,7 @@ export const claimNumberBaseballRewardInSettings = (
   const existingEntries = history[studentKey] ?? [];
   if (
     existingEntries.some((entry) => entry.id === rewardId)
-    || ![5, 10, 15].includes(rewardAmount)
+    || ![5, 10, 20].includes(rewardAmount)
     || before > CURRENCY_BALANCE_MAX - rewardAmount
   ) {
     return { value: current, awarded: false, balance: before, history };

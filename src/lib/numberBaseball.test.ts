@@ -83,7 +83,7 @@ test('완전히 아웃된 시도의 숫자만 중복 없이 모은다', () => {
   assert.deepEqual(outDigits, [4, 5, 6, 9]);
 });
 
-test('정답 시도 횟수에 따라 15, 10, 5고마를 지급하고 열 번째 시도는 허용하지 않는다', () => {
+test('정답 시도 횟수에 따라 20, 10, 5고마를 지급하고 열 번째 시도는 허용하지 않는다', () => {
   // Given
   const boundaries = [0, 1, 5, 6, 7, 8, 9, 10] as const;
 
@@ -91,7 +91,7 @@ test('정답 시도 횟수에 따라 15, 10, 5고마를 지급하고 열 번째 
   const rewards = boundaries.map(getNumberBaseballReward);
 
   // Then
-  assert.deepEqual(rewards, [null, 15, 15, 10, 10, 5, 5, null]);
+  assert.deepEqual(rewards, [null, 20, 20, 10, 10, 5, 5, null]);
 });
 
 test('아홉 번 안에서 정답을 맞히거나 기회를 모두 쓰면 더 입력할 수 없다', () => {
@@ -189,13 +189,13 @@ test('숫자야구 보상은 게임별로 정확히 한 번만 지급된다', ()
   const gameId = getNumberBaseballGameId(7, '2026-08-20');
 
   // When
-  const first = claimNumberBaseballRewardInSettings(initial, 7, gameId, 15, '2026-08-20T01:00:00.000Z');
-  const second = claimNumberBaseballRewardInSettings(first.value, 7, gameId, 15, '2026-08-20T01:00:01.000Z');
+  const first = claimNumberBaseballRewardInSettings(initial, 7, gameId, 20, '2026-08-20T01:00:00.000Z');
+  const second = claimNumberBaseballRewardInSettings(first.value, 7, gameId, 20, '2026-08-20T01:00:01.000Z');
 
   // Then
   assert.equal(first.awarded, true);
   assert.equal(second.awarded, false);
-  assert.equal(second.balance, 115);
+  assert.equal(second.balance, 120);
   assert.equal(hasNumberBaseballReward(second.value.currencyHistory, 7, gameId), true);
   assert.equal(second.history['7'].filter((entry) => entry.reason === 'number_baseball_mission').length, 1);
 });
@@ -210,7 +210,7 @@ test('교사 자동 저장은 동시에 완료된 숫자야구 보상과 진행�
     studentNumberBaseball: {
       [key]: { gameId, attempts: [{ guess: [1, 2, 3], createdAt: '2026-08-20T01:00:00.000Z' }], completedAt: '2026-08-20T01:00:00.000Z' },
     },
-  }, 7, gameId, 15, '2026-08-20T01:00:00.000Z').value;
+  }, 7, gameId, 20, '2026-08-20T01:00:00.000Z').value;
 
   // When
   const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, {
@@ -220,5 +220,5 @@ test('교사 자동 저장은 동시에 완료된 숫자야구 보상과 진행�
   // Then
   assert.equal(normalizeStudentNumberBaseballProgress(merged.studentNumberBaseball)[key]?.gameId, gameId);
   assert.equal(hasNumberBaseballReward(merged.currencyHistory, 7, gameId), true);
-  assert.equal(normalizeCurrencyBalances(merged.currencyBalances)['7'], 115);
+  assert.equal(normalizeCurrencyBalances(merged.currencyBalances)['7'], 120);
 });

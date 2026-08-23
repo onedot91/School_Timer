@@ -1,6 +1,6 @@
 export const NUMBER_BASEBALL_MAX_ATTEMPTS = 9;
 export const NUMBER_BASEBALL_REWARD_TIERS = [
-  { startAttempt: 1, endAttempt: 5, reward: 15 },
+  { startAttempt: 1, endAttempt: 5, reward: 20 },
   { startAttempt: 6, endAttempt: 7, reward: 10 },
   { startAttempt: 8, endAttempt: 9, reward: 5 },
 ] as const;
