@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FAILURE_STAMP_OPTIONS,
   type FailureStampId,
+  type FailureProfileAssignments,
   type FailureStory,
 } from '../../lib/failureExhibition';
 import { useModalFocus } from '../../lib/useModalFocus';
@@ -12,6 +13,7 @@ import StudentHeader from './StudentHeader';
 
 interface StudentFailureExhibitionPageProps {
   readonly studentNumber: number;
+  readonly profileAssignments: FailureProfileAssignments;
   readonly stories: readonly FailureStory[];
   readonly isSaving: boolean;
   readonly onCreate: (failure: string, lesson: string) => Promise<boolean>;
@@ -46,6 +48,7 @@ const writeSeenCheerKeys = (storageKey: string, signature: string): void => {
 
 export default function StudentFailureExhibitionPage({
   studentNumber,
+  profileAssignments,
   stories,
   isSaving,
   onCreate,
@@ -145,6 +148,7 @@ export default function StudentFailureExhibitionPage({
             ) : (
               <StudentFailureRelay
                 studentNumber={studentNumber}
+                profileAssignments={profileAssignments}
                 stories={stories}
                 isSaving={isSaving}
                 isExternallyPaused={isComposerOpen || isCheerNoticeOpen}

@@ -6,7 +6,7 @@ export const FAILURE_STAMP_OPTIONS = [
 
 export type FailureStampId = (typeof FAILURE_STAMP_OPTIONS)[number]['id'];
 
-const FAILURE_PROFILE_IMAGES = [
+export const FAILURE_PROFILE_IMAGES = [
   '/failure-profiles/thumbs/01-bear.png',
   '/failure-profiles/thumbs/02-rabbit.png',
   '/failure-profiles/thumbs/03-cat.png',
@@ -30,44 +30,126 @@ const FAILURE_PROFILE_IMAGES = [
   '/failure-profiles/thumbs/21-seal.png',
   '/failure-profiles/thumbs/22-whale.png',
   '/failure-profiles/thumbs/23-hedgehog.png',
+  '/failure-profiles/thumbs/24-pig.png',
+  '/failure-profiles/thumbs/25-cow.png',
+  '/failure-profiles/thumbs/26-horse.png',
+  '/failure-profiles/thumbs/27-zebra.png',
+  '/failure-profiles/thumbs/28-deer.png',
+  '/failure-profiles/thumbs/29-sheep.png',
+  '/failure-profiles/thumbs/30-goat.png',
+  '/failure-profiles/thumbs/31-alpaca.png',
+  '/failure-profiles/thumbs/32-camel.png',
+  '/failure-profiles/thumbs/33-monkey.png',
+  '/failure-profiles/thumbs/34-gorilla.png',
+  '/failure-profiles/thumbs/35-sloth.png',
+  '/failure-profiles/thumbs/36-kangaroo.png',
+  '/failure-profiles/thumbs/37-platypus.png',
+  '/failure-profiles/thumbs/38-beaver.png',
+  '/failure-profiles/thumbs/39-skunk.png',
+  '/failure-profiles/thumbs/40-badger.png',
+  '/failure-profiles/thumbs/41-mole.png',
+  '/failure-profiles/thumbs/42-bat.png',
+  '/failure-profiles/thumbs/43-parrot.png',
+  '/failure-profiles/thumbs/44-flamingo.png',
+  '/failure-profiles/thumbs/45-peacock.png',
+  '/failure-profiles/thumbs/46-swan.png',
+  '/failure-profiles/thumbs/47-crocodile.png',
+  '/failure-profiles/thumbs/48-chameleon.png',
+  '/failure-profiles/thumbs/49-octopus.png',
+  '/failure-profiles/thumbs/50-dolphin.png',
 ] as const;
 
-const PROFILE_DAY_MS = 24 * 60 * 60 * 1000;
+const FAILURE_PROFILE_NAMES = [
+  '곰', '토끼', '고양이', '강아지', '여우', '너구리', '판다', '수달', '펭귄', '병아리',
+  '부엉이', '개구리', '거북이', '코끼리', '기린', '사자', '하마', '코알라', '다람쥐', '햄스터',
+  '물개', '고래', '고슴도치', '돼지', '소', '말', '얼룩말', '사슴', '양', '염소',
+  '알파카', '낙타', '원숭이', '고릴라', '나무늘보', '캥거루', '오리너구리', '비버', '스컹크', '오소리',
+  '두더지', '박쥐', '앵무새', '홍학', '공작', '백조', '악어', '카멜레온', '문어', '돌고래',
+] as const;
 
-const getKoreanProfileDateKey = (): string => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-};
-
-const getProfileDateOffset = (dateKey: string): number => {
-  const timestamp = Date.parse(`${dateKey}T00:00:00Z`);
-  if (!Number.isFinite(timestamp)) return 0;
-  const dayNumber = Math.floor(timestamp / PROFILE_DAY_MS);
-  return ((dayNumber % FAILURE_PROFILE_IMAGES.length) + FAILURE_PROFILE_IMAGES.length)
-    % FAILURE_PROFILE_IMAGES.length;
-};
-
-const DAILY_FAILURE_PROFILE_RING = [
+const DEFAULT_FAILURE_PROFILE_RING = [
   7, 19, 2, 14, 22, 5, 11, 17, 1, 9, 16, 4, 20, 8, 13, 23, 6, 15, 10, 3, 18, 12, 21,
+  24, 31, 38, 45, 27, 34, 41, 48, 25, 32, 39, 46, 28, 35, 42, 49, 26, 33, 40, 47, 29, 36,
+  43, 50, 30, 37, 44,
 ].map((profileNumber) => FAILURE_PROFILE_IMAGES[profileNumber - 1]);
+
+export type FailureProfileAssignments = Readonly<Record<string, string>>;
+
+export const FAILURE_PROFILE_OPTIONS = FAILURE_PROFILE_IMAGES.map((imageSrc, index) => ({
+  id: imageSrc,
+  imageSrc,
+  label: FAILURE_PROFILE_NAMES[index] ?? `동물 ${index + 1}`,
+}));
+
+const isFailureProfileImage = (value: unknown): value is string => (
+  typeof value === 'string' && FAILURE_PROFILE_IMAGES.some((image) => image === value)
+);
+
+export const normalizeFailureProfileAssignments = (value: unknown): FailureProfileAssignments => {
+  const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const assignments: Record<string, string> = {};
+  const used = new Set<string>();
+  for (let studentNumber = 1; studentNumber <= 23; studentNumber += 1) {
+    const studentKey = String(studentNumber);
+    const requested = source[studentKey];
+    const fallback = DEFAULT_FAILURE_PROFILE_RING[studentNumber - 1] ?? FAILURE_PROFILE_IMAGES[0];
+    const preferred = isFailureProfileImage(requested) ? requested : fallback;
+    const profile = !used.has(preferred)
+      ? preferred
+      : !used.has(fallback)
+        ? fallback
+        : FAILURE_PROFILE_IMAGES.find((image) => !used.has(image)) ?? FAILURE_PROFILE_IMAGES[0];
+    assignments[studentKey] = profile;
+    used.add(profile);
+  }
+  return assignments;
+};
 
 export const getFailureProfileImage = (
   studentNumber: number,
-  dateKey = getKoreanProfileDateKey(),
+  assignments?: FailureProfileAssignments,
 ): string => {
   const studentIndex = Number.isInteger(studentNumber)
     && studentNumber >= 1
-    && studentNumber <= FAILURE_PROFILE_IMAGES.length
+    && studentNumber <= 23
     ? studentNumber - 1
     : 0;
-  const profileIndex = (studentIndex + getProfileDateOffset(dateKey)) % DAILY_FAILURE_PROFILE_RING.length;
-  return DAILY_FAILURE_PROFILE_RING[profileIndex] ?? FAILURE_PROFILE_IMAGES[0];
+  const assigned = assignments?.[String(studentIndex + 1)];
+  return isFailureProfileImage(assigned)
+    ? assigned
+    : DEFAULT_FAILURE_PROFILE_RING[studentIndex] ?? FAILURE_PROFILE_IMAGES[0];
+};
+
+export type SelectFailureProfileResult = {
+  readonly assignments: FailureProfileAssignments;
+  readonly applied: boolean;
+  readonly reason: 'selected' | 'already_selected' | 'profile_in_use' | 'invalid_profile';
+};
+
+export const selectFailureProfile = (
+  current: unknown,
+  studentNumber: number,
+  profileImage: string,
+): SelectFailureProfileResult => {
+  const assignments = normalizeFailureProfileAssignments(current);
+  if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23 || !isFailureProfileImage(profileImage)) {
+    return { assignments, applied: false, reason: 'invalid_profile' };
+  }
+  const studentKey = String(studentNumber);
+  if (assignments[studentKey] === profileImage) {
+    return { assignments, applied: false, reason: 'already_selected' };
+  }
+  const isUsedByAnotherStudent = Object.entries(assignments).some(([key, image]) => (
+    key !== studentKey && image === profileImage
+  ));
+  if (isUsedByAnotherStudent) {
+    return { assignments, applied: false, reason: 'profile_in_use' };
+  }
+  return {
+    assignments: { ...assignments, [studentKey]: profileImage },
+    applied: true,
+    reason: 'selected',
+  };
 };
 
 export interface FailureStoryStamp {

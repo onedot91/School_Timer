@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
+import StudentFailureRelay from '../components/student/StudentFailureRelay.tsx';
 import {
   createFailureStory,
   deleteFailureStory,
+  FAILURE_PROFILE_IMAGES,
+  FAILURE_PROFILE_OPTIONS,
   getFailureProfileImage,
   getFailureRelayWindow,
   getSelectedFailureStamp,
+  normalizeFailureProfileAssignments,
+  selectFailureProfile,
   normalizeFailureStories,
   toggleFailureStamp,
   updateFailureStory,
@@ -21,40 +28,41 @@ const storyInput = {
   updatedAt: '2026-08-23T01:00:00.000Z',
 };
 
-test('같은 날에는 학생 23명의 프로필이 겹치지 않고 고정된다', () => {
-  const firstLoad = Array.from(
-    { length: 23 },
-    (_, index) => getFailureProfileImage(index + 1, '2026-08-24'),
-  );
-  const secondLoad = Array.from(
-    { length: 23 },
-    (_, index) => getFailureProfileImage(index + 1, '2026-08-24'),
-  );
+test('프로필 카탈로그는 50개의 서로 다른 동물 이름을 제공한다', () => {
+  assert.equal(FAILURE_PROFILE_OPTIONS.length, 50);
+  assert.equal(new Set(FAILURE_PROFILE_OPTIONS.map((profile) => profile.label)).size, 50);
+  assert.equal(FAILURE_PROFILE_OPTIONS.some((profile) => profile.label.startsWith('동물 프로필')), false);
+});
+
+test('학생 23명의 기본 프로필은 겹치지 않고 날짜와 관계없이 고정된다', () => {
+  const firstLoad = Array.from({ length: 23 }, (_, index) => getFailureProfileImage(index + 1));
+  const secondLoad = Array.from({ length: 23 }, (_, index) => getFailureProfileImage(index + 1));
 
   assert.equal(new Set(firstLoad).size, 23);
   assert.deepEqual(secondLoad, firstLoad);
 });
 
-test('날짜가 바뀌면 모든 학생의 프로필이 바뀐다', () => {
-  const today = Array.from(
-    { length: 23 },
-    (_, index) => getFailureProfileImage(index + 1, '2026-08-24'),
-  );
-  const tomorrow = Array.from(
-    { length: 23 },
-    (_, index) => getFailureProfileImage(index + 1, '2026-08-25'),
-  );
+test('사용하지 않은 프로필로 바꾸면 선택이 유지된다', () => {
+  const assignments = normalizeFailureProfileAssignments(null);
+  const unusedProfile = FAILURE_PROFILE_IMAGES.find((image) => !Object.values(assignments).includes(image));
+  assert.ok(unusedProfile);
 
-  assert.ok(today.every((profile, index) => profile !== tomorrow[index]));
+  const result = selectFailureProfile(assignments, 1, unusedProfile);
+
+  assert.equal(result.applied, true);
+  assert.equal(getFailureProfileImage(1, result.assignments), unusedProfile);
+  assert.equal(new Set(Object.values(result.assignments)).size, 23);
 });
 
-test('1970년 이전 날짜에도 학생 프로필이 겹치지 않는다', () => {
-  const profiles = Array.from(
-    { length: 23 },
-    (_, index) => getFailureProfileImage(index + 1, '1969-12-31'),
-  );
+test('다른 학생이 사용 중인 프로필은 선택할 수 없다', () => {
+  const assignments = normalizeFailureProfileAssignments(null);
+  const studentTwoProfile = getFailureProfileImage(2, assignments);
 
-  assert.equal(new Set(profiles).size, 23);
+  const result = selectFailureProfile(assignments, 1, studentTwoProfile);
+
+  assert.equal(result.applied, false);
+  assert.equal(result.reason, 'profile_in_use');
+  assert.equal(getFailureProfileImage(1, result.assignments), getFailureProfileImage(1, assignments));
 });
 
 test('실패 릴레이는 현재 위치부터 최대 다섯 이야기만 보여 준다', () => {
@@ -117,6 +125,34 @@ test('실패 릴레이는 첫 이야기 이전에 마지막 이야기를 이어 
     'failure-3',
     'failure-4',
   ]);
+});
+
+test('실패 릴레이는 스크롤 방향대로 다음 이야기를 아래쪽에 이어 붙인다', () => {
+  // Given
+  const stories = Array.from({ length: 6 }, (_, index) => ({
+    ...storyInput,
+    id: `relay-${index + 1}`,
+    studentNumber: index + 1,
+    stamps: [],
+  }));
+  const profileAssignments = normalizeFailureProfileAssignments(null);
+
+  // When
+  const markup = renderToStaticMarkup(createElement(StudentFailureRelay, {
+    studentNumber: 23,
+    profileAssignments,
+    stories,
+    isSaving: false,
+    isExternallyPaused: false,
+    latestRevealRequest: 0,
+    onStamp: async () => false,
+  }));
+
+  // Then
+  const visibleProfilePositions = stories.slice(0, 5).map((story) => (
+    markup.indexOf(getFailureProfileImage(story.studentNumber, profileAssignments))
+  ));
+  assert.deepEqual(visibleProfilePositions, [...visibleProfilePositions].sort((left, right) => left - right));
 });
 
 test('실패 이야기는 같은 ID로 한 번만 등록된다', () => {

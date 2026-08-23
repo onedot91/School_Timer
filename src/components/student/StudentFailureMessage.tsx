@@ -4,6 +4,7 @@ import {
   getFailureProfileImage,
   getSelectedFailureStamp,
   type FailureStampId,
+  type FailureProfileAssignments,
   type FailureStory,
 } from '../../lib/failureExhibition';
 
@@ -11,6 +12,7 @@ interface StudentFailureMessageProps {
   readonly key?: string;
   readonly story: FailureStory;
   readonly studentNumber: number;
+  readonly profileAssignments: FailureProfileAssignments;
   readonly isSaving: boolean;
   readonly isExpanded: boolean;
   readonly isPinned?: boolean;
@@ -23,6 +25,7 @@ interface StudentFailureMessageProps {
 export default function StudentFailureMessage({
   story,
   studentNumber,
+  profileAssignments,
   isSaving,
   isExpanded,
   isPinned = false,
@@ -34,7 +37,7 @@ export default function StudentFailureMessage({
   const isMine = story.studentNumber === studentNumber;
   const selectedStamp = getSelectedFailureStamp(story, studentNumber);
   const selectedStampOption = FAILURE_STAMP_OPTIONS.find((stamp) => stamp.id === selectedStamp);
-  const profileImage = getFailureProfileImage(story.studentNumber);
+  const profileImage = getFailureProfileImage(story.studentNumber, profileAssignments);
 
   return (
     <article className={`student-failure-message${isMine ? ' is-mine' : ''}${isExpanded ? ' is-expanded' : ''}${isPinned ? ' is-pinned' : ''}`}>

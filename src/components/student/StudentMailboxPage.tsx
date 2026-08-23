@@ -1,11 +1,13 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { Inbox, Mail, MailOpen, PenLine, Reply, Send, SendHorizontal, Stamp, X } from 'lucide-react';
 import { CLASS_DONATION_MAIL_IMAGE_SOURCE, CLASS_DONATION_MAIL_SENDER_LABEL } from '../../lib/classDonation';
+import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
 import { TEACHER_LETTER_RECIPIENT, type StudentLetter } from '../../lib/studentLife';
 import StudentHeader from './StudentHeader';
 
 interface StudentMailboxPageProps {
   readonly studentNumber: number;
+  readonly profileAssignments: FailureProfileAssignments;
   readonly letters: readonly StudentLetter[];
   readonly sentLetters: readonly StudentLetter[];
   readonly unreadCount: number;
@@ -51,6 +53,14 @@ const getRecipientLabel = (letter: StudentLetter): string => (
   letter.recipient === TEACHER_LETTER_RECIPIENT ? '선생님' : `${letter.recipient}번`
 );
 
+const getProfileStudentNumber = (
+  letter: StudentLetter,
+  folder: MailboxFolder,
+): number | null => {
+  if (folder === 'inbox') return letter.senderStudentNumber;
+  return letter.recipient === TEACHER_LETTER_RECIPIENT ? null : letter.recipient;
+};
+
 const getLetterDisplayTitle = (title: string): string => (
   title.trim().replace(/^[◆◇▶▷•·]\s*/, '') || '편지가 도착했어요'
 );
@@ -71,6 +81,7 @@ const preserveKoreanPhraseSpacing = (content: string): string => content
 
 export default function StudentMailboxPage({
   studentNumber,
+  profileAssignments,
   letters,
   sentLetters,
   unreadCount,
@@ -93,6 +104,12 @@ export default function StudentMailboxPage({
   );
   const selectedIsBankLetter = selectedLetter !== null && isBankLetter(selectedLetter);
   const selectedIsDonationLetter = selectedLetter !== null && isDonationLetter(selectedLetter);
+  const selectedProfileStudentNumber = selectedLetter === null
+    ? null
+    : getProfileStudentNumber(selectedLetter, folder);
+  const selectedProfileImage = selectedProfileStudentNumber === null
+    ? null
+    : getFailureProfileImage(selectedProfileStudentNumber, profileAssignments);
 
   const changeFolder = (nextFolder: MailboxFolder) => {
     setFolder(nextFolder);
@@ -217,6 +234,10 @@ export default function StudentMailboxPage({
               const isUnread = folder === 'inbox' && letter.readAt === null;
               const isFromBank = isBankLetter(letter);
               const isFromDonation = isDonationLetter(letter);
+              const profileStudentNumber = getProfileStudentNumber(letter, folder);
+              const profileImage = profileStudentNumber === null
+                ? null
+                : getFailureProfileImage(profileStudentNumber, profileAssignments);
               const senderOrRecipient = folder === 'inbox' ? letter.senderLabel : `받는 사람 ${getRecipientLabel(letter)}`;
               const displayTitle = getLetterDisplayTitle(letter.title);
               return (
@@ -236,11 +257,13 @@ export default function StudentMailboxPage({
                   style={{ zIndex: activeLetters.length - index }}
                 >
                   <span className="student-mail-envelope-flap" aria-hidden="true" />
-                  <span className="student-mail-envelope-stamp" data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} aria-hidden="true">
+                  <span className="student-mail-envelope-stamp" data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} data-profile={profileImage !== null ? 'true' : undefined} aria-hidden="true">
                     {isFromBank ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
                     ) : isFromDonation ? (
                       <img src={CLASS_DONATION_MAIL_IMAGE_SOURCE} alt="" draggable={false} />
+                    ) : profileImage !== null ? (
+                      <img src={profileImage} alt="" draggable={false} />
                     ) : (
                       <Stamp size={22} />
                     )}
@@ -314,11 +337,13 @@ export default function StudentMailboxPage({
               <article className="student-letter-detail student-letter-paper" aria-labelledby="student-mail-letter-title">
                 <header className="student-letter-heading">
                   <h2 id="student-mail-letter-title">{getLetterDisplayTitle(selectedLetter.title)}</h2>
-                  <span className="student-mail-postmark" data-kind={getMailKind(selectedLetter)} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} aria-label={selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
+                  <span className="student-mail-postmark" data-kind={getMailKind(selectedLetter)} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} data-profile={selectedProfileImage !== null ? 'true' : undefined} aria-label={selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : selectedProfileStudentNumber !== null ? `${selectedProfileStudentNumber}번 프로필 우표` : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
                     {selectedIsBankLetter ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
                     ) : selectedIsDonationLetter ? (
                       <img src={CLASS_DONATION_MAIL_IMAGE_SOURCE} alt="" draggable={false} />
+                    ) : selectedProfileImage !== null ? (
+                      <img src={selectedProfileImage} alt="" draggable={false} />
                     ) : (
                       <Stamp size={28} aria-hidden="true" />
                     )}

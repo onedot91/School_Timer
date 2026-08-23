@@ -13,10 +13,18 @@ import {
   WEEKLY_MISSION_DEFINITIONS,
   type WeeklyMissionStatuses,
 } from '../../lib/weeklyMission';
+import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentHeader from './StudentHeader';
 import StudentMissionCard, { type StudentMissionStatus } from './StudentMissionCard';
+import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 
 interface StudentMissionsPageProps {
+  studentNumber: number;
+  profileAssignments: FailureProfileAssignments;
+  balance: number;
+  availableBalance: number;
+  reservedAmount: number;
+  isLoading: boolean;
   auctionMissions: AuctionMission[];
   weeklyMissionStatuses: WeeklyMissionStatuses;
   hasSyncError: boolean;
@@ -39,6 +47,12 @@ const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
 };
 
 export default function StudentMissionsPage({
+  studentNumber,
+  profileAssignments,
+  balance,
+  availableBalance,
+  reservedAmount,
+  isLoading,
   auctionMissions,
   weeklyMissionStatuses,
   hasSyncError,
@@ -86,6 +100,16 @@ export default function StudentMissionsPage({
       <StudentHeader
         title="미션"
         onBack={onBack}
+        actions={(
+          <StudentBalanceSummary
+            studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
+            balance={balance}
+            availableBalance={availableBalance}
+            reservedAmount={reservedAmount}
+            isLoading={isLoading}
+          />
+        )}
       />
 
       <main className="student-mission-groups">
@@ -111,7 +135,7 @@ export default function StudentMissionsPage({
                   ? `${DIFFICULTY_LABELS[activeSudokuDifficulty]} 문제를 풀고 있어요.`
                   : isSudokuMissionCompleted
                     ? '오늘 푼 문제를 다시 확인할 수 있어요.'
-                    : '난이도를 고르고 시작해요.'}
+                    : undefined}
                 rewardAmount={[SUDOKU_REWARDS.basic, SUDOKU_REWARDS.challenge]}
                 status={activeSudokuDifficulty ? 'inProgress' : isSudokuMissionCompleted ? 'completed' : 'incomplete'}
                 actionLabel={activeSudokuDifficulty ? '이어 풀기' : isSudokuMissionCompleted ? '다시 보기' : '문제 풀기'}
@@ -128,7 +152,7 @@ export default function StudentMissionsPage({
               <StudentMissionCard
                 title="3자리 숫자야구"
                 description={hasResumableNumberBaseballGame
-                  ? '지난 게임을 이어 하거나 오늘 게임을 새로 시작할 수 있어요.'
+                  ? undefined
                   : numberBaseballStatus === 'completed'
                   ? '오늘의 정답과 기록을 다시 볼 수 있어요.'
                   : numberBaseballStatus === 'exhausted'

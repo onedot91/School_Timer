@@ -11,13 +11,21 @@ import {
 } from '../../lib/studentEconomy';
 import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentCharacterGacha from './StudentCharacterGacha';
+import {
+  FAILURE_PROFILE_OPTIONS,
+  getFailureProfileImage,
+  type FailureProfileAssignments,
+} from '../../lib/failureExhibition';
 
 interface StudentShopPageProps {
+  studentNumber: number;
+  profileAssignments: FailureProfileAssignments;
   state: StudentEconomyState;
   catalog: StudentShopCatalogItem[];
   availableBalance: number;
   isSaving: boolean;
   onAction: (action: StudentEconomyAction) => Promise<boolean>;
+  onSelectProfile: (profileImage: string) => Promise<boolean>;
 }
 
 type ShopTab = 'items' | 'characters' | 'houses';
@@ -27,13 +35,35 @@ type PendingPurchase = {
   readonly price: number;
 };
 
-export default function StudentShopPage({ state, catalog, availableBalance, isSaving, onAction }: StudentShopPageProps) {
+const PROFILE_STATUS_PRIORITY = {
+  available: 0,
+  active: 1,
+  used: 2,
+} as const;
+
+export default function StudentShopPage({
+  studentNumber,
+  profileAssignments,
+  state,
+  catalog,
+  availableBalance,
+  isSaving,
+  onAction,
+  onSelectProfile,
+}: StudentShopPageProps) {
   const [tab, setTab] = useState<ShopTab>('items');
   const [houseName, setHouseName] = useState(state.customHouseDesign?.name ?? '나의 집');
   const [houseTheme, setHouseTheme] = useState<StudentCustomHouseTheme>(state.customHouseDesign?.theme ?? 'natural');
   const [pendingPurchase, setPendingPurchase] = useState<PendingPurchase | null>(null);
   const repaired = (state.inventory.house_repair ?? 0) > 0;
   const repairItem = STUDENT_SHOP_ITEMS.find((item) => item.id === 'house_repair');
+  const activeProfile = getFailureProfileImage(studentNumber, profileAssignments);
+  const usedProfiles = new Set(Object.values(profileAssignments));
+  const orderedProfiles = FAILURE_PROFILE_OPTIONS.map((profile) => {
+    const isActive = profile.imageSrc === activeProfile;
+    const status = isActive ? 'active' : usedProfiles.has(profile.imageSrc) ? 'used' : 'available';
+    return { ...profile, status };
+  }).sort((left, right) => PROFILE_STATUS_PRIORITY[left.status] - PROFILE_STATUS_PRIORITY[right.status]);
 
   return (
     <section className="student-shop-hub" data-shop-tab={tab} aria-labelledby="student-shop-title">
@@ -45,14 +75,49 @@ export default function StudentShopPage({ state, catalog, availableBalance, isSa
       </nav>
 
       {tab === 'items' ? (
-        <div className="student-shop-goods-grid">
-          {catalog.filter((item) => item.isActive).map((item) => (
-            <article key={item.id}>
-              <Package aria-hidden="true" />
-              <div><h3>{item.name}</h3><span>보유 {state.inventory[item.id] ?? 0}</span></div>
-              <button disabled={isSaving} onClick={() => setPendingPurchase({ action: { type: 'buy_item', itemId: item.id }, name: item.name, price: item.price })}>{item.price} 고마</button>
-            </article>
-          ))}
+        <div className="student-shop-items-panel">
+          <div className="student-shop-goods-grid">
+            {catalog.filter((item) => item.isActive).map((item) => (
+              <article key={item.id}>
+                <Package aria-hidden="true" />
+                <div><h3>{item.name}</h3><span>보유 {state.inventory[item.id] ?? 0}</span></div>
+                <button disabled={isSaving} onClick={() => setPendingPurchase({ action: { type: 'buy_item', itemId: item.id }, name: item.name, price: item.price })}>{item.price} 고마</button>
+              </article>
+            ))}
+          </div>
+          <section className="student-profile-shop" aria-labelledby="student-profile-shop-title">
+            <header>
+              <div>
+                <h3 id="student-profile-shop-title">프로필 바꾸기</h3>
+                <p>사용 중인 프로필은 고를 수 없어요.</p>
+              </div>
+              <span>{FAILURE_PROFILE_OPTIONS.length}마리</span>
+            </header>
+            <div className="student-profile-shop-grid">
+              {orderedProfiles.map((profile) => {
+                const isActive = profile.status === 'active';
+                const isUsed = profile.status === 'used';
+                return (
+                  <button
+                    type="button"
+                    key={profile.id}
+                    className="student-profile-shop-option"
+                    data-status={profile.status}
+                    aria-label={`${profile.label} ${isActive ? '현재 사용 중' : isUsed ? '다른 학생이 사용 중' : '선택 가능'}`}
+                    aria-pressed={isActive}
+                    disabled={isSaving || isActive || isUsed}
+                    onClick={() => void onSelectProfile(profile.imageSrc)}
+                  >
+                    <img src={profile.imageSrc} alt="" width={192} height={192} loading="lazy" decoding="async" />
+                    <span className="student-profile-shop-option-copy">
+                      <strong>{profile.label}</strong>
+                      <small>{isActive ? '내 프로필' : isUsed ? '사용 중' : '선택'}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
         </div>
       ) : null}
 

@@ -1,16 +1,18 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FAILURE_RELAY_VISIBLE_COUNT,
   getFailureRelayWindow,
   type FailureStampId,
+  type FailureProfileAssignments,
   type FailureStory,
 } from '../../lib/failureExhibition';
 import StudentFailureMessage from './StudentFailureMessage';
 
 interface StudentFailureRelayProps {
   readonly studentNumber: number;
+  readonly profileAssignments: FailureProfileAssignments;
   readonly stories: readonly FailureStory[];
   readonly isSaving: boolean;
   readonly isExternallyPaused: boolean;
@@ -22,22 +24,22 @@ type RelayDirection = 'newer' | 'older';
 
 const RELAY_INTERVAL_MS = 5_500;
 const RELAY_TRANSITION_SECONDS = 0.9;
-const RELAY_WHEEL_THROTTLE_MS = 480;
 const RELAY_SWIPE_THRESHOLD = 36;
-const RELAY_SPRING = {
-  type: 'spring',
+const RELAY_TRANSITION = {
+  type: 'tween',
   duration: RELAY_TRANSITION_SECONDS,
-  bounce: 0.04,
+  ease: [0.22, 1, 0.36, 1],
 } as const;
 
 const relayMotionVariants = {
-  enter: (direction: RelayDirection) => ({ y: direction === 'older' ? '-100%' : '100%' }),
+  enter: (direction: RelayDirection) => ({ y: direction === 'older' ? '100%' : '-100%' }),
   center: { y: 0 },
-  exit: (direction: RelayDirection) => ({ y: direction === 'older' ? '100%' : '-100%' }),
+  exit: (direction: RelayDirection) => ({ y: direction === 'older' ? '-100%' : '100%' }),
 };
 
 export default function StudentFailureRelay({
   studentNumber,
+  profileAssignments,
   stories,
   isSaving,
   isExternallyPaused,
@@ -53,7 +55,7 @@ export default function StudentFailureRelay({
   const [stampMenuStoryId, setStampMenuStoryId] = useState<string | null>(null);
   const [pendingStoryCount, setPendingStoryCount] = useState(0);
   const pointerStartYRef = useRef<number | null>(null);
-  const lastWheelAtRef = useRef(0);
+  const transitionEndsAtRef = useRef(0);
   const pinnedStory = useMemo(
     () => stories.find((story) => story.studentNumber === studentNumber) ?? null,
     [stories, studentNumber],
@@ -71,7 +73,15 @@ export default function StudentFailureRelay({
     || isFocusPaused
     || expandedStoryId !== null
     || stampMenuStoryId !== null;
-  const visibleStories = [...getFailureRelayWindow(relayStories, relayOffset, relayVisibleCount)].reverse();
+  const visibleStories = getFailureRelayWindow(relayStories, relayOffset, relayVisibleCount);
+  const move = useCallback((amount: number) => {
+    const now = Date.now();
+    if (maximumOffset === 0 || now < transitionEndsAtRef.current) return;
+    transitionEndsAtRef.current = now + RELAY_TRANSITION_SECONDS * 1_000;
+    setExpandedStoryId(null);
+    setRelayDirection(amount > 0 ? 'older' : 'newer');
+    setRelayOffset((current) => (current + amount + relayStories.length) % relayStories.length);
+  }, [maximumOffset, relayStories.length]);
 
   useEffect(() => {
     if (!stampMenuStoryId) return;
@@ -133,20 +143,10 @@ export default function StudentFailureRelay({
   useEffect(() => {
     if (isPaused || maximumOffset === 0) return;
     const timer = window.setInterval(() => {
-      setRelayOffset((current) => {
-        setRelayDirection('older');
-        return (current + 1) % relayStories.length;
-      });
+      move(1);
     }, RELAY_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [isPaused, maximumOffset, relayStories.length]);
-
-  const move = (amount: number) => {
-    if (maximumOffset === 0) return;
-    setExpandedStoryId(null);
-    setRelayDirection(amount > 0 ? 'older' : 'newer');
-    setRelayOffset((current) => (current + amount + relayStories.length) % relayStories.length);
-  };
+  }, [isPaused, maximumOffset, move]);
 
   const revealLatest = () => {
     setRelayDirection('newer');
@@ -163,6 +163,7 @@ export default function StudentFailureRelay({
           <StudentFailureMessage
             story={pinnedStory}
             studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
             isSaving={isSaving}
             isExpanded={expandedStoryId === pinnedStory.id}
             isPinned
@@ -207,10 +208,7 @@ export default function StudentFailureRelay({
             }}
             onWheel={(event) => {
               if (Math.abs(event.deltaY) < 20) return;
-              const now = Date.now();
-              if (now - lastWheelAtRef.current < RELAY_WHEEL_THROTTLE_MS) return;
               event.preventDefault();
-              lastWheelAtRef.current = now;
               move(event.deltaY > 0 ? 1 : -1);
             }}
           >
@@ -227,13 +225,14 @@ export default function StudentFailureRelay({
                     animate="center"
                     exit={shouldReduceMotion ? undefined : 'exit'}
                     transition={shouldReduceMotion ? { duration: 0 } : {
-                      layout: RELAY_SPRING,
-                      y: RELAY_SPRING,
+                      layout: RELAY_TRANSITION,
+                      y: RELAY_TRANSITION,
                     }}
                   >
                     <StudentFailureMessage
                       story={story}
                       studentNumber={studentNumber}
+                      profileAssignments={profileAssignments}
                       isSaving={isSaving}
                       isExpanded={expandedStoryId === story.id}
                       isStampMenuOpen={stampMenuStoryId === story.id}

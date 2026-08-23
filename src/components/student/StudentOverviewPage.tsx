@@ -16,9 +16,11 @@ import StudentPetStage from './StudentPetStage';
 import { DEFAULT_STUDENT_CHARACTER, STUDENT_CHARACTER_PRIZES, type StudentCharacterPrizeId, type StudentCustomHouseTheme, type StudentHouseDesignId } from '../../lib/studentEconomy';
 import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
+import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 
 interface StudentOverviewPageProps {
   studentNumber: number;
+  profileAssignments: FailureProfileAssignments;
   balance: number;
   availableBalance: number;
   reservedAmount: number;
@@ -48,6 +50,7 @@ interface StudentOverviewPageProps {
 
 export default function StudentOverviewPage({
   studentNumber,
+  profileAssignments,
   balance,
   availableBalance,
   reservedAmount,
@@ -167,6 +170,7 @@ export default function StudentOverviewPage({
         <div className="student-overview-balance-dock">
           <StudentBalanceSummary
             studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
             balance={balance}
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}

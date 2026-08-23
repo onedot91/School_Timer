@@ -8,9 +8,11 @@ import StudentInvestmentActionPanel from './StudentInvestmentActionPanel';
 import StudentPlaza, { type StudentStoreSection } from './StudentPlaza';
 import StudentShopPage from './StudentShopPage';
 import StudentStockMarketPage from './StudentStockMarketPage';
+import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 
 interface StudentStorePageProps {
   studentNumber: number;
+  profileAssignments: FailureProfileAssignments;
   balance: number;
   availableBalance: number;
   reservedAmount: number;
@@ -30,12 +32,14 @@ interface StudentStorePageProps {
     onDonate: () => void;
   };
   onEconomyAction: (action: StudentEconomyAction) => Promise<boolean>;
+  onSelectProfile: (profileImage: string) => Promise<boolean>;
   onOpenSection: (section: StudentStoreSection) => void;
   onBack: () => void;
 }
 
 export default function StudentStorePage({
   studentNumber,
+  profileAssignments,
   balance,
   availableBalance,
   reservedAmount,
@@ -48,6 +52,7 @@ export default function StudentStorePage({
   isEconomySaving,
   donation,
   onEconomyAction,
+  onSelectProfile,
   onOpenSection,
   onBack,
 }: StudentStorePageProps) {
@@ -69,6 +74,8 @@ export default function StudentStorePage({
         backText={isPlaza ? '홈' : '광장'}
         actions={(
           <StudentBalanceSummary
+            studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
             balance={balance}
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
@@ -79,7 +86,7 @@ export default function StudentStorePage({
       <div className="student-store-content">
         {section === 'plaza' ? <StudentPlaza onOpen={onOpenSection} /> : null}
         {section === 'bank' ? <StudentBankPage state={economyState} studentNumber={studentNumber} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
-        {section === 'shop' ? <StudentShopPage state={economyState} catalog={shopCatalog} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
+        {section === 'shop' ? <StudentShopPage studentNumber={studentNumber} profileAssignments={profileAssignments} state={economyState} catalog={shopCatalog} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} onSelectProfile={onSelectProfile} /> : null}
         {section === 'auction' ? children : null}
         {isSecurities ? (
           <div className="student-securities-flow">

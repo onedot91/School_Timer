@@ -1,4 +1,10 @@
-import { normalizeFailureStories, type FailureStory } from './failureExhibition';
+import {
+  normalizeFailureProfileAssignments,
+  normalizeFailureStories,
+  type FailureProfileAssignments,
+  type FailureStory,
+} from './failureExhibition';
+import { normalizeBankMailboxCopy } from './bankMailbox';
 
 export interface StudentLetter {
   readonly id: string;
@@ -30,6 +36,7 @@ export interface StudentLifeState {
   readonly letters: readonly StudentLetter[];
   readonly books: readonly StudentBook[];
   readonly failureStories: readonly FailureStory[];
+  readonly failureProfileAssignments: FailureProfileAssignments;
 }
 
 type LetterInput = Omit<StudentLetter, 'readAt' | 'senderStudentNumber' | 'replyToId'> & {
@@ -76,16 +83,22 @@ const parseLetter = (value: unknown): StudentLetter | null => {
   if (typeof letter.id !== 'string' || letter.id.length === 0 || !isLetterRecipient(letter.recipient)) return null;
   if (typeof letter.senderLabel !== 'string' || typeof letter.content !== 'string' || letter.content.trim().length === 0) return null;
   if (typeof letter.createdAt !== 'string') return null;
+  const senderLabel = letter.senderLabel.trim().slice(0, 20) || '보낸 사람';
+  const title = typeof letter.title === 'string' ? letter.title.trim().slice(0, 40) : '';
+  const content = letter.content.trim().slice(0, 300);
+  const copy = senderLabel === '은행원 돝돝'
+    ? normalizeBankMailboxCopy(title, content)
+    : { title, content };
   return {
     id: letter.id.slice(0, 80),
     recipient: letter.recipient,
-    senderLabel: letter.senderLabel.trim().slice(0, 20) || '보낸 사람',
+    senderLabel,
     senderStudentNumber: isStudentNumber(letter.senderStudentNumber) ? letter.senderStudentNumber : null,
     replyToId: typeof letter.replyToId === 'string' && letter.replyToId.length > 0
       ? letter.replyToId.slice(0, 80)
       : null,
-    title: typeof letter.title === 'string' ? letter.title.trim().slice(0, 40) : '',
-    content: letter.content.trim().slice(0, 300),
+    title: copy.title,
+    content: copy.content,
     createdAt: letter.createdAt,
     readAt: typeof letter.readAt === 'string' ? letter.readAt : null,
   };
@@ -109,11 +122,12 @@ const parseBook = (value: unknown): StudentBook | null => {
 };
 
 export const normalizeStudentLifeState = (value: unknown): StudentLifeState => {
-  const parsed = value && typeof value === 'object' ? value as { letters?: unknown; books?: unknown; failureStories?: unknown } : {};
+  const parsed = value && typeof value === 'object' ? value as { letters?: unknown; books?: unknown; failureStories?: unknown; failureProfileAssignments?: unknown } : {};
   return {
     letters: (Array.isArray(parsed.letters) ? parsed.letters : []).map(parseLetter).filter((entry): entry is StudentLetter => entry !== null).slice(-MAX_LETTERS),
     books: (Array.isArray(parsed.books) ? parsed.books : []).map(parseBook).filter((entry): entry is StudentBook => entry !== null).slice(-MAX_BOOKS),
     failureStories: normalizeFailureStories(parsed.failureStories),
+    failureProfileAssignments: normalizeFailureProfileAssignments(parsed.failureProfileAssignments),
   };
 };
 
@@ -203,4 +217,16 @@ export const loadStoredStudentLifeState = (): StudentLifeState => {
 
 export const storeStudentLifeState = (state: StudentLifeState): void => {
   window.localStorage.setItem(STUDENT_LIFE_STORAGE_KEY, JSON.stringify(state));
+};
+
+export const updateStoredStudentLifeState = async (
+  change: (current: StudentLifeState) => StudentLifeState,
+): Promise<StudentLifeState> => {
+  const update = () => {
+    const saved = change(loadStoredStudentLifeState());
+    storeStudentLifeState(saved);
+    return saved;
+  };
+  if (typeof navigator === 'undefined' || !navigator.locks) return update();
+  return navigator.locks.request(`${STUDENT_LIFE_STORAGE_KEY}:update`, update);
 };

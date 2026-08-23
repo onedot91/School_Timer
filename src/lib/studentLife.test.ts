@@ -167,6 +167,23 @@ test('잘못된 학생 번호와 빈 기록은 정규화에서 제외된다', ()
   assert.equal(normalized.books[0]?.author, '');
 });
 
+test('기존 은행원 편지는 짧은 용건 제목과 자연스러운 자기 지칭으로 복구한다', () => {
+  const normalized = normalizeStudentLifeState({
+    letters: [{
+      id: 'bank-legacy-deposit',
+      recipient: 1,
+      senderLabel: '은행원 돝돝',
+      title: '예금 접수 · 고마를 맡겼어요',
+      content: '예금한 20 고마를 돝돝이가 잘 보관하고 있어요.',
+      createdAt: '2026-08-24T01:00:00.000Z',
+      readAt: null,
+    }],
+  });
+
+  assert.equal(normalized.letters[0]?.title, '예금 접수');
+  assert.equal(normalized.letters[0]?.content, '예금한 20 고마를 제가 잘 보관하고 있어요.');
+});
+
 test('새 책은 글쓴이를 정리해 저장한다', () => {
   const state = addStudentBook(normalizeStudentLifeState(null), {
     id: 'book-with-author',

@@ -4,17 +4,17 @@ import {
   AUCTION_DAY_ACCENTS,
   AUCTION_WEEKDAY_LABELS,
   formatCurrency,
-  getAuctionItemDisplayName,
-  getStudentLabelStyle,
   type AuctionAwards,
   type AuctionBids,
   type AuctionItem,
   type AuctionMission,
 } from '../lib/currency';
+import type { FailureProfileAssignments } from '../lib/failureExhibition';
 import {
   WEEKLY_MISSION_DEFINITIONS,
   type WeeklyMissionStatuses,
 } from '../lib/weeklyMission';
+import { AuctionItemCard } from './AuctionItemCard';
 
 interface AuctionRoomProps {
   auctionItems: AuctionItem[];
@@ -27,6 +27,7 @@ interface AuctionRoomProps {
   visibleDayCount: number;
   selectedItemId?: string | null;
   studentLabel: string;
+  profileAssignments: FailureProfileAssignments;
   isLoading?: boolean;
   showStudentSummary?: boolean;
   variant?: 'page' | 'compact';
@@ -46,6 +47,7 @@ export default function AuctionRoom({
   visibleDayCount,
   selectedItemId,
   studentLabel,
+  profileAssignments,
   isLoading = false,
   showStudentSummary = true,
   variant = 'page',
@@ -290,83 +292,18 @@ export default function AuctionRoom({
                   const award = auctionAwards?.[item.id] ?? null;
                   const isUnlocked = item.dayIndex < visibleDayCount;
                   const isSelected = selectedItem ? item.id === selectedItem.id : false;
-                  const itemDisplayName = getAuctionItemDisplayName(item.name, item.dayIndex);
-
                   return (
-                    <button
+                    <AuctionItemCard
                       key={item.id}
-                      type="button"
-                      onClick={() => {
-                        if (isUnlocked) onSelectItem?.(item);
-                      }}
-                      disabled={!isUnlocked}
-                      aria-pressed={isUnlocked ? isSelected : undefined}
-                      className={`auction-item-card group relative overflow-hidden border p-4 text-left ${
-                        isUnlocked
-                          ? 'bg-white hover:-translate-y-0.5'
-                          : 'auction-item-card-locked cursor-not-allowed border-[#E3EBE6] bg-[#F8FAF8]'
-                      } rounded-[1.05rem]`}
-                      style={
-                        isUnlocked
-                          ? {
-                              borderColor: isSelected ? activeDayGroup.accent.chip : '#E6ECE8',
-                              backgroundColor: isSelected ? activeDayGroup.accent.soft : '#FFFFFF',
-                              boxShadow: isSelected
-                                ? `inset 5px 0 0 ${activeDayGroup.accent.chip}, 0 12px 24px rgba(28,45,40,0.08)`
-                                : undefined,
-                            }
-                          : undefined
-                      }
-                    >
-                      {isUnlocked ? (
-                        <div className="auction-item-identity min-w-0">
-                          <div className="section-title truncate text-[1.35rem] font-black leading-tight text-[#18211E]">
-                            {itemDisplayName}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="relative min-h-[4.55rem] overflow-hidden rounded-[0.85rem] border border-[#CBD8D1] bg-white/88 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                          <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: activeDayGroup.accent.chip }} />
-                          <div className="flex min-h-[4rem] items-center gap-3">
-                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#24312B] text-white shadow-[0_8px_16px_rgba(28,45,40,0.16)]">
-                              <Lock size={19} color="#FFFFFF" strokeWidth={3} />
-                            </span>
-                            <div className="min-w-0">
-                              <div className="section-title text-[1rem] font-black text-[#38423D]">잠긴 물품</div>
-                              <div className="mt-1 text-[0.78rem] font-extrabold text-[#66736C]">해당 요일에 공개됩니다</div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="auction-item-bid-summary mt-4 flex items-end justify-between gap-2 border-t border-[#EDF2EF] pt-3.5">
-                        <div className="auction-item-bidder min-w-[3.6rem]">
-                          {award && isUnlocked ? (
-                            <span
-                              className="inline-flex h-8 items-center justify-center rounded-full px-2.5 font-mono text-[0.84rem] font-black text-white"
-                              style={getStudentLabelStyle(award.winner)}
-                            >
-                              {award.winner}번
-                            </span>
-                          ) : currentBid.bidder && isUnlocked ? (
-                            <span
-                              className="inline-flex h-8 items-center justify-center rounded-full px-2.5 font-mono text-[0.84rem] font-black text-white"
-                              style={getStudentLabelStyle(currentBid.bidder)}
-                            >
-                              {currentBid.bidder}번
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="auction-item-current-bid min-w-0 flex-1 text-right" style={{ color: isUnlocked ? activeDayGroup.accent.chip : '#6E7A72' }}>
-                          {isUnlocked ? (
-                            <>
-                              <span>현재가</span>
-                              <strong>{award ? formatCurrency(award.amount) : formatCurrency(currentBid.amount)}</strong>
-                            </>
-                          ) : null}
-                        </div>
-                      </div>
-                    </button>
+                      item={item}
+                      currentBid={currentBid}
+                      award={award}
+                      accent={activeDayGroup.accent}
+                      isUnlocked={isUnlocked}
+                      isSelected={isSelected}
+                      profileAssignments={profileAssignments}
+                      onSelect={(selected) => onSelectItem?.(selected)}
+                    />
                   );
                 })}
               </div>

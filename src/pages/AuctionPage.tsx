@@ -132,11 +132,13 @@ import {
   markStudentLetterRead,
   normalizeStudentLifeState,
   storeStudentLifeState,
+  updateStoredStudentLifeState,
   type StudentLifeState,
 } from '../lib/studentLife';
 import {
   createFailureStory,
   getFailureStoriesNewestFirst,
+  selectFailureProfile,
   toggleFailureStamp,
   type FailureStampId,
 } from '../lib/failureExhibition';
@@ -548,6 +550,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const studentSentLetters = getStudentSentLetters(studentLife, studentNumber);
   const studentBooks = getStudentBooks(studentLife, studentNumber);
   const failureStories = getFailureStoriesNewestFirst(studentLife.failureStories);
+  const profileAssignments = studentLife.failureProfileAssignments;
   const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber);
 
   const saveStudentLifeChange = async (change: (current: StudentLifeState) => StudentLifeState) => {
@@ -562,8 +565,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           return { ...current, studentLife: saved };
         });
       } else {
-        saved = change(loadStoredStudentLifeState());
-        storeStudentLifeState(saved);
+        saved = await updateStoredStudentLifeState(change);
       }
       setStudentLife(saved);
       return true;
@@ -601,6 +603,38 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     ...current,
     failureStories: toggleFailureStamp(current.failureStories, storyId, studentNumber, stampId),
   }));
+
+  const selectStudentFailureProfile = async (profileImage: string) => {
+    const selection = {
+      reason: 'invalid_profile' as ReturnType<typeof selectFailureProfile>['reason'],
+    };
+    const saved = await saveStudentLifeChange((current) => {
+      const result = selectFailureProfile(
+        current.failureProfileAssignments,
+        studentNumber,
+        profileImage,
+      );
+      selection.reason = result.reason;
+      return result.applied
+        ? { ...current, failureProfileAssignments: result.assignments }
+        : current;
+    });
+
+    if (!saved) {
+      showStatusMessage('프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      return false;
+    }
+    if (selection.reason === 'profile_in_use') {
+      showStatusMessage('다른 학생이 사용 중인 프로필입니다.');
+      return false;
+    }
+    if (selection.reason !== 'selected') {
+      showStatusMessage('이미 사용 중인 프로필입니다.');
+      return false;
+    }
+    showStatusMessage('프로필을 바꿨습니다.');
+    return true;
+  };
 
   const feedStudentPet = async () => {
     if (isPetSaving) return false;
@@ -1535,6 +1569,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage
             studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
             balance={balance}
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
@@ -1573,6 +1608,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         ) : null}
         {activeStudentView === 'missions' ? (
           <StudentMissionsPage
+            studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
+            balance={balance}
+            availableBalance={availableBalance}
+            reservedAmount={reservedAmount}
+            isLoading={isLoading}
             auctionMissions={auctionMissions}
             weeklyMissionStatuses={weeklyMissionStatuses}
             hasSyncError={hasWeeklyMissionSyncError}
@@ -1635,6 +1676,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         {activeStudentView === 'mailbox' ? (
           <StudentMailboxPage
             studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
             letters={studentLetters}
             sentLetters={studentSentLetters}
             unreadCount={unreadLetterCount}
@@ -1647,6 +1689,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         {activeStudentView === 'library' || activeStudentView === 'library-bookstore' ? (
           <StudentFailureExhibitionPage
             studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
             stories={failureStories}
             isSaving={isStudentLifeSaving}
             onCreate={createStudentFailureStory}
@@ -1666,6 +1709,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         {isStudentStoreView(activeStudentView) ? (
           <StudentStorePage
             studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
             balance={balance}
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
@@ -1684,6 +1728,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               onDonate: openDonation,
             }}
             onEconomyAction={runStudentEconomyAction}
+            onSelectProfile={selectStudentFailureProfile}
             onOpenSection={(section) => navigateStudentView(STORE_VIEW_BY_SECTION[section])}
             onBack={() => navigateStudentView(activeStoreSection === 'plaza' ? 'overview' : activeStoreSection === 'securities-trade' ? 'store-securities' : 'store')}
           >
@@ -1698,6 +1743,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           visibleDayCount={visibleDayCount}
           selectedItemId={selectedItem?.id ?? null}
           studentLabel={`${studentNumber}번`}
+          profileAssignments={profileAssignments}
           isLoading={isLoading}
           showStudentSummary={false}
           onSelectItem={selectItem}
