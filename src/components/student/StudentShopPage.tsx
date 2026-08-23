@@ -13,7 +13,10 @@ import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentCharacterGacha from './StudentCharacterGacha';
 import {
   FAILURE_PROFILE_OPTIONS,
+  FAILURE_PROFILE_IMAGES,
+  FAILURE_RANDOM_PROFILE_OPTION,
   getFailureProfileImage,
+  getRandomAvailableFailureProfile,
   type FailureProfileAssignments,
 } from '../../lib/failureExhibition';
 
@@ -59,6 +62,7 @@ export default function StudentShopPage({
   const repairItem = STUDENT_SHOP_ITEMS.find((item) => item.id === 'house_repair');
   const activeProfile = getFailureProfileImage(studentNumber, profileAssignments);
   const usedProfiles = new Set(Object.values(profileAssignments));
+  const hasRandomProfile = FAILURE_PROFILE_IMAGES.some((image) => !usedProfiles.has(image));
   const orderedProfiles = FAILURE_PROFILE_OPTIONS.map((profile) => {
     const isActive = profile.imageSrc === activeProfile;
     const status = isActive ? 'active' : usedProfiles.has(profile.imageSrc) ? 'used' : 'available';
@@ -91,9 +95,26 @@ export default function StudentShopPage({
                 <h3 id="student-profile-shop-title">프로필 바꾸기</h3>
                 <p>사용 중인 프로필은 고를 수 없어요.</p>
               </div>
-              <span>{FAILURE_PROFILE_OPTIONS.length}마리</span>
+              <span>{FAILURE_PROFILE_OPTIONS.length}마리 + 랜덤</span>
             </header>
             <div className="student-profile-shop-grid">
+              <button
+                type="button"
+                className="student-profile-shop-option"
+                data-status="available"
+                aria-label="사용 가능한 동물 프로필 중 하나로 무작위 변경"
+                disabled={isSaving || !hasRandomProfile}
+                onClick={() => {
+                  const randomProfile = getRandomAvailableFailureProfile(profileAssignments, studentNumber);
+                  if (randomProfile !== null) void onSelectProfile(randomProfile);
+                }}
+              >
+                <img src={FAILURE_RANDOM_PROFILE_OPTION.imageSrc} alt="" width={192} height={192} decoding="async" />
+                <span className="student-profile-shop-option-copy">
+                  <strong>{FAILURE_RANDOM_PROFILE_OPTION.label}</strong>
+                  <small>{hasRandomProfile ? '무작위 선택' : '선택 불가'}</small>
+                </span>
+              </button>
               {orderedProfiles.map((profile) => {
                 const isActive = profile.status === 'active';
                 const isUsed = profile.status === 'used';

@@ -56,6 +56,9 @@ test('첨부한 46개 고마 스킨은 선택 가능한 카탈로그에 등록�
 
 test('학생 증권은 4개 종목과 날짜별 등락 단계를 유지한다', () => {
   assert.equal(STUDENT_STOCKS.length, 4);
+  assert.deepEqual(STUDENT_STOCKS.map((stock) => stock.name), [
+    '냠냠푸드', '팡팡게임즈', '척척테크', '반짝엔터',
+  ]);
   const market = upsertStudentStockMarketEntry({}, 'sunny', {
     dateKey: '2026-08-12', stage: 'rise', comment: '새 문구류가 인기를 얻었어요.',
   });

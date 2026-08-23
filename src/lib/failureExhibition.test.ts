@@ -9,6 +9,7 @@ import {
   deleteFailureStory,
   FAILURE_PROFILE_IMAGES,
   FAILURE_PROFILE_OPTIONS,
+  getRandomAvailableFailureProfile,
   getFailureProfileImage,
   getFailureRelayWindow,
   getSelectedFailureStamp,
@@ -28,10 +29,33 @@ const storyInput = {
   updatedAt: '2026-08-23T01:00:00.000Z',
 };
 
-test('프로필 카탈로그는 50개의 서로 다른 동물 이름을 제공한다', () => {
-  assert.equal(FAILURE_PROFILE_OPTIONS.length, 50);
-  assert.equal(new Set(FAILURE_PROFILE_OPTIONS.map((profile) => profile.label)).size, 50);
+test('저장 가능한 프로필 카탈로그는 70개의 동물만 제공한다', () => {
+  assert.equal(FAILURE_PROFILE_IMAGES.length, 70);
+  assert.equal(FAILURE_PROFILE_OPTIONS.length, 70);
+  assert.equal(new Set(FAILURE_PROFILE_OPTIONS.map((profile) => profile.label)).size, 70);
+  assert.equal(FAILURE_PROFILE_OPTIONS.some((profile) => String(profile.label) === '익명'), false);
   assert.equal(FAILURE_PROFILE_OPTIONS.some((profile) => profile.label.startsWith('동물 프로필')), false);
+});
+
+test('랜덤 프로필은 다른 학생이 쓰지 않는 동물만 고른다', () => {
+  const assignments = normalizeFailureProfileAssignments(null);
+  const availableProfiles = FAILURE_PROFILE_IMAGES.filter((image) => !Object.values(assignments).includes(image));
+
+  assert.equal(getRandomAvailableFailureProfile(assignments, 1, () => 0), availableProfiles[0]);
+  assert.equal(getRandomAvailableFailureProfile(assignments, 1, () => 0.999), availableProfiles.at(-1));
+});
+
+test('익명 이미지는 학생 프로필로 저장할 수 없다', () => {
+  const assignments = normalizeFailureProfileAssignments(null);
+  const result = selectFailureProfile(assignments, 1, '/failure-profiles/thumbs/anonymous.png');
+  const normalized = normalizeFailureProfileAssignments({
+    ...assignments,
+    1: '/failure-profiles/thumbs/anonymous.png',
+  });
+
+  assert.equal(result.applied, false);
+  assert.equal(result.reason, 'invalid_profile');
+  assert.notEqual(normalized['1'], '/failure-profiles/thumbs/anonymous.png');
 });
 
 test('학생 23명의 기본 프로필은 겹치지 않고 날짜와 관계없이 고정된다', () => {

@@ -1,16 +1,31 @@
-import { Cloud, Sprout, Star, Sun, type LucideIcon } from 'lucide-react';
 import type { StudentStockId } from '../../lib/studentEconomy';
 
-const STOCK_ICONS: Record<StudentStockId, LucideIcon> = {
-  sunny: Sun,
-  sprout: Sprout,
-  cloud: Cloud,
-  star: Star,
-};
+const STOCK_PROFILE_IMAGES = {
+  sunny: '/stock-profiles/nyamnyam-food.png',
+  sprout: '/stock-profiles/pangpang-games.png',
+  cloud: '/stock-profiles/cheokcheok-tech.png',
+  star: '/stock-profiles/banjjak-entertainment.png',
+} as const satisfies Record<StudentStockId, string>;
+
+const STOCK_PROFILE_LABELS = {
+  sunny: '냠냠푸드 프로필',
+  sprout: '팡팡게임즈 프로필',
+  cloud: '척척테크 프로필',
+  star: '반짝엔터 프로필',
+} as const satisfies Record<StudentStockId, string>;
 
 export function StudentStockIcon({ stockId }: { stockId: StudentStockId }) {
-  const Icon = STOCK_ICONS[stockId];
-  return <span className="student-stock-icon" aria-hidden="true"><Icon /></span>;
+  return (
+    <span className="student-stock-icon">
+      <img
+        src={STOCK_PROFILE_IMAGES[stockId]}
+        alt={STOCK_PROFILE_LABELS[stockId]}
+        width="192"
+        height="192"
+        draggable={false}
+      />
+    </span>
+  );
 }
 
 export function StudentStockTrend({ amount, label = '오늘' }: { amount: number; label?: string }) {

@@ -197,12 +197,18 @@ One surface uses one elevation signal. Avoid combining thick borders, large shad
 | `--failure-feed-measure` | `min(64rem, 1024px)` | 화면 여백을 활용해 더 많은 이야기를 보여 주는 스트리밍 피드의 최대 너비 |
 | pinned-story divider | `2px / 72% / 44rem max` | 고정된 내 이야기와 릴레이 사이에서 높은 대비로 또렷하게 보이고 양끝만 짧게 흐려지는 민트 스티치 점선 |
 
-Failure profiles use 50 distinct animal assets in `public/failure-profiles/` with matching
-`192×192` files in `public/failure-profiles/thumbs/`. Profiles 24–50 add pig, cow, horse,
+Failure profiles use 70 distinct animal assets plus one special random-selection `?` asset in
+`public/failure-profiles/`, with matching `192×192` files in `public/failure-profiles/thumbs/`.
+Profiles 24–50 add pig, cow, horse,
 zebra, deer, sheep, goat, alpaca, camel, monkey, gorilla, sloth, kangaroo, platypus, beaver,
 skunk, badger, mole, bat, parrot, flamingo, peacock, swan, crocodile, chameleon, octopus,
-and dolphin. Each student keeps one profile until they change it in the shop. The shop shows
-all 50 profiles; another student's active profile is grayscale and unavailable, while the
+and dolphin. Profiles 51–70 add tiger, wolf, hyena, rhinoceros, anteater, armadillo, meerkat,
+donkey, eagle, toucan, ostrich, turkey, iguana, snake, shark, seahorse, jellyfish, stingray,
+crab, and lobster. The `?` asset is never a persisted student profile. In the shop only, it appears
+first as a random-change action that immediately chooses one available animal not used by another
+student. Each student keeps the resulting animal profile until they change it in the shop. The shop
+shows all 70 animals plus the random action; another student's active
+profile is grayscale and unavailable, while the
 current student's profile remains full-color and marked `사용 중`. Selection is stored in the
 shared student-life settings with the localStorage fallback, and all 23 active assignments stay unique.
 Each shop card shows the animal's Korean name. Profiles that can be selected appear first,
@@ -276,8 +282,9 @@ followed by the current profile and then grayscale profiles already used by clas
 - At the reference viewport, student-facing supporting text never renders below `14px` (`0.875rem`), interactive labels target `16px` or larger, and meaningful thumbnails or status artwork remain at least `48×48px`. In operational auction surfaces, weekday labels, supporting bid information, and price labels target at least `15px`, while item names, prices, inputs, and primary actions use clearly larger type. Primary character, pet, house, emotion, and prize artwork receives substantially more space than this minimum. Tiny type is reserved for non-student admin metadata only.
 - Density reductions must come from removing duplicated copy, shortening labels, and grouping related controls, not by shrinking text or meaningful artwork. If content cannot fit, its designated content region scrolls while the header and primary action remain stable.
 - Each task page has one visible page title. Store subpages do not repeat `은행`, `상점`, `증권사`, `경매장`, or `기부` inside the body after the title already appears in `StudentHeader`.
-- 초등 3학년용 증권사는 한 화면에 세 섹션을 순서대로 둔다: `내 투자` 현황, 종목별 오늘의 등락과 이유, 하나의 `투자하기 · 투자금 찾기` 조작 패널. 조작 패널은 종목 선택 1개, 금액 입력 1개, 투자·회수 버튼 각 1개만 제공해 네 종목마다 같은 버튼을 반복하지 않는다. 학생은 주가·주식 수·퍼센트 없이 보유 고마 중 원하는 정수 금액을 종목에 넣고, `투자한 돈 → 오늘의 결과 → 늘거나 줄어든 고마 → 현재 금액`만 확인한다. 결과는 빨간 `▲▲ 많이 올랐어요`·`▲ 올랐어요`, 중립 `─ 그대로예요`, 파란 `▼ 내렸어요`·`▼▼ 많이 내렸어요`의 다섯 단계로 표현하며 색상만으로 구분하지 않는다. 변화한 고마를 가장 크게 표시하고 내부 배율·등락률·수익률은 학생 화면에 절대 노출하지 않는다. 월요일부터 금요일까지만 날짜별 결과를 한 번 적용하고 토·일은 `휴장`으로 표시한다. 오늘 투자한 금액에는 오늘 결과를 소급 적용하지 않는다. 교사 설정은 운영 규칙과 날짜별 결과를 분리하고, 날짜·종목마다 `-50%`부터 `+50%`까지 10% 단위로 선택한다. 학생 문구는 `-50~-30%` 많이 내렸어요, `-20~-10%` 내렸어요, `0%` 그대로예요, `+10~+20%` 올랐어요, `+30~+50%` 많이 올랐어요로 자동 변환한다. 퍼센트는 교사 설정에만 노출하며 내부 배율로 변환해 정산한다. 관리자는 날짜별 네 종목의 퍼센트와 짧은 이유, 정수 반올림 방식, 최소·최대 투자 금액을 설정하며 학생별 현재 투자금과 누적 증감을 확인한다.
+- 초등 3학년용 증권사는 `냠냠푸드`, `팡팡게임즈`, `척척테크`, `반짝엔터` 네 종목을 사용하고, 한 화면에 세 섹션을 순서대로 둔다: `내 투자` 현황, 종목별 오늘의 등락과 이유, 하나의 `투자하기 · 투자금 찾기` 조작 패널. 조작 패널은 종목 선택 1개, 금액 입력 1개, 투자·회수 버튼 각 1개만 제공해 네 종목마다 같은 버튼을 반복하지 않는다. 학생은 주가·주식 수·퍼센트 없이 보유 고마 중 원하는 정수 금액을 종목에 넣고, `투자한 돈 → 오늘의 결과 → 늘거나 줄어든 고마 → 현재 금액`만 확인한다. 결과는 빨간 `▲▲ 많이 올랐어요`·`▲ 올랐어요`, 중립 `─ 그대로예요`, 파란 `▼ 내렸어요`·`▼▼ 많이 내렸어요`의 다섯 단계로 표현하며 색상만으로 구분하지 않는다. 변화한 고마를 가장 크게 표시하고 내부 배율·등락률·수익률은 학생 화면에 절대 노출하지 않는다. 월요일부터 금요일까지만 날짜별 결과를 한 번 적용하고 토·일은 `휴장`으로 표시한다. 오늘 투자한 금액에는 오늘 결과를 소급 적용하지 않는다. 교사 설정은 운영 규칙과 날짜별 결과를 분리하고, 날짜·종목마다 `-50%`부터 `+50%`까지 10% 단위로 선택한다. 학생 문구는 `-50~-30%` 많이 내렸어요, `-20~-10%` 내렸어요, `0%` 그대로예요, `+10~+20%` 올랐어요, `+30~+50%` 많이 올랐어요로 자동 변환한다. 퍼센트는 교사 설정에만 노출하며 내부 배율로 변환해 정산한다. 관리자는 날짜별 네 종목의 퍼센트와 짧은 이유, 정수 반올림 방식, 최소·최대 투자 금액을 설정하며 학생별 현재 투자금과 누적 증감을 확인한다.
 - 증권 종목 카드는 직접 선택하는 단일 버튼이다. 누른 카드는 초록 테두리·inset ring으로 유지되며, 거래 패널은 같은 선택을 읽는다. 카드의 press feedback은 `scale(.98)`이고, 키보드 초점은 `--apple-focus` ring으로 구분한다. 별도의 종목 드롭다운은 두지 않는다.
+- 네 종목은 텍스트 없는 정사각형 IP 프로필로 구분한다. `냠냠푸드`는 밥그릇 요리사와 민트 배경, `팡팡게임즈`는 게임패드 생명체와 하늘색 배경, `척척테크`는 칩 로봇과 라벤더 배경, `반짝엔터`는 무대 별 캐릭터와 코랄 배경을 사용한다. 배경은 종목마다 하나의 단색 면으로 유지하고 별도 장면·무늬·테두리를 넣지 않는다. 원본은 `public/stock-profiles/originals`, 화면용 192px 자산은 `public/stock-profiles`에 보존하며, 종목 선택 카드와 보유 현황은 같은 공용 매핑을 사용한다.
 - 종목 카드는 짧은 등락 pill을 두고, 카드 하단에는 그날의 이유를 명조 계열의 큰 일반 굵기 글자로 생략 없이 모두 보여준다. 이유 영역은 상승·하락 색상의 세로선으로 상태와 연결하되 색상만으로 의미를 전달하지 않는다. 보유한 종목은 `내 투자` 라벨과 금액을 분리한 배지로, 보유하지 않은 종목은 같은 위치의 회색 `투자 없음` 배지로 표시하며 문장 부호로 상태를 연결하지 않는다. 큰 등락 상태 블록과 반복된 선택 안내는 사용하지 않는다.
 - 고마 스킨은 후보를 미리 보여주지 않는 인형 뽑기 기계로 제공한다. 상단 탭이 현재 상점 종류를 설명하므로 기계 안에는 별도 표제를 반복하지 않는다. 크림색 캐비닛 안에서 왼쪽은 깊이감 있는 유리 진열장과 서로 겹친 익명 캡슐 더미, 레일의 2지형 집게를 담고, 오른쪽은 구매와 실제 조작을 담당하는 전용 패널로 고정한다. 집게는 넓은 판이 아니라 중앙 모터 하우징의 힌지에서 시작하는 가느다란 금속 관 두 개로 표현한다. 두 팔은 바깥으로 벌어진 뒤 하단에서 서로를 향해 안쪽으로 말리고 어두운 고무 패드로 끝나며, 닫힘 연출에서는 두 패드가 가까워져 캡슐을 집는 방향을 분명히 한다. 캡슐은 제공된 핑크·레드·그린·퍼플·피치·오렌지·블루·브라운·그레이 일러스트를 쓰며, 원본의 초록 배경은 색상 키 필터로 투명 처리해 유리 진열장 색과 섞이지 않게 한다. 진열장에는 한국 시간 날짜에 따라 매일 달라지는 다섯 개의 큰 캡슐만 보이며, 같은 날에는 새로고침해도 같은 배치를 유지한다. 구매 확인 후에는 좌우 버튼이나 방향키로 집게를 다섯 위치 사이에서 움직이고 `집게 내리기`를 눌러야 재화 차감과 뽑기가 시작된다. 집게는 선택한 캡슐과 같은 X축에서 움직이고, 레일 연결점은 고정된 채 케이블이 늘어나 목표 높이에 닿는다. 양쪽 턱이 캡슐을 감싸며 닫히는 순간 바닥 캡슐이 집게로 인계되고, 들어 올린 뒤에는 작은 관성 흔들림과 정착 동작만 보인다. 이 약 2.3초 연출이 끝난 뒤에만 실제 스킨 이미지와 이름을 공개한다. 사용 가능한 고마는 페이지 상단 잔액만 표시한다. 애니메이션은 `transform`·`opacity`만 사용하고, 모션 감소 환경에서는 이동·점멸을 생략한 채 캡슐 인계와 결과 공개 순서만 짧은 opacity 전환으로 표시한다.
 - 보유 스킨 목록은 상점에 반복하지 않는다. 학생 홈 캔버스의 고마 캐릭터를 빠르게 두 번 누르면 스킨 선택 창이 열리고, 보유 스킨과 항상 함께 보이는 `기본 고마` 중 하나를 고르면 즉시 홈 캐릭터에 적용한다. 캐릭터 드래그는 이동으로 유지하며, 키보드는 캐릭터에 초점을 둔 뒤 Enter 또는 Space로 같은 선택 창을 연다.

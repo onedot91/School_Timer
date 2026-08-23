@@ -157,10 +157,10 @@ export const STUDENT_HOUSE_DESIGNS = [
 ] as const;
 
 export const STUDENT_STOCKS = [
-  { id: 'sunny', name: '햇살문구', emoji: '☀️', basePrice: 15 },
-  { id: 'sprout', name: '새싹식품', emoji: '🌱', basePrice: 25 },
-  { id: 'cloud', name: '구름운수', emoji: '☁️', basePrice: 35 },
-  { id: 'star', name: '별빛미디어', emoji: '⭐', basePrice: 20 },
+  { id: 'sunny', name: '냠냠푸드', emoji: '🍽️', basePrice: 15 },
+  { id: 'sprout', name: '팡팡게임즈', emoji: '🎮', basePrice: 25 },
+  { id: 'cloud', name: '척척테크', emoji: '💻', basePrice: 35 },
+  { id: 'star', name: '반짝엔터', emoji: '✨', basePrice: 20 },
 ] as const;
 
 export type StudentShopItemId = string;

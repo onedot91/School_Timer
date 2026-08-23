@@ -57,6 +57,26 @@ export const FAILURE_PROFILE_IMAGES = [
   '/failure-profiles/thumbs/48-chameleon.png',
   '/failure-profiles/thumbs/49-octopus.png',
   '/failure-profiles/thumbs/50-dolphin.png',
+  '/failure-profiles/thumbs/51-tiger.png',
+  '/failure-profiles/thumbs/52-wolf.png',
+  '/failure-profiles/thumbs/53-hyena.png',
+  '/failure-profiles/thumbs/54-rhinoceros.png',
+  '/failure-profiles/thumbs/55-anteater.png',
+  '/failure-profiles/thumbs/56-armadillo.png',
+  '/failure-profiles/thumbs/57-meerkat.png',
+  '/failure-profiles/thumbs/58-donkey.png',
+  '/failure-profiles/thumbs/59-eagle.png',
+  '/failure-profiles/thumbs/60-toucan.png',
+  '/failure-profiles/thumbs/61-ostrich.png',
+  '/failure-profiles/thumbs/62-turkey.png',
+  '/failure-profiles/thumbs/63-iguana.png',
+  '/failure-profiles/thumbs/64-snake.png',
+  '/failure-profiles/thumbs/65-shark.png',
+  '/failure-profiles/thumbs/66-seahorse.png',
+  '/failure-profiles/thumbs/67-jellyfish.png',
+  '/failure-profiles/thumbs/68-stingray.png',
+  '/failure-profiles/thumbs/69-crab.png',
+  '/failure-profiles/thumbs/70-lobster.png',
 ] as const;
 
 const FAILURE_PROFILE_NAMES = [
@@ -65,6 +85,8 @@ const FAILURE_PROFILE_NAMES = [
   '물개', '고래', '고슴도치', '돼지', '소', '말', '얼룩말', '사슴', '양', '염소',
   '알파카', '낙타', '원숭이', '고릴라', '나무늘보', '캥거루', '오리너구리', '비버', '스컹크', '오소리',
   '두더지', '박쥐', '앵무새', '홍학', '공작', '백조', '악어', '카멜레온', '문어', '돌고래',
+  '호랑이', '늑대', '하이에나', '코뿔소', '개미핥기', '아르마딜로', '미어캣', '당나귀', '독수리', '큰부리새',
+  '타조', '칠면조', '이구아나', '뱀', '상어', '해마', '해파리', '가오리', '꽃게', '바닷가재',
 ] as const;
 
 const DEFAULT_FAILURE_PROFILE_RING = [
@@ -74,6 +96,12 @@ const DEFAULT_FAILURE_PROFILE_RING = [
 ].map((profileNumber) => FAILURE_PROFILE_IMAGES[profileNumber - 1]);
 
 export type FailureProfileAssignments = Readonly<Record<string, string>>;
+
+export const FAILURE_RANDOM_PROFILE_OPTION = {
+  id: 'random-profile',
+  imageSrc: '/failure-profiles/thumbs/anonymous.png',
+  label: '랜덤',
+} as const;
 
 export const FAILURE_PROFILE_OPTIONS = FAILURE_PROFILE_IMAGES.map((imageSrc, index) => ({
   id: imageSrc,
@@ -118,6 +146,23 @@ export const getFailureProfileImage = (
   return isFailureProfileImage(assigned)
     ? assigned
     : DEFAULT_FAILURE_PROFILE_RING[studentIndex] ?? FAILURE_PROFILE_IMAGES[0];
+};
+
+export const getRandomAvailableFailureProfile = (
+  current: unknown,
+  studentNumber: number,
+  random: () => number = Math.random,
+): string | null => {
+  if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) return null;
+  const assignments = normalizeFailureProfileAssignments(current);
+  const usedProfiles = new Set(Object.values(assignments));
+  const availableProfiles = FAILURE_PROFILE_IMAGES.filter((image) => !usedProfiles.has(image));
+  if (availableProfiles.length === 0) return null;
+  const randomValue = random();
+  const boundedRandom = Number.isFinite(randomValue)
+    ? Math.min(Math.max(randomValue, 0), 0.999999999)
+    : 0;
+  return availableProfiles[Math.floor(boundedRandom * availableProfiles.length)] ?? null;
 };
 
 export type SelectFailureProfileResult = {
