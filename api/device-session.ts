@@ -7,8 +7,8 @@ import {
   getDeviceSession,
   type DeviceSessionRegistration,
   type RequestHeaders,
-} from './deviceSession.js';
-import { consumeRequestRateLimit, isCrossSiteRequest } from './requestRateLimit.js';
+} from '../src/server/deviceSession.js';
+import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 
 interface ApiRequest {
   readonly method?: string;

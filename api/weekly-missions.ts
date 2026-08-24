@@ -15,8 +15,8 @@ import {
   type WeeklyMissionResult,
   type WeeklyMissionType,
 } from '../src/lib/weeklyMission.js';
-import { getDeviceSession, type RequestHeaders } from './deviceSession.js';
-import { consumeRequestRateLimit, isCrossSiteRequest } from './requestRateLimit.js';
+import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
+import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 
 interface ApiRequest {
   method?: string;

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import handler from './weekly-mission';
-import { getKoreanIsoWeekKey } from '../src/lib/weeklyMission';
-import { createDeviceSessionToken } from './deviceSession';
+import handler from '../../api/weekly-mission.js';
+import { getKoreanIsoWeekKey } from '../../src/lib/weeklyMission.js';
+import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 const deviceHeaders = (studentNumber: number) => ({

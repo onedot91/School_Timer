@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import handler from './device-session.js';
+import handler from '../../api/device-session.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 const REGISTRATION_KEY = 'teacher-device-key';

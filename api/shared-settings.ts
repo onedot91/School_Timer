@@ -1,5 +1,5 @@
-import { getDeviceSession, type RequestHeaders } from './deviceSession.js';
-import { isCrossSiteRequest } from './requestRateLimit.js';
+import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
+import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 
 interface ApiRequest {
   readonly method?: string;

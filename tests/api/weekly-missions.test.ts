@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import handler from './weekly-missions';
+import handler from '../../api/weekly-missions.js';
 import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
@@ -8,9 +8,9 @@ import {
   getKoreanIsoWeekKey,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   type WeeklyMissionType,
-} from '../src/lib/weeklyMission';
-import { getKoreanWeekDateRange } from '../src/lib/classwordWeeklyMission';
-import { createDeviceSessionToken } from './deviceSession';
+} from '../../src/lib/weeklyMission.js';
+import { getKoreanWeekDateRange } from '../../src/lib/classwordWeeklyMission.js';
+import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 const deviceHeaders = (studentNumber: number) => ({

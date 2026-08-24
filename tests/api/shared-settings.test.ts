@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDeviceSessionToken } from './deviceSession.js';
-import handler from './shared-settings.js';
+import handler from '../../api/shared-settings.js';
+import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 const createResponse = () => {

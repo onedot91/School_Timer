@@ -1,6 +1,6 @@
 import { parseClassDonationResult } from '../src/lib/classDonation.js';
-import { getDeviceSession, type RequestHeaders } from './deviceSession.js';
-import { isCrossSiteRequest } from './requestRateLimit.js';
+import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
+import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 
 interface ApiRequest { readonly method?: string; readonly body?: unknown; readonly headers?: RequestHeaders }
 interface ApiResponse { status: (code: number) => ApiResponse; json: (body: unknown) => void; setHeader: (name: string, value: string) => void }

@@ -5,7 +5,7 @@ import {
   createDeviceSessionToken,
   getDeviceSession,
   parseDeviceSessionToken,
-} from './deviceSession.js';
+} from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 
