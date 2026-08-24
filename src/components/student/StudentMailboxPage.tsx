@@ -4,6 +4,11 @@ import { CLASS_DONATION_MAIL_IMAGE_SOURCE, CLASS_DONATION_MAIL_SENDER_LABEL } fr
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
 import { TEACHER_LETTER_RECIPIENT, type StudentLetter } from '../../lib/studentLife';
 import StudentHeader from './StudentHeader';
+import {
+  DAILY_WRITING_STAMP_IMAGE_SOURCE,
+  isDailyWritingLetter,
+  normalizeDailyWritingLetterForDisplay,
+} from '../../lib/dailyWriting';
 
 interface StudentMailboxPageProps {
   readonly studentNumber: number;
@@ -30,6 +35,7 @@ const formatLetterDate = (createdAt: string): string => new Intl.DateTimeFormat(
 }).format(new Date(createdAt));
 
 const getMailKind = (letter: StudentLetter): MailKind => {
+  if (isDailyWritingLetter(letter)) return 'teacher';
   if (letter.senderLabel.includes('은행') || letter.senderLabel.includes('시스템') || letter.senderLabel.includes('돝돝') || letter.senderLabel === CLASS_DONATION_MAIL_SENDER_LABEL) return 'system';
   if (letter.senderLabel.includes('선생님')) return 'teacher';
   return (letter.senderStudentNumber ?? letter.recipient) % 2 === 0 ? 'friend-blue' : 'friend-pink';
@@ -97,13 +103,17 @@ export default function StudentMailboxPage({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [replyToId, setReplyToId] = useState<string | undefined>();
-  const activeLetters = folder === 'inbox' ? letters : sentLetters;
+  const activeLetters = useMemo(
+    () => (folder === 'inbox' ? letters : sentLetters).map(normalizeDailyWritingLetterForDisplay),
+    [folder, letters, sentLetters],
+  );
   const selectedLetter = useMemo(
     () => activeLetters.find((letter) => letter.id === selectedId) ?? null,
     [activeLetters, selectedId],
   );
   const selectedIsBankLetter = selectedLetter !== null && isBankLetter(selectedLetter);
   const selectedIsDonationLetter = selectedLetter !== null && isDonationLetter(selectedLetter);
+  const selectedIsDailyWritingLetter = selectedLetter !== null && isDailyWritingLetter(selectedLetter);
   const selectedProfileStudentNumber = selectedLetter === null
     ? null
     : getProfileStudentNumber(selectedLetter, folder);
@@ -234,6 +244,7 @@ export default function StudentMailboxPage({
               const isUnread = folder === 'inbox' && letter.readAt === null;
               const isFromBank = isBankLetter(letter);
               const isFromDonation = isDonationLetter(letter);
+              const isFromWriting = isDailyWritingLetter(letter);
               const profileStudentNumber = getProfileStudentNumber(letter, folder);
               const profileImage = profileStudentNumber === null
                 ? null
@@ -257,11 +268,13 @@ export default function StudentMailboxPage({
                   style={{ zIndex: activeLetters.length - index }}
                 >
                   <span className="student-mail-envelope-flap" aria-hidden="true" />
-                  <span className="student-mail-envelope-stamp" data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} data-profile={profileImage !== null ? 'true' : undefined} aria-hidden="true">
+                  <span className="student-mail-envelope-stamp" data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} data-writing={isFromWriting ? 'true' : undefined} data-profile={profileImage !== null ? 'true' : undefined} aria-hidden="true">
                     {isFromBank ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
                     ) : isFromDonation ? (
                       <img src={CLASS_DONATION_MAIL_IMAGE_SOURCE} alt="" draggable={false} />
+                    ) : isFromWriting ? (
+                      <img src={DAILY_WRITING_STAMP_IMAGE_SOURCE} alt="" draggable={false} />
                     ) : profileImage !== null ? (
                       <img src={profileImage} alt="" draggable={false} />
                     ) : (
@@ -337,11 +350,13 @@ export default function StudentMailboxPage({
               <article className="student-letter-detail student-letter-paper" aria-labelledby="student-mail-letter-title">
                 <header className="student-letter-heading">
                   <h2 id="student-mail-letter-title">{getLetterDisplayTitle(selectedLetter.title)}</h2>
-                  <span className="student-mail-postmark" data-kind={getMailKind(selectedLetter)} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} data-profile={selectedProfileImage !== null ? 'true' : undefined} aria-label={selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : selectedProfileStudentNumber !== null ? `${selectedProfileStudentNumber}번 프로필 우표` : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
+                  <span className="student-mail-postmark" data-kind={getMailKind(selectedLetter)} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} data-writing={selectedIsDailyWritingLetter ? 'true' : undefined} data-profile={selectedProfileImage !== null ? 'true' : undefined} aria-label={selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : selectedIsDailyWritingLetter ? '밥집 아주머니 가히 우표' : selectedProfileStudentNumber !== null ? `${selectedProfileStudentNumber}번 프로필 우표` : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
                     {selectedIsBankLetter ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
                     ) : selectedIsDonationLetter ? (
                       <img src={CLASS_DONATION_MAIL_IMAGE_SOURCE} alt="" draggable={false} />
+                    ) : selectedIsDailyWritingLetter ? (
+                      <img src={DAILY_WRITING_STAMP_IMAGE_SOURCE} alt="" draggable={false} />
                     ) : selectedProfileImage !== null ? (
                       <img src={selectedProfileImage} alt="" draggable={false} />
                     ) : (

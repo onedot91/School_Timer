@@ -5,6 +5,7 @@ import {
   type FailureStory,
 } from './failureExhibition';
 import { normalizeBankMailboxCopy } from './bankMailbox';
+import { getKoreanLocalDateKey } from './studentEmotion';
 
 export interface StudentLetter {
   readonly id: string;
@@ -191,9 +192,22 @@ export const addStudentBook = (state: StudentLifeState, input: BookInput): Stude
   return { ...state, books: [...state.books, book].slice(-MAX_BOOKS) };
 };
 
-export const getStudentLetters = (state: StudentLifeState, studentNumber: number): readonly StudentLetter[] => (
-  [...state.letters].reverse().filter((letter) => letter.recipient === studentNumber)
+export const getStudentLetters = (
+  state: StudentLifeState,
+  studentNumber: number,
+  dateKey = getKoreanLocalDateKey(),
+): readonly StudentLetter[] => (
+  [...state.letters].reverse().filter(
+    (letter) => letter.recipient === studentNumber && isLetterVisibleOnDate(letter, dateKey),
+  )
 );
+
+const DAILY_WRITING_LETTER_DATE_PATTERN = /^daily-writing-letter-(\d{4}-\d{2}-\d{2})-\d+$/;
+
+const isLetterVisibleOnDate = (letter: StudentLetter, dateKey: string): boolean => {
+  const scheduledDateKey = DAILY_WRITING_LETTER_DATE_PATTERN.exec(letter.id)?.[1];
+  return scheduledDateKey === undefined || scheduledDateKey <= dateKey;
+};
 
 export const getStudentSentLetters = (state: StudentLifeState, studentNumber: number): readonly StudentLetter[] => (
   [...state.letters].reverse().filter((letter) => letter.senderStudentNumber === studentNumber)
@@ -203,8 +217,16 @@ export const getTeacherLetters = (state: StudentLifeState): readonly StudentLett
   [...state.letters].reverse().filter((letter) => letter.recipient === TEACHER_LETTER_RECIPIENT)
 );
 
-export const getUnreadStudentLetterCount = (state: StudentLifeState, studentNumber: number): number => (
-  state.letters.filter((letter) => letter.recipient === studentNumber && letter.readAt === null).length
+export const getUnreadStudentLetterCount = (
+  state: StudentLifeState,
+  studentNumber: number,
+  dateKey = getKoreanLocalDateKey(),
+): number => (
+  state.letters.filter(
+    (letter) => letter.recipient === studentNumber
+      && letter.readAt === null
+      && isLetterVisibleOnDate(letter, dateKey),
+  ).length
 );
 
 export const getStudentBooks = (state: StudentLifeState, studentNumber: number): readonly StudentBook[] => (

@@ -62,6 +62,7 @@ import {
   createStudentEmotionEntry,
   getStudentEmotionEntries,
   getStudentEmotion,
+  getKoreanLocalDateKey,
   getTodayStudentEmotionEntry,
   loadStoredStudentEmotionHistory,
   mergeStudentEmotionHistories,
@@ -147,6 +148,12 @@ import { useStudentSudokuState } from '../lib/useStudentSudokuState';
 import { useStudentNumberBaseballState } from '../lib/useStudentNumberBaseballState';
 import { createNumberBaseballProgressEntry } from '../lib/numberBaseball';
 import type { SudokuDifficulty } from '../lib/sudoku';
+import {
+  hasDailyWritingReward,
+  loadStoredDailyWritingState,
+  normalizeDailyWritingState,
+  type DailyWritingState,
+} from '../lib/dailyWriting';
 
 interface AuctionPageProps {
   studentNumber: number;
@@ -169,6 +176,7 @@ type SharedSettingsValue = {
   studentShopCatalog?: unknown;
   studentStockMarket?: unknown;
   studentLife?: unknown;
+  dailyWriting?: unknown;
   studentSudoku?: unknown;
   studentNumberBaseball?: unknown;
 };
@@ -308,6 +316,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
+  ));
+  const [dailyWriting, setDailyWriting] = useState<DailyWritingState>(() => (
+    isSupabaseSettingsEnabled ? normalizeDailyWritingState(null) : loadStoredDailyWritingState()
   ));
   const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
   const [isPetSaving, setIsPetSaving] = useState(false);
@@ -519,12 +530,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   });
 
   const studentKey = String(studentNumber);
+  const currentDateKey = getKoreanLocalDateKey();
   const studentPet = getStudentPetState(studentPetStates, studentNumber);
   const todayEmotionEntry = getTodayStudentEmotionEntry(studentEmotionHistory, studentNumber);
   const studentEmotionEntries = getStudentEmotionEntries(studentEmotionHistory, studentNumber);
   const todayEmotion = getStudentEmotion(todayEmotionEntry?.emotionId);
   const hasCompletedDailyEmotionMission = todayEmotionEntry !== null
     && hasDailyEmotionReward(currencyHistory, studentNumber, todayEmotionEntry.dateKey);
+  const currentWritingAssignment = dailyWriting.assignment?.dateKey === currentDateKey
+    ? dailyWriting.assignment
+    : null;
+  const hasCompletedDailyWritingMission = currentWritingAssignment !== null
+    && hasDailyWritingReward(currencyHistory, studentNumber, currentWritingAssignment.dateKey);
   const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
   const activeAuctionItemIds = auctionItems.map((item) => item.id);
   const reservedAmount = getReservedAuctionBidAmount(
@@ -546,12 +563,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && donationAmount <= maximumDonation;
   const visibleDayCount = getAuctionVisibleDayCount();
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
-  const studentLetters = getStudentLetters(studentLife, studentNumber);
+  const studentLetters = getStudentLetters(studentLife, studentNumber, currentDateKey);
   const studentSentLetters = getStudentSentLetters(studentLife, studentNumber);
   const studentBooks = getStudentBooks(studentLife, studentNumber);
   const failureStories = getFailureStoriesNewestFirst(studentLife.failureStories);
   const profileAssignments = studentLife.failureProfileAssignments;
-  const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber);
+  const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber, currentDateKey);
 
   const saveStudentLifeChange = async (change: (current: StudentLifeState) => StudentLifeState) => {
     if (isStudentLifeSaving) return false;
@@ -894,6 +911,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStudentShopCatalog(normalizeStudentShopCatalog(value.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(value.studentStockMarket));
     setStudentLife(normalizeStudentLifeState(value.studentLife));
+    setDailyWriting(normalizeDailyWritingState(value.dailyWriting));
     applySharedStudentSudoku(value);
     applySharedNumberBaseball(value);
     const weekKey = getKoreanIsoWeekKey();
@@ -924,6 +942,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentEconomyStates(localPetSnapshot.studentEconomy);
       setStudentShopCatalog(loadStoredStudentShopCatalog());
       setStudentLife(loadStoredStudentLifeState());
+      setDailyWriting(loadStoredDailyWritingState());
       refreshLocalStudentSudoku();
       refreshLocalNumberBaseball();
       setIsLoading(false);
@@ -1618,12 +1637,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             weeklyMissionStatuses={weeklyMissionStatuses}
             hasSyncError={hasWeeklyMissionSyncError}
             isDailyEmotionMissionCompleted={hasCompletedDailyEmotionMission}
+            dailyWritingAssignment={currentWritingAssignment}
+            isDailyWritingMissionCompleted={hasCompletedDailyWritingMission}
             isSudokuMissionCompleted={hasCompletedDailySudokuMission}
             activeSudokuDifficulty={activeSudokuDifficulty}
             completedSudokuDifficulty={completedSudokuDifficulty}
             numberBaseballStatus={numberBaseballStatus}
             hasResumableNumberBaseballGame={hasResumableNumberBaseballGame}
             onOpenEmotions={() => navigateStudentView('emotions')}
+            onOpenMailbox={() => navigateStudentView('mailbox')}
             onOpenSudoku={async (difficulty) => {
               const startedDifficulty = await startSudoku(difficulty);
               if (!startedDifficulty) {

@@ -17,6 +17,7 @@ import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentHeader from './StudentHeader';
 import StudentMissionCard, { type StudentMissionStatus } from './StudentMissionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
+import type { DailyWritingAssignment } from '../../lib/dailyWriting';
 
 interface StudentMissionsPageProps {
   studentNumber: number;
@@ -29,12 +30,15 @@ interface StudentMissionsPageProps {
   weeklyMissionStatuses: WeeklyMissionStatuses;
   hasSyncError: boolean;
   isDailyEmotionMissionCompleted: boolean;
+  dailyWritingAssignment: DailyWritingAssignment | null;
+  isDailyWritingMissionCompleted: boolean;
   isSudokuMissionCompleted: boolean;
   activeSudokuDifficulty: SudokuDifficulty | null;
   completedSudokuDifficulty: SudokuDifficulty | null;
   numberBaseballStatus: NumberBaseballStatus;
   hasResumableNumberBaseballGame: boolean;
   onOpenEmotions: () => void;
+  onOpenMailbox: () => void;
   onOpenSudoku: (difficulty: SudokuDifficulty) => void;
   onOpenNumberBaseball: () => void;
   onContinueNumberBaseball: () => void;
@@ -57,12 +61,15 @@ export default function StudentMissionsPage({
   weeklyMissionStatuses,
   hasSyncError,
   isDailyEmotionMissionCompleted,
+  dailyWritingAssignment,
+  isDailyWritingMissionCompleted,
   isSudokuMissionCompleted,
   activeSudokuDifficulty,
   completedSudokuDifficulty,
   numberBaseballStatus,
   hasResumableNumberBaseballGame,
   onOpenEmotions,
+  onOpenMailbox,
   onOpenSudoku,
   onOpenNumberBaseball,
   onContinueNumberBaseball,
@@ -118,7 +125,7 @@ export default function StudentMissionsPage({
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
           <div className="student-group-heading">
             <h2 id="daily-mission-title">일일 미션</h2>
-            <strong>{auctionMissions.length + 3}개</strong>
+            <strong>{auctionMissions.length + 3 + (dailyWritingAssignment ? 1 : 0)}개</strong>
           </div>
           <div className="student-mission-grid">
             <motion.div {...missionEntrance(0)}>
@@ -164,7 +171,7 @@ export default function StudentMissionsPage({
                     ? '오늘의 기회를 모두 사용했어요.'
                     : numberBaseballStatus === 'inProgress'
                       ? '오늘의 숫자를 맞히고 있어요.'
-                      : '서로 다른 숫자 3개를 맞혀 보세요.'}
+                      : undefined}
                 rewardAmount={NUMBER_BASEBALL_REWARDS}
                 status={hasResumableNumberBaseballGame ? 'inProgress' : numberBaseballStatus}
                 actionLabel={hasResumableNumberBaseballGame
@@ -179,8 +186,19 @@ export default function StudentMissionsPage({
                 onSecondaryAction={hasResumableNumberBaseballGame ? onOpenNumberBaseball : undefined}
               />
             </motion.div>
+            {dailyWritingAssignment ? (
+              <motion.div className="student-writing-mission" {...missionEntrance(3)}>
+                <StudentMissionCard
+                  title="글밥짓기"
+                  rewardAmount={dailyWritingAssignment.rewardAmount}
+                  status={isDailyWritingMissionCompleted ? 'completed' : 'inProgress'}
+                  actionLabel={isDailyWritingMissionCompleted ? '편지 다시 보기' : '글밥 편지 확인'}
+                  onAction={onOpenMailbox}
+                />
+              </motion.div>
+            ) : null}
             {auctionMissions.map((mission, index) => (
-              <motion.div key={mission.id} {...missionEntrance(index + 3)}>
+              <motion.div key={mission.id} {...missionEntrance(index + 3 + (dailyWritingAssignment ? 1 : 0))}>
                 <StudentMissionCard
                   title={mission.content}
                   rewardAmount={mission.rewardAmount}

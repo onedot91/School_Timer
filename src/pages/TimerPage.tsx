@@ -115,6 +115,7 @@ import {
   type FeaturedWriting,
 } from '../lib/bookstore';
 import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
+import TeacherWritingSettings from '../components/teacher/TeacherWritingSettings';
 import {
   loadQuestionSubmissionStatuses,
   type QuestionSubmissionStatus,
@@ -124,6 +125,20 @@ import {
   STUDENT_CHARACTER_WALK_SECONDS,
   type StudentCharacter,
 } from '../lib/studentCharacters';
+import {
+  cancelDailyWritingRewardInSettings,
+  claimDailyWritingRewardInSettings,
+  getDailyWritingAssignedDateKeys,
+  hasDailyWritingReward,
+  isDailyWritingWeekday,
+  loadStoredDailyWritingState,
+  markDailyWritingStudentRewarded,
+  normalizeDailyWritingState,
+  publishDailyWritingAssignment,
+  storeDailyWritingState,
+  type DailyWritingState,
+  unmarkDailyWritingStudentRewarded,
+} from '../lib/dailyWriting';
 
 type StockMarketDraft = {
   returnPercent: number | '';
@@ -179,7 +194,7 @@ import {
 } from '../lib/currency';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'bookstore';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'bookstore';
 type TeacherShopTab = 'items' | 'characters' | 'houses';
 type SettingsNavigationGroup = {
   readonly label: string;
@@ -216,6 +231,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
     items: [
       { panel: 'emotion', label: '감정', icon: HeartPulse },
       { panel: 'mail', label: '편지', icon: Mail },
+      { panel: 'writing', label: '글쓰기', icon: NotebookText },
       { panel: 'missions', label: '미션', icon: ClipboardCheck },
     ],
   },
@@ -331,6 +347,7 @@ interface SharedSchoolTimerSettings {
   studentEmotionHistory: StudentEmotionHistory;
   studentPets: StudentPetStates;
   studentLife: StudentLifeState;
+  dailyWriting: DailyWritingState;
   bookstoreSettings: BookstoreSettings;
   studentEconomy?: StudentEconomyStates;
   studentShopCatalog: StudentShopCatalogItem[];
@@ -1552,6 +1569,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     studentEmotionHistory: normalizeStudentEmotionHistory(parsed.studentEmotionHistory),
     studentPets: normalizeStudentPetStates(parsed.studentPets),
     studentLife: normalizeStudentLifeState(parsed.studentLife),
+    dailyWriting: normalizeDailyWritingState(parsed.dailyWriting),
     bookstoreSettings: normalizeBookstoreSettings(parsed.bookstoreSettings),
     studentEconomy: normalizeStudentEconomyStates(parsed.studentEconomy),
     studentShopCatalog: normalizeStudentShopCatalog(parsed.studentShopCatalog),
@@ -3755,6 +3773,12 @@ export default function TimerPage() {
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
   ));
+  const [dailyWriting, setDailyWriting] = useState<DailyWritingState>(() => (
+    isSupabaseSettingsEnabled ? normalizeDailyWritingState(null) : loadStoredDailyWritingState()
+  ));
+  const [isWritingPublishing, setIsWritingPublishing] = useState(false);
+  const [rewardingWritingStudentNumber, setRewardingWritingStudentNumber] = useState<number | null>(null);
+  const [writingStatus, setWritingStatus] = useState('');
   const [bookstoreSettings, setBookstoreSettings] = useState<BookstoreSettings>(() => (
     isSupabaseSettingsEnabled ? normalizeBookstoreSettings(null) : loadStoredBookstoreSettings()
   ));
@@ -4328,6 +4352,7 @@ export default function TimerPage() {
     studentEmotionHistory,
     studentPets: studentPetStates,
     studentLife,
+    dailyWriting,
     bookstoreSettings: normalizeBookstoreSettings(bookstoreSettings),
     studentEconomy: studentEconomyStates,
     studentShopCatalog,
@@ -4380,6 +4405,7 @@ export default function TimerPage() {
     setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
     setStudentPetStates(normalizeStudentPetStates(remoteSettings.studentPets));
     setStudentLife(normalizeStudentLifeState(remoteSettings.studentLife));
+    setDailyWriting(normalizeDailyWritingState(remoteSettings.dailyWriting));
     if (!isEditingBookstoreRef.current) {
       setBookstoreSettings(normalizeBookstoreSettings(remoteSettings.bookstoreSettings));
     }
@@ -4535,6 +4561,10 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) storeBookstoreSettings(bookstoreSettings);
   }, [bookstoreSettings]);
+
+  useEffect(() => {
+    if (!isSupabaseSettingsEnabled) storeDailyWritingState(dailyWriting);
+  }, [dailyWriting]);
 
   useEffect(() => {
     const hasBlankDraft = hasBlankAuctionMissionDraft(auctionMissions);
@@ -4715,6 +4745,7 @@ export default function TimerPage() {
     studentEmotionHistory,
     studentPetStates,
     studentLife,
+    dailyWriting,
     bookstoreSettings,
     studentEconomyStates,
     studentShopCatalog,
@@ -7332,6 +7363,7 @@ export default function TimerPage() {
   const canShowStudentCharacter =
     shouldShowStudentCharacterBySchedule &&
     visibleStudentCharacters.length > 0 &&
+    !isAnnouncementOpen &&
     !isCurrencyPanelOpen &&
     !shouldHideStudentCharacterForNotification;
   const studentCharacterElapsedSeconds =
@@ -8643,6 +8675,206 @@ export default function TimerPage() {
     }
   };
 
+  const publishDailyWriting = async (input: {
+    readonly dateKey: string;
+    readonly topic: string;
+    readonly requiredWord: string;
+    readonly requiredWordMeaning: string;
+  }): Promise<boolean> => {
+    if (isWritingPublishing) return false;
+    if (!isDailyWritingWeekday(input.dateKey)) {
+      setWritingStatus('글쓰기 주제는 월요일부터 금요일까지만 할당할 수 있습니다.');
+      return false;
+    }
+    const draft = {
+      dateKey: input.dateKey,
+      topic: input.topic.trim(),
+      requiredWord: input.requiredWord.trim(),
+      requiredWordMeaning: input.requiredWordMeaning.trim(),
+      publishedAt: new Date().toISOString(),
+    };
+    setIsWritingPublishing(true);
+    setWritingStatus('');
+    try {
+      let published = publishDailyWritingAssignment(dailyWriting, studentLife, draft);
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          published = publishDailyWritingAssignment(
+            normalizeDailyWritingState(current.dailyWriting),
+            normalizeStudentLifeState(current.studentLife),
+            draft,
+          );
+          return { ...current, dailyWriting: published.state, studentLife: published.studentLife };
+        });
+      } else {
+        published = publishDailyWritingAssignment(loadStoredDailyWritingState(), loadStoredStudentLifeState(), draft);
+        storeStudentLifeState(published.studentLife);
+        storeDailyWritingState(published.state);
+      }
+      setStudentLife(published.studentLife);
+      setDailyWriting(published.state);
+      setWritingStatus('글밥 편지를 23명에게 보냈습니다.');
+      return true;
+    } catch (error) {
+      console.error('Failed to publish daily writing assignment.', error);
+      setWritingStatus('글밥 편지를 보내지 못했습니다.');
+      return false;
+    } finally {
+      setIsWritingPublishing(false);
+    }
+  };
+
+  const rewardDailyWritingStudent = async (studentNumber: number): Promise<boolean> => {
+    const assignment = dailyWriting.assignment;
+    if (!assignment || rewardingWritingStudentNumber !== null) return false;
+    setRewardingWritingStudentNumber(studentNumber);
+    setWritingStatus('');
+    try {
+      const initialReward = claimDailyWritingRewardInSettings(
+        { currencyBalances: currencyBalancesRef.current, currencyHistory: currencyHistoryRef.current },
+        studentNumber,
+        assignment.dateKey,
+      );
+      let savedBalances = initialReward.balances;
+      let savedHistory = initialReward.history;
+      let wasAwarded = initialReward.awarded;
+      let savedDailyWriting = dailyWriting;
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          const reward = claimDailyWritingRewardInSettings(current, studentNumber, assignment.dateKey);
+          savedBalances = reward.balances;
+          savedHistory = reward.history;
+          wasAwarded = reward.awarded;
+          savedDailyWriting = hasDailyWritingReward(reward.history, studentNumber, assignment.dateKey)
+            ? markDailyWritingStudentRewarded(
+              normalizeDailyWritingState(current.dailyWriting),
+              studentNumber,
+              assignment.dateKey,
+            )
+            : normalizeDailyWritingState(current.dailyWriting);
+          return { ...reward.value, dailyWriting: savedDailyWriting };
+        });
+      } else {
+        const snapshot = loadStoredStudentPetSnapshot();
+        const reward = claimDailyWritingRewardInSettings(snapshot, studentNumber, assignment.dateKey);
+        savedBalances = reward.balances;
+        savedHistory = reward.history;
+        wasAwarded = reward.awarded;
+        savedDailyWriting = hasDailyWritingReward(reward.history, studentNumber, assignment.dateKey)
+          ? markDailyWritingStudentRewarded(loadStoredDailyWritingState(), studentNumber, assignment.dateKey)
+          : loadStoredDailyWritingState();
+        if (wasAwarded) {
+          const stored = storeStudentPetSnapshot({
+            ...snapshot,
+            currencyBalances: savedBalances,
+            currencyHistory: savedHistory,
+          });
+          if (!stored) {
+            setWritingStatus('고마를 지급하지 못했습니다.');
+            return false;
+          }
+          storeDailyWritingState(savedDailyWriting);
+        }
+      }
+      commitCurrencyState(savedBalances, savedHistory);
+      setDailyWriting(savedDailyWriting);
+      setWritingStatus(wasAwarded
+        ? `${studentNumber}번에게 25고마를 지급했습니다.`
+        : `${studentNumber}번은 이미 지급했거나 잔액 한도에 도달했습니다.`);
+      return wasAwarded;
+    } catch (error) {
+      console.error('Failed to reward daily writing assignment.', error);
+      setWritingStatus('고마를 지급하지 못했습니다.');
+      return false;
+    } finally {
+      setRewardingWritingStudentNumber(null);
+    }
+  };
+
+  const cancelDailyWritingStudentReward = async (studentNumber: number): Promise<boolean> => {
+    const assignment = dailyWriting.assignment;
+    if (!assignment || rewardingWritingStudentNumber !== null) return false;
+    setRewardingWritingStudentNumber(studentNumber);
+    setWritingStatus('');
+    try {
+      let savedBalances = currencyBalancesRef.current;
+      let savedHistory = currencyHistoryRef.current;
+      let savedDailyWriting = dailyWriting;
+      let wasCancelled = false;
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          const cancellation = cancelDailyWritingRewardInSettings(current, studentNumber, assignment.dateKey);
+          savedBalances = cancellation.balances;
+          savedHistory = cancellation.history;
+          wasCancelled = cancellation.cancelled;
+          savedDailyWriting = cancellation.cancelled
+            ? unmarkDailyWritingStudentRewarded(
+              normalizeDailyWritingState(current.dailyWriting),
+              studentNumber,
+              assignment.dateKey,
+            )
+            : normalizeDailyWritingState(current.dailyWriting);
+          return { ...cancellation.value, dailyWriting: savedDailyWriting };
+        });
+      } else {
+        const snapshot = loadStoredStudentPetSnapshot();
+        const cancellation = cancelDailyWritingRewardInSettings(snapshot, studentNumber, assignment.dateKey);
+        savedBalances = cancellation.balances;
+        savedHistory = cancellation.history;
+        wasCancelled = cancellation.cancelled;
+        savedDailyWriting = cancellation.cancelled
+          ? unmarkDailyWritingStudentRewarded(loadStoredDailyWritingState(), studentNumber, assignment.dateKey)
+          : loadStoredDailyWritingState();
+        if (wasCancelled) {
+          const stored = storeStudentPetSnapshot({
+            ...snapshot,
+            currencyBalances: savedBalances,
+            currencyHistory: savedHistory,
+          });
+          if (!stored) {
+            setWritingStatus('지급을 취소하지 못했습니다.');
+            return false;
+          }
+          storeDailyWritingState(savedDailyWriting);
+        }
+      }
+      commitCurrencyState(savedBalances, savedHistory);
+      setDailyWriting(savedDailyWriting);
+      setWritingStatus(wasCancelled
+        ? `${studentNumber}번의 25고마 지급을 취소했습니다.`
+        : `${studentNumber}번의 지급 기록을 찾지 못했습니다.`);
+      return wasCancelled;
+    } catch (error) {
+      console.error('Failed to cancel daily writing reward.', error);
+      setWritingStatus('지급을 취소하지 못했습니다.');
+      return false;
+    } finally {
+      setRewardingWritingStudentNumber(null);
+    }
+  };
+
+  const dailyWritingCompletedStudentNumbers = new Set<number>([
+    ...dailyWriting.completedStudentNumbers,
+    ...CURRENCY_STUDENT_NUMBERS.filter((studentNumber) => (
+      dailyWriting.assignment
+        ? hasDailyWritingReward(currencyHistory, studentNumber, dailyWriting.assignment.dateKey)
+        : false
+    )),
+  ]);
+  const dailyWritingAssignedDateKeys = [...new Set([
+    ...getDailyWritingAssignedDateKeys(studentLife.letters),
+    ...(dailyWriting.assignment ? [dailyWriting.assignment.dateKey] : []),
+  ])].sort();
+
   const teacherLetters = getTeacherLetters(studentLife);
   const selectedTeacherLetter = teacherLetters.find((letter) => letter.id === selectedTeacherLetterId)
     ?? teacherLetters[0]
@@ -9079,6 +9311,20 @@ export default function TimerPage() {
         </div>
       </div>
     </section>
+  );
+
+  const writingSettingsPanel = (
+    <TeacherWritingSettings
+      assignment={dailyWriting.assignment}
+      assignedDateKeys={dailyWritingAssignedDateKeys}
+      completedStudentNumbers={dailyWritingCompletedStudentNumbers}
+      isPublishing={isWritingPublishing}
+      rewardingStudentNumber={rewardingWritingStudentNumber}
+      status={writingStatus}
+      onPublish={publishDailyWriting}
+      onReward={rewardDailyWritingStudent}
+      onCancelReward={cancelDailyWritingStudentReward}
+    />
   );
 
   const emotionSettingsPanel = (
@@ -11350,6 +11596,8 @@ export default function TimerPage() {
                             ? emotionSettingsPanel
                             : settingsPanel === 'mail'
                               ? mailSettingsPanel
+                              : settingsPanel === 'writing'
+                                ? writingSettingsPanel
                               : settingsPanel === 'bookstore'
                                 ? bookstoreSettingsPanel
                                 : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'

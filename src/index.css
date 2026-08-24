@@ -335,6 +335,8 @@
 .student-mail-postmark[data-bank="true"],
 .student-mail-envelope-stamp[data-donation="true"],
 .student-mail-postmark[data-donation="true"],
+.student-mail-envelope-stamp[data-writing="true"],
+.student-mail-postmark[data-writing="true"],
 .student-mail-envelope-stamp[data-profile="true"],
 .student-mail-postmark[data-profile="true"] {
   overflow: hidden;
@@ -344,6 +346,7 @@
 
 .student-mail-envelope-stamp[data-bank="true"],
 .student-mail-envelope-stamp[data-donation="true"],
+.student-mail-envelope-stamp[data-writing="true"],
 .student-mail-envelope-stamp[data-profile="true"] {
   top: .375rem;
   left: .375rem;
@@ -356,6 +359,8 @@
 .student-mail-postmark[data-bank="true"] img,
 .student-mail-envelope-stamp[data-donation="true"] img,
 .student-mail-postmark[data-donation="true"] img,
+.student-mail-envelope-stamp[data-writing="true"] img,
+.student-mail-postmark[data-writing="true"] img,
 .student-mail-envelope-stamp[data-profile="true"] img,
 .student-mail-postmark[data-profile="true"] img {
   display: block;
@@ -516,6 +521,7 @@
 
 .student-mail-postmark[data-bank="true"],
 .student-mail-postmark[data-donation="true"],
+.student-mail-postmark[data-writing="true"],
 .student-mail-postmark[data-profile="true"] {
   width: 4.5rem;
   height: 4.5rem;
@@ -13160,6 +13166,119 @@ a[href]:active {
 .teacher-letter-paper p { margin-top: .8rem; color: #302c28; font-size: 1.05rem; line-height: 1.75; white-space: pre-wrap; }
 .teacher-letter-paper button { display: inline-flex; min-height: 2.65rem; align-items: center; gap: .35rem; margin-top: 1rem; border-radius: .75rem; background: #006241; padding: .55rem .85rem; color: #fff; font-family: inherit; font-weight: 900; }
 .teacher-letter-paper button:disabled { display: none; }
+
+.teacher-writing-settings {
+  --writing-ink: #4a2e1c;
+  --writing-orange: #dd6b22;
+  --writing-paper: #fffaf1;
+  --writing-paper-deep: #fff2de;
+  --writing-line: #d7b38e;
+  display: grid;
+  gap: 1rem;
+  color: var(--writing-ink);
+}
+
+.teacher-writing-hero {
+  position: relative;
+  display: grid;
+  min-height: 8.5rem;
+  align-items: center;
+  overflow: hidden;
+  padding: 1.35rem clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid color-mix(in srgb, var(--writing-line) 74%, white);
+  border-radius: 1.55rem;
+  background:
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--writing-orange) 18%, transparent), transparent 13rem),
+    linear-gradient(135deg, var(--writing-paper), var(--writing-paper-deep));
+  box-shadow: inset 0 1px rgb(255 255 255 / 88%), 0 .65rem 1.5rem rgb(92 54 25 / 8%);
+}
+
+.teacher-writing-hero-copy { position: relative; z-index: 1; max-width: 38rem; padding-right: 8rem; }
+.teacher-writing-hero-copy > span,
+.teacher-writing-compose header > div > span,
+.teacher-writing-submissions header > div > span {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  color: var(--writing-orange);
+  font-size: .82rem;
+  font-weight: 950;
+}
+.teacher-writing-hero h2 { margin-top: .25rem; font-size: clamp(1.8rem, 3vw, 2.4rem); font-weight: 950; letter-spacing: -.04em; }
+.teacher-writing-hero > img { position: absolute; right: .6rem; bottom: -.65rem; width: 8.8rem; height: 9rem; object-fit: contain; filter: drop-shadow(0 .55rem .55rem rgb(79 42 17 / 12%)); }
+
+.teacher-writing-workspace { display: grid; gap: 1rem; }
+.teacher-writing-compose,
+.teacher-writing-submissions {
+  border: 1px solid color-mix(in srgb, var(--writing-line) 66%, white);
+  border-radius: 1.35rem;
+  background: var(--writing-paper);
+  padding: 1.1rem;
+  box-shadow: inset 0 1px rgb(255 255 255 / 90%), var(--apple-shadow-1);
+}
+.teacher-writing-compose { display: grid; gap: .85rem; }
+.teacher-writing-compose header,
+.teacher-writing-submissions > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.teacher-writing-compose h3,
+.teacher-writing-submissions h3 { margin-top: .1rem; font-size: 1.28rem; font-weight: 950; }
+.teacher-writing-random-button { display: inline-flex; min-height: 2.5rem; align-items: center; justify-content: center; gap: .4rem; border: 1px solid color-mix(in srgb, var(--writing-orange) 55%, white); border-radius: .8rem; background: color-mix(in srgb, var(--writing-orange) 8%, white); padding: .5rem .75rem; color: var(--writing-orange); font-size: .84rem; font-weight: 950; }
+.teacher-writing-random-button:hover { background: color-mix(in srgb, var(--writing-orange) 14%, white); }
+.teacher-writing-random-button:active { transform: scale(.98); }
+.teacher-writing-compose label { display: grid; gap: .4rem; color: #654a38; font-size: .88rem; font-weight: 900; }
+.teacher-writing-compose :is(input, textarea) { min-height: 2.9rem; border: 1px solid color-mix(in srgb, var(--writing-line) 72%, white); border-radius: .9rem; background: rgb(255 255 255 / 82%); padding: .7rem .85rem; color: var(--writing-ink); font-size: 1rem; font-weight: 750; outline: none; }
+.teacher-writing-compose textarea { min-height: 5.8rem; resize: vertical; line-height: 1.55; }
+.teacher-writing-date-field { position: relative; display: grid; gap: .4rem; color: #654a38; font-size: .88rem; font-weight: 900; }
+.teacher-writing-date-trigger { display: flex; min-height: 2.9rem; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid color-mix(in srgb, var(--writing-line) 72%, white); border-radius: .9rem; background: rgb(255 255 255 / 82%); padding: .7rem .85rem; color: var(--writing-ink); font-size: 1rem; font-weight: 800; text-align: left; }
+.teacher-writing-date-trigger[aria-expanded="true"] { border-color: var(--writing-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--writing-orange) 22%, transparent); }
+.teacher-writing-calendar { --writing-ink: #4a2e1c; --writing-orange: #dd6b22; --writing-paper: #fffaf1; --writing-line: #d7b38e; position: fixed; z-index: 1000; width: min(20.5rem, calc(100vw - 1.5rem)); border: 1px solid color-mix(in srgb, var(--writing-line) 74%, white); border-radius: 1.1rem; background: var(--writing-paper); padding: .7rem; box-shadow: var(--apple-shadow-2); animation: teacher-writing-calendar-in 140ms ease-out both; }
+.teacher-writing-calendar > header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.teacher-writing-calendar > header strong { color: var(--writing-ink); font-size: 1rem; font-weight: 950; }
+.teacher-writing-calendar > header > div { display: flex; gap: .25rem; }
+.teacher-writing-calendar > header button { display: grid; width: 2.5rem; min-height: 2.5rem; place-items: center; border-radius: .7rem; color: var(--writing-ink); }
+.teacher-writing-calendar > header button:hover { background: color-mix(in srgb, var(--writing-orange) 10%, white); }
+.teacher-writing-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .1rem; margin-top: .3rem; }
+.teacher-writing-calendar-grid > span { display: grid; min-height: 1.8rem; place-items: center; color: #715744; font-size: .78rem; font-weight: 900; }
+.teacher-writing-calendar-day { position: relative; display: grid; min-width: 0; min-height: 2.25rem; place-items: center; border: 1px solid transparent; border-radius: .65rem; color: var(--writing-ink); font-size: .88rem; font-weight: 850; }
+.teacher-writing-calendar-day:hover { background: color-mix(in srgb, var(--writing-orange) 10%, white); }
+.teacher-writing-calendar-day[data-weekend="true"] { cursor: not-allowed; color: color-mix(in srgb, var(--writing-ink) 38%, white); opacity: .72; }
+.teacher-writing-calendar-day[data-weekend="true"]:hover { background: transparent; }
+.teacher-writing-calendar-day[data-today="true"] { border-color: var(--apple-accent); }
+.teacher-writing-calendar-day[data-selected="true"] { border-color: var(--writing-orange); background: var(--writing-orange); color: white; box-shadow: inset 0 -2px rgb(88 38 8 / 14%); }
+.teacher-writing-calendar-day > i { position: absolute; bottom: .18rem; width: .3rem; height: .3rem; border-radius: 999px; background: var(--writing-orange); }
+.teacher-writing-calendar-day[data-selected="true"] > i { background: white; }
+.teacher-writing-calendar > p { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; margin-top: .35rem; color: #715744; font-size: .75rem; font-weight: 850; }
+.teacher-writing-calendar > p > i { width: .42rem; height: .42rem; border-radius: 999px; background: var(--writing-orange); }
+.teacher-writing-date-trigger:focus-visible,
+.teacher-writing-random-button:focus-visible,
+.teacher-writing-calendar button:focus-visible { outline: 3px solid color-mix(in srgb, var(--writing-orange) 38%, transparent); outline-offset: 2px; }
+@keyframes teacher-writing-calendar-in { from { opacity: 0; transform: translateY(-.35rem); } }
+.teacher-writing-word-row { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(18rem, 2fr); gap: .85rem; }
+.teacher-writing-compose :is(input, textarea):focus-visible { border-color: var(--writing-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--writing-orange) 22%, transparent); }
+.teacher-writing-publish-row { display: flex; min-height: 3rem; align-items: center; justify-content: space-between; gap: 1rem; }
+.teacher-writing-publish-row p { color: #715744; font-size: .84rem; font-weight: 800; }
+.teacher-writing-publish-row button { display: inline-flex; min-height: 2.9rem; align-items: center; justify-content: center; gap: .45rem; border-radius: .9rem; background: var(--writing-orange); padding: .65rem 1rem; color: white; font-weight: 950; box-shadow: inset 0 -2px rgb(88 38 8 / 14%); }
+.teacher-writing-publish-row button:disabled { cursor: not-allowed; opacity: .45; }
+
+.teacher-writing-submissions { display: grid; gap: 1rem; }
+.teacher-writing-submissions > header > strong { color: var(--apple-accent-pressed); font-family: var(--font-mono); font-size: .92rem; font-weight: 950; }
+.teacher-writing-student-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .55rem; }
+.teacher-writing-student-grid button { display: grid; min-height: 4rem; place-items: center; gap: .15rem; border: 1px solid var(--writing-line); border-radius: .85rem; background: white; color: var(--writing-ink); transition: transform 120ms ease-out, border-color 160ms ease, background-color 160ms ease; }
+.teacher-writing-student-grid button:not(:disabled):active { transform: scale(.98); }
+.teacher-writing-student-grid button b { font-size: .92rem; font-weight: 950; }
+.teacher-writing-student-grid button span { display: inline-flex; align-items: center; gap: .2rem; color: var(--writing-orange); font-size: .74rem; font-weight: 900; }
+.teacher-writing-student-grid button.is-completed { border-color: color-mix(in srgb, var(--apple-accent) 38%, white); background: #edf7f1; }
+.teacher-writing-student-grid button.is-completed span { color: var(--apple-accent-pressed); }
+.teacher-writing-student-grid button:focus-visible,
+.teacher-writing-publish-row button:focus-visible { outline: 3px solid color-mix(in srgb, var(--writing-orange) 38%, transparent); outline-offset: 2px; }
+.teacher-writing-empty { border-radius: 1rem; background: rgb(255 255 255 / 76%); padding: 1rem; color: #715744; font-weight: 800; text-align: center; }
+
+@media (max-width: 1120px) {
+  .teacher-writing-student-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacher-writing-calendar { animation: none; }
+}
 
 .teacher-bookstore-settings { display: grid; gap: 1rem; }
 .teacher-bookstore-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
