@@ -149,6 +149,7 @@ import { useStudentNumberBaseballState } from '../lib/useStudentNumberBaseballSt
 import { createNumberBaseballProgressEntry } from '../lib/numberBaseball';
 import type { SudokuDifficulty } from '../lib/sudoku';
 import {
+  hasDailyWritingLetterForDate,
   hasDailyWritingReward,
   loadStoredDailyWritingState,
   normalizeDailyWritingState,
@@ -531,17 +532,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const studentKey = String(studentNumber);
   const currentDateKey = getKoreanLocalDateKey();
+  const studentLetters = getStudentLetters(studentLife, studentNumber, currentDateKey);
   const studentPet = getStudentPetState(studentPetStates, studentNumber);
   const todayEmotionEntry = getTodayStudentEmotionEntry(studentEmotionHistory, studentNumber);
   const studentEmotionEntries = getStudentEmotionEntries(studentEmotionHistory, studentNumber);
   const todayEmotion = getStudentEmotion(todayEmotionEntry?.emotionId);
   const hasCompletedDailyEmotionMission = todayEmotionEntry !== null
     && hasDailyEmotionReward(currencyHistory, studentNumber, todayEmotionEntry.dateKey);
-  const currentWritingAssignment = dailyWriting.assignment?.dateKey === currentDateKey
-    ? dailyWriting.assignment
-    : null;
-  const hasCompletedDailyWritingMission = currentWritingAssignment !== null
-    && hasDailyWritingReward(currencyHistory, studentNumber, currentWritingAssignment.dateKey);
+  const hasCurrentDailyWritingMission = dailyWriting.assignment?.dateKey === currentDateKey
+    || hasDailyWritingLetterForDate(studentLetters, currentDateKey);
+  const hasCompletedDailyWritingMission = hasCurrentDailyWritingMission
+    && hasDailyWritingReward(currencyHistory, studentNumber, currentDateKey);
   const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
   const activeAuctionItemIds = auctionItems.map((item) => item.id);
   const reservedAmount = getReservedAuctionBidAmount(
@@ -563,7 +564,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && donationAmount <= maximumDonation;
   const visibleDayCount = getAuctionVisibleDayCount();
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
-  const studentLetters = getStudentLetters(studentLife, studentNumber, currentDateKey);
   const studentSentLetters = getStudentSentLetters(studentLife, studentNumber);
   const studentBooks = getStudentBooks(studentLife, studentNumber);
   const failureStories = getFailureStoriesNewestFirst(studentLife.failureStories);
@@ -1637,7 +1637,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             weeklyMissionStatuses={weeklyMissionStatuses}
             hasSyncError={hasWeeklyMissionSyncError}
             isDailyEmotionMissionCompleted={hasCompletedDailyEmotionMission}
-            dailyWritingAssignment={currentWritingAssignment}
+            hasDailyWritingMission={hasCurrentDailyWritingMission}
             isDailyWritingMissionCompleted={hasCompletedDailyWritingMission}
             isSudokuMissionCompleted={hasCompletedDailySudokuMission}
             activeSudokuDifficulty={activeSudokuDifficulty}

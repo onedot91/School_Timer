@@ -138,6 +138,13 @@ export const isDailyWritingLetter = (letter: Pick<StudentLetter, 'id'>): boolean
   letter.id.startsWith('daily-writing-letter-')
 );
 
+export const hasDailyWritingLetterForDate = (
+  letters: readonly Pick<StudentLetter, 'id'>[],
+  dateKey: string,
+): boolean => letters.some(
+  (letter) => DAILY_WRITING_LETTER_ID_PATTERN.exec(letter.id)?.[1] === dateKey,
+);
+
 export const getDailyWritingAssignedDateKeys = (
   letters: readonly Pick<StudentLetter, 'id'>[],
 ): readonly string[] => (

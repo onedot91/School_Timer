@@ -17,7 +17,7 @@ import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentHeader from './StudentHeader';
 import StudentMissionCard, { type StudentMissionStatus } from './StudentMissionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
-import type { DailyWritingAssignment } from '../../lib/dailyWriting';
+import { DAILY_WRITING_REWARD } from '../../lib/dailyWriting';
 
 interface StudentMissionsPageProps {
   studentNumber: number;
@@ -30,7 +30,7 @@ interface StudentMissionsPageProps {
   weeklyMissionStatuses: WeeklyMissionStatuses;
   hasSyncError: boolean;
   isDailyEmotionMissionCompleted: boolean;
-  dailyWritingAssignment: DailyWritingAssignment | null;
+  hasDailyWritingMission: boolean;
   isDailyWritingMissionCompleted: boolean;
   isSudokuMissionCompleted: boolean;
   activeSudokuDifficulty: SudokuDifficulty | null;
@@ -61,7 +61,7 @@ export default function StudentMissionsPage({
   weeklyMissionStatuses,
   hasSyncError,
   isDailyEmotionMissionCompleted,
-  dailyWritingAssignment,
+  hasDailyWritingMission,
   isDailyWritingMissionCompleted,
   isSudokuMissionCompleted,
   activeSudokuDifficulty,
@@ -125,7 +125,7 @@ export default function StudentMissionsPage({
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
           <div className="student-group-heading">
             <h2 id="daily-mission-title">일일 미션</h2>
-            <strong>{auctionMissions.length + 3 + (dailyWritingAssignment ? 1 : 0)}개</strong>
+            <strong>{auctionMissions.length + 3 + (hasDailyWritingMission ? 1 : 0)}개</strong>
           </div>
           <div className="student-mission-grid">
             <motion.div {...missionEntrance(0)}>
@@ -186,11 +186,11 @@ export default function StudentMissionsPage({
                 onSecondaryAction={hasResumableNumberBaseballGame ? onOpenNumberBaseball : undefined}
               />
             </motion.div>
-            {dailyWritingAssignment ? (
+            {hasDailyWritingMission ? (
               <motion.div className="student-writing-mission" {...missionEntrance(3)}>
                 <StudentMissionCard
                   title="글밥짓기"
-                  rewardAmount={dailyWritingAssignment.rewardAmount}
+                  rewardAmount={DAILY_WRITING_REWARD}
                   status={isDailyWritingMissionCompleted ? 'completed' : 'inProgress'}
                   actionLabel={isDailyWritingMissionCompleted ? '편지 다시 보기' : '글밥 편지 확인'}
                   onAction={onOpenMailbox}
@@ -198,7 +198,7 @@ export default function StudentMissionsPage({
               </motion.div>
             ) : null}
             {auctionMissions.map((mission, index) => (
-              <motion.div key={mission.id} {...missionEntrance(index + 3 + (dailyWritingAssignment ? 1 : 0))}>
+              <motion.div key={mission.id} {...missionEntrance(index + 3 + (hasDailyWritingMission ? 1 : 0))}>
                 <StudentMissionCard
                   title={mission.content}
                   rewardAmount={mission.rewardAmount}

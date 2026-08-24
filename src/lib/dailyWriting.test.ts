@@ -6,6 +6,7 @@ import {
   claimDailyWritingRewardInSettings,
   getDailyWritingAssignedDateKeys,
   getNextDailyWritingDateKey,
+  hasDailyWritingLetterForDate,
   hasDailyWritingReward,
   normalizeDailyWritingLetterForDisplay,
   markDailyWritingStudentRewarded,
@@ -76,6 +77,21 @@ test('글밥짓기 편지에서 주제가 할당된 날짜를 중복 없이 찾�
 
   // Then
   assert.deepEqual(assignedDateKeys, ['2026-08-25', '2026-08-27']);
+});
+
+test('오늘 글밥 assignment가 없어도 오늘 편지가 있으면 일일 미션을 표시한다', () => {
+  // Given
+  const letters = [
+    { id: 'daily-writing-letter-2026-08-24-1' },
+    { id: 'daily-writing-letter-2026-08-25-1' },
+  ];
+
+  // When
+  const hasTodayMission = hasDailyWritingLetterForDate(letters, '2026-08-25');
+
+  // Then
+  assert.equal(hasTodayMission, true);
+  assert.equal(hasDailyWritingLetterForDate(letters, '2026-08-26'), false);
 });
 
 test('글밥짓기 보상은 학생과 날짜별로 25고마를 한 번만 지급한다', () => {
