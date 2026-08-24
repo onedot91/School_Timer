@@ -20036,7 +20036,7 @@ a[href]:active {
 .student-emotion-confirm-bar > div strong { color: #25342d; font-size: 1rem; }
 .student-emotion-comment-field { position: relative; display: grid; gap: .25rem; }
 .student-emotion-comment-field > span { color: #53615a; font-size: .75rem; font-weight: 900; }
-.student-emotion-comment-field textarea { min-height: 3.25rem; resize: none; border: 1px solid #cddbd3; border-radius: .8rem; background: #fff; padding: .65rem 2.7rem .55rem .75rem; color: #26332d; font-size: .85rem; line-height: 1.35; }
+.student-emotion-dialog .student-emotion-comment-field textarea { min-height: 5rem; resize: none; border: 1px solid #cddbd3; border-radius: .8rem; background: #fff; padding: .7rem 3rem .7rem .8rem; color: #26332d; font-size: 1.125rem; line-height: 1.5; }
 .student-emotion-comment-field small { position: absolute; right: .6rem; bottom: .45rem; color: #849188; font-size: .65rem; }
 .student-emotion-confirm-bar > button { display: inline-flex; min-height: 3.25rem; align-items: center; justify-content: center; gap: .4rem; border-radius: .85rem; background: #006241; padding: 0 1rem; color: #fff; font-weight: 900; }
 .student-emotion-confirm-bar > button:disabled { background: #ccd6d0; color: #66736c; }

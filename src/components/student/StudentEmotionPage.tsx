@@ -432,7 +432,7 @@ export default function StudentEmotionPage({
               ref={emotionCommentRef}
               value={comment}
               maxLength={STUDENT_EMOTION_COMMENT_MAX_LENGTH}
-              rows={3}
+              rows={2}
               placeholder="짧게 적어 주세요"
               onChange={(event) => {
                 setComment(event.target.value);
