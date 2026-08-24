@@ -28,13 +28,14 @@ export default function EntrySelectPage({ onSelectNumber }: EntrySelectPageProps
 
   return (
     <div className="entry-select-page">
-      <button
-        type="button"
-        onClick={handleZeroUnlockClick}
-        className="entry-admin-reveal"
-        aria-label="0번 표시 숨김 버튼"
-        title=""
-      />
+      {!isZeroVisible ? (
+        <button
+          type="button"
+          onClick={handleZeroUnlockClick}
+          className="entry-admin-reveal"
+          aria-label="0번 표시 잠금 해제"
+        />
+      ) : null}
       <main className="entry-select-main">
         <section className="entry-select-surface">
           <div className="entry-select-header">

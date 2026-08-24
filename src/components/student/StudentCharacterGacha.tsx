@@ -13,6 +13,8 @@ import { useModalFocus } from '../../lib/useModalFocus';
 import StudentConfirmDialog from './StudentConfirmDialog';
 
 interface StudentCharacterGachaProps {
+  readonly tabPanelId?: string;
+  readonly tabPanelLabelledBy?: string;
   readonly state: StudentEconomyState;
   readonly availableBalance: number;
   readonly isSaving: boolean;
@@ -44,7 +46,14 @@ const getCharacterById = (characterId: StudentCharacterPrizeId | null) => (
   STUDENT_CHARACTER_PRIZES.find((character) => character.id === characterId) ?? null
 );
 
-export default function StudentCharacterGacha({ state, availableBalance, isSaving, onAction }: StudentCharacterGachaProps) {
+export default function StudentCharacterGacha({
+  tabPanelId,
+  tabPanelLabelledBy,
+  state,
+  availableBalance,
+  isSaving,
+  onAction,
+}: StudentCharacterGachaProps) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [stage, setStage] = useState<GachaStage>('ready');
   const [clawPosition, setClawPosition] = useState(INITIAL_CLAW_POSITION);
@@ -95,6 +104,7 @@ export default function StudentCharacterGacha({ state, availableBalance, isSavin
   useModalFocus({
     dialogRef: resultDialogRef,
     isOpen: stage === 'result',
+    returnFocusRef: controlPanelRef,
     onDismiss: () => {
       isDrawStartingRef.current = false;
       setStage('ready');
@@ -158,7 +168,14 @@ export default function StudentCharacterGacha({ state, availableBalance, isSavin
   };
 
   return (
-    <section className={`student-character-gacha stage-${stage}`} aria-labelledby="student-character-gacha-title" aria-live="polite" aria-busy={stage === 'rolling'}>
+    <section
+      id={tabPanelId}
+      className={`student-character-gacha stage-${stage}`}
+      role={tabPanelId ? 'tabpanel' : undefined}
+      aria-labelledby={tabPanelLabelledBy ?? 'student-character-gacha-title'}
+      aria-live="polite"
+      aria-busy={stage === 'rolling'}
+    >
       <svg className="student-claw-capsule-filter" aria-hidden="true" focusable="false">
         <filter id="student-claw-capsule-chroma-key" colorInterpolationFilters="sRGB">
           <feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 1 -1 1 0 0" />

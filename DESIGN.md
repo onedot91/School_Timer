@@ -219,6 +219,9 @@ followed by the current profile and then grayscale profiles already used by clas
 - Regular material: compact floating toolbars and anchored utility panes; soft saturation and 20px blur.
 - Thick material: modal and large sheet; higher opacity, 28px blur, quiet edge highlight, and deeper shadow.
 - Child content: solid `--apple-surface` or tonal `--apple-surface-muted`.
+- Sitewide polish uses one restrained tonal system: a cool cream canvas, near-white reading surfaces, mint-tinted separators, and green-neutral shadows. The hierarchy comes from tone and depth rather than added labels, ornaments, or explanatory copy.
+- Shared headers, cards, settings panes, auction surfaces, and dialogs use the same edge-highlight and shadow roles. Feature colors may tint a selected or active state, but they do not replace the common material language.
+- Hover and pressed states change border, tone, and shadow without moving layout. Disabled states remain readable, flatter, and visibly unavailable instead of relying on opacity alone.
 - Material arrival: a single outer layer synchronizes opacity, scale, and blur. Descendants do not independently materialize.
 - Reduced transparency: replace both materials with opaque surfaces and remove backdrop filters.
 - Increased contrast: use near-solid surfaces and a defined strong separator.

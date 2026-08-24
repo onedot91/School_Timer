@@ -14,9 +14,16 @@ const STOCK_PROFILE_LABELS = {
   star: '반짝엔터 프로필',
 } as const satisfies Record<StudentStockId, string>;
 
+const STOCK_PROFILE_BACKGROUNDS = {
+  sunny: '#86D7BD',
+  sprout: '#E8F4FF',
+  cloud: '#C7B5F3',
+  star: '#FF8B82',
+} as const satisfies Record<StudentStockId, string>;
+
 export function StudentStockIcon({ stockId }: { stockId: StudentStockId }) {
   return (
-    <span className="student-stock-icon">
+    <span className="student-stock-icon" style={{ backgroundColor: STOCK_PROFILE_BACKGROUNDS[stockId] }}>
       <img
         src={STOCK_PROFILE_IMAGES[stockId]}
         alt={STOCK_PROFILE_LABELS[stockId]}

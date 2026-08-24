@@ -22,7 +22,7 @@ interface EmotionZonePanelProps {
   zone: StudentEmotionZoneDefinition;
   selectedEmotionId: StudentEmotionId | null;
   firstFocusableEmotionId: StudentEmotionId;
-  onSelect: (emotion: StudentEmotionDefinition) => void;
+  onSelect: (emotion: StudentEmotionDefinition, trigger: HTMLButtonElement) => void;
 }
 
 function EmotionZonePanel({
@@ -120,6 +120,7 @@ export default function StudentEmotionPage({
   const [saveError, setSaveError] = useState('');
   const emotionDialogRef = useRef<HTMLElement>(null);
   const emotionCommentRef = useRef<HTMLTextAreaElement>(null);
+  const emotionTriggerRef = useRef<HTMLButtonElement>(null);
   const initialHistoryDateKey = getInitialHistoryDateKey(todayEntry, history);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const initialDate = getLocalDateFromKey(initialHistoryDateKey);
@@ -132,6 +133,7 @@ export default function StudentEmotionPage({
     isOpen: isEmotionDialogOpen,
     onDismiss: () => setIsEmotionDialogOpen(false),
     initialFocusRef: emotionCommentRef,
+    returnFocusRef: emotionTriggerRef,
     isDismissible: !isSaving,
   });
   const historyByDate = useMemo(
@@ -169,7 +171,8 @@ export default function StudentEmotionPage({
     setComment(todayEntry?.comment ?? '');
   }, [todayEntry?.emotionId, todayEntry?.comment, todayEntry?.updatedAt]);
 
-  const selectEmotion = (emotion: StudentEmotionDefinition) => {
+  const selectEmotion = (emotion: StudentEmotionDefinition, trigger: HTMLButtonElement) => {
+    emotionTriggerRef.current = trigger;
     setDraftEmotionId(emotion.id as StudentEmotionId);
     setSaveError('');
     setIsEmotionDialogOpen(true);
@@ -402,7 +405,14 @@ export default function StudentEmotionPage({
       )}
 
       {isEmotionDialogOpen && draftEmotion ? <div className="student-emotion-dialog-backdrop" role="presentation">
-        <section ref={emotionDialogRef} className="student-emotion-dialog" role="dialog" aria-modal="true" aria-labelledby="emotion-dialog-title">
+        <section
+          ref={emotionDialogRef}
+          className="student-emotion-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="emotion-dialog-title"
+          aria-describedby="emotion-dialog-description"
+        >
           <button
             type="button"
             className="student-emotion-dialog-close"
@@ -417,7 +427,7 @@ export default function StudentEmotionPage({
             <h2 id="emotion-dialog-title">{draftEmotion.label}</h2>
           </div>
           <label className="student-emotion-comment-field">
-            <span>왜 이런 기분이 들었나요?</span>
+            <span id="emotion-dialog-description">왜 이런 기분이 들었나요?</span>
             <textarea
               ref={emotionCommentRef}
               value={comment}

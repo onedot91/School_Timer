@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { AlertCircle, CheckCircle2, Circle, Coins, LoaderCircle, Lock, Sparkles, Trophy } from 'lucide-react';
 import {
   AUCTION_DAY_ACCENTS,
@@ -93,6 +93,34 @@ export default function AuctionRoom({
     setActiveDayIndex(dayIndex);
     const firstItem = auctionDayGroups.find((group) => group.dayIndex === dayIndex)?.items[0];
     if (firstItem) onSelectItem?.(firstItem);
+  };
+
+  const handleDayTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, dayIndex: number) => {
+    const unlockedDayIndexes = auctionDayGroups
+      .filter((group) => group.dayIndex < visibleDayCount)
+      .map((group) => group.dayIndex);
+    const currentIndex = unlockedDayIndexes.indexOf(dayIndex);
+    if (currentIndex < 0 || unlockedDayIndexes.length === 0) return;
+
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + unlockedDayIndexes.length) % unlockedDayIndexes.length;
+    } else if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % unlockedDayIndexes.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = unlockedDayIndexes.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    const nextDayIndex = unlockedDayIndexes[nextIndex];
+    selectDay(nextDayIndex);
+    requestAnimationFrame(() => {
+      document.getElementById(`auction-day-tab-${nextDayIndex}`)?.focus();
+    });
   };
 
   return (
@@ -233,7 +261,12 @@ export default function AuctionRoom({
           className={`auction-workspace ${isCompact ? 'p-3 md:p-4' : 'p-4 md:p-5'}`}
           data-active-item-count={activeDayGroup.items.length}
         >
-          <nav className="auction-day-tabs grid grid-cols-5 gap-2" aria-label="경매 요일">
+          <nav
+            className="auction-day-tabs grid grid-cols-5 gap-2"
+            aria-label="경매 요일"
+            aria-orientation="horizontal"
+            role="tablist"
+          >
             {auctionDayGroups.map(({ weekdayLabel, dayIndex, items, accent }) => {
               const isUnlocked = dayIndex < visibleDayCount;
               const isActive = dayIndex === activeDayGroup.dayIndex;
@@ -244,7 +277,12 @@ export default function AuctionRoom({
                   type="button"
                   disabled={!isUnlocked}
                   onClick={() => selectDay(dayIndex)}
-                  aria-pressed={isActive}
+                  onKeyDown={(event) => handleDayTabKeyDown(event, dayIndex)}
+                  id={`auction-day-tab-${dayIndex}`}
+                  role="tab"
+                  aria-controls="auction-day-panel"
+                  aria-selected={isActive}
+                  tabIndex={isActive && isUnlocked ? 0 : -1}
                   className={`auction-day-tab inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border px-3 text-[1.05rem] font-extrabold ${
                     isActive ? 'text-white' : isUnlocked ? 'bg-white text-[#38423D]' : 'cursor-not-allowed bg-[#F4F6F5] text-[#9AA39E]'
                   }`}
@@ -263,6 +301,9 @@ export default function AuctionRoom({
             data-active-item-count={activeDayGroup.items.length}
           >
             <section
+              id="auction-day-panel"
+              role="tabpanel"
+              aria-labelledby={`auction-day-tab-${activeDayGroup.dayIndex}`}
               className="auction-current-day overflow-hidden rounded-[1.25rem] border border-[#DCE7E1] bg-white"
               data-item-count={activeDayGroup.items.length}
             >

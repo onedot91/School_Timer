@@ -48,7 +48,7 @@ export function FailureComposerDialog({
       className="student-failure-compose-backdrop"
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (!isSaving && event.target === event.currentTarget) onClose();
       }}
     >
       <div
@@ -57,6 +57,7 @@ export function FailureComposerDialog({
         className="student-failure-compose-dialog"
         role="dialog"
         aria-modal="true"
+        aria-busy={isSaving}
         aria-labelledby="student-failure-compose-title"
       >
         <button

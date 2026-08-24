@@ -71,6 +71,7 @@ export default function StudentMissionsPage({
   const shouldReduceMotion = useReducedMotion() ?? false;
   const [isSudokuSettingsOpen, setIsSudokuSettingsOpen] = useState(false);
   const sudokuSettingsDialogRef = useRef<HTMLElement>(null);
+  const sudokuSettingsTriggerRef = useRef<HTMLElement>(null);
   const completedWeeklyMissionCount = WEEKLY_MISSION_DEFINITIONS.filter(
     (mission) => weeklyMissionStatuses[mission.type] === 'completed',
   ).length;
@@ -93,6 +94,7 @@ export default function StudentMissionsPage({
     dialogRef: sudokuSettingsDialogRef,
     isOpen: isSudokuSettingsOpen,
     onDismiss: () => setIsSudokuSettingsOpen(false),
+    returnFocusRef: sudokuSettingsTriggerRef,
   });
 
   return (
@@ -144,6 +146,9 @@ export default function StudentMissionsPage({
                     onOpenSudoku(sudokuDifficultyToOpen);
                     return;
                   }
+                  sudokuSettingsTriggerRef.current = document.activeElement instanceof HTMLElement
+                    ? document.activeElement
+                    : null;
                   setIsSudokuSettingsOpen(true);
                 }}
               />
@@ -225,6 +230,7 @@ export default function StudentMissionsPage({
             role="dialog"
             aria-modal="true"
             aria-labelledby="student-sudoku-settings-title"
+            aria-describedby="student-sudoku-settings-description"
             initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.96)' }}
             animate={{ opacity: 1, transform: 'scale(1)' }}
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, transform: 'scale(0.97)' }}
@@ -241,7 +247,7 @@ export default function StudentMissionsPage({
             </button>
             <span className="student-confirm-dialog-kicker">오늘의 스도쿠</span>
             <h2 id="student-sudoku-settings-title">난이도를 골라 주세요</h2>
-            <p>한 번 시작하면 다 풀 때까지 바꿀 수 없어요.</p>
+            <p id="student-sudoku-settings-description">한 번 시작하면 다 풀 때까지 바꿀 수 없어요.</p>
             <div className="student-sudoku-settings-options" aria-label="난이도 선택">
               {SUDOKU_DIFFICULTIES.map((difficulty) => (
                 <button

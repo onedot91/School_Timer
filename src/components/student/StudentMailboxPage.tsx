@@ -250,7 +250,7 @@ export default function StudentMailboxPage({
                   data-unread={isUnread ? 'true' : undefined}
                   data-selected={isSelected ? 'true' : undefined}
                   aria-label={isUnread
-                    ? `새 편지, ${formatLetterDate(letter.createdAt)}`
+                    ? `새 편지 ${index + 1}, ${senderOrRecipient}, ${displayTitle}, ${formatLetterDate(letter.createdAt)}`
                     : `${senderOrRecipient}, ${displayTitle}, ${formatLetterDate(letter.createdAt)}`}
                   aria-pressed={isSelected}
                   onClick={() => openLetter(letter)}

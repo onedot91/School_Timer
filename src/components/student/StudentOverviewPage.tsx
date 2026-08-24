@@ -243,7 +243,7 @@ export default function StudentOverviewPage({
             ref={petDialogRef}
             className="student-pet-dialog"
             role="dialog"
-            aria-modal="true"
+            aria-modal={isFeedConfirmationOpen ? undefined : 'true'}
             aria-labelledby="student-pet-dialog-title"
             onClick={(event) => event.stopPropagation()}
           >

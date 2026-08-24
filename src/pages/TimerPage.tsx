@@ -7647,7 +7647,7 @@ export default function TimerPage() {
         setIsCurrencyPanelOpen(false);
         setIsMemoOpen(true);
       }}
-      className="inline-flex h-6 items-center justify-center gap-1 rounded-full border border-[#D7E2D1] bg-[rgba(240,246,237,0.94)] px-2 text-[0.64rem] font-extrabold text-[#5C8D6D] shadow-[0_8px_16px_rgba(93,118,84,0.1)] backdrop-blur-xl transition-all hover:bg-[rgba(248,251,246,0.98)] hover:scale-[1.02] hover:text-[#4F7258] sm:h-7 sm:px-2.25 sm:text-[0.68rem] md:h-8 md:px-2.5 md:text-[0.72rem]"
+      className="inline-flex h-6 items-center justify-center gap-1 rounded-full border border-[#D7E2D1] bg-[rgba(240,246,237,0.94)] px-2 text-[0.64rem] font-extrabold text-[#5C8D6D] shadow-[0_8px_16px_rgba(93,118,84,0.1)] backdrop-blur-xl transition-[background-color,transform,color] hover:bg-[rgba(248,251,246,0.98)] hover:scale-[1.02] hover:text-[#4F7258] sm:h-7 sm:px-2.25 sm:text-[0.68rem] md:h-8 md:px-2.5 md:text-[0.72rem]"
       aria-label="메모장"
       title="메모장"
       data-notice-memo-button="true"
@@ -7830,7 +7830,7 @@ export default function TimerPage() {
                 key={day}
                 type="button"
                 onClick={() => setEditingDay(day)}
-                className={`settings-day-button rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-all ${
+                className={`settings-day-button rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
                   editingDay === day
                     ? 'settings-day-button-active bg-[#688772] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
                     : 'settings-day-button-idle border border-[#E6D5C9] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
@@ -7950,7 +7950,7 @@ export default function TimerPage() {
                 const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
                 const periodNumber = getSchedulePeriodNumber(slot);
                 return (
-                  <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-all hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
+                  <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
                     {isClassRow ? (
                       <span className="slot-period-label -ml-2 inline-flex min-h-10 min-w-[3.4rem] flex-1 items-center rounded-xl px-3 text-base font-extrabold text-[#3A5A3B] md:text-lg">
                         {periodNumber ?? slot.name}
@@ -8011,7 +8011,7 @@ export default function TimerPage() {
 
           <button
             onClick={() => addSlot(editingDay)}
-            className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-all hover:bg-[#5C8D5D] hover:text-white"
+            className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-[background-color,border-color,box-shadow,color] hover:bg-[#5C8D5D] hover:text-white"
           >
             <Plus size={24} />
             일정 추가
@@ -8460,7 +8460,7 @@ export default function TimerPage() {
                 aria-label="재등장 연출"
               >
                 <span
-                  className={`absolute top-1 h-9 w-9 rounded-full bg-white shadow-md transition-all ${
+                  className={`absolute top-1 h-9 w-9 rounded-full bg-white shadow-md transition-[left] ${
                     repeatPickEnabled ? 'left-[2.55rem]' : 'left-1'
                   }`}
                 />
@@ -8834,7 +8834,7 @@ export default function TimerPage() {
                   <Package aria-hidden="true" />
                   <input aria-label={`${item.name} 이름`} value={item.name} maxLength={30} onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} onBlur={() => setStudentShopCatalog((current) => normalizeStudentShopCatalog(current))} />
                   <label><input aria-label={`${item.name} 가격`} value={item.price} type="number" min="1" max="999999" onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, price: Number(event.target.value) } : candidate))} /> 고마</label>
-                  <button type="button" className={item.isActive ? 'is-active' : ''} onClick={() => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, isActive: !candidate.isActive } : candidate))}>{item.isActive ? '판매 중' : '숨김'}</button>
+                  <button type="button" className={item.isActive ? 'is-active' : ''} aria-pressed={item.isActive} onClick={() => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, isActive: !candidate.isActive } : candidate))}>{item.isActive ? '판매 중' : '숨김'}</button>
                   <button type="button" className="is-delete" aria-label={`${item.name} 삭제`} onClick={() => setStudentShopCatalog((current) => current.filter((candidate) => candidate.id !== item.id))}><Trash2 size={17} /></button>
                 </article>
               ))}
@@ -9396,6 +9396,7 @@ export default function TimerPage() {
               }}
               className="auction-settings-closed-action"
               aria-expanded={isAuctionConfigurationExpanded}
+              aria-controls="auction-settings-day-list"
             >
               {isAuctionConfigurationExpanded ? '물품 설정 닫기' : '물품 설정 열기'}
             </button>
@@ -9403,7 +9404,7 @@ export default function TimerPage() {
         ) : null}
 
         {isAuctionConfigurationExpanded ? (
-        <div className="auction-settings-day-list grid gap-3">
+        <div id="auction-settings-day-list" className="auction-settings-day-list grid gap-3">
           {AUCTION_WEEKDAY_LABELS.map((weekdayLabel, dayIndex) => {
             const accent = AUCTION_DAY_ACCENTS[dayIndex] ?? AUCTION_DAY_ACCENTS[0];
             const dayItems = auctionItems.filter((item) => item.dayIndex === dayIndex);
@@ -9824,7 +9825,7 @@ export default function TimerPage() {
               <button
                 onClick={toggleBackgroundMusic}
                 onPointerDown={(event) => event.stopPropagation()}
-                className={`sound-toggle timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] shrink-0 items-center justify-center rounded-[1.45rem] transition-all sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl ${
+                className={`sound-toggle timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] shrink-0 items-center justify-center rounded-[1.45rem] transition-[background-color,border-color,box-shadow,transform] sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl ${
                   isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
                 } ${isMusicLoading ? 'cursor-not-allowed sound-toggle-loading' : ''}`}
                 title={isMusicAvailable ? musicButtonLabel : '배경 음악 다시 시도'}
@@ -9992,7 +9993,7 @@ export default function TimerPage() {
                   strokeWidth="100"
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDashoffset}
-                  className="transition-all duration-1000 ease-linear"
+                  className="transition-[stroke-dashoffset] duration-1000 ease-linear"
                 />
               </svg>
               {shouldShowMorningReading ? (
@@ -10041,7 +10042,7 @@ export default function TimerPage() {
               )}
 
               {/* Character Notification Overlay (kept within the ring stage so it does not cover the timer text) */}
-              <div className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-all duration-500 md:pb-8 md:pt-4 ${showTimerNotification ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
+              <div className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex h-full items-center justify-center px-4 pb-6 pt-3 transition-[opacity,transform] duration-500 md:pb-8 md:pt-4 ${showTimerNotification ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
                 <div className="pointer-events-none flex flex-col items-center">
                   {/* Speech Bubble */}
                   {showTimerNotification ? (
@@ -10094,7 +10095,7 @@ export default function TimerPage() {
                     setIsDrawCaseSwitchNearby(false);
                   }
                 }}
-                className={`timer-draw-switch absolute left-1/2 top-[7.2%] z-30 grid min-h-[3.2rem] w-[min(16.5rem,62%)] -translate-x-1/2 grid-cols-[2.35rem_minmax(0,1fr)_2.35rem] items-center gap-1 rounded-full border border-[#9FC7B8]/80 bg-[#F7FBF8]/88 px-2 py-1 text-[#006241] shadow-[0_4px_10px_rgba(0,98,65,0.12),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-md transition-all duration-200 md:min-h-[3.45rem] md:w-[min(18.75rem,52%)] ${
+                className={`timer-draw-switch absolute left-1/2 top-[7.2%] z-30 grid min-h-[3.2rem] w-[min(16.5rem,62%)] -translate-x-1/2 grid-cols-[2.35rem_minmax(0,1fr)_2.35rem] items-center gap-1 rounded-full border border-[#9FC7B8]/80 bg-[#F7FBF8]/88 px-2 py-1 text-[#006241] shadow-[0_4px_10px_rgba(0,98,65,0.12),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-md transition-[opacity,transform,box-shadow] duration-200 md:min-h-[3.45rem] md:w-[min(18.75rem,52%)] ${
                   isDrawCaseSwitchNearby
                     ? 'scale-100 opacity-100 ring-2 ring-[#D4E9E2]/80'
                     : 'pointer-events-none -translate-y-2 opacity-0'
@@ -10146,13 +10147,19 @@ export default function TimerPage() {
                   }}
                   className={`status-medallion timer-primary-chip inline-manual-timer-button inline-flex min-h-[4.3rem] min-w-[13rem] items-center justify-center gap-3 rounded-full border-2 px-5 py-3 text-[clamp(1.2rem,2.8vw,1.85rem)] font-extrabold leading-none tracking-[-0.01em] ${scheduleTypeBadgeClass}`}
                   aria-expanded={isExtraTimerVisible}
-                  aria-label={`${scheduleTypeLabel}, ${scheduleStatusDetail}. 보조 타이머 열기`}
+                  aria-controls="inline-manual-timer-panel"
+                  aria-label={`${scheduleTypeLabel}, ${scheduleStatusDetail}. 보조 타이머 ${isExtraTimerVisible ? '닫기' : '열기'}`}
                   title={isExtraTimerVisible ? '보조 타이머 닫기' : '보조 타이머 열기'}
                 >
                   {timerType === 'break' ? <Coffee size={30} strokeWidth={2.3} /> : timerType === 'lunch' ? <Utensils size={30} strokeWidth={2.3} /> : timerType === 'class' || timerType === 'morning' ? <CalendarClock size={30} strokeWidth={2.3} /> : <Timer size={30} strokeWidth={2.3} />}
                   <span className="inline-manual-timer-label min-w-0 truncate">{scheduleTypeLabel}</span>
                 </button>
-                <div className="inline-manual-timer-panel" aria-hidden={!isExtraTimerVisible}>
+                <div
+                  id="inline-manual-timer-panel"
+                  className="inline-manual-timer-panel"
+                  aria-hidden={!isExtraTimerVisible}
+                  inert={!isExtraTimerVisible}
+                >
                   <div
                     className={`manual-timer-display manual-timer-display-input inline-manual-timer-display flex items-baseline font-mono font-bold leading-none tracking-tight ${manualClockClass}`}
                     aria-label="보조 타이머 시간"
@@ -10285,7 +10292,7 @@ export default function TimerPage() {
           {/* Right: Controls & Presets */}
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
             {isLibraryOpen ? (
-              <div className="library-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[60] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
+              <div id="timer-library-panel" className="library-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[60] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
                 <div className="library-panel-card utility-pane-card pointer-events-auto relative min-h-0 flex-1 overflow-hidden rounded-[1.7rem] border border-[#DDE9E2] bg-white shadow-[0_18px_36px_rgba(37,28,21,0.14),inset_0_1px_0_rgba(255,255,255,0.88)] ring-1 ring-white/70">
                   <iframe
                     src={LIBRARY_SITE_URL}
@@ -10300,7 +10307,7 @@ export default function TimerPage() {
             <div className="schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0">
               {hasMountedScheduleYoutubePlayer && scheduleYoutubeVideoIds.length > 0 ? (
                 <div
-                  className={`shrink-0 overflow-hidden rounded-[1.8rem] bg-[#FFFDF8] transition-all duration-300 ${
+                  className={`shrink-0 overflow-hidden rounded-[1.8rem] bg-[#FFFDF8] transition-[margin,max-height,border-color,opacity,box-shadow] duration-300 ${
                     isScheduleYoutubeVisible
                       ? 'mb-3 max-h-[42rem] border border-[#E6D5C9] opacity-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]'
                       : 'pointer-events-none mt-0 max-h-0 border border-transparent opacity-0 shadow-none'
@@ -10325,7 +10332,7 @@ export default function TimerPage() {
                       {activeScheduleYoutubeItem?.title || '영상'}
                     </p>
                     <div
-                      className={`overflow-hidden transition-all duration-300 ${
+                      className={`overflow-hidden transition-[margin,max-height,opacity] duration-300 ${
                         isScheduleYoutubePlaylistOpen
                           ? 'mt-2 max-h-[12rem] opacity-100'
                           : 'mt-0 max-h-0 opacity-0'
@@ -10501,10 +10508,11 @@ export default function TimerPage() {
                     setIsQuestionSubmissionPanelOpen(false);
                     setIsCurrencyPanelOpen((previous) => !previous);
                   }}
-                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
                     isCurrencyPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
                   }`}
                   aria-expanded={isCurrencyPanelOpen}
+                  aria-controls={isCurrencyPanelOpen ? 'timer-currency-panel' : undefined}
                   aria-label={isCurrencyPanelOpen ? '화폐 닫기' : '화폐 열기'}
                   title="화폐"
                 >
@@ -10524,12 +10532,13 @@ export default function TimerPage() {
                     setIsQuestionSubmissionPanelOpen(false);
                     setIsYoutubePanelOpen((previous) => !previous);
                   }}
-                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
                     scheduleYoutubeCount > 0
                       ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]'
                       : ''
                   }`}
                   aria-expanded={isYoutubePanelOpen}
+                  aria-controls={isYoutubePanelOpen ? 'timer-youtube-panel' : undefined}
                   aria-label="유튜브 재생목록"
                   title="유튜브 재생목록"
                   type="button"
@@ -10549,10 +10558,11 @@ export default function TimerPage() {
                   setIsQuestionSubmissionPanelOpen(false);
                   setIsLibraryOpen((previous) => !previous);
                 }}
-                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
                   isLibraryOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
                 }`}
                 aria-expanded={isLibraryOpen}
+                aria-controls={isLibraryOpen ? 'timer-library-panel' : undefined}
                 aria-label={isLibraryOpen ? '도서관 닫기' : '도서관 열기'}
                 title="도서관"
                 type="button"
@@ -10571,10 +10581,11 @@ export default function TimerPage() {
                   setIsExtraTimerVisible(false);
                   setIsQuestionSubmissionPanelOpen((previous) => !previous);
                 }}
-                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all ${
+                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
                   isQuestionSubmissionPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
                 }`}
                 aria-expanded={isQuestionSubmissionPanelOpen}
+                aria-controls={isQuestionSubmissionPanelOpen ? 'timer-question-submission-panel' : undefined}
                 aria-label={isQuestionSubmissionPanelOpen ? '질문 제출 현황 닫기' : '질문 제출 현황 열기'}
                 title="질문 제출 현황"
                 type="button"
@@ -10593,7 +10604,7 @@ export default function TimerPage() {
                   setIsQuestionSubmissionPanelOpen(false);
                   setIsAnnouncementOpen(true);
                 }}
-                className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] transition-all"
+                className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f]"
                 aria-label="알림장"
                 title="알림장"
                 type="button"
@@ -10605,7 +10616,7 @@ export default function TimerPage() {
             </div>
 
             {isCurrencyPanelOpen ? (
-              <div className="currency-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[120] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+              <div id="timer-currency-panel" className="currency-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[120] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
                 <div className="utility-pane-card pointer-events-auto w-full max-w-[40rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
                   <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#E9DED2] pb-3">
@@ -10931,7 +10942,7 @@ export default function TimerPage() {
             ) : null}
 
             {isQuestionSubmissionPanelOpen ? (
-              <div className="question-submission-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[150] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+              <div id="timer-question-submission-panel" className="question-submission-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[150] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
                 <div className="question-submission-panel-card utility-pane-card pointer-events-auto w-full max-w-[76rem] rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
                   <div className="question-submission-panel-scroll overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#E4EDE7] pb-3">
@@ -11020,7 +11031,7 @@ export default function TimerPage() {
             ) : null}
 
             {isYoutubePanelOpen ? (
-              <div className="youtube-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+              <div id="timer-youtube-panel" className="youtube-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
                 <div
                   className="utility-pane-card pointer-events-auto w-full max-w-[25rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
                 >
@@ -11463,7 +11474,7 @@ export default function TimerPage() {
                               return (
                                 <div
                                   key={`award-step-row-${step.itemId}-${step.createdAt}-${stepIndex}`}
-                                  className={`auction-award-step-row grid min-h-[3.75rem] grid-cols-[2rem_4.6rem_minmax(0,1fr)] items-center gap-2 rounded-[0.9rem] border px-3 py-1.5 transition-all ${
+                                  className={`auction-award-step-row grid min-h-[3.75rem] grid-cols-[2rem_4.6rem_minmax(0,1fr)] items-center gap-2 rounded-[0.9rem] border px-3 py-1.5 transition-[border-color,background-color,box-shadow,opacity] ${
                                     isActive
                                       ? 'auction-award-step-active border-[#006241] bg-white shadow-[0_12px_24px_rgba(0,98,65,0.14)]'
                                       : isWinnerStep
@@ -11727,7 +11738,7 @@ export default function TimerPage() {
                     const isMorningRow = index === 0;
                     const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
                     return (
-                    <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-all hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
+                    <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
                       <input
                         type="text"
                         value={slot.name}
@@ -11781,7 +11792,7 @@ export default function TimerPage() {
               
               <button
                 onClick={() => addSlot(editingDay)}
-                className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-all hover:bg-[#5C8D5D] hover:text-white"
+                className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-[background-color,border-color,box-shadow,color] hover:bg-[#5C8D5D] hover:text-white"
               >
                 <Plus size={24} />
                 일정 추가
@@ -12087,7 +12098,7 @@ export default function TimerPage() {
                           aria-label="재등장 연출"
                         >
                           <span
-                            className={`absolute top-1 h-9 w-9 rounded-full bg-white shadow-md transition-all ${
+                            className={`absolute top-1 h-9 w-9 rounded-full bg-white shadow-md transition-[left] ${
                               repeatPickEnabled ? 'left-[2.55rem]' : 'left-1'
                             }`}
                           />
@@ -12222,7 +12233,7 @@ export default function TimerPage() {
                         return (
                           <div
                             key={`award-step-row-standalone-${step.itemId}-${step.createdAt}-${stepIndex}`}
-                            className={`auction-award-step-row grid min-h-[3.75rem] grid-cols-[2rem_4.6rem_minmax(0,1fr)] items-center gap-2 rounded-[0.9rem] border px-3 py-1.5 transition-all ${
+                            className={`auction-award-step-row grid min-h-[3.75rem] grid-cols-[2rem_4.6rem_minmax(0,1fr)] items-center gap-2 rounded-[0.9rem] border px-3 py-1.5 transition-[border-color,background-color,box-shadow,opacity] ${
                               isActive
                                 ? 'auction-award-step-active border-[#006241] bg-white shadow-[0_12px_24px_rgba(0,98,65,0.14)]'
                                 : isWinnerStep

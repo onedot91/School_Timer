@@ -89,7 +89,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
             <div className="student-bank-card-amount"><small>맡긴 고마</small><strong>{state.deposit} 고마</strong></div>
             {state.deposits.length > 0 ? <div className="student-bank-outcome"><b>→ 만기 {depositPayout} 고마</b><span>{nextDepositMaturityDate ? getRelativeKoreanWeekdayLabel(today, nextDepositMaturityDate) : `진행 중 ${state.deposits.length}건`}</span></div> : <b className="student-bank-empty">맡긴 고마 없음</b>}
           </div>
-          <button className={activeDeposit && !canClaimActiveDeposit ? 'student-bank-break-button' : undefined} disabled={isSaving} onClick={handleDepositButton}>{activeDeposit ? canClaimActiveDeposit ? '예금 받기' : '예금 깨기' : '예금 (고마 맡기기)'}</button>
+          <button type="button" className={activeDeposit && !canClaimActiveDeposit ? 'student-bank-break-button' : undefined} disabled={isSaving} onClick={handleDepositButton}>{activeDeposit ? canClaimActiveDeposit ? '예금 받기' : '예금 깨기' : '예금 (고마 맡기기)'}</button>
         </article>
         <article>
           <img className="student-bank-card-scene" src={state.loan > 0 ? '/bank-repayment-scene.png' : '/bank-loan-scene.png'} alt={state.loan > 0 ? '상환 안내 그림' : '대출 안내 그림'} />
@@ -97,7 +97,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
             <div className="student-bank-card-amount"><small>{state.loan > 0 ? '갚을 고마' : '빌린 고마'}</small><strong>{state.loan} 고마</strong></div>
             <b className={state.loan > 0 ? 'student-bank-outcome' : 'student-bank-empty'}>{state.loan > 0 ? `${loanDueLabel}까지 갚기` : '빌린 고마 없음'}</b>
           </div>
-          <button className={state.loan > 0 ? 'student-bank-repay-button' : undefined} disabled={isSaving} onClick={() => setActiveModal('loan')}>{state.loan > 0 ? '상환(고마 갚기)' : '대출 (고마 빌리기)'}</button>
+          <button type="button" className={state.loan > 0 ? 'student-bank-repay-button' : undefined} disabled={isSaving} onClick={() => setActiveModal('loan')}>{state.loan > 0 ? '상환(고마 갚기)' : '대출 (고마 빌리기)'}</button>
         </article>
         <article>
           <img className="student-bank-card-scene" src="/bank-transfer-scene.png" alt="송금 안내 그림" />
@@ -105,7 +105,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
             <div className="student-bank-card-amount"><small>오늘 보낼 수 있는 횟수</small><strong>하루 1회</strong></div>
             <b className="student-bank-outcome">최대 30고마 · 한 명</b>
           </div>
-          <button disabled={isSaving || hasTransferredToday} onClick={() => setActiveModal('transfer')}>송금 (고마 보내기)</button>
+          <button type="button" disabled={isSaving || hasTransferredToday} onClick={() => setActiveModal('transfer')}>송금 (고마 보내기)</button>
         </article>
       </div>
       <StudentConfirmDialog
@@ -120,20 +120,20 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
       >
         {activeModal === 'deposit' ? (
           <div className="student-bank-modal-form">
-            <label className="student-bank-amount-field"><span>맡길 고마</span><input type="number" min="1" max="500" step="1" placeholder="예: 20" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
+            <label className="student-bank-amount-field" htmlFor="student-bank-deposit-amount"><span>맡길 고마</span><input id="student-bank-deposit-amount" type="number" min="1" max="500" step="1" placeholder="예: 20" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
             {isDepositAmount ? <div className="student-bank-interest-flow" aria-label={`${numericDepositAmount} 고마를 맡기면 ${numericDepositAmount + depositInterest} 고마를 받습니다.`}><span>{numericDepositAmount} 고마</span><i>보관</i><b>+{depositInterest} 고마</b><strong>{numericDepositAmount + depositInterest} 고마</strong></div> : null}
             <p className="student-bank-rule">월~수: 이틀 뒤 · 목·금: 다음주 월요일 · 중도 해지: 원금만</p>
           </div>
         ) : null}
         {activeModal === 'loan' ? (
           <div className="student-bank-modal-form">
-            {state.loan > 0 ? <p className="student-bank-rule">갚을 고마 {state.loan} 고마 · 한 번에 모두 갚기</p> : <><label className="student-bank-amount-field"><span>빌릴 고마</span><input type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : null}<p className="student-bank-rule">최대 50고마 · 일주일 안에 갚기</p></>}
+            {state.loan > 0 ? <p className="student-bank-rule">갚을 고마 {state.loan} 고마 · 한 번에 모두 갚기</p> : <><label className="student-bank-amount-field" htmlFor="student-bank-loan-amount"><span>빌릴 고마</span><input id="student-bank-loan-amount" type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : null}<p className="student-bank-rule">최대 50고마 · 일주일 안에 갚기</p></>}
           </div>
         ) : null}
         {activeModal === 'transfer' ? (
           <div className="student-bank-modal-form">
-            <label className="student-bank-amount-field"><span>보낼 고마</span><input type="number" min="1" max="30" step="1" placeholder="예: 20" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} /><span>고마</span></label>
-            <label className="student-bank-recipient"><span>받는 학생</span><select value={recipientNumber} onChange={(event) => setRecipientNumber(event.target.value)}>{Array.from({ length: 23 }, (_, index) => index + 1).filter((number) => number !== studentNumber).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
+            <label className="student-bank-amount-field" htmlFor="student-bank-transfer-amount"><span>보낼 고마</span><input id="student-bank-transfer-amount" type="number" min="1" max="30" step="1" placeholder="예: 20" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} /><span>고마</span></label>
+            <label className="student-bank-recipient" htmlFor="student-bank-transfer-recipient"><span>받는 학생</span><select id="student-bank-transfer-recipient" value={recipientNumber} onChange={(event) => setRecipientNumber(event.target.value)}>{Array.from({ length: 23 }, (_, index) => index + 1).filter((number) => number !== studentNumber).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
             <p className="student-bank-rule">최대 30고마 · 오늘 한 명에게만</p>
           </div>
         ) : null}

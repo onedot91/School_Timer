@@ -26,7 +26,16 @@ export default function StudentDonationPage({ totalAmount, targetAmount, canDona
       <div>
         <h2 id="student-donation-title">학급 기부</h2>
         <strong>{totalAmount} / {targetAmount}</strong>
-        <span className="student-donation-progress"><span style={{ width: `${progress}%` }} /></span>
+        <span
+          className="student-donation-progress"
+          role="progressbar"
+          aria-label="학급 기부 진행률"
+          aria-valuemin={0}
+          aria-valuemax={targetAmount}
+          aria-valuenow={Math.min(totalAmount, targetAmount)}
+        >
+          <span style={{ width: `${progress}%` }} />
+        </span>
         <button ref={triggerRef} type="button" disabled={!canDonate || isCompleted} onClick={onDonate}>{isCompleted ? '목표 달성' : '기부하기'}</button>
       </div>
     </section>

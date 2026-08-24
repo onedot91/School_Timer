@@ -20,6 +20,9 @@ test('기부 미완료 상태에서는 감사 GIF를 불러오지 않는다', ()
   assert.doesNotMatch(incompleteDonationMarkup, /donation-thanks-075x\.gif/);
   assert.match(incompleteDonationMarkup, /donation-character-[1-4]\.png/);
   assert.doesNotMatch(incompleteDonationMarkup, /student-donation-animation is-completed/);
+  assert.match(incompleteDonationMarkup, /role="progressbar"/);
+  assert.match(incompleteDonationMarkup, /aria-valuenow="439"/);
+  assert.match(incompleteDonationMarkup, /aria-valuemax="600"/);
 });
 
 test('기부 완료 상태에서만 감사 GIF와 모션 감소 포스터를 제공한다', () => {

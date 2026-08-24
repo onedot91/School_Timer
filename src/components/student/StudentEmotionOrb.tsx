@@ -36,7 +36,7 @@ interface StudentEmotionOrbProps {
   emotion: StudentEmotionDefinition;
   selected: boolean;
   focusable: boolean;
-  onSelect: (emotion: StudentEmotionDefinition) => void;
+  onSelect: (emotion: StudentEmotionDefinition, trigger: HTMLButtonElement) => void;
 }
 
 export default function StudentEmotionOrb({
@@ -72,7 +72,7 @@ export default function StudentEmotionOrb({
       tabIndex={focusable ? 0 : -1}
       className="student-emotion-option"
       data-zone={emotion.zone}
-      onClick={() => onSelect(emotion)}
+      onClick={(event) => onSelect(emotion, event.currentTarget)}
       onKeyDown={handleKeyDown}
     >
       <StudentEmotionOrbVisual emotion={emotion} selected={selected} />

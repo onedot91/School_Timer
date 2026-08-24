@@ -105,6 +105,17 @@ export default function RootApp() {
           : event.altKey && event.ctrlKey && !event.metaKey;
       if (!isEntryResetShortcut) return;
 
+      const target = event.target;
+      if (
+        target instanceof HTMLElement
+        && (
+          target.isContentEditable
+          || target.matches('input, textarea, select, [role="textbox"]')
+        )
+      ) {
+        return;
+      }
+
       event.preventDefault();
       changeEntryNumber();
     };

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { ArrowRight, Check, ChevronDown, HeartHandshake } from 'lucide-react';
 import {
   FAILURE_STAMP_OPTIONS,
@@ -38,6 +39,7 @@ export default function StudentFailureMessage({
   const selectedStamp = getSelectedFailureStamp(story, studentNumber);
   const selectedStampOption = FAILURE_STAMP_OPTIONS.find((stamp) => stamp.id === selectedStamp);
   const profileImage = getFailureProfileImage(story.studentNumber, profileAssignments);
+  const stampMenuId = useId();
 
   return (
     <article className={`student-failure-message${isMine ? ' is-mine' : ''}${isExpanded ? ' is-expanded' : ''}${isPinned ? ' is-pinned' : ''}`}>
@@ -70,6 +72,7 @@ export default function StudentFailureMessage({
             className={`student-failure-stamp-trigger${selectedStamp ? ' is-selected' : ''}`}
             aria-label={selectedStamp ? '응원 도장 바꾸기' : '응원 도장 선택'}
             aria-expanded={isStampMenuOpen}
+            aria-controls={isStampMenuOpen ? stampMenuId : undefined}
             disabled={isSaving}
             onClick={() => onStampMenuToggle(story.id)}
           >
@@ -80,7 +83,7 @@ export default function StudentFailureMessage({
         </div>
       </div> : null}
       {!isMine && isStampMenuOpen ? (
-        <div className="student-failure-stamps" role="group" aria-label="응원 도장 선택">
+        <div id={stampMenuId} className="student-failure-stamps" role="group" aria-label="응원 도장 선택">
           <span className="student-failure-stamps-title"><HeartHandshake aria-hidden="true" />어떤 마음을 보낼까요?</span>
           {FAILURE_STAMP_OPTIONS.map((stamp) => (
             <button
