@@ -1,31 +1,37 @@
-create table if not exists app_settings (
+create table if not exists public.app_settings (
   id text primary key,
   value jsonb not null,
   updated_at timestamptz not null default now()
 );
 
-alter table app_settings enable row level security;
+alter table public.app_settings
+  drop constraint if exists app_settings_value_size_check;
+alter table public.app_settings
+  add constraint app_settings_value_size_check
+  check (octet_length(value::text) <= 1048576) not valid;
 
-drop policy if exists "Allow shared settings read" on app_settings;
+alter table public.app_settings enable row level security;
+
+drop policy if exists "Allow shared settings read" on public.app_settings;
 create policy "Allow shared settings read"
-on app_settings
+on public.app_settings
 for select
 using (id = 'school-timer-main');
 
-drop policy if exists "Allow shared settings write" on app_settings;
+drop policy if exists "Allow shared settings write" on public.app_settings;
 create policy "Allow shared settings write"
-on app_settings
+on public.app_settings
 for insert
 with check (id = 'school-timer-main');
 
-drop policy if exists "Allow shared settings update" on app_settings;
+drop policy if exists "Allow shared settings update" on public.app_settings;
 create policy "Allow shared settings update"
-on app_settings
+on public.app_settings
 for update
 using (id = 'school-timer-main')
 with check (id = 'school-timer-main');
 
-create table if not exists announcement_notes (
+create table if not exists public.announcement_notes (
   date_key text primary key,
   date_text text not null,
   note text not null default '',
@@ -33,28 +39,44 @@ create table if not exists announcement_notes (
   updated_at timestamptz not null default now()
 );
 
-alter table announcement_notes enable row level security;
+alter table public.announcement_notes
+  drop constraint if exists announcement_notes_date_key_check;
+alter table public.announcement_notes
+  add constraint announcement_notes_date_key_check
+  check (date_key ~ '^\d{4}-\d{2}-\d{2}$') not valid;
+alter table public.announcement_notes
+  drop constraint if exists announcement_notes_date_text_size_check;
+alter table public.announcement_notes
+  add constraint announcement_notes_date_text_size_check
+  check (char_length(date_text) <= 100) not valid;
+alter table public.announcement_notes
+  drop constraint if exists announcement_notes_note_size_check;
+alter table public.announcement_notes
+  add constraint announcement_notes_note_size_check
+  check (char_length(note) <= 10000) not valid;
 
-drop policy if exists "Allow announcement notes read" on announcement_notes;
+alter table public.announcement_notes enable row level security;
+
+drop policy if exists "Allow announcement notes read" on public.announcement_notes;
 create policy "Allow announcement notes read"
-on announcement_notes
+on public.announcement_notes
 for select
 using (true);
 
-drop policy if exists "Allow announcement notes write" on announcement_notes;
+drop policy if exists "Allow announcement notes write" on public.announcement_notes;
 create policy "Allow announcement notes write"
-on announcement_notes
+on public.announcement_notes
 for insert
 with check (true);
 
-drop policy if exists "Allow announcement notes update" on announcement_notes;
+drop policy if exists "Allow announcement notes update" on public.announcement_notes;
 create policy "Allow announcement notes update"
-on announcement_notes
+on public.announcement_notes
 for update
 using (true)
 with check (true);
 
-create table if not exists weekly_mission_rewards (
+create table if not exists public.weekly_mission_rewards (
   student_number smallint not null check (student_number between 1 and 23),
   week_key text not null check (week_key ~ '^\d{4}-\d{2}$'),
   mission_type text not null default 'personal_question' check (mission_type in ('personal_question', 'classword_word_entry', 'classword_quiz_correct')),
@@ -64,7 +86,8 @@ create table if not exists weekly_mission_rewards (
   primary key (student_number, week_key, mission_type)
 );
 
-alter table weekly_mission_rewards enable row level security;
+alter table public.weekly_mission_rewards enable row level security;
+revoke all on table public.weekly_mission_rewards from public, anon, authenticated;
 
 do $$
 begin
@@ -81,23 +104,23 @@ begin
       and table_name = 'weekly_mission_rewards'
       and column_name = 'source_event_id'
   ) then
-    alter table weekly_mission_rewards rename column source_question_id to source_event_id;
+    alter table public.weekly_mission_rewards rename column source_question_id to source_event_id;
   end if;
 end;
 $$;
 
-alter table weekly_mission_rewards
+alter table public.weekly_mission_rewards
   drop constraint if exists weekly_mission_rewards_mission_type_check;
-alter table weekly_mission_rewards
+alter table public.weekly_mission_rewards
   add constraint weekly_mission_rewards_mission_type_check
   check (mission_type in ('personal_question', 'classword_word_entry', 'classword_quiz_correct'));
-alter table weekly_mission_rewards
+alter table public.weekly_mission_rewards
   drop constraint if exists weekly_mission_rewards_reward_amount_check;
-alter table weekly_mission_rewards
+alter table public.weekly_mission_rewards
   add constraint weekly_mission_rewards_reward_amount_check
   check (reward_amount in (5, 10));
 
-create or replace function claim_weekly_mission_reward(
+create or replace function public.claim_weekly_mission_reward(
   p_student_number integer,
   p_week_key text,
   p_mission_type text,
@@ -106,7 +129,7 @@ create or replace function claim_weekly_mission_reward(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_awarded boolean := false;
@@ -120,31 +143,63 @@ declare
   v_history jsonb;
   v_reward_amount integer;
 begin
-  if p_student_number < 1 or p_student_number > 23 then
+  if p_student_number is null or p_student_number < 1 or p_student_number > 23 then
     raise exception 'INVALID_STUDENT_NUMBER';
   end if;
-  if p_week_key !~ '^\d{4}-\d{2}$' then
+  if p_week_key is null or p_week_key !~ '^\d{4}-\d{2}$' then
     raise exception 'INVALID_WEEK_KEY';
   end if;
-  if p_mission_type not in ('personal_question', 'classword_word_entry', 'classword_quiz_correct') then
+  if p_mission_type is null or p_mission_type not in ('personal_question', 'classword_word_entry', 'classword_quiz_correct') then
     raise exception 'INVALID_MISSION_TYPE';
+  end if;
+  if p_source_event_id is not null and length(p_source_event_id) > 200 then
+    raise exception 'INVALID_SOURCE_EVENT_ID';
   end if;
   v_reward_amount := case when p_mission_type = 'personal_question' then 10 else 5 end;
 
+  select exists (
+    select 1
+    from public.weekly_mission_rewards as rewards
+    where rewards.student_number = p_student_number
+      and rewards.week_key = p_week_key
+      and rewards.mission_type = p_mission_type
+  ) into v_completed;
+
+  if p_source_event_id is null or btrim(p_source_event_id) = '' or v_completed then
+    select value
+    into v_value
+    from public.app_settings
+    where id = 'school-timer-main';
+
+    v_value := coalesce(v_value, '{}'::jsonb);
+    if (v_value -> 'currencyBalances' ->> v_student_key) ~ '^\d+$' then
+      v_before := least(999999, greatest(0, (v_value -> 'currencyBalances' ->> v_student_key)::integer));
+    end if;
+
+    return jsonb_build_object(
+      'missionType', p_mission_type,
+      'weekKey', p_week_key,
+      'completed', v_completed,
+      'awarded', false,
+      'rewardAmount', v_reward_amount,
+      'balance', v_before
+    );
+  end if;
+
   select value
   into v_value
-  from app_settings
+  from public.app_settings
   where id = 'school-timer-main'
   for update;
 
   if not found then
-    insert into app_settings (id, value)
+    insert into public.app_settings (id, value)
     values ('school-timer-main', '{}'::jsonb)
     on conflict (id) do nothing;
 
     select value
     into v_value
-    from app_settings
+    from public.app_settings
     where id = 'school-timer-main'
     for update;
   end if;
@@ -167,7 +222,7 @@ begin
     btrim(p_source_event_id) <> '' and
     v_before <= 999999 - v_reward_amount
   then
-    insert into weekly_mission_rewards (
+    insert into public.weekly_mission_rewards (
       student_number,
       week_key,
       mission_type,
@@ -188,7 +243,7 @@ begin
 
   select exists (
     select 1
-    from weekly_mission_rewards as rewards
+    from public.weekly_mission_rewards as rewards
     where rewards.student_number = p_student_number
       and rewards.week_key = p_week_key
       and rewards.mission_type = p_mission_type
@@ -228,7 +283,7 @@ begin
       true
     );
 
-    update app_settings
+    update public.app_settings
     set value = v_value,
         updated_at = v_created_at
     where id = 'school-timer-main';
@@ -245,7 +300,7 @@ begin
 end;
 $$;
 
-create or replace function claim_personal_question_weekly_reward(
+create or replace function public.claim_personal_question_weekly_reward(
   p_student_number integer,
   p_week_key text,
   p_source_question_id text default null
@@ -253,9 +308,9 @@ create or replace function claim_personal_question_weekly_reward(
 returns jsonb
 language sql
 security definer
-set search_path = public
+set search_path = ''
 as $$
-  select claim_weekly_mission_reward(
+  select public.claim_weekly_mission_reward(
     p_student_number,
     p_week_key,
     'personal_question',
@@ -263,28 +318,28 @@ as $$
   );
 $$;
 
-revoke all on function claim_weekly_mission_reward(integer, text, text, text) from public;
-revoke all on function claim_weekly_mission_reward(integer, text, text, text) from anon;
-revoke all on function claim_weekly_mission_reward(integer, text, text, text) from authenticated;
-grant execute on function claim_weekly_mission_reward(integer, text, text, text) to service_role;
+revoke all on function public.claim_weekly_mission_reward(integer, text, text, text) from public;
+revoke all on function public.claim_weekly_mission_reward(integer, text, text, text) from anon;
+revoke all on function public.claim_weekly_mission_reward(integer, text, text, text) from authenticated;
+grant execute on function public.claim_weekly_mission_reward(integer, text, text, text) to service_role;
 
-revoke all on function claim_personal_question_weekly_reward(integer, text, text) from public;
-revoke all on function claim_personal_question_weekly_reward(integer, text, text) from anon;
-revoke all on function claim_personal_question_weekly_reward(integer, text, text) from authenticated;
-grant execute on function claim_personal_question_weekly_reward(integer, text, text) to service_role;
+revoke all on function public.claim_personal_question_weekly_reward(integer, text, text) from public;
+revoke all on function public.claim_personal_question_weekly_reward(integer, text, text) from anon;
+revoke all on function public.claim_personal_question_weekly_reward(integer, text, text) from authenticated;
+grant execute on function public.claim_personal_question_weekly_reward(integer, text, text) to service_role;
 
-create table if not exists class_donation_requests (
+create table if not exists public.class_donation_requests (
   request_id text primary key,
   result jsonb not null,
   created_at timestamptz not null default now()
 );
 
-alter table class_donation_requests enable row level security;
-revoke all on table class_donation_requests from public;
-revoke all on table class_donation_requests from anon;
-revoke all on table class_donation_requests from authenticated;
+alter table public.class_donation_requests enable row level security;
+revoke all on table public.class_donation_requests from public;
+revoke all on table public.class_donation_requests from anon;
+revoke all on table public.class_donation_requests from authenticated;
 
-create or replace function donate_to_class_goal(
+create or replace function public.donate_to_class_goal(
   p_student_number integer,
   p_amount integer,
   p_request_id text
@@ -292,7 +347,7 @@ create or replace function donate_to_class_goal(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_value jsonb;
@@ -307,10 +362,10 @@ declare
   v_currency_history jsonb;
   v_result jsonb;
 begin
-  if p_student_number < 1 or p_student_number > 23 then
+  if p_student_number is null or p_student_number < 1 or p_student_number > 23 then
     raise exception 'INVALID_STUDENT_NUMBER';
   end if;
-  if p_amount < 1 then
+  if p_amount is null or p_amount < 1 or p_amount > 999999 then
     raise exception 'INVALID_DONATION_AMOUNT';
   end if;
   if p_request_id is null or btrim(p_request_id) = '' or length(p_request_id) > 100 then
@@ -318,7 +373,7 @@ begin
   end if;
 
   select value into v_value
-  from app_settings
+  from public.app_settings
   where id = 'school-timer-main'
   for update;
 
@@ -327,7 +382,7 @@ begin
   end if;
 
   select result into v_result
-  from class_donation_requests
+  from public.class_donation_requests
   where request_id = p_request_id;
   if found then return v_result; end if;
 
@@ -409,7 +464,7 @@ begin
   end;
   v_value := jsonb_set(v_value, array['currencyHistory', v_student_key], v_currency_history, true);
 
-  update app_settings
+  update public.app_settings
   set value = v_value, updated_at = v_created_at
   where id = 'school-timer-main';
 
@@ -420,12 +475,19 @@ begin
     'targetAmount', v_target,
     'completed', v_total + p_amount >= v_target
   );
-  insert into class_donation_requests (request_id, result, created_at)
+  insert into public.class_donation_requests (request_id, result, created_at)
   values (p_request_id, v_result, v_created_at);
   return v_result;
 end;
 $$;
 
-revoke all on function donate_to_class_goal(integer, integer, text) from public;
-grant execute on function donate_to_class_goal(integer, integer, text) to anon;
-grant execute on function donate_to_class_goal(integer, integer, text) to authenticated;
+revoke all on function public.donate_to_class_goal(integer, integer, text) from public;
+revoke all on function public.donate_to_class_goal(integer, integer, text) from anon;
+revoke all on function public.donate_to_class_goal(integer, integer, text) from authenticated;
+grant execute on function public.donate_to_class_goal(integer, integer, text) to service_role;
+
+revoke all on table public.app_settings from public, anon, authenticated;
+grant select, insert, update on table public.app_settings to service_role;
+
+revoke all on table public.announcement_notes from public, anon, authenticated;
+grant select, insert, update on table public.announcement_notes to service_role;

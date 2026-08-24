@@ -3,6 +3,11 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const SERVER_MODULES = [
+  'api/announcement-notes.ts',
+  'api/class-donation.ts',
+  'api/device-session.ts',
+  'api/deviceSession.ts',
+  'api/shared-settings.ts',
   'api/weekly-mission.ts',
   'api/weekly-missions.ts',
   'src/lib/weeklyMission.ts',

@@ -4,10 +4,13 @@ import {
   parseQuestionStudentResponse,
   parseWeeklyMissionResult,
 } from '../src/lib/weeklyMission.js';
+import { getDeviceSession, type RequestHeaders } from './deviceSession.js';
+import { consumeRequestRateLimit, isCrossSiteRequest } from './requestRateLimit.js';
 
 interface ApiRequest {
   method?: string;
   body?: unknown;
+  headers?: RequestHeaders;
 }
 
 interface ApiResponse {
@@ -35,6 +38,22 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return;
   }
 
+  if (isCrossSiteRequest(request.headers)) {
+    response.status(403).json({ error: 'CROSS_SITE_REQUEST_BLOCKED' });
+    return;
+  }
+
+  const sessionSecret = process.env.DEVICE_SESSION_SECRET;
+  if (!sessionSecret || sessionSecret.length < 32) {
+    response.status(503).json({ error: 'DEVICE_SECURITY_NOT_CONFIGURED' });
+    return;
+  }
+  const deviceSession = getDeviceSession(request.headers, sessionSecret);
+  if (!deviceSession) {
+    response.status(401).json({ error: 'DEVICE_REGISTRATION_REQUIRED' });
+    return;
+  }
+
   let studentNumber: number | null = null;
   try {
     studentNumber = getStudentNumber(request.body);
@@ -45,6 +64,17 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   if (studentNumber === null) {
     response.status(400).json({ error: 'INVALID_STUDENT_NUMBER' });
+    return;
+  }
+  if (deviceSession.role === 'student' && deviceSession.studentNumber !== studentNumber) {
+    response.status(403).json({ error: 'STUDENT_NUMBER_MISMATCH' });
+    return;
+  }
+
+  const rateLimit = consumeRequestRateLimit('weekly-mission', request.headers, studentNumber);
+  if (!rateLimit.allowed) {
+    response.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
+    response.status(429).json({ error: 'TOO_MANY_REQUESTS' });
     return;
   }
 

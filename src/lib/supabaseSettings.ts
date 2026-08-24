@@ -28,6 +28,21 @@ export const isSupabaseSettingsEnabled =
 const supabase = isSupabaseSettingsEnabled
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+const useServerProxy = import.meta.env.PROD;
+
+const fetchJson = async (input: string, init?: RequestInit) => {
+  const response = await fetch(input, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    ...init,
+  });
+  if (!response.ok) {
+    const error = new Error(`SHARED_API_HTTP_${response.status}`);
+    Reflect.set(error, 'status', response.status);
+    throw error;
+  }
+  return response.status === 204 ? null : response.json();
+};
 
 const SHARED_SETTINGS_UPDATE_RETRY_LIMIT = 5;
 
@@ -38,6 +53,7 @@ export const loadSharedSettings = async () => {
 
 export const loadSharedSettingsRow = async () => {
   if (!supabase) return null;
+  if (useServerProxy) return fetchJson('/api/shared-settings') as Promise<SettingsRow | null>;
 
   const { data, error } = await supabase
     .from('app_settings')
@@ -54,6 +70,7 @@ export const loadSharedSettingsRow = async () => {
 
 export const loadSharedSettingsUpdatedAt = async () => {
   if (!supabase) return null;
+  if (useServerProxy) return (await loadSharedSettingsRow())?.updated_at ?? null;
 
   const { data, error } = await supabase
     .from('app_settings')
@@ -70,6 +87,15 @@ export const loadSharedSettingsUpdatedAt = async () => {
 
 export const saveSharedSettings = async (value: unknown) => {
   if (!supabase) return null;
+
+  if (useServerProxy) {
+    const result = await fetchJson('/api/shared-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    }) as { updatedAt: string };
+    return result.updatedAt;
+  }
 
   const updatedAt = new Date().toISOString();
 
@@ -88,6 +114,25 @@ export const saveSharedSettings = async (value: unknown) => {
 
 export const updateSharedSettings = async (updater: (currentValue: unknown) => unknown) => {
   if (!supabase) return null;
+
+  if (useServerProxy) {
+    for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
+      const currentRow = await loadSharedSettingsRow();
+      const nextValue = updater(currentRow?.value ?? null);
+      try {
+        const result = await fetchJson('/api/shared-settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
+        }) as { updatedAt: string };
+        return result.updatedAt;
+      } catch (error) {
+        if (error instanceof Error && Reflect.get(error, 'status') === 409) continue;
+        throw error;
+      }
+    }
+    throw new Error('SHARED_SETTINGS_CONFLICT');
+  }
 
   for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
     const currentRow = await loadSharedSettingsRow();
@@ -133,6 +178,13 @@ export const donateToClassGoal = async (
   requestId: string,
 ) => {
   if (!supabase) throw new Error('CLASS_DONATION_NOT_CONFIGURED');
+  if (useServerProxy) {
+    return parseClassDonationResult(await fetchJson('/api/class-donation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentNumber, amount, requestId }),
+    }));
+  }
   const { data, error } = await supabase.rpc('donate_to_class_goal', {
     p_student_number: studentNumber,
     p_amount: amount,
@@ -144,6 +196,9 @@ export const donateToClassGoal = async (
 
 export const loadAnnouncementNote = async (dateKey: string) => {
   if (!supabase) return null;
+  if (useServerProxy) {
+    return fetchJson(`/api/announcement-notes?dateKey=${encodeURIComponent(dateKey)}`) as Promise<AnnouncementNoteRecord | null>;
+  }
 
   const { data, error } = await supabase
     .from('announcement_notes')
@@ -160,6 +215,9 @@ export const loadAnnouncementNote = async (dateKey: string) => {
 
 export const loadAnnouncementNoteHistory = async (limit = 120) => {
   if (!supabase) return [];
+  if (useServerProxy) {
+    return fetchJson(`/api/announcement-notes?limit=${Math.min(120, Math.max(1, Math.floor(limit)))}`) as Promise<AnnouncementNoteRecord[]>;
+  }
 
   const { data, error } = await supabase
     .from('announcement_notes')
@@ -177,6 +235,15 @@ export const loadAnnouncementNoteHistory = async (limit = 120) => {
 
 export const saveAnnouncementNote = async (record: AnnouncementNoteRecord) => {
   if (!supabase) return;
+
+  if (useServerProxy) {
+    await fetchJson('/api/announcement-notes', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    });
+    return;
+  }
 
   const { error } = await supabase.from('announcement_notes').upsert({
     date_key: record.date_key,

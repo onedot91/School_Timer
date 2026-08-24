@@ -12509,6 +12509,110 @@ a[href]:active {
   padding: clamp(1rem, 3vw, 2.5rem);
 }
 
+.entry-session-loading {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--apple-canvas-warm);
+}
+
+.entry-registration-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  padding: 1rem;
+  place-items: center;
+  background: rgba(33, 28, 23, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.entry-registration-dialog {
+  width: min(100%, 25rem);
+  padding: 1.5rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-panel);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface);
+  box-shadow: var(--apple-shadow-3);
+}
+
+.entry-registration-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.entry-registration-description {
+  margin: 0.625rem 0 1.25rem;
+  color: var(--apple-text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.entry-registration-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.entry-registration-input {
+  width: 100%;
+  min-height: var(--apple-control-min);
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--apple-separator-strong);
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface-muted);
+  font: inherit;
+}
+
+.entry-registration-input:focus-visible {
+  border-color: var(--apple-accent);
+  outline: 3px solid color-mix(in srgb, var(--apple-accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.entry-registration-error {
+  margin: 0.625rem 0 0;
+  color: #b42318;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.entry-registration-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  margin-top: 1.25rem;
+}
+
+.entry-registration-cancel,
+.entry-registration-submit {
+  min-height: var(--apple-control-min);
+  padding: 0.7rem 1rem;
+  border-radius: var(--apple-radius-pill);
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.entry-registration-cancel {
+  border: 1px solid var(--apple-separator);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface-muted);
+}
+
+.entry-registration-submit {
+  border: 1px solid transparent;
+  color: #fff;
+  background: var(--apple-accent);
+}
+
 .entry-select-main {
   display: flex;
   width: min(100%, 64rem);

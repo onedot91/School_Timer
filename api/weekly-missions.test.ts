@@ -10,6 +10,12 @@ import {
   type WeeklyMissionType,
 } from '../src/lib/weeklyMission';
 import { getKoreanWeekDateRange } from '../src/lib/classwordWeeklyMission';
+import { createDeviceSessionToken } from './deviceSession';
+
+const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
+const deviceHeaders = (studentNumber: number) => ({
+  cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'student', studentNumber }, SESSION_SECRET)}`,
+});
 
 const createResponse = () => {
   let statusCode = 200;
@@ -31,11 +37,13 @@ test('server checks both sources and claims each completed mission independently
   const originalFetch = globalThis.fetch;
   const originalSupabaseUrl = process.env.SUPABASE_URL;
   const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const originalSessionSecret = process.env.DEVICE_SESSION_SECRET;
   const rpcBodies: Record<string, unknown>[] = [];
   const weekKey = getKoreanIsoWeekKey();
   const range = getKoreanWeekDateRange();
   process.env.SUPABASE_URL = 'https://school-timer.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role';
+  process.env.DEVICE_SESSION_SECRET = SESSION_SECRET;
 
   globalThis.fetch = async (input, init) => {
     const url = String(input);
@@ -71,7 +79,7 @@ test('server checks both sources and claims each completed mission independently
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 21 } }, response);
+    await handler({ method: 'POST', body: { studentNumber: 21 }, headers: deviceHeaders(21) }, response);
 
     assert.equal(result().statusCode, 200);
     assert.deepEqual(rpcBodies, [
@@ -100,6 +108,8 @@ test('server checks both sources and claims each completed mission independently
     else process.env.SUPABASE_URL = originalSupabaseUrl;
     if (originalServiceRoleKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+    if (originalSessionSecret === undefined) delete process.env.DEVICE_SESSION_SECRET;
+    else process.env.DEVICE_SESSION_SECRET = originalSessionSecret;
   }
 });
 
@@ -107,11 +117,13 @@ test('a malformed question response does not block a valid classword reward', as
   const originalFetch = globalThis.fetch;
   const originalSupabaseUrl = process.env.SUPABASE_URL;
   const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const originalSessionSecret = process.env.DEVICE_SESSION_SECRET;
   const claimedMissionTypes: string[] = [];
   const weekKey = getKoreanIsoWeekKey();
   const range = getKoreanWeekDateRange();
   process.env.SUPABASE_URL = 'https://school-timer.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role';
+  process.env.DEVICE_SESSION_SECRET = SESSION_SECRET;
 
   globalThis.fetch = async (input, init) => {
     const url = String(input);
@@ -147,7 +159,7 @@ test('a malformed question response does not block a valid classword reward', as
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 21 } }, response);
+    await handler({ method: 'POST', body: { studentNumber: 21 }, headers: deviceHeaders(21) }, response);
 
     assert.equal(result().statusCode, 200);
     assert.deepEqual(claimedMissionTypes, [
@@ -164,5 +176,31 @@ test('a malformed question response does not block a valid classword reward', as
     else process.env.SUPABASE_URL = originalSupabaseUrl;
     if (originalServiceRoleKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+    if (originalSessionSecret === undefined) delete process.env.DEVICE_SESSION_SECRET;
+    else process.env.DEVICE_SESSION_SECRET = originalSessionSecret;
+  }
+});
+
+test('cross-site browser requests are rejected before external mission checks', async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    return Response.json({});
+  };
+
+  try {
+    const { response, result } = createResponse();
+    await handler({
+      method: 'POST',
+      body: { studentNumber: 21 },
+      headers: { 'sec-fetch-site': 'cross-site' },
+    }, response);
+
+    assert.equal(result().statusCode, 403);
+    assert.deepEqual(result().body, { error: 'CROSS_SITE_REQUEST_BLOCKED' });
+    assert.equal(fetchCalled, false);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

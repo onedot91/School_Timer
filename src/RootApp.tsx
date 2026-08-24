@@ -1,4 +1,12 @@
 import { useEffect, useState } from 'react';
+import {
+  clearDeviceSession,
+  loadDeviceSession,
+  registerDeviceSession,
+  type BrowserDeviceSession,
+} from './lib/deviceSessionClient';
+import { detectEntryResetPlatform, isEntryResetShortcut } from './lib/entryResetShortcut';
+import { isSupabaseSettingsEnabled } from './lib/supabaseSettings';
 import AuctionPage from './pages/AuctionPage';
 import EntrySelectPage from './pages/EntrySelectPage';
 import TimerPage from './pages/TimerPage';
@@ -23,12 +31,7 @@ const getPlatformText = () => {
     .join(' ');
 };
 
-const isChromeOS = () => /CrOS|Chrome OS|Chromebook/i.test(getPlatformText());
-
-const usesMetaEntryResetShortcut = () => {
-  const platformText = getPlatformText();
-  return /Windows|Win32|Win64|Macintosh|MacIntel|MacPPC|Mac68K/i.test(platformText);
-};
+const requiresDeviceRegistration = import.meta.env.PROD && isSupabaseSettingsEnabled;
 
 const getStoredEntryNumber = () => {
   if (typeof window === 'undefined') return null;
@@ -67,16 +70,63 @@ const clearStoredEntryNumber = () => {
 export default function RootApp() {
   const [hasRuntimeError, setHasRuntimeError] = useState(false);
   const [selectedEntryNumber, setSelectedEntryNumber] = useState<number | null>(() => getStoredEntryNumber());
+  const [deviceSession, setDeviceSession] = useState<BrowserDeviceSession | null>(null);
+  const [isDeviceSessionReady, setIsDeviceSessionReady] = useState(!requiresDeviceRegistration);
 
-  const selectEntryNumber = (studentNumber: number) => {
+  const selectEntryNumber = async (studentNumber: number, registrationKey?: string) => {
+    if (requiresDeviceRegistration) {
+      const canUseExistingSession = deviceSession?.role === 'teacher'
+        || (deviceSession?.role === 'student' && deviceSession.studentNumber === studentNumber);
+      if (!canUseExistingSession) {
+        if (!registrationKey) throw new Error('DEVICE_REGISTRATION_KEY_REQUIRED');
+        const nextSession = await registerDeviceSession(studentNumber, registrationKey);
+        if (!nextSession) throw new Error('DEVICE_REGISTRATION_FAILED');
+        setDeviceSession(nextSession);
+      }
+    }
     storeEntryNumber(studentNumber);
     setSelectedEntryNumber(studentNumber);
   };
 
-  const changeEntryNumber = () => {
+  const changeEntryNumber = async () => {
+    if (requiresDeviceRegistration && deviceSession?.role === 'student') {
+      await clearDeviceSession();
+      setDeviceSession(null);
+    }
     clearStoredEntryNumber();
     setSelectedEntryNumber(null);
   };
+
+  useEffect(() => {
+    if (!requiresDeviceRegistration) return;
+
+    let cancelled = false;
+    void loadDeviceSession()
+      .then((session) => {
+        if (cancelled) return;
+        setDeviceSession(session);
+        const storedNumber = getStoredEntryNumber();
+        const canUseStoredNumber = session?.role === 'teacher'
+          || (session?.role === 'student' && session.studentNumber === storedNumber);
+        if (!canUseStoredNumber) {
+          clearStoredEntryNumber();
+          setSelectedEntryNumber(null);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearStoredEntryNumber();
+        setSelectedEntryNumber(null);
+        setDeviceSession(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsDeviceSessionReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handleRuntimeError = (event: ErrorEvent | PromiseRejectionEvent) => {
@@ -95,15 +145,7 @@ export default function RootApp() {
 
   useEffect(() => {
     const handleEntryResetShortcut = (event: KeyboardEvent) => {
-      const isEnter = event.key === 'Enter' || event.code === 'Enter' || event.code === 'NumpadEnter';
-      if (!isEnter) return;
-
-      const isEntryResetShortcut = isChromeOS()
-        ? event.altKey && event.ctrlKey && !event.metaKey
-        : usesMetaEntryResetShortcut()
-          ? event.altKey && event.metaKey && !event.ctrlKey
-          : event.altKey && event.ctrlKey && !event.metaKey;
-      if (!isEntryResetShortcut) return;
+      if (!isEntryResetShortcut(event, detectEntryResetPlatform(getPlatformText()))) return;
 
       const target = event.target;
       if (
@@ -117,12 +159,18 @@ export default function RootApp() {
       }
 
       event.preventDefault();
-      changeEntryNumber();
+      void changeEntryNumber().catch((error: unknown) => {
+        console.error('Failed to reset the registered entry number.', error);
+      });
     };
 
     window.addEventListener('keydown', handleEntryResetShortcut);
     return () => window.removeEventListener('keydown', handleEntryResetShortcut);
-  }, []);
+  }, [deviceSession]);
+
+  if (!isDeviceSessionReady) {
+    return <main className="entry-session-loading" aria-label="기기 등록 확인 중" />;
+  }
 
   if (hasRuntimeError) {
     return (
@@ -145,7 +193,13 @@ export default function RootApp() {
   }
 
   if (selectedEntryNumber === null) {
-    return <EntrySelectPage onSelectNumber={selectEntryNumber} />;
+    return (
+      <EntrySelectPage
+        onSelectNumber={selectEntryNumber}
+        requiresRegistration={requiresDeviceRegistration}
+        deviceSession={deviceSession}
+      />
+    );
   }
 
   if (selectedEntryNumber === 0) {

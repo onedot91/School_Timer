@@ -25,6 +25,7 @@
 3. SQL Editor에 붙여넣고 실행합니다.
 
 이미 이전 설정 테이블을 만들었더라도 같은 파일을 다시 실행하면 됩니다. 알림장과 주간 미션 지급 기록 테이블, 중복 지급 방지 함수가 함께 추가됩니다.
+보안 규칙이나 함수가 변경된 뒤에도 이 SQL을 다시 실행해야 실제 Supabase 프로젝트에 최신 권한과 입력 제한이 적용됩니다.
 
 ### 3. API 키 복사하기
 
@@ -47,9 +48,12 @@ VITE_SUPABASE_ANON_KEY=여기에_anon_public_key
 
 ```env
 SUPABASE_SERVICE_ROLE_KEY=여기에_service_role_key
+DEVICE_REGISTRATION_KEY=교사만_아는_8자_이상의_기기_승인키
+DEVICE_SESSION_SECRET=충분히_긴_무작위_문자열_32자_이상
 ```
 
-이 키는 주간 개인질문 미션을 확인한 서버 함수에서만 사용합니다. 브라우저 코드에 노출되는 `VITE_` 접두사를 붙이면 안 됩니다.
+세 값은 공유 설정과 주간 미션을 처리하는 서버 함수에서만 사용합니다. 브라우저 코드에 노출되는 `VITE_` 접두사를 붙이면 안 됩니다.
+배포된 앱에서 번호를 처음 선택하거나 학생 번호를 재설정한 뒤에는 교사가 `DEVICE_REGISTRATION_KEY`를 입력해 기기를 승인합니다. 승인 상태는 브라우저의 `HttpOnly` 쿠키에 저장됩니다.
 
 ### 5. 앱 다시 실행하기
 
@@ -64,5 +68,6 @@ npm run dev
 
 - `.env` 파일은 Git에 올리지 마세요.
 - `SUPABASE_SERVICE_ROLE_KEY`는 브라우저 코드나 공개 저장소에 절대 넣지 마세요.
+- `DEVICE_REGISTRATION_KEY`와 `DEVICE_SESSION_SECRET`도 Git이나 학생에게 공개하지 마세요.
 - 같은 설정을 공유하려는 모든 PC는 같은 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`를 써야 합니다.
 - Supabase 환경변수가 없으면 앱은 기존처럼 브라우저 로컬 저장소만 사용합니다.
