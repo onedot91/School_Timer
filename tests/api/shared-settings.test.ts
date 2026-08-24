@@ -42,6 +42,11 @@ const studentHeaders = (studentNumber: number) => ({
   'sec-fetch-site': 'same-origin',
 });
 
+const teacherHeaders = () => ({
+  cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'teacher' }, SESSION_SECRET)}`,
+  'sec-fetch-site': 'same-origin',
+});
+
 test('unregistered devices cannot read shared classroom settings', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
@@ -124,6 +129,30 @@ test('student sessions cannot change another student balance entry', async () =>
       }, response);
       assert.equal(result().statusCode, 403);
       assert.equal(fetchCount, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('teacher update with a known version writes without rereading shared settings', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    globalThis.fetch = async (input) => {
+      requests.push(String(input));
+      return Response.json([{ id: 'school-timer-main' }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT',
+        headers: teacherHeaders(),
+        body: { value: { dailyWriting: { assignment: null } }, expectedUpdatedAt: 'v1' },
+      }, response);
+      assert.equal(result().statusCode, 200);
+      assert.equal(requests.length, 1);
+      assert.match(requests[0] ?? '', /updated_at=eq\.v1/);
     } finally {
       globalThis.fetch = originalFetch;
     }

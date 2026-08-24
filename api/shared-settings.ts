@@ -155,8 +155,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       response.status(400).json({ error: 'INVALID_SHARED_SETTINGS' });
       return;
     }
-    const current = await loadRow(configuration.url, configuration.key);
-    if (parsed.expectedUpdatedAt !== null && parsed.expectedUpdatedAt !== (current?.updated_at ?? null)) {
+    const canUseKnownTeacherVersion = session.role === 'teacher' && parsed.expectedUpdatedAt !== null;
+    const current = canUseKnownTeacherVersion
+      ? null
+      : await loadRow(configuration.url, configuration.key);
+    if (!canUseKnownTeacherVersion
+      && parsed.expectedUpdatedAt !== null
+      && parsed.expectedUpdatedAt !== (current?.updated_at ?? null)) {
       response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
       return;
     }
@@ -165,9 +170,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return;
     }
     const updatedAt = new Date().toISOString();
-    const hasCurrentRow = current !== null;
+    const hasCurrentRow = canUseKnownTeacherVersion || current !== null;
+    const expectedUpdatedAt = canUseKnownTeacherVersion
+      ? parsed.expectedUpdatedAt
+      : current?.updated_at ?? '';
     const endpoint = hasCurrentRow
-      ? `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(current.updated_at ?? '')}`
+      ? `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(expectedUpdatedAt ?? '')}`
       : `${configuration.url}/rest/v1/app_settings?on_conflict=id`;
     const result = await fetch(endpoint, {
       method: hasCurrentRow ? 'PATCH' : 'POST',
