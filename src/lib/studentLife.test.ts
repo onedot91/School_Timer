@@ -37,8 +37,8 @@ test('책 두께는 쪽당 0.005cm의 실제 높이를 따르면서 화면을 �
   assert.equal(getBookSpineHeightPx(5000, [15, 5000]), 45);
   assert.equal(getBookSpineHeightPx(320, [320]), 36);
   assert.equal(getBookStackHeightCm([
-    { id: 'book-1', studentNumber: 1, title: '첫 책', author: '', pageCount: 100, createdAt: '2026-08-11T01:00:00.000Z' },
-    { id: 'book-2', studentNumber: 1, title: '둘째 책', author: '', pageCount: 320, createdAt: '2026-08-11T02:00:00.000Z' },
+    { id: 'book-1', studentNumber: 1, title: '첫 책', author: '', pageCount: 100, createdAt: '2026-08-11T01:00:00.000Z', colorIndex: 1 },
+    { id: 'book-2', studentNumber: 1, title: '둘째 책', author: '', pageCount: 320, createdAt: '2026-08-11T02:00:00.000Z', colorIndex: 0 },
   ]), 2.1);
 });
 
@@ -195,6 +195,35 @@ test('새 책은 글쓴이를 정리해 저장한다', () => {
   });
 
   assert.equal(state.books[0]?.author, '생텍쥐페리');
+});
+
+test('새 책을 쌓아도 기존 책의 색상은 바뀌지 않는다', () => {
+  const legacyState = normalizeStudentLifeState({
+    books: [
+      { id: 'oldest', studentNumber: 1, title: '첫 책', pageCount: 30, createdAt: '2026-08-20T01:00:00.000Z' },
+      { id: 'other-student', studentNumber: 2, title: '다른 책', pageCount: 40, createdAt: '2026-08-20T02:00:00.000Z' },
+      { id: 'latest', studentNumber: 1, title: '둘째 책', pageCount: 50, createdAt: '2026-08-21T01:00:00.000Z' },
+    ],
+  });
+  const before = getStudentBooks(legacyState, 1).map((book) => ({ id: book.id, colorIndex: book.colorIndex }));
+
+  const updated = addStudentBook(legacyState, {
+    id: 'newest',
+    studentNumber: 1,
+    title: '새 책',
+    author: '글쓴이',
+    pageCount: 60,
+    createdAt: '2026-08-22T01:00:00.000Z',
+  });
+
+  assert.deepEqual(before, [
+    { id: 'latest', colorIndex: 0 },
+    { id: 'oldest', colorIndex: 1 },
+  ]);
+  assert.deepEqual(getStudentBooks(updated, 1).map((book) => ({ id: book.id, colorIndex: book.colorIndex })), [
+    { id: 'newest', colorIndex: 5 },
+    ...before,
+  ]);
 });
 
 test('학생 생활 상태는 유효한 실패 이야기와 익명 응원 도장을 복구한다', () => {

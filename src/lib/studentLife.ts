@@ -25,6 +25,7 @@ export interface StudentBook {
   readonly author: string;
   readonly pageCount: number;
   readonly createdAt: string;
+  readonly colorIndex: number;
 }
 
 export type BookStackLayout = {
@@ -43,7 +44,7 @@ type LetterInput = Omit<StudentLetter, 'readAt' | 'senderStudentNumber' | 'reply
   readonly senderStudentNumber?: number | null;
   readonly replyToId?: string | null;
 };
-type BookInput = StudentBook;
+type BookInput = Omit<StudentBook, 'colorIndex'>;
 
 const STUDENT_LIFE_STORAGE_KEY = 'school-timer-student-life';
 const MAX_STUDENT_NUMBER = 23;
@@ -54,6 +55,7 @@ const BOOK_PAPER_THICKNESS_PER_PAGE_CM = 0.005;
 const BOOK_SPINE_MIN_HEIGHT_PX = 27;
 const BOOK_SPINE_MAX_HEIGHT_PX = 45;
 const BOOK_STACK_WIDTH_PERCENT = 88;
+const BOOK_COLOR_COUNT = 6;
 const BOOK_STACK_LAYOUTS: readonly BookStackLayout[] = [
   { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: -1.8 },
   { widthPercent: BOOK_STACK_WIDTH_PERCENT, offsetPercent: 1.6 },
@@ -104,7 +106,7 @@ const parseLetter = (value: unknown): StudentLetter | null => {
   };
 };
 
-const parseBook = (value: unknown): StudentBook | null => {
+const parseBook = (value: unknown, fallbackColorIndex: number): StudentBook | null => {
   if (!value || typeof value !== 'object') return null;
   const book = value as Partial<StudentBook>;
   if (typeof book.id !== 'string' || book.id.length === 0 || !isStudentNumber(book.studentNumber)) return null;
@@ -118,14 +120,40 @@ const parseBook = (value: unknown): StudentBook | null => {
     author: typeof book.author === 'string' ? book.author.trim().slice(0, 30) : '',
     pageCount: book.pageCount,
     createdAt: book.createdAt,
+    colorIndex: typeof book.colorIndex === 'number'
+      && Number.isInteger(book.colorIndex)
+      && book.colorIndex >= 0
+      && book.colorIndex < BOOK_COLOR_COUNT
+      ? book.colorIndex
+      : fallbackColorIndex,
   };
+};
+
+const normalizeBooks = (value: unknown): readonly StudentBook[] => {
+  if (!Array.isArray(value)) return [];
+  const books: StudentBook[] = [];
+  const reverseRankByStudent = new Map<number, number>();
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    const candidate = value[index];
+    const studentNumber = candidate && typeof candidate === 'object'
+      ? (candidate as Partial<StudentBook>).studentNumber
+      : null;
+    const reverseRank = isStudentNumber(studentNumber)
+      ? reverseRankByStudent.get(studentNumber) ?? 0
+      : 0;
+    const book = parseBook(candidate, reverseRank % BOOK_COLOR_COUNT);
+    if (!book) continue;
+    books.push(book);
+    reverseRankByStudent.set(book.studentNumber, reverseRank + 1);
+  }
+  return books.reverse().slice(-MAX_BOOKS);
 };
 
 export const normalizeStudentLifeState = (value: unknown): StudentLifeState => {
   const parsed = value && typeof value === 'object' ? value as { letters?: unknown; books?: unknown; failureStories?: unknown; failureProfileAssignments?: unknown } : {};
   return {
     letters: (Array.isArray(parsed.letters) ? parsed.letters : []).map(parseLetter).filter((entry): entry is StudentLetter => entry !== null).slice(-MAX_LETTERS),
-    books: (Array.isArray(parsed.books) ? parsed.books : []).map(parseBook).filter((entry): entry is StudentBook => entry !== null).slice(-MAX_BOOKS),
+    books: normalizeBooks(parsed.books),
     failureStories: normalizeFailureStories(parsed.failureStories),
     failureProfileAssignments: normalizeFailureProfileAssignments(parsed.failureProfileAssignments),
   };
@@ -154,7 +182,11 @@ export const markStudentLetterRead = (
 
 export const addStudentBook = (state: StudentLifeState, input: BookInput): StudentLifeState => {
   if (state.books.some((book) => book.id === input.id)) return state;
-  const book = parseBook(input);
+  const latestStudentBook = [...state.books].reverse().find((book) => book.studentNumber === input.studentNumber);
+  const colorIndex = latestStudentBook
+    ? (latestStudentBook.colorIndex + BOOK_COLOR_COUNT - 1) % BOOK_COLOR_COUNT
+    : 0;
+  const book = parseBook({ ...input, colorIndex }, colorIndex);
   if (!book) return state;
   return { ...state, books: [...state.books, book].slice(-MAX_BOOKS) };
 };

@@ -67,7 +67,7 @@ export default function StudentLibraryPage({ books, isSaving, onAdd, onBack }: S
               return (
                 <article
                   key={book.id}
-                  data-color={index % 6}
+                  data-color={book.colorIndex}
                   style={{
                     height: `${getBookSpineHeightPx(book.pageCount, visiblePageCounts)}px`,
                     width: `${layout.widthPercent}%`,
