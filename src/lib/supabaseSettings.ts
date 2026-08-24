@@ -1,5 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseClassDonationResult } from './classDonation.js';
+import {
+  appDataMode,
+  canReadSharedBackend,
+  isReadOnlyDataMode,
+  type AppDataMode,
+} from './dataMode.js';
 
 export const SHARED_SETTINGS_ID = 'school-timer-main';
 
@@ -16,19 +22,39 @@ export interface AnnouncementNoteRecord {
   updated_at?: string;
 }
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+const useServerProxy = import.meta.env?.DEV === true || import.meta.env?.PROD === true;
 
-export const isSupabaseSettingsEnabled =
+type SupabaseSettingsAvailability = {
+  readonly hasSupabaseCredentials: boolean;
+  readonly usesServerProxy: boolean;
+  readonly dataMode: AppDataMode;
+};
+
+export const shouldEnableSupabaseSettings = ({
+  hasSupabaseCredentials,
+  usesServerProxy,
+  dataMode,
+}: SupabaseSettingsAvailability) => (
+  canReadSharedBackend(dataMode) && hasSupabaseCredentials && usesServerProxy
+);
+
+const hasSupabaseCredentials =
   typeof supabaseUrl === 'string' &&
   supabaseUrl.trim().length > 0 &&
   typeof supabaseAnonKey === 'string' &&
   supabaseAnonKey.trim().length > 0;
 
+export const isSupabaseSettingsEnabled = shouldEnableSupabaseSettings({
+  hasSupabaseCredentials,
+  usesServerProxy: useServerProxy,
+  dataMode: appDataMode,
+});
+
 const supabase = isSupabaseSettingsEnabled
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
-const useServerProxy = import.meta.env.PROD;
 
 const fetchJson = async (input: string, init?: RequestInit) => {
   const response = await fetch(input, {
@@ -87,6 +113,7 @@ export const loadSharedSettingsUpdatedAt = async () => {
 
 export const saveSharedSettings = async (value: unknown) => {
   if (!supabase) return null;
+  if (isReadOnlyDataMode) return (await loadSharedSettingsRow())?.updated_at ?? null;
 
   if (useServerProxy) {
     const result = await fetchJson('/api/shared-settings', {
@@ -114,6 +141,7 @@ export const saveSharedSettings = async (value: unknown) => {
 
 export const updateSharedSettings = async (updater: (currentValue: unknown) => unknown) => {
   if (!supabase) return null;
+  if (isReadOnlyDataMode) return (await loadSharedSettingsRow())?.updated_at ?? null;
 
   if (useServerProxy) {
     for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
@@ -178,6 +206,7 @@ export const donateToClassGoal = async (
   requestId: string,
 ) => {
   if (!supabase) throw new Error('CLASS_DONATION_NOT_CONFIGURED');
+  if (isReadOnlyDataMode) throw new Error('READ_ONLY_DATA_MODE');
   if (useServerProxy) {
     return parseClassDonationResult(await fetchJson('/api/class-donation', {
       method: 'POST',
@@ -235,6 +264,7 @@ export const loadAnnouncementNoteHistory = async (limit = 120) => {
 
 export const saveAnnouncementNote = async (record: AnnouncementNoteRecord) => {
   if (!supabase) return;
+  if (isReadOnlyDataMode) return;
 
   if (useServerProxy) {
     await fetchJson('/api/announcement-notes', {

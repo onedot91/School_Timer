@@ -21,6 +21,10 @@ export default defineConfig(() => {
           changeOrigin: true,
           rewrite: () => '/api/submission-status',
         },
+        '/api': {
+          target: 'https://school-timer-five.vercel.app',
+          changeOrigin: true,
+        },
       },
     },
   };

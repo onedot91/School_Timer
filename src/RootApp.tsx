@@ -5,6 +5,7 @@ import {
   registerDeviceSession,
   type BrowserDeviceSession,
 } from './lib/deviceSessionClient';
+import { appDataMode } from './lib/dataMode';
 import { detectEntryResetPlatform, isEntryResetShortcut } from './lib/entryResetShortcut';
 import { isSupabaseSettingsEnabled } from './lib/supabaseSettings';
 import AuctionPage from './pages/AuctionPage';
@@ -31,7 +32,7 @@ const getPlatformText = () => {
     .join(' ');
 };
 
-const requiresDeviceRegistration = import.meta.env.PROD && isSupabaseSettingsEnabled;
+const requiresDeviceRegistration = isSupabaseSettingsEnabled;
 
 const getStoredEntryNumber = () => {
   if (typeof window === 'undefined') return null;
@@ -192,19 +193,35 @@ export default function RootApp() {
     );
   }
 
+  let activePage;
+
   if (selectedEntryNumber === null) {
-    return (
+    activePage = (
       <EntrySelectPage
         onSelectNumber={selectEntryNumber}
         requiresRegistration={requiresDeviceRegistration}
         deviceSession={deviceSession}
       />
     );
+  } else if (selectedEntryNumber === 0) {
+    activePage = <TimerPage />;
+  } else {
+    activePage = <AuctionPage studentNumber={selectedEntryNumber} />;
   }
 
-  if (selectedEntryNumber === 0) {
-    return <TimerPage />;
-  }
-
-  return <AuctionPage studentNumber={selectedEntryNumber} />;
+  return (
+    <>
+      {appDataMode !== 'production' ? (
+        <aside className={`data-mode-banner data-mode-banner-${appDataMode}`} role="status">
+          <strong>{appDataMode === 'readonly' ? '실제 데이터 보기 전용' : '연습 모드'}</strong>
+          <span>
+            {appDataMode === 'readonly'
+              ? '저장과 거래는 실제 데이터에 반영되지 않아요.'
+              : '실제 학생 고마에는 반영되지 않아요.'}
+          </span>
+        </aside>
+      ) : null}
+      {activePage}
+    </>
+  );
 }

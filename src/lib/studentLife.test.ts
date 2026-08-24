@@ -167,7 +167,8 @@ test('잘못된 학생 번호와 빈 기록은 정규화에서 제외된다', ()
   assert.equal(normalized.books[0]?.author, '');
 });
 
-test('기존 은행원 편지는 짧은 용건 제목과 자연스러운 자기 지칭으로 복구한다', () => {
+test('기존 은행원 편지는 새 제목 형식과 자연스러운 자기 지칭으로 복구한다', () => {
+  // Given / When
   const normalized = normalizeStudentLifeState({
     letters: [{
       id: 'bank-legacy-deposit',
@@ -180,8 +181,11 @@ test('기존 은행원 편지는 짧은 용건 제목과 자연스러운 자기 
     }],
   });
 
-  assert.equal(normalized.letters[0]?.title, '예금 접수');
-  assert.equal(normalized.letters[0]?.content, '예금한 20 고마를 제가 잘 보관하고 있어요.');
+  // Then
+  assert.equal(normalized.letters[0]?.title.includes('·'), false);
+  assert.equal(normalized.letters[0]?.title.endsWith('꿀!'), true);
+  assert.equal(normalized.letters[0]?.content.includes('돝돝이가'), false);
+  assert.equal(normalized.letters[0]?.content.includes('제가'), true);
 });
 
 test('새 책은 글쓴이를 정리해 저장한다', () => {

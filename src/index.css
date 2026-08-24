@@ -12491,6 +12491,44 @@ a[href]:active {
 }
 
 /* ENTRY_ROOT */
+.data-mode-banner {
+  position: fixed;
+  z-index: 90;
+  top: max(0.5rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  display: flex;
+  max-width: min(24rem, calc(100vw - 1.5rem));
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-pill);
+  color: var(--apple-text-primary);
+  background: var(--apple-material-thick);
+  box-shadow: var(--apple-shadow-1);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  pointer-events: none;
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+
+.data-mode-banner strong {
+  flex: none;
+  color: var(--apple-accent);
+  font-weight: 750;
+}
+
+.data-mode-banner-mock strong {
+  color: var(--emotion-yellow);
+}
+
+.data-mode-banner span {
+  color: var(--apple-text-secondary);
+  font-weight: 600;
+  word-break: keep-all;
+}
+
 .entry-select-page,
 .runtime-fallback-page {
   min-height: 100vh;

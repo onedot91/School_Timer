@@ -438,6 +438,7 @@ export const parseWeeklyMissionsResult = (value: unknown): WeeklyMissionsResult 
 };
 
 export const syncPersonalQuestionWeeklyMission = async (studentNumber: number) => {
+  if (!canWriteSharedBackend(appDataMode)) throw new Error('BACKEND_WRITE_DISABLED');
   const response = await fetch('/api/weekly-mission', {
     method: 'POST',
     headers: {
@@ -455,6 +456,7 @@ export const syncPersonalQuestionWeeklyMission = async (studentNumber: number) =
 };
 
 export const syncWeeklyMissions = async (studentNumber: number) => {
+  if (!canWriteSharedBackend(appDataMode)) throw new Error('BACKEND_WRITE_DISABLED');
   const response = await fetch('/api/weekly-missions', {
     method: 'POST',
     headers: {
@@ -478,4 +480,5 @@ import {
   normalizeAuctionAwards,
 } from './currency.js';
 import { mergeClassDonationActivity } from './classDonation.js';
+import { appDataMode, canWriteSharedBackend } from './dataMode.js';
 import { mergeStudentEmotionHistories } from './studentEmotion.js';
