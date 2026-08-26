@@ -36,7 +36,7 @@ const withDeviceEnvironment = (run: () => void) => {
   }
 };
 
-test('a teacher-approved student number receives a protected device cookie', () => {
+test('a student number receives a protected device cookie without a teacher key', () => {
   withDeviceEnvironment(() => {
     // Given
     const { response, result } = createResponse();
@@ -44,7 +44,7 @@ test('a teacher-approved student number receives a protected device cookie', () 
     // When
     handler({
       method: 'POST',
-      body: { entryNumber: 8, registrationKey: REGISTRATION_KEY },
+      body: { entryNumber: 8 },
       headers: { 'sec-fetch-site': 'same-origin' },
     }, response);
 
@@ -55,7 +55,7 @@ test('a teacher-approved student number receives a protected device cookie', () 
   });
 });
 
-test('an incorrect teacher registration key cannot register a device', () => {
+test('an incorrect teacher registration key cannot register the teacher entry', () => {
   withDeviceEnvironment(() => {
     // Given
     const { response, result } = createResponse();
@@ -63,13 +63,32 @@ test('an incorrect teacher registration key cannot register a device', () => {
     // When
     handler({
       method: 'POST',
-      body: { entryNumber: 8, registrationKey: 'wrong-key' },
+      body: { entryNumber: 0, registrationKey: 'wrong-key' },
       headers: { 'sec-fetch-site': 'same-origin' },
     }, response);
 
     // Then
     assert.equal(result().statusCode, 403);
     assert.equal(result().headers.has('Set-Cookie'), false);
+  });
+});
+
+test('the teacher entry requires the configured teacher key', () => {
+  withDeviceEnvironment(() => {
+    // Given
+    const { response, result } = createResponse();
+
+    // When
+    handler({
+      method: 'POST',
+      body: { entryNumber: 0, registrationKey: REGISTRATION_KEY },
+      headers: { 'sec-fetch-site': 'same-origin' },
+    }, response);
+
+    // Then
+    assert.equal(result().statusCode, 200);
+    assert.deepEqual(result().body, { role: 'teacher' });
+    assert.match(result().headers.get('Set-Cookie') ?? '', /Secure; HttpOnly; SameSite=Strict/);
   });
 });
 

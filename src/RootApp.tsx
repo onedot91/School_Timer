@@ -79,7 +79,7 @@ export default function RootApp() {
       const canUseExistingSession = deviceSession?.role === 'teacher'
         || (deviceSession?.role === 'student' && deviceSession.studentNumber === studentNumber);
       if (!canUseExistingSession) {
-        if (!registrationKey) throw new Error('DEVICE_REGISTRATION_KEY_REQUIRED');
+        if (studentNumber === 0 && !registrationKey) throw new Error('DEVICE_REGISTRATION_KEY_REQUIRED');
         const nextSession = await registerDeviceSession(studentNumber, registrationKey);
         if (!nextSession) throw new Error('DEVICE_REGISTRATION_FAILED');
         setDeviceSession(nextSession);

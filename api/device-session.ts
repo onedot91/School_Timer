@@ -22,7 +22,7 @@ interface ApiResponse {
   json: (body: unknown) => void;
 }
 
-const parseRegistration = (body: unknown): { readonly registration: DeviceSessionRegistration; readonly key: string } | null => {
+const parseRegistration = (body: unknown): { readonly registration: DeviceSessionRegistration; readonly key: string | null } | null => {
   let parsedBody: unknown;
   try {
     parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
@@ -33,12 +33,13 @@ const parseRegistration = (body: unknown): { readonly registration: DeviceSessio
   if (!parsedBody || typeof parsedBody !== 'object') return null;
   const entryNumber = Reflect.get(parsedBody, 'entryNumber');
   const key = Reflect.get(parsedBody, 'registrationKey');
-  if (!Number.isInteger(entryNumber) || entryNumber < 0 || entryNumber > 23 || typeof key !== 'string') return null;
+  if (!Number.isInteger(entryNumber) || entryNumber < 0 || entryNumber > 23) return null;
+  if (entryNumber === 0 && typeof key !== 'string') return null;
   return {
     registration: entryNumber === 0
       ? { role: 'teacher' }
       : { role: 'student', studentNumber: entryNumber },
-    key,
+    key: entryNumber === 0 ? key : null,
   };
 };
 
@@ -51,8 +52,7 @@ const secretsMatch = (actual: string, expected: string) => {
 export default function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader('Cache-Control', 'no-store');
   const sessionSecret = process.env.DEVICE_SESSION_SECRET;
-  const registrationKey = process.env.DEVICE_REGISTRATION_KEY;
-  if (!sessionSecret || sessionSecret.length < 32 || !registrationKey || registrationKey.length < 8) {
+  if (!sessionSecret || sessionSecret.length < 32) {
     response.status(503).json({ error: 'DEVICE_SECURITY_NOT_CONFIGURED' });
     return;
   }
@@ -95,9 +95,16 @@ export default function handler(request: ApiRequest, response: ApiResponse) {
     response.status(429).json({ error: 'TOO_MANY_REQUESTS' });
     return;
   }
-  if (!secretsMatch(parsed.key, registrationKey)) {
-    response.status(403).json({ error: 'DEVICE_REGISTRATION_DENIED' });
-    return;
+  if (parsed.registration.role === 'teacher') {
+    const registrationKey = process.env.DEVICE_REGISTRATION_KEY;
+    if (!registrationKey || registrationKey.length < 8) {
+      response.status(503).json({ error: 'DEVICE_SECURITY_NOT_CONFIGURED' });
+      return;
+    }
+    if (parsed.key === null || !secretsMatch(parsed.key, registrationKey)) {
+      response.status(403).json({ error: 'DEVICE_REGISTRATION_DENIED' });
+      return;
+    }
   }
 
   const token = createDeviceSessionToken(parsed.registration, sessionSecret);

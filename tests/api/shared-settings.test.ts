@@ -139,56 +139,75 @@ test('student sessions can update only their own balance entry', async () => {
   });
 });
 
-test('학생 거래는 누락된 다른 학생 기본값을 정규화해도 저장된다', async () => {
-  await withEnvironment(async () => {
-    // Given
-    const originalFetch = globalThis.fetch;
-    const previousValue = {
-      schedule: ['수학'],
-      currencyBalances: { 1: 145 },
-      currencyHistory: { 1: [] },
-      studentEconomy: {},
-    };
-    const normalizedBalances = Object.fromEntries(
-      Array.from({ length: 23 }, (_, index) => [String(index + 1), index === 0 ? 115 : 100]),
-    );
-    const normalizedHistory = Object.fromEntries(
-      Array.from({ length: 23 }, (_, index) => [String(index + 1), index === 0 ? [{ id: 'deposit-1' }] : []]),
-    );
-    let fetchCount = 0;
-    globalThis.fetch = async () => {
-      fetchCount += 1;
-      return fetchCount === 1
-        ? Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: 'v1' }])
-        : Response.json([{ id: 'school-timer-main' }]);
-    };
+const economyUpdateScenarios = [
+  {
+    name: '학생 거래는 누락된 다른 학생 기본값을 정규화해도 저장된다',
+    balance: 115,
+    historyId: 'deposit-1',
+    studentEconomy: { 1: { deposit: 30 } },
+  },
+  {
+    name: '증권 투자는 누락된 다른 학생 기본값을 정규화해도 저장된다',
+    balance: 135,
+    historyId: 'investment-1',
+    studentEconomy: {
+      1: { investments: { sprout: { investedAmount: 10, currentAmount: 10 } } },
+    },
+  },
+];
 
-    try {
-      const { response, result } = createResponse();
+for (const scenario of economyUpdateScenarios) {
+  test(scenario.name, async () => {
+    await withEnvironment(async () => {
+      // Given
+      const originalFetch = globalThis.fetch;
+      const previousValue = {
+        schedule: ['수학'],
+        currencyBalances: { 1: 145 },
+        currencyHistory: { 1: [] },
+        studentEconomy: {},
+      };
+      const normalizedBalances = Object.fromEntries(
+        Array.from({ length: 23 }, (_, index) => [String(index + 1), index === 0 ? scenario.balance : 100]),
+      );
+      const normalizedHistory = Object.fromEntries(
+        Array.from({ length: 23 }, (_, index) => [String(index + 1), index === 0 ? [{ id: scenario.historyId }] : []]),
+      );
+      let fetchCount = 0;
+      globalThis.fetch = async () => {
+        fetchCount += 1;
+        return fetchCount === 1
+          ? Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: 'v1' }])
+          : Response.json([{ id: 'school-timer-main' }]);
+      };
 
-      // When
-      await handler({
-        method: 'PUT',
-        headers: studentHeaders(1),
-        body: {
-          value: {
-            ...previousValue,
-            currencyBalances: normalizedBalances,
-            currencyHistory: normalizedHistory,
-            studentEconomy: { 1: { deposit: 30 } },
+      try {
+        const { response, result } = createResponse();
+
+        // When
+        await handler({
+          method: 'PUT',
+          headers: studentHeaders(1),
+          body: {
+            value: {
+              ...previousValue,
+              currencyBalances: normalizedBalances,
+              currencyHistory: normalizedHistory,
+              studentEconomy: scenario.studentEconomy,
+            },
+            expectedUpdatedAt: 'v1',
           },
-          expectedUpdatedAt: 'v1',
-        },
-      }, response);
+        }, response);
 
-      // Then
-      assert.equal(result().statusCode, 200);
-      assert.equal(fetchCount, 2);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+        // Then
+        assert.equal(result().statusCode, 200);
+        assert.equal(fetchCount, 2);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
   });
-});
+}
 
 test('student sessions cannot change another student balance entry', async () => {
   await withEnvironment(async () => {

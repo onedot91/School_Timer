@@ -32,7 +32,7 @@ const requestSession = async (init?: RequestInit) => {
 
 export const loadDeviceSession = () => requestSession();
 
-export const registerDeviceSession = (entryNumber: number, registrationKey: string) => requestSession({
+export const registerDeviceSession = (entryNumber: number, registrationKey?: string) => requestSession({
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ entryNumber, registrationKey }),
