@@ -49,10 +49,12 @@ export interface AuctionItem {
   dayIndex: number;
 }
 
+export type AuctionMissionRewardAmount = number | readonly [number, number];
+
 export interface AuctionMission {
   id: string;
   content: string;
-  rewardAmount: number;
+  rewardAmount: AuctionMissionRewardAmount;
 }
 
 export type AuctionBids = Record<string, AuctionBid>;
@@ -167,6 +169,15 @@ export const formatCurrency = (value: number) =>
 export const formatCurrencyAmount = (value: number) =>
   value.toLocaleString('ko-KR');
 
+export const formatMissionReward = (value: number | readonly number[]) => {
+  if (typeof value === 'number') return `${formatCurrencyAmount(value)}${CURRENCY_UNIT_LABEL}`;
+  const rewardAmounts = [...value].sort((left, right) => left - right);
+  const minimumAmount = rewardAmounts[0] ?? 0;
+  if (rewardAmounts.length === 1) return `${formatCurrencyAmount(minimumAmount)}${CURRENCY_UNIT_LABEL}`;
+  const maximumAmount = rewardAmounts.at(-1) ?? minimumAmount;
+  return `${formatCurrencyAmount(minimumAmount)}~${formatCurrencyAmount(maximumAmount)}${CURRENCY_UNIT_LABEL}`;
+};
+
 export const getAuctionItemDisplayName = (itemName: string, dayIndex: number) => {
   const weekdayName = AUCTION_WEEKDAY_NAMES[dayIndex];
   if (!weekdayName) return itemName;
@@ -205,6 +216,16 @@ export const clampAuctionMissionRewardAmount = (value: unknown) => {
   const numericValue = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numericValue)) return 0;
   return Math.max(CURRENCY_BALANCE_MIN, Math.min(CURRENCY_BALANCE_MAX, Math.floor(numericValue)));
+};
+
+export const normalizeAuctionMissionRewardAmount = (value: unknown): AuctionMissionRewardAmount => {
+  if (!Array.isArray(value)) return clampAuctionMissionRewardAmount(value);
+
+  const firstAmount = clampAuctionMissionRewardAmount(value[0]);
+  const secondAmount = clampAuctionMissionRewardAmount(value[1]);
+  return firstAmount <= secondAmount
+    ? [firstAmount, secondAmount]
+    : [secondAmount, firstAmount];
 };
 
 export const createDefaultCurrencyBalances = (): CurrencyBalances =>
@@ -706,7 +727,7 @@ export const normalizeAuctionMissions = (value: unknown): AuctionMission[] => {
     normalizedMissions.push({
       id,
       content,
-      rewardAmount: clampAuctionMissionRewardAmount(getObjectField(rawMission, 'rewardAmount')),
+      rewardAmount: normalizeAuctionMissionRewardAmount(getObjectField(rawMission, 'rewardAmount')),
     });
   });
 

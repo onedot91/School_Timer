@@ -157,6 +157,28 @@ test('오늘 숫자야구가 이미 시작됐으면 지난 게임을 이어 하�
   assert.equal(resumable, null);
 });
 
+test('주간 숫자야구 기록은 다음 주 키에서 초기 상태로 시작한다', () => {
+  // Given
+  const studentNumber = 7;
+  const currentWeekKey = '2026-35';
+  const nextWeekKey = '2026-36';
+  const currentKey = `${studentNumber}:${currentWeekKey}`;
+  const nextKey = `${studentNumber}:${nextWeekKey}`;
+
+  // When
+  const normalized = normalizeStudentNumberBaseballProgress({
+    [currentKey]: createNumberBaseballProgressEntry(getNumberBaseballGameId(studentNumber, currentWeekKey)),
+  });
+
+  // Then
+  assert.equal(normalized[currentKey]?.gameId, getNumberBaseballGameId(studentNumber, currentWeekKey));
+  assert.equal(normalized[nextKey], undefined);
+  assert.notEqual(
+    getNumberBaseballGameId(studentNumber, currentWeekKey),
+    getNumberBaseballGameId(studentNumber, nextWeekKey),
+  );
+});
+
 test('저장 경계는 중복·0·열 번째 입력을 버리고 정답 이후 기록을 복구하지 않는다', () => {
   // Given
   const key = '7:2026-08-20';

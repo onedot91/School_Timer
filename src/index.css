@@ -16796,6 +16796,37 @@ a[href]:active {
   white-space: nowrap;
 }
 
+.student-missions-view .student-header-status {
+  padding: 0.3rem 0.45rem;
+  background: color-mix(in srgb, var(--apple-surface) 92%, transparent);
+}
+
+.student-mission-status-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.student-mission-status-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--apple-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.student-mission-status-face.is-compact {
+  --student-mission-face-eye-size: 1.75px;
+  --student-mission-face-line: 1.25px;
+  --student-mission-face-expression-line: 1.5px;
+  --student-mission-face-ring: 1px;
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: 0 0 auto;
+  border: 1px solid white;
+}
+
 .student-header-copy h1,
 .student-group-heading h2,
 .student-section-card h2,
@@ -17233,20 +17264,26 @@ a[href]:active {
 
 .student-mission-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.8rem;
 }
 
 .student-mission-card {
+  position: relative;
   display: grid;
-  min-height: 13.75rem;
-  grid-template-rows: auto 1fr auto;
-  gap: 0.9rem;
-  padding: 1rem;
+  min-height: 0;
+  grid-template-rows: auto;
+  gap: 0;
+  overflow: hidden;
+  padding: 0.65rem;
   border: 1px solid var(--apple-separator);
   border-radius: var(--apple-radius-card);
   background: var(--apple-surface);
   box-shadow: 0 .35rem 1rem color-mix(in srgb, var(--apple-text-primary) 6%, transparent);
+  transition:
+    transform var(--student-motion-press) var(--student-ease-out),
+    border-color var(--student-motion-state) ease,
+    box-shadow var(--student-motion-state) ease;
 }
 
 .student-mission-card-inProgress {
@@ -17275,11 +17312,124 @@ a[href]:active {
   background: color-mix(in srgb, var(--student-mission-soft) 65%, var(--apple-surface));
 }
 
-.student-mission-card-topline {
+.student-mission-illustration-placeholder {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  aspect-ratio: 4 / 3;
+  place-items: center;
+  overflow: hidden;
+  border: 1px dashed color-mix(in srgb, var(--student-mission) 34%, var(--apple-separator));
+  border-radius: calc(var(--apple-radius-card) - 0.4rem);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--student-mission-soft) 84%, white), var(--student-store-soft));
+}
+
+.student-mission-illustration-placeholder::before,
+.student-mission-illustration-placeholder::after {
+  position: absolute;
+  z-index: -1;
+  content: '';
+}
+
+.student-mission-illustration-placeholder::before {
+  top: -2.25rem;
+  right: -1.5rem;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--apple-accent) 11%, transparent);
+}
+
+.student-mission-illustration-placeholder::after {
+  bottom: -2.5rem;
+  left: -1.25rem;
+  width: 7rem;
+  height: 7rem;
+  border: 1rem solid color-mix(in srgb, var(--student-mission) 10%, transparent);
+  border-radius: 1.75rem;
+  transform: rotate(24deg);
+}
+
+.student-mission-illustration-placeholder > span {
+  position: absolute;
+  bottom: 0.65rem;
+  left: 0.7rem;
+  color: var(--apple-text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.student-mission-illustration-placeholder h3 {
+  max-width: 88%;
+  margin: 0;
+  color: var(--apple-text-primary);
+  font-size: clamp(1.65rem, 2.8vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.student-mission-card-meta {
+  position: absolute;
+  z-index: 1;
+  top: 0.75rem;
+  right: 0.75rem;
+  left: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  pointer-events: none;
+}
+
+.student-mission-card-action {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: block;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.student-mission-card-action:focus-visible {
+  outline: none;
+}
+
+.student-mission-card:has(.student-mission-card-action:focus-visible) {
+  outline: 3px solid var(--apple-focus);
+  outline-offset: 3px;
+}
+
+.student-mission-card.is-interactive:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--apple-accent) 38%, var(--apple-separator));
+  box-shadow: 0 .65rem 1.25rem color-mix(in srgb, var(--apple-accent-pressed) 12%, transparent);
+}
+
+.student-mission-card.is-interactive:has(.student-mission-card-action:active) {
+  transform: scale(0.985);
+}
+
+.student-mission-card.is-disabled .student-mission-illustration-placeholder {
+  background: var(--apple-disabled-surface);
+}
+
+.student-mission-card.is-disabled .student-mission-illustration-placeholder::before,
+.student-mission-card.is-disabled .student-mission-illustration-placeholder::after,
+.student-mission-card.is-disabled .student-mission-illustration-placeholder > span,
+.student-mission-card.is-disabled .student-mission-illustration-placeholder > h3 {
+  filter: grayscale(0.72);
+  opacity: 0.58;
+}
+
+.student-mission-card-action:disabled {
+  cursor: not-allowed;
 }
 
 .student-mission-status,
@@ -17292,30 +17442,175 @@ a[href]:active {
   font-weight: 850;
 }
 
-.student-mission-status { flex: 0 0 auto; white-space: nowrap; }
+.student-mission-status { flex: 0 0 auto; }
 
 .student-mission-status {
-  min-height: 1.9rem;
-  padding: .25rem .55rem;
-  border: 1px solid var(--apple-separator);
-  border-radius: var(--apple-radius-pill);
-  color: var(--apple-text-secondary);
-  background: var(--apple-surface-muted);
+  --student-mission-face-eye-size: 2.5px;
+  --student-mission-face-line: 1.75px;
+  --student-mission-face-expression-line: 1.5px;
+  --student-mission-face-ring: 1.5px;
+  width: 2.2rem;
+  height: 2.2rem;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid white;
+  border-radius: 46% 54% 48% 52% / 52% 47% 53% 48%;
+  color: white;
+  background: var(--apple-text-secondary);
+  box-shadow:
+    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--apple-text-secondary) 34%, transparent),
+    0 .3rem .7rem color-mix(in srgb, var(--apple-text-primary) 18%, transparent);
+  transform: rotate(-2deg);
 }
 
-.student-mission-card-inProgress .student-mission-status {
-  border-color: color-mix(in srgb, var(--student-mission) 36%, var(--apple-separator));
-  color: var(--student-mission);
-  background: var(--student-mission-soft);
+.student-mission-status-face {
+  position: relative;
 }
 
-.student-mission-card-completed .student-mission-status,
+.student-mission-status-face::before,
+.student-mission-status-face::after {
+  position: absolute;
+  top: 56%;
+  width: 12%;
+  height: 6%;
+  border-radius: 999px;
+  background: #ffc2b8;
+  content: '';
+  opacity: 0.78;
+}
+
+.student-mission-status-face::before { left: 14%; }
+.student-mission-status-face::after { right: 14%; }
+
+.student-mission-face-eye,
+.student-mission-face-mouth {
+  position: absolute;
+  display: block;
+  background: transparent;
+}
+
+.student-mission-face-eye {
+  top: 30%;
+  width: var(--student-mission-face-eye-size);
+  height: var(--student-mission-face-eye-size);
+  border: 0;
+  border-radius: 50%;
+  background: white;
+}
+
+.student-mission-face-eye.is-left { left: 30%; }
+.student-mission-face-eye.is-right { top: 28%; right: 29%; }
+
+.student-mission-face-mouth {
+  bottom: 25%;
+  left: 52%;
+  width: 20%;
+  height: 0;
+  border-top: var(--student-mission-face-line) solid white;
+  border-radius: 999px;
+  transform: translateX(-50%) rotate(-5deg);
+}
+
+.student-mission-teacher-face {
+  border-color: var(--apple-text-secondary);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface);
+  box-shadow:
+    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--apple-text-secondary) 24%, transparent),
+    0 .3rem .7rem color-mix(in srgb, var(--apple-text-primary) 16%, transparent);
+  transform: rotate(2deg);
+}
+
+.student-mission-teacher-face .student-mission-face-eye {
+  background: currentColor;
+}
+
+.student-mission-teacher-face.is-compact {
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: 0 0 auto;
+  border-width: 1px;
+}
+
+.student-mission-status-face[data-mood="working"] .student-mission-face-mouth {
+  bottom: 22%;
+  width: 14%;
+  height: 14%;
+  border: var(--student-mission-face-line) solid white;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.student-mission-status-face[data-mood="happy"] .student-mission-face-mouth {
+  bottom: 25%;
+  left: 51%;
+  width: 26%;
+  height: 16%;
+  border: 0;
+  border-bottom: var(--student-mission-face-expression-line) solid currentColor;
+  border-radius: 0 0 50% 50%;
+  background: transparent;
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+.student-mission-status-face[data-mood="worried"] .student-mission-face-mouth {
+  bottom: 20%;
+  left: 51%;
+  width: 26%;
+  height: 13%;
+  border: 0;
+  border-top: var(--student-mission-face-expression-line) solid white;
+  border-radius: 999px 999px 0 0;
+  background: transparent;
+  transform: translateX(-50%) rotate(3deg);
+}
+
+.student-mission-status-face.is-compact::before,
+.student-mission-status-face.is-compact::after {
+  display: none;
+}
+
+.student-mission-status-face[data-status="loading"] {
+  animation: student-mission-face-wobble 900ms ease-in-out infinite;
+}
+
+.student-mission-status-face[data-status="inProgress"],
+.student-mission-status-face[data-status="loading"] {
+  border-color: white;
+  color: white;
+  background: var(--student-mission);
+  box-shadow:
+    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--student-mission) 40%, transparent),
+    0 .3rem .7rem color-mix(in srgb, var(--student-mission) 24%, transparent);
+}
+
+.student-mission-status-face[data-status="completed"] {
+  border-color: white;
+  color: white;
+  background: var(--apple-accent);
+  box-shadow:
+    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--apple-accent) 40%, transparent),
+    0 .3rem .7rem color-mix(in srgb, var(--apple-accent) 24%, transparent);
+}
+
 .student-mission-card-completed .student-mission-awarded {
   color: var(--apple-accent-pressed);
 }
 
-.student-mission-card-error .student-mission-status {
-  color: var(--student-sudoku-conflict);
+.student-mission-status-face[data-status="exhausted"],
+.student-mission-status-face[data-status="error"] {
+  border-color: white;
+  border-style: solid;
+  color: white;
+  background: var(--student-sudoku-conflict);
+  box-shadow:
+    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--student-sudoku-conflict) 40%, transparent),
+    0 .3rem .7rem color-mix(in srgb, var(--student-sudoku-conflict) 24%, transparent);
+}
+
+@keyframes student-mission-face-wobble {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
 }
 
 .student-mission-reward {
@@ -17324,7 +17619,8 @@ a[href]:active {
   border: 1px solid color-mix(in srgb, var(--apple-accent) 22%, var(--apple-separator));
   border-radius: var(--apple-radius-pill);
   color: var(--apple-accent-pressed);
-  background: var(--student-store-soft);
+  background: color-mix(in srgb, var(--apple-surface) 94%, var(--student-store-soft));
+  box-shadow: 0 .25rem .65rem color-mix(in srgb, var(--apple-text-primary) 10%, transparent);
   font-family: var(--font-mono);
   white-space: nowrap;
 }
@@ -19025,12 +19321,22 @@ a[href]:active {
     border-radius: 1.35rem;
   }
 
-  .student-store-view > .student-header {
+  :is(.student-store-view, .student-missions-view) > .student-header {
+    flex-wrap: wrap;
+    height: auto;
+  }
+
+  :is(.student-store-view, .student-missions-view) > .student-header .student-header-actions {
+    width: 100%;
+  }
+
+  .student-missions-view .student-header-copy,
+  .student-mission-status-legend {
     flex-wrap: wrap;
   }
 
-  .student-store-view > .student-header .student-header-actions {
-    width: 100%;
+  .student-missions-view .student-header-status {
+    flex-basis: 100%;
   }
 
   .student-header-character {
@@ -19240,6 +19546,10 @@ a[href]:active {
 
 @media (prefers-reduced-motion: reduce) {
   .student-spin {
+    animation: none;
+  }
+
+  .student-mission-status-face[data-status="loading"] {
     animation: none;
   }
 

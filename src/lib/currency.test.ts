@@ -14,6 +14,7 @@ import {
   finalizeAuctionAwardInSettings,
   getAuctionAwardsForDay,
   hasDailyEmotionReward,
+  normalizeAuctionMissions,
 } from './currency.ts';
 import { normalizeStudentEconomyState } from './studentEconomy.ts';
 
@@ -76,6 +77,17 @@ test('요일별 경매 물품을 최대 6개까지 구성한다', () => {
   assert.equal(AUCTION_MAX_ITEM_COUNT, 30);
   assert.equal(AUCTION_ITEM_TEMPLATES.length, 30);
   assert.equal(AUCTION_ITEM_TEMPLATES.filter((item) => item.dayIndex === 0).length, 6);
+});
+
+test('교사 미션 보상 범위는 최소값과 최대값 순서로 저장된다', () => {
+  // Given
+  const missions = [{ id: 'mission-1', content: '인사하기', rewardAmount: [20, 5] }];
+
+  // When
+  const normalized = normalizeAuctionMissions(missions);
+
+  // Then
+  assert.deepEqual(normalized[0]?.rewardAmount, [5, 20]);
 });
 
 test('당일 낙찰 품목을 완료 시각 순서로 누적한다', () => {

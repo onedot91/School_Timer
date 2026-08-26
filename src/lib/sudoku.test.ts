@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as sudoku from './sudoku';
 import { claimSudokuRewardInSettings, hasSudokuReward, normalizeCurrencyBalances } from './currency';
-import { mergeConcurrentCurrencyUpdatesIntoSettings } from './weeklyMission';
+import { getKoreanIsoWeekKey, mergeConcurrentCurrencyUpdatesIntoSettings } from './weeklyMission';
 import {
   SUDOKU_DIFFICULTIES,
   SUDOKU_REWARDS,
@@ -11,6 +11,7 @@ import {
   getKoreanDateKey,
   getSudokuConflicts,
   getSudokuProgressKey,
+  getSudokuWeeklyMissionId,
   isSudokuSolved,
   normalizeStudentSudokuProgress,
 } from './sudoku';
@@ -206,6 +207,21 @@ test('스도쿠 보상은 문제별로 정확히 한 번만 지급한다', () =>
   assert.equal(second.history['7'].filter((entry) => entry.reason === 'sudoku_mission').length, 1);
 });
 
+test('스도쿠는 같은 주에 난이도를 달리해도 보상을 한 번만 지급한다', () => {
+  // Given
+  const initial = { currencyBalances: { 7: 100 }, currencyHistory: { 7: [] } };
+  const missionId = getSudokuWeeklyMissionId(7, '2026-35');
+
+  // When
+  const first = claimSudokuRewardInSettings(initial, 7, missionId, SUDOKU_REWARDS.basic);
+  const second = claimSudokuRewardInSettings(first.value, 7, missionId, SUDOKU_REWARDS.challenge);
+
+  // Then
+  assert.equal(first.awarded, true);
+  assert.equal(second.awarded, false);
+  assert.equal(second.balance, 105);
+});
+
 test('교사 자동 저장은 동시에 완료된 스도쿠 보상을 보존한다', () => {
   // Given
   const puzzleId = 'sudoku-7-2026-08-20-challenge';
@@ -248,6 +264,30 @@ test('한국 자정 기준 날짜 키를 만든다', () => {
 
   // Then
   assert.deepEqual(dateKeys, ['2026-08-19', '2026-08-20']);
+});
+
+test('같은 주에는 같은 스도쿠를 이어 풀고 다음 주에는 새 기록으로 시작한다', () => {
+  // Given
+  const sunday = new Date('2026-08-30T14:59:59.000Z');
+  const monday = new Date('2026-08-30T15:00:00.000Z');
+  const currentWeekKey = getKoreanIsoWeekKey(sunday);
+  const nextWeekKey = getKoreanIsoWeekKey(monday);
+  const currentKey = getSudokuProgressKey(7, currentWeekKey, 'basic');
+  const nextKey = getSudokuProgressKey(7, nextWeekKey, 'basic');
+
+  // When
+  const normalized = normalizeStudentSudokuProgress({
+    [currentKey]: {
+      puzzleId: sudoku.getSudokuPuzzleId(7, currentWeekKey, 'basic'),
+      cells: Array<number>(36).fill(0),
+      completedAt: null,
+    },
+  });
+
+  // Then
+  assert.equal(normalized[currentKey]?.puzzleId, sudoku.getSudokuPuzzleId(7, currentWeekKey, 'basic'));
+  assert.equal(normalized[nextKey], undefined);
+  assert.notEqual(currentKey, nextKey);
 });
 
 test('오늘 시작한 미완료 스도쿠 난이도를 잠근다', () => {

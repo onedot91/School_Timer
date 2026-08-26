@@ -115,6 +115,7 @@ import {
   type FeaturedWriting,
 } from '../lib/bookstore';
 import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
+import { MissionRewardInput } from '../components/teacher/MissionRewardInput';
 import TeacherWritingSettings from '../components/teacher/TeacherWritingSettings';
 import {
   loadQuestionSubmissionStatuses,
@@ -162,7 +163,6 @@ import {
   DEFAULT_CURRENCY_BALANCE,
   finalizeAuctionAwardInSettings,
   appendCurrencyHistoryEntry,
-  clampAuctionMissionRewardAmount,
   clampCurrencyBalance,
   collectCurrencyTax,
   createDefaultCurrencyBalances,
@@ -184,6 +184,7 @@ import {
   type CurrencyHistory,
   type CurrencyHistoryReason,
   type AuctionMission,
+  type AuctionMissionRewardAmount,
   type AuctionAward,
   type AuctionAwards,
   type AuctionBidHistory,
@@ -6758,13 +6759,13 @@ export default function TimerPage() {
     );
   };
 
-  const updateAuctionMissionRewardAmount = (missionId: string, nextRewardAmount: string) => {
+  const updateAuctionMissionRewardAmount = (missionId: string, nextRewardAmount: AuctionMissionRewardAmount) => {
     setAuctionMissions((previous) =>
       previous.map((mission) =>
         mission.id === missionId
           ? {
               ...mission,
-              rewardAmount: clampAuctionMissionRewardAmount(nextRewardAmount),
+              rewardAmount: nextRewardAmount,
             }
           : mission,
       ),
@@ -9886,7 +9887,7 @@ export default function TimerPage() {
             {auctionMissions.map((mission, index) => (
               <div
                 key={mission.id}
-                className="grid gap-2 rounded-[1.15rem] border border-[#CFE3D8] bg-white p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] md:grid-cols-[minmax(0,1fr)_9.25rem_2.75rem] md:items-end"
+                className="grid gap-2 rounded-[1.15rem] border border-[#CFE3D8] bg-white p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] md:grid-cols-[minmax(0,1fr)_22rem_2.75rem] md:items-end"
               >
                 <label className="grid min-w-0 gap-1.5">
                   <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">
@@ -9904,26 +9905,13 @@ export default function TimerPage() {
                   />
                 </label>
 
-                <label className="grid gap-1.5">
-                  <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">
-                    보상
-                  </span>
-                  <div className="grid grid-cols-[minmax(0,1fr)_2.8rem] overflow-hidden rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] focus-within:border-[#7FB59F] focus-within:bg-white">
-                    <input
-                      type="number"
-                      min={0}
-                      max={CURRENCY_BALANCE_MAX}
-                      step={CURRENCY_BALANCE_STEP}
-                      value={mission.rewardAmount}
-                      onChange={(event) => updateAuctionMissionRewardAmount(mission.id, event.target.value)}
-                      className="h-11 min-w-0 bg-transparent px-3 text-right font-mono text-[0.95rem] font-black text-[#006241] outline-none"
-                      aria-label={`미션 ${index + 1} 보상`}
-                    />
-                    <span className="flex h-11 items-center justify-center border-l border-[#CFE3D8] text-[0.78rem] font-extrabold text-[#6F7D70]">
-                      고마
-                    </span>
-                  </div>
-                </label>
+                <MissionRewardInput
+                  missionIndex={index + 1}
+                  value={mission.rewardAmount}
+                  onValueChange={(value) => updateAuctionMissionRewardAmount(mission.id, value)}
+                  onFocus={beginAuctionMissionEdit}
+                  onBlur={endAuctionMissionEdit}
+                />
 
                 <button
                   type="button"

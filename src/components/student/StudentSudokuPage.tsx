@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import {
   SUDOKU_REWARDS,
   createSudokuPuzzle,
-  getKoreanDateKey,
   getSudokuCompletedDigits,
   getSudokuConflicts,
   getSudokuMatchingIndices,
@@ -13,6 +12,7 @@ import {
   type SudokuDifficulty,
   type SudokuProgressEntry,
 } from '../../lib/sudoku';
+import { getKoreanIsoWeekKey } from '../../lib/weeklyMission';
 import StudentHeader from './StudentHeader';
 import StudentSudokuBoard from './StudentSudokuBoard';
 import StudentSudokuCelebration from './StudentSudokuCelebration';
@@ -21,7 +21,7 @@ interface StudentSudokuPageProps {
   studentNumber: number;
   difficulty: SudokuDifficulty;
   progress: StudentSudokuProgress;
-  rewardedPuzzleIds: ReadonlySet<string>;
+  hasReward: boolean;
   onSave: (key: string, entry: SudokuProgressEntry) => Promise<boolean>;
   onComplete: (key: string, entry: SudokuProgressEntry, difficulty: SudokuDifficulty) => Promise<boolean>;
   onBack: () => void;
@@ -39,17 +39,17 @@ export default function StudentSudokuPage({
   studentNumber,
   difficulty,
   progress,
-  rewardedPuzzleIds,
+  hasReward,
   onSave,
   onComplete,
   onBack,
 }: StudentSudokuPageProps) {
-  const dateKey = getKoreanDateKey();
+  const weekKey = getKoreanIsoWeekKey();
   const puzzle = useMemo(
-    () => createSudokuPuzzle(studentNumber, dateKey, difficulty),
-    [dateKey, difficulty, studentNumber],
+    () => createSudokuPuzzle(studentNumber, weekKey, difficulty),
+    [difficulty, studentNumber, weekKey],
   );
-  const progressKey = getSudokuProgressKey(studentNumber, dateKey, difficulty);
+  const progressKey = getSudokuProgressKey(studentNumber, weekKey, difficulty);
   const savedEntry = progress[progressKey]?.puzzleId === puzzle.id ? progress[progressKey] : undefined;
   const [cells, setCells] = useState<readonly number[]>(savedEntry?.cells ?? puzzle.puzzle);
   const [selectedIndex, setSelectedIndex] = useState(() => puzzle.puzzle.findIndex((value) => value === 0));
@@ -72,7 +72,7 @@ export default function StudentSudokuPage({
   const completedDigits = useMemo(() => getSudokuCompletedDigits(cells), [cells]);
   const isCompleted = (
     savedEntry?.completedAt !== null && savedEntry?.completedAt !== undefined
-  ) || rewardedPuzzleIds.has(puzzle.id);
+  ) || hasReward;
   const selectedValue = cells[selectedIndex] ?? 0;
 
   const showSavedState = () => {
@@ -93,13 +93,13 @@ export default function StudentSudokuPage({
     if (isNewPuzzle || hasDifferentCells) {
       setCells(nextCells);
       setSelectedIndex(puzzle.puzzle.findIndex((value) => value === 0));
-      setFeedback(isCompleted ? '오늘의 보상을 받았습니다.' : '빈칸을 선택하고 숫자를 입력하세요.');
+      setFeedback(isCompleted ? '이번 주 보상을 받았습니다.' : '빈칸을 선택하고 숫자를 입력하세요.');
       setSaveState('idle');
       setLastEditedIndex(null);
       setIsCelebrating(false);
       completionInFlightRef.current = false;
     } else if (isCompleted && !completionInFlightRef.current) {
-      setFeedback('오늘의 보상을 받았습니다.');
+      setFeedback('이번 주 보상을 받았습니다.');
       setSaveState('idle');
     }
     loadedPuzzleIdRef.current = puzzle.id;

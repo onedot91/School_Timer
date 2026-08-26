@@ -4,6 +4,7 @@ import {
   AUCTION_DAY_ACCENTS,
   AUCTION_WEEKDAY_LABELS,
   formatCurrency,
+  formatMissionReward,
   type AuctionAwards,
   type AuctionBids,
   type AuctionItem,
@@ -198,7 +199,7 @@ export default function AuctionRoom({
                 {auctionMissions.map((mission) => (
                   <div key={mission.id} className="inline-flex min-w-0 items-center gap-2 rounded-full bg-[#FFF8EC] px-3 py-1.5">
                     <span className="max-w-[13rem] truncate text-[0.86rem] font-extrabold text-[#2F241D]">{mission.content}</span>
-                    <span className="whitespace-nowrap font-mono text-[0.8rem] font-black text-[#007A57]">{formatCurrency(mission.rewardAmount)}</span>
+                    <span className="whitespace-nowrap font-mono text-[0.8rem] font-black text-[#007A57]">{formatMissionReward(mission.rewardAmount)}</span>
                   </div>
                 ))}
               </div>

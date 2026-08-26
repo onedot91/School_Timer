@@ -1,95 +1,120 @@
-import { AlertCircle, CheckCircle2, Circle, CircleDot, ExternalLink, LoaderCircle, TriangleAlert, XCircle } from 'lucide-react';
-import { CURRENCY_UNIT_LABEL, formatCurrency, formatCurrencyAmount } from '../../lib/currency';
+import { formatMissionReward } from '../../lib/currency';
 
 export type StudentMissionStatus = 'incomplete' | 'inProgress' | 'loading' | 'completed' | 'exhausted' | 'unavailable' | 'error';
 
-interface StudentMissionCardProps {
-  title: string;
-  description?: string;
-  rewardAmount: number | readonly number[];
-  status: StudentMissionStatus;
-  destinationUrl?: string;
-  onAction?: () => void;
-  actionLabel: string;
-  secondaryActionLabel?: string;
-  onSecondaryAction?: () => void;
+interface StudentMissionCardBaseProps {
+  readonly title: string;
+  readonly description?: string;
+  readonly rewardAmount: number | readonly number[];
+  readonly destinationUrl?: string;
+  readonly onAction?: () => void;
+  readonly actionLabel: string;
 }
 
-const STATUS_CONTENT: Record<StudentMissionStatus, { label: string; icon: typeof Circle }> = {
-  incomplete: { label: '진행 전', icon: Circle },
-  inProgress: { label: '진행 중', icon: CircleDot },
-  loading: { label: '확인 중', icon: LoaderCircle },
-  completed: { label: '완료', icon: CheckCircle2 },
-  exhausted: { label: '기회 소진', icon: XCircle },
-  unavailable: { label: '확인 불가', icon: AlertCircle },
-  error: { label: '오류', icon: TriangleAlert },
+interface AutomaticStudentMissionCardProps extends StudentMissionCardBaseProps {
+  readonly verificationMode: 'automatic';
+  readonly status: StudentMissionStatus;
+}
+
+interface ManualStudentMissionCardProps extends StudentMissionCardBaseProps {
+  readonly verificationMode: 'manual';
+  readonly status?: never;
+}
+
+type StudentMissionCardProps = AutomaticStudentMissionCardProps | ManualStudentMissionCardProps;
+
+const STATUS_CONTENT: Record<StudentMissionStatus, { label: string; mood: 'blank' | 'working' | 'happy' | 'worried' }> = {
+  incomplete: { label: '진행 전', mood: 'blank' },
+  inProgress: { label: '진행 중', mood: 'working' },
+  loading: { label: '확인 중', mood: 'working' },
+  completed: { label: '완료', mood: 'happy' },
+  exhausted: { label: '기회 소진', mood: 'worried' },
+  unavailable: { label: '확인 불가', mood: 'blank' },
+  error: { label: '오류 발생', mood: 'worried' },
 };
+
+export function StudentMissionStatusFace({
+  status,
+  compact = false,
+}: {
+  status: StudentMissionStatus;
+  compact?: boolean;
+}) {
+  return (
+    <span
+      className={`student-mission-status student-mission-status-face${compact ? ' is-compact' : ''}`}
+      data-status={status}
+      data-mood={STATUS_CONTENT[status].mood}
+      aria-hidden="true"
+    >
+      <span className="student-mission-face-eye is-left" />
+      <span className="student-mission-face-eye is-right" />
+      <span className="student-mission-face-mouth" />
+    </span>
+  );
+}
+
+export function StudentMissionTeacherFace({ compact = false }: { readonly compact?: boolean }) {
+  return (
+    <span
+      className={`student-mission-status student-mission-status-face student-mission-teacher-face${compact ? ' is-compact' : ''}`}
+      data-mood="happy"
+      aria-hidden="true"
+    >
+      <span className="student-mission-face-eye is-left" />
+      <span className="student-mission-face-eye is-right" />
+      <span className="student-mission-face-mouth" />
+    </span>
+  );
+}
 
 export default function StudentMissionCard({
   title,
   description,
   rewardAmount,
+  verificationMode,
   status,
   destinationUrl,
   onAction,
   actionLabel,
-  secondaryActionLabel,
-  onSecondaryAction,
 }: StudentMissionCardProps) {
-  const statusContent = STATUS_CONTENT[status];
-  const StatusIcon = statusContent.icon;
-  const rewardAmounts = typeof rewardAmount === 'number' ? [rewardAmount] : rewardAmount;
-  const rewardLabel = rewardAmounts.length === 1
-    ? rewardAmounts.map((amount) => `+${formatCurrency(amount)}`).join('')
-    : `${[...rewardAmounts]
-      .sort((left, right) => left - right)
-      .map((amount) => `+${formatCurrencyAmount(amount)}`)
-      .join(' / ')} ${CURRENCY_UNIT_LABEL}`;
+  const isAutomatic = verificationMode === 'automatic';
+  const statusContent = isAutomatic ? STATUS_CONTENT[status] : null;
+  const rewardLabel = formatMissionReward(rewardAmount);
+  const missionContext = isAutomatic
+    ? `상태: ${statusContent.label}.`
+    : '선생님이 직접 확인하는 미션.';
+  const actionAriaLabel = description
+    ? `${title}. ${missionContext} 보상 ${rewardLabel}. ${description}. ${actionLabel}`
+    : `${title}. ${missionContext} 보상 ${rewardLabel}. ${actionLabel}`;
+  const isInteractive = Boolean(destinationUrl || onAction);
+  const statusClassName = isAutomatic ? ` student-mission-card-${status}` : ' student-mission-card-manual';
 
   return (
-    <article className={`student-mission-card student-mission-card-${status}`}>
-      <div className="student-mission-card-topline">
-        <span className="student-mission-status">
-          <StatusIcon className={status === 'loading' ? 'student-spin' : ''} size={18} aria-hidden="true" />
-          {statusContent.label}
-        </span>
-        <span className="student-mission-reward">
-          {rewardLabel}
-        </span>
-      </div>
-      <div className="student-mission-copy">
+    <article className={`student-mission-card${statusClassName}${isInteractive ? ' is-interactive' : ' is-disabled'}`}>
+      <div className="student-mission-illustration-placeholder" aria-hidden="true">
+        <span>4:3 일러스트 영역</span>
         <h3>{title}</h3>
-        {description ? <p>{description}</p> : null}
-        {status === 'completed' ? <span className="student-mission-awarded">보상 지급 완료</span> : null}
-      </div>
-      {onAction && secondaryActionLabel && onSecondaryAction ? (
-        <div className="student-mission-actions">
-          <button type="button" className="student-mission-action" onClick={onAction}>
-            {actionLabel}
-          </button>
-          <button type="button" className="student-mission-action is-secondary" onClick={onSecondaryAction}>
-            {secondaryActionLabel}
-          </button>
+        <div className="student-mission-card-meta">
+          {isAutomatic ? <StudentMissionStatusFace status={status} /> : <StudentMissionTeacherFace />}
+          <span className="student-mission-reward">
+            {rewardLabel}
+          </span>
         </div>
-      ) : destinationUrl ? (
+      </div>
+      {isAutomatic && status === 'completed' ? <span className="sr-only">보상 지급 완료</span> : null}
+      {destinationUrl ? (
         <a
-          className="student-mission-action"
+          className="student-mission-card-action"
           href={destinationUrl}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`${actionLabel}, 외부 사이트가 새 탭에서 열림`}
-        >
-          <span>{actionLabel}</span>
-          <ExternalLink size={18} aria-hidden="true" />
-        </a>
+          aria-label={`${actionAriaLabel}, 외부 사이트가 새 탭에서 열림`}
+        />
       ) : onAction ? (
-        <button type="button" className="student-mission-action" onClick={onAction}>
-          {actionLabel}
-        </button>
+        <button type="button" className="student-mission-card-action" onClick={onAction} aria-label={actionAriaLabel} />
       ) : (
-        <button type="button" className="student-mission-action" disabled>
-          {actionLabel}
-        </button>
+        <button type="button" className="student-mission-card-action" aria-label={actionAriaLabel} disabled />
       )}
     </article>
   );

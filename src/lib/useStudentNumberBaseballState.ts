@@ -10,7 +10,6 @@ import {
 import {
   createNumberBaseballAnswer,
   createNumberBaseballProgressEntry,
-  getLatestResumableNumberBaseballGame,
   getNumberBaseballGameId,
   getNumberBaseballProgressKey,
   getNumberBaseballStatus,
@@ -21,8 +20,8 @@ import {
   type StudentNumberBaseballProgress,
 } from './numberBaseball';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
-import { getKoreanDateKey } from './sudoku';
 import { isSupabaseSettingsEnabled, updateSharedSettings } from './supabaseSettings';
+import { getKoreanIsoWeekKey } from './weeklyMission';
 
 type UseStudentNumberBaseballStateOptions = {
   readonly studentNumber: number;
@@ -40,19 +39,13 @@ export const useStudentNumberBaseballState = ({
   const [progress, setProgress] = useState<StudentNumberBaseballProgress>(() => (
     isSupabaseSettingsEnabled ? {} : loadStoredStudentNumberBaseballProgress()
   ));
-  const todayDateKey = getKoreanDateKey();
-  const [dateKey, setDateKey] = useState(todayDateKey);
+  const weekKey = getKoreanIsoWeekKey();
   const saveQueueRef = useRef(Promise.resolve(true));
-  const progressKey = getNumberBaseballProgressKey(studentNumber, dateKey);
-  const gameId = getNumberBaseballGameId(studentNumber, dateKey);
+  const progressKey = getNumberBaseballProgressKey(studentNumber, weekKey);
+  const gameId = getNumberBaseballGameId(studentNumber, weekKey);
   const progressEntry = progress[progressKey] ?? null;
-  const answer = useMemo(() => createNumberBaseballAnswer(studentNumber, dateKey), [dateKey, studentNumber]);
+  const answer = useMemo(() => createNumberBaseballAnswer(studentNumber, weekKey), [studentNumber, weekKey]);
   const status = progressEntry === null ? 'incomplete' : getNumberBaseballStatus(progressEntry, answer);
-  const resumableGame = useMemo(() => getLatestResumableNumberBaseballGame(
-    progress,
-    studentNumber,
-    todayDateKey,
-  ), [progress, studentNumber, todayDateKey]);
   const hasReward = useMemo(() => hasNumberBaseballReward(
     currencyHistory,
     studentNumber,
@@ -94,18 +87,9 @@ export const useStudentNumberBaseballState = ({
   ), [progressKey, saveProgressAtKey]);
 
   const startGame = useCallback(async () => {
-    const todayProgressKey = getNumberBaseballProgressKey(studentNumber, todayDateKey);
-    const todayGameId = getNumberBaseballGameId(studentNumber, todayDateKey);
-    setDateKey(todayDateKey);
-    if (progress[todayProgressKey]?.gameId === todayGameId) return true;
-    return saveProgressAtKey(todayProgressKey, createNumberBaseballProgressEntry(todayGameId));
-  }, [progress, saveProgressAtKey, studentNumber, todayDateKey]);
-
-  const continuePreviousGame = useCallback(() => {
-    if (!resumableGame) return false;
-    setDateKey(resumableGame.dateKey);
-    return true;
-  }, [resumableGame]);
+    if (progress[progressKey]?.gameId === gameId) return true;
+    return saveProgressAtKey(progressKey, createNumberBaseballProgressEntry(gameId));
+  }, [gameId, progress, progressKey, saveProgressAtKey]);
 
   const completeGame = useCallback((entry: NumberBaseballProgressEntry, rewardAmount: number) => {
     saveQueueRef.current = saveQueueRef.current.then(async () => {
@@ -189,11 +173,9 @@ export const useStudentNumberBaseballState = ({
     progressEntry,
     status,
     hasReward,
-    dateKey,
+    weekKey,
     gameId,
-    hasResumableGame: resumableGame !== null,
     startGame,
-    continuePreviousGame,
     saveProgress,
     completeGame,
     applySharedProgress,

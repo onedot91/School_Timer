@@ -18,7 +18,7 @@ import { StudentNumberBaseballHistory } from './StudentNumberBaseballHistory';
 
 type StudentNumberBaseballPageProps = {
   readonly studentNumber: number;
-  readonly dateKey: string;
+  readonly weekKey: string;
   readonly entry: NumberBaseballProgressEntry;
   readonly hasReward: boolean;
   readonly onSave: (entry: NumberBaseballProgressEntry) => Promise<boolean>;
@@ -33,7 +33,7 @@ const formatNumberBaseballResult = (result: ReturnType<typeof evaluateNumberBase
 
 export default function StudentNumberBaseballPage({
   studentNumber,
-  dateKey,
+  weekKey,
   entry,
   hasReward,
   onSave,
@@ -41,7 +41,7 @@ export default function StudentNumberBaseballPage({
   onBack,
 }: StudentNumberBaseballPageProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
-  const answer = useMemo(() => createNumberBaseballAnswer(studentNumber, dateKey), [dateKey, studentNumber]);
+  const answer = useMemo(() => createNumberBaseballAnswer(studentNumber, weekKey), [studentNumber, weekKey]);
   const status = getNumberBaseballStatus(entry, answer);
   const [selectedDigits, setSelectedDigits] = useState<readonly number[]>([]);
   const [feedback, setFeedback] = useState(NUMBER_BASEBALL_DEFAULT_FEEDBACK);
@@ -110,7 +110,7 @@ export default function StudentNumberBaseballPage({
       if (celebrationTimeoutRef.current !== null) window.clearTimeout(celebrationTimeoutRef.current);
       celebrationTimeoutRef.current = window.setTimeout(() => setIsCelebrating(false), 760);
     } else if (nextEntry.attempts.length >= NUMBER_BASEBALL_MAX_ATTEMPTS) {
-      setFeedback('오늘의 기회를 모두 사용했어요. 내일 다시 도전해요.');
+      setFeedback('이번 주 기회를 모두 사용했어요. 다음 주에 다시 도전해요.');
     } else {
       setFeedback(formatNumberBaseballResult(result));
     }
@@ -141,7 +141,7 @@ export default function StudentNumberBaseballPage({
         actions={<strong className="student-baseball-attempts">남은 기회 {remainingAttempts}/9</strong>}
       />
       <main className="student-baseball-main" onKeyDown={handleKeyDown}>
-        <section className="student-baseball-panel" aria-label="3자리 숫자야구 미션">
+        <section className="student-baseball-panel" aria-label="숫자 야구 미션">
           <div className="student-baseball-play">
             <div className="student-baseball-guide">
               <strong>서로 다른 숫자 3개를 맞혀 보세요</strong>
@@ -151,8 +151,8 @@ export default function StudentNumberBaseballPage({
               <div className={`student-baseball-finish is-${status}`} role="status">
                 {status === 'completed' ? <Sparkles aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
                 <div>
-                  <strong>{status === 'completed' ? '정답을 맞혔어요!' : '오늘의 기회를 모두 썼어요'}</strong>
-                  <span>정답은 <b>{answer.join('')}</b>{status === 'completed' && solvedReward ? ` · +${solvedReward} 고마` : ' · 내일 다시 도전해요'}</span>
+                  <strong>{status === 'completed' ? '정답을 맞혔어요!' : '이번 주 기회를 모두 썼어요'}</strong>
+                  <span>정답은 <b>{answer.join('')}</b>{status === 'completed' && solvedReward ? ` · +${solvedReward} 고마` : ' · 다음 주에 다시 도전해요'}</span>
                 </div>
               </div>
             ) : (

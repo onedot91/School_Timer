@@ -128,6 +128,11 @@ export const getSudokuPuzzleId = (
   difficulty: SudokuDifficulty,
 ) => `sudoku-v2-${studentNumber}-${dateKey}-${difficulty}`;
 
+export const getSudokuWeeklyMissionId = (
+  studentNumber: number,
+  weekKey: string,
+) => `sudoku-weekly-${studentNumber}-${weekKey}`;
+
 export const getActiveSudokuDifficulty = (
   progress: StudentSudokuProgress,
   studentNumber: number,
@@ -274,7 +279,7 @@ export const isSudokuSolved = (puzzle: SudokuPuzzle, cells: readonly number[]) =
 export const normalizeStudentSudokuProgress = (value: unknown): StudentSudokuProgress => {
   if (!isRecord(value)) return {};
   return Object.entries(value).reduce<StudentSudokuProgress>((progress, [key, rawEntry]) => {
-    if (!/^(?:[1-9]|1\d|2[0-3]):\d{4}-\d{2}-\d{2}:(?:basic|challenge)$/.test(key) || !isRecord(rawEntry)) {
+    if (!/^(?:[1-9]|1\d|2[0-3]):\d{4}-(?:\d{2}-\d{2}|\d{2}):(?:basic|challenge)$/.test(key) || !isRecord(rawEntry)) {
       return progress;
     }
     const difficulty = key.endsWith(':basic') ? 'basic' : 'challenge';

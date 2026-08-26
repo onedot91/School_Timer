@@ -15,7 +15,11 @@ import {
 } from '../../lib/weeklyMission';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentHeader from './StudentHeader';
-import StudentMissionCard, { type StudentMissionStatus } from './StudentMissionCard';
+import StudentMissionCard, {
+  StudentMissionStatusFace,
+  StudentMissionTeacherFace,
+  type StudentMissionStatus,
+} from './StudentMissionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import { DAILY_WRITING_REWARD } from '../../lib/dailyWriting';
 
@@ -32,16 +36,14 @@ interface StudentMissionsPageProps {
   isDailyEmotionMissionCompleted: boolean;
   hasDailyWritingMission: boolean;
   isDailyWritingMissionCompleted: boolean;
-  isSudokuMissionCompleted: boolean;
+  isWeeklySudokuMissionCompleted: boolean;
   activeSudokuDifficulty: SudokuDifficulty | null;
   completedSudokuDifficulty: SudokuDifficulty | null;
   numberBaseballStatus: NumberBaseballStatus;
-  hasResumableNumberBaseballGame: boolean;
   onOpenEmotions: () => void;
   onOpenMailbox: () => void;
   onOpenSudoku: (difficulty: SudokuDifficulty) => void;
   onOpenNumberBaseball: () => void;
-  onContinueNumberBaseball: () => void;
   onBack: () => void;
 }
 
@@ -63,25 +65,26 @@ export default function StudentMissionsPage({
   isDailyEmotionMissionCompleted,
   hasDailyWritingMission,
   isDailyWritingMissionCompleted,
-  isSudokuMissionCompleted,
+  isWeeklySudokuMissionCompleted,
   activeSudokuDifficulty,
   completedSudokuDifficulty,
   numberBaseballStatus,
-  hasResumableNumberBaseballGame,
   onOpenEmotions,
   onOpenMailbox,
   onOpenSudoku,
   onOpenNumberBaseball,
-  onContinueNumberBaseball,
   onBack,
 }: StudentMissionsPageProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const [isSudokuSettingsOpen, setIsSudokuSettingsOpen] = useState(false);
   const sudokuSettingsDialogRef = useRef<HTMLElement>(null);
   const sudokuSettingsTriggerRef = useRef<HTMLElement>(null);
-  const completedWeeklyMissionCount = WEEKLY_MISSION_DEFINITIONS.filter(
+  const completedExternalWeeklyMissionCount = WEEKLY_MISSION_DEFINITIONS.filter(
     (mission) => weeklyMissionStatuses[mission.type] === 'completed',
   ).length;
+  const completedWeeklyMissionCount = completedExternalWeeklyMissionCount
+    + (isWeeklySudokuMissionCompleted ? 1 : 0)
+    + (numberBaseballStatus === 'completed' ? 1 : 0);
   const getPresentedStatus = (status: WeeklyMissionStatuses[keyof WeeklyMissionStatuses]): StudentMissionStatus => {
     if (hasSyncError && status !== 'completed') return 'error';
     return status;
@@ -109,6 +112,30 @@ export default function StudentMissionsPage({
       <StudentHeader
         title="미션"
         onBack={onBack}
+        status={(
+          <span className="student-mission-status-legend" aria-label="미션 상태 안내" role="group">
+            <span className="student-mission-status-legend-item" data-status="incomplete">
+              <StudentMissionStatusFace status="incomplete" compact />
+              진행 전
+            </span>
+            <span className="student-mission-status-legend-item" data-status="inProgress">
+              <StudentMissionStatusFace status="inProgress" compact />
+              진행 중
+            </span>
+            <span className="student-mission-status-legend-item" data-status="completed">
+              <StudentMissionStatusFace status="completed" compact />
+              완료
+            </span>
+            <span className="student-mission-status-legend-item" data-status="attention">
+              <StudentMissionStatusFace status="error" compact />
+              오류 발생
+            </span>
+            <span className="student-mission-status-legend-item is-teacher">
+              <StudentMissionTeacherFace compact />
+              선생님 확인 필요
+            </span>
+          </span>
+        )}
         actions={(
           <StudentBalanceSummary
             studentNumber={studentNumber}
@@ -125,29 +152,61 @@ export default function StudentMissionsPage({
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
           <div className="student-group-heading">
             <h2 id="daily-mission-title">일일 미션</h2>
-            <strong>{auctionMissions.length + 3 + (hasDailyWritingMission ? 1 : 0)}개</strong>
+            <strong>{auctionMissions.length + 2}개</strong>
           </div>
           <div className="student-mission-grid">
-            <motion.div {...missionEntrance(0)}>
+            {auctionMissions.map((mission, index) => (
+              <motion.div key={mission.id} {...missionEntrance(index)}>
+                <StudentMissionCard
+                  title={mission.content}
+                  rewardAmount={mission.rewardAmount}
+                  verificationMode="manual"
+                  actionLabel="교실에서 수행"
+                />
+              </motion.div>
+            ))}
+            <motion.div {...missionEntrance(auctionMissions.length)}>
               <StudentMissionCard
                 title="감정 구슬 넣기"
                 rewardAmount={5}
+                verificationMode="automatic"
                 status={isDailyEmotionMissionCompleted ? 'completed' : 'incomplete'}
                 actionLabel={isDailyEmotionMissionCompleted ? '감정 다시 고르기' : '감정 고르기'}
                 onAction={onOpenEmotions}
               />
             </motion.div>
-            <motion.div {...missionEntrance(1)}>
+            <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 1)}>
+              <StudentMissionCard
+                title="글밥짓기"
+                rewardAmount={DAILY_WRITING_REWARD}
+                verificationMode="manual"
+                actionLabel={hasDailyWritingMission
+                  ? isDailyWritingMissionCompleted ? '편지 다시 보기' : '글밥 편지 확인'
+                  : '아직 미션 없음'}
+                onAction={hasDailyWritingMission ? onOpenMailbox : undefined}
+              />
+            </motion.div>
+          </div>
+        </section>
+
+        <section className="student-mission-group" aria-labelledby="weekly-mission-title">
+          <div className="student-group-heading">
+            <h2 id="weekly-mission-title">주간 미션</h2>
+            <strong>{completedWeeklyMissionCount}/{WEEKLY_MISSION_DEFINITIONS.length + 2} 완료</strong>
+          </div>
+          <div className="student-mission-grid">
+            <motion.div {...missionEntrance(auctionMissions.length + 2)}>
               <StudentMissionCard
                 title="스도쿠"
                 description={activeSudokuDifficulty
                   ? `${DIFFICULTY_LABELS[activeSudokuDifficulty]} 문제를 풀고 있어요.`
-                  : isSudokuMissionCompleted
-                    ? '오늘 푼 문제를 다시 확인할 수 있어요.'
+                  : isWeeklySudokuMissionCompleted
+                    ? '이번 주에 푼 문제를 다시 확인할 수 있어요.'
                     : undefined}
                 rewardAmount={[SUDOKU_REWARDS.basic, SUDOKU_REWARDS.challenge]}
-                status={activeSudokuDifficulty ? 'inProgress' : isSudokuMissionCompleted ? 'completed' : 'incomplete'}
-                actionLabel={activeSudokuDifficulty ? '이어 풀기' : isSudokuMissionCompleted ? '다시 보기' : '문제 풀기'}
+                verificationMode="automatic"
+                status={activeSudokuDifficulty ? 'inProgress' : isWeeklySudokuMissionCompleted ? 'completed' : 'incomplete'}
+                actionLabel={activeSudokuDifficulty ? '이어 풀기' : isWeeklySudokuMissionCompleted ? '다시 보기' : '문제 풀기'}
                 onAction={() => {
                   if (sudokuDifficultyToOpen) {
                     onOpenSudoku(sudokuDifficultyToOpen);
@@ -160,67 +219,33 @@ export default function StudentMissionsPage({
                 }}
               />
             </motion.div>
-            <motion.div className="student-number-baseball-mission" {...missionEntrance(2)}>
+            <motion.div className="student-number-baseball-mission" {...missionEntrance(auctionMissions.length + 3)}>
               <StudentMissionCard
-                title="3자리 숫자야구"
-                description={hasResumableNumberBaseballGame
-                  ? undefined
-                  : numberBaseballStatus === 'completed'
-                  ? '오늘의 정답과 기록을 다시 볼 수 있어요.'
+                title="숫자 야구"
+                description={numberBaseballStatus === 'completed'
+                  ? '이번 주의 정답과 기록을 다시 볼 수 있어요.'
                   : numberBaseballStatus === 'exhausted'
-                    ? '오늘의 기회를 모두 사용했어요.'
+                    ? '이번 주의 기회를 모두 사용했어요.'
                     : numberBaseballStatus === 'inProgress'
-                      ? '오늘의 숫자를 맞히고 있어요.'
+                      ? '이번 주의 숫자를 맞히고 있어요.'
                       : undefined}
                 rewardAmount={NUMBER_BASEBALL_REWARDS}
-                status={hasResumableNumberBaseballGame ? 'inProgress' : numberBaseballStatus}
-                actionLabel={hasResumableNumberBaseballGame
-                  ? '이어하기'
-                  : numberBaseballStatus === 'incomplete'
+                verificationMode="automatic"
+                status={numberBaseballStatus}
+                actionLabel={numberBaseballStatus === 'incomplete'
                   ? '게임 시작'
                   : numberBaseballStatus === 'inProgress'
                     ? '이어 하기'
                     : '결과 보기'}
-                onAction={hasResumableNumberBaseballGame ? onContinueNumberBaseball : onOpenNumberBaseball}
-                secondaryActionLabel={hasResumableNumberBaseballGame ? '처음부터' : undefined}
-                onSecondaryAction={hasResumableNumberBaseballGame ? onOpenNumberBaseball : undefined}
+                onAction={onOpenNumberBaseball}
               />
             </motion.div>
-            {hasDailyWritingMission ? (
-              <motion.div className="student-writing-mission" {...missionEntrance(3)}>
-                <StudentMissionCard
-                  title="글밥짓기"
-                  rewardAmount={DAILY_WRITING_REWARD}
-                  status={isDailyWritingMissionCompleted ? 'completed' : 'inProgress'}
-                  actionLabel={isDailyWritingMissionCompleted ? '편지 다시 보기' : '글밥 편지 확인'}
-                  onAction={onOpenMailbox}
-                />
-              </motion.div>
-            ) : null}
-            {auctionMissions.map((mission, index) => (
-              <motion.div key={mission.id} {...missionEntrance(index + 3 + (hasDailyWritingMission ? 1 : 0))}>
-                <StudentMissionCard
-                  title={mission.content}
-                  rewardAmount={mission.rewardAmount}
-                  status="incomplete"
-                  actionLabel="교실에서 수행"
-                />
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        <section className="student-mission-group" aria-labelledby="weekly-mission-title">
-          <div className="student-group-heading">
-            <h2 id="weekly-mission-title">주간 미션</h2>
-            <strong>{completedWeeklyMissionCount}/{WEEKLY_MISSION_DEFINITIONS.length} 완료</strong>
-          </div>
-          <div className="student-mission-grid">
             {WEEKLY_MISSION_DEFINITIONS.map((mission, index) => (
-              <motion.div key={mission.type} {...missionEntrance(index + auctionMissions.length + 3)}>
+              <motion.div key={mission.type} {...missionEntrance(index + auctionMissions.length + 4)}>
                 <StudentMissionCard
                   title={mission.label}
                   rewardAmount={mission.rewardAmount}
+                  verificationMode="automatic"
                   status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
                   destinationUrl={mission.destinationUrl}
                   actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
@@ -263,7 +288,7 @@ export default function StudentMissionsPage({
             >
               <X aria-hidden="true" />
             </button>
-            <span className="student-confirm-dialog-kicker">오늘의 스도쿠</span>
+            <span className="student-confirm-dialog-kicker">이번 주 스도쿠</span>
             <h2 id="student-sudoku-settings-title">난이도를 골라 주세요</h2>
             <p id="student-sudoku-settings-description">한 번 시작하면 다 풀 때까지 바꿀 수 없어요.</p>
             <div className="student-sudoku-settings-options" aria-label="난이도 선택">

@@ -178,7 +178,7 @@ export const appendNumberBaseballAttempt = (
 export const normalizeStudentNumberBaseballProgress = (value: unknown): StudentNumberBaseballProgress => {
   if (!isRecord(value)) return {};
   return Object.entries(value).reduce<StudentNumberBaseballProgress>((progress, [key, rawEntry]) => {
-    const match = /^(\d{1,2}):(\d{4}-\d{2}-\d{2})$/.exec(key);
+    const match = /^(\d{1,2}):(\d{4}-(?:\d{2}-\d{2}|\d{2}))$/.exec(key);
     if (!match || !isRecord(rawEntry)) return progress;
     const studentNumber = Number(match[1]);
     const dateKey = match[2] ?? '';

@@ -6,7 +6,7 @@ interface StudentHeaderProps {
   onBack: () => void;
   backLabel?: string;
   backText?: string;
-  status?: string;
+  status?: ReactNode;
   actions?: ReactNode;
 }
 

@@ -258,8 +258,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const {
     studentSudokuProgress,
-    rewardedSudokuPuzzleIds,
-    hasCompletedDailySudokuMission,
+    hasCompletedWeeklySudokuMission,
     activeSudokuDifficulty,
     completedSudokuDifficulty,
     saveSudokuProgress,
@@ -277,11 +276,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     progressEntry: numberBaseballEntry,
     status: numberBaseballStatus,
     hasReward: hasNumberBaseballReward,
-    dateKey: numberBaseballDateKey,
+    weekKey: numberBaseballWeekKey,
     gameId: numberBaseballGameId,
-    hasResumableGame: hasResumableNumberBaseballGame,
     startGame: startNumberBaseball,
-    continuePreviousGame: continuePreviousNumberBaseball,
     saveProgress: saveNumberBaseballProgress,
     completeGame: completeNumberBaseball,
     applySharedProgress: applySharedNumberBaseball,
@@ -1639,11 +1636,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             isDailyEmotionMissionCompleted={hasCompletedDailyEmotionMission}
             hasDailyWritingMission={hasCurrentDailyWritingMission}
             isDailyWritingMissionCompleted={hasCompletedDailyWritingMission}
-            isSudokuMissionCompleted={hasCompletedDailySudokuMission}
+            isWeeklySudokuMissionCompleted={hasCompletedWeeklySudokuMission}
             activeSudokuDifficulty={activeSudokuDifficulty}
             completedSudokuDifficulty={completedSudokuDifficulty}
             numberBaseballStatus={numberBaseballStatus}
-            hasResumableNumberBaseballGame={hasResumableNumberBaseballGame}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMailbox={() => navigateStudentView('mailbox')}
             onOpenSudoku={async (difficulty) => {
@@ -1663,13 +1659,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               }
               navigateStudentView('number-baseball');
             }}
-            onContinueNumberBaseball={() => {
-              if (!continuePreviousNumberBaseball()) {
-                showStatusMessage('이어 할 숫자야구 기록을 찾지 못했습니다.');
-                return;
-              }
-              navigateStudentView('number-baseball');
-            }}
             onBack={() => navigateStudentView('overview')}
           />
         ) : null}
@@ -1678,7 +1667,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             studentNumber={studentNumber}
             difficulty={sudokuDifficulty}
             progress={studentSudokuProgress}
-            rewardedPuzzleIds={rewardedSudokuPuzzleIds}
+            hasReward={hasCompletedWeeklySudokuMission}
             onSave={saveSudokuProgress}
             onComplete={completeSudoku}
             onBack={() => navigateStudentView('missions')}
@@ -1687,7 +1676,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         {activeStudentView === 'number-baseball' ? (
           <StudentNumberBaseballPage
             studentNumber={studentNumber}
-            dateKey={numberBaseballDateKey}
+            weekKey={numberBaseballWeekKey}
             entry={numberBaseballEntry ?? createNumberBaseballProgressEntry(numberBaseballGameId)}
             hasReward={hasNumberBaseballReward}
             onSave={saveNumberBaseballProgress}

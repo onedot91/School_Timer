@@ -10,21 +10,21 @@ import {
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
 import { isSupabaseSettingsEnabled, updateSharedSettings } from './supabaseSettings';
 import {
-  SUDOKU_DIFFICULTIES,
   SUDOKU_REWARDS,
   createSudokuPuzzle,
   getActiveSudokuDifficulty,
   getCompletedSudokuDifficulty,
-  getKoreanDateKey,
   getStudentSudokuProgressFromSettings,
   getSudokuPuzzleId,
   getSudokuProgressKey,
+  getSudokuWeeklyMissionId,
   loadStoredStudentSudokuProgress,
   storeStudentSudokuProgress,
   type StudentSudokuProgress,
   type SudokuDifficulty,
   type SudokuProgressEntry,
 } from './sudoku';
+import { getKoreanIsoWeekKey } from './weeklyMission';
 
 type UseStudentSudokuStateOptions = {
   readonly studentNumber: number;
@@ -43,28 +43,23 @@ export const useStudentSudokuState = ({
     isSupabaseSettingsEnabled ? {} : loadStoredStudentSudokuProgress()
   ));
   const saveQueueRef = useRef(Promise.resolve(true));
-  const studentKey = String(studentNumber);
-  const rewardedSudokuPuzzleIds = useMemo(() => new Set(
-    (currencyHistory[studentKey] ?? [])
-      .filter((entry) => entry.reason === 'sudoku_mission' && entry.id.startsWith('sudoku-reward-'))
-      .map((entry) => entry.id.slice('sudoku-reward-'.length)),
-  ), [currencyHistory, studentKey]);
-  const koreanDateKey = getKoreanDateKey();
-  const hasCompletedDailySudokuMission = SUDOKU_DIFFICULTIES.some((difficulty) => hasSudokuReward(
+  const koreanWeekKey = getKoreanIsoWeekKey();
+  const weeklyMissionId = getSudokuWeeklyMissionId(studentNumber, koreanWeekKey);
+  const hasCompletedWeeklySudokuMission = hasSudokuReward(
     currencyHistory,
     studentNumber,
-    getSudokuPuzzleId(studentNumber, koreanDateKey, difficulty),
-  ));
+    weeklyMissionId,
+  );
   const activeSudokuDifficulty = useMemo(() => getActiveSudokuDifficulty(
     studentSudokuProgress,
     studentNumber,
-    koreanDateKey,
-  ), [koreanDateKey, studentNumber, studentSudokuProgress]);
+    koreanWeekKey,
+  ), [koreanWeekKey, studentNumber, studentSudokuProgress]);
   const completedSudokuDifficulty = useMemo(() => getCompletedSudokuDifficulty(
     studentSudokuProgress,
     studentNumber,
-    koreanDateKey,
-  ), [koreanDateKey, studentNumber, studentSudokuProgress]);
+    koreanWeekKey,
+  ), [koreanWeekKey, studentNumber, studentSudokuProgress]);
 
   const saveSudokuProgress = useCallback((key: string, entry: SudokuProgressEntry) => {
     setStudentSudokuProgress((current) => ({ ...current, [key]: entry }));
@@ -94,10 +89,10 @@ export const useStudentSudokuState = ({
   }, []);
 
   const startSudoku = useCallback(async (difficulty: SudokuDifficulty) => {
-    const activeDifficulty = getActiveSudokuDifficulty(studentSudokuProgress, studentNumber, koreanDateKey);
+    const activeDifficulty = getActiveSudokuDifficulty(studentSudokuProgress, studentNumber, koreanWeekKey);
     if (activeDifficulty) return activeDifficulty;
-    const puzzle = createSudokuPuzzle(studentNumber, koreanDateKey, difficulty);
-    const key = getSudokuProgressKey(studentNumber, koreanDateKey, difficulty);
+    const puzzle = createSudokuPuzzle(studentNumber, koreanWeekKey, difficulty);
+    const key = getSudokuProgressKey(studentNumber, koreanWeekKey, difficulty);
     const existingEntry = studentSudokuProgress[key];
     if (existingEntry?.puzzleId === puzzle.id && existingEntry.completedAt !== null) return difficulty;
     const saved = await saveSudokuProgress(key, {
@@ -106,7 +101,7 @@ export const useStudentSudokuState = ({
       completedAt: null,
     });
     return saved ? difficulty : null;
-  }, [koreanDateKey, saveSudokuProgress, studentNumber, studentSudokuProgress]);
+  }, [koreanWeekKey, saveSudokuProgress, studentNumber, studentSudokuProgress]);
 
   const completeSudoku = useCallback((
     key: string,
@@ -125,14 +120,14 @@ export const useStudentSudokuState = ({
             const reward = claimSudokuRewardInSettings(
               currentValue,
               studentNumber,
-              entry.puzzleId,
+              weeklyMissionId,
               SUDOKU_REWARDS[difficulty],
               completedAt,
             );
             completionSaved = reward.awarded || hasSudokuReward(
               reward.value.currencyHistory,
               studentNumber,
-              entry.puzzleId,
+              weeklyMissionId,
             );
             savedBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
             savedHistory = reward.history;
@@ -149,14 +144,14 @@ export const useStudentSudokuState = ({
           const reward = claimSudokuRewardInSettings(
             snapshot,
             studentNumber,
-            entry.puzzleId,
+            weeklyMissionId,
             SUDOKU_REWARDS[difficulty],
             completedAt,
           );
           completionSaved = reward.awarded || hasSudokuReward(
             reward.value.currencyHistory,
             studentNumber,
-            entry.puzzleId,
+            weeklyMissionId,
           );
           if (!completionSaved) return false;
           savedBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
@@ -183,7 +178,7 @@ export const useStudentSudokuState = ({
       }
     });
     return saveQueueRef.current;
-  }, [onCurrencyBalancesChange, onCurrencyHistoryChange, studentNumber]);
+  }, [onCurrencyBalancesChange, onCurrencyHistoryChange, studentNumber, weeklyMissionId]);
 
   const applySharedStudentSudoku = useCallback((value: unknown) => {
     setStudentSudokuProgress(getStudentSudokuProgressFromSettings(value));
@@ -195,8 +190,7 @@ export const useStudentSudokuState = ({
 
   return {
     studentSudokuProgress,
-    rewardedSudokuPuzzleIds,
-    hasCompletedDailySudokuMission,
+    hasCompletedWeeklySudokuMission,
     activeSudokuDifficulty,
     completedSudokuDifficulty,
     saveSudokuProgress,
