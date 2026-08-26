@@ -29,6 +29,7 @@ const STUDENT_SHARED_FIELDS = [
   'auctionBidHistory',
   'auctionAwards',
   'auctionMissions',
+  'classroomRoleMission',
   'classDonation',
   'studentShopCatalog',
   'studentStockMarket',

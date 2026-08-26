@@ -17375,6 +17375,13 @@ a[href]:active {
   letter-spacing: 0.02em;
 }
 
+.student-mission-card-copy {
+  display: grid;
+  max-width: 88%;
+  gap: 0.45rem;
+  text-align: center;
+}
+
 .student-mission-illustration-placeholder h3 {
   max-width: 88%;
   margin: 0;
@@ -17383,6 +17390,15 @@ a[href]:active {
   font-weight: 900;
   line-height: 1.15;
   text-align: center;
+  word-break: keep-all;
+}
+
+.student-mission-card-copy p {
+  margin: 0;
+  color: var(--apple-text-secondary);
+  font-size: var(--student-readable-text-min);
+  font-weight: 800;
+  line-height: 1.35;
   word-break: keep-all;
 }
 
@@ -17440,6 +17456,11 @@ a[href]:active {
 .student-mission-card.is-disabled .student-mission-illustration-placeholder > h3 {
   filter: grayscale(0.72);
   opacity: 0.58;
+}
+
+.student-mission-card.is-disabled .student-mission-card-copy p {
+  filter: grayscale(0.72);
+  opacity: 0.7;
 }
 
 .student-mission-card-action:disabled {
@@ -17960,84 +17981,108 @@ a[href]:active {
 .student-action-progress {
   position: fixed;
   z-index: 160;
-  top: max(.5rem, env(safe-area-inset-top));
-  left: 50%;
+  inset: 0;
   display: grid;
-  width: min(22rem, calc(100vw - 2rem));
-  min-height: 2.25rem;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: .65rem;
-  border: 1px solid color-mix(in srgb, var(--apple-accent) 24%, var(--apple-separator));
-  border-radius: var(--apple-radius-pill);
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: var(--apple-scrim);
+  pointer-events: auto;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  animation: studentActionLoadingBackdrop var(--student-motion-state) var(--student-ease-out) both;
+}
+
+.student-action-progress-card {
+  display: grid;
+  min-width: 12rem;
+  min-height: 10rem;
+  place-items: center;
+  align-content: center;
+  gap: 1rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 20%, var(--apple-separator));
+  border-radius: var(--apple-radius-panel);
   background: var(--apple-material-thick);
-  padding: .4rem .7rem;
+  padding: 1.5rem;
   color: var(--apple-accent-pressed);
-  box-shadow: var(--apple-shadow-2);
-  transform: translateX(-50%);
-  pointer-events: none;
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
-  backdrop-filter: blur(18px) saturate(1.1);
+  box-shadow: var(--apple-shadow-3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.12);
+  backdrop-filter: blur(28px) saturate(1.12);
+  animation: studentActionLoadingCard var(--student-motion-state) var(--student-ease-out) both;
 }
 
-.student-action-progress > span {
-  font-size: var(--student-readable-text-min);
-  font-weight: 950;
-  white-space: nowrap;
+.student-action-progress-card > strong {
+  font-size: 1.125rem;
+  font-weight: 900;
+  line-height: 1.2;
 }
 
-.student-action-progress-track {
-  height: .38rem;
-  overflow: hidden;
-  border-radius: var(--apple-radius-pill);
-  background: color-mix(in srgb, var(--apple-accent) 14%, var(--apple-surface-muted));
-}
-
-.student-action-progress-fill {
+.student-action-progress-spinner {
   display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--apple-accent);
-  transform-origin: left center;
-  animation: studentActionProgress 1.05s var(--student-ease-in-out) infinite;
+  width: 4rem;
+  height: 4rem;
+  border: .5rem solid color-mix(in srgb, var(--apple-accent) 16%, var(--apple-surface-muted));
+  border-top-color: var(--apple-accent);
+  border-right-color: var(--apple-accent);
+  border-radius: 50%;
+  animation: studentActionLoadingSpinner .8s linear infinite;
 }
 
-@keyframes studentActionProgress {
-  0% { transform: translateX(-100%) scaleX(.28); }
-  50% { transform: translateX(24%) scaleX(.56); }
-  100% { transform: translateX(220%) scaleX(.28); }
+@keyframes studentActionLoadingBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes studentActionLoadingCard {
+  from { opacity: 0; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes studentActionLoadingSpinner {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes studentActionLoadingPulse {
+  50% { opacity: .42; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .student-action-progress-fill {
+  .student-action-progress,
+  .student-action-progress-card {
     animation: none;
-    transform: scaleX(1);
+  }
+
+  .student-action-progress-spinner {
+    animation: studentActionLoadingPulse 1.4s var(--student-ease-in-out) infinite;
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .student-action-progress {
-    background: var(--apple-surface);
+  .student-action-progress,
+  .student-action-progress-card {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+
+  .student-action-progress-card {
+    background: var(--apple-surface);
   }
 }
 
 @media (forced-colors: active) {
   .student-action-progress {
+    background: CanvasText;
+  }
+
+  .student-action-progress-card {
     border: 1px solid CanvasText;
     background: Canvas;
     color: CanvasText;
   }
 
-  .student-action-progress-track {
-    border: 1px solid CanvasText;
-    background: Canvas;
-  }
-
-  .student-action-progress-fill {
-    background: Highlight;
+  .student-action-progress-spinner {
+    border-color: CanvasText;
+    border-top-color: Highlight;
+    border-right-color: Highlight;
   }
 }
 

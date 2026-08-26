@@ -9,6 +9,7 @@ interface StudentMissionCardBaseProps {
   readonly destinationUrl?: string;
   readonly onAction?: () => void;
   readonly actionLabel: string;
+  readonly disabledAppearance?: boolean;
 }
 
 interface AutomaticStudentMissionCardProps extends StudentMissionCardBaseProps {
@@ -77,6 +78,7 @@ export default function StudentMissionCard({
   destinationUrl,
   onAction,
   actionLabel,
+  disabledAppearance,
 }: StudentMissionCardProps) {
   const isAutomatic = verificationMode === 'automatic';
   const statusContent = isAutomatic ? STATUS_CONTENT[status] : null;
@@ -88,13 +90,17 @@ export default function StudentMissionCard({
     ? `${title}. ${missionContext} 보상 ${rewardLabel}. ${description}. ${actionLabel}`
     : `${title}. ${missionContext} 보상 ${rewardLabel}. ${actionLabel}`;
   const isInteractive = Boolean(destinationUrl || onAction);
+  const isDisabledAppearance = disabledAppearance ?? !isInteractive;
   const statusClassName = isAutomatic ? ` student-mission-card-${status}` : ' student-mission-card-manual';
 
   return (
-    <article className={`student-mission-card${statusClassName}${isInteractive ? ' is-interactive' : ' is-disabled'}`}>
+    <article className={`student-mission-card${statusClassName}${isInteractive ? ' is-interactive' : ''}${isDisabledAppearance ? ' is-disabled' : ''}`}>
       <div className="student-mission-illustration-placeholder" aria-hidden="true">
         <span>4:3 일러스트 영역</span>
-        <h3>{title}</h3>
+        <div className="student-mission-card-copy">
+          <h3>{title}</h3>
+          {description ? <p>{description}</p> : null}
+        </div>
         <div className="student-mission-card-meta">
           {isAutomatic ? <StudentMissionStatusFace status={status} /> : <StudentMissionTeacherFace />}
           <span className="student-mission-reward">

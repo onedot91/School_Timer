@@ -22,6 +22,12 @@ import StudentMissionCard, {
 } from './StudentMissionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import { DAILY_WRITING_REWARD } from '../../lib/dailyWriting';
+import {
+  CLASSROOM_ROLE_MISSION_REWARD,
+  getStudentClassroomRole,
+  getTodayClassroomRoleDateKey,
+  type ClassroomRoleMissionSettings,
+} from '../../lib/classroomRoleMission';
 
 interface StudentMissionsPageProps {
   studentNumber: number;
@@ -31,6 +37,7 @@ interface StudentMissionsPageProps {
   reservedAmount: number;
   isLoading: boolean;
   auctionMissions: AuctionMission[];
+  classroomRoleMission: ClassroomRoleMissionSettings;
   weeklyMissionStatuses: WeeklyMissionStatuses;
   hasSyncError: boolean;
   isDailyEmotionMissionCompleted: boolean;
@@ -60,6 +67,7 @@ export default function StudentMissionsPage({
   reservedAmount,
   isLoading,
   auctionMissions,
+  classroomRoleMission,
   weeklyMissionStatuses,
   hasSyncError,
   isDailyEmotionMissionCompleted,
@@ -82,6 +90,12 @@ export default function StudentMissionsPage({
   const completedExternalWeeklyMissionCount = WEEKLY_MISSION_DEFINITIONS.filter(
     (mission) => weeklyMissionStatuses[mission.type] === 'completed',
   ).length;
+  const classroomRoleAssignment = getStudentClassroomRole(
+    classroomRoleMission,
+    studentNumber,
+    getTodayClassroomRoleDateKey(),
+  );
+  const classroomRoleResult = classroomRoleMission.results[getTodayClassroomRoleDateKey()]?.[String(studentNumber)];
   const completedWeeklyMissionCount = completedExternalWeeklyMissionCount
     + (isWeeklySudokuMissionCompleted ? 1 : 0)
     + (numberBaseballStatus === 'completed' ? 1 : 0);
@@ -152,7 +166,7 @@ export default function StudentMissionsPage({
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
           <div className="student-group-heading">
             <h2 id="daily-mission-title">일일 미션</h2>
-            <strong>{auctionMissions.length + 2}개</strong>
+            <strong>{auctionMissions.length + 3}개</strong>
           </div>
           <div className="student-mission-grid">
             {auctionMissions.map((mission, index) => (
@@ -167,6 +181,22 @@ export default function StudentMissionsPage({
             ))}
             <motion.div {...missionEntrance(auctionMissions.length)}>
               <StudentMissionCard
+                title="1인 1역"
+                description={classroomRoleAssignment
+                  ? `오늘 역할: ${classroomRoleAssignment.roleName}${classroomRoleResult === 'rewarded'
+                    ? ' (20고마 지급 완료)'
+                    : classroomRoleResult === 'penalized' ? ' (20고마 차감)' : ''}`
+                  : '오늘 역할 없음'}
+                rewardAmount={CLASSROOM_ROLE_MISSION_REWARD}
+                verificationMode="manual"
+                disabledAppearance={!classroomRoleAssignment}
+                actionLabel={classroomRoleAssignment
+                  ? `${classroomRoleAssignment.roleName} 역할 수행`
+                  : '오늘 역할 없음'}
+              />
+            </motion.div>
+            <motion.div {...missionEntrance(auctionMissions.length + 1)}>
+              <StudentMissionCard
                 title="감정 구슬 넣기"
                 rewardAmount={5}
                 verificationMode="automatic"
@@ -175,7 +205,7 @@ export default function StudentMissionsPage({
                 onAction={onOpenEmotions}
               />
             </motion.div>
-            <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 1)}>
+            <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 2)}>
               <StudentMissionCard
                 title="글밥짓기"
                 rewardAmount={DAILY_WRITING_REWARD}

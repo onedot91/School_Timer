@@ -6,10 +6,10 @@ export default function StudentActionProgress({ isActive }: StudentActionProgres
   if (!isActive) return null;
 
   return (
-    <div className="student-action-progress" role="status" aria-live="polite">
-      <span>처리 중</span>
-      <div className="student-action-progress-track" role="progressbar" aria-label="요청 처리 중">
-        <span className="student-action-progress-fill" />
+    <div className="student-action-progress" role="status" aria-live="polite" aria-label="요청 처리 중">
+      <div className="student-action-progress-card">
+        <span className="student-action-progress-spinner" aria-hidden="true" />
+        <strong>처리 중</strong>
       </div>
     </div>
   );

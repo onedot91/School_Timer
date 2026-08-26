@@ -180,6 +180,32 @@ test('stale settings saves preserve a concurrent daily writing reward', () => {
   assert.equal(hasDailyWritingReward(merged.currencyHistory, 6, '2026-08-25'), true);
 });
 
+test('stale settings saves preserve a concurrent 1인 1역 adjustment once', () => {
+  const roleEntry = {
+    id: 'classroom-role-1-2026-08-26',
+    studentNumber: 1,
+    delta: 20,
+    before: 100,
+    after: 120,
+    reason: 'classroom_role',
+    createdAt: '2026-08-26T08:00:00.000Z',
+  } as const;
+  const remote = {
+    currencyBalances: { 1: 120 },
+    currencyHistory: { 1: [roleEntry] },
+  };
+  const stale = {
+    currencyBalances: { 1: 100 },
+    currencyHistory: { 1: [] },
+  };
+
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale);
+  const mergedAgain = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['1'], 120);
+  assert.equal((mergedAgain.currencyBalances as Record<string, number>)['1'], 120);
+});
+
 test('an intentional reset does not restore rewards from before the last sync', () => {
   const remote = claimWeeklyMissionRewardInSettings({
     currencyBalances: { 6: 200 },

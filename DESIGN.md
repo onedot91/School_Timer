@@ -234,6 +234,7 @@ followed by the current profile and then grayscale profiles already used by clas
 - An interaction may retarget while moving. It begins from the current presentation value and never locks input to finish a transition.
 - Timed draw and award sequences may keep choreography, but safe cancellation boundaries and reduced-motion equivalents are required.
 - Reduced motion removes large translation, rotation, looping decoration, and elastic overshoot while retaining short opacity or color feedback.
+- Student asynchronous commits use one blocking full-screen loading status overlay adapted from the beui.dev `loader` pattern: a thick centered material contains a circular spinner and the short label `처리 중`, while the backdrop prevents another action without stealing focus. The spinner rotates with transform only; reduced motion replaces rotation with a calm opacity pulse, and reduced transparency uses an opaque card.
 - Mailbox selection adapts the beui.dev notification-stack pattern: the selected envelope changes depth and its corresponding letter rises into place over `280ms` using transform and opacity only. The motion communicates a real selection change, is interruptible, and becomes an immediate state update under `prefers-reduced-motion`.
 - Student interaction motion follows the beui.dev `button`, `otp-input`, `animated-badge`, and centered-modal mechanisms: pointer/touch presses use a quick interruptible scale response, entered digits use a short scale-and-opacity settle, status labels crossfade in place, and the difficulty dialog scales from `0.96` at the viewport center. Keyboard number entry and arrow navigation never run transform motion; their color, border, and text state updates are immediate.
 - Sudoku conflicts use one restrained border/color pulse with at most 3px lateral displacement for pointer/touch input. The same keyboard or reduced-motion path uses only the conflict surface and inset border. Completion is the only celebratory sequence: one green board wave plus eight small light particles, finishing within `--student-motion-celebrate`, never blocking input or replaying when a completed puzzle is reopened.
@@ -249,6 +250,8 @@ followed by the current profile and then grayscale profiles already used by clas
 - The student-facing failure page title is `실패 자랑소`; the internal `#student-library` route and feature name remain unchanged.
 
 ## 5. Components and Interaction Classes
+
+- The built-in `1인 1역` daily mission assigns the six fixed expert roles to six consecutive student numbers. The first assigned number advances by one each calendar date and wraps after 23. Its student card shows the assigned role or the disabled label `오늘 역할 없음`. Teacher mission settings can re-anchor today's first number, enable or disable the mission, and record one `+20` completion or `-20` non-performance result per assigned student and date; changing a recorded result applies only the difference so the ledger remains correct. Only the latest 31 daily result groups remain in the shared snapshot to bound Supabase egress.
 
 ### Controls
 

@@ -12,6 +12,7 @@ export type CurrencyHistoryReason =
   | 'daily_emotion'
   | 'sudoku_mission'
   | 'number_baseball_mission'
+  | 'classroom_role'
   | 'daily_writing'
   | 'class_donation'
   | 'pet_feed'
@@ -274,6 +275,7 @@ const CURRENCY_HISTORY_REASONS = [
   'daily_emotion',
   'sudoku_mission',
   'number_baseball_mission',
+  'classroom_role',
   'daily_writing',
   'class_donation',
   'pet_feed',

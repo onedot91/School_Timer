@@ -111,6 +111,11 @@ import {
 import { updateStudentEconomy } from '../lib/studentEconomyClient';
 import { createBrowserRequestId } from '../lib/requestId';
 import {
+  loadStoredClassroomRoleMissionSettings,
+  normalizeClassroomRoleMissionSettings,
+  type ClassroomRoleMissionSettings,
+} from '../lib/classroomRoleMission';
+import {
   createWeeklyMissionStatuses,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   getKoreanIsoWeekKey,
@@ -173,6 +178,7 @@ type SharedSettingsValue = {
   auctionBidHistory?: unknown;
   auctionAwards?: unknown;
   auctionMissions?: unknown;
+  classroomRoleMission?: unknown;
   currencyHistory?: unknown;
   classDonation?: unknown;
   studentEmotionHistory?: unknown;
@@ -298,6 +304,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
+  const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
+    loadStoredClassroomRoleMissionSettings,
+  );
   const [classDonation, setClassDonation] = useState<ClassDonationPublicState>(() => getClassDonationPublicState(null));
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
     loadStoredStudentEmotionHistory,
@@ -905,6 +914,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setAuctionBidHistory(normalizeAuctionBidHistory(value.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
     setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
+    setClassroomRoleMission(normalizeClassroomRoleMissionSettings(value.classroomRoleMission));
     setClassDonation(getClassDonationPublicState(value.classDonation));
     setStudentEmotionHistory(normalizeStudentEmotionHistory(value.studentEmotionHistory));
     const normalizedPetStates = applyStudentPetPositionOverrides(value.studentPets);
@@ -939,6 +949,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionBidHistory(normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
       setAuctionAwards(normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
       setAuctionMissions(getStoredAuctionMissions());
+      setClassroomRoleMission(loadStoredClassroomRoleMissionSettings());
       setClassDonation(getClassDonationPublicState(null));
       setStudentEmotionHistory(loadStoredStudentEmotionHistory());
       setStudentPetStates(localPetSnapshot.studentPets);
@@ -1603,6 +1614,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             reservedAmount={reservedAmount}
             isLoading={isLoading}
             auctionMissions={auctionMissions}
+            classroomRoleMission={classroomRoleMission}
             weeklyMissionStatuses={weeklyMissionStatuses}
             hasSyncError={hasWeeklyMissionSyncError}
             isDailyEmotionMissionCompleted={hasCompletedDailyEmotionMission}

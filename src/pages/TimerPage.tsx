@@ -193,6 +193,18 @@ import {
   type AuctionItem,
   type CurrencyBalances,
 } from '../lib/currency';
+import {
+  getClassroomRoleAssignments,
+  getClassroomRoleMissionBalanceDelta,
+  getTodayClassroomRoleDateKey,
+  loadStoredClassroomRoleMissionSettings,
+  normalizeClassroomRoleMissionSettings,
+  setClassroomRoleMissionResult,
+  setClassroomRoleMissionStartForDate,
+  storeClassroomRoleMissionSettings,
+  type ClassroomRoleMissionResult,
+  type ClassroomRoleMissionSettings,
+} from '../lib/classroomRoleMission';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'bookstore';
@@ -344,6 +356,7 @@ interface SharedSchoolTimerSettings {
   auctionBidHistory: AuctionBidHistory;
   auctionAwards: AuctionAwards;
   auctionMissions: AuctionMission[];
+  classroomRoleMission: ClassroomRoleMissionSettings;
   classDonation: ClassDonationSettings;
   studentEmotionHistory: StudentEmotionHistory;
   studentPets: StudentPetStates;
@@ -1566,6 +1579,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     auctionBidHistory: normalizeAuctionBidHistory(parsed.auctionBidHistory, AUCTION_ITEM_IDS),
     auctionAwards: normalizeAuctionAwards(parsed.auctionAwards, AUCTION_ITEM_IDS),
     auctionMissions: normalizeAuctionMissions(parsed.auctionMissions),
+    classroomRoleMission: normalizeClassroomRoleMissionSettings(parsed.classroomRoleMission),
     classDonation: normalizeClassDonationSettings(parsed.classDonation),
     studentEmotionHistory: normalizeStudentEmotionHistory(parsed.studentEmotionHistory),
     studentPets: normalizeStudentPetStates(parsed.studentPets),
@@ -3725,6 +3739,9 @@ export default function TimerPage() {
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+  const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
+    loadStoredClassroomRoleMissionSettings,
+  );
   const [classDonation, setClassDonation] = useState<ClassDonationSettings>(() => normalizeClassDonationSettings(null));
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
     loadStoredStudentEmotionHistory,
@@ -4320,6 +4337,11 @@ export default function TimerPage() {
     hasBlankAuctionMissionDraft(auctionMissions)
       ? lastPersistedAuctionMissionsRef.current
       : normalizeAuctionMissions(auctionMissions);
+  const todayClassroomRoleDateKey = getTodayClassroomRoleDateKey();
+  const todayClassroomRoleAssignments = getClassroomRoleAssignments(
+    { ...classroomRoleMission, enabled: true },
+    todayClassroomRoleDateKey,
+  );
 
   const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
     version: 1,
@@ -4349,6 +4371,7 @@ export default function TimerPage() {
     auctionBidHistory,
     auctionAwards,
     auctionMissions: getPersistableAuctionMissions(),
+    classroomRoleMission,
     classDonation,
     studentEmotionHistory,
     studentPets: studentPetStates,
@@ -4402,6 +4425,7 @@ export default function TimerPage() {
     setAuctionBids(normalizeAuctionBids(remoteSettings.auctionBids, AUCTION_ITEM_IDS));
     setAuctionBidHistory(normalizeAuctionBidHistory(remoteSettings.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(remoteSettings.auctionAwards, AUCTION_ITEM_IDS));
+    setClassroomRoleMission(normalizeClassroomRoleMissionSettings(remoteSettings.classroomRoleMission));
     setClassDonation(normalizeClassDonationSettings(remoteSettings.classDonation));
     setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
     setStudentPetStates(normalizeStudentPetStates(remoteSettings.studentPets));
@@ -4582,6 +4606,10 @@ export default function TimerPage() {
   }, [auctionMissions]);
 
   useEffect(() => {
+    storeClassroomRoleMissionSettings(classroomRoleMission);
+  }, [classroomRoleMission]);
+
+  useEffect(() => {
     if (scheduleYoutubeVideoIds.length === 0) {
       setHasMountedScheduleYoutubePlayer(false);
       setShouldAutoplayScheduleYoutube(false);
@@ -4742,6 +4770,7 @@ export default function TimerPage() {
     auctionBidHistory,
     auctionAwards,
     auctionMissions,
+    classroomRoleMission,
     classDonation,
     studentEmotionHistory,
     studentPetStates,
@@ -6774,6 +6803,39 @@ export default function TimerPage() {
 
   const removeAuctionMission = (missionId: string) => {
     setAuctionMissions((previous) => previous.filter((mission) => mission.id !== missionId));
+  };
+
+  const updateTodayClassroomRoleStart = (studentNumber: number) => {
+    setClassroomRoleMission((previous) => setClassroomRoleMissionStartForDate(
+      previous,
+      studentNumber,
+      getTodayClassroomRoleDateKey(),
+    ));
+  };
+
+  const updateClassroomRoleMissionResult = (
+    studentNumber: number,
+    result: ClassroomRoleMissionResult,
+  ) => {
+    const dateKey = getTodayClassroomRoleDateKey();
+    const currentSettings = normalizeClassroomRoleMissionSettings(classroomRoleMission, dateKey);
+    const previousResult = currentSettings.results[dateKey]?.[String(studentNumber)];
+    if (previousResult === result) return;
+
+    const delta = getClassroomRoleMissionBalanceDelta(previousResult, result);
+    const studentKey = String(studentNumber);
+    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
+    const before = previousBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+    const after = clampCurrencyBalance(before + delta);
+    const nextBalances = { ...previousBalances, [studentKey]: after };
+    const nextHistory = appendCurrencyHistoryEntry(currencyHistoryRef.current, {
+      studentNumber,
+      before,
+      after,
+      reason: 'classroom_role',
+    });
+    commitCurrencyAdjustment(nextBalances, nextHistory, 'student', after - before);
+    setClassroomRoleMission(setClassroomRoleMissionResult(currentSettings, studentNumber, result, dateKey));
   };
 
   const getAwardSteps = (item: AuctionItem) => {
@@ -9865,9 +9927,82 @@ export default function TimerPage() {
 
       {settingsPanel === 'missions' ? (
       <section
-        className="settings-card rounded-[1.7rem] border border-[#DDEBDD] bg-[#F8FCF6] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5"
+        className="settings-card flex flex-col rounded-[1.7rem] border border-[#DDEBDD] bg-[#F8FCF6] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5"
       >
-        <div className="mb-4 flex justify-end">
+        <div className="order-3 mt-4 grid gap-3 rounded-[1.25rem] border border-[#BBD8CB] bg-white/85 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="section-title text-[1.05rem] font-black text-[#1F2523]">1인 1역</h3>
+              <p className="mt-1 text-[0.82rem] font-bold text-[#65736C]">
+                매일 담당 번호가 한 칸씩 이동합니다. 완료 20고마, 미수행 -20고마
+              </p>
+            </div>
+            <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#CFE3D8] bg-[#F6FAF7] px-4 font-extrabold text-[#006241]">
+              <input
+                type="checkbox"
+                checked={classroomRoleMission.enabled}
+                onChange={(event) => setClassroomRoleMission((previous) => ({
+                  ...previous,
+                  enabled: event.target.checked,
+                }))}
+              />
+              미션 사용
+            </label>
+          </div>
+
+          <label className="grid max-w-[18rem] gap-1.5">
+            <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">오늘 칠판 전문가</span>
+            <select
+              value={todayClassroomRoleAssignments[0]?.studentNumber ?? 1}
+              onChange={(event) => updateTodayClassroomRoleStart(Number(event.target.value))}
+              className="section-title h-11 rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] px-3 text-[0.95rem] font-black text-[#1F2523] outline-none focus:border-[#7FB59F]"
+              aria-label="오늘 1인 1역 시작 학생 번호"
+            >
+              {CURRENCY_STUDENT_NUMBERS.map((studentNumber) => (
+                <option key={studentNumber} value={studentNumber}>{studentNumber}번</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {todayClassroomRoleAssignments.map((assignment) => {
+              const result = classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(assignment.studentNumber)];
+              return (
+                <div
+                  key={assignment.roleName}
+                  className="grid gap-2 rounded-[1rem] border border-[#DDE8E2] bg-[#F9FCFA] p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <strong className="text-[0.9rem] font-black text-[#1F2523]">{assignment.roleName}</strong>
+                    <span className="rounded-full bg-[#EAF6F0] px-2.5 py-1 text-[0.78rem] font-black text-[#006241]">
+                      {assignment.studentNumber}번
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'rewarded')}
+                      disabled={!classroomRoleMission.enabled || result === 'rewarded'}
+                      className="min-h-10 rounded-[0.75rem] border border-[#9CCDBE] bg-white px-2 text-[0.8rem] font-black text-[#006241] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:bg-[#EAF6F0] disabled:text-[#6F7D70]"
+                    >
+                      {result === 'rewarded' ? '지급 완료' : '+20 지급'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'penalized')}
+                      disabled={!classroomRoleMission.enabled || result === 'penalized'}
+                      className="min-h-10 rounded-[0.75rem] border border-[#E3AAA5] bg-white px-2 text-[0.8rem] font-black text-[#9B4A43] transition-colors hover:bg-[#FFF0ED] disabled:cursor-not-allowed disabled:bg-[#FFF0ED] disabled:text-[#7D6865]"
+                    >
+                      {result === 'penalized' ? '차감 완료' : '-20 차감'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="order-1 mb-4 flex justify-end">
           <button
             type="button"
             onClick={addAuctionMission}
@@ -9879,11 +10014,11 @@ export default function TimerPage() {
         </div>
 
         {auctionMissions.length === 0 ? (
-          <div className="rounded-[1.1rem] border border-dashed border-[#BBD8CB] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[#6F7D70]">
+          <div className="order-2 rounded-[1.1rem] border border-dashed border-[#BBD8CB] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[#6F7D70]">
             등록된 미션 없음
           </div>
         ) : (
-          <div className="grid gap-2.5">
+          <div className="order-2 grid gap-2.5">
             {auctionMissions.map((mission, index) => (
               <div
                 key={mission.id}
