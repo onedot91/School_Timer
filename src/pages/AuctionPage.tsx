@@ -46,6 +46,7 @@ import {
 import {
   isSupabaseSettingsEnabled,
   donateToClassGoal,
+  invalidateSharedSettingsCache,
   loadSharedSettingsRow,
   loadSharedSettingsUpdatedAt,
   updateSharedSettings,
@@ -106,7 +107,7 @@ import {
   type StudentShopCatalogItem,
   type StudentStockMarket,
 } from '../lib/studentEconomy';
-import { patchStudentEconomySettings } from '../lib/studentEconomySettings';
+import { updateStudentEconomy } from '../lib/studentEconomyClient';
 import { createBrowserRequestId } from '../lib/requestId';
 import {
   createWeeklyMissionStatuses,
@@ -1407,83 +1408,23 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setIsEconomySaving(true);
     try {
       const requestId = `student-economy-${studentNumber}-${createBrowserRequestId()}`;
-      let savedBalance = balance;
       let savedBalances = currencyBalances;
       let savedHistory = currencyHistory;
       let savedEconomyStates = studentEconomyStates;
       let savedStudentLife = studentLife;
       let resultMessage = '';
-      const bankMailCreatedAt = new Date().toISOString();
 
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          const currentBalances = normalizeCurrencyBalances(current.currencyBalances);
-          const currentHistory = normalizeCurrencyHistory(current.currencyHistory);
-          const currentEconomyStates = normalizeStudentEconomyStates(current.studentEconomy);
-          const currentStudentLife = normalizeStudentLifeState(current.studentLife);
-          const currentBids = normalizeAuctionBids(current.auctionBids, AUCTION_ITEM_IDS);
-          const currentAwards = normalizeAuctionAwards(current.auctionAwards, AUCTION_ITEM_IDS);
-          const currentWallet = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
-          const currentReserved = getReservedAuctionBidAmount(
-            currentBids,
-            studentNumber,
-            undefined,
-            currentAwards,
-            activeAuctionItemIds,
-          );
-          const result = applyStudentEconomyAction({
-            state: currentEconomyStates[studentKey],
-            action,
-            wallet: currentWallet,
-            availableWallet: Math.max(0, currentWallet - currentReserved),
-            requestId,
-            shopCatalog: current.studentShopCatalog,
-            stockMarket: current.studentStockMarket,
-          });
-          savedBalance = result.wallet;
-          resultMessage = result.message;
-          savedEconomyStates = { ...currentEconomyStates, [studentKey]: result.state };
-          savedStudentLife = result.applied
-            ? createBankMailboxLetters({ action, studentNumber, requestId, createdAt: bankMailCreatedAt }).reduce(
-                (life, letter) => createStudentLetter(life, letter),
-                currentStudentLife,
-              )
-            : currentStudentLife;
-          let nextBalances = { ...currentBalances, [studentKey]: result.wallet };
-          savedHistory = result.applied && result.wallet !== currentWallet
-            ? appendCurrencyHistoryEntry(currentHistory, {
-                studentNumber,
-                before: currentWallet,
-                after: result.wallet,
-                reason: result.reason,
-              })
-            : currentHistory;
-          const changedStudentKeys = [studentKey];
-          if (result.applied && action.type === 'transfer') {
-            const recipientKey = String(action.recipientNumber);
-            changedStudentKeys.push(recipientKey);
-            const recipientWallet = currentBalances[recipientKey] ?? DEFAULT_CURRENCY_BALANCE;
-            nextBalances = { ...nextBalances, [recipientKey]: recipientWallet + action.amount };
-            savedHistory = appendCurrencyHistoryEntry(savedHistory, {
-              studentNumber: action.recipientNumber,
-              before: recipientWallet,
-              after: recipientWallet + action.amount,
-              reason: result.reason,
-            });
-          }
-          savedBalances = nextBalances;
-          return patchStudentEconomySettings({
-            currentValue: current,
-            currencyBalanceEntries: Object.fromEntries(changedStudentKeys.map((key) => [key, nextBalances[key] ?? DEFAULT_CURRENCY_BALANCE])),
-            currencyHistoryEntries: Object.fromEntries(changedStudentKeys.map((key) => [key, savedHistory[key] ?? []])),
-            studentEconomyEntries: { [studentKey]: result.state },
-            studentLife: savedStudentLife,
-          });
-        });
+        const result = await updateStudentEconomy({ studentNumber, action, requestId });
+        savedBalances = { ...currencyBalances, ...result.currencyBalanceEntries };
+        savedHistory = { ...currencyHistory, ...result.currencyHistoryEntries };
+        savedEconomyStates = { ...studentEconomyStates, [studentKey]: result.studentEconomy };
+        savedStudentLife = result.studentLife;
+        resultMessage = result.message;
+        sharedSettingsUpdatedAtRef.current = result.updatedAt;
+        invalidateSharedSettingsCache();
       } else {
+        const bankMailCreatedAt = new Date().toISOString();
         const snapshot = loadStoredStudentPetSnapshot();
         const currentWallet = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
         const result = applyStudentEconomyAction({
@@ -1495,7 +1436,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           shopCatalog: studentShopCatalog,
           stockMarket: studentStockMarket,
         });
-        savedBalance = result.wallet;
         resultMessage = result.message;
         savedEconomyStates = { ...snapshot.studentEconomy, [studentKey]: result.state };
         const currentStudentLife = loadStoredStudentLifeState();

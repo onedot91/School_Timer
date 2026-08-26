@@ -17,6 +17,10 @@ export type SettingsRow = {
 
 let cachedSharedSettingsRow: SettingsRow | null | undefined;
 
+export const invalidateSharedSettingsCache = () => {
+  cachedSharedSettingsRow = undefined;
+};
+
 export interface AnnouncementNoteRecord {
   date_key: string;
   date_text: string;

@@ -7,6 +7,7 @@ const SERVER_MODULES = [
   'api/class-donation.ts',
   'api/device-session.ts',
   'api/shared-settings.ts',
+  'api/student-economy.ts',
   'api/weekly-mission.ts',
   'api/weekly-missions.ts',
   'src/lib/weeklyMission.ts',
