@@ -139,13 +139,64 @@ test('student sessions can update only their own balance entry', async () => {
   });
 });
 
+test('학생 거래는 누락된 다른 학생 기본값을 정규화해도 저장된다', async () => {
+  await withEnvironment(async () => {
+    // Given
+    const originalFetch = globalThis.fetch;
+    const previousValue = {
+      schedule: ['수학'],
+      currencyBalances: { 1: 145 },
+      currencyHistory: { 1: [] },
+      studentEconomy: {},
+    };
+    const normalizedBalances = Object.fromEntries(
+      Array.from({ length: 23 }, (_, index) => [String(index + 1), index === 0 ? 115 : 100]),
+    );
+    const normalizedHistory = Object.fromEntries(
+      Array.from({ length: 23 }, (_, index) => [String(index + 1), index === 0 ? [{ id: 'deposit-1' }] : []]),
+    );
+    let fetchCount = 0;
+    globalThis.fetch = async () => {
+      fetchCount += 1;
+      return fetchCount === 1
+        ? Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: 'v1' }])
+        : Response.json([{ id: 'school-timer-main' }]);
+    };
+
+    try {
+      const { response, result } = createResponse();
+
+      // When
+      await handler({
+        method: 'PUT',
+        headers: studentHeaders(1),
+        body: {
+          value: {
+            ...previousValue,
+            currencyBalances: normalizedBalances,
+            currencyHistory: normalizedHistory,
+            studentEconomy: { 1: { deposit: 30 } },
+          },
+          expectedUpdatedAt: 'v1',
+        },
+      }, response);
+
+      // Then
+      assert.equal(result().statusCode, 200);
+      assert.equal(fetchCount, 2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 test('student sessions cannot change another student balance entry', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
     let fetchCount = 0;
     globalThis.fetch = async () => {
       fetchCount += 1;
-      return Response.json([{ id: 'school-timer-main', value: { currencyBalances: { 7: 100, 8: 100 } }, updated_at: 'v1' }]);
+      return Response.json([{ id: 'school-timer-main', value: { currencyBalances: { 7: 100 } }, updated_at: 'v1' }]);
     };
     try {
       const { response, result } = createResponse();

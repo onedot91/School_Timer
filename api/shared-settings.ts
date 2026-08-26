@@ -56,13 +56,16 @@ const onlyOwnMapEntryChanged = (
   previous: unknown,
   next: unknown,
   studentNumber: number,
+  missingValue?: unknown,
 ) => {
   const studentKey = String(studentNumber);
   const previousRecord = asRecord(previous);
   const nextRecord = asRecord(next);
   const keys = new Set([...Object.keys(previousRecord), ...Object.keys(nextRecord)]);
   for (const key of keys) {
-    if (key !== studentKey && !valuesEqual(previousRecord[key], nextRecord[key])) return false;
+    const previousValue = key in previousRecord ? previousRecord[key] : missingValue;
+    const nextValue = key in nextRecord ? nextRecord[key] : missingValue;
+    if (key !== studentKey && !valuesEqual(previousValue, nextValue)) return false;
   }
   return true;
 };
@@ -91,7 +94,8 @@ const canStudentUpdate = (previous: unknown, next: unknown, studentNumber: numbe
   }
 
   for (const key of ['currencyBalances', 'currencyHistory', 'studentEmotionHistory', 'studentPets', 'studentEconomy']) {
-    if (!onlyOwnMapEntryChanged(previousRecord[key], nextRecord[key], studentNumber)) return false;
+    const missingValue = key === 'currencyBalances' ? 100 : key === 'currencyHistory' ? [] : undefined;
+    if (!onlyOwnMapEntryChanged(previousRecord[key], nextRecord[key], studentNumber, missingValue)) return false;
   }
   if (!onlyOwnProgressChanged(previousRecord.studentSudoku, nextRecord.studentSudoku, studentNumber)) return false;
   return onlyOwnProgressChanged(previousRecord.studentNumberBaseball, nextRecord.studentNumberBaseball, studentNumber);
