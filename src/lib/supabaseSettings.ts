@@ -13,12 +13,13 @@ export type SettingsRow = {
   id: string;
   value: unknown;
   updated_at?: string;
+  scope?: 'full' | 'student';
 };
 
-let cachedSharedSettingsRow: SettingsRow | null | undefined;
+let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
 
 export const invalidateSharedSettingsCache = () => {
-  cachedSharedSettingsRow = undefined;
+  cachedWritableSharedSettingsRow = undefined;
 };
 
 export interface AnnouncementNoteRecord {
@@ -87,7 +88,11 @@ export const loadSharedSettingsRow = async () => {
   if (!supabase) return null;
   if (useServerProxy) {
     const row = await fetchJson('/api/shared-settings') as SettingsRow | null;
-    cachedSharedSettingsRow = row;
+    if (row?.scope === 'full') {
+      cachedWritableSharedSettingsRow = row;
+    } else if (row?.updated_at !== cachedWritableSharedSettingsRow?.updated_at) {
+      cachedWritableSharedSettingsRow = undefined;
+    }
     return row;
   }
 
@@ -101,7 +106,16 @@ export const loadSharedSettingsRow = async () => {
     throw error;
   }
 
+  cachedWritableSharedSettingsRow = data ?? null;
   return data ?? null;
+};
+
+const loadWritableSharedSettingsRow = async () => {
+  if (!supabase) return null;
+  if (!useServerProxy) return loadSharedSettingsRow();
+  const row = await fetchJson('/api/shared-settings?full=1') as SettingsRow | null;
+  cachedWritableSharedSettingsRow = row;
+  return row;
 };
 
 export const loadSharedSettingsUpdatedAt = async () => {
@@ -131,6 +145,12 @@ export const saveSharedSettings = async (value: unknown) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value }),
     }) as { updatedAt: string };
+    cachedWritableSharedSettingsRow = {
+      id: SHARED_SETTINGS_ID,
+      value,
+      updated_at: result.updatedAt,
+      scope: 'full',
+    };
     return result.updatedAt;
   }
 
@@ -155,9 +175,9 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
 
   if (useServerProxy) {
     for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
-      const currentRow = cachedSharedSettingsRow === undefined
-        ? await loadSharedSettingsRow()
-        : cachedSharedSettingsRow;
+      const currentRow = cachedWritableSharedSettingsRow === undefined
+        ? await loadWritableSharedSettingsRow()
+        : cachedWritableSharedSettingsRow;
       const nextValue = updater(currentRow?.value ?? null);
       try {
         const result = await fetchJson('/api/shared-settings', {
@@ -165,11 +185,16 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value: nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
         }) as { updatedAt: string };
-        cachedSharedSettingsRow = { id: SHARED_SETTINGS_ID, value: nextValue, updated_at: result.updatedAt };
+        cachedWritableSharedSettingsRow = {
+          id: SHARED_SETTINGS_ID,
+          value: nextValue,
+          updated_at: result.updatedAt,
+          scope: 'full',
+        };
         return result.updatedAt;
       } catch (error) {
         if (error instanceof Error && Reflect.get(error, 'status') === 409) {
-          cachedSharedSettingsRow = undefined;
+          cachedWritableSharedSettingsRow = undefined;
           continue;
         }
         throw error;

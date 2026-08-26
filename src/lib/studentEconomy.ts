@@ -1,4 +1,4 @@
-import type { CurrencyHistoryReason } from './currency';
+import type { CurrencyHistoryReason } from './currency.js';
 
 export const STUDENT_ECONOMY_AMOUNT_STEP = 5;
 export const STUDENT_ECONOMY_AMOUNT_MAX = 500;

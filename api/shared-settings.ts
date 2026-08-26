@@ -18,10 +18,32 @@ interface SettingsRow {
   readonly id: string;
   readonly value: unknown;
   readonly updated_at?: string;
+  readonly scope?: 'full' | 'student';
 }
 
 const SETTINGS_ID = 'school-timer-main';
 const MAX_SETTINGS_BYTES = 1_048_576;
+const STUDENT_SHARED_FIELDS = [
+  'auctionBids',
+  'auctionItems',
+  'auctionBidHistory',
+  'auctionAwards',
+  'auctionMissions',
+  'classDonation',
+  'studentShopCatalog',
+  'studentStockMarket',
+  'studentLife',
+  'dailyWriting',
+  'studentSudoku',
+  'studentNumberBaseball',
+] as const;
+const STUDENT_SCOPED_MAP_FIELDS = [
+  'currencyBalances',
+  'currencyHistory',
+  'studentEmotionHistory',
+  'studentPets',
+  'studentEconomy',
+] as const;
 const STUDENT_MUTABLE_FIELDS = new Set([
   'auctionBids',
   'auctionBidHistory',
@@ -124,6 +146,41 @@ const loadRow = async (url: string, key: string) => {
   return Array.isArray(rows) && rows.length > 0 ? rows[0] as SettingsRow : null;
 };
 
+const loadStudentRow = async (url: string, key: string, studentNumber: number) => {
+  const studentKey = String(studentNumber);
+  const select = [
+    'id',
+    'updated_at',
+    ...STUDENT_SHARED_FIELDS.map((field) => `${field}:value->${field}`),
+    ...STUDENT_SCOPED_MAP_FIELDS.map((field) => `${field}:value->${field}->"${studentKey}"`),
+  ].join(',');
+  const endpoint = new URL(`${url}/rest/v1/app_settings`);
+  endpoint.searchParams.set('id', `eq.${SETTINGS_ID}`);
+  endpoint.searchParams.set('select', select);
+  const result = await fetch(endpoint, {
+    headers: supabaseHeaders(key),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!result.ok) throw new Error(`SHARED_SETTINGS_READ_HTTP_${result.status}`);
+  const rows: unknown = await result.json();
+  if (!Array.isArray(rows) || rows.length === 0 || !rows[0] || typeof rows[0] !== 'object') return null;
+  const projectedRow = rows[0];
+  const value = Object.fromEntries([
+    ...STUDENT_SHARED_FIELDS.map((field) => [field, Reflect.get(projectedRow, field)]),
+    ...STUDENT_SCOPED_MAP_FIELDS.map((field) => {
+      const ownValue = Reflect.get(projectedRow, field);
+      return [field, ownValue === null || ownValue === undefined ? {} : { [studentKey]: ownValue }];
+    }),
+  ]);
+  const updatedAt = Reflect.get(projectedRow, 'updated_at');
+  return {
+    id: SETTINGS_ID,
+    value,
+    updated_at: typeof updatedAt === 'string' ? updatedAt : undefined,
+    scope: 'student' as const,
+  };
+};
+
 const loadUpdatedAt = async (url: string, key: string) => {
   const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=updated_at`, {
     headers: supabaseHeaders(key),
@@ -151,9 +208,15 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   if (request.method === 'GET') {
     try {
       const metadataOnly = request.query?.metadata === '1';
-      response.status(200).json(metadataOnly
-        ? { updatedAt: await loadUpdatedAt(configuration.url, configuration.key) }
-        : await loadRow(configuration.url, configuration.key));
+      if (metadataOnly) {
+        response.status(200).json({ updatedAt: await loadUpdatedAt(configuration.url, configuration.key) });
+        return;
+      }
+      const shouldLoadFullRow = session.role === 'teacher' || request.query?.full === '1';
+      const row = shouldLoadFullRow
+        ? await loadRow(configuration.url, configuration.key)
+        : await loadStudentRow(configuration.url, configuration.key, session.studentNumber);
+      response.status(200).json(row && shouldLoadFullRow ? { ...row, scope: 'full' } : row);
     } catch (error) {
       console.error('Failed to load shared settings.', error);
       response.status(502).json({ error: 'SHARED_SETTINGS_READ_FAILED' });

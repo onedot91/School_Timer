@@ -90,6 +90,81 @@ test('registered devices can poll only the shared settings timestamp', async () 
   });
 });
 
+test('student sessions receive only their own large JSON map entries', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    globalThis.fetch = async (input) => {
+      requests.push(String(input));
+      return Response.json([{
+        id: 'school-timer-main',
+        updated_at: 'v2',
+        auctionItems: [{ id: 'day-1' }],
+        currencyBalances: 145,
+        currencyHistory: [{ id: 'history-7' }],
+        studentEconomy: { deposit: 30 },
+      }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({ method: 'GET', headers: studentHeaders(7) }, response);
+
+      assert.equal(result().statusCode, 200);
+      assert.equal(requests.length, 1);
+      const select = new URL(requests[0] ?? '').searchParams.get('select') ?? '';
+      assert.match(select, /currencyHistory:value->currencyHistory->"7"/);
+      assert.match(select, /studentEconomy:value->studentEconomy->"7"/);
+      assert.doesNotMatch(select, /(?:^|,)value(?:,|$)/);
+
+      const row = result().body as {
+        scope?: string;
+        value?: Record<string, unknown>;
+      };
+      assert.equal(row.scope, 'student');
+      assert.deepEqual(row.value?.auctionItems, [{ id: 'day-1' }]);
+      assert.deepEqual(row.value?.currencyBalances, { 7: 145 });
+      assert.deepEqual(row.value?.currencyHistory, { 7: [{ id: 'history-7' }] });
+      assert.deepEqual(row.value?.studentEconomy, { 7: { deposit: 30 } });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('teacher and explicit writable reads keep the complete settings row', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    globalThis.fetch = async (input) => {
+      requests.push(String(input));
+      return Response.json([{
+        id: 'school-timer-main',
+        value: { weeklySchedule: ['월요일'] },
+        updated_at: 'v2',
+      }]);
+    };
+    try {
+      const teacherResponse = createResponse();
+      await handler({ method: 'GET', headers: teacherHeaders() }, teacherResponse.response);
+      const studentResponse = createResponse();
+      await handler({
+        method: 'GET',
+        headers: studentHeaders(7),
+        query: { full: '1' },
+      }, studentResponse.response);
+
+      assert.equal(requests.length, 2);
+      requests.forEach((request) => {
+        assert.equal(new URL(request).searchParams.get('select'), 'id,value,updated_at');
+      });
+      assert.equal((teacherResponse.result().body as { scope?: string }).scope, 'full');
+      assert.equal((studentResponse.result().body as { scope?: string }).scope, 'full');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 test('student sessions cannot change teacher-owned settings', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;

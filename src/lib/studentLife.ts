@@ -3,9 +3,9 @@ import {
   normalizeFailureStories,
   type FailureProfileAssignments,
   type FailureStory,
-} from './failureExhibition';
-import { normalizeBankMailboxCopy } from './bankMailbox';
-import { getKoreanLocalDateKey } from './studentEmotion';
+} from './failureExhibition.js';
+import { normalizeBankMailboxCopy } from './bankMailbox.js';
+import { getKoreanLocalDateKey } from './studentEmotion.js';
 
 export interface StudentLetter {
   readonly id: string;

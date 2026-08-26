@@ -976,7 +976,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             applySharedSettingsValue(value);
             sharedSettingsUpdatedAtRef.current = row?.updated_at ?? null;
             if (row?.updated_at && row.value && typeof row.value === 'object') {
-              storeStudentSettingsSnapshot({ updatedAt: row.updated_at, value });
+              storeStudentSettingsSnapshot({ studentNumber, updatedAt: row.updated_at, value });
             }
           }
         } catch (error) {
@@ -988,16 +988,16 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
     }
-  }, [applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku]);
+  }, [applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku, studentNumber]);
 
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) return;
-    const snapshot = loadStudentSettingsSnapshot();
+    const snapshot = loadStudentSettingsSnapshot(studentNumber);
     if (!snapshot) return;
     sharedSettingsUpdatedAtRef.current = snapshot.updatedAt;
     applySharedSettingsValue(snapshot.value);
     setIsLoading(false);
-  }, [applySharedSettingsValue]);
+  }, [applySharedSettingsValue, studentNumber]);
 
   useEffect(() => {
     let lastForegroundRefreshAt = 0;

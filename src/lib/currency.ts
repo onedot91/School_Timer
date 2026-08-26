@@ -1,4 +1,4 @@
-import { applyStudentEconomyTax, normalizeStudentEconomyStates, type StudentEconomyStates } from './studentEconomy';
+import { applyStudentEconomyTax, normalizeStudentEconomyStates, type StudentEconomyStates } from './studentEconomy.js';
 
 export type CurrencyBalances = Record<string, number>;
 

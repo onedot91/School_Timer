@@ -1,4 +1,4 @@
-import type { StudentEconomyAction } from './studentEconomy';
+import type { StudentEconomyAction } from './studentEconomy.js';
 
 export type BankMailboxLetter = {
   readonly id: string;
