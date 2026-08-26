@@ -7207,7 +7207,7 @@ h3 {
 
 .timer-watch-face {
   position: absolute;
-  inset: 56% auto auto 50%;
+  inset: 50% auto auto 50%;
   z-index: 12;
   width: min(40%, 17.5rem);
   aspect-ratio: 1.32 / 1;
@@ -7717,7 +7717,7 @@ h3 {
   }
 
   44% {
-    transform: translate(-50%, -50.8%) scale(1.012);
+    transform: translate(-50%, -50%) scale(1.012);
   }
 }
 
@@ -15260,7 +15260,12 @@ a[href]:active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .timer-main-shell .timer-watch-face,
+  .timer-main-shell .timer-watch-face {
+    animation: none !important;
+    transform: translate(-50%, -50%) !important;
+    transition: none !important;
+  }
+
   .timer-main-shell .editorial-utility-button,
   .timer-main-shell .inline-manual-timer-shell,
   .timer-main-shell .inline-manual-timer-button,
