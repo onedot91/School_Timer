@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import AuctionRoom from '../components/AuctionRoom';
+import StudentActionProgress from '../components/student/StudentActionProgress';
 import StudentEmotionPage from '../components/student/StudentEmotionPage';
 import StudentFailureExhibitionPage from '../components/student/StudentFailureExhibitionPage';
 import StudentMissionsPage from '../components/student/StudentMissionsPage';
@@ -1541,8 +1542,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
+  const isStudentActionPending = isLoading
+    || isStudentLifeSaving
+    || isPetSaving
+    || isEconomySaving
+    || isEmotionSaving
+    || isSubmittingItemId !== null
+    || isDonating;
+
   return (
-    <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5">
+    <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
+      <StudentActionProgress isActive={isStudentActionPending} />
       <main className="mx-auto w-full max-w-7xl">
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage

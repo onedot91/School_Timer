@@ -17952,8 +17952,93 @@ a[href]:active {
 .student-mode-page button:not(:disabled):active,
 .student-mode-page [role="button"]:not([aria-disabled="true"]):active,
 .student-mode-page a[href]:active {
-  scale: 1;
-  opacity: 1;
+  scale: .98;
+  opacity: .88;
+  transition-duration: 40ms;
+}
+
+.student-action-progress {
+  position: fixed;
+  z-index: 160;
+  top: max(.5rem, env(safe-area-inset-top));
+  left: 50%;
+  display: grid;
+  width: min(22rem, calc(100vw - 2rem));
+  min-height: 2.25rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: .65rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 24%, var(--apple-separator));
+  border-radius: var(--apple-radius-pill);
+  background: var(--apple-material-thick);
+  padding: .4rem .7rem;
+  color: var(--apple-accent-pressed);
+  box-shadow: var(--apple-shadow-2);
+  transform: translateX(-50%);
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+.student-action-progress > span {
+  font-size: var(--student-readable-text-min);
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.student-action-progress-track {
+  height: .38rem;
+  overflow: hidden;
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--apple-accent) 14%, var(--apple-surface-muted));
+}
+
+.student-action-progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--apple-accent);
+  transform-origin: left center;
+  animation: studentActionProgress 1.05s var(--student-ease-in-out) infinite;
+}
+
+@keyframes studentActionProgress {
+  0% { transform: translateX(-100%) scaleX(.28); }
+  50% { transform: translateX(24%) scaleX(.56); }
+  100% { transform: translateX(220%) scaleX(.28); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-action-progress-fill {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .student-action-progress {
+    background: var(--apple-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .student-action-progress {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .student-action-progress-track {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  .student-action-progress-fill {
+    background: Highlight;
+  }
 }
 
 .student-section-action:active:not(:focus-visible),
@@ -18599,10 +18684,48 @@ a[href]:active {
 
 .student-confirm-dialog .student-bank-rule {
   min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   color: var(--apple-text-primary);
-  font-size: 0.9rem;
-  line-height: 1.45;
   text-align: left;
+}
+
+.student-confirm-dialog .student-bank-rule > li {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.student-confirm-dialog .student-bank-rule > li::before {
+  content: '-';
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--apple-text-secondary);
+}
+
+.student-confirm-dialog .student-bank-rule strong,
+.student-confirm-dialog .student-bank-rule span {
+  display: block;
+}
+
+.student-confirm-dialog .student-bank-rule strong {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.student-confirm-dialog .student-bank-rule span {
+  margin-top: 0.125rem;
+  color: var(--apple-text-secondary);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.student-confirm-dialog .student-bank-rule > li + li {
+  margin-top: 0.5rem;
 }
 
 .student-confirm-dialog .student-bank-deposit-list {

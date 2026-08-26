@@ -11,6 +11,41 @@ interface StudentBankPageProps {
 
 type BankModal = 'deposit' | 'loan' | 'transfer' | null;
 type PendingBankAction = Exclude<BankModal, null>;
+type BankRule = {
+  readonly term: string;
+  readonly explanation: string;
+};
+
+export const STUDENT_BANK_RULES = {
+  deposit: [
+    { term: '예금 만기', explanation: '월요일부터 수요일에 맡기면 이틀 뒤에 받아요. 목요일이나 금요일에 맡기면 다음 주 월요일에 받아요.' },
+    { term: '중도 해지', explanation: '약속한 날보다 일찍 찾으면 이자는 없고 맡긴 고마만 받아요.' },
+  ],
+  loan: [
+    { term: '대출 한도', explanation: '한 번에 최대 50고마까지 빌릴 수 있어요.' },
+    { term: '상환 기한', explanation: '빌린 날부터 일주일 안에 모두 갚아야 해요.' },
+  ],
+  repayment: [
+    { term: '전액 상환', explanation: '남은 고마를 한 번에 모두 갚아요.' },
+  ],
+  transfer: [
+    { term: '송금 한도', explanation: '한 번에 최대 30고마까지 보낼 수 있어요.' },
+    { term: '송금 횟수', explanation: '하루에 한 명에게 한 번만 보낼 수 있어요.' },
+  ],
+} as const;
+
+function BankRuleList({ rules }: { readonly rules: readonly BankRule[] }) {
+  return (
+    <ul className="student-bank-rule">
+      {rules.map(({ term, explanation }) => (
+        <li key={term}>
+          <strong>{term}</strong>
+          <span>({explanation})</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function StudentBankPage({ state, studentNumber, isSaving, onAction }: StudentBankPageProps) {
   const [depositAmount, setDepositAmount] = useState('');
@@ -129,19 +164,19 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
           <div className="student-bank-modal-form">
             <label className="student-bank-amount-field" htmlFor="student-bank-deposit-amount"><span>맡길 고마</span><input id="student-bank-deposit-amount" type="number" min="1" max="500" step="1" placeholder="예: 20" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
             {isDepositAmount ? <div className="student-bank-interest-flow" aria-label={`${numericDepositAmount} 고마를 맡기면 ${numericDepositAmount + depositInterest} 고마를 받습니다.`}><span>{numericDepositAmount} 고마</span><i>보관</i><b>+{depositInterest} 고마</b><strong>{numericDepositAmount + depositInterest} 고마</strong></div> : null}
-            <p className="student-bank-rule">월~수: 이틀 뒤 · 목·금: 다음주 월요일 · 중도 해지: 원금만</p>
+            <BankRuleList rules={STUDENT_BANK_RULES.deposit} />
           </div>
         ) : null}
         {activeModal === 'loan' ? (
           <div className="student-bank-modal-form">
-            {state.loan > 0 ? <p className="student-bank-rule">갚을 고마 {state.loan} 고마 · 한 번에 모두 갚기</p> : <><label className="student-bank-amount-field" htmlFor="student-bank-loan-amount"><span>빌릴 고마</span><input id="student-bank-loan-amount" type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : null}<p className="student-bank-rule">최대 50고마 · 일주일 안에 갚기</p></>}
+            {state.loan > 0 ? <BankRuleList rules={STUDENT_BANK_RULES.repayment} /> : <><label className="student-bank-amount-field" htmlFor="student-bank-loan-amount"><span>빌릴 고마</span><input id="student-bank-loan-amount" type="number" min="1" max="50" step="1" placeholder="예: 30" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} /><span>고마</span></label>{isLoanAmount ? <div className="student-bank-interest-flow student-bank-loan-flow" aria-label={`${numericLoanAmount} 고마를 빌리면 ${loanRepayment} 고마를 갚습니다.`}><span>{numericLoanAmount} 고마</span><i>일주일 뒤</i><b>갚기</b><strong>{loanRepayment} 고마</strong></div> : null}<BankRuleList rules={STUDENT_BANK_RULES.loan} /></>}
           </div>
         ) : null}
         {activeModal === 'transfer' ? (
           <div className="student-bank-modal-form">
             <label className="student-bank-amount-field" htmlFor="student-bank-transfer-amount"><span>보낼 고마</span><input id="student-bank-transfer-amount" type="number" min="1" max="30" step="1" placeholder="예: 20" value={transferAmount} onChange={(event) => setTransferAmount(event.target.value)} /><span>고마</span></label>
             <label className="student-bank-recipient" htmlFor="student-bank-transfer-recipient"><span>받는 학생</span><select id="student-bank-transfer-recipient" value={recipientNumber} onChange={(event) => setRecipientNumber(event.target.value)}>{Array.from({ length: 23 }, (_, index) => index + 1).filter((number) => number !== studentNumber).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
-            <p className="student-bank-rule">최대 30고마 · 오늘 한 명에게만</p>
+            <BankRuleList rules={STUDENT_BANK_RULES.transfer} />
           </div>
         ) : null}
       </StudentConfirmDialog>
