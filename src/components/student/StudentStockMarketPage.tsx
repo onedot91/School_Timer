@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getDailyStockQuotes,
   getInvestmentStagePresentation,
@@ -12,6 +12,8 @@ import { StudentStockIcon } from './StudentStockTrend';
 interface StudentStockMarketPageProps {
   state: StudentEconomyState;
   market: StudentStockMarket;
+  isLoading: boolean;
+  isSaving: boolean;
   selectedStockId: StudentStockId;
   onSelectStock: (stockId: StudentStockId) => void;
   onAction: (action: StudentEconomyAction) => Promise<boolean>;
@@ -26,15 +28,52 @@ const isWeekend = (dateKey: string) => {
   return day === 0 || day === 6;
 };
 
-export default function StudentStockMarketPage({ state, market, selectedStockId, onSelectStock, onAction }: StudentStockMarketPageProps) {
+export const needsInvestmentSettlement = (state: StudentEconomyState, dateKey: string) => (
+  Object.values(state.investments).some((position) => (
+    position !== undefined && position.lastSettledDateKey < dateKey
+  ))
+);
+
+export default function StudentStockMarketPage({ state, market, isLoading, isSaving, selectedStockId, onSelectStock, onAction }: StudentStockMarketPageProps) {
   const dateKey = getKoreanDateKey();
   const settledDateRef = useRef('');
+  const settlingDateRef = useRef('');
+  const settlementAttemptsRef = useRef({ dateKey: '', count: 0 });
+  const [settlementRetryVersion, setSettlementRetryVersion] = useState(0);
+  const shouldSettleInvestments = needsInvestmentSettlement(state, dateKey);
 
   useEffect(() => {
-    if (settledDateRef.current === dateKey) return;
-    settledDateRef.current = dateKey;
-    void onAction({ type: 'settle_investments', dateKey });
-  }, [dateKey, onAction]);
+    if (settlementAttemptsRef.current.dateKey !== dateKey) {
+      settlementAttemptsRef.current = { dateKey, count: 0 };
+    }
+    if (
+      isLoading
+      || isSaving
+      || settledDateRef.current === dateKey
+      || settlingDateRef.current === dateKey
+      || settlementAttemptsRef.current.count >= 2
+      || !shouldSettleInvestments
+    ) return;
+
+    settlingDateRef.current = dateKey;
+    settlementAttemptsRef.current = {
+      dateKey,
+      count: settlementAttemptsRef.current.count + 1,
+    };
+    void onAction({ type: 'settle_investments', dateKey }).then((saved) => {
+      if (settlingDateRef.current === dateKey) settlingDateRef.current = '';
+      if (saved) {
+        settledDateRef.current = dateKey;
+      } else if (settlementAttemptsRef.current.dateKey === dateKey && settlementAttemptsRef.current.count < 2) {
+        setSettlementRetryVersion((version) => version + 1);
+      }
+    }, () => {
+      if (settlingDateRef.current === dateKey) settlingDateRef.current = '';
+      if (settlementAttemptsRef.current.dateKey === dateKey && settlementAttemptsRef.current.count < 2) {
+        setSettlementRetryVersion((version) => version + 1);
+      }
+    });
+  }, [dateKey, isLoading, isSaving, onAction, settlementRetryVersion, shouldSettleInvestments]);
 
   const closed = isWeekend(dateKey);
 

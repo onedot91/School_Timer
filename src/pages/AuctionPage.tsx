@@ -324,6 +324,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
   const [isPetSaving, setIsPetSaving] = useState(false);
   const [isEconomySaving, setIsEconomySaving] = useState(false);
+  const isEconomySavingRef = useRef(false);
   const studentPetStatesRef = useRef(studentPetStates);
   const petPositionSaveQueueRef = useRef(Promise.resolve());
   const [isEmotionSaving, setIsEmotionSaving] = useState(false);
@@ -386,6 +387,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const pageScrollRef = useRef<HTMLDivElement>(null);
   const sharedSettingsUpdatedAtRef = useRef<string | null>(null);
   const isSharedSettingsRefreshInFlightRef = useRef(false);
+  const pendingFullSettingsRefreshRef = useRef(false);
 
   useEffect(() => {
     if (!Object.values(STUDENT_VIEW_HASHES).includes(window.location.hash)) {
@@ -949,26 +951,39 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       return;
     }
 
-    if (isSharedSettingsRefreshInFlightRef.current) return;
+    if (isSharedSettingsRefreshInFlightRef.current) {
+      if (forceFull) pendingFullSettingsRefreshRef.current = true;
+      return;
+    }
     isSharedSettingsRefreshInFlightRef.current = true;
 
     try {
-      if (!forceFull && sharedSettingsUpdatedAtRef.current !== null) {
-        const updatedAt = await loadSharedSettingsUpdatedAt();
-        if (!shouldLoadFullStudentSettings(sharedSettingsUpdatedAtRef.current, updatedAt)) return;
-      }
+      let shouldForceFull = forceFull;
+      do {
+        pendingFullSettingsRefreshRef.current = false;
+        try {
+          let shouldLoadFull = shouldForceFull || sharedSettingsUpdatedAtRef.current === null;
+          if (!shouldLoadFull) {
+            const updatedAt = await loadSharedSettingsUpdatedAt();
+            shouldLoadFull = shouldLoadFullStudentSettings(sharedSettingsUpdatedAtRef.current, updatedAt);
+          }
 
-      const row = await loadSharedSettingsRow();
-      const value = row?.value && typeof row.value === 'object'
-        ? row.value as SharedSettingsValue
-        : {};
-      applySharedSettingsValue(value);
-      sharedSettingsUpdatedAtRef.current = row?.updated_at ?? null;
-      if (row?.updated_at && row.value && typeof row.value === 'object') {
-        storeStudentSettingsSnapshot({ updatedAt: row.updated_at, value });
-      }
-    } catch (error) {
-      console.error('Failed to load auction state from Supabase.', error);
+          if (shouldLoadFull) {
+            const row = await loadSharedSettingsRow();
+            const value = row?.value && typeof row.value === 'object'
+              ? row.value as SharedSettingsValue
+              : {};
+            applySharedSettingsValue(value);
+            sharedSettingsUpdatedAtRef.current = row?.updated_at ?? null;
+            if (row?.updated_at && row.value && typeof row.value === 'object') {
+              storeStudentSettingsSnapshot({ updatedAt: row.updated_at, value });
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load auction state from Supabase.', error);
+        }
+        shouldForceFull = pendingFullSettingsRefreshRef.current;
+      } while (shouldForceFull);
     } finally {
       isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
@@ -1404,7 +1419,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   const runStudentEconomyAction = async (action: StudentEconomyAction) => {
-    if (isEconomySaving) return false;
+    if (isEconomySavingRef.current) return false;
+    isEconomySavingRef.current = true;
     setIsEconomySaving(true);
     try {
       const requestId = `student-economy-${studentNumber}-${createBrowserRequestId()}`;
@@ -1421,7 +1437,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         savedEconomyStates = { ...studentEconomyStates, [studentKey]: result.studentEconomy };
         savedStudentLife = result.studentLife;
         resultMessage = result.message;
-        sharedSettingsUpdatedAtRef.current = result.updatedAt;
+        sharedSettingsUpdatedAtRef.current = null;
         invalidateSharedSettingsCache();
       } else {
         const bankMailCreatedAt = new Date().toISOString();
@@ -1480,6 +1496,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentEconomyStates(savedEconomyStates);
       setStudentLife(savedStudentLife);
       if (resultMessage && action.type !== 'draw_character') showStatusMessage(resultMessage);
+      if (isSupabaseSettingsEnabled) void refreshAuctionState({ forceFull: true });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
@@ -1519,6 +1536,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       showStatusMessage(userMessage);
       return false;
     } finally {
+      isEconomySavingRef.current = false;
       setIsEconomySaving(false);
     }
   };

@@ -57,9 +57,11 @@ const previousValue = {
 const runStudentAction = async (action: Record<string, unknown>, requestId: string) => {
   const originalFetch = globalThis.fetch;
   const upstreamBodies: unknown[] = [];
+  const upstreamUrls: string[] = [];
   let fetchCount = 0;
-  globalThis.fetch = async (_input, init) => {
+  globalThis.fetch = async (input, init) => {
     fetchCount += 1;
+    upstreamUrls.push(String(input));
     if (fetchCount === 1) {
       return Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: 'v1' }]);
     }
@@ -73,7 +75,7 @@ const runStudentAction = async (action: Record<string, unknown>, requestId: stri
       headers: studentHeaders(1),
       body: { studentNumber: 1, action, requestId },
     }, response);
-    return { ...result(), upstreamBodies, fetchCount };
+    return { ...result(), upstreamBodies, upstreamUrls, fetchCount };
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -88,6 +90,7 @@ test('iPhone 학생 예금은 전체 설정 PUT 없이 본인 고마만 원자�
 
     assert.equal(result.statusCode, 200);
     assert.equal(result.fetchCount, 2);
+    assert.equal(new URL(result.upstreamUrls[1]).searchParams.get('select'), 'id');
     assert.equal(Reflect.get(result.body as object, 'balance'), 115);
     assert.equal(Reflect.get(Reflect.get(result.body as object, 'studentEconomy') as object, 'deposit'), 30);
 

@@ -94,6 +94,8 @@ export default function StudentStorePage({
               <StudentStockMarketPage
                 state={economyState}
                 market={stockMarket}
+                isLoading={isLoading}
+                isSaving={isEconomySaving}
                 selectedStockId={selectedStockId}
                 onSelectStock={setSelectedStockId}
                 onAction={onEconomyAction}

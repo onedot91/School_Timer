@@ -286,7 +286,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         createdAt,
       );
       const updatedAt = new Date().toISOString();
-      const endpoint = `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(current.updated_at ?? '')}`;
+      const endpoint = `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(current.updated_at ?? '')}&select=id`;
       const result = await fetch(endpoint, {
         method: 'PATCH',
         headers: {

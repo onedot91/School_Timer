@@ -39,7 +39,7 @@ interface InvestmentStatusMessageOptions {
 }
 
 export const getInvestmentStatusMessage = ({ isSaving, marketClosed, isBelowMinimum, hasInvalidAmount, hasPosition }: InvestmentStatusMessageOptions) => {
-  if (isSaving) return '';
+  if (isSaving) return '처리 중';
   if (marketClosed) return '오늘은 휴장';
   if (isBelowMinimum) return '투자 한도 없음';
   if (hasInvalidAmount) return '입력 금액 확인';
@@ -47,12 +47,17 @@ export const getInvestmentStatusMessage = ({ isSaving, marketClosed, isBelowMini
   return '';
 };
 
+export const shouldResetInvestmentAmount = (previousStockId: StudentStockId, selectedStockId: StudentStockId) => (
+  previousStockId !== selectedStockId
+);
+
 export default function StudentInvestmentActionPanel({ state, market, selectedStockId, availableBalance, isSaving, onAction }: StudentInvestmentActionPanelProps) {
   const dateKey = getKoreanDateKey();
   const quotes = getDailyStockQuotes(dateKey, market);
   const [amount, setAmount] = useState('');
   const [draft, setDraft] = useState<InvestmentDraft | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
+  const previousSelectedStockIdRef = useRef(selectedStockId);
   const settings = normalizeStudentInvestmentSettings(market.settings ?? DEFAULT_STUDENT_INVESTMENT_SETTINGS);
   const selectedStock = quotes.find((stock) => stock.id === selectedStockId) ?? quotes[0];
 
@@ -67,6 +72,8 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
   }, [draft, isSaving]);
 
   useEffect(() => {
+    if (!shouldResetInvestmentAmount(previousSelectedStockIdRef.current, selectedStockId)) return;
+    previousSelectedStockIdRef.current = selectedStockId;
     setAmount('');
   }, [selectedStockId]);
 
@@ -87,16 +94,19 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
     hasInvalidAmount: hasEnteredAmount && !canInvest,
     hasPosition,
   });
-  const footerStatusMessage = marketClosed || (!hasPosition && statusMessage === '찾을 투자금 없음') ? '' : statusMessage;
+  const footerStatusMessage = isSaving
+    ? statusMessage
+    : marketClosed || (!hasPosition && statusMessage === '찾을 투자금 없음') ? '' : statusMessage;
 
   const confirm = async () => {
     if (!draft) return;
     const action: StudentEconomyAction = draft.type === 'invest'
       ? { type: 'invest', stockId: selectedStock.id, amount: draft.amount, dateKey }
       : { type: 'withdraw_investment', stockId: selectedStock.id, dateKey };
-    if (await onAction(action)) {
+    const pending = onAction(action);
+    setDraft(null);
+    if (await pending) {
       setAmount('');
-      setDraft(null);
     }
   };
 

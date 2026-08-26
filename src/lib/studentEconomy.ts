@@ -810,7 +810,7 @@ export const applyStudentEconomyAction = ({
       interest,
     };
     nextState = { ...state, deposit: state.deposit + action.amount, deposits: [...state.deposits, deposit] };
-    message = `${action.amount} 고마를 맡겼습니다. ${getRelativeKoreanWeekdayLabel(action.dateKey, maturityDate)}에 ${action.amount + interest} 고마를 받을 수 있습니다.`;
+    message = `${action.amount}\u00a0고마를 맡겼습니다. ${getRelativeKoreanWeekdayLabel(action.dateKey, maturityDate)}에 ${action.amount + interest}\u00a0고마를 받을 수\u00a0있습니다.`;
   } else if (action.type === 'close_deposit') {
     const deposit = state.deposits.find((candidate) => candidate.id === action.depositId);
     if (!deposit) throw new Error('DEPOSIT_NOT_FOUND');
