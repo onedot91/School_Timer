@@ -106,6 +106,8 @@ import {
   type StudentShopCatalogItem,
   type StudentStockMarket,
 } from '../lib/studentEconomy';
+import { patchStudentEconomySettings } from '../lib/studentEconomySettings';
+import { createBrowserRequestId } from '../lib/requestId';
 import {
   createWeeklyMissionStatuses,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
@@ -592,7 +594,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   const sendStudentLetter = (recipient: number, title: string, content: string, replyToId?: string) => saveStudentLifeChange((current) => createStudentLetter(current, {
-    id: crypto.randomUUID(), recipient, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
+    id: createBrowserRequestId(), recipient, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
   }));
 
   const readStudentLetter = async (letterId: string) => {
@@ -600,7 +602,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   const addStudentBookEntry = (title: string, author: string, pageCount: number) => saveStudentLifeChange((current) => addStudentBook(current, {
-    id: crypto.randomUUID(), studentNumber, title, author, pageCount, createdAt: new Date().toISOString(),
+    id: createBrowserRequestId(), studentNumber, title, author, pageCount, createdAt: new Date().toISOString(),
   }));
 
   const createStudentFailureStory = (failure: string, lesson: string) => saveStudentLifeChange((current) => {
@@ -608,7 +610,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     return {
       ...current,
       failureStories: createFailureStory(current.failureStories, {
-        id: crypto.randomUUID(), studentNumber, failure, lesson, createdAt: now, updatedAt: now,
+        id: createBrowserRequestId(), studentNumber, failure, lesson, createdAt: now, updatedAt: now,
       }),
     };
   });
@@ -1358,7 +1360,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     if (!classDonation.enabled || maximumDonation < 1 || activeModal !== null) return;
     setDonationAmountDraft('');
     setDonationError('');
-    donationRequestIdRef.current = `class-donation-${studentNumber}-${crypto.randomUUID()}`;
+    donationRequestIdRef.current = `class-donation-${studentNumber}-${createBrowserRequestId()}`;
     setIsDonationOpen(true);
   };
 
@@ -1403,8 +1405,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const runStudentEconomyAction = async (action: StudentEconomyAction) => {
     if (isEconomySaving) return false;
     setIsEconomySaving(true);
-    const requestId = `student-economy-${studentNumber}-${crypto.randomUUID()}`;
     try {
+      const requestId = `student-economy-${studentNumber}-${createBrowserRequestId()}`;
       let savedBalance = balance;
       let savedBalances = currencyBalances;
       let savedHistory = currencyHistory;
@@ -1459,8 +1461,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 reason: result.reason,
               })
             : currentHistory;
+          const changedStudentKeys = [studentKey];
           if (result.applied && action.type === 'transfer') {
             const recipientKey = String(action.recipientNumber);
+            changedStudentKeys.push(recipientKey);
             const recipientWallet = currentBalances[recipientKey] ?? DEFAULT_CURRENCY_BALANCE;
             nextBalances = { ...nextBalances, [recipientKey]: recipientWallet + action.amount };
             savedHistory = appendCurrencyHistoryEntry(savedHistory, {
@@ -1471,13 +1475,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             });
           }
           savedBalances = nextBalances;
-          return {
-            ...current,
-            currencyBalances: nextBalances,
-            currencyHistory: savedHistory,
-            studentEconomy: savedEconomyStates,
+          return patchStudentEconomySettings({
+            currentValue: current,
+            currencyBalanceEntries: Object.fromEntries(changedStudentKeys.map((key) => [key, nextBalances[key] ?? DEFAULT_CURRENCY_BALANCE])),
+            currencyHistoryEntries: Object.fromEntries(changedStudentKeys.map((key) => [key, savedHistory[key] ?? []])),
+            studentEconomyEntries: { [studentKey]: result.state },
             studentLife: savedStudentLife,
-          };
+          });
         });
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
