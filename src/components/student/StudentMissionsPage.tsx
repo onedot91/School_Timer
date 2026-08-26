@@ -10,6 +10,7 @@ import {
 } from '../../lib/sudoku';
 import { useModalFocus } from '../../lib/useModalFocus';
 import {
+  PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   WEEKLY_MISSION_DEFINITIONS,
   type WeeklyMissionStatuses,
 } from '../../lib/weeklyMission';
@@ -59,6 +60,13 @@ const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
   challenge: '도전',
 };
 
+const TEACHER_MISSION_ILLUSTRATION_PATHS = [
+  '/mission-illustrations/teacher-mission-1.png',
+  '/mission-illustrations/teacher-mission-2.png',
+  '/mission-illustrations/teacher-mission-3.png',
+  '/mission-illustrations/teacher-mission-4.png',
+] as const;
+
 export default function StudentMissionsPage({
   studentNumber,
   profileAssignments,
@@ -95,7 +103,6 @@ export default function StudentMissionsPage({
     studentNumber,
     getTodayClassroomRoleDateKey(),
   );
-  const classroomRoleResult = classroomRoleMission.results[getTodayClassroomRoleDateKey()]?.[String(studentNumber)];
   const completedWeeklyMissionCount = completedExternalWeeklyMissionCount
     + (isWeeklySudokuMissionCompleted ? 1 : 0)
     + (numberBaseballStatus === 'completed' ? 1 : 0);
@@ -165,7 +172,10 @@ export default function StudentMissionsPage({
       <main className="student-mission-groups">
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
           <div className="student-group-heading">
-            <h2 id="daily-mission-title">일일 미션</h2>
+            <h2 id="daily-mission-title">
+              일일 미션
+              <span className="student-group-heading-description">(매일매일 할 수 있는 미션)</span>
+            </h2>
             <strong>{auctionMissions.length + 3}개</strong>
           </div>
           <div className="student-mission-grid">
@@ -173,20 +183,20 @@ export default function StudentMissionsPage({
               <motion.div key={mission.id} {...missionEntrance(index)}>
                 <StudentMissionCard
                   title={mission.content}
+                  illustrationSrc={TEACHER_MISSION_ILLUSTRATION_PATHS[mission.illustrationIndex]}
+                  illustrationTitle={mission.content}
                   rewardAmount={mission.rewardAmount}
                   verificationMode="manual"
                   actionLabel="교실에서 수행"
+                  disabledAppearance={false}
                 />
               </motion.div>
             ))}
             <motion.div {...missionEntrance(auctionMissions.length)}>
               <StudentMissionCard
                 title="1인 1역"
-                description={classroomRoleAssignment
-                  ? `오늘 역할: ${classroomRoleAssignment.roleName}${classroomRoleResult === 'rewarded'
-                    ? ' (20고마 지급 완료)'
-                    : classroomRoleResult === 'penalized' ? ' (20고마 차감)' : ''}`
-                  : '오늘 역할 없음'}
+                illustrationSrc="/mission-illustrations/classroom-role.png"
+                illustrationCaption={classroomRoleAssignment?.roleName ?? '오늘 역할 없음'}
                 rewardAmount={CLASSROOM_ROLE_MISSION_REWARD}
                 verificationMode="manual"
                 disabledAppearance={!classroomRoleAssignment}
@@ -198,6 +208,7 @@ export default function StudentMissionsPage({
             <motion.div {...missionEntrance(auctionMissions.length + 1)}>
               <StudentMissionCard
                 title="감정 구슬 넣기"
+                illustrationSrc="/mission-illustrations/emotion-orbs.png"
                 rewardAmount={5}
                 verificationMode="automatic"
                 status={isDailyEmotionMissionCompleted ? 'completed' : 'incomplete'}
@@ -208,6 +219,7 @@ export default function StudentMissionsPage({
             <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 2)}>
               <StudentMissionCard
                 title="글밥짓기"
+                illustrationSrc="/mission-illustrations/writing.png"
                 rewardAmount={DAILY_WRITING_REWARD}
                 verificationMode="manual"
                 actionLabel={hasDailyWritingMission
@@ -221,13 +233,17 @@ export default function StudentMissionsPage({
 
         <section className="student-mission-group" aria-labelledby="weekly-mission-title">
           <div className="student-group-heading">
-            <h2 id="weekly-mission-title">주간 미션</h2>
+            <h2 id="weekly-mission-title">
+              주간 미션
+              <span className="student-group-heading-description">(일주일에 한 번 할 수 있는 미션)</span>
+            </h2>
             <strong>{completedWeeklyMissionCount}/{WEEKLY_MISSION_DEFINITIONS.length + 2} 완료</strong>
           </div>
           <div className="student-mission-grid">
             <motion.div {...missionEntrance(auctionMissions.length + 2)}>
               <StudentMissionCard
                 title="스도쿠"
+                illustrationSrc="/mission-illustrations/sudoku.png"
                 description={activeSudokuDifficulty
                   ? `${DIFFICULTY_LABELS[activeSudokuDifficulty]} 문제를 풀고 있어요.`
                   : isWeeklySudokuMissionCompleted
@@ -252,6 +268,7 @@ export default function StudentMissionsPage({
             <motion.div className="student-number-baseball-mission" {...missionEntrance(auctionMissions.length + 3)}>
               <StudentMissionCard
                 title="숫자 야구"
+                illustrationSrc="/mission-illustrations/number-baseball.png"
                 description={numberBaseballStatus === 'completed'
                   ? '이번 주의 정답과 기록을 다시 볼 수 있어요.'
                   : numberBaseballStatus === 'exhausted'
@@ -274,6 +291,9 @@ export default function StudentMissionsPage({
               <motion.div key={mission.type} {...missionEntrance(index + auctionMissions.length + 4)}>
                 <StudentMissionCard
                   title={mission.label}
+                  illustrationSrc={mission.type === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
+                    ? '/mission-illustrations/newspaper-question.png'
+                    : undefined}
                   rewardAmount={mission.rewardAmount}
                   verificationMode="automatic"
                   status={getPresentedStatus(weeklyMissionStatuses[mission.type])}

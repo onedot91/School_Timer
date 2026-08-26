@@ -32,6 +32,8 @@ test('보상과 차감 결과를 바꾸면 이미 반영된 금액과의 차이�
   assert.equal(getClassroomRoleMissionBalanceDelta('rewarded', 'penalized'), -40);
   assert.equal(getClassroomRoleMissionBalanceDelta('penalized', 'rewarded'), 40);
   assert.equal(getClassroomRoleMissionBalanceDelta('rewarded', 'rewarded'), 0);
+  assert.equal(getClassroomRoleMissionBalanceDelta('rewarded', undefined), -20);
+  assert.equal(getClassroomRoleMissionBalanceDelta('penalized', undefined), 20);
 });
 
 test('다음 날에는 모든 역할 담당 번호가 한 칸 앞으로 이동한다', () => {
@@ -80,4 +82,12 @@ test('당일 보상과 차감 결과를 학생별로 한 번만 기록한다', (
   assert.equal(rewarded.results['2026-08-26']?.['1'], 'rewarded');
   assert.deepEqual(repeated, rewarded);
   assert.equal(penalized.results['2026-08-26']?.['1'], 'penalized');
+});
+
+test('같은 결과 버튼을 다시 누르면 당일 기록을 취소한다', () => {
+  const settings = normalizeClassroomRoleMissionSettings(null);
+  const rewarded = setClassroomRoleMissionResult(settings, 1, 'rewarded', '2026-08-26');
+  const cancelled = setClassroomRoleMissionResult(rewarded, 1, undefined, '2026-08-26');
+
+  assert.equal(cancelled.results['2026-08-26'], undefined);
 });

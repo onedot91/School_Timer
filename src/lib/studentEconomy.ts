@@ -141,19 +141,19 @@ export const DEFAULT_STUDENT_CHARACTER = {
 } as const;
 
 export const STUDENT_HOUSE_DESIGNS = [
-  { id: 'pink-cottage', name: '달콤한 분홍집', imageSrc: '/student-house-designs/pink-cottage.png', price: 100 },
-  { id: 'orange-roof-cottage', name: '꽃창가 주황집', imageSrc: '/student-house-designs/orange-roof-cottage.png', price: 100 },
-  { id: 'pink-heart-house', name: '분홍 하트집', imageSrc: '/student-house-designs/pink-heart-house.png', price: 100 },
-  { id: 'blue-roof-house', name: '푸른 기와집', imageSrc: '/student-house-designs/blue-roof-house.png', price: 100 },
-  { id: 'mint-heart-house', name: '민트 하트집', imageSrc: '/student-house-designs/mint-heart-house.png', price: 100 },
-  { id: 'purple-heart-house', name: '보랏빛 꽃집', imageSrc: '/student-house-designs/purple-heart-house.png', price: 100 },
-  { id: 'teal-roof-house', name: '청록 기와집', imageSrc: '/student-house-designs/teal-roof-house.png', price: 100 },
-  { id: 'golden-roof-house', name: '황금 지붕집', imageSrc: '/student-house-designs/golden-roof-house.png', price: 100 },
-  { id: 'coral-teal-house', name: '산호빛 지붕집', imageSrc: '/student-house-designs/coral-teal-house.png', price: 100 },
-  { id: 'modern-house', name: '모던 정원집', imageSrc: '/student-house-designs/modern-house.png', price: 100 },
-  { id: 'stone-cottage', name: '돌담 오두막', imageSrc: '/student-house-designs/stone-cottage.png', price: 100 },
-  { id: 'two-story-house', name: '이층 꽃집', imageSrc: '/student-house-designs/two-story-house.png', price: 100 },
-  { id: 'blue-wing-house', name: '푸른 날개집', imageSrc: '/student-house-designs/blue-wing-house.png', price: 100 },
+  { id: 'pink-cottage', name: '달콤한 분홍집', imageSrc: '/student-house-designs/pink-cottage.png', price: 100, stagePosition: { width: 40.47, left: 49.43, bottom: 21.67 } },
+  { id: 'orange-roof-cottage', name: '꽃창가 주황집', imageSrc: '/student-house-designs/orange-roof-cottage.png', price: 100, stagePosition: { width: 36.59, left: 49.62, bottom: 22.55 } },
+  { id: 'pink-heart-house', name: '분홍 하트집', imageSrc: '/student-house-designs/pink-heart-house.png', price: 100, stagePosition: { width: 42.36, left: 49, bottom: 21.96 } },
+  { id: 'blue-roof-house', name: '푸른 기와집', imageSrc: '/student-house-designs/blue-roof-house.png', price: 100, stagePosition: { width: 38.5, left: 49.07, bottom: 19.18 } },
+  { id: 'mint-heart-house', name: '민트 하트집', imageSrc: '/student-house-designs/mint-heart-house.png', price: 100, stagePosition: { width: 39.52, left: 49.39, bottom: 21.28 } },
+  { id: 'purple-heart-house', name: '보랏빛 꽃집', imageSrc: '/student-house-designs/purple-heart-house.png', price: 100, stagePosition: { width: 38.3, left: 49.33, bottom: 18.82 } },
+  { id: 'teal-roof-house', name: '청록 기와집', imageSrc: '/student-house-designs/teal-roof-house.png', price: 100, stagePosition: { width: 35.59, left: 48.93, bottom: 19.92 } },
+  { id: 'golden-roof-house', name: '황금 지붕집', imageSrc: '/student-house-designs/golden-roof-house.png', price: 100, stagePosition: { width: 38.53, left: 49.76, bottom: 19.23 } },
+  { id: 'coral-teal-house', name: '산호빛 지붕집', imageSrc: '/student-house-designs/coral-teal-house.png', price: 100, stagePosition: { width: 41.06, left: 49.56, bottom: 20.83 } },
+  { id: 'modern-house', name: '모던 정원집', imageSrc: '/student-house-designs/modern-house.png', price: 100, stagePosition: { width: 43.37, left: 49.97, bottom: 21.85 } },
+  { id: 'stone-cottage', name: '돌담 오두막', imageSrc: '/student-house-designs/stone-cottage.png', price: 100, stagePosition: { width: 51.38, left: 49.71, bottom: 19.18 } },
+  { id: 'two-story-house', name: '이층 꽃집', imageSrc: '/student-house-designs/two-story-house.png', price: 100, stagePosition: { width: 36.72, left: 49, bottom: 21.14 } },
+  { id: 'blue-wing-house', name: '푸른 날개집', imageSrc: '/student-house-designs/blue-wing-house.png', price: 100, stagePosition: { width: 40.36, left: 49.33, bottom: 20.97 } },
 ] as const;
 
 export const STUDENT_STOCKS = [
@@ -305,7 +305,7 @@ export type StudentEconomyAction =
   | { type: 'draw_character' }
   | { type: 'select_character'; characterId: StudentCharacterPrizeId | null }
   | { type: 'buy_house'; houseId: StudentHouseDesignId }
-  | { type: 'select_house'; houseId: StudentHouseDesignId }
+  | { type: 'select_house'; houseId: StudentHouseDesignId | 'custom' | null }
   | { type: 'buy_custom_house_coupon' }
   | { type: 'register_custom_house'; name: string; theme: StudentCustomHouseTheme }
   | { type: 'invest'; stockId: StudentStockId; amount: number; dateKey: string }
@@ -644,6 +644,16 @@ export const getStudentEconomyState = (states: unknown, studentNumber: number) =
   normalizeStudentEconomyStates(states)[String(studentNumber)] ?? createStudentEconomyState()
 );
 
+export const getStudentShopPurchaseLabels = (value: unknown, catalogValue: unknown) => {
+  const state = normalizeStudentEconomyState(value);
+  const catalog = normalizeStudentShopCatalog(catalogValue);
+  return [
+    ...catalog.flatMap((item) => (state.inventory[item.id] ?? 0) > 0 ? [`${item.name} ${state.inventory[item.id]}개`] : []),
+    ...((state.inventory.house_repair ?? 0) > 0 ? ['집 고치기'] : []),
+    ...(state.hasCustomHouseCoupon ? ['내 집 만들기'] : []),
+  ];
+};
+
 export const applyStudentEconomyTax = ({ state: rawState, wallet: rawWallet }: StudentEconomyTaxResult): StudentEconomyTaxResult => {
   const state = normalizeStudentEconomyState(rawState);
   const wallet = clampAmount(rawWallet);
@@ -921,9 +931,15 @@ export const applyStudentEconomyAction = ({
     nextState = { ...state, ownedHouseIds: [...state.ownedHouseIds, house.id], activeHouseId: house.id };
     message = `${house.name}을(를) 샀습니다.`;
   } else if (action.type === 'select_house') {
-    if (!state.ownedHouseIds.includes(action.houseId)) throw new Error('HOUSE_NOT_OWNED');
+    if (action.houseId === null) {
+      if ((state.inventory.house_repair ?? 0) < 1) throw new Error('HOUSE_SHOP_LOCKED');
+    } else if (action.houseId === 'custom') {
+      if (!state.customHouseDesign) throw new Error('CUSTOM_HOUSE_NOT_REGISTERED');
+    } else if (!state.ownedHouseIds.includes(action.houseId)) {
+      throw new Error('HOUSE_NOT_OWNED');
+    }
     nextState = { ...state, activeHouseId: action.houseId };
-    message = '집을 바꿨습니다.';
+    message = action.houseId === null ? '고친 우리 집으로 바꿨습니다.' : '집을 바꿨습니다.';
   } else if (action.type === 'buy_custom_house_coupon') {
     if ((state.inventory.house_repair ?? 0) < 1) throw new Error('HOUSE_SHOP_LOCKED');
     if (state.hasCustomHouseCoupon) throw new Error('CUSTOM_HOUSE_COUPON_OWNED');

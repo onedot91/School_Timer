@@ -16645,6 +16645,7 @@ a[href]:active {
 .student-mode-page {
   --student-mission: #9a6418;
   --student-mission-soft: #fff8ec;
+  --student-mission-role-size: 1.125rem;
   --student-store: #007a57;
   --student-store-soft: #eef8f3;
   --student-sudoku-cell-size: clamp(3.6rem, min(8.4vh, 6vw), 4.25rem);
@@ -16826,14 +16827,9 @@ a[href]:active {
 }
 
 .student-mission-status-face.is-compact {
-  --student-mission-face-eye-size: 1.75px;
-  --student-mission-face-line: 1.25px;
-  --student-mission-face-expression-line: 1.5px;
-  --student-mission-face-ring: 1px;
   width: 1.45rem;
   height: 1.45rem;
   flex: 0 0 auto;
-  border: 1px solid white;
 }
 
 .student-header-copy h1,
@@ -17269,6 +17265,16 @@ a[href]:active {
   font-weight: 850;
 }
 
+.student-group-heading .student-group-heading-description {
+  margin-left: 0.55rem;
+  color: var(--apple-text-secondary);
+  font-family: var(--font-body);
+  font-size: clamp(0.82rem, 1.4vw, 1rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.35;
+}
+
 .student-group-heading > strong {
   color: var(--apple-accent-pressed);
   font-family: var(--font-mono);
@@ -17375,6 +17381,83 @@ a[href]:active {
   letter-spacing: 0.02em;
 }
 
+.student-mission-illustration-placeholder.has-illustration {
+  border-style: solid;
+  background: var(--apple-surface-muted);
+}
+
+.student-mission-illustration-placeholder.has-illustration::before,
+.student-mission-illustration-placeholder.has-illustration::after {
+  display: none;
+}
+
+.student-mission-illustration {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.student-mission-illustration-title {
+  position: absolute;
+  z-index: 1;
+  inset: 20% 8% 15%;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--bookstore-ink);
+  font-family: "Jua", "Gowun Dodum", "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
+  font-size: clamp(2rem, 3.2vw, 2.65rem);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  overflow-wrap: break-word;
+  text-align: center;
+  text-shadow:
+    0 2px 0 rgba(255, 253, 247, 0.96),
+    0 0 12px rgba(255, 250, 235, 0.96);
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.student-mission-illustration-title.is-medium {
+  font-size: clamp(1.65rem, 2.65vw, 2.2rem);
+}
+
+.student-mission-illustration-title.is-long {
+  font-size: clamp(1.35rem, 2.2vw, 1.8rem);
+  line-height: 1.12;
+}
+
+.student-mission-illustration-title.is-extra-long {
+  font-size: clamp(1.1rem, 1.75vw, 1.45rem);
+  line-height: 1.16;
+}
+
+.student-mission-illustration-placeholder.has-illustration .student-mission-card-copy {
+  position: absolute;
+  z-index: 1;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  max-width: none;
+}
+
+.student-mission-illustration-placeholder.has-illustration .student-mission-card-copy p {
+  justify-self: center;
+  max-width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--apple-text-primary) 12%, transparent);
+  border-radius: var(--apple-radius-pill);
+  color: var(--apple-text-primary);
+  background: var(--apple-material-thick);
+  box-shadow: var(--apple-shadow-1);
+  font-size: var(--student-mission-role-size);
+  font-weight: 900;
+  line-height: 1.25;
+}
+
 .student-mission-card-copy {
   display: grid;
   max-width: 88%;
@@ -17458,6 +17541,11 @@ a[href]:active {
   opacity: 0.58;
 }
 
+.student-mission-card.is-disabled .student-mission-illustration {
+  filter: grayscale(0.72);
+  opacity: 0.58;
+}
+
 .student-mission-card.is-disabled .student-mission-card-copy p {
   filter: grayscale(0.72);
   opacity: 0.7;
@@ -17480,167 +17568,44 @@ a[href]:active {
 .student-mission-status { flex: 0 0 auto; }
 
 .student-mission-status {
-  --student-mission-face-eye-size: 2.5px;
-  --student-mission-face-line: 1.75px;
-  --student-mission-face-expression-line: 1.5px;
-  --student-mission-face-ring: 1.5px;
   width: 2.2rem;
   height: 2.2rem;
   justify-content: center;
   padding: 0;
-  border: 2px solid white;
-  border-radius: 46% 54% 48% 52% / 52% 47% 53% 48%;
-  color: white;
-  background: var(--apple-text-secondary);
-  box-shadow:
-    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--apple-text-secondary) 34%, transparent),
-    0 .3rem .7rem color-mix(in srgb, var(--apple-text-primary) 18%, transparent);
-  transform: rotate(-2deg);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 0 .22rem .5rem color-mix(in srgb, var(--apple-text-primary) 16%, transparent);
 }
 
 .student-mission-status-face {
   position: relative;
+  overflow: hidden;
 }
 
-.student-mission-status-face::before,
-.student-mission-status-face::after {
-  position: absolute;
-  top: 56%;
-  width: 12%;
-  height: 6%;
-  border-radius: 999px;
-  background: #ffc2b8;
-  content: '';
-  opacity: 0.78;
-}
-
-.student-mission-status-face::before { left: 14%; }
-.student-mission-status-face::after { right: 14%; }
-
-.student-mission-face-eye,
-.student-mission-face-mouth {
-  position: absolute;
+.student-mission-status-face > img {
   display: block;
-  background: transparent;
-}
-
-.student-mission-face-eye {
-  top: 30%;
-  width: var(--student-mission-face-eye-size);
-  height: var(--student-mission-face-eye-size);
-  border: 0;
-  border-radius: 50%;
-  background: white;
-}
-
-.student-mission-face-eye.is-left { left: 30%; }
-.student-mission-face-eye.is-right { top: 28%; right: 29%; }
-
-.student-mission-face-mouth {
-  bottom: 25%;
-  left: 52%;
-  width: 20%;
-  height: 0;
-  border-top: var(--student-mission-face-line) solid white;
-  border-radius: 999px;
-  transform: translateX(-50%) rotate(-5deg);
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .student-mission-teacher-face {
-  border-color: var(--apple-text-secondary);
-  color: var(--apple-text-primary);
-  background: var(--apple-surface);
-  box-shadow:
-    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--apple-text-secondary) 24%, transparent),
-    0 .3rem .7rem color-mix(in srgb, var(--apple-text-primary) 16%, transparent);
-  transform: rotate(2deg);
-}
-
-.student-mission-teacher-face .student-mission-face-eye {
-  background: currentColor;
+  box-shadow: 0 .22rem .5rem color-mix(in srgb, var(--apple-text-primary) 14%, transparent);
 }
 
 .student-mission-teacher-face.is-compact {
   width: 1.45rem;
   height: 1.45rem;
   flex: 0 0 auto;
-  border-width: 1px;
-}
-
-.student-mission-status-face[data-mood="working"] .student-mission-face-mouth {
-  bottom: 22%;
-  width: 14%;
-  height: 14%;
-  border: var(--student-mission-face-line) solid white;
-  border-radius: 50%;
-  background: transparent;
-}
-
-.student-mission-status-face[data-mood="happy"] .student-mission-face-mouth {
-  bottom: 25%;
-  left: 51%;
-  width: 26%;
-  height: 16%;
-  border: 0;
-  border-bottom: var(--student-mission-face-expression-line) solid currentColor;
-  border-radius: 0 0 50% 50%;
-  background: transparent;
-  transform: translateX(-50%) rotate(-2deg);
-}
-
-.student-mission-status-face[data-mood="worried"] .student-mission-face-mouth {
-  bottom: 20%;
-  left: 51%;
-  width: 26%;
-  height: 13%;
-  border: 0;
-  border-top: var(--student-mission-face-expression-line) solid white;
-  border-radius: 999px 999px 0 0;
-  background: transparent;
-  transform: translateX(-50%) rotate(3deg);
-}
-
-.student-mission-status-face.is-compact::before,
-.student-mission-status-face.is-compact::after {
-  display: none;
 }
 
 .student-mission-status-face[data-status="loading"] {
   animation: student-mission-face-wobble 900ms ease-in-out infinite;
 }
 
-.student-mission-status-face[data-status="inProgress"],
-.student-mission-status-face[data-status="loading"] {
-  border-color: white;
-  color: white;
-  background: var(--student-mission);
-  box-shadow:
-    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--student-mission) 40%, transparent),
-    0 .3rem .7rem color-mix(in srgb, var(--student-mission) 24%, transparent);
-}
-
-.student-mission-status-face[data-status="completed"] {
-  border-color: white;
-  color: white;
-  background: var(--apple-accent);
-  box-shadow:
-    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--apple-accent) 40%, transparent),
-    0 .3rem .7rem color-mix(in srgb, var(--apple-accent) 24%, transparent);
-}
-
 .student-mission-card-completed .student-mission-awarded {
   color: var(--apple-accent-pressed);
-}
-
-.student-mission-status-face[data-status="exhausted"],
-.student-mission-status-face[data-status="error"] {
-  border-color: white;
-  border-style: solid;
-  color: white;
-  background: var(--student-sudoku-conflict);
-  box-shadow:
-    0 0 0 var(--student-mission-face-ring) color-mix(in srgb, var(--student-sudoku-conflict) 40%, transparent),
-    0 .3rem .7rem color-mix(in srgb, var(--student-sudoku-conflict) 24%, transparent);
 }
 
 @keyframes student-mission-face-wobble {
@@ -21003,6 +20968,35 @@ a[href]:active {
   filter: drop-shadow(0 .55rem .5rem rgba(82, 57, 33, .18));
   pointer-events: none;
   user-select: none;
+}
+
+.student-home-house-selector {
+  position: absolute;
+  z-index: 2;
+  left: 49.5%;
+  bottom: 12%;
+  width: var(--student-home-house-width);
+  height: var(--student-home-house-height);
+  border: 0;
+  border-radius: var(--apple-radius-card);
+  background: transparent;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+.student-home-house-selector:focus-visible {
+  outline: 3px solid var(--apple-focus);
+  outline-offset: 2px;
+}
+
+.student-home-house-selector:active { transform: translateX(-50%) scale(.99); }
+
+.student-house-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.student-house-picker button { grid-template-columns: 7rem minmax(0, 1fr) auto; }
+.student-house-picker img { width: 7rem; height: 5.25rem; object-fit: contain; }
+
+@media (max-width: 48rem) {
+  .student-house-picker { grid-template-columns: minmax(0, 1fr); }
 }
 
 .student-home-hotspot,

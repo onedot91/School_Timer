@@ -152,13 +152,23 @@ export const setClassroomRoleMissionStartForDate = (
 export const setClassroomRoleMissionResult = (
   settingsValue: unknown,
   studentNumber: number,
-  result: ClassroomRoleMissionResult,
+  result: ClassroomRoleMissionResult | undefined,
   dateKey = getTodayClassroomRoleDateKey(),
 ): ClassroomRoleMissionSettings => {
   const settings = normalizeClassroomRoleMissionSettings(settingsValue);
   const studentKey = String(normalizeStudentNumber(studentNumber));
   const dailyResults = settings.results[dateKey] ?? {};
   if (dailyResults[studentKey] === result) return settings;
+  if (result === undefined) {
+    const nextDailyResults = Object.fromEntries(
+      Object.entries(dailyResults).filter(([resultStudentKey]) => resultStudentKey !== studentKey),
+    );
+    const nextResults = Object.fromEntries(
+      Object.entries(settings.results).filter(([resultDateKey]) => resultDateKey !== dateKey),
+    );
+    if (Object.keys(nextDailyResults).length > 0) nextResults[dateKey] = nextDailyResults;
+    return { ...settings, results: nextResults };
+  }
   return {
     ...settings,
     results: {
@@ -170,9 +180,14 @@ export const setClassroomRoleMissionResult = (
 
 export const getClassroomRoleMissionBalanceDelta = (
   previousResult: ClassroomRoleMissionResult | undefined,
-  nextResult: ClassroomRoleMissionResult,
+  nextResult: ClassroomRoleMissionResult | undefined,
 ) => {
   if (previousResult === nextResult) return 0;
+  if (nextResult === undefined) {
+    return previousResult === 'rewarded'
+      ? -CLASSROOM_ROLE_MISSION_REWARD
+      : CLASSROOM_ROLE_MISSION_REWARD;
+  }
   if (nextResult === 'rewarded') {
     return previousResult === 'penalized'
       ? CLASSROOM_ROLE_MISSION_REWARD * 2

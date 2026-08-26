@@ -9,11 +9,13 @@ import {
   getInvestmentStageFromPercent,
   getInvestmentStagePresentation,
   getInvestmentWeekDateKeys,
+  getStudentShopPurchaseLabels,
   getDailyStockQuotes,
   normalizeStudentEconomyState,
   normalizeStudentStockMarket,
   normalizeStudentShopCatalog,
   STUDENT_CHARACTER_PRIZES,
+  STUDENT_HOUSE_DESIGNS,
   STUDENT_STOCKS,
   getDepositMaturityDate,
   getRelativeKoreanWeekdayLabel,
@@ -540,4 +542,64 @@ test('집 상점은 집 고치기 전에는 잠기고 수리 후 집과 만들�
   assert.equal(house.state.activeHouseId, 'pink-cottage');
   assert.equal(coupon.wallet, 50);
   assert.equal(coupon.state.hasCustomHouseCoupon, true);
+});
+
+test('구매 집은 나무집의 보이는 중심과 바닥선에 맞춘 무대 위치를 가진다', () => {
+  assert.equal(STUDENT_HOUSE_DESIGNS.length, 13);
+  assert.deepEqual(STUDENT_HOUSE_DESIGNS[0]?.stagePosition, { width: 40.47, left: 49.43, bottom: 21.67 });
+  assert.ok(STUDENT_HOUSE_DESIGNS.every((house) => (
+    Number.isFinite(house.stagePosition.width)
+    && Number.isFinite(house.stagePosition.left)
+    && Number.isFinite(house.stagePosition.bottom)
+    && house.stagePosition.width >= 35
+    && house.stagePosition.width <= 52
+    && house.stagePosition.left >= 45
+    && house.stagePosition.left <= 55
+    && house.stagePosition.bottom >= 18
+    && house.stagePosition.bottom <= 23
+  )));
+});
+
+test('집을 고친 학생은 구매한 집에서 고친 기본 집으로 다시 바꿀 수 있다', () => {
+  const result = applyStudentEconomyAction({
+    state: {
+      inventory: { house_repair: 1 },
+      ownedHouseIds: ['pink-cottage'],
+      activeHouseId: 'pink-cottage',
+    },
+    action: { type: 'select_house', houseId: null },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'select-repaired-house',
+  });
+
+  assert.equal(result.state.activeHouseId, null);
+  assert.equal(result.wallet, 100);
+});
+
+test('직접 만든 집은 다른 집을 사용한 뒤에도 다시 선택할 수 있다', () => {
+  const result = applyStudentEconomyAction({
+    state: {
+      inventory: { house_repair: 1 },
+      ownedHouseIds: ['pink-cottage'],
+      activeHouseId: 'pink-cottage',
+      hasCustomHouseCoupon: true,
+      customHouseDesign: { name: '내가 만든 집', theme: 'blue' },
+    },
+    action: { type: 'select_house', houseId: 'custom' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'select-custom-house',
+  });
+
+  assert.equal(result.state.activeHouseId, 'custom');
+});
+
+test('내 집 만들기 구매는 교사 물품 구매 현황에 표시된다', () => {
+  const labels = getStudentShopPurchaseLabels({
+    inventory: { house_repair: 1 },
+    hasCustomHouseCoupon: true,
+  }, []);
+
+  assert.deepEqual(labels, ['집 고치기', '내 집 만들기']);
 });

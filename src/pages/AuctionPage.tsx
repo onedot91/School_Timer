@@ -342,7 +342,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     createWeeklyMissionStatuses('loading')
   ));
   const [hasWeeklyMissionSyncError, setHasWeeklyMissionSyncError] = useState(false);
-  const [activeStudentView, setActiveStudentView] = useState<StudentView>(getStudentViewFromHash);
+  const [activeStudentView, setActiveStudentView] = useState<StudentView>('overview');
   const [sudokuDifficulty, setSudokuDifficulty] = useState<SudokuDifficulty>(activeSudokuDifficulty ?? 'basic');
 
   useEffect(() => {
@@ -400,9 +400,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const pendingFullSettingsRefreshRef = useRef(false);
 
   useEffect(() => {
-    if (!Object.values(STUDENT_VIEW_HASHES).includes(window.location.hash)) {
-      window.history.replaceState(null, '', STUDENT_VIEW_HASHES.overview);
-    }
+    window.history.replaceState(null, '', STUDENT_VIEW_HASHES.overview);
 
     const syncViewFromHistory = () => {
       setActiveStudentView(getStudentViewFromHash());
@@ -1581,14 +1579,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             ownedCharacterIds={studentEconomy.ownedCharacterIds}
             activeCharacterId={studentEconomy.activeCharacterId}
             isCharacterSaving={isEconomySaving}
+            ownedHouseIds={studentEconomy.ownedHouseIds}
             activeHouseId={studentEconomy.activeHouseId}
-            customHouseTheme={studentEconomy.customHouseDesign?.theme ?? null}
+            customHouseDesign={studentEconomy.customHouseDesign}
+            isHouseSaving={isEconomySaving}
             onFeedPet={feedStudentPet}
             onNamePet={nameCurrentStudentPet}
             onChangePet={changeStudentPet}
             onMovePet={moveCurrentStudentPet}
             onMoveGoma={moveCurrentGomaCharacter}
             onSelectCharacter={(characterId) => runStudentEconomyAction({ type: 'select_character', characterId })}
+            onSelectHouse={(houseId) => runStudentEconomyAction({ type: 'select_house', houseId })}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}
             onOpenStore={() => navigateStudentView('store')}

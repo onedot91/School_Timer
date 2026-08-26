@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { CircleDashed } from 'lucide-react';
 import {
   STUDENT_PET_HATCH_AMOUNT,
@@ -23,11 +23,12 @@ interface StudentPetStageProps {
   onOpenEgg: () => void;
   onOpenPetPicker: () => void;
   onOpenSkinPicker?: () => void;
+  onOpenHousePicker?: () => void;
   onMovePet: (position: StudentPetState['position']) => void;
   onMoveGoma: (position: StudentPetState['gomaPosition']) => void;
 }
 
-export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, activeCharacterId, activeHouseId, customHouseTheme, todayEmotion, onOpenMailbox, onOpenLibrary, onOpenEmotions, onOpenEgg, onOpenPetPicker, onOpenSkinPicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
+export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, activeCharacterId, activeHouseId, customHouseTheme, todayEmotion, onOpenMailbox, onOpenLibrary, onOpenEmotions, onOpenEgg, onOpenPetPicker, onOpenSkinPicker, onOpenHousePicker, onMovePet, onMoveGoma }: StudentPetStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -42,12 +43,18 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
     startPosition: StudentPetState['gomaPosition'];
   } | null>(null);
   const lastGomaTapAtRef = useRef(0);
+  const lastHouseTapAtRef = useRef(0);
   const [position, setPosition] = useState(pet.position);
   const [gomaPosition, setGomaPosition] = useState(pet.gomaPosition);
   const hasActivePet = pet.petKind !== null;
   const petKind = getStudentPetKind(pet.petKind);
   const activeCharacter = STUDENT_CHARACTER_PRIZES.find((character) => character.id === activeCharacterId);
   const activeHouse = STUDENT_HOUSE_DESIGNS.find((house) => house.id === activeHouseId);
+  const activeHouseStageStyle: CSSProperties | undefined = activeHouse ? {
+    width: `${activeHouse.stagePosition.width}%`,
+    left: `${activeHouse.stagePosition.left}%`,
+    bottom: `${activeHouse.stagePosition.bottom}%`,
+  } : undefined;
 
   useEffect(() => setPosition(pet.position), [pet.position]);
   useEffect(() => setGomaPosition(pet.gomaPosition), [pet.gomaPosition]);
@@ -129,11 +136,35 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
       <div className="student-character-stage-placeholder" aria-hidden="true" />
       <img
         className={`student-home-house${activeHouseId === 'custom' && customHouseTheme ? ` student-home-house-${customHouseTheme}` : ''}`}
+        style={activeHouseStageStyle}
         src={activeHouse?.imageSrc ?? (isHouseRepaired ? '/student-house-after.png' : '/student-house-before.png')}
         alt=""
         aria-hidden="true"
         draggable={false}
       />
+      {isHouseRepaired && onOpenHousePicker ? (
+        <button
+          type="button"
+          className="student-home-house-selector"
+          aria-label="집 바꾸기. 두 번 누르면 보유한 집을 고를 수 있습니다."
+          title="두 번 눌러 집 바꾸기"
+          onDoubleClick={(event) => {
+            event.stopPropagation();
+            onOpenHousePicker();
+          }}
+          onPointerUp={(event) => {
+            if (event.pointerType !== 'touch') return;
+            const isDoubleTap = lastHouseTapAtRef.current > 0 && event.timeStamp - lastHouseTapAtRef.current < 420;
+            lastHouseTapAtRef.current = isDoubleTap ? 0 : event.timeStamp;
+            if (isDoubleTap) onOpenHousePicker();
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            onOpenHousePicker();
+          }}
+        />
+      ) : null}
       <button
         type="button"
         className="student-home-hotspot student-home-hotspot-egg"

@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   AUCTION_ITEM_TEMPLATES,
+  AUCTION_MISSION_MAX_COUNT,
   AUCTION_MAX_ITEM_COUNT,
   AUCTION_MAX_ITEMS_PER_DAY,
   adjustCurrencyBalancesForStudents,
@@ -14,6 +15,7 @@ import {
   finalizeAuctionAwardInSettings,
   getAuctionAwardsForDay,
   hasDailyEmotionReward,
+  pickAvailableAuctionMissionIllustrationIndex,
   normalizeAuctionMissions,
 } from './currency.ts';
 import { normalizeStudentEconomyState } from './studentEconomy.ts';
@@ -88,6 +90,40 @@ test('교사 미션 보상 범위는 최소값과 최대값 순서로 저장된�
 
   // Then
   assert.deepEqual(normalized[0]?.rewardAmount, [5, 20]);
+});
+
+test('교사 미션은 최대 4개이며 서로 다른 일러스트 번호를 가진다', () => {
+  // Given
+  const missions = Array.from({ length: 6 }, (_, index) => ({
+    id: `mission-${index + 1}`,
+    content: `미션 ${index + 1}`,
+    rewardAmount: 5,
+    illustrationIndex: index === 1 ? 0 : index,
+  }));
+
+  // When
+  const normalized = normalizeAuctionMissions(missions);
+
+  // Then
+  assert.equal(normalized.length, AUCTION_MISSION_MAX_COUNT);
+  assert.equal(new Set(normalized.map((mission) => mission.illustrationIndex)).size, AUCTION_MISSION_MAX_COUNT);
+  assert.deepEqual(normalized.map((mission) => mission.illustrationIndex).sort(), [0, 1, 2, 3]);
+});
+
+test('새 교사 미션은 사용하지 않은 일러스트 중 하나를 선택한다', () => {
+  // Given
+  const missions = normalizeAuctionMissions([
+    { id: 'mission-1', content: '첫 미션', rewardAmount: 5, illustrationIndex: 0 },
+    { id: 'mission-2', content: '둘째 미션', rewardAmount: 5, illustrationIndex: 2 },
+  ]);
+
+  // When
+  const firstAvailable = pickAvailableAuctionMissionIllustrationIndex(missions, 0);
+  const lastAvailable = pickAvailableAuctionMissionIllustrationIndex(missions, 0.999);
+
+  // Then
+  assert.equal(firstAvailable, 1);
+  assert.equal(lastAvailable, 3);
 });
 
 test('당일 낙찰 품목을 완료 시각 순서로 누적한다', () => {

@@ -13,7 +13,14 @@ import { useModalFocus } from '../../lib/useModalFocus';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentPetStage from './StudentPetStage';
-import { DEFAULT_STUDENT_CHARACTER, STUDENT_CHARACTER_PRIZES, type StudentCharacterPrizeId, type StudentCustomHouseTheme, type StudentHouseDesignId } from '../../lib/studentEconomy';
+import {
+  DEFAULT_STUDENT_CHARACTER,
+  STUDENT_CHARACTER_PRIZES,
+  STUDENT_HOUSE_DESIGNS,
+  type StudentCharacterPrizeId,
+  type StudentCustomHouseDesign,
+  type StudentHouseDesignId,
+} from '../../lib/studentEconomy';
 import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
@@ -33,14 +40,17 @@ interface StudentOverviewPageProps {
   ownedCharacterIds: readonly StudentCharacterPrizeId[];
   activeCharacterId: StudentCharacterPrizeId | null;
   isCharacterSaving: boolean;
+  ownedHouseIds: readonly StudentHouseDesignId[];
   activeHouseId: StudentHouseDesignId | 'custom' | null;
-  customHouseTheme: StudentCustomHouseTheme | null;
+  customHouseDesign: StudentCustomHouseDesign | null;
+  isHouseSaving: boolean;
   onFeedPet: () => Promise<boolean>;
   onNamePet: (name: string) => Promise<boolean>;
   onChangePet: (petId: string) => Promise<boolean>;
   onMovePet: (position: StudentPetState['position']) => Promise<boolean>;
   onMoveGoma: (position: StudentPetState['gomaPosition']) => Promise<boolean>;
   onSelectCharacter: (characterId: StudentCharacterPrizeId | null) => Promise<boolean>;
+  onSelectHouse: (houseId: StudentHouseDesignId | 'custom' | null) => Promise<boolean>;
   onOpenEmotions: () => void;
   onOpenMissions: () => void;
   onOpenStore: () => void;
@@ -63,14 +73,17 @@ export default function StudentOverviewPage({
   ownedCharacterIds,
   activeCharacterId,
   isCharacterSaving,
+  ownedHouseIds,
   activeHouseId,
-  customHouseTheme,
+  customHouseDesign,
+  isHouseSaving,
   onFeedPet,
   onNamePet,
   onChangePet,
   onMovePet,
   onMoveGoma,
   onSelectCharacter,
+  onSelectHouse,
   onOpenEmotions,
   onOpenMissions,
   onOpenStore,
@@ -83,13 +96,17 @@ export default function StudentOverviewPage({
   const [isFeedConfirmationOpen, setIsFeedConfirmationOpen] = useState(false);
   const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
   const [skinError, setSkinError] = useState('');
+  const [isHouseDialogOpen, setIsHouseDialogOpen] = useState(false);
+  const [houseError, setHouseError] = useState('');
   const petDialogRef = useRef<HTMLElement>(null);
   const skinDialogRef = useRef<HTMLElement>(null);
+  const houseDialogRef = useRef<HTMLElement>(null);
   const feedButtonRef = useRef<HTMLButtonElement>(null);
   const needsPetName = pet.pendingNamePetId !== null;
   const petKind = getStudentPetKind(pet.petKind);
   const eggStage = getStudentPetEggStage(pet.fedAmount);
   const ownedCharacters = STUDENT_CHARACTER_PRIZES.filter((character) => ownedCharacterIds.includes(character.id));
+  const ownedHouses = STUDENT_HOUSE_DESIGNS.filter((house) => ownedHouseIds.includes(house.id));
 
   useEffect(() => {
     setPetNameDraft(pet.name);
@@ -103,6 +120,15 @@ export default function StudentOverviewPage({
       if (!isPetSaving) setActivePetDialog(null);
     },
     isDismissible: !isPetSaving,
+  });
+
+  useModalFocus({
+    dialogRef: houseDialogRef,
+    isOpen: isHouseDialogOpen,
+    onDismiss: () => {
+      if (!isHouseSaving) setIsHouseDialogOpen(false);
+    },
+    isDismissible: !isHouseSaving,
   });
 
   useModalFocus({
@@ -126,6 +152,20 @@ export default function StudentOverviewPage({
     setIsSkinDialogOpen(false);
   };
 
+  const closeHouseDialog = () => {
+    if (isHouseSaving) return;
+    setHouseError('');
+    setIsHouseDialogOpen(false);
+  };
+
+  const selectHouse = (houseId: StudentHouseDesignId | 'custom' | null) => {
+    setHouseError('');
+    void onSelectHouse(houseId).then((saved) => {
+      if (saved) closeHouseDialog();
+      else setHouseError('집을 바꾸지 못했습니다.');
+    });
+  };
+
   return (
     <div className="student-view student-overview-view">
       <h1 className="sr-only">학생 개요</h1>
@@ -137,7 +177,7 @@ export default function StudentOverviewPage({
           isHouseRepaired={isHouseRepaired}
           activeCharacterId={activeCharacterId}
           activeHouseId={activeHouseId}
-          customHouseTheme={customHouseTheme}
+          customHouseTheme={customHouseDesign?.theme ?? null}
           todayEmotion={todayEmotion}
           onOpenMailbox={onOpenMailbox}
           onOpenLibrary={onOpenLibrary}
@@ -153,6 +193,10 @@ export default function StudentOverviewPage({
           onOpenSkinPicker={() => {
             setSkinError('');
             setIsSkinDialogOpen(true);
+          }}
+          onOpenHousePicker={() => {
+            setHouseError('');
+            setIsHouseDialogOpen(true);
           }}
           onMovePet={(position) => { void onMovePet(position); }}
           onMoveGoma={(position) => { void onMoveGoma(position); }}
@@ -233,6 +277,74 @@ export default function StudentOverviewPage({
               })}
             </div>
             {skinError ? <p className="student-pet-dialog-error" role="alert">{skinError}</p> : null}
+          </section>
+        </div>
+      ) : null}
+
+      {isHouseDialogOpen ? (
+        <div className="student-pet-dialog-backdrop" role="presentation" onClick={closeHouseDialog}>
+          <section
+            ref={houseDialogRef}
+            className="student-pet-dialog student-skin-dialog student-house-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="student-house-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="student-pet-dialog-close"
+              onClick={closeHouseDialog}
+              disabled={isHouseSaving}
+              aria-label="집 선택 창 닫기"
+            >
+              <X size={22} aria-hidden="true" />
+            </button>
+            <div className="student-pet-dialog-copy">
+              <span>집 고르기</span>
+              <h2 id="student-house-dialog-title">살고 싶은 집을 골라 주세요</h2>
+            </div>
+            <div className="student-skin-picker student-house-picker">
+              <button
+                type="button"
+                aria-pressed={activeHouseId === null}
+                disabled={isHouseSaving || activeHouseId === null}
+                onClick={() => selectHouse(null)}
+              >
+                <img src="/student-house-after.png" alt="" />
+                <span><strong>나무집</strong><small>{activeHouseId === null ? '사용 중' : '선택하기'}</small></span>
+                {activeHouseId === null ? <Check size={20} aria-hidden="true" /> : null}
+              </button>
+              {ownedHouses.map((house) => {
+                const active = activeHouseId === house.id;
+                return (
+                  <button
+                    key={house.id}
+                    type="button"
+                    aria-pressed={active}
+                    disabled={isHouseSaving || active}
+                    onClick={() => selectHouse(house.id)}
+                  >
+                    <img src={house.imageSrc} alt="" />
+                    <span><strong>{house.name}</strong><small>{active ? '사용 중' : '선택하기'}</small></span>
+                    {active ? <Check size={20} aria-hidden="true" /> : null}
+                  </button>
+                );
+              })}
+              {customHouseDesign ? (
+                <button
+                  type="button"
+                  aria-pressed={activeHouseId === 'custom'}
+                  disabled={isHouseSaving || activeHouseId === 'custom'}
+                  onClick={() => selectHouse('custom')}
+                >
+                  <img className={`student-home-house-${customHouseDesign.theme}`} src="/student-house-after.png" alt="" />
+                  <span><strong>{customHouseDesign.name}</strong><small>{activeHouseId === 'custom' ? '사용 중' : '선택하기'}</small></span>
+                  {activeHouseId === 'custom' ? <Check size={20} aria-hidden="true" /> : null}
+                </button>
+              ) : null}
+            </div>
+            {houseError ? <p className="student-pet-dialog-error" role="alert">{houseError}</p> : null}
           </section>
         </div>
       ) : null}

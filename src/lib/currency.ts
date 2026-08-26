@@ -56,6 +56,7 @@ export interface AuctionMission {
   id: string;
   content: string;
   rewardAmount: AuctionMissionRewardAmount;
+  illustrationIndex: number;
 }
 
 export type AuctionBids = Record<string, AuctionBid>;
@@ -94,6 +95,8 @@ export const DAILY_EMOTION_MISSION_REWARD = 5;
 export const AUCTION_BID_STEP = 1;
 export const AUCTION_MISSIONS_STORAGE_KEY = 'auctionMissions-v1';
 export const AUCTION_MISSION_CONTENT_MAX_LENGTH = 80;
+export const AUCTION_MISSION_MAX_COUNT = 4;
+export const AUCTION_MISSION_ILLUSTRATION_COUNT = 4;
 export const AUCTION_WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 export const AUCTION_WEEKDAY_NAMES = ['월요일', '화요일', '수요일', '목요일', '금요일'];
 export const AUCTION_DAY_ACCENTS = [
@@ -706,13 +709,43 @@ const createUniqueMissionId = (index: number, usedIds: ReadonlySet<string>) => {
   return candidateId;
 };
 
+const getFirstAvailableMissionIllustrationIndex = (
+  usedIndexes: ReadonlySet<number>,
+  preferredIndex: number,
+) => {
+  for (let offset = 0; offset < AUCTION_MISSION_ILLUSTRATION_COUNT; offset += 1) {
+    const candidateIndex = (preferredIndex + offset) % AUCTION_MISSION_ILLUSTRATION_COUNT;
+    if (!usedIndexes.has(candidateIndex)) return candidateIndex;
+  }
+  return 0;
+};
+
+export const pickAvailableAuctionMissionIllustrationIndex = (
+  missions: readonly AuctionMission[],
+  randomValue: number,
+): number | null => {
+  const usedIndexes = new Set(missions.map((mission) => mission.illustrationIndex));
+  const availableIndexes = Array.from(
+    { length: AUCTION_MISSION_ILLUSTRATION_COUNT },
+    (_, index) => index,
+  ).filter((index) => !usedIndexes.has(index));
+  if (availableIndexes.length === 0) return null;
+
+  const normalizedRandomValue = Number.isFinite(randomValue)
+    ? Math.min(Math.max(randomValue, 0), 0.999_999)
+    : 0;
+  return availableIndexes[Math.floor(normalizedRandomValue * availableIndexes.length)] ?? null;
+};
+
 export const normalizeAuctionMissions = (value: unknown): AuctionMission[] => {
   if (!Array.isArray(value)) return [];
 
   const usedIds = new Set<string>();
+  const usedIllustrationIndexes = new Set<number>();
   const normalizedMissions: AuctionMission[] = [];
 
   value.forEach((rawMission, index) => {
+    if (normalizedMissions.length >= AUCTION_MISSION_MAX_COUNT) return;
     const rawContent = getObjectField(rawMission, 'content');
     const content = typeof rawContent === 'string'
       ? rawContent.trim().slice(0, AUCTION_MISSION_CONTENT_MAX_LENGTH)
@@ -726,10 +759,21 @@ export const normalizeAuctionMissions = (value: unknown): AuctionMission[] => {
       : createUniqueMissionId(index, usedIds);
     usedIds.add(id);
 
+    const rawIllustrationIndex = getObjectField(rawMission, 'illustrationIndex');
+    const illustrationIndex = typeof rawIllustrationIndex === 'number'
+      && Number.isInteger(rawIllustrationIndex)
+      && rawIllustrationIndex >= 0
+      && rawIllustrationIndex < AUCTION_MISSION_ILLUSTRATION_COUNT
+      && !usedIllustrationIndexes.has(rawIllustrationIndex)
+      ? rawIllustrationIndex
+      : getFirstAvailableMissionIllustrationIndex(usedIllustrationIndexes, index);
+    usedIllustrationIndexes.add(illustrationIndex);
+
     normalizedMissions.push({
       id,
       content,
       rewardAmount: normalizeAuctionMissionRewardAmount(getObjectField(rawMission, 'rewardAmount')),
+      illustrationIndex,
     });
   });
 

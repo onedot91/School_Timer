@@ -89,6 +89,7 @@ import {
   getInvestmentStagePresentation,
   getInvestmentStageFromPercent,
   getInvestmentWeekDateKeys,
+  getStudentShopPurchaseLabels,
   investmentMultiplierToPercent,
   type StudentEconomyStates,
   type StudentShopCatalogItem,
@@ -153,6 +154,7 @@ import {
   AUCTION_MAX_ITEMS_PER_DAY,
   AUCTION_MAX_ITEM_COUNT,
   AUCTION_MISSION_CONTENT_MAX_LENGTH,
+  AUCTION_MISSION_MAX_COUNT,
   AUCTION_MISSIONS_STORAGE_KEY,
   AUCTION_WEEKDAY_LABELS,
   adjustCurrencyBalancesForStudents,
@@ -179,6 +181,7 @@ import {
   normalizeAuctionBids,
   normalizeAuctionItems,
   normalizeAuctionMissions,
+  pickAvailableAuctionMissionIllustrationIndex,
   normalizeCurrencyBalances,
   normalizeCurrencyHistory,
   type CurrencyHistory,
@@ -3733,8 +3736,16 @@ export default function TimerPage() {
   const [currencyBalanceInput, setCurrencyBalanceInput] = useState('');
   const [isCurrencyDirectInputVisible, setIsCurrencyDirectInputVisible] = useState(false);
   const [currencyGroupStudentNumbers, setCurrencyGroupStudentNumbers] = useState<number[]>([]);
-  const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => createDefaultCurrencyBalances());
-  const [currencyHistory, setCurrencyHistory] = useState<CurrencyHistory>(() => createDefaultCurrencyHistory());
+  const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => (
+    isSupabaseSettingsEnabled
+      ? createDefaultCurrencyBalances()
+      : loadStoredStudentPetSnapshot().currencyBalances
+  ));
+  const [currencyHistory, setCurrencyHistory] = useState<CurrencyHistory>(() => (
+    isSupabaseSettingsEnabled
+      ? createDefaultCurrencyHistory()
+      : loadStoredStudentPetSnapshot().currencyHistory
+  ));
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
   const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
@@ -6491,6 +6502,15 @@ export default function TimerPage() {
     target: CurrencyAdjustmentTarget,
     delta: number,
   ) => {
+    if (!isSupabaseSettingsEnabled) {
+      const snapshot = loadStoredStudentPetSnapshot();
+      const stored = storeStudentPetSnapshot({
+        ...snapshot,
+        currencyBalances: nextBalances,
+        currencyHistory: nextHistory,
+      });
+      if (!stored) return;
+    }
     currencyBalancesRef.current = nextBalances;
     currencyHistoryRef.current = nextHistory;
     if (isSupabaseSettingsEnabled && sharedSettingsHydratedRef.current) {
@@ -6751,14 +6771,21 @@ export default function TimerPage() {
   };
 
   const addAuctionMission = () => {
-    setAuctionMissions((previous) => [
-      ...previous,
-      {
+    setAuctionMissions((previous) => {
+      if (previous.length >= AUCTION_MISSION_MAX_COUNT) return previous;
+      const illustrationIndex = pickAvailableAuctionMissionIllustrationIndex(previous, Math.random());
+      if (illustrationIndex === null) return previous;
+
+      return [
+        ...previous,
+        {
         id: `mission-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
         content: `새 미션 ${previous.length + 1}`,
         rewardAmount: 0,
+        illustrationIndex,
       },
-    ]);
+      ];
+    });
   };
 
   const beginAuctionMissionEdit = () => {
@@ -6820,9 +6847,9 @@ export default function TimerPage() {
     const dateKey = getTodayClassroomRoleDateKey();
     const currentSettings = normalizeClassroomRoleMissionSettings(classroomRoleMission, dateKey);
     const previousResult = currentSettings.results[dateKey]?.[String(studentNumber)];
-    if (previousResult === result) return;
+    const nextResult = previousResult === result ? undefined : result;
 
-    const delta = getClassroomRoleMissionBalanceDelta(previousResult, result);
+    const delta = getClassroomRoleMissionBalanceDelta(previousResult, nextResult);
     const studentKey = String(studentNumber);
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
     const before = previousBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
@@ -6835,7 +6862,7 @@ export default function TimerPage() {
       reason: 'classroom_role',
     });
     commitCurrencyAdjustment(nextBalances, nextHistory, 'student', after - before);
-    setClassroomRoleMission(setClassroomRoleMissionResult(currentSettings, studentNumber, result, dateKey));
+    setClassroomRoleMission(setClassroomRoleMissionResult(currentSettings, studentNumber, nextResult, dateKey));
   };
 
   const getAwardSteps = (item: AuctionItem) => {
@@ -9139,11 +9166,7 @@ export default function TimerPage() {
             <header><div><h3>구매 현황</h3><p>학생별 구매 물품</p></div></header>
             <div className="teacher-shop-student-list">
               {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => {
-                const inventory = studentEconomyStates[String(number)]?.inventory ?? {};
-                const purchases = [
-                  ...studentShopCatalog.flatMap((item) => (inventory[item.id] ?? 0) > 0 ? [`${item.name} ${inventory[item.id]}개`] : []),
-                  ...((inventory.house_repair ?? 0) > 0 ? ['집 고치기'] : []),
-                ];
+                const purchases = getStudentShopPurchaseLabels(studentEconomyStates[String(number)], studentShopCatalog);
                 return <div key={number}><strong>{number}번</strong><span>{purchases.length > 0 ? purchases.join(' · ') : '구매 없음'}</span></div>;
               })}
             </div>
@@ -9964,7 +9987,7 @@ export default function TimerPage() {
             </select>
           </label>
 
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-2 md:grid-cols-3">
             {todayClassroomRoleAssignments.map((assignment) => {
               const result = classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(assignment.studentNumber)];
               return (
@@ -9982,18 +10005,20 @@ export default function TimerPage() {
                     <button
                       type="button"
                       onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'rewarded')}
-                      disabled={!classroomRoleMission.enabled || result === 'rewarded'}
-                      className="min-h-10 rounded-[0.75rem] border border-[#9CCDBE] bg-white px-2 text-[0.8rem] font-black text-[#006241] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:bg-[#EAF6F0] disabled:text-[#6F7D70]"
+                      disabled={!classroomRoleMission.enabled}
+                      aria-pressed={result === 'rewarded'}
+                      className={`min-h-10 rounded-[0.75rem] border border-[#9CCDBE] px-2 text-[0.8rem] font-black text-[#006241] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:text-[#6F7D70] ${result === 'rewarded' ? 'bg-[#DDF2E9]' : 'bg-white'}`}
                     >
-                      {result === 'rewarded' ? '지급 완료' : '+20 지급'}
+                      {result === 'rewarded' ? '지급 취소' : '+20 지급'}
                     </button>
                     <button
                       type="button"
                       onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'penalized')}
-                      disabled={!classroomRoleMission.enabled || result === 'penalized'}
-                      className="min-h-10 rounded-[0.75rem] border border-[#E3AAA5] bg-white px-2 text-[0.8rem] font-black text-[#9B4A43] transition-colors hover:bg-[#FFF0ED] disabled:cursor-not-allowed disabled:bg-[#FFF0ED] disabled:text-[#7D6865]"
+                      disabled={!classroomRoleMission.enabled}
+                      aria-pressed={result === 'penalized'}
+                      className={`min-h-10 rounded-[0.75rem] border border-[#E3AAA5] px-2 text-[0.8rem] font-black text-[#9B4A43] transition-colors hover:bg-[#FFF0ED] disabled:cursor-not-allowed disabled:text-[#7D6865] ${result === 'penalized' ? 'bg-[#FFE3DE]' : 'bg-white'}`}
                     >
-                      {result === 'penalized' ? '차감 완료' : '-20 차감'}
+                      {result === 'penalized' ? '차감 취소' : '-20 차감'}
                     </button>
                   </div>
                 </div>
@@ -10002,14 +10027,18 @@ export default function TimerPage() {
           </div>
         </div>
 
-        <div className="order-1 mb-4 flex justify-end">
+        <div className="order-1 mb-4 flex flex-wrap items-center justify-end gap-3">
+          <span className="text-[0.82rem] font-extrabold text-[#65736C]">
+            {auctionMissions.length}/{AUCTION_MISSION_MAX_COUNT}개 등록
+          </span>
           <button
             type="button"
             onClick={addAuctionMission}
-            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#9CCDBE] bg-white px-4 text-[0.86rem] font-extrabold text-[#006241] shadow-[0_8px_16px_rgba(31,98,65,0.08)] transition-colors hover:bg-[#EAF6F0]"
+            disabled={auctionMissions.length >= AUCTION_MISSION_MAX_COUNT}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#9CCDBE] bg-white px-4 text-[0.86rem] font-extrabold text-[#006241] shadow-[0_8px_16px_rgba(31,98,65,0.08)] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:border-[#DDE8E2] disabled:bg-[#F2F5F3] disabled:text-[#87928D] disabled:shadow-none"
           >
             <Plus size={16} />
-            미션 추가
+            {auctionMissions.length >= AUCTION_MISSION_MAX_COUNT ? '최대 4개 등록됨' : '미션 추가'}
           </button>
         </div>
 
