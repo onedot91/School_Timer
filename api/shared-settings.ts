@@ -5,6 +5,7 @@ interface ApiRequest {
   readonly method?: string;
   readonly body?: unknown;
   readonly headers?: RequestHeaders;
+  readonly query?: Record<string, string | readonly string[] | undefined>;
 }
 
 interface ApiResponse {
@@ -119,6 +120,18 @@ const loadRow = async (url: string, key: string) => {
   return Array.isArray(rows) && rows.length > 0 ? rows[0] as SettingsRow : null;
 };
 
+const loadUpdatedAt = async (url: string, key: string) => {
+  const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=updated_at`, {
+    headers: supabaseHeaders(key),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!result.ok) throw new Error(`SHARED_SETTINGS_READ_HTTP_${result.status}`);
+  const rows: unknown = await result.json();
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const updatedAt = Reflect.get(rows[0], 'updated_at');
+  return typeof updatedAt === 'string' ? updatedAt : null;
+};
+
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader('Cache-Control', 'no-store');
   const configuration = getConfiguration();
@@ -133,7 +146,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
   if (request.method === 'GET') {
     try {
-      response.status(200).json(await loadRow(configuration.url, configuration.key));
+      const metadataOnly = request.query?.metadata === '1';
+      response.status(200).json(metadataOnly
+        ? { updatedAt: await loadUpdatedAt(configuration.url, configuration.key) }
+        : await loadRow(configuration.url, configuration.key));
     } catch (error) {
       console.error('Failed to load shared settings.', error);
       response.status(502).json({ error: 'SHARED_SETTINGS_READ_FAILED' });

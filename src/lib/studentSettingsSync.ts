@@ -3,11 +3,11 @@ export type StudentSyncView = 'overview' | 'emotions' | 'missions' | 'store';
 export const STUDENT_SETTINGS_CACHE_KEY = 'school-timer-student-settings-snapshot-v1';
 
 export const STUDENT_SETTINGS_SYNC_INTERVAL_MS: Partial<Record<StudentSyncView, number>> = {
-  overview: 300_000,
-  store: 30_000,
+  overview: 10_000,
+  store: 2_000,
 };
 
-export const STUDENT_FOREGROUND_SYNC_COOLDOWN_MS = 30_000;
+export const STUDENT_FOREGROUND_SYNC_COOLDOWN_MS = 2_000;
 
 export type StudentSettingsSnapshot = {
   updatedAt: string;

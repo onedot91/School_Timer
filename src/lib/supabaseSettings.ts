@@ -15,6 +15,8 @@ export type SettingsRow = {
   updated_at?: string;
 };
 
+let cachedSharedSettingsRow: SettingsRow | null | undefined;
+
 export interface AnnouncementNoteRecord {
   date_key: string;
   date_text: string;
@@ -79,7 +81,11 @@ export const loadSharedSettings = async () => {
 
 export const loadSharedSettingsRow = async () => {
   if (!supabase) return null;
-  if (useServerProxy) return fetchJson('/api/shared-settings') as Promise<SettingsRow | null>;
+  if (useServerProxy) {
+    const row = await fetchJson('/api/shared-settings') as SettingsRow | null;
+    cachedSharedSettingsRow = row;
+    return row;
+  }
 
   const { data, error } = await supabase
     .from('app_settings')
@@ -96,7 +102,7 @@ export const loadSharedSettingsRow = async () => {
 
 export const loadSharedSettingsUpdatedAt = async () => {
   if (!supabase) return null;
-  if (useServerProxy) return (await loadSharedSettingsRow())?.updated_at ?? null;
+  if (useServerProxy) return ((await fetchJson('/api/shared-settings?metadata=1')) as { updatedAt: string | null }).updatedAt;
 
   const { data, error } = await supabase
     .from('app_settings')
@@ -145,7 +151,9 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
 
   if (useServerProxy) {
     for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
-      const currentRow = await loadSharedSettingsRow();
+      const currentRow = cachedSharedSettingsRow === undefined
+        ? await loadSharedSettingsRow()
+        : cachedSharedSettingsRow;
       const nextValue = updater(currentRow?.value ?? null);
       try {
         const result = await fetchJson('/api/shared-settings', {
@@ -153,9 +161,13 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value: nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
         }) as { updatedAt: string };
+        cachedSharedSettingsRow = { id: SHARED_SETTINGS_ID, value: nextValue, updated_at: result.updatedAt };
         return result.updatedAt;
       } catch (error) {
-        if (error instanceof Error && Reflect.get(error, 'status') === 409) continue;
+        if (error instanceof Error && Reflect.get(error, 'status') === 409) {
+          cachedSharedSettingsRow = undefined;
+          continue;
+        }
         throw error;
       }
     }

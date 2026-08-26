@@ -63,6 +63,33 @@ test('unregistered devices cannot read shared classroom settings', async () => {
   });
 });
 
+test('registered devices can poll only the shared settings timestamp', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    globalThis.fetch = async (input) => {
+      requests.push(String(input));
+      return Response.json([{ updated_at: 'v2' }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'GET',
+        headers: studentHeaders(7),
+        query: { metadata: '1' },
+      }, response);
+
+      assert.equal(result().statusCode, 200);
+      assert.deepEqual(result().body, { updatedAt: 'v2' });
+      assert.equal(requests.length, 1);
+      assert.match(requests[0] ?? '', /select=updated_at/);
+      assert.doesNotMatch(requests[0] ?? '', /select=[^&]*value/);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 test('student sessions cannot change teacher-owned settings', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
