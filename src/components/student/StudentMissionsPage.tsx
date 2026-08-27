@@ -10,6 +10,8 @@ import {
 } from '../../lib/sudoku';
 import { useModalFocus } from '../../lib/useModalFocus';
 import {
+  BOOK_STACK_WEEKLY_REWARD,
+  FAILURE_EXHIBITION_WEEKLY_REWARD,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   WEEKLY_MISSION_DEFINITIONS,
   type WeeklyMissionStatuses,
@@ -45,11 +47,15 @@ interface StudentMissionsPageProps {
   hasDailyWritingMission: boolean;
   isDailyWritingMissionCompleted: boolean;
   isWeeklySudokuMissionCompleted: boolean;
+  isFailureExhibitionMissionCompleted: boolean;
+  isBookStackMissionCompleted: boolean;
   activeSudokuDifficulty: SudokuDifficulty | null;
   completedSudokuDifficulty: SudokuDifficulty | null;
   numberBaseballStatus: NumberBaseballStatus;
   onOpenEmotions: () => void;
   onOpenMailbox: () => void;
+  onOpenFailureExhibition: () => void;
+  onOpenBookStack: () => void;
   onOpenSudoku: (difficulty: SudokuDifficulty) => void;
   onOpenNumberBaseball: () => void;
   onBack: () => void;
@@ -82,11 +88,15 @@ export default function StudentMissionsPage({
   hasDailyWritingMission,
   isDailyWritingMissionCompleted,
   isWeeklySudokuMissionCompleted,
+  isFailureExhibitionMissionCompleted,
+  isBookStackMissionCompleted,
   activeSudokuDifficulty,
   completedSudokuDifficulty,
   numberBaseballStatus,
   onOpenEmotions,
   onOpenMailbox,
+  onOpenFailureExhibition,
+  onOpenBookStack,
   onOpenSudoku,
   onOpenNumberBaseball,
   onBack,
@@ -105,7 +115,9 @@ export default function StudentMissionsPage({
   );
   const completedWeeklyMissionCount = completedExternalWeeklyMissionCount
     + (isWeeklySudokuMissionCompleted ? 1 : 0)
-    + (numberBaseballStatus === 'completed' ? 1 : 0);
+    + (numberBaseballStatus === 'completed' ? 1 : 0)
+    + (isFailureExhibitionMissionCompleted ? 1 : 0)
+    + (isBookStackMissionCompleted ? 1 : 0);
   const getPresentedStatus = (status: WeeklyMissionStatuses[keyof WeeklyMissionStatuses]): StudentMissionStatus => {
     if (hasSyncError && status !== 'completed') return 'error';
     return status;
@@ -237,7 +249,7 @@ export default function StudentMissionsPage({
               주간 미션
               <span className="student-group-heading-description">(일주일에 한 번 할 수 있는 미션)</span>
             </h2>
-            <strong>{completedWeeklyMissionCount}/{WEEKLY_MISSION_DEFINITIONS.length + 2} 완료</strong>
+            <strong>{completedWeeklyMissionCount}/{WEEKLY_MISSION_DEFINITIONS.length + 4} 완료</strong>
           </div>
           <div className="student-mission-grid">
             <motion.div {...missionEntrance(auctionMissions.length + 2)}>
@@ -287,8 +299,30 @@ export default function StudentMissionsPage({
                 onAction={onOpenNumberBaseball}
               />
             </motion.div>
+            <motion.div {...missionEntrance(auctionMissions.length + 4)}>
+              <StudentMissionCard
+                title="실패 전시하기"
+                illustrationSrc="/mission-illustrations/failure-exhibition.png"
+                rewardAmount={FAILURE_EXHIBITION_WEEKLY_REWARD}
+                verificationMode="automatic"
+                status={isFailureExhibitionMissionCompleted ? 'completed' : 'incomplete'}
+                actionLabel={isFailureExhibitionMissionCompleted ? '전시한 글 보기' : '실패 전시하기'}
+                onAction={onOpenFailureExhibition}
+              />
+            </motion.div>
+            <motion.div {...missionEntrance(auctionMissions.length + 5)}>
+              <StudentMissionCard
+                title="읽은 책 쌓기"
+                illustrationSrc="/mission-illustrations/book-stacking.png"
+                rewardAmount={BOOK_STACK_WEEKLY_REWARD}
+                verificationMode="automatic"
+                status={isBookStackMissionCompleted ? 'completed' : 'incomplete'}
+                actionLabel={isBookStackMissionCompleted ? '쌓은 책 보기' : '책 쌓기'}
+                onAction={onOpenBookStack}
+              />
+            </motion.div>
             {WEEKLY_MISSION_DEFINITIONS.map((mission, index) => (
-              <motion.div key={mission.type} {...missionEntrance(index + auctionMissions.length + 4)}>
+              <motion.div key={mission.type} {...missionEntrance(index + auctionMissions.length + 6)}>
                 <StudentMissionCard
                   title={mission.label}
                   illustrationSrc={mission.type === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE

@@ -142,11 +142,15 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
     hasDailyWritingMission: false,
     isDailyWritingMissionCompleted: false,
     isWeeklySudokuMissionCompleted: false,
+    isFailureExhibitionMissionCompleted: false,
+    isBookStackMissionCompleted: false,
     activeSudokuDifficulty: null,
     completedSudokuDifficulty: null,
     numberBaseballStatus: 'incomplete',
     onOpenEmotions: () => undefined,
     onOpenMailbox: () => undefined,
+    onOpenFailureExhibition: () => undefined,
+    onOpenBookStack: () => undefined,
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
     onBack: () => undefined,
@@ -170,6 +174,10 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   assert.match(markup, /매일매일 할 수 있는 미션/);
   assert.match(markup, /주간 미션/);
   assert.match(markup, /일주일에 한 번 할 수 있는 미션/);
+  assert.match(markup, /실패 전시하기/);
+  assert.match(markup, /읽은 책 쌓기/);
+  assert.match(markup, /보상 10고마/);
+  assert.match(markup, /0\/7 완료/);
 });
 
 test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시한다', () => {
@@ -186,11 +194,15 @@ test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시
     hasDailyWritingMission: false,
     isDailyWritingMissionCompleted: false,
     isWeeklySudokuMissionCompleted: false,
+    isFailureExhibitionMissionCompleted: false,
+    isBookStackMissionCompleted: false,
     activeSudokuDifficulty: null,
     completedSudokuDifficulty: null,
     numberBaseballStatus: 'incomplete' as const,
     onOpenEmotions: () => undefined,
     onOpenMailbox: () => undefined,
+    onOpenFailureExhibition: () => undefined,
+    onOpenBookStack: () => undefined,
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
     onBack: () => undefined,
@@ -236,11 +248,15 @@ test('전용 일러스트가 있는 미션 카드는 해당 4대3 이미지를 �
     hasDailyWritingMission: false,
     isDailyWritingMissionCompleted: false,
     isWeeklySudokuMissionCompleted: false,
+    isFailureExhibitionMissionCompleted: false,
+    isBookStackMissionCompleted: false,
     activeSudokuDifficulty: null,
     completedSudokuDifficulty: null,
     numberBaseballStatus: 'incomplete',
     onOpenEmotions: () => undefined,
     onOpenMailbox: () => undefined,
+    onOpenFailureExhibition: () => undefined,
+    onOpenBookStack: () => undefined,
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
     onBack: () => undefined,
@@ -256,4 +272,6 @@ test('전용 일러스트가 있는 미션 카드는 해당 4대3 이미지를 �
   assert.match(markup, /src="\/mission-illustrations\/sudoku\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/number-baseball\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/newspaper-question\.png"/);
+  assert.match(markup, /src="\/mission-illustrations\/failure-exhibition\.png"/);
+  assert.match(markup, /src="\/mission-illustrations\/book-stacking\.png"/);
 });

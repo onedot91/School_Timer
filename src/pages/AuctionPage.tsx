@@ -110,6 +110,7 @@ import {
 } from '../lib/studentEconomy';
 import { updateStudentEconomy } from '../lib/studentEconomyClient';
 import { createBrowserRequestId } from '../lib/requestId';
+import { createBookStackMissionEntry } from '../lib/bookStackMission';
 import {
   loadStoredClassroomRoleMissionSettings,
   normalizeClassroomRoleMissionSettings,
@@ -117,6 +118,8 @@ import {
 } from '../lib/classroomRoleMission';
 import {
   createWeeklyMissionStatuses,
+  BOOK_STACK_WEEKLY_MISSION_TYPE,
+  FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   getKoreanIsoWeekKey,
   hasWeeklyMissionReward,
@@ -132,7 +135,6 @@ import {
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
 } from '../lib/studentSettingsSync';
 import {
-  addStudentBook,
   createStudentLetter,
   getStudentBooks,
   getStudentLetters,
@@ -146,12 +148,12 @@ import {
   type StudentLifeState,
 } from '../lib/studentLife';
 import {
-  createFailureStory,
   getFailureStoriesNewestFirst,
   selectFailureProfile,
   toggleFailureStamp,
   type FailureStampId,
 } from '../lib/failureExhibition';
+import { createFailureExhibitionMissionEntry } from '../lib/failureExhibitionMission';
 import { createBankMailboxLetters } from '../lib/bankMailbox';
 import { useStudentSudokuState } from '../lib/useStudentSudokuState';
 import { useStudentNumberBaseballState } from '../lib/useStudentNumberBaseballState';
@@ -612,19 +614,106 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     await saveStudentLifeChange((current) => markStudentLetterRead(current, studentNumber, letterId, new Date().toISOString()));
   };
 
-  const addStudentBookEntry = (title: string, author: string, pageCount: number) => saveStudentLifeChange((current) => addStudentBook(current, {
-    id: createBrowserRequestId(), studentNumber, title, author, pageCount, createdAt: new Date().toISOString(),
-  }));
+  const addStudentBookEntry = async (title: string, author: string, pageCount: number) => {
+    if (isStudentLifeSaving) return false;
+    setIsStudentLifeSaving(true);
+    try {
+      const input = {
+        id: createBrowserRequestId(),
+        studentNumber,
+        title,
+        author,
+        pageCount,
+        createdAt: new Date().toISOString(),
+      };
+      let result = createBookStackMissionEntry({
+        currencyBalances,
+        currencyHistory,
+        studentLife,
+      }, input);
 
-  const createStudentFailureStory = (failure: string, lesson: string) => saveStudentLifeChange((current) => {
-    const now = new Date().toISOString();
-    return {
-      ...current,
-      failureStories: createFailureStory(current.failureStories, {
-        id: createBrowserRequestId(), studentNumber, failure, lesson, createdAt: now, updatedAt: now,
-      }),
-    };
-  });
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          result = createBookStackMissionEntry(currentValue, input);
+          return result.value;
+        });
+      } else {
+        const snapshot = loadStoredStudentPetSnapshot();
+        result = createBookStackMissionEntry({
+          ...snapshot,
+          studentLife: loadStoredStudentLifeState(),
+        }, input);
+        if (!result.applied) return false;
+        storeStudentLifeState(result.studentLife);
+        if (!storeStudentPetSnapshot({
+          ...snapshot,
+          currencyBalances: result.balances,
+          currencyHistory: result.history,
+        })) return false;
+      }
+
+      if (!result.applied) return false;
+      setStudentLife(result.studentLife);
+      setCurrencyBalances(result.balances);
+      setCurrencyHistory(result.history);
+      return true;
+    } catch (error) {
+      if (error instanceof Error) return false;
+      throw error;
+    } finally {
+      setIsStudentLifeSaving(false);
+    }
+  };
+
+  const createStudentFailureStory = async (failure: string, lesson: string) => {
+    if (isStudentLifeSaving) return false;
+    setIsStudentLifeSaving(true);
+    try {
+      const input = {
+        id: createBrowserRequestId(),
+        studentNumber,
+        failure,
+        lesson,
+        createdAt: new Date().toISOString(),
+      };
+      let result = createFailureExhibitionMissionEntry({
+        currencyBalances,
+        currencyHistory,
+        studentLife,
+      }, input);
+
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          result = createFailureExhibitionMissionEntry(currentValue, input);
+          return result.value;
+        });
+      } else {
+        const snapshot = loadStoredStudentPetSnapshot();
+        result = createFailureExhibitionMissionEntry({
+          ...snapshot,
+          studentLife: loadStoredStudentLifeState(),
+        }, input);
+        if (!result.applied) return false;
+        storeStudentLifeState(result.studentLife);
+        if (!storeStudentPetSnapshot({
+          ...snapshot,
+          currencyBalances: result.balances,
+          currencyHistory: result.history,
+        })) return false;
+      }
+
+      if (!result.applied) return false;
+      setStudentLife(result.studentLife);
+      setCurrencyBalances(result.balances);
+      setCurrencyHistory(result.history);
+      return true;
+    } catch (error) {
+      if (error instanceof Error) return false;
+      throw error;
+    } finally {
+      setIsStudentLifeSaving(false);
+    }
+  };
 
   const stampStudentFailureStory = (storyId: string, stampId: FailureStampId) => saveStudentLifeChange((current) => ({
     ...current,
@@ -1622,11 +1711,25 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             hasDailyWritingMission={hasCurrentDailyWritingMission}
             isDailyWritingMissionCompleted={hasCompletedDailyWritingMission}
             isWeeklySudokuMissionCompleted={hasCompletedWeeklySudokuMission}
+            isFailureExhibitionMissionCompleted={hasWeeklyMissionReward(
+              currencyHistory,
+              studentNumber,
+              getKoreanIsoWeekKey(),
+              FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE,
+            )}
+            isBookStackMissionCompleted={hasWeeklyMissionReward(
+              currencyHistory,
+              studentNumber,
+              getKoreanIsoWeekKey(),
+              BOOK_STACK_WEEKLY_MISSION_TYPE,
+            )}
             activeSudokuDifficulty={activeSudokuDifficulty}
             completedSudokuDifficulty={completedSudokuDifficulty}
             numberBaseballStatus={numberBaseballStatus}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMailbox={() => navigateStudentView('mailbox')}
+            onOpenFailureExhibition={() => navigateStudentView('library')}
+            onOpenBookStack={() => navigateStudentView('library-bookshelf')}
             onOpenSudoku={async (difficulty) => {
               const startedDifficulty = await startSudoku(difficulty);
               if (!startedDifficulty) {

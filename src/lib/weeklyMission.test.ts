@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+  FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE,
   claimWeeklyMissionRewardInSettings,
   findPersonalQuestionForWeek,
   getKoreanIsoWeekKey,
@@ -49,7 +50,33 @@ test('personal questions award 10 while both Classword missions remain at 5', ()
     ],
   );
   assert.equal(getWeeklyMissionRewardAmount('personal_question'), 10);
+  assert.equal(getWeeklyMissionRewardAmount(FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE), 10);
   assert.equal(getWeeklyMissionRewardAmount(CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE), 5);
+});
+
+test('실패 전시하기는 학생과 주차별로 10고마를 한 번만 지급한다', () => {
+  const first = claimWeeklyMissionRewardInSettings({
+    currencyBalances: { 6: 200 },
+    currencyHistory: { 6: [] },
+  }, 6, '2026-29', FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE, '2026-07-13T14:00:00.000Z');
+  const second = claimWeeklyMissionRewardInSettings(
+    first.value,
+    6,
+    '2026-29',
+    FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE,
+    '2026-07-13T14:01:00.000Z',
+  );
+
+  assert.equal(first.awarded, true);
+  assert.equal(first.balance, 210);
+  assert.equal(second.awarded, false);
+  assert.equal(second.balance, 210);
+  assert.equal(hasWeeklyMissionReward(
+    second.value.currencyHistory,
+    6,
+    '2026-29',
+    FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE,
+  ), true);
 });
 
 test('weekly mission response parser rejects incomplete server payloads', () => {

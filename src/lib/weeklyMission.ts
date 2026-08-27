@@ -1,7 +1,11 @@
 export const PERSONAL_QUESTION_WEEKLY_MISSION_TYPE = 'personal_question';
 export const CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE = 'classword_word_entry';
 export const CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE = 'classword_quiz_correct';
+export const FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE = 'failure_exhibition';
+export const BOOK_STACK_WEEKLY_MISSION_TYPE = 'book_stack';
 export const PERSONAL_QUESTION_WEEKLY_REWARD = 10;
+export const FAILURE_EXHIBITION_WEEKLY_REWARD = 10;
+export const BOOK_STACK_WEEKLY_REWARD = 10;
 export const CLASSWORD_WEEKLY_REWARD = 5;
 
 export const WEEKLY_MISSION_TYPES = [
@@ -11,9 +15,14 @@ export const WEEKLY_MISSION_TYPES = [
 ] as const;
 
 export type WeeklyMissionType = typeof WEEKLY_MISSION_TYPES[number];
+export type WeeklyMissionRewardType = WeeklyMissionType
+  | typeof FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE
+  | typeof BOOK_STACK_WEEKLY_MISSION_TYPE;
 
-export const getWeeklyMissionRewardAmount = (missionType: WeeklyMissionType) => (
+export const getWeeklyMissionRewardAmount = (missionType: WeeklyMissionRewardType) => (
   missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
+    || missionType === FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE
+    || missionType === BOOK_STACK_WEEKLY_MISSION_TYPE
     ? PERSONAL_QUESTION_WEEKLY_REWARD
     : CLASSWORD_WEEKLY_REWARD
 );
@@ -151,7 +160,7 @@ export const hasWeeklyMissionReward = (
   currencyHistory: unknown,
   studentNumber: number,
   weekKey: string,
-  missionType: WeeklyMissionType,
+  missionType: WeeklyMissionRewardType,
 ) => (
   normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
 ).some((entry) => entry.id === getWeeklyMissionRewardId(studentNumber, weekKey, missionType));
@@ -172,7 +181,7 @@ export const getAuctionAwardKeys = (auctionAwards: unknown) => new Set(
 const getWeeklyMissionRewardId = (
   studentNumber: number,
   weekKey: string,
-  missionType: WeeklyMissionType,
+  missionType: WeeklyMissionRewardType,
 ) => missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
   ? `weekly-mission-${studentNumber}-${weekKey}`
   : `weekly-mission-${missionType}-${studentNumber}-${weekKey}`;
@@ -181,7 +190,7 @@ export const claimWeeklyMissionRewardInSettings = (
   value: unknown,
   studentNumber: number,
   weekKey: string,
-  missionType: WeeklyMissionType,
+  missionType: WeeklyMissionRewardType,
   createdAt = new Date().toISOString(),
 ): WeeklyMissionClaim => {
   const currentValue = value && typeof value === 'object'
