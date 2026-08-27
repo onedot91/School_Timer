@@ -1802,7 +1802,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             books={studentBooks}
             isSaving={isStudentLifeSaving}
             onAdd={addStudentBookEntry}
-            onBack={() => navigateStudentView('library')}
+            onBack={() => navigateStudentView('overview')}
           />
         ) : null}
         {isStudentStoreView(activeStudentView) ? (

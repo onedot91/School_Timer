@@ -35,8 +35,7 @@ export default function StudentLibraryPage({ books, isSaving, onAdd, onBack }: S
       <StudentHeader
         title="책장"
         onBack={onBack}
-        backLabel="실패 전시관으로 돌아가기"
-        backText="실패 전시관"
+        backLabel="홈으로 돌아가기"
       />
       <section className="student-library-layout">
         <form className="student-book-form" onSubmit={(event) => {
