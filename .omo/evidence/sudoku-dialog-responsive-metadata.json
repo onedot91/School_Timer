@@ -1,0 +1,59 @@
+{
+  "capturedAt": "2026-08-27T23:34:41+09:00",
+  "route": "http://localhost:3001/#student-missions",
+  "dialogSelector": ".student-sudoku-settings-dialog",
+  "browserVisualScalePercent": 100,
+  "browserVisualScaleEvidence": "window.visualViewport.scale === 1",
+  "captures": [
+    {
+      "label": "primary",
+      "path": "/private/tmp/sudoku-dialog-1280x800-evidence.png",
+      "mime": "image/png",
+      "pixelWidth": 1280,
+      "pixelHeight": 800,
+      "sha256": "3fc98ed3a550efe2c9ca47aa32a0f7172a1a82f764d315049c170e40d287f29b",
+      "windowInnerWidth": 1280,
+      "windowInnerHeight": 800,
+      "documentClientWidth": 1280,
+      "documentClientHeight": 800,
+      "documentScrollWidth": 1280,
+      "documentScrollHeight": 800,
+      "visualViewportScale": 1,
+      "dialogOpen": true
+    },
+    {
+      "label": "secondary-1024",
+      "path": "/private/tmp/sudoku-dialog-1024x800-evidence-exact.png",
+      "mime": "image/png",
+      "pixelWidth": 1024,
+      "pixelHeight": 800,
+      "sha256": "8b86e0be7794d73e908935d4b5073bc1b954dd124d2e30d07ab009536718c925",
+      "windowInnerWidth": 1024,
+      "windowInnerHeight": 800,
+      "documentClientWidth": 1024,
+      "documentClientHeight": 800,
+      "documentScrollWidth": 1024,
+      "documentScrollHeight": 800,
+      "visualViewportScale": 1,
+      "dialogOpen": true,
+      "captureNote": "The in-app browser produced a 1025px-wide raw raster because of fractional device-pixel rounding. The evidence PNG removes only the single extra outer pixel; it is not rescaled."
+    },
+    {
+      "label": "secondary-1366",
+      "path": "/private/tmp/sudoku-dialog-1366x800-evidence-exact.png",
+      "mime": "image/png",
+      "pixelWidth": 1366,
+      "pixelHeight": 800,
+      "sha256": "908b4141adaf7854dea0d6ddcfbfebddc2fe7498bad04caf127b5483525e1579",
+      "windowInnerWidth": 1366,
+      "windowInnerHeight": 800,
+      "documentClientWidth": 1366,
+      "documentClientHeight": 800,
+      "documentScrollWidth": 1366,
+      "documentScrollHeight": 800,
+      "visualViewportScale": 1,
+      "dialogOpen": true,
+      "captureNote": "The in-app browser produced a 1367px-wide raw raster because of fractional device-pixel rounding. The evidence PNG removes only the single extra outer pixel; it is not rescaled."
+    }
+  ]
+}

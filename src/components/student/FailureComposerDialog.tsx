@@ -100,7 +100,7 @@ export function FailureComposerDialog({
             <FailureAutosizeTextarea
               maxLength={400}
               required
-              placeholder="한 번 더 해 볼 방법을 적어 보세요."
+              placeholder="다시 한다면 어떤 방법으로 해볼까요?"
               value={draft.lesson}
               onChange={(event) => updateDraft('lesson', event.target.value)}
             />

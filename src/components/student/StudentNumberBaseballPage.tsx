@@ -136,7 +136,12 @@ export default function StudentNumberBaseballPage({
   return (
     <div className="student-view student-baseball-view">
       <StudentHeader
-        title="숫자야구"
+        title={(
+          <span className="student-baseball-title">
+            <span className="is-coral">숫자</span>
+            <span className="is-mint">야구</span>
+          </span>
+        )}
         onBack={onBack}
         actions={<strong className="student-baseball-attempts">남은 기회 {remainingAttempts}/9</strong>}
       />
@@ -144,7 +149,7 @@ export default function StudentNumberBaseballPage({
         <section className="student-baseball-panel" aria-label="숫자 야구 미션">
           <div className="student-baseball-play">
             <div className="student-baseball-guide">
-              <strong>서로 다른 숫자 3개를 맞혀 보세요</strong>
+              <strong>숫자 3개를 차례로 골라 주세요</strong>
             </div>
 
             {isTerminal ? (
@@ -191,6 +196,8 @@ export default function StudentNumberBaseballPage({
                       </button>
                     );
                   })}
+                </div>
+                <div className="student-baseball-actions">
                   <button
                     type="button"
                     className="student-baseball-delete"
@@ -199,16 +206,17 @@ export default function StudentNumberBaseballPage({
                     onClick={() => setSelectedDigits((current) => current.slice(0, -1))}
                   >
                     <Delete aria-hidden="true" />
+                    <span>한 칸 지우기</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="student-baseball-submit"
+                    disabled={selectedDigits.length !== 3 || isSaving}
+                    onClick={() => void submitGuess()}
+                  >
+                    {isSaving ? '저장 중' : '확인하기'}
                   </button>
                 </div>
-                <button
-                  type="button"
-                  className="student-baseball-submit"
-                  disabled={selectedDigits.length !== 3 || isSaving}
-                  onClick={() => void submitGuess()}
-                >
-                  {isSaving ? '저장 중' : '이 숫자로 확인'}
-                </button>
               </>
             )}
             {shouldShowFeedback ? (

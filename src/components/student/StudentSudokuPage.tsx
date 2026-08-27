@@ -1,10 +1,9 @@
-import { CheckCircle2, Cloud, CloudAlert, Delete, LoaderCircle, PencilLine, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, CloudAlert, Delete, LoaderCircle, PencilLine, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import {
   SUDOKU_REWARDS,
   createSudokuPuzzle,
   getSudokuCompletedDigits,
-  getSudokuConflicts,
   getSudokuMatchingIndices,
   getSudokuProgressKey,
   isSudokuSolved,
@@ -64,7 +63,6 @@ export default function StudentSudokuPage({
   const saveSequenceRef = useRef(0);
   const savedStateTimeoutRef = useRef<number | null>(null);
   const celebrationTimeoutRef = useRef<number | null>(null);
-  const conflicts = useMemo(() => getSudokuConflicts(cells), [cells]);
   const matchingIndices = useMemo(
     () => getSudokuMatchingIndices(cells, selectedIndex),
     [cells, selectedIndex],
@@ -111,11 +109,7 @@ export default function StudentSudokuPage({
     setInteractionMode(mode);
     setLastEditedIndex(selectedIndex);
     setFeedbackSequence((current) => current + 1);
-    const nextConflicts = getSudokuConflicts(nextCells);
-    if (nextConflicts.size > 0) setFeedback('같은 줄이나 구역에 겹친 숫자가 있어요.');
-    else if (nextCells.every((value) => value !== 0) && !isSudokuSolved(puzzle, nextCells)) {
-      setFeedback('아직 맞지 않는 칸이 있어요. 다시 살펴보세요.');
-    } else setFeedback('입력 내용이 자동으로 저장됩니다.');
+    setFeedback('빈칸을 선택하고 숫자를 입력하세요.');
 
     const entry: SudokuProgressEntry = { puzzleId: puzzle.id, cells: nextCells, completedAt: null };
     const sequence = saveSequenceRef.current + 1;
@@ -190,17 +184,18 @@ export default function StudentSudokuPage({
         title="스도쿠"
         onBack={onBack}
         actions={(
-          <div className="student-sudoku-header-state" aria-label={`현재 ${DIFFICULTY_LABELS[difficulty]} 난이도, ${SUDOKU_REWARDS[difficulty]} 고마`}>
+          <div className="student-sudoku-header-state" aria-label={`현재 ${DIFFICULTY_LABELS[difficulty]} 난이도, ${SUDOKU_REWARDS[difficulty]} 고마, 매주 월요일 새 문제로 바뀌어요`}>
             <strong>{DIFFICULTY_LABELS[difficulty]}</strong>
-            <span>+{SUDOKU_REWARDS[difficulty]} 고마</span>
-            <span className={`student-sudoku-save-state is-${saveState}`} role="status" aria-live="polite">
-              {isCompleted ? <CheckCircle2 size={18} aria-hidden="true" /> : null}
-              {saveState === 'saving' ? <LoaderCircle className="student-spin" size={18} aria-hidden="true" /> : null}
-              {!isCompleted && saveState === 'saved' ? <CheckCircle2 size={18} aria-hidden="true" /> : null}
-              {!isCompleted && saveState === 'error' ? <CloudAlert size={18} aria-hidden="true" /> : null}
-              {!isCompleted && saveState === 'idle' ? <Cloud size={18} aria-hidden="true" /> : null}
-              {isCompleted ? '완료' : saveState === 'saving' ? '저장 중' : saveState === 'saved' ? '저장됨' : saveState === 'error' ? '저장 오류' : '자동 저장'}
-            </span>
+            <span>+{SUDOKU_REWARDS[difficulty]} 고마</span><span className="student-sudoku-weekly-note">매주 월요일 새 문제로 바뀌어요</span>
+            {isCompleted || saveState !== 'idle' ? (
+              <span className={`student-sudoku-save-state is-${saveState}`} role="status" aria-live="polite">
+                {isCompleted ? <CheckCircle2 size={18} aria-hidden="true" /> : null}
+                {saveState === 'saving' ? <LoaderCircle className="student-spin" size={18} aria-hidden="true" /> : null}
+                {!isCompleted && saveState === 'saved' ? <CheckCircle2 size={18} aria-hidden="true" /> : null}
+                {!isCompleted && saveState === 'error' ? <CloudAlert size={18} aria-hidden="true" /> : null}
+                {isCompleted ? '완료' : saveState === 'saving' ? '저장 중' : saveState === 'saved' ? '저장됨' : '저장 오류'}
+              </span>
+            ) : null}
           </div>
         )}
       />
@@ -212,7 +207,6 @@ export default function StudentSudokuPage({
                 cells={cells}
                 puzzleCells={puzzle.puzzle}
                 selectedIndex={selectedIndex}
-                conflicts={conflicts}
                 matchingIndices={matchingIndices}
                 lastEditedIndex={lastEditedIndex}
                 feedbackSequence={feedbackSequence}
@@ -230,8 +224,8 @@ export default function StudentSudokuPage({
             </div>
 
             <div className="student-sudoku-controls">
-              <p className={conflicts.size > 0 || saveState === 'error' ? 'is-error' : isCompleted ? 'is-complete' : ''} aria-live="polite">
-                {conflicts.size > 0 || saveState === 'error'
+              <p className={saveState === 'error' ? 'is-error' : isCompleted ? 'is-complete' : ''} aria-live="polite">
+                {saveState === 'error'
                   ? <TriangleAlert size={20} aria-hidden="true" />
                   : isCompleted
                     ? <CheckCircle2 size={20} aria-hidden="true" />

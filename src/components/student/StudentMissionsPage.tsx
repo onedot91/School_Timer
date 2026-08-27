@@ -1,9 +1,10 @@
 import { ArrowRight, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useRef, useState } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import type { AuctionMission } from '../../lib/currency';
 import { NUMBER_BASEBALL_REWARDS, type NumberBaseballStatus } from '../../lib/numberBaseball';
 import {
+  getSudokuRules,
   SUDOKU_DIFFICULTIES,
   SUDOKU_REWARDS,
   type SudokuDifficulty,
@@ -64,6 +65,39 @@ interface StudentMissionsPageProps {
 const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
   basic: '기본',
   challenge: '도전',
+};
+
+const StudentSudokuPreview = ({ difficulty }: { difficulty: SudokuDifficulty }) => {
+  const { gridSize, boxRows, boxColumns } = getSudokuRules(difficulty);
+  const cells = Array.from({ length: gridSize * gridSize }, (_, index) => {
+    const row = Math.floor(index / gridSize);
+    const column = index % gridSize;
+    const value = (row * boxColumns + Math.floor(row / boxRows) + column) % gridSize + 1;
+    return (row * 2 + column) % 4 === 1 ? 0 : value;
+  });
+
+  return (
+    <span
+      className={`student-sudoku-settings-preview is-${difficulty}`}
+      style={{ '--student-sudoku-preview-size': gridSize } as CSSProperties}
+      aria-hidden="true"
+    >
+      {cells.map((value, index) => {
+        const row = Math.floor(index / gridSize);
+        const column = index % gridSize;
+        const isBoxEndColumn = (column + 1) % boxColumns === 0 && column + 1 < gridSize;
+        const isBoxEndRow = (row + 1) % boxRows === 0 && row + 1 < gridSize;
+        return (
+          <span
+            key={index}
+            className={`${value === 0 ? 'is-empty' : ''} ${isBoxEndColumn ? 'is-box-end-column' : ''} ${isBoxEndRow ? 'is-box-end-row' : ''}`}
+          >
+            {value || ''}
+          </span>
+        );
+      })}
+    </span>
+  );
 };
 
 const TEACHER_MISSION_ILLUSTRATION_PATHS = [
@@ -381,21 +415,25 @@ export default function StudentMissionsPage({
                   type="button"
                   key={difficulty}
                   className={`student-sudoku-settings-option is-${difficulty}`}
+                  aria-label={`${difficulty === 'basic' ? '6×6' : '9×9'} ${DIFFICULTY_LABELS[difficulty]}, 보상 +${SUDOKU_REWARDS[difficulty]}고마, 이 난이도로 시작`}
                   onClick={() => {
                     setIsSudokuSettingsOpen(false);
                     onOpenSudoku(difficulty);
                   }}
                 >
-                  <span className="student-sudoku-settings-option-size" aria-hidden="true">
-                    {difficulty === 'basic' ? '6×6' : '9×9'}
+                  <span className="student-sudoku-settings-option-header">
+                    <span className="student-sudoku-settings-option-size" aria-hidden="true">
+                      {difficulty === 'basic' ? '6×6' : '9×9'}
+                    </span>
+                    <span className="student-sudoku-settings-option-copy">
+                      <span>{DIFFICULTY_LABELS[difficulty]}</span>
+                    </span>
+                    <span className="student-sudoku-settings-option-reward">
+                      <strong>+{SUDOKU_REWARDS[difficulty]}</strong>
+                      <small>고마</small>
+                    </span>
                   </span>
-                  <span className="student-sudoku-settings-option-copy">
-                    <span>{DIFFICULTY_LABELS[difficulty]}</span>
-                  </span>
-                  <span className="student-sudoku-settings-option-reward">
-                    <strong>+{SUDOKU_REWARDS[difficulty]}</strong>
-                    <small>고마</small>
-                  </span>
+                  <StudentSudokuPreview difficulty={difficulty} />
                   <span className="student-sudoku-settings-option-action" aria-hidden="true">
                     이 난이도로 시작
                     <ArrowRight />

@@ -4,7 +4,6 @@ interface StudentSudokuBoardProps {
   readonly cells: readonly number[];
   readonly puzzleCells: readonly number[];
   readonly selectedIndex: number;
-  readonly conflicts: ReadonlySet<number>;
   readonly matchingIndices: ReadonlySet<number>;
   readonly lastEditedIndex: number | null;
   readonly feedbackSequence: number;
@@ -20,7 +19,6 @@ export default function StudentSudokuBoard({
   cells,
   puzzleCells,
   selectedIndex,
-  conflicts,
   matchingIndices,
   lastEditedIndex,
   feedbackSequence,
@@ -44,7 +42,6 @@ export default function StudentSudokuBoard({
         const isEntered = !isGiven && value !== 0;
         const isSelected = selectedIndex === index;
         const isMatching = matchingIndices.has(index);
-        const isConflict = conflicts.has(index);
         const isPeer = selectedIndex >= 0 && (
           row === Math.floor(selectedIndex / gridSize)
           || column === selectedIndex % gridSize
@@ -62,16 +59,15 @@ export default function StudentSudokuBoard({
             type="button"
             role="gridcell"
             key={index}
-            className={`${isGiven ? 'is-given' : ''} ${isEntered ? 'is-entered' : ''} ${isSelected ? 'is-selected' : ''} ${isPeer ? 'is-peer' : ''} ${isMatching ? 'is-matching' : ''} ${isConflict ? 'is-conflict' : ''} ${isBoxEndColumn ? 'is-box-end-column' : ''} ${isBoxEndRow ? 'is-box-end-row' : ''} ${isLastColumn ? 'is-last-column' : ''} ${isLastRow ? 'is-last-row' : ''}`}
+            className={`${isGiven ? 'is-given' : ''} ${isEntered ? 'is-entered' : ''} ${isSelected ? 'is-selected' : ''} ${isPeer ? 'is-peer' : ''} ${isMatching ? 'is-matching' : ''} ${isBoxEndColumn ? 'is-box-end-column' : ''} ${isBoxEndRow ? 'is-box-end-row' : ''} ${isLastColumn ? 'is-last-column' : ''} ${isLastRow ? 'is-last-row' : ''}`}
             aria-label={`${row + 1}행 ${column + 1}열, ${value || '빈칸'}${isGiven ? ', 주어진 숫자' : isEntered ? ', 내가 입력한 숫자' : ''}${isMatching ? ', 선택한 숫자와 같음' : ''}`}
             aria-selected={isSelected}
-            aria-invalid={isConflict}
             onClick={(event) => onSelect(index, event.detail === 0 ? 'keyboard' : 'pointer')}
           >
             {value ? (
               <span
                 key={`${value}-${shouldAnimateInput ? feedbackSequence : 0}`}
-                className={`student-sudoku-digit ${shouldAnimateInput ? 'has-input-feedback' : ''} ${shouldAnimateInput && isConflict ? 'has-conflict-feedback' : ''}`}
+                className={`student-sudoku-digit ${shouldAnimateInput ? 'has-input-feedback' : ''}`}
               >
                 {value}
               </span>

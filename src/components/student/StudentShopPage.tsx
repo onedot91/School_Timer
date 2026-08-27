@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
-import { Gamepad2, Hammer, LockKeyhole, Package } from 'lucide-react';
+import { Gamepad2, Hammer, Package } from 'lucide-react';
 import {
   STUDENT_CUSTOM_HOUSE_COUPON_PRICE,
   STUDENT_HOUSE_DESIGNS,
@@ -180,8 +180,9 @@ export default function StudentShopPage({
           </div>
         ) : (
           <div id="student-shop-panel-houses" className="student-house-locked" role="tabpanel" aria-labelledby="student-shop-tab-houses">
-            <LockKeyhole />
-            <h3>집 고치기 필요</h3>
+            <div className="student-house-repair-guide">
+              <img src="/student-house-carpenter-elephant.png" alt="" width={1254} height={1254} decoding="async" />
+            </div>
             {repairItem ? (
               <article>
                 <img src={repairItem.imageSrc} alt="" />
