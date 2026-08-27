@@ -10239,6 +10239,7 @@ export default function TimerPage() {
               <button
                 onClick={toggleBackgroundMusic}
                 onPointerDown={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.currentTarget.blur()}
                 className={`sound-toggle timer-toolbar-button inline-flex h-[3.35rem] w-[3.35rem] shrink-0 items-center justify-center rounded-[1.45rem] transition-[background-color,border-color,box-shadow,transform] sm:h-[3.55rem] sm:w-[3.55rem] sm:rounded-2xl ${
                   isMusicPlaying ? 'sound-toggle-active' : 'sound-toggle-inactive'
                 } ${isMusicLoading ? 'cursor-not-allowed sound-toggle-loading' : ''}`}
