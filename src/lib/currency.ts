@@ -94,7 +94,6 @@ export const CURRENCY_UNIT_LABEL = '고마';
 export const DAILY_EMOTION_MISSION_REWARD = 5;
 export const AUCTION_BID_STEP = 1;
 export const AUCTION_MISSIONS_STORAGE_KEY = 'auctionMissions-v1';
-export const AUCTION_MISSION_CONTENT_MAX_LENGTH = 80;
 export const AUCTION_MISSION_MAX_COUNT = 4;
 export const AUCTION_MISSION_ILLUSTRATION_COUNT = 4;
 export const AUCTION_WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
@@ -748,7 +747,7 @@ export const normalizeAuctionMissions = (value: unknown): AuctionMission[] => {
     if (normalizedMissions.length >= AUCTION_MISSION_MAX_COUNT) return;
     const rawContent = getObjectField(rawMission, 'content');
     const content = typeof rawContent === 'string'
-      ? rawContent.trim().slice(0, AUCTION_MISSION_CONTENT_MAX_LENGTH)
+      ? rawContent.trim()
       : '';
     if (!content) return;
 

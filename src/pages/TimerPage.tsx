@@ -261,7 +261,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
   },
 ] as const;
 const SETTINGS_NAVIGATION_ITEMS = SETTINGS_NAVIGATION_GROUPS.flatMap((group) => group.items);
-const AUCTION_MISSION_EDITOR_MAX_LENGTH = 17;
+const AUCTION_MISSION_RECOMMENDED_LENGTH = 18;
 
 const EMOTION_CALENDAR_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const emotionCalendarMonthFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -6808,7 +6808,7 @@ export default function TimerPage() {
         mission.id === missionId
           ? {
               ...mission,
-              content: nextContent.slice(0, AUCTION_MISSION_EDITOR_MAX_LENGTH),
+              content: nextContent,
             }
           : mission,
       ),
@@ -10048,47 +10048,62 @@ export default function TimerPage() {
           </div>
         ) : (
           <div className="order-2 grid gap-2.5">
-            {auctionMissions.map((mission, index) => (
-              <div
-                key={mission.id}
-                className="grid gap-2 rounded-[1.15rem] border border-[#CFE3D8] bg-white p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] md:grid-cols-[minmax(0,24rem)_22rem_2.75rem] md:items-end md:justify-start"
-              >
-                <label className="grid min-w-0 gap-1.5">
-                  <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">
-                    미션 내용 {index + 1}
-                  </span>
-                  <input
-                    type="text"
-                    value={mission.content}
-                    onChange={(event) => updateAuctionMissionContent(mission.id, event.target.value)}
+            {auctionMissions.map((mission, index) => {
+              const contentLength = Array.from(mission.content).length;
+              const countId = `auction-mission-count-${index}`;
+              const isWithinRecommendedLength = contentLength <= AUCTION_MISSION_RECOMMENDED_LENGTH;
+
+              return (
+                <div
+                  key={mission.id}
+                  className="grid gap-2 rounded-[1.15rem] border border-[#CFE3D8] bg-white p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] md:grid-cols-[minmax(0,1fr)_22rem_2.75rem] md:items-end"
+                >
+                  <label className="grid min-w-0 gap-1.5">
+                    <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">
+                      미션 내용 {index + 1}
+                    </span>
+                    <span className="relative min-w-0">
+                      <input
+                        type="text"
+                        value={mission.content}
+                        onChange={(event) => updateAuctionMissionContent(mission.id, event.target.value)}
+                        onFocus={beginAuctionMissionEdit}
+                        onBlur={endAuctionMissionEdit}
+                        className="section-title h-11 w-full min-w-0 rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] py-2 pl-3 pr-14 text-[0.95rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:border-[#7FB59F] focus:bg-white"
+                        aria-label={`미션 ${index + 1} 내용`}
+                        aria-describedby={countId}
+                        placeholder="예: 책상 정리하기"
+                      />
+                      <span
+                        id={countId}
+                        aria-label={`${contentLength}자, 권장 ${AUCTION_MISSION_RECOMMENDED_LENGTH}자 이내`}
+                        className={`pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.72rem] font-extrabold tabular-nums ${isWithinRecommendedLength ? 'text-[#65736C]' : 'text-[#9B4A43]'}`}
+                      >
+                        {contentLength}/{AUCTION_MISSION_RECOMMENDED_LENGTH}
+                      </span>
+                    </span>
+                  </label>
+
+                  <MissionRewardInput
+                    missionIndex={index + 1}
+                    value={mission.rewardAmount}
+                    onValueChange={(value) => updateAuctionMissionRewardAmount(mission.id, value)}
                     onFocus={beginAuctionMissionEdit}
                     onBlur={endAuctionMissionEdit}
-                    maxLength={AUCTION_MISSION_EDITOR_MAX_LENGTH}
-                    className="section-title h-11 min-w-0 rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] px-3 text-[0.95rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:border-[#7FB59F] focus:bg-white"
-                    aria-label={`미션 ${index + 1} 내용`}
-                    placeholder="예: 책상 정리하기"
                   />
-                </label>
 
-                <MissionRewardInput
-                  missionIndex={index + 1}
-                  value={mission.rewardAmount}
-                  onValueChange={(value) => updateAuctionMissionRewardAmount(mission.id, value)}
-                  onFocus={beginAuctionMissionEdit}
-                  onBlur={endAuctionMissionEdit}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => removeAuctionMission(mission.id)}
-                  className="inline-flex h-11 w-full items-center justify-center rounded-[0.85rem] border border-[#E4D7C9] bg-[#FFFDF8] text-[#8A6347] transition-colors hover:bg-[#FFF7EC] md:w-11"
-                  aria-label={`미션 ${index + 1} 삭제`}
-                  title="미션 삭제"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => removeAuctionMission(mission.id)}
+                    className="inline-flex h-11 w-full items-center justify-center rounded-[0.85rem] border border-[#E4D7C9] bg-[#FFFDF8] text-[#8A6347] transition-colors hover:bg-[#FFF7EC] md:w-11"
+                    aria-label={`미션 ${index + 1} 삭제`}
+                    title="미션 삭제"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

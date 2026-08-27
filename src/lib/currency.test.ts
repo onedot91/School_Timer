@@ -110,6 +110,19 @@ test('교사 미션은 최대 4개이며 서로 다른 일러스트 번호를 �
   assert.deepEqual(normalized.map((mission) => mission.illustrationIndex).sort(), [0, 1, 2, 3]);
 });
 
+test('교사 미션명은 권장 길이보다 길어도 그대로 저장한다', () => {
+  // Given
+  const content = '아주 긴 미션 이름 '.repeat(12).trim();
+
+  // When
+  const normalized = normalizeAuctionMissions([
+    { id: 'mission-long', content, rewardAmount: 5, illustrationIndex: 0 },
+  ]);
+
+  // Then
+  assert.equal(normalized[0]?.content, content);
+});
+
 test('새 교사 미션은 사용하지 않은 일러스트 중 하나를 선택한다', () => {
   // Given
   const missions = normalizeAuctionMissions([
