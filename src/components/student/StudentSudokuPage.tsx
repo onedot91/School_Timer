@@ -187,13 +187,12 @@ export default function StudentSudokuPage({
           <div className="student-sudoku-header-state" aria-label={`현재 ${DIFFICULTY_LABELS[difficulty]} 난이도, ${SUDOKU_REWARDS[difficulty]} 고마, 매주 월요일 새 문제로 바뀌어요`}>
             <strong>{DIFFICULTY_LABELS[difficulty]}</strong>
             <span>+{SUDOKU_REWARDS[difficulty]} 고마</span><span className="student-sudoku-weekly-note">매주 월요일 새 문제로 바뀌어요</span>
-            {isCompleted || saveState !== 'idle' ? (
+            {isCompleted || saveState === 'saving' || saveState === 'error' ? (
               <span className={`student-sudoku-save-state is-${saveState}`} role="status" aria-live="polite">
                 {isCompleted ? <CheckCircle2 size={18} aria-hidden="true" /> : null}
                 {saveState === 'saving' ? <LoaderCircle className="student-spin" size={18} aria-hidden="true" /> : null}
-                {!isCompleted && saveState === 'saved' ? <CheckCircle2 size={18} aria-hidden="true" /> : null}
                 {!isCompleted && saveState === 'error' ? <CloudAlert size={18} aria-hidden="true" /> : null}
-                {isCompleted ? '완료' : saveState === 'saving' ? '저장 중' : saveState === 'saved' ? '저장됨' : '저장 오류'}
+                {isCompleted ? '완료' : saveState === 'saving' ? '저장 중' : '저장 오류'}
               </span>
             ) : null}
           </div>

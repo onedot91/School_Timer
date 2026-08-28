@@ -122,7 +122,12 @@ export default function StudentFailureExhibitionPage({
   return (
     <div className="student-view student-failure-view">
       <StudentHeader
-        title="실패 자랑소"
+        title={(
+          <span className="student-failure-header-title" aria-label="실패 자랑소. 실패의 의미는 한 판 더!">
+            <span>실패 자랑소</span>
+            <span className="student-failure-header-catchphrase">실패의 의미는 한 판 더!</span>
+          </span>
+        )}
         onBack={onBack}
         actions={(
           <nav className="student-failure-side" aria-label="실패 전시관 메뉴">

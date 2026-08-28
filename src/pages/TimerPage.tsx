@@ -7234,9 +7234,9 @@ export default function TimerPage() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = -(circumference - percentage * circumference);
 
-  let colorClass = "text-[#587052]";
-  let strokeColor = "#587052";
-  let ringTrackColor = "#E6D5C9";
+  let colorClass = "teacher-tone-text-accent";
+  let strokeColor = "var(--teacher-accent)";
+  let ringTrackColor = "var(--teacher-border)";
   let pulseClass = "";
   let bgClass = "app-tone-calm";
 
@@ -7263,14 +7263,14 @@ export default function TimerPage() {
           : "\uC77C\uC815 \uC5C6\uC74C";
   const scheduleTypeBadgeClass =
     timerType === 'class'
-      ? 'bg-[#EEF5EA] text-[#466146] border-[#CADABD]'
+      ? 'timer-status-chip--class'
       : timerType === 'break'
-        ? 'bg-[#F7FBF4] text-[#5C7A4B] border-[#D5E6CA]'
+        ? 'timer-status-chip--break'
         : timerType === 'morning'
-          ? 'bg-[#FFF7E3] text-[#8D6C37] border-[#EBCF93]'
+          ? 'timer-status-chip--morning'
           : timerType === 'lunch'
-            ? 'bg-[#FFF0E3] text-[#A46943] border-[#EDC7A8]'
-            : 'bg-[#F3F4F2] text-[#71766F] border-[#D5D9D2]';
+            ? 'timer-status-chip--lunch'
+            : 'timer-status-chip--idle';
 
   const getCharacterMessage = (stage: 'warning' | 'urgent' | 'end') => {
     if (isScheduleBreak) {
@@ -7289,19 +7289,19 @@ export default function TimerPage() {
   };
 
   if (isScheduleIdle) {
-    colorClass = "text-[#7A8077]";
-    strokeColor = "#C6CCC3";
-    ringTrackColor = "#E3E6E1";
+    colorClass = "teacher-tone-text-secondary";
+    strokeColor = "var(--teacher-border-strong)";
+    ringTrackColor = "var(--teacher-surface-muted)";
     bgClass = "app-tone-idle";
   } else if (shouldShowTimedMessage && displayTimeLeft === 0) {
-    colorClass = "text-[#B55E4C]";
-    strokeColor = "#B55E4C";
+    colorClass = "teacher-tone-text-urgent";
+    strokeColor = "var(--teacher-urgent)";
     showCharacter = true;
     bgClass = "app-tone-finished";
     characterMessage = getCharacterMessage('end');
   } else if (shouldShowTimedMessage && percentage <= urgentThreshold) {
-    colorClass = "text-[#B55E4C]";
-    strokeColor = "#B55E4C";
+    colorClass = "teacher-tone-text-urgent";
+    strokeColor = "var(--teacher-urgent)";
     showCharacter = true;
     bgClass = "app-tone-urgent";
     characterMessage = getCharacterMessage('urgent');
@@ -7309,8 +7309,8 @@ export default function TimerPage() {
       pulseClass = "mascot-alert-pulse";
     }
   } else if (shouldShowTimedMessage && percentage <= warningThreshold) {
-    colorClass = "text-[#C58747]";
-    strokeColor = "#C58747";
+    colorClass = "teacher-tone-text-warning";
+    strokeColor = "var(--teacher-warning)";
     showCharacter = true;
     bgClass = "app-tone-warning";
     characterMessage = getCharacterMessage('warning');
@@ -7322,7 +7322,7 @@ export default function TimerPage() {
     (shouldShowTimedMessage && displayTimeLeft === 0) ||
     (shouldShowTimedMessage && percentage <= urgentThreshold);
   const timerNotificationMessage = activeClassEndImage?.message ?? characterMessage;
-  const timerNotificationTextColorClass = showClassEndImage ? 'text-[#3F7C49]' : colorClass;
+  const timerNotificationTextColorClass = showClassEndImage ? 'teacher-tone-text-accent' : colorClass;
   const timerNotificationImageSrc = showClassEndImage
     ? '/first-break-bear.png?v=20260527'
     : '/character.png?v=20260301';
@@ -11675,7 +11675,7 @@ export default function TimerPage() {
       {isSettingsMaterialMounted && (
         <motion.div
           key="timer-settings-material"
-          className="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm md:p-8"
+          className="settings-backdrop teacher-settings-theme fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm md:p-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: isSettingsOpen ? 1 : 0, pointerEvents: isSettingsOpen ? 'auto' : 'none' }}
           transition={{ duration: shouldReduceMotion ? 0.16 : 0.18, ease: 'easeOut' }}

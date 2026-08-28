@@ -215,7 +215,7 @@ export interface FailureStory {
 const MAX_STUDENT_NUMBER = 23;
 const MAX_FAILURE_STORIES = 300;
 const MAX_STORY_LENGTH = 400;
-export const FAILURE_RELAY_VISIBLE_COUNT = 5;
+export const FAILURE_RELAY_VISIBLE_COUNT = 6;
 
 const isStudentNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_STUDENT_NUMBER

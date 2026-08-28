@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FAILURE_RELAY_VISIBLE_COUNT,
   getFailureRelayWindow,
@@ -32,9 +32,9 @@ const RELAY_TRANSITION = {
 } as const;
 
 const relayMotionVariants = {
-  enter: (direction: RelayDirection) => ({ y: direction === 'older' ? '100%' : '-100%' }),
-  center: { y: 0 },
-  exit: (direction: RelayDirection) => ({ y: direction === 'older' ? '-100%' : '100%' }),
+  enter: (direction: RelayDirection) => ({ x: direction === 'older' ? '100%' : '-100%' }),
+  center: { x: 0 },
+  exit: (direction: RelayDirection) => ({ x: direction === 'older' ? '-100%' : '100%' }),
 };
 
 export default function StudentFailureRelay({
@@ -56,24 +56,16 @@ export default function StudentFailureRelay({
   const [pendingStoryCount, setPendingStoryCount] = useState(0);
   const pointerStartYRef = useRef<number | null>(null);
   const transitionEndsAtRef = useRef(0);
-  const pinnedStory = useMemo(
-    () => stories.find((story) => story.studentNumber === studentNumber) ?? null,
-    [stories, studentNumber],
-  );
-  const relayStories = useMemo(
-    () => pinnedStory ? stories.filter((story) => story.id !== pinnedStory.id) : stories,
-    [pinnedStory, stories],
-  );
-  const relayVisibleCount = pinnedStory ? FAILURE_RELAY_VISIBLE_COUNT - 1 : FAILURE_RELAY_VISIBLE_COUNT;
+  const relayStories = stories;
   const latestStoryIdRef = useRef(relayStories[0]?.id ?? null);
   const previousStoryCountRef = useRef(relayStories.length);
-  const maximumOffset = relayStories.length > relayVisibleCount ? relayStories.length - 1 : 0;
+  const maximumOffset = relayStories.length > FAILURE_RELAY_VISIBLE_COUNT ? relayStories.length - 1 : 0;
   const isPaused = isExternallyPaused
     || isPointerPaused
     || isFocusPaused
     || expandedStoryId !== null
     || stampMenuStoryId !== null;
-  const visibleStories = getFailureRelayWindow(relayStories, relayOffset, relayVisibleCount);
+  const displayedStories = getFailureRelayWindow(relayStories, relayOffset);
   const move = useCallback((amount: number) => {
     const now = Date.now();
     if (maximumOffset === 0 || now < transitionEndsAtRef.current) return;
@@ -157,26 +149,7 @@ export default function StudentFailureRelay({
 
   return (
     <>
-      {pinnedStory ? (
-        <section className="student-failure-pinned" aria-labelledby="student-failure-pinned-title">
-          <strong id="student-failure-pinned-title">실패의 의미는 한 판 더!</strong>
-          <StudentFailureMessage
-            story={pinnedStory}
-            studentNumber={studentNumber}
-            profileAssignments={profileAssignments}
-            isSaving={isSaving}
-            isExpanded={expandedStoryId === pinnedStory.id}
-            isPinned
-            isStampMenuOpen={false}
-            onExpandToggle={(storyId) => {
-              setExpandedStoryId((current) => current === storyId ? null : storyId);
-            }}
-            onStampMenuToggle={() => undefined}
-            onStamp={onStamp}
-          />
-        </section>
-      ) : null}
-      {relayStories.length > 0 ? <>
+      {displayedStories.length > 0 ? <>
         <div className="student-failure-relay">
           <div className="student-failure-relay-toolbar" role="group" aria-label="실패 이야기 흐름 조작">
             <button type="button" aria-label="더 오래된 이야기 보기" title="더 오래된 이야기" disabled={maximumOffset === 0} onClick={() => move(1)}><ChevronUp aria-hidden="true" /></button>
@@ -214,7 +187,7 @@ export default function StudentFailureRelay({
           >
             <div className="student-failure-feed-window" data-direction={relayDirection}>
               <AnimatePresence initial={false} mode="popLayout" custom={relayDirection}>
-                {visibleStories.map((story) => (
+                {displayedStories.map((story) => (
                   <motion.div
                     key={story.id}
                     className="student-failure-relay-item student-failure-relay-item-motion"
@@ -226,7 +199,7 @@ export default function StudentFailureRelay({
                     exit={shouldReduceMotion ? undefined : 'exit'}
                     transition={shouldReduceMotion ? { duration: 0 } : {
                       layout: RELAY_TRANSITION,
-                      y: RELAY_TRANSITION,
+                      x: RELAY_TRANSITION,
                     }}
                   >
                     <StudentFailureMessage
@@ -239,7 +212,9 @@ export default function StudentFailureRelay({
                       onExpandToggle={(storyId) => {
                         setExpandedStoryId((current) => current === storyId ? null : storyId);
                       }}
-                      onStampMenuToggle={(storyId) => setStampMenuStoryId((current) => current === storyId ? null : storyId)}
+                      onStampMenuToggle={(storyId) => {
+                        setStampMenuStoryId((current) => current === storyId ? null : storyId);
+                      }}
                       onStamp={(storyId, stampId) => onStamp(storyId, stampId).then((saved) => {
                         if (saved) setStampMenuStoryId(null);
                         return saved;

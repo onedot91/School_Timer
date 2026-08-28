@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { CheckCircle2, Delete, Sparkles, TriangleAlert } from 'lucide-react';
+import { Delete, Sparkles, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import {
   NUMBER_BASEBALL_MAX_ATTEMPTS,
@@ -35,7 +35,6 @@ export default function StudentNumberBaseballPage({
   studentNumber,
   weekKey,
   entry,
-  hasReward,
   onSave,
   onComplete,
   onBack,
@@ -64,7 +63,8 @@ export default function StudentNumberBaseballPage({
         : NUMBER_BASEBALL_DEFAULT_FEEDBACK;
   const displayedFeedback = feedback === NUMBER_BASEBALL_DEFAULT_FEEDBACK ? restoredFeedback : feedback;
   const latestResultFeedback = latestResult ? formatNumberBaseballResult(latestResult) : null;
-  const shouldShowFeedback = displayedFeedback !== NUMBER_BASEBALL_DEFAULT_FEEDBACK
+  const shouldShowFeedback = !isTerminal
+    && displayedFeedback !== NUMBER_BASEBALL_DEFAULT_FEEDBACK
     && displayedFeedback !== latestResultFeedback;
 
   useEffect(() => () => {
@@ -105,7 +105,6 @@ export default function StudentNumberBaseballPage({
     }
     setSelectedDigits([]);
     if (rewardAmount !== null) {
-      setFeedback(`정답이에요! ${rewardAmount} 고마를 받았어요.`);
       setIsCelebrating(true);
       if (celebrationTimeoutRef.current !== null) window.clearTimeout(celebrationTimeoutRef.current);
       celebrationTimeoutRef.current = window.setTimeout(() => setIsCelebrating(false), 760);
@@ -147,17 +146,19 @@ export default function StudentNumberBaseballPage({
       />
       <main className="student-baseball-main" onKeyDown={handleKeyDown}>
         <section className="student-baseball-panel" aria-label="숫자 야구 미션">
-          <div className="student-baseball-play">
-            <div className="student-baseball-guide">
-              <strong>숫자 3개를 차례로 골라 주세요</strong>
-            </div>
-
+          <div className={`student-baseball-play${isTerminal ? ` is-${status}` : ''}`}>
             {isTerminal ? (
-              <div className={`student-baseball-finish is-${status}`} role="status">
+              <div className={`student-baseball-finish is-${status}${isCelebrating ? ' is-celebrating' : ''}`} role="status">
                 {status === 'completed' ? <Sparkles aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
                 <div>
                   <strong>{status === 'completed' ? '정답을 맞혔어요!' : '이번 주 기회를 모두 썼어요'}</strong>
-                  <span>정답은 <b>{answer.join('')}</b>{status === 'completed' && solvedReward ? ` · +${solvedReward} 고마` : ' · 다음 주에 다시 도전해요'}</span>
+                  <span className="student-baseball-finish-details">
+                    {status === 'completed' && solvedReward ? (
+                      <><b>{answer.join('')}</b><em>+{solvedReward} 고마</em></>
+                    ) : (
+                      <>정답은 <b>{answer.join('')}</b> · 다음 주에 다시 도전해요</>
+                    )}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -219,18 +220,18 @@ export default function StudentNumberBaseballPage({
                 </div>
               </>
             )}
-            {shouldShowFeedback ? (
+            {!isTerminal && shouldShowFeedback ? (
               <p className="student-baseball-feedback" aria-live="polite">
-                {status === 'completed' && hasReward ? <CheckCircle2 aria-hidden="true" /> : null}
                 {displayedFeedback}
               </p>
-            ) : (
+            ) : !isTerminal ? (
               <span className="sr-only" aria-live="polite">{displayedFeedback}</span>
-            )}
+            ) : null}
             {isCelebrating ? (
               <div className={`student-baseball-celebration is-reward-${solvedReward ?? 5}`} aria-hidden="true">
-                <span className="student-baseball-celebration-halo" />
-                {Array.from({ length: 6 }, (_, index) => <i key={index} />)}
+                <span className="student-baseball-celebration-halo is-outer" />
+                <span className="student-baseball-celebration-halo is-inner" />
+                {Array.from({ length: 12 }, (_, index) => <i key={index} className={`is-particle-${index + 1}`} />)}
               </div>
             ) : null}
           </div>

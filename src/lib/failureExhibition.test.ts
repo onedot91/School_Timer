@@ -89,7 +89,7 @@ test('다른 학생이 사용 중인 프로필은 선택할 수 없다', () => {
   assert.equal(getFailureProfileImage(1, result.assignments), getFailureProfileImage(1, assignments));
 });
 
-test('실패 릴레이는 현재 위치부터 최대 다섯 이야기만 보여 준다', () => {
+test('실패 릴레이는 현재 위치부터 최대 여섯 이야기만 보여 준다', () => {
   const stories = Array.from({ length: 8 }, (_, index) => ({
     ...storyInput,
     id: `failure-${index + 1}`,
@@ -105,6 +105,7 @@ test('실패 릴레이는 현재 위치부터 최대 다섯 이야기만 보여 
     'failure-3',
     'failure-4',
     'failure-5',
+    'failure-6',
   ]);
   assert.deepEqual(lastWindow.map((story) => story.id), [
     'failure-4',
@@ -112,6 +113,7 @@ test('실패 릴레이는 현재 위치부터 최대 다섯 이야기만 보여 
     'failure-6',
     'failure-7',
     'failure-8',
+    'failure-1',
   ]);
 });
 
@@ -130,6 +132,7 @@ test('실패 릴레이는 마지막 이야기 다음에 첫 이야기를 이어 
     'failure-2',
     'failure-3',
     'failure-4',
+    'failure-5',
   ]);
 });
 
@@ -148,6 +151,7 @@ test('실패 릴레이는 첫 이야기 이전에 마지막 이야기를 이어 
     'failure-2',
     'failure-3',
     'failure-4',
+    'failure-5',
   ]);
 });
 
@@ -177,6 +181,34 @@ test('실패 릴레이는 스크롤 방향대로 다음 이야기를 아래쪽�
     markup.indexOf(getFailureProfileImage(story.studentNumber, profileAssignments))
   ));
   assert.deepEqual(visibleProfilePositions, [...visibleProfilePositions].sort((left, right) => left - right));
+});
+
+test('내 실패 이야기도 다른 이야기와 같은 순서로 릴레이에 섞인다', () => {
+  // Given
+  const stories = Array.from({ length: 8 }, (_, index) => ({
+    ...storyInput,
+    id: `relay-${index + 1}`,
+    studentNumber: index + 1,
+    failure: `실패 이야기 ${index + 1}`,
+    stamps: [],
+  }));
+  const profileAssignments = normalizeFailureProfileAssignments(null);
+
+  // When
+  const markup = renderToStaticMarkup(createElement(StudentFailureRelay, {
+    studentNumber: 7,
+    profileAssignments,
+    stories,
+    isSaving: false,
+    isExternallyPaused: false,
+    latestRevealRequest: 0,
+    onStamp: async () => false,
+  }));
+
+  // Then
+  assert.match(markup, /실패 이야기 1/);
+  assert.match(markup, /실패 이야기 6/);
+  assert.doesNotMatch(markup, /실패 이야기 7/);
 });
 
 test('실패 이야기는 같은 ID로 한 번만 등록된다', () => {

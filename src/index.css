@@ -800,6 +800,282 @@ img {
   }
 }
 
+.timer-main-shell,
+.teacher-settings-theme {
+  --teacher-canvas: #eae8e1;
+  --teacher-surface: #f4f2ec;
+  --teacher-surface-muted: #e4e8e3;
+  --teacher-text: #24322d;
+  --teacher-text-secondary: #5d6863;
+  --teacher-accent: #4d6f60;
+  --teacher-accent-pressed: #395448;
+  --teacher-warning: #805525;
+  --teacher-urgent: #914b45;
+  --teacher-border: #c9cec8;
+  --teacher-border-strong: #aeb6af;
+  --teacher-warning-soft: #eee4d5;
+  --teacher-urgent-soft: #eddfdc;
+  --teacher-focus: #315f4d;
+
+  --apple-canvas: var(--teacher-canvas);
+  --apple-canvas-warm: var(--teacher-canvas);
+  --apple-surface: var(--teacher-surface);
+  --apple-surface-tint: #eeeee8;
+  --apple-surface-muted: var(--teacher-surface-muted);
+  --apple-text-primary: var(--teacher-text);
+  --apple-text-secondary: var(--teacher-text-secondary);
+  --apple-text-tertiary: #747d78;
+  --apple-accent: var(--teacher-accent);
+  --apple-accent-pressed: var(--teacher-accent-pressed);
+  --apple-separator: var(--teacher-border);
+  --apple-separator-strong: var(--teacher-border-strong);
+  --apple-focus: var(--teacher-focus);
+  --apple-material-regular: color-mix(in srgb, var(--teacher-surface) 94%, transparent);
+  --apple-material-thick: color-mix(in srgb, var(--teacher-surface) 98%, transparent);
+  --apple-edge-highlight: rgba(255, 255, 255, 0.48);
+  --apple-scrim: rgba(36, 50, 45, 0.28);
+  --apple-shadow-1: 0 0.35rem 0.9rem rgba(36, 50, 45, 0.07);
+  --apple-shadow-2: 0 0.75rem 1.8rem rgba(36, 50, 45, 0.09);
+  --apple-shadow-3: 0 1.2rem 3rem rgba(36, 50, 45, 0.14);
+}
+
+.timer-main-shell:is(
+  .app-tone-calm,
+  .app-tone-warning,
+  .app-tone-urgent,
+  .app-tone-finished,
+  .app-tone-idle
+) {
+  color: var(--teacher-text) !important;
+  background: var(--teacher-canvas) !important;
+}
+
+.timer-main-shell::before {
+  opacity: 0.34 !important;
+  background:
+    linear-gradient(90deg, rgba(77, 111, 96, 0.025) 1px, transparent 1px),
+    linear-gradient(rgba(77, 111, 96, 0.025) 1px, transparent 1px) !important;
+  background-size: 2.75rem 2.75rem !important;
+}
+
+.timer-main-shell .editorial-timer-pane {
+  background: var(--teacher-canvas) !important;
+}
+
+.timer-main-shell .editorial-control-pane {
+  border-color: var(--teacher-border) !important;
+  background: var(--teacher-surface-muted) !important;
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.42),
+    -0.65rem 0 1.8rem rgba(36, 50, 45, 0.06) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.timer-main-shell .editorial-schedule-board {
+  border-color: var(--teacher-border) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-1) !important;
+}
+
+.timer-main-shell .schedule-row-idle {
+  border-color: color-mix(in srgb, var(--teacher-border) 86%, transparent) !important;
+  color: var(--teacher-text-secondary) !important;
+  background: var(--teacher-surface-muted) !important;
+}
+
+.timer-main-shell .schedule-row-active {
+  border: 2px solid var(--teacher-accent-pressed) !important;
+  color: var(--teacher-surface) !important;
+  background: var(--teacher-accent) !important;
+  box-shadow:
+    inset 0.35rem 0 0 rgba(244, 242, 236, 0.78),
+    0 0.32rem 0.8rem rgba(36, 50, 45, 0.12) !important;
+}
+
+.timer-main-shell .teacher-tone-text-accent {
+  color: var(--teacher-accent) !important;
+}
+
+.timer-main-shell .teacher-tone-text-secondary {
+  color: var(--teacher-text-secondary) !important;
+}
+
+.timer-main-shell .teacher-tone-text-warning {
+  color: var(--teacher-warning) !important;
+}
+
+.timer-main-shell .teacher-tone-text-urgent {
+  color: var(--teacher-urgent) !important;
+}
+
+.timer-main-shell .timer-primary-chip {
+  border-color: var(--teacher-border) !important;
+  color: var(--teacher-text) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-1) !important;
+}
+
+.timer-main-shell .timer-status-chip--class,
+.timer-main-shell .timer-status-chip--break {
+  border-color: color-mix(in srgb, var(--teacher-accent) 40%, var(--teacher-border)) !important;
+  color: var(--teacher-accent-pressed) !important;
+  background: color-mix(in srgb, var(--teacher-surface) 72%, var(--teacher-surface-muted)) !important;
+}
+
+.timer-main-shell .timer-status-chip--morning {
+  border-color: color-mix(in srgb, var(--teacher-warning) 30%, var(--teacher-border)) !important;
+  color: var(--teacher-warning) !important;
+  background: color-mix(in srgb, var(--teacher-warning-soft) 58%, var(--teacher-surface)) !important;
+}
+
+.timer-main-shell .timer-status-chip--lunch {
+  border-color: color-mix(in srgb, var(--teacher-warning) 34%, var(--teacher-border)) !important;
+  color: var(--teacher-warning) !important;
+  background: color-mix(in srgb, var(--teacher-warning-soft) 72%, var(--teacher-surface)) !important;
+}
+
+.timer-main-shell .timer-status-chip--idle {
+  color: var(--teacher-text-secondary) !important;
+  background: var(--teacher-surface-muted) !important;
+}
+
+.timer-main-shell :is(
+  .sound-toggle,
+  .schedule-settings-button,
+  .timer-draw-step-button,
+  .editorial-utility-button,
+  .inline-manual-timer-panel,
+  .inline-manual-timer-button
+) {
+  border-color: var(--teacher-border) !important;
+  color: var(--teacher-accent) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-1) !important;
+}
+
+.timer-main-shell :is(
+  .sound-toggle,
+  .schedule-settings-button,
+  .editorial-utility-button,
+  .inline-manual-timer-button
+):hover {
+  background: var(--teacher-surface-muted) !important;
+}
+
+.timer-main-shell .speech-card {
+  border-color: var(--teacher-border) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-2) !important;
+}
+
+.timer-main-shell .speech-tail-fill {
+  border-top-color: var(--teacher-surface) !important;
+}
+
+.timer-main-shell .speech-tail-outline {
+  border-top-color: var(--teacher-border) !important;
+}
+
+.timer-main-shell.app-tone-warning .speech-card {
+  border-color: var(--teacher-warning) !important;
+}
+
+.timer-main-shell:is(.app-tone-urgent, .app-tone-finished) .speech-card {
+  border-color: var(--teacher-urgent) !important;
+}
+
+.teacher-settings-theme {
+  color: var(--teacher-text);
+  background: rgba(36, 50, 45, 0.28) !important;
+}
+
+.teacher-settings-theme .settings-dialog.app-settings-modal {
+  border-color: var(--teacher-border-strong) !important;
+  color: var(--teacher-text) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-3) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(.settings-header, .settings-tab-strip) {
+  border-color: var(--teacher-border) !important;
+  background: var(--teacher-surface) !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(.settings-body, .settings-main, .settings-content) {
+  color: var(--teacher-text);
+  background: var(--teacher-surface-muted) !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(
+  .settings-card,
+  .settings-sidebar,
+  .settings-section,
+  .settings-subcard,
+  .settings-navigation-group,
+  .slot-card,
+  .random-settings-detail-card,
+  .random-settings-roster-card,
+  .random-settings-repeat-card,
+  .random-history-panel
+) {
+  border-color: var(--teacher-border) !important;
+  color: var(--teacher-text) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: none !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(input, textarea, select) {
+  border-color: var(--teacher-border) !important;
+  color: var(--teacher-text) !important;
+  background: color-mix(in srgb, var(--teacher-surface) 84%, var(--teacher-surface-muted)) !important;
+  box-shadow: none !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(input, textarea, select):focus {
+  border-color: var(--teacher-accent) !important;
+  outline: 3px solid color-mix(in srgb, var(--teacher-focus) 24%, transparent) !important;
+  outline-offset: 1px;
+}
+
+.teacher-settings-theme .settings-dialog :is(.settings-tab-button, button[aria-pressed="true"], button[aria-selected="true"]) {
+  border-color: var(--teacher-accent) !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(.settings-tab-button[aria-selected="true"], button[aria-pressed="true"]) {
+  color: var(--teacher-surface) !important;
+  background: var(--teacher-accent) !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .teacher-settings-theme,
+  .teacher-settings-theme .settings-dialog.app-settings-modal,
+  .timer-main-shell .editorial-control-pane {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .timer-main-shell :is(.editorial-schedule-board, .schedule-row, .timer-primary-chip, .editorial-utility-button),
+  .teacher-settings-theme .settings-dialog :is(.settings-card, .slot-card, input, textarea, select) {
+    border-color: var(--teacher-text) !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .teacher-settings-theme,
+  .teacher-settings-theme .settings-dialog.app-settings-modal,
+  .teacher-settings-theme .settings-dialog :is(.settings-body, .settings-card, .slot-card, input, textarea, select) {
+    color: CanvasText !important;
+    border-color: CanvasText !important;
+    background: Canvas !important;
+    box-shadow: none !important;
+  }
+}
+
 @keyframes auctionAwardOrbitBeat {
   0%,
   100% {
@@ -12352,9 +12628,9 @@ h3 {
   --failure-coral: #ff8b82;
   --failure-lavender: #c7b5f3;
   --failure-butter: #ffe7a3;
-  --failure-wall: #eaf8f3;
-  --failure-wall-dark: #b8daca;
-  --failure-feed-measure: min(64rem, 1024px);
+  --failure-wall: #f3eee5;
+  --failure-wall-dark: #c7b9a5;
+  --failure-feed-measure: min(72rem, 1152px);
   --student-letter-sender-size: 1.125rem;
   --student-letter-title-size: clamp(2.25rem, 3vw, 2.75rem);
   --student-letter-body-size: clamp(1.35rem, 1.9vw, 1.55rem);
@@ -13546,6 +13822,29 @@ a[href]:active {
 .student-failure-view .student-header-identity { gap: .5rem; }
 .student-failure-view .student-header-copy { gap: .5rem; }
 .student-failure-view .student-header-copy h1 { flex: 0 0 auto; white-space: nowrap; }
+.student-failure-header-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: .75rem;
+}
+.student-failure-header-title > span:first-child { flex: 0 0 auto; }
+.student-failure-header-catchphrase {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--failure-stamp) 38%, transparent);
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--failure-lesson) 88%, var(--failure-paper));
+  padding: .3rem .7rem;
+  color: var(--failure-stamp);
+  font-family: var(--font-body);
+  font-size: .9rem;
+  font-weight: 850;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
 .student-failure-gallery-shell {
   position: relative;
   display: grid;
@@ -14376,6 +14675,267 @@ a[href]:active {
 
 @media (forced-colors: active) {
   .student-home-hotspot { border-color: ButtonText; }
+}
+
+.student-failure-view {
+  background:
+    radial-gradient(circle at 8% 6%, color-mix(in srgb, var(--failure-butter) 22%, transparent), transparent 20rem),
+    radial-gradient(circle at 92% 94%, color-mix(in srgb, var(--failure-lavender) 18%, transparent), transparent 22rem),
+    var(--failure-wall);
+}
+.student-failure-gallery-shell {
+  border-color: color-mix(in srgb, var(--failure-wall-dark) 68%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--failure-wall-dark) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--failure-wall-dark) 10%, transparent) 1px, transparent 1px),
+    var(--failure-wall);
+  background-size: 2rem 2rem;
+  padding: .75rem;
+  box-shadow: inset 0 0 0 .3rem color-mix(in srgb, var(--failure-paper) 56%, transparent), var(--apple-shadow-1);
+}
+.student-failure-gallery,
+.student-failure-gallery[data-empty="false"] {
+  display: block;
+  height: 100%;
+  padding: 0 5.25rem 0 .25rem;
+}
+.student-failure-relay,
+.student-failure-feed,
+.student-failure-feed-window {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.student-failure-feed {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+}
+.student-failure-feed::before,
+.student-failure-feed::after {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: color-mix(in srgb, var(--failure-wall-dark) 74%, var(--failure-ink-muted));
+  box-shadow: 0 1px 0 color-mix(in srgb, white 54%, transparent);
+  content: '';
+  pointer-events: none;
+}
+.student-failure-feed::before { top: 1.55rem; }
+.student-failure-feed::after { top: calc(50% + .65rem); }
+.student-failure-feed-window {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 2.5rem 1.5rem;
+  overflow: clip;
+  padding: 1.75rem .35rem .5rem;
+}
+.student-failure-relay-item {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: stretch;
+}
+.student-failure-relay-item:nth-child(3n + 1) .student-failure-message-main {
+  background: color-mix(in srgb, var(--failure-lesson) 72%, var(--failure-paper));
+}
+.student-failure-relay-item:nth-child(3n + 2) .student-failure-message-main {
+  background: color-mix(in srgb, var(--failure-coral) 18%, var(--failure-paper));
+}
+.student-failure-relay-item:nth-child(3n) .student-failure-message-main {
+  background: color-mix(in srgb, var(--failure-lavender) 24%, var(--failure-paper));
+}
+.student-failure-relay-item:nth-child(6n + 1) .student-failure-message { transform: rotate(-.6deg); }
+.student-failure-relay-item:nth-child(6n + 2) .student-failure-message { transform: rotate(.45deg); }
+.student-failure-relay-item:nth-child(6n + 3) .student-failure-message { transform: rotate(-.35deg); }
+.student-failure-relay-item:nth-child(6n + 4) .student-failure-message { transform: rotate(.55deg); }
+.student-failure-relay-item:nth-child(6n + 5) .student-failure-message { transform: rotate(-.45deg); }
+.student-failure-relay-item:nth-child(6n) .student-failure-message { transform: rotate(.35deg); }
+.student-failure-message {
+  position: relative;
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: .65rem;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 46%, transparent);
+  border-radius: .3rem;
+  background: var(--failure-paper);
+  padding: 1rem .9rem .8rem;
+  box-shadow: 0 .75rem 1.3rem color-mix(in srgb, var(--failure-ink) 16%, transparent), 0 .15rem .2rem color-mix(in srgb, var(--failure-ink) 10%, transparent);
+  transition: box-shadow var(--student-motion-state) var(--student-ease-out), transform var(--student-motion-state) var(--student-ease-out);
+}
+.student-failure-message::before {
+  position: absolute;
+  z-index: 2;
+  top: -.75rem;
+  left: 50%;
+  width: 2.25rem;
+  height: .7rem;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 78%, var(--failure-ink-muted));
+  border-radius: .2rem .2rem .45rem .45rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--failure-butter) 56%, var(--failure-paper)), var(--failure-wall-dark));
+  box-shadow: 0 .15rem .2rem color-mix(in srgb, var(--failure-ink) 18%, transparent);
+  content: '';
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.student-failure-message:hover,
+.student-failure-message:focus-within {
+  background: var(--failure-paper);
+  box-shadow: 0 1rem 1.55rem color-mix(in srgb, var(--failure-ink) 20%, transparent), 0 .15rem .2rem color-mix(in srgb, var(--failure-ink) 10%, transparent);
+}
+.student-failure-message-main {
+  display: grid;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 25%, transparent);
+  border-radius: .35rem;
+  padding: 1rem;
+  color: inherit;
+}
+.student-failure-message-content {
+  display: grid;
+  min-width: 0;
+  max-height: 100%;
+  align-content: center;
+  gap: .55rem;
+  overflow: hidden;
+}
+.student-failure-message-text {
+  font-size: clamp(1.2rem, 1.8vw, 1.5rem);
+  font-weight: 850;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+.student-failure-message-next {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: .35rem;
+  color: var(--failure-stamp);
+  font-size: clamp(1.05rem, 1.5vw, 1.25rem);
+  font-weight: 750;
+  line-height: 1.4;
+  text-align: left;
+}
+.student-failure-message-next span {
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.student-failure-message.is-expanded .student-failure-message-content {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.student-failure-message.is-expanded :is(.student-failure-message-text, .student-failure-message-next span) {
+  display: block;
+  overflow: visible;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.student-failure-message-footer {
+  display: flex;
+  min-width: 0;
+  min-height: var(--apple-control-min);
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+}
+.student-failure-message-profile {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  border: 2px solid color-mix(in srgb, var(--failure-mint) 62%, var(--failure-paper));
+  border-radius: 50%;
+  background: var(--failure-sky);
+  box-shadow: 0 .2rem .45rem color-mix(in srgb, var(--failure-ink) 14%, transparent);
+}
+.student-failure-message-reactions { margin-left: auto; }
+.student-failure-stamp-trigger {
+  min-width: 6.75rem;
+  min-height: var(--apple-control-min);
+  padding: .5rem .6rem;
+  font-size: .95rem;
+}
+.student-failure-stamps {
+  position: absolute;
+  z-index: 8;
+  inset: 2.35rem .75rem .75rem;
+  display: grid;
+  width: auto;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: .45rem;
+  overflow: auto;
+  border: 2px solid color-mix(in srgb, var(--failure-mint) 64%, transparent);
+  border-radius: .6rem;
+  background: color-mix(in srgb, var(--failure-paper) 96%, transparent);
+  padding: .75rem;
+  box-shadow: 0 .75rem 1.4rem color-mix(in srgb, var(--failure-ink) 22%, transparent);
+}
+.student-failure-stamps-title,
+.student-failure-stamps button { font-size: .9rem; }
+.student-failure-stamps button { min-height: var(--apple-control-min); }
+.student-failure-relay-toolbar {
+  right: .2rem;
+  bottom: 4.8rem;
+}
+.student-failure-create-fab {
+  right: 1rem;
+  bottom: 1rem;
+}
+.student-failure-new-stories { top: .75rem; }
+
+@media (max-width: 1100px) {
+  .student-failure-gallery,
+  .student-failure-gallery[data-empty="false"] { padding-right: 4.75rem; }
+  .student-failure-feed-window { gap: 2.1rem .85rem; padding-inline: .15rem; }
+  .student-failure-message { padding: .8rem .65rem .65rem; }
+  .student-failure-message-main { padding: .75rem; }
+  .student-failure-stamp-trigger { min-width: 6rem; grid-template-columns: auto minmax(0, 1fr); }
+  .student-failure-stamp-trigger .student-failure-stamp-chevron { display: none; }
+}
+
+@media (max-height: 700px) and (min-width: 768px) {
+  .student-failure-feed-window { gap-block: 2rem; }
+  .student-failure-message { padding-block: .65rem .55rem; }
+  .student-failure-message-main { padding-block: .65rem; }
+  .student-failure-message-profile { width: 2.5rem; height: 2.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-failure-message,
+  .student-failure-relay-item { transform: none !important; }
+}
+
+@media (forced-colors: active) {
+  .student-failure-feed::before,
+  .student-failure-feed::after,
+  .student-failure-message::before { background: CanvasText; }
+  .student-failure-message,
+  .student-failure-message-main,
+  .student-failure-stamps { border-color: CanvasText; }
 }
 
 /* AUCTION */
@@ -18419,8 +18979,6 @@ body:has(.student-sudoku-view) .data-mode-banner {
 }
 
 .student-baseball-play { display: grid; align-content: center; gap: .65rem; overflow: hidden; }
-.student-baseball-guide { display: grid; gap: .2rem; text-align: center; word-break: keep-all; }
-.student-baseball-guide strong { font-size: clamp(1.2rem, 2vw, 1.35rem); font-weight: 900; white-space: nowrap; }
 
 .student-baseball-attempts {
   min-height: var(--student-compact-control-height);
@@ -18586,7 +19144,6 @@ body:has(.student-sudoku-view) .data-mode-banner {
 .student-baseball-celebration i:nth-child(7) { --particle-angle: 300deg; }
 .student-baseball-celebration.is-reward-20 .student-baseball-celebration-halo { border-width: 7px; }
 .student-baseball-celebration.is-reward-20 i { width: .78rem; height: .78rem; }
-.student-baseball-celebration.is-reward-5 i:nth-of-type(n + 5) { display: none; }
 @keyframes studentBaseballHalo { from { opacity: .65; transform: scale(.35); } to { opacity: 0; transform: scale(1.5); } }
 @keyframes studentBaseballParticle { from { opacity: 1; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateX(0) scale(.7); } to { opacity: 0; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateX(8rem) scale(1); } }
 @keyframes studentBaseballResultReveal { from { opacity: 0; transform: translateY(3px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -18683,6 +19240,10 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   box-shadow: .3rem .3rem 0 var(--student-baseball-ink);
 }
 
+.student-baseball-panel:has(.student-baseball-play.is-completed) {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+}
+
 .student-baseball-play,
 .student-baseball-history {
   padding: .875rem;
@@ -18698,15 +19259,13 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 
 .student-baseball-play:has(.student-baseball-keypad) {
   align-content: stretch;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
-.student-baseball-guide strong {
-  color: var(--student-baseball-ink);
-  font-family: var(--student-baseball-display-font);
-  font-size: clamp(1.35rem, 2vw, 1.6rem);
-  font-weight: 400;
-  letter-spacing: .025em;
+.student-baseball-play.is-completed {
+  grid-template-rows: minmax(18rem, 1fr);
+  align-content: stretch;
+  place-items: stretch;
 }
 
 .student-baseball-slots { gap: .75rem; }
@@ -18961,6 +19520,8 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-baseball-history .student-baseball-result-chip small { font-size: .8rem; }
 
 .student-baseball-finish {
+  position: relative;
+  overflow: hidden;
   border: 3px solid var(--student-baseball-ink);
   border-radius: .2rem;
   color: var(--student-baseball-out);
@@ -18969,12 +19530,55 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 }
 
 .student-baseball-finish.is-completed {
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
   border-color: var(--student-baseball-ink);
   color: var(--student-baseball-mint-deep);
-  background: color-mix(in srgb, var(--student-baseball-mint) 25%, white);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--student-baseball-mint) 35%, white), color-mix(in srgb, var(--student-baseball-yellow) 22%, white));
+  box-shadow: 8px 8px 0 var(--student-baseball-ink);
+  text-align: center;
 }
 
+.student-baseball-finish.is-completed::after {
+  position: absolute;
+  pointer-events: none;
+  content: '';
+  inset: .75rem;
+  border: 4px solid var(--student-baseball-yellow);
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, white 70%, transparent);
+  opacity: .78;
+}
+
+.student-baseball-finish.is-completed.is-celebrating {
+  animation: studentBaseballFinishReveal var(--student-motion-celebrate) steps(6, end) both;
+}
+
+.student-baseball-finish.is-completed.is-celebrating::after {
+  animation: studentBaseballFinishHighlight var(--student-motion-celebrate) steps(4, end) both;
+}
+
+.student-baseball-finish.is-completed > svg { width: 3.5rem; height: 3.5rem; stroke-width: 2.5; }
+.student-baseball-finish.is-completed > div { justify-items: center; gap: .75rem; }
 .student-baseball-finish strong { font-family: var(--student-baseball-display-font); font-weight: 400; }
+.student-baseball-finish.is-completed strong { font-size: clamp(1.8rem, 3vw, 2.35rem); letter-spacing: .04em; }
+.student-baseball-finish-details { display: grid; align-items: center; justify-items: center; gap: .45rem; }
+.student-baseball-finish-details b { font-size: clamp(3.25rem, 6vw, 4.75rem); line-height: 1; }
+.student-baseball-finish-details em {
+  padding: .4rem .75rem;
+  border: 2px solid var(--student-baseball-ink);
+  color: var(--student-baseball-ink);
+  background: var(--student-baseball-yellow);
+  box-shadow: 3px 3px 0 var(--student-baseball-ink);
+  font-family: var(--student-baseball-number-font);
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+  font-style: normal;
+  font-weight: 900;
+}
 
 .student-baseball-celebration {
   background: color-mix(in srgb, var(--student-baseball-yellow) 20%, transparent);
@@ -18982,12 +19586,13 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 }
 
 .student-baseball-celebration-halo {
-  inset: 14%;
-  border: 7px solid var(--student-baseball-mint);
+  border: 6px solid var(--student-baseball-mint);
   border-radius: 0;
-  box-shadow: 9px 9px 0 var(--student-baseball-ink);
+  box-shadow: 7px 7px 0 var(--student-baseball-ink);
   animation: studentBaseballHalo var(--student-motion-celebrate) steps(5, end) both;
 }
+.student-baseball-celebration-halo.is-outer { inset: 7%; border-color: var(--student-baseball-coral); }
+.student-baseball-celebration-halo.is-inner { inset: 19%; animation-delay: 60ms; }
 
 .student-baseball-celebration i {
   width: .8rem;
@@ -18998,8 +19603,35 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   animation-timing-function: steps(5, end);
 }
 
-.student-baseball-celebration i:nth-child(even) { background: var(--student-baseball-mint); }
-.student-baseball-celebration i:nth-child(3n) { background: var(--student-baseball-yellow); }
+.student-baseball-celebration i:nth-of-type(even) { background: var(--student-baseball-mint); }
+.student-baseball-celebration i:nth-of-type(3n) { background: var(--student-baseball-yellow); }
+.student-baseball-celebration .is-particle-1 { --particle-angle: 0deg; }
+.student-baseball-celebration .is-particle-2 { --particle-angle: 30deg; }
+.student-baseball-celebration .is-particle-3 { --particle-angle: 60deg; }
+.student-baseball-celebration .is-particle-4 { --particle-angle: 90deg; }
+.student-baseball-celebration .is-particle-5 { --particle-angle: 120deg; }
+.student-baseball-celebration .is-particle-6 { --particle-angle: 150deg; }
+.student-baseball-celebration .is-particle-7 { --particle-angle: 180deg; }
+.student-baseball-celebration .is-particle-8 { --particle-angle: 210deg; }
+.student-baseball-celebration .is-particle-9 { --particle-angle: 240deg; }
+.student-baseball-celebration .is-particle-10 { --particle-angle: 270deg; }
+.student-baseball-celebration .is-particle-11 { --particle-angle: 300deg; }
+.student-baseball-celebration .is-particle-12 { --particle-angle: 330deg; }
+.student-baseball-celebration.is-reward-20 .student-baseball-celebration-halo { border-width: 8px; }
+.student-baseball-celebration.is-reward-20 i { width: .95rem; height: .95rem; }
+.student-baseball-celebration.is-reward-5 .student-baseball-celebration-halo { border-width: 5px; }
+.student-baseball-celebration.is-reward-5 i { display: block; width: .7rem; height: .7rem; }
+
+@keyframes studentBaseballFinishReveal {
+  from { opacity: 0; filter: brightness(1.3); transform: translateY(12px) scale(.9); }
+  to { opacity: 1; filter: brightness(1); transform: translateY(0) scale(1); }
+}
+
+@keyframes studentBaseballFinishHighlight {
+  from { opacity: 0; transform: scale(.9); }
+  50% { opacity: 1; transform: scale(1); }
+  to { opacity: .78; transform: scale(1); }
+}
 
 @keyframes studentBaseballPixelFlash {
   from { opacity: 0; }
@@ -19017,7 +19649,11 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 
 @media (max-width: 48rem) {
   .student-baseball-main { overflow: auto; }
-  .student-baseball-panel { height: auto; grid-template-columns: minmax(0, 1fr); }
+  .student-baseball-panel,
+  .student-baseball-panel:has(.student-baseball-play.is-completed) {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
   .student-baseball-history { min-height: 26rem; }
 }
 
@@ -20610,9 +21246,11 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-baseball-celebration-halo,
   .student-baseball-celebration i { display: none; }
   .student-baseball-celebration {
-    animation: none;
-    background: color-mix(in srgb, var(--student-baseball-mint) 18%, transparent);
+    display: none;
   }
+  .student-baseball-finish.is-completed,
+  .student-baseball-finish.is-completed.is-celebrating { animation: none; }
+  .student-baseball-finish.is-completed::after { opacity: 1; animation: none; }
   .student-baseball-result-chip { animation: none; }
   .student-sudoku-keypad button,
   .student-sudoku-settings-options button,
@@ -23624,4 +24262,98 @@ body {
     border: 1px solid CanvasText;
     box-shadow: none;
   }
+}
+
+.timer-main-shell:is(.app-tone-calm, .app-tone-warning, .app-tone-urgent, .app-tone-finished, .app-tone-idle) {
+  color: var(--teacher-text) !important;
+  background: var(--teacher-canvas) !important;
+}
+
+.timer-main-shell .editorial-timer-pane {
+  background: var(--teacher-canvas) !important;
+}
+
+.timer-main-shell .editorial-control-pane {
+  border-color: var(--teacher-border) !important;
+  background: var(--teacher-surface-muted) !important;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.42), -0.65rem 0 1.8rem rgba(36, 50, 45, 0.06) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.timer-main-shell .editorial-schedule-board {
+  border-color: var(--teacher-border) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-1) !important;
+}
+
+.timer-main-shell .editorial-schedule-board .schedule-row.schedule-row-idle {
+  border-color: var(--teacher-border) !important;
+  color: var(--teacher-text-secondary) !important;
+  background-color: var(--teacher-surface-muted) !important;
+  background-image: none !important;
+}
+
+.timer-main-shell .editorial-schedule-board .schedule-row.schedule-row-active {
+  border: 2px solid var(--teacher-accent-pressed) !important;
+  color: var(--teacher-surface) !important;
+  background-color: var(--teacher-accent) !important;
+  background-image: none !important;
+  box-shadow: inset 0.35rem 0 0 rgba(244, 242, 236, 0.78), 0 0.32rem 0.8rem rgba(36, 50, 45, 0.12) !important;
+}
+
+.timer-main-shell .timer-primary-chip,
+.timer-main-shell :is(.sound-toggle, .schedule-settings-button, .editorial-utility-button, .inline-manual-timer-panel) {
+  border-color: var(--teacher-border) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-1) !important;
+}
+
+.timer-main-shell .speech-card {
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-2) !important;
+}
+
+.teacher-settings-theme .settings-dialog.app-settings-modal {
+  border-color: var(--teacher-border-strong) !important;
+  color: var(--teacher-text) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: var(--apple-shadow-3) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(.settings-header, .settings-tab-strip) {
+  border-color: var(--teacher-border) !important;
+  background: var(--teacher-surface) !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(.settings-body, .settings-main, .settings-content) {
+  color: var(--teacher-text);
+  background: var(--teacher-surface-muted) !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(
+  .settings-card,
+  .settings-sidebar,
+  .settings-section,
+  .settings-subcard,
+  .settings-navigation-group,
+  .slot-card,
+  .random-settings-detail-card,
+  .random-settings-roster-card,
+  .random-settings-repeat-card,
+  .random-history-panel
+) {
+  border-color: var(--teacher-border) !important;
+  color: var(--teacher-text) !important;
+  background: var(--teacher-surface) !important;
+  box-shadow: none !important;
+}
+
+.teacher-settings-theme .settings-dialog :is(input, textarea, select) {
+  border-color: var(--teacher-border) !important;
+  color: var(--teacher-text) !important;
+  background: color-mix(in srgb, var(--teacher-surface) 84%, var(--teacher-surface-muted)) !important;
+  box-shadow: none !important;
 }
