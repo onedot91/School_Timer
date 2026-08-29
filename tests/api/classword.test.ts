@@ -143,6 +143,37 @@ test('학생 세션은 교사 전용 주제 저장을 호출할 수 없다', asy
   });
 });
 
+test('교사 주제 저장은 PostgREST의 빈 201 성공 응답을 처리한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ url: string; method: string }> = [];
+    globalThis.fetch = async (input, init) => {
+      const method = init?.method ?? 'GET';
+      requests.push({ url: String(input), method });
+      if (method === 'DELETE') return new Response(null, { status: 204 });
+      if (method === 'POST') return new Response(null, { status: 201 });
+      return Response.json([]);
+    };
+
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'POST',
+        headers: sessionHeaders('teacher'),
+        body: { action: 'save_topic', dateKey: '2026-08-30', topic: '음식' },
+      }, response);
+
+      assert.equal(result().statusCode, 200);
+      assert.deepEqual(result().body, { saved: true });
+      assert.equal(requests.some(({ url, method }) => (
+        method === 'POST' && url.includes('classword_rounds?on_conflict=round_date')
+      )), true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 test('전체 사용 주제 조회는 교사에게만 허용하고 중복을 제거한다', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;

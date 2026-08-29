@@ -59,7 +59,8 @@ const request = async (
   if (result.status === 409) throw new ClasswordRepositoryError(409, 'CLASSWORD_ENTRY_CONFLICT');
   if (!result.ok) throw new ClasswordRepositoryError(502, `CLASSWORD_DATABASE_HTTP_${result.status}`);
   if (result.status === 204) return null;
-  return result.json();
+  const body = await result.text();
+  return body.length === 0 ? null : JSON.parse(body);
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
