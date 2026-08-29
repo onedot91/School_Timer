@@ -15,7 +15,7 @@ import {
   submitClasswordQuizAnswer,
 } from '../../lib/classwordClient';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
-import ClasswordBoard from './ClasswordBoard';
+import ClasswordBoard, { type ClasswordSaveResult } from './ClasswordBoard';
 import ClasswordQuiz from './ClasswordQuiz';
 import StudentHeader from './StudentHeader';
 
@@ -152,7 +152,7 @@ export default function StudentClasswordPage({
     readonly entryId?: string;
     readonly initial: ClasswordInitial;
     readonly word: string;
-  }): Promise<boolean> => {
+  }): Promise<ClasswordSaveResult> => {
     setSaving(true);
     setFeedback(null);
     try {
@@ -161,19 +161,27 @@ export default function StudentClasswordPage({
         dateKey,
         studentNumber,
       }, board.topic);
-      await refresh();
-      setFeedback({ kind: 'status', message: '낱말판에 저장했어요.' });
+      setBoard((currentBoard) => ({
+        ...currentBoard,
+        entries: [
+          ...currentBoard.entries.filter((entry) => (
+            entry.id !== result.entry.id && entry.studentNumber !== studentNumber
+          )),
+          result.entry,
+        ],
+      }));
       void playClasswordSound('success');
       onMissionCompleted();
       if (result.balance !== null) onRewardBalance(result.balance);
-      return true;
+      return 'saved';
     } catch (error) {
       const message = getErrorMessage(error);
+      const conflict = error instanceof ClasswordClientError
+        && (error.code === 'CLASSWORD_ENTRY_CONFLICT' || error.code === 'CLASSWORD_INITIAL_OCCUPIED');
       setFeedback({ kind: 'error', message });
       void playClasswordSound('error');
-      await refresh();
-      setFeedback({ kind: 'error', message });
-      return false;
+      void refresh();
+      return conflict ? 'conflict' : 'error';
     } finally {
       setSaving(false);
     }
@@ -181,14 +189,18 @@ export default function StudentClasswordPage({
 
   const remove = async (entryId: string): Promise<boolean> => {
     setSaving(true);
+    setFeedback(null);
     try {
       await removeClasswordEntry(entryId, studentNumber);
-      await refresh();
-      setFeedback({ kind: 'status', message: '낱말을 삭제했어요.' });
+      setBoard((currentBoard) => ({
+        ...currentBoard,
+        entries: currentBoard.entries.filter((entry) => entry.id !== entryId),
+      }));
       return true;
     } catch (error) {
       setFeedback({ kind: 'error', message: getErrorMessage(error) });
       void playClasswordSound('error');
+      void refresh();
       return false;
     } finally {
       setSaving(false);
@@ -237,7 +249,8 @@ export default function StudentClasswordPage({
           board={board}
           studentNumber={studentNumber}
           profileAssignments={profileAssignments}
-          saving={saving || loading || !board.topic}
+          disabled={loading || !board.topic}
+          saving={saving}
           onSave={save}
           onDelete={remove}
           onSelect={() => {

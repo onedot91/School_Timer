@@ -12605,6 +12605,9 @@ h3 {
   --classword-paper-filled: #e8f4ed;
   --classword-line: #c8d8cf;
   --classword-line-strong: #78a893;
+  --classword-line-filled: color-mix(in srgb, var(--classword-line-strong) 74%, var(--classword-sky));
+  --classword-own-border: color-mix(in srgb, var(--classword-accent) 76%, var(--classword-sky));
+  --classword-own-border-width: 3px;
   --classword-accent: #087a59;
   --classword-accent-soft: #e4f5ed;
   --classword-prompt: #d7f45b;
@@ -12612,7 +12615,10 @@ h3 {
   --classword-sky: #cceff7;
   --classword-celebrate: #b47b00;
   --classword-board-height: 27rem;
+  --classword-profile-size: clamp(3.75rem, 5.3vw, 4.5rem);
   --classword-quiz-initial-size: 6rem;
+  --classword-quiz-copy-size: clamp(1.125rem, 1.45vw, 1.25rem);
+  --classword-quiz-badge-size: 1rem;
   --student-warning: #9b4a43;
   --student-warning-soft: #fff0ed;
   --bookstore-paper: #fffdf7;

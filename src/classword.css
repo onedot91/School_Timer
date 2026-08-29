@@ -97,12 +97,14 @@
 }
 
 .classword-cell.is-filled {
-  border: 2px solid color-mix(in srgb, var(--classword-celebrate) 72%, var(--classword-line-strong));
+  border: 2px solid var(--classword-line-filled);
   background:
     radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--classword-sky) 62%, transparent), transparent 58%),
     var(--classword-paper-filled);
 }
-.classword-cell.is-own { border-color: var(--classword-line-strong); }
+.classword-cell.is-own {
+  border: var(--classword-own-border-width) solid var(--classword-own-border);
+}
 .classword-cell.is-selected {
   border-color: var(--classword-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--classword-accent) 18%, transparent);
@@ -127,6 +129,25 @@
 .classword-cell-main:focus-visible {
   outline: 3px solid var(--apple-focus);
   outline-offset: -3px;
+}
+
+.classword-own-mark {
+  position: absolute;
+  z-index: 1;
+  inset: .65rem .65rem auto auto;
+  display: grid;
+  inline-size: 2rem;
+  block-size: 2rem;
+  place-items: center;
+  border-radius: var(--apple-radius-pill);
+  color: white;
+  background: var(--classword-own-border);
+}
+
+.classword-own-mark svg {
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
+  stroke-width: 2.75;
 }
 
 .classword-initial {
@@ -158,6 +179,8 @@
   letter-spacing: 0;
 }
 
+.classword-cell.is-own .classword-initial { padding-inline-end: 2.5rem; }
+
 .classword-cell.is-filled .classword-initial small {
   margin: 0;
   font-size: .85em;
@@ -166,6 +189,7 @@
 .classword-entry-copy {
   display: grid;
   min-block-size: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
   align-content: space-between;
   gap: .35rem;
   min-inline-size: 0;
@@ -184,17 +208,17 @@
   min-inline-size: 0;
   align-items: center;
   gap: .4rem;
-  justify-self: start;
+  justify-self: center;
 }
 
 .classword-student-profile img {
-  inline-size: 2.35rem;
-  block-size: 2.35rem;
+  inline-size: var(--classword-profile-size);
+  block-size: var(--classword-profile-size);
   flex: 0 0 auto;
-  border: 2px solid white;
+  border: 3px solid white;
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 .2rem .5rem rgba(47, 58, 53, .14);
+  box-shadow: 0 .3rem .7rem rgba(47, 58, 53, .17);
 }
 
 .classword-student-profile small {
@@ -220,23 +244,6 @@
   line-height: 1;
 }
 
-.classword-delete-button {
-  position: absolute;
-  inset: auto .5rem .5rem auto;
-  display: grid;
-  inline-size: 2.75rem;
-  block-size: 2.75rem;
-  place-items: center;
-  border: 0;
-  border-radius: var(--apple-radius-pill);
-  color: var(--student-warning);
-  background: var(--student-warning-soft);
-}
-
-.classword-delete-button svg { inline-size: 1rem; }
-.classword-delete-confirm { position: absolute; inset: auto .35rem .35rem .35rem; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .25rem; padding: .25rem .35rem .25rem .6rem; border: 1px solid color-mix(in srgb, var(--student-warning) 32%, transparent); border-radius: .75rem; background: white; font-size: .75rem; font-weight: 800; }
-.classword-delete-confirm button { min-block-size: 2.25rem; padding-inline: .45rem; border: 0; border-radius: .55rem; color: var(--student-warning); background: var(--student-warning-soft); font-weight: 800; }
-
 .classword-cell-editor { display: grid; align-content: start; gap: .6rem; block-size: 100%; padding: .6rem; background: linear-gradient(135deg, color-mix(in srgb, var(--classword-prompt-soft) 75%, white), color-mix(in srgb, var(--classword-sky) 44%, white)); }
 .classword-cell-editor-heading { display: flex; align-items: center; justify-content: space-between; color: var(--classword-accent); }
 .classword-cell-editor-heading > button { display: grid; inline-size: 2.75rem; block-size: 2.75rem; place-items: center; border: 0; border-radius: var(--apple-radius-pill); color: inherit; background: var(--classword-accent-soft); }
@@ -246,6 +253,28 @@
 .classword-cell-editor form button,
 .classword-confirm button { display: inline-flex; min-block-size: 2.75rem; align-items: center; justify-content: center; gap: .25rem; border: 0; border-radius: .65rem; color: white; background: var(--classword-accent); font-weight: 850; }
 .classword-cell-editor button svg { inline-size: 1rem; }
+.classword-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+}
+.classword-cell-editor .classword-editor-actions button {
+  inline-size: 3rem;
+  min-block-size: 3rem;
+  padding: 0;
+  border-radius: var(--apple-radius-pill);
+}
+.classword-cell-editor .classword-editor-actions svg {
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  stroke-width: 3;
+}
+.classword-cell-editor .classword-editor-remove {
+  border: 1px solid color-mix(in srgb, var(--student-warning) 24%, transparent);
+  color: var(--student-warning);
+  background: var(--student-warning-soft);
+}
 .classword-cell-editor p { margin: 0; color: var(--student-warning); font-size: .75rem; font-weight: 750; line-height: 1.3; }
 .classword-confirm { display: grid; gap: .35rem; text-align: center; }
 .classword-confirm > strong { padding: .6rem; border-radius: .75rem; overflow-wrap: anywhere; background: white; font-size: 1.05rem; text-align: left; }
@@ -253,6 +282,31 @@
 .classword-confirm button { inline-size: 3rem; min-block-size: 3rem; padding: 0; border-radius: var(--apple-radius-pill); }
 .classword-confirm button.classword-confirm-revise { border: 1px solid color-mix(in srgb, var(--classword-line) 72%, white); color: var(--classword-ink); background: white; }
 .classword-confirm button svg { inline-size: 1.4rem; block-size: 1.4rem; stroke-width: 3; }
+.classword-save-progress {
+  position: relative;
+  inline-size: 100%;
+  block-size: .25rem;
+  overflow: hidden;
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--classword-line) 72%, white);
+}
+.classword-save-progress > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--classword-accent);
+  transform: translateX(-120%) scaleX(.45);
+  transform-origin: left;
+  animation: classword-save-progress 900ms var(--student-ease-in-out) infinite;
+}
+
+@keyframes classword-save-progress {
+  to { transform: translateX(220%) scaleX(.55); }
+}
+
+@keyframes classword-save-progress-reduced {
+  50% { opacity: .42; }
+}
 
 .classword-complete-banner { position: absolute; z-index: 3; inset: .75rem 50% auto auto; display: inline-flex; align-items: center; gap: .4rem; transform: translateX(50%); padding: .55rem .9rem; border: 1px solid color-mix(in srgb, var(--classword-celebrate) 55%, white); border-radius: var(--apple-radius-pill); color: #6d4b00; background: #fff8df; box-shadow: 0 .5rem 1.25rem rgba(93, 69, 13, .14); font-weight: 900; }
 .classword-complete-banner svg { inline-size: 1.2rem; }
@@ -348,23 +402,33 @@
   gap: .55rem;
   margin: 0;
   color: var(--classword-ink-muted);
-  font-size: 1rem;
+  font-size: var(--classword-quiz-copy-size);
   font-weight: 750;
   line-height: 1.35;
 }
 
-.classword-quiz-copy p:first-child { color: var(--classword-ink); }
-.classword-quiz-copy p > span:first-child {
+.classword-quiz-copy > p:first-child { color: var(--classword-ink); }
+.classword-quiz-copy > p:first-child > span,
+.classword-quiz-examples > span {
   flex: 0 0 auto;
-  padding: .1rem .45rem;
+  padding: .15rem .55rem;
   border-radius: var(--apple-radius-pill);
   color: var(--classword-accent);
   background: var(--classword-prompt-soft);
-  font-size: .8rem;
+  font-size: var(--classword-quiz-badge-size);
   font-weight: 900;
+  line-height: 1.25;
 }
 
 .classword-quiz-copy strong { font-weight: 900; }
+.classword-quiz-examples {
+  display: grid;
+  min-inline-size: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: .65rem;
+}
+.classword-quiz-example-list { display: grid; min-inline-size: 0; gap: .3rem; }
 .classword-quiz-example { min-inline-size: 0; }
 .classword-quiz-example-hint {
   margin-inline: .12em;
@@ -377,11 +441,15 @@
   white-space: nowrap;
 }
 .classword-quiz form { display: grid; min-inline-size: 0; gap: .25rem; }
-.classword-quiz form > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.classword-quiz form > div {
+  position: relative;
+  min-inline-size: 0;
+}
 .classword-quiz input {
+  inline-size: 100%;
   min-inline-size: 0;
   min-block-size: 3.5rem;
-  padding-inline: .85rem;
+  padding-inline: .85rem 6.5rem;
   border: 1px solid var(--classword-line);
   border-radius: var(--apple-radius-control);
   color: var(--classword-ink);
@@ -391,8 +459,11 @@
 }
 
 .classword-quiz form button {
+  position: absolute;
+  inset: .375rem .375rem .375rem auto;
   display: inline-flex;
-  min-block-size: 3.5rem;
+  min-inline-size: 5.5rem;
+  min-block-size: 2.75rem;
   align-items: center;
   justify-content: center;
   gap: .4rem;
@@ -543,6 +614,16 @@
   .classword-cell-main,
   .classword-particles { transition: none; animation: none; }
   .classword-cell-main:enabled:active { transform: none; }
+  .classword-save-progress > span {
+    transform: none;
+    animation: classword-save-progress-reduced 1.4s var(--student-ease-in-out) infinite;
+  }
   .classword-quiz form button { transition: none; }
   .classword-quiz form button:enabled:active { transform: none; }
+}
+
+@media (forced-colors: active) {
+  .classword-cell.is-filled { border-color: CanvasText; }
+  .classword-cell.is-own { border-color: Highlight; }
+  .classword-own-mark { color: HighlightText; background: Highlight; forced-color-adjust: none; }
 }

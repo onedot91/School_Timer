@@ -9,6 +9,7 @@ import {
   getClasswordInitialLabel,
   getKoreanDateKey,
   parseClasswordBoard,
+  sanitizeClasswordInput,
   validateClasswordWord,
 } from './classword';
 
@@ -67,6 +68,11 @@ test('낱말 검증은 공백을 정리하고 올바른 한글 낱말을 반환�
 
   // Then
   assert.deepEqual(result, { ok: true, word: '까치' });
+});
+
+test('낱말 입력은 정리된 글자가 8자를 넘으면 초과분을 받지 않는다', () => {
+  assert.equal(sanitizeClasswordInput('가나다라마바사아자'), '가나다라마바사아');
+  assert.equal(sanitizeClasswordInput('가나다라-마바사아자'), '가나다라마바사아');
 });
 
 test('한국 날짜 키는 자정 경계에서 서울 날짜를 사용한다', () => {

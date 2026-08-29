@@ -118,7 +118,7 @@ export const getClasswordInitialLabel = (initial: ClasswordInitial): string => {
 };
 
 export const sanitizeClasswordInput = (input: string): string => (
-  input.replace(/[^\p{L}\p{N}]/gu, '')
+  [...input.replace(/[^\p{L}\p{N}]/gu, '')].slice(0, 8).join('')
 );
 
 const invalidWord = (code: ClasswordWordErrorCode, message: string): ClasswordWordValidation => ({

@@ -1,5 +1,5 @@
-import { Check, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Check, Trash2, UserRoundCheck, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 
 import {
   CLASSWORD_INITIALS,
@@ -13,6 +13,7 @@ import {
   getFailureProfileImage,
   type FailureProfileAssignments,
 } from '../../lib/failureExhibition';
+import StudentConfirmDialog from './StudentConfirmDialog';
 
 type SaveInput = {
   readonly entryId?: string;
@@ -20,12 +21,15 @@ type SaveInput = {
   readonly word: string;
 };
 
+export type ClasswordSaveResult = 'saved' | 'conflict' | 'error';
+
 type ClasswordBoardProps = {
   readonly board: ClasswordBoardData;
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
+  readonly disabled: boolean;
   readonly saving: boolean;
-  readonly onSave: (input: SaveInput) => Promise<boolean>;
+  readonly onSave: (input: SaveInput) => Promise<ClasswordSaveResult>;
   readonly onDelete: (entryId: string) => Promise<boolean>;
   readonly onSelect: (initial: ClasswordInitial) => void;
 };
@@ -34,6 +38,7 @@ export default function ClasswordBoard({
   board,
   studentNumber,
   profileAssignments,
+  disabled,
   saving,
   onSave,
   onDelete,
@@ -43,47 +48,48 @@ export default function ClasswordBoard({
   const [word, setWord] = useState('');
   const [pendingWord, setPendingWord] = useState('');
   const [message, setMessage] = useState('');
-  const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
+  const [moveTarget, setMoveTarget] = useState<ClasswordInitial | null>(null);
+  const [movingFromInitial, setMovingFromInitial] = useState<ClasswordInitial | null>(null);
+  const moveTriggerRef = useRef<HTMLButtonElement | null>(null);
   const entriesByInitial = useMemo(
     () => new Map(board.entries.map((entry) => [entry.initial, entry])),
     [board.entries],
   );
   const ownEntry = board.entries.find((entry) => entry.studentNumber === studentNumber) ?? null;
 
-  useEffect(() => {
-    if (!pendingWord || !selectedInitial) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || saving) return;
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        void confirmSave();
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setPendingWord('');
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
   const closeEditor = (): void => {
     setSelectedInitial(null);
+    setMovingFromInitial(null);
     setWord('');
     setPendingWord('');
     setMessage('');
   };
 
-  const selectInitial = (initial: ClasswordInitial): void => {
-    const entry = entriesByInitial.get(initial);
-    if (entry && entry.studentNumber !== studentNumber) return;
-    if (!entry && ownEntry) return;
+  const openEditor = (initial: ClasswordInitial, initialWord = ''): void => {
     setSelectedInitial(initial);
-    setWord(entry?.word ?? '');
+    setWord(initialWord);
     setPendingWord('');
     setMessage('');
-    setDeleteEntryId(null);
     onSelect(initial);
+  };
+
+  const selectInitial = (initial: ClasswordInitial, trigger: HTMLButtonElement): void => {
+    const entry = entriesByInitial.get(initial);
+    if (entry && entry.studentNumber !== studentNumber) return;
+    if (!entry && ownEntry) {
+      moveTriggerRef.current = trigger;
+      setMoveTarget(initial);
+      return;
+    }
+    openEditor(initial, entry?.word);
+  };
+
+  const confirmMove = (): void => {
+    if (!moveTarget || !ownEntry) return;
+    const target = moveTarget;
+    setMoveTarget(null);
+    setMovingFromInitial(ownEntry.initial);
+    openEditor(target);
   };
 
   const prepareSave = (): void => {
@@ -99,43 +105,59 @@ export default function ClasswordBoard({
 
   const confirmSave = async (): Promise<void> => {
     if (!selectedInitial || !pendingWord) return;
-    const saved = await onSave({
+    const result = await onSave({
       ...(ownEntry ? { entryId: ownEntry.id } : {}),
       initial: selectedInitial,
       word: pendingWord,
     });
-    if (saved) closeEditor();
+    if (result !== 'error') closeEditor();
   };
 
-  const confirmDelete = async (entryId: string): Promise<void> => {
-    const deleted = await onDelete(entryId);
-    if (deleted) {
-      setDeleteEntryId(null);
-      closeEditor();
+  const confirmEdit = async (): Promise<void> => {
+    if (!selectedInitial || !ownEntry) return;
+    const validation = validateClasswordWord(word, selectedInitial, board.topic);
+    if (validation.ok === false) {
+      setMessage(validation.message);
+      return;
     }
+    setMessage('');
+    const result = await onSave({
+      entryId: ownEntry.id,
+      initial: selectedInitial,
+      word: validation.word,
+    });
+    if (result !== 'error') closeEditor();
+  };
+
+  const removeOwnEntry = async (): Promise<void> => {
+    if (!ownEntry) return;
+    const deleted = await onDelete(ownEntry.id);
+    if (deleted) closeEditor();
   };
 
   return (
-    <section className="classword-grid" aria-label="초성 낱말판">
-      {CLASSWORD_INITIALS.map((initial) => {
-        const entry = entriesByInitial.get(initial);
-        const profileImage = entry
-          ? getFailureProfileImage(entry.studentNumber, profileAssignments)
-          : null;
-        const initialAlias = getClasswordInitialLabel(initial).slice(initial.length);
-        const isOwn = entry?.studentNumber === studentNumber;
-        const isSelected = selectedInitial === initial;
-        const canSelect = isOwn || (!entry && !ownEntry);
-        return (
-          <article
-            key={initial}
-            className={`classword-cell${entry ? ' is-filled' : ''}${isOwn ? ' is-own' : ''}${isSelected ? ' is-selected' : ''}`}
-          >
+    <>
+      <section className="classword-grid" aria-label="초성 낱말판">
+        {CLASSWORD_INITIALS.map((initial) => {
+          const storedEntry = entriesByInitial.get(initial);
+          const entry = movingFromInitial === initial ? undefined : storedEntry;
+          const profileImage = entry
+            ? getFailureProfileImage(entry.studentNumber, profileAssignments)
+            : null;
+          const initialAlias = getClasswordInitialLabel(initial).slice(initial.length);
+          const isOwn = entry?.studentNumber === studentNumber;
+          const isSelected = selectedInitial === initial;
+          const canSelect = selectedInitial === null && (isOwn || !entry);
+          return (
+            <article
+              key={initial}
+              className={`classword-cell${entry ? ' is-filled' : ''}${isOwn ? ' is-own' : ''}${isSelected ? ' is-selected' : ''}`}
+            >
             {isSelected ? (
-              <div className="classword-cell-editor">
+              <div className="classword-cell-editor" aria-busy={saving}>
                 <div className="classword-cell-editor-heading">
                   <strong>{getClasswordInitialLabel(initial)}</strong>
-                  <button type="button" onClick={closeEditor} aria-label="낱말 입력 닫기" disabled={saving}>
+                  <button type="button" onClick={closeEditor} aria-label="낱말 입력 닫기" disabled={disabled || saving}>
                     <X aria-hidden="true" />
                   </button>
                 </div>
@@ -162,11 +184,17 @@ export default function ClasswordBoard({
                         <X aria-hidden="true" />
                       </button>
                     </div>
+                    {saving ? (
+                      <div className="classword-save-progress" role="progressbar" aria-label="낱말 저장 중">
+                        <span aria-hidden="true" />
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <form onSubmit={(event) => {
                     event.preventDefault();
-                    prepareSave();
+                    if (ownEntry && !movingFromInitial) void confirmEdit();
+                    else prepareSave();
                   }}>
                     <label>
                       <span className="sr-only">{getClasswordInitialLabel(initial)}으로 시작하는 낱말</span>
@@ -176,19 +204,42 @@ export default function ClasswordBoard({
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
                             event.preventDefault();
-                            prepareSave();
+                            if (ownEntry && !movingFromInitial) void confirmEdit();
+                            else prepareSave();
                           }
                         }}
                         maxLength={8}
                         autoFocus
                         autoComplete="off"
                         placeholder="낱말 입력"
-                        disabled={saving}
+                        disabled={disabled || saving}
                       />
                     </label>
-                    <button type="submit" disabled={saving || !word.trim()}>
-                      <Check aria-hidden="true" /> 입력
-                    </button>
+                    {ownEntry && !movingFromInitial ? (
+                      <div className="classword-editor-actions">
+                        <button
+                          type="submit"
+                          className="classword-editor-confirm"
+                          aria-label="수정한 낱말 확정"
+                          disabled={disabled || saving || !word.trim()}
+                        >
+                          <Check aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="classword-editor-remove"
+                          onClick={() => void removeOwnEntry()}
+                          aria-label="내 낱말 삭제"
+                          disabled={disabled || saving}
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="submit" disabled={disabled || saving || !word.trim()}>
+                        <Check aria-hidden="true" /> 입력
+                      </button>
+                    )}
                   </form>
                 )}
                 {message ? <p role="alert">{message}</p> : null}
@@ -197,12 +248,17 @@ export default function ClasswordBoard({
               <button
                 type="button"
                 className="classword-cell-main"
-                onClick={() => selectInitial(initial)}
-                disabled={!canSelect || saving}
+                onClick={(event) => selectInitial(initial, event.currentTarget)}
+                disabled={!canSelect || disabled || saving}
                 aria-label={entry
                   ? `${getClasswordInitialLabel(initial)}, ${entry.word}, ${entry.studentNumber}번${isOwn ? ', 내 낱말 수정' : ''}`
-                  : `${getClasswordInitialLabel(initial)} 낱말 입력`}
+                  : `${getClasswordInitialLabel(initial)}${ownEntry ? '으로 내 낱말 옮기기' : ' 낱말 입력'}`}
               >
+                {isOwn ? (
+                  <span className="classword-own-mark" aria-hidden="true">
+                    <UserRoundCheck />
+                  </span>
+                ) : null}
                 <span className="classword-initial">
                   <strong>{initial}</strong>
                   {initialAlias ? <small>{initialAlias}</small> : null}
@@ -222,28 +278,21 @@ export default function ClasswordBoard({
                 ) : <span className="classword-empty-mark" aria-hidden="true">+</span>}
               </button>
             )}
-            {isOwn && !isSelected ? (
-              deleteEntryId === entry.id ? (
-                <div className="classword-delete-confirm" role="group" aria-label="내 낱말 삭제 확인">
-                  <span>삭제할까요?</span>
-                  <button type="button" onClick={() => void confirmDelete(entry.id)} disabled={saving}>삭제</button>
-                  <button type="button" onClick={() => setDeleteEntryId(null)} disabled={saving}>취소</button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="classword-delete-button"
-                  onClick={() => setDeleteEntryId(entry.id)}
-                  aria-label={`${entry.word} 삭제`}
-                  disabled={saving}
-                >
-                  <Trash2 aria-hidden="true" />
-                </button>
-              )
-            ) : null}
-          </article>
-        );
-      })}
-    </section>
+            </article>
+          );
+        })}
+      </section>
+      <StudentConfirmDialog
+        isOpen={moveTarget !== null}
+        kicker="낱말 옮기기"
+        title={moveTarget ? `${getClasswordInitialLabel(moveTarget)} 칸에 새로 쓸까요?` : ''}
+        description={moveTarget ? '지금 카드를 이 칸으로 옮기고 새 낱말을 입력해요.' : ''}
+        confirmLabel="옮기기"
+        isPending={false}
+        returnFocusRef={moveTriggerRef}
+        onCancel={() => setMoveTarget(null)}
+        onConfirm={confirmMove}
+      />
+    </>
   );
 }

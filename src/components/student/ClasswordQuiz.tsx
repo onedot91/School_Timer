@@ -61,16 +61,20 @@ export default function ClasswordQuiz({
           </strong>
           <div className="classword-quiz-copy">
             <p><span>뜻</span><strong>{state.question.meaning}</strong></p>
-            {state.question.examples.map((example) => (
-              <p key={example.register}>
-                <span>{example.register === 'written' ? '글말' : '입말'}</span>
-                <span className="classword-quiz-example">
-                  {example.prefix}
-                  <strong className="classword-quiz-example-hint">{state.question.initialHint}</strong>
-                  {example.suffix}
-                </span>
-              </p>
-            ))}
+            <div className="classword-quiz-examples">
+              <span>예시</span>
+              <div className="classword-quiz-example-list">
+                {state.question.examples.map((example) => (
+                  <p key={example.register}>
+                    <span className="classword-quiz-example">
+                      {example.prefix}
+                      <strong className="classword-quiz-example-hint">{state.question.initialHint}</strong>
+                      {example.suffix}
+                    </span>
+                  </p>
+                ))}
+              </div>
+            </div>
           </div>
           <form onSubmit={(event) => {
             event.preventDefault();
