@@ -1,4 +1,4 @@
-import { isClasswordDateKey } from './classword';
+import { isClasswordDateKey } from './classword.js';
 
 export type ClasswordQuizPrompt = {
   readonly id: string;

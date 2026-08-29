@@ -66,16 +66,29 @@ test('입력칸 Enter는 브라우저 기본 제출에 의존하지 않고 확�
   assert.match(studentBoard, /onKeyDown=\{\(event\) => \{[\s\S]*?event\.key === 'Enter'[\s\S]*?event\.nativeEvent\.isComposing[\s\S]*?prepareSave\(\)/);
 });
 
+test('낱말 확인 단계는 안내 문구 없이 접근 가능한 체크와 X 기호만 사용한다', () => {
+  assert.doesNotMatch(studentBoard, /이 낱말이 맞나요\?/);
+  assert.match(studentBoard, /className="classword-confirm-accept"[\s\S]*?aria-label="낱말 확인"[\s\S]*?<Check aria-hidden="true" \/>/);
+  assert.match(studentBoard, /className="classword-confirm-revise"[\s\S]*?aria-label="낱말 고치기"[\s\S]*?<X aria-hidden="true" \/>/);
+  assert.match(css, /\.classword-confirm button \{[\s\S]*?inline-size: 3rem;[\s\S]*?min-block-size: 3rem;[\s\S]*?border-radius: var\(--apple-radius-pill\)/);
+});
+
 test('오늘의 주제는 학생 헤더에 한 번만 표시하고 남은 높이를 낱말판에 사용한다', () => {
   assert.match(studentPage, /title=\{\([\s\S]*?className="classword-header-topic"/);
   assert.doesNotMatch(studentPage, /className="classword-topic"/);
   assert.match(css, /\.classword-paper \{[\s\S]*?grid-template-rows: minmax\(0, 1fr\)/);
 });
 
-test('기본 낱말판은 7×2로 배치하고 낱말 길이에 맞춰 글자를 최대한 키운다', () => {
+test('기본 낱말판은 7×2로 배치하고 모든 정답 낱말 글자 크기를 일관되게 유지한다', () => {
   assert.match(css, /@container \(min-width: 70rem\)[\s\S]*?grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)[\s\S]*?grid-template-rows: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(studentBoard, /data-word-length=\{\[\.\.\.entry\.word\]\.length\}/);
-  assert.match(css, /classword-entry-copy\[data-word-length="2"\] strong \{ font-size: clamp\(2\.2rem, 3\.6vw, 3rem\)/);
+  assert.doesNotMatch(studentBoard, /data-word-length/);
+  assert.match(css, /\.classword-entry-copy strong \{[\s\S]*?font-size: clamp\(1\.55rem, 2\.2vw, 1\.9rem\)/);
+  assert.doesNotMatch(css, /classword-entry-copy\[data-word-length/);
+});
+
+test('빈 칸의 기본 자음과 된소리 표시는 한 줄로 나란히 배치한다', () => {
+  assert.match(css, /\.classword-initial \{[\s\S]*?display: flex;[\s\S]*?align-items: baseline;[\s\S]*?justify-content: center;/);
+  assert.doesNotMatch(css, /\.classword-initial \{[^}]*display: grid;/);
 });
 
 test('보조 캐릭터 전용 레일을 제거하고 일곱 칸이 종이 전체 폭을 사용한다', () => {

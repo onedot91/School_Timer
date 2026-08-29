@@ -165,9 +165,19 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   const teacherMissionIndex = markup.indexOf('인사하기');
   const emotionMissionIndex = markup.indexOf('감정 구슬 넣기');
   const writingMissionIndex = markup.indexOf('글밥짓기');
+  const classwordMissionIndex = markup.indexOf('ㄱㄴㄷ 게임');
+  const weeklyMissionIndex = markup.indexOf('주간 미션');
+  const personalQuestionMissionIndex = markup.indexOf('신문에 개인 질문하기');
+  const failureExhibitionMissionIndex = markup.indexOf('실패 전시하기');
+  const sudokuMissionIndex = markup.indexOf('스도쿠');
   assert.ok(teacherMissionIndex >= 0);
   assert.ok(teacherMissionIndex < emotionMissionIndex);
   assert.ok(teacherMissionIndex < writingMissionIndex);
+  assert.ok(writingMissionIndex < classwordMissionIndex);
+  assert.ok(classwordMissionIndex < weeklyMissionIndex);
+  assert.ok(weeklyMissionIndex < personalQuestionMissionIndex);
+  assert.ok(personalQuestionMissionIndex < failureExhibitionMissionIndex);
+  assert.ok(failureExhibitionMissionIndex < sudokuMissionIndex);
   assert.match(markup, /src="\/mission-illustrations\/teacher-mission-3\.png"/);
   assert.match(markup, /student-mission-illustration-title/);
   assert.match(markup, />인사하기</);
@@ -179,7 +189,8 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   assert.match(markup, /실패 전시하기/);
   assert.match(markup, /읽은 책 쌓기/);
   assert.match(markup, /보상 10고마/);
-  assert.match(markup, /0\/6 완료/);
+  assert.match(markup, /ㄱㄴㄷ 게임[\s\S]*?보상 5고마/);
+  assert.doesNotMatch(markup, /\d+개|\d+\/\d+ 완료/);
 });
 
 test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시한다', () => {

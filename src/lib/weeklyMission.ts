@@ -42,7 +42,7 @@ export const WEEKLY_MISSION_DEFINITIONS = [
   },
   {
     type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-    label: 'ㄱㄴㄷ 낱말판 채우기',
+    label: 'ㄱㄴㄷ 게임',
     description: '오늘의 주제에 맞는 낱말로 초성 한 칸을 채워 보세요.',
     rewardAmount: CLASSWORD_WEEKLY_REWARD,
   },

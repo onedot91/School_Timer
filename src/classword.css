@@ -128,8 +128,10 @@
 }
 
 .classword-initial {
-  display: grid;
-  justify-items: center;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: .2rem;
   color: var(--apple-text-primary);
   font-size: clamp(1.75rem, 2.5vw, 2.25rem);
   font-weight: 900;
@@ -139,7 +141,7 @@
 
 .classword-initial strong { font: inherit; }
 .classword-initial small {
-  margin-block-start: .35rem;
+  margin: 0;
   font-size: .72em;
   font-weight: inherit;
 }
@@ -169,18 +171,11 @@
 
 .classword-entry-copy strong {
   overflow-wrap: anywhere;
-  font-size: clamp(1.1rem, 1.45vw, 1.3rem);
+  font-size: clamp(1.55rem, 2.2vw, 1.9rem);
   letter-spacing: -.04em;
   line-height: 1.08;
   text-wrap: balance;
 }
-
-.classword-entry-copy[data-word-length="1"] strong,
-.classword-entry-copy[data-word-length="2"] strong { font-size: clamp(2.2rem, 3.6vw, 3rem); }
-.classword-entry-copy[data-word-length="3"] strong { font-size: clamp(1.85rem, 2.8vw, 2.35rem); }
-.classword-entry-copy[data-word-length="4"] strong { font-size: clamp(1.55rem, 2.2vw, 1.9rem); }
-.classword-entry-copy[data-word-length="5"] strong,
-.classword-entry-copy[data-word-length="6"] strong { font-size: clamp(1.3rem, 1.75vw, 1.55rem); }
 
 .classword-student-profile {
   display: inline-flex;
@@ -251,11 +246,11 @@
 .classword-cell-editor button svg { inline-size: 1rem; }
 .classword-cell-editor p { margin: 0; color: var(--student-warning); font-size: .75rem; font-weight: 750; line-height: 1.3; }
 .classword-confirm { display: grid; gap: .35rem; text-align: center; }
-.classword-confirm > span { order: 2; font-size: .75rem; color: var(--classword-ink-muted); font-weight: 800; }
-.classword-confirm > strong { order: 1; padding: .6rem; border-radius: .75rem; overflow-wrap: anywhere; background: white; font-size: 1.05rem; text-align: left; }
-.classword-confirm > div { order: 3; display: grid; grid-template-columns: 1fr; gap: .35rem; }
-.classword-confirm button { white-space: nowrap; }
-.classword-confirm button:last-child { color: var(--classword-accent); background: var(--classword-accent-soft); }
+.classword-confirm > strong { padding: .6rem; border-radius: .75rem; overflow-wrap: anywhere; background: white; font-size: 1.05rem; text-align: left; }
+.classword-confirm > div { display: flex; align-items: center; justify-content: center; gap: .65rem; }
+.classword-confirm button { inline-size: 3rem; min-block-size: 3rem; padding: 0; border-radius: var(--apple-radius-pill); }
+.classword-confirm button.classword-confirm-revise { border: 1px solid color-mix(in srgb, var(--classword-line) 72%, white); color: var(--classword-ink); background: white; }
+.classword-confirm button svg { inline-size: 1.4rem; block-size: 1.4rem; stroke-width: 3; }
 
 .classword-complete-banner { position: absolute; z-index: 3; inset: .75rem 50% auto auto; display: inline-flex; align-items: center; gap: .4rem; transform: translateX(50%); padding: .55rem .9rem; border: 1px solid color-mix(in srgb, var(--classword-celebrate) 55%, white); border-radius: var(--apple-radius-pill); color: #6d4b00; background: #fff8df; box-shadow: 0 .5rem 1.25rem rgba(93, 69, 13, .14); font-weight: 900; }
 .classword-complete-banner svg { inline-size: 1.2rem; }

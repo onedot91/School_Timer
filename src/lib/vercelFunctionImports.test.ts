@@ -14,6 +14,7 @@ const SERVER_MODULES = [
   'src/lib/bankMailbox.ts',
   'src/lib/currency.ts',
   'src/lib/classword.ts',
+  'src/lib/classwordQuiz.ts',
   'src/lib/failureExhibition.ts',
   'src/lib/studentEconomy.ts',
   'src/lib/studentEconomySettings.ts',

@@ -1,4 +1,4 @@
-import { Check, Pencil, Trash2, X } from 'lucide-react';
+import { Check, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
@@ -141,14 +141,25 @@ export default function ClasswordBoard({
                 </div>
                 {pendingWord ? (
                   <div className="classword-confirm">
-                    <span>이 낱말이 맞나요?</span>
                     <strong>{pendingWord}</strong>
                     <div>
-                      <button type="button" onClick={() => void confirmSave()} disabled={saving}>
-                        <Check aria-hidden="true" /> 확인
+                      <button
+                        type="button"
+                        className="classword-confirm-accept"
+                        onClick={() => void confirmSave()}
+                        aria-label="낱말 확인"
+                        disabled={saving}
+                      >
+                        <Check aria-hidden="true" />
                       </button>
-                      <button type="button" onClick={() => setPendingWord('')} disabled={saving}>
-                        <Pencil aria-hidden="true" /> 고치기
+                      <button
+                        type="button"
+                        className="classword-confirm-revise"
+                        onClick={() => setPendingWord('')}
+                        aria-label="낱말 고치기"
+                        disabled={saving}
+                      >
+                        <X aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -197,7 +208,7 @@ export default function ClasswordBoard({
                   {initialAlias ? <small>{initialAlias}</small> : null}
                 </span>
                 {entry ? (
-                  <span className="classword-entry-copy" data-word-length={[...entry.word].length}>
+                  <span className="classword-entry-copy">
                     <strong>{entry.word}</strong>
                     <span className="classword-student-profile">
                       <img

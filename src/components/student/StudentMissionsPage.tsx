@@ -142,19 +142,11 @@ export default function StudentMissionsPage({
   const [isSudokuSettingsOpen, setIsSudokuSettingsOpen] = useState(false);
   const sudokuSettingsDialogRef = useRef<HTMLElement>(null);
   const sudokuSettingsTriggerRef = useRef<HTMLElement>(null);
-  const completedExternalWeeklyMissionCount = WEEKLY_MISSION_DEFINITIONS.filter(
-    (mission) => weeklyMissionStatuses[mission.type] === 'completed',
-  ).length;
   const classroomRoleAssignment = getStudentClassroomRole(
     classroomRoleMission,
     studentNumber,
     getTodayClassroomRoleDateKey(),
   );
-  const completedWeeklyMissionCount = completedExternalWeeklyMissionCount
-    + (isWeeklySudokuMissionCompleted ? 1 : 0)
-    + (numberBaseballStatus === 'completed' ? 1 : 0)
-    + (isFailureExhibitionMissionCompleted ? 1 : 0)
-    + (isBookStackMissionCompleted ? 1 : 0);
   const getPresentedStatus = (status: WeeklyMissionStatuses[keyof WeeklyMissionStatuses]): StudentMissionStatus => {
     if (hasSyncError && status !== 'completed') return 'error';
     return status;
@@ -225,7 +217,6 @@ export default function StudentMissionsPage({
               일일 미션
               <span className="student-group-heading-description">(매일매일 할 수 있는 미션)</span>
             </h2>
-            <strong>{auctionMissions.length + 3}개</strong>
           </div>
           <div className="student-mission-grid">
             {auctionMissions.map((mission, index) => (
@@ -277,6 +268,21 @@ export default function StudentMissionsPage({
                 onAction={hasDailyWritingMission ? onOpenMailbox : undefined}
               />
             </motion.div>
+            {WEEKLY_MISSION_DEFINITIONS
+              .filter((mission) => mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE)
+              .map((mission) => (
+                <motion.div key={mission.type} {...missionEntrance(auctionMissions.length + 3)}>
+                  <StudentMissionCard
+                    title={mission.label}
+                    illustrationSrc="/mission-illustrations/classword-game.png"
+                    rewardAmount={mission.rewardAmount}
+                    verificationMode="automatic"
+                    status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
+                    onAction={onOpenClassword}
+                    actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '낱말판 보기' : '낱말 넣기'}
+                  />
+                </motion.div>
+              ))}
           </div>
         </section>
 
@@ -286,10 +292,35 @@ export default function StudentMissionsPage({
               주간 미션
               <span className="student-group-heading-description">(일주일에 한 번 할 수 있는 미션)</span>
             </h2>
-            <strong>{completedWeeklyMissionCount}/{WEEKLY_MISSION_DEFINITIONS.length + 4} 완료</strong>
           </div>
           <div className="student-mission-grid">
-            <motion.div {...missionEntrance(auctionMissions.length + 2)}>
+            {WEEKLY_MISSION_DEFINITIONS
+              .filter((mission) => mission.type === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE)
+              .map((mission) => (
+                <motion.div key={mission.type} {...missionEntrance(0)}>
+                  <StudentMissionCard
+                    title={mission.label}
+                    illustrationSrc="/mission-illustrations/newspaper-question.png"
+                    rewardAmount={mission.rewardAmount}
+                    verificationMode="automatic"
+                    status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
+                    destinationUrl={'destinationUrl' in mission ? mission.destinationUrl : undefined}
+                    actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
+                  />
+                </motion.div>
+              ))}
+            <motion.div {...missionEntrance(1)}>
+              <StudentMissionCard
+                title="실패 전시하기"
+                illustrationSrc="/mission-illustrations/failure-exhibition.png"
+                rewardAmount={FAILURE_EXHIBITION_WEEKLY_REWARD}
+                verificationMode="automatic"
+                status={isFailureExhibitionMissionCompleted ? 'completed' : 'incomplete'}
+                actionLabel={isFailureExhibitionMissionCompleted ? '전시한 글 보기' : '실패 전시하기'}
+                onAction={onOpenFailureExhibition}
+              />
+            </motion.div>
+            <motion.div {...missionEntrance(2)}>
               <StudentMissionCard
                 title="스도쿠"
                 illustrationSrc="/mission-illustrations/sudoku.png"
@@ -314,7 +345,7 @@ export default function StudentMissionsPage({
                 }}
               />
             </motion.div>
-            <motion.div className="student-number-baseball-mission" {...missionEntrance(auctionMissions.length + 3)}>
+            <motion.div className="student-number-baseball-mission" {...missionEntrance(3)}>
               <StudentMissionCard
                 title="숫자 야구"
                 illustrationSrc="/mission-illustrations/number-baseball.png"
@@ -336,18 +367,7 @@ export default function StudentMissionsPage({
                 onAction={onOpenNumberBaseball}
               />
             </motion.div>
-            <motion.div {...missionEntrance(auctionMissions.length + 4)}>
-              <StudentMissionCard
-                title="실패 전시하기"
-                illustrationSrc="/mission-illustrations/failure-exhibition.png"
-                rewardAmount={FAILURE_EXHIBITION_WEEKLY_REWARD}
-                verificationMode="automatic"
-                status={isFailureExhibitionMissionCompleted ? 'completed' : 'incomplete'}
-                actionLabel={isFailureExhibitionMissionCompleted ? '전시한 글 보기' : '실패 전시하기'}
-                onAction={onOpenFailureExhibition}
-              />
-            </motion.div>
-            <motion.div {...missionEntrance(auctionMissions.length + 5)}>
+            <motion.div {...missionEntrance(4)}>
               <StudentMissionCard
                 title="읽은 책 쌓기"
                 illustrationSrc="/mission-illustrations/book-stacking.png"
@@ -358,28 +378,6 @@ export default function StudentMissionsPage({
                 onAction={onOpenBookStack}
               />
             </motion.div>
-            {WEEKLY_MISSION_DEFINITIONS.map((mission, index) => (
-              <motion.div key={mission.type} {...missionEntrance(index + auctionMissions.length + 6)}>
-                <StudentMissionCard
-                  title={mission.label}
-                  illustrationSrc={mission.type === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
-                    ? '/mission-illustrations/newspaper-question.png'
-                    : mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE
-                      ? '/mission-illustrations/classword-game.png'
-                      : undefined}
-                  rewardAmount={mission.rewardAmount}
-                  verificationMode="automatic"
-                  status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
-                  destinationUrl={'destinationUrl' in mission ? mission.destinationUrl : undefined}
-                  onAction={mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE
-                    ? onOpenClassword
-                    : undefined}
-                  actionLabel={mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE
-                    ? weeklyMissionStatuses[mission.type] === 'completed' ? '낱말판 보기' : '낱말 넣기'
-                    : weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
-                />
-              </motion.div>
-            ))}
           </div>
         </section>
       </main>

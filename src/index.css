@@ -17744,13 +17744,6 @@ a[href]:active {
   line-height: 1.35;
 }
 
-.student-group-heading > strong {
-  color: var(--apple-accent-pressed);
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  white-space: nowrap;
-}
-
 .student-mission-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -20837,6 +20830,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   }
 
   .student-number-baseball-mission { grid-column: 1 / -1; }
+}
+
+@media (min-width: 75rem) {
+  .student-missions-view .student-mission-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 48rem) {
