@@ -10,6 +10,10 @@ const studentBoard = readFileSync(
   new URL('../components/student/ClasswordBoard.tsx', import.meta.url),
   'utf8',
 );
+const studentQuiz = readFileSync(
+  new URL('../components/student/ClasswordQuiz.tsx', import.meta.url),
+  'utf8',
+);
 const teacherPanel = readFileSync(
   new URL('../components/teacher/TeacherClasswordPanel.tsx', import.meta.url),
   'utf8',
@@ -77,6 +81,16 @@ test('오늘의 주제는 학생 헤더에 한 번만 표시하고 남은 높이
   assert.match(studentPage, /title=\{\([\s\S]*?className="classword-header-topic"/);
   assert.doesNotMatch(studentPage, /className="classword-topic"/);
   assert.match(css, /\.classword-paper \{[\s\S]*?grid-template-rows: minmax\(0, 1fr\)/);
+});
+
+test('보너스 문제는 일러스트 제목과 두 예문 속 강조된 초성 힌트를 사용한다', () => {
+  assert.match(studentQuiz, /src="\/classword\/bonus-question\.png"/);
+  assert.doesNotMatch(studentQuiz, />오늘의 낱말 퀴즈</);
+  assert.match(studentQuiz, /state\.question\.examples\.map/);
+  assert.match(studentQuiz, /className="classword-quiz-example-hint">\{state\.question\.initialHint\}/);
+  assert.match(css, /\.classword-quiz-example-hint \{[\s\S]*?color: var\(--classword-accent\);[\s\S]*?font-weight: 950;/);
+  assert.match(css, /@media \(min-width: 70rem\)[\s\S]*?grid-template-rows: minmax\(0, var\(--classword-board-height\)\) auto;/);
+  assert.match(css, /\.classword-paper \{[\s\S]*?padding-block-end: clamp\(1\.5rem, 2\.5vh, 2rem\);/);
 });
 
 test('기본 낱말판은 7×2로 배치하고 모든 정답 낱말 글자 크기를 일관되게 유지한다', () => {

@@ -1,10 +1,16 @@
 import { isClasswordDateKey } from './classword.js';
 
+export type ClasswordQuizExample = {
+  readonly register: 'written' | 'spoken';
+  readonly prefix: string;
+  readonly suffix: string;
+};
+
 export type ClasswordQuizPrompt = {
   readonly id: string;
   readonly initialHint: string;
   readonly meaning: string;
-  readonly example: string;
+  readonly examples: readonly [ClasswordQuizExample, ClasswordQuizExample];
 };
 
 export type ClasswordQuizCompletion = {
@@ -36,49 +42,70 @@ const CLASSWORD_QUIZ_QUESTIONS: readonly ClasswordQuizQuestion[] = [
     id: 'saving-resources',
     initialHint: 'ㅈㅇ',
     meaning: '물건이나 돈, 에너지를 아껴서 쓰는 일',
-    example: '물을 □□하려고 양치할 때 컵을 사용했다.',
+    examples: [
+      { register: 'written', prefix: '우리는 물과 전기를 ', suffix: '하여 환경을 지켜야 한다.' },
+      { register: 'spoken', prefix: '물을 ', suffix: '하려고 양치할 때 컵을 썼어.' },
+    ],
     answer: '절약',
   },
   {
     id: 'caring-for-others',
     initialHint: 'ㅂㄹ',
     meaning: '다른 사람의 마음과 형편을 생각하고 도와주는 마음이나 행동',
-    example: '친구가 편히 지나가도록 길을 비켜 주는 □□를 보였다.',
+    examples: [
+      { register: 'written', prefix: '서로를 ', suffix: '하는 태도는 공동체를 따뜻하게 만든다.' },
+      { register: 'spoken', prefix: '친구가 지나가게 길을 비켜 주는 ', suffix: '를 보였어.' },
+    ],
     answer: '배려',
   },
   {
     id: 'finishing-your-duty',
     initialHint: 'ㅊㅇ',
     meaning: '맡은 일을 끝까지 해내려는 태도',
-    example: '내가 맡은 화분에 물을 주며 □□을 다했다.',
+    examples: [
+      { register: 'written', prefix: '맡은 일을 끝까지 해내는 것은 ', suffix: ' 있는 태도이다.' },
+      { register: 'spoken', prefix: '내가 맡은 화분에 물을 주며 ', suffix: '을 다했어.' },
+    ],
     answer: '책임',
   },
   {
     id: 'working-together',
     initialHint: 'ㅎㄷ',
     meaning: '여러 사람이 힘과 마음을 모아 함께 일함',
-    example: '모둠 친구들과 □□하여 교실을 깨끗이 정리했다.',
+    examples: [
+      { register: 'written', prefix: '구성원들은 목표를 이루기 위해 서로 ', suffix: '하였다.' },
+      { register: 'spoken', prefix: '모둠 친구들과 ', suffix: '해서 교실을 깨끗이 치웠어.' },
+    ],
     answer: '협동',
   },
   {
     id: 'looking-carefully',
     initialHint: 'ㄱㅊ',
     meaning: '사물이나 현상을 자세히 살펴봄',
-    example: '강낭콩이 자라는 모습을 매일 □□하여 기록했다.',
+    examples: [
+      { register: 'written', prefix: '강낭콩의 성장 과정을 매일 ', suffix: '하여 기록하였다.' },
+      { register: 'spoken', prefix: '강낭콩이 어떻게 자라는지 자세히 ', suffix: '해 봤어.' },
+    ],
     answer: '관찰',
   },
   {
     id: 'putting-into-action',
     initialHint: 'ㅅㅊ',
     meaning: '생각하거나 계획한 것을 실제 행동으로 옮김',
-    example: '쓰레기를 줄이겠다는 약속을 오늘부터 □□했다.',
+    examples: [
+      { register: 'written', prefix: '환경 보호는 작은 약속을 ', suffix: '하는 데서 시작된다.' },
+      { register: 'spoken', prefix: '쓰레기를 줄이겠다는 약속을 오늘부터 ', suffix: '했어.' },
+    ],
     answer: '실천',
   },
   {
     id: 'showing-respect',
     initialHint: 'ㅈㅈ',
     meaning: '다른 사람을 소중하게 여기고 의견이나 권리를 인정함',
-    example: '친구의 생각을 끝까지 들으며 서로를 □□했다.',
+    examples: [
+      { register: 'written', prefix: '다른 사람의 의견과 권리를 ', suffix: '해야 한다.' },
+      { register: 'spoken', prefix: '친구 말을 끝까지 들으며 서로를 ', suffix: '했어.' },
+    ],
     answer: '존중',
   },
 ] as const;
@@ -91,11 +118,11 @@ const isValidStudentNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 23
 );
 
-const toPrompt = ({ id, initialHint, meaning, example }: ClasswordQuizQuestion): ClasswordQuizPrompt => ({
+const toPrompt = ({ id, initialHint, meaning, examples }: ClasswordQuizQuestion): ClasswordQuizPrompt => ({
   id,
   initialHint,
   meaning,
-  example,
+  examples,
 });
 
 export const getDailyClasswordQuiz = (dateKey: string): ClasswordQuizPrompt => {
@@ -113,19 +140,33 @@ export const isClasswordQuizAnswerCorrect = (dateKey: string, input: string): bo
   return input.normalize('NFC').trim().replace(/\s+/g, '') === question.answer;
 };
 
+const parseExample = (value: unknown, register: ClasswordQuizExample['register']): ClasswordQuizExample => {
+  if (
+    !isRecord(value)
+    || value.register !== register
+    || typeof value.prefix !== 'string'
+    || typeof value.suffix !== 'string'
+  ) throw new Error('CLASSWORD_QUIZ_INVALID_RESPONSE');
+  return { register, prefix: value.prefix, suffix: value.suffix };
+};
+
 const parsePrompt = (value: unknown): ClasswordQuizPrompt => {
   if (
     !isRecord(value)
     || typeof value.id !== 'string'
     || typeof value.initialHint !== 'string'
     || typeof value.meaning !== 'string'
-    || typeof value.example !== 'string'
+    || !Array.isArray(value.examples)
+    || value.examples.length !== 2
   ) throw new Error('CLASSWORD_QUIZ_INVALID_RESPONSE');
   return {
     id: value.id,
     initialHint: value.initialHint,
     meaning: value.meaning,
-    example: value.example,
+    examples: [
+      parseExample(value.examples[0], 'written'),
+      parseExample(value.examples[1], 'spoken'),
+    ],
   };
 };
 

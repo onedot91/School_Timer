@@ -48,17 +48,29 @@ export default function ClasswordQuiz({
   return (
     <section className={`classword-quiz${completed ? ' is-complete' : ''}`} aria-labelledby="classword-quiz-title">
       <header>
-        <h2 id="classword-quiz-title">오늘의 낱말 퀴즈</h2>
+        <h2 id="classword-quiz-title" className="sr-only">보너스 문제</h2>
         {completed ? <span><CheckCircle2 aria-hidden="true" /> 완료</span> : null}
       </header>
       {state ? (
         <div className="classword-quiz-body">
+          <span className="classword-quiz-heading-art" aria-hidden="true">
+            <img src="/classword/bonus-question.png" alt="" width="1448" height="1086" />
+          </span>
           <strong className="classword-quiz-initial" aria-label={`초성 힌트 ${state.question.initialHint}`}>
             {state.question.initialHint}
           </strong>
           <div className="classword-quiz-copy">
             <p><span>뜻</span><strong>{state.question.meaning}</strong></p>
-            <p><span>예문</span>{state.question.example}</p>
+            {state.question.examples.map((example) => (
+              <p key={example.register}>
+                <span>{example.register === 'written' ? '글말' : '입말'}</span>
+                <span className="classword-quiz-example">
+                  {example.prefix}
+                  <strong className="classword-quiz-example-hint">{state.question.initialHint}</strong>
+                  {example.suffix}
+                </span>
+              </p>
+            ))}
           </div>
           <form onSubmit={(event) => {
             event.preventDefault();

@@ -15,7 +15,9 @@ test('날짜별 퀴즈는 같은 날짜에 같은 문제를 선택하고 정답�
   assert.deepEqual(first, second);
   assert.equal(Object.hasOwn(first, 'answer'), false);
   assert.match(first.initialHint, /^[ㄱ-ㅎ]{2,}$/);
-  assert.match(first.example, /□/);
+  assert.deepEqual(first.examples.map((example) => example.register), ['written', 'spoken']);
+  assert.equal(first.examples.length, 2);
+  assert.equal(first.examples.some((example) => `${example.prefix}${example.suffix}`.includes('□')), false);
 });
 
 test('퀴즈 정답은 주변 공백을 정리하고 오답과 구분한다', () => {
@@ -48,4 +50,3 @@ test('학생 완료와 교사 정답자 응답은 유효한 번호만 허용한�
     dateKey: '2026-08-30', question, correctStudentNumbers: [24],
   }), /CLASSWORD_QUIZ_INVALID_RESPONSE/);
 });
-
