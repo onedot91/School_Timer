@@ -1,6 +1,6 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FAILURE_RELAY_VISIBLE_COUNT,
   getFailureRelayWindow,
@@ -8,6 +8,7 @@ import {
   type FailureProfileAssignments,
   type FailureStory,
 } from '../../lib/failureExhibition';
+import { createFailureStoryToneIndex, getFailureStoryTone } from '../../lib/failureStoryTone';
 import StudentFailureMessage from './StudentFailureMessage';
 
 interface StudentFailureRelayProps {
@@ -34,7 +35,6 @@ const RELAY_TRANSITION = {
 const relayMotionVariants = {
   enter: (direction: RelayDirection) => ({ x: direction === 'older' ? '100%' : '-100%' }),
   center: { x: 0 },
-  exit: (direction: RelayDirection) => ({ x: direction === 'older' ? '-100%' : '100%' }),
 };
 
 export default function StudentFailureRelay({
@@ -54,12 +54,14 @@ export default function StudentFailureRelay({
   const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
   const [stampMenuStoryId, setStampMenuStoryId] = useState<string | null>(null);
   const [pendingStoryCount, setPendingStoryCount] = useState(0);
-  const pointerStartYRef = useRef<number | null>(null);
+  const pointerStartRef = useRef<{ readonly x: number; readonly y: number } | null>(null);
   const transitionEndsAtRef = useRef(0);
   const relayStories = stories;
+  const storyToneIndex = useMemo(() => createFailureStoryToneIndex(relayStories), [relayStories]);
   const latestStoryIdRef = useRef(relayStories[0]?.id ?? null);
   const previousStoryCountRef = useRef(relayStories.length);
-  const maximumOffset = relayStories.length > FAILURE_RELAY_VISIBLE_COUNT ? relayStories.length - 1 : 0;
+  const maximumOffset = Math.max(0, relayStories.length - FAILURE_RELAY_VISIBLE_COUNT);
+  const relayOffsetCount = maximumOffset + 1;
   const isPaused = isExternallyPaused
     || isPointerPaused
     || isFocusPaused
@@ -72,8 +74,8 @@ export default function StudentFailureRelay({
     transitionEndsAtRef.current = now + RELAY_TRANSITION_SECONDS * 1_000;
     setExpandedStoryId(null);
     setRelayDirection(amount > 0 ? 'older' : 'newer');
-    setRelayOffset((current) => (current + amount + relayStories.length) % relayStories.length);
-  }, [maximumOffset, relayStories.length]);
+    setRelayOffset((current) => (current + amount + relayOffsetCount) % relayOffsetCount);
+  }, [maximumOffset, relayOffsetCount]);
 
   useEffect(() => {
     if (!stampMenuStoryId) return;
@@ -96,8 +98,8 @@ export default function StudentFailureRelay({
   }, [stampMenuStoryId]);
 
   useEffect(() => {
-    setRelayOffset((current) => maximumOffset === 0 ? 0 : current % relayStories.length);
-  }, [maximumOffset, relayStories.length]);
+    setRelayOffset((current) => current % relayOffsetCount);
+  }, [relayOffsetCount]);
 
   useEffect(() => {
     const latestStoryId = relayStories[0]?.id ?? null;
@@ -115,7 +117,7 @@ export default function StudentFailureRelay({
     }
     const incomingCount = previousIndex > 0 ? previousIndex : Math.max(1, relayStories.length - previousStoryCount);
     if (isPaused) {
-      setRelayOffset((current) => maximumOffset === 0 ? 0 : (current + incomingCount) % relayStories.length);
+      setRelayOffset((current) => (current + incomingCount) % relayOffsetCount);
       setPendingStoryCount((current) => current + incomingCount);
     } else {
       setRelayDirection('newer');
@@ -123,7 +125,7 @@ export default function StudentFailureRelay({
       setPendingStoryCount(0);
     }
     latestStoryIdRef.current = latestStoryId;
-  }, [isPaused, maximumOffset, relayStories]);
+  }, [isPaused, relayOffsetCount, relayStories]);
 
   useEffect(() => {
     if (latestRevealRequest === 0) return;
@@ -151,33 +153,49 @@ export default function StudentFailureRelay({
     <>
       {displayedStories.length > 0 ? <>
         <div className="student-failure-relay">
-          <div className="student-failure-relay-toolbar" role="group" aria-label="실패 이야기 흐름 조작">
-            <button type="button" aria-label="더 오래된 이야기 보기" title="더 오래된 이야기" disabled={maximumOffset === 0} onClick={() => move(1)}><ChevronUp aria-hidden="true" /></button>
-            <button type="button" aria-label="더 새로운 이야기 보기" title="더 새로운 이야기" disabled={maximumOffset === 0} onClick={() => move(-1)}><ChevronDown aria-hidden="true" /></button>
-          </div>
-          {pendingStoryCount > 0 ? <button type="button" className="student-failure-new-stories" onClick={revealLatest}>새 이야기 {pendingStoryCount}개</button> : null}
           <div
             className="student-failure-feed"
             tabIndex={0}
-            aria-label="실패 이야기 릴레이. 위아래 방향키나 휠로 다른 이야기를 볼 수 있어요."
+            aria-label="실패 이야기 릴레이. 좌우 방향키로 이전과 다음 이야기를 볼 수 있어요."
             onPointerEnter={(event) => { if (event.pointerType === 'mouse') setIsPointerPaused(true); }}
             onPointerLeave={(event) => { if (event.pointerType === 'mouse') setIsPointerPaused(false); }}
             onPointerDown={(event) => {
-              pointerStartYRef.current = event.clientY;
+              pointerStartRef.current = { x: event.clientX, y: event.clientY };
             }}
             onPointerUp={(event) => {
-              const startY = pointerStartYRef.current;
-              pointerStartYRef.current = null;
-              if (startY === null) return;
-              const distance = startY - event.clientY;
-              if (Math.abs(distance) >= RELAY_SWIPE_THRESHOLD) move(distance > 0 ? 1 : -1);
+              const start = pointerStartRef.current;
+              pointerStartRef.current = null;
+              if (start === null) return;
+              const horizontalDistance = start.x - event.clientX;
+              const verticalDistance = start.y - event.clientY;
+              if (
+                Math.abs(horizontalDistance) >= RELAY_SWIPE_THRESHOLD
+                && Math.abs(horizontalDistance) >= Math.abs(verticalDistance)
+              ) {
+                move(horizontalDistance > 0 ? 1 : -1);
+                return;
+              }
+              if (Math.abs(verticalDistance) >= RELAY_SWIPE_THRESHOLD) {
+                move(verticalDistance > 0 ? 1 : -1);
+              }
             }}
             onFocusCapture={() => setIsFocusPaused(true)}
             onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsFocusPaused(false); }}
             onKeyDown={(event) => {
-              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
-              event.preventDefault();
-              move(event.key === 'ArrowUp' ? 1 : -1);
+              switch (event.key) {
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                  event.preventDefault();
+                  move(-1);
+                  break;
+                case 'ArrowRight':
+                case 'ArrowDown':
+                  event.preventDefault();
+                  move(1);
+                  break;
+                default:
+                  break;
+              }
             }}
             onWheel={(event) => {
               if (Math.abs(event.deltaY) < 20) return;
@@ -185,6 +203,7 @@ export default function StudentFailureRelay({
               move(event.deltaY > 0 ? 1 : -1);
             }}
           >
+            {pendingStoryCount > 0 ? <button type="button" className="student-failure-new-stories" onClick={revealLatest}>새 이야기 {pendingStoryCount}개</button> : null}
             <div className="student-failure-feed-window" data-direction={relayDirection}>
               <AnimatePresence initial={false} mode="popLayout" custom={relayDirection}>
                 {displayedStories.map((story) => (
@@ -196,7 +215,7 @@ export default function StudentFailureRelay({
                     variants={relayMotionVariants}
                     initial={shouldReduceMotion ? false : 'enter'}
                     animate="center"
-                    exit={shouldReduceMotion ? undefined : 'exit'}
+                    exit={undefined}
                     transition={shouldReduceMotion ? { duration: 0 } : {
                       layout: RELAY_TRANSITION,
                       x: RELAY_TRANSITION,
@@ -204,6 +223,7 @@ export default function StudentFailureRelay({
                   >
                     <StudentFailureMessage
                       story={story}
+                      tone={storyToneIndex.get(story.id) ?? getFailureStoryTone(story.id)}
                       studentNumber={studentNumber}
                       profileAssignments={profileAssignments}
                       isSaving={isSaving}
@@ -225,6 +245,16 @@ export default function StudentFailureRelay({
               </AnimatePresence>
             </div>
           </div>
+          {maximumOffset > 0 ? (
+            <div className="student-failure-relay-toolbar" role="group" aria-label="실패 이야기 흐름 조작">
+              <button type="button" aria-label="이전 이야기 보기" title="더 새로운 이야기" onClick={() => move(-1)}>
+                <ChevronLeft aria-hidden="true" />
+              </button>
+              <button type="button" aria-label="다음 이야기 보기" title="더 오래된 이야기" onClick={() => move(1)}>
+                <ChevronRight aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
         </div>
       </> : null}
     </>

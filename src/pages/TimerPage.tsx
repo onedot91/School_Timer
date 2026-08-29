@@ -6653,7 +6653,7 @@ export default function TimerPage() {
       [addedItemId]: null,
     }));
     setPendingAwardItemId((previous) => (previous === addedItemId ? null : previous));
-    setAwardPresentation((previous) => (previous?.itemId === addedItemId ? null : previous));
+    setAwardPresentation((previous) => (previous?.item.id === addedItemId ? null : previous));
   };
 
   const removeAuctionItem = (itemId: string) => {
@@ -6680,7 +6680,7 @@ export default function TimerPage() {
       return next;
     });
     setPendingAwardItemId((previous) => (previous === itemId ? null : previous));
-    setAwardPresentation((previous) => (previous?.itemId === itemId ? null : previous));
+    setAwardPresentation((previous) => (previous?.item.id === itemId ? null : previous));
   };
 
   const completeWeeklyAuctionCycle = () => {
@@ -9242,7 +9242,9 @@ export default function TimerPage() {
   const saveStockMarketWeek = () => {
     const entries = stockMarketWeekDateKeys.flatMap((dateKey) => STUDENT_STOCKS.flatMap((stock) => {
       const draft = stockMarketWeekDrafts[dateKey]?.[stock.id];
-      return !draft || draft.returnPercent === '' ? [] : [{ dateKey, stockId: stock.id, draft }];
+      const returnPercent = draft?.returnPercent;
+      if (returnPercent === undefined || returnPercent === '') return [];
+      return [{ dateKey, stockId: stock.id, draft: { ...draft, returnPercent } }];
     }));
     if (entries.length === 0) {
       setStockMarketSaveStatus('등록할 등락을 먼저 선택해 주세요.');

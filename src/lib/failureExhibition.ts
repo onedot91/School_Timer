@@ -212,6 +212,8 @@ export interface FailureStory {
   readonly updatedAt: string;
 }
 
+export { getFailureStoryTone, type FailureStoryTone } from './failureStoryTone.js';
+
 const MAX_STUDENT_NUMBER = 23;
 const MAX_FAILURE_STORIES = 300;
 const MAX_STORY_LENGTH = 400;

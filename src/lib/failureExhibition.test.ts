@@ -211,6 +211,50 @@ test('내 실패 이야기도 다른 이야기와 같은 순서로 릴레이에 
   assert.doesNotMatch(markup, /실패 이야기 7/);
 });
 
+test('릴레이는 게시글 ID 톤을 DOM에 표시하고 여섯 개를 넘을 때만 탐색 버튼을 보여 준다', () => {
+  // Given
+  const profileAssignments = normalizeFailureProfileAssignments(null);
+  const collidingIds = ['collision-A', 'collision-G', 'collision-M', 'collision-S', 'collision-Y', 'collision-_'];
+  const sixStories = Array.from({ length: 6 }, (_, index) => ({
+    ...storyInput,
+    id: collidingIds[index] ?? `collision-${index}`,
+    studentNumber: index + 1,
+    createdAt: `2026-08-${String(index + 1).padStart(2, '0')}T09:00:00.000Z`,
+    stamps: [],
+  }));
+  const renderRelay = (stories: typeof sixStories) => renderToStaticMarkup(createElement(StudentFailureRelay, {
+    studentNumber: 23,
+    profileAssignments,
+    stories,
+    isSaving: false,
+    isExternallyPaused: false,
+    latestRevealRequest: 0,
+    onStamp: async () => false,
+  }));
+
+  // When
+  const sixStoryMarkup = renderRelay(sixStories);
+  const sevenStoryMarkup = renderRelay([...sixStories, {
+    ...storyInput,
+    id: 'collision-7',
+    studentNumber: 7,
+    createdAt: '2026-08-07T09:00:00.000Z',
+    stamps: [],
+  }]);
+  const visibleTones = Array.from(
+    sixStoryMarkup.matchAll(/data-story-tone="([0-5])"/g),
+    (match) => match[1],
+  );
+
+  // Then
+  assert.equal(visibleTones.length, 6);
+  assert.equal(new Set(visibleTones).size, 6);
+  assert.doesNotMatch(sixStoryMarkup, /student-failure-relay-toolbar/);
+  assert.match(sevenStoryMarkup, /aria-label="이전 이야기 보기"/);
+  assert.match(sevenStoryMarkup, /aria-label="다음 이야기 보기"/);
+  assert.doesNotMatch(sevenStoryMarkup, /<span>이전<\/span>|<span>다음<\/span>/);
+});
+
 test('실패 이야기는 같은 ID로 한 번만 등록된다', () => {
   const once = createFailureStory([], storyInput);
   const twice = createFailureStory(once, storyInput);

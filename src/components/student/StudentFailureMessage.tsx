@@ -8,10 +8,12 @@ import {
   type FailureProfileAssignments,
   type FailureStory,
 } from '../../lib/failureExhibition';
+import type { FailureStoryTone } from '../../lib/failureStoryTone';
 
 interface StudentFailureMessageProps {
   readonly key?: string;
   readonly story: FailureStory;
+  readonly tone: FailureStoryTone;
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
   readonly isSaving: boolean;
@@ -24,6 +26,7 @@ interface StudentFailureMessageProps {
 
 export default function StudentFailureMessage({
   story,
+  tone,
   studentNumber,
   profileAssignments,
   isSaving,
@@ -40,7 +43,10 @@ export default function StudentFailureMessage({
   const stampMenuId = useId();
 
   return (
-    <article className={`student-failure-message${isMine ? ' is-mine' : ''}${isExpanded ? ' is-expanded' : ''}`}>
+    <article
+      className={`student-failure-message${isMine ? ' is-mine' : ''}${isExpanded ? ' is-expanded' : ''}`}
+      data-story-tone={tone}
+    >
       <button
         type="button"
         className="student-failure-message-main"

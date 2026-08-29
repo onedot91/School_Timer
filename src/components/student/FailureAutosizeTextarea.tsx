@@ -1,7 +1,7 @@
-import { motion, useReducedMotion } from 'motion/react';
-import { forwardRef, type TextareaHTMLAttributes } from 'react';
+import { motion, useReducedMotion, type HTMLMotionProps } from 'motion/react';
+import { forwardRef } from 'react';
 
-interface FailureAutosizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+interface FailureAutosizeTextareaProps extends Omit<HTMLMotionProps<'textarea'>, 'value'> {
   readonly value: string;
 }
 
