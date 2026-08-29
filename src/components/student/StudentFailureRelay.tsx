@@ -2,14 +2,19 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  advanceFailureRelayOffsets,
   FAILURE_RELAY_VISIBLE_COUNT,
-  getFailureRelayWindow,
+  getFailureRelayOffsetsForAnchors,
+  getFailureRelayRows,
   type FailureStampId,
   type FailureProfileAssignments,
+  type FailureRelayOffsets,
   type FailureStory,
 } from '../../lib/failureExhibition';
-import { createFailureStoryToneIndex, getFailureStoryTone } from '../../lib/failureStoryTone';
+import { createFailureStoryToneIndex, createFailureStoryWindowToneIndex, getFailureStoryTone } from '../../lib/failureStoryTone';
 import StudentFailureMessage from './StudentFailureMessage';
+import { getStudentFailureRelayButtonMove, STUDENT_FAILURE_PAPER_TRANSITION, STUDENT_FAILURE_RELAY_AUTOMATIC_MOVE, STUDENT_FAILURE_RELAY_TRANSITION, studentFailurePaperMotionVariants, studentFailureRelayMotionVariants, type StudentFailureRelayDirection } from './studentFailureRelayMotion';
+import { shouldPauseStudentFailureRelay } from './studentFailureRelayState';
 
 interface StudentFailureRelayProps {
   readonly studentNumber: number;
@@ -21,21 +26,8 @@ interface StudentFailureRelayProps {
   readonly onStamp: (storyId: string, stampId: FailureStampId) => Promise<boolean>;
 }
 
-type RelayDirection = 'newer' | 'older';
-
 const RELAY_INTERVAL_MS = 5_500;
-const RELAY_TRANSITION_SECONDS = 0.9;
 const RELAY_SWIPE_THRESHOLD = 36;
-const RELAY_TRANSITION = {
-  type: 'tween',
-  duration: RELAY_TRANSITION_SECONDS,
-  ease: [0.22, 1, 0.36, 1],
-} as const;
-
-const relayMotionVariants = {
-  enter: (direction: RelayDirection) => ({ x: direction === 'older' ? '100%' : '-100%' }),
-  center: { x: 0 },
-};
 
 export default function StudentFailureRelay({
   studentNumber,
@@ -47,35 +39,41 @@ export default function StudentFailureRelay({
   onStamp,
 }: StudentFailureRelayProps) {
   const shouldReduceMotion = useReducedMotion();
-  const [relayOffset, setRelayOffset] = useState(0);
-  const [relayDirection, setRelayDirection] = useState<RelayDirection>('older');
+  const [relayOffsets, setRelayOffsets] = useState<FailureRelayOffsets>([0, 0]);
+  const [relayDirection, setRelayDirection] = useState<StudentFailureRelayDirection>('older');
+  const [isLayoutMotionEnabled, setIsLayoutMotionEnabled] = useState(true);
   const [isPointerPaused, setIsPointerPaused] = useState(false);
   const [isFocusPaused, setIsFocusPaused] = useState(false);
-  const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
+  const [isNavigationPressed, setIsNavigationPressed] = useState(false);
   const [stampMenuStoryId, setStampMenuStoryId] = useState<string | null>(null);
   const [pendingStoryCount, setPendingStoryCount] = useState(0);
   const pointerStartRef = useRef<{ readonly x: number; readonly y: number } | null>(null);
-  const transitionEndsAtRef = useRef(0);
   const relayStories = stories;
+  const relayOffsetsRef = useRef(relayOffsets);
+  relayOffsetsRef.current = relayOffsets;
+  const previousRelayStoriesRef = useRef(relayStories);
   const storyToneIndex = useMemo(() => createFailureStoryToneIndex(relayStories), [relayStories]);
   const latestStoryIdRef = useRef(relayStories[0]?.id ?? null);
   const previousStoryCountRef = useRef(relayStories.length);
-  const maximumOffset = Math.max(0, relayStories.length - FAILURE_RELAY_VISIBLE_COUNT);
-  const relayOffsetCount = maximumOffset + 1;
-  const isPaused = isExternallyPaused
-    || isPointerPaused
-    || isFocusPaused
-    || expandedStoryId !== null
-    || stampMenuStoryId !== null;
-  const displayedStories = getFailureRelayWindow(relayStories, relayOffset);
-  const move = useCallback((amount: number) => {
-    const now = Date.now();
-    if (maximumOffset === 0 || now < transitionEndsAtRef.current) return;
-    transitionEndsAtRef.current = now + RELAY_TRANSITION_SECONDS * 1_000;
-    setExpandedStoryId(null);
+  const hasRelayOverflow = relayStories.length > FAILURE_RELAY_VISIBLE_COUNT;
+  const isPaused = shouldPauseStudentFailureRelay({
+    isExternallyPaused,
+    isPointerPaused,
+    isFocusPaused,
+    isStampMenuOpen: stampMenuStoryId !== null,
+    isNavigationPressed,
+  });
+  const displayedStoryRows = useMemo(() => getFailureRelayRows(relayStories, relayOffsets), [relayOffsets, relayStories]);
+  const displayedStories = useMemo(() => displayedStoryRows.flat(), [displayedStoryRows]);
+  const displayedStoryToneIndex = useMemo(() => createFailureStoryWindowToneIndex(displayedStories, storyToneIndex), [displayedStories, storyToneIndex]);
+  const canAnimateRelay = !shouldReduceMotion && isLayoutMotionEnabled;
+  const move = useCallback((amount: number, animate = true) => {
+    if (!hasRelayOverflow) return;
+    setIsLayoutMotionEnabled(animate);
+    if (!animate) window.requestAnimationFrame(() => setIsLayoutMotionEnabled(true));
     setRelayDirection(amount > 0 ? 'older' : 'newer');
-    setRelayOffset((current) => (current + amount + relayOffsetCount) % relayOffsetCount);
-  }, [maximumOffset, relayOffsetCount]);
+    setRelayOffsets((current) => advanceFailureRelayOffsets(relayStories, current, amount));
+  }, [hasRelayOverflow, relayStories]);
 
   useEffect(() => {
     if (!stampMenuStoryId) return;
@@ -98,10 +96,8 @@ export default function StudentFailureRelay({
   }, [stampMenuStoryId]);
 
   useEffect(() => {
-    setRelayOffset((current) => current % relayOffsetCount);
-  }, [relayOffsetCount]);
-
-  useEffect(() => {
+    const previousRelayStories = previousRelayStoriesRef.current;
+    previousRelayStoriesRef.current = relayStories;
     const latestStoryId = relayStories[0]?.id ?? null;
     const previousLatestId = latestStoryIdRef.current;
     const previousStoryCount = previousStoryCountRef.current;
@@ -117,41 +113,43 @@ export default function StudentFailureRelay({
     }
     const incomingCount = previousIndex > 0 ? previousIndex : Math.max(1, relayStories.length - previousStoryCount);
     if (isPaused) {
-      setRelayOffset((current) => (current + incomingCount) % relayOffsetCount);
+      const previousRows = getFailureRelayRows(previousRelayStories, relayOffsetsRef.current);
+      const anchors = [previousRows[0][0]?.id ?? null, previousRows[1][0]?.id ?? null] as const;
+      setRelayOffsets((current) => getFailureRelayOffsetsForAnchors(relayStories, anchors, current));
       setPendingStoryCount((current) => current + incomingCount);
     } else {
+      setIsLayoutMotionEnabled(true);
       setRelayDirection('newer');
-      setRelayOffset(0);
+      setRelayOffsets([0, 0]);
       setPendingStoryCount(0);
     }
     latestStoryIdRef.current = latestStoryId;
-  }, [isPaused, relayOffsetCount, relayStories]);
+  }, [isPaused, relayStories]);
 
   useEffect(() => {
     if (latestRevealRequest === 0) return;
+    setIsLayoutMotionEnabled(true);
     setRelayDirection('newer');
-    setRelayOffset(0);
+    setRelayOffsets([0, 0]);
     setPendingStoryCount(0);
   }, [latestRevealRequest]);
 
   useEffect(() => {
-    if (isPaused || maximumOffset === 0) return;
+    if (isPaused || !hasRelayOverflow) return;
     const timer = window.setInterval(() => {
-      move(1);
+      move(STUDENT_FAILURE_RELAY_AUTOMATIC_MOVE);
     }, RELAY_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [isPaused, maximumOffset, move]);
+  }, [hasRelayOverflow, isPaused, move]);
 
   const revealLatest = () => {
+    setIsLayoutMotionEnabled(true);
     setRelayDirection('newer');
-    setRelayOffset(0);
+    setRelayOffsets([0, 0]);
     setPendingStoryCount(0);
-    setExpandedStoryId(null);
   };
 
-  return (
-    <>
-      {displayedStories.length > 0 ? <>
+  return displayedStories.length > 0 ? (
         <div className="student-failure-relay">
           <div
             className="student-failure-feed"
@@ -186,12 +184,12 @@ export default function StudentFailureRelay({
                 case 'ArrowLeft':
                 case 'ArrowUp':
                   event.preventDefault();
-                  move(-1);
+                  move(-1, false);
                   break;
                 case 'ArrowRight':
                 case 'ArrowDown':
                   event.preventDefault();
-                  move(1);
+                  move(1, false);
                   break;
                 default:
                   break;
@@ -205,33 +203,27 @@ export default function StudentFailureRelay({
           >
             {pendingStoryCount > 0 ? <button type="button" className="student-failure-new-stories" onClick={revealLatest}>새 이야기 {pendingStoryCount}개</button> : null}
             <div className="student-failure-feed-window" data-direction={relayDirection}>
-              <AnimatePresence initial={false} mode="popLayout" custom={relayDirection}>
-                {displayedStories.map((story) => (
+              {displayedStoryRows.map((row, rowIndex) => (<div className="student-failure-feed-row" key={rowIndex}>
+                <AnimatePresence key={canAnimateRelay ? 'animated' : 'static'} initial={false} mode="popLayout" custom={relayDirection}>
+                  {row.map((story) => (
                   <motion.div
                     key={story.id}
                     className="student-failure-relay-item student-failure-relay-item-motion"
-                    layout={shouldReduceMotion ? false : 'position'}
+                    layout={canAnimateRelay ? 'position' : false}
                     custom={relayDirection}
-                    variants={relayMotionVariants}
-                    initial={shouldReduceMotion ? false : 'enter'}
+                    variants={studentFailureRelayMotionVariants}
+                    initial={canAnimateRelay ? 'enter' : false}
                     animate="center"
-                    exit={undefined}
-                    transition={shouldReduceMotion ? { duration: 0 } : {
-                      layout: RELAY_TRANSITION,
-                      x: RELAY_TRANSITION,
-                    }}
+                    exit={canAnimateRelay ? 'exit' : undefined}
+                    transition={canAnimateRelay ? STUDENT_FAILURE_RELAY_TRANSITION : { duration: 0 }}
                   >
-                    <StudentFailureMessage
+                    <motion.div className="student-failure-paper-motion" custom={relayDirection} variants={studentFailurePaperMotionVariants} initial={canAnimateRelay ? 'enter' : false} animate="center" transition={canAnimateRelay ? STUDENT_FAILURE_PAPER_TRANSITION : { duration: 0 }}><StudentFailureMessage
                       story={story}
-                      tone={storyToneIndex.get(story.id) ?? getFailureStoryTone(story.id)}
+                      tone={displayedStoryToneIndex.get(story.id) ?? getFailureStoryTone(story.id)}
                       studentNumber={studentNumber}
                       profileAssignments={profileAssignments}
                       isSaving={isSaving}
-                      isExpanded={expandedStoryId === story.id}
                       isStampMenuOpen={stampMenuStoryId === story.id}
-                      onExpandToggle={(storyId) => {
-                        setExpandedStoryId((current) => current === storyId ? null : storyId);
-                      }}
                       onStampMenuToggle={(storyId) => {
                         setStampMenuStoryId((current) => current === storyId ? null : storyId);
                       }}
@@ -239,24 +231,29 @@ export default function StudentFailureRelay({
                         if (saved) setStampMenuStoryId(null);
                         return saved;
                       })}
-                    />
+                    /></motion.div>
                   </motion.div>
-                ))}
-              </AnimatePresence>
+                  ))}</AnimatePresence>
+                </div>))}
             </div>
           </div>
-          {maximumOffset > 0 ? (
-            <div className="student-failure-relay-toolbar" role="group" aria-label="실패 이야기 흐름 조작">
-              <button type="button" aria-label="이전 이야기 보기" title="더 새로운 이야기" onClick={() => move(-1)}>
+          {hasRelayOverflow ? (
+            <div className="student-failure-relay-toolbar" role="group" aria-label="실패 이야기 흐름 조작"
+              onPointerDownCapture={() => setIsNavigationPressed(true)}
+              onPointerUpCapture={() => setIsNavigationPressed(false)}
+              onPointerCancelCapture={() => setIsNavigationPressed(false)}
+              onKeyDownCapture={(event) => { if (event.key === 'Enter' || event.key === ' ') setIsNavigationPressed(true); }}
+              onKeyUpCapture={(event) => { if (event.key === 'Enter' || event.key === ' ') setIsNavigationPressed(false); }}
+              onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setIsNavigationPressed(false); }}
+            >
+              <button type="button" aria-label="이전 이야기 보기" title="더 오래된 이야기" onClick={() => move(getStudentFailureRelayButtonMove('left'))}>
                 <ChevronLeft aria-hidden="true" />
               </button>
-              <button type="button" aria-label="다음 이야기 보기" title="더 오래된 이야기" onClick={() => move(1)}>
+              <button type="button" aria-label="다음 이야기 보기" title="더 새로운 이야기" onClick={() => move(getStudentFailureRelayButtonMove('right'))}>
                 <ChevronRight aria-hidden="true" />
               </button>
             </div>
           ) : null}
         </div>
-      </> : null}
-    </>
-  );
+  ) : null;
 }

@@ -1,5 +1,14 @@
 import { useId } from 'react';
-import { ArrowRight, Check, ChevronDown, HeartHandshake } from 'lucide-react';
+import {
+  ArrowRight,
+  ChevronDown,
+  Flag,
+  HeartHandshake,
+  PencilLine,
+  Sparkles,
+  UsersRound,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   FAILURE_STAMP_OPTIONS,
   getFailureProfileImage,
@@ -17,12 +26,21 @@ interface StudentFailureMessageProps {
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
   readonly isSaving: boolean;
-  readonly isExpanded: boolean;
   readonly isStampMenuOpen: boolean;
-  readonly onExpandToggle: (storyId: string) => void;
   readonly onStampMenuToggle: (storyId: string) => void;
   readonly onStamp: (storyId: string, stampId: FailureStampId) => Promise<boolean>;
 }
+
+interface FailureStampPresentation {
+  readonly Icon: LucideIcon;
+  readonly sentLabel: string;
+}
+
+const FAILURE_STAMP_PRESENTATIONS: Readonly<Record<FailureStampId, FailureStampPresentation>> = {
+  'me-too': { Icon: UsersRound, sentLabel: '공감 보냄' },
+  brave: { Icon: Flag, sentLabel: '도전 보냄' },
+  cheer: { Icon: Sparkles, sentLabel: '응원 보냄' },
+};
 
 export default function StudentFailureMessage({
   story,
@@ -30,30 +48,24 @@ export default function StudentFailureMessage({
   studentNumber,
   profileAssignments,
   isSaving,
-  isExpanded,
   isStampMenuOpen,
-  onExpandToggle,
   onStampMenuToggle,
   onStamp,
 }: StudentFailureMessageProps) {
   const isMine = story.studentNumber === studentNumber;
   const selectedStamp = getSelectedFailureStamp(story, studentNumber);
   const selectedStampOption = FAILURE_STAMP_OPTIONS.find((stamp) => stamp.id === selectedStamp);
+  const selectedStampPresentation = selectedStamp ? FAILURE_STAMP_PRESENTATIONS[selectedStamp] : null;
+  const StampTriggerIcon = selectedStampPresentation?.Icon ?? HeartHandshake;
   const profileImage = getFailureProfileImage(story.studentNumber, profileAssignments);
   const stampMenuId = useId();
 
   return (
     <article
-      className={`student-failure-message${isMine ? ' is-mine' : ''}${isExpanded ? ' is-expanded' : ''}`}
+      className={`student-failure-message${isMine ? ' is-mine' : ''}`}
       data-story-tone={tone}
     >
-      <button
-        type="button"
-        className="student-failure-message-main"
-        aria-expanded={isExpanded}
-        aria-label={isExpanded ? '이야기 접기' : '이야기 전체 보기'}
-        onClick={() => onExpandToggle(story.id)}
-      >
+      <div className="student-failure-message-main">
         <span className="student-failure-message-content">
           <span className="student-failure-message-text">{story.failure}</span>
           <span className="student-failure-message-next">
@@ -61,7 +73,7 @@ export default function StudentFailureMessage({
             <span>{story.lesson}</span>
           </span>
         </span>
-      </button>
+      </div>
       <footer className="student-failure-message-footer">
         <span
           className="student-failure-message-profile"
@@ -70,42 +82,54 @@ export default function StudentFailureMessage({
         >
           <img src={profileImage} alt="" width="192" height="192" decoding="async" />
         </span>
-        {!isMine ? <div className="student-failure-message-reactions">
+        {isMine ? (
+          <span className="student-failure-owner-badge">
+            <PencilLine aria-hidden="true" />
+            <span>내가 쓴 글</span>
+          </span>
+        ) : <div className="student-failure-message-reactions">
           <div className="student-failure-stamp-control">
             <button
               type="button"
               className={`student-failure-stamp-trigger${selectedStamp ? ' is-selected' : ''}`}
-              aria-label={selectedStamp ? '응원 도장 바꾸기' : '응원 도장 선택'}
+              data-stamp-id={selectedStamp ?? undefined}
+              aria-label={selectedStampOption ? `${selectedStampOption.label} 응원 바꾸기` : '응원 도장 선택'}
               aria-expanded={isStampMenuOpen}
               aria-controls={isStampMenuOpen ? stampMenuId : undefined}
+              title={selectedStampOption?.label}
               disabled={isSaving}
               onClick={() => onStampMenuToggle(story.id)}
             >
-              <HeartHandshake aria-hidden="true" />
-              <span>{selectedStampOption ? '응원 보냄' : '응원하기'}</span>
+              <StampTriggerIcon aria-hidden="true" />
+              <span>{selectedStampPresentation?.sentLabel ?? '응원하기'}</span>
               <ChevronDown className="student-failure-stamp-chevron" aria-hidden="true" />
             </button>
           </div>
-        </div> : null}
+        </div>}
       </footer>
       {!isMine && isStampMenuOpen ? (
         <div id={stampMenuId} className="student-failure-stamps" role="group" aria-label="응원 도장 선택">
           <span className="student-failure-stamps-title"><HeartHandshake aria-hidden="true" />어떤 마음을 보낼까요?</span>
-          {FAILURE_STAMP_OPTIONS.map((stamp) => (
-            <button
-              type="button"
-              key={stamp.id}
-              className={selectedStamp === stamp.id ? 'is-selected' : ''}
-              aria-pressed={selectedStamp === stamp.id}
-              disabled={isSaving}
-              onClick={() => void onStamp(story.id, stamp.id)}
-            >
-              <span className="student-failure-stamp-choice-icon" aria-hidden="true">
-                {selectedStamp === stamp.id ? <Check /> : <HeartHandshake />}
-              </span>
-              <span>{stamp.label}</span>
-            </button>
-          ))}
+          {FAILURE_STAMP_OPTIONS.map((stamp) => {
+            const StampIcon = FAILURE_STAMP_PRESENTATIONS[stamp.id].Icon;
+
+            return (
+              <button
+                type="button"
+                key={stamp.id}
+                data-stamp-id={stamp.id}
+                className={selectedStamp === stamp.id ? 'is-selected' : ''}
+                aria-pressed={selectedStamp === stamp.id}
+                disabled={isSaving}
+                onClick={() => void onStamp(story.id, stamp.id)}
+              >
+                <span className="student-failure-stamp-choice-icon" aria-hidden="true">
+                  <StampIcon />
+                </span>
+                <span>{stamp.label}</span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </article>

@@ -12625,11 +12625,23 @@ h3 {
   --failure-ink: #40383f;
   --failure-ink-muted: #6e6870;
   --failure-stamp: #147a62;
+  --failure-stamp-me-too: var(--book-spine-blue-ink);
+  --failure-stamp-brave: var(--book-spine-red-ink);
+  --failure-stamp-cheer: var(--book-spine-yellow-ink);
   --failure-coral: #ff8b82;
   --failure-lavender: #c7b5f3;
   --failure-butter: #ffe7a3;
   --failure-wall: #f3eee5;
   --failure-wall-dark: #c7b9a5;
+  --failure-wire: color-mix(in srgb, var(--failure-wall-dark) 78%, var(--failure-ink-muted));
+  --failure-wire-row-offset: .4rem;
+  --failure-clip-light: color-mix(in srgb, var(--failure-butter) 62%, var(--failure-paper));
+  --failure-clip-dark: color-mix(in srgb, var(--failure-wall-dark) 88%, var(--failure-ink-muted));
+  --failure-clip-width: 2.65rem;
+  --failure-clip-height: .82rem;
+  --failure-clip-hook-width: 1rem;
+  --failure-clip-hook-height: .72rem;
+  --failure-paper-edge: color-mix(in srgb, var(--failure-wall-dark) 54%, transparent);
   --failure-feed-measure: min(72rem, 1152px);
   --failure-story-font: "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
   --failure-story-tone-mint: color-mix(in srgb, var(--failure-lesson) 72%, var(--failure-paper));
@@ -13876,8 +13888,9 @@ a[href]:active {
   border: 1px solid color-mix(in srgb, var(--bookstore-wood) 32%, transparent);
   border-radius: var(--apple-radius-panel);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--failure-wall-dark) 16%, transparent) 1px, transparent 1px),
-    linear-gradient(color-mix(in srgb, var(--failure-wall-dark) 16%, transparent) 1px, transparent 1px),
+    radial-gradient(circle at 50% -12%, color-mix(in srgb, var(--failure-paper) 88%, transparent), transparent 42rem),
+    linear-gradient(90deg, color-mix(in srgb, var(--failure-wall-dark) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--failure-wall-dark) 12%, transparent) 1px, transparent 1px),
     var(--failure-wall);
   background-size: 2rem 2rem;
   padding: .85rem;
@@ -13891,7 +13904,8 @@ a[href]:active {
   width: var(--failure-rail-width);
   border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 30%, transparent);
   border-radius: var(--apple-radius-card);
-  background: color-mix(in srgb, var(--failure-paper) 58%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--failure-paper) 82%, transparent), color-mix(in srgb, var(--failure-paper) 58%, transparent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 70%, transparent);
   content: '';
   pointer-events: none;
 }
@@ -13966,34 +13980,83 @@ a[href]:active {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 2.5rem 1.5rem;
+  gap: 1.7rem;
   overflow: clip;
-  padding: 1.75rem .35rem .5rem;
+  padding: 1.15rem .35rem .5rem;
 }
-.student-failure-feed::before,
-.student-failure-feed::after {
+.student-failure-feed-row {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  overflow: clip;
+  padding-top: .8rem;
+}
+.student-failure-feed-row::before {
   position: absolute;
   z-index: 0;
+  top: var(--failure-wire-row-offset);
   left: 0;
   width: 100%;
   height: 2px;
-  background: color-mix(in srgb, var(--failure-wall-dark) 74%, var(--failure-ink-muted));
+  background: var(--failure-wire);
   box-shadow: 0 1px 0 color-mix(in srgb, white 54%, transparent);
   content: '';
   pointer-events: none;
 }
-.student-failure-feed::before { top: 1.55rem; }
-.student-failure-feed::after { top: calc(50% + .65rem); }
 .student-failure-relay-item {
+  position: relative;
+  z-index: 1;
   display: grid;
   min-width: 0;
   min-height: 0;
   place-items: stretch;
+}
+.student-failure-relay-item::before {
+  position: absolute;
+  z-index: 5;
+  top: -.52rem;
+  left: 50%;
+  width: var(--failure-clip-width);
+  height: var(--failure-clip-height);
+  border: 1px solid var(--failure-clip-dark);
+  border-radius: .18rem .18rem .48rem .48rem;
+  background: linear-gradient(180deg, var(--failure-clip-light), color-mix(in srgb, var(--failure-wall-dark) 68%, var(--failure-paper)) 58%, var(--failure-clip-dark));
+  box-shadow: inset 0 .16rem .18rem color-mix(in srgb, white 64%, transparent), inset 0 -.08rem .12rem color-mix(in srgb, var(--failure-ink) 12%, transparent), 0 .2rem .3rem color-mix(in srgb, var(--failure-ink) 24%, transparent);
+  clip-path: polygon(5% 0, 95% 0, 100% 18%, 86% 100%, 14% 100%, 0 18%);
+  content: '';
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.student-failure-relay-item::after {
+  position: absolute;
+  z-index: 4;
+  top: -1.08rem;
+  left: 50%;
+  width: var(--failure-clip-hook-width);
+  height: var(--failure-clip-hook-height);
+  border: 2px solid var(--failure-clip-dark);
+  border-bottom: 0;
+  border-radius: var(--apple-radius-pill) var(--apple-radius-pill) 0 0;
+  background: linear-gradient(90deg, transparent 36%, color-mix(in srgb, white 78%, transparent) 48%, transparent 60%);
+  box-shadow: inset 1px 0 color-mix(in srgb, white 62%, transparent), 0 1px color-mix(in srgb, var(--failure-ink) 18%, transparent);
+  content: '';
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.student-failure-relay-item-motion { will-change: transform; }
+.student-failure-paper-motion {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  transform-origin: 50% 0;
   will-change: transform;
 }
-.student-failure-relay-item-motion { min-width: 0; }
 .student-failure-feed:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 3px; }
 .student-failure-relay {
   position: relative;
@@ -14027,24 +14090,27 @@ a[href]:active {
 .student-failure-relay-toolbar {
   z-index: 3;
   display: grid;
-  width: 100%;
+  width: 3rem;
   grid-column: 2;
-  align-self: center;
-  gap: .5rem;
-  border: 1px solid color-mix(in srgb, var(--failure-stamp) 18%, transparent);
-  border-radius: var(--apple-radius-card);
-  background: color-mix(in srgb, var(--failure-paper) 88%, transparent);
-  padding: .5rem;
-  box-shadow: var(--apple-shadow-1);
+  align-self: end;
+  justify-self: center;
+  gap: .25rem;
+  margin-bottom: 5.75rem;
+  border: 1px solid color-mix(in srgb, var(--failure-stamp) 24%, transparent);
+  border-radius: var(--apple-radius-pill);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--failure-paper) 96%, transparent), color-mix(in srgb, var(--failure-lesson) 62%, var(--failure-paper)));
+  padding: .125rem;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 72%, transparent), var(--apple-shadow-1);
 }
 .student-failure-relay-toolbar button {
   display: grid;
-  width: 100%;
-  min-height: var(--apple-control-min);
+  width: var(--apple-control-min);
+  height: var(--apple-control-min);
+  min-height: 0;
   grid-template-columns: minmax(0, 1fr);
   place-items: center;
   gap: 0;
-  border-radius: var(--apple-radius-control);
+  border-radius: 50%;
   background: transparent;
   color: var(--failure-stamp);
   padding: 0;
@@ -14081,14 +14147,15 @@ a[href]:active {
   align-items: stretch;
   gap: .65rem;
   overflow: visible;
-  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 46%, transparent);
-  border-radius: .3rem;
+  border: 1px solid var(--failure-paper-edge);
+  border-radius: .42rem;
   background: var(--failure-paper);
   padding: 1rem .9rem .8rem;
   color: var(--failure-ink);
-  box-shadow: 0 .75rem 1.3rem color-mix(in srgb, var(--failure-ink) 16%, transparent), 0 .15rem .2rem color-mix(in srgb, var(--failure-ink) 10%, transparent);
+  box-shadow: 0 1rem 1.6rem color-mix(in srgb, var(--failure-ink) 14%, transparent), 0 .18rem .28rem color-mix(in srgb, var(--failure-ink) 12%, transparent), inset 0 1px 0 white;
   transition: box-shadow var(--student-motion-state) var(--student-ease-out);
 }
+.student-failure-relay-item .student-failure-message::before { display: none; }
 .student-failure-message::before {
   position: absolute;
   z-index: 2;
@@ -14106,7 +14173,7 @@ a[href]:active {
 }
 .student-failure-message:hover,
 .student-failure-message:focus-within {
-  box-shadow: 0 1rem 1.55rem color-mix(in srgb, var(--failure-ink) 20%, transparent), 0 .15rem .2rem color-mix(in srgb, var(--failure-ink) 10%, transparent);
+  box-shadow: 0 1.15rem 1.8rem color-mix(in srgb, var(--failure-ink) 18%, transparent), 0 .2rem .3rem color-mix(in srgb, var(--failure-ink) 12%, transparent), inset 0 1px 0 white;
 }
 .student-failure-message-main {
   display: grid;
@@ -14120,6 +14187,7 @@ a[href]:active {
   padding: 1rem;
   color: inherit;
   text-align: left;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 64%, transparent);
 }
 .student-failure-message[data-story-tone="0"] .student-failure-message-main { background: var(--failure-story-tone-mint); }
 .student-failure-message[data-story-tone="1"] .student-failure-message-main { background: var(--failure-story-tone-coral); }
@@ -14146,8 +14214,9 @@ a[href]:active {
   display: grid;
   min-width: 0;
   max-height: 100%;
+  grid-template-rows: minmax(4.2rem, auto) minmax(3.6rem, auto);
   align-content: center;
-  gap: .55rem;
+  gap: .75rem;
   overflow: hidden;
 }
 .student-failure-message-text {
@@ -14160,7 +14229,7 @@ a[href]:active {
   font-weight: 700;
   line-height: 1.5;
   text-align: left;
-  overflow-wrap: normal;
+  overflow-wrap: anywhere;
   white-space: normal;
   word-break: keep-all;
   text-wrap: pretty;
@@ -14187,25 +14256,12 @@ a[href]:active {
   min-width: 0;
   min-height: 3em;
   overflow: hidden;
-  overflow-wrap: normal;
+  overflow-wrap: anywhere;
   white-space: normal;
   word-break: keep-all;
   text-wrap: wrap;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-}
-.student-failure-message.is-expanded .student-failure-message-content {
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-.student-failure-message.is-expanded :is(.student-failure-message-text, .student-failure-message-next span) {
-  display: block;
-  min-height: 0;
-  overflow: visible;
-  overflow-wrap: break-word;
-  text-overflow: clip;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 .student-failure-message-footer {
   display: flex;
@@ -14214,6 +14270,7 @@ a[href]:active {
   align-items: center;
   justify-content: space-between;
   gap: .65rem;
+  padding-inline: .1rem;
 }
 .student-failure-message-actions { display: flex; gap: .25rem; opacity: .24; transition: opacity var(--student-motion-state) var(--student-ease-out); }
 .student-failure-message:hover .student-failure-message-actions,
@@ -14241,8 +14298,33 @@ a[href]:active {
   justify-content: flex-end;
   gap: .65rem;
 }
+.student-failure-owner-badge {
+  display: inline-grid;
+  min-width: 6.75rem;
+  min-height: var(--apple-control-min);
+  margin-left: auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 64%, transparent);
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--failure-wall-dark) 16%, var(--failure-paper));
+  padding: .55rem .8rem;
+  color: var(--failure-ink-muted);
+  font-size: .95rem;
+  font-weight: 850;
+  line-height: 1;
+  cursor: default;
+  opacity: .78;
+  user-select: none;
+  white-space: nowrap;
+}
+.student-failure-owner-badge svg { width: 1.15rem; height: 1.15rem; }
 .student-failure-stamp-control { position: relative; z-index: 3; display: grid; justify-items: end; }
 .student-failure-stamp-trigger {
+  --failure-option-ink: var(--failure-stamp);
+  --failure-option-surface: var(--failure-lesson);
   display: inline-grid;
   min-width: 6.75rem;
   min-height: var(--apple-control-min);
@@ -14262,7 +14344,8 @@ a[href]:active {
 }
 .student-failure-stamp-trigger:hover:not(:disabled) { background: color-mix(in srgb, var(--failure-stamp) 14%, var(--failure-paper)); }
 .student-failure-stamp-trigger:active { transform: scale(.96); }
-.student-failure-stamp-trigger.is-selected { background: var(--failure-stamp); color: white; }
+.student-failure-stamp-trigger.is-selected { border-color: var(--failure-option-ink); background: var(--failure-option-ink); color: white; }
+.student-failure-stamp-trigger.is-selected:hover:not(:disabled) { background: color-mix(in srgb, var(--failure-option-ink) 88%, var(--failure-paper)); }
 .student-failure-stamp-trigger svg { width: 1.15rem; height: 1.15rem; }
 .student-failure-stamp-trigger .student-failure-stamp-chevron { width: .95rem; height: .95rem; transition: transform var(--student-motion-state) var(--student-ease-out); }
 .student-failure-stamp-trigger[aria-expanded="true"] .student-failure-stamp-chevron { transform: rotate(180deg); }
@@ -14278,7 +14361,7 @@ a[href]:active {
   overflow: auto;
   border: 2px solid color-mix(in srgb, var(--failure-mint) 64%, transparent);
   border-radius: .6rem;
-  background: color-mix(in srgb, var(--failure-paper) 96%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--failure-paper) 98%, transparent), color-mix(in srgb, var(--failure-lesson) 38%, var(--failure-paper)));
   padding: .75rem;
   box-shadow: 0 .75rem 1.4rem color-mix(in srgb, var(--failure-ink) 22%, transparent);
   animation: studentFailureStampMenuIn var(--student-motion-state) var(--student-ease-out) both;
@@ -14295,29 +14378,34 @@ a[href]:active {
 }
 .student-failure-stamps-title svg { width: 1.1rem; height: 1.1rem; }
 .student-failure-stamps button {
+  --failure-option-ink: var(--failure-stamp);
+  --failure-option-surface: var(--failure-lesson);
   min-height: 2.75rem;
   display: grid;
   min-width: 0;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: .5rem;
-  border: 1px solid color-mix(in srgb, var(--failure-stamp) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--failure-option-ink) 24%, transparent);
   border-radius: .75rem;
-  background: var(--failure-paper);
+  background: color-mix(in srgb, var(--failure-option-surface) 22%, var(--failure-paper));
   padding: .6rem .7rem;
-  color: var(--failure-stamp);
+  color: var(--failure-option-ink);
   font-size: .9rem;
   font-weight: 850;
   line-height: 1.25;
   text-align: left;
   transition: transform var(--student-motion-press) var(--student-ease-out), background-color var(--student-motion-state) var(--student-ease-out), color var(--student-motion-state) var(--student-ease-out);
 }
-.student-failure-stamps button:hover:not(:disabled) { background: color-mix(in srgb, var(--failure-stamp) 9%, var(--failure-paper)); }
-.student-failure-stamps button.is-selected { border-color: var(--failure-stamp); background: color-mix(in srgb, var(--failure-stamp) 14%, var(--failure-paper)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--failure-stamp) 38%, transparent); }
+:is(.student-failure-stamp-trigger, .student-failure-stamps button)[data-stamp-id="me-too"] { --failure-option-ink: var(--failure-stamp-me-too); --failure-option-surface: var(--failure-sky); }
+:is(.student-failure-stamp-trigger, .student-failure-stamps button)[data-stamp-id="brave"] { --failure-option-ink: var(--failure-stamp-brave); --failure-option-surface: var(--failure-coral); }
+:is(.student-failure-stamp-trigger, .student-failure-stamps button)[data-stamp-id="cheer"] { --failure-option-ink: var(--failure-stamp-cheer); --failure-option-surface: var(--failure-butter); }
+.student-failure-stamps button:hover:not(:disabled) { background: color-mix(in srgb, var(--failure-option-surface) 46%, var(--failure-paper)); }
+.student-failure-stamps button.is-selected { border-color: var(--failure-option-ink); background: color-mix(in srgb, var(--failure-option-surface) 62%, var(--failure-paper)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--failure-option-ink) 42%, transparent); }
 .student-failure-stamps button:active:not(:disabled) { transform: scale(.98); }
-.student-failure-stamp-choice-icon { display: grid; width: 1.75rem; height: 1.75rem; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--failure-stamp) 10%, var(--failure-paper)); }
+.student-failure-stamp-choice-icon { display: grid; width: 1.75rem; height: 1.75rem; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--failure-option-surface) 64%, var(--failure-paper)); color: var(--failure-option-ink); }
 .student-failure-stamp-choice-icon svg { width: 1rem; height: 1rem; }
-.student-failure-stamps button.is-selected .student-failure-stamp-choice-icon { background: var(--failure-stamp); color: white; }
+.student-failure-stamps button.is-selected .student-failure-stamp-choice-icon { background: var(--failure-option-ink); color: white; }
 .student-failure-create-fab {
   position: absolute;
   z-index: 4;
@@ -14337,6 +14425,21 @@ a[href]:active {
 .student-failure-create-fab:hover { transform: translateY(-.15rem); filter: brightness(1.06); }
 .student-failure-create-fab:active { transform: scale(.96); }
 .student-failure-create-fab svg { width: 1.65rem; height: 1.65rem; }
+.student-failure-create-fab.student-failure-empty-action {
+  width: auto;
+  min-width: 10rem;
+  height: 3.5rem;
+  grid-template-columns: auto auto;
+  gap: .55rem;
+  border-radius: var(--apple-radius-pill);
+  padding: 0 1.05rem;
+  font-family: var(--failure-story-font);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+.student-failure-create-fab.student-failure-empty-action svg { width: 1.35rem; height: 1.35rem; }
 .student-failure-compose-backdrop {
   position: fixed;
   z-index: 120;
@@ -14355,12 +14458,12 @@ a[href]:active {
   max-height: min(90dvh, 44rem);
   gap: 1rem;
   overflow-y: auto;
-  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 68%, transparent);
+  border: 1px solid var(--failure-paper-edge);
   border-radius: var(--apple-radius-panel);
-  background: var(--failure-paper);
+  background: linear-gradient(180deg, var(--failure-paper), color-mix(in srgb, var(--failure-paper-muted) 54%, var(--failure-paper)));
   padding: 1.75rem;
   color: var(--failure-ink);
-  box-shadow: var(--apple-shadow-3);
+  box-shadow: inset 0 1px 0 white, 0 1.4rem 3.25rem color-mix(in srgb, var(--failure-ink) 28%, transparent);
   outline: 0;
   animation: studentFailureComposeIn var(--student-motion-state) var(--student-ease-out) both;
 }
@@ -14500,25 +14603,72 @@ a[href]:active {
 .student-failure-edit button[type="submit"] { background: var(--failure-stamp); color: white; }
 .student-failure-edit svg { width: 1rem; height: 1rem; }
 .student-failure-empty {
+  position: relative;
   display: grid;
   min-height: 0;
   height: 100%;
   grid-column: 1 / -1;
   place-items: center;
-  align-content: center;
-  gap: .75rem;
-  border: 1px dashed color-mix(in srgb, var(--bookstore-wood) 42%, transparent);
-  border-radius: var(--apple-radius-card);
-  background:
-    repeating-linear-gradient(0deg, transparent 0 2rem, color-mix(in srgb, var(--failure-wall-dark) 18%, transparent) 2rem calc(2rem + 1px)),
-    var(--failure-paper-muted);
+  overflow: hidden;
+  padding: 1.75rem .35rem .5rem;
+}
+.student-failure-empty::before {
+  position: absolute;
+  z-index: 0;
+  top: calc(50% - min(26vh, 10rem));
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: color-mix(in srgb, var(--failure-wall-dark) 74%, var(--failure-ink-muted));
+  box-shadow: 0 1px 0 color-mix(in srgb, white 54%, transparent);
+  content: '';
+  pointer-events: none;
+}
+.student-failure-empty-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(24rem, calc(100% - 2rem));
+  min-height: min(52vh, 20rem);
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 46%, transparent);
+  border-radius: .3rem;
+  background: var(--failure-paper);
   padding: 2rem;
   color: var(--failure-stamp);
   text-align: center;
-  box-shadow: inset 0 0 0 .3rem color-mix(in srgb, var(--failure-paper) 72%, transparent);
+  box-shadow: 0 .75rem 1.3rem color-mix(in srgb, var(--failure-ink) 16%, transparent), 0 .15rem .2rem color-mix(in srgb, var(--failure-ink) 10%, transparent);
 }
-.student-failure-empty svg { width: 3rem; height: 3rem; }
-.student-failure-empty strong { color: var(--failure-ink); font-size: 1.25rem; font-weight: 950; }
+.student-failure-empty-card::before {
+  position: absolute;
+  z-index: 2;
+  top: -.75rem;
+  left: 50%;
+  width: 2.25rem;
+  height: .7rem;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 78%, var(--failure-ink-muted));
+  border-radius: .2rem .2rem .45rem .45rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--failure-butter) 56%, var(--failure-paper)), var(--failure-wall-dark));
+  box-shadow: 0 .15rem .2rem color-mix(in srgb, var(--failure-ink) 18%, transparent);
+  content: '';
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.student-failure-empty-card::after {
+  position: absolute;
+  inset: .9rem;
+  border: 1px solid color-mix(in srgb, var(--failure-wall-dark) 25%, transparent);
+  border-radius: .35rem;
+  background: var(--failure-story-tone-mint);
+  content: '';
+  pointer-events: none;
+}
+.student-failure-empty-card svg,
+.student-failure-empty-card strong { position: relative; z-index: 1; }
+.student-failure-empty-card svg { width: 3rem; height: 3rem; }
+.student-failure-empty-card strong { max-width: 16rem; color: var(--failure-ink); font-family: var(--failure-story-font); font-size: 1.25rem; font-weight: 700; line-height: 1.5; word-break: keep-all; }
 .student-failure-message :is(button, textarea):focus-visible,
 .student-failure-form :is(button, textarea):focus-visible,
 .student-failure-create-fab:focus-visible,
@@ -14541,8 +14691,8 @@ a[href]:active {
   }
   .student-failure-compose-dialog,
   .student-failure-stamps { transform: none; }
-  .student-failure-relay-item,
   .student-failure-relay-item-motion { will-change: auto; }
+  .student-failure-paper-motion { transform: none; will-change: auto; }
   .student-failure-relay-toolbar button:active { transform: none; }
 }
 
@@ -14551,10 +14701,12 @@ a[href]:active {
 }
 
 @media (max-width: 1100px) and (min-width: 768px) {
-  .student-failure-feed-window { gap: 2.1rem .85rem; padding-inline: .15rem; }
+  .student-failure-feed-window { gap: 2.1rem; padding-inline: .15rem; }
+  .student-failure-feed-row { gap: .85rem; }
   .student-failure-message { padding: .8rem .65rem .65rem; }
   .student-failure-message-main { padding: .75rem; }
-  .student-failure-stamp-trigger { min-width: 6rem; grid-template-columns: auto minmax(0, 1fr); }
+  :is(.student-failure-stamp-trigger, .student-failure-owner-badge) { min-width: 6rem; }
+  .student-failure-stamp-trigger { grid-template-columns: auto minmax(0, 1fr); }
   .student-failure-stamp-trigger .student-failure-stamp-chevron { display: none; }
 }
 
@@ -14593,16 +14745,20 @@ a[href]:active {
   .student-failure-gallery-shell { padding: .65rem; }
   .student-failure-gallery-shell::after { inset-block: .65rem; right: .65rem; }
   .student-failure-gallery[data-empty="true"] { padding-right: calc(var(--failure-rail-width) + .5rem); }
-  .student-failure-feed::before,
-  .student-failure-feed::after { display: none; }
+  .student-failure-feed-row::before { display: none; }
   .student-failure-feed-window {
-    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
     grid-auto-rows: minmax(15rem, auto);
     align-content: start;
     gap: 2rem;
     overflow-y: auto;
     padding: .75rem .25rem 1rem;
+  }
+  .student-failure-feed-row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(15rem, auto);
+    gap: 2rem;
+    overflow: visible;
   }
   .student-failure-relay-item { min-height: 15rem; }
   .student-failure-message { min-height: 15rem; padding: .9rem; }
@@ -14623,8 +14779,7 @@ a[href]:active {
 }
 
 @media (forced-colors: active) {
-  .student-failure-feed::before,
-  .student-failure-feed::after,
+  .student-failure-feed-row::before,
   .student-failure-message::before { background: CanvasText; }
   .student-failure-message,
   .student-failure-message-main,

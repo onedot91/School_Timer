@@ -5,6 +5,7 @@ import {
   type FailureStory,
 } from './failureExhibition.js';
 import { normalizeBankMailboxCopy } from './bankMailbox.js';
+import { appDataMode } from './dataMode.js';
 import { getKoreanLocalDateKey } from './studentEmotion.js';
 
 export interface StudentLetter {
@@ -48,6 +49,7 @@ type LetterInput = Omit<StudentLetter, 'readAt' | 'senderStudentNumber' | 'reply
 type BookInput = Omit<StudentBook, 'colorIndex'>;
 
 const STUDENT_LIFE_STORAGE_KEY = 'school-timer-student-life';
+const PRACTICE_FAILURE_STORIES_RESET_KEY = 'school-timer-practice-failure-stories-reset-v1';
 const MAX_STUDENT_NUMBER = 23;
 export const TEACHER_LETTER_RECIPIENT = 0;
 const MAX_LETTERS = 600;
@@ -160,6 +162,10 @@ export const normalizeStudentLifeState = (value: unknown): StudentLifeState => {
   };
 };
 
+export const clearPracticeFailureStories = (state: StudentLifeState): StudentLifeState => (
+  state.failureStories.length === 0 ? state : { ...state, failureStories: [] }
+);
+
 export const createStudentLetter = (state: StudentLifeState, input: LetterInput): StudentLifeState => {
   if (state.letters.some((letter) => letter.id === input.id)) return state;
   const letter = parseLetter({ ...input, readAt: null });
@@ -262,7 +268,14 @@ export const getBookStackHeightCm = (books: readonly StudentBook[]): number => (
 export const loadStoredStudentLifeState = (): StudentLifeState => {
   try {
     const stored = window.localStorage.getItem(STUDENT_LIFE_STORAGE_KEY);
-    return normalizeStudentLifeState(stored ? JSON.parse(stored) : null);
+    const saved = normalizeStudentLifeState(stored ? JSON.parse(stored) : null);
+    if (appDataMode !== 'mock' || window.localStorage.getItem(PRACTICE_FAILURE_STORIES_RESET_KEY) === '1') {
+      return saved;
+    }
+    const cleared = clearPracticeFailureStories(saved);
+    window.localStorage.setItem(STUDENT_LIFE_STORAGE_KEY, JSON.stringify(cleared));
+    window.localStorage.setItem(PRACTICE_FAILURE_STORIES_RESET_KEY, '1');
+    return cleared;
   } catch (error) {
     if (error instanceof Error) return normalizeStudentLifeState(null);
     throw error;

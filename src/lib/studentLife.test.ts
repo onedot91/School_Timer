@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   addStudentBook,
+  clearPracticeFailureStories,
   createStudentLetter,
   getBookHeightCm,
   getBookSpineHeightPx,
@@ -16,6 +17,45 @@ import {
   markStudentLetterRead,
   normalizeStudentLifeState,
 } from './studentLife.ts';
+
+test('연습 모드 초기화는 실패 이야기만 비우고 다른 학생 생활 데이터를 보존한다', () => {
+  const state = normalizeStudentLifeState({
+    letters: [{
+      id: 'letter-1',
+      recipient: 1,
+      senderLabel: '선생님',
+      title: '편지',
+      content: '내용',
+      createdAt: '2026-08-29T01:00:00.000Z',
+      readAt: null,
+    }],
+    books: [{
+      id: 'book-1',
+      studentNumber: 1,
+      title: '책',
+      author: '작가',
+      pageCount: 100,
+      createdAt: '2026-08-29T01:00:00.000Z',
+      colorIndex: 0,
+    }],
+    failureStories: [{
+      id: 'failure-1',
+      studentNumber: 1,
+      failure: '실패',
+      lesson: '다음 시도',
+      stamps: [],
+      createdAt: '2026-08-29T01:00:00.000Z',
+      updatedAt: '2026-08-29T01:00:00.000Z',
+    }],
+  });
+
+  const cleared = clearPracticeFailureStories(state);
+
+  assert.equal(cleared.failureStories.length, 0);
+  assert.equal(cleared.letters, state.letters);
+  assert.equal(cleared.books, state.books);
+  assert.equal(cleared.failureProfileAssignments, state.failureProfileAssignments);
+});
 
 test('책 두께는 쪽당 0.005cm의 실제 높이를 따르면서 화면을 덮지 않는다', () => {
   const pageCounts = [15, 30, 37, 45];

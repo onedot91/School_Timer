@@ -1,6 +1,6 @@
 export const FAILURE_STAMP_OPTIONS = [
   { id: 'me-too', label: '나도 그런 적 있어' },
-  { id: 'brave', label: '다시 해 보려는 게 멋져' },
+  { id: 'brave', label: '한 번 더 도전해 보자!' },
   { id: 'cheer', label: '다음엔 잘될 거야' },
 ] as const;
 
@@ -218,6 +218,9 @@ const MAX_STUDENT_NUMBER = 23;
 const MAX_FAILURE_STORIES = 300;
 const MAX_STORY_LENGTH = 400;
 export const FAILURE_RELAY_VISIBLE_COUNT = 6;
+export const FAILURE_RELAY_DUAL_ROW_MIN_COUNT = 8;
+
+export type FailureRelayOffsets = readonly [number, number];
 
 const isStudentNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_STUDENT_NUMBER
@@ -334,6 +337,75 @@ export const getFailureRelayWindow = (
   const tail = stories.slice(offset, offset + count);
   const head = stories.slice(0, count - tail.length);
   return [...tail, ...head];
+};
+
+const getFailureRelayLanes = (
+  stories: readonly FailureStory[],
+): readonly [readonly FailureStory[], readonly FailureStory[]] => {
+  const oldestFirst = [...stories].reverse();
+  const lanes: [FailureStory[], FailureStory[]] = [[], []];
+  oldestFirst.forEach((story, index) => {
+    lanes[index % 2]?.push(story);
+  });
+  return [lanes[0].reverse(), lanes[1].reverse()];
+};
+
+export const getFailureRelayRows = (
+  stories: readonly FailureStory[],
+  requestedOffsets: FailureRelayOffsets,
+): readonly [readonly FailureStory[], readonly FailureStory[]] => {
+  if (stories.length < FAILURE_RELAY_DUAL_ROW_MIN_COUNT) {
+    const visibleStories = getFailureRelayWindow(stories, requestedOffsets[0]);
+    return [visibleStories.slice(0, 3), visibleStories.slice(3, 6)];
+  }
+  const lanes = getFailureRelayLanes(stories);
+  return [
+    getFailureRelayWindow(lanes[0], requestedOffsets[0], 3),
+    getFailureRelayWindow(lanes[1], requestedOffsets[1], 3),
+  ];
+};
+
+export const advanceFailureRelayOffsets = (
+  stories: readonly FailureStory[],
+  currentOffsets: FailureRelayOffsets,
+  amount: number,
+): FailureRelayOffsets => {
+  if (stories.length < FAILURE_RELAY_DUAL_ROW_MIN_COUNT) {
+    const count = Math.max(1, stories.length);
+    const nextOffset = (currentOffsets[0] + amount + count) % count;
+    return [nextOffset, nextOffset];
+  }
+  const lanes = getFailureRelayLanes(stories);
+  const advanceRow = (rowIndex: 0 | 1): number => {
+    const count = Math.max(1, lanes[rowIndex]?.length ?? 0);
+    return (currentOffsets[rowIndex] + amount + count) % count;
+  };
+  return [advanceRow(0), advanceRow(1)];
+};
+
+export const getFailureRelayOffsetsForAnchors = (
+  stories: readonly FailureStory[],
+  anchorIds: readonly [string | null, string | null],
+  fallbackOffsets: FailureRelayOffsets,
+): FailureRelayOffsets => {
+  if (stories.length < FAILURE_RELAY_DUAL_ROW_MIN_COUNT) {
+    const anchorOffset = anchorIds[0]
+      ? stories.findIndex((story) => story.id === anchorIds[0])
+      : -1;
+    const offset = anchorOffset >= 0 ? anchorOffset : fallbackOffsets[0];
+    return advanceFailureRelayOffsets(stories, [offset, offset], 0);
+  }
+  const lanes = getFailureRelayLanes(stories);
+  const findRowOffset = (rowIndex: 0 | 1): number => {
+    const anchorId = anchorIds[rowIndex];
+    const anchorOffset = anchorId
+      ? lanes[rowIndex].findIndex((story) => story.id === anchorId)
+      : -1;
+    if (anchorOffset >= 0) return anchorOffset;
+    const count = Math.max(1, lanes[rowIndex].length);
+    return (fallbackOffsets[rowIndex] + count) % count;
+  };
+  return [findRowOffset(0), findRowOffset(1)];
 };
 
 export const getSelectedFailureStamp = (

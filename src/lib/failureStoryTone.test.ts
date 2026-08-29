@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   createFailureStoryToneIndex,
+  createFailureStoryWindowToneIndex,
   FAILURE_STORY_TONES,
   getFailureStoryTone,
 } from './failureStoryTone.ts';
@@ -62,4 +63,25 @@ test('실패 이야기 6톤은 입력 재정렬·본문 수정·최신 글 추�
     assert.equal(changedIndex.get(story.id), initialIndex.get(story.id));
     assert.equal(appendedIndex.get(story.id), initialIndex.get(story.id));
   });
+});
+
+test('실패 이야기 창은 일곱 개 이상을 순환해도 보이는 여섯 색이 겹치지 않는다', () => {
+  // Given
+  const sevenStories = stories.slice(0, 7);
+  const canonicalToneIndex = createFailureStoryToneIndex(sevenStories);
+
+  for (let offset = 0; offset < sevenStories.length; offset += 1) {
+    const visibleStories = Array.from(
+      { length: 6 },
+      (_, index) => sevenStories[(offset + index) % sevenStories.length],
+    ).filter((story): story is (typeof sevenStories)[number] => story !== undefined);
+
+    // When
+    const visibleToneIndex = createFailureStoryWindowToneIndex(visibleStories, canonicalToneIndex);
+
+    // Then
+    const visibleTones = visibleStories.map((story) => visibleToneIndex.get(story.id));
+    assert.equal(visibleTones.length, 6);
+    assert.equal(new Set(visibleTones).size, 6);
+  }
 });

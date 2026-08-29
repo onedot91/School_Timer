@@ -31,3 +31,31 @@ export const createFailureStoryToneIndex = (
 
   return toneIndex;
 };
+
+export const createFailureStoryWindowToneIndex = (
+  sources: readonly FailureStoryToneSource[],
+  canonicalToneIndex: ReadonlyMap<string, FailureStoryTone>,
+): ReadonlyMap<string, FailureStoryTone> => {
+  const toneIndex = new Map<string, FailureStoryTone>();
+  const usedTones = new Set<FailureStoryTone>();
+  const collisions: FailureStoryToneSource[] = [];
+
+  sources.forEach((source) => {
+    const preferredTone = canonicalToneIndex.get(source.id) ?? getFailureStoryTone(source.id);
+    if (usedTones.has(preferredTone)) {
+      collisions.push(source);
+      return;
+    }
+    toneIndex.set(source.id, preferredTone);
+    usedTones.add(preferredTone);
+  });
+
+  collisions.forEach((source) => {
+    const availableTone = FAILURE_STORY_TONES.find((tone) => !usedTones.has(tone));
+    const tone = availableTone ?? canonicalToneIndex.get(source.id) ?? getFailureStoryTone(source.id);
+    toneIndex.set(source.id, tone);
+    usedTones.add(tone);
+  });
+
+  return toneIndex;
+};

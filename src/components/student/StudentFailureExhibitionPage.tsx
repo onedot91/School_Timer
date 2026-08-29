@@ -147,8 +147,10 @@ export default function StudentFailureExhibitionPage({
           >
             {stories.length === 0 ? (
               <div className="student-failure-empty">
-                <HeartHandshake aria-hidden="true" />
-                <strong>아직 전시된 이야기가 없어요</strong>
+                <div className="student-failure-empty-card" role="status">
+                  <HeartHandshake aria-hidden="true" />
+                  <strong>아직 걸린 이야기가 없어요</strong>
+                </div>
               </div>
             ) : (
               <StudentFailureRelay
@@ -165,7 +167,7 @@ export default function StudentFailureExhibitionPage({
           <button
             ref={composerTriggerRef}
             type="button"
-            className="student-failure-create-fab"
+            className={`student-failure-create-fab${stories.length === 0 ? ' student-failure-empty-action' : ''}`}
             aria-label="실패 이야기 전시하기"
             title="실패 이야기 전시하기"
             aria-haspopup="dialog"
@@ -176,6 +178,9 @@ export default function StudentFailureExhibitionPage({
             }}
           >
             <Pencil aria-hidden="true" />
+            {stories.length === 0 ? (
+              <span className="student-failure-empty-action-label">첫 이야기 걸기</span>
+            ) : null}
           </button>
         </section>
 

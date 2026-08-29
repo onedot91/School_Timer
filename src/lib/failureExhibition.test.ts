@@ -3,6 +3,8 @@ import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import StudentFailureExhibitionPage from '../components/student/StudentFailureExhibitionPage.tsx';
+import StudentFailureMessage from '../components/student/StudentFailureMessage.tsx';
 import StudentFailureRelay from '../components/student/StudentFailureRelay.tsx';
 import {
   createFailureStory,
@@ -28,6 +30,117 @@ const storyInput = {
   createdAt: '2026-08-23T01:00:00.000Z',
   updatedAt: '2026-08-23T01:00:00.000Z',
 };
+
+test('본인 실패 카드는 응원하기 대신 내가 쓴 글 배지를 표시한다', () => {
+  const profileAssignments = normalizeFailureProfileAssignments(null);
+  const commonProps = {
+    story: { ...storyInput, stamps: [] },
+    tone: 0 as const,
+    profileAssignments,
+    isSaving: false,
+    isStampMenuOpen: false,
+    onStampMenuToggle: () => undefined,
+    onStamp: async () => false,
+  };
+
+  const ownMarkup = renderToStaticMarkup(createElement(StudentFailureMessage, {
+    ...commonProps,
+    studentNumber: storyInput.studentNumber,
+  }));
+  const classmateMarkup = renderToStaticMarkup(createElement(StudentFailureMessage, {
+    ...commonProps,
+    studentNumber: storyInput.studentNumber + 1,
+  }));
+
+  assert.match(ownMarkup, /student-failure-owner-badge/);
+  assert.match(ownMarkup, />내가 쓴 글</);
+  assert.doesNotMatch(ownMarkup, /응원하기/);
+  assert.doesNotMatch(ownMarkup, /student-failure-stamp-trigger/);
+  assert.doesNotMatch(classmateMarkup, /student-failure-owner-badge/);
+  assert.match(classmateMarkup, /응원하기/);
+});
+
+test('실패 카드 본문은 눌러서 내용이 바뀌는 버튼이 아니다', () => {
+  const markup = renderToStaticMarkup(createElement(StudentFailureMessage, {
+    story: { ...storyInput, stamps: [] },
+    tone: 0,
+    studentNumber: storyInput.studentNumber + 1,
+    profileAssignments: normalizeFailureProfileAssignments(null),
+    isSaving: false,
+    isStampMenuOpen: false,
+    onStampMenuToggle: () => undefined,
+    onStamp: async () => false,
+  }));
+
+  assert.match(markup, /<div class="student-failure-message-main">/);
+  assert.doesNotMatch(markup, /<button[^>]*class="student-failure-message-main"/);
+  assert.doesNotMatch(markup, /이야기 전체 보기|이야기 접기/);
+});
+
+test('응원 선택지는 멘트 의미에 맞는 서로 다른 아이콘과 색상 키를 가진다', () => {
+  const markup = renderToStaticMarkup(createElement(StudentFailureMessage, {
+    story: { ...storyInput, stamps: [] },
+    tone: 0,
+    studentNumber: storyInput.studentNumber + 1,
+    profileAssignments: normalizeFailureProfileAssignments(null),
+    isSaving: false,
+    isStampMenuOpen: true,
+    onStampMenuToggle: () => undefined,
+    onStamp: async () => false,
+  }));
+
+  assert.match(markup, /data-stamp-id="me-too"[^>]*>[\s\S]*?lucide-users-round/);
+  assert.match(markup, /data-stamp-id="brave"[^>]*>[\s\S]*?lucide-flag/);
+  assert.match(markup, /data-stamp-id="cheer"[^>]*>[\s\S]*?lucide-sparkles/);
+});
+
+test('보낸 응원 배지는 선택한 마음의 아이콘과 상태 문구로 바뀐다', () => {
+  const profileAssignments = normalizeFailureProfileAssignments(null);
+  const expectations = [
+    { stampId: 'me-too', icon: 'users-round', label: '공감 보냄' },
+    { stampId: 'brave', icon: 'flag', label: '도전 보냄' },
+    { stampId: 'cheer', icon: 'sparkles', label: '응원 보냄' },
+  ] as const;
+
+  for (const expectation of expectations) {
+    const markup = renderToStaticMarkup(createElement(StudentFailureMessage, {
+      story: {
+        ...storyInput,
+        stamps: [{ studentNumber: 3, stampId: expectation.stampId }],
+      },
+      tone: 0,
+      studentNumber: 3,
+      profileAssignments,
+      isSaving: false,
+      isStampMenuOpen: false,
+      onStampMenuToggle: () => undefined,
+      onStamp: async () => false,
+    }));
+
+    assert.match(markup, new RegExp(`student-failure-stamp-trigger is-selected[^>]*data-stamp-id="${expectation.stampId}"`));
+    assert.match(markup, new RegExp(`lucide-${expectation.icon}`));
+    assert.match(markup, new RegExp(`>${expectation.label}<`));
+  }
+});
+
+test('빈 실패 자랑소는 전시 카드 구조와 하나의 작성 행동을 제공한다', () => {
+  const markup = renderToStaticMarkup(createElement(StudentFailureExhibitionPage, {
+    studentNumber: 7,
+    profileAssignments: normalizeFailureProfileAssignments(null),
+    stories: [],
+    isSaving: false,
+    onCreate: async () => false,
+    onStamp: async () => false,
+    onOpenBookshelf: () => undefined,
+    onBack: () => undefined,
+  }));
+
+  assert.match(markup, /data-empty="true"/);
+  assert.match(markup, /student-failure-empty-card/);
+  assert.match(markup, /student-failure-empty-action-label/);
+  assert.equal(markup.match(/aria-haspopup="dialog"/g)?.length, 1);
+  assert.doesNotMatch(markup, /student-failure-relay-toolbar/);
+});
 
 test('저장 가능한 프로필 카탈로그는 70개의 동물만 제공한다', () => {
   assert.equal(FAILURE_PROFILE_IMAGES.length, 70);
@@ -253,6 +366,8 @@ test('릴레이는 게시글 ID 톤을 DOM에 표시하고 여섯 개를 넘을 
   assert.match(sevenStoryMarkup, /aria-label="이전 이야기 보기"/);
   assert.match(sevenStoryMarkup, /aria-label="다음 이야기 보기"/);
   assert.doesNotMatch(sevenStoryMarkup, /<span>이전<\/span>|<span>다음<\/span>/);
+  assert.doesNotMatch(sevenStoryMarkup, /student-failure-feed-window-motion/);
+  assert.match(sevenStoryMarkup, /student-failure-relay-item-motion/);
 });
 
 test('실패 이야기는 같은 ID로 한 번만 등록된다', () => {
