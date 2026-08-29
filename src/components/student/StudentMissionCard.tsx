@@ -115,7 +115,7 @@ export default function StudentMissionCard({
         : '';
 
   return (
-    <article className={`student-mission-card${statusClassName}${isInteractive ? ' is-interactive' : ''}${isDisabledAppearance ? ' is-disabled' : ''}`}>
+    <article className={`student-mission-card${statusClassName}${illustrationSrc ? ' has-illustration' : ''}${isInteractive ? ' is-interactive' : ''}${isDisabledAppearance ? ' is-disabled' : ''}`}>
       <div className={`student-mission-illustration-placeholder${illustrationSrc ? ' has-illustration' : ''}`} aria-hidden="true">
         {illustrationSrc ? (
           <img

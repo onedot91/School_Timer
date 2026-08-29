@@ -5,6 +5,7 @@ import test from 'node:test';
 const SERVER_MODULES = [
   'api/announcement-notes.ts',
   'api/class-donation.ts',
+  'api/classword.ts',
   'api/device-session.ts',
   'api/shared-settings.ts',
   'api/student-economy.ts',
@@ -12,6 +13,7 @@ const SERVER_MODULES = [
   'api/weekly-missions.ts',
   'src/lib/bankMailbox.ts',
   'src/lib/currency.ts',
+  'src/lib/classword.ts',
   'src/lib/failureExhibition.ts',
   'src/lib/studentEconomy.ts',
   'src/lib/studentEconomySettings.ts',
@@ -19,6 +21,7 @@ const SERVER_MODULES = [
   'src/lib/studentLife.ts',
   'src/lib/weeklyMission.ts',
   'src/server/deviceSession.ts',
+  'src/server/classwordRepository.ts',
   'src/server/requestRateLimit.ts',
 ] as const;
 
@@ -42,4 +45,16 @@ test('Vercel api directory contains at most twelve deployable handlers', async (
     const source = await readFile(`api/${fileName}`, 'utf8');
     assert.match(source, /export default (?:async )?function handler/, `${fileName} is not a deployable handler`);
   }
+});
+
+test('active student and weekly mission paths do not call the legacy Classword host', async () => {
+  const sources = await Promise.all([
+    'api/classword.ts',
+    'api/weekly-missions.ts',
+    'src/lib/weeklyMission.ts',
+    'src/components/student/StudentMissionsPage.tsx',
+  ].map((path) => readFile(path, 'utf8')));
+  const legacyHost = ['classword', 'vercel', 'app'].join('.');
+
+  for (const source of sources) assert.equal(source.includes(legacyHost), false);
 });

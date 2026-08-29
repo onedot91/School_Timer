@@ -149,7 +149,7 @@ begin
   if p_week_key is null or p_week_key !~ '^\d{4}-\d{2}$' then
     raise exception 'INVALID_WEEK_KEY';
   end if;
-  if p_mission_type is null or p_mission_type not in ('personal_question', 'classword_word_entry', 'classword_quiz_correct') then
+  if p_mission_type is null or p_mission_type not in ('personal_question', 'classword_word_entry') then
     raise exception 'INVALID_MISSION_TYPE';
   end if;
   if p_source_event_id is not null and length(p_source_event_id) > 200 then

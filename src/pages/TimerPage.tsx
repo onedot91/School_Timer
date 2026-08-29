@@ -118,6 +118,7 @@ import {
 import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
 import { MissionRewardInput } from '../components/teacher/MissionRewardInput';
 import TeacherWritingSettings from '../components/teacher/TeacherWritingSettings';
+import TeacherClasswordPanel from '../components/teacher/TeacherClasswordPanel';
 import {
   loadQuestionSubmissionStatuses,
   type QuestionSubmissionStatus,
@@ -209,7 +210,7 @@ import {
 } from '../lib/classroomRoleMission';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'bookstore';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'bookstore';
 type TeacherShopTab = 'items' | 'characters' | 'houses';
 type SettingsNavigationGroup = {
   readonly label: string;
@@ -247,6 +248,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
       { panel: 'emotion', label: '감정', icon: HeartPulse },
       { panel: 'mail', label: '편지', icon: Mail },
       { panel: 'writing', label: '글쓰기', icon: NotebookText },
+      { panel: 'classword', label: '낱말판', icon: StickyNote },
       { panel: 'missions', label: '미션', icon: ClipboardCheck },
     ],
   },
@@ -11769,6 +11771,8 @@ export default function TimerPage() {
                               ? mailSettingsPanel
                               : settingsPanel === 'writing'
                                 ? writingSettingsPanel
+                              : settingsPanel === 'classword'
+                                ? <TeacherClasswordPanel />
                               : settingsPanel === 'bookstore'
                                 ? bookstoreSettingsPanel
                                 : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'

@@ -102,6 +102,7 @@ test('전용 일러스트 카드는 별도 설명을 그림 위에 표시하지 
   const markup = renderToStaticMarkup(missionCard);
 
   // Then
+  assert.match(markup, /student-mission-card[^\"]*has-illustration/);
   assert.doesNotMatch(markup, /student-mission-card-copy/);
   assert.match(markup, /aria-label="[^"]*이번 주의 숫자를 맞히고 있어요/);
 });
@@ -153,6 +154,7 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
     onOpenBookStack: () => undefined,
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
+    onOpenClassword: () => undefined,
     onBack: () => undefined,
   });
 
@@ -177,7 +179,7 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   assert.match(markup, /실패 전시하기/);
   assert.match(markup, /읽은 책 쌓기/);
   assert.match(markup, /보상 10고마/);
-  assert.match(markup, /0\/7 완료/);
+  assert.match(markup, /0\/6 완료/);
 });
 
 test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시한다', () => {
@@ -205,6 +207,7 @@ test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시
     onOpenBookStack: () => undefined,
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
+    onOpenClassword: () => undefined,
     onBack: () => undefined,
   };
   const settings = normalizeClassroomRoleMissionSettings({
@@ -259,6 +262,7 @@ test('전용 일러스트가 있는 미션 카드는 해당 4대3 이미지를 �
     onOpenBookStack: () => undefined,
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
+    onOpenClassword: () => undefined,
     onBack: () => undefined,
   });
 
@@ -274,4 +278,5 @@ test('전용 일러스트가 있는 미션 카드는 해당 4대3 이미지를 �
   assert.match(markup, /src="\/mission-illustrations\/newspaper-question\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/failure-exhibition\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/book-stacking\.png"/);
+  assert.match(markup, /src="\/mission-illustrations\/classword-game\.png"/);
 });

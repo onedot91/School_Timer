@@ -11,13 +11,14 @@ export const CLASSWORD_WEEKLY_REWARD = 5;
 export const WEEKLY_MISSION_TYPES = [
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-  CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
 ] as const;
 
 export type WeeklyMissionType = typeof WEEKLY_MISSION_TYPES[number];
 export type WeeklyMissionRewardType = WeeklyMissionType
   | typeof FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE
   | typeof BOOK_STACK_WEEKLY_MISSION_TYPE;
+export type WeeklyMissionHistoryType = WeeklyMissionRewardType
+  | typeof CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE;
 
 export const getWeeklyMissionRewardAmount = (missionType: WeeklyMissionRewardType) => (
   missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
@@ -41,24 +42,16 @@ export const WEEKLY_MISSION_DEFINITIONS = [
   },
   {
     type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-    label: 'ㄱㄴㄷ 게임 낱말 넣기',
-    description: 'ㄱㄴㄷ 게임에 새로운 낱말을 등록해 보세요.',
+    label: 'ㄱㄴㄷ 낱말판 채우기',
+    description: '오늘의 주제에 맞는 낱말로 초성 한 칸을 채워 보세요.',
     rewardAmount: CLASSWORD_WEEKLY_REWARD,
-    destinationUrl: 'https://classword.vercel.app/',
-  },
-  {
-    type: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
-    label: 'ㄱㄴㄷ 게임 낱말 퀴즈',
-    description: 'ㄱㄴㄷ 게임에서 낱말 퀴즈를 맞혀 보세요.',
-    rewardAmount: CLASSWORD_WEEKLY_REWARD,
-    destinationUrl: 'https://classword.vercel.app/',
   },
 ] as const satisfies readonly {
   readonly type: WeeklyMissionType;
   readonly label: string;
   readonly description: string;
   readonly rewardAmount: number;
-  readonly destinationUrl: string;
+  readonly destinationUrl?: string;
 }[];
 
 export type WeeklyMissionStatus = 'loading' | 'incomplete' | 'completed' | 'unavailable';
@@ -67,7 +60,6 @@ export type WeeklyMissionStatuses = Record<WeeklyMissionType, WeeklyMissionStatu
 export const createWeeklyMissionStatuses = (status: WeeklyMissionStatus): WeeklyMissionStatuses => ({
   personal_question: status,
   classword_word_entry: status,
-  classword_quiz_correct: status,
 });
 
 export interface WeeklyMissionResult {
@@ -160,7 +152,7 @@ export const hasWeeklyMissionReward = (
   currencyHistory: unknown,
   studentNumber: number,
   weekKey: string,
-  missionType: WeeklyMissionRewardType,
+  missionType: WeeklyMissionHistoryType,
 ) => (
   normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
 ).some((entry) => entry.id === getWeeklyMissionRewardId(studentNumber, weekKey, missionType));
@@ -181,7 +173,7 @@ export const getAuctionAwardKeys = (auctionAwards: unknown) => new Set(
 const getWeeklyMissionRewardId = (
   studentNumber: number,
   weekKey: string,
-  missionType: WeeklyMissionRewardType,
+  missionType: WeeklyMissionHistoryType,
 ) => missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
   ? `weekly-mission-${studentNumber}-${weekKey}`
   : `weekly-mission-${missionType}-${studentNumber}-${weekKey}`;

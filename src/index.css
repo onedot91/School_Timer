@@ -12599,6 +12599,20 @@ h3 {
   --apple-control-pressed: #e3f0e8;
   --apple-disabled-surface: #ecefeb;
   --apple-disabled-ink: #737b75;
+  --classword-ink: #2f3a35;
+  --classword-ink-muted: #68736d;
+  --classword-paper: #fffdf7;
+  --classword-paper-filled: #e8f4ed;
+  --classword-line: #c8d8cf;
+  --classword-line-strong: #78a893;
+  --classword-accent: #087a59;
+  --classword-accent-soft: #e4f5ed;
+  --classword-prompt: #d7f45b;
+  --classword-prompt-soft: #f4fbd7;
+  --classword-sky: #cceff7;
+  --classword-celebrate: #b47b00;
+  --student-warning: #9b4a43;
+  --student-warning-soft: #fff0ed;
   --bookstore-paper: #fffdf7;
   --bookstore-paper-muted: #f7efe2;
   --bookstore-wood: #8a5b3c;
@@ -17119,6 +17133,12 @@ a[href]:active {
     var(--apple-canvas-warm);
 }
 
+.student-rapid-click-guard {
+  --student-warning: #9b4a43;
+  --student-warning-soft: #fff0ed;
+  min-height: 100dvh;
+}
+
 .student-view {
   display: grid;
   gap: clamp(0.75rem, 1.4vw, 1.25rem);
@@ -17753,6 +17773,16 @@ a[href]:active {
     box-shadow var(--student-motion-state) ease;
 }
 
+.student-mission-card.has-illustration {
+  padding: 0;
+  background: transparent;
+}
+
+.student-mission-card.has-illustration .student-mission-illustration-placeholder {
+  border: 0;
+  border-radius: inherit;
+}
+
 .student-mission-card-inProgress {
   border-color: color-mix(in srgb, var(--student-mission) 48%, var(--apple-separator));
   background: linear-gradient(145deg, var(--apple-surface), var(--student-mission-soft));
@@ -17829,8 +17859,7 @@ a[href]:active {
 }
 
 .student-mission-illustration-placeholder.has-illustration {
-  border-style: solid;
-  background: var(--apple-surface-muted);
+  background: transparent;
 }
 
 .student-mission-illustration-placeholder.has-illustration::before,
@@ -20136,6 +20165,26 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-confirm-dialog-actions button { min-height: 3rem; border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); font-size: 1rem; font-weight: 900; }
 .student-confirm-dialog-actions button:last-child { background: var(--apple-accent); color: white; }
 .student-confirm-dialog :disabled { opacity: .55; }
+
+.student-rapid-click-dialog {
+  width: min(100%, 27rem);
+  border-color: color-mix(in srgb, var(--student-warning) 34%, var(--apple-separator));
+}
+.student-rapid-click-dialog-icon {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  justify-self: center;
+  border-radius: var(--apple-radius-pill);
+  color: var(--student-warning);
+  background: var(--student-warning-soft);
+}
+.student-rapid-click-dialog-icon svg { width: 1.75rem; height: 1.75rem; }
+.student-rapid-click-dialog .student-confirm-dialog-kicker { color: var(--student-warning); }
+.student-rapid-click-dialog p { word-break: keep-all; text-wrap: balance; }
+.student-rapid-click-dialog-actions { grid-template-columns: minmax(0, 1fr); }
+.student-rapid-click-dialog-actions button:last-child { background: var(--student-warning); }
 
 .student-confirm-dialog.student-sudoku-settings-dialog {
   width: min(100%, 46rem);

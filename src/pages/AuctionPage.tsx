@@ -12,6 +12,7 @@ import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentStorePage from '../components/student/StudentStorePage';
 import StudentSudokuPage from '../components/student/StudentSudokuPage';
 import StudentNumberBaseballPage from '../components/student/StudentNumberBaseballPage';
+import StudentClasswordPage from '../components/student/StudentClasswordPage';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
   AUCTION_BID_STEP,
@@ -171,7 +172,7 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'classword' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -198,6 +199,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   overview: '#student-overview',
   emotions: '#student-emotions',
   missions: '#student-missions',
+  classword: '#student-classword',
   sudoku: '#student-sudoku',
   'number-baseball': '#student-number-baseball',
   mailbox: '#student-mailbox',
@@ -344,7 +346,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     createWeeklyMissionStatuses('loading')
   ));
   const [hasWeeklyMissionSyncError, setHasWeeklyMissionSyncError] = useState(false);
-  const [activeStudentView, setActiveStudentView] = useState<StudentView>('overview');
+  const [activeStudentView, setActiveStudentView] = useState<StudentView>(() => getStudentViewFromHash());
   const [sudokuDifficulty, setSudokuDifficulty] = useState<SudokuDifficulty>(activeSudokuDifficulty ?? 'basic');
 
   useEffect(() => {
@@ -402,8 +404,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const pendingFullSettingsRefreshRef = useRef(false);
 
   useEffect(() => {
-    window.history.replaceState(null, '', STUDENT_VIEW_HASHES.overview);
-
     const syncViewFromHistory = () => {
       setActiveStudentView(getStudentViewFromHash());
       pageScrollRef.current?.scrollTo({ top: 0 });
@@ -1173,7 +1173,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               ...previous,
               [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'incomplete',
               classword_word_entry: previous.classword_word_entry === 'completed' ? 'completed' : 'unavailable',
-              classword_quiz_correct: previous.classword_quiz_correct === 'completed' ? 'completed' : 'unavailable',
             }));
             return;
           }
@@ -1182,7 +1181,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             ...previous,
             [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'unavailable',
             classword_word_entry: previous.classword_word_entry === 'completed' ? 'completed' : 'unavailable',
-            classword_quiz_correct: previous.classword_quiz_correct === 'completed' ? 'completed' : 'unavailable',
           }));
         } catch (fallbackError) {
           if (!isActive) return;
@@ -1747,7 +1745,21 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               }
               navigateStudentView('number-baseball');
             }}
+            onOpenClassword={() => navigateStudentView('classword')}
             onBack={() => navigateStudentView('overview')}
+          />
+        ) : null}
+        {activeStudentView === 'classword' ? (
+          <StudentClasswordPage
+            studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
+            onRewardBalance={(nextBalance) => {
+              setCurrencyBalances((previous) => ({ ...previous, [studentKey]: nextBalance }));
+            }}
+            onMissionCompleted={() => {
+              setWeeklyMissionStatuses((previous) => ({ ...previous, classword_word_entry: 'completed' }));
+            }}
+            onBack={() => navigateStudentView('missions')}
           />
         ) : null}
         {activeStudentView === 'sudoku' ? (

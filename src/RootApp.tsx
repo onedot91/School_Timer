@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { StudentRapidClickGuard } from './components/student/StudentRapidClickGuard';
 import {
   clearDeviceSession,
   loadDeviceSession,
@@ -206,7 +207,11 @@ export default function RootApp() {
   } else if (selectedEntryNumber === 0) {
     activePage = <TimerPage />;
   } else {
-    activePage = <AuctionPage studentNumber={selectedEntryNumber} />;
+    activePage = (
+      <StudentRapidClickGuard>
+        <AuctionPage studentNumber={selectedEntryNumber} />
+      </StudentRapidClickGuard>
+    );
   }
 
   return (

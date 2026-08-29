@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import handler from '../../api/weekly-missions.js';
 import {
-  CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   getWeeklyMissionRewardAmount,
   getKoreanIsoWeekKey,
@@ -33,7 +32,7 @@ const createResponse = () => {
   return { response, result: () => ({ statusCode, body }) };
 };
 
-test('server checks both sources and claims each completed mission independently', async () => {
+test('server checks the question source and internal classword entries independently', async () => {
   const originalFetch = globalThis.fetch;
   const originalSupabaseUrl = process.env.SUPABASE_URL;
   const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -52,16 +51,8 @@ test('server checks both sources and claims each completed mission independently
         history: [{ id: 'personal-21', student_number: 21, question_type: 'personal', week_key: weekKey }],
       });
     }
-    if (url.startsWith('https://classword.vercel.app/api/mission-status')) {
-      return Response.json({
-        data: {
-          studentNumber: 21,
-          startDate: range.startDate,
-          endDate: range.endDate,
-          wordEntryDates: [range.today],
-          quizCorrectDates: [range.today],
-        },
-      });
+    if (url.includes('/rest/v1/classword_entries?')) {
+      return Response.json([{ id: 'entry-21', round_date: range.today }]);
     }
 
     const rpcBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -93,13 +84,7 @@ test('server checks both sources and claims each completed mission independently
         p_student_number: 21,
         p_week_key: weekKey,
         p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-        p_source_event_id: null,
-      },
-      {
-        p_student_number: 21,
-        p_week_key: weekKey,
-        p_mission_type: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
-        p_source_event_id: `${range.today}:quiz_correct`,
+        p_source_event_id: 'entry-21',
       },
     ]);
   } finally {
@@ -113,7 +98,7 @@ test('server checks both sources and claims each completed mission independently
   }
 });
 
-test('a malformed question response does not block a valid classword reward', async () => {
+test('a malformed question response does not block a valid internal classword reward', async () => {
   const originalFetch = globalThis.fetch;
   const originalSupabaseUrl = process.env.SUPABASE_URL;
   const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -130,16 +115,8 @@ test('a malformed question response does not block a valid classword reward', as
     if (url.startsWith('https://question-news.vercel.app/api/student')) {
       return Response.json({ malformed: true });
     }
-    if (url.startsWith('https://classword.vercel.app/api/mission-status')) {
-      return Response.json({
-        data: {
-          studentNumber: 21,
-          startDate: range.startDate,
-          endDate: range.endDate,
-          wordEntryDates: [],
-          quizCorrectDates: [range.today],
-        },
-      });
+    if (url.includes('/rest/v1/classword_entries?')) {
+      return Response.json([{ id: 'entry-21', round_date: range.today }]);
     }
 
     const rpcBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -165,11 +142,10 @@ test('a malformed question response does not block a valid classword reward', as
     assert.deepEqual(claimedMissionTypes, [
       PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
       CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-      CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
     ]);
     const missions = (result().body as { missions: Array<{ missionType: string; awarded: boolean }> }).missions;
     assert.equal(missions.find((mission) => mission.missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE)?.awarded, false);
-    assert.equal(missions.find((mission) => mission.missionType === CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE)?.awarded, true);
+    assert.equal(missions.find((mission) => mission.missionType === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE)?.awarded, true);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL;

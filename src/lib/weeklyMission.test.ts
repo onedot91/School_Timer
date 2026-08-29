@@ -40,18 +40,19 @@ test('only a personal question from the requested student and week completes the
   assert.equal(findPersonalQuestionForWeek(response, 6, '2026-30'), null);
 });
 
-test('personal questions award 10 while both Classword missions remain at 5', () => {
+test('주간 미션은 개인 질문과 내부 낱말판만 노출한다', () => {
   assert.deepEqual(
     WEEKLY_MISSION_DEFINITIONS.map(({ type, rewardAmount }) => ({ type, rewardAmount })),
     [
       { type: 'personal_question', rewardAmount: 10 },
       { type: 'classword_word_entry', rewardAmount: 5 },
-      { type: 'classword_quiz_correct', rewardAmount: 5 },
     ],
   );
   assert.equal(getWeeklyMissionRewardAmount('personal_question'), 10);
   assert.equal(getWeeklyMissionRewardAmount(FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE), 10);
   assert.equal(getWeeklyMissionRewardAmount(CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE), 5);
+  const classwordMission = WEEKLY_MISSION_DEFINITIONS.find(({ type }) => type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE);
+  assert.ok(classwordMission && !('destinationUrl' in classwordMission));
 });
 
 test('실패 전시하기는 학생과 주차별로 10고마를 한 번만 지급한다', () => {
@@ -125,20 +126,21 @@ test('fallback weekly mission claim awards once per student, week, and mission t
     CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
     '2026-07-13T14:02:00.000Z',
   );
-  const fourth = claimWeeklyMissionRewardInSettings(
-    third.value,
-    6,
-    '2026-29',
-    CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
-    '2026-07-13T14:03:00.000Z',
-  );
-
   assert.equal(third.balance, 215);
-  assert.equal(fourth.balance, 220);
   assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-29', 'personal_question'), true);
   assert.equal(hasWeeklyMissionReward(first.value.currencyHistory, 6, '2026-30', 'personal_question'), false);
-  assert.equal(hasWeeklyMissionReward(fourth.value.currencyHistory, 6, '2026-29', CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE), true);
-  assert.equal(hasWeeklyMissionReward(fourth.value.currencyHistory, 6, '2026-29', CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE), true);
+  assert.equal(hasWeeklyMissionReward(third.value.currencyHistory, 6, '2026-29', CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE), true);
+  assert.equal(hasWeeklyMissionReward({
+    6: [{
+      id: 'weekly-mission-classword_quiz_correct-6-2026-29',
+      studentNumber: 6,
+      delta: 5,
+      before: 215,
+      after: 220,
+      reason: 'weekly_mission',
+      createdAt: '2026-07-13T14:03:00.000Z',
+    }],
+  }, 6, '2026-29', CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE), true);
 });
 
 test('weekly mission claim never records a partial reward at the balance limit', () => {

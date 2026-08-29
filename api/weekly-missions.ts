@@ -1,10 +1,5 @@
+import { getKoreanWeekDateRange } from '../src/lib/classwordWeeklyMission.js';
 import {
-  getClasswordMissionEvidence,
-  getKoreanWeekDateRange,
-  parseClasswordMissionStatus,
-} from '../src/lib/classwordWeeklyMission.js';
-import {
-  CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   findPersonalQuestionForWeek,
   getWeeklyMissionRewardAmount,
@@ -36,8 +31,6 @@ interface MissionClaimInput {
 }
 
 const QUESTION_STUDENT_ENDPOINT = 'https://question-news.vercel.app/api/student';
-const CLASSWORD_MISSION_ENDPOINT = 'https://classword.vercel.app/api/mission-status';
-
 const getStudentNumber = (body: unknown) => {
   const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
   if (!parsedBody || typeof parsedBody !== 'object' || !('studentNumber' in parsedBody)) return null;
@@ -56,6 +49,39 @@ const fetchJson = async (url: URL) => {
     throw new Error(`WEEKLY_MISSION_SOURCE_HTTP_${externalResponse.status}`);
   }
   return externalResponse.json();
+};
+
+const loadClasswordEntryId = async (
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  studentNumber: number,
+  startDate: string,
+  endDate: string,
+) => {
+  const url = new URL(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/classword_entries`);
+  url.searchParams.set('student_number', `eq.${studentNumber}`);
+  url.searchParams.set('round_date', `gte.${startDate}`);
+  url.searchParams.append('round_date', `lte.${endDate}`);
+  url.searchParams.set('select', 'id,round_date');
+  url.searchParams.set('order', 'created_at.asc');
+  url.searchParams.set('limit', '1');
+  const classwordResponse = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!classwordResponse.ok) {
+    throw new Error(`CLASSWORD_ENTRY_HTTP_${classwordResponse.status}`);
+  }
+  const rows = await classwordResponse.json();
+  if (!Array.isArray(rows)) throw new Error('CLASSWORD_ENTRY_INVALID_RESPONSE');
+  const first = rows[0];
+  return first && typeof first === 'object' && typeof Reflect.get(first, 'id') === 'string'
+    ? String(Reflect.get(first, 'id'))
+    : null;
 };
 
 const claimMission = async (
@@ -146,21 +172,19 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const questionUrl = new URL(QUESTION_STUDENT_ENDPOINT);
     questionUrl.searchParams.set('studentNumber', String(studentNumber));
     questionUrl.searchParams.set('weekKey', weekKey);
-    const classwordUrl = new URL(CLASSWORD_MISSION_ENDPOINT);
-    classwordUrl.searchParams.set('studentNumber', String(studentNumber));
-    classwordUrl.searchParams.set('startDate', range.startDate);
-    classwordUrl.searchParams.set('endDate', range.endDate);
-
     const [questionResult, classwordResult] = await Promise.allSettled([
       fetchJson(questionUrl).then((value) => findPersonalQuestionForWeek(
         parseQuestionStudentResponse(value),
         studentNumber,
         weekKey,
       )),
-      fetchJson(classwordUrl).then((value) => getClasswordMissionEvidence(
-        parseClasswordMissionStatus(value, studentNumber, range.startDate, range.endDate),
-        range.today,
-      )),
+      loadClasswordEntryId(
+        supabaseUrl,
+        serviceRoleKey,
+        studentNumber,
+        range.startDate,
+        range.endDate,
+      ),
     ]);
     if (questionResult.status === 'rejected') {
       console.warn('Failed to load personal-question mission evidence.', questionResult.reason);
@@ -171,18 +195,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const personalQuestion = questionResult.status === 'fulfilled'
       ? questionResult.value
       : null;
-    const evidence = classwordResult.status === 'fulfilled'
-      ? classwordResult.value
-      : { wordEntryEventDate: null, quizCorrectEventDate: null };
+    const classwordEntryId = classwordResult.status === 'fulfilled' ? classwordResult.value : null;
     const claims: readonly MissionClaimInput[] = [
       { missionType: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE, sourceEventId: personalQuestion?.id ?? null },
       {
         missionType: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-        sourceEventId: evidence.wordEntryEventDate === null ? null : `${evidence.wordEntryEventDate}:word_entry`,
-      },
-      {
-        missionType: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
-        sourceEventId: evidence.quizCorrectEventDate === null ? null : `${evidence.quizCorrectEventDate}:quiz_correct`,
+        sourceEventId: classwordEntryId,
       },
     ];
     const claimResults = await Promise.allSettled(claims.map((claim) => (

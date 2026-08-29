@@ -12,6 +12,7 @@ import {
 import { useModalFocus } from '../../lib/useModalFocus';
 import {
   BOOK_STACK_WEEKLY_REWARD,
+  CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   FAILURE_EXHIBITION_WEEKLY_REWARD,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   WEEKLY_MISSION_DEFINITIONS,
@@ -59,6 +60,7 @@ interface StudentMissionsPageProps {
   onOpenBookStack: () => void;
   onOpenSudoku: (difficulty: SudokuDifficulty) => void;
   onOpenNumberBaseball: () => void;
+  onOpenClassword: () => void;
   onBack: () => void;
 }
 
@@ -133,6 +135,7 @@ export default function StudentMissionsPage({
   onOpenBookStack,
   onOpenSudoku,
   onOpenNumberBaseball,
+  onOpenClassword,
   onBack,
 }: StudentMissionsPageProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
@@ -361,12 +364,19 @@ export default function StudentMissionsPage({
                   title={mission.label}
                   illustrationSrc={mission.type === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
                     ? '/mission-illustrations/newspaper-question.png'
-                    : undefined}
+                    : mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE
+                      ? '/mission-illustrations/classword-game.png'
+                      : undefined}
                   rewardAmount={mission.rewardAmount}
                   verificationMode="automatic"
                   status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
-                  destinationUrl={mission.destinationUrl}
-                  actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
+                  destinationUrl={'destinationUrl' in mission ? mission.destinationUrl : undefined}
+                  onAction={mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE
+                    ? onOpenClassword
+                    : undefined}
+                  actionLabel={mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE
+                    ? weeklyMissionStatuses[mission.type] === 'completed' ? '낱말판 보기' : '낱말 넣기'
+                    : weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
                 />
               </motion.div>
             ))}

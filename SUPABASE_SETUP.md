@@ -8,6 +8,7 @@
 - 앱에서 Supabase 설정을 불러오고 저장하는 코드
 - `@supabase/supabase-js` 설치
 - Supabase 테이블 생성 SQL: `supabase/app_settings.sql`
+- ㄱㄴㄷ 낱말판 전용 테이블 SQL: `supabase/classword.sql`
 - 환경변수 예시: `.env.example`
 
 ## 사용자가 할 일
@@ -21,11 +22,14 @@
 ### 2. 테이블 만들기
 
 1. Supabase 프로젝트에서 `SQL Editor`를 엽니다.
-2. `supabase/app_settings.sql` 파일 내용을 복사합니다.
-3. SQL Editor에 붙여넣고 실행합니다.
+2. `supabase/app_settings.sql` 파일 내용을 복사해 실행합니다.
+3. 이어서 `supabase/classword.sql` 파일 내용도 복사해 실행합니다.
 
 이미 이전 설정 테이블을 만들었더라도 같은 파일을 다시 실행하면 됩니다. 알림장과 주간 미션 지급 기록 테이블, 중복 지급 방지 함수가 함께 추가됩니다.
 보안 규칙이나 함수가 변경된 뒤에도 이 SQL을 다시 실행해야 실제 Supabase 프로젝트에 최신 권한과 입력 제한이 적용됩니다.
+`classword.sql`은 기존 설정·고마·미션 기록을 수정하지 않고 `classword_rounds`, `classword_entries` 전용 테이블과 제약만 추가합니다. 외부 Classword 데이터는 자동으로 가져오지 않습니다.
+
+낱말 항목(`classword_entries`)은 오늘을 포함한 최근 14일만 유지되며, 정상적으로 인증된 낱말판 API 요청 시 더 오래된 항목이 자동 삭제됩니다. 날짜별 주제(`classword_rounds`)와 기존 고마·미션 보상 기록은 삭제하지 않습니다.
 
 ### 3. API 키 복사하기
 
