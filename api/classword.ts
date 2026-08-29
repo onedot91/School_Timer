@@ -329,11 +329,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     response.status(403).json({ error: 'CROSS_SITE_REQUEST_BLOCKED' });
     return;
   }
-  const rateLimit = consumeRequestRateLimit('classword', request.headers, session.role === 'student' ? session.studentNumber : 0);
-  if (!rateLimit.allowed) {
-    response.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
-    response.status(429).json({ error: 'TOO_MANY_REQUESTS' });
-    return;
+  if (request.method !== 'GET') {
+    const rateLimit = consumeRequestRateLimit('classword-write', request.headers, session.role === 'student' ? session.studentNumber : 0);
+    if (!rateLimit.allowed) {
+      response.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
+      response.status(429).json({ error: 'TOO_MANY_REQUESTS' });
+      return;
+    }
   }
   try {
     if (request.method === 'GET') {

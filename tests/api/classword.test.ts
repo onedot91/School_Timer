@@ -249,6 +249,66 @@ test('학생 제출은 세션 학생 번호를 사용하고 주간 보상을 한
   });
 });
 
+test('학생 화면의 반복 조회 뒤에도 낱말 저장과 퀴즈 조회가 계속 동작한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const headers = {
+      ...sessionHeaders('student', 9),
+      'x-forwarded-for': '198.51.100.29',
+    };
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      if (init?.method === 'DELETE') return new Response(null, { status: 204 });
+      if (url.includes('/classword_rounds')) {
+        return Response.json([{ round_date: TODAY, topic: '자연에서 볼 수 있는 것' }]);
+      }
+      if (url.includes('/classword_quiz_completions')) return Response.json([]);
+      if (url.includes('/classword_entries') && init?.method === 'POST') {
+        return Response.json([{
+          id: 'entry-after-polling', round_date: TODAY, initial: 'ㄱ', word: '고구마',
+          student_number: 9, created_at: '2026-08-30T01:00:00.000Z', updated_at: '2026-08-30T01:00:00.000Z',
+        }], { status: 201 });
+      }
+      if (url.includes('/classword_entries')) return Response.json([]);
+      return Response.json({
+        missionType: 'classword_word_entry', weekKey: '2026-35', completed: true,
+        awarded: true, rewardAmount: 5, balance: 105,
+      });
+    };
+
+    try {
+      const pollingStatuses: number[] = [];
+      for (let cycle = 0; cycle < 5; cycle += 1) {
+        for (const query of [{ dateKey: TODAY }, { quiz: '1', dateKey: TODAY }]) {
+          const requestResponse = createResponse();
+          await handler({ method: 'GET', query, headers }, requestResponse.response);
+          pollingStatuses.push(requestResponse.result().statusCode);
+        }
+      }
+
+      const saveResponse = createResponse();
+      await handler({
+        method: 'POST',
+        headers,
+        body: { action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '고구마' },
+      }, saveResponse.response);
+
+      const nextQuizResponse = createResponse();
+      await handler({
+        method: 'GET',
+        query: { quiz: '1', dateKey: TODAY },
+        headers,
+      }, nextQuizResponse.response);
+
+      assert.deepEqual(pollingStatuses, Array.from({ length: 10 }, () => 200));
+      assert.equal(saveResponse.result().statusCode, 200);
+      assert.equal(nextQuizResponse.result().statusCode, 200);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 test('오늘의 주제가 없으면 학생 낱말 제출을 거부한다', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
