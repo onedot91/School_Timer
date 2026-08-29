@@ -12611,6 +12611,8 @@ h3 {
   --classword-prompt-soft: #f4fbd7;
   --classword-sky: #cceff7;
   --classword-celebrate: #b47b00;
+  --classword-board-height: 27rem;
+  --classword-quiz-initial-size: 6rem;
   --student-warning: #9b4a43;
   --student-warning-soft: #fff0ed;
   --bookstore-paper: #fffdf7;

@@ -18,6 +18,17 @@ import {
   saveLocalClasswordEntry,
   saveLocalClasswordTopic,
 } from './classwordLocalStore';
+import {
+  parseClasswordQuizStudentState,
+  parseClasswordQuizTeacherSummary,
+  type ClasswordQuizStudentState,
+  type ClasswordQuizTeacherSummary,
+} from './classwordQuiz';
+import {
+  loadLocalClasswordQuizStudentState,
+  loadLocalClasswordQuizTeacherSummary,
+  submitLocalClasswordQuizAnswer,
+} from './classwordQuizLocalStore';
 import { appDataMode } from './dataMode';
 
 export const CLASSWORD_LOCAL_CHANGE_EVENT = 'school-timer-classword-change';
@@ -34,6 +45,11 @@ export type SaveClasswordEntryResult = {
   readonly entry: ClasswordEntry;
   readonly awarded: boolean;
   readonly balance: number | null;
+};
+
+export type SubmitClasswordQuizAnswerResult = {
+  readonly correct: boolean;
+  readonly state: ClasswordQuizStudentState;
 };
 
 export class ClasswordClientError extends Error {
@@ -100,6 +116,62 @@ export const loadClasswordUsedTopics = async (): Promise<readonly string[]> => {
     throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
   }
   return [...new Set(value.map((topic) => topic.trim()).filter(Boolean))];
+};
+
+export const loadClasswordQuizStudentState = async (
+  dateKey: string,
+  studentNumber: number,
+): Promise<ClasswordQuizStudentState> => {
+  if (appDataMode === 'mock') {
+    return loadLocalClasswordQuizStudentState(getPrunedLocalStorage(), dateKey, studentNumber);
+  }
+  return parseClasswordQuizStudentState(await request(
+    `/api/classword?quiz=1&dateKey=${encodeURIComponent(dateKey)}`,
+  ));
+};
+
+export const loadTeacherClasswordQuizSummary = async (
+  dateKey: string,
+): Promise<ClasswordQuizTeacherSummary> => {
+  if (appDataMode === 'mock') {
+    return loadLocalClasswordQuizTeacherSummary(getPrunedLocalStorage(), dateKey);
+  }
+  return parseClasswordQuizTeacherSummary(await request(
+    `/api/classword?quiz=1&dateKey=${encodeURIComponent(dateKey)}`,
+  ));
+};
+
+export const submitClasswordQuizAnswer = async (input: {
+  readonly dateKey: string;
+  readonly studentNumber: number;
+  readonly answer: string;
+}): Promise<SubmitClasswordQuizAnswerResult> => {
+  if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
+  if (appDataMode === 'mock') {
+    const result = submitLocalClasswordQuizAnswer(
+      getPrunedLocalStorage(),
+      input.dateKey,
+      input.studentNumber,
+      input.answer,
+    );
+    if (result.correct) dispatchLocalChange();
+    return result;
+  }
+  const value = await request('/api/classword', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'answer_quiz',
+      dateKey: input.dateKey,
+      answer: input.answer,
+    }),
+  });
+  if (!isRecord(value) || typeof value.correct !== 'boolean') {
+    throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
+  }
+  return {
+    correct: value.correct,
+    state: parseClasswordQuizStudentState(value.state),
+  };
 };
 
 export const saveClasswordEntry = async (

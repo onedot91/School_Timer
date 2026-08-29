@@ -2,10 +2,12 @@ import { Dice5, Save, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { getKoreanDateKey, type ClasswordBoard } from '../../lib/classword';
+import type { ClasswordQuizTeacherSummary } from '../../lib/classwordQuiz';
 import {
   clearClasswordDate,
   loadClasswordBoard,
   loadClasswordRounds,
+  loadTeacherClasswordQuizSummary,
   loadClasswordUsedTopics,
   removeClasswordEntry,
   updateClasswordTopic,
@@ -28,6 +30,8 @@ export default function TeacherClasswordPanel() {
   const [board, setBoard] = useState<ClasswordBoard>({ dateKey: today, topic: '', entries: [] });
   const [todayBoard, setTodayBoard] = useState<ClasswordBoard>({ dateKey: today, topic: '', entries: [] });
   const [topic, setTopic] = useState('');
+  const [quizSummary, setQuizSummary] = useState<ClasswordQuizTeacherSummary | null>(null);
+  const [quizMessage, setQuizMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [clearStep, setClearStep] = useState<0 | 1 | 2>(0);
@@ -53,6 +57,24 @@ export default function TeacherClasswordPanel() {
   }, [month, selectedDateKey, today]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    let active = true;
+    const loadQuizSummary = async () => {
+      try {
+        const nextSummary = await loadTeacherClasswordQuizSummary(selectedDateKey);
+        if (!active) return;
+        setQuizSummary(nextSummary);
+        setQuizMessage('');
+      } catch {
+        if (!active) return;
+        setQuizSummary(null);
+        setQuizMessage('낱말 퀴즈 정답자를 불러오지 못했습니다.');
+      }
+    };
+    void loadQuizSummary();
+    return () => { active = false; };
+  }, [selectedDateKey]);
 
   const chooseRandomTopic = () => {
     const used = new Set(usedTopics);
@@ -129,6 +151,27 @@ export default function TeacherClasswordPanel() {
             </li>
           ))}
         </ul>
+      </section>
+      <section className="teacher-classword-quiz-summary" aria-labelledby="teacher-classword-quiz-title">
+        <header>
+          <div>
+            <span>{selectedDateKey}</span>
+            <h3 id="teacher-classword-quiz-title">낱말 퀴즈 정답자</h3>
+          </div>
+          <strong>{quizSummary?.correctStudentNumbers.length ?? 0}명</strong>
+        </header>
+        {quizSummary ? (
+          <div className="teacher-classword-quiz-content">
+            <span className="teacher-classword-quiz-initial">{quizSummary.question.initialHint}</span>
+            <ul aria-label="낱말 퀴즈 정답 학생 번호">
+              {quizSummary.correctStudentNumbers.length === 0
+                ? <li className="is-empty">아직 정답자가 없습니다.</li>
+                : quizSummary.correctStudentNumbers.map((studentNumber) => (
+                    <li key={studentNumber}>{studentNumber}번</li>
+                  ))}
+            </ul>
+          </div>
+        ) : <p className="teacher-classword-message" role="status">{quizMessage || '정답자를 불러오는 중입니다.'}</p>}
       </section>
       <div className="teacher-classword-workspace">
         <ClasswordCalendar

@@ -25,11 +25,25 @@ create table if not exists public.classword_entries (
   constraint classword_entries_initial_day_unique unique (round_date, initial)
 );
 
+create table if not exists public.classword_quiz_completions (
+  id uuid primary key default gen_random_uuid(),
+  quiz_date date not null,
+  question_id text not null,
+  student_number integer not null,
+  completed_at timestamptz not null default now(),
+  constraint classword_quiz_question_id_length check (char_length(trim(question_id)) between 1 and 64),
+  constraint classword_quiz_student_number check (student_number between 1 and 23),
+  constraint classword_quiz_student_question_unique unique (quiz_date, question_id, student_number)
+);
+
 create index if not exists classword_entries_round_date_idx
   on public.classword_entries(round_date);
 
 create index if not exists classword_entries_student_date_idx
   on public.classword_entries(student_number, round_date);
+
+create index if not exists classword_quiz_completions_date_idx
+  on public.classword_quiz_completions(quiz_date, question_id);
 
 create or replace function public.set_classword_updated_at()
 returns trigger
@@ -72,9 +86,12 @@ for each row execute function public.ensure_classword_round();
 
 alter table public.classword_rounds enable row level security;
 alter table public.classword_entries enable row level security;
+alter table public.classword_quiz_completions enable row level security;
 
 revoke all on table public.classword_rounds from public, anon, authenticated;
 revoke all on table public.classword_entries from public, anon, authenticated;
+revoke all on table public.classword_quiz_completions from public, anon, authenticated;
 
 grant select, insert, update, delete on table public.classword_rounds to service_role;
 grant select, insert, update, delete on table public.classword_entries to service_role;
+grant select, insert, update, delete on table public.classword_quiz_completions to service_role;

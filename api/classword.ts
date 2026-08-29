@@ -7,6 +7,10 @@ import {
   validateClasswordWord,
 } from '../src/lib/classword.js';
 import {
+  getDailyClasswordQuiz,
+  isClasswordQuizAnswerCorrect,
+} from '../src/lib/classwordQuiz.js';
+import {
   claimClasswordReward,
   ClasswordRepositoryError,
   deleteClasswordDateEntries,
@@ -14,9 +18,11 @@ import {
   loadClasswordBoard,
   loadClasswordRounds,
   loadClasswordTopic,
+  loadClasswordQuizCompletions,
   loadClasswordUsedTopics,
   pruneClasswordEntries,
   saveClasswordEntry,
+  saveClasswordQuizCompletion,
   saveClasswordTopic,
   type ClasswordRepositoryConfiguration,
 } from '../src/server/classwordRepository.js';
@@ -47,6 +53,7 @@ type ClasswordAction =
       readonly word: string;
     }
   | { readonly type: 'delete_entry'; readonly entryId: string }
+  | { readonly type: 'answer_quiz'; readonly dateKey: string; readonly answer: string }
   | { readonly type: 'save_topic'; readonly dateKey: string; readonly topic: string }
   | { readonly type: 'delete_date_entries'; readonly dateKey: string; readonly confirmation: 'DELETE' };
 
@@ -109,6 +116,14 @@ const parseAction = (body: unknown): ClasswordAction => {
     }
     return { type: action, entryId: value.entryId };
   }
+  if (action === 'answer_quiz') {
+    if (
+      !isClasswordDateKey(value.dateKey)
+      || typeof value.answer !== 'string'
+      || [...value.answer].length > 20
+    ) throw new ClasswordApiError(400, 'INVALID_QUIZ_ANSWER');
+    return { type: action, dateKey: value.dateKey, answer: value.answer };
+  }
   if (action === 'save_topic') {
     if (!isClasswordDateKey(value.dateKey) || typeof value.topic !== 'string' || [...value.topic.trim()].length > 40) {
       throw new ClasswordApiError(400, 'INVALID_TOPIC');
@@ -146,6 +161,28 @@ const handleGet = async (
   configuration: ClasswordRepositoryConfiguration,
   session: DeviceSession,
 ): Promise<void> => {
+  if (getQueryString(request.query?.quiz) === '1') {
+    const dateKey = getQueryString(request.query?.dateKey) ?? getKoreanDateKey();
+    if (!isClasswordDateKey(dateKey)) throw new ClasswordApiError(400, 'INVALID_DATE');
+    const question = getDailyClasswordQuiz(dateKey);
+    const completions = await loadClasswordQuizCompletions(configuration, dateKey, question.id);
+    if (session.role === 'teacher') {
+      response.status(200).json({
+        dateKey,
+        question,
+        correctStudentNumbers: completions.map((completion) => completion.studentNumber),
+      });
+      return;
+    }
+    const completion = completions.find((candidate) => candidate.studentNumber === session.studentNumber);
+    response.status(200).json({
+      dateKey,
+      question,
+      completed: completion !== undefined,
+      completedAt: completion?.completedAt ?? null,
+    });
+    return;
+  }
   if (getQueryString(request.query?.usedTopics) === '1') {
     requireTeacher(session);
     await pruneExpiredEntries(configuration);
@@ -208,6 +245,59 @@ const handlePost = async (
       );
       response.status(200).json({ deleted: true });
       return;
+    case 'answer_quiz': {
+      if (session.role !== 'student') throw new ClasswordApiError(403, 'STUDENT_REQUIRED');
+      if (action.dateKey !== getKoreanDateKey()) throw new ClasswordApiError(403, 'TODAY_ONLY');
+      const question = getDailyClasswordQuiz(action.dateKey);
+      const existingCompletions = await loadClasswordQuizCompletions(
+        configuration,
+        action.dateKey,
+        question.id,
+      );
+      const existingCompletion = existingCompletions.find(
+        (completion) => completion.studentNumber === session.studentNumber,
+      );
+      if (existingCompletion) {
+        response.status(200).json({
+          correct: true,
+          state: {
+            dateKey: action.dateKey,
+            question,
+            completed: true,
+            completedAt: existingCompletion.completedAt,
+          },
+        });
+        return;
+      }
+      if (!isClasswordQuizAnswerCorrect(action.dateKey, action.answer)) {
+        response.status(200).json({
+          correct: false,
+          state: {
+            dateKey: action.dateKey,
+            question,
+            completed: false,
+            completedAt: null,
+          },
+        });
+        return;
+      }
+      const completion = await saveClasswordQuizCompletion(
+        configuration,
+        action.dateKey,
+        question.id,
+        session.studentNumber,
+      );
+      response.status(200).json({
+        correct: true,
+        state: {
+          dateKey: action.dateKey,
+          question,
+          completed: true,
+          completedAt: completion.completedAt,
+        },
+      });
+      return;
+    }
     case 'save_topic':
       requireTeacher(session);
       await pruneExpiredEntries(configuration);

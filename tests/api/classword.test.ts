@@ -3,10 +3,20 @@ import test from 'node:test';
 
 import handler from '../../api/classword.js';
 import { getClasswordEntryRetentionCutoff, getKoreanDateKey } from '../../src/lib/classword.js';
+import { getDailyClasswordQuiz } from '../../src/lib/classwordQuiz.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 const TODAY = getKoreanDateKey();
+const QUIZ_ANSWERS: Readonly<Record<string, string>> = {
+  'saving-resources': '절약',
+  'caring-for-others': '배려',
+  'finishing-your-duty': '책임',
+  'working-together': '협동',
+  'looking-carefully': '관찰',
+  'putting-into-action': '실천',
+  'showing-respect': '존중',
+};
 
 const createResponse = () => {
   let statusCode = 200;
@@ -301,6 +311,108 @@ test('학생 삭제는 세션 학생 번호로 제한하고 교사는 날짜 전
       }, clearResponse.response);
       assert.equal(clearResponse.result().statusCode, 200);
       assert.equal(requests.some(({ url }) => url.includes('round_date=eq.2026-08-29')), true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('학생 퀴즈 조회는 힌트와 자신의 완료 상태만 반환한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json([{
+      quiz_date: TODAY,
+      question_id: getDailyClasswordQuiz(TODAY).id,
+      student_number: 3,
+      completed_at: '2026-08-30T01:00:00.000Z',
+    }]);
+
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'GET',
+        query: { quiz: '1', dateKey: TODAY },
+        headers: sessionHeaders('student', 3),
+      }, response);
+
+      assert.equal(result().statusCode, 200);
+      assert.equal(Reflect.get(result().body as object, 'completed'), true);
+      const question = Reflect.get(result().body as object, 'question');
+      assert.equal(Object.hasOwn(question as object, 'answer'), false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상태를 저장한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const question = getDailyClasswordQuiz(TODAY);
+    const answer = QUIZ_ANSWERS[question.id];
+    assert.ok(answer);
+    let completionSaved = false;
+    let savedStudentNumber: unknown;
+    globalThis.fetch = async (_input, init) => {
+      if (init?.method === 'POST') {
+        const body = JSON.parse(String(init.body));
+        completionSaved = true;
+        savedStudentNumber = Reflect.get(body as object, 'student_number');
+        return new Response(null, { status: 204 });
+      }
+      return completionSaved
+        ? Response.json([{
+            quiz_date: TODAY,
+            question_id: question.id,
+            student_number: 3,
+            completed_at: '2026-08-30T01:00:00.000Z',
+          }])
+        : Response.json([]);
+    };
+
+    try {
+      const wrong = createResponse();
+      await handler({
+        method: 'POST',
+        headers: sessionHeaders('student', 3),
+        body: { action: 'answer_quiz', dateKey: TODAY, answer: '오답' },
+      }, wrong.response);
+      assert.equal(Reflect.get(wrong.result().body as object, 'correct'), false);
+      assert.equal(completionSaved, false);
+
+      const correct = createResponse();
+      await handler({
+        method: 'POST',
+        headers: sessionHeaders('student', 3),
+        body: { action: 'answer_quiz', dateKey: TODAY, answer },
+      }, correct.response);
+      assert.equal(Reflect.get(correct.result().body as object, 'correct'), true);
+      assert.equal(savedStudentNumber, 3);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('교사 퀴즈 조회는 선택 날짜의 정답자 번호와 인원을 확인할 수 있다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const question = getDailyClasswordQuiz(TODAY);
+    globalThis.fetch = async () => Response.json([2, 5].map((studentNumber) => ({
+      quiz_date: TODAY,
+      question_id: question.id,
+      student_number: studentNumber,
+      completed_at: '2026-08-30T01:00:00.000Z',
+    })));
+
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'GET',
+        query: { quiz: '1', dateKey: TODAY },
+        headers: sessionHeaders('teacher'),
+      }, response);
+      assert.deepEqual(Reflect.get(result().body as object, 'correctStudentNumbers'), [2, 5]);
     } finally {
       globalThis.fetch = originalFetch;
     }

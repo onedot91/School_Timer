@@ -6,6 +6,7 @@ import {
   type ClasswordInitial,
   type ClasswordRoundSummary,
 } from '../lib/classword.js';
+import type { ClasswordQuizCompletion } from '../lib/classwordQuiz.js';
 import {
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   getKoreanIsoWeekKey,
@@ -89,6 +90,25 @@ const parseRows = (value: unknown): readonly Record<string, unknown>[] => {
   return value;
 };
 
+const mapQuizCompletionRow = (row: unknown): ClasswordQuizCompletion => {
+  if (
+    !isRecord(row)
+    || typeof row.quiz_date !== 'string'
+    || typeof row.question_id !== 'string'
+    || typeof row.student_number !== 'number'
+    || !Number.isInteger(row.student_number)
+    || row.student_number < 1
+    || row.student_number > 23
+    || typeof row.completed_at !== 'string'
+  ) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+  return {
+    dateKey: row.quiz_date,
+    questionId: row.question_id,
+    studentNumber: row.student_number,
+    completedAt: row.completed_at,
+  };
+};
+
 export const loadClasswordBoard = async (
   configuration: ClasswordRepositoryConfiguration,
   dateKey: string,
@@ -145,6 +165,43 @@ export const loadClasswordTopic = async (
   );
   const row = parseRows(value)[0];
   return row && typeof row.topic === 'string' ? row.topic : '';
+};
+
+export const loadClasswordQuizCompletions = async (
+  configuration: ClasswordRepositoryConfiguration,
+  dateKey: string,
+  questionId: string,
+): Promise<readonly ClasswordQuizCompletion[]> => {
+  const value = await request(
+    configuration,
+    `classword_quiz_completions?quiz_date=eq.${encodeURIComponent(dateKey)}&question_id=eq.${encodeURIComponent(questionId)}&select=quiz_date,question_id,student_number,completed_at&order=student_number.asc`,
+  );
+  return parseRows(value).map(mapQuizCompletionRow);
+};
+
+export const saveClasswordQuizCompletion = async (
+  configuration: ClasswordRepositoryConfiguration,
+  dateKey: string,
+  questionId: string,
+  studentNumber: number,
+): Promise<ClasswordQuizCompletion> => {
+  await request(
+    configuration,
+    'classword_quiz_completions?on_conflict=quiz_date,question_id,student_number',
+    {
+      method: 'POST',
+      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      body: JSON.stringify({
+        quiz_date: dateKey,
+        question_id: questionId,
+        student_number: studentNumber,
+      }),
+    },
+  );
+  const completions = await loadClasswordQuizCompletions(configuration, dateKey, questionId);
+  const completion = completions.find((candidate) => candidate.studentNumber === studentNumber);
+  if (!completion) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+  return completion;
 };
 
 export const saveClasswordEntry = async (

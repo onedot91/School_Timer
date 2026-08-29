@@ -3,16 +3,20 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getKoreanDateKey, type ClasswordBoard as ClasswordBoardData, type ClasswordInitial } from '../../lib/classword';
+import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
 import { playClasswordSound } from '../../lib/classwordAudio';
 import {
   CLASSWORD_LOCAL_CHANGE_EVENT,
   ClasswordClientError,
   loadClasswordBoard,
+  loadClasswordQuizStudentState,
   removeClasswordEntry,
   saveClasswordEntry,
+  submitClasswordQuizAnswer,
 } from '../../lib/classwordClient';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import ClasswordBoard from './ClasswordBoard';
+import ClasswordQuiz from './ClasswordQuiz';
 import StudentHeader from './StudentHeader';
 
 type StudentClasswordPageProps = {
@@ -63,6 +67,10 @@ export default function StudentClasswordPage({
   const [board, setBoard] = useState<ClasswordBoardData>(EMPTY_BOARD);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [quizState, setQuizState] = useState<ClasswordQuizStudentState | null>(null);
+  const [quizLoading, setQuizLoading] = useState(true);
+  const [quizSaving, setQuizSaving] = useState(false);
+  const [quizLoadError, setQuizLoadError] = useState('');
   const [feedback, setFeedback] = useState<{ readonly kind: 'status' | 'error'; readonly message: string } | null>(null);
   const completionCountRef = useRef(0);
   const dateKey = getKoreanDateKey();
@@ -82,13 +90,32 @@ export default function StudentClasswordPage({
     }
   }, [dateKey]);
 
+  const refreshQuiz = useCallback(async (): Promise<void> => {
+    try {
+      const nextState = await loadClasswordQuizStudentState(dateKey, studentNumber);
+      setQuizState(nextState);
+      setQuizLoadError('');
+    } catch {
+      setQuizLoadError('낱말 퀴즈를 불러오지 못했어요.');
+    } finally {
+      setQuizLoading(false);
+    }
+  }, [dateKey, studentNumber]);
+
   useEffect(() => {
     void refresh();
+    void refreshQuiz();
     const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void refresh();
+      if (document.visibilityState === 'visible') {
+        void refresh();
+        void refreshQuiz();
+      }
     }, 3000);
     const refreshOnReturn = () => {
-      if (document.visibilityState === 'visible') void refresh();
+      if (document.visibilityState === 'visible') {
+        void refresh();
+        void refreshQuiz();
+      }
     };
     window.addEventListener('focus', refreshOnReturn);
     window.addEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, refreshOnReturn);
@@ -99,7 +126,27 @@ export default function StudentClasswordPage({
       window.removeEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, refreshOnReturn);
       document.removeEventListener('visibilitychange', refreshOnReturn);
     };
-  }, [refresh]);
+  }, [refresh, refreshQuiz]);
+
+  const submitQuiz = async (answer: string): Promise<boolean> => {
+    setQuizSaving(true);
+    try {
+      const result = await submitClasswordQuizAnswer({ dateKey, studentNumber, answer });
+      setQuizState(result.state);
+      setQuizLoadError('');
+      void playClasswordSound(result.correct ? 'success' : 'error');
+      return result.correct;
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setQuizLoadError(message === '낱말판을 저장하지 못했어요.'
+        ? '정답을 확인하지 못했어요.'
+        : message);
+      void playClasswordSound('error');
+      throw error;
+    } finally {
+      setQuizSaving(false);
+    }
+  };
 
   const save = async (input: {
     readonly entryId?: string;
@@ -167,10 +214,9 @@ export default function StudentClasswordPage({
         onBack={onBack}
         backLabel="미션으로 돌아가기"
         backText="미션"
-        status={<span>{board.entries.length}/14칸</span>}
       />
 
-      <main className={`classword-paper${completed ? ' is-complete' : ''}`} aria-busy={loading || saving}>
+      <main className={`classword-paper${completed ? ' is-complete' : ''}`} aria-busy={loading || saving || quizSaving}>
         {feedback ? (
           <p className={`classword-feedback is-${feedback.kind}`} role={feedback.kind === 'error' ? 'alert' : 'status'}>
             {feedback.message}
@@ -198,6 +244,13 @@ export default function StudentClasswordPage({
             setFeedback(null);
             void playClasswordSound('select');
           }}
+        />
+        <ClasswordQuiz
+          state={quizState}
+          loading={quizLoading}
+          saving={quizSaving}
+          loadError={quizLoadError}
+          onSubmit={submitQuiz}
         />
       </main>
     </div>

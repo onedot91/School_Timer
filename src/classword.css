@@ -41,7 +41,8 @@
   display: grid;
   min-block-size: 0;
   container-type: inline-size;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: .75rem;
   overflow: auto;
   padding: clamp(.75rem, 1.4vw, 1.25rem);
   border: 0;
@@ -263,6 +264,154 @@
 .classword-feedback { position: absolute; z-index: 3; inset: 1.6rem 1.6rem auto auto; max-inline-size: min(22rem, calc(100% - 3.2rem)); margin: 0; padding: .65rem .85rem; border: 1px solid var(--classword-line); border-radius: var(--apple-radius-pill); color: var(--classword-ink); background: color-mix(in srgb, var(--classword-paper) 96%, transparent); box-shadow: 0 .5rem 1.25rem rgba(47, 58, 53, .12); font-size: .875rem; font-weight: 800; }
 .classword-feedback.is-error { border-color: color-mix(in srgb, var(--student-warning) 45%, var(--classword-line)); color: var(--student-warning); background: color-mix(in srgb, var(--student-warning-soft) 94%, white); }
 
+.classword-quiz {
+  display: grid;
+  align-content: center;
+  gap: .5rem;
+  padding: .75rem;
+  border: 1px solid var(--classword-line);
+  border-radius: var(--apple-radius-panel);
+  background:
+    radial-gradient(circle at 84% 0%, color-mix(in srgb, var(--classword-prompt) 25%, transparent), transparent 18rem),
+    linear-gradient(115deg, color-mix(in srgb, var(--classword-prompt-soft) 74%, white), color-mix(in srgb, var(--classword-sky) 32%, white));
+  box-shadow: 0 .65rem 1.5rem rgba(67, 52, 37, .08);
+}
+
+.classword-quiz > header {
+  display: flex;
+  min-inline-size: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.classword-quiz h2 {
+  margin: 0;
+  color: var(--classword-ink);
+  font-size: 1.125rem;
+  font-weight: 900;
+  letter-spacing: -.02em;
+}
+
+.classword-quiz > header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  color: var(--classword-accent);
+  font-size: .875rem;
+  font-weight: 850;
+}
+
+.classword-quiz > header svg { inline-size: 1rem; }
+
+.classword-quiz-body {
+  display: grid;
+  min-inline-size: 0;
+  grid-template-columns: var(--classword-quiz-initial-size) minmax(0, 1fr) minmax(22rem, .85fr);
+  align-items: center;
+  gap: .75rem;
+}
+
+.classword-quiz-initial {
+  display: grid;
+  inline-size: var(--classword-quiz-initial-size);
+  block-size: var(--classword-quiz-initial-size);
+  place-items: center;
+  border: 2px solid color-mix(in srgb, var(--classword-accent) 75%, var(--classword-line));
+  border-radius: var(--apple-radius-card);
+  color: var(--classword-accent);
+  background: color-mix(in srgb, var(--classword-accent-soft) 82%, white);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .88), 0 .35rem .8rem rgba(47, 58, 53, .08);
+  font-size: 1.65rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.classword-quiz-copy {
+  display: grid;
+  min-inline-size: 0;
+  gap: .35rem;
+  min-block-size: var(--classword-quiz-initial-size);
+  align-content: center;
+  padding: .75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--classword-line) 75%, white);
+  border-radius: var(--apple-radius-card);
+  background: color-mix(in srgb, var(--classword-paper) 94%, transparent);
+}
+
+.classword-quiz-copy p {
+  display: flex;
+  min-inline-size: 0;
+  align-items: baseline;
+  gap: .55rem;
+  margin: 0;
+  color: var(--classword-ink-muted);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.classword-quiz-copy p:first-child { color: var(--classword-ink); }
+.classword-quiz-copy p > span {
+  flex: 0 0 auto;
+  padding: .1rem .45rem;
+  border-radius: var(--apple-radius-pill);
+  color: var(--classword-accent);
+  background: var(--classword-prompt-soft);
+  font-size: .8rem;
+  font-weight: 900;
+}
+
+.classword-quiz-copy strong { font-weight: 900; }
+.classword-quiz form { display: grid; min-inline-size: 0; gap: .25rem; }
+.classword-quiz form > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.classword-quiz input {
+  min-inline-size: 0;
+  min-block-size: 3.5rem;
+  padding-inline: .85rem;
+  border: 1px solid var(--classword-line);
+  border-radius: var(--apple-radius-control);
+  color: var(--classword-ink);
+  background: var(--apple-surface);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.classword-quiz form button {
+  display: inline-flex;
+  min-block-size: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding-inline: 1rem;
+  border: 0;
+  border-radius: var(--apple-radius-pill);
+  color: var(--apple-surface);
+  background: var(--classword-accent);
+  font-size: 1rem;
+  font-weight: 900;
+  transition: transform var(--student-motion-press) var(--student-ease-out), background var(--student-motion-state) ease;
+}
+
+.classword-quiz form button:enabled:active { transform: scale(.98); }
+.classword-quiz :is(input, button):focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 2px; }
+.classword-quiz :is(input, button):disabled { cursor: default; color: var(--classword-ink-muted); background: var(--apple-surface-muted); }
+.classword-quiz-feedback {
+  min-block-size: 1.2rem;
+  margin: 0;
+  color: var(--classword-ink-muted);
+  font-size: .875rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.classword-quiz.is-complete {
+  border-color: var(--classword-line-strong);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--classword-accent) 15%, transparent), 0 .65rem 1.5rem rgba(67, 52, 37, .08);
+}
+
+.classword-quiz-unavailable { min-block-size: 4.75rem; display: grid; place-items: center; margin: 0; color: var(--classword-ink-muted); font-size: .875rem; font-weight: 800; }
+
 @keyframes classword-particles {
   0% { opacity: 0; transform: scale(.7); }
   30% { opacity: 1; }
@@ -277,13 +426,24 @@
 .teacher-classword-workspace { display: grid; grid-template-columns: minmax(18rem, .9fr) minmax(22rem, 1.1fr); gap: 1rem; align-items: start; }
 .teacher-classword-calendar,
 .teacher-classword-editor,
-.teacher-classword-today-entries { padding: 1rem; border: 1px solid var(--classword-line); border-radius: 1.25rem; background: var(--classword-paper); box-shadow: 0 .65rem 1.5rem rgba(67, 52, 37, .07); }
+.teacher-classword-today-entries,
+.teacher-classword-quiz-summary { padding: 1rem; border: 1px solid var(--classword-line); border-radius: 1.25rem; background: var(--classword-paper); box-shadow: 0 .65rem 1.5rem rgba(67, 52, 37, .07); }
 .teacher-classword-today-entries { display: grid; gap: .75rem; }
 .teacher-classword-today-entries > header { display: flex; align-items: center; justify-content: space-between; }
 .teacher-classword-today-entries > header span { color: var(--classword-accent); font-size: .75rem; font-weight: 800; }
 .teacher-classword-today-entries > header h3 { margin: .1rem 0 0; font-size: 1.15rem; }
 .teacher-classword-today-entries > header strong { padding: .4rem .75rem; border-radius: 999px; color: var(--classword-accent); background: var(--classword-accent-soft); font-size: .85rem; }
 .teacher-classword-today-entries .teacher-classword-entry-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-block-size: 9rem; }
+.teacher-classword-quiz-summary { display: grid; gap: .75rem; }
+.teacher-classword-quiz-summary > header { display: flex; align-items: center; justify-content: space-between; }
+.teacher-classword-quiz-summary > header span { color: var(--classword-accent); font-size: .75rem; font-weight: 800; }
+.teacher-classword-quiz-summary > header h3 { margin: .1rem 0 0; font-size: 1.15rem; }
+.teacher-classword-quiz-summary > header > strong { padding: .4rem .75rem; border-radius: var(--apple-radius-pill); color: var(--classword-accent); background: var(--classword-accent-soft); font-size: .85rem; }
+.teacher-classword-quiz-content { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); align-items: center; gap: .75rem; }
+.teacher-classword-quiz-initial { display: grid; inline-size: 3.5rem; block-size: 3.5rem; place-items: center; border-radius: var(--apple-radius-card); color: var(--classword-accent); background: var(--classword-prompt-soft); font-size: 1.1rem; font-weight: 950; letter-spacing: .08em; }
+.teacher-classword-quiz-content ul { display: flex; min-inline-size: 0; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+.teacher-classword-quiz-content li { padding: .45rem .7rem; border: 1px solid var(--classword-line); border-radius: var(--apple-radius-pill); color: var(--classword-accent); background: var(--classword-accent-soft); font-size: .85rem; font-weight: 850; }
+.teacher-classword-quiz-content li.is-empty { color: var(--classword-ink-muted); background: var(--apple-surface-muted); }
 .teacher-classword-calendar > header { display: grid; grid-template-columns: 2.75rem 1fr 2.75rem auto; align-items: center; gap: .35rem; }
 .teacher-classword-calendar h3 { margin: 0; text-align: center; font-size: 1.05rem; }
 .teacher-classword-calendar header button { display: inline-grid; min-inline-size: 2.75rem; min-block-size: 2.75rem; place-items: center; border: 1px solid var(--classword-line); border-radius: .8rem; color: var(--classword-accent); background: white; font-weight: 800; }
@@ -341,8 +501,16 @@
   }
 }
 
+@media (min-width: 70rem) {
+  .classword-paper {
+    grid-template-rows: minmax(0, var(--classword-board-height)) minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 1100px) {
   .classword-grid { grid-template-columns: repeat(4, minmax(8rem, 1fr)); grid-template-rows: none; }
+  .classword-quiz-body { grid-template-columns: var(--classword-quiz-initial-size) minmax(0, 1fr); }
+  .classword-quiz form { grid-column: 1 / -1; }
   .teacher-classword-workspace { grid-template-columns: 1fr; }
   .teacher-classword-today-entries .teacher-classword-entry-list { grid-template-columns: 1fr; }
 }
@@ -360,4 +528,6 @@
   .classword-cell-main,
   .classword-particles { transition: none; animation: none; }
   .classword-cell-main:enabled:active { transform: none; }
+  .classword-quiz form button { transition: none; }
+  .classword-quiz form button:enabled:active { transform: none; }
 }
