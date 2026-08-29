@@ -80,6 +80,30 @@ test('실패 전시하기는 학생과 주차별로 10고마를 한 번만 지�
   ), true);
 });
 
+test('ㄱㄴㄷ 게임은 같은 날짜에 5고마를 한 번만 받고 다음 날짜에 다시 받는다', () => {
+  const first = claimWeeklyMissionRewardInSettings({
+    currencyBalances: { 6: 100 },
+    currencyHistory: { 6: [] },
+  }, 6, '2026-08-30', CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE);
+  const repeated = claimWeeklyMissionRewardInSettings(
+    first.value,
+    6,
+    '2026-08-30',
+    CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+  );
+  const nextDay = claimWeeklyMissionRewardInSettings(
+    repeated.value,
+    6,
+    '2026-08-31',
+    CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+  );
+
+  assert.equal(first.awarded, true);
+  assert.equal(repeated.awarded, false);
+  assert.equal(nextDay.awarded, true);
+  assert.equal(nextDay.balance, 110);
+});
+
 test('weekly mission response parser rejects incomplete server payloads', () => {
   assert.throws(() => parseWeeklyMissionResult({ completed: true }), /WEEKLY_MISSION_INVALID_RESPONSE/);
   assert.deepEqual(parseWeeklyMissionResult({

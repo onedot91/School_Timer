@@ -206,7 +206,7 @@ test('전체 사용 주제 조회는 교사에게만 허용하고 중복을 제�
   });
 });
 
-test('학생 제출은 세션 학생 번호를 사용하고 주간 보상을 한 번 요청한다', async () => {
+test('학생 제출은 세션 학생 번호와 오늘 날짜로 일일 보상을 한 번 요청한다', async () => {
   // Given
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
@@ -223,7 +223,7 @@ test('학생 제출은 세션 학생 번호를 사용하고 주간 보상을 한
         student_number: 3, created_at: '2026-08-29T01:00:00.000Z', updated_at: '2026-08-29T01:00:00.000Z',
       }]);
       return Response.json({
-        missionType: 'classword_word_entry', weekKey: '2026-35', completed: true,
+        missionType: 'classword_word_entry', weekKey: TODAY, completed: true,
         awarded: true, rewardAmount: 5, balance: 105,
       });
     };
@@ -242,6 +242,7 @@ test('학생 제출은 세션 학생 번호를 사용하고 주간 보상을 한
       assert.equal(Reflect.get(result().body as object, 'awarded'), true);
       assert.equal(Reflect.get(requestBodies[0] as object, 'student_number'), 3);
       assert.equal(Reflect.get(requestBodies[1] as object, 'p_mission_type'), 'classword_word_entry');
+      assert.equal(Reflect.get(requestBodies[1] as object, 'p_week_key'), TODAY);
       assert.equal(Reflect.get(requestBodies[1] as object, 'p_source_event_id'), 'entry-new');
     } finally {
       globalThis.fetch = originalFetch;

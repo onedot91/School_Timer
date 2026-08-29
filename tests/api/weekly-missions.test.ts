@@ -60,7 +60,7 @@ test('server checks the question source and internal classword entries independe
     const missionType = String(rpcBody.p_mission_type);
     return Response.json({
       missionType,
-      weekKey,
+      weekKey: String(rpcBody.p_week_key),
       completed: rpcBody.p_source_event_id !== null,
       awarded: rpcBody.p_source_event_id !== null,
       rewardAmount: getWeeklyMissionRewardAmount(missionType as WeeklyMissionType),
@@ -82,7 +82,7 @@ test('server checks the question source and internal classword entries independe
       },
       {
         p_student_number: 21,
-        p_week_key: weekKey,
+        p_week_key: range.today,
         p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
         p_source_event_id: 'entry-21',
       },
@@ -124,7 +124,7 @@ test('a malformed question response does not block a valid internal classword re
     claimedMissionTypes.push(missionType);
     return Response.json({
       missionType,
-      weekKey,
+      weekKey: String(rpcBody.p_week_key),
       completed: rpcBody.p_source_event_id !== null,
       awarded: rpcBody.p_source_event_id !== null,
       rewardAmount: getWeeklyMissionRewardAmount(missionType as WeeklyMissionType),

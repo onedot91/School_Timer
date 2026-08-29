@@ -1,4 +1,4 @@
-import { getKoreanWeekDateRange } from '../src/lib/classwordWeeklyMission.js';
+import { getKoreanDateKey } from '../src/lib/classword.js';
 import {
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   findPersonalQuestionForWeek,
@@ -28,6 +28,12 @@ interface ApiResponse {
 interface MissionClaimInput {
   readonly missionType: WeeklyMissionType;
   readonly sourceEventId: string | null;
+  readonly rewardKey: string;
+}
+
+interface SupabaseConfiguration {
+  readonly url: string;
+  readonly serviceRoleKey: string;
 }
 
 const QUESTION_STUDENT_ENDPOINT = 'https://question-news.vercel.app/api/student';
@@ -52,24 +58,21 @@ const fetchJson = async (url: URL) => {
 };
 
 const loadClasswordEntryId = async (
-  supabaseUrl: string,
-  serviceRoleKey: string,
+  configuration: SupabaseConfiguration,
   studentNumber: number,
-  startDate: string,
-  endDate: string,
+  dateKey: string,
 ) => {
-  const url = new URL(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/classword_entries`);
+  const url = new URL(`${configuration.url.replace(/\/$/, '')}/rest/v1/classword_entries`);
   url.searchParams.set('student_number', `eq.${studentNumber}`);
-  url.searchParams.set('round_date', `gte.${startDate}`);
-  url.searchParams.append('round_date', `lte.${endDate}`);
+  url.searchParams.set('round_date', `eq.${dateKey}`);
   url.searchParams.set('select', 'id,round_date');
   url.searchParams.set('order', 'created_at.asc');
   url.searchParams.set('limit', '1');
   const classwordResponse = await fetch(url, {
     headers: {
       Accept: 'application/json',
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: configuration.serviceRoleKey,
+      Authorization: `Bearer ${configuration.serviceRoleKey}`,
     },
     signal: AbortSignal.timeout(8000),
   });
@@ -85,23 +88,21 @@ const loadClasswordEntryId = async (
 };
 
 const claimMission = async (
-  supabaseUrl: string,
-  serviceRoleKey: string,
+  configuration: SupabaseConfiguration,
   studentNumber: number,
-  weekKey: string,
   input: MissionClaimInput,
 ): Promise<WeeklyMissionResult> => {
-  const rpcResponse = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/rpc/claim_weekly_mission_reward`, {
+  const rpcResponse = await fetch(`${configuration.url.replace(/\/$/, '')}/rest/v1/rpc/claim_weekly_mission_reward`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: configuration.serviceRoleKey,
+      Authorization: `Bearer ${configuration.serviceRoleKey}`,
     },
     body: JSON.stringify({
       p_student_number: studentNumber,
-      p_week_key: weekKey,
+      p_week_key: input.rewardKey,
       p_mission_type: input.missionType,
       p_source_event_id: input.sourceEventId,
     }),
@@ -168,7 +169,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   try {
     const weekKey = getKoreanIsoWeekKey();
-    const range = getKoreanWeekDateRange();
+    const dateKey = getKoreanDateKey();
+    const configuration = { url: supabaseUrl, serviceRoleKey } satisfies SupabaseConfiguration;
     const questionUrl = new URL(QUESTION_STUDENT_ENDPOINT);
     questionUrl.searchParams.set('studentNumber', String(studentNumber));
     questionUrl.searchParams.set('weekKey', weekKey);
@@ -179,11 +181,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         weekKey,
       )),
       loadClasswordEntryId(
-        supabaseUrl,
-        serviceRoleKey,
+        configuration,
         studentNumber,
-        range.startDate,
-        range.endDate,
+        dateKey,
       ),
     ]);
     if (questionResult.status === 'rejected') {
@@ -197,14 +197,19 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       : null;
     const classwordEntryId = classwordResult.status === 'fulfilled' ? classwordResult.value : null;
     const claims: readonly MissionClaimInput[] = [
-      { missionType: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE, sourceEventId: personalQuestion?.id ?? null },
+      {
+        missionType: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
+        sourceEventId: personalQuestion?.id ?? null,
+        rewardKey: weekKey,
+      },
       {
         missionType: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
         sourceEventId: classwordEntryId,
+        rewardKey: dateKey,
       },
     ];
     const claimResults = await Promise.allSettled(claims.map((claim) => (
-      claimMission(supabaseUrl, serviceRoleKey, studentNumber, weekKey, claim)
+      claimMission(configuration, studentNumber, claim)
     )));
     const successfulClaims = claimResults.flatMap((result) => (
       result.status === 'fulfilled' ? [result.value] : []
@@ -218,7 +223,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       console.warn('Failed to claim one weekly mission reward.', result.reason);
       return {
         missionType: claims[index].missionType,
-        weekKey,
+        weekKey: claims[index].rewardKey,
         completed: false,
         awarded: false,
         rewardAmount: getWeeklyMissionRewardAmount(claims[index].missionType),

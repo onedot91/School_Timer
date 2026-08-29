@@ -9,7 +9,6 @@ import {
 import type { ClasswordQuizCompletion } from '../lib/classwordQuiz.js';
 import {
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-  getKoreanIsoWeekKey,
   parseWeeklyMissionResult,
   type WeeklyMissionResult,
 } from '../lib/weeklyMission.js';
@@ -25,6 +24,12 @@ export type ClasswordEntryWrite = {
   readonly initial: ClasswordInitial;
   readonly word: string;
   readonly studentNumber: number;
+};
+
+export type ClasswordRewardClaim = {
+  readonly studentNumber: number;
+  readonly entryId: string;
+  readonly dateKey: string;
 };
 
 export class ClasswordRepositoryError extends Error {
@@ -284,18 +289,17 @@ export const pruneClasswordEntries = async (
 
 export const claimClasswordReward = async (
   configuration: ClasswordRepositoryConfiguration,
-  studentNumber: number,
-  entryId: string,
+  claim: ClasswordRewardClaim,
 ): Promise<WeeklyMissionResult> => parseWeeklyMissionResult(await request(
   configuration,
   'rpc/claim_weekly_mission_reward',
   {
     method: 'POST',
     body: JSON.stringify({
-      p_student_number: studentNumber,
-      p_week_key: getKoreanIsoWeekKey(),
+      p_student_number: claim.studentNumber,
+      p_week_key: claim.dateKey,
       p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-      p_source_event_id: entryId,
+      p_source_event_id: claim.entryId,
     }),
   },
 ));

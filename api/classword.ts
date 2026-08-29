@@ -228,7 +228,11 @@ const handlePost = async (
       });
       let mission = null;
       try {
-        mission = await claimClasswordReward(configuration, session.studentNumber, entry.id);
+        mission = await claimClasswordReward(configuration, {
+          studentNumber: session.studentNumber,
+          entryId: entry.id,
+          dateKey: action.dateKey,
+        });
       } catch (error) {
         if (!(error instanceof Error)) throw error;
       }

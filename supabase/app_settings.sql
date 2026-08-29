@@ -78,7 +78,7 @@ with check (true);
 
 create table if not exists public.weekly_mission_rewards (
   student_number smallint not null check (student_number between 1 and 23),
-  week_key text not null check (week_key ~ '^\d{4}-\d{2}$'),
+  week_key text not null check (week_key ~ '^\d{4}-\d{2}$' or week_key ~ '^\d{4}-\d{2}-\d{2}$'),
   mission_type text not null default 'personal_question' check (mission_type in ('personal_question', 'classword_word_entry', 'classword_quiz_correct')),
   reward_amount integer not null default 5 check (reward_amount in (5, 10)),
   source_event_id text not null,
@@ -88,6 +88,12 @@ create table if not exists public.weekly_mission_rewards (
 
 alter table public.weekly_mission_rewards enable row level security;
 revoke all on table public.weekly_mission_rewards from public, anon, authenticated;
+
+alter table public.weekly_mission_rewards
+  drop constraint if exists weekly_mission_rewards_week_key_check;
+alter table public.weekly_mission_rewards
+  add constraint weekly_mission_rewards_week_key_check
+  check (week_key ~ '^\d{4}-\d{2}$' or week_key ~ '^\d{4}-\d{2}-\d{2}$') not valid;
 
 do $$
 begin
@@ -146,7 +152,11 @@ begin
   if p_student_number is null or p_student_number < 1 or p_student_number > 23 then
     raise exception 'INVALID_STUDENT_NUMBER';
   end if;
-  if p_week_key is null or p_week_key !~ '^\d{4}-\d{2}$' then
+  if p_week_key is null or (
+    p_mission_type = 'personal_question' and p_week_key !~ '^\d{4}-\d{2}$'
+  ) or (
+    p_mission_type = 'classword_word_entry' and p_week_key !~ '^\d{4}-\d{2}-\d{2}$'
+  ) then
     raise exception 'INVALID_WEEK_KEY';
   end if;
   if p_mission_type is null or p_mission_type not in ('personal_question', 'classword_word_entry') then
