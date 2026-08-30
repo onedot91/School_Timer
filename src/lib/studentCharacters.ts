@@ -268,3 +268,26 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     },
   },
 ];
+
+export interface StudentCharacterRosterSlot {
+  studentNumber: number;
+  character: StudentCharacter | null;
+}
+
+export const getStudentCharacterRoster = (): StudentCharacterRosterSlot[] => {
+  const characterByStudentNumber = new Map<number, StudentCharacter>();
+
+  STUDENT_CHARACTERS.forEach((character) => {
+    const match = /^(\d+)번$/.exec(character.creatorName ?? '');
+    const studentNumber = match ? Number(match[1]) : 0;
+    if (studentNumber >= 1 && studentNumber <= 23) characterByStudentNumber.set(studentNumber, character);
+  });
+
+  return Array.from({ length: 23 }, (_, index) => {
+    const studentNumber = index + 1;
+    return {
+      studentNumber,
+      character: characterByStudentNumber.get(studentNumber) ?? null,
+    };
+  });
+};

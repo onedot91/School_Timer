@@ -155,6 +155,7 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
     onOpenClassword: () => undefined,
+    onOpenTodayFriend: () => undefined,
     onBack: () => undefined,
   });
 
@@ -165,6 +166,7 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   const teacherMissionIndex = markup.indexOf('인사하기');
   const emotionMissionIndex = markup.indexOf('감정 구슬 넣기');
   const writingMissionIndex = markup.indexOf('글밥짓기');
+  const todayFriendMissionIndex = markup.indexOf('오늘의 친구');
   const classwordMissionIndex = markup.indexOf('ㄱㄴㄷ 게임');
   const weeklyMissionIndex = markup.indexOf('주간 미션');
   const personalQuestionMissionIndex = markup.indexOf('신문에 개인 질문하기');
@@ -172,6 +174,8 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   const sudokuMissionIndex = markup.indexOf('스도쿠');
   assert.ok(teacherMissionIndex >= 0);
   assert.ok(teacherMissionIndex < writingMissionIndex);
+  assert.ok(todayFriendMissionIndex >= 0);
+  assert.ok(todayFriendMissionIndex < writingMissionIndex);
   assert.ok(writingMissionIndex < emotionMissionIndex);
   assert.ok(emotionMissionIndex < classwordMissionIndex);
   assert.ok(classwordMissionIndex < weeklyMissionIndex);
@@ -179,6 +183,7 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   assert.ok(personalQuestionMissionIndex < failureExhibitionMissionIndex);
   assert.ok(failureExhibitionMissionIndex < sudokuMissionIndex);
   assert.match(markup, /src="\/mission-illustrations\/teacher-mission-3\.png"/);
+  assert.match(markup, /src="\/mission-illustrations\/today-friend\.png"/);
   assert.match(markup, /student-mission-illustration-title/);
   assert.match(markup, />인사하기</);
   assert.match(markup, /student-mission-card-manual/);
@@ -222,6 +227,7 @@ test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
     onOpenClassword: () => undefined,
+    onOpenTodayFriend: () => undefined,
     onBack: () => undefined,
   };
   const settings = normalizeClassroomRoleMissionSettings({
@@ -277,6 +283,7 @@ test('전용 일러스트가 있는 미션 카드는 해당 4대3 이미지를 �
     onOpenSudoku: () => undefined,
     onOpenNumberBaseball: () => undefined,
     onOpenClassword: () => undefined,
+    onOpenTodayFriend: () => undefined,
     onBack: () => undefined,
   });
 
@@ -293,4 +300,5 @@ test('전용 일러스트가 있는 미션 카드는 해당 4대3 이미지를 �
   assert.match(markup, /src="\/mission-illustrations\/failure-exhibition\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/book-stacking\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/classword-game\.png"/);
+  assert.match(markup, /src="\/mission-illustrations\/today-friend\.png"/);
 });

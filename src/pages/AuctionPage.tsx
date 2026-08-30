@@ -13,6 +13,7 @@ import StudentStorePage from '../components/student/StudentStorePage';
 import StudentSudokuPage from '../components/student/StudentSudokuPage';
 import StudentNumberBaseballPage from '../components/student/StudentNumberBaseballPage';
 import StudentClasswordPage from '../components/student/StudentClasswordPage';
+import StudentTodayFriendPage from '../components/student/StudentTodayFriendPage';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
   AUCTION_BID_STEP,
@@ -172,7 +173,7 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'classword' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'today-friend' | 'classword' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -199,6 +200,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   overview: '#student-overview',
   emotions: '#student-emotions',
   missions: '#student-missions',
+  'today-friend': '#student-today-friend',
   classword: '#student-classword',
   sudoku: '#student-sudoku',
   'number-baseball': '#student-number-baseball',
@@ -1746,7 +1748,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               navigateStudentView('number-baseball');
             }}
             onOpenClassword={() => navigateStudentView('classword')}
+            onOpenTodayFriend={() => navigateStudentView('today-friend')}
             onBack={() => navigateStudentView('overview')}
+          />
+        ) : null}
+        {activeStudentView === 'today-friend' ? (
+          <StudentTodayFriendPage
+            studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
+            onBack={() => navigateStudentView('missions')}
           />
         ) : null}
         {activeStudentView === 'classword' ? (

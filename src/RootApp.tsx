@@ -14,6 +14,7 @@ import EntrySelectPage from './pages/EntrySelectPage';
 import TimerPage from './pages/TimerPage';
 
 const SELECTED_ENTRY_NUMBER_STORAGE_KEY = 'school-timer-entry-number-v1';
+const TEACHER_ENTRY_VISIBLE_STORAGE_KEY = 'school-timer-teacher-entry-visible-v1';
 
 const getPlatformText = () => {
   if (typeof window === 'undefined') return '';
@@ -69,11 +70,31 @@ const clearStoredEntryNumber = () => {
   }
 };
 
+const getStoredTeacherEntryVisible = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(TEACHER_ENTRY_VISIBLE_STORAGE_KEY) === 'true';
+  } catch (error) {
+    if (error instanceof Error) return false;
+    throw error;
+  }
+};
+
+const storeTeacherEntryVisible = () => {
+  try {
+    window.localStorage.setItem(TEACHER_ENTRY_VISIBLE_STORAGE_KEY, 'true');
+  } catch (error) {
+    if (error instanceof Error) return;
+    throw error;
+  }
+};
+
 export default function RootApp() {
   const [hasRuntimeError, setHasRuntimeError] = useState(false);
   const [selectedEntryNumber, setSelectedEntryNumber] = useState<number | null>(() => getStoredEntryNumber());
   const [deviceSession, setDeviceSession] = useState<BrowserDeviceSession | null>(null);
   const [isDeviceSessionReady, setIsDeviceSessionReady] = useState(!requiresDeviceRegistration);
+  const [teacherEntryVisible, setTeacherEntryVisible] = useState(() => getStoredTeacherEntryVisible());
 
   const selectEntryNumber = async (studentNumber: number, registrationKey?: string) => {
     if (requiresDeviceRegistration) {
@@ -85,6 +106,10 @@ export default function RootApp() {
         if (!nextSession) throw new Error('DEVICE_REGISTRATION_FAILED');
         setDeviceSession(nextSession);
       }
+    }
+    if (studentNumber === 0) {
+      storeTeacherEntryVisible();
+      setTeacherEntryVisible(true);
     }
     storeEntryNumber(studentNumber);
     setSelectedEntryNumber(studentNumber);
@@ -202,6 +227,7 @@ export default function RootApp() {
         onSelectNumber={selectEntryNumber}
         requiresRegistration={requiresDeviceRegistration}
         deviceSession={deviceSession}
+        teacherEntryVisible={teacherEntryVisible || deviceSession?.role === 'teacher'}
       />
     );
   } else if (selectedEntryNumber === 0) {

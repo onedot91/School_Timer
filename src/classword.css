@@ -555,7 +555,9 @@
 .teacher-classword-today-entries > header span { color: var(--classword-accent); font-size: .75rem; font-weight: 800; }
 .teacher-classword-today-entries > header h3 { margin: .1rem 0 0; font-size: 1.15rem; }
 .teacher-classword-today-entries > header strong { padding: .4rem .75rem; border-radius: 999px; color: var(--classword-accent); background: var(--classword-accent-soft); font-size: .85rem; }
-.teacher-classword-today-entries .teacher-classword-entry-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-block-size: 9rem; }
+.teacher-classword-board { grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 9.5rem; overflow: visible; padding: .75rem; }
+.teacher-classword-board .classword-cell-main { cursor: default; }
+.teacher-classword-today-entries .teacher-classword-history .teacher-classword-entry-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-block-size: 9rem; }
 .teacher-classword-quiz-summary { display: grid; gap: .75rem; }
 .teacher-classword-quiz-summary > header { display: flex; align-items: center; justify-content: space-between; }
 .teacher-classword-quiz-summary > header span { color: var(--classword-accent); font-size: .75rem; font-weight: 800; }
@@ -635,7 +637,8 @@
   .classword-quiz-heading-art { block-size: 7rem; }
   .classword-quiz-answer { grid-column: 1 / -1; grid-template-columns: minmax(8rem, .35fr) minmax(0, 1fr); align-items: center; }
   .teacher-classword-workspace { grid-template-columns: 1fr; }
-  .teacher-classword-today-entries .teacher-classword-entry-list { grid-template-columns: 1fr; }
+  .teacher-classword-board { grid-template-columns: repeat(4, minmax(8rem, 1fr)); grid-auto-rows: 9.5rem; overflow: auto; }
+  .teacher-classword-today-entries .teacher-classword-history .teacher-classword-entry-list { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {

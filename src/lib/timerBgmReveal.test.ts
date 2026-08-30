@@ -22,3 +22,15 @@ test('마우스로 누른 뒤에는 hover를 벗어나면 숨고 키보드 포�
   assert.doesNotMatch(css, /\.bgm-reveal-zone:focus-within \.sound-toggle/s);
   assert.match(timerPage, /onPointerUp=\{\(event\) => event\.currentTarget\.blur\(\)\}/);
 });
+
+test('배경 음악이 켜지면 기본 버튼 면보다 뒤에 선언된 활성 배경을 사용한다', async () => {
+  // Given
+  const css = await readFile(new URL('../index.css', import.meta.url), 'utf8');
+  const defaultSurfaceIndex = css.lastIndexOf('.timer-main-shell :is(.sound-toggle, .schedule-settings-button');
+  const activeSurfaceIndex = css.lastIndexOf('.timer-main-shell .sound-toggle.sound-toggle-active');
+
+  // Then
+  assert.ok(defaultSurfaceIndex >= 0);
+  assert.ok(activeSurfaceIndex > defaultSurfaceIndex);
+  assert.match(css.slice(activeSurfaceIndex), /background:\s*var\(--teacher-accent\)\s*!important;/);
+});

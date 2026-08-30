@@ -171,10 +171,6 @@ export default function StudentFailureRelay({
                 && Math.abs(horizontalDistance) >= Math.abs(verticalDistance)
               ) {
                 move(horizontalDistance > 0 ? 1 : -1);
-                return;
-              }
-              if (Math.abs(verticalDistance) >= RELAY_SWIPE_THRESHOLD) {
-                move(verticalDistance > 0 ? 1 : -1);
               }
             }}
             onFocusCapture={() => setIsFocusPaused(true)}
@@ -182,23 +178,16 @@ export default function StudentFailureRelay({
             onKeyDown={(event) => {
               switch (event.key) {
                 case 'ArrowLeft':
-                case 'ArrowUp':
                   event.preventDefault();
                   move(-1, false);
                   break;
                 case 'ArrowRight':
-                case 'ArrowDown':
                   event.preventDefault();
                   move(1, false);
                   break;
                 default:
                   break;
               }
-            }}
-            onWheel={(event) => {
-              if (Math.abs(event.deltaY) < 20) return;
-              event.preventDefault();
-              move(event.deltaY > 0 ? 1 : -1);
             }}
           >
             {pendingStoryCount > 0 ? <button type="button" className="student-failure-new-stories" onClick={revealLatest}>새 이야기 {pendingStoryCount}개</button> : null}

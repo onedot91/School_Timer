@@ -287,6 +287,10 @@ test('교사 낱말판은 선택 날짜와 무관하게 오늘 입력 낱말을 
   assert.match(teacherPanel, /const \[todayBoard, setTodayBoard\]/);
   assert.match(teacherPanel, /loadClasswordBoard\(today\)/);
   assert.match(teacherPanel, /오늘 입력 낱말/);
+  assert.match(teacherPanel, /className="classword-grid teacher-classword-board"/);
+  assert.match(teacherPanel, /CLASSWORD_INITIALS\.map/);
+  assert.match(teacherPanel, /getFailureProfileImage\(entry\.studentNumber, profileAssignments\)/);
+  assert.match(css, /\.teacher-classword-board \{[^}]*grid-template-columns: repeat\(7, minmax\(0, 1fr\)\);/);
   assert.match(teacherPanel, /날짜별 주제 설정/);
 });
 

@@ -33,6 +33,7 @@ import {
   getTodayClassroomRoleDateKey,
   type ClassroomRoleMissionSettings,
 } from '../../lib/classroomRoleMission';
+import { TODAY_FRIEND_REWARD } from '../../lib/todayFriend';
 
 interface StudentMissionsPageProps {
   studentNumber: number;
@@ -61,6 +62,7 @@ interface StudentMissionsPageProps {
   onOpenSudoku: (difficulty: SudokuDifficulty) => void;
   onOpenNumberBaseball: () => void;
   onOpenClassword: () => void;
+  onOpenTodayFriend: () => void;
   onBack: () => void;
 }
 
@@ -136,6 +138,7 @@ export default function StudentMissionsPage({
   onOpenSudoku,
   onOpenNumberBaseball,
   onOpenClassword,
+  onOpenTodayFriend,
   onBack,
 }: StudentMissionsPageProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
@@ -243,7 +246,17 @@ export default function StudentMissionsPage({
                   : '오늘 역할 없음'}
               />
             </motion.div>
-            <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 1)}>
+            <motion.div {...missionEntrance(auctionMissions.length + 1)}>
+              <StudentMissionCard
+                title="오늘의 친구"
+                illustrationSrc="/mission-illustrations/today-friend.png"
+                rewardAmount={TODAY_FRIEND_REWARD}
+                verificationMode="manual"
+                actionLabel="오늘의 친구 확인"
+                onAction={onOpenTodayFriend}
+              />
+            </motion.div>
+            <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 2)}>
               <StudentMissionCard
                 title="글밥짓기"
                 illustrationSrc="/mission-illustrations/writing.png"
@@ -255,7 +268,7 @@ export default function StudentMissionsPage({
                 onAction={hasDailyWritingMission ? onOpenMailbox : undefined}
               />
             </motion.div>
-            <motion.div {...missionEntrance(auctionMissions.length + 2)}>
+            <motion.div {...missionEntrance(auctionMissions.length + 3)}>
               <StudentMissionCard
                 title="감정 구슬 넣기"
                 illustrationSrc="/mission-illustrations/emotion-orbs.png"
@@ -269,7 +282,7 @@ export default function StudentMissionsPage({
             {WEEKLY_MISSION_DEFINITIONS
               .filter((mission) => mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE)
               .map((mission) => (
-                <motion.div key={mission.type} {...missionEntrance(auctionMissions.length + 3)}>
+                <motion.div key={mission.type} {...missionEntrance(auctionMissions.length + 4)}>
                   <StudentMissionCard
                     title={mission.label}
                     illustrationSrc="/mission-illustrations/classword-game.png"

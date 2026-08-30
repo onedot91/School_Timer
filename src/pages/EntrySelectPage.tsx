@@ -3,9 +3,10 @@ import { Clock, Store } from 'lucide-react';
 import type { BrowserDeviceSession } from '../lib/deviceSessionClient';
 
 interface EntrySelectPageProps {
-  onSelectNumber: (studentNumber: number, registrationKey?: string) => Promise<void>;
-  requiresRegistration: boolean;
-  deviceSession: BrowserDeviceSession | null;
+  readonly onSelectNumber: (studentNumber: number, registrationKey?: string) => Promise<void>;
+  readonly requiresRegistration: boolean;
+  readonly deviceSession: BrowserDeviceSession | null;
+  readonly teacherEntryVisible: boolean;
 }
 
 const ENTRY_NUMBERS = Array.from({ length: 24 }, (_, index) => index);
@@ -14,9 +15,10 @@ export default function EntrySelectPage({
   onSelectNumber,
   requiresRegistration,
   deviceSession,
+  teacherEntryVisible,
 }: EntrySelectPageProps) {
   const [zeroUnlockClickCount, setZeroUnlockClickCount] = useState(0);
-  const [isZeroVisible, setIsZeroVisible] = useState(false);
+  const [isZeroVisible, setIsZeroVisible] = useState(teacherEntryVisible);
   const [pendingEntryNumber, setPendingEntryNumber] = useState<number | null>(null);
   const [registrationKey, setRegistrationKey] = useState('');
   const [registrationError, setRegistrationError] = useState('');

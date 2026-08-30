@@ -1,7 +1,12 @@
 import { Dice5, Save, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
-import { getKoreanDateKey, type ClasswordBoard } from '../../lib/classword';
+import {
+  CLASSWORD_INITIALS,
+  getClasswordInitialLabel,
+  getKoreanDateKey,
+  type ClasswordBoard,
+} from '../../lib/classword';
 import type { ClasswordQuizTeacherSummary } from '../../lib/classwordQuiz';
 import {
   clearClasswordDate,
@@ -12,6 +17,10 @@ import {
   removeClasswordEntry,
   updateClasswordTopic,
 } from '../../lib/classwordClient';
+import {
+  getFailureProfileImage,
+  type FailureProfileAssignments,
+} from '../../lib/failureExhibition';
 import ClasswordCalendar from './ClasswordCalendar';
 
 const RANDOM_TOPICS = [
@@ -21,7 +30,11 @@ const RANDOM_TOPICS = [
 
 const monthKeyOf = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-export default function TeacherClasswordPanel() {
+type TeacherClasswordPanelProps = {
+  readonly profileAssignments: FailureProfileAssignments;
+};
+
+export default function TeacherClasswordPanel({ profileAssignments }: TeacherClasswordPanelProps) {
   const today = getKoreanDateKey();
   const [month, setMonth] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(today);
@@ -143,14 +156,51 @@ export default function TeacherClasswordPanel() {
           <div><span>{today}</span><h3 id="teacher-classword-today-title">오늘 입력 낱말</h3></div>
           <strong>{todayBoard.entries.length}/14칸</strong>
         </header>
-        <ul className="teacher-classword-entry-list" aria-label="오늘 학생 낱말 목록">
-          {todayBoard.entries.length === 0 ? <li className="is-empty">오늘은 아직 등록된 낱말이 없습니다.</li> : todayBoard.entries.map((entry) => (
-            <li key={entry.id}>
-              <strong>{entry.initial}</strong><span>{entry.word}</span><small>{entry.studentNumber}번</small>
-              <button type="button" onClick={() => void deleteEntry(entry.id)} disabled={busy} aria-label={`${entry.word} 삭제`}><Trash2 aria-hidden="true" /></button>
-            </li>
-          ))}
-        </ul>
+        <section className="classword-grid teacher-classword-board" aria-label="오늘 초성 낱말판">
+          {CLASSWORD_INITIALS.map((initial) => {
+            const entry = todayBoard.entries.find((candidate) => candidate.initial === initial);
+            const initialLabel = getClasswordInitialLabel(initial);
+            const initialAlias = initialLabel.slice(initial.length);
+            return (
+              <article
+                key={initial}
+                className={`classword-cell${entry ? ' is-filled' : ''}`}
+                aria-label={entry ? `${initialLabel}, ${entry.word}, ${entry.studentNumber}번` : `${initialLabel}, 비어 있음`}
+              >
+                <div className="classword-cell-main">
+                  <span className="classword-initial">
+                    <strong>{initial}</strong>
+                    {initialAlias ? <small>{initialAlias}</small> : null}
+                  </span>
+                  {entry ? (
+                    <span className="classword-entry-copy">
+                      <strong>{entry.word}</strong>
+                      <span className="classword-student-profile">
+                        <img
+                          src={getFailureProfileImage(entry.studentNumber, profileAssignments)}
+                          alt=""
+                          width={192}
+                          height={192}
+                        />
+                      </span>
+                    </span>
+                  ) : <span className="classword-empty-mark" aria-hidden="true">+</span>}
+                </div>
+              </article>
+            );
+          })}
+        </section>
+        <details className="teacher-classword-history">
+          <summary>오늘 입력 낱말 관리 <strong>{todayBoard.entries.length}개</strong></summary>
+          <ul className="teacher-classword-entry-list" aria-label="오늘 학생 낱말 관리 목록">
+            {todayBoard.entries.length === 0 ? <li className="is-empty">오늘은 아직 등록된 낱말이 없습니다.</li> : todayBoard.entries.map((entry) => (
+              <li key={entry.id}>
+                <strong>{entry.initial}</strong><span>{entry.word}</span><small>{entry.studentNumber}번</small>
+                <button type="button" onClick={() => void deleteEntry(entry.id)} disabled={busy} aria-label={`${entry.word} 삭제`}><Trash2 aria-hidden="true" /></button>
+              </li>
+            ))}
+          </ul>
+        </details>
       </section>
       <section className="teacher-classword-quiz-summary" aria-labelledby="teacher-classword-quiz-title">
         <header>

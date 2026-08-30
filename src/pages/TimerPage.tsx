@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -124,6 +124,7 @@ import {
   type QuestionSubmissionStatus,
 } from '../lib/questionSubmissionStatus';
 import {
+  getStudentCharacterRoster,
   STUDENT_CHARACTERS,
   STUDENT_CHARACTER_WALK_SECONDS,
   type StudentCharacter,
@@ -211,7 +212,7 @@ import {
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'bookstore';
-type TeacherShopTab = 'items' | 'characters' | 'houses';
+type TeacherShopTab = 'items' | 'skins' | 'houses' | 'characters';
 type SettingsNavigationGroup = {
   readonly label: string;
   readonly items: readonly {
@@ -256,9 +257,9 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
     label: '고마 경제',
     items: [
       { panel: 'auction', label: '경매', icon: Coins },
-      { panel: 'donation', label: '기부', icon: HeartPulse },
-      { panel: 'shop', label: '상점', icon: Package },
       { panel: 'stocks', label: '증권', icon: Star },
+      { panel: 'donation', label: '기부', icon: HeartPulse },
+      { panel: 'shop', label: '기타', icon: Package },
     ],
   },
 ] as const;
@@ -677,6 +678,12 @@ const createSlotId = () => Math.random().toString(36).slice(2, 11);
 const getFixedDurationByType = (type: TimerType) => {
   if (type === 'class') return CLASS_DURATION;
   if (type === 'break') return BREAK_DURATION;
+  return null;
+};
+
+const getFixedScheduleNameByType = (type: TimerType) => {
+  if (type === 'break') return '쉬는 시간';
+  if (type === 'lunch') return '점심시간';
   return null;
 };
 
@@ -1466,14 +1473,23 @@ const normalizeDaySchedule = (daySchedule: ScheduleSlot[]) => {
   const others = cloned
     .filter((slot) => !isMorningSlot(slot))
     .map((slot) => {
+      const fixedScheduleName = getFixedScheduleNameByType(slot.type);
       const fixedDuration = getFixedDurationByType(slot.type);
       if (fixedDuration !== null) {
-        return { ...slot, end: slot.start + fixedDuration };
+        return {
+          ...slot,
+          name: fixedScheduleName ?? slot.name,
+          end: slot.start + fixedDuration,
+        };
       }
       if (slot.end <= slot.start) {
-        return { ...slot, end: slot.start + 1 };
+        return {
+          ...slot,
+          name: fixedScheduleName ?? slot.name,
+          end: slot.start + 1,
+        };
       }
-      return slot;
+      return fixedScheduleName ? { ...slot, name: fixedScheduleName } : slot;
     })
     .sort((a, b) => a.start - b.start);
 
@@ -5905,6 +5921,11 @@ export default function TimerPage() {
       if (slotIndex > -1) {
         const nextSlot = { ...daySchedule[slotIndex], [field]: value } as ScheduleSlot;
 
+        const fixedScheduleName = getFixedScheduleNameByType(nextSlot.type);
+        if (fixedScheduleName) {
+          nextSlot.name = fixedScheduleName;
+        }
+
         if (field === 'type' && nextSlot.type === 'class' && !getSchedulePeriodNumber(nextSlot)) {
           nextSlot.name = getNextClassPeriodName(daySchedule.filter((slot) => slot.id !== id));
         }
@@ -6043,18 +6064,35 @@ export default function TimerPage() {
     setSubjectCatalog((previous) => previous.filter((_, subjectIndex) => subjectIndex !== index));
   };
 
-  const addSlot = (day: number) => {
+  const addSlot = (day: number, afterIndex?: number) => {
     setWeeklySchedule(prev => {
       const daySchedule = [...(prev[day] || [])];
-      const lastSlot = daySchedule[daySchedule.length - 1];
-      const start = lastSlot ? lastSlot.end : 540;
-      daySchedule.push({
+      const insertionIndex = afterIndex === undefined
+        ? daySchedule.length
+        : Math.max(0, Math.min(afterIndex + 1, daySchedule.length));
+      const previousSlot = daySchedule[insertionIndex - 1];
+      const nextSlot = daySchedule[insertionIndex];
+      const start = previousSlot?.end ?? Math.max(0, (nextSlot?.start ?? 580) - CLASS_DURATION);
+      const end = start + CLASS_DURATION;
+      const followingShift = nextSlot ? Math.max(0, end - nextSlot.start) : 0;
+
+      if (followingShift > 0) {
+        for (let index = insertionIndex; index < daySchedule.length; index += 1) {
+          daySchedule[index] = {
+            ...daySchedule[index],
+            start: daySchedule[index].start + followingShift,
+            end: daySchedule[index].end + followingShift,
+          };
+        }
+      }
+
+      daySchedule.splice(insertionIndex, 0, {
         id: createSlotId(),
         name: getNextClassPeriodName(daySchedule),
         subject: '',
         type: 'class',
-        start: start,
-        end: start + CLASS_DURATION
+        start,
+        end,
       });
       return { ...prev, [day]: normalizeDaySchedule(daySchedule) };
     });
@@ -7440,8 +7478,6 @@ export default function TimerPage() {
     (total, zone) => total + selectedEmotionMonthlyZoneCounts[zone.id],
     0,
   );
-  const todayEmotionStudentCount = Array.from({ length: 23 }, (_, index) => index + 1)
-    .filter((number) => getTodayStudentEmotionEntry(studentEmotionHistory, number) !== null).length;
   const studentCharacterOrderSeed = [
     studentCharacterShuffleScope,
     studentCharacterShuffleNonce,
@@ -8072,7 +8108,8 @@ export default function TimerPage() {
                 const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
                 const periodNumber = getSchedulePeriodNumber(slot);
                 return (
-                  <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
+                  <div key={slot.id} className="slot-editor-entry">
+                    <div className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
                     {isClassRow ? (
                       <span className="slot-period-label -ml-2 inline-flex min-h-10 min-w-[3.4rem] flex-1 items-center rounded-xl px-3 text-base font-extrabold text-[#3A5A3B] md:text-lg">
                         {periodNumber ?? slot.name}
@@ -8081,7 +8118,7 @@ export default function TimerPage() {
                       <input
                         type="text"
                         value={slot.name}
-                        readOnly={isMorningRow}
+                        readOnly={isMorningRow || slot.type === 'break' || slot.type === 'lunch'}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
                         className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[#8A6347] outline-none focus:ring-2 focus:ring-[#5C8D5D]/20 md:text-lg"
                         placeholder="일정 이름"
@@ -8125,6 +8162,20 @@ export default function TimerPage() {
                         <Trash2 size={20} />
                       </button>
                     </div>
+                    </div>
+                    {index < editingDaySchedule.length - 1 ? (
+                      <div className="slot-insert-rail">
+                        <button
+                          type="button"
+                          onClick={() => addSlot(editingDay, index)}
+                          className="slot-insert-button"
+                          aria-label={`${slot.name} 다음에 일정 추가`}
+                          title="이 위치에 일정 추가"
+                        >
+                          <span aria-hidden="true"><Plus size={16} strokeWidth={2.6} /></span>
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 );
               })
@@ -9128,14 +9179,16 @@ export default function TimerPage() {
   const teacherUsedProfiles = FAILURE_PROFILE_OPTIONS.filter((profile) => (
     assignedStudentByProfile.has(profile.imageSrc)
   ));
+  const teacherStudentCharacterRoster = getStudentCharacterRoster();
 
   const shopSettingsPanel = (
     <section className="teacher-shop-hub" aria-labelledby="teacher-shop-title">
-      <h2 id="teacher-shop-title" className="sr-only">상점 설정</h2>
-      <nav className="teacher-shop-tabs" aria-label="상점 세부 설정" role="tablist">
+      <h2 id="teacher-shop-title" className="sr-only">기타 설정</h2>
+      <nav className="teacher-shop-tabs" aria-label="기타 세부 설정" role="tablist">
         <button type="button" role="tab" id="teacher-shop-tab-items" aria-controls="teacher-shop-panel-items" aria-selected={teacherShopTab === 'items'} className={teacherShopTab === 'items' ? 'is-active' : ''} onClick={() => setTeacherShopTab('items')}><Users aria-hidden="true" /><span>프로필</span></button>
-        <button type="button" role="tab" id="teacher-shop-tab-characters" aria-controls="teacher-shop-panel-characters" aria-selected={teacherShopTab === 'characters'} className={teacherShopTab === 'characters' ? 'is-active' : ''} onClick={() => setTeacherShopTab('characters')}><Gamepad2 aria-hidden="true" /><span>고마 스킨 뽑기</span></button>
+        <button type="button" role="tab" id="teacher-shop-tab-skins" aria-controls="teacher-shop-panel-skins" aria-selected={teacherShopTab === 'skins'} className={teacherShopTab === 'skins' ? 'is-active' : ''} onClick={() => setTeacherShopTab('skins')}><Gamepad2 aria-hidden="true" /><span>고마 스킨 뽑기</span></button>
         <button type="button" role="tab" id="teacher-shop-tab-houses" aria-controls="teacher-shop-panel-houses" aria-selected={teacherShopTab === 'houses'} className={teacherShopTab === 'houses' ? 'is-active' : ''} onClick={() => setTeacherShopTab('houses')}><Hammer aria-hidden="true" /><span>집</span></button>
+        <button type="button" role="tab" id="teacher-shop-tab-characters" aria-controls="teacher-shop-panel-characters" aria-selected={teacherShopTab === 'characters'} className={teacherShopTab === 'characters' ? 'is-active' : ''} onClick={() => setTeacherShopTab('characters')}><PersonStanding aria-hidden="true" /><span>캐릭터</span></button>
       </nav>
 
       {teacherShopTab === 'items' ? (
@@ -9177,8 +9230,8 @@ export default function TimerPage() {
         </section>
       ) : null}
 
-      {teacherShopTab === 'characters' ? (
-        <section id="teacher-shop-panel-characters" role="tabpanel" aria-labelledby="teacher-shop-tab-characters" className="settings-card teacher-shop-collection teacher-shop-skins rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
+      {teacherShopTab === 'skins' ? (
+        <section id="teacher-shop-panel-skins" role="tabpanel" aria-labelledby="teacher-shop-tab-skins" className="settings-card teacher-shop-collection teacher-shop-skins rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
           <header><div><h3>고마 스킨 도감</h3><p>학생이 뽑을 수 있는 전체 스킨</p></div><span>{STUDENT_CHARACTER_PRIZES.length}종</span></header>
           <div className="teacher-shop-skin-list">
             {STUDENT_CHARACTER_PRIZES.map((character) => (
@@ -9199,6 +9252,22 @@ export default function TimerPage() {
               <article key={house.id}>
                 <img src={house.imageSrc} alt="" />
                 <div><strong>{house.name}</strong><span>{house.price} 고마</span></div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {teacherShopTab === 'characters' ? (
+        <section id="teacher-shop-panel-characters" role="tabpanel" aria-labelledby="teacher-shop-tab-characters" className="settings-card teacher-shop-collection teacher-shop-characters rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
+          <header><div><h3>교실 캐릭터</h3><p>교사 화면에서 돌아다니는 학생 제작 캐릭터</p></div><span>1~23번</span></header>
+          <div className="teacher-shop-character-grid">
+            {teacherStudentCharacterRoster.map(({ studentNumber, character }) => (
+              <article key={studentNumber} data-empty={character === null ? 'true' : undefined} aria-label={character ? `${studentNumber}번 캐릭터 등록됨` : `${studentNumber}번 캐릭터 없음`}>
+                <strong>{studentNumber}번</strong>
+                <div className="teacher-shop-character-stage">
+                  {character ? <img src={character.imageSrc} alt={character.alt} width={192} height={192} loading="lazy" decoding="async" /> : null}
+                </div>
               </article>
             ))}
           </div>
@@ -9419,15 +9488,9 @@ export default function TimerPage() {
   );
 
   const emotionSettingsPanel = (
-    <section className="emotion-status-settings settings-card rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5" aria-labelledby="emotion-status-title">
-      <header className="emotion-status-header">
-        <div>
-          <h3 id="emotion-status-title">감정 현황</h3>
-          <p>오늘 {todayEmotionStudentCount}/23명 기록</p>
-        </div>
-      </header>
+    <section className="emotion-status-settings settings-card rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5" aria-label="학생별 오늘 감정">
       <div className="emotion-status-layout">
-        <div className="emotion-status-student-grid" aria-label="학생별 오늘 감정">
+        <div className="emotion-status-student-grid">
           {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => {
             const entry = getTodayStudentEmotionEntry(studentEmotionHistory, number);
             const emotion = getStudentEmotion(entry?.emotionId);
@@ -11036,9 +11099,9 @@ export default function TimerPage() {
             </div>
 
             {isCurrencyPanelOpen ? (
-              <div id="timer-currency-panel" className="currency-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[120] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
-                <div className="utility-pane-card pointer-events-auto w-full max-w-[40rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
-                  <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <div id="timer-currency-panel" className="currency-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[120] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
+                <div className="content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
+                  <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#E9DED2] pb-3">
                       <div className="min-w-0">
                         <h3 className="section-title text-[1.05rem] font-extrabold text-[#3F2B20]">화폐</h3>
@@ -11362,9 +11425,9 @@ export default function TimerPage() {
             ) : null}
 
             {isQuestionSubmissionPanelOpen ? (
-              <div id="timer-question-submission-panel" className="question-submission-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[150] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
-                <div className="question-submission-panel-card utility-pane-card pointer-events-auto w-full max-w-[76rem] rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
-                  <div className="question-submission-panel-scroll overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <div id="timer-question-submission-panel" className="question-submission-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[150] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
+                <div className="content-fit-utility-card question-submission-panel-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
+                  <div className="question-submission-panel-scroll min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#E4EDE7] pb-3">
                       <div className="flex items-center gap-2 rounded-full bg-[#F8FCF6] px-3 py-1.5 text-[0.76rem] font-extrabold text-[#3F2B20]">
                         <span className="sr-only">질문 제출 현황</span>
@@ -11451,11 +11514,11 @@ export default function TimerPage() {
             ) : null}
 
             {isYoutubePanelOpen ? (
-              <div id="timer-youtube-panel" className="youtube-panel utility-pane-anchor pointer-events-none fixed inset-x-0 bottom-[7.25rem] z-[70] flex justify-center px-4 sm:bottom-[8rem] md:bottom-[9rem]">
+              <div id="timer-youtube-panel" className="youtube-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[70] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
                 <div
-                  className="utility-pane-card pointer-events-auto w-full max-w-[25rem] rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
+                  className="content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
                 >
-                  <div className="rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                  <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     {hasScheduleYoutubeFavorites ? (
                       <div className="mb-3">
                         <div
@@ -11773,7 +11836,7 @@ export default function TimerPage() {
                               : settingsPanel === 'writing'
                                 ? writingSettingsPanel
                               : settingsPanel === 'classword'
-                                ? <TeacherClasswordPanel />
+                              ? <TeacherClasswordPanel profileAssignments={studentLife.failureProfileAssignments} />
                               : settingsPanel === 'bookstore'
                                 ? bookstoreSettingsPanel
                                 : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'
