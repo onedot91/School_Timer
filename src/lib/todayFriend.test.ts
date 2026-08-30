@@ -1,51 +1,105 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 
-import StudentTodayFriendPage from '../components/student/StudentTodayFriendPage';
 import {
-  getTodayFriendDateKey,
-  getTodayFriendNumber,
-  TODAY_FRIEND_STUDENT_COUNT,
+  approveTodayFriendSubmission,
+  createTodayFriendPartnerAssignments,
+  createTodayFriendSubmission,
+  createTodayFriendWeek,
+  requestTodayFriendRevision,
+  submitTodayFriendSubmission,
+  TODAY_FRIEND_GENRES,
+  TODAY_FRIEND_REWARD,
 } from './todayFriend';
 
-test('오늘의 친구는 같은 날짜와 학생에게 같은 번호를 배정한다', () => {
-  const first = getTodayFriendNumber(7, '2026-08-30');
-  const second = getTodayFriendNumber(7, '2026-08-30');
+test('주간 장르는 월요일부터 금요일까지 중복 없이 한 번씩 배정된다', () => {
+  // Given
+  const weekKey = '2026-36';
 
-  assert.equal(first, second);
-  assert.notEqual(first, 7);
+  // When
+  const week = createTodayFriendWeek(weekKey);
+
+  // Then
+  assert.deepEqual(new Set(week.days.map((day) => day.genre)), new Set(TODAY_FRIEND_GENRES));
+  assert.equal(week.days.length, 5);
+  assert.deepEqual(createTodayFriendWeek(weekKey), week);
 });
 
-test('오늘의 친구는 본인을 제외하고 반 전체에 한 명씩 겹치지 않게 배정한다', () => {
-  ['2026-08-30', '2026-08-31', '2027-01-01'].forEach((dateKey) => {
-    const assignments = Array.from({ length: TODAY_FRIEND_STUDENT_COUNT }, (_, index) => {
-      const studentNumber = index + 1;
-      const friendNumber = getTodayFriendNumber(studentNumber, dateKey);
-      assert.notEqual(friendNumber, studentNumber);
-      return friendNumber;
-    });
+test('23명 파트너는 10개 쌍과 3인 단방향 순환으로 배정된다', () => {
+  // Given
+  const students = Array.from({ length: 23 }, (_, index) => index + 1);
 
-    assert.equal(new Set(assignments).size, TODAY_FRIEND_STUDENT_COUNT);
-  });
+  // When
+  const assignments = createTodayFriendPartnerAssignments(students, '2026-09-01');
+
+  // Then
+  assert.equal(assignments.length, 23);
+  assert.equal(new Set(assignments.map((assignment) => assignment.partnerNumber)).size, 23);
+  assert.equal(assignments.filter((assignment) => assignment.relationKind === 'pair').length, 20);
+  assert.equal(assignments.filter((assignment) => assignment.relationKind === 'cycle').length, 3);
+  assignments.forEach((assignment) => assert.notEqual(assignment.studentNumber, assignment.partnerNumber));
+
+  const cycle = assignments.filter((assignment) => assignment.relationKind === 'cycle');
+  const partnerByStudent = new Map(cycle.map((assignment) => [assignment.studentNumber, assignment.partnerNumber]));
+  const first = cycle[0];
+  assert.ok(first);
+  const secondNumber = partnerByStudent.get(first.studentNumber);
+  assert.ok(secondNumber);
+  const thirdNumber = partnerByStudent.get(secondNumber);
+  assert.ok(thirdNumber);
+  assert.equal(partnerByStudent.get(thirdNumber), first.studentNumber);
 });
 
-test('오늘의 친구 페이지는 배정된 친구와 세 가지 실천 방법을 보여 준다', () => {
-  const friendNumber = getTodayFriendNumber(1, getTodayFriendDateKey());
-  const markup = renderToStaticMarkup(createElement(StudentTodayFriendPage, {
+test('수정 요청된 제출은 수정 후 다시 제출할 수 있다', () => {
+  // Given
+  const draft = createTodayFriendSubmission({
+    dateKey: '2026-09-01',
     studentNumber: 1,
-    profileAssignments: {},
-    onBack: () => undefined,
-  }));
+    partnerNumber: 2,
+    genre: 'commonality',
+    payload: { kind: 'commonality', commonality: '둘 다 주말에 가족과 자전거를 탄다.' },
+  });
+  const submitted = submitTodayFriendSubmission(draft, '2026-09-01T01:00:00.000Z');
 
-  assert.match(markup, /<h1>오늘의 친구<\/h1>/);
-  assert.match(markup, new RegExp(`${friendNumber}번 친구의 동물 프로필`));
-  assert.match(markup, /먼저 웃으며 인사하기/);
-  assert.match(markup, /이야기 끝까지 들어 주기/);
-  assert.match(markup, /좋은 점 한 가지 말해 주기/);
-  assert.equal(markup.match(/<li>/g)?.length, 3);
-  assert.equal(markup.match(/<figure/g)?.length, 1);
-  assert.doesNotMatch(markup, /<span>나<\/span>/);
-  assert.doesNotMatch(markup, /선생님 확인 · 10고마/);
+  // When
+  const revisionRequested = requestTodayFriendRevision(
+    submitted,
+    '언제 알게 되었는지 더 자세히 적어 주세요.',
+    '2026-09-01T01:05:00.000Z',
+  );
+  const resubmitted = submitTodayFriendSubmission({
+    ...revisionRequested,
+    payload: { kind: 'commonality', commonality: '오늘 대화하며 둘 다 주말에 가족과 자전거를 탄다는 것을 알았다.' },
+  }, '2026-09-01T01:10:00.000Z');
+
+  // Then
+  assert.equal(revisionRequested.status, 'revision_requested');
+  assert.equal(resubmitted.status, 'submitted');
+  assert.equal(resubmitted.revision, 2);
+  assert.equal(resubmitted.teacherFeedback, null);
+});
+
+test('교사 승인은 15고마를 한 번만 지급한다', () => {
+  // Given
+  const submitted = submitTodayFriendSubmission(createTodayFriendSubmission({
+    dateKey: '2026-09-01',
+    studentNumber: 1,
+    partnerNumber: 2,
+    genre: 'compliment',
+    payload: {
+      kind: 'compliment',
+      compliment: '친구가 어려운 문제를 함께 풀어 주어서 고마웠고 마음이 든든했다.',
+    },
+  }), '2026-09-01T01:00:00.000Z');
+
+  // When
+  const firstApproval = approveTodayFriendSubmission(submitted, 100, '2026-09-01T01:05:00.000Z');
+  const secondApproval = approveTodayFriendSubmission(firstApproval.submission, firstApproval.balance, '2026-09-01T01:06:00.000Z');
+
+  // Then
+  assert.equal(TODAY_FRIEND_REWARD, 15);
+  assert.equal(firstApproval.awarded, true);
+  assert.equal(firstApproval.balance, 115);
+  assert.equal(secondApproval.awarded, false);
+  assert.equal(secondApproval.balance, 115);
 });

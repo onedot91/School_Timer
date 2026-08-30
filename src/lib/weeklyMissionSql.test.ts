@@ -41,7 +41,7 @@ test('security definer functions pin an empty search path and expose only intend
   const sql = await readFile(new URL('../../supabase/app_settings.sql', import.meta.url), 'utf8');
 
   assert.doesNotMatch(sql, /security definer\s+set search_path = public/i);
-  assert.equal((sql.match(/security definer\s+set search_path = ''/gi) ?? []).length, 3);
+  assert.equal((sql.match(/security definer\s+set search_path = ''/gi) ?? []).length, 4);
   assert.match(sql, /revoke all on function public\.donate_to_class_goal\(integer, integer, text\) from anon/i);
   assert.match(sql, /revoke all on function public\.donate_to_class_goal\(integer, integer, text\) from authenticated/i);
   assert.match(sql, /revoke all on table public\.app_settings from public, anon, authenticated/i);

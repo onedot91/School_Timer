@@ -1,4 +1,5 @@
-import { HandHeart, MessageCircleHeart, Smile } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { CheckCircle2, Clock3, HeartHandshake, RefreshCw } from 'lucide-react';
 
 import {
   getFailureProfileImage,
@@ -6,31 +7,79 @@ import {
 } from '../../lib/failureExhibition';
 import {
   getTodayFriendDateKey,
-  getTodayFriendNumber,
   TODAY_FRIEND_REWARD,
+  type TodayFriendPayload,
 } from '../../lib/todayFriend';
+import {
+  loadStudentTodayFriendMission,
+  saveStudentTodayFriendDraft,
+  submitStudentTodayFriendMission,
+} from '../../lib/todayFriendClient';
+import type { TodayFriendStudentMission } from '../../lib/todayFriendState';
 import StudentHeader from './StudentHeader';
+import TodayFriendMissionForm from './TodayFriendMissionForm';
 
 interface StudentTodayFriendPageProps {
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
   readonly onBack: () => void;
+  readonly onSendRecommendation: (recipient: number, title: string, content: string) => Promise<boolean>;
 }
 
-const TODAY_FRIEND_STEPS = [
-  { icon: Smile, title: '먼저 웃으며 인사하기', description: '친구를 만나면 반갑게 인사해요.' },
-  { icon: MessageCircleHeart, title: '이야기 끝까지 들어 주기', description: '친구가 말할 때 눈을 보고 들어요.' },
-  { icon: HandHeart, title: '좋은 점 한 가지 말해 주기', description: '친구의 멋진 점을 찾아 알려 줘요.' },
-] as const;
+const GENRE_COPY = {
+  interview: { label: '인터뷰', instruction: '오늘의 질문을 하고, 친구의 답을 잘 듣고 적어요.' },
+  commonality: { label: '공통점 찾기', instruction: '서로 이야기하며 대화해야 알 수 있는 공통점을 찾아요.' },
+  recommendation: { label: '추천하기', instruction: '좋아하는 것을 하나 골라 추천 편지를 보내요.' },
+  compliment: { label: '칭찬하기', instruction: '친구의 구체적인 행동과 그때 든 마음을 적어요.' },
+  emotion: { label: '감정 찾기', instruction: '친구의 오늘 감정과 이유를 조심스럽게 물어봐요.' },
+} as const;
 
 export default function StudentTodayFriendPage({
   studentNumber,
   profileAssignments,
   onBack,
+  onSendRecommendation,
 }: StudentTodayFriendPageProps) {
   const dateKey = getTodayFriendDateKey();
-  const friendNumber = getTodayFriendNumber(studentNumber, dateKey);
-  const friendProfile = getFailureProfileImage(friendNumber, profileAssignments);
+  const [mission, setMission] = useState<TodayFriendStudentMission | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  const loadMission = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      setMission(await loadStudentTodayFriendMission(studentNumber, dateKey));
+    } catch (error) {
+      if (error instanceof Error) setLoadError('오늘의 미션을 불러오지 못했어요.');
+      else throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dateKey, studentNumber]);
+
+  useEffect(() => { void loadMission(); }, [loadMission]);
+
+  const saveMission = async (payload: TodayFriendPayload, submit: boolean) => {
+    if (!mission || isSaving) return false;
+    setIsSaving(true);
+    try {
+      const submission = submit
+        ? await submitStudentTodayFriendMission({ mission, payload })
+        : await saveStudentTodayFriendDraft({ mission, payload });
+      setMission({ ...mission, submission });
+      return true;
+    } catch (error) {
+      if (error instanceof Error) return false;
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const friendProfile = mission ? getFailureProfileImage(mission.partnerNumber, profileAssignments) : '';
+  const status = mission?.submission?.status;
 
   return (
     <div className="student-view student-today-friend-view">
@@ -42,49 +91,45 @@ export default function StudentTodayFriendPage({
       />
 
       <main className="student-today-friend-main">
+        {isLoading ? <section className="student-today-friend-loading" aria-label="오늘의 친구 불러오는 중"><Clock3 aria-hidden="true" /><p>오늘의 친구를 준비하고 있어요.</p></section> : null}
+        {loadError ? <section className="student-today-friend-loading" role="alert"><p>{loadError}</p><button type="button" onClick={() => { void loadMission(); }}><RefreshCw aria-hidden="true" />다시 불러오기</button></section> : null}
+        {mission ? (
+          <>
         <section className="student-today-friend-assignment" aria-labelledby="student-today-friend-assignment-title">
-          <p className="student-today-friend-eyebrow">오늘 내가 먼저 다가갈 친구</p>
+          <p className="student-today-friend-eyebrow">오늘 함께 이야기할 친구</p>
           <h2 id="student-today-friend-assignment-title" className="sr-only">
-            {friendNumber}번 친구
+            {mission.partnerNumber}번 친구
           </h2>
-          <div className="student-today-friend-profile" aria-label={`오늘의 친구 ${friendNumber}번`}>
+          <div className="student-today-friend-profile" aria-label={`오늘의 친구 ${mission.partnerNumber}번`}>
             <figure className="student-today-friend-person">
               <img
                 src={friendProfile}
-                alt={`${friendNumber}번 친구의 동물 프로필`}
+                alt={`${mission.partnerNumber}번 친구의 동물 프로필`}
                 width="192"
                 height="192"
               />
-              <figcaption><strong>{friendNumber}번</strong><span>오늘의 친구</span></figcaption>
+              <figcaption><strong>{mission.partnerNumber}번</strong><span>오늘의 파트너</span></figcaption>
             </figure>
           </div>
+          <div className="today-friend-genre-chip"><HeartHandshake aria-hidden="true" /><span>{GENRE_COPY[mission.genre].label}</span></div>
         </section>
 
         <section className="student-today-friend-guide" aria-labelledby="student-today-friend-guide-title">
           <div className="student-today-friend-guide-heading">
-            <span>친구 미션</span>
-            <h2 id="student-today-friend-guide-title">이렇게 해 봐요</h2>
+            <span>오늘 할 일</span>
+            <h2 id="student-today-friend-guide-title">{GENRE_COPY[mission.genre].label}</h2>
+            <p>{GENRE_COPY[mission.genre].instruction}</p>
           </div>
-          <ol className="student-today-friend-steps">
-            {TODAY_FRIEND_STEPS.map(({ icon: Icon, title, description }, index) => (
-              <li key={title}>
-                <span className="student-today-friend-step-number">{index + 1}</span>
-                <span className="student-today-friend-step-icon" aria-hidden="true"><Icon /></span>
-                <span className="student-today-friend-step-copy">
-                  <strong>{title}</strong>
-                  <span>{description}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
-          <aside className="student-today-friend-verification">
-            <img src="/mission-status-faces/teacher.png" alt="" width="192" height="192" />
-            <span>
-              <strong>다 했다면 선생님께 알려 주세요</strong>
-              <small>선생님 확인 뒤 {TODAY_FRIEND_REWARD}고마를 받을 수 있어요.</small>
-            </span>
-          </aside>
+          {mission.question ? <aside className="today-friend-question"><span>오늘의 질문</span><strong>{mission.question}</strong></aside> : null}
+          {status === 'submitted' ? <aside className="today-friend-status-card" data-status="submitted"><Clock3 aria-hidden="true" /><span><strong>선생님 확인을 기다리고 있어요</strong><small>승인되면 {TODAY_FRIEND_REWARD}고마를 받아요.</small></span></aside> : null}
+          {status === 'approved' ? <aside className="today-friend-status-card" data-status="approved"><CheckCircle2 aria-hidden="true" /><span><strong>오늘의 친구 미션 완료!</strong><small>{TODAY_FRIEND_REWARD}고마 지급 완료</small></span></aside> : null}
+          {status === 'revision_requested' && mission.submission?.teacherFeedback ? <aside className="today-friend-revision"><strong>선생님이 수정을 부탁했어요</strong><p>{mission.submission.teacherFeedback}</p></aside> : null}
+          {status !== 'submitted' && status !== 'approved' ? (
+            <TodayFriendMissionForm mission={mission} isSaving={isSaving} onSave={saveMission} onSendRecommendation={onSendRecommendation} />
+          ) : null}
         </section>
+          </>
+        ) : null}
       </main>
     </div>
   );

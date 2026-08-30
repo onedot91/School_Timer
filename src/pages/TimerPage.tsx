@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -119,6 +119,7 @@ import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb
 import { MissionRewardInput } from '../components/teacher/MissionRewardInput';
 import TeacherWritingSettings from '../components/teacher/TeacherWritingSettings';
 import TeacherClasswordPanel from '../components/teacher/TeacherClasswordPanel';
+import TeacherTodayFriendPanel from '../components/teacher/TeacherTodayFriendPanel';
 import {
   loadQuestionSubmissionStatuses,
   type QuestionSubmissionStatus,
@@ -211,7 +212,7 @@ import {
 } from '../lib/classroomRoleMission';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'bookstore';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'today-friend' | 'bookstore';
 type TeacherShopTab = 'items' | 'skins' | 'houses' | 'characters';
 type SettingsNavigationGroup = {
   readonly label: string;
@@ -251,6 +252,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
       { panel: 'mail', label: '편지', icon: Mail },
       { panel: 'writing', label: '글쓰기', icon: NotebookText },
       { panel: 'classword', label: '낱말판', icon: StickyNote },
+      { panel: 'today-friend', label: '오늘의 친구', icon: HeartHandshake },
       { panel: 'missions', label: '미션', icon: ClipboardCheck },
     ],
   },
@@ -7362,10 +7364,6 @@ export default function TimerPage() {
   }
 
   const showTimerNotification = showCharacter || showClassEndImage;
-  const shouldHideStudentCharacterForNotification =
-    showClassEndImage ||
-    (shouldShowTimedMessage && displayTimeLeft === 0) ||
-    (shouldShowTimedMessage && percentage <= urgentThreshold);
   const timerNotificationMessage = activeClassEndImage?.message ?? characterMessage;
   const timerNotificationTextColorClass = showClassEndImage ? 'teacher-tone-text-accent' : colorClass;
   const timerNotificationImageSrc = showClassEndImage
@@ -7498,7 +7496,7 @@ export default function TimerPage() {
     visibleStudentCharacters.length > 0 &&
     !isAnnouncementOpen &&
     !isCurrencyPanelOpen &&
-    !shouldHideStudentCharacterForNotification;
+    !showTimerNotification;
   const studentCharacterElapsedSeconds =
     activeScheduleSlot && activeScheduleSlot.type === timerType && canShowStudentCharacter
       ? Math.max(0, currentScheduleSecondsOfDay - activeScheduleSlot.start * 60)
@@ -11854,6 +11852,8 @@ export default function TimerPage() {
                                 ? writingSettingsPanel
                               : settingsPanel === 'classword'
                               ? <TeacherClasswordPanel profileAssignments={studentLife.failureProfileAssignments} />
+                              : settingsPanel === 'today-friend'
+                                ? <TeacherTodayFriendPanel />
                               : settingsPanel === 'bookstore'
                                 ? bookstoreSettingsPanel
                                 : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'

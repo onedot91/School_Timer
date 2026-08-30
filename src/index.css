@@ -18183,6 +18183,210 @@ a[href]:active {
   opacity: 0.82;
 }
 
+.teacher-today-friend-panel {
+  display: grid;
+  min-width: 0;
+  gap: .85rem;
+  color: var(--apple-text-primary);
+}
+
+.teacher-today-friend-header,
+.teacher-today-friend-header > div,
+.teacher-today-friend-header label,
+.teacher-today-friend-tabs,
+.teacher-today-friend-plan-card > header,
+.teacher-today-friend-plan-card > header > div,
+.teacher-today-friend-detail > header,
+.teacher-today-friend-review-actions > div {
+  display: flex;
+  align-items: center;
+}
+
+.teacher-today-friend-header {
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-card);
+  background: var(--apple-surface);
+  box-shadow: var(--apple-shadow-1);
+}
+
+.teacher-today-friend-header > div { gap: .75rem; }
+.teacher-today-friend-header > div > svg { color: var(--apple-accent); }
+.teacher-today-friend-header h2,
+.teacher-today-friend-header p,
+.teacher-today-friend-plan-card h3,
+.teacher-today-friend-plan-card p { margin: 0; }
+.teacher-today-friend-header h2 { font-size: 1.35rem; font-weight: 900; }
+.teacher-today-friend-header p,
+.teacher-today-friend-plan-card p { margin-top: .15rem; color: var(--apple-text-secondary); font-size: .82rem; font-weight: 700; }
+.teacher-today-friend-header label { gap: .55rem; color: var(--apple-text-secondary); font-size: .82rem; font-weight: 850; }
+
+.teacher-today-friend-header input,
+.teacher-today-friend-pair-editor select,
+.teacher-today-friend-question-add input,
+.teacher-today-friend-review-actions textarea {
+  border: 1px solid var(--apple-separator-strong);
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface);
+  font: inherit;
+  outline: none;
+}
+
+.teacher-today-friend-header input { min-height: 2.5rem; padding: .45rem .65rem; font-weight: 800; }
+
+.teacher-today-friend-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .65rem;
+}
+
+.teacher-today-friend-summary span {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: baseline;
+  justify-content: center;
+  gap: .45rem;
+  padding: .6rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-control);
+  background: var(--apple-surface);
+  color: var(--apple-text-secondary);
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.teacher-today-friend-summary strong { color: var(--apple-accent); font-size: 1.45rem; }
+
+.teacher-today-friend-tabs {
+  gap: .4rem;
+  padding: .35rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-control);
+  background: var(--apple-surface-muted);
+}
+
+.teacher-today-friend-tabs button,
+.teacher-today-friend-plan-card button,
+.teacher-today-friend-review-actions button,
+.teacher-today-friend-question-add button,
+.teacher-today-friend-question-list button {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-text-secondary);
+  background: var(--apple-surface);
+  font-weight: 850;
+}
+
+.teacher-today-friend-tabs button { flex: 1 1 auto; }
+.teacher-today-friend-tabs button.is-active,
+.teacher-today-friend-review-actions button:last-child { color: white; border-color: var(--apple-accent); background: var(--apple-accent); }
+.teacher-today-friend-tabs svg,
+.teacher-today-friend-plan-card button svg,
+.teacher-today-friend-review-actions button svg { width: 1rem; height: 1rem; }
+.teacher-today-friend-panel button:disabled { cursor: not-allowed; opacity: .5; }
+.teacher-today-friend-message { margin: 0; color: var(--apple-accent-pressed); font-size: .85rem; font-weight: 800; }
+.teacher-today-friend-loading,
+.teacher-today-friend-empty { display: grid; min-height: 10rem; place-items: center; color: var(--apple-text-secondary); font-weight: 800; }
+
+.teacher-today-friend-review {
+  display: grid;
+  min-height: 25rem;
+  grid-template-columns: minmax(15rem, .82fr) minmax(0, 1.18fr);
+  gap: .8rem;
+}
+
+.teacher-today-friend-queue,
+.teacher-today-friend-detail,
+.teacher-today-friend-plan-card {
+  min-width: 0;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-card);
+  background: var(--apple-surface);
+  box-shadow: var(--apple-shadow-1);
+}
+
+.teacher-today-friend-queue { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+.teacher-today-friend-queue > header { display: flex; align-items: baseline; justify-content: space-between; padding: .85rem 1rem; border-bottom: 1px solid var(--apple-separator); }
+.teacher-today-friend-queue h3 { margin: 0; font-size: 1rem; }
+.teacher-today-friend-queue > header span { color: var(--apple-text-secondary); font-size: .75rem; font-weight: 800; }
+.teacher-today-friend-queue-list { display: grid; min-height: 0; align-content: start; gap: .4rem; max-height: 27rem; overflow-y: auto; padding: .55rem; }
+
+.teacher-today-friend-queue-list > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .2rem .5rem;
+  padding: .7rem;
+  border: 1px solid transparent;
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface-muted);
+  text-align: left;
+}
+
+.teacher-today-friend-queue-list > button.is-active { border-color: var(--apple-accent); background: var(--apple-accent-soft); }
+.teacher-today-friend-queue-list > button > strong { font-size: .88rem; }
+.teacher-today-friend-queue-list > button > span { min-width: 0; overflow: hidden; color: var(--apple-text-secondary); font-size: .76rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-today-friend-queue-list > button > small { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--apple-accent-pressed); font-weight: 850; }
+
+.teacher-today-friend-detail { display: grid; align-content: start; gap: .85rem; padding: 1rem; }
+.teacher-today-friend-detail > header { justify-content: space-between; gap: .75rem; }
+.teacher-today-friend-detail > header span,
+.teacher-today-friend-detail > header small { color: var(--apple-accent-pressed); font-size: .78rem; font-weight: 850; }
+.teacher-today-friend-detail h3 { margin: .15rem 0 0; font-size: 1.15rem; }
+.teacher-today-friend-detail article,
+.teacher-today-friend-detail aside { padding: 1rem; border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); }
+.teacher-today-friend-detail article[data-private='true'] { border: 1px solid color-mix(in srgb, var(--student-emotion) 38%, var(--apple-separator)); }
+.teacher-today-friend-detail article p,
+.teacher-today-friend-detail aside p { margin: 0; line-height: 1.55; white-space: pre-wrap; }
+.teacher-today-friend-private-label { margin-bottom: .55rem !important; color: var(--student-emotion); font-size: .78rem; font-weight: 900; }
+.teacher-today-friend-detail aside strong { display: block; margin-bottom: .35rem; color: var(--apple-text-secondary); font-size: .78rem; }
+.teacher-today-friend-review-actions { display: grid; gap: .65rem; }
+.teacher-today-friend-review-actions label { display: grid; gap: .35rem; font-size: .82rem; font-weight: 850; }
+.teacher-today-friend-review-actions textarea { min-height: 5.25rem; padding: .7rem; resize: vertical; }
+.teacher-today-friend-review-actions > div { justify-content: flex-end; gap: .5rem; }
+.teacher-today-friend-review-actions button { padding-inline: .85rem; }
+.teacher-today-friend-complete,
+.teacher-today-friend-wait { display: flex; align-items: center; gap: .5rem; margin: 0; padding: .8rem; border-radius: var(--apple-radius-control); color: var(--apple-accent-pressed); background: var(--apple-accent-soft); font-weight: 850; }
+
+.teacher-today-friend-plan { display: grid; gap: .8rem; }
+.teacher-today-friend-plan-card { display: grid; gap: .8rem; padding: 1rem; }
+.teacher-today-friend-plan-card > header { justify-content: space-between; gap: .75rem; }
+.teacher-today-friend-plan-card > header > div { gap: .6rem; }
+.teacher-today-friend-week-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .45rem; }
+.teacher-today-friend-week-grid article { display: grid; justify-items: center; gap: .2rem; padding: .65rem .35rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); }
+.teacher-today-friend-week-grid article[data-today='true'] { color: white; border-color: var(--apple-accent); background: var(--apple-accent); }
+.teacher-today-friend-week-grid span,
+.teacher-today-friend-week-grid small { font-size: .72rem; font-weight: 800; }
+.teacher-today-friend-week-grid strong { font-size: .83rem; text-align: center; }
+.teacher-today-friend-partner-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .35rem; }
+.teacher-today-friend-partner-grid > span { display: flex; min-height: 2.25rem; align-items: center; justify-content: center; gap: .3rem; border-radius: .65rem; background: var(--apple-surface-muted); font-size: .8rem; }
+.teacher-today-friend-partner-grid i { color: var(--apple-text-tertiary); font-style: normal; }
+.teacher-today-friend-pair-editor { display: grid; grid-template-columns: auto auto minmax(9rem, 1fr); align-items: end; gap: .5rem; }
+.teacher-today-friend-pair-editor label { display: grid; gap: .25rem; color: var(--apple-text-secondary); font-size: .75rem; font-weight: 800; }
+.teacher-today-friend-pair-editor select { min-height: 2.5rem; padding: .4rem .65rem; }
+.teacher-today-friend-question-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.teacher-today-friend-question-add input { min-height: 2.5rem; padding: .5rem .7rem; }
+.teacher-today-friend-question-add button { padding-inline: .9rem; }
+.teacher-today-friend-question-list { display: grid; gap: .4rem; }
+.teacher-today-friend-question-list article { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .6rem; padding: .55rem .7rem; border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); }
+.teacher-today-friend-question-list label { display: flex; min-width: 0; align-items: center; gap: .55rem; font-size: .83rem; font-weight: 750; }
+.teacher-today-friend-question-list label span { overflow-wrap: anywhere; }
+.teacher-today-friend-question-list article > div { display: flex; gap: .35rem; }
+.teacher-today-friend-question-list button { min-height: 2rem; padding-inline: .55rem; font-size: .72rem; }
+
+@media (max-width: 68rem) {
+  .teacher-today-friend-review { grid-template-columns: minmax(0, 1fr); }
+  .teacher-today-friend-queue-list { max-height: 15rem; }
+}
+
 .student-today-friend-main {
   display: grid;
   width: min(100%, var(--student-overview-content-width));
@@ -18298,9 +18502,191 @@ a[href]:active {
 
 .student-today-friend-guide {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 1rem;
   padding: clamp(1.25rem, 2.5vw, 2rem);
+}
+
+.student-today-friend-guide-heading p {
+  margin: .25rem 0 0;
+  color: var(--apple-text-secondary);
+  font-size: .95rem;
+  font-weight: 750;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.today-friend-genre-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .55rem .85rem;
+  border-radius: var(--apple-radius-pill);
+  color: var(--apple-surface);
+  background: var(--student-mission);
+  font-weight: 900;
+}
+
+.today-friend-genre-chip svg {
+  width: 1.2rem;
+}
+
+.today-friend-question,
+.today-friend-revision,
+.today-friend-status-card {
+  display: grid;
+  gap: .35rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--student-mission) 28%, var(--apple-separator));
+  border-radius: var(--apple-radius-card);
+  background: color-mix(in srgb, var(--student-mission-soft) 50%, var(--apple-surface));
+}
+
+.today-friend-question span,
+.today-friend-question strong,
+.today-friend-revision strong,
+.today-friend-revision p {
+  margin: 0;
+}
+
+.today-friend-question span {
+  color: var(--apple-accent-pressed);
+  font-size: .8rem;
+  font-weight: 900;
+}
+
+.today-friend-question strong {
+  color: var(--apple-text-primary);
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.today-friend-form {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: .85rem;
+  overflow-y: auto;
+  padding-right: .25rem;
+}
+
+.today-friend-form > label:not(.today-friend-private-choice) {
+  display: grid;
+  gap: .4rem;
+  color: var(--apple-text-primary);
+  font-weight: 900;
+}
+
+.today-friend-form input,
+.today-friend-form select,
+.today-friend-form textarea {
+  width: 100%;
+  border: 1px solid var(--apple-separator-strong);
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface);
+  font: inherit;
+  font-weight: 700;
+  outline: none;
+}
+
+.today-friend-form input,
+.today-friend-form select {
+  min-height: 3rem;
+  padding: .7rem .85rem;
+}
+
+.today-friend-form textarea {
+  min-height: 7rem;
+  resize: vertical;
+  padding: .85rem;
+  line-height: 1.5;
+}
+
+.today-friend-form input:focus,
+.today-friend-form select:focus,
+.today-friend-form textarea:focus {
+  border-color: var(--apple-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--apple-accent) 16%, transparent);
+}
+
+.today-friend-form small,
+.today-friend-privacy-note {
+  color: var(--apple-text-secondary);
+  font-size: .8rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.today-friend-private-choice {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  font-weight: 800;
+}
+
+.today-friend-private-choice input {
+  width: 1.2rem;
+  min-height: 1.2rem;
+}
+
+.today-friend-form-actions {
+  display: grid;
+  grid-template-columns: .75fr 1.25fr;
+  gap: .65rem;
+}
+
+.today-friend-form-actions button,
+.student-today-friend-loading button {
+  min-height: 3.1rem;
+  border: 0;
+  border-radius: var(--apple-radius-control);
+  color: var(--apple-text-primary);
+  background: var(--apple-surface-muted);
+  font-weight: 900;
+}
+
+.today-friend-form-actions button[type='submit'] {
+  color: white;
+  background: var(--apple-accent);
+}
+
+.today-friend-form-message {
+  margin: 0;
+  color: var(--apple-accent-pressed);
+  font-size: .85rem;
+  font-weight: 800;
+}
+
+.today-friend-status-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  align-self: center;
+}
+
+.today-friend-status-card svg {
+  width: 3rem;
+  height: 3rem;
+  color: var(--student-mission);
+}
+
+.today-friend-status-card span {
+  display: grid;
+  gap: .25rem;
+}
+
+.today-friend-status-card small {
+  color: var(--apple-text-secondary);
+  font-weight: 750;
+}
+
+.student-today-friend-loading {
+  display: grid;
+  grid-column: 1 / -1;
+  place-items: center;
+  align-content: center;
+  gap: 1rem;
+  min-height: 24rem;
 }
 
 .student-today-friend-guide-heading {

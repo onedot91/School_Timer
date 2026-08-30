@@ -501,3 +501,183 @@ grant select, insert, update on table public.app_settings to service_role;
 
 revoke all on table public.announcement_notes from public, anon, authenticated;
 grant select, insert, update on table public.announcement_notes to service_role;
+
+create table if not exists public.today_friend_settings (
+  id text primary key default 'main' check (id = 'main'),
+  state jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  constraint today_friend_settings_state_size_check
+    check (octet_length(state::text) <= 1048576)
+);
+
+alter table public.today_friend_settings enable row level security;
+revoke all on table public.today_friend_settings from public, anon, authenticated;
+grant select, insert, update on table public.today_friend_settings to service_role;
+
+create table if not exists public.today_friend_submissions (
+  id text primary key check (char_length(id) between 1 and 200),
+  submission_date date not null,
+  student_number smallint not null check (student_number between 1 and 23),
+  partner_number smallint not null check (partner_number between 1 and 23),
+  genre text not null check (genre in ('interview', 'commonality', 'recommendation', 'compliment', 'emotion')),
+  payload jsonb not null default '{}'::jsonb,
+  status text not null default 'draft' check (status in ('draft', 'submitted', 'revision_requested', 'approved')),
+  revision integer not null default 0 check (revision >= 0),
+  teacher_feedback text check (teacher_feedback is null or char_length(teacher_feedback) <= 1000),
+  submitted_at timestamptz,
+  reviewed_at timestamptz,
+  reward_status text not null default 'pending' check (reward_status in ('pending', 'paid')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (submission_date, student_number),
+  constraint today_friend_submissions_distinct_students_check check (student_number <> partner_number),
+  constraint today_friend_submissions_payload_size_check check (octet_length(payload::text) <= 50000)
+);
+
+create index if not exists today_friend_submissions_date_status_idx
+on public.today_friend_submissions (submission_date, status);
+
+alter table public.today_friend_submissions enable row level security;
+revoke all on table public.today_friend_submissions from public, anon, authenticated;
+grant select, insert, update on table public.today_friend_submissions to service_role;
+
+create table if not exists public.today_friend_rewards (
+  submission_id text primary key references public.today_friend_submissions(id) on delete restrict,
+  student_number smallint not null check (student_number between 1 and 23),
+  reward_amount integer not null default 15 check (reward_amount = 15),
+  awarded_at timestamptz not null default now()
+);
+
+alter table public.today_friend_rewards enable row level security;
+revoke all on table public.today_friend_rewards from public, anon, authenticated;
+grant select, insert on table public.today_friend_rewards to service_role;
+
+create or replace function public.approve_today_friend_submission(
+  p_submission_id text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_student_number integer;
+  v_status text;
+  v_value jsonb;
+  v_student_key text;
+  v_before integer := 100;
+  v_after integer := 100;
+  v_reward_amount integer := 15;
+  v_inserted_count integer := 0;
+  v_awarded boolean := false;
+  v_created_at timestamptz := now();
+  v_history jsonb;
+begin
+  if p_submission_id is null or btrim(p_submission_id) = '' or char_length(p_submission_id) > 200 then
+    raise exception 'INVALID_SUBMISSION_ID';
+  end if;
+
+  select submission.student_number, submission.status
+  into v_student_number, v_status
+  from public.today_friend_submissions as submission
+  where submission.id = p_submission_id
+  for update;
+
+  if not found then
+    raise exception 'SUBMISSION_NOT_FOUND';
+  end if;
+  if v_status not in ('submitted', 'approved') then
+    raise exception 'SUBMISSION_NOT_REVIEWABLE';
+  end if;
+
+  v_student_key := v_student_number::text;
+  select value
+  into v_value
+  from public.app_settings
+  where id = 'school-timer-main'
+  for update;
+
+  if not found then
+    insert into public.app_settings (id, value)
+    values ('school-timer-main', '{}'::jsonb)
+    on conflict (id) do nothing;
+
+    select value
+    into v_value
+    from public.app_settings
+    where id = 'school-timer-main'
+    for update;
+  end if;
+
+  v_value := coalesce(v_value, '{}'::jsonb);
+  if jsonb_typeof(v_value -> 'currencyBalances') is distinct from 'object' then
+    v_value := jsonb_set(v_value, '{currencyBalances}', '{}'::jsonb, true);
+  end if;
+  if jsonb_typeof(v_value -> 'currencyHistory') is distinct from 'object' then
+    v_value := jsonb_set(v_value, '{currencyHistory}', '{}'::jsonb, true);
+  end if;
+  if (v_value -> 'currencyBalances' ->> v_student_key) ~ '^\d+$' then
+    v_before := least(999999, greatest(0, (v_value -> 'currencyBalances' ->> v_student_key)::integer));
+  end if;
+  v_after := v_before;
+
+  if v_status = 'submitted' then
+    if v_before > 999999 - v_reward_amount then
+      raise exception 'CURRENCY_BALANCE_LIMIT_EXCEEDED';
+    end if;
+
+    insert into public.today_friend_rewards (submission_id, student_number, reward_amount, awarded_at)
+    values (p_submission_id, v_student_number, v_reward_amount, v_created_at)
+    on conflict (submission_id) do nothing;
+    get diagnostics v_inserted_count = row_count;
+    v_awarded := v_inserted_count = 1;
+  end if;
+
+  if v_awarded then
+    v_after := v_before + v_reward_amount;
+    v_value := jsonb_set(
+      v_value,
+      array['currencyBalances', v_student_key],
+      to_jsonb(v_after),
+      true
+    );
+    v_history := jsonb_build_array(jsonb_build_object(
+      'id', concat('today-friend-reward-', p_submission_id),
+      'studentNumber', v_student_number,
+      'delta', v_reward_amount,
+      'before', v_before,
+      'after', v_after,
+      'reason', 'weekly_mission',
+      'createdAt', v_created_at
+    )) || case
+      when jsonb_typeof(v_value -> 'currencyHistory' -> v_student_key) = 'array'
+        then v_value -> 'currencyHistory' -> v_student_key
+      else '[]'::jsonb
+    end;
+    v_value := jsonb_set(v_value, array['currencyHistory', v_student_key], v_history, true);
+
+    update public.app_settings
+    set value = v_value, updated_at = v_created_at
+    where id = 'school-timer-main';
+  end if;
+
+  update public.today_friend_submissions
+  set status = 'approved',
+      reviewed_at = coalesce(reviewed_at, v_created_at),
+      reward_status = 'paid',
+      updated_at = v_created_at
+  where id = p_submission_id;
+
+  return jsonb_build_object(
+    'submissionId', p_submission_id,
+    'awarded', v_awarded,
+    'rewardAmount', v_reward_amount,
+    'balance', v_after
+  );
+end;
+$$;
+
+revoke all on function public.approve_today_friend_submission(text) from public;
+revoke all on function public.approve_today_friend_submission(text) from anon;
+revoke all on function public.approve_today_friend_submission(text) from authenticated;
+grant execute on function public.approve_today_friend_submission(text) to service_role;

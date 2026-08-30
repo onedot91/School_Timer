@@ -1829,6 +1829,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           <StudentTodayFriendPage
             studentNumber={studentNumber}
             profileAssignments={profileAssignments}
+            onSendRecommendation={sendStudentLetter}
             onBack={() => navigateStudentView('missions')}
           />
         ) : null}

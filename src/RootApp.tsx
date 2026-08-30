@@ -15,6 +15,7 @@ import TimerPage from './pages/TimerPage';
 
 const SELECTED_ENTRY_NUMBER_STORAGE_KEY = 'school-timer-entry-number-v1';
 const TEACHER_ENTRY_VISIBLE_STORAGE_KEY = 'school-timer-teacher-entry-visible-v1';
+const STUDENT_HOME_HASH = '#student-overview';
 
 const getPlatformText = () => {
   if (typeof window === 'undefined') return '';
@@ -111,6 +112,13 @@ export default function RootApp() {
       storeTeacherEntryVisible();
       setTeacherEntryVisible(true);
     }
+    window.history.replaceState(
+      null,
+      '',
+      studentNumber === 0
+        ? `${window.location.pathname}${window.location.search}`
+        : STUDENT_HOME_HASH,
+    );
     storeEntryNumber(studentNumber);
     setSelectedEntryNumber(studentNumber);
   };
