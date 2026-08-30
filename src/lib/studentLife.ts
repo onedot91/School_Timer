@@ -49,6 +49,7 @@ type LetterInput = Omit<StudentLetter, 'readAt' | 'senderStudentNumber' | 'reply
 type BookInput = Omit<StudentBook, 'colorIndex'>;
 
 const STUDENT_LIFE_STORAGE_KEY = 'school-timer-student-life';
+const STUDENT_LOCAL_SNAPSHOT_STORAGE_KEY = 'school-timer-student-pets-v1';
 const PRACTICE_FAILURE_STORIES_RESET_KEY = 'school-timer-practice-failure-stories-reset-v1';
 const MAX_STUDENT_NUMBER = 23;
 export const TEACHER_LETTER_RECIPIENT = 0;
@@ -267,13 +268,17 @@ export const getBookStackHeightCm = (books: readonly StudentBook[]): number => (
 
 export const loadStoredStudentLifeState = (): StudentLifeState => {
   try {
-    const stored = window.localStorage.getItem(STUDENT_LIFE_STORAGE_KEY);
+    const combinedStored = window.localStorage.getItem(STUDENT_LOCAL_SNAPSHOT_STORAGE_KEY);
+    const combined = combinedStored ? JSON.parse(combinedStored) as Record<string, unknown> : null;
+    const stored = combined && 'studentLife' in combined
+      ? JSON.stringify(combined.studentLife)
+      : window.localStorage.getItem(STUDENT_LIFE_STORAGE_KEY);
     const saved = normalizeStudentLifeState(stored ? JSON.parse(stored) : null);
     if (appDataMode !== 'mock' || window.localStorage.getItem(PRACTICE_FAILURE_STORIES_RESET_KEY) === '1') {
       return saved;
     }
     const cleared = clearPracticeFailureStories(saved);
-    window.localStorage.setItem(STUDENT_LIFE_STORAGE_KEY, JSON.stringify(cleared));
+    storeStudentLifeState(cleared);
     window.localStorage.setItem(PRACTICE_FAILURE_STORIES_RESET_KEY, '1');
     return cleared;
   } catch (error) {
@@ -283,7 +288,16 @@ export const loadStoredStudentLifeState = (): StudentLifeState => {
 };
 
 export const storeStudentLifeState = (state: StudentLifeState): void => {
-  window.localStorage.setItem(STUDENT_LIFE_STORAGE_KEY, JSON.stringify(state));
+  const combinedStored = window.localStorage.getItem(STUDENT_LOCAL_SNAPSHOT_STORAGE_KEY);
+  if (combinedStored) {
+    const combined = JSON.parse(combinedStored) as Record<string, unknown>;
+    window.localStorage.setItem(STUDENT_LOCAL_SNAPSHOT_STORAGE_KEY, JSON.stringify({
+      ...combined,
+      studentLife: normalizeStudentLifeState(state),
+    }));
+    return;
+  }
+  window.localStorage.setItem(STUDENT_LIFE_STORAGE_KEY, JSON.stringify(normalizeStudentLifeState(state)));
 };
 
 export const updateStoredStudentLifeState = async (

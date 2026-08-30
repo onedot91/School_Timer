@@ -11,6 +11,7 @@ test('교사 하단 기능창은 도서관처럼 오른쪽 일정 영역 안에 
   assert.match(source, /<div id="timer-currency-panel" className="[^"]*docked-utility-panel[^"]*absolute inset-x-0 top-0/);
   assert.match(source, /<div id="timer-question-submission-panel" className="[^"]*docked-utility-panel[^"]*absolute inset-x-0 top-0/);
   assert.match(source, /<div id="timer-youtube-panel" className="[^"]*docked-utility-panel[^"]*absolute inset-x-0 top-0/);
+  assert.match(source, /<div id="timer-library-panel" className="[^"]*lg:bottom-\[5\.43rem\]/);
 });
 
 test('내용이 짧은 교사 기능창은 일정 영역 전체 높이로 늘어나지 않는다', async () => {
@@ -20,6 +21,8 @@ test('내용이 짧은 교사 기능창은 일정 영역 전체 높이로 늘어
   ]);
 
   assert.equal(source.match(/content-fit-utility-card/g)?.length, 3);
+  assert.equal(source.match(/docked-utility-panel[^\"]*flex flex-col justify-end/g)?.length, 3);
+  assert.equal(source.match(/docked-utility-panel[^\"]*lg:bottom-\[5\.43rem\]/g)?.length, 3);
   assert.match(css, /\.content-fit-utility-card \{[^}]*flex: 0 1 auto !important;[^}]*max-height: 100%;[^}]*overflow: hidden;/);
   assert.match(css, /\.content-fit-utility-card > div \{[^}]*flex: 0 1 auto;[^}]*overflow-y: auto;/);
 });

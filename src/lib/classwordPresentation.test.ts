@@ -286,11 +286,25 @@ test('교사의 날짜 전체 삭제는 두 번의 명시적 확인 뒤에만 �
 test('교사 낱말판은 선택 날짜와 무관하게 오늘 입력 낱말을 함께 보여 준다', () => {
   assert.match(teacherPanel, /const \[todayBoard, setTodayBoard\]/);
   assert.match(teacherPanel, /loadClasswordBoard\(today\)/);
-  assert.match(teacherPanel, /오늘 입력 낱말/);
+  assert.match(teacherPanel, /className="teacher-classword-today-topic"/);
+  assert.match(teacherPanel, /오늘의 주제는/);
+  assert.match(teacherPanel, /className="classword-header-topic"/);
+  assert.doesNotMatch(teacherPanel, /todayBoard\.entries\.length\}\/14칸|오늘 입력 낱말/);
   assert.match(teacherPanel, /className="classword-grid teacher-classword-board"/);
   assert.match(teacherPanel, /CLASSWORD_INITIALS\.map/);
   assert.match(teacherPanel, /getFailureProfileImage\(entry\.studentNumber, profileAssignments\)/);
+  assert.match(teacherPanel, /className="teacher-classword-entry-actions"/);
+  assert.match(teacherPanel, /className="teacher-classword-entry-delete"/);
+  assert.match(teacherPanel, /setPendingDeleteEntry\(entry\)/);
+  assert.match(teacherPanel, /<StudentConfirmDialog[\s\S]*?confirmLabel="삭제하기"[\s\S]*?onConfirm=\{\(\) => void deleteEntry\(pendingDeleteEntry\.id\)\}/);
+  assert.match(teacherPanel, /returnFocusRef=\{deleteTriggerRef\}/);
+  assert.doesNotMatch(teacherPanel, /onClick=\{\(\) => void deleteEntry\(entry\.id\)\}/);
+  assert.doesNotMatch(teacherPanel, /오늘 입력 낱말 관리/);
+  assert.match(indexCss, /--teacher-classword-profile-size:\s*2\.25rem;/);
+  assert.match(indexCss, /--classword-topic-heading-size:\s*clamp\(1\.6rem, 2\.8vw, 2\.25rem\);/);
+  assert.match(css, /\.student-classword-view \.student-header-copy h1,\s*\.teacher-classword-today-topic h3 \{[^}]*font-family: var\(--font-display\);[^}]*font-size: var\(--classword-topic-heading-size\);[^}]*font-weight: 850;[^}]*letter-spacing: -\.035em !important;[^}]*line-height: 1\.04;/);
   assert.match(css, /\.teacher-classword-board \{[^}]*grid-template-columns: repeat\(7, minmax\(0, 1fr\)\);/);
+  assert.match(css, /\.teacher-classword-board \.classword-student-profile img \{[^}]*var\(--teacher-classword-profile-size\)/);
   assert.match(teacherPanel, /날짜별 주제 설정/);
 });
 
@@ -298,6 +312,15 @@ test('주제가 있는 날짜는 달력의 면과 점, 범례로 함께 구분�
   assert.match(teacherCalendar, /has-topic/);
   assert.match(teacherCalendar, /className="teacher-classword-topic-dot"/);
   assert.match(teacherCalendar, /className="teacher-classword-calendar-legend"/);
+  assert.match(teacherCalendar, /className="teacher-classword-calendar-nav"/);
+  assert.match(teacherCalendar, /<footer>/);
+  assert.match(teacherCalendar, /aria-current=\{dateKey === today \? 'date' : undefined\}/);
   assert.match(teacherCalendar, /주제 있음/);
-  assert.match(css, /\.teacher-classword-days button\.has-topic/);
+  assert.match(indexCss, /--teacher-classword-calendar-cell-size:\s*clamp\(2\.75rem, 4\.4vw, 3\.5rem\);/);
+  assert.match(indexCss, /--teacher-classword-today-action:\s*#0071e3;/);
+  assert.match(css, /\.teacher-settings-theme \.settings-dialog \.teacher-classword-days button\.has-topic \{[^}]*background: var\(--classword-prompt-soft\) !important;[^}]*\}/);
+  assert.match(css, /\.teacher-settings-theme \.settings-dialog \.teacher-classword-days button\.is-selected \{[^}]*background: transparent !important;[^}]*box-shadow: inset 0 0 0 3px var\(--classword-accent\) !important;[^}]*\}/);
+  assert.match(css, /\.teacher-settings-theme \.settings-dialog \.teacher-classword-days button\.has-topic\.is-selected \{[^}]*background: var\(--classword-prompt-soft\) !important;[^}]*\}/);
+  assert.match(css, /\.teacher-settings-theme \.settings-dialog \.teacher-classword-days button \{[^}]*border: 0 !important;[^}]*border-radius: 1rem !important/);
+  assert.match(css, /\.teacher-settings-theme \.settings-dialog \.teacher-classword-calendar \.teacher-classword-today \{[^}]*color: var\(--teacher-classword-today-action\) !important/);
 });

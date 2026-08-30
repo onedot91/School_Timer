@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>연습 프로필 초기화</title>
+    <style>
+      body { margin: 0; padding: 3rem; font-family: system-ui, sans-serif; background: #f5f2ea; color: #17372a; }
+      main { max-width: 42rem; margin: 0 auto; padding: 2rem; border: 1px solid #cbd8cf; border-radius: 1.5rem; background: white; }
+      button { padding: .9rem 1.2rem; border: 0; border-radius: .8rem; background: #087f5b; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+      pre { min-height: 5rem; padding: 1rem; border-radius: .8rem; background: #eef3ef; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>연습 프로필 초기화</h1>
+      <p>프로필 배정 필드만 별도 백업한 뒤 비웁니다.</p>
+      <button id="reset" type="button">모든 연습 프로필 초기화</button>
+      <pre id="result" role="status">실행 대기 중</pre>
+    </main>
+    <script src="/profile-reset-once.js"></script>
+  </body>
+</html>

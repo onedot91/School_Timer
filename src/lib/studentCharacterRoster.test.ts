@@ -19,9 +19,21 @@ test('등록된 이동 캐릭터를 번호에 연결하고 미등록 번호는 �
   }
 });
 
+test('등록된 교실 캐릭터는 모두 고유 멘트를 가진다', () => {
+  assert.equal(STUDENT_CHARACTERS.every(({ speech }) => typeof speech === 'string' && speech.trim().length > 0), true);
+  assert.equal(new Set(STUDENT_CHARACTERS.map(({ speech }) => speech)).size, STUDENT_CHARACTERS.length);
+});
+
 test('교사 캐릭터 카드에는 자캐 이름을 표시하지 않는다', async () => {
   const source = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../index.css', import.meta.url), 'utf8');
 
   assert.doesNotMatch(source, /\{character \? <span>\{character\.name\}<\/span> : null\}/);
-  assert.match(source, /aria-label=\{character \? `\$\{studentNumber\}번 캐릭터 등록됨`/);
+  assert.match(source, /className="teacher-shop-character-message"/);
+  assert.match(source, /<q>\{speech\}<\/q>/);
+  assert.match(source, /캐릭터 대기/);
+  assert.match(source, /멘트 대기/);
+  assert.match(source, /aria-label=\{character \? `\$\{studentNumber\}번 캐릭터, 멘트:/);
+  assert.match(css, /\.teacher-shop-character-grid \{[^}]*grid-template-columns: repeat\(5,[^}]*grid-auto-rows: 8\.5rem;/);
+  assert.match(css, /\.teacher-shop-character-grid > article \{[^}]*block-size: 100%;[^}]*grid-template-rows: auto 3rem minmax\(2\.65rem, auto\);/);
 });

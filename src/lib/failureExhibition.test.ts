@@ -175,11 +175,13 @@ test('익명 이미지는 학생 프로필로 저장할 수 없다', () => {
   assert.notEqual(normalized['1'], '/failure-profiles/thumbs/anonymous.png');
 });
 
-test('학생 23명의 기본 프로필은 겹치지 않고 날짜와 관계없이 고정된다', () => {
+test('학생은 배정 전까지 모두 같은 모노톤 빈 프로필로 시작한다', () => {
   const firstLoad = Array.from({ length: 23 }, (_, index) => getFailureProfileImage(index + 1));
   const secondLoad = Array.from({ length: 23 }, (_, index) => getFailureProfileImage(index + 1));
 
-  assert.equal(new Set(firstLoad).size, 23);
+  assert.equal(normalizeFailureProfileAssignments(null)['1'], undefined);
+  assert.equal(new Set(firstLoad).size, 1);
+  assert.match(firstLoad[0] ?? '', /empty\.svg$/);
   assert.deepEqual(secondLoad, firstLoad);
 });
 
@@ -192,11 +194,14 @@ test('사용하지 않은 프로필로 바꾸면 선택이 유지된다', () => 
 
   assert.equal(result.applied, true);
   assert.equal(getFailureProfileImage(1, result.assignments), unusedProfile);
-  assert.equal(new Set(Object.values(result.assignments)).size, 23);
+  assert.deepEqual(Object.values(result.assignments), [unusedProfile]);
 });
 
 test('다른 학생이 사용 중인 프로필은 선택할 수 없다', () => {
-  const assignments = normalizeFailureProfileAssignments(null);
+  const assignments = normalizeFailureProfileAssignments({
+    1: FAILURE_PROFILE_IMAGES[0],
+    2: FAILURE_PROFILE_IMAGES[1],
+  });
   const studentTwoProfile = getFailureProfileImage(2, assignments);
 
   const result = selectFailureProfile(assignments, 1, studentTwoProfile);

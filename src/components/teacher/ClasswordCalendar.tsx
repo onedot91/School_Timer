@@ -42,20 +42,11 @@ export default function ClasswordCalendar({
   return (
     <section className="teacher-classword-calendar" aria-label="낱말판 날짜 선택">
       <header>
-        <button type="button" onClick={() => moveMonth(-1)} aria-label="이전 달"><ChevronLeft aria-hidden="true" /></button>
         <h3>{monthLabel}</h3>
-        <button type="button" onClick={() => moveMonth(1)} aria-label="다음 달"><ChevronRight aria-hidden="true" /></button>
-        <button
-          type="button"
-          className="teacher-classword-today"
-          onClick={() => {
-            const now = new Date();
-            onMonthChange(new Date(now.getFullYear(), now.getMonth(), 1));
-            onSelect(today);
-          }}
-        >
-          오늘
-        </button>
+        <div className="teacher-classword-calendar-nav">
+          <button type="button" onClick={() => moveMonth(-1)} aria-label="이전 달"><ChevronLeft aria-hidden="true" /></button>
+          <button type="button" onClick={() => moveMonth(1)} aria-label="다음 달"><ChevronRight aria-hidden="true" /></button>
+        </div>
       </header>
       <div className="teacher-classword-weekdays" aria-hidden="true">
         {WEEKDAYS.map((weekday) => <span key={weekday}>{weekday}</span>)}
@@ -70,6 +61,7 @@ export default function ClasswordCalendar({
               className={`${currentMonth ? '' : 'is-outside'}${hasTopic ? ' has-topic' : ''}${dateKey === selectedDateKey ? ' is-selected' : ''}${dateKey === today ? ' is-today' : ''}`}
               onClick={() => onSelect(dateKey)}
               aria-pressed={dateKey === selectedDateKey}
+              aria-current={dateKey === today ? 'date' : undefined}
               aria-label={`${date.getMonth() + 1}월 ${date.getDate()}일${hasTopic ? ', 주제 있음' : ''}`}
             >
               <span>{date.getDate()}</span>
@@ -78,7 +70,20 @@ export default function ClasswordCalendar({
           );
         })}
       </div>
-      <div className="teacher-classword-calendar-legend"><i aria-hidden="true" /> 주제 있음</div>
+      <footer>
+        <div className="teacher-classword-calendar-legend"><i aria-hidden="true" /> 주제 있음</div>
+        <button
+          type="button"
+          className="teacher-classword-today"
+          onClick={() => {
+            const now = new Date();
+            onMonthChange(new Date(now.getFullYear(), now.getMonth(), 1));
+            onSelect(today);
+          }}
+        >
+          오늘
+        </button>
+      </footer>
     </section>
   );
 }

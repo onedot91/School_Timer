@@ -1,5 +1,6 @@
 import { Dice5, Save, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   CLASSWORD_INITIALS,
@@ -21,6 +22,7 @@ import {
   getFailureProfileImage,
   type FailureProfileAssignments,
 } from '../../lib/failureExhibition';
+import StudentConfirmDialog from '../student/StudentConfirmDialog';
 import ClasswordCalendar from './ClasswordCalendar';
 
 const RANDOM_TOPICS = [
@@ -48,6 +50,8 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [clearStep, setClearStep] = useState<0 | 1 | 2>(0);
+  const [pendingDeleteEntry, setPendingDeleteEntry] = useState<ClasswordBoard['entries'][number] | null>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -123,8 +127,10 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
     setBusy(true);
     try {
       await removeClasswordEntry(entryId, 0, true);
+      setPendingDeleteEntry(null);
       await refresh();
     } catch {
+      setPendingDeleteEntry(null);
       setMessage('낱말을 삭제하지 못했습니다.');
     } finally {
       setBusy(false);
@@ -147,14 +153,15 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
 
   return (
     <div className="teacher-classword-panel">
-      <header className="teacher-classword-heading">
-        <div><span>학생 생활</span><h2>ㄱㄴㄷ 낱말판</h2></div>
-        <p>날짜별 주제를 정하고 학생들이 남긴 낱말을 관리합니다.</p>
-      </header>
       <section className="teacher-classword-today-entries" aria-labelledby="teacher-classword-today-title">
-        <header>
-          <div><span>{today}</span><h3 id="teacher-classword-today-title">오늘 입력 낱말</h3></div>
-          <strong>{todayBoard.entries.length}/14칸</strong>
+        <header className="teacher-classword-today-topic">
+          <h3 id="teacher-classword-today-title" className="classword-header-topic">
+            {todayBoard.topic ? (
+              <><span>오늘의 주제는 </span><strong>{todayBoard.topic}</strong><span>입니다.</span></>
+            ) : (
+              <><span>오늘의 주제를 </span><strong>준비하고 있어요.</strong></>
+            )}
+          </h3>
         </header>
         <section className="classword-grid teacher-classword-board" aria-label="오늘 초성 낱말판">
           {CLASSWORD_INITIALS.map((initial) => {
@@ -175,13 +182,29 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
                   {entry ? (
                     <span className="classword-entry-copy">
                       <strong>{entry.word}</strong>
-                      <span className="classword-student-profile">
-                        <img
-                          src={getFailureProfileImage(entry.studentNumber, profileAssignments)}
-                          alt=""
-                          width={192}
-                          height={192}
-                        />
+                      <span className="teacher-classword-entry-actions">
+                        <span className="classword-student-profile">
+                          <img
+                            src={getFailureProfileImage(entry.studentNumber, profileAssignments)}
+                            alt=""
+                            width={192}
+                            height={192}
+                          />
+                        </span>
+                        <button
+                          type="button"
+                          className="teacher-classword-entry-delete"
+                          onClick={(event) => {
+                            deleteTriggerRef.current = event.currentTarget;
+                            setPendingDeleteEntry(entry);
+                          }}
+                          disabled={busy}
+                          aria-haspopup="dialog"
+                          aria-label={`${entry.word}, ${entry.studentNumber}번 낱말 삭제`}
+                          title={`${entry.word} 삭제`}
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </button>
                       </span>
                     </span>
                   ) : <span className="classword-empty-mark" aria-hidden="true">+</span>}
@@ -190,17 +213,6 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
             );
           })}
         </section>
-        <details className="teacher-classword-history">
-          <summary>오늘 입력 낱말 관리 <strong>{todayBoard.entries.length}개</strong></summary>
-          <ul className="teacher-classword-entry-list" aria-label="오늘 학생 낱말 관리 목록">
-            {todayBoard.entries.length === 0 ? <li className="is-empty">오늘은 아직 등록된 낱말이 없습니다.</li> : todayBoard.entries.map((entry) => (
-              <li key={entry.id}>
-                <strong>{entry.initial}</strong><span>{entry.word}</span><small>{entry.studentNumber}번</small>
-                <button type="button" onClick={() => void deleteEntry(entry.id)} disabled={busy} aria-label={`${entry.word} 삭제`}><Trash2 aria-hidden="true" /></button>
-              </li>
-            ))}
-          </ul>
-        </details>
       </section>
       <section className="teacher-classword-quiz-summary" aria-labelledby="teacher-classword-quiz-title">
         <header>
@@ -252,7 +264,18 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
                 {board.entries.length === 0 ? <li className="is-empty">이 날짜에는 등록된 낱말이 없습니다.</li> : board.entries.map((entry) => (
                   <li key={entry.id}>
                     <strong>{entry.initial}</strong><span>{entry.word}</span><small>{entry.studentNumber}번</small>
-                    <button type="button" onClick={() => void deleteEntry(entry.id)} disabled={busy} aria-label={`${entry.word} 삭제`}><Trash2 aria-hidden="true" /></button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        deleteTriggerRef.current = event.currentTarget;
+                        setPendingDeleteEntry(entry);
+                      }}
+                      disabled={busy}
+                      aria-haspopup="dialog"
+                      aria-label={`${entry.word} 삭제`}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -269,6 +292,35 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
           )}
         </section>
       </div>
+      {pendingDeleteEntry ? createPortal(
+        <div className="teacher-classword-delete-modal">
+          <StudentConfirmDialog
+            isOpen
+            kicker="낱말 삭제"
+            title={`“${pendingDeleteEntry.word}” 삭제할까요?`}
+            description="삭제하면 되돌릴 수 없어요."
+            confirmLabel="삭제하기"
+            isPending={busy}
+            returnFocusRef={deleteTriggerRef}
+            onCancel={() => setPendingDeleteEntry(null)}
+            onConfirm={() => void deleteEntry(pendingDeleteEntry.id)}
+          >
+            <div className="teacher-classword-delete-preview">
+              <img
+                src={getFailureProfileImage(pendingDeleteEntry.studentNumber, profileAssignments)}
+                alt=""
+                width={192}
+                height={192}
+              />
+              <span>
+                <strong>{pendingDeleteEntry.word}</strong>
+                <small>{getClasswordInitialLabel(pendingDeleteEntry.initial)} · {pendingDeleteEntry.studentNumber}번</small>
+              </span>
+            </div>
+          </StudentConfirmDialog>
+        </div>,
+        document.body,
+      ) : null}
     </div>
   );
 }

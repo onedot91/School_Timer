@@ -215,6 +215,7 @@ type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' |
 type TeacherShopTab = 'items' | 'skins' | 'houses' | 'characters';
 type SettingsNavigationGroup = {
   readonly label: string;
+  readonly showHeading?: boolean;
   readonly items: readonly {
     readonly panel: SettingsPanel;
     readonly label: string;
@@ -259,6 +260,12 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
       { panel: 'auction', label: '경매', icon: Coins },
       { panel: 'stocks', label: '증권', icon: Star },
       { panel: 'donation', label: '기부', icon: HeartPulse },
+    ],
+  },
+  {
+    label: '기타 설정',
+    showHeading: false,
+    items: [
       { panel: 'shop', label: '기타', icon: Package },
     ],
   },
@@ -9262,14 +9269,22 @@ export default function TimerPage() {
         <section id="teacher-shop-panel-characters" role="tabpanel" aria-labelledby="teacher-shop-tab-characters" className="settings-card teacher-shop-collection teacher-shop-characters rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
           <header><div><h3>교실 캐릭터</h3><p>교사 화면에서 돌아다니는 학생 제작 캐릭터</p></div><span>1~23번</span></header>
           <div className="teacher-shop-character-grid">
-            {teacherStudentCharacterRoster.map(({ studentNumber, character }) => (
-              <article key={studentNumber} data-empty={character === null ? 'true' : undefined} aria-label={character ? `${studentNumber}번 캐릭터 등록됨` : `${studentNumber}번 캐릭터 없음`}>
-                <strong>{studentNumber}번</strong>
-                <div className="teacher-shop-character-stage">
-                  {character ? <img src={character.imageSrc} alt={character.alt} width={192} height={192} loading="lazy" decoding="async" /> : null}
-                </div>
-              </article>
-            ))}
+            {teacherStudentCharacterRoster.map(({ studentNumber, character }) => {
+              const speech = character?.speech ?? null;
+              return (
+                <article key={studentNumber} data-empty={character === null ? 'true' : undefined} aria-label={character ? `${studentNumber}번 캐릭터, 멘트: ${speech ?? '멘트 대기'}` : `${studentNumber}번 캐릭터와 멘트 등록 대기`}>
+                  <strong>{studentNumber}번</strong>
+                  <div className="teacher-shop-character-stage">
+                    {character
+                      ? <img src={character.imageSrc} alt={character.alt} width={192} height={192} loading="lazy" decoding="async" />
+                      : <span className="teacher-shop-character-placeholder">캐릭터 대기</span>}
+                  </div>
+                  <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
+                    {speech ? <q>{speech}</q> : <span>멘트 대기</span>}
+                  </p>
+                </article>
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -10775,7 +10790,7 @@ export default function TimerPage() {
           {/* Right: Controls & Presets */}
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
             {isLibraryOpen ? (
-              <div id="timer-library-panel" className="library-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[60] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
+              <div id="timer-library-panel" className="library-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[60] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
                 <div className="library-panel-card utility-pane-card pointer-events-auto relative min-h-0 flex-1 overflow-hidden rounded-[1.7rem] border border-[#DDE9E2] bg-white shadow-[0_18px_36px_rgba(37,28,21,0.14),inset_0_1px_0_rgba(255,255,255,0.88)] ring-1 ring-white/70">
                   <iframe
                     src={LIBRARY_SITE_URL}
@@ -11099,7 +11114,7 @@ export default function TimerPage() {
             </div>
 
             {isCurrencyPanelOpen ? (
-              <div id="timer-currency-panel" className="currency-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[120] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
+              <div id="timer-currency-panel" className="currency-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[120] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
                 <div className="content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
                   <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#E9DED2] pb-3">
@@ -11425,7 +11440,7 @@ export default function TimerPage() {
             ) : null}
 
             {isQuestionSubmissionPanelOpen ? (
-              <div id="timer-question-submission-panel" className="question-submission-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[150] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
+              <div id="timer-question-submission-panel" className="question-submission-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[150] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
                 <div className="content-fit-utility-card question-submission-panel-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
                   <div className="question-submission-panel-scroll min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#E4EDE7] pb-3">
@@ -11514,7 +11529,7 @@ export default function TimerPage() {
             ) : null}
 
             {isYoutubePanelOpen ? (
-              <div id="timer-youtube-panel" className="youtube-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[70] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[6rem] lg:p-5">
+              <div id="timer-youtube-panel" className="youtube-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[70] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
                 <div
                   className="content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
                 >
@@ -11789,7 +11804,9 @@ export default function TimerPage() {
               >
                 {SETTINGS_NAVIGATION_GROUPS.map((group) => (
                   <section key={group.label} className="settings-navigation-group" aria-label={group.label}>
-                    <h3 className="settings-navigation-label">{group.label}</h3>
+                    {group.showHeading !== false ? (
+                      <h3 className="settings-navigation-label">{group.label}</h3>
+                    ) : null}
                     <div className="settings-navigation-items">
                       {group.items.map((item) => {
                         const ItemIcon = item.icon;

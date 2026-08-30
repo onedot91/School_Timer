@@ -151,11 +151,15 @@ import {
 } from '../lib/studentLife';
 import {
   getFailureStoriesNewestFirst,
-  selectFailureProfile,
   toggleFailureStamp,
   type FailureStampId,
 } from '../lib/failureExhibition';
 import { createFailureExhibitionMissionEntry } from '../lib/failureExhibitionMission';
+import {
+  purchaseStudentProfile,
+  type StudentProfilePurchase,
+  type StudentProfilePurchaseResult,
+} from '../lib/studentProfilePurchase';
 import { createBankMailboxLetters } from '../lib/bankMailbox';
 import { useStudentSudokuState } from '../lib/useStudentSudokuState';
 import { useStudentNumberBaseballState } from '../lib/useStudentNumberBaseballState';
@@ -722,36 +726,93 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     failureStories: toggleFailureStamp(current.failureStories, storyId, studentNumber, stampId),
   }));
 
-  const selectStudentFailureProfile = async (profileImage: string) => {
-    const selection = {
-      reason: 'invalid_profile' as ReturnType<typeof selectFailureProfile>['reason'],
-    };
-    const saved = await saveStudentLifeChange((current) => {
-      const result = selectFailureProfile(
-        current.failureProfileAssignments,
-        studentNumber,
-        profileImage,
-      );
-      selection.reason = result.reason;
-      return result.applied
-        ? { ...current, failureProfileAssignments: result.assignments }
-        : current;
-    });
+  const selectStudentFailureProfile = async (purchase: StudentProfilePurchase) => {
+    if (isStudentLifeSaving) return false;
+    setIsStudentLifeSaving(true);
+    const createdAt = new Date().toISOString();
+    let result: StudentProfilePurchaseResult | null = null;
 
-    if (!saved) {
-      showStatusMessage('프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.');
-      return false;
+    try {
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          const currentItems = normalizeAuctionItems(current.auctionItems);
+          const currentItemIds = currentItems.map((item) => item.id);
+          const currentBids = normalizeAuctionBids(current.auctionBids, currentItemIds);
+          const currentAwards = normalizeAuctionAwards(current.auctionAwards, currentItemIds);
+          const latestReserved = getReservedAuctionBidAmount(
+            currentBids,
+            studentNumber,
+            undefined,
+            currentAwards,
+            currentItemIds,
+          );
+          const currentBalances = normalizeCurrencyBalances(current.currencyBalances);
+          const latestBalance = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+          result = purchaseStudentProfile(
+            current,
+            studentNumber,
+            purchase,
+            Math.max(0, latestBalance - latestReserved),
+            Math.random,
+            createdAt,
+          );
+          return result.value;
+        });
+      } else {
+        const snapshot = loadStoredStudentPetSnapshot();
+        const currentWallet = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+        result = purchaseStudentProfile(
+          snapshot,
+          studentNumber,
+          purchase,
+          Math.max(0, currentWallet - reservedAmount),
+          Math.random,
+          createdAt,
+        );
+        if (result.applied) {
+          if (!storeStudentPetSnapshot({
+            ...snapshot,
+            currencyBalances: result.balances,
+            currencyHistory: result.history,
+            studentLife: result.studentLife,
+          })) return false;
+        }
+      }
+
+      if (result === null || !result.applied) {
+        const reason = result?.reason;
+        const message = reason === 'profile_in_use'
+          ? '다른 학생이 사용 중인 프로필입니다.'
+          : reason === 'insufficient_currency'
+            ? '사용 가능한 고마가 부족합니다.'
+            : reason === 'first_profile_must_be_random'
+              ? '첫 프로필은 랜덤으로만 받을 수 있습니다.'
+              : reason === 'no_profile_available'
+                ? '지금은 받을 수 있는 프로필이 없습니다.'
+                : reason === 'already_selected'
+                  ? '이미 사용 중인 프로필입니다.'
+                  : '프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.';
+        showStatusMessage(message);
+        return false;
+      }
+
+      setStudentLife(result.studentLife);
+      setCurrencyBalances(result.balances);
+      setCurrencyHistory(result.history);
+      showStatusMessage(result.price === 0 ? '첫 랜덤 프로필을 받았습니다.' : `${formatCurrency(result.price)}로 프로필을 바꿨습니다.`);
+      return true;
+    } catch (error) {
+      if (error instanceof Error) {
+        showStatusMessage('프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        return false;
+      }
+      throw error;
+    } finally {
+      setIsStudentLifeSaving(false);
     }
-    if (selection.reason === 'profile_in_use') {
-      showStatusMessage('다른 학생이 사용 중인 프로필입니다.');
-      return false;
-    }
-    if (selection.reason !== 'selected') {
-      showStatusMessage('이미 사용 중인 프로필입니다.');
-      return false;
-    }
-    showStatusMessage('프로필을 바꿨습니다.');
-    return true;
   };
 
   const feedStudentPet = async () => {
@@ -815,6 +876,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             reason: 'pet_feed',
           }),
           studentEconomy: snapshot.studentEconomy,
+          studentLife: snapshot.studentLife,
         });
         if (!stored) return false;
       }
@@ -1838,7 +1900,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             section={activeStoreSection}
             economyState={studentEconomy}
             stockMarket={studentStockMarket}
-            isEconomySaving={isEconomySaving}
+            isEconomySaving={isEconomySaving || isStudentLifeSaving}
             donation={{
               totalAmount: classDonation.totalAmount,
               targetAmount: classDonation.targetAmount,

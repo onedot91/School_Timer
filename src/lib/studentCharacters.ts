@@ -104,7 +104,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-7.png',
     alt: '7번 학생이 만든 주황 자동차 캐릭터',
     themeColor: '#F36B1D',
-    speech: '나는 시속 300km로 달리는 중..',
+    speech: '나는 시속 300km로 달리는\u00a0중..',
     walkTransform: {
       right: 'scaleX(-1)',
       left: 'none',
@@ -132,6 +132,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     speechImageAlt: '말풍선이 있는 9번 하트 캐릭터',
     alt: '9번 학생이 만든 하트 캐릭터',
     themeColor: '#E23A3A',
+    speech: '친구와 사이좋게 지내자.',
     walkTransform: {
       right: 'none',
       left: 'none',

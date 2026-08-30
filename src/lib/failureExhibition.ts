@@ -107,13 +107,9 @@ const FAILURE_PROFILE_NAMES = [
   '비둘기',
 ] as const;
 
-const DEFAULT_FAILURE_PROFILE_RING = [
-  7, 19, 2, 14, 22, 5, 11, 17, 1, 9, 16, 4, 20, 8, 13, 23, 6, 15, 10, 3, 18, 12, 21,
-  24, 31, 38, 45, 27, 34, 41, 48, 25, 32, 39, 46, 28, 35, 42, 49, 26, 33, 40, 47, 29, 36,
-  43, 50, 30, 37, 44,
-].map((profileNumber) => FAILURE_PROFILE_IMAGES[profileNumber - 1]);
-
 export type FailureProfileAssignments = Readonly<Record<string, string>>;
+
+export const FAILURE_EMPTY_PROFILE_IMAGE = '/failure-profiles/thumbs/empty.svg';
 
 export const FAILURE_RANDOM_PROFILE_OPTION = {
   id: 'random-profile',
@@ -138,33 +134,26 @@ export const normalizeFailureProfileAssignments = (value: unknown): FailureProfi
   for (let studentNumber = 1; studentNumber <= 23; studentNumber += 1) {
     const studentKey = String(studentNumber);
     const requested = source[studentKey];
-    const fallback = DEFAULT_FAILURE_PROFILE_RING[studentNumber - 1] ?? FAILURE_PROFILE_IMAGES[0];
-    const preferred = isFailureProfileImage(requested) ? requested : fallback;
-    const profile = !used.has(preferred)
-      ? preferred
-      : !used.has(fallback)
-        ? fallback
-        : FAILURE_PROFILE_IMAGES.find((image) => !used.has(image)) ?? FAILURE_PROFILE_IMAGES[0];
-    assignments[studentKey] = profile;
-    used.add(profile);
+    if (!isFailureProfileImage(requested) || used.has(requested)) continue;
+    assignments[studentKey] = requested;
+    used.add(requested);
   }
   return assignments;
+};
+
+export const getAssignedFailureProfileImage = (
+  studentNumber: number,
+  assignments?: FailureProfileAssignments,
+): string | null => {
+  if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) return null;
+  const assigned = assignments?.[String(studentNumber)];
+  return isFailureProfileImage(assigned) ? assigned : null;
 };
 
 export const getFailureProfileImage = (
   studentNumber: number,
   assignments?: FailureProfileAssignments,
-): string => {
-  const studentIndex = Number.isInteger(studentNumber)
-    && studentNumber >= 1
-    && studentNumber <= 23
-    ? studentNumber - 1
-    : 0;
-  const assigned = assignments?.[String(studentIndex + 1)];
-  return isFailureProfileImage(assigned)
-    ? assigned
-    : DEFAULT_FAILURE_PROFILE_RING[studentIndex] ?? FAILURE_PROFILE_IMAGES[0];
-};
+): string => getAssignedFailureProfileImage(studentNumber, assignments) ?? FAILURE_EMPTY_PROFILE_IMAGE;
 
 export const getRandomAvailableFailureProfile = (
   current: unknown,

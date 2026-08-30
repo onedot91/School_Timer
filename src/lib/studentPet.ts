@@ -8,6 +8,11 @@ import {
   normalizeStudentEconomyStates,
   type StudentEconomyStates,
 } from './studentEconomy';
+import {
+  loadStoredStudentLifeState,
+  normalizeStudentLifeState,
+  type StudentLifeState,
+} from './studentLife';
 
 export const STUDENT_PET_STORAGE_KEY = 'school-timer-student-pets-v1';
 export const STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY = 'school-timer-student-pet-position-overrides-v1';
@@ -51,6 +56,7 @@ export interface StudentPetLocalSnapshot {
   currencyBalances: CurrencyBalances;
   currencyHistory: CurrencyHistory;
   studentEconomy: StudentEconomyStates;
+  studentLife: StudentLifeState;
 }
 
 export interface StudentPetPositionOverride {
@@ -381,18 +387,22 @@ export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
     currencyBalances: normalizeCurrencyBalances(null),
     currencyHistory: normalizeCurrencyHistory(null),
     studentEconomy: {},
+    studentLife: normalizeStudentLifeState(null),
   };
   if (typeof window === 'undefined') return fallback;
 
   try {
     const saved = window.localStorage.getItem(STUDENT_PET_STORAGE_KEY);
-    if (!saved) return fallback;
+    if (!saved) return { ...fallback, studentLife: loadStoredStudentLifeState() };
     const parsed = JSON.parse(saved) as Record<string, unknown>;
     return {
       studentPets: normalizeStudentPetStates(parsed.studentPets),
       currencyBalances: normalizeCurrencyBalances(parsed.currencyBalances),
       currencyHistory: normalizeCurrencyHistory(parsed.currencyHistory),
       studentEconomy: normalizeStudentEconomyStates(parsed.studentEconomy),
+      studentLife: 'studentLife' in parsed
+        ? normalizeStudentLifeState(parsed.studentLife)
+        : loadStoredStudentLifeState(),
     };
   } catch (error) {
     if (error instanceof Error) return fallback;
@@ -400,14 +410,19 @@ export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
   }
 };
 
-export const storeStudentPetSnapshot = (snapshot: StudentPetLocalSnapshot) => {
-  if (typeof window === 'undefined') return false;
+export const storeStudentPetSnapshot = (
+  snapshot: StudentPetLocalSnapshot,
+  storage?: Pick<Storage, 'setItem'>,
+) => {
+  const targetStorage = storage ?? (typeof window === 'undefined' ? null : window.localStorage);
+  if (targetStorage === null) return false;
   try {
-    window.localStorage.setItem(STUDENT_PET_STORAGE_KEY, JSON.stringify({
+    targetStorage.setItem(STUDENT_PET_STORAGE_KEY, JSON.stringify({
       studentPets: normalizeStudentPetStates(snapshot.studentPets),
       currencyBalances: normalizeCurrencyBalances(snapshot.currencyBalances),
       currencyHistory: normalizeCurrencyHistory(snapshot.currencyHistory),
       studentEconomy: normalizeStudentEconomyStates(snapshot.studentEconomy),
+      studentLife: normalizeStudentLifeState(snapshot.studentLife),
     }));
     return true;
   } catch (error) {

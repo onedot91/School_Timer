@@ -9,6 +9,7 @@ import StudentPlaza, { type StudentStoreSection } from './StudentPlaza';
 import StudentShopPage from './StudentShopPage';
 import StudentStockMarketPage from './StudentStockMarketPage';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
+import type { StudentProfilePurchase } from '../../lib/studentProfilePurchase';
 
 interface StudentStorePageProps {
   studentNumber: number;
@@ -31,7 +32,7 @@ interface StudentStorePageProps {
     onDonate: () => void;
   };
   onEconomyAction: (action: StudentEconomyAction) => Promise<boolean>;
-  onSelectProfile: (profileImage: string) => Promise<boolean>;
+  onSelectProfile: (purchase: StudentProfilePurchase) => Promise<boolean>;
   onOpenSection: (section: StudentStoreSection) => void;
   onBack: () => void;
 }
