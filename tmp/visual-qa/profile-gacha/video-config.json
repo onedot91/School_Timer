@@ -1,0 +1,39 @@
+{
+  "duration": 6.5,
+  "fps": 60,
+  "output_size": [3840, 2400],
+  "source_size": [1280, 800],
+  "cursor_scale": 1.6,
+  "cursor_asset": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/profile-gacha/cursor.png",
+  "cursor_hotspot": [3, 3],
+  "click_strength": 12,
+  "rotation_strength_degrees": 4,
+  "shots": {
+    "confirm": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/profile-gacha/confirm-current-1280.png",
+    "saving": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/profile-gacha/saving-current-1280.png",
+    "shuffle": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/profile-gacha/shuffle-current-1280.png",
+    "result": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/profile-gacha/result-current-1280.png"
+  },
+  "scene_starts": [
+    [0.0, "confirm", "fade"],
+    [1.2, "saving", "fade"],
+    [2.4, "shuffle", "fade"],
+    [4.6, "result", "fade"]
+  ],
+  "cursor_keys": [
+    [0.0, 1040, 735],
+    [0.6, 695, 575],
+    [1.0, 695, 575],
+    [1.6, 640, 450],
+    [4.8, 640, 500],
+    [5.8, 640, 565],
+    [6.1, 640, 565]
+  ],
+  "camera_keys": [
+    [0.0, 640, 400, 1.0],
+    [2.4, 640, 390, 1.04],
+    [4.6, 640, 395, 1.05],
+    [6.5, 640, 400, 1.0]
+  ],
+  "click_times": [1.0, 6.1]
+}

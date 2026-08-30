@@ -20,6 +20,17 @@ export type StudentProfilePurchase =
   | { readonly type: 'random' }
   | { readonly type: 'selected'; readonly profileImage: string };
 
+export type StudentProfilePurchaseOutcome =
+  | {
+    readonly ok: true;
+    readonly profileImage: string;
+    readonly price: number;
+  }
+  | {
+    readonly ok: false;
+    readonly message: string;
+  };
+
 export type StudentProfilePurchaseReason =
   | 'purchased'
   | 'already_selected'

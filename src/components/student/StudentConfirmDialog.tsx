@@ -6,7 +6,7 @@ interface StudentConfirmDialogProps {
   readonly isOpen: boolean;
   readonly kicker?: string;
   readonly title: string;
-  readonly description: string;
+  readonly description?: string;
   readonly confirmLabel: string;
   readonly isPending: boolean;
   readonly isConfirmDisabled?: boolean;
@@ -55,7 +55,7 @@ export default function StudentConfirmDialog({
         aria-modal="true"
         aria-busy={isPending}
         aria-labelledby={titleId}
-        aria-describedby={descriptionId}
+        aria-describedby={description ? descriptionId : undefined}
         onClick={(event) => event.stopPropagation()}
       >
         <button type="button" className="student-confirm-dialog-close" aria-label="확인창 닫기" disabled={isPending} onClick={onCancel}>
@@ -63,7 +63,7 @@ export default function StudentConfirmDialog({
         </button>
         {kicker ? <span className="student-confirm-dialog-kicker">{kicker}</span> : null}
         <h2 id={titleId}>{title}</h2>
-        <p id={descriptionId}>{description}</p>
+        {description ? <p id={descriptionId}>{description}</p> : null}
         {children}
         <div className="student-confirm-dialog-actions">
           <button type="button" disabled={isPending} onClick={onCancel}>취소</button>

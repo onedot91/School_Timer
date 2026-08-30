@@ -158,6 +158,7 @@ import { createFailureExhibitionMissionEntry } from '../lib/failureExhibitionMis
 import {
   purchaseStudentProfile,
   type StudentProfilePurchase,
+  type StudentProfilePurchaseOutcome,
   type StudentProfilePurchaseResult,
 } from '../lib/studentProfilePurchase';
 import { createBankMailboxLetters } from '../lib/bankMailbox';
@@ -342,6 +343,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     isSupabaseSettingsEnabled ? normalizeDailyWritingState(null) : loadStoredDailyWritingState()
   ));
   const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
+  const [profilePurchaseType, setProfilePurchaseType] = useState<StudentProfilePurchase['type'] | null>(null);
   const [isPetSaving, setIsPetSaving] = useState(false);
   const [isEconomySaving, setIsEconomySaving] = useState(false);
   const isEconomySavingRef = useRef(false);
@@ -726,8 +728,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     failureStories: toggleFailureStamp(current.failureStories, storyId, studentNumber, stampId),
   }));
 
-  const selectStudentFailureProfile = async (purchase: StudentProfilePurchase) => {
-    if (isStudentLifeSaving) return false;
+  const selectStudentFailureProfile = async (purchase: StudentProfilePurchase): Promise<StudentProfilePurchaseOutcome> => {
+    if (isStudentLifeSaving) return { ok: false, message: '프로필 변경을 처리하고 있어요.' };
+    setProfilePurchaseType(purchase.type);
     setIsStudentLifeSaving(true);
     const createdAt = new Date().toISOString();
     let result: StudentProfilePurchaseResult | null = null;
@@ -778,7 +781,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             currencyBalances: result.balances,
             currencyHistory: result.history,
             studentLife: result.studentLife,
-          })) return false;
+          })) return { ok: false, message: '프로필을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.' };
         }
       }
 
@@ -795,22 +798,27 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 : reason === 'already_selected'
                   ? '이미 사용 중인 프로필입니다.'
                   : '프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.';
-        showStatusMessage(message);
-        return false;
+        if (purchase.type === 'selected') showStatusMessage(message);
+        return { ok: false, message };
       }
 
       setStudentLife(result.studentLife);
       setCurrencyBalances(result.balances);
       setCurrencyHistory(result.history);
-      showStatusMessage(result.price === 0 ? '첫 랜덤 프로필을 받았습니다.' : `${formatCurrency(result.price)}로 프로필을 바꿨습니다.`);
-      return true;
+      if (purchase.type === 'selected') showStatusMessage(`${formatCurrency(result.price)}로 프로필을 바꿨습니다.`);
+      if (result.profileImage === null) {
+        return { ok: false, message: '프로필 결과를 확인하지 못했습니다. 새로고침해 주세요.' };
+      }
+      return { ok: true, profileImage: result.profileImage, price: result.price };
     } catch (error) {
       if (error instanceof Error) {
-        showStatusMessage('프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.');
-        return false;
+        const message = '프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.';
+        if (purchase.type === 'selected') showStatusMessage(message);
+        return { ok: false, message };
       }
       throw error;
     } finally {
+      setProfilePurchaseType(null);
       setIsStudentLifeSaving(false);
     }
   };
@@ -1709,10 +1717,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     || isEmotionSaving
     || isSubmittingItemId !== null
     || isDonating;
+  const isProfileGachaSaving = activeStudentView === 'store-shop'
+    && profilePurchaseType === 'random'
+    && isStudentLifeSaving;
 
   return (
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
-      <StudentActionProgress isActive={isStudentActionPending} />
+      <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
       <main className="mx-auto w-full max-w-7xl">
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage

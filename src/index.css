@@ -20452,6 +20452,11 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-confirm-dialog-kicker { color: var(--apple-accent-pressed); font-size: .95rem; font-weight: 900; }
 .student-confirm-dialog h2 { margin: 0; font-size: 1.75rem; font-weight: 950; }
 .student-confirm-dialog p { margin: 0; color: var(--apple-text-secondary); font-size: 1.05rem; font-weight: 800; overflow-wrap: anywhere; word-break: keep-all; }
+.student-confirm-profile-swap { display: grid; grid-template-columns: 6.5rem 2.5rem 6.5rem; align-items: center; justify-content: center; gap: .55rem; }
+.student-confirm-profile-preview { display: grid; width: 6.5rem; margin: 0; padding: .32rem; border: 1px solid color-mix(in srgb, var(--apple-accent) 22%, var(--apple-separator)); border-radius: 1.05rem; background: color-mix(in srgb, var(--apple-surface) 92%, var(--apple-surface-muted)); box-shadow: inset 0 1px 0 var(--apple-edge-highlight), var(--apple-shadow-1); }
+.student-confirm-profile-preview img { display: block; width: 100%; aspect-ratio: 1; border-radius: .76rem; object-fit: cover; }
+.student-confirm-profile-arrow { display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: 999px; background: color-mix(in srgb, var(--apple-accent) 12%, var(--apple-surface)); color: var(--apple-accent-pressed); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--apple-accent) 18%, transparent); will-change: transform; }
+.student-confirm-profile-arrow svg { width: 1.35rem; height: 1.35rem; stroke-width: 2.6; }
 .student-confirm-dialog-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin-top: .25rem; }
 .student-confirm-dialog-actions button { min-height: 3rem; border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); font-size: 1rem; font-weight: 900; }
 .student-confirm-dialog-actions button:last-child { background: var(--apple-accent); color: white; }
@@ -22778,6 +22783,136 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   box-shadow: var(--apple-shadow-1);
 }
 
+.student-profile-shop[data-has-profile="false"] {
+  min-height: 29rem;
+  align-content: stretch;
+  padding: 1.35rem;
+  background:
+    radial-gradient(circle at 14% 50%, color-mix(in srgb, var(--failure-sky) 82%, transparent) 0 11rem, transparent 11.1rem),
+    linear-gradient(135deg, var(--apple-surface), color-mix(in srgb, var(--student-store-soft) 72%, var(--apple-surface)));
+}
+
+.student-profile-onboarding {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(13rem, .72fr) minmax(24rem, 1.25fr) minmax(13rem, .68fr);
+  align-items: center;
+  gap: clamp(1.5rem, 3vw, 3rem);
+}
+
+.student-profile-onboarding-art {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+}
+
+.student-profile-onboarding-art img {
+  display: block;
+  width: min(100%, 14.5rem);
+  aspect-ratio: 1;
+  border: .55rem solid color-mix(in srgb, var(--apple-surface) 88%, transparent);
+  border-radius: 2rem;
+  box-shadow:
+    0 1.2rem 2.4rem color-mix(in srgb, var(--apple-accent) 17%, transparent),
+    0 .25rem .6rem color-mix(in srgb, var(--apple-text-primary) 10%, transparent);
+  object-fit: cover;
+  transform: rotate(-2deg);
+}
+
+.student-profile-onboarding-copy {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: .85rem;
+}
+
+.student-profile-onboarding-copy > span {
+  color: var(--apple-accent-pressed);
+  font-size: .875rem;
+  font-weight: 950;
+  letter-spacing: .04em;
+}
+
+.student-profile-onboarding-copy h3 {
+  max-width: 15ch;
+  color: var(--apple-text-primary);
+  font-size: clamp(1.8rem, 2.6vw, 2.55rem);
+  font-weight: 950;
+  letter-spacing: -.035em;
+  line-height: 1.15;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.student-profile-nowrap { white-space: nowrap; }
+
+.student-profile-onboarding-copy p {
+  max-width: 30rem;
+  color: var(--apple-text-secondary);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.55;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.student-profile-onboarding-action {
+  min-width: 12rem;
+  min-height: 3.65rem;
+  margin-top: .35rem;
+  border-radius: 1rem;
+  background: var(--apple-accent);
+  box-shadow: 0 .65rem 1.25rem color-mix(in srgb, var(--apple-accent) 22%, transparent);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 950;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.student-profile-onboarding-action:hover:not(:disabled) {
+  background: var(--apple-accent-pressed);
+  box-shadow: 0 .8rem 1.45rem color-mix(in srgb, var(--apple-accent) 28%, transparent);
+  transform: translateY(-2px);
+}
+
+.student-profile-onboarding-action:active:not(:disabled) { transform: scale(.98); }
+.student-profile-onboarding-action:disabled { background: var(--apple-surface-muted); box-shadow: none; color: var(--apple-text-tertiary); }
+
+.student-profile-onboarding-unlocks {
+  display: grid;
+  min-width: 0;
+  gap: .4rem;
+  border-left: 1px solid var(--apple-separator);
+  padding-left: clamp(1.25rem, 2vw, 2rem);
+}
+
+.student-profile-onboarding-unlocks > p {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  margin-bottom: .2rem;
+  color: var(--apple-text-tertiary);
+  font-size: .875rem;
+  font-weight: 900;
+  word-break: keep-all;
+}
+
+.student-profile-onboarding-unlocks > div {
+  display: grid;
+  min-height: 4.5rem;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .75rem;
+  border-bottom: 1px dashed var(--apple-separator);
+  padding: .75rem .9rem;
+  color: var(--apple-text-tertiary);
+}
+
+.student-profile-onboarding-unlocks svg { width: 1.65rem; height: 1.65rem; color: var(--apple-text-tertiary); }
+.student-profile-onboarding-unlocks > p svg { width: 1.1rem; height: 1.1rem; }
+.student-profile-onboarding-unlocks span { min-width: 0; font-size: .95rem; font-weight: 900; line-height: 1.3; word-break: keep-all; }
+.student-profile-onboarding-unlocks small { font-size: .8rem; font-weight: 900; }
+
 .student-profile-shop > header {
   display: flex;
   align-items: end;
@@ -22812,10 +22947,6 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   display: grid;
   grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: .55rem;
-}
-
-.student-profile-shop-grid[data-has-profile="false"] {
-  grid-template-columns: minmax(8rem, 10rem);
 }
 
 .student-profile-shop-option {
@@ -22878,6 +23009,15 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--apple-accent) 28%, transparent);
 }
 
+@media (max-width: 48rem) {
+  .student-profile-shop[data-has-profile="false"] { min-height: auto; }
+  .student-profile-onboarding { grid-template-columns: minmax(0, 1fr); justify-items: stretch; }
+  .student-profile-onboarding-art img { width: min(65vw, 13rem); }
+  .student-profile-onboarding-copy { justify-items: center; text-align: center; }
+  .student-profile-onboarding-unlocks { grid-template-columns: repeat(2, minmax(0, 1fr)); border-left: 0; padding-left: 0; }
+  .student-profile-onboarding-unlocks > p { grid-column: 1 / -1; justify-content: center; }
+}
+
 .student-profile-shop-option[data-status="used"] {
   cursor: not-allowed;
   background: var(--apple-surface-muted);
@@ -22892,6 +23032,469 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-profile-shop-option:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--apple-accent) 30%, transparent);
   outline-offset: 2px;
+}
+
+.student-profile-gacha-backdrop {
+  position: fixed;
+  z-index: 140;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background: color-mix(in srgb, var(--apple-scrim) 86%, transparent);
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+}
+
+.student-profile-gacha-dialog {
+  --student-profile-gacha-card-size: 12.5rem;
+  position: relative;
+  width: min(100%, 34rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 22%, var(--apple-separator));
+  border-radius: var(--apple-radius-panel);
+  background:
+    radial-gradient(circle at 50% 8%, color-mix(in srgb, var(--failure-butter) 56%, transparent), transparent 15rem),
+    color-mix(in srgb, var(--apple-material-thick) 96%, var(--student-store-soft));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--apple-surface) 92%, transparent),
+    var(--apple-shadow-3);
+  color: var(--apple-text-primary);
+  outline: 0;
+  isolation: isolate;
+}
+
+.student-profile-gacha-dialog::before {
+  position: absolute;
+  z-index: -1;
+  inset: .6rem;
+  border: 1px dashed color-mix(in srgb, var(--apple-accent) 16%, transparent);
+  border-radius: calc(var(--apple-radius-panel) - .55rem);
+  content: '';
+  pointer-events: none;
+}
+
+.student-profile-gacha-close {
+  position: absolute;
+  z-index: 5;
+  top: .8rem;
+  right: .8rem;
+  display: grid;
+  width: var(--apple-control-min);
+  height: var(--apple-control-min);
+  place-items: center;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--apple-surface) 88%, transparent);
+  color: var(--apple-text-secondary);
+  box-shadow: var(--apple-shadow-1);
+  transition: background-color var(--student-motion-state) ease-out, color var(--student-motion-state) ease-out, transform var(--student-motion-press) var(--student-ease-out);
+}
+
+.student-profile-gacha-close:hover { background: var(--apple-surface); color: var(--apple-accent); }
+.student-profile-gacha-close:active { transform: scale(.98); }
+.student-profile-gacha-close svg { width: 1.25rem; height: 1.25rem; }
+
+.student-profile-gacha-stage {
+  min-height: 30rem;
+  padding: 1.5rem;
+}
+
+.student-profile-gacha-confirm,
+.student-profile-gacha-processing,
+.student-profile-gacha-shuffling,
+.student-profile-gacha-revealing,
+.student-profile-gacha-sequence,
+.student-profile-gacha-outcome,
+.student-profile-gacha-result {
+  display: grid;
+  min-height: 27rem;
+  align-content: center;
+  justify-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.student-profile-gacha-kicker,
+.student-profile-gacha-result-label {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: .4rem;
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--apple-accent) 10%, var(--apple-surface));
+  padding: .4rem .72rem;
+  color: var(--apple-accent-pressed);
+  font-size: .875rem;
+  font-weight: 950;
+  letter-spacing: .02em;
+}
+
+.student-profile-gacha-kicker svg { width: 1rem; height: 1rem; }
+
+.student-profile-gacha-hero-card,
+.student-profile-gacha-card-back,
+.student-profile-gacha-result-card,
+.student-profile-gacha-reel-card,
+.student-profile-gacha-flip-face {
+  overflow: hidden;
+  border: .42rem solid color-mix(in srgb, var(--apple-surface) 88%, transparent);
+  border-radius: 1.65rem;
+  background: var(--failure-sky);
+  box-shadow:
+    0 1.1rem 2rem color-mix(in srgb, var(--apple-accent-pressed) 18%, transparent),
+    0 .18rem .45rem color-mix(in srgb, var(--apple-text-primary) 13%, transparent);
+}
+
+.student-profile-gacha-hero-card {
+  position: relative;
+  width: var(--student-profile-gacha-card-size);
+  aspect-ratio: 1;
+  transform: rotate(-1.5deg);
+}
+
+.student-profile-gacha-hero-card img,
+.student-profile-gacha-card-back img,
+.student-profile-gacha-result-card img,
+.student-profile-gacha-reel-card img,
+.student-profile-gacha-flip-face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.student-profile-gacha-hero-card > span {
+  position: absolute;
+  right: .6rem;
+  bottom: .6rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 18%, var(--apple-separator));
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--apple-surface) 92%, transparent);
+  padding: .42rem .68rem;
+  color: var(--apple-accent-pressed);
+  font-size: .875rem;
+  font-weight: 950;
+  box-shadow: var(--apple-shadow-1);
+}
+
+.student-profile-gacha-copy {
+  display: grid;
+  max-width: 29rem;
+  justify-items: center;
+  gap: .45rem;
+}
+
+.student-profile-gacha-copy h2,
+.student-profile-gacha-processing h2 {
+  margin: 0;
+  color: var(--apple-text-primary);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: 950;
+  letter-spacing: -.035em;
+  line-height: 1.2;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.student-profile-gacha-copy p,
+.student-profile-gacha-processing p {
+  margin: 0;
+  color: var(--apple-text-secondary);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.55;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.student-profile-gacha-copy .student-profile-gacha-error {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--emotion-red) 34%, var(--apple-separator));
+  border-radius: var(--apple-radius-control);
+  background: var(--emotion-red-soft);
+  padding: .7rem .85rem;
+  color: var(--emotion-red);
+}
+
+.student-profile-gacha-actions {
+  display: grid;
+  width: min(100%, 23rem);
+  grid-template-columns: 1fr 1.45fr;
+  gap: .65rem;
+}
+
+.student-profile-gacha-actions button,
+.student-profile-gacha-result-action {
+  display: inline-flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-control);
+  background: var(--apple-surface);
+  color: var(--apple-text-secondary);
+  font-size: 1rem;
+  font-weight: 950;
+  box-shadow: var(--apple-shadow-1);
+  transition: background-color var(--student-motion-state) ease-out, box-shadow var(--student-motion-state) ease-out, transform var(--student-motion-press) var(--student-ease-out);
+}
+
+.student-profile-gacha-actions button:last-child,
+.student-profile-gacha-result-action {
+  border-color: transparent;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--apple-accent) 92%, white), var(--apple-accent-pressed));
+  color: var(--apple-surface);
+  box-shadow: 0 .65rem 1.25rem color-mix(in srgb, var(--apple-accent-pressed) 22%, transparent);
+}
+
+.student-profile-gacha-actions button:active,
+.student-profile-gacha-result-action:active { transform: scale(.98); }
+.student-profile-gacha-actions svg { width: 1.1rem; height: 1.1rem; }
+
+.student-profile-gacha-processing { position: relative; }
+.student-profile-gacha-card-back { width: 10rem; aspect-ratio: 1; opacity: .82; transform: rotate(-2deg); }
+.student-profile-gacha-loader {
+  width: 2rem;
+  height: 2rem;
+  color: var(--apple-accent);
+  animation: student-profile-gacha-spin .8s linear infinite;
+}
+
+@keyframes student-profile-gacha-spin { to { transform: rotate(1turn); } }
+
+.student-profile-gacha-reel {
+  display: grid;
+  width: min(100%, 29rem);
+  gap: .55rem;
+}
+
+.student-profile-gacha-reel-lights {
+  display: grid;
+  width: min(100%, 27rem);
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: .6rem;
+  justify-self: center;
+}
+
+.student-profile-gacha-reel-lights > span {
+  width: .7rem;
+  height: .7rem;
+  justify-self: center;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 24%, var(--apple-separator));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--failure-butter) 76%, var(--apple-surface));
+  box-shadow: 0 0 .75rem color-mix(in srgb, var(--failure-butter) 74%, transparent);
+}
+
+.student-profile-gacha-reel-window {
+  position: relative;
+  height: 15.25rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 28%, var(--apple-separator));
+  border-radius: 1.85rem;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--apple-surface) 94%, transparent), transparent 18% 82%, color-mix(in srgb, var(--apple-surface) 94%, transparent)),
+    color-mix(in srgb, var(--student-store-soft) 65%, var(--apple-surface));
+  box-shadow:
+    inset 0 0 0 .35rem color-mix(in srgb, var(--apple-surface) 58%, transparent),
+    inset 0 .65rem 1.5rem color-mix(in srgb, var(--apple-accent) 8%, transparent);
+  clip-path: inset(0 round 1.85rem);
+  isolation: isolate;
+}
+
+.student-profile-gacha-reel-window::before,
+.student-profile-gacha-reel-window::after {
+  position: absolute;
+  z-index: 4;
+  top: .85rem;
+  bottom: .85rem;
+  width: 4.25rem;
+  content: '';
+  pointer-events: none;
+}
+
+.student-profile-gacha-reel-window::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--apple-surface), transparent);
+}
+
+.student-profile-gacha-reel-window::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--apple-surface), transparent);
+}
+
+.student-profile-gacha-reel-track {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 0;
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: .7rem;
+  will-change: transform;
+}
+
+.student-profile-gacha-reel-card {
+  width: 7.25rem;
+  flex: 0 0 7.25rem;
+  aspect-ratio: 1;
+  border-width: .32rem;
+  border-radius: 1.35rem;
+  transform: translate3d(0, -50%, 0) rotate(-1.5deg);
+}
+
+.student-profile-gacha-reel-card:nth-child(3n + 2) { transform: translate3d(0, -50%, 0) rotate(1.25deg); }
+.student-profile-gacha-reel-card:nth-child(3n) { transform: translate3d(0, -50%, 0) rotate(-.5deg); }
+
+.student-profile-gacha-selection-gate {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: 50%;
+  width: 13.25rem;
+  aspect-ratio: 1;
+  border: .22rem solid var(--apple-accent);
+  border-radius: 1.55rem;
+  box-shadow:
+    0 0 0 .32rem color-mix(in srgb, var(--apple-surface) 84%, transparent),
+    0 0 1.5rem color-mix(in srgb, var(--apple-accent) 28%, transparent);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.student-profile-gacha-reel[data-stage="revealing"] .student-profile-gacha-reel-window,
+.student-profile-gacha-reel[data-stage="result"] .student-profile-gacha-reel-window {
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--failure-butter) 55%, transparent), transparent 10rem),
+    color-mix(in srgb, var(--student-store-soft) 65%, var(--apple-surface));
+}
+
+.student-profile-gacha-winning-frame {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: 50%;
+  width: 12.5rem;
+  aspect-ratio: 1;
+  perspective: 900px;
+  transform: translate3d(-50%, -50%, 0);
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+.student-profile-gacha-flip-face {
+  position: absolute;
+  inset: 0;
+  border-color: color-mix(in srgb, var(--failure-butter) 64%, var(--apple-surface));
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+.student-profile-gacha-flip-front > svg {
+  position: absolute;
+  z-index: 2;
+  top: .55rem;
+  right: .55rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  color: var(--apple-accent-pressed);
+  filter: drop-shadow(0 1px 0 var(--apple-surface));
+}
+
+.student-profile-gacha-outcome,
+.student-profile-gacha-result { position: relative; }
+
+.student-profile-gacha-sequence-copy {
+  min-height: 7rem;
+  align-content: center;
+}
+
+.student-profile-gacha-result-label[data-visible="false"] { visibility: hidden; }
+
+.student-profile-gacha-sequence-action[data-visible="false"] {
+  visibility: hidden;
+  pointer-events: none;
+}
+.student-profile-gacha-result-glow {
+  position: absolute;
+  z-index: -1;
+  top: 2rem;
+  width: 20rem;
+  height: 20rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--failure-butter) 78%, transparent), transparent 68%);
+}
+
+.student-profile-gacha-result-card {
+  position: relative;
+  width: var(--student-profile-gacha-card-size);
+  aspect-ratio: 1;
+  border-color: color-mix(in srgb, var(--failure-butter) 64%, var(--apple-surface));
+  will-change: transform, opacity;
+}
+
+.student-profile-gacha-result-card > svg {
+  position: absolute;
+  z-index: 2;
+  top: .55rem;
+  right: .55rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  color: var(--apple-accent-pressed);
+  filter: drop-shadow(0 1px 0 var(--apple-surface));
+}
+
+.student-profile-gacha-result-action { width: min(100%, 15rem); }
+
+.student-profile-gacha-close:focus-visible,
+.student-profile-gacha-actions button:focus-visible,
+.student-profile-gacha-result-action:focus-visible {
+  outline: 3px solid var(--apple-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-profile-gacha-loader { animation: student-profile-gacha-pulse 1s ease-in-out infinite alternate; }
+  .student-profile-gacha-close,
+  .student-profile-gacha-actions button,
+  .student-profile-gacha-result-action { transition-duration: 0s; }
+  .student-profile-gacha-close:active,
+  .student-profile-gacha-actions button:active,
+  .student-profile-gacha-result-action:active { transform: none; }
+}
+
+@keyframes student-profile-gacha-pulse { from { opacity: .42; } to { opacity: 1; } }
+
+@media (prefers-reduced-transparency: reduce) {
+  .student-profile-gacha-backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .student-profile-gacha-dialog { background: var(--apple-surface); }
+}
+
+@media (prefers-contrast: more) {
+  .student-profile-gacha-dialog,
+  .student-profile-gacha-actions button,
+  .student-profile-gacha-close { border-color: var(--apple-separator-strong); }
+}
+
+@media (forced-colors: active) {
+  .student-profile-gacha-dialog,
+  .student-profile-gacha-hero-card,
+  .student-profile-gacha-card-back,
+  .student-profile-gacha-result-card,
+  .student-profile-gacha-reel-card,
+  .student-profile-gacha-flip-face,
+  .student-profile-gacha-reel-window,
+  .student-profile-gacha-selection-gate,
+  .student-profile-gacha-actions button,
+  .student-profile-gacha-result-action { border: 2px solid CanvasText; }
+  .student-profile-gacha-result-glow { display: none; }
 }
 
 .student-character-gacha { --claw-cream: #fff2c9; --claw-wood: #84572f; --claw-ink: #403224; display: grid; gap: .75rem; color: var(--claw-ink); }
@@ -23616,8 +24219,16 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
     grid-template-rows: 4rem minmax(0, 1fr);
   }
 
+  .student-shop-hub[data-has-profile="false"] {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
   .student-shop-hub[data-shop-tab="items"] .student-shop-items-panel {
     height: 100%;
+  }
+
+  .student-shop-hub[data-has-profile="false"] .student-shop-items-panel {
+    align-content: stretch;
   }
 
   .student-shop-hub[data-shop-tab="items"] .student-shop-goods-grid {
@@ -23629,6 +24240,12 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 
   .student-shop-hub[data-shop-tab="items"] .student-profile-shop {
     padding: .75rem;
+  }
+
+  .student-shop-hub[data-has-profile="false"] .student-profile-shop {
+    height: 100%;
+    min-height: 0;
+    padding: 1.35rem;
   }
 
   .student-shop-tabs { min-height: 4rem; }

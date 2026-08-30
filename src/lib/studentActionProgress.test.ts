@@ -43,7 +43,7 @@ test('동작 줄이기에서는 로딩 회전을 잔잔한 밝기 변화로 바�
   assert.match(reducedMotionRule, /studentActionLoadingPulse/);
 });
 
-test('학생 화면은 주요 비동기 저장 상태를 하나의 로딩 모달에 연결한다', async () => {
+test('학생 화면은 주요 비동기 저장 상태를 연결하고 랜덤 프로필 가챠에서만 중복 로딩 모달을 숨긴다', async () => {
   const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
   const pendingStart = source.indexOf('const isStudentActionPending');
   const pendingEnd = source.indexOf('\n\n  return (', pendingStart);
@@ -58,5 +58,6 @@ test('학생 화면은 주요 비동기 저장 상태를 하나의 로딩 모달
   assert.match(pendingSource, /isSubmittingItemId !== null/);
   assert.match(pendingSource, /isDonating/);
   assert.match(source, /aria-busy=\{isStudentActionPending\}/);
-  assert.match(source, /<StudentActionProgress isActive=\{isStudentActionPending\} \/>/);
+  assert.match(source, /profilePurchaseType === 'random'/);
+  assert.match(source, /<StudentActionProgress isActive=\{isStudentActionPending && !isProfileGachaSaving\} \/>/);
 });
