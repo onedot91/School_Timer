@@ -171,9 +171,9 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   const failureExhibitionMissionIndex = markup.indexOf('실패 전시하기');
   const sudokuMissionIndex = markup.indexOf('스도쿠');
   assert.ok(teacherMissionIndex >= 0);
-  assert.ok(teacherMissionIndex < emotionMissionIndex);
   assert.ok(teacherMissionIndex < writingMissionIndex);
-  assert.ok(writingMissionIndex < classwordMissionIndex);
+  assert.ok(writingMissionIndex < emotionMissionIndex);
+  assert.ok(emotionMissionIndex < classwordMissionIndex);
   assert.ok(classwordMissionIndex < weeklyMissionIndex);
   assert.ok(weeklyMissionIndex < personalQuestionMissionIndex);
   assert.ok(personalQuestionMissionIndex < failureExhibitionMissionIndex);
@@ -186,6 +186,9 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   assert.match(markup, /매일매일 할 수 있는 미션/);
   assert.match(markup, /주간 미션/);
   assert.match(markup, /일주일에 한 번 할 수 있는 미션/);
+  assert.equal(markup.match(/<header class="student-group-heading">/g)?.length, 2);
+  assert.match(markup, /<h2 id="daily-mission-title">일일 미션<\/h2><p class="student-group-heading-description">\(매일매일 할 수 있는 미션\)<\/p>/);
+  assert.match(markup, /<h2 id="weekly-mission-title">주간 미션<\/h2><p class="student-group-heading-description">\(일주일에 한 번 할 수 있는 미션\)<\/p>/);
   assert.match(markup, /실패 전시하기/);
   assert.match(markup, /읽은 책 쌓기/);
   assert.match(markup, /보상 10고마/);

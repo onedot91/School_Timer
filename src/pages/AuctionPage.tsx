@@ -1827,7 +1827,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             isLoading={isLoading}
             section={activeStoreSection}
             economyState={studentEconomy}
-            shopCatalog={studentShopCatalog}
             stockMarket={studentStockMarket}
             isEconomySaving={isEconomySaving}
             donation={{

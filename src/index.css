@@ -12617,8 +12617,8 @@ h3 {
   --classword-board-height: 27rem;
   --classword-profile-size: clamp(3.75rem, 5.3vw, 4.5rem);
   --classword-quiz-initial-size: 6rem;
-  --classword-quiz-copy-size: clamp(1.125rem, 1.45vw, 1.25rem);
-  --classword-quiz-badge-size: 1rem;
+  --classword-quiz-copy-size: clamp(1.25rem, 1.6vw, 1.4rem);
+  --classword-quiz-badge-size: 1.125rem;
   --student-warning: #9b4a43;
   --student-warning-soft: #fff0ed;
   --bookstore-paper: #fffdf7;
@@ -17723,15 +17723,18 @@ a[href]:active {
 
 .student-mission-group {
   display: grid;
-  gap: 1rem;
-  padding: clamp(1rem, 2vw, 1.5rem);
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
 }
 
 .student-group-heading {
   display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
+  align-items: baseline;
+  gap: 0.65rem;
+  padding: clamp(0.75rem, 1.4vw, 1rem) clamp(1rem, 2vw, 1.5rem);
+  border-bottom: 1px solid var(--apple-separator);
+  background: color-mix(in srgb, var(--student-mission-soft) 58%, var(--apple-surface));
 }
 
 .student-group-heading h2 {
@@ -17741,7 +17744,7 @@ a[href]:active {
 }
 
 .student-group-heading .student-group-heading-description {
-  margin-left: 0.55rem;
+  margin: 0;
   color: var(--apple-text-secondary);
   font-family: var(--font-body);
   font-size: clamp(0.82rem, 1.4vw, 1rem);
@@ -17754,6 +17757,7 @@ a[href]:active {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.8rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
 }
 
 .student-mission-card {
@@ -22939,6 +22943,37 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .teacher-shop-house-list article > div { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: .45rem; }
 .teacher-shop-house-list strong { overflow: hidden; color: #4b3828; font-size: .82rem; font-weight: 950; text-overflow: ellipsis; white-space: nowrap; }
 .teacher-shop-house-list span { flex: 0 0 auto; color: #9a622b; font-size: .74rem; font-weight: 900; }
+.teacher-shop-profile-groups {
+  display: grid;
+  min-height: 0;
+  gap: 1rem;
+  align-content: start;
+  overflow-y: auto;
+  padding: .15rem .25rem .15rem 0;
+}
+.teacher-shop-profile-groups > section { display: grid; min-width: 0; gap: .55rem; }
+.teacher-shop-profile-groups > section > header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-inline: .1rem; }
+.teacher-shop-profile-groups h4 { color: #26352e; font-size: .92rem; font-weight: 950; }
+.teacher-shop-profile-groups section > header > span { color: #738078; font-size: .76rem; font-weight: 900; }
+.teacher-shop-profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.8rem, 1fr)); gap: .55rem; }
+.teacher-shop-profile-grid > article {
+  display: grid;
+  min-width: 0;
+  gap: .4rem;
+  border: 1px solid #dbe5df;
+  border-radius: .95rem;
+  background: #f8fcf9;
+  padding: .45rem;
+}
+.teacher-shop-profile-grid img { display: block; width: 100%; aspect-ratio: 1; border-radius: .7rem; object-fit: cover; }
+.teacher-shop-profile-grid article > div { display: grid; min-width: 0; gap: .08rem; text-align: center; }
+.teacher-shop-profile-grid strong,
+.teacher-shop-profile-grid span { overflow: hidden; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-shop-profile-grid strong { color: #26352e; font-size: .78rem; font-weight: 950; }
+.teacher-shop-profile-grid span { color: #087b57; font-size: .7rem; font-weight: 850; }
+.teacher-shop-profile-grid article[data-status="used"] { border-color: #d6d9d7; background: #f1f2f1; }
+.teacher-shop-profile-grid article[data-status="used"] img { filter: grayscale(1); opacity: .42; }
+.teacher-shop-profile-grid article[data-status="used"] span { color: #6d7470; }
 @media (min-width: 48rem) and (max-width: 70rem) {
   .student-shop-goods-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .student-profile-shop-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
@@ -23205,13 +23240,14 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   }
 
   .student-mission-group {
-    gap: .65rem;
-    padding: .75rem;
+    gap: 0;
+    padding: 0;
     border-radius: var(--student-card-radius);
   }
 
+  .student-group-heading { padding: .65rem .75rem; }
   .student-group-heading h2 { margin: 0; font-size: 1.35rem; }
-  .student-mission-grid { gap: .65rem; }
+  .student-mission-grid { gap: .65rem; padding: .75rem; }
 
   .student-mission-card {
     min-height: 9.75rem;

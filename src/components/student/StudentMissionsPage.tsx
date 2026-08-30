@@ -212,12 +212,10 @@ export default function StudentMissionsPage({
 
       <main className="student-mission-groups">
         <section className="student-mission-group" aria-labelledby="daily-mission-title">
-          <div className="student-group-heading">
-            <h2 id="daily-mission-title">
-              일일 미션
-              <span className="student-group-heading-description">(매일매일 할 수 있는 미션)</span>
-            </h2>
-          </div>
+          <header className="student-group-heading">
+            <h2 id="daily-mission-title">일일 미션</h2>
+            <p className="student-group-heading-description">(매일매일 할 수 있는 미션)</p>
+          </header>
           <div className="student-mission-grid">
             {auctionMissions.map((mission, index) => (
               <motion.div key={mission.id} {...missionEntrance(index)}>
@@ -245,18 +243,7 @@ export default function StudentMissionsPage({
                   : '오늘 역할 없음'}
               />
             </motion.div>
-            <motion.div {...missionEntrance(auctionMissions.length + 1)}>
-              <StudentMissionCard
-                title="감정 구슬 넣기"
-                illustrationSrc="/mission-illustrations/emotion-orbs.png"
-                rewardAmount={5}
-                verificationMode="automatic"
-                status={isDailyEmotionMissionCompleted ? 'completed' : 'incomplete'}
-                actionLabel={isDailyEmotionMissionCompleted ? '감정 다시 고르기' : '감정 고르기'}
-                onAction={onOpenEmotions}
-              />
-            </motion.div>
-            <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 2)}>
+            <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 1)}>
               <StudentMissionCard
                 title="글밥짓기"
                 illustrationSrc="/mission-illustrations/writing.png"
@@ -266,6 +253,17 @@ export default function StudentMissionsPage({
                   ? isDailyWritingMissionCompleted ? '편지 다시 보기' : '글밥 편지 확인'
                   : '아직 미션 없음'}
                 onAction={hasDailyWritingMission ? onOpenMailbox : undefined}
+              />
+            </motion.div>
+            <motion.div {...missionEntrance(auctionMissions.length + 2)}>
+              <StudentMissionCard
+                title="감정 구슬 넣기"
+                illustrationSrc="/mission-illustrations/emotion-orbs.png"
+                rewardAmount={5}
+                verificationMode="automatic"
+                status={isDailyEmotionMissionCompleted ? 'completed' : 'incomplete'}
+                actionLabel={isDailyEmotionMissionCompleted ? '감정 다시 고르기' : '감정 고르기'}
+                onAction={onOpenEmotions}
               />
             </motion.div>
             {WEEKLY_MISSION_DEFINITIONS
@@ -287,12 +285,10 @@ export default function StudentMissionsPage({
         </section>
 
         <section className="student-mission-group" aria-labelledby="weekly-mission-title">
-          <div className="student-group-heading">
-            <h2 id="weekly-mission-title">
-              주간 미션
-              <span className="student-group-heading-description">(일주일에 한 번 할 수 있는 미션)</span>
-            </h2>
-          </div>
+          <header className="student-group-heading">
+            <h2 id="weekly-mission-title">주간 미션</h2>
+            <p className="student-group-heading-description">(일주일에 한 번 할 수 있는 미션)</p>
+          </header>
           <div className="student-mission-grid">
             {WEEKLY_MISSION_DEFINITIONS
               .filter((mission) => mission.type === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE)

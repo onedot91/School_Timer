@@ -77,6 +77,15 @@ export const FAILURE_PROFILE_IMAGES = [
   '/failure-profiles/thumbs/68-stingray.png',
   '/failure-profiles/thumbs/69-crab.png',
   '/failure-profiles/thumbs/70-lobster.png',
+  '/failure-profiles/thumbs/71-capybara.png',
+  '/failure-profiles/thumbs/72-arctic-fox.png',
+  '/failure-profiles/thumbs/73-butterfly.png',
+  '/failure-profiles/thumbs/74-snail.png',
+  '/failure-profiles/thumbs/75-honeybee.png',
+  '/failure-profiles/thumbs/76-red-panda.png',
+  '/failure-profiles/thumbs/77-red-crowned-crane.png',
+  '/failure-profiles/thumbs/78-polar-bear.png',
+  '/failure-profiles/thumbs/79-pigeon.png',
 ] as const;
 
 const FAILURE_PROFILE_NAMES = [
@@ -87,6 +96,15 @@ const FAILURE_PROFILE_NAMES = [
   '두더지', '박쥐', '앵무새', '홍학', '공작', '백조', '악어', '카멜레온', '문어', '돌고래',
   '호랑이', '늑대', '하이에나', '코뿔소', '개미핥기', '아르마딜로', '미어캣', '당나귀', '독수리', '큰부리새',
   '타조', '칠면조', '이구아나', '뱀', '상어', '해마', '해파리', '가오리', '꽃게', '바닷가재',
+  '카피바라',
+  '북극여우',
+  '나비',
+  '달팽이',
+  '꿀벌',
+  '래서판다',
+  '두루미',
+  '북극곰',
+  '비둘기',
 ] as const;
 
 const DEFAULT_FAILURE_PROFILE_RING = [

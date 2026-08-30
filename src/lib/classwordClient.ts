@@ -29,7 +29,13 @@ import {
   loadLocalClasswordQuizTeacherSummary,
   submitLocalClasswordQuizAnswer,
 } from './classwordQuizLocalStore';
+import { normalizeCurrencyBalances, normalizeCurrencyHistory } from './currency';
 import { appDataMode } from './dataMode';
+import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
+import {
+  claimWeeklyMissionRewardInSettings,
+  CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+} from './weeklyMission';
 
 export const CLASSWORD_LOCAL_CHANGE_EVENT = 'school-timer-classword-change';
 
@@ -184,8 +190,20 @@ export const saveClasswordEntry = async (
   if (appDataMode === 'mock') {
     try {
       const entry = saveLocalClasswordEntry(getPrunedLocalStorage(), { ...input, word: validation.word });
+      const snapshot = loadStoredStudentPetSnapshot();
+      const reward = claimWeeklyMissionRewardInSettings(
+        snapshot,
+        input.studentNumber,
+        input.dateKey,
+        CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+      );
+      if (reward.awarded && !storeStudentPetSnapshot({
+        ...snapshot,
+        currencyBalances: normalizeCurrencyBalances(reward.value.currencyBalances),
+        currencyHistory: normalizeCurrencyHistory(reward.value.currencyHistory),
+      })) throw new ClasswordClientError('CLASSWORD_REWARD_SAVE_FAILED');
       dispatchLocalChange();
-      return { entry, awarded: false, balance: null };
+      return { entry, awarded: reward.awarded, balance: reward.balance };
     } catch (error) {
       if (error instanceof ClasswordLocalError) throw new ClasswordClientError(error.code);
       throw error;

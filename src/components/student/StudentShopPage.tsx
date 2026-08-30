@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
-import { Gamepad2, Hammer, Package } from 'lucide-react';
+import { Gamepad2, Hammer, Users } from 'lucide-react';
 import {
   STUDENT_CUSTOM_HOUSE_COUPON_PRICE,
   STUDENT_HOUSE_DESIGNS,
@@ -7,7 +7,6 @@ import {
   type StudentCustomHouseTheme,
   type StudentEconomyAction,
   type StudentEconomyState,
-  type StudentShopCatalogItem,
 } from '../../lib/studentEconomy';
 import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentCharacterGacha from './StudentCharacterGacha';
@@ -24,7 +23,6 @@ interface StudentShopPageProps {
   studentNumber: number;
   profileAssignments: FailureProfileAssignments;
   state: StudentEconomyState;
-  catalog: StudentShopCatalogItem[];
   availableBalance: number;
   isSaving: boolean;
   onAction: (action: StudentEconomyAction) => Promise<boolean>;
@@ -40,17 +38,10 @@ type PendingPurchase = {
   readonly price: number;
 };
 
-const PROFILE_STATUS_PRIORITY = {
-  available: 0,
-  active: 1,
-  used: 2,
-} as const;
-
 export default function StudentShopPage({
   studentNumber,
   profileAssignments,
   state,
-  catalog,
   availableBalance,
   isSaving,
   onAction,
@@ -69,7 +60,10 @@ export default function StudentShopPage({
     const isActive = profile.imageSrc === activeProfile;
     const status = isActive ? 'active' : usedProfiles.has(profile.imageSrc) ? 'used' : 'available';
     return { ...profile, status };
-  }).sort((left, right) => PROFILE_STATUS_PRIORITY[left.status] - PROFILE_STATUS_PRIORITY[right.status]);
+  }).sort((left, right) => {
+    const statusRank = { available: 0, active: 1, used: 2 } as const;
+    return statusRank[left.status] - statusRank[right.status];
+  });
 
   const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, currentTab: ShopTab) => {
     const currentIndex = SHOP_TABS.indexOf(currentTab);
@@ -93,29 +87,19 @@ export default function StudentShopPage({
     <section className="student-shop-hub" data-shop-tab={tab} aria-labelledby="student-shop-title">
       <h2 id="student-shop-title" className="sr-only">상점</h2>
       <nav className="student-shop-tabs" aria-label="상점 종류" role="tablist">
-        <button id="student-shop-tab-items" type="button" role="tab" aria-controls="student-shop-panel-items" aria-selected={tab === 'items'} tabIndex={tab === 'items' ? 0 : -1} className={tab === 'items' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'items')} onClick={() => setTab('items')}><Package aria-hidden="true" />물품</button>
+        <button id="student-shop-tab-items" type="button" role="tab" aria-controls="student-shop-panel-items" aria-selected={tab === 'items'} tabIndex={tab === 'items' ? 0 : -1} className={tab === 'items' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'items')} onClick={() => setTab('items')}><Users aria-hidden="true" />프로필</button>
         <button id="student-shop-tab-characters" type="button" role="tab" aria-controls="student-shop-panel-characters" aria-selected={tab === 'characters'} tabIndex={tab === 'characters' ? 0 : -1} className={tab === 'characters' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'characters')} onClick={() => setTab('characters')}><Gamepad2 aria-hidden="true" />고마 스킨 뽑기</button>
         <button id="student-shop-tab-houses" type="button" role="tab" aria-controls="student-shop-panel-houses" aria-selected={tab === 'houses'} tabIndex={tab === 'houses' ? 0 : -1} className={tab === 'houses' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'houses')} onClick={() => setTab('houses')}><Hammer aria-hidden="true" />집</button>
       </nav>
 
       {tab === 'items' ? (
         <div id="student-shop-panel-items" className="student-shop-items-panel" role="tabpanel" aria-labelledby="student-shop-tab-items">
-          <div className="student-shop-goods-grid">
-            {catalog.filter((item) => item.isActive).map((item) => (
-              <article key={item.id}>
-                <Package aria-hidden="true" />
-                <div><h3>{item.name}</h3><span>보유 {state.inventory[item.id] ?? 0}</span></div>
-                <button type="button" aria-label={`${item.name}, ${item.price} 고마로 구매`} disabled={isSaving} onClick={() => setPendingPurchase({ action: { type: 'buy_item', itemId: item.id }, name: item.name, price: item.price })}>{item.price} 고마</button>
-              </article>
-            ))}
-          </div>
           <section className="student-profile-shop" aria-labelledby="student-profile-shop-title">
             <header>
               <div>
-                <h3 id="student-profile-shop-title">프로필 바꾸기</h3>
+                <h3 id="student-profile-shop-title">프로필 선택</h3>
                 <p>사용 중인 프로필은 고를 수 없어요.</p>
               </div>
-              <span>{FAILURE_PROFILE_OPTIONS.length}마리 + 랜덤</span>
             </header>
             <div className="student-profile-shop-grid">
               <button

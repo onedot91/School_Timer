@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -89,7 +89,6 @@ import {
   getInvestmentStagePresentation,
   getInvestmentStageFromPercent,
   getInvestmentWeekDateKeys,
-  getStudentShopPurchaseLabels,
   investmentMultiplierToPercent,
   type StudentEconomyStates,
   type StudentShopCatalogItem,
@@ -97,6 +96,7 @@ import {
   type StudentStockMarket,
   type StudentInvestmentRounding,
 } from '../lib/studentEconomy';
+import { FAILURE_PROFILE_OPTIONS } from '../lib/failureExhibition';
 
 import {
   createStudentLetter,
@@ -3798,8 +3798,6 @@ export default function TimerPage() {
     }, {}));
     setStockMarketSaveStatus('');
   }, [stockMarketWeekStartDateKey, studentStockMarket]);
-  const [newShopItemName, setNewShopItemName] = useState('');
-  const [newShopItemPrice, setNewShopItemPrice] = useState('');
   const [teacherShopTab, setTeacherShopTab] = useState<TeacherShopTab>('items');
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
@@ -8982,18 +8980,6 @@ export default function TimerPage() {
     setMailReplyToId(selectedTeacherLetter.id);
   };
 
-  const addStudentShopItem = () => {
-    const name = newShopItemName.trim().slice(0, 30);
-    const price = Math.max(1, Math.min(999_999, Math.floor(Number(newShopItemPrice))));
-    if (!name || !Number.isFinite(price)) return;
-    setStudentShopCatalog((current) => normalizeStudentShopCatalog([
-      ...current,
-      { id: `item-${Date.now().toString(36)}`, name, price, isActive: true },
-    ]));
-    setNewShopItemName('');
-    setNewShopItemPrice('');
-  };
-
   const addFeaturedWriting = () => {
     const writing = createEmptyFeaturedWriting(crypto.randomUUID());
     setBookstoreSettings((current) => ({
@@ -9131,47 +9117,62 @@ export default function TimerPage() {
     </section>
   );
 
+  const assignedStudentByProfile = new Map(
+    Object.entries(studentLife.failureProfileAssignments).map(([studentNumber, profileImage]) => (
+      [profileImage, Number(studentNumber)] as const
+    )),
+  );
+  const teacherAvailableProfiles = FAILURE_PROFILE_OPTIONS.filter((profile) => (
+    !assignedStudentByProfile.has(profile.imageSrc)
+  ));
+  const teacherUsedProfiles = FAILURE_PROFILE_OPTIONS.filter((profile) => (
+    assignedStudentByProfile.has(profile.imageSrc)
+  ));
+
   const shopSettingsPanel = (
     <section className="teacher-shop-hub" aria-labelledby="teacher-shop-title">
       <h2 id="teacher-shop-title" className="sr-only">상점 설정</h2>
       <nav className="teacher-shop-tabs" aria-label="상점 세부 설정" role="tablist">
-        <button type="button" role="tab" id="teacher-shop-tab-items" aria-controls="teacher-shop-panel-items" aria-selected={teacherShopTab === 'items'} className={teacherShopTab === 'items' ? 'is-active' : ''} onClick={() => setTeacherShopTab('items')}><Package aria-hidden="true" /><span>물품</span></button>
+        <button type="button" role="tab" id="teacher-shop-tab-items" aria-controls="teacher-shop-panel-items" aria-selected={teacherShopTab === 'items'} className={teacherShopTab === 'items' ? 'is-active' : ''} onClick={() => setTeacherShopTab('items')}><Users aria-hidden="true" /><span>프로필</span></button>
         <button type="button" role="tab" id="teacher-shop-tab-characters" aria-controls="teacher-shop-panel-characters" aria-selected={teacherShopTab === 'characters'} className={teacherShopTab === 'characters' ? 'is-active' : ''} onClick={() => setTeacherShopTab('characters')}><Gamepad2 aria-hidden="true" /><span>고마 스킨 뽑기</span></button>
         <button type="button" role="tab" id="teacher-shop-tab-houses" aria-controls="teacher-shop-panel-houses" aria-selected={teacherShopTab === 'houses'} className={teacherShopTab === 'houses' ? 'is-active' : ''} onClick={() => setTeacherShopTab('houses')}><Hammer aria-hidden="true" /><span>집</span></button>
       </nav>
 
       {teacherShopTab === 'items' ? (
-        <section id="teacher-shop-panel-items" role="tabpanel" aria-labelledby="teacher-shop-tab-items" className="settings-card teacher-shop-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
-          <div className="teacher-shop-catalog">
-            <header>
-              <div><h3>물품 등록</h3><p>학생에게 판매할 물품</p></div>
-              <span>{studentShopCatalog.filter((item) => item.isActive).length}개 판매 중</span>
-            </header>
-            <div className="teacher-shop-add-row">
-              <label>물품명<input value={newShopItemName} maxLength={30} onChange={(event) => setNewShopItemName(event.target.value)} placeholder="예: 우선 급식권" /></label>
-              <label>가격<input value={newShopItemPrice} inputMode="numeric" onChange={(event) => setNewShopItemPrice(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="고마" /></label>
-              <button type="button" onClick={addStudentShopItem} disabled={!newShopItemName.trim() || !newShopItemPrice}><Plus size={18} />추가</button>
-            </div>
-            <div className="teacher-shop-item-list">
-              {studentShopCatalog.map((item) => (
-                <article key={item.id}>
-                  <Package aria-hidden="true" />
-                  <input aria-label={`${item.name} 이름`} value={item.name} maxLength={30} onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, name: event.target.value } : candidate))} onBlur={() => setStudentShopCatalog((current) => normalizeStudentShopCatalog(current))} />
-                  <label><input aria-label={`${item.name} 가격`} value={item.price} type="number" min="1" max="999999" onChange={(event) => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, price: Number(event.target.value) } : candidate))} /> 고마</label>
-                  <button type="button" className={item.isActive ? 'is-active' : ''} aria-pressed={item.isActive} onClick={() => setStudentShopCatalog((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, isActive: !candidate.isActive } : candidate))}>{item.isActive ? '판매 중' : '숨김'}</button>
-                  <button type="button" className="is-delete" aria-label={`${item.name} 삭제`} onClick={() => setStudentShopCatalog((current) => current.filter((candidate) => candidate.id !== item.id))}><Trash2 size={17} /></button>
-                </article>
-              ))}
-            </div>
-          </div>
-          <div className="teacher-shop-purchases">
-            <header><div><h3>구매 현황</h3><p>학생별 구매 물품</p></div></header>
-            <div className="teacher-shop-student-list">
-              {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => {
-                const purchases = getStudentShopPurchaseLabels(studentEconomyStates[String(number)], studentShopCatalog);
-                return <div key={number}><strong>{number}번</strong><span>{purchases.length > 0 ? purchases.join(' · ') : '구매 없음'}</span></div>;
-              })}
-            </div>
+        <section id="teacher-shop-panel-items" role="tabpanel" aria-labelledby="teacher-shop-tab-items" className="settings-card teacher-shop-collection teacher-shop-profiles rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
+          <header>
+            <div><h3>전체 프로필</h3><p>학생에게 배정된 프로필은 사용 중으로 표시됩니다.</p></div>
+            <span>사용 가능 {teacherAvailableProfiles.length} · 사용 중 {teacherUsedProfiles.length}</span>
+          </header>
+          <div className="teacher-shop-profile-groups">
+            <section aria-labelledby="teacher-profile-available-title">
+              <header>
+                <h4 id="teacher-profile-available-title">사용 가능</h4>
+                <span>{teacherAvailableProfiles.length}개</span>
+              </header>
+              <div className="teacher-shop-profile-grid">
+                {teacherAvailableProfiles.map((profile) => (
+                  <article key={profile.id} data-status="available">
+                    <img src={profile.imageSrc} alt="" width={192} height={192} loading="lazy" decoding="async" />
+                    <div><strong>{profile.label}</strong><span>사용 가능</span></div>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section aria-labelledby="teacher-profile-used-title">
+              <header>
+                <h4 id="teacher-profile-used-title">사용 중</h4>
+                <span>{teacherUsedProfiles.length}개</span>
+              </header>
+              <div className="teacher-shop-profile-grid">
+                {teacherUsedProfiles.map((profile) => (
+                  <article key={profile.id} data-status="used">
+                    <img src={profile.imageSrc} alt="" width={192} height={192} loading="lazy" decoding="async" />
+                    <div><strong>{profile.label}</strong><span>{assignedStudentByProfile.get(profile.imageSrc)}번 사용 중</span></div>
+                  </article>
+                ))}
+              </div>
+            </section>
           </div>
         </section>
       ) : null}

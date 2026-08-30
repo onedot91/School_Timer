@@ -142,10 +142,14 @@ test('빈 실패 자랑소는 전시 카드 구조와 하나의 작성 행동을
   assert.doesNotMatch(markup, /student-failure-relay-toolbar/);
 });
 
-test('저장 가능한 프로필 카탈로그는 70개의 동물만 제공한다', () => {
-  assert.equal(FAILURE_PROFILE_IMAGES.length, 70);
-  assert.equal(FAILURE_PROFILE_OPTIONS.length, 70);
-  assert.equal(new Set(FAILURE_PROFILE_OPTIONS.map((profile) => profile.label)).size, 70);
+test('저장 가능한 프로필 카탈로그는 비둘기를 포함한 79개의 동물만 제공한다', () => {
+  assert.equal(FAILURE_PROFILE_IMAGES.length, 79);
+  assert.equal(FAILURE_PROFILE_OPTIONS.length, 79);
+  assert.equal(new Set(FAILURE_PROFILE_OPTIONS.map((profile) => profile.label)).size, 79);
+  assert.deepEqual(
+    FAILURE_PROFILE_OPTIONS.slice(-7).map((profile) => profile.label),
+    ['나비', '달팽이', '꿀벌', '래서판다', '두루미', '북극곰', '비둘기'],
+  );
   assert.equal(FAILURE_PROFILE_OPTIONS.some((profile) => String(profile.label) === '익명'), false);
   assert.equal(FAILURE_PROFILE_OPTIONS.some((profile) => profile.label.startsWith('동물 프로필')), false);
 });

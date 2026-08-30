@@ -259,6 +259,7 @@ export default function StudentClasswordPage({
           }}
         />
         <ClasswordQuiz
+          studentNumber={studentNumber}
           state={quizState}
           loading={quizLoading}
           saving={quizSaving}

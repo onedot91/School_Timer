@@ -1,9 +1,14 @@
-import { CheckCircle2, Send } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Send, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
+import {
+  loadSavedClasswordQuizAnswer,
+  saveClasswordQuizAnswer,
+} from '../../lib/classwordQuizAnswerStore';
 
 type ClasswordQuizProps = {
+  readonly studentNumber: number;
   readonly state: ClasswordQuizStudentState | null;
   readonly loading: boolean;
   readonly saving: boolean;
@@ -11,7 +16,10 @@ type ClasswordQuizProps = {
   readonly onSubmit: (answer: string) => Promise<boolean>;
 };
 
+type SubmissionState = 'idle' | 'incorrect' | 'error';
+
 export default function ClasswordQuiz({
+  studentNumber,
   state,
   loading,
   saving,
@@ -19,28 +27,35 @@ export default function ClasswordQuiz({
   onSubmit,
 }: ClasswordQuizProps) {
   const [answer, setAnswer] = useState('');
-  const [feedback, setFeedback] = useState('');
+  const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
 
   useEffect(() => {
     if (!state?.completed) return;
-    setAnswer('');
-    setFeedback('정답이에요! 오늘 퀴즈를 완료했어요.');
-  }, [state?.completed]);
+    const savedAnswer = loadSavedClasswordQuizAnswer(window.localStorage, {
+      dateKey: state.dateKey,
+      studentNumber,
+      questionId: state.question.id,
+    });
+    if (savedAnswer) setAnswer(savedAnswer);
+  }, [state?.completed, state?.dateKey, state?.question.id, studentNumber]);
 
   const submit = async (): Promise<void> => {
     const nextAnswer = answer.trim();
     if (!nextAnswer || saving || state?.completed) return;
-    setFeedback('');
+    setSubmissionState('idle');
     try {
       const correct = await onSubmit(nextAnswer);
       if (correct) {
-        setAnswer('');
-        setFeedback('정답이에요! 오늘 퀴즈를 완료했어요.');
+        saveClasswordQuizAnswer(window.localStorage, {
+          dateKey: state.dateKey,
+          studentNumber,
+          questionId: state.question.id,
+        }, nextAnswer);
       } else {
-        setFeedback('아직 정답이 아니에요. 뜻과 예문을 다시 살펴보세요.');
+        setSubmissionState('incorrect');
       }
     } catch {
-      setFeedback('정답을 확인하지 못했어요. 잠시 후 다시 해 주세요.');
+      setSubmissionState('error');
     }
   };
 
@@ -49,16 +64,12 @@ export default function ClasswordQuiz({
     <section className={`classword-quiz${completed ? ' is-complete' : ''}`} aria-labelledby="classword-quiz-title">
       <header>
         <h2 id="classword-quiz-title" className="sr-only">보너스 문제</h2>
-        {completed ? <span><CheckCircle2 aria-hidden="true" /> 완료</span> : null}
       </header>
       {state ? (
         <div className="classword-quiz-body">
           <span className="classword-quiz-heading-art" aria-hidden="true">
             <img src="/classword/bonus-question.png" alt="" width="1448" height="1086" />
           </span>
-          <strong className="classword-quiz-initial" aria-label={`초성 힌트 ${state.question.initialHint}`}>
-            {state.question.initialHint}
-          </strong>
           <div className="classword-quiz-copy">
             <p><span>뜻</span><strong>{state.question.meaning}</strong></p>
             <div className="classword-quiz-examples">
@@ -76,33 +87,61 @@ export default function ClasswordQuiz({
               </div>
             </div>
           </div>
-          <form onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}>
-            <label htmlFor="classword-quiz-answer" className="sr-only">정답 낱말</label>
-            <div>
-              <input
-                id="classword-quiz-answer"
-                value={answer}
-                onChange={(event) => {
-                  setAnswer(event.target.value.replace(/[^\p{L}\s]/gu, ''));
-                  setFeedback('');
-                }}
-                maxLength={20}
-                autoComplete="off"
-                placeholder={completed ? '오늘 퀴즈 완료' : '정답 낱말'}
-                disabled={saving || completed}
-              />
-              <button type="submit" disabled={saving || completed || !answer.trim()}>
-                {completed ? <CheckCircle2 aria-hidden="true" /> : <Send aria-hidden="true" />}
-                {saving ? '확인 중' : completed ? '완료' : '확인'}
-              </button>
-            </div>
-            <p className="classword-quiz-feedback" role="status" aria-live="polite">
-              {feedback || (completed ? '이 퀴즈는 다시 제출할 수 없어요.' : '\u00a0')}
-            </p>
-          </form>
+          <div className="classword-quiz-answer">
+            <strong className="classword-quiz-initial">
+              <span>초성 힌트:</span> {state.question.initialHint}
+            </strong>
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}>
+              <label htmlFor="classword-quiz-answer" className="sr-only">정답 입력</label>
+              <div>
+                <input
+                  id="classword-quiz-answer"
+                  value={answer}
+                  onChange={(event) => {
+                    setAnswer(event.target.value.replace(/[^\p{L}\s]/gu, ''));
+                    setSubmissionState('idle');
+                  }}
+                  maxLength={20}
+                  autoComplete="off"
+                  placeholder="정답 입력"
+                  disabled={saving || completed}
+                />
+                <button
+                  type="submit"
+                  className={completed
+                    ? 'is-correct'
+                    : submissionState === 'incorrect'
+                      ? 'is-incorrect'
+                      : submissionState === 'error'
+                        ? 'is-error'
+                        : undefined}
+                  disabled={saving || completed || !answer.trim()}
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {completed
+                    ? <CheckCircle2 aria-hidden="true" />
+                    : submissionState === 'incorrect'
+                      ? <XCircle aria-hidden="true" />
+                      : submissionState === 'error'
+                        ? <AlertCircle aria-hidden="true" />
+                        : <Send aria-hidden="true" />}
+                  {saving
+                    ? '제출 중'
+                    : completed
+                      ? '정답'
+                      : submissionState === 'incorrect'
+                        ? '오답'
+                        : submissionState === 'error'
+                          ? '오류'
+                          : '제출'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       ) : (
         <p className="classword-quiz-unavailable" role={loadError ? 'alert' : 'status'}>

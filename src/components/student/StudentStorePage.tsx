@@ -1,5 +1,5 @@
 import { useState, type ReactNode, type RefObject } from 'react';
-import { getKoreanDateKey, type StudentEconomyAction, type StudentEconomyState, type StudentShopCatalogItem, type StudentStockId, type StudentStockMarket } from '../../lib/studentEconomy';
+import { getKoreanDateKey, type StudentEconomyAction, type StudentEconomyState, type StudentStockId, type StudentStockMarket } from '../../lib/studentEconomy';
 import StudentBankPage from './StudentBankPage';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentDonationPage from './StudentDonationPage';
@@ -20,7 +20,6 @@ interface StudentStorePageProps {
   section: StudentStoreSection;
   children?: ReactNode;
   economyState: StudentEconomyState;
-  shopCatalog: StudentShopCatalogItem[];
   stockMarket: StudentStockMarket;
   isEconomySaving: boolean;
   donation: {
@@ -47,7 +46,6 @@ export default function StudentStorePage({
   section,
   children,
   economyState,
-  shopCatalog,
   stockMarket,
   isEconomySaving,
   donation,
@@ -86,7 +84,7 @@ export default function StudentStorePage({
       <div className="student-store-content">
         {section === 'plaza' ? <StudentPlaza onOpen={onOpenSection} /> : null}
         {section === 'bank' ? <StudentBankPage state={economyState} studentNumber={studentNumber} isSaving={isEconomySaving} onAction={onEconomyAction} /> : null}
-        {section === 'shop' ? <StudentShopPage studentNumber={studentNumber} profileAssignments={profileAssignments} state={economyState} catalog={shopCatalog} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} onSelectProfile={onSelectProfile} /> : null}
+        {section === 'shop' ? <StudentShopPage studentNumber={studentNumber} profileAssignments={profileAssignments} state={economyState} availableBalance={availableBalance} isSaving={isEconomySaving} onAction={onEconomyAction} onSelectProfile={onSelectProfile} /> : null}
         {section === 'auction' ? children : null}
         {isSecurities ? (
           <div className="student-securities-flow">

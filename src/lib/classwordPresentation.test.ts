@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import ClasswordQuiz from '../components/student/ClasswordQuiz';
+import type { ClasswordQuizStudentState } from './classwordQuiz';
 
 const studentPage = readFileSync(
   new URL('../components/student/StudentClasswordPage.tsx', import.meta.url),
@@ -104,21 +109,99 @@ test('보너스 문제는 큰 본문과 하나의 예시 배지 아래 두 초�
   assert.match(studentQuiz, /className="classword-quiz-example-hint">\{state\.question\.initialHint\}/);
   assert.match(css, /\.classword-quiz-copy p \{[\s\S]*?font-size: var\(--classword-quiz-copy-size\);/);
   assert.match(css, /\.classword-quiz-examples > span \{[\s\S]*?font-size: var\(--classword-quiz-badge-size\);/);
-  assert.match(indexCss, /--classword-quiz-copy-size: clamp\(1\.125rem, 1\.45vw, 1\.25rem\);/);
-  assert.match(indexCss, /--classword-quiz-badge-size: 1rem;/);
-  assert.match(css, /\.classword-quiz-copy > p:first-child \{ color: var\(--classword-ink\); \}/);
+  assert.match(indexCss, /--classword-quiz-copy-size: clamp\(1\.25rem, 1\.6vw, 1\.4rem\);/);
+  assert.match(indexCss, /--classword-quiz-badge-size: 1\.125rem;/);
+  assert.match(css, /\.classword-quiz-copy > p:first-child \{[\s\S]*?color: var\(--classword-ink\);/);
   assert.match(css, /\.classword-quiz-copy > p:first-child > span/);
   assert.doesNotMatch(css, /\.classword-quiz-copy p:first-child \{/);
   assert.doesNotMatch(css, /\.classword-quiz-copy p:first-child > span/);
+  assert.match(css, /\.classword-quiz-copy \{[\s\S]*?overflow: hidden;[\s\S]*?padding: 0;/);
+  assert.match(css, /\.classword-quiz-copy > p:first-child \{[\s\S]*?padding: \.45rem \.85rem;[\s\S]*?background: color-mix\(in srgb, var\(--classword-prompt-soft\) 76%, var\(--classword-paper\)\);/);
+  assert.match(css, /\.classword-quiz-examples \{[\s\S]*?padding: \.45rem \.85rem;[\s\S]*?border-block-start: 1px solid var\(--classword-line\);[\s\S]*?background: color-mix\(in srgb, var\(--classword-accent-soft\) 56%, var\(--classword-paper\)\);/);
+  assert.match(css, /\.classword-quiz-examples > span \{ background: var\(--classword-accent-soft\); \}/);
   assert.match(css, /\.classword-quiz-example-hint \{[\s\S]*?color: var\(--classword-accent\);[\s\S]*?font-weight: 950;/);
   assert.match(css, /@media \(min-width: 70rem\)[\s\S]*?grid-template-rows: minmax\(0, var\(--classword-board-height\)\) auto;/);
   assert.match(css, /\.classword-paper \{[\s\S]*?padding-block-end: clamp\(1\.5rem, 2\.5vh, 2rem\);/);
+});
+
+test('보너스 문제는 더 높은 섹션과 큰 이미지·본문, 좁은 정답 영역을 사용한다', () => {
+  assert.match(css, /\.classword-quiz \{[\s\S]*?min-block-size: 9\.75rem;[\s\S]*?padding: \.75rem;/);
+  assert.match(css, /\.classword-quiz-heading-art \{[\s\S]*?inline-size: 12rem;[\s\S]*?block-size: 100%;/);
+  assert.match(css, /\.classword-quiz-heading-art img \{[\s\S]*?object-fit: contain;[\s\S]*?object-position: center;/);
+  assert.match(studentQuiz, /className="classword-quiz-answer"[\s\S]*?className="classword-quiz-initial"[\s\S]*?<form/);
+  assert.match(studentQuiz, /<span>초성 힌트:<\/span> \{state\.question\.initialHint\}/);
+  assert.match(studentQuiz, /<label htmlFor="classword-quiz-answer" className="sr-only">정답 입력<\/label>/);
+  assert.match(studentQuiz, /placeholder="정답 입력"/);
+  assert.match(studentQuiz, /completed\s*\? '정답'\s*: submissionState === 'incorrect'\s*\? '오답'/);
+  assert.match(css, /\.classword-quiz-body \{[\s\S]*?block-size: 8rem;[\s\S]*?grid-template-columns: 12rem minmax\(0, 1fr\) minmax\(16rem, \.48fr\);[\s\S]*?align-items: stretch;/);
+  assert.match(css, /\.classword-quiz-answer \{[\s\S]*?block-size: 100%;[\s\S]*?align-content: center;[\s\S]*?background: color-mix\(in srgb, var\(--classword-accent-soft\) 72%, var\(--classword-sky\)\);/);
+  assert.match(css, /\.classword-quiz-copy \{[\s\S]*?block-size: 100%;[\s\S]*?min-block-size: 0;/);
+  assert.match(css, /\.classword-quiz-initial \{[\s\S]*?inline-size: 100%;[\s\S]*?block-size: 2\.75rem;[\s\S]*?border: 0;/);
+  assert.match(css, /\.classword-quiz input \{[\s\S]*?border: 2px solid color-mix\(in srgb, var\(--classword-accent\) 58%, var\(--classword-line\)\);/);
+  assert.doesNotMatch(studentQuiz, /classword-quiz-feedback/);
+  assert.doesNotMatch(css, /\.classword-quiz-feedback/);
 });
 
 test('보너스 문제 확인 버튼은 정답 입력창 오른쪽 내부에 배치한다', () => {
   assert.match(css, /\.classword-quiz form > div \{[\s\S]*?position: relative;/);
   assert.match(css, /\.classword-quiz input \{[\s\S]*?inline-size: 100%;[\s\S]*?padding-inline: \.85rem 6\.5rem;/);
   assert.match(css, /\.classword-quiz form button \{[\s\S]*?position: absolute;[\s\S]*?inset: \.375rem \.375rem \.375rem auto;/);
+});
+
+test('완료한 보너스 문제는 입력 영역의 초록 정답 버튼으로만 상태를 표시한다', () => {
+  const completedState: ClasswordQuizStudentState = {
+    dateKey: '2026-08-30',
+    question: {
+      id: 'working-together',
+      initialHint: 'ㅎㄷ',
+      meaning: '여러 사람이 힘과 마음을 모아 함께 일함',
+      examples: [
+        { register: 'written', prefix: '구성원들은 서로 ', suffix: '하였다.' },
+        { register: 'spoken', prefix: '친구들과 ', suffix: '했어.' },
+      ],
+    },
+    completed: true,
+    completedAt: '2026-08-30T00:00:00.000Z',
+  };
+
+  const markup = renderToStaticMarkup(createElement(
+    ClasswordQuiz,
+    {
+      studentNumber: 22,
+      state: completedState,
+      loading: false,
+      saving: false,
+      loadError: '',
+      onSubmit: async () => true,
+    },
+  ));
+
+  assert.match(markup, /<button[^>]*class="is-correct"[^>]*disabled=""[^>]*>[\s\S]*?정답<\/button>/);
+  assert.doesNotMatch(markup, />완료</);
+  assert.doesNotMatch(markup, /정답이에요|오늘 퀴즈를 완료했어요|다시 제출할 수 없어요/);
+  assert.doesNotMatch(markup, /<header><span/);
+  assert.match(markup, /<form/);
+  assert.match(markup, /<button type="submit"[^>]*disabled=""/);
+});
+
+test('보너스 문제 오답과 정답은 별도 안내문 없이 제출 버튼의 색·아이콘·문구로 구분한다', () => {
+  assert.match(studentQuiz, /submissionState === 'incorrect'\s*\? 'is-incorrect'/);
+  assert.match(studentQuiz, /submissionState === 'incorrect'\s*\? <XCircle aria-hidden="true" \/>/);
+  assert.match(studentQuiz, /submissionState === 'incorrect'\s*\? '오답'/);
+  assert.match(studentQuiz, /completed\s*\? <CheckCircle2 aria-hidden="true" \/>/);
+  assert.match(studentQuiz, /completed\s*\? '정답'/);
+  assert.match(css, /\.classword-quiz form button\.is-incorrect,[\s\S]*?\.classword-quiz form button\.is-error \{[\s\S]*?background: var\(--student-warning\);/);
+  assert.match(css, /\.classword-quiz form button\.is-correct:disabled \{[\s\S]*?background: var\(--classword-accent\);/);
+  assert.doesNotMatch(studentQuiz, /아직 정답이 아니에요|뜻과 예문을 다시 살펴보세요/);
+});
+
+test('보너스 문제 정답을 맞히면 입력값을 유지한 채 입력창을 비활성화한다', () => {
+  assert.doesNotMatch(studentQuiz, /setAnswer\(''\)/);
+  assert.match(studentQuiz, /saveClasswordQuizAnswer/);
+  assert.match(studentQuiz, /loadSavedClasswordQuizAnswer/);
+  assert.match(studentPage, /studentNumber=\{studentNumber\}/);
+  assert.match(studentQuiz, /disabled=\{saving \|\| completed\}/);
+  assert.match(studentQuiz, /disabled=\{saving \|\| completed \|\| !answer\.trim\(\)\}/);
 });
 
 test('기본 낱말판은 7×2로 배치하고 모든 정답 낱말 글자 크기를 일관되게 유지한다', () => {
@@ -131,18 +214,18 @@ test('기본 낱말판은 7×2로 배치하고 모든 정답 낱말 글자 크�
 test('채워진 낱말 카드는 큰 프로필을 하단 중앙에 두고 휴지 상태에 삭제 버튼을 표시하지 않는다', () => {
   assert.match(indexCss, /--classword-profile-size: clamp\(3\.75rem, 5\.3vw, 4\.5rem\);/);
   assert.match(css, /\.classword-student-profile \{[\s\S]*?justify-self: center;/);
-  assert.match(css, /\.classword-student-profile img \{[\s\S]*?inline-size: var\(--classword-profile-size\);[\s\S]*?block-size: var\(--classword-profile-size\);/);
+  assert.match(css, /\.classword-student-profile img \{[\s\S]*?inline-size: var\(--classword-profile-size\);[\s\S]*?block-size: var\(--classword-profile-size\);[\s\S]*?border: 2px solid white;/);
   assert.doesNotMatch(studentBoard, /className="classword-delete-button"|classword-delete-confirm|deleteEntryId|confirmDelete/);
   assert.doesNotMatch(css, /\.classword-delete-button|\.classword-delete-confirm/);
 });
 
-test('채운 낱말은 민트 테두리를 쓰고 내 카드는 정적인 청록 단일선으로 구분한다', () => {
+test('채운 낱말은 민트 테두리를 쓰고 내 카드는 선명한 청록 배경과 단일선으로 구분한다', () => {
   assert.match(indexCss, /--classword-line-filled: color-mix\(in srgb, var\(--classword-line-strong\) 74%, var\(--classword-sky\)\);/);
   assert.match(indexCss, /--classword-own-border: color-mix\(in srgb, var\(--classword-accent\) 76%, var\(--classword-sky\)\);/);
   assert.match(indexCss, /--classword-own-border-width: 3px;/);
   assert.doesNotMatch(indexCss, /--classword-own-glow/);
   assert.match(css, /\.classword-cell\.is-filled \{[\s\S]*?border: 2px solid var\(--classword-line-filled\);/);
-  assert.match(css, /\.classword-cell\.is-own \{[\s\S]*?border: var\(--classword-own-border-width\) solid var\(--classword-own-border\);/);
+  assert.match(css, /\.classword-cell\.is-own \{[\s\S]*?border: var\(--classword-own-border-width\) solid var\(--classword-own-border\);[\s\S]*?color-mix\(in srgb, var\(--classword-accent-soft\) 82%, var\(--classword-accent\)\);/);
   assert.match(studentBoard, /className="classword-own-mark" aria-hidden="true"[\s\S]*?<UserRoundCheck/);
   assert.doesNotMatch(studentBoard, />\s*내 카드\s*</);
   assert.match(css, /\.classword-own-mark \{[\s\S]*?inline-size: 2rem;[\s\S]*?background: var\(--classword-own-border\);/);
