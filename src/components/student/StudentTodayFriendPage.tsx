@@ -141,9 +141,9 @@ export default function StudentTodayFriendPage({
           </div>
         </section>
 
-        <section className="student-today-friend-guide" aria-labelledby="student-today-friend-guide-title">
-          <div className="student-today-friend-guide-heading">
-            <h2 id="student-today-friend-guide-title">{GENRE_COPY[displayedMission.genre]}</h2>
+        <section className="student-today-friend-guide" data-genre={displayedMission.genre} aria-label={`${GENRE_COPY[displayedMission.genre]} 미션`}>
+          <div className="today-friend-illustration-placeholder" aria-label={`${GENRE_COPY[displayedMission.genre]} 일러스트 자리`}>
+            <span>일러스트 2:1</span>
           </div>
           {displayedMission.question ? <aside className="today-friend-question"><span>질문</span><strong>{displayedMission.question}</strong></aside> : null}
           {status === 'submitted' ? <aside className="today-friend-status-card" data-status="submitted"><Clock3 aria-hidden="true" /><span><strong>선생님 확인을 기다리고 있어요</strong><small>승인되면 {TODAY_FRIEND_REWARD}고마를 받아요.</small></span></aside> : null}

@@ -103,7 +103,7 @@ export default function TodayFriendMissionForm({
     <form className="today-friend-form" data-genre={mission.genre} onSubmit={handleSubmit}>
       <div className="today-friend-form-fields">
         {mission.genre === 'interview' ? (
-          <label><span>친구의 답</span><textarea value={primaryText} onChange={(event) => setPrimaryText(event.target.value)} placeholder="친구가 말한 내용을 적어요." maxLength={600} /></label>
+          <label className="today-friend-answer-card"><span>친구의 답</span><textarea value={primaryText} onChange={(event) => setPrimaryText(event.target.value)} placeholder="친구가 말한 내용을 적어요." maxLength={600} /></label>
         ) : null}
         {mission.genre === 'commonality' ? (
           <label><span>대화로 찾은 공통점</span><textarea value={primaryText} onChange={(event) => setPrimaryText(event.target.value)} placeholder="대화하며 알게 된 공통점을 적어요." maxLength={600} /><small>눈으로 바로 보이는 특징은 제외해요.</small></label>

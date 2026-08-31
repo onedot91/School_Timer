@@ -132,6 +132,8 @@ Existing semantic success, warning, and destructive colors remain feature-owned 
 | `--student-today-friend-profile-size` | `clamp(15rem, 26vw, 20rem)` | dominant assigned-friend profile at the Chromebook viewport |
 | `--student-today-friend-partner-size` | `clamp(2.75rem, 4vw, 3.5rem)` | assigned friend number and identity label |
 | `--student-today-friend-question-size` | `clamp(1.3rem, 1.8vw, 1.6rem)` | readable daily question inside the compact prompt card |
+| `--student-today-friend-illustration-ratio` | `2 / 1` | shared illustration slot at the top of the task panel and above the daily prompt across all five Today Friend categories; the body does not repeat the category title already shown in the header tabs |
+| `--student-today-friend-illustration-width` | `100%`; `min(100%, 30rem)` for recommendation and emotion | the upper illustration fills the usable panel width for short forms, while denser forms use the largest shared width that preserves every field and anchored action without internal scrolling |
 | `--student-today-friend-answer-height` | `calc(3em + 1.75rem)` | fixed two-line Today Friend free-text answer field including its vertical inset |
 | `--student-donation-character-size` | `20rem` | 진행 중 기부 화면의 날짜별 일반 캐릭터 크기 |
 | `--student-donation-animation-size` | `clamp(22rem, 60vh, 32rem)` | 목표 달성 후 감사 애니메이션을 Chromebook 높이 안에서 주인공 요소로 크게 보여 주는 최대 크기 |
