@@ -528,6 +528,13 @@ const DEFAULT_SUBJECT_CATALOG: SubjectCatalog = [
 ];
 const MAX_SUBJECT_NAME_LENGTH = 24;
 const SUBJECT_UNSET_LABEL = '과목';
+const SUBJECT_CATALOG_DATALIST_ID = 'subject-catalog-options';
+const SUBJECT_WEEK_CHOICES = [
+  { offset: -1, label: '지난주' },
+  { offset: 0, label: '이번주' },
+  { offset: 1, label: '다음주' },
+  { offset: 2, label: '다다음주' },
+] as const;
 
 let sharedBackgroundMusicAudio: HTMLAudioElement | null = null;
 
@@ -1346,11 +1353,12 @@ const getWeekOptionLabel = (weekKey: string) => {
 
 const buildSubjectWeekOptions = (centerDate: Date) => {
   const centerWeekStart = getWeekStartDate(centerDate);
-  return Array.from({ length: 5 }, (_, index) => {
+  return SUBJECT_WEEK_CHOICES.map(({ offset, label }) => {
     const weekStart = new Date(centerWeekStart);
-    weekStart.setDate(centerWeekStart.getDate() + (index - 2) * 7);
+    weekStart.setDate(centerWeekStart.getDate() + offset * 7);
     const key = formatDateKey(weekStart);
-    return { key, label: getWeekOptionLabel(key) };
+    const dateLabel = getWeekOptionLabel(key);
+    return { key, label: `${label} · ${dateLabel}`, dateLabel };
   });
 };
 
@@ -4106,6 +4114,7 @@ export default function TimerPage() {
   }, []);
   const [editingDay, setEditingDay] = useState<number>(() => getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+  const [copyTargetDays, setCopyTargetDays] = useState<Set<number>>(() => new Set());
   const [pendingAuctionAction, setPendingAuctionAction] = useState<AuctionManagementAction | null>(null);
   const [isCurrencyResetDangerVisible, setIsCurrencyResetDangerVisible] = useState(false);
   const [pendingAwardItemId, setPendingAwardItemId] = useState<string | null>(null);
@@ -4324,7 +4333,7 @@ export default function TimerPage() {
   const activeWeekdayScheduleCount = WEEKDAYS.filter((day) => (weeklySchedule[day] || []).length > 0).length;
   const subjectWeekOptions = buildSubjectWeekOptions(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds));
   const selectedSubjectWeekLabel =
-    subjectWeekOptions.find((option) => option.key === selectedSubjectWeekKey)?.label ??
+    subjectWeekOptions.find((option) => option.key === selectedSubjectWeekKey)?.dateLabel ??
     getWeekOptionLabel(selectedSubjectWeekKey);
   const subjectClassSlotsByDay = WEEKDAYS.reduce<Record<number, ScheduleSlot[]>>((slotsByDay, day) => {
     slotsByDay[day] = (weeklySchedule[day] || []).filter(isSubjectEditableClassSlot);
@@ -6122,6 +6131,54 @@ export default function TimerPage() {
       const daySchedule = (prev[day] || []).filter(s => s.id !== id);
       return { ...prev, [day]: normalizeDaySchedule(daySchedule) };
     });
+  };
+
+  const closeScheduleCopy = () => {
+    setShowCopyConfirm(false);
+    setCopyTargetDays(new Set());
+  };
+
+  const openScheduleCopy = () => {
+    setCopyTargetDays(new Set());
+    setShowCopyConfirm(true);
+  };
+
+  const selectEditingDay = (day: number) => {
+    closeScheduleCopy();
+    setEditingDay(day);
+  };
+
+  const toggleScheduleCopyTarget = (day: number) => {
+    if (day === editingDay) return;
+
+    setCopyTargetDays((previous) => {
+      const next = new Set(previous);
+      if (next.has(day)) {
+        next.delete(day);
+      } else {
+        next.add(day);
+      }
+      return next;
+    });
+  };
+
+  const confirmScheduleCopy = () => {
+    if (copyTargetDays.size === 0) return;
+
+    setWeeklySchedule((previous) => {
+      const sourceSchedule = previous[editingDay] || [];
+      const nextSchedule = { ...previous };
+
+      copyTargetDays.forEach((day) => {
+        if (day === editingDay) return;
+        nextSchedule[day] = normalizeDaySchedule(
+          sourceSchedule.map((slot) => ({ ...slot, id: createSlotId() })),
+        );
+      });
+
+      return nextSchedule;
+    });
+    closeScheduleCopy();
   };
 
   const exportSchedule = () => {
@@ -7980,7 +8037,7 @@ export default function TimerPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowCopyConfirm(true)}
+                onClick={openScheduleCopy}
                 className="toolbar-button toolbar-button-green inline-flex h-10 w-10 items-center justify-center rounded-full text-[#5C8D5D] transition-colors"
                 title="선택한 요일 일정을 평일에 복사"
                 aria-label="선택한 요일 일정을 평일에 복사"
@@ -7998,7 +8055,7 @@ export default function TimerPage() {
               <button
                 key={day}
                 type="button"
-                onClick={() => setEditingDay(day)}
+                onClick={() => selectEditingDay(day)}
                 className={`settings-day-button rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
                   editingDay === day
                     ? 'settings-day-button-active bg-[#688772] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
@@ -8071,36 +8128,51 @@ export default function TimerPage() {
         </div>
 
         {showCopyConfirm && (
-          <div className="confirm-box flex flex-col items-center justify-between gap-4 rounded-xl border border-[#C65D47]/30 bg-[#FFF5F3] p-4 sm:flex-row">
-            <span className="text-[#C65D47] font-bold text-sm">
-              현재 요일의 일정을 다른 모든 평일(월~금)에 덮어쓰시겠습니까?
-            </span>
-            <div className="flex gap-2 shrink-0">
+          <div className="confirm-box flex flex-col gap-4 rounded-xl border border-[#C65D47]/30 bg-[#FFF5F3] p-4">
+            <div>
+              <p className="text-sm font-bold text-[#C65D47]">
+                {DAYS[editingDay]}요일 일정을 복사할 평일을 선택하세요.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="복사할 평일 선택">
+                {WEEKDAYS.map((day) => {
+                  const isSourceDay = day === editingDay;
+                  const isSelected = copyTargetDays.has(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      disabled={isSourceDay}
+                      aria-pressed={isSourceDay ? undefined : isSelected}
+                      onClick={() => toggleScheduleCopyTarget(day)}
+                      className={`inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
+                        isSourceDay
+                          ? 'cursor-not-allowed border-[#D8D6D1] bg-[#ECEBE7] text-[#77736D]'
+                          : isSelected
+                            ? 'border-[#4D6F60] bg-[#4D6F60] text-white shadow-[0_6px_14px_rgba(77,111,96,0.18)]'
+                            : 'border-[#D8C7B6] bg-white text-[#6E5139] hover:border-[#9FB9AD] hover:bg-[#F3FAF7]'
+                      }`}
+                    >
+                      {DAYS[day]}요일{isSourceDay ? ' · 기준' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex shrink-0 justify-end gap-2">
               <button
-                onClick={() => setShowCopyConfirm(false)}
+                type="button"
+                onClick={closeScheduleCopy}
                 className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[#8A6347]"
               >
                 취소
               </button>
               <button
-                onClick={() => {
-                  setWeeklySchedule(prev => {
-                    const current = prev[editingDay] || [];
-                    const createCopy = () => normalizeDaySchedule(current.map(slot => ({ ...slot, id: createSlotId() })));
-                    return {
-                      ...prev,
-                      1: editingDay === 1 ? current : createCopy(),
-                      2: editingDay === 2 ? current : createCopy(),
-                      3: editingDay === 3 ? current : createCopy(),
-                      4: editingDay === 4 ? current : createCopy(),
-                      5: editingDay === 5 ? current : createCopy(),
-                    };
-                  });
-                  setShowCopyConfirm(false);
-                }}
-                className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-sm font-bold text-white"
+                type="button"
+                disabled={copyTargetDays.size === 0}
+                onClick={confirmScheduleCopy}
+                className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-[#B7B4AE]"
               >
-                복사하기
+                {copyTargetDays.size > 0 ? `${copyTargetDays.size}일에 복사` : '요일을 선택하세요'}
               </button>
             </div>
           </div>
@@ -8241,6 +8313,9 @@ export default function TimerPage() {
           </div>
         ) : (
           <div className="custom-scrollbar overflow-x-auto pb-1">
+            <datalist id={SUBJECT_CATALOG_DATALIST_ID}>
+              {subjectCatalog.map((subject) => <option key={subject} value={subject} />)}
+            </datalist>
             <table className="subject-week-table w-full min-w-[54rem] border-separate border-spacing-y-2">
               <thead>
                 <tr>
@@ -8279,31 +8354,21 @@ export default function TimerPage() {
                           }`}
                         >
                           {slot ? (
-                            subjectCatalog.length > 0 ? (
-                              <select
-                                value={weeklySubjectValue}
-                                onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
-                                className={`slot-subject-input slot-select w-full min-w-0 cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
-                                data-subject-state={weeklySubjectValue.trim() ? 'configured' : 'empty'}
-                                aria-label={`${DAYS[day]}요일 ${subjectKey}교시 과목`}
-                              >
-                                <option value="">과목</option>
-                                {subjectCatalog.map((subject) => (
-                                  <option key={subject} value={subject}>
-                                    {subject}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
+                            <div className="subject-combobox relative">
                               <input
                                 type="text"
+                                list={subjectCatalog.length > 0 ? SUBJECT_CATALOG_DATALIST_ID : undefined}
                                 value={weeklySubjectValue}
                                 onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
-                                className={`slot-subject-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
+                                maxLength={MAX_SUBJECT_NAME_LENGTH}
+                                className={`slot-subject-input subject-combobox-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] py-2.5 pl-3 pr-9 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
                                 data-subject-state={weeklySubjectValue.trim() ? 'configured' : 'empty'}
-                                placeholder="과목"
+                                placeholder="선택"
+                                title="목록에서 선택하거나 직접 입력"
+                                aria-label={`${DAYS[day]}요일 ${subjectKey}교시 과목 선택 또는 입력`}
                               />
-                            )
+                              <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8A6347]/70" size={16} />
+                            </div>
                           ) : (
                             <span className="block rounded-xl border border-dashed border-[#E6D5C9] bg-[#F7F0E8]/70 px-3 py-2.5 text-center text-[0.9rem] font-bold text-[#B89E87]/70">
                               -
@@ -10970,6 +11035,7 @@ export default function TimerPage() {
                         setIsCurrencyPanelOpen(false);
                         setIsQuestionSubmissionPanelOpen(false);
                         setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
+                        closeScheduleCopy();
                         setIsSettingsMaterialMounted(true);
                         setIsSettingsOpen(true);
                       }}

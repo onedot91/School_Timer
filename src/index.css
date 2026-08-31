@@ -10842,6 +10842,10 @@ h3 {
   max-width: none;
 }
 
+.settings-dialog .subject-combobox-input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+
 .settings-dialog .slot-card > div {
   width: auto !important;
   min-width: 0;

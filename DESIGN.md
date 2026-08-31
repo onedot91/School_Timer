@@ -339,6 +339,7 @@ appear first, followed by the current profile and then grayscale profiles alread
 ### Controls
 
 - 교사 시간표의 일정 행 사이는 포인터가 가까워지거나 키보드 초점이 들어오면 44px 감지 면 안의 작은 `+` 원형 버튼을 드러낸다. 버튼은 해당 위치에 새 수업 일정을 삽입하고 필요한 만큼 뒤 일정을 늦춰 순서를 보존한다. `쉬는 시간`과 `점심시간` 유형은 이름을 각각 같은 문구로 고정한다. 공간 이동은 `transform`·`opacity`만 사용하고 동작 줄이기에서는 즉시 상태를 바꾼다.
+- 교사 과목 설정의 주 선택은 현재 주를 기준으로 `지난주`, `이번주`, `다음주`, `다다음주` 네 범위만 날짜와 함께 보여 준다. 시간표 과목 칸은 과목 목록을 추천하는 네이티브 콤보박스이면서 목록 밖의 과목도 24자 안에서 직접 입력할 수 있고, 빈 값은 해당 주차 배정을 제거한다.
 - 교사 설정 탐색에서 `수업 운영`, `학생 생활`, `고마 경제`는 각각 구분선과 조용한 배경을 가진 카드 헤더로 표시한다. 여러 부가 기능은 `고마 경제` 밖의 독립된 카드에 `기타` 항목으로 두되, 그 카드에는 `기타 설정` 헤더 문구를 표시하지 않고 접근성 그룹 이름으로만 유지한다. 내부 탭은 `프로필`, `고마 스킨 뽑기`, `집`, `캐릭터` 순서를 사용한다. `캐릭터` 탭은 교사 타이머 화면에서 걷는 학생 제작 캐릭터만 1번부터 23번까지 고정된 번호순 카드로 보여 주며, 자캐 이름 대신 각 캐릭터의 고유 멘트를 함께 표시한다. 모든 카드는 번호·캐릭터 무대·멘트의 동일한 세 행 구조를 사용하고, 미등록 번호도 `캐릭터 대기`와 `멘트 대기` 영역을 유지해 카드 높이와 23개 자리의 리듬이 무너지지 않는다.
 - The Sudoku play header always keeps the child-friendly reset notice `매주 월요일 새 문제로 바뀌어요` beside the difficulty and reward so the weekly reset boundary is explicit without opening another explanation.
 - Minimum target size is 44 CSS px in both dimensions.
