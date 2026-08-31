@@ -38,8 +38,14 @@ test('오답은 저장하지 않고 정답은 학생·날짜·문제별 한 번�
   assert.equal(submitLocalClasswordQuizAnswer(storage, dateKey, 3, '오답').correct, false);
   assert.equal(loadLocalClasswordQuizStudentState(storage, dateKey, 3).completed, false);
 
-  assert.equal(submitLocalClasswordQuizAnswer(storage, dateKey, 3, answer).correct, true);
-  assert.equal(submitLocalClasswordQuizAnswer(storage, dateKey, 3, answer).correct, true);
-  assert.equal(loadLocalClasswordQuizStudentState(storage, dateKey, 3).completed, true);
+  const firstCorrect = submitLocalClasswordQuizAnswer(storage, dateKey, 3, answer, () => 0);
+  const repeatedCorrect = submitLocalClasswordQuizAnswer(storage, dateKey, 3, answer, () => .999999);
+  assert.equal(firstCorrect.correct, true);
+  assert.equal(firstCorrect.rewardAmount, 1);
+  assert.equal(repeatedCorrect.correct, true);
+  assert.equal(repeatedCorrect.rewardAmount, 1);
+  const completedState = loadLocalClasswordQuizStudentState(storage, dateKey, 3);
+  assert.equal(completedState.completed, true);
+  assert.equal(completedState.rewardAmount, 1);
   assert.deepEqual(loadLocalClasswordQuizTeacherSummary(storage, dateKey).correctStudentNumbers, [3]);
 });

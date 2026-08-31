@@ -60,6 +60,8 @@ test('프로필을 받은 학생 상점은 랜덤 30고마와 직접 교체 50�
   assert.match(markup, />30 고마</);
   assert.match(markup, />50 고마</);
   assert.match(markup, />내 프로필</);
+  assert.match(markup, /<h3 id="student-profile-shop-title" class="sr-only">프로필 선택<\/h3>/);
+  assert.match(markup, /<p>랜덤 교체는 30고마, 원하는 프로필 교체는 50고마예요.<\/p>/);
   assert.match(markup, /role="tablist"/);
   assert.equal((markup.match(/role="tab"/g) ?? []).length, 3);
 });

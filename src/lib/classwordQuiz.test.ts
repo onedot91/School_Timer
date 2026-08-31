@@ -41,8 +41,11 @@ test('퀴즈 정답은 주변 공백을 정리하고 오답과 구분한다', ()
 test('학생 완료와 교사 정답자 응답은 유효한 번호만 허용한다', () => {
   const question = getDailyClasswordQuiz('2026-08-30');
   assert.equal(parseClasswordQuizStudentState({
-    dateKey: '2026-08-30', question, completed: true, completedAt: '2026-08-30T01:00:00.000Z',
-  }).completed, true);
+    dateKey: '2026-08-30', question, completed: true, completedAt: '2026-08-30T01:00:00.000Z', rewardAmount: 7,
+  }).rewardAmount, 7);
+  assert.equal(parseClasswordQuizStudentState({
+    dateKey: '2026-08-30', question, completed: false, completedAt: null, rewardAmount: null,
+  }).rewardAmount, null);
   assert.deepEqual(parseClasswordQuizTeacherSummary({
     dateKey: '2026-08-30', question, correctStudentNumbers: [4, 2, 4],
   }).correctStudentNumbers, [2, 4]);

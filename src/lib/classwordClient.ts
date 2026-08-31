@@ -29,13 +29,10 @@ import {
   loadLocalClasswordQuizTeacherSummary,
   submitLocalClasswordQuizAnswer,
 } from './classwordQuizLocalStore';
-import { normalizeCurrencyBalances, normalizeCurrencyHistory } from './currency';
+import { claimClasswordQuizRewardInSettings } from './classwordQuizReward';
 import { appDataMode } from './dataMode';
+import { normalizeCurrencyBalances, normalizeCurrencyHistory } from './currency';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
-import {
-  claimWeeklyMissionRewardInSettings,
-  CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-} from './weeklyMission';
 
 export const CLASSWORD_LOCAL_CHANGE_EVENT = 'school-timer-classword-change';
 
@@ -56,6 +53,9 @@ export type SaveClasswordEntryResult = {
 export type SubmitClasswordQuizAnswerResult = {
   readonly correct: boolean;
   readonly state: ClasswordQuizStudentState;
+  readonly awarded: boolean;
+  readonly rewardAmount: number;
+  readonly balance: number | null;
 };
 
 export class ClasswordClientError extends Error {
@@ -160,8 +160,27 @@ export const submitClasswordQuizAnswer = async (input: {
       input.studentNumber,
       input.answer,
     );
-    if (result.correct) dispatchLocalChange();
-    return result;
+    if (!result.correct) {
+      return { ...result, awarded: false, balance: null };
+    }
+    const snapshot = loadStoredStudentPetSnapshot();
+    const reward = claimClasswordQuizRewardInSettings(
+      snapshot,
+      input.studentNumber,
+      input.dateKey,
+      result.rewardAmount,
+    );
+    if (reward.awarded && !storeStudentPetSnapshot({
+      ...snapshot,
+      currencyBalances: normalizeCurrencyBalances(reward.value.currencyBalances),
+      currencyHistory: normalizeCurrencyHistory(reward.value.currencyHistory),
+    })) throw new ClasswordClientError('CLASSWORD_REWARD_SAVE_FAILED');
+    dispatchLocalChange();
+    return {
+      ...result,
+      awarded: reward.awarded,
+      balance: reward.balance,
+    };
   }
   const value = await request('/api/classword', {
     method: 'POST',
@@ -174,9 +193,24 @@ export const submitClasswordQuizAnswer = async (input: {
   if (!isRecord(value) || typeof value.correct !== 'boolean') {
     throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
   }
+  const state = parseClasswordQuizStudentState(value.state);
+  if (!value.correct) {
+    return { correct: false, state, awarded: false, rewardAmount: 0, balance: null };
+  }
+  if (
+    typeof value.awarded !== 'boolean'
+    || typeof value.rewardAmount !== 'number'
+    || !Number.isInteger(value.rewardAmount)
+    || value.rewardAmount < 1
+    || value.rewardAmount > 10
+    || typeof value.balance !== 'number'
+  ) throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
   return {
-    correct: value.correct,
-    state: parseClasswordQuizStudentState(value.state),
+    correct: true,
+    state,
+    awarded: value.awarded,
+    rewardAmount: value.rewardAmount,
+    balance: value.balance,
   };
 };
 
@@ -190,20 +224,8 @@ export const saveClasswordEntry = async (
   if (appDataMode === 'mock') {
     try {
       const entry = saveLocalClasswordEntry(getPrunedLocalStorage(), { ...input, word: validation.word });
-      const snapshot = loadStoredStudentPetSnapshot();
-      const reward = claimWeeklyMissionRewardInSettings(
-        snapshot,
-        input.studentNumber,
-        input.dateKey,
-        CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-      );
-      if (reward.awarded && !storeStudentPetSnapshot({
-        ...snapshot,
-        currencyBalances: normalizeCurrencyBalances(reward.value.currencyBalances),
-        currencyHistory: normalizeCurrencyHistory(reward.value.currencyHistory),
-      })) throw new ClasswordClientError('CLASSWORD_REWARD_SAVE_FAILED');
       dispatchLocalChange();
-      return { entry, awarded: reward.awarded, balance: reward.balance };
+      return { entry, awarded: false, balance: null };
     } catch (error) {
       if (error instanceof ClasswordLocalError) throw new ClasswordClientError(error.code);
       throw error;

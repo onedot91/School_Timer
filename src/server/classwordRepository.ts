@@ -8,6 +8,7 @@ import {
 } from '../lib/classword.js';
 import type { ClasswordQuizCompletion } from '../lib/classwordQuiz.js';
 import {
+  CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   parseWeeklyMissionResult,
   type WeeklyMissionResult,
@@ -30,6 +31,12 @@ export type ClasswordRewardClaim = {
   readonly studentNumber: number;
   readonly entryId: string;
   readonly dateKey: string;
+};
+
+export type ClasswordQuizRewardResult = {
+  readonly awarded: boolean;
+  readonly rewardAmount: number;
+  readonly balance: number;
 };
 
 export class ClasswordRepositoryError extends Error {
@@ -71,6 +78,24 @@ const request = async (
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
 );
+
+const parseClasswordQuizRewardResult = (value: unknown): ClasswordQuizRewardResult => {
+  if (
+    !isRecord(value)
+    || value.missionType !== CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE
+    || typeof value.awarded !== 'boolean'
+    || typeof value.rewardAmount !== 'number'
+    || !Number.isInteger(value.rewardAmount)
+    || value.rewardAmount < 1
+    || value.rewardAmount > 10
+    || typeof value.balance !== 'number'
+  ) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+  return {
+    awarded: value.awarded,
+    rewardAmount: value.rewardAmount,
+    balance: value.balance,
+  };
+};
 
 const mapEntryRow = (row: unknown): ClasswordEntry => {
   if (!isRecord(row)) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
@@ -183,6 +208,24 @@ export const loadClasswordQuizCompletions = async (
     `classword_quiz_completions?quiz_date=eq.${encodeURIComponent(dateKey)}&question_id=eq.${encodeURIComponent(questionId)}&select=quiz_date,question_id,student_number,completed_at&order=student_number.asc`,
   );
   return parseRows(value).map(mapQuizCompletionRow);
+};
+
+export const loadClasswordQuizRewardAmount = async (
+  configuration: ClasswordRepositoryConfiguration,
+  dateKey: string,
+  studentNumber: number,
+): Promise<number | null> => {
+  const value = await request(
+    configuration,
+    `weekly_mission_rewards?student_number=eq.${studentNumber}&week_key=eq.${encodeURIComponent(dateKey)}&mission_type=eq.${CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE}&select=reward_amount&limit=1`,
+  );
+  const rewardAmount = parseRows(value)[0]?.reward_amount;
+  return typeof rewardAmount === 'number'
+    && Number.isInteger(rewardAmount)
+    && rewardAmount >= 1
+    && rewardAmount <= 10
+    ? rewardAmount
+    : null;
 };
 
 export const saveClasswordQuizCompletion = async (
@@ -299,6 +342,23 @@ export const claimClasswordReward = async (
       p_student_number: claim.studentNumber,
       p_week_key: claim.dateKey,
       p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+      p_source_event_id: claim.entryId,
+    }),
+  },
+));
+
+export const claimClasswordQuizReward = async (
+  configuration: ClasswordRepositoryConfiguration,
+  claim: ClasswordRewardClaim,
+): Promise<ClasswordQuizRewardResult> => parseClasswordQuizRewardResult(await request(
+  configuration,
+  'rpc/claim_weekly_mission_reward',
+  {
+    method: 'POST',
+    body: JSON.stringify({
+      p_student_number: claim.studentNumber,
+      p_week_key: claim.dateKey,
+      p_mission_type: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
       p_source_event_id: claim.entryId,
     }),
   },

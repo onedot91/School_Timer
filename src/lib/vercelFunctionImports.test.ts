@@ -22,6 +22,7 @@ const SERVER_MODULES = [
   'src/lib/studentLife.ts',
   'src/lib/weeklyMission.ts',
   'src/server/deviceSession.ts',
+  'src/server/classwordMissionSettlement.ts',
   'src/server/classwordRepository.ts',
   'src/server/requestRateLimit.ts',
 ] as const;
@@ -58,4 +59,10 @@ test('active student and weekly mission paths do not call the legacy Classword h
   const legacyHost = ['classword', 'vercel', 'app'].join('.');
 
   for (const source of sources) assert.equal(source.includes(legacyHost), false);
+});
+
+test('학생 화면에 접속하면 미션 탭을 열지 않아도 과거 보상 정산을 시작한다', async () => {
+  const source = await readFile('src/pages/AuctionPage.tsx', 'utf8');
+
+  assert.match(source, /useEffect\(\(\) => \{\s+let isActive = true;\s+const syncWeeklyMission/);
 });

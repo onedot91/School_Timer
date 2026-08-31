@@ -127,12 +127,15 @@ test('보너스 문제는 큰 본문과 하나의 예시 배지 아래 두 초�
 test('보너스 문제는 더 높은 섹션과 큰 이미지·본문, 좁은 정답 영역을 사용한다', () => {
   assert.match(css, /\.classword-quiz \{[\s\S]*?min-block-size: 9\.75rem;[\s\S]*?padding: \.75rem;/);
   assert.match(css, /\.classword-quiz-heading-art \{[\s\S]*?inline-size: 12rem;[\s\S]*?block-size: 100%;/);
-  assert.match(css, /\.classword-quiz-heading-art img \{[\s\S]*?object-fit: contain;[\s\S]*?object-position: center;/);
+  assert.match(css, /\.classword-quiz-heading-art img \{[\s\S]*?object-fit: contain;[\s\S]*?object-position: center top;/);
+  assert.match(studentQuiz, /className="classword-quiz-reward-copy">1~10고마 즉시 지급/);
+  assert.match(css, /\.classword-quiz-heading-art \{[\s\S]*?grid-template-rows: minmax\(0, 1fr\) auto;/);
+  assert.match(css, /\.classword-quiz-reward-copy \{[\s\S]*?color: var\(--classword-accent\);[\s\S]*?transform: translateY\(-1rem\);/);
   assert.match(studentQuiz, /className="classword-quiz-answer"[\s\S]*?className="classword-quiz-initial"[\s\S]*?<form/);
   assert.match(studentQuiz, /<span>초성 힌트:<\/span> \{state\.question\.initialHint\}/);
   assert.match(studentQuiz, /<label htmlFor="classword-quiz-answer" className="sr-only">정답 입력<\/label>/);
   assert.match(studentQuiz, /placeholder="정답 입력"/);
-  assert.match(studentQuiz, /completed\s*\? '정답'\s*: submissionState === 'incorrect'\s*\? '오답'/);
+  assert.match(studentQuiz, /state\.rewardAmount === null[\s\S]*?\? '정답'[\s\S]*?: `정답 \$\{state\.rewardAmount\}고마`/);
   assert.match(css, /\.classword-quiz-body \{[\s\S]*?block-size: 8rem;[\s\S]*?grid-template-columns: 12rem minmax\(0, 1fr\) minmax\(16rem, \.48fr\);[\s\S]*?align-items: stretch;/);
   assert.match(css, /\.classword-quiz-answer \{[\s\S]*?block-size: 100%;[\s\S]*?align-content: center;[\s\S]*?background: color-mix\(in srgb, var\(--classword-accent-soft\) 72%, var\(--classword-sky\)\);/);
   assert.match(css, /\.classword-quiz-copy \{[\s\S]*?block-size: 100%;[\s\S]*?min-block-size: 0;/);
@@ -144,7 +147,7 @@ test('보너스 문제는 더 높은 섹션과 큰 이미지·본문, 좁은 정
 
 test('보너스 문제 확인 버튼은 정답 입력창 오른쪽 내부에 배치한다', () => {
   assert.match(css, /\.classword-quiz form > div \{[\s\S]*?position: relative;/);
-  assert.match(css, /\.classword-quiz input \{[\s\S]*?inline-size: 100%;[\s\S]*?padding-inline: \.85rem 6\.5rem;/);
+  assert.match(css, /\.classword-quiz input \{[\s\S]*?inline-size: 100%;[\s\S]*?padding-inline: \.85rem 8\.25rem;/);
   assert.match(css, /\.classword-quiz form button \{[\s\S]*?position: absolute;[\s\S]*?inset: \.375rem \.375rem \.375rem auto;/);
 });
 
@@ -162,6 +165,7 @@ test('완료한 보너스 문제는 입력 영역의 초록 정답 버튼으로�
     },
     completed: true,
     completedAt: '2026-08-30T00:00:00.000Z',
+    rewardAmount: 7,
   };
 
   const markup = renderToStaticMarkup(createElement(
@@ -176,7 +180,8 @@ test('완료한 보너스 문제는 입력 영역의 초록 정답 버튼으로�
     },
   ));
 
-  assert.match(markup, /<button[^>]*class="is-correct"[^>]*disabled=""[^>]*>[\s\S]*?정답<\/button>/);
+  assert.match(markup, /<button[^>]*class="is-correct"[^>]*disabled=""[^>]*data-reward-amount="7"/);
+  assert.match(markup, /정답 7고마<\/button>/);
   assert.doesNotMatch(markup, />완료</);
   assert.doesNotMatch(markup, /정답이에요|오늘 퀴즈를 완료했어요|다시 제출할 수 없어요/);
   assert.doesNotMatch(markup, /<header><span/);
@@ -189,7 +194,7 @@ test('보너스 문제 오답과 정답은 별도 안내문 없이 제출 버튼
   assert.match(studentQuiz, /submissionState === 'incorrect'\s*\? <XCircle aria-hidden="true" \/>/);
   assert.match(studentQuiz, /submissionState === 'incorrect'\s*\? '오답'/);
   assert.match(studentQuiz, /completed\s*\? <CheckCircle2 aria-hidden="true" \/>/);
-  assert.match(studentQuiz, /completed\s*\? '정답'/);
+  assert.match(studentQuiz, /state\.rewardAmount === null[\s\S]*?\? '정답'[\s\S]*?: `정답 \$\{state\.rewardAmount\}고마`/);
   assert.match(css, /\.classword-quiz form button\.is-incorrect,[\s\S]*?\.classword-quiz form button\.is-error \{[\s\S]*?background: var\(--student-warning\);/);
   assert.match(css, /\.classword-quiz form button\.is-correct:disabled \{[\s\S]*?background: var\(--classword-accent\);/);
   assert.doesNotMatch(studentQuiz, /아직 정답이 아니에요|뜻과 예문을 다시 살펴보세요/);
@@ -306,6 +311,16 @@ test('교사 낱말판은 선택 날짜와 무관하게 오늘 입력 낱말을 
   assert.match(css, /\.teacher-classword-board \{[^}]*grid-template-columns: repeat\(7, minmax\(0, 1fr\)\);/);
   assert.match(css, /\.teacher-classword-board \.classword-student-profile img \{[^}]*var\(--teacher-classword-profile-size\)/);
   assert.match(teacherPanel, /날짜별 주제 설정/);
+});
+
+test('교사 하단 낱말판은 오늘 주제와 14칸 보드만 보여 준다', () => {
+  assert.match(
+    teacherPanel,
+    /\{surface === 'settings' \? \(\s*<>[\s\S]*?teacher-classword-quiz-summary[\s\S]*?teacher-classword-workspace[\s\S]*?<\/>(?:\s*)\) : null\}/,
+  );
+  assert.match(teacherPanel, /surface === 'utility'[\s\S]*?className="timer-classword-panel-header"[\s\S]*?오늘의 주제는/);
+  assert.match(teacherPanel, /surface === 'settings' \? \([\s\S]*?className="teacher-classword-today-topic"/);
+  assert.match(css, /\.teacher-classword-panel\[data-surface="utility"\] \.teacher-classword-today-entries \{[^}]*border: 0;[^}]*background: transparent;[^}]*box-shadow: none;/);
 });
 
 test('주제가 있는 날짜는 달력의 면과 점, 범례로 함께 구분한다', () => {

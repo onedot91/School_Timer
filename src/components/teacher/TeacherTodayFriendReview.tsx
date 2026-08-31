@@ -39,7 +39,7 @@ export default function TeacherTodayFriendReview({ submissions, isSaving, onRevi
   return (
     <div className="teacher-today-friend-review">
       <section className="teacher-today-friend-queue" aria-label="오늘의 친구 제출 목록">
-        <header><h3>제출 목록</h3><span>{submissions.filter((entry) => entry.status === 'submitted').length}건 확인 대기</span></header>
+        <header><h3>제출 목록</h3></header>
         <div className="teacher-today-friend-queue-list">
           {sorted.length === 0 ? <p className="teacher-today-friend-empty">아직 제출한 학생이 없습니다.</p> : sorted.map((submission) => (
             <button key={submission.id} type="button" className={submission.id === selected?.id ? 'is-active' : ''} onClick={() => setSelectedId(submission.id)}>
@@ -53,7 +53,7 @@ export default function TeacherTodayFriendReview({ submissions, isSaving, onRevi
       <section className="teacher-today-friend-detail" aria-label="오늘의 친구 제출 상세">
         {selected ? (
           <>
-            <header><div><span>{selected.studentNumber}번 학생</span><h3>{selected.partnerNumber}번 친구와 수행</h3></div><small>{STATUS_LABELS[selected.status]}</small></header>
+            <header><h3>{selected.studentNumber}번 → {selected.partnerNumber}번</h3><small>{STATUS_LABELS[selected.status]}</small></header>
             <article data-private={selected.genre === 'emotion' ? 'true' : undefined}>
               {selected.genre === 'emotion' ? <p className="teacher-today-friend-private-label">참여 학생과 교사만 보는 감정 기록</p> : null}
               <p>{getPreview(selected)}</p>
@@ -64,12 +64,12 @@ export default function TeacherTodayFriendReview({ submissions, isSaving, onRevi
                 <label><span>수정 요청 문구</span><textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} maxLength={300} /></label>
                 <div>
                   <button type="button" disabled={isSaving || feedback.trim().length === 0} onClick={() => { void onReview(selected.id, 'revision_requested', feedback); }}><RotateCcw aria-hidden="true" />수정 요청</button>
-                  <button type="button" disabled={isSaving} onClick={() => { void onReview(selected.id, 'approved', ''); }}><Check aria-hidden="true" />승인하고 15고마 지급</button>
+                  <button type="button" disabled={isSaving} onClick={() => { void onReview(selected.id, 'approved', ''); }}><Check aria-hidden="true" />승인 · 15고마</button>
                 </div>
               </div>
-            ) : selected.status === 'approved' ? <p className="teacher-today-friend-complete"><Check aria-hidden="true" />15고마 지급 완료</p> : <p className="teacher-today-friend-wait"><Clock3 aria-hidden="true" />학생의 다음 제출을 기다리고 있습니다.</p>}
+            ) : selected.status === 'approved' ? <p className="teacher-today-friend-complete"><Check aria-hidden="true" />15고마 지급 완료</p> : <p className="teacher-today-friend-wait"><Clock3 aria-hidden="true" />학생 제출 대기</p>}
           </>
-        ) : <p className="teacher-today-friend-empty">왼쪽에서 제출물을 선택하세요.</p>}
+        ) : <p className="teacher-today-friend-empty">제출물을 선택하세요.</p>}
       </section>
     </div>
   );

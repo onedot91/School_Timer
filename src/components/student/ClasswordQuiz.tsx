@@ -67,8 +67,9 @@ export default function ClasswordQuiz({
       </header>
       {state ? (
         <div className="classword-quiz-body">
-          <span className="classword-quiz-heading-art" aria-hidden="true">
-            <img src="/classword/bonus-question.png" alt="" width="1448" height="1086" />
+          <span className="classword-quiz-heading-art">
+            <img src="/classword/bonus-question.png" alt="" aria-hidden="true" width="1448" height="1086" />
+            <strong className="classword-quiz-reward-copy">1~10고마 즉시 지급</strong>
           </span>
           <div className="classword-quiz-copy">
             <p><span>뜻</span><strong>{state.question.meaning}</strong></p>
@@ -119,6 +120,7 @@ export default function ClasswordQuiz({
                         ? 'is-error'
                         : undefined}
                   disabled={saving || completed || !answer.trim()}
+                  data-reward-amount={completed && state.rewardAmount !== null ? state.rewardAmount : undefined}
                   aria-live="polite"
                   aria-atomic="true"
                 >
@@ -132,7 +134,9 @@ export default function ClasswordQuiz({
                   {saving
                     ? '제출 중'
                     : completed
-                      ? '정답'
+                      ? state.rewardAmount === null
+                        ? '정답'
+                        : `정답 ${state.rewardAmount}고마`
                       : submissionState === 'incorrect'
                         ? '오답'
                         : submissionState === 'error'

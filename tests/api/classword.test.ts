@@ -206,7 +206,7 @@ test('전체 사용 주제 조회는 교사에게만 허용하고 중복을 제�
   });
 });
 
-test('학생 제출은 세션 학생 번호와 오늘 날짜로 일일 보상을 한 번 요청한다', async () => {
+test('학생 제출은 오늘 낱말만 저장하고 당일 보상은 지급하지 않는다', async () => {
   // Given
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
@@ -222,10 +222,7 @@ test('학생 제출은 세션 학생 번호와 오늘 날짜로 일일 보상을
         id: 'entry-new', round_date: TODAY, initial: 'ㄱ', word: '강아지',
         student_number: 3, created_at: '2026-08-29T01:00:00.000Z', updated_at: '2026-08-29T01:00:00.000Z',
       }]);
-      return Response.json({
-        missionType: 'classword_word_entry', weekKey: TODAY, completed: true,
-        awarded: true, rewardAmount: 5, balance: 105,
-      });
+      return Response.json([]);
     };
 
     try {
@@ -239,11 +236,10 @@ test('학생 제출은 세션 학생 번호와 오늘 날짜로 일일 보상을
 
       // Then
       assert.equal(result().statusCode, 200);
-      assert.equal(Reflect.get(result().body as object, 'awarded'), true);
+      assert.equal(Reflect.get(result().body as object, 'awarded'), false);
+      assert.equal(Reflect.get(result().body as object, 'balance'), null);
       assert.equal(Reflect.get(requestBodies[0] as object, 'student_number'), 3);
-      assert.equal(Reflect.get(requestBodies[1] as object, 'p_mission_type'), 'classword_word_entry');
-      assert.equal(Reflect.get(requestBodies[1] as object, 'p_week_key'), TODAY);
-      assert.equal(Reflect.get(requestBodies[1] as object, 'p_source_event_id'), 'entry-new');
+      assert.equal(requestBodies.length, 1);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -409,15 +405,17 @@ test('학생 삭제는 세션 학생 번호로 제한하고 교사는 날짜 전
   });
 });
 
-test('학생 퀴즈 조회는 힌트와 자신의 완료 상태만 반환한다', async () => {
+test('학생 퀴즈 조회는 힌트와 자신의 완료·보상 상태만 반환한다', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => Response.json([{
-      quiz_date: TODAY,
-      question_id: getDailyClasswordQuiz(TODAY).id,
-      student_number: 3,
-      completed_at: '2026-08-30T01:00:00.000Z',
-    }]);
+    globalThis.fetch = async (input) => String(input).includes('/weekly_mission_rewards')
+      ? Response.json([{ reward_amount: 7 }])
+      : Response.json([{
+          quiz_date: TODAY,
+          question_id: getDailyClasswordQuiz(TODAY).id,
+          student_number: 3,
+          completed_at: '2026-08-30T01:00:00.000Z',
+        }]);
 
     try {
       const { response, result } = createResponse();
@@ -429,6 +427,7 @@ test('학생 퀴즈 조회는 힌트와 자신의 완료 상태만 반환한다'
 
       assert.equal(result().statusCode, 200);
       assert.equal(Reflect.get(result().body as object, 'completed'), true);
+      assert.equal(Reflect.get(result().body as object, 'rewardAmount'), 7);
       const question = Reflect.get(result().body as object, 'question');
       assert.equal(Object.hasOwn(question as object, 'answer'), false);
     } finally {
@@ -444,8 +443,25 @@ test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상
     const answer = QUIZ_ANSWERS[question.id];
     assert.ok(answer);
     let completionSaved = false;
+    let rewardClaimed = false;
     let savedStudentNumber: unknown;
-    globalThis.fetch = async (_input, init) => {
+    let rewardMissionType: unknown;
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      if (url.includes('/rpc/claim_weekly_mission_reward')) {
+        const body = JSON.parse(String(init?.body));
+        rewardMissionType = Reflect.get(body as object, 'p_mission_type');
+        const awarded = !rewardClaimed;
+        rewardClaimed = true;
+        return Response.json({
+          missionType: 'classword_quiz_correct',
+          weekKey: TODAY,
+          completed: true,
+          awarded,
+          rewardAmount: 7,
+          balance: 107,
+        });
+      }
       if (init?.method === 'POST') {
         const body = JSON.parse(String(init.body));
         completionSaved = true;
@@ -479,7 +495,20 @@ test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상
         body: { action: 'answer_quiz', dateKey: TODAY, answer },
       }, correct.response);
       assert.equal(Reflect.get(correct.result().body as object, 'correct'), true);
+      assert.equal(Reflect.get(correct.result().body as object, 'awarded'), true);
+      assert.equal(Reflect.get(correct.result().body as object, 'rewardAmount'), 7);
+      assert.equal(Reflect.get(correct.result().body as object, 'balance'), 107);
       assert.equal(savedStudentNumber, 3);
+      assert.equal(rewardMissionType, 'classword_quiz_correct');
+
+      const repeated = createResponse();
+      await handler({
+        method: 'POST',
+        headers: sessionHeaders('student', 3),
+        body: { action: 'answer_quiz', dateKey: TODAY, answer },
+      }, repeated.response);
+      assert.equal(Reflect.get(repeated.result().body as object, 'awarded'), false);
+      assert.equal(Reflect.get(repeated.result().body as object, 'rewardAmount'), 7);
     } finally {
       globalThis.fetch = originalFetch;
     }

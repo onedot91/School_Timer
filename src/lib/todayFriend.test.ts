@@ -6,11 +6,48 @@ import {
   createTodayFriendPartnerAssignments,
   createTodayFriendSubmission,
   createTodayFriendWeek,
+  getTodayFriendNumber,
   requestTodayFriendRevision,
   submitTodayFriendSubmission,
   TODAY_FRIEND_GENRES,
   TODAY_FRIEND_REWARD,
 } from './todayFriend';
+
+test('기본 파트너는 날짜가 바뀌면 모든 학생에게 새 친구를 배정한다', () => {
+  // Given
+  const students = Array.from({ length: 23 }, (_, index) => index + 1);
+  const firstDateKey = '2026-01-02';
+  const secondDateKey = '2026-01-03';
+
+  // When
+  const firstPartners = students.map((studentNumber) => getTodayFriendNumber(studentNumber, firstDateKey));
+  const secondPartners = students.map((studentNumber) => getTodayFriendNumber(studentNumber, secondDateKey));
+
+  // Then
+  assert.deepEqual(students.map((studentNumber) => getTodayFriendNumber(studentNumber, firstDateKey)), firstPartners);
+  students.forEach((studentNumber, index) => {
+    assert.notEqual(firstPartners[index], studentNumber);
+    assert.notEqual(secondPartners[index], studentNumber);
+    assert.notEqual(secondPartners[index], firstPartners[index]);
+  });
+  assert.equal(new Set(firstPartners).size, 23);
+  assert.equal(new Set(secondPartners).size, 23);
+});
+
+test('한 학생은 22일 동안 자기 자신을 제외한 모든 친구를 한 번씩 만난다', () => {
+  // Given
+  const studentNumber = 1;
+  const dateKeys = Array.from({ length: 22 }, (_, index) => (
+    new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10)
+  ));
+
+  // When
+  const partners = dateKeys.map((dateKey) => getTodayFriendNumber(studentNumber, dateKey));
+
+  // Then
+  assert.equal(new Set(partners).size, 22);
+  assert.equal(partners.includes(studentNumber), false);
+});
 
 test('주간 장르는 월요일부터 금요일까지 중복 없이 한 번씩 배정된다', () => {
   // Given

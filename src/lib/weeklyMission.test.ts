@@ -113,6 +113,7 @@ test('weekly mission response parser rejects incomplete server payloads', () => 
     awarded: false,
     rewardAmount: 5,
     balance: 105,
+    pending: true,
   }), {
     missionType: 'personal_question',
     weekKey: '2026-29',
@@ -120,6 +121,7 @@ test('weekly mission response parser rejects incomplete server payloads', () => 
     awarded: false,
     rewardAmount: 5,
     balance: 105,
+    pending: true,
   });
 });
 

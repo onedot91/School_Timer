@@ -11,7 +11,7 @@ import {
   isClasswordQuizAnswerCorrect,
 } from '../src/lib/classwordQuiz.js';
 import {
-  claimClasswordReward,
+  claimClasswordQuizReward,
   ClasswordRepositoryError,
   deleteClasswordDateEntries,
   deleteClasswordEntry,
@@ -19,6 +19,7 @@ import {
   loadClasswordRounds,
   loadClasswordTopic,
   loadClasswordQuizCompletions,
+  loadClasswordQuizRewardAmount,
   loadClasswordUsedTopics,
   pruneClasswordEntries,
   saveClasswordEntry,
@@ -175,11 +176,15 @@ const handleGet = async (
       return;
     }
     const completion = completions.find((candidate) => candidate.studentNumber === session.studentNumber);
+    const rewardAmount = completion
+      ? await loadClasswordQuizRewardAmount(configuration, dateKey, session.studentNumber)
+      : null;
     response.status(200).json({
       dateKey,
       question,
       completed: completion !== undefined,
       completedAt: completion?.completedAt ?? null,
+      rewardAmount,
     });
     return;
   }
@@ -226,17 +231,7 @@ const handlePost = async (
         word: validation.word,
         studentNumber: session.studentNumber,
       });
-      let mission = null;
-      try {
-        mission = await claimClasswordReward(configuration, {
-          studentNumber: session.studentNumber,
-          entryId: entry.id,
-          dateKey: action.dateKey,
-        });
-      } catch (error) {
-        if (!(error instanceof Error)) throw error;
-      }
-      response.status(200).json({ entry, mission, awarded: mission?.awarded ?? false, balance: mission?.balance ?? null });
+      response.status(200).json({ entry, mission: null, awarded: false, balance: null });
       return;
     }
     case 'delete_entry':
@@ -262,13 +257,20 @@ const handlePost = async (
         (completion) => completion.studentNumber === session.studentNumber,
       );
       if (existingCompletion) {
+        const reward = await claimClasswordQuizReward(configuration, {
+          studentNumber: session.studentNumber,
+          entryId: question.id,
+          dateKey: action.dateKey,
+        });
         response.status(200).json({
           correct: true,
+          ...reward,
           state: {
             dateKey: action.dateKey,
             question,
             completed: true,
             completedAt: existingCompletion.completedAt,
+            rewardAmount: reward.rewardAmount,
           },
         });
         return;
@@ -281,6 +283,7 @@ const handlePost = async (
             question,
             completed: false,
             completedAt: null,
+            rewardAmount: null,
           },
         });
         return;
@@ -291,13 +294,20 @@ const handlePost = async (
         question.id,
         session.studentNumber,
       );
+      const reward = await claimClasswordQuizReward(configuration, {
+        studentNumber: session.studentNumber,
+        entryId: question.id,
+        dateKey: action.dateKey,
+      });
       response.status(200).json({
         correct: true,
+        ...reward,
         state: {
           dateKey: action.dateKey,
           question,
           completed: true,
           completedAt: completion.completedAt,
+          rewardAmount: reward.rewardAmount,
         },
       });
       return;

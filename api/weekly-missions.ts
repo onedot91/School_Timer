@@ -1,4 +1,5 @@
 import { getKoreanDateKey } from '../src/lib/classword.js';
+import { getPreviousKoreanDateKey } from '../src/lib/classwordWeeklyMission.js';
 import {
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   findPersonalQuestionForWeek,
@@ -12,6 +13,12 @@ import {
 } from '../src/lib/weeklyMission.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
+import {
+  loadClasswordEntries,
+  loadFinalizedClasswordEntries,
+  loadFinalizedClasswordRewardKeys,
+  type ClasswordMissionConfiguration,
+} from '../src/server/classwordMissionSettlement.js';
 
 interface ApiRequest {
   method?: string;
@@ -26,14 +33,10 @@ interface ApiResponse {
 }
 
 interface MissionClaimInput {
+  readonly studentNumber: number;
   readonly missionType: WeeklyMissionType;
   readonly sourceEventId: string | null;
   readonly rewardKey: string;
-}
-
-interface SupabaseConfiguration {
-  readonly url: string;
-  readonly serviceRoleKey: string;
 }
 
 const QUESTION_STUDENT_ENDPOINT = 'https://question-news.vercel.app/api/student';
@@ -57,39 +60,8 @@ const fetchJson = async (url: URL) => {
   return externalResponse.json();
 };
 
-const loadClasswordEntryId = async (
-  configuration: SupabaseConfiguration,
-  studentNumber: number,
-  dateKey: string,
-) => {
-  const url = new URL(`${configuration.url.replace(/\/$/, '')}/rest/v1/classword_entries`);
-  url.searchParams.set('student_number', `eq.${studentNumber}`);
-  url.searchParams.set('round_date', `eq.${dateKey}`);
-  url.searchParams.set('select', 'id,round_date');
-  url.searchParams.set('order', 'created_at.asc');
-  url.searchParams.set('limit', '1');
-  const classwordResponse = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      apikey: configuration.serviceRoleKey,
-      Authorization: `Bearer ${configuration.serviceRoleKey}`,
-    },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!classwordResponse.ok) {
-    throw new Error(`CLASSWORD_ENTRY_HTTP_${classwordResponse.status}`);
-  }
-  const rows = await classwordResponse.json();
-  if (!Array.isArray(rows)) throw new Error('CLASSWORD_ENTRY_INVALID_RESPONSE');
-  const first = rows[0];
-  return first && typeof first === 'object' && typeof Reflect.get(first, 'id') === 'string'
-    ? String(Reflect.get(first, 'id'))
-    : null;
-};
-
 const claimMission = async (
-  configuration: SupabaseConfiguration,
-  studentNumber: number,
+  configuration: ClasswordMissionConfiguration,
   input: MissionClaimInput,
 ): Promise<WeeklyMissionResult> => {
   const rpcResponse = await fetch(`${configuration.url.replace(/\/$/, '')}/rest/v1/rpc/claim_weekly_mission_reward`, {
@@ -101,7 +73,7 @@ const claimMission = async (
       Authorization: `Bearer ${configuration.serviceRoleKey}`,
     },
     body: JSON.stringify({
-      p_student_number: studentNumber,
+      p_student_number: input.studentNumber,
       p_week_key: input.rewardKey,
       p_mission_type: input.missionType,
       p_source_event_id: input.sourceEventId,
@@ -168,68 +140,125 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   try {
-    const weekKey = getKoreanIsoWeekKey();
-    const dateKey = getKoreanDateKey();
-    const configuration = { url: supabaseUrl, serviceRoleKey } satisfies SupabaseConfiguration;
+    const now = new Date();
+    const weekKey = getKoreanIsoWeekKey(now);
+    const dateKey = getKoreanDateKey(now);
+    const previousDateKey = getPreviousKoreanDateKey(now);
+    const configuration = { url: supabaseUrl, serviceRoleKey } satisfies ClasswordMissionConfiguration;
     const questionUrl = new URL(QUESTION_STUDENT_ENDPOINT);
     questionUrl.searchParams.set('studentNumber', String(studentNumber));
     questionUrl.searchParams.set('weekKey', weekKey);
-    const [questionResult, classwordResult] = await Promise.allSettled([
+    const [questionResult, todayEntriesResult, finalizedEntriesResult, finalizedRewardKeysResult] = await Promise.allSettled([
       fetchJson(questionUrl).then((value) => findPersonalQuestionForWeek(
         parseQuestionStudentResponse(value),
         studentNumber,
         weekKey,
       )),
-      loadClasswordEntryId(
-        configuration,
-        studentNumber,
-        dateKey,
-      ),
+      loadClasswordEntries(configuration, dateKey),
+      loadFinalizedClasswordEntries(configuration, dateKey),
+      loadFinalizedClasswordRewardKeys(configuration, dateKey),
     ]);
     if (questionResult.status === 'rejected') {
       console.warn('Failed to load personal-question mission evidence.', questionResult.reason);
     }
-    if (classwordResult.status === 'rejected') {
-      console.warn('Failed to load classword mission evidence.', classwordResult.reason);
+    if (todayEntriesResult.status === 'rejected') {
+      console.warn('Failed to load today classword mission evidence.', todayEntriesResult.reason);
+    }
+    if (finalizedEntriesResult.status === 'rejected') {
+      console.warn('Failed to load finalized classword mission evidence.', finalizedEntriesResult.reason);
+    }
+    if (finalizedRewardKeysResult.status === 'rejected') {
+      console.warn('Failed to load finalized classword reward ledger.', finalizedRewardKeysResult.reason);
     }
     const personalQuestion = questionResult.status === 'fulfilled'
       ? questionResult.value
       : null;
-    const classwordEntryId = classwordResult.status === 'fulfilled' ? classwordResult.value : null;
-    const claims: readonly MissionClaimInput[] = [
-      {
-        missionType: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
-        sourceEventId: personalQuestion?.id ?? null,
-        rewardKey: weekKey,
-      },
-      {
+    const todayEntries = todayEntriesResult.status === 'fulfilled' ? todayEntriesResult.value : [];
+    const finalizedEntries = finalizedEntriesResult.status === 'fulfilled' ? finalizedEntriesResult.value : [];
+    const finalizedRewardKeys = finalizedRewardKeysResult.status === 'fulfilled'
+      ? finalizedRewardKeysResult.value
+      : new Set<string>();
+    const seenStudentDates = new Set<string>();
+    const classwordClaims: MissionClaimInput[] = finalizedEntries.flatMap((entry) => {
+      const key = `${entry.dateKey}:${entry.studentNumber}`;
+      if (seenStudentDates.has(key) || finalizedRewardKeys.has(key)) return [];
+      seenStudentDates.add(key);
+      return [{
+        studentNumber: entry.studentNumber,
         missionType: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-        sourceEventId: classwordEntryId,
-        rewardKey: dateKey,
-      },
-    ];
-    const claimResults = await Promise.allSettled(claims.map((claim) => (
-      claimMission(configuration, studentNumber, claim)
-    )));
-    const successfulClaims = claimResults.flatMap((result) => (
-      result.status === 'fulfilled' ? [result.value] : []
+        sourceEventId: entry.id,
+        rewardKey: entry.dateKey,
+      }];
+    });
+    let currentStudentClasswordClaim: MissionClaimInput | undefined;
+    classwordClaims.forEach((claim) => {
+      if (claim.studentNumber === studentNumber) currentStudentClasswordClaim = claim;
+    });
+    if (!currentStudentClasswordClaim) {
+      currentStudentClasswordClaim = {
+        studentNumber,
+        missionType: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+        sourceEventId: null,
+        rewardKey: previousDateKey,
+      };
+      classwordClaims.push(currentStudentClasswordClaim);
+    }
+    const personalClaim: MissionClaimInput = {
+      studentNumber,
+      missionType: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
+      sourceEventId: personalQuestion?.id ?? null,
+      rewardKey: weekKey,
+    };
+    const [personalClaimResult] = await Promise.allSettled([claimMission(configuration, personalClaim)]);
+    const classwordClaimResults: PromiseSettledResult<WeeklyMissionResult>[] = [];
+    const finalizedDateKeys = [...new Set(classwordClaims.map((claim) => claim.rewardKey))];
+    for (const finalizedDateKey of finalizedDateKeys) {
+      const dateClaims = classwordClaims.filter((claim) => claim.rewardKey === finalizedDateKey);
+      classwordClaimResults.push(...await Promise.allSettled(
+        dateClaims.map((claim) => claimMission(configuration, claim)),
+      ));
+    }
+    const classwordClaimIndex = classwordClaims.lastIndexOf(currentStudentClasswordClaim);
+    const classwordClaimResult = classwordClaimResults[classwordClaimIndex];
+    const requesterClaimResults = [personalClaimResult, classwordClaimResult];
+    const successfulRequesterClaims = requesterClaimResults.flatMap((result) => (
+      result?.status === 'fulfilled' ? [result.value] : []
     ));
-    if (successfulClaims.length === 0) {
+    if (successfulRequesterClaims.length === 0) {
       throw new Error('WEEKLY_MISSION_RPC_ALL_FAILED');
     }
-    const fallbackBalance = Math.max(...successfulClaims.map((mission) => mission.balance));
-    const missions = claimResults.map((result, index): WeeklyMissionResult => {
-      if (result.status === 'fulfilled') return result.value;
-      console.warn('Failed to claim one weekly mission reward.', result.reason);
+    const claims = [personalClaim, ...classwordClaims];
+    const claimResults = [personalClaimResult, ...classwordClaimResults];
+    claimResults.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.warn('Failed to claim one weekly mission reward.', claims[index], result.reason);
+      }
+    });
+    const fallbackBalance = Math.max(...successfulRequesterClaims.map((mission) => mission.balance));
+    const createMissionResult = (
+      claim: MissionClaimInput,
+      result: PromiseSettledResult<WeeklyMissionResult> | undefined,
+      pending: boolean,
+    ): WeeklyMissionResult => {
+      if (result?.status === 'fulfilled') return { ...result.value, pending };
       return {
-        missionType: claims[index].missionType,
-        weekKey: claims[index].rewardKey,
+        missionType: claim.missionType,
+        weekKey: claim.rewardKey,
         completed: false,
         awarded: false,
-        rewardAmount: getWeeklyMissionRewardAmount(claims[index].missionType),
+        rewardAmount: getWeeklyMissionRewardAmount(claim.missionType),
         balance: fallbackBalance,
+        pending,
       };
-    });
+    };
+    const missions = [
+      createMissionResult(personalClaim, personalClaimResult, false),
+      createMissionResult(
+        currentStudentClasswordClaim,
+        classwordClaimResult,
+        todayEntries.some((entry) => entry.studentNumber === studentNumber),
+      ),
+    ];
 
     response.status(200).json({ missions });
   } catch (error) {

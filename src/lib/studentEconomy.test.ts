@@ -392,16 +392,24 @@ test('이체는 하루 한 번, 한 명에게 30고마까지만 보낼 수 있�
   }), /TRANSFER_AMOUNT_LIMIT_EXCEEDED/);
 });
 
-test('예금·대출·이체는 1고마 단위의 양의 정수를 받는다', () => {
-  const deposited = applyStudentEconomyAction({
+test('예금은 10고마부터 받고 대출·이체는 1고마 단위의 양의 정수를 받는다', () => {
+  assert.throws(() => applyStudentEconomyAction({
     state: null,
-    action: { type: 'open_deposit', amount: 7, dateKey: '2026-08-17' },
+    action: { type: 'open_deposit', amount: 9, dateKey: '2026-08-17' },
     wallet: 100,
     availableWallet: 100,
-    requestId: 'deposit-any-integer',
+    requestId: 'deposit-below-minimum',
+  }), /INVALID_BANK_AMOUNT/);
+
+  const deposited = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'open_deposit', amount: 10, dateKey: '2026-08-17' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'deposit-minimum',
   });
-  assert.equal(deposited.state.deposit, 7);
-  assert.equal(deposited.wallet, 93);
+  assert.equal(deposited.state.deposit, 10);
+  assert.equal(deposited.wallet, 90);
 
   const borrowed = applyStudentEconomyAction({
     state: null,

@@ -54,7 +54,7 @@ export const WEEKLY_MISSION_DEFINITIONS = [
   readonly destinationUrl?: string;
 }[];
 
-export type WeeklyMissionStatus = 'loading' | 'incomplete' | 'completed' | 'unavailable';
+export type WeeklyMissionStatus = 'loading' | 'incomplete' | 'inProgress' | 'completed' | 'unavailable';
 export type WeeklyMissionStatuses = Record<WeeklyMissionType, WeeklyMissionStatus>;
 
 export const createWeeklyMissionStatuses = (status: WeeklyMissionStatus): WeeklyMissionStatuses => ({
@@ -69,6 +69,7 @@ export interface WeeklyMissionResult {
   awarded: boolean;
   rewardAmount: number;
   balance: number;
+  pending: boolean;
 }
 
 export interface WeeklyMissionClaim {
@@ -441,7 +442,8 @@ export const parseWeeklyMissionResult = (value: unknown): WeeklyMissionResult =>
     typeof value.completed !== 'boolean' ||
     typeof value.awarded !== 'boolean' ||
     typeof value.rewardAmount !== 'number' ||
-    typeof value.balance !== 'number'
+    typeof value.balance !== 'number' ||
+    (value.pending !== undefined && typeof value.pending !== 'boolean')
   ) {
     throw new Error('WEEKLY_MISSION_INVALID_RESPONSE');
   }
@@ -453,6 +455,7 @@ export const parseWeeklyMissionResult = (value: unknown): WeeklyMissionResult =>
     awarded: value.awarded,
     rewardAmount: value.rewardAmount,
     balance: value.balance,
+    pending: value.pending === true,
   };
 };
 

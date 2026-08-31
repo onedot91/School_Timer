@@ -100,6 +100,20 @@ test('iPhone 학생 예금은 전체 설정 PUT 없이 본인 고마만 원자�
   });
 });
 
+test('학생 거래 API는 10고마보다 적은 예금을 거부한다', async () => {
+  await withEnvironment(async () => {
+    const result = await runStudentAction(
+      { type: 'open_deposit', amount: 9, dateKey: '2026-08-26' },
+      'student-economy-deposit-below-minimum',
+    );
+
+    assert.equal(result.statusCode, 400);
+    assert.deepEqual(result.body, { error: 'INVALID_BANK_AMOUNT' });
+    assert.equal(result.fetchCount, 1);
+    assert.equal(result.upstreamBodies.length, 0);
+  });
+});
+
 test('iPhone 학생 증권 투자는 학생 세션에서 고마를 차감하고 포지션을 저장한다', async () => {
   await withEnvironment(async () => {
     const result = await runStudentAction(

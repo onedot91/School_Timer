@@ -191,6 +191,34 @@ export const createTodayFriendPartnerAssignments = (
   return assignments.sort((first, second) => first.studentNumber - second.studentNumber);
 };
 
+export const createDailyTodayFriendPartnerAssignments = (
+  studentNumbers: readonly number[],
+  dateKey: string,
+): readonly TodayFriendPartnerAssignment[] => {
+  const students = [...new Set(studentNumbers)]
+    .filter((number) => Number.isInteger(number) && number >= 1 && number <= TODAY_FRIEND_STUDENT_COUNT)
+    .sort((first, second) => first - second);
+  if (students.length !== studentNumbers.length || students.length < 2) {
+    throw new TodayFriendDomainError('INVALID_STUDENT_ROSTER');
+  }
+
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || formatDateKey(date) !== dateKey) {
+    throw new TodayFriendDomainError('INVALID_DATE_KEY');
+  }
+
+  const rotationCount = students.length - 1;
+  const dayNumber = Math.floor(date.getTime() / DAY_IN_MILLISECONDS);
+  const offset = ((dayNumber % rotationCount) + rotationCount) % rotationCount + 1;
+  const groupId = `${dateKey}-daily-offset-${offset}`;
+
+  return students.map((studentNumber, index) => {
+    const partnerNumber = students[(index + offset) % students.length];
+    if (partnerNumber === undefined) throw new TodayFriendDomainError('INVALID_STUDENT_ROSTER');
+    return { studentNumber, partnerNumber, groupId, relationKind: 'cycle' };
+  });
+};
+
 export const createTodayFriendSubmission = (input: {
   readonly dateKey: string;
   readonly studentNumber: number;
@@ -259,7 +287,7 @@ export const getTodayFriendNumber = (
   studentNumber: number,
   dateKey: string = getTodayFriendDateKey(),
 ): number => {
-  return createTodayFriendPartnerAssignments(
+  return createDailyTodayFriendPartnerAssignments(
     Array.from({ length: TODAY_FRIEND_STUDENT_COUNT }, (_, index) => index + 1),
     dateKey,
   ).find((assignment) => assignment.studentNumber === studentNumber)?.partnerNumber ?? studentNumber;

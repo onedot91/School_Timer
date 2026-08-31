@@ -25,3 +25,9 @@ export const getKoreanWeekDateRange = (date = new Date()): KoreanWeekDateRange =
     today: formatUtcDateKey(today),
   };
 };
+
+export const getPreviousKoreanDateKey = (date = new Date()): string => {
+  const today = new Date(`${getKoreanWeekDateRange(date).today}T00:00:00.000Z`);
+  today.setUTCDate(today.getUTCDate() - 1);
+  return formatUtcDateKey(today);
+};

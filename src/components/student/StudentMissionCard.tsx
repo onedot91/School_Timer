@@ -18,11 +18,13 @@ interface StudentMissionCardBaseProps {
 interface AutomaticStudentMissionCardProps extends StudentMissionCardBaseProps {
   readonly verificationMode: 'automatic';
   readonly status: StudentMissionStatus;
+  readonly statusPresentation?: 'status' | 'teacher';
 }
 
 interface ManualStudentMissionCardProps extends StudentMissionCardBaseProps {
   readonly verificationMode: 'manual';
   readonly status?: never;
+  readonly statusPresentation?: never;
 }
 
 type StudentMissionCardProps = AutomaticStudentMissionCardProps | ManualStudentMissionCardProps;
@@ -91,11 +93,15 @@ export default function StudentMissionCard({
   onAction,
   actionLabel,
   disabledAppearance,
+  statusPresentation,
 }: StudentMissionCardProps) {
   const isAutomatic = verificationMode === 'automatic';
+  const usesTeacherPresentation = isAutomatic && statusPresentation === 'teacher';
   const statusContent = isAutomatic ? STATUS_CONTENT[status] : null;
   const rewardLabel = formatMissionReward(rewardAmount);
-  const missionContext = isAutomatic
+  const missionContext = usesTeacherPresentation
+    ? '당일 마감 후 자동으로 확인하는 미션.'
+    : isAutomatic
     ? `상태: ${statusContent.label}.`
     : '선생님이 직접 확인하는 미션.';
   const accessibleDescription = illustrationCaption ?? description;
@@ -104,7 +110,9 @@ export default function StudentMissionCard({
     : `${title}. ${missionContext} 보상 ${rewardLabel}. ${actionLabel}`;
   const isInteractive = Boolean(destinationUrl || onAction);
   const isDisabledAppearance = disabledAppearance ?? !isInteractive;
-  const statusClassName = isAutomatic ? ` student-mission-card-${status}` : ' student-mission-card-manual';
+  const statusClassName = isAutomatic && !usesTeacherPresentation
+    ? ` student-mission-card-${status}`
+    : ' student-mission-card-manual';
   const illustrationTitleLength = illustrationTitle?.trim().length ?? 0;
   const illustrationTitleSize = illustrationTitleLength > 36
     ? ' is-extra-long'
@@ -139,7 +147,9 @@ export default function StudentMissionCard({
           </div>
         ) : null}
         <div className="student-mission-card-meta">
-          {isAutomatic ? <StudentMissionStatusFace status={status} /> : <StudentMissionTeacherFace />}
+          {isAutomatic && !usesTeacherPresentation
+            ? <StudentMissionStatusFace status={status} />
+            : <StudentMissionTeacherFace />}
           <span className="student-mission-reward">
             {rewardLabel}
           </span>

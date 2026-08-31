@@ -23,7 +23,7 @@ type StudentClasswordPageProps = {
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
   readonly onRewardBalance: (balance: number) => void;
-  readonly onMissionCompleted: () => void;
+  readonly onMissionSubmitted: () => void;
   readonly onBack: () => void;
 };
 
@@ -60,7 +60,7 @@ export default function StudentClasswordPage({
   studentNumber,
   profileAssignments,
   onRewardBalance,
-  onMissionCompleted,
+  onMissionSubmitted,
   onBack,
 }: StudentClasswordPageProps) {
   const reducedMotion = useReducedMotion();
@@ -132,8 +132,11 @@ export default function StudentClasswordPage({
     setQuizSaving(true);
     try {
       const result = await submitClasswordQuizAnswer({ dateKey, studentNumber, answer });
-      setQuizState(result.state);
+      setQuizState(result.correct
+        ? { ...result.state, rewardAmount: result.rewardAmount }
+        : result.state);
       setQuizLoadError('');
+      if (result.balance !== null) onRewardBalance(result.balance);
       void playClasswordSound(result.correct ? 'success' : 'error');
       return result.correct;
     } catch (error) {
@@ -171,7 +174,7 @@ export default function StudentClasswordPage({
         ],
       }));
       void playClasswordSound('success');
-      onMissionCompleted();
+      onMissionSubmitted();
       if (result.balance !== null) onRewardBalance(result.balance);
       return 'saved';
     } catch (error) {

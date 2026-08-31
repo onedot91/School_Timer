@@ -25,6 +25,24 @@ test('학생 미션 조회는 오늘 장르와 배정된 파트너를 반환한�
   assert.equal(mission.submission, null);
 });
 
+test('연속된 날짜의 학생 미션은 반드시 다른 파트너를 반환한다', () => {
+  // Given
+  const firstDateKey = '2026-01-06';
+  const secondDateKey = '2026-01-07';
+  const prepared = ensureTodayFriendDay(
+    ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, '2026-02', firstDateKey),
+    '2026-02',
+    secondDateKey,
+  );
+
+  // When
+  const firstMission = getTodayFriendStudentMission(prepared, firstDateKey, 1);
+  const secondMission = getTodayFriendStudentMission(prepared, secondDateKey, 1);
+
+  // Then
+  assert.notEqual(secondMission.partnerNumber, firstMission.partnerNumber);
+});
+
 test('학생 제출은 교사 수정 요청 후 고쳐서 다시 제출할 수 있다', () => {
   // Given
   const prepared = ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, '2026-36', '2026-09-01');

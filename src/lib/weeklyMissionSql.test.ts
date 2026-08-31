@@ -11,15 +11,12 @@ test('weekly mission RPC preserves exact rewards and initializes empty settings'
 
   assert.match(functionSql, /jsonb_typeof\(v_value -> 'currencyBalances'\) is distinct from 'object'/);
   assert.match(functionSql, /jsonb_typeof\(v_value -> 'currencyHistory'\) is distinct from 'object'/);
-  assert.match(functionSql, /v_reward_amount := case when p_mission_type = 'personal_question' then 10 else 5 end/);
-  assert.match(functionSql, /p_mission_type not in \('personal_question', 'classword_word_entry'\)/);
+  assert.match(functionSql, /p_mission_type = 'classword_quiz_correct'[\s\S]*?floor\(random\(\) \* 10\)::integer \+ 1/);
+  assert.match(functionSql, /p_mission_type not in \('personal_question', 'classword_word_entry', 'classword_quiz_correct'\)/);
+  assert.match(sql, /weekly_mission_rewards_reward_amount_check[\s\S]*?reward_amount between 1 and 10/);
   assert.match(
     functionSql,
-    /p_mission_type = 'classword_word_entry'[\s\S]*?p_week_key !~ '\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$'/,
-  );
-  assert.doesNotMatch(
-    functionSql.slice(functionSql.indexOf('begin'), functionSql.indexOf('v_reward_amount :=')),
-    /classword_quiz_correct/,
+    /p_mission_type in \('classword_word_entry', 'classword_quiz_correct'\)[\s\S]*?p_week_key !~ '\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$'/,
   );
   assert.match(functionSql, /v_before <= 999999 - v_reward_amount/);
   assert.match(functionSql, /v_after := v_before \+ v_reward_amount/);

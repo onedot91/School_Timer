@@ -161,7 +161,7 @@ export default function StudentShopPage({
               <>
                 <header>
                   <div>
-                    <h3 id="student-profile-shop-title">프로필 선택</h3>
+                    <h3 id="student-profile-shop-title" className="sr-only">프로필 선택</h3>
                     <p>랜덤 교체는 30고마, 원하는 프로필 교체는 50고마예요.</p>
                   </div>
                 </header>

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-test('교사 하단 기능창은 도서관처럼 오른쪽 일정 영역 안에 렌더링한다', async () => {
+test('교사 하단 기능창은 오른쪽 일정 영역 안에 렌더링한다', async () => {
   // Given
   const source = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
 
@@ -11,7 +11,14 @@ test('교사 하단 기능창은 도서관처럼 오른쪽 일정 영역 안에 
   assert.match(source, /<div id="timer-currency-panel" className="[^"]*docked-utility-panel[^"]*absolute inset-x-0 top-0/);
   assert.match(source, /<div id="timer-question-submission-panel" className="[^"]*docked-utility-panel[^"]*absolute inset-x-0 top-0/);
   assert.match(source, /<div id="timer-youtube-panel" className="[^"]*docked-utility-panel[^"]*absolute inset-x-0 top-0/);
-  assert.match(source, /<div id="timer-library-panel" className="[^"]*lg:bottom-\[5\.43rem\]/);
+  assert.match(source, /<div id="timer-classword-panel" className="[^"]*lg:bottom-\[5\.43rem\]/);
+  assert.match(source, /<TeacherClasswordPanel[\s\S]*?profileAssignments=\{studentLife\.failureProfileAssignments\}[\s\S]*?surface="utility"[\s\S]*?onUtilityClose=\{/);
+  assert.match(source, /aria-label=\{isClasswordPanelOpen \? '낱말판 닫기' : '낱말판 열기'\}/);
+  assert.match(source, /title="낱말판"[\s\S]*?<LetterText size=\{22\} \/>/);
+  assert.match(source, /title="질문 제출 현황"[\s\S]*?<MessageCircleQuestion size=\{22\} \/>/);
+  assert.doesNotMatch(source, /<h2 id="timer-classword-panel-title">낱말판<\/h2>/);
+  assert.match(source, /surface="utility"[\s\S]*?onUtilityClose=\{/);
+  assert.doesNotMatch(source, /timer-library-panel|LIBRARY_SITE_URL|도서관 열기|도서관 닫기/);
 });
 
 test('내용이 짧은 교사 기능창은 일정 영역 전체 높이로 늘어나지 않는다', async () => {
@@ -20,9 +27,13 @@ test('내용이 짧은 교사 기능창은 일정 영역 전체 높이로 늘어
     readFile(new URL('../index.css', import.meta.url), 'utf8'),
   ]);
 
-  assert.equal(source.match(/content-fit-utility-card/g)?.length, 3);
-  assert.equal(source.match(/docked-utility-panel[^\"]*flex flex-col justify-end/g)?.length, 3);
-  assert.equal(source.match(/docked-utility-panel[^\"]*lg:bottom-\[5\.43rem\]/g)?.length, 3);
+  assert.equal(source.match(/content-fit-utility-card/g)?.length, 4);
+  assert.equal(source.match(/docked-utility-panel[^\"]*flex flex-col justify-end/g)?.length, 4);
+  assert.equal(source.match(/docked-utility-panel[^\"]*lg:bottom-\[5\.43rem\]/g)?.length, 4);
+  assert.match(
+    source,
+    /id="timer-classword-panel" className="[^"]*docked-utility-panel[^"]*justify-end[^"]*"[\s\S]*?<section className="[^"]*content-fit-utility-card[^"]*"/,
+  );
   assert.match(css, /\.content-fit-utility-card \{[^}]*flex: 0 1 auto !important;[^}]*max-height: 100%;[^}]*overflow: hidden;/);
   assert.match(css, /\.content-fit-utility-card > div \{[^}]*flex: 0 1 auto;[^}]*overflow-y: auto;/);
 });

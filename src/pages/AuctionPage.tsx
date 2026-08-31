@@ -119,8 +119,14 @@ import {
   type ClassroomRoleMissionSettings,
 } from '../lib/classroomRoleMission';
 import {
+  loadStoredStudentMissionVisibility,
+  normalizeStudentMissionVisibility,
+  type StudentMissionVisibility,
+} from '../lib/studentMissionVisibility';
+import {
   createWeeklyMissionStatuses,
   BOOK_STACK_WEEKLY_MISSION_TYPE,
+  CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   getKoreanIsoWeekKey,
@@ -188,6 +194,7 @@ type SharedSettingsValue = {
   auctionAwards?: unknown;
   auctionMissions?: unknown;
   classroomRoleMission?: unknown;
+  studentMissionVisibility?: unknown;
   currencyHistory?: unknown;
   classDonation?: unknown;
   studentEmotionHistory?: unknown;
@@ -317,6 +324,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
   const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
     loadStoredClassroomRoleMissionSettings,
+  );
+  const [studentMissionVisibility, setStudentMissionVisibility] = useState<StudentMissionVisibility>(
+    loadStoredStudentMissionVisibility,
   );
   const [classDonation, setClassDonation] = useState<ClassDonationPublicState>(() => getClassDonationPublicState(null));
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
@@ -1074,6 +1084,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setAuctionAwards(normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS));
     setAuctionMissions(normalizeAuctionMissions(value.auctionMissions));
     setClassroomRoleMission(normalizeClassroomRoleMissionSettings(value.classroomRoleMission));
+    setStudentMissionVisibility(normalizeStudentMissionVisibility(value.studentMissionVisibility));
     setClassDonation(getClassDonationPublicState(value.classDonation));
     setStudentEmotionHistory(normalizeStudentEmotionHistory(value.studentEmotionHistory));
     const normalizedPetStates = applyStudentPetPositionOverrides(value.studentPets);
@@ -1208,7 +1219,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   }, [activeStudentView, refreshAuctionState]);
 
   useEffect(() => {
-    if (activeStudentView !== 'missions') return;
     let isActive = true;
 
     const syncWeeklyMission = async () => {
@@ -1218,7 +1228,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         setWeeklyMissionStatuses(result.missions.reduce<WeeklyMissionStatuses>(
           (statuses, mission) => ({
             ...statuses,
-            [mission.missionType]: mission.completed ? 'completed' : 'incomplete',
+            [mission.missionType]: mission.missionType === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE
+              ? mission.pending ? 'inProgress' : 'incomplete'
+              : mission.completed ? 'completed' : 'incomplete',
           }),
           createWeeklyMissionStatuses('incomplete'),
         ));
@@ -1244,7 +1256,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             setWeeklyMissionStatuses((previous) => ({
               ...previous,
               [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'incomplete',
-              classword_word_entry: previous.classword_word_entry === 'completed' ? 'completed' : 'unavailable',
+              classword_word_entry: previous.classword_word_entry === 'inProgress' ? 'inProgress' : 'unavailable',
             }));
             return;
           }
@@ -1252,7 +1264,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           setWeeklyMissionStatuses((previous) => ({
             ...previous,
             [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'unavailable',
-            classword_word_entry: previous.classword_word_entry === 'completed' ? 'completed' : 'unavailable',
+            classword_word_entry: previous.classword_word_entry === 'inProgress' ? 'inProgress' : 'unavailable',
           }));
         } catch (fallbackError) {
           if (!isActive) return;
@@ -1261,7 +1273,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
             (statuses, missionType) => ({
               ...statuses,
-              [missionType]: previous[missionType] === 'completed' ? 'completed' : 'unavailable',
+              [missionType]: previous[missionType] === 'completed' || previous[missionType] === 'inProgress'
+                ? previous[missionType]
+                : 'unavailable',
             }),
             previous,
           ));
@@ -1272,7 +1286,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
       (statuses, missionType) => ({
         ...statuses,
-        [missionType]: previous[missionType] === 'completed' ? 'completed' : 'loading',
+        [missionType]: previous[missionType] === 'completed' || previous[missionType] === 'inProgress'
+          ? previous[missionType]
+          : 'loading',
       }),
       previous,
     ));
@@ -1288,7 +1304,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       window.removeEventListener('focus', syncOnReturn);
       document.removeEventListener('visibilitychange', syncOnReturn);
     };
-  }, [activeStudentView, studentNumber]);
+  }, [studentNumber]);
 
   const selectItem = (item: AuctionItem) => {
     const itemIndex = auctionItems.findIndex((auctionItem) => auctionItem.id === item.id);
@@ -1671,6 +1687,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       const message = error instanceof Error ? error.message : '';
       const userMessage = message === 'INSUFFICIENT_AVAILABLE_CURRENCY'
         ? '사용 가능한 고마가 부족합니다.'
+        : message === 'INVALID_BANK_AMOUNT'
+          ? '예금은 10고마부터 맡길 수 있습니다.'
         : message === 'INSUFFICIENT_BANK_BALANCE'
           ? '예금 잔액이 부족합니다.'
           : message === 'EXCESSIVE_LOAN_REPAYMENT'
@@ -1778,6 +1796,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             isLoading={isLoading}
             auctionMissions={auctionMissions}
             classroomRoleMission={classroomRoleMission}
+            studentMissionVisibility={studentMissionVisibility}
             weeklyMissionStatuses={weeklyMissionStatuses}
             hasSyncError={hasWeeklyMissionSyncError}
             isDailyEmotionMissionCompleted={hasCompletedDailyEmotionMission}
@@ -1840,8 +1859,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onRewardBalance={(nextBalance) => {
               setCurrencyBalances((previous) => ({ ...previous, [studentKey]: nextBalance }));
             }}
-            onMissionCompleted={() => {
-              setWeeklyMissionStatuses((previous) => ({ ...previous, classword_word_entry: 'completed' }));
+            onMissionSubmitted={() => {
+              setWeeklyMissionStatuses((previous) => ({ ...previous, classword_word_entry: 'inProgress' }));
             }}
             onBack={() => navigateStudentView('missions')}
           />

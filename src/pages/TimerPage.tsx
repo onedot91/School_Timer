@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Lock, Mail, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -210,6 +210,13 @@ import {
   type ClassroomRoleMissionResult,
   type ClassroomRoleMissionSettings,
 } from '../lib/classroomRoleMission';
+import {
+  loadStoredStudentMissionVisibility,
+  normalizeStudentMissionVisibility,
+  storeStudentMissionVisibility,
+  STUDENT_MISSION_VISIBILITY_GROUPS,
+  type StudentMissionVisibility,
+} from '../lib/studentMissionVisibility';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'today-friend' | 'bookstore';
@@ -372,6 +379,7 @@ interface SharedSchoolTimerSettings {
   auctionAwards: AuctionAwards;
   auctionMissions: AuctionMission[];
   classroomRoleMission: ClassroomRoleMissionSettings;
+  studentMissionVisibility: StudentMissionVisibility;
   classDonation: ClassDonationSettings;
   studentEmotionHistory: StudentEmotionHistory;
   studentPets: StudentPetStates;
@@ -540,7 +548,6 @@ const getSharedBackgroundMusicAudio = () => {
 const SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY = 'scheduleYoutubeUrl-v1';
 const SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY = 'scheduleYoutubeVisible-v1';
 const SCHEDULE_YOUTUBE_FAVORITES_STORAGE_KEY = 'scheduleYoutubeFavorites-v1';
-const LIBRARY_SITE_URL = 'https://librarylibrary.vercel.app';
 const TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV3';
 const LEGACY_TIMER_APP_STATE_STORAGE_KEY = 'timerAppStateV2';
 const MEMO_NOTE_TEXT_COLORS = [
@@ -1610,6 +1617,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     auctionAwards: normalizeAuctionAwards(parsed.auctionAwards, AUCTION_ITEM_IDS),
     auctionMissions: normalizeAuctionMissions(parsed.auctionMissions),
     classroomRoleMission: normalizeClassroomRoleMissionSettings(parsed.classroomRoleMission),
+    studentMissionVisibility: normalizeStudentMissionVisibility(parsed.studentMissionVisibility),
     classDonation: normalizeClassDonationSettings(parsed.classDonation),
     studentEmotionHistory: normalizeStudentEmotionHistory(parsed.studentEmotionHistory),
     studentPets: normalizeStudentPetStates(parsed.studentPets),
@@ -3743,7 +3751,7 @@ export default function TimerPage() {
   const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
   const [isMemoOpen, setIsMemoOpen] = useState(false);
   const [isYoutubePanelOpen, setIsYoutubePanelOpen] = useState(false);
-  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isClasswordPanelOpen, setIsClasswordPanelOpen] = useState(false);
   const [isCurrencyPanelOpen, setIsCurrencyPanelOpen] = useState(false);
   const [isQuestionSubmissionPanelOpen, setIsQuestionSubmissionPanelOpen] = useState(false);
   const [selectedEmotionStudentNumber, setSelectedEmotionStudentNumber] = useState(1);
@@ -3779,6 +3787,9 @@ export default function TimerPage() {
   const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
   const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
     loadStoredClassroomRoleMissionSettings,
+  );
+  const [studentMissionVisibility, setStudentMissionVisibility] = useState<StudentMissionVisibility>(
+    loadStoredStudentMissionVisibility,
   );
   const [classDonation, setClassDonation] = useState<ClassDonationSettings>(() => normalizeClassDonationSettings(null));
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
@@ -4122,7 +4133,7 @@ export default function TimerPage() {
   const announcementLaunchButtonRef = useRef<HTMLButtonElement>(null);
   const currencyPanelTriggerRef = useRef<HTMLButtonElement>(null);
   const youtubePanelTriggerRef = useRef<HTMLButtonElement>(null);
-  const libraryPanelTriggerRef = useRef<HTMLButtonElement>(null);
+  const classwordPanelTriggerRef = useRef<HTMLButtonElement>(null);
   const questionPanelTriggerRef = useRef<HTMLButtonElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
@@ -4408,6 +4419,7 @@ export default function TimerPage() {
     auctionAwards,
     auctionMissions: getPersistableAuctionMissions(),
     classroomRoleMission,
+    studentMissionVisibility,
     classDonation,
     studentEmotionHistory,
     studentPets: studentPetStates,
@@ -4462,6 +4474,7 @@ export default function TimerPage() {
     setAuctionBidHistory(normalizeAuctionBidHistory(remoteSettings.auctionBidHistory, AUCTION_ITEM_IDS));
     setAuctionAwards(normalizeAuctionAwards(remoteSettings.auctionAwards, AUCTION_ITEM_IDS));
     setClassroomRoleMission(normalizeClassroomRoleMissionSettings(remoteSettings.classroomRoleMission));
+    setStudentMissionVisibility(normalizeStudentMissionVisibility(remoteSettings.studentMissionVisibility));
     setClassDonation(normalizeClassDonationSettings(remoteSettings.classDonation));
     setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
     setStudentPetStates(normalizeStudentPetStates(remoteSettings.studentPets));
@@ -4646,6 +4659,10 @@ export default function TimerPage() {
   }, [classroomRoleMission]);
 
   useEffect(() => {
+    storeStudentMissionVisibility(studentMissionVisibility);
+  }, [studentMissionVisibility]);
+
+  useEffect(() => {
     if (scheduleYoutubeVideoIds.length === 0) {
       setHasMountedScheduleYoutubePlayer(false);
       setShouldAutoplayScheduleYoutube(false);
@@ -4807,6 +4824,7 @@ export default function TimerPage() {
     auctionAwards,
     auctionMissions,
     classroomRoleMission,
+    studentMissionVisibility,
     classDonation,
     studentEmotionHistory,
     studentPetStates,
@@ -4889,7 +4907,7 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSettingsOpen) return;
     setIsYoutubePanelOpen(false);
-    setIsLibraryOpen(false);
+    setIsClasswordPanelOpen(false);
     setIsCurrencyPanelOpen(false);
   }, [isSettingsOpen]);
 
@@ -5087,18 +5105,6 @@ export default function TimerPage() {
 
     return () => clearInterval(interval);
   }, [weeklySchedule, weeklySubjects, scheduleClockOffsetSeconds]);
-
-  useEffect(() => {
-    if (timerType === 'lunch') {
-      setIsExtraTimerVisible(false);
-      setIsYoutubePanelOpen(false);
-      setIsCurrencyPanelOpen(false);
-      setIsLibraryOpen(true);
-      return;
-    }
-
-    setIsLibraryOpen(false);
-  }, [timerType]);
 
   const setManualTimerDuration = (totalSeconds: number) => {
     if (totalSeconds < 0) return;
@@ -5722,7 +5728,7 @@ export default function TimerPage() {
         isAnnouncementOpen ||
         isYoutubePanelOpen ||
         isCurrencyPanelOpen ||
-        isLibraryOpen ||
+        isClasswordPanelOpen ||
         isEditingNotice ||
         isEditableShortcutTarget(event.target)
       ) {
@@ -5744,7 +5750,7 @@ export default function TimerPage() {
     isAnnouncementOpen,
     isCurrencyPanelOpen,
     isEditingNotice,
-    isLibraryOpen,
+    isClasswordPanelOpen,
     isMemoOpen,
     isSettingsOpen,
     isYoutubePanelOpen,
@@ -5769,7 +5775,7 @@ export default function TimerPage() {
         isAnnouncementOpen ||
         isYoutubePanelOpen ||
         isCurrencyPanelOpen ||
-        isLibraryOpen ||
+        isClasswordPanelOpen ||
         isEditingNotice ||
         isTextEntryShortcutTarget(event.target) ||
         event.repeat
@@ -5803,7 +5809,7 @@ export default function TimerPage() {
     isCurrencyPanelOpen,
     isDrawResetVisible,
     isEditingNotice,
-    isLibraryOpen,
+    isClasswordPanelOpen,
     isMemoOpen,
     isSettingsOpen,
     isYoutubePanelOpen,
@@ -5814,7 +5820,7 @@ export default function TimerPage() {
   ]);
 
   useEffect(() => {
-    if (!isCurrencyPanelOpen && !isYoutubePanelOpen && !isLibraryOpen && !isQuestionSubmissionPanelOpen) return;
+    if (!isCurrencyPanelOpen && !isYoutubePanelOpen && !isClasswordPanelOpen && !isQuestionSubmissionPanelOpen) return;
 
     const handleUtilityPaneEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -5823,20 +5829,20 @@ export default function TimerPage() {
         ? currencyPanelTriggerRef.current
         : isYoutubePanelOpen
           ? youtubePanelTriggerRef.current
-          : isLibraryOpen
-            ? libraryPanelTriggerRef.current
+          : isClasswordPanelOpen
+            ? classwordPanelTriggerRef.current
             : questionPanelTriggerRef.current;
       event.preventDefault();
       setIsCurrencyPanelOpen(false);
       setIsYoutubePanelOpen(false);
-      setIsLibraryOpen(false);
+      setIsClasswordPanelOpen(false);
       setIsQuestionSubmissionPanelOpen(false);
       window.requestAnimationFrame(() => activeTrigger?.focus({ preventScroll: true }));
     };
 
     window.addEventListener('keydown', handleUtilityPaneEscape);
     return () => window.removeEventListener('keydown', handleUtilityPaneEscape);
-  }, [isCurrencyPanelOpen, isLibraryOpen, isQuestionSubmissionPanelOpen, isYoutubePanelOpen]);
+  }, [isClasswordPanelOpen, isCurrencyPanelOpen, isQuestionSubmissionPanelOpen, isYoutubePanelOpen]);
 
   useEffect(() => {
     if (
@@ -5846,7 +5852,7 @@ export default function TimerPage() {
       isAnnouncementOpen ||
       isYoutubePanelOpen ||
       isCurrencyPanelOpen ||
-      isLibraryOpen ||
+      isClasswordPanelOpen ||
       isEditingNotice
     ) {
       return;
@@ -5860,7 +5866,7 @@ export default function TimerPage() {
     isCurrencyPanelOpen,
     isDrawResetVisible,
     isEditingNotice,
-    isLibraryOpen,
+    isClasswordPanelOpen,
     isMemoOpen,
     isSettingsOpen,
     isYoutubePanelOpen,
@@ -6223,7 +6229,7 @@ export default function TimerPage() {
   const toggleNoticeFromTimerCenter = () => {
     void playAnnouncementSound('pop');
     setIsYoutubePanelOpen(false);
-    setIsLibraryOpen(false);
+    setIsClasswordPanelOpen(false);
     setIsCurrencyPanelOpen(false);
     setIsExtraTimerVisible(false);
     setIsWatchFaceReacting(true);
@@ -7806,7 +7812,7 @@ export default function TimerPage() {
       onClick={() => {
         void playAnnouncementSound('pop');
         setIsYoutubePanelOpen(false);
-        setIsLibraryOpen(false);
+        setIsClasswordPanelOpen(false);
         setIsCurrencyPanelOpen(false);
         setIsMemoOpen(true);
       }}
@@ -10033,7 +10039,41 @@ export default function TimerPage() {
       <section
         className="settings-card flex flex-col rounded-[1.7rem] border border-[#DDEBDD] bg-[#F8FCF6] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5"
       >
-        <div className="order-3 mt-4 grid gap-3 rounded-[1.25rem] border border-[#BBD8CB] bg-white/85 p-4">
+        <div className="order-1 grid gap-3 rounded-[1.25rem] border border-[#BBD8CB] bg-white/85 p-4">
+          <div>
+            <h3 className="section-title text-[1.05rem] font-black text-[#1F2523]">기존 미션 공개</h3>
+            <p className="mt-1 text-[0.82rem] font-bold text-[#65736C]">학생 미션 화면에 보일 항목</p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {STUDENT_MISSION_VISIBILITY_GROUPS.map((group) => (
+              <fieldset key={group.label} className="grid gap-2 rounded-[1rem] border border-[#DDE8E2] bg-[#F9FCFA] p-3">
+                <legend className="section-title px-1 text-[0.78rem] font-black text-[#52645B]">{group.label}</legend>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {group.items.map((mission) => (
+                    <label
+                      key={mission.id}
+                      className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-[0.8rem] border px-3 text-[0.82rem] font-extrabold transition-colors ${studentMissionVisibility[mission.id]
+                        ? 'border-[#9CCDBE] bg-[#EAF6F0] text-[#006241]'
+                        : 'border-[#DDE8E2] bg-white text-[#6F7D70]'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={studentMissionVisibility[mission.id]}
+                        onChange={(event) => setStudentMissionVisibility((previous) => ({
+                          ...previous,
+                          [mission.id]: event.target.checked,
+                        }))}
+                      />
+                      <span>{mission.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ))}
+          </div>
+        </div>
+
+        <div className="order-4 mt-4 grid gap-3 rounded-[1.25rem] border border-[#BBD8CB] bg-white/85 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="section-title text-[1.05rem] font-black text-[#1F2523]">1인 1역</h3>
@@ -10108,7 +10148,7 @@ export default function TimerPage() {
           </div>
         </div>
 
-        <div className="order-1 mb-4 flex flex-wrap items-center justify-end gap-3">
+        <div className="order-2 my-4 flex flex-wrap items-center justify-end gap-3">
           <span className="text-[0.82rem] font-extrabold text-[#65736C]">
             {auctionMissions.length}/{AUCTION_MISSION_MAX_COUNT}개 등록
           </span>
@@ -10124,11 +10164,11 @@ export default function TimerPage() {
         </div>
 
         {auctionMissions.length === 0 ? (
-          <div className="order-2 rounded-[1.1rem] border border-dashed border-[#BBD8CB] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[#6F7D70]">
+          <div className="order-3 rounded-[1.1rem] border border-dashed border-[#BBD8CB] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[#6F7D70]">
             등록된 미션 없음
           </div>
         ) : (
-          <div className="order-2 grid gap-2.5">
+          <div className="order-3 grid gap-2.5">
             {auctionMissions.map((mission, index) => {
               const contentLength = Array.from(mission.content).length;
               const countId = `auction-mission-count-${index}`;
@@ -10241,7 +10281,7 @@ export default function TimerPage() {
 
   return (
     <div className="mascot-app h-[100dvh] w-full overflow-hidden">
-      <div className={`mascot-shell editorial-main-shell timer-main-shell relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none shadow-none transition-colors duration-1000 ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''} ${isQuestionSubmissionPanelOpen ? 'question-submission-panel-open' : ''} ${isLibraryOpen ? 'library-panel-open' : ''}`}>
+      <div className={`mascot-shell editorial-main-shell timer-main-shell relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none shadow-none transition-colors duration-1000 ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''} ${isQuestionSubmissionPanelOpen ? 'question-submission-panel-open' : ''}`}>
         <style>{`
           @keyframes noticeFadeIn {
             0% {
@@ -10289,13 +10329,7 @@ export default function TimerPage() {
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-one" />
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
         {noticeBanner}
-        <div
-          className={`editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid ${
-            isLibraryOpen
-              ? 'lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]'
-              : 'lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]'
-          }`}
-        >
+        <div className="editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]">
           {!isSettingsOpen && !isSettingsMaterialMounted ? (
             <div className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">
               {activeStudentCharacterWalkers.map((walker) => (
@@ -10637,7 +10671,7 @@ export default function TimerPage() {
                   onClick={() => {
                     setIsDrawCaseMenuOpen(false);
                     setIsYoutubePanelOpen(false);
-                    setIsLibraryOpen(false);
+                    setIsClasswordPanelOpen(false);
                     setIsCurrencyPanelOpen(false);
                     setIsExtraTimerVisible((previous) => !previous);
                   }}
@@ -10787,17 +10821,20 @@ export default function TimerPage() {
 
           {/* Right: Controls & Presets */}
           <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
-            {isLibraryOpen ? (
-              <div id="timer-library-panel" className="library-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[60] flex flex-col p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
-                <div className="library-panel-card utility-pane-card pointer-events-auto relative min-h-0 flex-1 overflow-hidden rounded-[1.7rem] border border-[#DDE9E2] bg-white shadow-[0_18px_36px_rgba(37,28,21,0.14),inset_0_1px_0_rgba(255,255,255,0.88)] ring-1 ring-white/70">
-                  <iframe
-                    src={LIBRARY_SITE_URL}
-                    title="도서관"
-                    className="absolute left-[-1.85rem] top-[-56.5rem] h-[calc(100%+56.5rem)] w-[calc(100%+3.7rem)] border-0 bg-white"
-                    allow="fullscreen"
-                    scrolling="no"
-                  />
-                </div>
+            {isClasswordPanelOpen ? (
+              <div id="timer-classword-panel" className="timer-classword-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[120] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
+                <section className="timer-classword-panel-card content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden" aria-labelledby="teacher-classword-utility-today-title">
+                  <div className="timer-classword-panel-scroll is-board-only custom-scrollbar">
+                    <TeacherClasswordPanel
+                      profileAssignments={studentLife.failureProfileAssignments}
+                      surface="utility"
+                      onUtilityClose={() => {
+                        setIsClasswordPanelOpen(false);
+                        window.requestAnimationFrame(() => classwordPanelTriggerRef.current?.focus({ preventScroll: true }));
+                      }}
+                    />
+                  </div>
+                </section>
               </div>
             ) : null}
             <div className="schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0">
@@ -10929,7 +10966,7 @@ export default function TimerPage() {
                       type="button"
                       onClick={() => {
                         setIsDrawCaseMenuOpen(false);
-                        setIsLibraryOpen(false);
+                        setIsClasswordPanelOpen(false);
                         setIsCurrencyPanelOpen(false);
                         setIsQuestionSubmissionPanelOpen(false);
                         setEditingDay(getCurrentScheduleWeekday(scheduleClockOffsetSeconds));
@@ -11000,7 +11037,7 @@ export default function TimerPage() {
                     void playAnnouncementSound('pop');
                     setIsExtraTimerVisible(false);
                     setIsYoutubePanelOpen(false);
-                    setIsLibraryOpen(false);
+                    setIsClasswordPanelOpen(false);
                     setIsQuestionSubmissionPanelOpen(false);
                     setIsCurrencyPanelOpen((previous) => !previous);
                   }}
@@ -11023,7 +11060,7 @@ export default function TimerPage() {
                   onClick={() => {
                     void playAnnouncementSound('pop');
                     setIsExtraTimerVisible(false);
-                    setIsLibraryOpen(false);
+                    setIsClasswordPanelOpen(false);
                     setIsCurrencyPanelOpen(false);
                     setIsQuestionSubmissionPanelOpen(false);
                     setIsYoutubePanelOpen((previous) => !previous);
@@ -11045,26 +11082,26 @@ export default function TimerPage() {
                 </button>
               </div>
                 <button
-                  ref={libraryPanelTriggerRef}
+                  ref={classwordPanelTriggerRef}
                   onClick={() => {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
                   setIsExtraTimerVisible(false);
                   setIsCurrencyPanelOpen(false);
                   setIsQuestionSubmissionPanelOpen(false);
-                  setIsLibraryOpen((previous) => !previous);
+                  setIsClasswordPanelOpen((previous) => !previous);
                 }}
                 className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
-                  isLibraryOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
+                  isClasswordPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
                 }`}
-                aria-expanded={isLibraryOpen}
-                aria-controls={isLibraryOpen ? 'timer-library-panel' : undefined}
-                aria-label={isLibraryOpen ? '도서관 닫기' : '도서관 열기'}
-                title="도서관"
+                aria-expanded={isClasswordPanelOpen}
+                aria-controls={isClasswordPanelOpen ? 'timer-classword-panel' : undefined}
+                aria-label={isClasswordPanelOpen ? '낱말판 닫기' : '낱말판 열기'}
+                title="낱말판"
                 type="button"
               >
                 <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
-                  <BookOpen size={22} />
+                  <LetterText size={22} />
                 </div>
               </button>
               <button
@@ -11072,7 +11109,7 @@ export default function TimerPage() {
                 onClick={() => {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
-                  setIsLibraryOpen(false);
+                  setIsClasswordPanelOpen(false);
                   setIsCurrencyPanelOpen(false);
                   setIsExtraTimerVisible(false);
                   setIsQuestionSubmissionPanelOpen((previous) => !previous);
@@ -11087,7 +11124,7 @@ export default function TimerPage() {
                 type="button"
               >
                 <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
-                  <ClipboardCheck size={22} />
+                  <MessageCircleQuestion size={22} />
                 </div>
               </button>
               <button
@@ -11095,7 +11132,7 @@ export default function TimerPage() {
                 onClick={() => {
                   void playAnnouncementSound('pop');
                   setIsYoutubePanelOpen(false);
-                  setIsLibraryOpen(false);
+                  setIsClasswordPanelOpen(false);
                   setIsCurrencyPanelOpen(false);
                   setIsQuestionSubmissionPanelOpen(false);
                   setIsAnnouncementOpen(true);

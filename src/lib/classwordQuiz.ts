@@ -25,6 +25,7 @@ export type ClasswordQuizStudentState = {
   readonly question: ClasswordQuizPrompt;
   readonly completed: boolean;
   readonly completedAt: string | null;
+  readonly rewardAmount: number | null;
 };
 
 export type ClasswordQuizTeacherSummary = {
@@ -176,12 +177,19 @@ export const parseClasswordQuizStudentState = (value: unknown): ClasswordQuizStu
     || !isClasswordDateKey(value.dateKey)
     || typeof value.completed !== 'boolean'
     || (value.completedAt !== null && typeof value.completedAt !== 'string')
+    || (value.rewardAmount !== null && (
+      typeof value.rewardAmount !== 'number'
+      || !Number.isInteger(value.rewardAmount)
+      || value.rewardAmount < 1
+      || value.rewardAmount > 10
+    ))
   ) throw new Error('CLASSWORD_QUIZ_INVALID_RESPONSE');
   return {
     dateKey: value.dateKey,
     question: parsePrompt(value.question),
     completed: value.completed,
     completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
+    rewardAmount: typeof value.rewardAmount === 'number' ? value.rewardAmount : null,
   };
 };
 

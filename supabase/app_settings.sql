@@ -80,7 +80,7 @@ create table if not exists public.weekly_mission_rewards (
   student_number smallint not null check (student_number between 1 and 23),
   week_key text not null check (week_key ~ '^\d{4}-\d{2}$' or week_key ~ '^\d{4}-\d{2}-\d{2}$'),
   mission_type text not null default 'personal_question' check (mission_type in ('personal_question', 'classword_word_entry', 'classword_quiz_correct')),
-  reward_amount integer not null default 5 check (reward_amount in (5, 10)),
+  reward_amount integer not null default 5 check (reward_amount between 1 and 10),
   source_event_id text not null,
   completed_at timestamptz not null default now(),
   primary key (student_number, week_key, mission_type)
@@ -124,7 +124,7 @@ alter table public.weekly_mission_rewards
   drop constraint if exists weekly_mission_rewards_reward_amount_check;
 alter table public.weekly_mission_rewards
   add constraint weekly_mission_rewards_reward_amount_check
-  check (reward_amount in (5, 10));
+  check (reward_amount between 1 and 10);
 
 create or replace function public.claim_weekly_mission_reward(
   p_student_number integer,
@@ -155,17 +155,22 @@ begin
   if p_week_key is null or (
     p_mission_type = 'personal_question' and p_week_key !~ '^\d{4}-\d{2}$'
   ) or (
-    p_mission_type = 'classword_word_entry' and p_week_key !~ '^\d{4}-\d{2}-\d{2}$'
+    p_mission_type in ('classword_word_entry', 'classword_quiz_correct')
+    and p_week_key !~ '^\d{4}-\d{2}-\d{2}$'
   ) then
     raise exception 'INVALID_WEEK_KEY';
   end if;
-  if p_mission_type is null or p_mission_type not in ('personal_question', 'classword_word_entry') then
+  if p_mission_type is null or p_mission_type not in ('personal_question', 'classword_word_entry', 'classword_quiz_correct') then
     raise exception 'INVALID_MISSION_TYPE';
   end if;
   if p_source_event_id is not null and length(p_source_event_id) > 200 then
     raise exception 'INVALID_SOURCE_EVENT_ID';
   end if;
-  v_reward_amount := case when p_mission_type = 'personal_question' then 10 else 5 end;
+  v_reward_amount := case
+    when p_mission_type = 'personal_question' then 10
+    when p_mission_type = 'classword_quiz_correct' then floor(random() * 10)::integer + 1
+    else 5
+  end;
 
   select exists (
     select 1
@@ -174,6 +179,15 @@ begin
       and rewards.week_key = p_week_key
       and rewards.mission_type = p_mission_type
   ) into v_completed;
+
+  if v_completed then
+    select rewards.reward_amount
+    into v_reward_amount
+    from public.weekly_mission_rewards as rewards
+    where rewards.student_number = p_student_number
+      and rewards.week_key = p_week_key
+      and rewards.mission_type = p_mission_type;
+  end if;
 
   if p_source_event_id is null or btrim(p_source_event_id) = '' or v_completed then
     select value
@@ -258,6 +272,15 @@ begin
       and rewards.week_key = p_week_key
       and rewards.mission_type = p_mission_type
   ) into v_completed;
+
+  if v_completed then
+    select rewards.reward_amount
+    into v_reward_amount
+    from public.weekly_mission_rewards as rewards
+    where rewards.student_number = p_student_number
+      and rewards.week_key = p_week_key
+      and rewards.mission_type = p_mission_type;
+  end if;
 
   if v_awarded then
     v_after := v_before + v_reward_amount;

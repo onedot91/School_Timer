@@ -1,4 +1,4 @@
-import { Dice5, Save, Trash2 } from 'lucide-react';
+import { Dice5, Save, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -34,9 +34,16 @@ const monthKeyOf = (date: Date) => `${date.getFullYear()}-${String(date.getMonth
 
 type TeacherClasswordPanelProps = {
   readonly profileAssignments: FailureProfileAssignments;
+  readonly surface?: 'settings' | 'utility';
+  readonly onUtilityClose?: () => void;
 };
 
-export default function TeacherClasswordPanel({ profileAssignments }: TeacherClasswordPanelProps) {
+export default function TeacherClasswordPanel({
+  profileAssignments,
+  surface = 'settings',
+  onUtilityClose,
+}: TeacherClasswordPanelProps) {
+  const idPrefix = `teacher-classword-${surface}`;
   const today = getKoreanDateKey();
   const [month, setMonth] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(today);
@@ -152,17 +159,38 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
   };
 
   return (
-    <div className="teacher-classword-panel">
-      <section className="teacher-classword-today-entries" aria-labelledby="teacher-classword-today-title">
-        <header className="teacher-classword-today-topic">
-          <h3 id="teacher-classword-today-title" className="classword-header-topic">
+    <div className="teacher-classword-panel" data-surface={surface}>
+      {surface === 'utility' ? (
+        <header className="timer-classword-panel-header">
+          <h2 id={`${idPrefix}-today-title`} className="classword-header-topic">
             {todayBoard.topic ? (
               <><span>오늘의 주제는 </span><strong>{todayBoard.topic}</strong><span>입니다.</span></>
             ) : (
               <><span>오늘의 주제를 </span><strong>준비하고 있어요.</strong></>
             )}
-          </h3>
+          </h2>
+          <button
+            type="button"
+            onClick={onUtilityClose}
+            aria-label="낱말판 닫기"
+            title="낱말판 닫기"
+          >
+            <X aria-hidden="true" />
+          </button>
         </header>
+      ) : null}
+      <section className="teacher-classword-today-entries" aria-labelledby={`${idPrefix}-today-title`}>
+        {surface === 'settings' ? (
+          <header className="teacher-classword-today-topic">
+            <h3 id={`${idPrefix}-today-title`} className="classword-header-topic">
+              {todayBoard.topic ? (
+                <><span>오늘의 주제는 </span><strong>{todayBoard.topic}</strong><span>입니다.</span></>
+              ) : (
+                <><span>오늘의 주제를 </span><strong>준비하고 있어요.</strong></>
+              )}
+            </h3>
+          </header>
+        ) : null}
         <section className="classword-grid teacher-classword-board" aria-label="오늘 초성 낱말판">
           {CLASSWORD_INITIALS.map((initial) => {
             const entry = todayBoard.entries.find((candidate) => candidate.initial === initial);
@@ -214,84 +242,88 @@ export default function TeacherClasswordPanel({ profileAssignments }: TeacherCla
           })}
         </section>
       </section>
-      <section className="teacher-classword-quiz-summary" aria-labelledby="teacher-classword-quiz-title">
-        <header>
-          <div>
-            <span>{selectedDateKey}</span>
-            <h3 id="teacher-classword-quiz-title">낱말 퀴즈 정답자</h3>
+      {surface === 'settings' ? (
+        <>
+          <section className="teacher-classword-quiz-summary" aria-labelledby={`${idPrefix}-quiz-title`}>
+            <header>
+              <div>
+                <span>{selectedDateKey}</span>
+                <h3 id={`${idPrefix}-quiz-title`}>낱말 퀴즈 정답자</h3>
+              </div>
+              <strong>{quizSummary?.correctStudentNumbers.length ?? 0}명</strong>
+            </header>
+            {quizSummary ? (
+              <div className="teacher-classword-quiz-content">
+                <span className="teacher-classword-quiz-initial">{quizSummary.question.initialHint}</span>
+                <ul aria-label="낱말 퀴즈 정답 학생 번호">
+                  {quizSummary.correctStudentNumbers.length === 0
+                    ? <li className="is-empty">아직 정답자가 없습니다.</li>
+                    : quizSummary.correctStudentNumbers.map((studentNumber) => (
+                        <li key={studentNumber}>{studentNumber}번</li>
+                      ))}
+                </ul>
+              </div>
+            ) : <p className="teacher-classword-message" role="status">{quizMessage || '정답자를 불러오는 중입니다.'}</p>}
+          </section>
+          <div className="teacher-classword-workspace">
+            <ClasswordCalendar
+              month={month}
+              selectedDateKey={selectedDateKey}
+              rounds={rounds}
+              onMonthChange={setMonth}
+              onSelect={(dateKey) => {
+                setSelectedDateKey(dateKey);
+                setClearStep(0);
+              }}
+            />
+            <section className="teacher-classword-editor" aria-labelledby={`${idPrefix}-editor-title`}>
+              <header>
+                <div><span>{selectedDateKey}</span><h3 id={`${idPrefix}-editor-title`}>날짜별 주제 설정</h3></div>
+                <strong>{board.entries.length}/14칸</strong>
+              </header>
+              <div className="teacher-classword-topic-field">
+                <label htmlFor={`${idPrefix}-topic`}>이날의 주제</label>
+                <span><input id={`${idPrefix}-topic`} value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={40} disabled={busy} /><button type="button" onClick={chooseRandomTopic} disabled={busy} aria-label="사용하지 않은 주제 무작위 추천"><Dice5 aria-hidden="true" /> 추천</button></span>
+              </div>
+              <button type="button" className="teacher-classword-save" onClick={() => void saveTopic()} disabled={busy || !topic.trim()}><Save aria-hidden="true" /> 주제 저장</button>
+              {message ? <p className="teacher-classword-message" role="status">{message}</p> : null}
+              {selectedDateKey !== today ? (
+                <details className="teacher-classword-history">
+                  <summary>선택한 날짜의 입력 낱말 <strong>{board.entries.length}개</strong></summary>
+                  <ul className="teacher-classword-entry-list" aria-label="선택 날짜 학생 낱말 목록">
+                    {board.entries.length === 0 ? <li className="is-empty">이 날짜에는 등록된 낱말이 없습니다.</li> : board.entries.map((entry) => (
+                      <li key={entry.id}>
+                        <strong>{entry.initial}</strong><span>{entry.word}</span><small>{entry.studentNumber}번</small>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            deleteTriggerRef.current = event.currentTarget;
+                            setPendingDeleteEntry(entry);
+                          }}
+                          disabled={busy}
+                          aria-haspopup="dialog"
+                          aria-label={`${entry.word} 삭제`}
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+              {clearStep === 0 ? (
+                <button type="button" className="teacher-classword-clear" onClick={() => setClearStep(1)} disabled={busy || board.entries.length === 0}>이 날짜 낱말 모두 비우기</button>
+              ) : (
+                <div className="teacher-classword-clear-confirm" role="group" aria-label="모든 낱말 삭제 확인">
+                  <span>{clearStep === 1 ? '학생 낱말이 모두 삭제됩니다.' : '마지막 확인입니다. 정말 비울까요?'}</span>
+                  <button type="button" onClick={() => clearStep === 1 ? setClearStep(2) : void clearEntries()} disabled={busy}>{clearStep === 1 ? '계속' : '모두 비우기'}</button>
+                  <button type="button" onClick={() => setClearStep(0)} disabled={busy}>취소</button>
+                </div>
+              )}
+            </section>
           </div>
-          <strong>{quizSummary?.correctStudentNumbers.length ?? 0}명</strong>
-        </header>
-        {quizSummary ? (
-          <div className="teacher-classword-quiz-content">
-            <span className="teacher-classword-quiz-initial">{quizSummary.question.initialHint}</span>
-            <ul aria-label="낱말 퀴즈 정답 학생 번호">
-              {quizSummary.correctStudentNumbers.length === 0
-                ? <li className="is-empty">아직 정답자가 없습니다.</li>
-                : quizSummary.correctStudentNumbers.map((studentNumber) => (
-                    <li key={studentNumber}>{studentNumber}번</li>
-                  ))}
-            </ul>
-          </div>
-        ) : <p className="teacher-classword-message" role="status">{quizMessage || '정답자를 불러오는 중입니다.'}</p>}
-      </section>
-      <div className="teacher-classword-workspace">
-        <ClasswordCalendar
-          month={month}
-          selectedDateKey={selectedDateKey}
-          rounds={rounds}
-          onMonthChange={setMonth}
-          onSelect={(dateKey) => {
-            setSelectedDateKey(dateKey);
-            setClearStep(0);
-          }}
-        />
-        <section className="teacher-classword-editor" aria-labelledby="teacher-classword-editor-title">
-          <header>
-            <div><span>{selectedDateKey}</span><h3 id="teacher-classword-editor-title">날짜별 주제 설정</h3></div>
-            <strong>{board.entries.length}/14칸</strong>
-          </header>
-          <div className="teacher-classword-topic-field">
-            <label htmlFor="teacher-classword-topic">이날의 주제</label>
-            <span><input id="teacher-classword-topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={40} disabled={busy} /><button type="button" onClick={chooseRandomTopic} disabled={busy} aria-label="사용하지 않은 주제 무작위 추천"><Dice5 aria-hidden="true" /> 추천</button></span>
-          </div>
-          <button type="button" className="teacher-classword-save" onClick={() => void saveTopic()} disabled={busy || !topic.trim()}><Save aria-hidden="true" /> 주제 저장</button>
-          {message ? <p className="teacher-classword-message" role="status">{message}</p> : null}
-          {selectedDateKey !== today ? (
-            <details className="teacher-classword-history">
-              <summary>선택한 날짜의 입력 낱말 <strong>{board.entries.length}개</strong></summary>
-              <ul className="teacher-classword-entry-list" aria-label="선택 날짜 학생 낱말 목록">
-                {board.entries.length === 0 ? <li className="is-empty">이 날짜에는 등록된 낱말이 없습니다.</li> : board.entries.map((entry) => (
-                  <li key={entry.id}>
-                    <strong>{entry.initial}</strong><span>{entry.word}</span><small>{entry.studentNumber}번</small>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        deleteTriggerRef.current = event.currentTarget;
-                        setPendingDeleteEntry(entry);
-                      }}
-                      disabled={busy}
-                      aria-haspopup="dialog"
-                      aria-label={`${entry.word} 삭제`}
-                    >
-                      <Trash2 aria-hidden="true" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ) : null}
-          {clearStep === 0 ? (
-            <button type="button" className="teacher-classword-clear" onClick={() => setClearStep(1)} disabled={busy || board.entries.length === 0}>이 날짜 낱말 모두 비우기</button>
-          ) : (
-            <div className="teacher-classword-clear-confirm" role="group" aria-label="모든 낱말 삭제 확인">
-              <span>{clearStep === 1 ? '학생 낱말이 모두 삭제됩니다.' : '마지막 확인입니다. 정말 비울까요?'}</span>
-              <button type="button" onClick={() => clearStep === 1 ? setClearStep(2) : void clearEntries()} disabled={busy}>{clearStep === 1 ? '계속' : '모두 비우기'}</button>
-              <button type="button" onClick={() => setClearStep(0)} disabled={busy}>취소</button>
-            </div>
-          )}
-        </section>
-      </div>
+        </>
+      ) : null}
       {pendingDeleteEntry ? createPortal(
         <div className="teacher-classword-delete-modal">
           <StudentConfirmDialog

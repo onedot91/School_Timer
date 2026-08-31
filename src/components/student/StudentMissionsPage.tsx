@@ -34,6 +34,10 @@ import {
   type ClassroomRoleMissionSettings,
 } from '../../lib/classroomRoleMission';
 import { TODAY_FRIEND_REWARD } from '../../lib/todayFriend';
+import {
+  normalizeStudentMissionVisibility,
+  type StudentMissionVisibility,
+} from '../../lib/studentMissionVisibility';
 
 interface StudentMissionsPageProps {
   studentNumber: number;
@@ -44,6 +48,7 @@ interface StudentMissionsPageProps {
   isLoading: boolean;
   auctionMissions: AuctionMission[];
   classroomRoleMission: ClassroomRoleMissionSettings;
+  studentMissionVisibility?: StudentMissionVisibility;
   weeklyMissionStatuses: WeeklyMissionStatuses;
   hasSyncError: boolean;
   isDailyEmotionMissionCompleted: boolean;
@@ -120,6 +125,7 @@ export default function StudentMissionsPage({
   isLoading,
   auctionMissions,
   classroomRoleMission,
+  studentMissionVisibility: studentMissionVisibilityInput,
   weeklyMissionStatuses,
   hasSyncError,
   isDailyEmotionMissionCompleted,
@@ -141,6 +147,7 @@ export default function StudentMissionsPage({
   onOpenTodayFriend,
   onBack,
 }: StudentMissionsPageProps) {
+  const studentMissionVisibility = normalizeStudentMissionVisibility(studentMissionVisibilityInput);
   const shouldReduceMotion = useReducedMotion() ?? false;
   const [isSudokuSettingsOpen, setIsSudokuSettingsOpen] = useState(false);
   const sudokuSettingsDialogRef = useRef<HTMLElement>(null);
@@ -233,7 +240,7 @@ export default function StudentMissionsPage({
                 />
               </motion.div>
             ))}
-            <motion.div {...missionEntrance(auctionMissions.length)}>
+            {studentMissionVisibility.classroomRole ? <motion.div {...missionEntrance(auctionMissions.length)}>
               <StudentMissionCard
                 title="1인 1역"
                 illustrationSrc="/mission-illustrations/classroom-role.png"
@@ -245,8 +252,8 @@ export default function StudentMissionsPage({
                   ? `${classroomRoleAssignment.roleName} 역할 수행`
                   : '오늘 역할 없음'}
               />
-            </motion.div>
-            <motion.div {...missionEntrance(auctionMissions.length + 1)}>
+            </motion.div> : null}
+            {studentMissionVisibility.todayFriend ? <motion.div {...missionEntrance(auctionMissions.length + 1)}>
               <StudentMissionCard
                 title="오늘의 친구"
                 illustrationSrc="/mission-illustrations/today-friend.png"
@@ -255,8 +262,8 @@ export default function StudentMissionsPage({
                 actionLabel="오늘의 친구 확인"
                 onAction={onOpenTodayFriend}
               />
-            </motion.div>
-            <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 2)}>
+            </motion.div> : null}
+            {studentMissionVisibility.dailyWriting ? <motion.div className="student-writing-mission" {...missionEntrance(auctionMissions.length + 2)}>
               <StudentMissionCard
                 title="글밥짓기"
                 illustrationSrc="/mission-illustrations/writing.png"
@@ -267,8 +274,8 @@ export default function StudentMissionsPage({
                   : '아직 미션 없음'}
                 onAction={hasDailyWritingMission ? onOpenMailbox : undefined}
               />
-            </motion.div>
-            <motion.div {...missionEntrance(auctionMissions.length + 3)}>
+            </motion.div> : null}
+            {studentMissionVisibility.emotionOrbs ? <motion.div {...missionEntrance(auctionMissions.length + 3)}>
               <StudentMissionCard
                 title="감정 구슬 넣기"
                 illustrationSrc="/mission-illustrations/emotion-orbs.png"
@@ -278,8 +285,8 @@ export default function StudentMissionsPage({
                 actionLabel={isDailyEmotionMissionCompleted ? '감정 다시 고르기' : '감정 고르기'}
                 onAction={onOpenEmotions}
               />
-            </motion.div>
-            {WEEKLY_MISSION_DEFINITIONS
+            </motion.div> : null}
+            {studentMissionVisibility.classword ? WEEKLY_MISSION_DEFINITIONS
               .filter((mission) => mission.type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE)
               .map((mission) => (
                 <motion.div key={mission.type} {...missionEntrance(auctionMissions.length + 4)}>
@@ -289,21 +296,23 @@ export default function StudentMissionsPage({
                     rewardAmount={mission.rewardAmount}
                     verificationMode="automatic"
                     status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
+                    statusPresentation="teacher"
                     onAction={onOpenClassword}
-                    actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '낱말판 보기' : '낱말 넣기'}
+                    actionLabel={weeklyMissionStatuses[mission.type] === 'inProgress' ? '낱말판 보기' : '낱말 넣기'}
                   />
                 </motion.div>
-              ))}
+              )) : null}
           </div>
         </section>
 
+        {Object.values(studentMissionVisibility).slice(5).some(Boolean) ? (
         <section className="student-mission-group" aria-labelledby="weekly-mission-title">
           <header className="student-group-heading">
             <h2 id="weekly-mission-title">주간 미션</h2>
             <p className="student-group-heading-description">(일주일에 한 번 할 수 있는 미션)</p>
           </header>
           <div className="student-mission-grid">
-            {WEEKLY_MISSION_DEFINITIONS
+            {studentMissionVisibility.personalQuestion ? WEEKLY_MISSION_DEFINITIONS
               .filter((mission) => mission.type === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE)
               .map((mission) => (
                 <motion.div key={mission.type} {...missionEntrance(0)}>
@@ -317,8 +326,8 @@ export default function StudentMissionsPage({
                     actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
                   />
                 </motion.div>
-              ))}
-            <motion.div {...missionEntrance(1)}>
+              )) : null}
+            {studentMissionVisibility.failureExhibition ? <motion.div {...missionEntrance(1)}>
               <StudentMissionCard
                 title="실패 전시하기"
                 illustrationSrc="/mission-illustrations/failure-exhibition.png"
@@ -328,8 +337,8 @@ export default function StudentMissionsPage({
                 actionLabel={isFailureExhibitionMissionCompleted ? '전시한 글 보기' : '실패 전시하기'}
                 onAction={onOpenFailureExhibition}
               />
-            </motion.div>
-            <motion.div {...missionEntrance(2)}>
+            </motion.div> : null}
+            {studentMissionVisibility.sudoku ? <motion.div {...missionEntrance(2)}>
               <StudentMissionCard
                 title="스도쿠"
                 illustrationSrc="/mission-illustrations/sudoku.png"
@@ -353,8 +362,8 @@ export default function StudentMissionsPage({
                   setIsSudokuSettingsOpen(true);
                 }}
               />
-            </motion.div>
-            <motion.div className="student-number-baseball-mission" {...missionEntrance(3)}>
+            </motion.div> : null}
+            {studentMissionVisibility.numberBaseball ? <motion.div className="student-number-baseball-mission" {...missionEntrance(3)}>
               <StudentMissionCard
                 title="숫자 야구"
                 illustrationSrc="/mission-illustrations/number-baseball.png"
@@ -375,8 +384,8 @@ export default function StudentMissionsPage({
                     : '결과 보기'}
                 onAction={onOpenNumberBaseball}
               />
-            </motion.div>
-            <motion.div {...missionEntrance(4)}>
+            </motion.div> : null}
+            {studentMissionVisibility.bookStack ? <motion.div {...missionEntrance(4)}>
               <StudentMissionCard
                 title="읽은 책 쌓기"
                 illustrationSrc="/mission-illustrations/book-stacking.png"
@@ -386,9 +395,10 @@ export default function StudentMissionsPage({
                 actionLabel={isBookStackMissionCompleted ? '쌓은 책 보기' : '책 쌓기'}
                 onAction={onOpenBookStack}
               />
-            </motion.div>
+            </motion.div> : null}
           </div>
         </section>
+        ) : null}
       </main>
 
       <AnimatePresence>

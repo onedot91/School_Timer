@@ -2,6 +2,7 @@ import type { CurrencyHistoryReason } from './currency.js';
 
 export const STUDENT_ECONOMY_AMOUNT_STEP = 5;
 export const STUDENT_ECONOMY_AMOUNT_MAX = 500;
+export const STUDENT_DEPOSIT_MINIMUM = 10;
 export const STUDENT_LOAN_MAXIMUM = 50;
 export const STUDENT_TRANSFER_MAXIMUM = 30;
 const BANK_INTEREST_RATE = 0.1;
@@ -806,7 +807,7 @@ export const applyStudentEconomyAction = ({
   };
 
   if (action.type === 'open_deposit') {
-    if (!Number.isInteger(action.amount) || action.amount < 1) {
+    if (!Number.isInteger(action.amount) || action.amount < STUDENT_DEPOSIT_MINIMUM) {
       throw new Error('INVALID_BANK_AMOUNT');
     }
     const maturityDate = getDepositMaturityDate(action.dateKey);
@@ -855,6 +856,7 @@ export const applyStudentEconomyAction = ({
     };
     message = `${action.recipientNumber}번에게 ${action.amount} 고마를 보냈습니다.`;
   } else if (action.type === 'deposit' || action.type === 'save') {
+    if (action.type === 'deposit' && action.amount < STUDENT_DEPOSIT_MINIMUM) throw new Error('INVALID_BANK_AMOUNT');
     assertTransactionAmount(action.amount);
     spend(action.amount);
     nextState = { ...state, [action.type === 'deposit' ? 'deposit' : 'savings']: state[action.type === 'deposit' ? 'deposit' : 'savings'] + action.amount };

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getKoreanDateKey, getRelativeKoreanWeekdayLabel, type StudentEconomyAction, type StudentEconomyState } from '../../lib/studentEconomy';
+import { getKoreanDateKey, getRelativeKoreanWeekdayLabel, STUDENT_DEPOSIT_MINIMUM, type StudentEconomyAction, type StudentEconomyState } from '../../lib/studentEconomy';
 import StudentConfirmDialog from './StudentConfirmDialog';
 
 interface StudentBankPageProps {
@@ -18,6 +18,7 @@ type BankRule = {
 
 export const STUDENT_BANK_RULES = {
   deposit: [
+    { term: '최소 금액', explanation: `${STUDENT_DEPOSIT_MINIMUM}고마부터 맡길 수 있어요.` },
     { term: '예금 만기', explanation: '월요일부터 수요일에 맡기면 이틀 뒤에 받아요. 목요일이나 금요일에 맡기면 다음 주 월요일에 받아요.' },
     { term: '중도 해지', explanation: '약속한 날보다 일찍 찾으면 이자는 없고 맡긴 고마만 받아요.' },
   ],
@@ -71,7 +72,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
   const numericTransferAmount = Number(transferAmount);
   const numericRecipientNumber = Math.floor(Number(recipientNumber));
   const isValidBankAmount = (amount: number) => Number.isInteger(amount) && amount >= 1;
-  const isDepositAmount = isValidBankAmount(numericDepositAmount);
+  const isDepositAmount = Number.isInteger(numericDepositAmount) && numericDepositAmount >= STUDENT_DEPOSIT_MINIMUM;
   const isLoanAmount = isValidBankAmount(numericLoanAmount) && numericLoanAmount <= 50;
   const isTransferAmount = Number.isInteger(numericTransferAmount) && numericTransferAmount >= 1 && numericTransferAmount <= 30;
   const depositInterest = isDepositAmount ? Math.round(numericDepositAmount / 10) : 0;
@@ -162,7 +163,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
       >
         {activeModal === 'deposit' ? (
           <div className="student-bank-modal-form">
-            <label className="student-bank-amount-field" htmlFor="student-bank-deposit-amount"><span>맡길 고마</span><input id="student-bank-deposit-amount" type="number" min="1" max="500" step="1" placeholder="예: 20" value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
+            <label className="student-bank-amount-field" htmlFor="student-bank-deposit-amount"><span>맡길 고마</span><input id="student-bank-deposit-amount" type="number" min={STUDENT_DEPOSIT_MINIMUM} max="500" step="1" placeholder={`예: ${STUDENT_DEPOSIT_MINIMUM}`} value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} /><span>고마</span></label>
             {isDepositAmount ? <div className="student-bank-interest-flow" aria-label={`${numericDepositAmount} 고마를 맡기면 ${numericDepositAmount + depositInterest} 고마를 받습니다.`}><span>{numericDepositAmount} 고마</span><i>보관</i><b>+{depositInterest} 고마</b><strong>{numericDepositAmount + depositInterest} 고마</strong></div> : null}
             <BankRuleList rules={STUDENT_BANK_RULES.deposit} />
           </div>

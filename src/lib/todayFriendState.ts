@@ -1,5 +1,6 @@
 import {
   approveTodayFriendSubmission,
+  createDailyTodayFriendPartnerAssignments,
   createTodayFriendPartnerAssignments,
   createTodayFriendSubmission,
   createTodayFriendWeek,
@@ -79,7 +80,7 @@ export const ensureTodayFriendDay = (
     : [...state.partnerDays, {
         dateKey,
         revision: 1,
-        assignments: createTodayFriendPartnerAssignments(STUDENT_NUMBERS, dateKey),
+        assignments: createDailyTodayFriendPartnerAssignments(STUDENT_NUMBERS, dateKey),
       }];
   return { ...state, weeks, partnerDays };
 };

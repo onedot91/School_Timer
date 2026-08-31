@@ -6,6 +6,7 @@ import StudentMissionCard from '../components/student/StudentMissionCard';
 import StudentMissionsPage from '../components/student/StudentMissionsPage';
 import { createWeeklyMissionStatuses } from './weeklyMission';
 import { getTodayClassroomRoleDateKey, normalizeClassroomRoleMissionSettings } from './classroomRoleMission';
+import { normalizeStudentMissionVisibility } from './studentMissionVisibility';
 
 test('수동 미션 카드는 상태 표정 대신 선생님 얼굴을 표시한다', () => {
   // Given
@@ -47,6 +48,25 @@ test('자동 미션 카드는 현재 진행 상태 얼굴을 표시한다', () =
   assert.match(markup, /data-status="inProgress"/);
   assert.match(markup, /src="\/mission-status-faces\/in-progress\.png"/);
   assert.doesNotMatch(markup, /student-mission-face-mouth/);
+});
+
+test('ㄱㄴㄷ 게임은 자동 상태를 유지하면서 수동 미션처럼 표시한다', () => {
+  const missionCard = createElement(StudentMissionCard, {
+    title: 'ㄱㄴㄷ 게임',
+    rewardAmount: 5,
+    verificationMode: 'automatic',
+    status: 'inProgress',
+    statusPresentation: 'teacher',
+    actionLabel: '낱말판 보기',
+    onAction: () => undefined,
+  });
+
+  const markup = renderToStaticMarkup(missionCard);
+
+  assert.match(markup, /student-mission-card-manual/);
+  assert.match(markup, /student-mission-teacher-face/);
+  assert.match(markup, /당일 마감 후 자동으로 확인하는 미션/);
+  assert.doesNotMatch(markup, /data-status="inProgress"/);
 });
 
 test('완료 상태는 생성된 초록 웃는 얼굴 이미지를 표시한다', () => {
@@ -199,6 +219,53 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   assert.match(markup, /보상 10고마/);
   assert.match(markup, /ㄱㄴㄷ 게임[\s\S]*?보상 5고마/);
   assert.doesNotMatch(markup, /\d+개|\d+\/\d+ 완료/);
+});
+
+test('교사가 비공개로 정한 기본 미션만 학생 미션 화면에서 숨긴다', () => {
+  const missionsPage = createElement(StudentMissionsPage, {
+    studentNumber: 1,
+    profileAssignments: {},
+    balance: 100,
+    availableBalance: 100,
+    reservedAmount: 0,
+    isLoading: false,
+    auctionMissions: [{ id: 'teacher-mission', content: '교사 추가 미션', rewardAmount: 5, illustrationIndex: 0 }],
+    classroomRoleMission: normalizeClassroomRoleMissionSettings({ enabled: true }),
+    studentMissionVisibility: normalizeStudentMissionVisibility({
+      todayFriend: false,
+      emotionOrbs: false,
+      sudoku: false,
+    }),
+    weeklyMissionStatuses: createWeeklyMissionStatuses('incomplete'),
+    hasSyncError: false,
+    isDailyEmotionMissionCompleted: false,
+    hasDailyWritingMission: false,
+    isDailyWritingMissionCompleted: false,
+    isWeeklySudokuMissionCompleted: false,
+    isFailureExhibitionMissionCompleted: false,
+    isBookStackMissionCompleted: false,
+    activeSudokuDifficulty: null,
+    completedSudokuDifficulty: null,
+    numberBaseballStatus: 'incomplete',
+    onOpenEmotions: () => undefined,
+    onOpenMailbox: () => undefined,
+    onOpenFailureExhibition: () => undefined,
+    onOpenBookStack: () => undefined,
+    onOpenSudoku: () => undefined,
+    onOpenNumberBaseball: () => undefined,
+    onOpenClassword: () => undefined,
+    onOpenTodayFriend: () => undefined,
+    onBack: () => undefined,
+  });
+
+  const markup = renderToStaticMarkup(missionsPage);
+
+  assert.match(markup, /교사 추가 미션/);
+  assert.match(markup, /1인 1역/);
+  assert.match(markup, /글밥짓기/);
+  assert.doesNotMatch(markup, /오늘의 친구/);
+  assert.doesNotMatch(markup, /감정 구슬 넣기/);
+  assert.doesNotMatch(markup, /스도쿠/);
 });
 
 test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시한다', () => {

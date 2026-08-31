@@ -5,6 +5,7 @@ import {
   type ClasswordQuizStudentState,
   type ClasswordQuizTeacherSummary,
 } from './classwordQuiz';
+import { getRandomClasswordQuizRewardAmount } from './classwordQuizReward';
 
 const CLASSWORD_QUIZ_LOCAL_STORAGE_KEY = 'school-timer-classword-quiz-v1';
 
@@ -12,13 +13,17 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
 );
 
-const readCompletions = (storage: Storage): readonly ClasswordQuizCompletion[] => {
+type LocalClasswordQuizCompletion = ClasswordQuizCompletion & {
+  readonly rewardAmount: number;
+};
+
+const readCompletions = (storage: Storage): readonly LocalClasswordQuizCompletion[] => {
   const raw = storage.getItem(CLASSWORD_QUIZ_LOCAL_STORAGE_KEY);
   if (!raw) return [];
   try {
     const value: unknown = JSON.parse(raw);
     if (!Array.isArray(value)) return [];
-    return value.flatMap((completion): readonly ClasswordQuizCompletion[] => {
+    return value.flatMap((completion): readonly LocalClasswordQuizCompletion[] => {
       if (
         !isRecord(completion)
         || typeof completion.dateKey !== 'string'
@@ -34,6 +39,12 @@ const readCompletions = (storage: Storage): readonly ClasswordQuizCompletion[] =
         questionId: completion.questionId,
         studentNumber: completion.studentNumber,
         completedAt: completion.completedAt,
+        rewardAmount: typeof completion.rewardAmount === 'number'
+          && Number.isInteger(completion.rewardAmount)
+          && completion.rewardAmount >= 1
+          && completion.rewardAmount <= 10
+          ? completion.rewardAmount
+          : 0,
       }];
     });
   } catch {
@@ -41,7 +52,7 @@ const readCompletions = (storage: Storage): readonly ClasswordQuizCompletion[] =
   }
 };
 
-const writeCompletions = (storage: Storage, completions: readonly ClasswordQuizCompletion[]): void => {
+const writeCompletions = (storage: Storage, completions: readonly LocalClasswordQuizCompletion[]): void => {
   storage.setItem(CLASSWORD_QUIZ_LOCAL_STORAGE_KEY, JSON.stringify(completions));
 };
 
@@ -61,6 +72,7 @@ export const loadLocalClasswordQuizStudentState = (
     question,
     completed: completion !== undefined,
     completedAt: completion?.completedAt ?? null,
+    rewardAmount: completion && completion.rewardAmount > 0 ? completion.rewardAmount : null,
   };
 };
 
@@ -84,21 +96,38 @@ export const submitLocalClasswordQuizAnswer = (
   dateKey: string,
   studentNumber: number,
   answer: string,
-): { readonly correct: boolean; readonly state: ClasswordQuizStudentState } => {
+  randomSource: () => number = Math.random,
+): { readonly correct: boolean; readonly state: ClasswordQuizStudentState; readonly rewardAmount: number } => {
   const currentState = loadLocalClasswordQuizStudentState(storage, dateKey, studentNumber);
-  if (currentState.completed) return { correct: true, state: currentState };
-  if (!isClasswordQuizAnswerCorrect(dateKey, answer)) {
-    return { correct: false, state: currentState };
-  }
   const completions = readCompletions(storage);
+  if (currentState.completed) {
+    const existing = completions.find((completion) => (
+      completion.dateKey === dateKey
+      && completion.questionId === currentState.question.id
+      && completion.studentNumber === studentNumber
+    ));
+    const rewardAmount = existing?.rewardAmount || getRandomClasswordQuizRewardAmount(randomSource);
+    if (existing && existing.rewardAmount === 0) {
+      writeCompletions(storage, completions.map((completion) => (
+        completion === existing ? { ...completion, rewardAmount } : completion
+      )));
+    }
+    return { correct: true, state: currentState, rewardAmount };
+  }
+  if (!isClasswordQuizAnswerCorrect(dateKey, answer)) {
+    return { correct: false, state: currentState, rewardAmount: 0 };
+  }
+  const rewardAmount = getRandomClasswordQuizRewardAmount(randomSource);
   writeCompletions(storage, [...completions, {
     dateKey,
     questionId: currentState.question.id,
     studentNumber,
     completedAt: new Date().toISOString(),
+    rewardAmount,
   }]);
   return {
     correct: true,
     state: loadLocalClasswordQuizStudentState(storage, dateKey, studentNumber),
+    rewardAmount,
   };
 };

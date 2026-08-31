@@ -888,9 +888,7 @@ img {
   border: 2px solid var(--teacher-accent-pressed) !important;
   color: var(--teacher-surface) !important;
   background: var(--teacher-accent) !important;
-  box-shadow:
-    inset 0.35rem 0 0 rgba(244, 242, 236, 0.78),
-    0 0.32rem 0.8rem rgba(36, 50, 45, 0.12) !important;
+  box-shadow: 0 0.32rem 0.8rem rgba(36, 50, 45, 0.12) !important;
 }
 
 .timer-main-shell .teacher-tone-text-accent {
@@ -15535,7 +15533,7 @@ a[href]:active {
     -webkit-backdrop-filter: none;
   }
 
-  .timer-main-shell .library-panel {
+  .timer-main-shell .timer-classword-panel {
     position: fixed !important;
     inset: max(0.75rem, env(safe-area-inset-top)) 0 6.75rem !important;
   }
@@ -16438,19 +16436,6 @@ a[href]:active {
   box-shadow: none !important;
 }
 
-.library-panel {
-  z-index: 70 !important;
-  isolation: isolate;
-}
-
-.library-panel-card {
-  z-index: 1;
-}
-
-.library-panel-card iframe {
-  background: var(--apple-surface);
-}
-
 .settings-dialog > [role="presentation"],
 .settings-dialog > [role="dialog"],
 .timer-main-shell > [role="dialog"] {
@@ -17167,10 +17152,40 @@ a[href]:active {
     var(--apple-canvas-warm);
 }
 
-.student-rapid-click-guard {
+.student-rapid-click-guard,
+.student-profanity-guard {
   --student-warning: #9b4a43;
   --student-warning-soft: #fff0ed;
   min-height: 100dvh;
+}
+
+.student-profanity-warning {
+  position: fixed;
+  z-index: 260;
+  inset: calc(max(1rem, env(safe-area-inset-top)) + 5rem) auto auto 50%;
+  display: flex;
+  width: max-content;
+  max-width: min(32rem, calc(100vw - 2rem));
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--student-warning) 32%, transparent);
+  border-radius: var(--apple-radius-card);
+  color: var(--student-warning);
+  background: color-mix(in srgb, var(--student-warning-soft) 96%, white);
+  box-shadow: var(--apple-shadow-2);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.student-profanity-warning svg {
+  flex: 0 0 auto;
+}
+
+.student-profanity-warning strong {
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .student-view {
@@ -17213,6 +17228,42 @@ a[href]:active {
   flex: 0 0 auto;
   align-items: center;
   margin-right: 0.25rem;
+}
+
+.student-today-friend-view > .student-header .student-header-actions {
+  min-width: 0;
+  max-width: min(42rem, 60vw);
+  margin-right: 0;
+}
+
+body:has(.student-today-friend-view):has(.data-mode-banner) .student-header-actions {
+  margin-right: 5.5rem;
+}
+
+body:has(.student-today-friend-view) .data-mode-banner span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.today-friend-preview-tabs {
+  max-width: 100%;
+  gap: .2rem;
+  overflow-x: auto;
+  padding: .25rem;
+  scrollbar-width: none;
+}
+
+.today-friend-preview-tabs::-webkit-scrollbar { display: none; }
+
+.today-friend-preview-tabs button {
+  flex: 0 0 auto;
+  padding-inline: .75rem;
+  white-space: nowrap;
 }
 
 :is(.student-store-view, .student-missions-view) > .student-header .student-header-actions {
@@ -18240,23 +18291,25 @@ a[href]:active {
 .teacher-today-friend-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: .65rem;
+  overflow: hidden;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-control);
+  background: var(--apple-surface);
 }
 
 .teacher-today-friend-summary span {
   display: flex;
-  min-height: 3.25rem;
+  min-height: var(--apple-control-min);
   align-items: baseline;
   justify-content: center;
   gap: .45rem;
-  padding: .6rem;
-  border: 1px solid var(--apple-separator);
-  border-radius: var(--apple-radius-control);
-  background: var(--apple-surface);
+  padding: .4rem .6rem;
   color: var(--apple-text-secondary);
   font-size: .82rem;
   font-weight: 800;
 }
+
+.teacher-today-friend-summary span + span { border-left: 1px solid var(--apple-separator); }
 
 .teacher-today-friend-summary strong { color: var(--apple-accent); font-size: 1.45rem; }
 
@@ -18286,6 +18339,7 @@ a[href]:active {
 }
 
 .teacher-today-friend-tabs button { flex: 1 1 auto; }
+.teacher-today-friend-tabs button:last-child { flex: 0 0 var(--apple-control-min); padding-inline: 0; }
 .teacher-today-friend-tabs button.is-active,
 .teacher-today-friend-review-actions button:last-child { color: white; border-color: var(--apple-accent); background: var(--apple-accent); }
 .teacher-today-friend-tabs svg,
@@ -18418,12 +18472,23 @@ a[href]:active {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   place-items: center;
+  gap: .5rem;
   overflow: hidden;
-  padding: clamp(1.25rem, 2.5vw, 2rem);
+  padding: clamp(1rem, 2vw, 1.5rem);
   background:
     radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--student-mission) 15%, transparent), transparent 10rem),
     radial-gradient(circle at 86% 80%, color-mix(in srgb, var(--apple-accent) 14%, transparent), transparent 12rem),
     color-mix(in srgb, var(--student-mission-soft) 52%, var(--apple-surface));
+}
+
+.student-today-friend-assignment-prompt {
+  margin: 0;
+  color: var(--apple-accent-pressed);
+  font-family: var(--font-display);
+  font-size: var(--student-overview-card-title-size, 1.45rem);
+  font-weight: 900;
+  letter-spacing: -.03em;
+  line-height: 1.2;
 }
 
 .student-today-friend-assignment::after {
@@ -18438,21 +18503,6 @@ a[href]:active {
   content: '';
 }
 
-.student-today-friend-eyebrow {
-  margin: 0;
-  color: var(--apple-accent-pressed);
-  font-size: var(--student-readable-text-min, .875rem);
-  font-weight: 900;
-  letter-spacing: -.02em;
-}
-
-.student-today-friend-eyebrow {
-  padding: .5rem .85rem;
-  border: 1px solid color-mix(in srgb, var(--apple-accent) 22%, var(--apple-separator));
-  border-radius: var(--apple-radius-pill);
-  background: color-mix(in srgb, var(--apple-surface) 90%, transparent);
-}
-
 .student-today-friend-profile {
   display: grid;
   width: 100%;
@@ -18464,13 +18514,13 @@ a[href]:active {
   display: grid;
   min-width: 0;
   justify-items: center;
-  gap: .8rem;
+  gap: 1rem;
   margin: 0;
 }
 
 .student-today-friend-person img {
   display: block;
-  width: clamp(10rem, 18vw, 13rem);
+  width: var(--student-today-friend-profile-size, clamp(15rem, 26vw, 20rem));
   aspect-ratio: 1;
   border: .45rem solid var(--apple-surface);
   border-radius: 50%;
@@ -18490,45 +18540,27 @@ a[href]:active {
 .student-today-friend-person figcaption strong {
   color: var(--apple-text-primary);
   font-family: var(--font-display);
-  font-size: clamp(1.6rem, 3vw, 2.25rem);
+  font-size: var(--student-today-friend-partner-size, clamp(2.75rem, 4vw, 3.5rem));
   letter-spacing: -.04em;
 }
 
-.student-today-friend-person figcaption span {
-  color: var(--apple-text-secondary);
-  font-size: 1rem;
-  font-weight: 850;
-}
-
 .student-today-friend-guide {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 1rem;
-  padding: clamp(1.25rem, 2.5vw, 2rem);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  overflow: hidden;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  background:
+    radial-gradient(circle at 82% 84%, color-mix(in srgb, var(--student-mission) 12%, transparent), transparent 13rem),
+    radial-gradient(circle at 12% 72%, color-mix(in srgb, var(--apple-accent) 7%, transparent), transparent 11rem),
+    var(--apple-surface);
 }
 
-.student-today-friend-guide-heading p {
-  margin: .25rem 0 0;
-  color: var(--apple-text-secondary);
-  font-size: .95rem;
-  font-weight: 750;
-  line-height: 1.45;
-  word-break: keep-all;
-}
-
-.today-friend-genre-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  padding: .55rem .85rem;
-  border-radius: var(--apple-radius-pill);
-  color: var(--apple-surface);
-  background: var(--student-mission);
-  font-weight: 900;
-}
-
-.today-friend-genre-chip svg {
-  width: 1.2rem;
+.student-today-friend-guide > * {
+  position: relative;
+  z-index: 1;
 }
 
 .today-friend-question,
@@ -18551,30 +18583,47 @@ a[href]:active {
 
 .today-friend-question span {
   color: var(--apple-accent-pressed);
-  font-size: .8rem;
+  font-size: 1rem;
   font-weight: 900;
 }
 
 .today-friend-question strong {
   color: var(--apple-text-primary);
-  font-size: 1.05rem;
-  line-height: 1.4;
+  font-size: var(--student-today-friend-question-size, clamp(1.3rem, 1.8vw, 1.6rem));
+  line-height: 1.3;
 }
 
 .today-friend-form {
   display: grid;
+  flex: 1 1 auto;
   min-height: 0;
-  align-content: start;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: .85rem;
+  overflow: hidden;
+}
+
+.today-friend-form-fields {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: center;
   gap: .85rem;
   overflow-y: auto;
   padding-right: .25rem;
 }
 
-.today-friend-form > label:not(.today-friend-private-choice) {
+.today-friend-form-fields > label:not(.today-friend-private-choice) {
   display: grid;
+  min-height: 0;
   gap: .4rem;
   color: var(--apple-text-primary);
+  font-size: 1.075rem;
   font-weight: 900;
+}
+
+.today-friend-form-fields > label:has(textarea) {
+  flex: 0 0 auto;
+  grid-template-rows: auto auto auto;
 }
 
 .today-friend-form input,
@@ -18592,13 +18641,16 @@ a[href]:active {
 
 .today-friend-form input,
 .today-friend-form select {
-  min-height: 3rem;
+  min-height: 3.25rem;
   padding: .7rem .85rem;
 }
 
 .today-friend-form textarea {
-  min-height: 7rem;
-  resize: vertical;
+  min-height: var(--student-today-friend-answer-height, calc(3em + 1.75rem));
+  height: var(--student-today-friend-answer-height, calc(3em + 1.75rem));
+  max-height: var(--student-today-friend-answer-height, calc(3em + 1.75rem));
+  overflow-y: auto;
+  resize: none;
   padding: .85rem;
   line-height: 1.5;
 }
@@ -18613,7 +18665,7 @@ a[href]:active {
 .today-friend-form small,
 .today-friend-privacy-note {
   color: var(--apple-text-secondary);
-  font-size: .8rem;
+  font-size: var(--student-readable-text-min, .875rem);
   font-weight: 700;
   line-height: 1.4;
 }
@@ -18622,6 +18674,7 @@ a[href]:active {
   display: flex;
   align-items: center;
   gap: .55rem;
+  font-size: 1rem;
   font-weight: 800;
 }
 
@@ -18632,17 +18685,19 @@ a[href]:active {
 
 .today-friend-form-actions {
   display: grid;
+  grid-row: 3;
   grid-template-columns: .75fr 1.25fr;
   gap: .65rem;
 }
 
 .today-friend-form-actions button,
 .student-today-friend-loading button {
-  min-height: 3.1rem;
+  min-height: 3.35rem;
   border: 0;
   border-radius: var(--apple-radius-control);
   color: var(--apple-text-primary);
   background: var(--apple-surface-muted);
+  font-size: 1.05rem;
   font-weight: 900;
 }
 
@@ -18652,6 +18707,7 @@ a[href]:active {
 }
 
 .today-friend-form-message {
+  grid-row: 2;
   margin: 0;
   color: var(--apple-accent-pressed);
   font-size: .85rem;
@@ -18694,17 +18750,11 @@ a[href]:active {
   gap: .25rem;
 }
 
-.student-today-friend-guide-heading > span {
-  color: var(--apple-accent-pressed);
-  font-size: var(--student-readable-text-min, .875rem);
-  font-weight: 900;
-}
-
 .student-today-friend-guide-heading h2 {
   margin: 0;
   color: var(--apple-text-primary);
   font-family: var(--font-display);
-  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-size: clamp(2.25rem, 3.4vw, 2.75rem);
   font-weight: 850;
   letter-spacing: -.04em;
 }
@@ -23313,10 +23363,11 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 }
 
 .student-profile-shop > header p {
-  margin-top: .12rem;
+  margin: 0;
   color: var(--apple-text-tertiary);
-  font-size: .82rem;
+  font-size: var(--student-mission-role-size);
   font-weight: 800;
+  line-height: 1.4;
 }
 
 .student-profile-shop > header > span {
@@ -24291,6 +24342,9 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
     --student-compact-control-height: 2.75rem;
     --student-readable-text-min: .875rem;
     --student-readable-image-min: 3rem;
+    --student-today-friend-profile-size: clamp(15rem, 26vw, 20rem);
+    --student-today-friend-partner-size: clamp(2.75rem, 4vw, 3.5rem);
+    --student-today-friend-question-size: clamp(1.3rem, 1.8vw, 1.6rem);
     overflow: hidden !important;
     padding: var(--student-shell-inset) !important;
   }
@@ -25612,7 +25666,7 @@ body {
   color: var(--teacher-surface) !important;
   background-color: var(--teacher-accent) !important;
   background-image: none !important;
-  box-shadow: inset 0.35rem 0 0 rgba(244, 242, 236, 0.78), 0 0.32rem 0.8rem rgba(36, 50, 45, 0.12) !important;
+  box-shadow: 0 0.32rem 0.8rem rgba(36, 50, 45, 0.12) !important;
 }
 
 .timer-main-shell .timer-primary-chip,

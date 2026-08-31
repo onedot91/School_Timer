@@ -6,6 +6,7 @@ import { STUDENT_BANK_RULES } from '../components/student/StudentBankPage.tsx';
 test('은행 모달 규칙은 가운데점 없이 초3이 읽기 쉬운 항목으로 안내한다', () => {
   assert.deepEqual(STUDENT_BANK_RULES, {
     deposit: [
+      { term: '최소 금액', explanation: '10고마부터 맡길 수 있어요.' },
       { term: '예금 만기', explanation: '월요일부터 수요일에 맡기면 이틀 뒤에 받아요. 목요일이나 금요일에 맡기면 다음 주 월요일에 받아요.' },
       { term: '중도 해지', explanation: '약속한 날보다 일찍 찾으면 이자는 없고 맡긴 고마만 받아요.' },
     ],
