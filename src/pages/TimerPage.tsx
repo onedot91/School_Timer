@@ -9686,7 +9686,10 @@ export default function TimerPage() {
                     <StudentEmotionOrbVisual emotion={selectedEmotionHistory} />
                     <strong>{selectedEmotionHistory.label}</strong>
                   </div>
-                  <p>{selectedEmotionHistoryEntry.comment}</p>
+                  <div className="student-emotion-calendar-notes">
+                    <p><strong>어떤 일이 있었나요?</strong><span>{selectedEmotionHistoryEntry.comment}</span></p>
+                    {selectedEmotionHistoryEntry.selfMessage ? <p><strong>나에게 해주는 한 마디</strong><span>{selectedEmotionHistoryEntry.selfMessage}</span></p> : null}
+                  </div>
                 </>
               ) : (
                 <div className="student-emotion-calendar-detail-empty">

@@ -1,0 +1,321 @@
+{
+  "capturedAt": "2026-08-31T13:37:43.330Z",
+  "sourceState": "after Today Friend illustration ratio 9/4 edit",
+  "currentViewport": [
+    {
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "clientHeight": 173,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 173,
+        "scrollWidth": 565
+      },
+      "genre": "interview",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      }
+    },
+    {
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "clientHeight": 282,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 282,
+        "scrollWidth": 565
+      },
+      "genre": "commonality",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      }
+    },
+    {
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "clientHeight": 282,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 282,
+        "scrollWidth": 565
+      },
+      "genre": "recommendation",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      }
+    },
+    {
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "clientHeight": 282,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 282,
+        "scrollWidth": 565
+      },
+      "genre": "compliment",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      }
+    },
+    {
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "clientHeight": 282,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 282,
+        "scrollWidth": 565
+      },
+      "genre": "emotion",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      }
+    }
+  ],
+  "exactViewport": [
+    {
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "clientHeight": 188,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 188,
+        "scrollWidth": 565
+      },
+      "genre": "interview",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      }
+    },
+    {
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "clientHeight": 298,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 298,
+        "scrollWidth": 565
+      },
+      "genre": "commonality",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      }
+    },
+    {
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "clientHeight": 298,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 298,
+        "scrollWidth": 565
+      },
+      "genre": "recommendation",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      }
+    },
+    {
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "clientHeight": 298,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 298,
+        "scrollWidth": 565
+      },
+      "genre": "compliment",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      }
+    },
+    {
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "clientHeight": 298,
+        "clientWidth": 565,
+        "overflow": 0,
+        "scrollHeight": 298,
+        "scrollWidth": 565
+      },
+      "genre": "emotion",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      }
+    }
+  ],
+  "captures": [
+    "current-interview.jpg",
+    "exact-interview.jpg",
+    "current-commonality.jpg",
+    "exact-commonality.jpg",
+    "current-recommendation.jpg",
+    "exact-recommendation.jpg",
+    "current-compliment.jpg",
+    "exact-compliment.jpg",
+    "current-emotion.jpg",
+    "exact-emotion.jpg"
+  ],
+  "captureValidation": {
+    "expectedMime": "image/jpeg",
+    "currentDimensions": {
+      "width": 1255,
+      "height": 784
+    },
+    "exactDimensions": {
+      "width": 1280,
+      "height": 800
+    }
+  }
+}

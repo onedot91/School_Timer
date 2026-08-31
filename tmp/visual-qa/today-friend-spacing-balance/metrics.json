@@ -1,0 +1,1072 @@
+{
+  "timestamp": "2026-08-31T14:09:15.010Z",
+  "current": [
+    {
+      "cards": [
+        {
+          "gap": "6.4px",
+          "height": 150.53614807128906,
+          "paddingBottom": "16px",
+          "paddingTop": "12px"
+        }
+      ],
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "bottom": 680.1470642089844,
+        "clientHeight": 186,
+        "overflow": 0,
+        "scrollHeight": 186,
+        "top": 493.75
+      },
+      "genre": "interview",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-interview.jpg"
+    },
+    {
+      "cards": [
+        {
+          "gap": "6.4px",
+          "height": 171.82138061523438,
+          "paddingBottom": "16px",
+          "paddingTop": "12px"
+        }
+      ],
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "bottom": 680.1470336914062,
+        "clientHeight": 296,
+        "overflow": 0,
+        "scrollHeight": 296,
+        "top": 384.2218017578125
+      },
+      "genre": "commonality",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-commonality.jpg"
+    },
+    {
+      "cards": [
+        {
+          "gap": "8px",
+          "height": 109.3443603515625,
+          "paddingBottom": "12px",
+          "paddingTop": "10px"
+        },
+        {
+          "gap": "6.4px",
+          "height": 144.53890991210938,
+          "paddingBottom": "12px",
+          "paddingTop": "10px"
+        }
+      ],
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "bottom": 680.1470336914062,
+        "clientHeight": 296,
+        "overflow": 0,
+        "scrollHeight": 296,
+        "top": 384.2218017578125
+      },
+      "genre": "recommendation",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-recommendation.jpg"
+    },
+    {
+      "cards": [
+        {
+          "gap": "4px",
+          "height": 89.30760192871094,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        },
+        {
+          "gap": "4px",
+          "height": 89.30760192871094,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        },
+        {
+          "gap": "4px",
+          "height": 89.30760192871094,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        }
+      ],
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "bottom": 680.1470336914062,
+        "clientHeight": 296,
+        "overflow": 0,
+        "scrollHeight": 296,
+        "top": 384.2218017578125
+      },
+      "genre": "compliment",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-compliment.jpg"
+    },
+    {
+      "cards": [
+        {
+          "gap": "3.2px",
+          "height": 88.50337219238281,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        },
+        {
+          "gap": "3.2px",
+          "height": 160.13327026367188,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        }
+      ],
+      "document": {
+        "clientHeight": 784,
+        "clientWidth": 1255,
+        "scrollHeight": 784,
+        "scrollWidth": 1255
+      },
+      "fields": {
+        "bottom": 680.1470336914062,
+        "clientHeight": 296,
+        "overflow": 0,
+        "scrollHeight": 296,
+        "top": 384.2218017578125
+      },
+      "genre": "emotion",
+      "illustration": {
+        "height": 251.2637939453125,
+        "width": 565.35693359375
+      },
+      "submit": {
+        "bottom": 747.3422470092773,
+        "top": 693.7423706054688,
+        "visible": true
+      },
+      "viewport": {
+        "height": 784,
+        "width": 1255
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-emotion.jpg"
+    }
+  ],
+  "exact": [
+    {
+      "cards": [
+        {
+          "gap": "6.4px",
+          "height": 150.53614807128906,
+          "paddingBottom": "16px",
+          "paddingTop": "12px"
+        }
+      ],
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "bottom": 695.8333435058594,
+        "clientHeight": 202,
+        "overflow": 0,
+        "scrollHeight": 202,
+        "top": 494.3168029785156
+      },
+      "genre": "interview",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-interview.jpg"
+    },
+    {
+      "cards": [
+        {
+          "gap": "6.4px",
+          "height": 171.82138061523438,
+          "paddingBottom": "16px",
+          "paddingTop": "12px"
+        }
+      ],
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "bottom": 695.8333435058594,
+        "clientHeight": 312,
+        "overflow": 0,
+        "scrollHeight": 312,
+        "top": 384.1605529785156
+      },
+      "genre": "commonality",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-commonality.jpg"
+    },
+    {
+      "cards": [
+        {
+          "gap": "8px",
+          "height": 109.3443603515625,
+          "paddingBottom": "12px",
+          "paddingTop": "10px"
+        },
+        {
+          "gap": "6.4px",
+          "height": 144.53890991210938,
+          "paddingBottom": "12px",
+          "paddingTop": "10px"
+        }
+      ],
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "bottom": 695.8333435058594,
+        "clientHeight": 312,
+        "overflow": 0,
+        "scrollHeight": 312,
+        "top": 384.1605529785156
+      },
+      "genre": "recommendation",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-recommendation.jpg"
+    },
+    {
+      "cards": [
+        {
+          "gap": "4px",
+          "height": 89.30760192871094,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        },
+        {
+          "gap": "4px",
+          "height": 89.30760192871094,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        },
+        {
+          "gap": "4px",
+          "height": 89.30760192871094,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        }
+      ],
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "bottom": 695.8333435058594,
+        "clientHeight": 312,
+        "overflow": 0,
+        "scrollHeight": 312,
+        "top": 384.1605529785156
+      },
+      "genre": "compliment",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-compliment.jpg"
+    },
+    {
+      "cards": [
+        {
+          "gap": "3.2px",
+          "height": 88.50337219238281,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        },
+        {
+          "gap": "3.2px",
+          "height": 160.13327026367188,
+          "paddingBottom": "6px",
+          "paddingTop": "6px"
+        }
+      ],
+      "document": {
+        "clientHeight": 800,
+        "clientWidth": 1280,
+        "scrollHeight": 800,
+        "scrollWidth": 1280
+      },
+      "fields": {
+        "bottom": 695.8333435058594,
+        "clientHeight": 312,
+        "overflow": 0,
+        "scrollHeight": 312,
+        "top": 384.1605529785156
+      },
+      "genre": "emotion",
+      "illustration": {
+        "height": 251.2025146484375,
+        "width": 565.2190551757812
+      },
+      "submit": {
+        "bottom": 763.0284652709961,
+        "top": 709.4285888671875,
+        "visible": true
+      },
+      "viewport": {
+        "height": 800,
+        "width": 1280
+      },
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-emotion.jpg"
+    }
+  ],
+  "messageStateBudget": {
+    "assumptions": {
+      "statusLineHeightPx": 15.2,
+      "statusGapPx": 4,
+      "complimentFieldGapPx": 8,
+      "cardStackHeightPx": 283.9228057861328
+    },
+    "current": {
+      "formHeightPx": 363.1203918457031,
+      "availableFieldsPx": 286.32051544189454,
+      "requiredCardStackPx": 283.9228057861328,
+      "remainingPx": 2.39770965576173
+    },
+    "exact": {
+      "formHeightPx": 378.8061828613281,
+      "availableFieldsPx": 302.00630645751954,
+      "requiredCardStackPx": 283.9228057861328,
+      "remainingPx": 18.08350067138673
+    }
+  },
+  "recapture": {
+    "reason": "fresh evidence for four header-read artifacts",
+    "current": [
+      {
+        "cards": [
+          {
+            "gap": "6.4px",
+            "height": 171.82138061523438,
+            "paddingBottom": "16px",
+            "paddingTop": "12px"
+          }
+        ],
+        "document": {
+          "clientHeight": 820,
+          "clientWidth": 1095,
+          "scrollHeight": 820,
+          "scrollWidth": 1095
+        },
+        "fields": {
+          "bottom": 718.5202026367188,
+          "clientHeight": 354,
+          "overflow": 0,
+          "scrollHeight": 354,
+          "top": 364.7135314941406
+        },
+        "genre": "commonality",
+        "illustration": {
+          "height": 233.8541717529297,
+          "width": 526.171875
+        },
+        "submit": {
+          "bottom": 785.7153549194336,
+          "top": 732.115478515625,
+          "visible": true
+        },
+        "viewport": {
+          "height": 820,
+          "width": 1095
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-commonality-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          }
+        ],
+        "document": {
+          "clientHeight": 820,
+          "clientWidth": 1095,
+          "scrollHeight": 820,
+          "scrollWidth": 1095
+        },
+        "fields": {
+          "bottom": 718.5202026367188,
+          "clientHeight": 354,
+          "overflow": 0,
+          "scrollHeight": 354,
+          "top": 364.7135314941406
+        },
+        "genre": "compliment",
+        "illustration": {
+          "height": 233.8541717529297,
+          "width": 526.171875
+        },
+        "submit": {
+          "bottom": 785.7153549194336,
+          "top": 732.115478515625,
+          "visible": true
+        },
+        "viewport": {
+          "height": 820,
+          "width": 1095
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-compliment-v2.jpg"
+      }
+    ],
+    "exact": [
+      {
+        "cards": [
+          {
+            "gap": "6.4px",
+            "height": 171.82138061523438,
+            "paddingBottom": "16px",
+            "paddingTop": "12px"
+          }
+        ],
+        "document": {
+          "clientHeight": 800,
+          "clientWidth": 1280,
+          "scrollHeight": 800,
+          "scrollWidth": 1280
+        },
+        "fields": {
+          "bottom": 695.8333435058594,
+          "clientHeight": 312,
+          "overflow": 0,
+          "scrollHeight": 312,
+          "top": 384.1605529785156
+        },
+        "genre": "commonality",
+        "illustration": {
+          "height": 251.2025146484375,
+          "width": 565.2190551757812
+        },
+        "submit": {
+          "bottom": 763.0284652709961,
+          "top": 709.4285888671875,
+          "visible": true
+        },
+        "viewport": {
+          "height": 800,
+          "width": 1280
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-commonality-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          }
+        ],
+        "document": {
+          "clientHeight": 800,
+          "clientWidth": 1280,
+          "scrollHeight": 800,
+          "scrollWidth": 1280
+        },
+        "fields": {
+          "bottom": 695.8333435058594,
+          "clientHeight": 312,
+          "overflow": 0,
+          "scrollHeight": 312,
+          "top": 384.1605529785156
+        },
+        "genre": "compliment",
+        "illustration": {
+          "height": 251.2025146484375,
+          "width": 565.2190551757812
+        },
+        "submit": {
+          "bottom": 763.0284652709961,
+          "top": 709.4285888671875,
+          "visible": true
+        },
+        "viewport": {
+          "height": 800,
+          "width": 1280
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-compliment-v2.jpg"
+      }
+    ]
+  },
+  "finalFreshSet": {
+    "current": [
+      {
+        "cards": [
+          {
+            "gap": "6.4px",
+            "height": 150.53614807128906,
+            "paddingBottom": "16px",
+            "paddingTop": "12px"
+          }
+        ],
+        "document": {
+          "clientHeight": 820,
+          "clientWidth": 1095,
+          "scrollHeight": 820,
+          "scrollWidth": 1095
+        },
+        "fields": {
+          "bottom": 718.5202331542969,
+          "clientHeight": 246,
+          "overflow": 0,
+          "scrollHeight": 246,
+          "top": 472.3728637695313
+        },
+        "genre": "interview",
+        "illustration": {
+          "height": 233.8541717529297,
+          "width": 526.171875
+        },
+        "submit": {
+          "bottom": 785.7153549194336,
+          "top": 732.115478515625,
+          "visible": true
+        },
+        "viewport": {
+          "height": 820,
+          "width": 1095
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-interview-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "6.4px",
+            "height": 171.82138061523438,
+            "paddingBottom": "16px",
+            "paddingTop": "12px"
+          }
+        ],
+        "document": {
+          "clientHeight": 820,
+          "clientWidth": 1095,
+          "scrollHeight": 820,
+          "scrollWidth": 1095
+        },
+        "fields": {
+          "bottom": 718.5202026367188,
+          "clientHeight": 354,
+          "overflow": 0,
+          "scrollHeight": 354,
+          "top": 364.7135314941406
+        },
+        "genre": "commonality",
+        "illustration": {
+          "height": 233.8541717529297,
+          "width": 526.171875
+        },
+        "submit": {
+          "bottom": 785.7153549194336,
+          "top": 732.115478515625,
+          "visible": true
+        },
+        "viewport": {
+          "height": 820,
+          "width": 1095
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-commonality-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "8px",
+            "height": 109.3443603515625,
+            "paddingBottom": "12px",
+            "paddingTop": "10px"
+          },
+          {
+            "gap": "6.4px",
+            "height": 144.53890991210938,
+            "paddingBottom": "12px",
+            "paddingTop": "10px"
+          }
+        ],
+        "document": {
+          "clientHeight": 820,
+          "clientWidth": 1095,
+          "scrollHeight": 820,
+          "scrollWidth": 1095
+        },
+        "fields": {
+          "bottom": 718.5202026367188,
+          "clientHeight": 354,
+          "overflow": 0,
+          "scrollHeight": 354,
+          "top": 364.7135314941406
+        },
+        "genre": "recommendation",
+        "illustration": {
+          "height": 233.8541717529297,
+          "width": 526.171875
+        },
+        "submit": {
+          "bottom": 785.7153549194336,
+          "top": 732.115478515625,
+          "visible": true
+        },
+        "viewport": {
+          "height": 820,
+          "width": 1095
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-recommendation-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          }
+        ],
+        "document": {
+          "clientHeight": 820,
+          "clientWidth": 1095,
+          "scrollHeight": 820,
+          "scrollWidth": 1095
+        },
+        "fields": {
+          "bottom": 718.5202026367188,
+          "clientHeight": 354,
+          "overflow": 0,
+          "scrollHeight": 354,
+          "top": 364.7135314941406
+        },
+        "genre": "compliment",
+        "illustration": {
+          "height": 233.8541717529297,
+          "width": 526.171875
+        },
+        "submit": {
+          "bottom": 785.7153549194336,
+          "top": 732.115478515625,
+          "visible": true
+        },
+        "viewport": {
+          "height": 820,
+          "width": 1095
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-compliment-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "3.2px",
+            "height": 88.50337219238281,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "3.2px",
+            "height": 173.89706420898438,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          }
+        ],
+        "document": {
+          "clientHeight": 820,
+          "clientWidth": 1095,
+          "scrollHeight": 820,
+          "scrollWidth": 1095
+        },
+        "fields": {
+          "bottom": 718.5202026367188,
+          "clientHeight": 354,
+          "overflow": 0,
+          "scrollHeight": 354,
+          "top": 364.7135314941406
+        },
+        "genre": "emotion",
+        "illustration": {
+          "height": 233.8541717529297,
+          "width": 526.171875
+        },
+        "submit": {
+          "bottom": 785.7153549194336,
+          "top": 732.115478515625,
+          "visible": true
+        },
+        "viewport": {
+          "height": 820,
+          "width": 1095
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/current-emotion-v2.jpg"
+      }
+    ],
+    "exact": [
+      {
+        "cards": [
+          {
+            "gap": "6.4px",
+            "height": 150.53614807128906,
+            "paddingBottom": "16px",
+            "paddingTop": "12px"
+          }
+        ],
+        "document": {
+          "clientHeight": 800,
+          "clientWidth": 1280,
+          "scrollHeight": 800,
+          "scrollWidth": 1280
+        },
+        "fields": {
+          "bottom": 695.8333435058594,
+          "clientHeight": 202,
+          "overflow": 0,
+          "scrollHeight": 202,
+          "top": 494.3168029785156
+        },
+        "genre": "interview",
+        "illustration": {
+          "height": 251.2025146484375,
+          "width": 565.2190551757812
+        },
+        "submit": {
+          "bottom": 763.0284652709961,
+          "top": 709.4285888671875,
+          "visible": true
+        },
+        "viewport": {
+          "height": 800,
+          "width": 1280
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-interview-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "6.4px",
+            "height": 171.82138061523438,
+            "paddingBottom": "16px",
+            "paddingTop": "12px"
+          }
+        ],
+        "document": {
+          "clientHeight": 800,
+          "clientWidth": 1280,
+          "scrollHeight": 800,
+          "scrollWidth": 1280
+        },
+        "fields": {
+          "bottom": 695.8333435058594,
+          "clientHeight": 312,
+          "overflow": 0,
+          "scrollHeight": 312,
+          "top": 384.1605529785156
+        },
+        "genre": "commonality",
+        "illustration": {
+          "height": 251.2025146484375,
+          "width": 565.2190551757812
+        },
+        "submit": {
+          "bottom": 763.0284652709961,
+          "top": 709.4285888671875,
+          "visible": true
+        },
+        "viewport": {
+          "height": 800,
+          "width": 1280
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-commonality-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "8px",
+            "height": 109.3443603515625,
+            "paddingBottom": "12px",
+            "paddingTop": "10px"
+          },
+          {
+            "gap": "6.4px",
+            "height": 144.53890991210938,
+            "paddingBottom": "12px",
+            "paddingTop": "10px"
+          }
+        ],
+        "document": {
+          "clientHeight": 800,
+          "clientWidth": 1280,
+          "scrollHeight": 800,
+          "scrollWidth": 1280
+        },
+        "fields": {
+          "bottom": 695.8333435058594,
+          "clientHeight": 312,
+          "overflow": 0,
+          "scrollHeight": 312,
+          "top": 384.1605529785156
+        },
+        "genre": "recommendation",
+        "illustration": {
+          "height": 251.2025146484375,
+          "width": 565.2190551757812
+        },
+        "submit": {
+          "bottom": 763.0284652709961,
+          "top": 709.4285888671875,
+          "visible": true
+        },
+        "viewport": {
+          "height": 800,
+          "width": 1280
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-recommendation-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "4px",
+            "height": 89.30760192871094,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          }
+        ],
+        "document": {
+          "clientHeight": 800,
+          "clientWidth": 1280,
+          "scrollHeight": 800,
+          "scrollWidth": 1280
+        },
+        "fields": {
+          "bottom": 695.8333435058594,
+          "clientHeight": 312,
+          "overflow": 0,
+          "scrollHeight": 312,
+          "top": 384.1605529785156
+        },
+        "genre": "compliment",
+        "illustration": {
+          "height": 251.2025146484375,
+          "width": 565.2190551757812
+        },
+        "submit": {
+          "bottom": 763.0284652709961,
+          "top": 709.4285888671875,
+          "visible": true
+        },
+        "viewport": {
+          "height": 800,
+          "width": 1280
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-compliment-v2.jpg"
+      },
+      {
+        "cards": [
+          {
+            "gap": "3.2px",
+            "height": 88.50337219238281,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          },
+          {
+            "gap": "3.2px",
+            "height": 160.13327026367188,
+            "paddingBottom": "6px",
+            "paddingTop": "6px"
+          }
+        ],
+        "document": {
+          "clientHeight": 800,
+          "clientWidth": 1280,
+          "scrollHeight": 800,
+          "scrollWidth": 1280
+        },
+        "fields": {
+          "bottom": 695.8333435058594,
+          "clientHeight": 312,
+          "overflow": 0,
+          "scrollHeight": 312,
+          "top": 384.1605529785156
+        },
+        "genre": "emotion",
+        "illustration": {
+          "height": 251.2025146484375,
+          "width": 565.2190551757812
+        },
+        "submit": {
+          "bottom": 763.0284652709961,
+          "top": 709.4285888671875,
+          "visible": true
+        },
+        "viewport": {
+          "height": 800,
+          "width": 1280
+        },
+        "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/tmp/visual-qa/today-friend-spacing-balance/exact-emotion-v2.jpg"
+      }
+    ]
+  }
+}

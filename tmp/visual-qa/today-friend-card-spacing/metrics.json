@@ -1,0 +1,95 @@
+{
+  "capturedAt": "2026-08-31T13:25:54.517Z",
+  "sourceState": "after final TodayFriendMissionForm.tsx and index.css edits",
+  "viewportContract": {
+    "innerWidth": 1280,
+    "innerHeight": 800
+  },
+  "compliment": {
+    "cards": [
+      {
+        "bottom": 496.0707702636719,
+        "height": 80.50704956054688,
+        "top": 415.563720703125
+      },
+      {
+        "bottom": 586.5732116699219,
+        "height": 80.50704956054688,
+        "top": 506.066162109375
+      },
+      {
+        "bottom": 677.0756530761719,
+        "height": 80.50704956054688,
+        "top": 596.568603515625
+      }
+    ],
+    "document": {
+      "clientHeight": 800,
+      "clientWidth": 1280,
+      "scrollHeight": 800,
+      "scrollWidth": 1280
+    },
+    "fields": {
+      "clientHeight": 267,
+      "clientWidth": 565,
+      "scrollHeight": 267,
+      "scrollWidth": 565
+    },
+    "gaps": [
+      9.995391845703123,
+      9.995391845703123
+    ],
+    "submitVisible": true,
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  "emotion": {
+    "cards": [
+      {
+        "bottom": 504.0670928955078,
+        "height": 88.50337219238281,
+        "top": 415.563720703125
+      },
+      {
+        "bottom": 674.1957702636719,
+        "height": 160.13327026367188,
+        "top": 514.0625
+      }
+    ],
+    "document": {
+      "clientHeight": 800,
+      "clientWidth": 1280,
+      "scrollHeight": 800,
+      "scrollWidth": 1280
+    },
+    "fields": {
+      "clientHeight": 267,
+      "clientWidth": 565,
+      "scrollHeight": 267,
+      "scrollWidth": 565
+    },
+    "gaps": [
+      9.995407104492188
+    ],
+    "reasonContainsPrivacy": true,
+    "submitVisible": true,
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  "captures": [
+    "compliment-1280x800.jpg",
+    "emotion-1280x800.jpg"
+  ],
+  "captureValidation": {
+    "mime": "image/jpeg",
+    "dimensions": {
+      "width": 1280,
+      "height": 800
+    },
+    "fullyComposited": true
+  }
+}

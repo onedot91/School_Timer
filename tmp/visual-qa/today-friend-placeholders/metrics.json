@@ -1,0 +1,68 @@
+[
+  {
+    "label": "추천하기",
+    "document": [
+      1280,
+      800
+    ],
+    "fieldsOverflow": [
+      false,
+      false
+    ],
+    "placeholders": [
+      {
+        "scrollWidth": 258,
+        "text": "친구에게 추천할 이름을 적어요.",
+        "visible": true,
+        "width": 260
+      },
+      {
+        "scrollWidth": 525,
+        "text": "친구에게 추천하고 싶은 이유를 적어요.",
+        "visible": true,
+        "width": 527
+      }
+    ],
+    "rootOverflow": [
+      false,
+      false
+    ],
+    "viewport": [
+      1280,
+      800
+    ]
+  },
+  {
+    "label": "감정 찾기",
+    "document": [
+      1280,
+      800
+    ],
+    "fieldsOverflow": [
+      false,
+      false
+    ],
+    "placeholders": [
+      {
+        "scrollWidth": 525,
+        "text": "친구가 말한 감정을 적어요.",
+        "visible": true,
+        "width": 527
+      },
+      {
+        "scrollWidth": 525,
+        "text": "왜 그렇게 느꼈는지 적어요.",
+        "visible": true,
+        "width": 527
+      }
+    ],
+    "rootOverflow": [
+      false,
+      false
+    ],
+    "viewport": [
+      1280,
+      800
+    ]
+  }
+]

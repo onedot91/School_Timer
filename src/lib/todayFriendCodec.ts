@@ -60,7 +60,19 @@ export const parseTodayFriendPayload = (value: unknown): TodayFriendPayload | nu
     }
     case 'compliment': {
       const compliment = Reflect.get(value, 'compliment');
-      return typeof compliment === 'string' ? { kind, compliment } : null;
+      const reason = Reflect.get(value, 'reason');
+      const message = Reflect.get(value, 'message');
+      if (
+        typeof compliment !== 'string'
+        || (reason !== undefined && typeof reason !== 'string')
+        || (message !== undefined && typeof message !== 'string')
+      ) return null;
+      return {
+        kind,
+        compliment,
+        ...(typeof reason === 'string' ? { reason } : {}),
+        ...(typeof message === 'string' ? { message } : {}),
+      };
     }
     case 'emotion': {
       const emotion = Reflect.get(value, 'emotion');

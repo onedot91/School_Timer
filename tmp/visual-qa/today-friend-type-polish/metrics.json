@@ -1,0 +1,312 @@
+[
+  {
+    "label": "인터뷰",
+    "slug": "interview",
+    "document": [
+      1280,
+      800
+    ],
+    "fieldsOverflowY": false,
+    "genre": "interview",
+    "guideOverflow": [
+      false,
+      false
+    ],
+    "mainOverflow": [
+      false,
+      false
+    ],
+    "rects": {
+      "guide": {
+        "height": 692,
+        "width": 615,
+        "x": 601,
+        "y": 96
+      },
+      "image": {
+        "height": 283,
+        "width": 565,
+        "x": 626,
+        "y": 121
+      },
+      "main": {
+        "height": 692,
+        "width": 1152,
+        "x": 64,
+        "y": 96
+      },
+      "submit": {
+        "height": 54,
+        "width": 565,
+        "x": 626,
+        "y": 709
+      }
+    },
+    "rootOverflow": [
+      false,
+      false
+    ],
+    "sizes": {
+      "action": "18px",
+      "fieldLabel": "18px",
+      "input": "17.6px",
+      "pageTitle": "32px",
+      "question": "24.32px",
+      "questionLabel": "18px",
+      "supporting": null,
+      "tab": "17px"
+    },
+    "viewport": [
+      1280,
+      800
+    ]
+  },
+  {
+    "label": "공통점 찾기",
+    "slug": "commonality",
+    "document": [
+      1280,
+      800
+    ],
+    "fieldsOverflowY": false,
+    "genre": "commonality",
+    "guideOverflow": [
+      false,
+      false
+    ],
+    "mainOverflow": [
+      false,
+      false
+    ],
+    "rects": {
+      "guide": {
+        "height": 692,
+        "width": 615,
+        "x": 601,
+        "y": 96
+      },
+      "image": {
+        "height": 283,
+        "width": 565,
+        "x": 626,
+        "y": 121
+      },
+      "main": {
+        "height": 692,
+        "width": 1152,
+        "x": 64,
+        "y": 96
+      },
+      "submit": {
+        "height": 54,
+        "width": 565,
+        "x": 626,
+        "y": 709
+      }
+    },
+    "rootOverflow": [
+      false,
+      false
+    ],
+    "sizes": {
+      "action": "18px",
+      "fieldLabel": "18px",
+      "input": "17.6px",
+      "pageTitle": "32px",
+      "question": null,
+      "questionLabel": null,
+      "supporting": "15.2px",
+      "tab": "17px"
+    },
+    "viewport": [
+      1280,
+      800
+    ]
+  },
+  {
+    "label": "추천하기",
+    "slug": "recommendation",
+    "document": [
+      1280,
+      800
+    ],
+    "fieldsOverflowY": false,
+    "genre": "recommendation",
+    "guideOverflow": [
+      false,
+      false
+    ],
+    "mainOverflow": [
+      false,
+      false
+    ],
+    "rects": {
+      "guide": {
+        "height": 692,
+        "width": 615,
+        "x": 601,
+        "y": 96
+      },
+      "image": {
+        "height": 283,
+        "width": 565,
+        "x": 626,
+        "y": 121
+      },
+      "main": {
+        "height": 692,
+        "width": 1152,
+        "x": 64,
+        "y": 96
+      },
+      "submit": {
+        "height": 54,
+        "width": 565,
+        "x": 626,
+        "y": 709
+      }
+    },
+    "rootOverflow": [
+      false,
+      false
+    ],
+    "sizes": {
+      "action": "18px",
+      "fieldLabel": "18px",
+      "input": "17.6px",
+      "pageTitle": "32px",
+      "question": null,
+      "questionLabel": null,
+      "supporting": null,
+      "tab": "17px"
+    },
+    "viewport": [
+      1280,
+      800
+    ]
+  },
+  {
+    "label": "칭찬하기",
+    "slug": "compliment",
+    "document": [
+      1280,
+      800
+    ],
+    "fieldsOverflowY": false,
+    "genre": "compliment",
+    "guideOverflow": [
+      false,
+      false
+    ],
+    "mainOverflow": [
+      false,
+      false
+    ],
+    "rects": {
+      "guide": {
+        "height": 692,
+        "width": 615,
+        "x": 601,
+        "y": 96
+      },
+      "image": {
+        "height": 283,
+        "width": 565,
+        "x": 626,
+        "y": 121
+      },
+      "main": {
+        "height": 692,
+        "width": 1152,
+        "x": 64,
+        "y": 96
+      },
+      "submit": {
+        "height": 54,
+        "width": 565,
+        "x": 626,
+        "y": 709
+      }
+    },
+    "rootOverflow": [
+      false,
+      false
+    ],
+    "sizes": {
+      "action": "18px",
+      "fieldLabel": "18px",
+      "input": "17.6px",
+      "pageTitle": "32px",
+      "question": null,
+      "questionLabel": null,
+      "supporting": null,
+      "tab": "17px"
+    },
+    "viewport": [
+      1280,
+      800
+    ]
+  },
+  {
+    "label": "감정 찾기",
+    "slug": "emotion",
+    "document": [
+      1280,
+      800
+    ],
+    "fieldsOverflowY": false,
+    "genre": "emotion",
+    "guideOverflow": [
+      false,
+      false
+    ],
+    "mainOverflow": [
+      false,
+      false
+    ],
+    "rects": {
+      "guide": {
+        "height": 692,
+        "width": 615,
+        "x": 601,
+        "y": 96
+      },
+      "image": {
+        "height": 283,
+        "width": 565,
+        "x": 626,
+        "y": 121
+      },
+      "main": {
+        "height": 692,
+        "width": 1152,
+        "x": 64,
+        "y": 96
+      },
+      "submit": {
+        "height": 54,
+        "width": 565,
+        "x": 626,
+        "y": 709
+      }
+    },
+    "rootOverflow": [
+      false,
+      false
+    ],
+    "sizes": {
+      "action": "18px",
+      "fieldLabel": "18px",
+      "input": "17.6px",
+      "pageTitle": "32px",
+      "question": null,
+      "questionLabel": null,
+      "supporting": "15.2px",
+      "tab": "17px"
+    },
+    "viewport": [
+      1280,
+      800
+    ]
+  }
+]

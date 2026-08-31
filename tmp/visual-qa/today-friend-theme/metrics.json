@@ -1,0 +1,121 @@
+{
+  "capturedAt": "2026-08-31T12:24:04.305Z",
+  "expectedPages": 5,
+  "viewport": [
+    1280,
+    800
+  ],
+  "referenceMode": "palette-and-material-contract, not pixel-identical full-page target",
+  "pages": [
+    {
+      "name": "인터뷰",
+      "accent": "#e2a900",
+      "activeTabBackground": "color(srgb 1 0.956471 0.741726)",
+      "documentSize": [
+        1280,
+        800
+      ],
+      "genre": "interview",
+      "guideBackground": "rgb(255, 250, 240)",
+      "imageRatio": 2,
+      "ink": "#2a1a08",
+      "paper": "#fffaf0",
+      "submitBackground": "rgb(226, 169, 0)",
+      "submitOpacity": "1",
+      "submitText": "rgb(36, 22, 0)",
+      "viewport": [
+        1280,
+        800
+      ],
+      "submitContrast": 8.33
+    },
+    {
+      "name": "공통점 찾기",
+      "accent": "#6d35bd",
+      "activeTabBackground": "color(srgb 0.939059 0.898431 1)",
+      "documentSize": [
+        1280,
+        800
+      ],
+      "genre": "commonality",
+      "guideBackground": "rgb(251, 248, 255)",
+      "imageRatio": 2,
+      "ink": "#3d1d69",
+      "paper": "#fbf8ff",
+      "submitBackground": "color(srgb 0.828392 0.758431 0.927529)",
+      "submitOpacity": "1",
+      "submitText": "rgb(61, 29, 105)",
+      "viewport": [
+        1280,
+        800
+      ],
+      "submitContrast": 8.02
+    },
+    {
+      "name": "추천하기",
+      "accent": "#087daf",
+      "activeTabBackground": "color(srgb 0.907137 0.965176 1)",
+      "documentSize": [
+        1280,
+        800
+      ],
+      "genre": "recommendation",
+      "guideBackground": "rgb(255, 249, 242)",
+      "imageRatio": 2,
+      "ink": "#164c67",
+      "paper": "#fff9f2",
+      "submitBackground": "color(srgb 0.728784 0.840314 0.875451)",
+      "submitOpacity": "1",
+      "submitText": "rgb(22, 76, 103)",
+      "viewport": [
+        1280,
+        800
+      ],
+      "submitContrast": 6.1
+    },
+    {
+      "name": "칭찬하기",
+      "accent": "#c93472",
+      "activeTabBackground": "color(srgb 1 0.910039 0.933255)",
+      "documentSize": [
+        1280,
+        800
+      ],
+      "genre": "compliment",
+      "guideBackground": "rgb(255, 247, 235)",
+      "imageRatio": 2,
+      "ink": "#6e2048",
+      "paper": "#fff7eb",
+      "submitBackground": "color(srgb 0.940706 0.75451 0.788706)",
+      "submitOpacity": "1",
+      "submitText": "rgb(110, 32, 72)",
+      "viewport": [
+        1280,
+        800
+      ],
+      "submitContrast": 6.68
+    },
+    {
+      "name": "감정 찾기",
+      "accent": "#075d48",
+      "activeTabBackground": "color(srgb 0.936157 0.910039 0.796863)",
+      "documentSize": [
+        1280,
+        800
+      ],
+      "genre": "emotion",
+      "guideBackground": "rgb(255, 249, 229)",
+      "imageRatio": 2,
+      "ink": "#063a30",
+      "paper": "#fff9e5",
+      "submitBackground": "color(srgb 0.727686 0.805176 0.725647)",
+      "submitOpacity": "1",
+      "submitText": "rgb(6, 58, 48)",
+      "viewport": [
+        1280,
+        800
+      ],
+      "submitContrast": 7.57
+    }
+  ]
+}

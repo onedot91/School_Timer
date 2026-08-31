@@ -4,20 +4,51 @@ import { test } from 'node:test';
 import {
   approveTodayFriendSubmission,
   createTodayFriendPartnerAssignments,
+  createTodayFriendRecommendationDelivery,
   createTodayFriendSubmission,
   createTodayFriendWeek,
   getTodayFriendNumber,
+  getTodayFriendPreviewGenre,
   requestTodayFriendRevision,
   submitTodayFriendSubmission,
   TODAY_FRIEND_GENRES,
   TODAY_FRIEND_REWARD,
 } from './todayFriend';
 
+test('추천하기 미션은 수신 친구의 우편함에 저장할 고유 편지를 만든다', () => {
+  const delivery = createTodayFriendRecommendationDelivery({
+    dateKey: '2026-09-01',
+    studentNumber: 3,
+    partnerNumber: 14,
+    revision: 1,
+    payload: {
+      kind: 'recommendation',
+      category: 'book',
+      title: '긴긴밤',
+      reason: '서로를 지켜 주는 마음이 따뜻해서 추천해요.',
+      letterId: null,
+    },
+  });
+
+  assert.deepEqual(delivery.letter, {
+    id: 'today-friend-recommendation-2026-09-01-3-r1',
+    recipient: 14,
+    title: '[오늘의 친구] 책 추천',
+    content: '추천할 것\n긴긴밤\n\n추천하는 이유\n서로를 지켜 주는 마음이 따뜻해서 추천해요.',
+  });
+  assert.equal(delivery.payload.letterId, delivery.letter.id);
+});
+
+test('현재 장르 탭을 다시 선택해도 저장 버튼을 막는 미리보기 상태가 되지 않는다', () => {
+  assert.equal(getTodayFriendPreviewGenre('interview', 'interview'), null);
+  assert.equal(getTodayFriendPreviewGenre('interview', 'compliment'), 'compliment');
+});
+
 test('기본 파트너는 날짜가 바뀌면 모든 학생에게 새 친구를 배정한다', () => {
   // Given
   const students = Array.from({ length: 23 }, (_, index) => index + 1);
-  const firstDateKey = '2026-01-02';
-  const secondDateKey = '2026-01-03';
+  const firstDateKey = '2026-01-05';
+  const secondDateKey = '2026-01-06';
 
   // When
   const firstPartners = students.map((studentNumber) => getTodayFriendNumber(studentNumber, firstDateKey));
@@ -34,12 +65,13 @@ test('기본 파트너는 날짜가 바뀌면 모든 학생에게 새 친구를 
   assert.equal(new Set(secondPartners).size, 23);
 });
 
-test('한 학생은 22일 동안 자기 자신을 제외한 모든 친구를 한 번씩 만난다', () => {
+test('한 학생은 주말을 제외한 22번의 미션 동안 모든 친구를 한 번씩 만난다', () => {
   // Given
   const studentNumber = 1;
-  const dateKeys = Array.from({ length: 22 }, (_, index) => (
-    new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10)
-  ));
+  const dateKeys = Array.from({ length: 31 }, (_, index) => new Date(Date.UTC(2026, 0, index + 1)))
+    .filter((date) => date.getUTCDay() >= 1 && date.getUTCDay() <= 5)
+    .slice(0, 22)
+    .map((date) => date.toISOString().slice(0, 10));
 
   // When
   const partners = dateKeys.map((dateKey) => getTodayFriendNumber(studentNumber, dateKey));

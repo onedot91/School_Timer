@@ -1,0 +1,123 @@
+{
+  "recommendation": {
+    "adjacentGaps": [
+      -0.000030517578125,
+      0,
+      0.000030517578125
+    ],
+    "buttons": [
+      {
+        "borderRadius": "0px",
+        "borderRightWidth": "0.980392px",
+        "bottom": 481.51040267944336,
+        "left": 643.9491577148438,
+        "pressed": "false",
+        "right": 708.3639831542969,
+        "text": "영화",
+        "top": 429.5113220214844
+      },
+      {
+        "borderRadius": "0px",
+        "borderRightWidth": "0.980392px",
+        "bottom": 481.51040267944336,
+        "left": 708.3639526367188,
+        "pressed": "true",
+        "right": 772.7864379882812,
+        "text": "책",
+        "top": 429.5113220214844
+      },
+      {
+        "borderRadius": "0px",
+        "borderRightWidth": "0.980392px",
+        "bottom": 481.51040267944336,
+        "left": 772.7864379882812,
+        "pressed": "false",
+        "right": 837.2012634277344,
+        "text": "음악",
+        "top": 429.5113220214844
+      },
+      {
+        "borderRadius": "0px",
+        "borderRightWidth": "0px",
+        "bottom": 481.51040267944336,
+        "left": 837.2012939453125,
+        "pressed": "false",
+        "right": 901.623779296875,
+        "text": "음식",
+        "top": 429.5113220214844
+      }
+    ],
+    "documentOverflow": {
+      "x": 0,
+      "y": 0
+    },
+    "group": {
+      "borderRadius": "12px",
+      "bottom": 482.4908103942871,
+      "left": 642.96875,
+      "overflow": "hidden",
+      "right": 902.6041564941406,
+      "top": 428.5309448242187
+    },
+    "selectedCount": 1,
+    "submit": {
+      "bottom": 763.0284652709961,
+      "top": 709.4285888671875,
+      "visible": true
+    },
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  "pressedAfterMovie": [
+    {
+      "pressed": "true",
+      "text": "영화"
+    },
+    {
+      "pressed": "false",
+      "text": "책"
+    },
+    {
+      "pressed": "false",
+      "text": "음악"
+    },
+    {
+      "pressed": "false",
+      "text": "음식"
+    }
+  ],
+  "emotionInitial": {
+    "checked": false,
+    "disabled": false,
+    "noteCount": 0,
+    "phraseCount": 0,
+    "placeholder": "왜 그렇게 느꼈는지 적어요.",
+    "value": ""
+  },
+  "emotionChecked": {
+    "checked": true,
+    "disabled": true,
+    "documentOverflow": {
+      "x": 0,
+      "y": 0
+    },
+    "noteCount": 0,
+    "phraseCount": 0,
+    "submit": {
+      "bottom": 763.0284652709961,
+      "top": 709.4285888671875,
+      "visible": true
+    },
+    "value": "말하고 싶지 않은 내용은 묻지 않아요.",
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  },
+  "emotionRestored": {
+    "disabled": false,
+    "value": "친구가 직접 말한 이유"
+  }
+}

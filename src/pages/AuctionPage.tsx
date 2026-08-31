@@ -628,6 +628,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     id: createBrowserRequestId(), recipient, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
   }));
 
+  const sendTodayFriendRecommendation = (letter: {
+    readonly id: string;
+    readonly recipient: number;
+    readonly title: string;
+    readonly content: string;
+  }) => saveStudentLifeChange((current) => createStudentLetter(current, {
+    ...letter,
+    senderLabel: `${studentNumber}번`,
+    senderStudentNumber: studentNumber,
+    createdAt: new Date().toISOString(),
+  }));
+
   const readStudentLetter = async (letterId: string) => {
     await saveStudentLifeChange((current) => markStudentLetterRead(current, studentNumber, letterId, new Date().toISOString()));
   };
@@ -1013,11 +1025,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     saveStudentPetPosition('goma', position)
   );
 
-  const saveStudentEmotion = useCallback(async (emotionId: StudentEmotionId, comment: string) => {
+  const saveStudentEmotion = useCallback(async (emotionId: StudentEmotionId, comment: string, selfMessage: string) => {
     if (isEmotionSaving) return false;
     setIsEmotionSaving(true);
     try {
-      const entry = createStudentEmotionEntry(studentNumber, emotionId, comment, new Date(), todayEmotionEntry);
+      const entry = createStudentEmotionEntry(studentNumber, emotionId, comment, new Date(), todayEmotionEntry, selfMessage);
       let savedHistory: StudentEmotionHistory = {};
       let savedCurrencyHistory: CurrencyHistory = currencyHistory;
       let savedBalances = currencyBalances;
@@ -1848,7 +1860,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           <StudentTodayFriendPage
             studentNumber={studentNumber}
             profileAssignments={profileAssignments}
-            onSendRecommendation={sendStudentLetter}
+            onSendRecommendation={sendTodayFriendRecommendation}
             onBack={() => navigateStudentView('missions')}
           />
         ) : null}

@@ -51,6 +51,7 @@ test('emotion history keeps one updated entry per student and date', () => {
     '수업을 마치고 마음이 편해졌다',
     new Date('2026-08-09T05:00:00.000Z'),
     first,
+    '오늘도 차분하게 잘 해냈어',
   );
   const history = upsertStudentEmotionEntry(upsertStudentEmotionEntry({}, first), updated);
 
@@ -58,6 +59,7 @@ test('emotion history keeps one updated entry per student and date', () => {
   assert.equal(history['7'][0].id, first.id);
   assert.equal(history['7'][0].emotionId, 'calm');
   assert.equal(history['7'][0].comment, '수업을 마치고 마음이 편해졌다');
+  assert.equal(history['7'][0].selfMessage, '오늘도 차분하게 잘 해냈어');
 });
 
 test('normalizer rejects blank or oversized emotion comments', () => {
@@ -70,7 +72,25 @@ test('normalizer rejects blank or oversized emotion comments', () => {
     updatedAt: '2026-08-09T00:00:00.000Z',
   };
   assert.deepEqual(normalizeStudentEmotionHistory({ 3: [{ ...base, comment: '   ' }] }), {});
-  assert.deepEqual(normalizeStudentEmotionHistory({ 3: [{ ...base, comment: '가'.repeat(81) }] }), {});
+  assert.deepEqual(normalizeStudentEmotionHistory({ 3: [{ ...base, comment: '가'.repeat(61) }] }), {});
+  assert.deepEqual(normalizeStudentEmotionHistory({ 3: [{ ...base, comment: '괜찮은 하루', selfMessage: '가'.repeat(31) }] }), {});
+});
+
+test('legacy emotion records without a self message remain valid', () => {
+  const history = normalizeStudentEmotionHistory({
+    3: [{
+      id: 'student-emotion-3-2026-08-09',
+      studentNumber: 3,
+      dateKey: '2026-08-09',
+      emotionId: 'glad',
+      comment: '친구와 재미있게 놀았다',
+      createdAt: '2026-08-09T00:00:00.000Z',
+      updatedAt: '2026-08-09T00:00:00.000Z',
+    }],
+  });
+
+  assert.equal(history['3'][0].comment, '친구와 재미있게 놀았다');
+  assert.equal(history['3'][0].selfMessage, undefined);
 });
 
 test('concurrent teacher saves preserve the newest student emotion record', () => {

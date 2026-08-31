@@ -16,12 +16,55 @@ export type TodayFriendRelationKind = 'pair' | 'cycle';
 export type TodayFriendSubmissionStatus = 'draft' | 'submitted' | 'revision_requested' | 'approved';
 export type TodayFriendRewardStatus = 'pending' | 'paid';
 
+export const getTodayFriendPreviewGenre = (
+  missionGenre: TodayFriendGenre,
+  selectedGenre: TodayFriendGenre,
+): TodayFriendGenre | null => selectedGenre === missionGenre ? null : selectedGenre;
+
 export type TodayFriendPayload =
   | { readonly kind: 'interview'; readonly answer: string }
   | { readonly kind: 'commonality'; readonly commonality: string }
   | { readonly kind: 'recommendation'; readonly category: 'movie' | 'book' | 'music' | 'food'; readonly title: string; readonly reason: string; readonly letterId: string | null }
-  | { readonly kind: 'compliment'; readonly compliment: string }
+  | { readonly kind: 'compliment'; readonly compliment: string; readonly reason?: string; readonly message?: string }
   | { readonly kind: 'emotion'; readonly emotion: string; readonly reason: string; readonly declinedToExplain: boolean };
+
+export type TodayFriendRecommendationLetter = {
+  readonly id: string;
+  readonly recipient: number;
+  readonly title: string;
+  readonly content: string;
+};
+
+const TODAY_FRIEND_RECOMMENDATION_CATEGORY_LABELS = {
+  movie: '영화',
+  book: '책',
+  music: '음악',
+  food: '음식',
+} as const satisfies Readonly<Record<Extract<TodayFriendPayload, { kind: 'recommendation' }>['category'], string>>;
+
+export const createTodayFriendRecommendationLetter = (input: {
+  readonly dateKey: string;
+  readonly studentNumber: number;
+  readonly partnerNumber: number;
+  readonly revision: number;
+  readonly payload: Extract<TodayFriendPayload, { kind: 'recommendation' }>;
+}): TodayFriendRecommendationLetter => {
+  const categoryLabel = TODAY_FRIEND_RECOMMENDATION_CATEGORY_LABELS[input.payload.category];
+  return {
+    id: `today-friend-recommendation-${input.dateKey}-${input.studentNumber}-r${input.revision}`,
+    recipient: input.partnerNumber,
+    title: `[오늘의 친구] ${categoryLabel} 추천`,
+    content: `추천할 것\n${input.payload.title}\n\n추천하는 이유\n${input.payload.reason}`,
+  };
+};
+
+export const createTodayFriendRecommendationDelivery = (input: Parameters<typeof createTodayFriendRecommendationLetter>[0]) => {
+  const letter = createTodayFriendRecommendationLetter(input);
+  return {
+    letter,
+    payload: { ...input.payload, letterId: letter.id },
+  } as const;
+};
 
 export interface TodayFriendWeekDay {
   readonly dateKey: string;
@@ -207,9 +250,9 @@ export const createDailyTodayFriendPartnerAssignments = (
     throw new TodayFriendDomainError('INVALID_DATE_KEY');
   }
 
-  const rotationCount = students.length - 1;
-  const dayNumber = Math.floor(date.getTime() / DAY_IN_MILLISECONDS);
-  const offset = ((dayNumber % rotationCount) + rotationCount) % rotationCount + 1;
+  const weekdayIndex = (date.getUTCDay() + 6) % 7;
+  const weekdayNumber = Math.floor((Math.floor(date.getTime() / DAY_IN_MILLISECONDS) - weekdayIndex) / 7) * 5 + Math.min(weekdayIndex, 4);
+  const offset = ((weekdayNumber % (students.length - 1)) + students.length - 1) % (students.length - 1) + 1;
   const groupId = `${dateKey}-daily-offset-${offset}`;
 
   return students.map((studentNumber, index) => {

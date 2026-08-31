@@ -14,7 +14,11 @@ const getPreview = (submission: TodayFriendSubmission): string => {
     case 'interview': return submission.payload.answer;
     case 'commonality': return submission.payload.commonality;
     case 'recommendation': return `${submission.payload.title} · ${submission.payload.reason}`;
-    case 'compliment': return submission.payload.compliment;
+    case 'compliment': return [
+      `칭찬할 행동: ${submission.payload.compliment}`,
+      submission.payload.reason ? `좋았던 이유: ${submission.payload.reason}` : null,
+      submission.payload.message ? `“${submission.payload.message}”` : null,
+    ].filter((line): line is string => line !== null).join('\n');
     case 'emotion': return `${submission.payload.emotion} · ${submission.payload.declinedToExplain ? '이유는 말하지 않음' : submission.payload.reason}`;
   }
 };

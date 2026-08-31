@@ -1,5 +1,6 @@
 export const STUDENT_EMOTION_STORAGE_KEY = 'school-timer-student-emotions-v2';
-export const STUDENT_EMOTION_COMMENT_MAX_LENGTH = 80;
+export const STUDENT_EMOTION_COMMENT_MAX_LENGTH = 60;
+export const STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH = 30;
 
 export const STUDENT_EMOTION_ZONE_IDS = ['red', 'yellow', 'blue', 'green'] as const;
 
@@ -103,6 +104,7 @@ export interface StudentEmotionEntry {
   dateKey: string;
   emotionId: StudentEmotionId;
   comment: string;
+  selfMessage?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -152,6 +154,7 @@ export const normalizeStudentEmotionHistory = (input: unknown): StudentEmotionHi
       if (!item || typeof item !== 'object' || Array.isArray(item)) return;
       const candidate = item as Partial<Omit<StudentEmotionEntry, 'emotionId'>> & { emotionId?: string };
       const comment = typeof candidate.comment === 'string' ? candidate.comment.trim() : '';
+      const selfMessage = typeof candidate.selfMessage === 'string' ? candidate.selfMessage.trim() : '';
       if (
         typeof candidate.id !== 'string'
         || candidate.id.length === 0
@@ -162,6 +165,7 @@ export const normalizeStudentEmotionHistory = (input: unknown): StudentEmotionHi
         || !STUDENT_EMOTION_IDS.has(candidate.emotionId)
         || comment.length === 0
         || comment.length > STUDENT_EMOTION_COMMENT_MAX_LENGTH
+        || selfMessage.length > STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH
         || typeof candidate.createdAt !== 'string'
         || !Number.isFinite(Date.parse(candidate.createdAt))
         || typeof candidate.updatedAt !== 'string'
@@ -175,6 +179,7 @@ export const normalizeStudentEmotionHistory = (input: unknown): StudentEmotionHi
         dateKey: candidate.dateKey,
         emotionId: normalizedEmotionId as StudentEmotionId,
         comment,
+        ...(selfMessage ? { selfMessage } : {}),
         createdAt: candidate.createdAt,
         updatedAt: candidate.updatedAt,
       };
@@ -221,6 +226,7 @@ export const createStudentEmotionEntry = (
   comment: string,
   selectedAt = new Date(),
   existingEntry?: StudentEmotionEntry | null,
+  selfMessage = '',
 ): StudentEmotionEntry => {
   const timestamp = selectedAt.toISOString();
   return {
@@ -229,6 +235,9 @@ export const createStudentEmotionEntry = (
     dateKey: getKoreanLocalDateKey(selectedAt),
     emotionId,
     comment: comment.trim().slice(0, STUDENT_EMOTION_COMMENT_MAX_LENGTH),
+    ...(selfMessage.trim() ? {
+      selfMessage: selfMessage.trim().slice(0, STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH),
+    } : {}),
     createdAt: existingEntry?.createdAt ?? timestamp,
     updatedAt: timestamp,
   };

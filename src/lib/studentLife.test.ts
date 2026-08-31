@@ -190,6 +190,25 @@ test('같은 요청 ID의 편지와 책은 한 번만 저장된다', () => {
   assert.equal(getStudentBooks(withBook, 4).length, 1);
 });
 
+test('추천 편지는 긴 이유도 잘리지 않고 같은 미션 요청은 중복 저장되지 않는다', () => {
+  const content = `추천할 것\n긴긴밤\n\n추천하는 이유\n${'따뜻한 이야기라서 추천해요. '.repeat(20)}`;
+  const letter = {
+    id: 'today-friend-recommendation-2026-09-01-3-r1',
+    recipient: 14,
+    senderLabel: '3번',
+    senderStudentNumber: 3,
+    title: '[오늘의 친구] 책 추천',
+    content,
+    createdAt: '2026-09-01T01:00:00.000Z',
+  };
+
+  const first = createStudentLetter(normalizeStudentLifeState(null), letter);
+  const retried = createStudentLetter(first, letter);
+
+  assert.equal(getStudentLetters(retried, 14).length, 1);
+  assert.equal(getStudentLetters(retried, 14)[0]?.content, content.trim());
+});
+
 test('잘못된 학생 번호와 빈 기록은 정규화에서 제외된다', () => {
   const normalized = normalizeStudentLifeState({
     letters: [

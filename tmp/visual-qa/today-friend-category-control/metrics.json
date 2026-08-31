@@ -1,0 +1,170 @@
+{
+  "exactViewport": {
+    "height": 800,
+    "width": 1280
+  },
+  "transitions": [
+    {
+      "pressed": [
+        {
+          "pressed": "true",
+          "text": "영화"
+        },
+        {
+          "pressed": "false",
+          "text": "책"
+        },
+        {
+          "pressed": "false",
+          "text": "음악"
+        },
+        {
+          "pressed": "false",
+          "text": "음식"
+        }
+      ],
+      "selectedName": "영화"
+    },
+    {
+      "pressed": [
+        {
+          "pressed": "false",
+          "text": "영화"
+        },
+        {
+          "pressed": "true",
+          "text": "책"
+        },
+        {
+          "pressed": "false",
+          "text": "음악"
+        },
+        {
+          "pressed": "false",
+          "text": "음식"
+        }
+      ],
+      "selectedName": "책"
+    },
+    {
+      "pressed": [
+        {
+          "pressed": "false",
+          "text": "영화"
+        },
+        {
+          "pressed": "false",
+          "text": "책"
+        },
+        {
+          "pressed": "true",
+          "text": "음악"
+        },
+        {
+          "pressed": "false",
+          "text": "음식"
+        }
+      ],
+      "selectedName": "음악"
+    },
+    {
+      "pressed": [
+        {
+          "pressed": "false",
+          "text": "영화"
+        },
+        {
+          "pressed": "false",
+          "text": "책"
+        },
+        {
+          "pressed": "false",
+          "text": "음악"
+        },
+        {
+          "pressed": "true",
+          "text": "음식"
+        }
+      ],
+      "selectedName": "음식"
+    }
+  ],
+  "layout": {
+    "actions": {
+      "bottom": 763.0284652709961,
+      "height": 53.599876403808594,
+      "left": 625.9957275390625,
+      "right": 1191.2147827148438,
+      "top": 709.4285888671875,
+      "width": 565.2190551757812
+    },
+    "actionsVisible": true,
+    "basics": {
+      "bottom": 493.5049133300781,
+      "height": 109.3443603515625,
+      "left": 625.9957275390625,
+      "right": 1187.2166137695312,
+      "top": 384.1605529785156,
+      "width": 561.2208862304688
+    },
+    "buttons": [
+      {
+        "bottom": 480.53002548217773,
+        "height": 51.999080657958984,
+        "left": 642.96875,
+        "right": 704.8789825439453,
+        "top": 428.5309448242187,
+        "width": 61.91023254394531
+      },
+      {
+        "bottom": 480.53002548217773,
+        "height": 51.999080657958984,
+        "left": 708.8771362304688,
+        "right": 770.7873687744141,
+        "top": 428.5309448242187,
+        "width": 61.91023254394531
+      },
+      {
+        "bottom": 480.53002548217773,
+        "height": 51.999080657958984,
+        "left": 774.7855224609375,
+        "right": 836.6957550048828,
+        "top": 428.5309448242187,
+        "width": 61.91023254394531
+      },
+      {
+        "bottom": 480.53002548217773,
+        "height": 51.999080657958984,
+        "left": 840.6939086914062,
+        "right": 902.6041412353516,
+        "top": 428.5309448242187,
+        "width": 61.91023254394531
+      }
+    ],
+    "categoryButtonCount": 4,
+    "documentOverflow": {
+      "horizontal": 0,
+      "vertical": 0
+    },
+    "fieldsOverflow": {
+      "horizontal": 0,
+      "vertical": 0
+    },
+    "nativeSelectCount": 0,
+    "reason": {
+      "bottom": 646.0401306152344,
+      "height": 144.53890991210938,
+      "left": 625.9957275390625,
+      "right": 1187.2166137695312,
+      "top": 501.501220703125,
+      "width": 561.2208862304688
+    },
+    "selected": [
+      "영화"
+    ],
+    "viewport": {
+      "height": 800,
+      "width": 1280
+    }
+  }
+}

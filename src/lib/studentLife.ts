@@ -54,6 +54,7 @@ const PRACTICE_FAILURE_STORIES_RESET_KEY = 'school-timer-practice-failure-storie
 const MAX_STUDENT_NUMBER = 23;
 export const TEACHER_LETTER_RECIPIENT = 0;
 const MAX_LETTERS = 600;
+const MAX_LETTER_CONTENT_LENGTH = 800;
 const MAX_BOOKS = 600;
 const BOOK_PAPER_THICKNESS_PER_PAGE_CM = 0.005;
 const BOOK_SPINE_MIN_HEIGHT_PX = 27;
@@ -91,7 +92,7 @@ const parseLetter = (value: unknown): StudentLetter | null => {
   if (typeof letter.createdAt !== 'string') return null;
   const senderLabel = letter.senderLabel.trim().slice(0, 20) || '보낸 사람';
   const title = typeof letter.title === 'string' ? letter.title.trim().slice(0, 40) : '';
-  const content = letter.content.trim().slice(0, 300);
+  const content = letter.content.trim().slice(0, MAX_LETTER_CONTENT_LENGTH);
   const copy = senderLabel === '은행원 돝돝'
     ? normalizeBankMailboxCopy(title, content)
     : { title, content };

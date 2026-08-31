@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, PencilLine } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Heart, MessageCircle, PencilLine } from 'lucide-react';
 import {
   STUDENT_EMOTION_COMMENT_MAX_LENGTH,
+  STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH,
   STUDENT_EMOTIONS,
   STUDENT_EMOTION_ZONES,
   getStudentEmotion,
@@ -58,7 +59,7 @@ interface StudentEmotionPageProps {
   todayEntry: StudentEmotionEntry | null;
   history: StudentEmotionEntry[];
   isSaving: boolean;
-  onSave: (emotionId: StudentEmotionId, comment: string) => Promise<boolean>;
+  onSave: (emotionId: StudentEmotionId, comment: string, selfMessage: string) => Promise<boolean>;
   onBack: () => void;
 }
 
@@ -116,10 +117,13 @@ export default function StudentEmotionPage({
   const [activeSection, setActiveSection] = useState<'pick' | 'history'>('pick');
   const [draftEmotionId, setDraftEmotionId] = useState<StudentEmotionId | null>(todayEntry?.emotionId ?? null);
   const [comment, setComment] = useState(todayEntry?.comment ?? '');
+  const [selfMessage, setSelfMessage] = useState(todayEntry?.selfMessage ?? '');
   const [isEmotionDialogOpen, setIsEmotionDialogOpen] = useState(false);
+  const [isEmotionConfirmed, setIsEmotionConfirmed] = useState(false);
   const [saveError, setSaveError] = useState('');
   const emotionDialogRef = useRef<HTMLElement>(null);
   const emotionCommentRef = useRef<HTMLTextAreaElement>(null);
+  const emotionConfirmedButtonRef = useRef<HTMLButtonElement>(null);
   const emotionTriggerRef = useRef<HTMLButtonElement>(null);
   const initialHistoryDateKey = getInitialHistoryDateKey(todayEntry, history);
   const [visibleMonth, setVisibleMonth] = useState(() => {
@@ -128,10 +132,14 @@ export default function StudentEmotionPage({
   });
   const [selectedHistoryDateKey, setSelectedHistoryDateKey] = useState(initialHistoryDateKey);
   const draftEmotion = useMemo(() => getStudentEmotion(draftEmotionId), [draftEmotionId]);
+  const closeEmotionDialog = () => {
+    setIsEmotionDialogOpen(false);
+    setIsEmotionConfirmed(false);
+  };
   useModalFocus({
     dialogRef: emotionDialogRef,
     isOpen: isEmotionDialogOpen,
-    onDismiss: () => setIsEmotionDialogOpen(false),
+    onDismiss: closeEmotionDialog,
     initialFocusRef: emotionCommentRef,
     returnFocusRef: emotionTriggerRef,
     isDismissible: !isSaving,
@@ -169,18 +177,25 @@ export default function StudentEmotionPage({
   useEffect(() => {
     setDraftEmotionId(todayEntry?.emotionId ?? null);
     setComment(todayEntry?.comment ?? '');
-  }, [todayEntry?.emotionId, todayEntry?.comment, todayEntry?.updatedAt]);
+    setSelfMessage(todayEntry?.selfMessage ?? '');
+  }, [todayEntry?.emotionId, todayEntry?.comment, todayEntry?.selfMessage, todayEntry?.updatedAt]);
 
   const selectEmotion = (emotion: StudentEmotionDefinition, trigger: HTMLButtonElement) => {
     emotionTriggerRef.current = trigger;
     setDraftEmotionId(emotion.id as StudentEmotionId);
     setSaveError('');
+    setIsEmotionConfirmed(false);
     setIsEmotionDialogOpen(true);
   };
 
+  useEffect(() => {
+    if (!isEmotionDialogOpen || !isEmotionConfirmed) return;
+    emotionConfirmedButtonRef.current?.focus();
+  }, [isEmotionDialogOpen, isEmotionConfirmed]);
+
   const confirmEmotion = async () => {
-    if (!draftEmotionId || comment.trim().length === 0 || isSaving) return false;
-    if (!await onSave(draftEmotionId, comment)) {
+    if (!draftEmotionId || comment.trim().length === 0 || selfMessage.trim().length === 0 || isSaving) return false;
+    if (!await onSave(draftEmotionId, comment, selfMessage)) {
       setSaveError('이 기기에는 저장할 수 없어요. 잠시 후 다시 시도해 주세요.');
       return false;
     }
@@ -360,7 +375,10 @@ export default function StudentEmotionPage({
                       <StudentEmotionOrbVisual emotion={selectedHistoryEmotion} />
                       <strong>{selectedHistoryEmotion.label}</strong>
                     </div>
-                    <p>{selectedHistoryEntry.comment}</p>
+                    <div className="student-emotion-calendar-notes">
+                      <p><strong>어떤 일이 있었나요?</strong><span>{selectedHistoryEntry.comment}</span></p>
+                      {selectedHistoryEntry.selfMessage ? <p><strong>나에게 해주는 한 마디</strong><span>{selectedHistoryEntry.selfMessage}</span></p> : null}
+                    </div>
                   </>
                 ) : (
                   <div className="student-emotion-calendar-detail-empty">
@@ -411,50 +429,86 @@ export default function StudentEmotionPage({
           role="dialog"
           aria-modal="true"
           aria-labelledby="emotion-dialog-title"
-          aria-describedby="emotion-dialog-description"
+          aria-describedby={isEmotionConfirmed ? 'emotion-confirmation-status' : 'emotion-event-label emotion-self-message-label'}
         >
           <button
             type="button"
             className="student-emotion-dialog-close"
             aria-label="감정 기록 닫기"
-            onClick={() => setIsEmotionDialogOpen(false)}
+            onClick={closeEmotionDialog}
           >
             ×
           </button>
           <StudentEmotionOrbVisual emotion={draftEmotion} />
-          <div>
+          <div className="student-emotion-dialog-heading">
             <span>오늘 선택한 감정</span>
             <h2 id="emotion-dialog-title">{draftEmotion.label}</h2>
           </div>
-          <label className="student-emotion-comment-field">
-            <span id="emotion-dialog-description">왜 이런 기분이 들었나요?</span>
-            <textarea
-              ref={emotionCommentRef}
-              value={comment}
-              maxLength={STUDENT_EMOTION_COMMENT_MAX_LENGTH}
-              rows={2}
-              placeholder="짧게 적어 주세요"
-              onChange={(event) => {
-                setComment(event.target.value);
-                setSaveError('');
+          {isEmotionConfirmed ? <div className="student-emotion-confirmed" aria-live="polite">
+            <p id="emotion-confirmation-status" className="student-emotion-confirmed-status">
+              <Check size={18} aria-hidden="true" />오늘의 감정 기록을 확정했어요
+            </p>
+            <section className="student-emotion-confirmed-note" aria-labelledby="emotion-confirmed-event-label">
+              <h3 id="emotion-confirmed-event-label"><MessageCircle size={20} aria-hidden="true" />어떤 일이 있었나요?</h3>
+              <p>{comment.trim()}</p>
+            </section>
+            <blockquote className="student-emotion-confirmed-quote" aria-labelledby="emotion-confirmed-self-message-label">
+              <h3 id="emotion-confirmed-self-message-label"><Heart size={20} aria-hidden="true" />나에게 해주는 한 마디</h3>
+              <p>{selfMessage.trim()}</p>
+            </blockquote>
+            <button
+              ref={emotionConfirmedButtonRef}
+              type="button"
+              className="student-emotion-dialog-save"
+              onClick={closeEmotionDialog}
+            >
+              <Check size={20} aria-hidden="true" />
+              확인
+            </button>
+          </div> : <>
+            <label className="student-emotion-comment-field">
+              <span id="emotion-event-label"><MessageCircle size={20} aria-hidden="true" />어떤 일이 있었나요?</span>
+              <textarea
+                ref={emotionCommentRef}
+                value={comment}
+                maxLength={STUDENT_EMOTION_COMMENT_MAX_LENGTH}
+                rows={2}
+                placeholder="있었던 일을 구체적으로 적어주세요."
+                onChange={(event) => {
+                  setComment(event.target.value);
+                  setSaveError('');
+                }}
+              />
+              <small>{comment.length}/{STUDENT_EMOTION_COMMENT_MAX_LENGTH}</small>
+            </label>
+            <label className="student-emotion-comment-field">
+              <span id="emotion-self-message-label"><Heart size={20} aria-hidden="true" />나에게 해주는 한 마디</span>
+              <input
+                value={selfMessage}
+                maxLength={STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH}
+                placeholder="오늘의 나에게 한마디를 적어 주세요"
+                onChange={(event) => {
+                  setSelfMessage(event.target.value);
+                  setSaveError('');
+                }}
+              />
+              <small>{selfMessage.length}/{STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH}</small>
+            </label>
+            <button
+              type="button"
+              className="student-emotion-dialog-save"
+              disabled={comment.trim().length === 0 || selfMessage.trim().length === 0 || isSaving}
+              onClick={() => {
+                void confirmEmotion().then((saved) => {
+                  if (saved) setIsEmotionConfirmed(true);
+                });
               }}
-            />
-            <small>{comment.length}/{STUDENT_EMOTION_COMMENT_MAX_LENGTH}</small>
-          </label>
-          <button
-            type="button"
-            className="student-emotion-dialog-save"
-            disabled={comment.trim().length === 0 || isSaving}
-            onClick={() => {
-              void confirmEmotion().then((saved) => {
-                if (saved) setIsEmotionDialogOpen(false);
-              });
-            }}
-          >
-            <Check size={20} aria-hidden="true" />
-            {isSaving ? '저장 중' : '기록하기'}
-          </button>
-          {saveError ? <p role="alert">{saveError}</p> : null}
+            >
+              <Check size={20} aria-hidden="true" />
+              {isSaving ? '저장 중' : '기록하기'}
+            </button>
+            {saveError ? <p role="alert">{saveError}</p> : null}
+          </>}
         </section>
       </div> : null}
 
