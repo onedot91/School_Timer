@@ -25,6 +25,7 @@ import {
   type StudentProfilePurchase,
   type StudentProfilePurchaseOutcome,
 } from '../../lib/studentProfilePurchase';
+import { STUDENT_CUSTOM_HOUSE_RELEASED } from '../../lib/studentFeatureRelease';
 
 interface StudentShopPageProps {
   studentNumber: number;
@@ -225,7 +226,34 @@ export default function StudentShopPage({
         repaired ? (
           <div id="student-shop-panel-houses" className="student-house-workshop" role="tabpanel" aria-labelledby="student-shop-tab-houses">
             <div className="student-house-market">
-              <article className="student-custom-house-card"><Hammer /><h3>내 집 만들기</h3>{state.hasCustomHouseCoupon ? <><input aria-label="집 이름" value={houseName} maxLength={20} onChange={(event) => setHouseName(event.target.value)} /><div className="student-house-theme-picker">{(['natural', 'blue', 'green'] as const).map((theme) => <button type="button" key={theme} className={houseTheme === theme ? 'is-active' : ''} aria-label={`${theme} 색상`} aria-pressed={houseTheme === theme} onClick={() => setHouseTheme(theme)} />)}</div><button type="button" disabled={isSaving || !houseName.trim()} onClick={() => void onAction({ type: 'register_custom_house', name: houseName, theme: houseTheme })}>디자인 적용</button></> : <button type="button" aria-label={`내 집 만들기, ${STUDENT_CUSTOM_HOUSE_COUPON_PRICE} 고마로 구매`} disabled={isSaving} onClick={() => setPendingPurchase({ kind: 'economy', action: { type: 'buy_custom_house_coupon' }, name: '내 집 만들기', price: STUDENT_CUSTOM_HOUSE_COUPON_PRICE })}>{STUDENT_CUSTOM_HOUSE_COUPON_PRICE} 고마</button>}</article>
+              <article className={`student-custom-house-card${STUDENT_CUSTOM_HOUSE_RELEASED ? '' : ' is-coming-soon'}`}>
+                <div className="student-custom-house-card-content" aria-hidden={!STUDENT_CUSTOM_HOUSE_RELEASED}>
+                  <Hammer />
+                  <h3>집 건축하기</h3>
+                  {state.hasCustomHouseCoupon ? (
+                    <>
+                      <input aria-label="집 이름" value={houseName} maxLength={20} disabled={!STUDENT_CUSTOM_HOUSE_RELEASED} onChange={(event) => setHouseName(event.target.value)} />
+                      <div className="student-house-theme-picker">
+                        {(['natural', 'blue', 'green'] as const).map((theme) => (
+                          <button type="button" key={theme} className={houseTheme === theme ? 'is-active' : ''} aria-label={`${theme} 색상`} aria-pressed={houseTheme === theme} disabled={!STUDENT_CUSTOM_HOUSE_RELEASED} onClick={() => setHouseTheme(theme)} />
+                        ))}
+                      </div>
+                      <button type="button" disabled={!STUDENT_CUSTOM_HOUSE_RELEASED || isSaving || !houseName.trim()} onClick={() => void onAction({ type: 'register_custom_house', name: houseName, theme: houseTheme })}>디자인 적용</button>
+                    </>
+                  ) : (
+                    <button type="button" aria-label={`집 건축하기, ${STUDENT_CUSTOM_HOUSE_COUPON_PRICE} 고마로 구매`} disabled={!STUDENT_CUSTOM_HOUSE_RELEASED || isSaving} onClick={() => setPendingPurchase({ kind: 'economy', action: { type: 'buy_custom_house_coupon' }, name: '집 건축하기', price: STUDENT_CUSTOM_HOUSE_COUPON_PRICE })}>{STUDENT_CUSTOM_HOUSE_COUPON_PRICE} 고마</button>
+                  )}
+                </div>
+                {!STUDENT_CUSTOM_HOUSE_RELEASED ? (
+                  <div className="student-custom-house-preview" role="status">
+                    <img src="/student-house-carpenter-elephant.png" alt="" width={1254} height={1254} decoding="async" />
+                    <p className="student-custom-house-speech">
+                      <span>뚝딱뚝딱…</span>
+                      <strong>멋진 집 짓는 중!</strong>
+                    </p>
+                  </div>
+                ) : null}
+              </article>
               {STUDENT_HOUSE_DESIGNS.map((house) => {
                 const owned = state.ownedHouseIds.includes(house.id);
                 const active = state.activeHouseId === house.id;

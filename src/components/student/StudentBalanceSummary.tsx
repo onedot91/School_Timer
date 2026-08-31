@@ -9,6 +9,7 @@ interface StudentBalanceSummaryProps {
   availableBalance: number;
   reservedAmount: number;
   isLoading?: boolean;
+  onProfileClick?: () => void;
 }
 
 export default function StudentBalanceSummary({
@@ -18,6 +19,7 @@ export default function StudentBalanceSummary({
   availableBalance,
   reservedAmount,
   isLoading = false,
+  onProfileClick,
 }: StudentBalanceSummaryProps) {
   const displayedAvailable = isLoading ? '확인 중' : formatCurrency(availableBalance);
   const displayedReserved = isLoading ? '확인 중' : formatCurrency(reservedAmount);
@@ -29,13 +31,25 @@ export default function StudentBalanceSummary({
     <section className="student-balance-summary" aria-label="고마 잔액">
       {studentNumber !== undefined ? (
         <div className="student-balance-student-identity" aria-label={`${studentNumber}번 학생`}>
-          <img
-            className="student-balance-profile"
-            src={profileImage}
-            alt=""
-            width={192}
-            height={192}
-          />
+          {onProfileClick ? (
+            <button type="button" className="student-balance-profile-action" aria-label="상점 프로필로 이동" onClick={onProfileClick}>
+              <img
+                className="student-balance-profile"
+                src={profileImage}
+                alt=""
+                width={192}
+                height={192}
+              />
+            </button>
+          ) : (
+            <img
+              className="student-balance-profile"
+              src={profileImage}
+              alt=""
+              width={192}
+              height={192}
+            />
+          )}
           <strong className="student-balance-student-number" aria-hidden="true">
             {studentNumber}번
           </strong>

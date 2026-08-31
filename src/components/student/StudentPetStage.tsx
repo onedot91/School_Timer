@@ -20,7 +20,7 @@ interface StudentPetStageProps {
   onOpenMailbox: () => void;
   onOpenLibrary: () => void;
   onOpenEmotions: () => void;
-  onOpenEgg: () => void;
+  onOpenEgg?: () => void;
   onOpenPetPicker: () => void;
   onOpenSkinPicker?: () => void;
   onOpenHousePicker?: () => void;
@@ -168,8 +168,11 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
       <button
         type="button"
         className="student-home-hotspot student-home-hotspot-egg"
+        disabled={!onOpenEgg}
         onClick={onOpenEgg}
-        aria-label={`알 성장 ${pet.fedAmount} / ${STUDENT_PET_HATCH_AMOUNT} 고마. 알 성장 창 열기`}
+        aria-label={onOpenEgg
+          ? `알 성장 ${pet.fedAmount} / ${STUDENT_PET_HATCH_AMOUNT} 고마. 알 성장 창 열기`
+          : '펫 알. 아직 사용할 수 없음'}
       />
       <button type="button" className="student-home-hotspot student-home-hotspot-mailbox" onClick={onOpenMailbox} aria-label={hasUnreadMail ? '새 편지가 있는 우편함 열기' : '우편함 열기'} />
       <button type="button" className="student-home-hotspot student-home-hotspot-library" onClick={onOpenLibrary} aria-label="실패 전시관과 책장 열기" />

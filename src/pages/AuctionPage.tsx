@@ -14,6 +14,7 @@ import StudentSudokuPage from '../components/student/StudentSudokuPage';
 import StudentNumberBaseballPage from '../components/student/StudentNumberBaseballPage';
 import StudentClasswordPage from '../components/student/StudentClasswordPage';
 import StudentTodayFriendPage from '../components/student/StudentTodayFriendPage';
+import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
   AUCTION_BID_STEP,
@@ -179,6 +180,11 @@ import {
   normalizeDailyWritingState,
   type DailyWritingState,
 } from '../lib/dailyWriting';
+import {
+  getStudentFeatureFallbackView,
+  getUnavailableStudentFeature,
+  type StudentFeatureReleaseId,
+} from '../lib/studentFeatureRelease';
 
 interface AuctionPageProps {
   studentNumber: number;
@@ -244,6 +250,33 @@ const getStoreSection = (view: StudentView): StudentStoreSection => (
 ) ?? 'plaza';
 
 const isStudentStoreView = (view: StudentView) => view === 'store' || view.startsWith('store-');
+
+const STUDENT_UNAVAILABLE_FEATURE_COPY: Readonly<Record<Exclude<StudentFeatureReleaseId, 'petEgg'>, {
+  kicker: string;
+  title: string;
+  description: string;
+}>> = {
+  bank: {
+    kicker: '금고 너머의 소리',
+    title: '은행 안에서 동전들이 속닥이고 있어요',
+    description: '무슨 이야기를 나누는지는 아직 비밀이에요. 문이 열리는 날을 기다려 주세요.',
+  },
+  securities: {
+    kicker: '오늘의 수상한 움직임',
+    title: '숫자들이 어디론가 바쁘게 움직이고 있어요',
+    description: '위로 갈지 아래로 갈지 아무도 모른대요. 곧 그 비밀을 함께 살펴봐요.',
+  },
+  bookstore: {
+    kicker: '책장 사이의 비밀',
+    title: '책방에서 사각사각 종이 넘기는 소리가 나요',
+    description: '아직 제목이 없는 이야기가 숨어 있나 봐요. 책방 문은 조금 뒤에 열릴 거예요.',
+  },
+  emotionOrbs: {
+    kicker: '마음빛 관찰 중',
+    title: '감정구슬이 아직 자기 색을 고르고 있어요',
+    description: '어떤 빛으로 반짝일지 곧 알게 될 거예요. 조금만 기다려 주세요.',
+  },
+};
 
 const getStudentViewFromHash = (): StudentView => {
   const matchedView = Object.entries(STUDENT_VIEW_HASHES).find(([, hash]) => hash === window.location.hash)?.[0];
@@ -365,6 +398,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [hasWeeklyMissionSyncError, setHasWeeklyMissionSyncError] = useState(false);
   const [activeStudentView, setActiveStudentView] = useState<StudentView>(() => getStudentViewFromHash());
+  const [unavailableStudentFeature, setUnavailableStudentFeature] = useState<Exclude<StudentFeatureReleaseId, 'petEgg'> | null>(() => {
+    const feature = getUnavailableStudentFeature(getStudentViewFromHash());
+    return feature === 'petEgg' ? null : feature;
+  });
   const [sudokuDifficulty, setSudokuDifficulty] = useState<SudokuDifficulty>(activeSudokuDifficulty ?? 'basic');
 
   useEffect(() => {
@@ -417,29 +454,52 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const donationRequestIdRef = useRef('');
   const shouldReturnStatusFocusRef = useRef(false);
   const pageScrollRef = useRef<HTMLDivElement>(null);
+  const unavailableFeatureTriggerRef = useRef<HTMLElement>(null);
   const sharedSettingsUpdatedAtRef = useRef<string | null>(null);
   const isSharedSettingsRefreshInFlightRef = useRef(false);
   const pendingFullSettingsRefreshRef = useRef(false);
 
-  useEffect(() => {
+  const openUnavailableStudentFeature = useCallback((feature: Exclude<StudentFeatureReleaseId, 'petEgg'>) => {
+    unavailableFeatureTriggerRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    setUnavailableStudentFeature(feature);
+  }, []);
+
+  useLayoutEffect(() => {
     const syncViewFromHistory = () => {
-      setActiveStudentView(getStudentViewFromHash());
+      const requestedView = getStudentViewFromHash();
+      const unavailableFeature = getUnavailableStudentFeature(requestedView);
+      if (unavailableFeature && unavailableFeature !== 'petEgg') {
+        const fallbackView = getStudentFeatureFallbackView(unavailableFeature);
+        openUnavailableStudentFeature(unavailableFeature);
+        setActiveStudentView(fallbackView);
+        window.history.replaceState(null, '', STUDENT_VIEW_HASHES[fallbackView]);
+      } else {
+        setActiveStudentView(requestedView);
+      }
       pageScrollRef.current?.scrollTo({ top: 0 });
     };
     window.addEventListener('hashchange', syncViewFromHistory);
     window.addEventListener('popstate', syncViewFromHistory);
+    syncViewFromHistory();
     return () => {
       window.removeEventListener('hashchange', syncViewFromHistory);
       window.removeEventListener('popstate', syncViewFromHistory);
     };
-  }, []);
+  }, [openUnavailableStudentFeature]);
 
   const navigateStudentView = useCallback((view: StudentView) => {
+    const unavailableFeature = getUnavailableStudentFeature(view);
+    if (unavailableFeature && unavailableFeature !== 'petEgg') {
+      openUnavailableStudentFeature(unavailableFeature);
+      return;
+    }
     const targetHash = STUDENT_VIEW_HASHES[view];
     setActiveStudentView(view);
     pageScrollRef.current?.scrollTo({ top: 0 });
     if (window.location.hash !== targetHash) window.location.hash = targetHash;
-  }, []);
+  }, [openUnavailableStudentFeature]);
 
   useEffect(() => {
     pageScrollRef.current?.scrollTo({ top: 0, left: 0 });
@@ -1785,6 +1845,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMissions={() => navigateStudentView('missions')}
             onOpenStore={() => navigateStudentView('store')}
+            onOpenProfileShop={() => navigateStudentView('store-shop')}
             onOpenMailbox={() => navigateStudentView('mailbox')}
             onOpenLibrary={() => navigateStudentView('library')}
           />
@@ -2065,6 +2126,20 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           </StudentStorePage>
         ) : null}
       </main>
+      {unavailableStudentFeature ? (
+        <StudentConfirmDialog
+          isOpen
+          kicker={STUDENT_UNAVAILABLE_FEATURE_COPY[unavailableStudentFeature].kicker}
+          title={STUDENT_UNAVAILABLE_FEATURE_COPY[unavailableStudentFeature].title}
+          description={STUDENT_UNAVAILABLE_FEATURE_COPY[unavailableStudentFeature].description}
+          confirmLabel="알겠어요"
+          cancelLabel={null}
+          isPending={false}
+          returnFocusRef={unavailableFeatureTriggerRef}
+          onCancel={() => setUnavailableStudentFeature(null)}
+          onConfirm={() => setUnavailableStudentFeature(null)}
+        />
+      ) : null}
       {isDonationOpen ? (
         <div
           className="auction-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/32 px-4"

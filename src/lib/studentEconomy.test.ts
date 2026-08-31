@@ -548,7 +548,7 @@ test('집 상점은 집 고치기 전에는 잠기고 수리 후 집과 만들�
   assert.equal(house.wallet, 200);
   assert.deepEqual(house.state.ownedHouseIds, ['pink-cottage']);
   assert.equal(house.state.activeHouseId, 'pink-cottage');
-  assert.equal(coupon.wallet, 50);
+  assert.equal(coupon.wallet, 150);
   assert.equal(coupon.state.hasCustomHouseCoupon, true);
 });
 
@@ -603,11 +603,11 @@ test('직접 만든 집은 다른 집을 사용한 뒤에도 다시 선택할 �
   assert.equal(result.state.activeHouseId, 'custom');
 });
 
-test('내 집 만들기 구매는 교사 물품 구매 현황에 표시된다', () => {
+test('집 건축하기 구매는 교사 물품 구매 현황에 표시된다', () => {
   const labels = getStudentShopPurchaseLabels({
     inventory: { house_repair: 1 },
     hasCustomHouseCoupon: true,
   }, []);
 
-  assert.deepEqual(labels, ['집 고치기', '내 집 만들기']);
+  assert.deepEqual(labels, ['집 고치기', '집 건축하기']);
 });

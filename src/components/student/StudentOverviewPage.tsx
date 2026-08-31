@@ -24,6 +24,7 @@ import {
 import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
+import { STUDENT_FEATURE_RELEASES } from '../../lib/studentFeatureRelease';
 
 interface StudentOverviewPageProps {
   studentNumber: number;
@@ -54,6 +55,7 @@ interface StudentOverviewPageProps {
   onOpenEmotions: () => void;
   onOpenMissions: () => void;
   onOpenStore: () => void;
+  onOpenProfileShop: () => void;
   onOpenMailbox: () => void;
   onOpenLibrary: () => void;
 }
@@ -87,6 +89,7 @@ export default function StudentOverviewPage({
   onOpenEmotions,
   onOpenMissions,
   onOpenStore,
+  onOpenProfileShop,
   onOpenMailbox,
   onOpenLibrary,
 }: StudentOverviewPageProps) {
@@ -182,10 +185,10 @@ export default function StudentOverviewPage({
           onOpenMailbox={onOpenMailbox}
           onOpenLibrary={onOpenLibrary}
           onOpenEmotions={onOpenEmotions}
-          onOpenEgg={() => {
+          onOpenEgg={STUDENT_FEATURE_RELEASES.petEgg ? () => {
             setPetError('');
             setActivePetDialog('feed');
-          }}
+          } : undefined}
           onOpenPetPicker={() => {
             setPetError('');
             setActivePetDialog('picker');
@@ -219,6 +222,7 @@ export default function StudentOverviewPage({
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
             isLoading={isLoading}
+            onProfileClick={onOpenProfileShop}
           />
         </div>
         <StudentPurchaseCard

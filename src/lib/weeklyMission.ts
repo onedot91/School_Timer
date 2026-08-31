@@ -3,7 +3,7 @@ export const CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE = 'classword_word_entry';
 export const CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE = 'classword_quiz_correct';
 export const FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE = 'failure_exhibition';
 export const BOOK_STACK_WEEKLY_MISSION_TYPE = 'book_stack';
-export const PERSONAL_QUESTION_WEEKLY_REWARD = 10;
+export const PERSONAL_QUESTION_WEEKLY_REWARD = 15;
 export const FAILURE_EXHIBITION_WEEKLY_REWARD = 10;
 export const BOOK_STACK_WEEKLY_REWARD = 10;
 export const CLASSWORD_WEEKLY_REWARD = 5;
@@ -20,13 +20,12 @@ export type WeeklyMissionRewardType = WeeklyMissionType
 export type WeeklyMissionHistoryType = WeeklyMissionRewardType
   | typeof CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE;
 
-export const getWeeklyMissionRewardAmount = (missionType: WeeklyMissionRewardType) => (
-  missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE
-    || missionType === FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE
-    || missionType === BOOK_STACK_WEEKLY_MISSION_TYPE
-    ? PERSONAL_QUESTION_WEEKLY_REWARD
-    : CLASSWORD_WEEKLY_REWARD
-);
+export const getWeeklyMissionRewardAmount = (missionType: WeeklyMissionRewardType) => {
+  if (missionType === PERSONAL_QUESTION_WEEKLY_MISSION_TYPE) return PERSONAL_QUESTION_WEEKLY_REWARD;
+  if (missionType === FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE) return FAILURE_EXHIBITION_WEEKLY_REWARD;
+  if (missionType === BOOK_STACK_WEEKLY_MISSION_TYPE) return BOOK_STACK_WEEKLY_REWARD;
+  return CLASSWORD_WEEKLY_REWARD;
+};
 
 const isWeeklyMissionType = (value: unknown): value is WeeklyMissionType => (
   typeof value === 'string' && WEEKLY_MISSION_TYPES.some((missionType) => missionType === value)
@@ -252,7 +251,12 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
     const missingRewards = remoteHistory[studentKey].filter((entry) => (
       entry.reason === 'weekly_mission' &&
-      (entry.delta === PERSONAL_QUESTION_WEEKLY_REWARD || entry.delta === CLASSWORD_WEEKLY_REWARD) &&
+      (
+        entry.delta === PERSONAL_QUESTION_WEEKLY_REWARD
+        || entry.delta === FAILURE_EXHIBITION_WEEKLY_REWARD
+        || entry.delta === BOOK_STACK_WEEKLY_REWARD
+        || entry.delta === CLASSWORD_WEEKLY_REWARD
+      ) &&
       (knownRewardIds === null || !knownRewardIds.has(entry.id)) &&
       !existingIds.has(entry.id)
     ));

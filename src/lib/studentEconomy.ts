@@ -8,7 +8,7 @@ export const STUDENT_TRANSFER_MAXIMUM = 30;
 const BANK_INTEREST_RATE = 0.1;
 
 export const STUDENT_CHARACTER_DRAW_PRICE = 100;
-export const STUDENT_CUSTOM_HOUSE_COUPON_PRICE = 150;
+export const STUDENT_CUSTOM_HOUSE_COUPON_PRICE = 50;
 
 export interface StudentShopCatalogItem {
   id: string;
@@ -651,7 +651,7 @@ export const getStudentShopPurchaseLabels = (value: unknown, catalogValue: unkno
   return [
     ...catalog.flatMap((item) => (state.inventory[item.id] ?? 0) > 0 ? [`${item.name} ${state.inventory[item.id]}개`] : []),
     ...((state.inventory.house_repair ?? 0) > 0 ? ['집 고치기'] : []),
-    ...(state.hasCustomHouseCoupon ? ['내 집 만들기'] : []),
+    ...(state.hasCustomHouseCoupon ? ['집 건축하기'] : []),
   ];
 };
 

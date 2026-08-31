@@ -61,8 +61,8 @@ test('server verifies a personal question and forwards only its id to the atomic
       weekKey: currentWeekKey,
       completed: true,
       awarded: true,
-      rewardAmount: 10,
-      balance: 110,
+      rewardAmount: 15,
+      balance: 115,
     });
   };
 
@@ -151,7 +151,7 @@ test('repeated requests from the same client are rate limited before external ca
           weekKey: getKoreanIsoWeekKey(),
           completed: false,
           awarded: false,
-          rewardAmount: 10,
+          rewardAmount: 15,
           balance: 100,
         });
   };

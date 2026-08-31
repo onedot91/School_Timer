@@ -8,6 +8,7 @@ interface StudentConfirmDialogProps {
   readonly title: string;
   readonly description?: string;
   readonly confirmLabel: string;
+  readonly cancelLabel?: string | null;
   readonly isPending: boolean;
   readonly isConfirmDisabled?: boolean;
   readonly children?: ReactNode;
@@ -22,6 +23,7 @@ export default function StudentConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = '취소',
   isPending,
   isConfirmDisabled = false,
   children,
@@ -65,8 +67,8 @@ export default function StudentConfirmDialog({
         <h2 id={titleId}>{title}</h2>
         {description ? <p id={descriptionId}>{description}</p> : null}
         {children}
-        <div className="student-confirm-dialog-actions">
-          <button type="button" disabled={isPending} onClick={onCancel}>취소</button>
+        <div className="student-confirm-dialog-actions" data-single-action={cancelLabel === null ? 'true' : undefined}>
+          {cancelLabel === null ? null : <button type="button" disabled={isPending} onClick={onCancel}>{cancelLabel}</button>}
           <button type="button" disabled={isPending || isConfirmDisabled} onClick={onConfirm}>{isPending ? '처리 중' : confirmLabel}</button>
         </div>
       </section>
