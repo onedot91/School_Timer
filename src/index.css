@@ -22450,6 +22450,16 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
       scale: 1;
     }
 
+  .timer-main-shell .student-character-showcase,
+  .timer-main-shell .student-character-path {
+    animation-duration: var(--student-character-walk-duration) !important;
+  }
+
+  .timer-main-shell .student-character-frame,
+  .timer-main-shell .student-character-speech {
+    animation: none !important;
+  }
+
   }
 
 @media (prefers-reduced-transparency: reduce) {

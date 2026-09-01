@@ -324,6 +324,14 @@ test('교사 하단 낱말판은 오늘 주제와 14칸 보드만 보여 준다'
   assert.match(css, /\.teacher-classword-panel\[data-surface="utility"\] \.teacher-classword-today-entries \{[^}]*border: 0;[^}]*background: transparent;[^}]*box-shadow: none;/);
 });
 
+test('교사 하단 낱말판은 오늘 보드만 요청하고 설정용 데이터는 기다리지 않는다', () => {
+  assert.match(
+    teacherPanel,
+    /if \(surface === 'utility'\) \{[\s\S]*?await loadClasswordBoard\(today\);[\s\S]*?setTodayBoard\(nextTodayBoard\);[\s\S]*?return;/,
+  );
+  assert.match(teacherPanel, /if \(surface !== 'settings'\) return;[\s\S]*?loadTeacherClasswordQuizSummary/);
+});
+
 test('주제가 있는 날짜는 달력의 면과 점, 범례로 함께 구분한다', () => {
   assert.match(teacherCalendar, /has-topic/);
   assert.match(teacherCalendar, /className="teacher-classword-topic-dot"/);

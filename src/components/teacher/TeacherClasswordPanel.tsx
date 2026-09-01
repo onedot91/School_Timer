@@ -62,6 +62,13 @@ export default function TeacherClasswordPanel({
 
   const refresh = useCallback(async () => {
     try {
+      if (surface === 'utility') {
+        const nextTodayBoard = await loadClasswordBoard(today);
+        setTodayBoard(nextTodayBoard);
+        setMessage('');
+        return;
+      }
+
       const selectedBoardRequest = loadClasswordBoard(selectedDateKey);
       const [nextRounds, nextBoard, nextTodayBoard, nextUsedTopics] = await Promise.all([
         loadClasswordRounds(monthKeyOf(month)),
@@ -78,11 +85,12 @@ export default function TeacherClasswordPanel({
     } catch {
       setMessage('낱말판 정보를 불러오지 못했습니다.');
     }
-  }, [month, selectedDateKey, today]);
+  }, [month, selectedDateKey, surface, today]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
   useEffect(() => {
+    if (surface !== 'settings') return;
     let active = true;
     const loadQuizSummary = async () => {
       try {
@@ -98,7 +106,7 @@ export default function TeacherClasswordPanel({
     };
     void loadQuizSummary();
     return () => { active = false; };
-  }, [selectedDateKey]);
+  }, [selectedDateKey, surface]);
 
   const chooseRandomTopic = () => {
     const used = new Set(usedTopics);
