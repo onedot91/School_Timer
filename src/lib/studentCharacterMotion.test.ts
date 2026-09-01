@@ -3,6 +3,22 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
+const timerPage = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
+
+test('좁은 화면에서도 캐릭터별 경로의 위아래 이동 폭을 유지한다', () => {
+  assert.match(timerPage, /'--student-character-route-start-top': path\.startTop/);
+  assert.match(timerPage, /'--student-character-route-mid-top-a': path\.midTopA/);
+  assert.match(timerPage, /'--student-character-route-mid-top-b': path\.midTopB/);
+  assert.match(timerPage, /'--student-character-route-end-top': path\.endTop/);
+
+  const narrowLayout = css.match(
+    /@media \(max-width: 63\.999rem\) \{([\s\S]*?)\n\}/,
+  )?.[1] ?? '';
+  assert.match(narrowLayout, /--student-character-walk-start-top: calc\(var\(--student-character-route-start-top\) - 32vh\)/);
+  assert.match(narrowLayout, /--student-character-walk-mid-top-a: calc\(var\(--student-character-route-mid-top-a\) - 32vh\)/);
+  assert.match(narrowLayout, /--student-character-walk-mid-top-b: calc\(var\(--student-character-route-mid-top-b\) - 32vh\)/);
+  assert.match(narrowLayout, /--student-character-walk-end-top: calc\(var\(--student-character-route-end-top\) - 32vh\)/);
+});
 
 test('동작 줄이기 PC에서도 캐릭터 이동은 유지하고 흔들림만 제거한다', () => {
   const reducedMotionPreferences = css.match(

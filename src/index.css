@@ -15508,10 +15508,10 @@ a[href]:active {
   }
 
   .timer-main-shell .student-character-showcase {
-    --student-character-walk-start-top: min(50dvh, 32rem) !important;
-    --student-character-walk-mid-top-a: min(48dvh, 30rem) !important;
-    --student-character-walk-mid-top-b: min(51dvh, 32rem) !important;
-    --student-character-walk-end-top: min(49dvh, 31rem) !important;
+    --student-character-walk-start-top: calc(var(--student-character-route-start-top) - 32vh) !important;
+    --student-character-walk-mid-top-a: calc(var(--student-character-route-mid-top-a) - 32vh) !important;
+    --student-character-walk-mid-top-b: calc(var(--student-character-route-mid-top-b) - 32vh) !important;
+    --student-character-walk-end-top: calc(var(--student-character-route-end-top) - 32vh) !important;
     --student-character-depth-start: 50000 !important;
     --student-character-depth-mid-a: 48000 !important;
     --student-character-depth-mid-b: 51000 !important;
