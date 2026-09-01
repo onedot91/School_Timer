@@ -22469,7 +22469,10 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
     animation-duration: var(--student-character-walk-duration) !important;
   }
 
-  .timer-main-shell .student-character-frame,
+  .timer-main-shell .student-character-frame {
+    animation: studentCharacterWalkBob var(--student-character-bob-duration) ease-in-out infinite !important;
+  }
+
   .timer-main-shell .student-character-speech {
     animation: none !important;
   }
