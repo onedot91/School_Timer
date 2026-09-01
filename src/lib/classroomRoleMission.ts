@@ -12,6 +12,11 @@ export const CLASSROOM_ROLE_NAMES = [
   '우유 전문가',
 ] as const;
 
+export const CLASSROOM_ROLE_ASSIGNMENT_NAMES = [
+  ...CLASSROOM_ROLE_NAMES,
+  '우유 전문가',
+] as const;
+
 export type ClassroomRoleName = (typeof CLASSROOM_ROLE_NAMES)[number];
 export type ClassroomRoleMissionResult = 'rewarded' | 'penalized';
 
@@ -120,7 +125,7 @@ export const getClassroomRoleAssignments = (
   const firstStudentNumber = wrapStudentNumber(
     settings.anchorStartStudentNumber + getDateOffset(settings.anchorDateKey, dateKey),
   );
-  return CLASSROOM_ROLE_NAMES.map((roleName, index) => ({
+  return CLASSROOM_ROLE_ASSIGNMENT_NAMES.map((roleName, index) => ({
     roleName,
     studentNumber: wrapStudentNumber(firstStudentNumber + index),
   }));

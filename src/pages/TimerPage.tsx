@@ -10155,7 +10155,7 @@ export default function TimerPage() {
             <div>
               <h3 className="section-title text-[1.05rem] font-black text-[#1F2523]">1인 1역</h3>
               <p className="mt-1 text-[0.82rem] font-bold text-[#65736C]">
-                매일 담당 번호가 한 칸씩 이동합니다. 완료 20고마, 미수행 -20고마
+                칠판부터 물수건까지 각 1명, 우유는 2명입니다. 매일 담당 번호가 한 칸씩 이동합니다. 완료 20고마, 미수행 -20고마
               </p>
             </div>
             <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#CFE3D8] bg-[#F6FAF7] px-4 font-extrabold text-[#006241]">
@@ -10190,7 +10190,7 @@ export default function TimerPage() {
               const result = classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(assignment.studentNumber)];
               return (
                 <div
-                  key={assignment.roleName}
+                  key={`${assignment.roleName}-${assignment.studentNumber}`}
                   className="grid gap-2 rounded-[1rem] border border-[#DDE8E2] bg-[#F9FCFA] p-3"
                 >
                   <div className="flex items-center justify-between gap-2">

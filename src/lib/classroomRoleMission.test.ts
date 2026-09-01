@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  CLASSROOM_ROLE_NAMES,
+  CLASSROOM_ROLE_ASSIGNMENT_NAMES,
   getClassroomRoleAssignments,
   getClassroomRoleMissionBalanceDelta,
   getStudentClassroomRole,
@@ -10,7 +10,7 @@ import {
   setClassroomRoleMissionStartForDate,
 } from './classroomRoleMission.js';
 
-test('1인 1역은 기준일에 1번부터 역할 6개를 번호순으로 배정한다', () => {
+test('1인 1역은 다섯 역할에 한 명씩, 우유 전문가에 두 명을 번호순으로 배정한다', () => {
   const settings = normalizeClassroomRoleMissionSettings({
     enabled: true,
     anchorDateKey: '2026-08-26',
@@ -19,7 +19,7 @@ test('1인 1역은 기준일에 1번부터 역할 6개를 번호순으로 배정
 
   assert.deepEqual(
     getClassroomRoleAssignments(settings, '2026-08-26'),
-    CLASSROOM_ROLE_NAMES.map((roleName, index) => ({
+    CLASSROOM_ROLE_ASSIGNMENT_NAMES.map((roleName, index) => ({
       roleName,
       studentNumber: index + 1,
     })),
@@ -46,6 +46,7 @@ test('다음 날에는 모든 역할 담당 번호가 한 칸 앞으로 이동�
   assert.equal(getStudentClassroomRole(settings, 1, '2026-08-27'), null);
   assert.equal(getStudentClassroomRole(settings, 2, '2026-08-27')?.roleName, '칠판 전문가');
   assert.equal(getStudentClassroomRole(settings, 7, '2026-08-27')?.roleName, '우유 전문가');
+  assert.equal(getStudentClassroomRole(settings, 8, '2026-08-27')?.roleName, '우유 전문가');
 });
 
 test('23번 뒤에는 1번으로 이어서 배정한다', () => {
@@ -57,7 +58,7 @@ test('23번 뒤에는 1번으로 이어서 배정한다', () => {
 
   assert.deepEqual(
     getClassroomRoleAssignments(settings, '2026-08-26').map((assignment) => assignment.studentNumber),
-    [21, 22, 23, 1, 2, 3],
+    [21, 22, 23, 1, 2, 3, 4],
   );
 });
 
