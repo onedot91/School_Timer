@@ -20,6 +20,10 @@ export type StudentProfilePurchase =
   | { readonly type: 'random' }
   | { readonly type: 'selected'; readonly profileImage: string };
 
+export type StudentProfileEconomyAction =
+  | { readonly type: 'draw_profile' }
+  | { readonly type: 'select_profile'; readonly profileImage: string };
+
 export type StudentProfilePurchaseOutcome =
   | {
     readonly ok: true;
@@ -75,6 +79,7 @@ export const purchaseStudentProfile = (
   availableBalance: number,
   random: () => number = Math.random,
   createdAt = new Date().toISOString(),
+  historyEntryId?: string,
 ): StudentProfilePurchaseResult => {
   const current = toRecord(value);
   const studentLife = normalizeStudentLifeState(current.studentLife);
@@ -130,6 +135,7 @@ export const purchaseStudentProfile = (
     after,
     reason: 'shop_purchase',
     createdAt,
+    id: historyEntryId,
   });
   const nextStudentLife = {
     ...studentLife,

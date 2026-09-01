@@ -167,7 +167,6 @@ import {
   purchaseStudentProfile,
   type StudentProfilePurchase,
   type StudentProfilePurchaseOutcome,
-  type StudentProfilePurchaseResult,
 } from '../lib/studentProfilePurchase';
 import { createBankMailboxLetters } from '../lib/bankMailbox';
 import { useStudentSudokuState } from '../lib/useStudentSudokuState';
@@ -816,60 +815,50 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setProfilePurchaseType(purchase.type);
     setIsStudentLifeSaving(true);
     const createdAt = new Date().toISOString();
-    let result: StudentProfilePurchaseResult | null = null;
 
     try {
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          const currentItems = normalizeAuctionItems(current.auctionItems);
-          const currentItemIds = currentItems.map((item) => item.id);
-          const currentBids = normalizeAuctionBids(current.auctionBids, currentItemIds);
-          const currentAwards = normalizeAuctionAwards(current.auctionAwards, currentItemIds);
-          const latestReserved = getReservedAuctionBidAmount(
-            currentBids,
-            studentNumber,
-            undefined,
-            currentAwards,
-            currentItemIds,
-          );
-          const currentBalances = normalizeCurrencyBalances(current.currencyBalances);
-          const latestBalance = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
-          result = purchaseStudentProfile(
-            current,
-            studentNumber,
-            purchase,
-            Math.max(0, latestBalance - latestReserved),
-            Math.random,
-            createdAt,
-          );
-          return result.value;
-        });
-      } else {
-        const snapshot = loadStoredStudentPetSnapshot();
-        const currentWallet = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
-        result = purchaseStudentProfile(
-          snapshot,
+        const action = purchase.type === 'random'
+          ? { type: 'draw_profile' as const }
+          : { type: 'select_profile' as const, profileImage: purchase.profileImage };
+        const result = await updateStudentEconomy({
           studentNumber,
-          purchase,
-          Math.max(0, currentWallet - reservedAmount),
-          Math.random,
-          createdAt,
-        );
-        if (result.applied) {
-          if (!storeStudentPetSnapshot({
-            ...snapshot,
-            currencyBalances: result.balances,
-            currencyHistory: result.history,
-            studentLife: result.studentLife,
-          })) return { ok: false, message: '프로필을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.' };
+          action,
+          requestId: `student-profile-${studentNumber}-${createBrowserRequestId()}`,
+        });
+        setStudentLife(result.studentLife);
+        setCurrencyBalances((current) => ({ ...current, ...result.currencyBalanceEntries }));
+        setCurrencyHistory((current) => ({ ...current, ...result.currencyHistoryEntries }));
+        setStudentEconomyStates((current) => ({ ...current, [studentKey]: result.studentEconomy }));
+        sharedSettingsUpdatedAtRef.current = null;
+        invalidateSharedSettingsCache();
+        if (!result.applied || !result.profileImage) {
+          if (purchase.type === 'selected') showStatusMessage(result.message);
+          return { ok: false, message: result.message };
         }
+        if (purchase.type === 'selected') showStatusMessage(result.message);
+        return { ok: true, profileImage: result.profileImage, price: result.profilePrice ?? 0 };
       }
 
-      if (result === null || !result.applied) {
-        const reason = result?.reason;
+      const snapshot = loadStoredStudentPetSnapshot();
+      const currentWallet = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+      const result = purchaseStudentProfile(
+        snapshot,
+        studentNumber,
+        purchase,
+        Math.max(0, currentWallet - reservedAmount),
+        Math.random,
+        createdAt,
+      );
+      if (result.applied && !storeStudentPetSnapshot({
+        ...snapshot,
+        currencyBalances: result.balances,
+        currencyHistory: result.history,
+        studentLife: result.studentLife,
+      })) return { ok: false, message: '프로필을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.' };
+
+      if (!result.applied) {
+        const reason = result.reason;
         const message = reason === 'profile_in_use'
           ? '다른 학생이 사용 중인 프로필입니다.'
           : reason === 'insufficient_currency'

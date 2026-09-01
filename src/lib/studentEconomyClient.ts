@@ -1,6 +1,9 @@
 import type { CurrencyBalances, CurrencyHistory } from './currency.js';
 import type { StudentEconomyAction, StudentEconomyState } from './studentEconomy.js';
 import type { StudentLifeState } from './studentLife.js';
+import type { StudentProfileEconomyAction, StudentProfilePurchaseReason } from './studentProfilePurchase.js';
+
+export type StudentEconomyApiAction = StudentEconomyAction | StudentProfileEconomyAction;
 
 export interface StudentEconomyUpdateResult {
   readonly balance: number;
@@ -10,6 +13,9 @@ export interface StudentEconomyUpdateResult {
   readonly studentLife: StudentLifeState;
   readonly message: string;
   readonly applied: boolean;
+  readonly profileImage?: string | null;
+  readonly profilePrice?: number;
+  readonly profileReason?: StudentProfilePurchaseReason;
   readonly updatedAt: string;
 }
 
@@ -39,7 +45,7 @@ export const updateStudentEconomy = async ({
   requestId,
 }: {
   readonly studentNumber: number;
-  readonly action: StudentEconomyAction;
+  readonly action: StudentEconomyApiAction;
   readonly requestId: string;
 }): Promise<StudentEconomyUpdateResult> => {
   const requestBody = JSON.stringify({ studentNumber, action, requestId });

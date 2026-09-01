@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import handler from '../../api/student-economy.js';
+import { FAILURE_PROFILE_IMAGES } from '../../src/lib/failureExhibition.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
@@ -126,6 +127,30 @@ test('iPhone 학생 증권 투자는 학생 세션에서 고마를 차감하고 
     const economy = Reflect.get(result.body as object, 'studentEconomy') as Record<string, unknown>;
     const investments = economy.investments as Record<string, { investedAmount: number }>;
     assert.equal(investments.sunny?.investedAmount, 30);
+  });
+});
+
+test('학생 프로필 뽑기는 학생 거래 API에서 권한을 확인하고 프로필을 저장한다', async () => {
+  await withEnvironment(async () => {
+    const result = await runStudentAction(
+      { type: 'draw_profile' },
+      'student-profile-1-first-draw',
+    );
+
+    assert.equal(result.statusCode, 200);
+    assert.equal(Reflect.get(result.body as object, 'applied'), true);
+    assert.equal(Reflect.get(result.body as object, 'balance'), 145);
+    const profileImage = Reflect.get(result.body as object, 'profileImage');
+    assert.equal(typeof profileImage, 'string');
+    assert.equal(FAILURE_PROFILE_IMAGES.includes(profileImage as typeof FAILURE_PROFILE_IMAGES[number]), true);
+
+    const savedValue = Reflect.get(result.upstreamBodies[0] as object, 'value') as Record<string, unknown>;
+    const savedStudentLife = savedValue.studentLife as Record<string, unknown>;
+    assert.equal(
+      Reflect.get(savedStudentLife.failureProfileAssignments as object, '1'),
+      profileImage,
+    );
+    assert.deepEqual(savedValue.schedule, previousValue.schedule);
   });
 });
 

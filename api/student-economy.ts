@@ -12,11 +12,17 @@ import {
 import { createBankMailboxLetters } from '../src/lib/bankMailbox.js';
 import {
   applyStudentEconomyAction,
+  normalizeStudentEconomyState,
   normalizeStudentEconomyStates,
   type StudentEconomyAction,
 } from '../src/lib/studentEconomy.js';
 import { patchStudentEconomySettings } from '../src/lib/studentEconomySettings.js';
 import { createStudentLetter, normalizeStudentLifeState } from '../src/lib/studentLife.js';
+import {
+  purchaseStudentProfile,
+  type StudentProfileEconomyAction,
+  type StudentProfilePurchaseReason,
+} from '../src/lib/studentProfilePurchase.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 
@@ -61,6 +67,8 @@ const ACTION_TYPES = new Set([
   'invest',
   'withdraw_investment',
   'settle_investments',
+  'draw_profile',
+  'select_profile',
 ]);
 const ACTION_ERRORS = new Set([
   'ALL_CHARACTERS_OWNED',
@@ -100,6 +108,22 @@ const asRecord = (value: unknown): Record<string, unknown> => (
     : {}
 );
 
+type StudentEconomyApiAction = StudentEconomyAction | StudentProfileEconomyAction;
+
+const isStudentProfileAction = (action: StudentEconomyApiAction): action is StudentProfileEconomyAction => (
+  action.type === 'draw_profile' || action.type === 'select_profile'
+);
+
+const getProfilePurchaseMessage = (reason: StudentProfilePurchaseReason, price: number) => {
+  if (reason === 'purchased') return price > 0 ? `${price} 고마로 프로필을 바꿨습니다.` : '첫 프로필을 받았습니다.';
+  if (reason === 'profile_in_use') return '다른 학생이 사용 중인 프로필입니다.';
+  if (reason === 'insufficient_currency') return '사용 가능한 고마가 부족합니다.';
+  if (reason === 'first_profile_must_be_random') return '첫 프로필은 랜덤으로만 받을 수 있습니다.';
+  if (reason === 'no_profile_available') return '지금은 받을 수 있는 프로필이 없습니다.';
+  if (reason === 'already_selected') return '이미 사용 중인 프로필입니다.';
+  return '프로필을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.';
+};
+
 const parseBody = (body: unknown) => {
   const parsed = typeof body === 'string' ? JSON.parse(body) : body;
   if (!parsed || typeof parsed !== 'object') return null;
@@ -119,7 +143,8 @@ const parseBody = (body: unknown) => {
     || typeof actionType !== 'string'
     || !ACTION_TYPES.has(actionType)
   ) return null;
-  return { studentNumber, requestId, action: action as StudentEconomyAction } as const;
+  if (actionType === 'select_profile' && typeof Reflect.get(action as object, 'profileImage') !== 'string') return null;
+  return { studentNumber, requestId, action: action as StudentEconomyApiAction } as const;
 };
 
 const getConfiguration = () => {
@@ -148,7 +173,7 @@ const loadRow = async (url: string, key: string) => {
 const createMutation = (
   currentValue: unknown,
   studentNumber: number,
-  action: StudentEconomyAction,
+  action: StudentEconomyApiAction,
   requestId: string,
   createdAt: string,
 ) => {
@@ -169,6 +194,77 @@ const createMutation = (
     awards,
     activeAuctionItemIds,
   );
+
+  if (isStudentProfileAction(action)) {
+    const currentEconomy = normalizeStudentEconomyState(economyStates[studentKey]);
+    const assignedProfile = studentLife.failureProfileAssignments[studentKey] ?? null;
+    const profileHistoryId = `currency-profile-${requestId}`;
+    if (currentEconomy.processedRequestIds.includes(requestId)) {
+      const profilePrice = Math.abs(
+        history[studentKey]?.find((entry) => entry.id === profileHistoryId)?.delta ?? 0,
+      );
+      return {
+        nextValue: current,
+        response: {
+          balance: wallet,
+          currencyBalanceEntries: { [studentKey]: wallet },
+          currencyHistoryEntries: { [studentKey]: history[studentKey] ?? [] },
+          studentEconomy: currentEconomy,
+          studentLife,
+          message: '이미 처리되었습니다.',
+          applied: true,
+          profileImage: assignedProfile,
+          profilePrice,
+          profileReason: 'purchased' as const,
+        },
+      };
+    }
+
+    const purchase = action.type === 'draw_profile'
+      ? { type: 'random' as const }
+      : { type: 'selected' as const, profileImage: action.profileImage };
+    const profileResult = purchaseStudentProfile(
+      current,
+      studentNumber,
+      purchase,
+      Math.max(0, wallet - reserved),
+      Math.random,
+      createdAt,
+      profileHistoryId,
+    );
+    const nextEconomy = profileResult.applied
+      ? {
+          ...currentEconomy,
+          processedRequestIds: [...currentEconomy.processedRequestIds, requestId].slice(-24),
+        }
+      : currentEconomy;
+    const nextValue = profileResult.applied
+      ? patchStudentEconomySettings({
+          currentValue: profileResult.value,
+          currencyBalanceEntries: { [studentKey]: profileResult.balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE },
+          currencyHistoryEntries: { [studentKey]: profileResult.history[studentKey] ?? [] },
+          studentEconomyEntries: { [studentKey]: nextEconomy },
+          studentLife: profileResult.studentLife,
+        })
+      : current;
+
+    return {
+      nextValue,
+      response: {
+        balance: profileResult.balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE,
+        currencyBalanceEntries: { [studentKey]: profileResult.balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE },
+        currencyHistoryEntries: { [studentKey]: profileResult.history[studentKey] ?? [] },
+        studentEconomy: nextEconomy,
+        studentLife: profileResult.studentLife,
+        message: getProfilePurchaseMessage(profileResult.reason, profileResult.price),
+        applied: profileResult.applied,
+        profileImage: profileResult.profileImage,
+        profilePrice: profileResult.price,
+        profileReason: profileResult.reason,
+      },
+    };
+  }
+
   const result = applyStudentEconomyAction({
     state: economyStates[studentKey],
     action,

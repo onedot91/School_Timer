@@ -333,7 +333,7 @@ export const normalizeCurrencyHistory = (value: unknown): CurrencyHistory => {
 
 export const appendCurrencyHistoryEntry = (
   history: CurrencyHistory,
-  entry: Omit<CurrencyHistoryEntry, 'id' | 'delta' | 'createdAt'> & { createdAt?: string },
+  entry: Omit<CurrencyHistoryEntry, 'id' | 'delta' | 'createdAt'> & { id?: string; createdAt?: string },
 ): CurrencyHistory => {
   const normalizedHistory = normalizeCurrencyHistory(history);
   const studentKey = String(entry.studentNumber);
@@ -346,7 +346,7 @@ export const appendCurrencyHistoryEntry = (
     ...normalizedHistory,
     [studentKey]: [
       {
-        id: createCurrencyHistoryId(entry.studentNumber, createdAt, entry.reason),
+        id: entry.id?.trim() || createCurrencyHistoryId(entry.studentNumber, createdAt, entry.reason),
         studentNumber: entry.studentNumber,
         delta: after - before,
         before,
