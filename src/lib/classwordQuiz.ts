@@ -134,11 +134,15 @@ export const getDailyClasswordQuiz = (dateKey: string): ClasswordQuizPrompt => {
   return toPrompt(question);
 };
 
-export const isClasswordQuizAnswerCorrect = (dateKey: string, input: string): boolean => {
+export const getDailyClasswordQuizAnswer = (dateKey: string): string => {
   const prompt = getDailyClasswordQuiz(dateKey);
   const question = CLASSWORD_QUIZ_QUESTIONS.find((candidate) => candidate.id === prompt.id);
-  if (!question) return false;
-  return input.normalize('NFC').trim().replace(/\s+/g, '') === question.answer;
+  if (!question) throw new Error('CLASSWORD_QUIZ_NOT_FOUND');
+  return question.answer;
+};
+
+export const isClasswordQuizAnswerCorrect = (dateKey: string, input: string): boolean => {
+  return input.normalize('NFC').trim().replace(/\s+/g, '') === getDailyClasswordQuizAnswer(dateKey);
 };
 
 const parseExample = (value: unknown, register: ClasswordQuizExample['register']): ClasswordQuizExample => {

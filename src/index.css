@@ -24846,7 +24846,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
     --student-overview-action-height: 7rem;
     --student-overview-header-padding-block: .4rem;
     --student-overview-card-padding: .75rem 1rem;
-    --student-overview-card-title-size: 1.45rem;
+    --student-overview-card-title-size: 1.35rem;
     --student-content-height: calc(100dvh - 6rem);
     --student-card-radius: 1.25rem;
     --student-compact-control-height: 2.75rem;

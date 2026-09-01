@@ -1,11 +1,8 @@
 import { AlertCircle, CheckCircle2, Send, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
-import {
-  loadSavedClasswordQuizAnswer,
-  saveClasswordQuizAnswer,
-} from '../../lib/classwordQuizAnswerStore';
+import { getDailyClasswordQuizAnswer, type ClasswordQuizStudentState } from '../../lib/classwordQuiz';
+import { loadSavedClasswordQuizAnswer } from '../../lib/classwordQuizAnswerStore';
 
 type ClasswordQuizProps = {
   readonly studentNumber: number;
@@ -36,7 +33,7 @@ export default function ClasswordQuiz({
       studentNumber,
       questionId: state.question.id,
     });
-    if (savedAnswer) setAnswer(savedAnswer);
+    setAnswer(savedAnswer || getDailyClasswordQuizAnswer(state.dateKey));
   }, [state?.completed, state?.dateKey, state?.question.id, studentNumber]);
 
   const submit = async (): Promise<void> => {
@@ -45,13 +42,7 @@ export default function ClasswordQuiz({
     setSubmissionState('idle');
     try {
       const correct = await onSubmit(nextAnswer);
-      if (correct) {
-        saveClasswordQuizAnswer(window.localStorage, {
-          dateKey: state.dateKey,
-          studentNumber,
-          questionId: state.question.id,
-        }, nextAnswer);
-      } else {
+      if (!correct) {
         setSubmissionState('incorrect');
       }
     } catch {

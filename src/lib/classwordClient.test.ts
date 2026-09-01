@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { saveClasswordEntry, submitClasswordQuizAnswer } from './classwordClient';
+import {
+  CLASSWORD_LOCAL_CHANGE_EVENT,
+  saveClasswordEntry,
+  submitClasswordQuizAnswer,
+} from './classwordClient';
 import { getDailyClasswordQuiz } from './classwordQuiz';
+import { loadSavedClasswordQuizAnswer } from './classwordQuizAnswerStore';
 import { loadStoredStudentPetSnapshot } from './studentPet';
 
 class MemoryStorage implements Storage {
@@ -91,6 +96,14 @@ test('연습 모드 보너스 정답 보상은 1~10고마 범위에서 한 번�
   };
   const answer = answerByQuestion[getDailyClasswordQuiz('2026-08-30').id];
   assert.ok(answer);
+  let savedAnswerWhenRefreshStarted = '';
+  fakeWindow.addEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, () => {
+    savedAnswerWhenRefreshStarted = loadSavedClasswordQuizAnswer(storage, {
+      dateKey: '2026-08-30',
+      studentNumber: 10,
+      questionId: getDailyClasswordQuiz('2026-08-30').id,
+    });
+  });
 
   try {
     const first = await submitClasswordQuizAnswer({
@@ -111,6 +124,7 @@ test('연습 모드 보너스 정답 보상은 1~10고마 범위에서 한 번�
     assert.equal(repeated.awarded, false);
     assert.equal(repeated.rewardAmount, 10);
     assert.equal(repeated.balance, 110);
+    assert.equal(savedAnswerWhenRefreshStarted, answer);
   } finally {
     Math.random = originalRandom;
     if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);

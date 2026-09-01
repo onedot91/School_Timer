@@ -202,8 +202,9 @@ test('보너스 문제 오답과 정답은 별도 안내문 없이 제출 버튼
 
 test('보너스 문제 정답을 맞히면 입력값을 유지한 채 입력창을 비활성화한다', () => {
   assert.doesNotMatch(studentQuiz, /setAnswer\(''\)/);
-  assert.match(studentQuiz, /saveClasswordQuizAnswer/);
+  assert.match(client, /saveClasswordQuizAnswer/);
   assert.match(studentQuiz, /loadSavedClasswordQuizAnswer/);
+  assert.match(studentQuiz, /savedAnswer \|\| getDailyClasswordQuizAnswer\(state\.dateKey\)/);
   assert.match(studentPage, /studentNumber=\{studentNumber\}/);
   assert.match(studentQuiz, /disabled=\{saving \|\| completed\}/);
   assert.match(studentQuiz, /disabled=\{saving \|\| completed \|\| !answer\.trim\(\)\}/);

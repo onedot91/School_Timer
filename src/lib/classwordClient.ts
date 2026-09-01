@@ -24,6 +24,7 @@ import {
   type ClasswordQuizStudentState,
   type ClasswordQuizTeacherSummary,
 } from './classwordQuiz';
+import { saveClasswordQuizAnswer } from './classwordQuizAnswerStore';
 import {
   loadLocalClasswordQuizStudentState,
   loadLocalClasswordQuizTeacherSummary,
@@ -154,8 +155,9 @@ export const submitClasswordQuizAnswer = async (input: {
 }): Promise<SubmitClasswordQuizAnswerResult> => {
   if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
   if (appDataMode === 'mock') {
+    const storage = getPrunedLocalStorage();
     const result = submitLocalClasswordQuizAnswer(
-      getPrunedLocalStorage(),
+      storage,
       input.dateKey,
       input.studentNumber,
       input.answer,
@@ -163,6 +165,11 @@ export const submitClasswordQuizAnswer = async (input: {
     if (!result.correct) {
       return { ...result, awarded: false, balance: null };
     }
+    saveClasswordQuizAnswer(storage, {
+      dateKey: result.state.dateKey,
+      studentNumber: input.studentNumber,
+      questionId: result.state.question.id,
+    }, input.answer);
     const snapshot = loadStoredStudentPetSnapshot();
     const reward = claimClasswordQuizRewardInSettings(
       snapshot,
@@ -205,6 +212,11 @@ export const submitClasswordQuizAnswer = async (input: {
     || value.rewardAmount > 10
     || typeof value.balance !== 'number'
   ) throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
+  saveClasswordQuizAnswer(window.localStorage, {
+    dateKey: state.dateKey,
+    studentNumber: input.studentNumber,
+    questionId: state.question.id,
+  }, input.answer);
   return {
     correct: true,
     state,
