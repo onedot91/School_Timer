@@ -55,6 +55,11 @@ const AUDIO_WARMUP_DELAY_MS = 64;
 const RANDOM_DRAW_AUDIO_MASTER_GAIN = 3;
 const RANDOM_DRAW_REPEAT_SOUND_GAIN = 1.4;
 
+type DrawShortcutKey = Pick<KeyboardEvent, 'key' | 'code'>;
+
+export const isStudentDrawShortcutKey = ({ key, code }: DrawShortcutKey) =>
+  key === 'ArrowRight' || code === 'ArrowRight' || key === 'Enter' || code === 'Enter' || code === 'NumpadEnter';
+
 let randomDrawAudioContext: AudioContext | null = null;
 let randomDrawAudioPreparePromise: Promise<AudioContext | null> | null = null;
 let randomDrawAudioPrimed = false;

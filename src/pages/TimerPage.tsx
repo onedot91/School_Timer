@@ -15,6 +15,7 @@ import {
   getInitialRandomDrawState,
   getStudentDisplayText,
   getStudentName,
+  isStudentDrawShortcutKey,
   MAX_DRAW_NUMBER,
   MAX_HISTORY_LENGTH,
   MIN_DRAW_NUMBER,
@@ -571,7 +572,7 @@ const NOTICE_HIGHLIGHT_COLORS = [
 type NoticeHighlightColorId = (typeof NOTICE_HIGHLIGHT_COLORS)[number]['id'];
 const DRAW_EMPTY_MESSAGE = '완료';
 const DRAW_RESET_MESSAGE = '섞는 중';
-const DRAW_SHORTCUT_LABEL = 'ArrowRight';
+const DRAW_SHORTCUT_LABEL = '→ / Enter';
 const DRAW_RESET_EFFECT_DURATION_MS = 940;
 const SECRET_DRAW_MAX_LENGTH = 240;
 const SECRET_DRAW_BUTTON_LABEL = '예약 결과';
@@ -5802,7 +5803,7 @@ export default function TimerPage() {
 
   useEffect(() => {
     const handleStudentDrawShortcut = (event: KeyboardEvent) => {
-      if (event.key !== 'ArrowRight' && event.code !== 'ArrowRight') return;
+      if (!isStudentDrawShortcutKey(event)) return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (
         isSettingsOpen ||
@@ -8636,6 +8637,9 @@ export default function TimerPage() {
                 <Sparkles size={15} />
                 {SECRET_DRAW_BUTTON_LABEL}
               </button>
+              <div className="inline-flex items-center justify-center rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[#8A6347]">
+                {DRAW_SHORTCUT_LABEL}
+              </div>
             </div>
           </div>
 
