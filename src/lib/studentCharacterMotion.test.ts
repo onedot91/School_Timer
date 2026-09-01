@@ -22,6 +22,17 @@ test('캐릭터 경로는 과장되지 않은 원래 높낮이를 유지한다',
   ]);
 });
 
+test('캐릭터의 반복 상하 움직임은 천천히 이어진다', () => {
+  const pathDefinitions = timerPage.match(
+    /const STUDENT_CHARACTER_WALK_PATHS = \[([\s\S]*?)\] as const;/,
+  )?.[1] ?? '';
+  const bobDurations = [...pathDefinitions.matchAll(/bobDuration: '(\d+)ms'/g)]
+    .map((match) => Number(match[1]));
+
+  assert.equal(bobDurations.length, 5);
+  assert.ok(bobDurations.every((duration) => duration >= 1_600));
+});
+
 test('좁은 화면에서도 캐릭터별 경로의 위아래 이동 폭을 유지한다', () => {
   assert.match(timerPage, /'--student-character-route-start-top': path\.startTop/);
   assert.match(timerPage, /'--student-character-route-mid-top-a': path\.midTopA/);
