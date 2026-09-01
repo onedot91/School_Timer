@@ -16173,6 +16173,20 @@ a[href]:active {
   background: #def1e7 !important;
 }
 
+.settings-dialog :is(select, input).slot-subject-input[data-subject-state="sky"] {
+  border-color: #55a9d6 !important;
+  color: #175f86 !important;
+  background: linear-gradient(180deg, #eef9ff 0%, #dceffc 100%) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(85, 169, 214, 0.2),
+    0 6px 14px rgba(62, 148, 194, 0.1) !important;
+}
+
+.settings-dialog :is(select, input).slot-subject-input[data-subject-state="sky"]:hover {
+  border-color: #378fbd !important;
+  background: #d8edf9 !important;
+}
+
 .settings-dialog :is(select, input).slot-subject-input[data-subject-state="empty"] {
   border-style: dashed !important;
   border-color: #c8c8cc !important;

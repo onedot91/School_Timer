@@ -1414,6 +1414,12 @@ const normalizeAssignedSubjectName = (value: unknown) => {
   return subject === SUBJECT_UNSET_LABEL ? '' : subject;
 };
 
+const getSubjectInputState = (value: string) => {
+  const subject = normalizeAssignedSubjectName(value);
+  if (!subject) return 'empty';
+  return subject === '영어' || subject === '체육' ? 'sky' : 'configured';
+};
+
 const normalizeSubjectCatalog = (value: unknown, fallback: SubjectCatalog = DEFAULT_SUBJECT_CATALOG): SubjectCatalog => {
   if (!Array.isArray(value)) {
     return normalizeSubjectCatalog(fallback, []);
@@ -1591,16 +1597,16 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
       ? (parsed.manualTimer as Partial<SharedSchoolTimerSettings['manualTimer']>)
       : {};
   const weeklySchedule = normalizeWeeklySchedule((parsed.weeklySchedule || defaultWeeklySchedule) as WeeklySchedule);
+  const hasStoredWeeklySubjects = Object.prototype.hasOwnProperty.call(parsed, 'weeklySubjects');
   const weeklySubjects = normalizeWeeklySubjects(parsed.weeklySubjects);
   const subjectCatalog = normalizeSubjectCatalog(parsed.subjectCatalog);
 
   return {
     version: 1,
     weeklySchedule,
-    weeklySubjects:
-      Object.keys(weeklySubjects).length > 0
-        ? weeklySubjects
-        : buildWeeklySubjectsFromSchedule(weeklySchedule, getWeekKeyForDate(new Date())),
+    weeklySubjects: hasStoredWeeklySubjects
+      ? weeklySubjects
+      : buildWeeklySubjectsFromSchedule(weeklySchedule, getWeekKeyForDate(new Date())),
     subjectCatalog,
     scheduleNotice: typeof parsed.scheduleNotice === 'string' ? parsed.scheduleNotice : '',
     scheduleNoticeHighlights: normalizeNoticeHighlightRanges(
@@ -4034,9 +4040,9 @@ export default function TimerPage() {
   });
   const [weeklySubjects, setWeeklySubjects] = useState<WeeklySubjectSchedule>(() => {
     try {
-      const savedSubjects = normalizeWeeklySubjects(JSON.parse(localStorage.getItem(WEEKLY_SUBJECTS_STORAGE_KEY) || '{}'));
-      if (Object.keys(savedSubjects).length > 0) {
-        return savedSubjects;
+      const savedSubjects = localStorage.getItem(WEEKLY_SUBJECTS_STORAGE_KEY);
+      if (savedSubjects !== null) {
+        return normalizeWeeklySubjects(JSON.parse(savedSubjects));
       }
     } catch {
       // Fall through to migrate legacy slot subjects for the current week.
@@ -4046,6 +4052,9 @@ export default function TimerPage() {
       getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
     );
   });
+  const weeklySubjectsRef = useRef(weeklySubjects);
+  weeklySubjectsRef.current = weeklySubjects;
+  const hasUnsavedWeeklySubjectsRef = useRef(false);
   const [subjectCatalog, setSubjectCatalog] = useState<SubjectCatalog>(() => {
     try {
       return normalizeSubjectCatalog(JSON.parse(localStorage.getItem(SUBJECT_CATALOG_STORAGE_KEY) || 'null'));
@@ -4449,7 +4458,11 @@ export default function TimerPage() {
   ) => {
     skipNextSharedSettingsSaveRef.current = true;
     setWeeklySchedule(remoteSettings.weeklySchedule);
-    setWeeklySubjects(normalizeWeeklySubjects(remoteSettings.weeklySubjects));
+    if (!hasUnsavedWeeklySubjectsRef.current) {
+      const nextWeeklySubjects = normalizeWeeklySubjects(remoteSettings.weeklySubjects);
+      weeklySubjectsRef.current = nextWeeklySubjects;
+      setWeeklySubjects(nextWeeklySubjects);
+    }
     if (!isEditingSubjectCatalogRef.current) {
       setSubjectCatalog(normalizeSubjectCatalog(remoteSettings.subjectCatalog));
     }
@@ -4722,10 +4735,11 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
 
-    if (skipNextSharedSettingsSaveRef.current) {
+    if (skipNextSharedSettingsSaveRef.current && !hasUnsavedWeeklySubjectsRef.current) {
       skipNextSharedSettingsSaveRef.current = false;
       return;
     }
+    skipNextSharedSettingsSaveRef.current = false;
 
     if (
       isEditingSubjectCatalogRef.current ||
@@ -4759,6 +4773,10 @@ export default function TimerPage() {
       })
         .then((updatedAt) => {
           lastSharedSettingsUpdatedAtRef.current = updatedAt;
+          const savedWeeklySubjects = normalizeWeeklySubjects(savedSnapshot.weeklySubjects);
+          if (JSON.stringify(savedWeeklySubjects) === JSON.stringify(weeklySubjectsRef.current)) {
+            hasUnsavedWeeklySubjectsRef.current = false;
+          }
           const currentCurrencyInput = JSON.stringify({
             balances: currencyBalancesRef.current,
             history: currencyHistoryRef.current,
@@ -4862,6 +4880,7 @@ export default function TimerPage() {
         !sharedSettingsHydratedRef.current ||
         isChecking ||
         isSharedSettingsSavePendingRef.current ||
+        hasUnsavedWeeklySubjectsRef.current ||
         isEditingNoticeRef.current ||
         isEditingSubjectCatalogRef.current ||
         isEditingAuctionItemRef.current ||
@@ -5985,6 +6004,11 @@ export default function TimerPage() {
     const subject = normalizeAssignedSubjectName(value);
     if (!subjectKey) return;
 
+    if (isSupabaseSettingsEnabled && sharedSettingsHydratedRef.current) {
+      hasUnsavedWeeklySubjectsRef.current = true;
+      isSharedSettingsSavePendingRef.current = true;
+    }
+
     setWeeklySubjects((previous) => {
       const next: WeeklySubjectSchedule = { ...previous };
       const nextWeek = { ...(next[weekKey] || {}) };
@@ -6008,7 +6032,9 @@ export default function TimerPage() {
         delete next[weekKey];
       }
 
-      return next;
+      const normalizedNext = normalizeWeeklySubjects(next);
+      weeklySubjectsRef.current = normalizedNext;
+      return normalizedNext;
     });
   };
 
@@ -8345,9 +8371,8 @@ export default function TimerPage() {
                       const weeklySubjectValue = slot
                         ? getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)
                         : '';
-                      const subjectStatusClass = weeklySubjectValue.trim()
-                        ? 'slot-subject-input-configured'
-                        : 'slot-subject-input-empty';
+                      const subjectInputState = getSubjectInputState(weeklySubjectValue);
+                      const subjectStatusClass = `slot-subject-input-${subjectInputState}`;
 
                       return (
                         <td
@@ -8365,7 +8390,7 @@ export default function TimerPage() {
                                 onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
                                 maxLength={MAX_SUBJECT_NAME_LENGTH}
                                 className={`slot-subject-input subject-combobox-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] py-2.5 pl-3 pr-9 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
-                                data-subject-state={weeklySubjectValue.trim() ? 'configured' : 'empty'}
+                                data-subject-state={getSubjectInputState(weeklySubjectValue)}
                                 placeholder="선택"
                                 title="목록에서 선택하거나 직접 입력"
                                 aria-label={`${DAYS[day]}요일 ${subjectKey}교시 과목 선택 또는 입력`}
