@@ -99,7 +99,10 @@ import {
 import { FAILURE_PROFILE_OPTIONS } from '../lib/failureExhibition';
 
 import {
+  ALL_STUDENTS_LETTER_RECIPIENT,
   createStudentLetter,
+  createStudentLetters,
+  getTeacherLetterRecipients,
   getTeacherLetters,
   loadStoredStudentLifeState,
   normalizeStudentLifeState,
@@ -8855,35 +8858,40 @@ export default function TimerPage() {
     if (!content || isMailSending) return;
     setIsMailSending(true);
     setMailStatus('');
-    const letter = {
-      id: crypto.randomUUID(),
-      recipient: mailRecipient,
+    const recipients = getTeacherLetterRecipients(mailRecipient);
+    const batchId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const letters = recipients.map((recipient) => ({
+      id: `${batchId}-${recipient}`,
+      recipient,
       senderLabel: '선생님',
       senderStudentNumber: null,
       replyToId: mailReplyToId,
       title: mailTitle.trim(),
       content,
-      createdAt: new Date().toISOString(),
-    };
+      createdAt,
+    }));
     try {
-      let savedState = createStudentLetter(studentLife, letter);
+      let savedState = createStudentLetters(studentLife, letters);
       if (isSupabaseSettingsEnabled) {
         await updateSharedSettings((currentValue) => {
           const current = currentValue && typeof currentValue === 'object'
             ? currentValue as Record<string, unknown>
             : {};
-          savedState = createStudentLetter(normalizeStudentLifeState(current.studentLife), letter);
+          savedState = createStudentLetters(normalizeStudentLifeState(current.studentLife), letters);
           return { ...current, studentLife: savedState };
         });
       } else {
-        savedState = createStudentLetter(loadStoredStudentLifeState(), letter);
+        savedState = createStudentLetters(loadStoredStudentLifeState(), letters);
         storeStudentLifeState(savedState);
       }
       setStudentLife(savedState);
       setMailTitle('');
       setMailContent('');
       setMailReplyToId(undefined);
-      setMailStatus(`${mailRecipient}번에게 보냈습니다.`);
+      setMailStatus(mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT
+        ? '모든 학생에게 보냈습니다.'
+        : `${mailRecipient}번에게 보냈습니다.`);
     } catch (error) {
       console.error('Failed to send teacher letter.', error);
       setMailStatus('편지를 보내지 못했습니다.');
@@ -9529,12 +9537,13 @@ export default function TimerPage() {
       <div className="teacher-mail-composer">
         <header className="teacher-mail-section-header">
           <h3>{mailReplyToId ? '답장 쓰기' : '학생에게 편지'}</h3>
-          <span className="teacher-mail-recipient-preview">받는 사람 · {mailRecipient}번</span>
+          <span className="teacher-mail-recipient-preview">받는 사람 · {mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT ? '모든 학생' : `${mailRecipient}번`}</span>
         </header>
         <div className="grid gap-3 md:grid-cols-[9rem_minmax(0,1fr)]">
         <label className="grid gap-2 text-sm font-extrabold text-[#476152]">
           받는 학생
           <select value={mailRecipient} onChange={(event) => setMailRecipient(Number(event.target.value))} className="min-h-11 rounded-xl border border-[#D7E3DC] bg-white px-3 text-[#26352E]">
+            <option value={ALL_STUDENTS_LETTER_RECIPIENT} disabled={Boolean(mailReplyToId)}>모든 학생</option>
             {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}번</option>)}
           </select>
         </label>

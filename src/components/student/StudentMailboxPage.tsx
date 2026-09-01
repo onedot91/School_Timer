@@ -18,7 +18,7 @@ interface StudentMailboxPageProps {
   readonly unreadCount: number;
   readonly isSaving: boolean;
   readonly onRead: (letterId: string) => Promise<void>;
-  readonly onSend: (recipient: number, title: string, content: string, replyToId?: string) => Promise<boolean>;
+  readonly onSend: (title: string, content: string, replyToId?: string) => Promise<boolean>;
   readonly onBack: () => void;
 }
 
@@ -99,7 +99,6 @@ export default function StudentMailboxPage({
   const [mode, setMode] = useState<MailboxMode>('inbox');
   const [folder, setFolder] = useState<MailboxFolder>('inbox');
   const [selectedId, setSelectedId] = useState('');
-  const [recipient, setRecipient] = useState(studentNumber === 1 ? 2 : 1);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [replyToId, setReplyToId] = useState<string | undefined>();
@@ -174,10 +173,7 @@ export default function StudentMailboxPage({
   };
 
   const startReply = (letter: StudentLetter) => {
-    const replyRecipient = letter.senderStudentNumber
-      ?? (letter.senderLabel === '선생님' ? TEACHER_LETTER_RECIPIENT : null);
-    if (replyRecipient === null) return;
-    setRecipient(replyRecipient);
+    if (letter.senderLabel !== '선생님') return;
     const displayTitle = getLetterDisplayTitle(letter.title);
     setTitle(displayTitle.startsWith('답장:') ? displayTitle : `답장: ${displayTitle}`);
     setContent('');
@@ -301,7 +297,7 @@ export default function StudentMailboxPage({
           {mode === 'compose' ? (
             <form className="student-compose-card student-letter-paper student-letter-compose-paper" onSubmit={(event) => {
               event.preventDefault();
-              void onSend(recipient, title, content, replyToId).then((saved) => {
+              void onSend(title, content, replyToId).then((saved) => {
                 if (!saved) return;
                 setTitle('');
                 setContent('');
@@ -320,12 +316,7 @@ export default function StudentMailboxPage({
               </div>
               <label>
                 <span>받는 사람</span>
-                <select value={recipient} onChange={(event) => setRecipient(Number(event.target.value))}>
-                  <option value={TEACHER_LETTER_RECIPIENT}>선생님</option>
-                  {Array.from({ length: 23 }, (_, index) => index + 1)
-                    .filter((number) => number !== studentNumber)
-                    .map((number) => <option key={number} value={number}>{number}번</option>)}
-                </select>
+                <input value="선생님" readOnly aria-readonly="true" />
               </label>
               <label>
                 <span>제목</span>
@@ -368,7 +359,7 @@ export default function StudentMailboxPage({
                 <footer className="student-letter-footer">
                   <strong>{mode === 'sent' ? `${studentNumber}번 드림` : `${selectedLetter.senderLabel} 드림`}</strong>
                 </footer>
-                {mode === 'inbox' && (selectedLetter.senderStudentNumber !== null || selectedLetter.senderLabel === '선생님') ? (
+                {mode === 'inbox' && selectedLetter.senderLabel === '선생님' ? (
                   <button type="button" className="student-letter-reply" onClick={() => startReply(selectedLetter)}>
                     <Reply size={20} aria-hidden="true" />답장하기
                   </button>

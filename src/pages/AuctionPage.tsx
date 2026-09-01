@@ -144,6 +144,7 @@ import {
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
 } from '../lib/studentSettingsSync';
 import {
+  TEACHER_LETTER_RECIPIENT,
   createStudentLetter,
   getStudentBooks,
   getStudentLetters,
@@ -684,8 +685,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
-  const sendStudentLetter = (recipient: number, title: string, content: string, replyToId?: string) => saveStudentLifeChange((current) => createStudentLetter(current, {
-    id: createBrowserRequestId(), recipient, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
+  const sendStudentLetter = (title: string, content: string, replyToId?: string) => saveStudentLifeChange((current) => createStudentLetter(current, {
+    id: createBrowserRequestId(), recipient: TEACHER_LETTER_RECIPIENT, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
   }));
 
   const sendTodayFriendRecommendation = (letter: {

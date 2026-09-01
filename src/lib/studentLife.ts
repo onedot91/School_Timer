@@ -53,6 +53,7 @@ const STUDENT_LOCAL_SNAPSHOT_STORAGE_KEY = 'school-timer-student-pets-v1';
 const PRACTICE_FAILURE_STORIES_RESET_KEY = 'school-timer-practice-failure-stories-reset-v1';
 const MAX_STUDENT_NUMBER = 23;
 export const TEACHER_LETTER_RECIPIENT = 0;
+export const ALL_STUDENTS_LETTER_RECIPIENT = 0;
 const MAX_LETTERS = 600;
 const MAX_LETTER_CONTENT_LENGTH = 800;
 const MAX_BOOKS = 600;
@@ -174,6 +175,17 @@ export const createStudentLetter = (state: StudentLifeState, input: LetterInput)
   if (!letter) return state;
   return { ...state, letters: [...state.letters, letter].slice(-MAX_LETTERS) };
 };
+
+export const createStudentLetters = (
+  state: StudentLifeState,
+  inputs: readonly LetterInput[],
+): StudentLifeState => inputs.reduce(createStudentLetter, state);
+
+export const getTeacherLetterRecipients = (recipient: number): readonly number[] => (
+  recipient === ALL_STUDENTS_LETTER_RECIPIENT
+    ? Array.from({ length: MAX_STUDENT_NUMBER }, (_, index) => index + 1)
+    : isStudentNumber(recipient) ? [recipient] : []
+);
 
 export const markStudentLetterRead = (
   state: StudentLifeState,

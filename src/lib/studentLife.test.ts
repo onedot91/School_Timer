@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  ALL_STUDENTS_LETTER_RECIPIENT,
   addStudentBook,
   clearPracticeFailureStories,
   createStudentLetter,
+  createStudentLetters,
   getBookHeightCm,
   getBookSpineHeightPx,
   getBookStackLayout,
@@ -13,10 +15,30 @@ import {
   getStudentLetters,
   getStudentSentLetters,
   getTeacherLetters,
+  getTeacherLetterRecipients,
   getUnreadStudentLetterCount,
   markStudentLetterRead,
   normalizeStudentLifeState,
 } from './studentLife.ts';
+
+test('교사는 모든 학생을 선택하면 1번부터 23번까지 편지를 한 통씩 만든다', () => {
+  const recipients = getTeacherLetterRecipients(ALL_STUDENTS_LETTER_RECIPIENT);
+  const state = createStudentLetters(
+    normalizeStudentLifeState(null),
+    recipients.map((recipient) => ({
+      id: `teacher-broadcast-${recipient}`,
+      recipient,
+      senderLabel: '선생님',
+      title: '알림',
+      content: '모두에게 보내는 편지입니다.',
+      createdAt: '2026-09-01T01:00:00.000Z',
+    })),
+  );
+
+  assert.deepEqual(recipients, Array.from({ length: 23 }, (_, index) => index + 1));
+  assert.equal(state.letters.length, 23);
+  assert.ok(recipients.every((recipient) => getStudentLetters(state, recipient).length === 1));
+});
 
 test('연습 모드 초기화는 실패 이야기만 비우고 다른 학생 생활 데이터를 보존한다', () => {
   const state = normalizeStudentLifeState({
