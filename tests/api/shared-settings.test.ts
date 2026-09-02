@@ -214,56 +214,85 @@ test('student sessions can update only their own balance entry', async () => {
   });
 });
 
-test('학생 저장은 변경하지 않은 객체의 속성 순서가 달라도 권한 오류로 막히지 않는다', async () => {
-  await withEnvironment(async () => {
-    const originalFetch = globalThis.fetch;
-    let fetchCount = 0;
-    const previousValue = {
+const reorderedSharedSettingsScenarios = [
+  {
+    name: '숫자야구 완료 저장은 다른 학생의 기록 속성 순서가 달라도 허용한다',
+    previousValue: {
+      currencyBalances: { 7: 100, 8: 110 },
+      currencyHistory: { 8: [{ id: 'history-8', studentNumber: 8, delta: 10 }] },
+      studentNumberBaseball: {},
+    },
+    nextValue: {
+      currencyBalances: { 7: 105, 8: 110 },
+      currencyHistory: {
+        8: [{ delta: 10, studentNumber: 8, id: 'history-8' }],
+        7: [{ id: 'number-baseball-reward-7', studentNumber: 7, delta: 5 }],
+      },
+      studentNumberBaseball: {
+        '7:2026-36': { gameId: 'number-baseball-v1-7-2026-36', attempts: [], completedAt: '2026-09-02T00:00:00.000Z' },
+      },
+    },
+  },
+  {
+    name: '감정 구슬 저장은 다른 학생의 기록 속성 순서가 달라도 허용한다',
+    previousValue: {
+      currencyHistory: { 8: [{ id: 'history-8', studentNumber: 8, delta: 10 }] },
+      studentEmotionHistory: {},
+    },
+    nextValue: {
+      currencyHistory: { 8: [{ delta: 10, studentNumber: 8, id: 'history-8' }] },
+      studentEmotionHistory: { 7: [{ id: 'emotion-7' }] },
+    },
+  },
+  {
+    name: '경매 입찰 저장은 낙찰 객체의 속성 순서가 달라도 허용한다',
+    previousValue: {
+      auctionBids: {},
+      auctionBidHistory: {},
       auctionAwards: {
         'item-a': { winner: 4, amount: 20 },
         'item-b': { winner: 8, amount: 30 },
       },
-      currencyHistory: {
-        7: [{ id: 'history-7', studentNumber: 7, delta: 5 }],
-        8: [{ id: 'history-8', studentNumber: 8, delta: 10 }],
-      },
-      studentEmotionHistory: {},
-    };
-    const nextValue = {
+    },
+    nextValue: {
+      auctionBids: { 'item-c': { amount: 40, bidder: 7 } },
+      auctionBidHistory: { 'item-c': [{ itemId: 'item-c', amount: 40, bidder: 7 }] },
       auctionAwards: {
         'item-b': { amount: 30, winner: 8 },
         'item-a': { amount: 20, winner: 4 },
       },
-      currencyHistory: {
-        8: [{ delta: 10, studentNumber: 8, id: 'history-8' }],
-        7: [{ delta: 5, studentNumber: 7, id: 'history-7' }],
-      },
-      studentEmotionHistory: {
-        7: [{ id: 'emotion-7' }],
-      },
-    };
-    globalThis.fetch = async () => {
-      fetchCount += 1;
-      return fetchCount === 1
-        ? Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: 'v1' }])
-        : Response.json([{ id: 'school-timer-main' }]);
-    };
+    },
+  },
+] as const;
 
-    try {
-      const { response, result } = createResponse();
-      await handler({
-        method: 'PUT',
-        headers: studentHeaders(7),
-        body: { value: nextValue, expectedUpdatedAt: 'v1' },
-      }, response);
+for (const scenario of reorderedSharedSettingsScenarios) {
+  test(scenario.name, async () => {
+    await withEnvironment(async () => {
+      const originalFetch = globalThis.fetch;
+      let fetchCount = 0;
+      globalThis.fetch = async () => {
+        fetchCount += 1;
+        return fetchCount === 1
+          ? Response.json([{ id: 'school-timer-main', value: scenario.previousValue, updated_at: 'v1' }])
+          : Response.json([{ id: 'school-timer-main' }]);
+      };
 
-      assert.equal(result().statusCode, 200);
-      assert.equal(fetchCount, 2);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+      try {
+        const { response, result } = createResponse();
+        await handler({
+          method: 'PUT',
+          headers: studentHeaders(7),
+          body: { value: scenario.nextValue, expectedUpdatedAt: 'v1' },
+        }, response);
+
+        assert.equal(result().statusCode, 200);
+        assert.equal(fetchCount, 2);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
   });
-});
+}
 
 const economyUpdateScenarios = [
   {
