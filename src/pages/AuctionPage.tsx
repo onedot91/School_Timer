@@ -1305,8 +1305,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         }));
       } catch (error) {
         if (!isActive) return;
-        const isExpectedLocalFallback = import.meta.env.DEV
-          && error instanceof Error
+        const isExpectedLocalFallback = error instanceof Error
           && (error.message === 'BACKEND_WRITE_DISABLED' || error.message === 'WEEKLY_MISSIONS_HTTP_404');
         if (!isExpectedLocalFallback) console.warn('Failed to sync weekly mission.', error);
 
