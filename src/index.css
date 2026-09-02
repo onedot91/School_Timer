@@ -15912,6 +15912,23 @@ a[href]:active {
   box-shadow: 0 .3rem .75rem rgb(0 98 65 / 16%);
 }
 
+.settings-navigation-new-badge {
+  display: inline-flex;
+  min-height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  margin-inline-start: auto;
+  padding: .2rem .45rem;
+  border: 1px solid color-mix(in srgb, var(--apple-surface) 72%, transparent);
+  border-radius: var(--apple-radius-pill);
+  color: var(--apple-surface);
+  background: var(--teacher-urgent);
+  font-size: .68rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .02em;
+}
+
 .settings-navigation-item:active {
   transform: scale(.98);
 }

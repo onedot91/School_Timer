@@ -11993,6 +11993,14 @@ export default function TimerPage() {
                           >
                             <ItemIcon size={19} aria-hidden="true" />
                             <span>{item.label}</span>
+                            {item.panel === 'mail' && teacherLetters.length > 0 ? (
+                              <span
+                                className="settings-navigation-new-badge"
+                                aria-label={`학생에게 받은 편지 ${teacherLetters.length}개`}
+                              >
+                                New
+                              </span>
+                            ) : null}
                           </button>
                         );
                       })}
