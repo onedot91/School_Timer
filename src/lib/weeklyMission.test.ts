@@ -4,10 +4,12 @@ import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE,
+  claimPersonalQuestionRewardInSettings,
   claimWeeklyMissionRewardInSettings,
   findPersonalQuestionForWeek,
   getKoreanIsoWeekKey,
   getWeeklyMissionRewardAmount,
+  getWeeklyMissionStatus,
   hasWeeklyMissionReward,
   getWeeklyMissionRewardIds,
   getAuctionAwardKeys,
@@ -38,6 +40,23 @@ test('only a personal question from the requested student and week completes the
 
   assert.equal(findPersonalQuestionForWeek(response, 6, '2026-29')?.id, 'personal');
   assert.equal(findPersonalQuestionForWeek(response, 6, '2026-30'), null);
+});
+
+test('연습 모드 신문 질문 보상은 제출 증거가 있을 때만 15고마를 지급한다', () => {
+  const initial = { currencyBalances: { 6: 100 }, currencyHistory: { 6: [] } };
+  const incomplete = claimPersonalQuestionRewardInSettings(initial, 6, false, '2026-36');
+  const completed = claimPersonalQuestionRewardInSettings(initial, 6, true, '2026-36');
+
+  assert.equal(incomplete.awarded, false);
+  assert.equal(incomplete.balance, 100);
+  assert.equal(completed.awarded, true);
+  assert.equal(completed.balance, 115);
+});
+
+test('ㄱㄴㄷ게임 완료 응답은 정산 대기보다 완료 상태를 우선 표시한다', () => {
+  assert.equal(getWeeklyMissionStatus({ completed: true, pending: false }), 'completed');
+  assert.equal(getWeeklyMissionStatus({ completed: false, pending: true }), 'inProgress');
+  assert.equal(getWeeklyMissionStatus({ completed: false, pending: false }), 'incomplete');
 });
 
 test('주간 미션은 개인 질문과 내부 낱말판만 노출한다', () => {

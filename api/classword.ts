@@ -11,6 +11,7 @@ import {
   isClasswordQuizAnswerCorrect,
 } from '../src/lib/classwordQuiz.js';
 import {
+  claimClasswordReward,
   claimClasswordQuizReward,
   ClasswordRepositoryError,
   deleteClasswordDateEntries,
@@ -231,7 +232,12 @@ const handlePost = async (
         word: validation.word,
         studentNumber: session.studentNumber,
       });
-      response.status(200).json({ entry, mission: null, awarded: false, balance: null });
+      const reward = await claimClasswordReward(configuration, {
+        studentNumber: session.studentNumber,
+        entryId: entry.id,
+        dateKey: action.dateKey,
+      });
+      response.status(200).json({ entry, ...reward });
       return;
     }
     case 'delete_entry':

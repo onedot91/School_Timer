@@ -15,6 +15,7 @@ import StudentNumberBaseballPage from '../components/student/StudentNumberBaseba
 import StudentClasswordPage from '../components/student/StudentClasswordPage';
 import StudentTodayFriendPage from '../components/student/StudentTodayFriendPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
+import { getKoreanDateKey } from '../lib/classword';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
   AUCTION_BID_STEP,
@@ -126,11 +127,13 @@ import {
 } from '../lib/studentMissionVisibility';
 import {
   createWeeklyMissionStatuses,
+  claimPersonalQuestionRewardInSettings,
   BOOK_STACK_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   getKoreanIsoWeekKey,
+  getWeeklyMissionStatus,
   hasWeeklyMissionReward,
   syncWeeklyMissions,
   WEEKLY_MISSION_TYPES,
@@ -1290,9 +1293,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         setWeeklyMissionStatuses(result.missions.reduce<WeeklyMissionStatuses>(
           (statuses, mission) => ({
             ...statuses,
-            [mission.missionType]: mission.missionType === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE
-              ? mission.pending ? 'inProgress' : 'incomplete'
-              : mission.completed ? 'completed' : 'incomplete',
+            [mission.missionType]: getWeeklyMissionStatus(mission),
           }),
           createWeeklyMissionStatuses('incomplete'),
         ));
@@ -1304,21 +1305,57 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         }));
       } catch (error) {
         if (!isActive) return;
-        const isExpectedLocalApiAbsence = import.meta.env.DEV
+        const isExpectedLocalFallback = import.meta.env.DEV
           && error instanceof Error
-          && error.message === 'WEEKLY_MISSIONS_HTTP_404';
-        if (!isExpectedLocalApiAbsence) console.warn('Failed to sync weekly mission.', error);
+          && (error.message === 'BACKEND_WRITE_DISABLED' || error.message === 'WEEKLY_MISSIONS_HTTP_404');
+        if (!isExpectedLocalFallback) console.warn('Failed to sync weekly mission.', error);
 
         try {
           const submissionStatuses = await loadQuestionSubmissionStatuses();
           if (!isActive) return;
           const isCompleted = hasPersonalQuestionSubmission(submissionStatuses, studentNumber);
           setHasWeeklyMissionSyncError(false);
+          const localSnapshot = !isSupabaseSettingsEnabled
+            ? loadStoredStudentPetSnapshot()
+            : null;
+          const localClasswordCompleted = localSnapshot !== null && hasWeeklyMissionReward(
+            localSnapshot.currencyHistory,
+            studentNumber,
+            getKoreanDateKey(),
+            CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+          );
           if (!isCompleted) {
             setWeeklyMissionStatuses((previous) => ({
               ...previous,
               [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'incomplete',
-              classword_word_entry: previous.classword_word_entry === 'inProgress' ? 'inProgress' : 'unavailable',
+              classword_word_entry: localClasswordCompleted
+                ? 'completed'
+                : previous.classword_word_entry === 'inProgress' ? 'inProgress' : 'unavailable',
+            }));
+            return;
+          }
+
+          if (localSnapshot !== null) {
+            const reward = claimPersonalQuestionRewardInSettings(
+              localSnapshot,
+              studentNumber,
+              true,
+            );
+            const nextBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
+            const nextHistory = normalizeCurrencyHistory(reward.value.currencyHistory);
+            if (reward.awarded && !storeStudentPetSnapshot({
+              ...localSnapshot,
+              currencyBalances: nextBalances,
+              currencyHistory: nextHistory,
+            })) throw new Error('WEEKLY_MISSION_LOCAL_SAVE_FAILED');
+            setCurrencyBalances(nextBalances);
+            setCurrencyHistory(nextHistory);
+            setWeeklyMissionStatuses((previous) => ({
+              ...previous,
+              [PERSONAL_QUESTION_WEEKLY_MISSION_TYPE]: 'completed',
+              classword_word_entry: localClasswordCompleted
+                ? 'completed'
+                : previous.classword_word_entry === 'inProgress' ? 'inProgress' : 'unavailable',
             }));
             return;
           }
@@ -1922,8 +1959,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onRewardBalance={(nextBalance) => {
               setCurrencyBalances((previous) => ({ ...previous, [studentKey]: nextBalance }));
             }}
-            onMissionSubmitted={() => {
-              setWeeklyMissionStatuses((previous) => ({ ...previous, classword_word_entry: 'inProgress' }));
+            onMissionSubmitted={(awarded) => {
+              setWeeklyMissionStatuses((previous) => ({
+                ...previous,
+                classword_word_entry: awarded || previous.classword_word_entry === 'completed'
+                  ? 'completed'
+                  : 'inProgress',
+              }));
             }}
             onBack={() => navigateStudentView('missions')}
           />

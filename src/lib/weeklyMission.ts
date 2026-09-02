@@ -61,6 +61,13 @@ export const createWeeklyMissionStatuses = (status: WeeklyMissionStatus): Weekly
   classword_word_entry: status,
 });
 
+export const getWeeklyMissionStatus = (
+  mission: Pick<WeeklyMissionResult, 'completed' | 'pending'>,
+): WeeklyMissionStatus => {
+  if (mission.completed) return 'completed';
+  return mission.pending ? 'inProgress' : 'incomplete';
+};
+
 export interface WeeklyMissionResult {
   missionType: WeeklyMissionType;
   weekKey: string;
@@ -229,6 +236,31 @@ export const claimWeeklyMissionRewardInSettings = (
     },
     awarded: true,
     balance: after,
+  };
+};
+
+export const claimPersonalQuestionRewardInSettings = (
+  value: unknown,
+  studentNumber: number,
+  submitted: boolean,
+  weekKey = getKoreanIsoWeekKey(),
+  createdAt = new Date().toISOString(),
+): WeeklyMissionClaim => {
+  if (submitted) {
+    return claimWeeklyMissionRewardInSettings(
+      value,
+      studentNumber,
+      weekKey,
+      PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
+      createdAt,
+    );
+  }
+
+  const currentValue = isRecord(value) ? { ...value } : {};
+  return {
+    value: currentValue,
+    awarded: false,
+    balance: normalizeCurrencyBalances(currentValue.currencyBalances)[String(studentNumber)],
   };
 };
 

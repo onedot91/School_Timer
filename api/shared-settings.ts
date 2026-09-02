@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 
@@ -74,7 +76,7 @@ const asRecord = (value: unknown): Record<string, unknown> => (
     : {}
 );
 
-const valuesEqual = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+const valuesEqual = (left: unknown, right: unknown) => isDeepStrictEqual(left, right);
 
 const onlyOwnMapEntryChanged = (
   previous: unknown,

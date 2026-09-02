@@ -38,7 +38,7 @@ class MemoryStorage implements Storage {
   }
 }
 
-test('연습 모드 낱말 제출은 당일 보상을 지급하지 않고 마감 대기 상태로 남긴다', async () => {
+test('연습 모드 낱말 제출은 당일 5고마를 한 번만 지급한다', async () => {
   // Given
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const storage = new MemoryStorage();
@@ -63,14 +63,14 @@ test('연습 모드 낱말 제출은 당일 보상을 지급하지 않고 마감
     }, '동물');
 
     // Then
-    assert.equal(first.awarded, false);
-    assert.equal(first.balance, null);
+    assert.equal(first.awarded, true);
+    assert.equal(first.balance, 105);
     assert.equal(repeated.awarded, false);
-    assert.equal(repeated.balance, null);
-    assert.equal(loadStoredStudentPetSnapshot().currencyBalances['10'], 100);
+    assert.equal(repeated.balance, 105);
+    assert.equal(loadStoredStudentPetSnapshot().currencyBalances['10'], 105);
     assert.equal(loadStoredStudentPetSnapshot().currencyHistory['10']?.filter(
       (entry) => entry.id === 'weekly-mission-classword_word_entry-10-2026-08-30',
-    ).length ?? 0, 0);
+    ).length ?? 0, 1);
   } finally {
     if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
     else Reflect.deleteProperty(globalThis, 'window');

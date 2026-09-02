@@ -31,6 +31,10 @@ import {
   submitLocalClasswordQuizAnswer,
 } from './classwordQuizLocalStore';
 import { claimClasswordQuizRewardInSettings } from './classwordQuizReward';
+import {
+  CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+  claimWeeklyMissionRewardInSettings,
+} from './weeklyMission';
 import { appDataMode } from './dataMode';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory } from './currency';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
@@ -236,8 +240,20 @@ export const saveClasswordEntry = async (
   if (appDataMode === 'mock') {
     try {
       const entry = saveLocalClasswordEntry(getPrunedLocalStorage(), { ...input, word: validation.word });
+      const snapshot = loadStoredStudentPetSnapshot();
+      const reward = claimWeeklyMissionRewardInSettings(
+        snapshot,
+        input.studentNumber,
+        input.dateKey,
+        CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+      );
+      if (reward.awarded && !storeStudentPetSnapshot({
+        ...snapshot,
+        currencyBalances: normalizeCurrencyBalances(reward.value.currencyBalances),
+        currencyHistory: normalizeCurrencyHistory(reward.value.currencyHistory),
+      })) throw new ClasswordClientError('CLASSWORD_REWARD_SAVE_FAILED');
       dispatchLocalChange();
-      return { entry, awarded: false, balance: null };
+      return { entry, awarded: reward.awarded, balance: reward.balance };
     } catch (error) {
       if (error instanceof ClasswordLocalError) throw new ClasswordClientError(error.code);
       throw error;

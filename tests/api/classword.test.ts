@@ -206,7 +206,7 @@ test('전체 사용 주제 조회는 교사에게만 허용하고 중복을 제�
   });
 });
 
-test('학생 제출은 오늘 낱말만 저장하고 당일 보상은 지급하지 않는다', async () => {
+test('학생 제출은 오늘 낱말을 저장하고 당일 5고마를 지급한다', async () => {
   // Given
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
@@ -222,6 +222,14 @@ test('학생 제출은 오늘 낱말만 저장하고 당일 보상은 지급하�
         id: 'entry-new', round_date: TODAY, initial: 'ㄱ', word: '강아지',
         student_number: 3, created_at: '2026-08-29T01:00:00.000Z', updated_at: '2026-08-29T01:00:00.000Z',
       }]);
+      if (url.includes('/rpc/claim_weekly_mission_reward')) return Response.json({
+        missionType: 'classword_word_entry',
+        weekKey: TODAY,
+        completed: true,
+        awarded: true,
+        rewardAmount: 5,
+        balance: 105,
+      });
       return Response.json([]);
     };
 
@@ -236,10 +244,11 @@ test('학생 제출은 오늘 낱말만 저장하고 당일 보상은 지급하�
 
       // Then
       assert.equal(result().statusCode, 200);
-      assert.equal(Reflect.get(result().body as object, 'awarded'), false);
-      assert.equal(Reflect.get(result().body as object, 'balance'), null);
+      assert.equal(Reflect.get(result().body as object, 'awarded'), true);
+      assert.equal(Reflect.get(result().body as object, 'balance'), 105);
       assert.equal(Reflect.get(requestBodies[0] as object, 'student_number'), 3);
-      assert.equal(requestBodies.length, 1);
+      assert.equal(Reflect.get(requestBodies[1] as object, 'p_source_event_id'), 'entry-new');
+      assert.equal(requestBodies.length, 2);
     } finally {
       globalThis.fetch = originalFetch;
     }

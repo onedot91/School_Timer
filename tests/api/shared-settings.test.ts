@@ -214,6 +214,57 @@ test('student sessions can update only their own balance entry', async () => {
   });
 });
 
+test('학생 저장은 변경하지 않은 객체의 속성 순서가 달라도 권한 오류로 막히지 않는다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    const previousValue = {
+      auctionAwards: {
+        'item-a': { winner: 4, amount: 20 },
+        'item-b': { winner: 8, amount: 30 },
+      },
+      currencyHistory: {
+        7: [{ id: 'history-7', studentNumber: 7, delta: 5 }],
+        8: [{ id: 'history-8', studentNumber: 8, delta: 10 }],
+      },
+      studentEmotionHistory: {},
+    };
+    const nextValue = {
+      auctionAwards: {
+        'item-b': { amount: 30, winner: 8 },
+        'item-a': { amount: 20, winner: 4 },
+      },
+      currencyHistory: {
+        8: [{ delta: 10, studentNumber: 8, id: 'history-8' }],
+        7: [{ delta: 5, studentNumber: 7, id: 'history-7' }],
+      },
+      studentEmotionHistory: {
+        7: [{ id: 'emotion-7' }],
+      },
+    };
+    globalThis.fetch = async () => {
+      fetchCount += 1;
+      return fetchCount === 1
+        ? Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: 'v1' }])
+        : Response.json([{ id: 'school-timer-main' }]);
+    };
+
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT',
+        headers: studentHeaders(7),
+        body: { value: nextValue, expectedUpdatedAt: 'v1' },
+      }, response);
+
+      assert.equal(result().statusCode, 200);
+      assert.equal(fetchCount, 2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 const economyUpdateScenarios = [
   {
     name: '학생 거래는 누락된 다른 학생 기본값을 정규화해도 저장된다',

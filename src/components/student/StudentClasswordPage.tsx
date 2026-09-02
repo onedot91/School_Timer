@@ -23,7 +23,7 @@ type StudentClasswordPageProps = {
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
   readonly onRewardBalance: (balance: number) => void;
-  readonly onMissionSubmitted: () => void;
+  readonly onMissionSubmitted: (awarded: boolean) => void;
   readonly onBack: () => void;
 };
 
@@ -174,7 +174,7 @@ export default function StudentClasswordPage({
         ],
       }));
       void playClasswordSound('success');
-      onMissionSubmitted();
+      onMissionSubmitted(result.awarded);
       if (result.balance !== null) onRewardBalance(result.balance);
       return 'saved';
     } catch (error) {
