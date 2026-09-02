@@ -237,6 +237,18 @@ export const getTeacherLetters = (state: StudentLifeState): readonly StudentLett
   [...state.letters].reverse().filter((letter) => letter.recipient === TEACHER_LETTER_RECIPIENT)
 );
 
+export const getUnreadTeacherLetterCount = (state: StudentLifeState): number => (
+  state.letters.filter(
+    (letter) => letter.recipient === TEACHER_LETTER_RECIPIENT && letter.readAt === null,
+  ).length
+);
+
+export const markTeacherLetterRead = (
+  state: StudentLifeState,
+  letterId: string,
+  readAt: string,
+): StudentLifeState => markStudentLetterRead(state, TEACHER_LETTER_RECIPIENT, letterId, readAt);
+
 export const getUnreadStudentLetterCount = (
   state: StudentLifeState,
   studentNumber: number,

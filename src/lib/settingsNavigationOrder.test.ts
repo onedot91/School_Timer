@@ -36,13 +36,13 @@ test('수업 운영, 학생 생활, 고마 경제는 구분된 헤더로 표시�
   assert.match(headingStyles, /background: color-mix/);
 });
 
-test('학생에게 받은 편지가 있으면 편지 메뉴에 붉은 New 배지를 표시한다', async () => {
+test('읽지 않은 학생 편지가 있으면 편지 메뉴에 붉은 New 배지를 표시한다', async () => {
   const source = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../index.css', import.meta.url), 'utf8');
 
-  assert.match(source, /item\.panel === 'mail' && teacherLetters\.length > 0/);
+  assert.match(source, /item\.panel === 'mail' && unreadTeacherLetterCount > 0/);
   assert.match(source, /className="settings-navigation-new-badge"/);
-  assert.match(source, /학생에게 받은 편지 \$\{teacherLetters\.length\}개/);
+  assert.match(source, /새로 받은 편지 \$\{unreadTeacherLetterCount\}개/);
   assert.match(styles, /\.settings-navigation-new-badge \{[^}]*background: var\(--teacher-urgent\);/s);
 });
 

@@ -105,7 +105,9 @@ import {
   createStudentLetters,
   getTeacherLetterRecipients,
   getTeacherLetters,
+  getUnreadTeacherLetterCount,
   loadStoredStudentLifeState,
+  markTeacherLetterRead,
   normalizeStudentLifeState,
   storeStudentLifeState,
   type StudentLifeState,
@@ -296,6 +298,19 @@ const emotionCalendarDateFormatter = new Intl.DateTimeFormat('ko-KR', {
   day: 'numeric',
   weekday: 'short',
 });
+
+const teacherLetterDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+const formatTeacherLetterDate = (createdAt: string): string => {
+  const date = new Date(createdAt);
+  return Number.isNaN(date.getTime()) ? '날짜 확인 불가' : teacherLetterDateFormatter.format(date);
+};
 
 const formatCurrencyAdjustmentSummary = ({ delta }: CurrencyAdjustmentSummary) => {
   const sign = delta > 0 ? '+' : delta < 0 ? '−' : '';
@@ -3875,6 +3890,7 @@ export default function TimerPage() {
   const [mailContent, setMailContent] = useState('');
   const [mailReplyToId, setMailReplyToId] = useState<string | undefined>();
   const [selectedTeacherLetterId, setSelectedTeacherLetterId] = useState('');
+  const teacherLetterReadInFlightRef = useRef<Set<string>>(new Set());
   const [isMailSending, setIsMailSending] = useState(false);
   const [mailStatus, setMailStatus] = useState('');
   const [auctionItemEditCommitVersion, setAuctionItemEditCommitVersion] = useState(0);
@@ -8957,6 +8973,36 @@ export default function TimerPage() {
     }
   };
 
+  const markTeacherLetterAsRead = async (letterId: string) => {
+    if (teacherLetterReadInFlightRef.current.has(letterId)) return;
+    teacherLetterReadInFlightRef.current.add(letterId);
+    const readAt = new Date().toISOString();
+    try {
+      let savedState = markTeacherLetterRead(studentLife, letterId, readAt);
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object'
+            ? currentValue as Record<string, unknown>
+            : {};
+          savedState = markTeacherLetterRead(
+            normalizeStudentLifeState(current.studentLife),
+            letterId,
+            readAt,
+          );
+          return { ...current, studentLife: savedState };
+        });
+      } else {
+        savedState = markTeacherLetterRead(loadStoredStudentLifeState(), letterId, readAt);
+        storeStudentLifeState(savedState);
+      }
+      setStudentLife(savedState);
+    } catch (error) {
+      console.error('Failed to mark teacher letter as read.', error);
+    } finally {
+      teacherLetterReadInFlightRef.current.delete(letterId);
+    }
+  };
+
   const publishDailyWriting = async (input: {
     readonly dateKey: string;
     readonly topic: string;
@@ -9158,9 +9204,20 @@ export default function TimerPage() {
   ])].sort();
 
   const teacherLetters = getTeacherLetters(studentLife);
+  const unreadTeacherLetterCount = getUnreadTeacherLetterCount(studentLife);
   const selectedTeacherLetter = teacherLetters.find((letter) => letter.id === selectedTeacherLetterId)
-    ?? teacherLetters[0]
+    ?? (unreadTeacherLetterCount === 0 ? teacherLetters[0] : null)
     ?? null;
+
+  useEffect(() => {
+    if (
+      !isSettingsOpen
+      || settingsPanel !== 'mail'
+      || !selectedTeacherLetter
+      || selectedTeacherLetter.readAt !== null
+    ) return;
+    void markTeacherLetterAsRead(selectedTeacherLetter.id);
+  }, [isSettingsOpen, selectedTeacherLetter, settingsPanel]);
 
   const replyToStudentLetter = () => {
     if (!selectedTeacherLetter?.senderStudentNumber) return;
@@ -9572,22 +9629,39 @@ export default function TimerPage() {
           <div className="teacher-mail-reader">
             <div className="teacher-mail-list" aria-label="선생님 받은 편지 목록">
               {teacherLetters.map((letter) => (
-                <button key={letter.id} type="button" className={letter.id === selectedTeacherLetter?.id ? 'is-selected' : ''} onClick={() => setSelectedTeacherLetterId(letter.id)}>
-                  <strong>{letter.senderLabel}</strong>
-                  <span>{letter.title || '편지가 도착했어요'}</span>
+                <button
+                  key={letter.id}
+                  type="button"
+                  className={`${letter.id === selectedTeacherLetter?.id ? 'is-selected' : ''}${letter.readAt === null ? ' is-unread' : ''}`}
+                  aria-label={`${letter.readAt === null ? '새 편지, ' : ''}${letter.senderLabel}, ${letter.title || '편지가 도착했어요'}, ${formatTeacherLetterDate(letter.createdAt)}`}
+                  onClick={() => setSelectedTeacherLetterId(letter.id)}
+                >
+                  <span className="teacher-mail-list-meta">
+                    <strong>{letter.senderLabel}</strong>
+                    {letter.readAt === null ? <span className="teacher-mail-list-new">New</span> : null}
+                    <time dateTime={letter.createdAt}>{formatTeacherLetterDate(letter.createdAt)}</time>
+                  </span>
+                  <span className="teacher-mail-list-title">{letter.title || '편지가 도착했어요'}</span>
                 </button>
               ))}
             </div>
             {selectedTeacherLetter ? (
               <article className="teacher-letter-paper">
-                <span>{selectedTeacherLetter.senderLabel}</span>
+                <header className="teacher-letter-paper-meta">
+                  <span>{selectedTeacherLetter.senderLabel}</span>
+                  <time dateTime={selectedTeacherLetter.createdAt}>{formatTeacherLetterDate(selectedTeacherLetter.createdAt)}</time>
+                </header>
                 <h4>{selectedTeacherLetter.title || '편지가 도착했어요'}</h4>
                 <p>{selectedTeacherLetter.content}</p>
                 <button type="button" onClick={replyToStudentLetter} disabled={!selectedTeacherLetter.senderStudentNumber}>
                   <Reply size={17} aria-hidden="true" />답장하기
                 </button>
               </article>
-            ) : null}
+            ) : (
+              <div className="teacher-mail-reader-empty">
+                새 편지를 선택하면 내용을 볼 수 있습니다.
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -11993,10 +12067,10 @@ export default function TimerPage() {
                           >
                             <ItemIcon size={19} aria-hidden="true" />
                             <span>{item.label}</span>
-                            {item.panel === 'mail' && teacherLetters.length > 0 ? (
+                            {item.panel === 'mail' && unreadTeacherLetterCount > 0 ? (
                               <span
                                 className="settings-navigation-new-badge"
-                                aria-label={`학생에게 받은 편지 ${teacherLetters.length}개`}
+                                aria-label={`새로 받은 편지 ${unreadTeacherLetterCount}개`}
                               >
                                 New
                               </span>

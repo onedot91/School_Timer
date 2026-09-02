@@ -13500,10 +13500,17 @@ a[href]:active {
 .teacher-mail-list { display: grid; align-content: start; gap: .4rem; }
 .teacher-mail-list button { display: grid; gap: .2rem; border: 1px solid #d7e3dc; border-radius: .9rem; background: #fff; padding: .7rem .85rem; text-align: left; }
 .teacher-mail-list button.is-selected { border-color: #006241; background: #edf7f1; }
-.teacher-mail-list strong { color: #006241; font-size: .8rem; }
-.teacher-mail-list span { overflow: hidden; color: #26352e; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-mail-list button.is-unread { border-inline-start: .25rem solid var(--teacher-urgent); }
+.teacher-mail-list-meta { display: flex; min-width: 0; align-items: center; gap: .4rem; }
+.teacher-mail-list-meta strong { color: #006241; font-size: .8rem; }
+.teacher-mail-list-meta time { margin-inline-start: auto; color: var(--teacher-text-secondary); font-size: .7rem; font-weight: 800; white-space: nowrap; }
+.teacher-mail-list-meta .teacher-mail-list-new { display: inline-flex; align-items: center; border-radius: var(--apple-radius-pill); background: var(--teacher-urgent); padding: .16rem .38rem; color: var(--apple-surface); font-size: .66rem; font-weight: 950; line-height: 1; -webkit-text-fill-color: var(--apple-surface); }
+.teacher-mail-list-title { overflow: hidden; color: #26352e; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-mail-reader-empty { display: grid; min-height: 11rem; place-items: center; border: 1px dashed var(--teacher-border); border-radius: 1rem; color: var(--teacher-text-secondary); background: color-mix(in srgb, var(--apple-surface) 72%, transparent); font-weight: 800; text-align: center; }
 .teacher-letter-paper { min-height: 11rem; border: 1px solid #d7c59f; border-radius: 1rem; background: repeating-linear-gradient(180deg, #fffdf4 0, #fffdf4 1.75rem, #d8e0d8 1.8rem); padding: 1.15rem 1.3rem; font-family: "Noto Serif KR", "Nanum Myeongjo", Batang, "바탕", serif; }
-.teacher-letter-paper > span { color: #006241; font-size: .8rem; font-weight: 900; }
+.teacher-letter-paper-meta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.teacher-letter-paper-meta span { color: #006241; font-size: .8rem; font-weight: 900; }
+.teacher-letter-paper-meta time { color: var(--teacher-text-secondary); font-family: var(--font-body); font-size: .75rem; font-weight: 800; }
 .teacher-letter-paper h4 { margin-top: .25rem; color: #2d241d; font-size: 1.2rem; font-weight: 900; }
 .teacher-letter-paper p { margin-top: .8rem; color: #302c28; font-size: 1.05rem; line-height: 1.75; white-space: pre-wrap; }
 .teacher-letter-paper button { display: inline-flex; min-height: 2.65rem; align-items: center; gap: .35rem; margin-top: 1rem; border-radius: .75rem; background: #006241; padding: .55rem .85rem; color: #fff; font-family: inherit; font-weight: 900; }
@@ -15912,7 +15919,7 @@ a[href]:active {
   box-shadow: 0 .3rem .75rem rgb(0 98 65 / 16%);
 }
 
-.settings-navigation-new-badge {
+.settings-dialog .settings-navigation-new-badge {
   display: inline-flex;
   min-height: 1.25rem;
   align-items: center;
@@ -15923,10 +15930,13 @@ a[href]:active {
   border-radius: var(--apple-radius-pill);
   color: var(--apple-surface);
   background: var(--teacher-urgent);
-  font-size: .68rem;
-  font-weight: 900;
+  box-shadow: 0 .12rem .3rem rgb(75 25 22 / 22%);
+  font-size: .74rem;
+  font-weight: 950;
   line-height: 1;
   letter-spacing: .02em;
+  text-shadow: 0 1px rgb(50 16 14 / 28%);
+  -webkit-text-fill-color: var(--apple-surface);
 }
 
 .settings-navigation-item:active {

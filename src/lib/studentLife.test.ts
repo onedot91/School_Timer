@@ -16,7 +16,9 @@ import {
   getStudentSentLetters,
   getTeacherLetters,
   getTeacherLetterRecipients,
+  getUnreadTeacherLetterCount,
   getUnreadStudentLetterCount,
+  markTeacherLetterRead,
   markStudentLetterRead,
   normalizeStudentLifeState,
 } from './studentLife.ts';
@@ -134,6 +136,36 @@ test('학생은 선생님에게 편지를 보내고 답장 연결 정보를 보�
   assert.equal(getStudentLetters(state, 7).length, 0);
   assert.equal(getTeacherLetters(state)[0]?.senderStudentNumber, 7);
   assert.equal(getTeacherLetters(state)[0]?.replyToId, 'teacher-letter-0');
+});
+
+test('교사가 새 편지를 읽으면 교사 미읽음 수가 줄고 읽은 시각을 보존한다', () => {
+  const initial = createStudentLetters(normalizeStudentLifeState(null), [
+    {
+      id: 'teacher-unread-1',
+      recipient: 0,
+      senderLabel: '7번',
+      senderStudentNumber: 7,
+      title: '첫 편지',
+      content: '첫 번째 편지입니다.',
+      createdAt: '2026-09-02T01:00:00.000Z',
+    },
+    {
+      id: 'teacher-unread-2',
+      recipient: 0,
+      senderLabel: '8번',
+      senderStudentNumber: 8,
+      title: '둘째 편지',
+      content: '두 번째 편지입니다.',
+      createdAt: '2026-09-02T02:00:00.000Z',
+    },
+  ]);
+
+  assert.equal(getUnreadTeacherLetterCount(initial), 2);
+
+  const read = markTeacherLetterRead(initial, 'teacher-unread-2', '2026-09-02T03:00:00.000Z');
+
+  assert.equal(getUnreadTeacherLetterCount(read), 1);
+  assert.equal(getTeacherLetters(read)[0]?.readAt, '2026-09-02T03:00:00.000Z');
 });
 
 test('기존 편지는 답장 정보 없이도 그대로 정규화된다', () => {
