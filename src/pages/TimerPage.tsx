@@ -4067,6 +4067,9 @@ export default function TimerPage() {
       return [...DEFAULT_SUBJECT_CATALOG];
     }
   });
+  const subjectCatalogRef = useRef(subjectCatalog);
+  subjectCatalogRef.current = subjectCatalog;
+  const hasUnsavedSubjectCatalogRef = useRef(false);
   const [subjectCatalogEditCommitVersion, setSubjectCatalogEditCommitVersion] = useState(0);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [selectedSubjectWeekKey, setSelectedSubjectWeekKey] = useState(() =>
@@ -4228,6 +4231,12 @@ export default function TimerPage() {
   const currencyHistoryRef = useRef(currencyHistory);
   const auctionAwardsRef = useRef(auctionAwards);
   const isEditingSubjectCatalogRef = useRef(false);
+  useEffect(() => {
+    if (!isSettingsOpen && isEditingSubjectCatalogRef.current) {
+      isEditingSubjectCatalogRef.current = false;
+      setSubjectCatalogEditCommitVersion((previous) => previous + 1);
+    }
+  }, [isSettingsOpen]);
   const activeDrawCase =
     drawCases.find((caseState) => caseState.id === activeDrawCaseId) ??
     drawCases[0] ??
@@ -4468,7 +4477,7 @@ export default function TimerPage() {
       weeklySubjectsRef.current = nextWeeklySubjects;
       setWeeklySubjects(nextWeeklySubjects);
     }
-    if (!isEditingSubjectCatalogRef.current) {
+    if (!hasUnsavedSubjectCatalogRef.current && !isEditingSubjectCatalogRef.current) {
       setSubjectCatalog(normalizeSubjectCatalog(remoteSettings.subjectCatalog));
     }
     if (!isEditingNoticeRef.current) {
@@ -4570,6 +4579,9 @@ export default function TimerPage() {
       .finally(() => {
         if (!isCancelled) {
           sharedSettingsHydratedRef.current = true;
+          if (hasUnsavedWeeklySubjectsRef.current || hasUnsavedSubjectCatalogRef.current) {
+            setSubjectCatalogEditCommitVersion((previous) => previous + 1);
+          }
         }
       });
 
@@ -4740,7 +4752,11 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
 
-    if (skipNextSharedSettingsSaveRef.current && !hasUnsavedWeeklySubjectsRef.current) {
+    if (
+      skipNextSharedSettingsSaveRef.current &&
+      !hasUnsavedWeeklySubjectsRef.current &&
+      !hasUnsavedSubjectCatalogRef.current
+    ) {
       skipNextSharedSettingsSaveRef.current = false;
       return;
     }
@@ -4781,6 +4797,10 @@ export default function TimerPage() {
           const savedWeeklySubjects = normalizeWeeklySubjects(savedSnapshot.weeklySubjects);
           if (JSON.stringify(savedWeeklySubjects) === JSON.stringify(weeklySubjectsRef.current)) {
             hasUnsavedWeeklySubjectsRef.current = false;
+          }
+          const savedSubjectCatalog = normalizeSubjectCatalog(savedSnapshot.subjectCatalog, []);
+          if (JSON.stringify(savedSubjectCatalog) === JSON.stringify(subjectCatalogRef.current)) {
+            hasUnsavedSubjectCatalogRef.current = false;
           }
           const currentCurrencyInput = JSON.stringify({
             balances: currencyBalancesRef.current,
@@ -4886,6 +4906,7 @@ export default function TimerPage() {
         isChecking ||
         isSharedSettingsSavePendingRef.current ||
         hasUnsavedWeeklySubjectsRef.current ||
+        hasUnsavedSubjectCatalogRef.current ||
         isEditingNoticeRef.current ||
         isEditingSubjectCatalogRef.current ||
         isEditingAuctionItemRef.current ||
@@ -6009,9 +6030,9 @@ export default function TimerPage() {
     const subject = normalizeAssignedSubjectName(value);
     if (!subjectKey) return;
 
-    if (isSupabaseSettingsEnabled && sharedSettingsHydratedRef.current) {
+    if (isSupabaseSettingsEnabled) {
       hasUnsavedWeeklySubjectsRef.current = true;
-      isSharedSettingsSavePendingRef.current = true;
+      if (sharedSettingsHydratedRef.current) isSharedSettingsSavePendingRef.current = true;
     }
 
     setWeeklySubjects((previous) => {
@@ -6083,6 +6104,7 @@ export default function TimerPage() {
     if (!subject) return;
     if (subjectCatalog.includes(subject)) return;
 
+    if (isSupabaseSettingsEnabled) hasUnsavedSubjectCatalogRef.current = true;
     setSubjectCatalog((previous) => {
       if (previous.includes(subject)) return previous;
       return [...previous, subject];
@@ -6112,6 +6134,7 @@ export default function TimerPage() {
       return;
     }
 
+    if (isSupabaseSettingsEnabled) hasUnsavedSubjectCatalogRef.current = true;
     const next = [...subjectCatalog];
     next[index] = nextSubject;
     setSubjectCatalog(next);
@@ -6119,6 +6142,7 @@ export default function TimerPage() {
   };
 
   const removeSubjectCatalogItem = (index: number) => {
+    if (isSupabaseSettingsEnabled) hasUnsavedSubjectCatalogRef.current = true;
     setSubjectCatalog((previous) => previous.filter((_, subjectIndex) => subjectIndex !== index));
   };
 
