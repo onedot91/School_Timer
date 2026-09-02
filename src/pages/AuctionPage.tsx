@@ -353,10 +353,24 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     onCurrencyBalancesChange: setCurrencyBalances,
     onCurrencyHistoryChange: setCurrencyHistory,
   });
-  const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
-  const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
-  const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
-  const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+  const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => (
+    isSupabaseSettingsEnabled ? normalizeAuctionItems(null) : loadStoredStudentPetSnapshot().auctionItems
+  ));
+  const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeAuctionBids(null, AUCTION_ITEM_IDS)
+      : loadStoredStudentPetSnapshot().auctionBids
+  ));
+  const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS)
+      : loadStoredStudentPetSnapshot().auctionBidHistory
+  ));
+  const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeAuctionAwards(null, AUCTION_ITEM_IDS)
+      : loadStoredStudentPetSnapshot().auctionAwards
+  ));
   const [auctionMissions, setAuctionMissions] = useState<AuctionMission[]>(getInitialAuctionMissions);
   const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
     loadStoredClassroomRoleMissionSettings,
@@ -950,6 +964,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         savedPet = feedStudentPetEgg(currentPet);
         savedBalances = { ...snapshot.currencyBalances, [studentKey]: nextBalance };
         const stored = storeStudentPetSnapshot({
+          ...snapshot,
           studentPets: { ...snapshot.studentPets, [studentKey]: savedPet },
           currencyBalances: savedBalances,
           currencyHistory: appendCurrencyHistoryEntry(snapshot.currencyHistory, {
@@ -958,8 +973,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             after: nextBalance,
             reason: 'pet_feed',
           }),
-          studentEconomy: snapshot.studentEconomy,
-          studentLife: snapshot.studentLife,
         });
         if (!stored) return false;
       }
@@ -1179,10 +1192,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       const localPetSnapshot = loadStoredStudentPetSnapshot();
       setCurrencyBalances(localPetSnapshot.currencyBalances);
       setCurrencyHistory(localPetSnapshot.currencyHistory);
-      setAuctionItems(normalizeAuctionItems(null));
-      setAuctionBids(normalizeAuctionBids(null, AUCTION_ITEM_IDS));
-      setAuctionBidHistory(normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
-      setAuctionAwards(normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+      setAuctionItems(localPetSnapshot.auctionItems);
+      setAuctionBids(localPetSnapshot.auctionBids);
+      setAuctionBidHistory(localPetSnapshot.auctionBidHistory);
+      setAuctionAwards(localPetSnapshot.auctionAwards);
       setAuctionMissions(getStoredAuctionMissions());
       setClassroomRoleMission(loadStoredClassroomRoleMissionSettings());
       setClassDonation(getClassDonationPublicState(null));
@@ -1549,17 +1562,40 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         });
         await refreshAuctionState();
       } else {
-        setAuctionBids((previous) => ({
-          ...previous,
+        const snapshot = loadStoredStudentPetSnapshot();
+        const currentBids = snapshot.auctionBids;
+        const currentHistory = snapshot.auctionBidHistory;
+        const currentAwards = snapshot.auctionAwards;
+        if (currentAwards[item.id]) throw new Error('ALREADY_AWARDED');
+        const latestBalance = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+        const latestBid = currentBids[item.id] ?? { amount: 0, bidder: null };
+        const latestMinimumBid = getMinimumAuctionBid(item, latestBid.amount);
+        const latestReservedExcludingItem = getReservedAuctionBidAmount(
+          currentBids,
+          studentNumber,
+          item.id,
+          currentAwards,
+          activeAuctionItemIds,
+        );
+        if (latestBid.bidder === studentNumber) throw new Error('ALREADY_HIGHEST_BIDDER');
+        if (bidAmount > Math.max(0, latestBalance - latestReservedExcludingItem)) {
+          throw new Error('INSUFFICIENT_FUNDS');
+        }
+        if (bidAmount < latestMinimumBid) throw new Error('BID_TOO_LOW');
+        if (hasAuctionBidAmount(currentHistory, item.id, bidAmount)) {
+          throw new Error('DUPLICATE_BID_AMOUNT');
+        }
+        const nextBids = {
+          ...currentBids,
           [item.id]: {
             amount: bidAmount,
             bidder: studentNumber,
           },
-        }));
-        setAuctionBidHistory((previous) => ({
-          ...previous,
+        };
+        const nextHistory = {
+          ...currentHistory,
           [item.id]: [
-            ...(previous[item.id] ?? []),
+            ...(currentHistory[item.id] ?? []),
             {
               itemId: item.id,
               bidder: studentNumber,
@@ -1567,7 +1603,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               createdAt: new Date().toISOString(),
             },
           ],
-        }));
+        };
+        if (!storeStudentPetSnapshot({
+          ...snapshot,
+          auctionBids: nextBids,
+          auctionBidHistory: nextHistory,
+        })) throw new Error('AUCTION_BID_LOCAL_SAVE_FAILED');
+        setAuctionBids(nextBids);
+        setAuctionBidHistory(nextHistory);
       }
 
       setBidAmounts((previous) => ({ ...previous, [item.id]: bidAmount + AUCTION_BID_STEP }));
@@ -2075,7 +2118,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   <div className="rounded-[1rem] border border-[#E5ECE8] bg-[#FAFCFB] px-4 py-3">
                     <div className="text-[0.9rem] font-black text-[#8A5A1F]">낙찰 완료</div>
                     <div className="mt-1 font-mono text-[1.35rem] font-black text-[#007A57]">
-                      {award.winner}번 · {formatCurrency(award.amount)}
+                      {award.winner}번 ({formatCurrency(award.amount)})
                     </div>
                   </div>
                 </div>

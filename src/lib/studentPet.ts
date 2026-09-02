@@ -1,6 +1,15 @@
 import {
+  AUCTION_ITEM_IDS,
+  normalizeAuctionAwards,
+  normalizeAuctionBidHistory,
+  normalizeAuctionBids,
+  normalizeAuctionItems,
   normalizeCurrencyBalances,
   normalizeCurrencyHistory,
+  type AuctionAwards,
+  type AuctionBidHistory,
+  type AuctionBids,
+  type AuctionItem,
   type CurrencyBalances,
   type CurrencyHistory,
 } from './currency';
@@ -57,6 +66,10 @@ export interface StudentPetLocalSnapshot {
   currencyHistory: CurrencyHistory;
   studentEconomy: StudentEconomyStates;
   studentLife: StudentLifeState;
+  auctionItems: AuctionItem[];
+  auctionBids: AuctionBids;
+  auctionBidHistory: AuctionBidHistory;
+  auctionAwards: AuctionAwards;
 }
 
 export interface StudentPetPositionOverride {
@@ -388,6 +401,10 @@ export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
     currencyHistory: normalizeCurrencyHistory(null),
     studentEconomy: {},
     studentLife: normalizeStudentLifeState(null),
+    auctionItems: normalizeAuctionItems(null),
+    auctionBids: normalizeAuctionBids(null, AUCTION_ITEM_IDS),
+    auctionBidHistory: normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS),
+    auctionAwards: normalizeAuctionAwards(null, AUCTION_ITEM_IDS),
   };
   if (typeof window === 'undefined') return fallback;
 
@@ -403,6 +420,10 @@ export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
       studentLife: 'studentLife' in parsed
         ? normalizeStudentLifeState(parsed.studentLife)
         : loadStoredStudentLifeState(),
+      auctionItems: normalizeAuctionItems(parsed.auctionItems),
+      auctionBids: normalizeAuctionBids(parsed.auctionBids, AUCTION_ITEM_IDS),
+      auctionBidHistory: normalizeAuctionBidHistory(parsed.auctionBidHistory, AUCTION_ITEM_IDS),
+      auctionAwards: normalizeAuctionAwards(parsed.auctionAwards, AUCTION_ITEM_IDS),
     };
   } catch (error) {
     if (error instanceof Error) return fallback;
@@ -423,6 +444,10 @@ export const storeStudentPetSnapshot = (
       currencyHistory: normalizeCurrencyHistory(snapshot.currencyHistory),
       studentEconomy: normalizeStudentEconomyStates(snapshot.studentEconomy),
       studentLife: normalizeStudentLifeState(snapshot.studentLife),
+      auctionItems: normalizeAuctionItems(snapshot.auctionItems),
+      auctionBids: normalizeAuctionBids(snapshot.auctionBids, AUCTION_ITEM_IDS),
+      auctionBidHistory: normalizeAuctionBidHistory(snapshot.auctionBidHistory, AUCTION_ITEM_IDS),
+      auctionAwards: normalizeAuctionAwards(snapshot.auctionAwards, AUCTION_ITEM_IDS),
     }));
     return true;
   } catch (error) {

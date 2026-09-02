@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { FAILURE_PROFILE_IMAGES } from './failureExhibition.ts';
-import { storeStudentPetSnapshot, STUDENT_PET_STORAGE_KEY } from './studentPet.ts';
+import {
+  loadStoredStudentPetSnapshot,
+  storeStudentPetSnapshot,
+  STUDENT_PET_STORAGE_KEY,
+} from './studentPet.ts';
 import {
   purchaseStudentProfile,
   RANDOM_PROFILE_CHANGE_PRICE,
@@ -96,6 +100,7 @@ test('로컬 프로필 구매는 프로필과 잔액을 하나의 스냅샷으�
   const result = purchaseStudentProfile(createSettings(), 1, { type: 'random' }, 100, () => 0);
   const writes: Array<{ key: string; value: string }> = [];
   const stored = storeStudentPetSnapshot({
+    ...loadStoredStudentPetSnapshot(),
     studentPets: {},
     currencyBalances: result.balances,
     currencyHistory: result.history,
@@ -123,6 +128,7 @@ test('결합 스냅샷 저장 실패는 부분 저장 없이 실패로 반환한
   );
   let writeCount = 0;
   const stored = storeStudentPetSnapshot({
+    ...loadStoredStudentPetSnapshot(),
     studentPets: {},
     currencyBalances: result.balances,
     currencyHistory: result.history,

@@ -5,11 +5,13 @@ import {
   applyStudentPetPositionOverrides,
   feedStudentPetEgg,
   getStudentPetState,
+  loadStoredStudentPetSnapshot,
   moveStudentPet,
   moveGomaCharacter,
   nameStudentPet,
   normalizeStudentPetStates,
   selectStudentPet,
+  storeStudentPetSnapshot,
   storeStudentPetPositionOverride,
 } from './studentPet';
 
@@ -113,6 +115,55 @@ test('pending pet and Goma positions survive a shared-state reload', () => {
 
     assert.deepEqual(reloaded['2']?.position, { x: 0.74, y: 0.38 });
     assert.deepEqual(reloaded['2']?.gomaPosition, { x: 0.62, y: 0.48 });
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
+test('연습 모드 경매 상태는 학생과 교사 화면 재진입 후에도 유지된다', () => {
+  const storage = new Map<string, string>();
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+      },
+    },
+  });
+
+  try {
+    const snapshot = loadStoredStudentPetSnapshot();
+    const item = { id: 'item-a', name: '창가 자리', startPrice: 10, dayIndex: 0 };
+    const bid = { amount: 30, bidder: 7 };
+    const bidEntry = {
+      itemId: item.id,
+      bidder: 7,
+      amount: 30,
+      createdAt: '2026-09-03T00:00:00.000Z',
+    };
+    const award = {
+      itemId: item.id,
+      winner: 7,
+      amount: 30,
+      awardedAt: '2026-09-03T00:01:00.000Z',
+    };
+
+    assert.equal(storeStudentPetSnapshot({
+      ...snapshot,
+      auctionItems: [item],
+      auctionBids: { [item.id]: bid },
+      auctionBidHistory: { [item.id]: [bidEntry] },
+      auctionAwards: { [item.id]: award },
+    }), true);
+
+    const reloaded = loadStoredStudentPetSnapshot();
+    assert.deepEqual(reloaded.auctionItems, [item]);
+    assert.deepEqual(reloaded.auctionBids[item.id], bid);
+    assert.deepEqual(reloaded.auctionBidHistory[item.id], [bidEntry]);
+    assert.deepEqual(reloaded.auctionAwards[item.id], award);
   } finally {
     if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
     else Reflect.deleteProperty(globalThis, 'window');

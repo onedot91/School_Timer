@@ -782,21 +782,14 @@ img {
   -webkit-user-drag: none;
 }
 
-@keyframes auctionAwardPulse {
+@keyframes auctionAwardValueIn {
   0% {
-    transform: scale(0.82);
-    opacity: 0.65;
-    box-shadow: 0 0 0 rgba(0, 98, 65, 0);
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 1;
-    box-shadow: 0 16px 34px rgba(0, 98, 65, 0.2);
+    opacity: 0;
+    transform: translateY(0.35rem) scale(0.96);
   }
   100% {
-    transform: scale(1);
     opacity: 1;
-    box-shadow: 0 0 0 rgba(0, 98, 65, 0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -816,6 +809,8 @@ img {
   --teacher-warning-soft: #eee4d5;
   --teacher-urgent-soft: #eddfdc;
   --teacher-focus: #315f4d;
+  --teacher-award-dialog-width: 72rem;
+  --teacher-award-dialog-height: 42rem;
 
   --apple-canvas: var(--teacher-canvas);
   --apple-canvas-warm: var(--teacher-canvas);
@@ -1110,15 +1105,11 @@ img {
 @keyframes auctionAwardWinner {
   0% {
     opacity: 0;
-    transform: translateY(0.5rem) scale(0.68) rotate(-8deg);
-  }
-  55% {
-    opacity: 1;
-    transform: translateY(-0.2rem) scale(1.22) rotate(5deg);
+    transform: translateY(0.4rem) scale(0.94);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1) rotate(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -1132,14 +1123,14 @@ img {
   }
   100% {
     opacity: 0;
-    transform: translateY(30rem) scale(1.08) rotate(540deg);
+    transform: translateY(22rem) scale(1) rotate(360deg);
   }
 }
 
 @keyframes auctionAwardStageIn {
   0% {
     opacity: 0;
-    transform: translateY(1.2rem) scale(0.96);
+    transform: translateY(0.6rem) scale(0.97);
   }
   100% {
     opacity: 1;
@@ -1147,14 +1138,9 @@ img {
   }
 }
 
-@keyframes auctionAwardCompleteGlow {
-  0%,
-  100% {
-    box-shadow: inset 0 0 0 rgba(0, 122, 87, 0), 0 18px 34px rgba(31, 24, 18, 0.08);
-  }
-  50% {
-    box-shadow: inset 0 0 42px rgba(0, 122, 87, 0.12), 0 24px 44px rgba(0, 98, 65, 0.16);
-  }
+@keyframes auctionAwardReducedFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes auctionBidFlowArrow {
@@ -1174,7 +1160,14 @@ img {
 }
 
 .auction-award-stage {
-  animation: auctionAwardStageIn 420ms cubic-bezier(0.16, 0.88, 0.24, 1) both;
+  animation: auctionAwardStageIn 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  contain: layout paint;
+}
+
+.timer-main-shell > .auction-award-backdrop,
+.settings-dialog > .auction-award-backdrop {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .auction-award-arena {
@@ -1207,7 +1200,7 @@ img {
 .auction-award-winner-chip,
 .auction-award-trophy,
 .auction-award-final-price {
-  animation: auctionAwardWinner 0.72s cubic-bezier(0.2, 0.9, 0.2, 1.12);
+  animation: auctionAwardWinner 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 .auction-award-confetti span {
@@ -1221,7 +1214,7 @@ img {
 }
 
 .auction-award-stage-complete .auction-award-confetti span {
-  animation: auctionAwardConfetti 1.8s ease-out forwards;
+  animation: auctionAwardConfetti 900ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }
 
 .auction-award-progress-fill {
@@ -1247,31 +1240,14 @@ img {
   display: none;
 }
 
-.auction-award-result-card {
-  transition: border-color 320ms ease, background-color 320ms ease, transform 320ms ease, box-shadow 320ms ease;
-}
-
-.auction-award-stage-complete .auction-award-result-card {
-  transform: translateY(-0.18rem);
-  animation: auctionAwardCompleteGlow 1.25s ease-in-out 2;
-}
-
-.auction-award-step-active,
 .auction-award-price,
 .auction-award-current-chip {
-  animation: auctionAwardPulse 0.72s ease-in-out;
+  animation: auctionAwardValueIn 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
-.auction-award-stage[data-award-speed="brisk"] :is(.auction-award-step-active, .auction-award-price, .auction-award-current-chip) {
-  animation-duration: 0.52s;
-}
-
-.auction-award-stage[data-award-speed="quick"] :is(.auction-award-step-active, .auction-award-price, .auction-award-current-chip) {
-  animation-duration: 0.38s;
-}
-
-.auction-award-stage[data-award-speed="fast"] :is(.auction-award-step-active, .auction-award-price, .auction-award-current-chip) {
-  animation-duration: 0.26s;
+.auction-award-stage-complete .auction-award-price,
+.auction-award-stage-complete .auction-award-current-chip {
+  animation: auctionAwardWinner 260ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1283,13 +1259,18 @@ img {
   .auction-award-trophy,
   .auction-award-final-price,
   .auction-award-stage-complete .auction-award-confetti span,
-  .auction-award-step-active,
   .auction-award-price,
   .auction-award-current-chip,
   .auction-award-progress-fill,
   .auction-bid-flow-arrow {
     animation: none;
     transition: none;
+  }
+
+  .auction-award-stage,
+  .auction-award-price,
+  .auction-award-current-chip {
+    animation: auctionAwardReducedFade 120ms cubic-bezier(0.23, 1, 0.32, 1) both;
   }
 }
 
@@ -16673,6 +16654,469 @@ a[href]:active {
   width: 100%;
   transform-origin: left center;
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.auction-award-backdrop {
+  background: color-mix(in srgb, var(--teacher-text) 58%, transparent);
+}
+
+.auction-award-stage {
+  display: flex;
+  width: min(var(--teacher-award-dialog-width), calc(100vw - 3rem));
+  height: min(var(--teacher-award-dialog-height), calc(100dvh - 3rem));
+  max-width: none !important;
+  max-height: calc(100dvh - 3rem);
+  flex-direction: column;
+  background: var(--teacher-surface) !important;
+}
+
+.auction-award-header {
+  display: flex;
+  min-height: 7rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.25rem 1.75rem 1rem;
+  background: var(--teacher-surface) !important;
+}
+
+.auction-award-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.auction-award-close-button {
+  display: inline-flex;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--teacher-border-strong);
+  border-radius: var(--apple-radius-control);
+  color: var(--teacher-text);
+  background: var(--teacher-surface-muted);
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.auction-award-close-button:active {
+  transform: scale(0.96);
+}
+
+.auction-award-close-button:focus-visible {
+  outline: 3px solid var(--teacher-focus);
+  outline-offset: 3px;
+}
+
+.auction-award-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 1rem;
+}
+
+.auction-award-heading-icon {
+  display: inline-flex;
+  width: 3.75rem;
+  height: 3.75rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--teacher-accent) 28%, var(--teacher-border));
+  border-radius: var(--apple-radius-card);
+  color: var(--teacher-accent);
+  background: color-mix(in srgb, var(--teacher-accent) 11%, var(--teacher-surface)) !important;
+  box-shadow: inset 0 1px 0 var(--apple-edge-highlight);
+}
+
+.auction-award-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  color: var(--teacher-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.auction-award-eyebrow strong,
+.auction-award-result-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--apple-radius-pill);
+  color: var(--teacher-accent-pressed);
+  background: color-mix(in srgb, var(--teacher-accent) 14%, var(--teacher-surface));
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.auction-award-eyebrow strong {
+  min-height: 2rem;
+  padding: 0.25rem 0.7rem;
+}
+
+.auction-award-title {
+  overflow: hidden;
+  margin-top: 0.2rem;
+  color: var(--teacher-text);
+  font-size: clamp(2rem, 2.8vw, 2.65rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auction-award-step-counter {
+  display: inline-flex;
+  min-width: 6.5rem;
+  min-height: 3.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--teacher-border);
+  border-radius: var(--apple-radius-card);
+  background: var(--teacher-surface-muted) !important;
+}
+
+.auction-award-step-counter > strong {
+  color: var(--teacher-accent);
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.auction-award-step-counter small {
+  margin-left: 0.25rem;
+  color: var(--teacher-text-secondary);
+  font-size: 0.9rem;
+}
+
+.auction-award-progress-track {
+  height: 0.6rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  margin: 0 1.75rem 1rem;
+  border-radius: var(--apple-radius-pill);
+  background: var(--teacher-surface-muted) !important;
+  box-shadow: inset 0 0 0 1px var(--teacher-border);
+}
+
+.auction-award-progress-track .auction-award-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teacher-accent) !important;
+}
+
+.auction-award-content {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1.45fr) minmax(21rem, 0.8fr);
+  gap: 1rem;
+  padding: 0 1.25rem 1.25rem;
+}
+
+.auction-award-history,
+.auction-award-result-card {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--teacher-border) !important;
+  border-radius: var(--apple-radius-card) !important;
+}
+
+.auction-award-history {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--teacher-surface-muted) 68%, var(--teacher-surface)) !important;
+}
+
+.auction-award-section-heading {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 0 0.25rem 0.8rem;
+}
+
+.auction-award-section-heading h3 {
+  margin: 0;
+  color: var(--teacher-text);
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.auction-award-step-list {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  align-content: start;
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+  scrollbar-gutter: stable;
+}
+
+.auction-award-step-row {
+  display: grid;
+  min-height: 4.35rem;
+  grid-template-columns: 2.75rem minmax(5rem, 1fr) auto !important;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.85rem !important;
+  border: 1px solid var(--teacher-border) !important;
+  border-radius: var(--apple-radius-control) !important;
+  color: var(--teacher-text);
+  background: var(--teacher-surface) !important;
+  box-shadow: inset 0 1px 0 var(--apple-edge-highlight) !important;
+}
+
+.auction-award-step-row > :last-child {
+  position: static !important;
+  min-width: 0 !important;
+  transform: none !important;
+}
+
+.auction-award-step-pending {
+  color: var(--teacher-text-secondary);
+  background: color-mix(in srgb, var(--teacher-surface-muted) 72%, var(--teacher-surface)) !important;
+}
+
+.auction-award-step-active,
+.auction-award-step-winner {
+  border-color: var(--teacher-accent) !important;
+  background: color-mix(in srgb, var(--teacher-accent) 10%, var(--teacher-surface)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teacher-accent) 26%, transparent) !important;
+}
+
+.auction-award-step-number {
+  color: var(--teacher-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.auction-award-step-bidder {
+  display: inline-flex;
+  width: 4.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--apple-radius-pill);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.auction-award-step-price {
+  justify-self: end;
+  color: var(--teacher-accent-pressed);
+  font-family: var(--font-mono);
+  font-size: 1.45rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.auction-award-completed-strip {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--teacher-border);
+}
+
+.auction-award-completed-label {
+  flex: 0 0 auto;
+  color: var(--teacher-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.auction-award-completed-items {
+  display: flex;
+  min-width: 0;
+  gap: 0.5rem;
+  overflow-x: auto;
+}
+
+.auction-award-completed-item {
+  display: grid;
+  min-width: 10rem;
+  gap: 0.1rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--apple-radius-control);
+  background: var(--teacher-surface) !important;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.auction-award-completed-item > span {
+  max-width: 10rem;
+  overflow: hidden;
+  color: var(--teacher-text-secondary);
+  text-overflow: ellipsis;
+}
+
+.auction-award-completed-item > strong {
+  color: var(--teacher-accent-pressed);
+  font-family: var(--font-mono);
+}
+
+.auction-award-result-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+  background: var(--teacher-surface) !important;
+  box-shadow: inset 0 1px 0 var(--apple-edge-highlight) !important;
+}
+
+.auction-award-result-complete {
+  border-color: color-mix(in srgb, var(--teacher-accent) 56%, var(--teacher-border)) !important;
+  background: color-mix(in srgb, var(--teacher-accent) 7%, var(--teacher-surface)) !important;
+}
+
+.auction-award-result-status {
+  min-height: 2.5rem;
+  padding: 0.4rem 1rem;
+  font-size: 1rem;
+}
+
+.auction-award-current-chip {
+  display: inline-flex;
+  width: 10.5rem;
+  height: 10.5rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.35rem;
+  border: 0.35rem solid color-mix(in srgb, white 82%, transparent);
+  border-radius: 2.25rem;
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 3.25rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1rem 2.2rem color-mix(in srgb, var(--teacher-text) 18%, transparent);
+}
+
+.auction-award-price-block {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  margin-top: 1rem;
+}
+
+.auction-award-price {
+  color: var(--teacher-accent-pressed);
+  font-family: var(--font-mono);
+  font-size: clamp(3.5rem, 5.4vw, 5rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.auction-award-confirm-button {
+  width: 100%;
+  min-height: 3.5rem;
+  margin-top: auto;
+  border-radius: var(--apple-radius-control);
+  color: white;
+  background: var(--teacher-accent);
+  font-size: 1.1rem;
+  font-weight: 900;
+  box-shadow: var(--apple-shadow-1);
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.auction-award-confirm-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .auction-award-close-button:hover {
+    background: color-mix(in srgb, var(--teacher-accent) 12%, var(--teacher-surface-muted));
+  }
+
+  .auction-award-confirm-button:hover:not(:disabled) {
+    background: var(--teacher-accent-pressed);
+  }
+}
+
+.auction-award-confirm-button:focus-visible {
+  outline: 3px solid var(--teacher-focus);
+  outline-offset: 3px;
+}
+
+.auction-award-confirm-button:disabled {
+  cursor: wait;
+  color: var(--teacher-text-secondary);
+  background: var(--teacher-surface-muted);
+  box-shadow: none;
+}
+
+@media (max-width: 47.999rem) {
+  .auction-award-stage {
+    width: min(100%, calc(100vw - 1rem));
+    height: auto;
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto !important;
+  }
+
+  .auction-award-header {
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .auction-award-heading-icon {
+    display: none;
+  }
+
+  .auction-award-title {
+    font-size: 1.4rem;
+  }
+
+  .auction-award-step-counter {
+    min-width: 6.5rem;
+  }
+
+  .auction-award-progress-track {
+    margin-inline: 1rem;
+  }
+
+  .auction-award-content {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 0.75rem 0.75rem;
+  }
+
+  .auction-award-history {
+    min-height: 20rem;
+  }
+
+  .auction-award-result-card {
+    min-height: 24rem;
+  }
+
+  .auction-award-step-row {
+    grid-template-columns: 2rem minmax(4.25rem, 1fr) auto !important;
+    padding: 0.55rem !important;
+  }
 }
 
 .timer-main-shell .random-board {

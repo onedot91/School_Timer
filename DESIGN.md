@@ -94,6 +94,8 @@ Existing semantic success, warning, and destructive colors remain feature-owned 
 | `--apple-control-pane-width` | `clamp(30rem, 29vw, 34rem)` | desktop schedule/control pane width |
 | `--apple-tv-safe-inline` | `max(3.5vw, env(safe-area-inset-left), env(safe-area-inset-right))` | TV overscan-safe left and right inset |
 | `--apple-tv-safe-block` | `max(3.5vh, env(safe-area-inset-top), env(safe-area-inset-bottom))` | TV overscan-safe top and bottom inset |
+| `--teacher-award-dialog-width` | `72rem` | 1280px 교사 화면에서 입찰 흐름과 낙찰 결과를 한눈에 보여 주는 최대 너비 |
+| `--teacher-award-dialog-height` | `42rem` | 제목, 진행 표시, 기록, 결과를 안정된 위치에 유지하는 낙찰 무대 높이 |
 | `--student-character-stage-aspect-ratio` | `16 / 9` | full-bleed character and background artwork canvas in the overview |
 | `--student-home-house-width` / `--student-home-house-height` | `48%` / `88%` | shared centered home-artwork frame, larger than the bookstore while preserving ground alignment |
 | market-house stage placement | per-asset `width` / `left` / `bottom` metadata | fit each PNG's visible alpha bounds inside the repaired wooden house frame, then align its visual center and ground line despite different transparent padding |
@@ -344,6 +346,8 @@ appear first, followed by the current profile and then grayscale profiles alread
 - The student-facing failure page title is `실패 자랑소`; the internal `#student-library` route and feature name remain unchanged.
 
 ## 5. Components and Interaction Classes
+
+- `AuctionAwardPresentationDialog` is one large teacher-facing award stage. At `1280×800` it uses up to `--teacher-award-dialog-width` and `--teacher-award-dialog-height` within the TV-safe frame. Its fixed reading order is `요일·상태 → 물품명 → 전체 진행 → 입찰 기록 → 현재 최고 입찰/최종 낙찰`. The bid-history pane owns scrolling and keeps the active row visible; the result pane never changes width between running and complete states. Running rows mark the current bid with both the text `현재` and the accent treatment, while the completed state names the winner, item, and final price before offering one confirmation action. The outer stage is the only elevated material; the two inner panes use solid or tonal child surfaces and no nested glass. Numeric counters and prices use tabular mono figures, Korean labels remain visible, and reduced motion preserves every state without scale or particle movement.
 
 - Temporarily unreleased student destinations keep their full implementation behind `STUDENT_FEATURE_RELEASES`. 은행, 증권사, 책방, and 감정구슬 open one shared, focus-trapped mystery notice with a single acknowledgement action instead of navigating; direct hashes resolve to the nearest released hub. The pet egg hotspot stays rendered but disabled and opens no notice or feature surface. Re-enabling a flag restores its existing destination without deleting or rebuilding the feature.
 

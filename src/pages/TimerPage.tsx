@@ -126,6 +126,9 @@ import { MissionRewardInput } from '../components/teacher/MissionRewardInput';
 import TeacherWritingSettings from '../components/teacher/TeacherWritingSettings';
 import TeacherClasswordPanel from '../components/teacher/TeacherClasswordPanel';
 import TeacherTodayFriendPanel from '../components/teacher/TeacherTodayFriendPanel';
+import AuctionAwardPresentationDialog, {
+  type AuctionAwardPresentation,
+} from '../components/teacher/AuctionAwardPresentationDialog';
 import {
   loadQuestionSubmissionStatuses,
   type QuestionSubmissionStatus,
@@ -253,8 +256,8 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
   {
     label: '수업 운영',
     items: [
-      { panel: 'schedule', label: '시간표', icon: CalendarClock },
       { panel: 'subjects', label: '과목', icon: BookOpen },
+      { panel: 'schedule', label: '시간표', icon: CalendarClock },
       { panel: 'draw', label: '추첨', icon: Sparkles },
     ],
   },
@@ -508,16 +511,6 @@ const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
 const ANNOUNCEMENT_NOTE_HIGHLIGHTS_STORAGE_KEY = 'announcementNoteHighlights-v1';
 const AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS = 1400;
-const getAuctionAwardStepDelayMs = (stepCount: number) => {
-  if (stepCount >= 12) return 260;
-  if (stepCount >= 8) return 380;
-  if (stepCount >= 5) return 520;
-  return 720;
-};
-
-const getAuctionAwardSpeed = (stepCount: number) => (
-  stepCount >= 12 ? 'fast' : stepCount >= 8 ? 'quick' : stepCount >= 5 ? 'brisk' : 'normal'
-);
 const QUESTION_SUBMISSION_AUTO_REFRESH_MS = 15_000;
 const WEEKLY_SUBJECTS_STORAGE_KEY = 'weeklySubjects-v1';
 const SUBJECT_CATALOG_STORAGE_KEY = 'subjectCatalog-v1';
@@ -2844,7 +2837,7 @@ function AnnouncementNotebookOverlay({
                               className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[0.65rem] bg-[#F5FAF7] px-2 py-1.5 text-[0.72rem] font-black text-[#46534B]"
                             >
                               <span className="min-w-0 truncate">{getAuctionItemDisplayName(item.name, item.dayIndex)}</span>
-                              <span className="shrink-0 font-mono text-[#006241]">{award.winner}번 · {formatCurrency(award.amount)}</span>
+                              <span className="shrink-0 font-mono text-[#006241]">{award.winner}번 ({formatCurrency(award.amount)})</span>
                             </div>
                           ))}
                         </div>
@@ -3818,10 +3811,24 @@ export default function TimerPage() {
       ? createDefaultCurrencyHistory()
       : loadStoredStudentPetSnapshot().currencyHistory
   ));
-  const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => normalizeAuctionItems(null));
-  const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => normalizeAuctionBids(null, AUCTION_ITEM_IDS));
-  const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS));
-  const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => normalizeAuctionAwards(null, AUCTION_ITEM_IDS));
+  const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => (
+    isSupabaseSettingsEnabled ? normalizeAuctionItems(null) : loadStoredStudentPetSnapshot().auctionItems
+  ));
+  const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeAuctionBids(null, AUCTION_ITEM_IDS)
+      : loadStoredStudentPetSnapshot().auctionBids
+  ));
+  const [auctionBidHistory, setAuctionBidHistory] = useState<AuctionBidHistory>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS)
+      : loadStoredStudentPetSnapshot().auctionBidHistory
+  ));
+  const [auctionAwards, setAuctionAwards] = useState<AuctionAwards>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeAuctionAwards(null, AUCTION_ITEM_IDS)
+      : loadStoredStudentPetSnapshot().auctionAwards
+  ));
   const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
     loadStoredClassroomRoleMissionSettings,
   );
@@ -4156,15 +4163,7 @@ export default function TimerPage() {
   const [pendingAwardItemId, setPendingAwardItemId] = useState<string | null>(null);
   const [queuedAwardItems, setQueuedAwardItems] = useState<AuctionItem[]>([]);
   const [temporaryVisibleAuctionItemIds, setTemporaryVisibleAuctionItemIds] = useState<Set<string>>(() => new Set());
-  const [awardPresentation, setAwardPresentation] = useState<{
-    item: AuctionItem;
-    weekdayLabel: string;
-    steps: AuctionBidHistoryEntry[];
-    award: AuctionAward;
-    currentIndex: number;
-    isComplete: boolean;
-    hasFinalized: boolean;
-  } | null>(null);
+  const [awardPresentation, setAwardPresentation] = useState<AuctionAwardPresentation | null>(null);
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -4182,11 +4181,6 @@ export default function TimerPage() {
   const questionPanelTriggerRef = useRef<HTMLButtonElement>(null);
   const noticeInputRef = useRef<HTMLTextAreaElement>(null);
   const backgroundMusicRef = useRef<HTMLAudioElement>(null);
-  const awardSoundPlaybackRef = useRef({
-    presentationKey: '',
-    stepIndex: -1,
-    finalPlayed: false,
-  });
   const isMusicLoadingRef = useRef(false);
   const skipNoticeAutoSaveRef = useRef(false);
   const scheduleListRef = useRef<HTMLUListElement>(null);
@@ -4697,6 +4691,12 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) storeDailyWritingState(dailyWriting);
   }, [dailyWriting]);
+
+  useEffect(() => {
+    if (isSupabaseSettingsEnabled) return;
+    const snapshot = loadStoredStudentPetSnapshot();
+    storeStudentPetSnapshot({ ...snapshot, auctionItems });
+  }, [auctionItems]);
 
   useEffect(() => {
     const hasBlankDraft = hasBlankAuctionMissionDraft(auctionMissions);
@@ -6904,7 +6904,21 @@ export default function TimerPage() {
     setStudentEconomyStates(taxedStudentEconomyStates);
     commitCurrencyState(nextBalances, nextHistory);
 
-    if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
+    if (!isSupabaseSettingsEnabled) {
+      const snapshot = loadStoredStudentPetSnapshot();
+      storeStudentPetSnapshot({
+        ...snapshot,
+        currencyBalances: nextBalances,
+        currencyHistory: nextHistory,
+        studentEconomy: taxedStudentEconomyStates,
+        auctionItems: nextAuctionItems,
+        auctionBids: emptyAuctionBids,
+        auctionBidHistory: emptyAuctionBidHistory,
+        auctionAwards: emptyAuctionAwards,
+      });
+      return;
+    }
+    if (!sharedSettingsHydratedRef.current) return;
 
     if (sharedSettingsSaveTimeoutRef.current !== null) {
       window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
@@ -7160,63 +7174,16 @@ export default function TimerPage() {
     )));
   };
 
-  useEffect(() => {
-    if (!awardPresentation) {
-      awardSoundPlaybackRef.current = {
-        presentationKey: '',
-        stepIndex: -1,
-        finalPlayed: false,
+  const completeAwardPresentation = useCallback((presentationKey: string, finalIndex: number) => {
+    setAwardPresentation((previous) => {
+      if (!previous || previous.award.awardedAt !== presentationKey || previous.isComplete) return previous;
+      return {
+        ...previous,
+        currentIndex: finalIndex,
+        isComplete: true,
       };
-      return;
-    }
-
-    const presentationKey = awardPresentation.award.awardedAt;
-    if (awardSoundPlaybackRef.current.presentationKey !== presentationKey) {
-      awardSoundPlaybackRef.current = {
-        presentationKey,
-        stepIndex: -1,
-        finalPlayed: false,
-      };
-    }
-
-    if (awardPresentation.isComplete) {
-      if (!awardSoundPlaybackRef.current.finalPlayed) {
-        awardSoundPlaybackRef.current.finalPlayed = true;
-        void playAuctionSound('final', awardPresentation.currentIndex);
-      }
-      return;
-    }
-
-    if (awardSoundPlaybackRef.current.stepIndex !== awardPresentation.currentIndex) {
-      awardSoundPlaybackRef.current.stepIndex = awardPresentation.currentIndex;
-      void playAuctionSound('bid', awardPresentation.currentIndex);
-    }
-  }, [awardPresentation]);
-
-  useEffect(() => {
-    if (!awardPresentation || awardPresentation.isComplete) return;
-
-    const timeoutId = window.setTimeout(() => {
-      setAwardPresentation((previous) => {
-        if (!previous || previous.isComplete) return previous;
-        const nextIndex = previous.currentIndex + 1;
-        if (nextIndex >= previous.steps.length) {
-          return {
-            ...previous,
-            currentIndex: Math.max(previous.steps.length - 1, 0),
-            isComplete: true,
-          };
-        }
-
-        return {
-          ...previous,
-          currentIndex: nextIndex,
-        };
-      });
-    }, getAuctionAwardStepDelayMs(awardPresentation.steps.length));
-
-    return () => window.clearTimeout(timeoutId);
-  }, [awardPresentation]);
+    });
+  }, []);
 
   useEffect(() => {
     if (!awardPresentation?.isComplete || awardPresentation.hasFinalized) return;
@@ -7234,12 +7201,15 @@ export default function TimerPage() {
 
     if (!isSupabaseSettingsEnabled) {
       try {
-        applyFinalizedState(finalizeAuctionAwardInSettings({
-          currencyBalances: currencyBalancesRef.current,
-          currencyHistory: currencyHistoryRef.current,
-          auctionBids,
-          auctionAwards,
-        }, award));
+        const snapshot = loadStoredStudentPetSnapshot();
+        const result = finalizeAuctionAwardInSettings(snapshot, award);
+        if (!storeStudentPetSnapshot({
+          ...snapshot,
+          currencyBalances: result.balances,
+          currencyHistory: result.history,
+          auctionAwards: result.awards,
+        })) throw new Error('AUCTION_AWARD_LOCAL_SAVE_FAILED');
+        applyFinalizedState(result);
       } catch (error) {
         finalizedAwardPresentationKeysRef.current.delete(awardPresentationKey);
         console.error('Failed to finalize auction award.', error);
@@ -12170,175 +12140,6 @@ export default function TimerPage() {
               );
             })() : null}
 
-            {awardPresentation ? (() => {
-              const activeStep = awardPresentation.steps[awardPresentation.currentIndex] ?? awardPresentation.steps[0];
-              const activeStepIndex = awardPresentation.isComplete
-                ? Math.max(awardPresentation.steps.length - 1, 0)
-                : awardPresentation.currentIndex;
-              const progressPercent = awardPresentation.steps.length <= 1
-                ? 100
-                : Math.round((activeStepIndex / (awardPresentation.steps.length - 1)) * 100);
-              const hasQueuedAwardPresentations = queuedAwardItems.length > 0;
-
-              return (
-                <div
-                  ref={awardPresentationDialogRef}
-                  className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1F2523]/55 px-4 backdrop-blur-sm"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="낙찰 애니메이션"
-                >
-                  <div data-award-speed={getAuctionAwardSpeed(awardPresentation.steps.length)} className={`apple-material-layer auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
-                    awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
-                  }`}>
-                    <div className="auction-award-confetti pointer-events-none absolute inset-0 overflow-hidden">
-                      {Array.from({ length: 18 }).map((_, index) => (
-                        <span
-                          key={`auction-award-confetti-${index}`}
-                          style={{
-                            left: `${6 + ((index * 17) % 88)}%`,
-                            animationDelay: `${index * 0.045}s`,
-                            backgroundColor: ['#007A57', '#B2793A', '#2E7D86', '#7A5BA8'][index % 4],
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    <div className="relative border-b border-[#E6D5C9] bg-[#F8FCF6] px-5 py-4">
-                      <div className="flex items-center justify-end">
-                        <div className="shrink-0 rounded-full border border-[#D7E6DE] bg-white px-4 py-2 text-right shadow-sm">
-                          <div className="font-mono text-[1.08rem] font-black leading-none text-[#006241]">
-                            {activeStepIndex + 1} / {Math.max(awardPresentation.steps.length, 1)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#D7E6DE]">
-                        <div
-                          className="auction-award-progress-fill h-full rounded-full bg-[#006241]"
-                          style={{ transform: `scaleX(${progressPercent / 100})` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="relative p-4">
-                      <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.04fr)_minmax(17rem,0.74fr)]">
-                        <div className="rounded-[1.2rem] border border-[#D7E6DE] bg-[#F8FCF6] p-3">
-                          <div className="grid max-h-[19rem] gap-1.5 overflow-y-auto">
-                            {awardPresentation.steps.map((step, stepIndex) => {
-                              const isPast = stepIndex < activeStepIndex || awardPresentation.isComplete;
-                              const isActive = stepIndex === activeStepIndex && !awardPresentation.isComplete;
-                              const isWinnerStep = awardPresentation.isComplete && stepIndex === awardPresentation.steps.length - 1;
-
-                              return (
-                                <div
-                                  key={`award-step-row-${step.itemId}-${step.createdAt}-${stepIndex}`}
-                                  className={`auction-award-step-row grid min-h-[3.75rem] grid-cols-[2rem_4.6rem_minmax(0,1fr)] items-center gap-2 rounded-[0.9rem] border px-3 py-1.5 transition-[border-color,background-color,box-shadow,opacity] ${
-                                    isActive
-                                      ? 'auction-award-step-active border-[#006241] bg-white shadow-[0_12px_24px_rgba(0,98,65,0.14)]'
-                                      : isWinnerStep
-                                        ? 'border-[#9FC7B8] bg-[#EAF6F0]'
-                                        : isPast
-                                          ? 'border-[#D7E6DE] bg-white'
-                                          : 'border-[#E5DFD8] bg-[#F4F0EA] opacity-72'
-                                  }`}
-                                >
-                                  <div className="font-mono text-[0.78rem] font-black text-[#6E7A72]">
-                                    {stepIndex + 1}
-                                  </div>
-                                  <div className="flex min-w-0 items-center">
-                                    <span
-                                      className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.82rem] font-black text-white"
-                                      style={getStudentLabelStyle(step.bidder)}
-                                    >
-                                      {step.bidder}번
-                                    </span>
-                                  </div>
-                                  <div className="text-right font-mono text-[1rem] font-black text-[#006241]">
-                                    {formatCurrency(step.amount)}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {awardPresentationCompletedItems.length > 0 ? (
-                            <div className="mt-3 border-t border-[#D7E6DE] pt-3">
-                              <div className="mb-1.5 text-[0.78rem] font-black text-[#006241]">낙찰 완료</div>
-                              <div className="grid gap-1">
-                                {awardPresentationCompletedItems.map(({ item, award }) => (
-                                  <div
-                                    key={award.itemId}
-                                    className="flex min-w-0 items-center justify-between gap-2 rounded-[0.65rem] bg-white px-2 py-1.5 text-[0.76rem] font-black text-[#46534B]"
-                                  >
-                                    <span className="min-w-0 truncate">{getAuctionItemDisplayName(item.name, item.dayIndex)}</span>
-                                    <span className="shrink-0 font-mono text-[#006241]">{award.winner}번 · {formatCurrency(award.amount)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className={`auction-award-result-card flex min-h-[19rem] flex-col items-center justify-center rounded-[1.2rem] border-2 p-5 text-center ${
-                          awardPresentation.isComplete
-                            ? 'border-[#9FC7B8] bg-[#F8FCF6]'
-                            : 'border-[#D7E6DE] bg-white'
-                        }`}>
-                          <div className="flex justify-center">
-                            <div
-                              key={`result-bidder-${awardPresentation.isComplete ? 'winner' : awardPresentation.currentIndex}`}
-                              className={`auction-award-current-chip inline-flex h-24 min-w-24 items-center justify-center rounded-full px-5 font-mono text-[2rem] font-black text-white shadow-[0_18px_34px_rgba(31,24,18,0.22)] ${
-                                awardPresentation.isComplete ? 'auction-award-winner-chip' : ''
-                              }`}
-                              style={getStudentLabelStyle(awardPresentation.isComplete
-                                ? awardPresentation.award.winner
-                                : activeStep?.bidder ?? awardPresentation.award.winner)}
-                            >
-                              {awardPresentation.isComplete
-                                ? `${awardPresentation.award.winner}번`
-                                : activeStep
-                                  ? `${activeStep.bidder}번`
-                                  : '-'}
-                            </div>
-                          </div>
-                          {awardPresentation.isComplete ? (
-                            <div className="mt-4 inline-flex max-w-full items-center justify-center gap-2.5 rounded-full border border-[#E2D3BE] bg-white px-3.5 py-2 shadow-sm">
-                              <Trophy className="auction-award-trophy shrink-0 text-[#B2793A]" size={34} />
-                              <span className="min-w-0 truncate text-[0.95rem] font-black text-[#6E5139]">
-                                {getAuctionItemDisplayName(awardPresentation.item.name, awardPresentation.item.dayIndex)}
-                              </span>
-                            </div>
-                          ) : null}
-                          <div
-                            key={`result-price-${awardPresentation.isComplete ? 'final' : awardPresentation.currentIndex}`}
-                            className="auction-award-price mt-4 font-mono text-[2.45rem] font-black leading-tight text-[#006241]"
-                          >
-                            {awardPresentation.isComplete
-                              ? formatCurrency(awardPresentation.award.amount)
-                              : activeStep
-                                ? formatCurrency(activeStep.amount)
-                                : formatCurrency(0)}
-                          </div>
-                          {awardPresentation.isComplete ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!hasQueuedAwardPresentations) {
-                                  setAwardPresentation(null);
-                                }
-                              }}
-                              disabled={hasQueuedAwardPresentations}
-                              className="mt-5 inline-flex h-11 min-w-[7.5rem] items-center justify-center rounded-[0.9rem] bg-[#006241] px-5 text-[0.95rem] font-extrabold text-white shadow-[0_14px_24px_rgba(0,98,65,0.22)] transition-colors hover:bg-[#005336] disabled:cursor-wait disabled:bg-[#6F8A65]"
-                            >
-                              {hasQueuedAwardPresentations ? '다음 낙찰 준비 중' : '확인'}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })() : null}
 
             {pendingAuctionAction ? (() => {
               const actionCopy = {
@@ -12929,175 +12730,21 @@ export default function TimerPage() {
           </motion.div>
         </motion.div>
       )}
-      {!isSettingsOpen && awardPresentation ? (() => {
-        const activeStep = awardPresentation.steps[awardPresentation.currentIndex] ?? awardPresentation.steps[0];
-        const activeStepIndex = awardPresentation.isComplete
-          ? Math.max(awardPresentation.steps.length - 1, 0)
-          : awardPresentation.currentIndex;
-        const progressPercent = awardPresentation.steps.length <= 1
-          ? 100
-          : Math.round((activeStepIndex / (awardPresentation.steps.length - 1)) * 100);
-        const hasQueuedAwardPresentations = queuedAwardItems.length > 0;
-
-        return (
-          <div
-            ref={awardPresentationDialogRef}
-            className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1F2523]/55 px-4 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-label="낙찰 애니메이션"
-          >
-          <div data-award-speed={getAuctionAwardSpeed(awardPresentation.steps.length)} className={`apple-material-layer auction-award-stage relative w-full max-w-[52rem] overflow-hidden rounded-[1.6rem] border-2 border-[#9FC7B8] bg-[#FFFDF8] shadow-[0_30px_90px_rgba(31,24,18,0.34)] ${
-              awardPresentation.isComplete ? 'auction-award-stage-complete' : ''
-            }`}>
-              <div className="auction-award-confetti pointer-events-none absolute inset-0 overflow-hidden">
-                {Array.from({ length: 18 }).map((_, index) => (
-                  <span
-                    key={`auction-award-confetti-standalone-${index}`}
-                    style={{
-                      left: `${6 + ((index * 17) % 88)}%`,
-                      animationDelay: `${index * 0.045}s`,
-                      backgroundColor: ['#007A57', '#B2793A', '#2E7D86', '#7A5BA8'][index % 4],
-                    }}
-                  />
-                ))}
-              </div>
-
-              <div className="relative border-b border-[#E6D5C9] bg-[#F8FCF6] px-5 py-4">
-                <div className="flex items-center justify-end">
-                  <div className="shrink-0 rounded-full border border-[#D7E6DE] bg-white px-4 py-2 text-right shadow-sm">
-                    <div className="font-mono text-[1.08rem] font-black leading-none text-[#006241]">
-                      {activeStepIndex + 1} / {Math.max(awardPresentation.steps.length, 1)}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#D7E6DE]">
-                <div
-                  className="auction-award-progress-fill h-full rounded-full bg-[#006241]"
-                  style={{ transform: `scaleX(${progressPercent / 100})` }}
-                />
-                </div>
-              </div>
-
-              <div className="relative p-4">
-                <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.04fr)_minmax(17rem,0.74fr)]">
-                  <div className="rounded-[1.2rem] border border-[#D7E6DE] bg-[#F8FCF6] p-3">
-                    <div className="grid max-h-[19rem] gap-1.5 overflow-y-auto">
-                      {awardPresentation.steps.map((step, stepIndex) => {
-                        const isPast = stepIndex < activeStepIndex || awardPresentation.isComplete;
-                        const isActive = stepIndex === activeStepIndex && !awardPresentation.isComplete;
-                        const isWinnerStep = awardPresentation.isComplete && stepIndex === awardPresentation.steps.length - 1;
-
-                        return (
-                          <div
-                            key={`award-step-row-standalone-${step.itemId}-${step.createdAt}-${stepIndex}`}
-                            className={`auction-award-step-row grid min-h-[3.75rem] grid-cols-[2rem_4.6rem_minmax(0,1fr)] items-center gap-2 rounded-[0.9rem] border px-3 py-1.5 transition-[border-color,background-color,box-shadow,opacity] ${
-                              isActive
-                                ? 'auction-award-step-active border-[#006241] bg-white shadow-[0_12px_24px_rgba(0,98,65,0.14)]'
-                                : isWinnerStep
-                                  ? 'border-[#9FC7B8] bg-[#EAF6F0]'
-                                  : isPast
-                                    ? 'border-[#D7E6DE] bg-white'
-                                    : 'border-[#E5DFD8] bg-[#F4F0EA] opacity-72'
-                            }`}
-                          >
-                            <div className="font-mono text-[0.78rem] font-black text-[#6E7A72]">
-                              {stepIndex + 1}
-                            </div>
-                            <div className="flex min-w-0 items-center">
-                              <span
-                                className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full px-2 font-mono text-[0.82rem] font-black text-white"
-                                style={getStudentLabelStyle(step.bidder)}
-                              >
-                                {step.bidder}번
-                              </span>
-                            </div>
-                            <div className="text-right font-mono text-[1rem] font-black text-[#006241]">
-                              {formatCurrency(step.amount)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {awardPresentationCompletedItems.length > 0 ? (
-                      <div className="mt-3 border-t border-[#D7E6DE] pt-3">
-                        <div className="mb-1.5 text-[0.78rem] font-black text-[#006241]">낙찰 완료</div>
-                        <div className="grid gap-1">
-                          {awardPresentationCompletedItems.map(({ item, award }) => (
-                            <div
-                              key={award.itemId}
-                              className="flex min-w-0 items-center justify-between gap-2 rounded-[0.65rem] bg-white px-2 py-1.5 text-[0.76rem] font-black text-[#46534B]"
-                            >
-                              <span className="min-w-0 truncate">{getAuctionItemDisplayName(item.name, item.dayIndex)}</span>
-                              <span className="shrink-0 font-mono text-[#006241]">{award.winner}번 · {formatCurrency(award.amount)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className={`auction-award-result-card flex min-h-[19rem] flex-col items-center justify-center rounded-[1.2rem] border-2 p-5 text-center ${
-                    awardPresentation.isComplete
-                      ? 'border-[#9FC7B8] bg-[#F8FCF6]'
-                      : 'border-[#D7E6DE] bg-white'
-                  }`}>
-                    <div className="flex justify-center">
-                      <div
-                        key={`result-bidder-standalone-${awardPresentation.isComplete ? 'winner' : awardPresentation.currentIndex}`}
-                        className={`auction-award-current-chip inline-flex h-24 min-w-24 items-center justify-center rounded-full px-5 font-mono text-[2rem] font-black text-white shadow-[0_18px_34px_rgba(31,24,18,0.22)] ${
-                          awardPresentation.isComplete ? 'auction-award-winner-chip' : ''
-                        }`}
-                        style={getStudentLabelStyle(awardPresentation.isComplete
-                          ? awardPresentation.award.winner
-                          : activeStep?.bidder ?? awardPresentation.award.winner)}
-                      >
-                        {awardPresentation.isComplete
-                          ? `${awardPresentation.award.winner}번`
-                          : activeStep
-                            ? `${activeStep.bidder}번`
-                            : '-'}
-                      </div>
-                    </div>
-                    {awardPresentation.isComplete ? (
-                      <div className="mt-4 inline-flex max-w-full items-center justify-center gap-2.5 rounded-full border border-[#E2D3BE] bg-white px-3.5 py-2 shadow-sm">
-                        <Trophy className="auction-award-trophy shrink-0 text-[#B2793A]" size={34} />
-                        <span className="min-w-0 truncate text-[0.95rem] font-black text-[#6E5139]">
-                          {getAuctionItemDisplayName(awardPresentation.item.name, awardPresentation.item.dayIndex)}
-                        </span>
-                      </div>
-                    ) : null}
-                    <div
-                      key={`result-price-standalone-${awardPresentation.isComplete ? 'final' : awardPresentation.currentIndex}`}
-                      className="auction-award-price mt-4 font-mono text-[2.45rem] font-black leading-tight text-[#006241]"
-                    >
-                      {awardPresentation.isComplete
-                        ? formatCurrency(awardPresentation.award.amount)
-                        : activeStep
-                          ? formatCurrency(activeStep.amount)
-                          : formatCurrency(0)}
-                    </div>
-                    {awardPresentation.isComplete ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!hasQueuedAwardPresentations) {
-                            setAwardPresentation(null);
-                          }
-                        }}
-                        disabled={hasQueuedAwardPresentations}
-                        className="mt-5 inline-flex h-11 min-w-[7.5rem] items-center justify-center rounded-[0.9rem] bg-[#006241] px-5 text-[0.95rem] font-extrabold text-white shadow-[0_14px_24px_rgba(0,98,65,0.22)] transition-colors hover:bg-[#005336] disabled:cursor-wait disabled:bg-[#6F8A65]"
-                      >
-                        {hasQueuedAwardPresentations ? '다음 낙찰 준비 중' : '확인'}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })() : null}
+      {awardPresentation ? (
+        <AuctionAwardPresentationDialog
+          key={awardPresentation.award.awardedAt}
+          presentation={awardPresentation}
+          completedItems={awardPresentationCompletedItems}
+          hasQueuedPresentations={queuedAwardItems.length > 0}
+          dialogRef={awardPresentationDialogRef}
+          onComplete={completeAwardPresentation}
+          onDismiss={() => {
+            if (queuedAwardItems.length === 0) {
+              setAwardPresentation(null);
+            }
+          }}
+        />
+      ) : null}
       <AnnouncementNotebookOverlay
         isOpen={isAnnouncementOpen}
         onClose={() => setIsAnnouncementOpen(false)}
