@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { StudentRapidClickGuard } from './components/student/StudentRapidClickGuard';
 import { StudentProfanityGuard } from './components/student/StudentProfanityGuard';
+import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import {
   clearDeviceSession,
   loadDeviceSession,
@@ -210,26 +211,34 @@ export default function RootApp() {
   }, [deviceSession]);
 
   if (!isDeviceSessionReady) {
-    return <main className="entry-session-loading" aria-label="기기 등록 확인 중" />;
+    return (
+      <>
+        <NetworkStatusBanner />
+        <main className="entry-session-loading" aria-label="기기 등록 확인 중" />
+      </>
+    );
   }
 
   if (hasRuntimeError) {
     return (
-      <main className="runtime-fallback-page">
-        <section className="runtime-fallback-surface">
-          <h1 className="runtime-fallback-title">화면을 다시 불러와 주세요</h1>
-          <p className="runtime-fallback-description">
-            설정을 적용하는 중 문제가 생겼습니다. 새로고침하면 저장된 설정으로 다시 시작합니다.
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="runtime-fallback-action"
-          >
-            새로고침
-          </button>
-        </section>
-      </main>
+      <>
+        <NetworkStatusBanner />
+        <main className="runtime-fallback-page">
+          <section className="runtime-fallback-surface">
+            <h1 className="runtime-fallback-title">화면을 다시 불러와 주세요</h1>
+            <p className="runtime-fallback-description">
+              설정을 적용하는 중 문제가 생겼습니다. 새로고침하면 저장된 설정으로 다시 시작합니다.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="runtime-fallback-action"
+            >
+              새로고침
+            </button>
+          </section>
+        </main>
+      </>
     );
   }
 
@@ -268,6 +277,7 @@ export default function RootApp() {
           </span>
         </aside>
       ) : null}
+      <NetworkStatusBanner />
       <Suspense fallback={<PageLoadFallback />}>
         {activePage}
       </Suspense>

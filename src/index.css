@@ -12857,6 +12857,81 @@ a[href]:active {
   word-break: keep-all;
 }
 
+.network-status-banner {
+  position: fixed;
+  z-index: 100;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  width: max-content;
+  max-width: min(28rem, calc(100vw - 1.5rem));
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--teacher-warning) 34%, var(--apple-separator));
+  border-radius: var(--apple-radius-card);
+  color: var(--apple-text-primary);
+  background: color-mix(in srgb, var(--apple-material-thick) 92%, #fff4dc);
+  box-shadow: var(--apple-shadow-2);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: networkStatusBannerArrival 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+
+.network-status-banner-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--apple-radius-pill);
+  color: var(--teacher-warning);
+  background: color-mix(in srgb, var(--teacher-warning) 12%, white);
+}
+
+.network-status-banner-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
+.network-status-banner-copy strong {
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.network-status-banner-copy > span {
+  color: var(--apple-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@keyframes networkStatusBannerArrival {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .network-status-banner { animation: none; }
+}
+
+@media (max-width: 760px) {
+  .data-mode-banner + .network-status-banner {
+    top: max(3.75rem, calc(env(safe-area-inset-top) + 3.25rem));
+  }
+}
+
 .entry-select-page,
 .runtime-fallback-page {
   min-height: 100vh;
