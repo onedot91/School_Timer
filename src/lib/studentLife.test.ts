@@ -195,6 +195,33 @@ test('편지는 수신 학생에게만 보이고 읽은 뒤 알림 수가 줄어
   assert.equal(getStudentLetters(read, 3)[0]?.readAt, '2026-08-11T02:00:00.000Z');
 });
 
+test('서로 다른 새 편지를 연달아 읽어도 모든 읽음 시각이 보존된다', () => {
+  const initial = createStudentLetters(normalizeStudentLifeState(null), [
+    {
+      id: 'letter-fast-1',
+      recipient: 3,
+      senderLabel: '선생님',
+      title: '첫 편지',
+      content: '첫 번째 편지입니다.',
+      createdAt: '2026-08-11T01:00:00.000Z',
+    },
+    {
+      id: 'letter-fast-2',
+      recipient: 3,
+      senderLabel: '은행원 돝돝',
+      title: '둘째 편지',
+      content: '두 번째 편지입니다.',
+      createdAt: '2026-08-11T02:00:00.000Z',
+    },
+  ]);
+
+  const firstRead = markStudentLetterRead(initial, 3, 'letter-fast-1', '2026-08-11T03:00:00.000Z');
+  const allRead = markStudentLetterRead(firstRead, 3, 'letter-fast-2', '2026-08-11T03:00:01.000Z');
+
+  assert.equal(getUnreadStudentLetterCount(allRead, 3), 0);
+  assert.ok(getStudentLetters(allRead, 3).every((letter) => letter.readAt !== null));
+});
+
 test('보낸 편지는 기존 발신자 번호로 구분하고 최신순으로 보여 준다', () => {
   const first = createStudentLetter(normalizeStudentLifeState(null), {
     id: 'sent-first',

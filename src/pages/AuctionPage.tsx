@@ -403,6 +403,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     isSupabaseSettingsEnabled ? normalizeDailyWritingState(null) : loadStoredDailyWritingState()
   ));
   const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
+  const studentLetterReadInFlightRef = useRef<Set<string>>(new Set());
   const [profilePurchaseType, setProfilePurchaseType] = useState<StudentProfilePurchase['type'] | null>(null);
   const [isPetSaving, setIsPetSaving] = useState(false);
   const [isEconomySaving, setIsEconomySaving] = useState(false);
@@ -718,7 +719,37 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   }));
 
   const readStudentLetter = async (letterId: string) => {
-    await saveStudentLifeChange((current) => markStudentLetterRead(current, studentNumber, letterId, new Date().toISOString()));
+    if (studentLetterReadInFlightRef.current.has(letterId)) return;
+    studentLetterReadInFlightRef.current.add(letterId);
+    const readAt = new Date().toISOString();
+    setStudentLife((current) => markStudentLetterRead(current, studentNumber, letterId, readAt));
+    try {
+      let saved = studentLife;
+      if (isSupabaseSettingsEnabled) {
+        await updateSharedSettings((currentValue) => {
+          const current = currentValue && typeof currentValue === 'object' ? currentValue as Record<string, unknown> : {};
+          saved = markStudentLetterRead(normalizeStudentLifeState(current.studentLife), studentNumber, letterId, readAt);
+          return { ...current, studentLife: saved };
+        });
+      } else {
+        saved = await updateStoredStudentLifeState((current) => (
+          markStudentLetterRead(current, studentNumber, letterId, readAt)
+        ));
+      }
+      setStudentLife(saved);
+    } catch (error) {
+      setStudentLife((current) => ({
+        ...current,
+        letters: current.letters.map((letter) => (
+          letter.id === letterId && letter.recipient === studentNumber && letter.readAt === readAt
+            ? { ...letter, readAt: null }
+            : letter
+        )),
+      }));
+      console.error('Failed to mark student letter as read.', error);
+    } finally {
+      studentLetterReadInFlightRef.current.delete(letterId);
+    }
   };
 
   const addStudentBookEntry = async (title: string, author: string, pageCount: number) => {
