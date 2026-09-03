@@ -1,11 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseClassDonationResult } from './classDonation.js';
+import { isReadOnlyDataMode } from './dataMode.js';
 import {
-  appDataMode,
-  canReadSharedBackend,
-  isReadOnlyDataMode,
-  type AppDataMode,
-} from './dataMode.js';
+  isSupabaseSettingsEnabled,
+  shouldEnableSupabaseSettings,
+  supabaseAnonKey,
+  supabaseUrl,
+  useServerProxy,
+} from './supabaseConfig.js';
+
+export { isSupabaseSettingsEnabled, shouldEnableSupabaseSettings } from './supabaseConfig.js';
 
 export const SHARED_SETTINGS_ID = 'school-timer-main';
 
@@ -29,37 +33,7 @@ export interface AnnouncementNoteRecord {
   updated_at?: string;
 }
 
-const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
-const useServerProxy = import.meta.env?.DEV === true || import.meta.env?.PROD === true;
-
-type SupabaseSettingsAvailability = {
-  readonly hasSupabaseCredentials: boolean;
-  readonly usesServerProxy: boolean;
-  readonly dataMode: AppDataMode;
-};
-
-export const shouldEnableSupabaseSettings = ({
-  hasSupabaseCredentials,
-  usesServerProxy,
-  dataMode,
-}: SupabaseSettingsAvailability) => (
-  canReadSharedBackend(dataMode) && hasSupabaseCredentials && usesServerProxy
-);
-
-const hasSupabaseCredentials =
-  typeof supabaseUrl === 'string' &&
-  supabaseUrl.trim().length > 0 &&
-  typeof supabaseAnonKey === 'string' &&
-  supabaseAnonKey.trim().length > 0;
-
-export const isSupabaseSettingsEnabled = shouldEnableSupabaseSettings({
-  hasSupabaseCredentials,
-  usesServerProxy: useServerProxy,
-  dataMode: appDataMode,
-});
-
-const supabase = isSupabaseSettingsEnabled
+const supabase = isSupabaseSettingsEnabled && !useServerProxy
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { StudentRapidClickGuard } from './components/student/StudentRapidClickGuard';
 import { StudentProfanityGuard } from './components/student/StudentProfanityGuard';
 import {
@@ -9,14 +9,19 @@ import {
 } from './lib/deviceSessionClient';
 import { appDataMode } from './lib/dataMode';
 import { detectEntryResetPlatform, isEntryResetShortcut } from './lib/entryResetShortcut';
-import { isSupabaseSettingsEnabled } from './lib/supabaseSettings';
-import AuctionPage from './pages/AuctionPage';
+import { isSupabaseSettingsEnabled } from './lib/supabaseConfig';
 import EntrySelectPage from './pages/EntrySelectPage';
-import TimerPage from './pages/TimerPage';
+
+const AuctionPage = lazy(() => import('./pages/AuctionPage'));
+const TimerPage = lazy(() => import('./pages/TimerPage'));
 
 const SELECTED_ENTRY_NUMBER_STORAGE_KEY = 'school-timer-entry-number-v1';
 const TEACHER_ENTRY_VISIBLE_STORAGE_KEY = 'school-timer-teacher-entry-visible-v1';
 const STUDENT_HOME_HASH = '#student-overview';
+
+const PageLoadFallback = () => (
+  <main className="entry-session-loading" aria-label="화면 불러오는 중" role="status" />
+);
 
 const getPlatformText = () => {
   if (typeof window === 'undefined') return '';
@@ -263,7 +268,9 @@ export default function RootApp() {
           </span>
         </aside>
       ) : null}
-      {activePage}
+      <Suspense fallback={<PageLoadFallback />}>
+        {activePage}
+      </Suspense>
     </>
   );
 }
