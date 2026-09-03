@@ -9,7 +9,7 @@ import {
 
 test('학생 기능은 기능별 공개 플래그가 켜질 때까지 잠긴다', () => {
   assert.deepEqual(STUDENT_FEATURE_RELEASES, {
-    bank: false,
+    bank: true,
     securities: false,
     bookstore: false,
     emotionOrbs: true,
@@ -23,7 +23,7 @@ test('잠긴 학생 화면의 직접 경로도 공개된 허브로 돌아간다'
   assert.equal(getUnavailableStudentFeature('library'), 'bookstore');
   assert.equal(getUnavailableStudentFeature('library-bookstore'), 'bookstore');
   assert.equal(getUnavailableStudentFeature('library-bookshelf'), 'bookstore');
-  assert.equal(getUnavailableStudentFeature('store-bank'), 'bank');
+  assert.equal(getUnavailableStudentFeature('store-bank'), null);
   assert.equal(getUnavailableStudentFeature('store-securities'), 'securities');
   assert.equal(getUnavailableStudentFeature('store-securities-trade'), 'securities');
   assert.equal(getUnavailableStudentFeature('store-shop'), null);
