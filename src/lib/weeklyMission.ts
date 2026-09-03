@@ -279,6 +279,19 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
   const remoteAwards = normalizeAuctionAwards(remote.auctionAwards, AUCTION_ITEM_IDS);
   const nextAwards = normalizeAuctionAwards(next.auctionAwards, AUCTION_ITEM_IDS);
 
+  const rebaseMissingEntries = (
+    entries: readonly CurrencyHistoryEntry[],
+    finalBalance: number,
+  ): CurrencyHistoryEntry[] => {
+    let after = finalBalance;
+    return entries.map((entry) => {
+      const before = after - entry.delta;
+      const rebasedEntry = { ...entry, before, after };
+      after = before;
+      return rebasedEntry;
+    });
+  };
+
   Object.keys(nextHistory).forEach((studentKey) => {
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
     const missingRewards = remoteHistory[studentKey].filter((entry) => (
@@ -302,7 +315,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     }
     nextBalances[studentKey] = nextBalance;
     nextHistory[studentKey] = [
-      ...missingRewards,
+      ...rebaseMissingEntries(missingRewards, nextBalance),
       ...nextHistory[studentKey],
     ];
   });
@@ -319,7 +332,10 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     const nextBalance = nextBalances[studentKey] + rewardAmount;
     if (nextBalance > CURRENCY_BALANCE_MAX) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
     nextBalances[studentKey] = nextBalance;
-    nextHistory[studentKey] = [...missingSudokuRewards, ...nextHistory[studentKey]];
+    nextHistory[studentKey] = [
+      ...rebaseMissingEntries(missingSudokuRewards, nextBalance),
+      ...nextHistory[studentKey],
+    ];
   });
 
   Object.keys(nextHistory).forEach((studentKey) => {
@@ -334,7 +350,10 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     const nextBalance = nextBalances[studentKey] + rewardAmount;
     if (nextBalance > CURRENCY_BALANCE_MAX) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
     nextBalances[studentKey] = nextBalance;
-    nextHistory[studentKey] = [...missingNumberBaseballRewards, ...nextHistory[studentKey]];
+    nextHistory[studentKey] = [
+      ...rebaseMissingEntries(missingNumberBaseballRewards, nextBalance),
+      ...nextHistory[studentKey],
+    ];
   });
 
   Object.keys(nextHistory).forEach((studentKey) => {
@@ -352,7 +371,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     }
     nextBalances[studentKey] = nextBalance;
     nextHistory[studentKey] = [
-      ...missingDailyEmotionRewards,
+      ...rebaseMissingEntries(missingDailyEmotionRewards, nextBalance),
       ...nextHistory[studentKey],
     ];
   });
@@ -372,7 +391,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     }
     nextBalances[studentKey] = nextBalance;
     nextHistory[studentKey] = [
-      ...missingDailyWritingRewards,
+      ...rebaseMissingEntries(missingDailyWritingRewards, nextBalance),
       ...nextHistory[studentKey],
     ];
   });
@@ -390,7 +409,10 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
     }
     nextBalances[studentKey] = nextBalance;
-    nextHistory[studentKey] = [...missingClassroomRoleChanges, ...nextHistory[studentKey]];
+    nextHistory[studentKey] = [
+      ...rebaseMissingEntries(missingClassroomRoleChanges, nextBalance),
+      ...nextHistory[studentKey],
+    ];
   });
 
   Object.entries(remoteAwards).forEach(([itemId, award]) => {
@@ -413,7 +435,10 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
     }
     nextBalances[studentKey] = nextBalance;
-    nextHistory[studentKey] = [awardEntry, ...nextHistory[studentKey]];
+    nextHistory[studentKey] = [
+      ...rebaseMissingEntries([awardEntry], nextBalance),
+      ...nextHistory[studentKey],
+    ];
     nextAwards[itemId] = award;
   });
 
@@ -430,7 +455,10 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       + missingDonations.reduce((total, entry) => total + entry.delta, 0);
     if (nextBalance < 0) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
     nextBalances[studentKey] = nextBalance;
-    nextHistory[studentKey] = [...missingDonations, ...nextHistory[studentKey]];
+    nextHistory[studentKey] = [
+      ...rebaseMissingEntries(missingDonations, nextBalance),
+      ...nextHistory[studentKey],
+    ];
   });
 
   Object.keys(nextHistory).forEach((studentKey) => {
@@ -444,7 +472,10 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       + missingPetFeeds.reduce((total, entry) => total + entry.delta, 0);
     if (nextBalance < 0) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
     nextBalances[studentKey] = nextBalance;
-    nextHistory[studentKey] = [...missingPetFeeds, ...nextHistory[studentKey]];
+    nextHistory[studentKey] = [
+      ...rebaseMissingEntries(missingPetFeeds, nextBalance),
+      ...nextHistory[studentKey],
+    ];
   });
 
   return {
@@ -555,6 +586,7 @@ import {
   normalizeCurrencyBalances,
   normalizeCurrencyHistory,
   normalizeAuctionAwards,
+  type CurrencyHistoryEntry,
 } from './currency.js';
 import { mergeClassDonationActivity } from './classDonation.js';
 import { appDataMode, canWriteSharedBackend } from './dataMode.js';

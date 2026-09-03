@@ -19,7 +19,12 @@ import {
   WEEKLY_MISSION_DEFINITIONS,
 } from './weeklyMission';
 import { hasPersonalQuestionSubmission } from './questionSubmissionStatus';
-import { claimDailyEmotionRewardInSettings, finalizeAuctionAwardInSettings, hasDailyEmotionReward } from './currency';
+import {
+  claimDailyEmotionRewardInSettings,
+  finalizeAuctionAwardInSettings,
+  hasDailyEmotionReward,
+  type CurrencyHistory,
+} from './currency';
 import { claimDailyWritingRewardInSettings, hasDailyWritingReward } from './dailyWriting';
 
 test('Korean ISO week key matches the question site contract', () => {
@@ -224,18 +229,77 @@ test('stale settings saves preserve a concurrent weekly mission reward', () => {
 
 test('stale settings saves preserve a concurrent daily emotion reward', () => {
   const remote = claimDailyEmotionRewardInSettings({
-    currencyBalances: { 6: 200 },
+    currencyBalances: { 6: 10 },
     currencyHistory: { 6: [] },
   }, 6, '2026-08-11', '2026-08-11T01:00:00.000Z').value;
 
   const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, {
     scheduleNotice: '수정된 공지',
-    currencyBalances: { 6: 200 },
+    currencyBalances: { 6: 110 },
     currencyHistory: { 6: [] },
   });
 
-  assert.equal((merged.currencyBalances as Record<string, number>)['6'], 205);
+  assert.equal((merged.currencyBalances as Record<string, number>)['6'], 115);
   assert.equal(hasDailyEmotionReward(merged.currencyHistory, 6, '2026-08-11'), true);
+  assert.deepEqual((merged.currencyHistory as CurrencyHistory)['6'][0], {
+    id: 'daily-emotion-6-2026-08-11',
+    studentNumber: 6,
+    delta: 5,
+    before: 110,
+    after: 115,
+    reason: 'daily_emotion',
+    createdAt: '2026-08-11T01:00:00.000Z',
+  });
+});
+
+test('stale settings saves rebase multiple concurrent rewards as one continuous ledger', () => {
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings({
+    currencyBalances: { 5: 430 },
+    currencyHistory: {
+      5: [
+        {
+          id: 'weekly-mission-failure_exhibition-5-2026-36',
+          studentNumber: 5,
+          delta: 10,
+          before: 420,
+          after: 430,
+          reason: 'weekly_mission',
+          createdAt: '2026-09-03T00:32:25.000Z',
+        },
+        {
+          id: 'weekly-mission-classword_quiz_correct-5-2026-36',
+          studentNumber: 5,
+          delta: 5,
+          before: 415,
+          after: 420,
+          reason: 'weekly_mission',
+          createdAt: '2026-09-03T00:32:15.000Z',
+        },
+        {
+          id: 'weekly-mission-classword_word_entry-5-2026-36',
+          studentNumber: 5,
+          delta: 5,
+          before: 390,
+          after: 395,
+          reason: 'weekly_mission',
+          createdAt: '2026-09-03T00:28:59.000Z',
+        },
+      ],
+    },
+  }, {
+    currencyBalances: { 5: 390 },
+    currencyHistory: { 5: [] },
+  }, new Set());
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['5'], 410);
+  assert.deepEqual(
+    (merged.currencyHistory as CurrencyHistory)['5'].map(({ before, after }) => ({ before, after })),
+    [
+      { before: 400, after: 410 },
+      { before: 395, after: 400 },
+      { before: 390, after: 395 },
+    ],
+  );
 });
 
 test('stale settings saves preserve a concurrent daily writing reward', () => {
@@ -306,18 +370,27 @@ test('stale settings saves preserve a concurrent auction award once', () => {
     auctionAwards: {},
   }, award).value;
   const stale = {
-    currencyBalances: { 8: 300 },
+    currencyBalances: { 8: 500 },
     currencyHistory: { 8: [] },
     auctionBids: { 'item-a': { bidder: 8, amount: 124 } },
     auctionAwards: {},
   };
 
   const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale, new Set(), new Set());
-  assert.equal((merged.currencyBalances as Record<string, number>)['8'], 176);
+  assert.equal((merged.currencyBalances as Record<string, number>)['8'], 376);
+  assert.deepEqual((merged.currencyHistory as CurrencyHistory)['8'][0], {
+    id: (remote.currencyHistory as CurrencyHistory)['8'][0].id,
+    studentNumber: 8,
+    delta: -124,
+    before: 500,
+    after: 376,
+    reason: 'auction_award',
+    createdAt: award.awardedAt,
+  });
   assert.equal(getAuctionAwardKeys(merged.auctionAwards).has(`${award.itemId}:${award.awardedAt}`), true);
 
   const mergedAgain = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged, new Set(), new Set());
-  assert.equal((mergedAgain.currencyBalances as Record<string, number>)['8'], 176);
+  assert.equal((mergedAgain.currencyBalances as Record<string, number>)['8'], 376);
 });
 
 test('stale settings saves preserve a concurrent class donation once', () => {
