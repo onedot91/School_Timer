@@ -59,7 +59,7 @@ export const loadSharedSettings = async () => {
 };
 
 export const loadSharedSettingsRow = async () => {
-  if (!supabase) return null;
+  if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const row = await fetchJson('/api/shared-settings') as SettingsRow | null;
     if (row?.scope === 'full') {
@@ -69,6 +69,7 @@ export const loadSharedSettingsRow = async () => {
     }
     return row;
   }
+  if (!supabase) return null;
 
   const { data, error } = await supabase
     .from('app_settings')
@@ -85,16 +86,20 @@ export const loadSharedSettingsRow = async () => {
 };
 
 const loadWritableSharedSettingsRow = async () => {
+  if (!isSupabaseSettingsEnabled) return null;
+  if (useServerProxy) {
+    const row = await fetchJson('/api/shared-settings?full=1') as SettingsRow | null;
+    cachedWritableSharedSettingsRow = row;
+    return row;
+  }
   if (!supabase) return null;
-  if (!useServerProxy) return loadSharedSettingsRow();
-  const row = await fetchJson('/api/shared-settings?full=1') as SettingsRow | null;
-  cachedWritableSharedSettingsRow = row;
-  return row;
+  return loadSharedSettingsRow();
 };
 
 export const loadSharedSettingsUpdatedAt = async () => {
-  if (!supabase) return null;
+  if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) return ((await fetchJson('/api/shared-settings?metadata=1')) as { updatedAt: string | null }).updatedAt;
+  if (!supabase) return null;
 
   const { data, error } = await supabase
     .from('app_settings')
@@ -110,7 +115,7 @@ export const loadSharedSettingsUpdatedAt = async () => {
 };
 
 export const saveSharedSettings = async (value: unknown) => {
-  if (!supabase) return null;
+  if (!isSupabaseSettingsEnabled) return null;
   if (isReadOnlyDataMode) return (await loadSharedSettingsRow())?.updated_at ?? null;
 
   if (useServerProxy) {
@@ -127,6 +132,7 @@ export const saveSharedSettings = async (value: unknown) => {
     };
     return result.updatedAt;
   }
+  if (!supabase) return null;
 
   const updatedAt = new Date().toISOString();
 
@@ -144,7 +150,7 @@ export const saveSharedSettings = async (value: unknown) => {
 };
 
 export const updateSharedSettings = async (updater: (currentValue: unknown) => unknown) => {
-  if (!supabase) return null;
+  if (!isSupabaseSettingsEnabled) return null;
   if (isReadOnlyDataMode) return (await loadSharedSettingsRow())?.updated_at ?? null;
 
   if (useServerProxy) {
@@ -176,6 +182,7 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
     }
     throw new Error('SHARED_SETTINGS_CONFLICT');
   }
+  if (!supabase) return null;
 
   for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
     const currentRow = await loadSharedSettingsRow();
@@ -220,7 +227,7 @@ export const donateToClassGoal = async (
   amount: number,
   requestId: string,
 ) => {
-  if (!supabase) throw new Error('CLASS_DONATION_NOT_CONFIGURED');
+  if (!isSupabaseSettingsEnabled) throw new Error('CLASS_DONATION_NOT_CONFIGURED');
   if (isReadOnlyDataMode) throw new Error('READ_ONLY_DATA_MODE');
   if (useServerProxy) {
     return parseClassDonationResult(await fetchJson('/api/class-donation', {
@@ -229,6 +236,7 @@ export const donateToClassGoal = async (
       body: JSON.stringify({ studentNumber, amount, requestId }),
     }));
   }
+  if (!supabase) throw new Error('CLASS_DONATION_NOT_CONFIGURED');
   const { data, error } = await supabase.rpc('donate_to_class_goal', {
     p_student_number: studentNumber,
     p_amount: amount,
@@ -239,10 +247,11 @@ export const donateToClassGoal = async (
 };
 
 export const loadAnnouncementNote = async (dateKey: string) => {
-  if (!supabase) return null;
+  if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     return fetchJson(`/api/announcement-notes?dateKey=${encodeURIComponent(dateKey)}`) as Promise<AnnouncementNoteRecord | null>;
   }
+  if (!supabase) return null;
 
   const { data, error } = await supabase
     .from('announcement_notes')
@@ -258,10 +267,11 @@ export const loadAnnouncementNote = async (dateKey: string) => {
 };
 
 export const loadAnnouncementNoteHistory = async (limit = 120) => {
-  if (!supabase) return [];
+  if (!isSupabaseSettingsEnabled) return [];
   if (useServerProxy) {
     return fetchJson(`/api/announcement-notes?limit=${Math.min(120, Math.max(1, Math.floor(limit)))}`) as Promise<AnnouncementNoteRecord[]>;
   }
+  if (!supabase) return [];
 
   const { data, error } = await supabase
     .from('announcement_notes')
@@ -278,7 +288,7 @@ export const loadAnnouncementNoteHistory = async (limit = 120) => {
 };
 
 export const saveAnnouncementNote = async (record: AnnouncementNoteRecord) => {
-  if (!supabase) return;
+  if (!isSupabaseSettingsEnabled) return;
   if (isReadOnlyDataMode) return;
 
   if (useServerProxy) {
@@ -289,6 +299,7 @@ export const saveAnnouncementNote = async (record: AnnouncementNoteRecord) => {
     });
     return;
   }
+  if (!supabase) return;
 
   const { error } = await supabase.from('announcement_notes').upsert({
     date_key: record.date_key,

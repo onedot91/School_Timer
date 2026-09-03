@@ -100,3 +100,31 @@ test('학생 설정 변경은 투영된 읽기 결과 대신 쓰기용 전체 �
   assert.match(source, /fetchJson\('\/api\/shared-settings\?full=1'\)/);
   assert.match(updateSource, /loadWritableSharedSettingsRow\(\)/);
 });
+
+test('서버 프록시 모드에서는 Supabase 브라우저 클라이언트 없이 API를 호출한다', async () => {
+  const source = await readFile(new URL('./supabaseSettings.ts', import.meta.url), 'utf8');
+  const functionNames = [
+    'loadSharedSettingsRow',
+    'loadSharedSettingsUpdatedAt',
+    'saveSharedSettings',
+    'updateSharedSettings',
+    'donateToClassGoal',
+    'loadAnnouncementNote',
+    'loadAnnouncementNoteHistory',
+    'saveAnnouncementNote',
+  ] as const;
+
+  functionNames.forEach((functionName) => {
+    const functionStart = source.indexOf(`export const ${functionName}`);
+    const functionEnd = source.indexOf('\nexport const ', functionStart + 1);
+    const functionSource = source.slice(functionStart, functionEnd < 0 ? undefined : functionEnd);
+    const proxyBranch = functionSource.indexOf('if (useServerProxy)');
+    const browserClientGuard = functionSource.indexOf('if (!supabase)');
+
+    assert.ok(proxyBranch >= 0, `${functionName}에 서버 프록시 분기가 있어야 합니다.`);
+    assert.ok(
+      browserClientGuard < 0 || proxyBranch < browserClientGuard,
+      `${functionName}의 서버 프록시 분기는 브라우저 클라이언트 검사보다 먼저 실행되어야 합니다.`,
+    );
+  });
+});
