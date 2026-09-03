@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   ALL_STUDENTS_LETTER_RECIPIENT,
   addStudentBook,
+  applyPendingStudentLetterReads,
   clearPracticeFailureStories,
   createStudentLetter,
   createStudentLetters,
@@ -220,6 +221,30 @@ test('서로 다른 새 편지를 연달아 읽어도 모든 읽음 시각이 �
 
   assert.equal(getUnreadStudentLetterCount(allRead, 3), 0);
   assert.ok(getStudentLetters(allRead, 3).every((letter) => letter.readAt !== null));
+});
+
+test('먼저 끝난 읽음 저장이 늦게 누른 편지의 New 상태를 되살리지 않는다', () => {
+  const initial = createStudentLetters(normalizeStudentLifeState(null), [
+    {
+      id: 'letter-pending-1', recipient: 3, senderLabel: '선생님', title: '첫 편지',
+      content: '첫 번째 편지입니다.', createdAt: '2026-09-03T01:00:00.000Z',
+    },
+    {
+      id: 'letter-pending-2', recipient: 3, senderLabel: '선생님', title: '둘째 편지',
+      content: '두 번째 편지입니다.', createdAt: '2026-09-03T01:01:00.000Z',
+    },
+  ]);
+  const firstReadAt = '2026-09-03T02:00:00.000Z';
+  const secondReadAt = '2026-09-03T02:00:01.000Z';
+  const firstSaveResult = markStudentLetterRead(initial, 3, 'letter-pending-1', firstReadAt);
+
+  const visible = applyPendingStudentLetterReads(firstSaveResult, 3, new Map([
+    ['letter-pending-1', firstReadAt],
+    ['letter-pending-2', secondReadAt],
+  ]));
+
+  assert.equal(getUnreadStudentLetterCount(visible, 3), 0);
+  assert.equal(getStudentLetters(visible, 3).find((letter) => letter.id === 'letter-pending-2')?.readAt, secondReadAt);
 });
 
 test('보낸 편지는 기존 발신자 번호로 구분하고 최신순으로 보여 준다', () => {

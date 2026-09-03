@@ -236,6 +236,18 @@ export const markStudentLetterRead = (
   )),
 });
 
+export const applyPendingStudentLetterReads = (
+  state: StudentLifeState,
+  studentNumber: number,
+  pendingReads: ReadonlyMap<string, string>,
+): StudentLifeState => {
+  let next = state;
+  pendingReads.forEach((readAt, letterId) => {
+    next = markStudentLetterRead(next, studentNumber, letterId, readAt);
+  });
+  return next;
+};
+
 export const addStudentBook = (state: StudentLifeState, input: BookInput): StudentLifeState => {
   if (state.books.some((book) => book.id === input.id)) return state;
   const latestStudentBook = [...state.books].reverse().find((book) => book.studentNumber === input.studentNumber);

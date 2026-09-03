@@ -17,7 +17,6 @@ export default function StudentDonationPage({ totalAmount, targetAmount, canDona
   return (
     <section className="student-donation-page" aria-labelledby="student-donation-title">
       <picture className={`student-donation-animation${isCompleted ? ' is-completed' : ''}`}>
-        {isCompleted ? <source media="(prefers-reduced-motion: reduce)" srcSet="/donation-thanks-poster.png" /> : null}
         <img
           src={isCompleted ? '/donation-thanks-075x.gif' : donationCharacterSource}
           alt={isCompleted ? '기부 감사합니다 애니메이션' : '학급 기부 캐릭터'}

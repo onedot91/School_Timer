@@ -25,10 +25,11 @@ test('기부 미완료 상태에서는 감사 GIF를 불러오지 않는다', ()
   assert.match(incompleteDonationMarkup, /aria-valuemax="600"/);
 });
 
-test('기부 완료 상태에서만 감사 GIF와 모션 감소 포스터를 제공한다', () => {
+test('기부 완료 상태에서는 동작 줄이기 설정과 관계없이 감사 GIF를 재생한다', () => {
   const completedDonationMarkup = renderDonationPage(true);
 
   assert.match(completedDonationMarkup, /donation-thanks-075x\.gif/);
-  assert.match(completedDonationMarkup, /donation-thanks-poster\.png/);
+  assert.doesNotMatch(completedDonationMarkup, /prefers-reduced-motion/);
+  assert.doesNotMatch(completedDonationMarkup, /donation-thanks-poster\.png/);
   assert.match(completedDonationMarkup, /student-donation-animation is-completed/);
 });

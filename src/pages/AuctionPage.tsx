@@ -148,6 +148,7 @@ import {
 } from '../lib/studentSettingsSync';
 import {
   TEACHER_LETTER_RECIPIENT,
+  applyPendingStudentLetterReads,
   createStudentLetter,
   getStudentBooks,
   getStudentLetters,
@@ -403,7 +404,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     isSupabaseSettingsEnabled ? normalizeDailyWritingState(null) : loadStoredDailyWritingState()
   ));
   const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
-  const studentLetterReadInFlightRef = useRef<Set<string>>(new Set());
+  const studentLetterReadOverlayRef = useRef<Map<string, string>>(new Map());
   const [profilePurchaseType, setProfilePurchaseType] = useState<StudentProfilePurchase['type'] | null>(null);
   const [isPetSaving, setIsPetSaving] = useState(false);
   const [isEconomySaving, setIsEconomySaving] = useState(false);
@@ -425,6 +426,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   useEffect(() => {
     studentPetStatesRef.current = studentPetStates;
   }, [studentPetStates]);
+
+  const setStudentLifeSnapshot = useCallback((snapshot: StudentLifeState) => {
+    setStudentLife(applyPendingStudentLetterReads(
+      snapshot,
+      studentNumber,
+      studentLetterReadOverlayRef.current,
+    ));
+  }, [studentNumber]);
 
   useEffect(() => {
     if (activeSudokuDifficulty) setSudokuDifficulty(activeSudokuDifficulty);
@@ -692,7 +701,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       } else {
         saved = await updateStoredStudentLifeState(change);
       }
-      setStudentLife(saved);
+      setStudentLifeSnapshot(saved);
       return true;
     } catch (error) {
       if (error instanceof Error) return false;
@@ -719,9 +728,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   }));
 
   const readStudentLetter = async (letterId: string) => {
-    if (studentLetterReadInFlightRef.current.has(letterId)) return;
-    studentLetterReadInFlightRef.current.add(letterId);
+    if (studentLetterReadOverlayRef.current.has(letterId)) return;
     const readAt = new Date().toISOString();
+    studentLetterReadOverlayRef.current.set(letterId, readAt);
     setStudentLife((current) => markStudentLetterRead(current, studentNumber, letterId, readAt));
     try {
       let saved = studentLife;
@@ -736,8 +745,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           markStudentLetterRead(current, studentNumber, letterId, readAt)
         ));
       }
-      setStudentLife(saved);
+      setStudentLifeSnapshot(saved);
     } catch (error) {
+      studentLetterReadOverlayRef.current.delete(letterId);
       setStudentLife((current) => ({
         ...current,
         letters: current.letters.map((letter) => (
@@ -747,8 +757,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         )),
       }));
       console.error('Failed to mark student letter as read.', error);
-    } finally {
-      studentLetterReadInFlightRef.current.delete(letterId);
     }
   };
 
@@ -791,7 +799,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
 
       if (!result.applied) return false;
-      setStudentLife(result.studentLife);
+      setStudentLifeSnapshot(result.studentLife);
       setCurrencyBalances(result.balances);
       setCurrencyHistory(result.history);
       return true;
@@ -841,7 +849,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
 
       if (!result.applied) return false;
-      setStudentLife(result.studentLife);
+      setStudentLifeSnapshot(result.studentLife);
       setCurrencyBalances(result.balances);
       setCurrencyHistory(result.history);
       return true;
@@ -874,7 +882,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           action,
           requestId: `student-profile-${studentNumber}-${createBrowserRequestId()}`,
         });
-        setStudentLife(result.studentLife);
+        setStudentLifeSnapshot(result.studentLife);
         setCurrencyBalances((current) => ({ ...current, ...result.currencyBalanceEntries }));
         setCurrencyHistory((current) => ({ ...current, ...result.currencyHistoryEntries }));
         setStudentEconomyStates((current) => ({ ...current, [studentKey]: result.studentEconomy }));
@@ -922,7 +930,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         return { ok: false, message };
       }
 
-      setStudentLife(result.studentLife);
+      setStudentLifeSnapshot(result.studentLife);
       setCurrencyBalances(result.balances);
       setCurrencyHistory(result.history);
       if (purchase.type === 'selected') showStatusMessage(`${formatCurrency(result.price)}로 프로필을 바꿨습니다.`);
@@ -1202,7 +1210,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStudentEconomyStates(normalizeStudentEconomyStates(value.studentEconomy));
     setStudentShopCatalog(normalizeStudentShopCatalog(value.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(value.studentStockMarket));
-    setStudentLife(normalizeStudentLifeState(value.studentLife));
+    const normalizedStudentLife = normalizeStudentLifeState(value.studentLife);
+    studentLetterReadOverlayRef.current.forEach((_readAt, letterId) => {
+      if (normalizedStudentLife.letters.some((letter) => (
+        letter.id === letterId && letter.recipient === studentNumber && letter.readAt !== null
+      ))) studentLetterReadOverlayRef.current.delete(letterId);
+    });
+    setStudentLifeSnapshot(normalizedStudentLife);
     setDailyWriting(normalizeDailyWritingState(value.dailyWriting));
     applySharedStudentSudoku(value);
     applySharedNumberBaseball(value);
@@ -1216,7 +1230,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }),
       previous,
     ));
-  }, [applySharedNumberBaseball, applySharedStudentSudoku, studentNumber]);
+  }, [applySharedNumberBaseball, applySharedStudentSudoku, setStudentLifeSnapshot, studentNumber]);
 
   const refreshAuctionState = useCallback(async ({ forceFull = false }: { forceFull?: boolean } = {}) => {
     if (!isSupabaseSettingsEnabled) {
@@ -1234,7 +1248,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentPetStates(localPetSnapshot.studentPets);
       setStudentEconomyStates(localPetSnapshot.studentEconomy);
       setStudentShopCatalog(loadStoredStudentShopCatalog());
-      setStudentLife(loadStoredStudentLifeState());
+      setStudentLifeSnapshot(loadStoredStudentLifeState());
       setDailyWriting(loadStoredDailyWritingState());
       refreshLocalStudentSudoku();
       refreshLocalNumberBaseball();
@@ -1279,7 +1293,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
     }
-  }, [applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku, studentNumber]);
+  }, [applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku, setStudentLifeSnapshot, studentNumber]);
 
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) return;
@@ -1756,7 +1770,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         return { ...current, studentLife: savedStudentLife };
       });
       setCurrencyBalances((previous) => ({ ...previous, [studentKey]: result.balance }));
-      setStudentLife(savedStudentLife);
+      setStudentLifeSnapshot(savedStudentLife);
       setClassDonation((previous) => ({
         ...previous,
         targetAmount: result.targetAmount,
@@ -1851,7 +1865,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyBalances(savedBalances);
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
-      setStudentLife(savedStudentLife);
+      setStudentLifeSnapshot(savedStudentLife);
       if (resultMessage && action.type !== 'draw_character') showStatusMessage(resultMessage);
       if (isSupabaseSettingsEnabled) void refreshAuctionState({ forceFull: true });
       return true;

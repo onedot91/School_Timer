@@ -53,3 +53,11 @@ test('낙찰 단계 모션은 빠른 GPU 전환과 동작 줄이기를 사용한
   assert.match(stylesheetSource, /auction-award-stage-complete \.auction-award-price,[\s\S]*?auctionAwardWinner 260ms/);
   assert.match(stylesheetSource, /@media \(prefers-reduced-motion: reduce\)[\s\S]*auctionAwardReducedFade/);
 });
+
+test('PC 동작 줄이기 설정에서도 낙찰 단계 재생을 건너뛰지 않는다', () => {
+  assert.doesNotMatch(
+    timerPageSource,
+    /matchMedia\('\(prefers-reduced-motion: reduce\)'\)[\s\S]*?currentIndex: prefersReducedMotion/,
+  );
+  assert.match(timerPageSource, /currentIndex: 0,[\s\S]*?isComplete: steps\.length <= 1/);
+});

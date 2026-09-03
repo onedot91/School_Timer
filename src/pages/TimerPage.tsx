@@ -7096,7 +7096,6 @@ export default function TimerPage() {
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
     if (auctionAwards[item.id] || !currentBid.bidder || currentBid.amount <= 0) return false;
 
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const steps = getAwardSteps(item);
     const award = {
       itemId: item.id,
@@ -7112,8 +7111,8 @@ export default function TimerPage() {
       weekdayLabel: AUCTION_WEEKDAY_LABELS[item.dayIndex] ?? String(item.dayIndex + 1),
       steps,
       award,
-      currentIndex: prefersReducedMotion ? Math.max(steps.length - 1, 0) : 0,
-      isComplete: prefersReducedMotion || steps.length <= 1,
+      currentIndex: 0,
+      isComplete: steps.length <= 1,
       hasFinalized: false,
     });
     return true;
