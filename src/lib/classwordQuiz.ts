@@ -31,14 +31,25 @@ export type ClasswordQuizStudentState = {
 export type ClasswordQuizTeacherSummary = {
   readonly dateKey: string;
   readonly question: ClasswordQuizPrompt;
+  readonly answer: string;
+  readonly source: 'automatic' | 'teacher';
   readonly correctStudentNumbers: readonly number[];
 };
 
-type ClasswordQuizQuestion = ClasswordQuizPrompt & {
+export type ClasswordQuizDefinition = ClasswordQuizPrompt & {
   readonly answer: string;
 };
 
-const CLASSWORD_QUIZ_QUESTIONS: readonly ClasswordQuizQuestion[] = [
+export type ClasswordQuizTeacherInput = {
+  readonly dateKey: string;
+  readonly initialHint: string;
+  readonly meaning: string;
+  readonly writtenExample: string;
+  readonly spokenExample: string;
+  readonly answer: string;
+};
+
+const CLASSWORD_QUIZ_QUESTIONS: readonly ClasswordQuizDefinition[] = [
   {
     id: 'saving-resources',
     initialHint: 'ㅈㅇ',
@@ -119,7 +130,7 @@ const isValidStudentNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 23
 );
 
-const toPrompt = ({ id, initialHint, meaning, examples }: ClasswordQuizQuestion): ClasswordQuizPrompt => ({
+export const toClasswordQuizPrompt = ({ id, initialHint, meaning, examples }: ClasswordQuizDefinition): ClasswordQuizPrompt => ({
   id,
   initialHint,
   meaning,
@@ -131,18 +142,71 @@ export const getDailyClasswordQuiz = (dateKey: string): ClasswordQuizPrompt => {
   const dayNumber = Math.floor(Date.parse(`${dateKey}T00:00:00.000Z`) / 86_400_000);
   const question = CLASSWORD_QUIZ_QUESTIONS[Math.abs(dayNumber) % CLASSWORD_QUIZ_QUESTIONS.length];
   if (!question) throw new Error('CLASSWORD_QUIZ_NOT_FOUND');
-  return toPrompt(question);
+  return toClasswordQuizPrompt(question);
 };
 
-export const getDailyClasswordQuizAnswer = (dateKey: string): string => {
+export const getDailyClasswordQuizDefinition = (dateKey: string): ClasswordQuizDefinition => {
   const prompt = getDailyClasswordQuiz(dateKey);
   const question = CLASSWORD_QUIZ_QUESTIONS.find((candidate) => candidate.id === prompt.id);
   if (!question) throw new Error('CLASSWORD_QUIZ_NOT_FOUND');
-  return question.answer;
+  return question;
+};
+
+export const getDailyClasswordQuizAnswer = (dateKey: string): string => {
+  return getDailyClasswordQuizDefinition(dateKey).answer;
 };
 
 export const isClasswordQuizAnswerCorrect = (dateKey: string, input: string): boolean => {
   return input.normalize('NFC').trim().replace(/\s+/g, '') === getDailyClasswordQuizAnswer(dateKey);
+};
+
+const normalizeAnswer = (value: string): string => value.normalize('NFC').trim().replace(/\s+/g, '');
+
+export const isClasswordQuizDefinitionAnswerCorrect = (
+  question: ClasswordQuizDefinition,
+  input: string,
+): boolean => normalizeAnswer(input) === normalizeAnswer(question.answer);
+
+const splitExample = (
+  example: string,
+  answer: string,
+  register: ClasswordQuizExample['register'],
+): ClasswordQuizExample => {
+  const index = example.indexOf(answer);
+  if (index < 0) throw new Error('CLASSWORD_QUIZ_EXAMPLE_REQUIRES_ANSWER');
+  return {
+    register,
+    prefix: example.slice(0, index),
+    suffix: example.slice(index + answer.length),
+  };
+};
+
+export const buildTeacherClasswordQuiz = (
+  input: ClasswordQuizTeacherInput,
+  id: string,
+): ClasswordQuizDefinition => {
+  if (!isClasswordDateKey(input.dateKey)) throw new Error('CLASSWORD_QUIZ_INVALID_DATE');
+  const initialHint = input.initialHint.normalize('NFC').trim();
+  const answer = input.answer.normalize('NFC').trim();
+  const meaning = input.meaning.normalize('NFC').trim();
+  const writtenExample = input.writtenExample.normalize('NFC').trim();
+  const spokenExample = input.spokenExample.normalize('NFC').trim();
+  if (!/^[ㄱ-ㅎ]{1,8}$/.test(initialHint)) throw new Error('CLASSWORD_QUIZ_INVALID_INITIAL');
+  if (!answer || [...answer].length > 20) throw new Error('CLASSWORD_QUIZ_INVALID_ANSWER');
+  if (!meaning || [...meaning].length > 120) throw new Error('CLASSWORD_QUIZ_INVALID_MEANING');
+  if ([...writtenExample].length > 160 || [...spokenExample].length > 160) {
+    throw new Error('CLASSWORD_QUIZ_INVALID_EXAMPLE');
+  }
+  return {
+    id,
+    initialHint,
+    meaning,
+    examples: [
+      splitExample(writtenExample, answer, 'written'),
+      splitExample(spokenExample, answer, 'spoken'),
+    ],
+    answer,
+  };
 };
 
 const parseExample = (value: unknown, register: ClasswordQuizExample['register']): ClasswordQuizExample => {
@@ -201,12 +265,16 @@ export const parseClasswordQuizTeacherSummary = (value: unknown): ClasswordQuizT
   if (
     !isRecord(value)
     || !isClasswordDateKey(value.dateKey)
+    || typeof value.answer !== 'string'
+    || (value.source !== 'automatic' && value.source !== 'teacher')
     || !Array.isArray(value.correctStudentNumbers)
     || !value.correctStudentNumbers.every(isValidStudentNumber)
   ) throw new Error('CLASSWORD_QUIZ_INVALID_RESPONSE');
   return {
     dateKey: value.dateKey,
     question: parsePrompt(value.question),
+    answer: value.answer,
+    source: value.source,
     correctStudentNumbers: [...new Set(value.correctStudentNumbers)].sort((left, right) => left - right),
   };
 };

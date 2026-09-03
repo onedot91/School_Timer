@@ -22,12 +22,15 @@ import {
   parseClasswordQuizStudentState,
   parseClasswordQuizTeacherSummary,
   type ClasswordQuizStudentState,
+  type ClasswordQuizTeacherInput,
   type ClasswordQuizTeacherSummary,
 } from './classwordQuiz';
 import { saveClasswordQuizAnswer } from './classwordQuizAnswerStore';
 import {
   loadLocalClasswordQuizStudentState,
   loadLocalClasswordQuizTeacherSummary,
+  deleteLocalTeacherClasswordQuiz,
+  saveLocalTeacherClasswordQuiz,
   submitLocalClasswordQuizAnswer,
 } from './classwordQuizLocalStore';
 import { claimClasswordQuizRewardInSettings } from './classwordQuizReward';
@@ -150,6 +153,32 @@ export const loadTeacherClasswordQuizSummary = async (
   return parseClasswordQuizTeacherSummary(await request(
     `/api/classword?quiz=1&dateKey=${encodeURIComponent(dateKey)}`,
   ));
+};
+
+export const updateTeacherClasswordQuiz = async (input: ClasswordQuizTeacherInput): Promise<void> => {
+  if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
+  if (appDataMode === 'mock') {
+    saveLocalTeacherClasswordQuiz(getPrunedLocalStorage(), input);
+    dispatchLocalChange();
+    return;
+  }
+  await request('/api/classword', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'save_quiz', ...input }),
+  });
+};
+
+export const resetTeacherClasswordQuiz = async (dateKey: string): Promise<void> => {
+  if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
+  if (appDataMode === 'mock') {
+    deleteLocalTeacherClasswordQuiz(getPrunedLocalStorage(), dateKey);
+    dispatchLocalChange();
+    return;
+  }
+  await request('/api/classword', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'delete_quiz', dateKey }),
+  });
 };
 
 export const submitClasswordQuizAnswer = async (input: {

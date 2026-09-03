@@ -5,8 +5,29 @@ import { getDailyClasswordQuiz } from './classwordQuiz';
 import {
   loadLocalClasswordQuizStudentState,
   loadLocalClasswordQuizTeacherSummary,
+  deleteLocalTeacherClasswordQuiz,
+  saveLocalTeacherClasswordQuiz,
   submitLocalClasswordQuizAnswer,
 } from './classwordQuizLocalStore';
+
+test('연습 모드에서는 교사 출제 문제가 자동 문제를 대체하고 다시 되돌릴 수 있다', () => {
+  const storage = new MemoryStorage();
+  const dateKey = '2026-08-30';
+  saveLocalTeacherClasswordQuiz(storage, {
+    dateKey, initialHint: 'ㄷㅈ', meaning: '서로 힘을 합쳐 돕는 일', answer: '도움',
+    writtenExample: '친구와 도움을 주고받았다.', spokenExample: '내가 먼저 도움을 줄게.',
+  });
+
+  const teacher = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
+  const student = loadLocalClasswordQuizStudentState(storage, dateKey, 3);
+  assert.equal(teacher.source, 'teacher');
+  assert.equal(teacher.answer, '도움');
+  assert.equal(Object.hasOwn(student.question, 'answer'), false);
+  assert.equal(submitLocalClasswordQuizAnswer(storage, dateKey, 3, '도움', () => 0).correct, true);
+
+  deleteLocalTeacherClasswordQuiz(storage, dateKey);
+  assert.equal(loadLocalClasswordQuizTeacherSummary(storage, dateKey).source, 'automatic');
+});
 
 class MemoryStorage implements Storage {
   readonly #values = new Map<string, string>();

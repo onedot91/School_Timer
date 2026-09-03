@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   getKoreanDateKey,
   getClasswordEntryRetentionCutoff,
@@ -7,8 +9,11 @@ import {
   validateClasswordWord,
 } from '../src/lib/classword.js';
 import {
-  getDailyClasswordQuiz,
-  isClasswordQuizAnswerCorrect,
+  buildTeacherClasswordQuiz,
+  getDailyClasswordQuizDefinition,
+  isClasswordQuizDefinitionAnswerCorrect,
+  toClasswordQuizPrompt,
+  type ClasswordQuizTeacherInput,
 } from '../src/lib/classwordQuiz.js';
 import {
   claimClasswordReward,
@@ -16,15 +21,18 @@ import {
   ClasswordRepositoryError,
   deleteClasswordDateEntries,
   deleteClasswordEntry,
+  deleteClasswordQuizDefinition,
   loadClasswordBoard,
   loadClasswordRounds,
   loadClasswordTopic,
   loadClasswordQuizCompletions,
+  loadClasswordQuizDefinition,
   loadClasswordQuizRewardAmount,
   loadClasswordUsedTopics,
   pruneClasswordEntries,
   saveClasswordEntry,
   saveClasswordQuizCompletion,
+  saveClasswordQuizDefinition,
   saveClasswordTopic,
   type ClasswordRepositoryConfiguration,
 } from '../src/server/classwordRepository.js';
@@ -56,6 +64,8 @@ type ClasswordAction =
     }
   | { readonly type: 'delete_entry'; readonly entryId: string }
   | { readonly type: 'answer_quiz'; readonly dateKey: string; readonly answer: string }
+  | { readonly type: 'save_quiz'; readonly input: ClasswordQuizTeacherInput }
+  | { readonly type: 'delete_quiz'; readonly dateKey: string }
   | { readonly type: 'save_topic'; readonly dateKey: string; readonly topic: string }
   | { readonly type: 'delete_date_entries'; readonly dateKey: string; readonly confirmation: 'DELETE' };
 
@@ -126,6 +136,34 @@ const parseAction = (body: unknown): ClasswordAction => {
     ) throw new ClasswordApiError(400, 'INVALID_QUIZ_ANSWER');
     return { type: action, dateKey: value.dateKey, answer: value.answer };
   }
+  if (action === 'save_quiz') {
+    if (
+      !isClasswordDateKey(value.dateKey)
+      || typeof value.initialHint !== 'string'
+      || typeof value.meaning !== 'string'
+      || typeof value.writtenExample !== 'string'
+      || typeof value.spokenExample !== 'string'
+      || typeof value.answer !== 'string'
+    ) throw new ClasswordApiError(400, 'INVALID_QUIZ');
+    const input = {
+      dateKey: value.dateKey,
+      initialHint: value.initialHint,
+      meaning: value.meaning,
+      writtenExample: value.writtenExample,
+      spokenExample: value.spokenExample,
+      answer: value.answer,
+    };
+    try {
+      buildTeacherClasswordQuiz(input, 'validation');
+    } catch (error) {
+      throw new ClasswordApiError(400, error instanceof Error ? error.message : 'INVALID_QUIZ');
+    }
+    return { type: action, input };
+  }
+  if (action === 'delete_quiz') {
+    if (!isClasswordDateKey(value.dateKey)) throw new ClasswordApiError(400, 'INVALID_DATE');
+    return { type: action, dateKey: value.dateKey };
+  }
   if (action === 'save_topic') {
     if (!isClasswordDateKey(value.dateKey) || typeof value.topic !== 'string' || [...value.topic.trim()].length > 40) {
       throw new ClasswordApiError(400, 'INVALID_TOPIC');
@@ -157,6 +195,11 @@ const requireTeacher = (session: DeviceSession): void => {
 const pruneExpiredEntries = (configuration: ClasswordRepositoryConfiguration): Promise<void> =>
   pruneClasswordEntries(configuration, getClasswordEntryRetentionCutoff());
 
+const loadResolvedQuiz = async (configuration: ClasswordRepositoryConfiguration, dateKey: string) => {
+  const custom = await loadClasswordQuizDefinition(configuration, dateKey);
+  return { question: custom ?? getDailyClasswordQuizDefinition(dateKey), source: custom ? 'teacher' as const : 'automatic' as const };
+};
+
 const handleGet = async (
   request: ApiRequest,
   response: ApiResponse,
@@ -166,12 +209,15 @@ const handleGet = async (
   if (getQueryString(request.query?.quiz) === '1') {
     const dateKey = getQueryString(request.query?.dateKey) ?? getKoreanDateKey();
     if (!isClasswordDateKey(dateKey)) throw new ClasswordApiError(400, 'INVALID_DATE');
-    const question = getDailyClasswordQuiz(dateKey);
+    const resolved = await loadResolvedQuiz(configuration, dateKey);
+    const question = toClasswordQuizPrompt(resolved.question);
     const completions = await loadClasswordQuizCompletions(configuration, dateKey, question.id);
     if (session.role === 'teacher') {
       response.status(200).json({
         dateKey,
         question,
+        answer: resolved.question.answer,
+        source: resolved.source,
         correctStudentNumbers: completions.map((completion) => completion.studentNumber),
       });
       return;
@@ -253,7 +299,8 @@ const handlePost = async (
     case 'answer_quiz': {
       if (session.role !== 'student') throw new ClasswordApiError(403, 'STUDENT_REQUIRED');
       if (action.dateKey !== getKoreanDateKey()) throw new ClasswordApiError(403, 'TODAY_ONLY');
-      const question = getDailyClasswordQuiz(action.dateKey);
+      const resolved = await loadResolvedQuiz(configuration, action.dateKey);
+      const question = toClasswordQuizPrompt(resolved.question);
       const existingCompletions = await loadClasswordQuizCompletions(
         configuration,
         action.dateKey,
@@ -281,7 +328,7 @@ const handlePost = async (
         });
         return;
       }
-      if (!isClasswordQuizAnswerCorrect(action.dateKey, action.answer)) {
+      if (!isClasswordQuizDefinitionAnswerCorrect(resolved.question, action.answer)) {
         response.status(200).json({
           correct: false,
           state: {
@@ -318,6 +365,21 @@ const handlePost = async (
       });
       return;
     }
+    case 'save_quiz': {
+      requireTeacher(session);
+      const question = buildTeacherClasswordQuiz(
+        action.input,
+        `teacher-${action.input.dateKey}-${randomUUID()}`,
+      );
+      await saveClasswordQuizDefinition(configuration, action.input.dateKey, question);
+      response.status(200).json({ saved: true });
+      return;
+    }
+    case 'delete_quiz':
+      requireTeacher(session);
+      await deleteClasswordQuizDefinition(configuration, action.dateKey);
+      response.status(200).json({ deleted: true });
+      return;
     case 'save_topic':
       requireTeacher(session);
       await pruneExpiredEntries(configuration);

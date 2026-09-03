@@ -269,6 +269,7 @@ test('학생 화면의 반복 조회 뒤에도 낱말 저장과 퀴즈 조회가
         return Response.json([{ round_date: TODAY, topic: '자연에서 볼 수 있는 것' }]);
       }
       if (url.includes('/classword_quiz_completions')) return Response.json([]);
+      if (url.includes('/classword_quizzes')) return Response.json([]);
       if (url.includes('/classword_entries') && init?.method === 'POST') {
         return Response.json([{
           id: 'entry-after-polling', round_date: TODAY, initial: 'ㄱ', word: '고구마',
@@ -419,7 +420,7 @@ test('학생 퀴즈 조회는 힌트와 자신의 완료·보상 상태만 반�
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (input) => String(input).includes('/weekly_mission_rewards')
       ? Response.json([{ reward_amount: 7 }])
-      : Response.json([{
+      : String(input).includes('/classword_quizzes') ? Response.json([]) : Response.json([{
           quiz_date: TODAY,
           question_id: getDailyClasswordQuiz(TODAY).id,
           student_number: 3,
@@ -457,6 +458,7 @@ test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상
     let rewardMissionType: unknown;
     globalThis.fetch = async (input, init) => {
       const url = String(input);
+      if (url.includes('/classword_quizzes')) return Response.json([]);
       if (url.includes('/rpc/claim_weekly_mission_reward')) {
         const body = JSON.parse(String(init?.body));
         rewardMissionType = Reflect.get(body as object, 'p_mission_type');
@@ -528,7 +530,7 @@ test('교사 퀴즈 조회는 선택 날짜의 정답자 번호와 인원을 확
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
     const question = getDailyClasswordQuiz(TODAY);
-    globalThis.fetch = async () => Response.json([2, 5].map((studentNumber) => ({
+    globalThis.fetch = async (input) => String(input).includes('/classword_quizzes') ? Response.json([]) : Response.json([2, 5].map((studentNumber) => ({
       quiz_date: TODAY,
       question_id: question.id,
       student_number: studentNumber,
@@ -543,6 +545,50 @@ test('교사 퀴즈 조회는 선택 날짜의 정답자 번호와 인원을 확
         headers: sessionHeaders('teacher'),
       }, response);
       assert.deepEqual(Reflect.get(result().body as object, 'correctStudentNumbers'), [2, 5]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('교사는 날짜별 퀴즈를 저장하고 학생에게 정답 없이 출제한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let storedRow: Record<string, unknown> | null = null;
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      if (url.includes('/classword_quizzes') && init?.method === 'POST') {
+        storedRow = JSON.parse(String(init.body));
+        return new Response(null, { status: 204 });
+      }
+      if (url.includes('/classword_quizzes')) return Response.json(storedRow ? [storedRow] : []);
+      if (url.includes('/classword_quiz_completions')) return Response.json([]);
+      return Response.json([]);
+    };
+
+    try {
+      const saved = createResponse();
+      await handler({
+        method: 'POST', headers: sessionHeaders('teacher'),
+        body: {
+          action: 'save_quiz', dateKey: TODAY, initialHint: 'ㄷㅈ', answer: '도움',
+          meaning: '서로 힘을 합쳐 돕는 일', writtenExample: '친구와 도움을 주고받았다.',
+          spokenExample: '내가 먼저 도움을 줄게.',
+        },
+      }, saved.response);
+      assert.equal(saved.result().statusCode, 200);
+
+      const student = createResponse();
+      await handler({ method: 'GET', query: { quiz: '1', dateKey: TODAY }, headers: sessionHeaders('student', 3) }, student.response);
+      const question = Reflect.get(student.result().body as object, 'question');
+      assert.equal(student.result().statusCode, 200);
+      assert.equal(Reflect.get(question as object, 'initialHint'), 'ㄷㅈ');
+      assert.equal(Object.hasOwn(question as object, 'answer'), false);
+
+      const teacher = createResponse();
+      await handler({ method: 'GET', query: { quiz: '1', dateKey: TODAY }, headers: sessionHeaders('teacher') }, teacher.response);
+      assert.equal(Reflect.get(teacher.result().body as object, 'answer'), '도움');
+      assert.equal(Reflect.get(teacher.result().body as object, 'source'), 'teacher');
     } finally {
       globalThis.fetch = originalFetch;
     }

@@ -324,6 +324,16 @@ test('교사 하단 낱말판은 오늘 주제와 14칸 보드만 보여 준다'
   assert.match(css, /\.teacher-classword-panel\[data-surface="utility"\] \.teacher-classword-today-entries \{[^}]*border: 0;[^}]*background: transparent;[^}]*box-shadow: none;/);
 });
 
+test('교사 낱말판은 문제 내용을 보여 주고 날짜별 직접 출제를 제공한다', () => {
+  assert.match(teacherPanel, /quizSummary\.question\.meaning/);
+  assert.match(teacherPanel, /quizSummary\.answer/);
+  assert.match(teacherPanel, /교사가 직접 출제하기/);
+  assert.match(teacherPanel, /직접 출제 저장/);
+  assert.match(teacherPanel, /자동 문제로 되돌리기/);
+  assert.match(teacherPanel, /updateTeacherClasswordQuiz/);
+  assert.match(teacherPanel, /resetTeacherClasswordQuiz/);
+});
+
 test('교사 하단 낱말판은 오늘 보드만 요청하고 설정용 데이터는 기다리지 않는다', () => {
   assert.match(
     teacherPanel,

@@ -8,7 +8,7 @@ import {
   getKoreanDateKey,
   type ClasswordBoard,
 } from '../../lib/classword';
-import type { ClasswordQuizTeacherSummary } from '../../lib/classwordQuiz';
+import type { ClasswordQuizTeacherInput, ClasswordQuizTeacherSummary } from '../../lib/classwordQuiz';
 import {
   clearClasswordDate,
   loadClasswordBoard,
@@ -16,6 +16,8 @@ import {
   loadTeacherClasswordQuizSummary,
   loadClasswordUsedTopics,
   removeClasswordEntry,
+  resetTeacherClasswordQuiz,
+  updateTeacherClasswordQuiz,
   updateClasswordTopic,
 } from '../../lib/classwordClient';
 import {
@@ -54,6 +56,10 @@ export default function TeacherClasswordPanel({
   const [topic, setTopic] = useState('');
   const [quizSummary, setQuizSummary] = useState<ClasswordQuizTeacherSummary | null>(null);
   const [quizMessage, setQuizMessage] = useState('');
+  const [quizBusy, setQuizBusy] = useState(false);
+  const [quizDraft, setQuizDraft] = useState<Omit<ClasswordQuizTeacherInput, 'dateKey'>>({
+    initialHint: '', meaning: '', writtenExample: '', spokenExample: '', answer: '',
+  });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [clearStep, setClearStep] = useState<0 | 1 | 2>(0);
@@ -97,6 +103,13 @@ export default function TeacherClasswordPanel({
         const nextSummary = await loadTeacherClasswordQuizSummary(selectedDateKey);
         if (!active) return;
         setQuizSummary(nextSummary);
+        setQuizDraft({
+          initialHint: nextSummary.question.initialHint,
+          meaning: nextSummary.question.meaning,
+          writtenExample: `${nextSummary.question.examples[0].prefix}${nextSummary.answer}${nextSummary.question.examples[0].suffix}`,
+          spokenExample: `${nextSummary.question.examples[1].prefix}${nextSummary.answer}${nextSummary.question.examples[1].suffix}`,
+          answer: nextSummary.answer,
+        });
         setQuizMessage('');
       } catch {
         if (!active) return;
@@ -107,6 +120,47 @@ export default function TeacherClasswordPanel({
     void loadQuizSummary();
     return () => { active = false; };
   }, [selectedDateKey, surface]);
+
+  const refreshQuiz = async () => {
+    const nextSummary = await loadTeacherClasswordQuizSummary(selectedDateKey);
+    setQuizSummary(nextSummary);
+    setQuizDraft({
+      initialHint: nextSummary.question.initialHint,
+      meaning: nextSummary.question.meaning,
+      writtenExample: `${nextSummary.question.examples[0].prefix}${nextSummary.answer}${nextSummary.question.examples[0].suffix}`,
+      spokenExample: `${nextSummary.question.examples[1].prefix}${nextSummary.answer}${nextSummary.question.examples[1].suffix}`,
+      answer: nextSummary.answer,
+    });
+  };
+
+  const saveQuiz = async () => {
+    setQuizBusy(true);
+    try {
+      await updateTeacherClasswordQuiz({ dateKey: selectedDateKey, ...quizDraft });
+      await refreshQuiz();
+      setQuizMessage('직접 출제한 문제를 저장했습니다.');
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      setQuizMessage(code === 'CLASSWORD_QUIZ_EXAMPLE_REQUIRES_ANSWER'
+        ? '두 예문에 정답 낱말을 한 번씩 포함해 주세요.'
+        : '초성, 뜻, 정답과 예문을 확인해 주세요.');
+    } finally {
+      setQuizBusy(false);
+    }
+  };
+
+  const resetQuiz = async () => {
+    setQuizBusy(true);
+    try {
+      await resetTeacherClasswordQuiz(selectedDateKey);
+      await refreshQuiz();
+      setQuizMessage('자동 출제 문제로 되돌렸습니다.');
+    } catch {
+      setQuizMessage('자동 출제 문제로 되돌리지 못했습니다.');
+    } finally {
+      setQuizBusy(false);
+    }
+  };
 
   const chooseRandomTopic = () => {
     const used = new Set(usedTopics);
@@ -256,21 +310,50 @@ export default function TeacherClasswordPanel({
             <header>
               <div>
                 <span>{selectedDateKey}</span>
-                <h3 id={`${idPrefix}-quiz-title`}>낱말 퀴즈 정답자</h3>
+                <h3 id={`${idPrefix}-quiz-title`}>낱말 퀴즈</h3>
               </div>
-              <strong>{quizSummary?.correctStudentNumbers.length ?? 0}명</strong>
+              <strong>{quizSummary?.source === 'teacher' ? '교사 출제' : '자동 출제'}</strong>
             </header>
             {quizSummary ? (
-              <div className="teacher-classword-quiz-content">
-                <span className="teacher-classword-quiz-initial">{quizSummary.question.initialHint}</span>
-                <ul aria-label="낱말 퀴즈 정답 학생 번호">
-                  {quizSummary.correctStudentNumbers.length === 0
-                    ? <li className="is-empty">아직 정답자가 없습니다.</li>
-                    : quizSummary.correctStudentNumbers.map((studentNumber) => (
-                        <li key={studentNumber}>{studentNumber}번</li>
-                      ))}
-                </ul>
-              </div>
+              <>
+                <div className="teacher-classword-quiz-content">
+                  <span className="teacher-classword-quiz-initial">{quizSummary.question.initialHint}</span>
+                  <div className="teacher-classword-quiz-question">
+                    <p><strong>뜻</strong>{quizSummary.question.meaning}</p>
+                    {quizSummary.question.examples.map((example) => (
+                      <p key={example.register}>
+                        <strong>{example.register === 'written' ? '글말' : '입말'}</strong>
+                        {example.prefix}<mark>{quizSummary.answer}</mark>{example.suffix}
+                      </p>
+                    ))}
+                    <p className="teacher-classword-quiz-answer"><strong>정답</strong>{quizSummary.answer}</p>
+                  </div>
+                </div>
+                <div className="teacher-classword-quiz-correct">
+                  <strong>정답자 {quizSummary.correctStudentNumbers.length}명</strong>
+                  <ul aria-label="낱말 퀴즈 정답 학생 번호">
+                    {quizSummary.correctStudentNumbers.length === 0
+                      ? <li className="is-empty">아직 정답자가 없습니다.</li>
+                      : quizSummary.correctStudentNumbers.map((studentNumber) => <li key={studentNumber}>{studentNumber}번</li>)}
+                  </ul>
+                </div>
+                <details className="teacher-classword-quiz-editor">
+                  <summary>교사가 직접 출제하기</summary>
+                  <div className="teacher-classword-quiz-fields">
+                    <label>정답<input value={quizDraft.answer} maxLength={20} onChange={(event) => setQuizDraft((draft) => ({ ...draft, answer: event.target.value }))} disabled={quizBusy} /></label>
+                    <label>초성<input value={quizDraft.initialHint} maxLength={8} placeholder="예: ㅂㄹ" onChange={(event) => setQuizDraft((draft) => ({ ...draft, initialHint: event.target.value }))} disabled={quizBusy} /></label>
+                    <label className="is-wide">뜻<input value={quizDraft.meaning} maxLength={120} onChange={(event) => setQuizDraft((draft) => ({ ...draft, meaning: event.target.value }))} disabled={quizBusy} /></label>
+                    <label className="is-wide">글말 예문<input value={quizDraft.writtenExample} maxLength={160} onChange={(event) => setQuizDraft((draft) => ({ ...draft, writtenExample: event.target.value }))} disabled={quizBusy} /></label>
+                    <label className="is-wide">입말 예문<input value={quizDraft.spokenExample} maxLength={160} onChange={(event) => setQuizDraft((draft) => ({ ...draft, spokenExample: event.target.value }))} disabled={quizBusy} /></label>
+                  </div>
+                  <p className="teacher-classword-quiz-help">두 예문에는 정답 낱말을 그대로 포함해 주세요. 학생 화면에서는 정답 부분이 빈칸으로 표시됩니다.</p>
+                  <div className="teacher-classword-quiz-actions">
+                    <button type="button" onClick={() => void saveQuiz()} disabled={quizBusy}>직접 출제 저장</button>
+                    {quizSummary.source === 'teacher' ? <button type="button" onClick={() => void resetQuiz()} disabled={quizBusy}>자동 문제로 되돌리기</button> : null}
+                  </div>
+                </details>
+                {quizMessage ? <p className="teacher-classword-message" role="status">{quizMessage}</p> : null}
+              </>
             ) : <p className="teacher-classword-message" role="status">{quizMessage || '정답자를 불러오는 중입니다.'}</p>}
           </section>
           <div className="teacher-classword-workspace">

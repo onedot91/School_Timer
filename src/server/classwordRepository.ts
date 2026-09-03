@@ -6,7 +6,7 @@ import {
   type ClasswordInitial,
   type ClasswordRoundSummary,
 } from '../lib/classword.js';
-import type { ClasswordQuizCompletion } from '../lib/classwordQuiz.js';
+import type { ClasswordQuizCompletion, ClasswordQuizDefinition } from '../lib/classwordQuiz.js';
 import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
@@ -140,6 +140,30 @@ const mapQuizCompletionRow = (row: unknown): ClasswordQuizCompletion => {
   };
 };
 
+const mapQuizDefinitionRow = (row: unknown): ClasswordQuizDefinition => {
+  if (
+    !isRecord(row)
+    || typeof row.question_id !== 'string'
+    || typeof row.initial_hint !== 'string'
+    || typeof row.meaning !== 'string'
+    || typeof row.answer !== 'string'
+    || typeof row.written_prefix !== 'string'
+    || typeof row.written_suffix !== 'string'
+    || typeof row.spoken_prefix !== 'string'
+    || typeof row.spoken_suffix !== 'string'
+  ) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+  return {
+    id: row.question_id,
+    initialHint: row.initial_hint,
+    meaning: row.meaning,
+    answer: row.answer,
+    examples: [
+      { register: 'written', prefix: row.written_prefix, suffix: row.written_suffix },
+      { register: 'spoken', prefix: row.spoken_prefix, suffix: row.spoken_suffix },
+    ],
+  };
+};
+
 export const loadClasswordBoard = async (
   configuration: ClasswordRepositoryConfiguration,
   dateKey: string,
@@ -208,6 +232,50 @@ export const loadClasswordQuizCompletions = async (
     `classword_quiz_completions?quiz_date=eq.${encodeURIComponent(dateKey)}&question_id=eq.${encodeURIComponent(questionId)}&select=quiz_date,question_id,student_number,completed_at&order=student_number.asc`,
   );
   return parseRows(value).map(mapQuizCompletionRow);
+};
+
+export const loadClasswordQuizDefinition = async (
+  configuration: ClasswordRepositoryConfiguration,
+  dateKey: string,
+): Promise<ClasswordQuizDefinition | null> => {
+  const value = await request(
+    configuration,
+    `classword_quizzes?quiz_date=eq.${encodeURIComponent(dateKey)}&select=question_id,initial_hint,meaning,answer,written_prefix,written_suffix,spoken_prefix,spoken_suffix&limit=1`,
+  );
+  const row = parseRows(value)[0];
+  return row ? mapQuizDefinitionRow(row) : null;
+};
+
+export const saveClasswordQuizDefinition = async (
+  configuration: ClasswordRepositoryConfiguration,
+  dateKey: string,
+  question: ClasswordQuizDefinition,
+): Promise<void> => {
+  await request(configuration, 'classword_quizzes?on_conflict=quiz_date', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({
+      quiz_date: dateKey,
+      question_id: question.id,
+      initial_hint: question.initialHint,
+      meaning: question.meaning,
+      answer: question.answer,
+      written_prefix: question.examples[0].prefix,
+      written_suffix: question.examples[0].suffix,
+      spoken_prefix: question.examples[1].prefix,
+      spoken_suffix: question.examples[1].suffix,
+    }),
+  });
+};
+
+export const deleteClasswordQuizDefinition = async (
+  configuration: ClasswordRepositoryConfiguration,
+  dateKey: string,
+): Promise<void> => {
+  await request(configuration, `classword_quizzes?quiz_date=eq.${encodeURIComponent(dateKey)}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=minimal' },
+  });
 };
 
 export const loadClasswordQuizRewardAmount = async (

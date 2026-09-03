@@ -36,6 +36,26 @@ create table if not exists public.classword_quiz_completions (
   constraint classword_quiz_student_question_unique unique (quiz_date, question_id, student_number)
 );
 
+create table if not exists public.classword_quizzes (
+  quiz_date date primary key,
+  question_id text not null,
+  initial_hint text not null,
+  meaning text not null,
+  answer text not null,
+  written_prefix text not null,
+  written_suffix text not null,
+  spoken_prefix text not null,
+  spoken_suffix text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint classword_quizzes_question_id_length check (char_length(trim(question_id)) between 1 and 64),
+  constraint classword_quizzes_initial_hint_length check (char_length(trim(initial_hint)) between 1 and 8),
+  constraint classword_quizzes_meaning_length check (char_length(trim(meaning)) between 1 and 120),
+  constraint classword_quizzes_answer_length check (char_length(trim(answer)) between 1 and 20),
+  constraint classword_quizzes_written_length check (char_length(written_prefix) + char_length(written_suffix) <= 160),
+  constraint classword_quizzes_spoken_length check (char_length(spoken_prefix) + char_length(spoken_suffix) <= 160)
+);
+
 create index if not exists classword_entries_round_date_idx
   on public.classword_entries(round_date);
 
@@ -79,6 +99,11 @@ create trigger classword_entries_set_updated_at
 before update on public.classword_entries
 for each row execute function public.set_classword_updated_at();
 
+drop trigger if exists classword_quizzes_set_updated_at on public.classword_quizzes;
+create trigger classword_quizzes_set_updated_at
+before update on public.classword_quizzes
+for each row execute function public.set_classword_updated_at();
+
 drop trigger if exists classword_entries_ensure_round on public.classword_entries;
 create trigger classword_entries_ensure_round
 before insert on public.classword_entries
@@ -87,11 +112,14 @@ for each row execute function public.ensure_classword_round();
 alter table public.classword_rounds enable row level security;
 alter table public.classword_entries enable row level security;
 alter table public.classword_quiz_completions enable row level security;
+alter table public.classword_quizzes enable row level security;
 
 revoke all on table public.classword_rounds from public, anon, authenticated;
 revoke all on table public.classword_entries from public, anon, authenticated;
 revoke all on table public.classword_quiz_completions from public, anon, authenticated;
+revoke all on table public.classword_quizzes from public, anon, authenticated;
 
 grant select, insert, update, delete on table public.classword_rounds to service_role;
 grant select, insert, update, delete on table public.classword_entries to service_role;
 grant select, insert, update, delete on table public.classword_quiz_completions to service_role;
+grant select, insert, update, delete on table public.classword_quizzes to service_role;

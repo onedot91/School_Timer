@@ -587,11 +587,29 @@
 .teacher-classword-quiz-summary > header span { color: var(--classword-accent); font-size: .75rem; font-weight: 800; }
 .teacher-classword-quiz-summary > header h3 { margin: .1rem 0 0; font-size: 1.15rem; }
 .teacher-classword-quiz-summary > header > strong { padding: .4rem .75rem; border-radius: var(--apple-radius-pill); color: var(--classword-accent); background: var(--classword-accent-soft); font-size: .85rem; }
-.teacher-classword-quiz-content { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); align-items: center; gap: .75rem; }
+.teacher-classword-quiz-content { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: start; gap: .9rem; }
 .teacher-classword-quiz-initial { display: grid; inline-size: 3.5rem; block-size: 3.5rem; place-items: center; border-radius: var(--apple-radius-card); color: var(--classword-accent); background: var(--classword-prompt-soft); font-size: 1.1rem; font-weight: 950; letter-spacing: .08em; }
-.teacher-classword-quiz-content ul { display: flex; min-inline-size: 0; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
-.teacher-classword-quiz-content li { padding: .45rem .7rem; border: 1px solid var(--classword-line); border-radius: var(--apple-radius-pill); color: var(--classword-accent); background: var(--classword-accent-soft); font-size: .85rem; font-weight: 850; }
-.teacher-classword-quiz-content li.is-empty { color: var(--classword-ink-muted); background: var(--apple-surface-muted); }
+.teacher-classword-quiz-question { display: grid; min-inline-size: 0; gap: .35rem; }
+.teacher-classword-quiz-question p { margin: 0; color: var(--classword-ink); font-size: .9rem; font-weight: 700; line-height: 1.45; }
+.teacher-classword-quiz-question p > strong { display: inline-block; min-inline-size: 2.8rem; color: var(--classword-ink-muted); font-size: .75rem; }
+.teacher-classword-quiz-question mark { padding: .05rem .22rem; border-radius: .35rem; color: var(--classword-accent); background: var(--classword-accent-soft); font-weight: 900; }
+.teacher-classword-quiz-question .teacher-classword-quiz-answer { color: var(--classword-accent); font-size: 1rem; font-weight: 900; }
+.teacher-classword-quiz-correct { display: flex; align-items: center; gap: .65rem; padding-block-start: .65rem; border-block-start: 1px solid var(--classword-line); }
+.teacher-classword-quiz-correct > strong { flex: 0 0 auto; font-size: .85rem; }
+.teacher-classword-quiz-correct ul { display: flex; min-inline-size: 0; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.teacher-classword-quiz-correct li { padding: .35rem .6rem; border: 1px solid var(--classword-line); border-radius: var(--apple-radius-pill); color: var(--classword-accent); background: var(--classword-accent-soft); font-size: .8rem; font-weight: 850; }
+.teacher-classword-quiz-correct li.is-empty { color: var(--classword-ink-muted); background: var(--apple-surface-muted); }
+.teacher-classword-quiz-editor { padding-block-start: .65rem; border-block-start: 1px solid var(--classword-line); }
+.teacher-classword-quiz-editor summary { cursor: pointer; color: var(--classword-accent); font-size: .9rem; font-weight: 900; }
+.teacher-classword-quiz-editor[open] summary { margin-block-end: .7rem; }
+.teacher-classword-quiz-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .6rem; }
+.teacher-classword-quiz-fields label { display: grid; gap: .3rem; color: var(--classword-ink-muted); font-size: .75rem; font-weight: 850; }
+.teacher-classword-quiz-fields label.is-wide { grid-column: 1 / -1; }
+.teacher-classword-quiz-fields input { min-inline-size: 0; min-block-size: 2.65rem; padding-inline: .75rem; border: 1px solid var(--classword-line); border-radius: .75rem; color: var(--classword-ink); background: white; font-weight: 750; }
+.teacher-classword-quiz-help { margin: .55rem 0 0; color: var(--classword-ink-muted); font-size: .75rem; font-weight: 700; }
+.teacher-classword-quiz-actions { display: flex; gap: .5rem; margin-block-start: .65rem; }
+.teacher-classword-quiz-actions button { min-block-size: 2.75rem; padding-inline: .9rem; border: 0; border-radius: .75rem; color: white; background: var(--classword-accent); font-weight: 850; }
+.teacher-classword-quiz-actions button:last-child:not(:first-child) { color: var(--classword-accent); background: var(--classword-accent-soft); }
 .teacher-classword-calendar { display: grid; gap: .35rem; }
 .teacher-classword-calendar > header,
 .teacher-classword-calendar > footer { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
