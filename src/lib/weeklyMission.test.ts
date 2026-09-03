@@ -21,6 +21,7 @@ import {
 import { hasPersonalQuestionSubmission } from './questionSubmissionStatus';
 import {
   claimDailyEmotionRewardInSettings,
+  createWeeklyCurrencyCycle,
   finalizeAuctionAwardInSettings,
   hasDailyEmotionReward,
   type CurrencyHistory,
@@ -454,6 +455,253 @@ test('stale teacher saves preserve a concurrent pet feed and pet state once', ()
 
   const mergedAgain = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
   assert.equal((mergedAgain.currencyBalances as Record<string, number>)['8'], 95);
+});
+
+test('stale teacher saves preserve a concurrent house purchase, debit, and ownership once', () => {
+  const purchaseEntry = {
+    id: 'currency-economy-house-buy-1-10',
+    studentNumber: 10,
+    delta: -100,
+    before: 289,
+    after: 189,
+    reason: 'shop_purchase',
+    createdAt: '2026-09-03T02:40:00.000Z',
+  } as const;
+  const remote = {
+    currencyBalances: { 10: 189 },
+    currencyHistory: { 10: [purchaseEntry] },
+    studentEconomy: {
+      10: {
+        inventory: { house_repair: 1 },
+        ownedHouseIds: ['pink-cottage'],
+        activeHouseId: 'pink-cottage',
+        processedRequestIds: ['house-buy-1'],
+      },
+    },
+  };
+  const stale = {
+    currencyBalances: { 10: 289 },
+    currencyHistory: { 10: [] },
+    studentEconomy: {
+      10: {
+        inventory: { house_repair: 1 },
+        ownedHouseIds: [],
+        activeHouseId: null,
+        processedRequestIds: [],
+      },
+    },
+  };
+
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale);
+  assert.equal((merged.currencyBalances as Record<string, number>)['10'], 189);
+  assert.deepEqual((merged.currencyHistory as Record<string, unknown[]>)['10'], [purchaseEntry]);
+  const mergedEconomy = (merged.studentEconomy as Record<string, {
+    inventory: Record<string, number>;
+    ownedHouseIds: string[];
+    activeHouseId: string | null;
+    processedRequestIds: string[];
+  }>)['10'];
+  assert.equal(mergedEconomy.inventory.house_repair, 1);
+  assert.deepEqual(mergedEconomy.ownedHouseIds, ['pink-cottage']);
+  assert.equal(mergedEconomy.activeHouseId, 'pink-cottage');
+  assert.deepEqual(mergedEconomy.processedRequestIds, ['house-buy-1']);
+
+  const mergedAgain = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
+  assert.equal((mergedAgain.currencyBalances as Record<string, number>)['10'], 189);
+  assert.equal((mergedAgain.currencyHistory as Record<string, unknown[]>)['10'].length, 1);
+});
+
+test('a newer teacher currency reset keeps the purchase but does not restore its old debit', () => {
+  const purchaseEntry = {
+    id: 'currency-economy-house-buy-before-reset-10',
+    studentNumber: 10,
+    delta: -100,
+    before: 289,
+    after: 189,
+    reason: 'shop_purchase',
+    createdAt: '2026-09-03T02:40:00.000Z',
+  } as const;
+  const resetEntry = {
+    id: 'currency-10-reset-after-purchase',
+    studentNumber: 10,
+    delta: -89,
+    before: 189,
+    after: 100,
+    reason: 'reset',
+    createdAt: '2026-09-03T02:41:00.000Z',
+  } as const;
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings({
+    currencyBalances: { 10: 189 },
+    currencyHistory: { 10: [purchaseEntry] },
+    studentEconomy: {
+      10: {
+        inventory: { house_repair: 1 },
+        ownedHouseIds: ['pink-cottage'],
+        activeHouseId: 'pink-cottage',
+        processedRequestIds: ['house-buy-before-reset'],
+      },
+    },
+  }, {
+    currencyBalances: { 10: 999 },
+    currencyHistory: { 10: [resetEntry] },
+    studentEconomy: { 10: { processedRequestIds: [] } },
+  });
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['10'], 100);
+  assert.deepEqual((merged.currencyHistory as Record<string, unknown[]>)['10'], [resetEntry]);
+  assert.deepEqual(
+    (merged.studentEconomy as Record<string, { ownedHouseIds: string[] }>)['10'].ownedHouseIds,
+    ['pink-cottage'],
+  );
+});
+
+test('a remote reset survives a stale teacher snapshot that predates the reset', () => {
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings({
+    currencyBalances: { 10: 100 },
+    currencyHistory: { 10: [
+      {
+        id: 'currency-10-remote-reset', studentNumber: 10, delta: -89, before: 189, after: 100,
+        reason: 'reset', createdAt: '2026-09-03T02:41:00.000Z',
+      },
+      {
+        id: 'currency-economy-remote-purchase-10', studentNumber: 10, delta: -100, before: 289, after: 189,
+        reason: 'shop_purchase', createdAt: '2026-09-03T02:40:00.000Z',
+      },
+    ] },
+    studentEconomy: {
+      10: {
+        inventory: { house_repair: 1 },
+        ownedHouseIds: ['pink-cottage'],
+        activeHouseId: 'pink-cottage',
+        processedRequestIds: ['remote-purchase'],
+      },
+    },
+  }, {
+    currencyBalances: { 10: 289 },
+    currencyHistory: { 10: [] },
+    studentEconomy: { 10: { processedRequestIds: [] } },
+  });
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['10'], 100);
+  assert.deepEqual(
+    (merged.currencyHistory as CurrencyHistory)['10'].map((entry) => entry.reason),
+    ['reset', 'shop_purchase'],
+  );
+  assert.deepEqual(
+    (merged.studentEconomy as Record<string, { ownedHouseIds: string[] }>)['10'].ownedHouseIds,
+    ['pink-cottage'],
+  );
+});
+
+test('concurrent economy merge keeps ledger entries newest-first with continuous balances', () => {
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings({
+    currencyBalances: { 10: 189 },
+    currencyHistory: { 10: [{
+      id: 'currency-economy-purchase-10', studentNumber: 10, delta: -100, before: 289, after: 189,
+      reason: 'shop_purchase', createdAt: '2026-09-03T02:40:00.000Z',
+    }] },
+    studentEconomy: { 10: { processedRequestIds: ['purchase'] } },
+  }, {
+    currencyBalances: { 10: 299 },
+    currencyHistory: { 10: [{
+      id: 'currency-10-manual', studentNumber: 10, delta: 10, before: 289, after: 299,
+      reason: 'manual', createdAt: '2026-09-03T02:41:00.000Z',
+    }] },
+    studentEconomy: { 10: { processedRequestIds: [] } },
+  });
+  const entries = (merged.currencyHistory as CurrencyHistory)['10'];
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['10'], 199);
+  assert.deepEqual(entries.map((entry) => entry.id), ['currency-10-manual', 'currency-economy-purchase-10']);
+  assert.deepEqual(entries.map(({ before, after }) => ({ before, after })), [
+    { before: 189, after: 199 },
+    { before: 289, after: 189 },
+  ]);
+});
+
+test('concurrent profile purchase keeps normalized economy and student-life assignment', () => {
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings({
+    currencyBalances: { 4: 70 },
+    currencyHistory: { 4: [{
+      id: 'currency-profile-student-profile-4-purchase', studentNumber: 4, delta: -30,
+      before: 100, after: 70, reason: 'shop_purchase', createdAt: '2026-09-03T03:00:00.000Z',
+    }] },
+    studentEconomy: { 4: { processedRequestIds: ['student-profile-4-purchase'], invalidField: true } },
+    studentLife: {
+      letters: [{
+        id: 'bank-profile-receipt', recipient: 4, senderLabel: '은행원 돝돝', senderStudentNumber: null,
+        replyToId: null, title: '프로필', content: '구매 완료', createdAt: '2026-09-03T03:00:00.000Z', readAt: null,
+      }],
+      failureProfileAssignments: { 4: '/failure-profiles/thumbs/01-bear.png' },
+    },
+  }, {
+    currencyBalances: { 4: 100 },
+    currencyHistory: { 4: [] },
+    studentEconomy: { 4: { processedRequestIds: [] } },
+    studentLife: {
+      letters: [{
+        id: 'teacher-mail', recipient: 5, senderLabel: '선생님', senderStudentNumber: null,
+        replyToId: null, title: '안내', content: '준비물', createdAt: '2026-09-03T02:59:00.000Z', readAt: null,
+      }],
+      failureProfileAssignments: { 5: '/failure-profiles/thumbs/02-rabbit.png' },
+    },
+  });
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['4'], 70);
+  assert.equal(
+    ((merged.studentLife as { failureProfileAssignments: Record<string, string> }).failureProfileAssignments)['4'],
+    '/failure-profiles/thumbs/01-bear.png',
+  );
+  assert.equal(
+    ((merged.studentLife as { failureProfileAssignments: Record<string, string> }).failureProfileAssignments)['5'],
+    '/failure-profiles/thumbs/02-rabbit.png',
+  );
+  assert.deepEqual(
+    (merged.studentLife as { letters: Array<{ id: string }> }).letters.map((letter) => letter.id),
+    ['teacher-mail', 'bank-profile-receipt'],
+  );
+  assert.equal('invalidField' in (merged.studentEconomy as Record<string, Record<string, unknown>>)['4'], false);
+});
+
+test('weekly currency cycle uses the latest persisted purchase before tax and allowance', () => {
+  const source = {
+    currencyBalances: { 10: 189 },
+    currencyHistory: { 10: [{
+      id: 'currency-10-house-purchase', studentNumber: 10, delta: -100, before: 289, after: 189,
+      reason: 'shop_purchase', createdAt: '2026-09-03T02:40:00.000Z',
+    }] },
+    studentEconomy: { 10: { processedRequestIds: ['house-purchase'] } },
+  };
+  const cycle = createWeeklyCurrencyCycle(
+    source,
+    '2026-09-03T03:00:00.000Z',
+    '2026-09-03T03:00:00.001Z',
+  );
+
+  assert.equal(cycle.balances['10'], 195);
+  assert.equal(cycle.history['10'][0].reason, 'allowance');
+  assert.equal(cycle.history['10'][1].reason, 'tax');
+  assert.equal(cycle.history['10'][2].reason, 'shop_purchase');
+  assert.equal(cycle.history['10'][1].before, 189);
+  assert.equal(cycle.history['10'][1].after, 95);
+});
+
+test('unverified economy-looking history cannot change a stale teacher balance', () => {
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings({
+    currencyBalances: { 5: 999999 },
+    currencyHistory: { 5: [{
+      id: 'forged-stock-credit', studentNumber: 5, delta: 999899, before: 100, after: 999999,
+      reason: 'stock_trade', createdAt: '2026-09-03T03:00:00.000Z',
+    }] },
+    studentEconomy: { 5: { processedRequestIds: [] } },
+  }, {
+    currencyBalances: { 5: 100 },
+    currencyHistory: { 5: [] },
+    studentEconomy: { 5: { processedRequestIds: [] } },
+  });
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['5'], 100);
+  assert.equal((merged.currencyHistory as CurrencyHistory)['5'].length, 0);
 });
 
 test('ordinary settings saves preserve the latest remote bid activity', () => {

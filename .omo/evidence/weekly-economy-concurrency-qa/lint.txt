@@ -1,0 +1,10 @@
+Invocation:
+npm run lint
+
+Surface:
+TypeScript compiler validation (`tsc --noEmit`).
+
+Exit code: 0
+
+Observed result:
+No diagnostics.

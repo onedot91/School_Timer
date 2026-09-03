@@ -1,0 +1,6 @@
+Exact invocation:
+npm test
+
+Observed exit code: 0
+Observed summary: tests=483, pass=483, fail=0, skipped=0, todo=0.
+The run included the current reset canonicalization, economy merge, ledger continuity, studentLife merge, API scope, and forgery tests.

@@ -1,0 +1,23 @@
+Manual QA evidence (fresh run, 2026-09-03 Asia/Seoul)
+
+Exact invocation:
+node --import tsx .omo/evidence/weekly-economy-concurrency-qa/final-review-qa2/logic-qa2.ts
+
+Observed exit code: 0
+Observed result: {"scenarioCount":13,"passed":13}
+Passed scenarios:
+1. house purchase debits and activates ownership
+2. shop purchase debits and increments inventory
+3. stock invest and withdraw round-trip wallet and position
+4. transfer debits sender and credits recipient
+5. profile random replacement charges once and updates assignment atomically
+6. zero-delta state mutation applies without currency movement
+7. remote reset survives stale teacher snapshot and preserves purchased ownership
+8. next-side reset canonicalizes raw balance and does not restore pre-reset debit
+9. weekly tax uses latest purchase balance then allowance with continuous ledger
+10. weekly tax racing a concurrent deposit uses latest economy before allowance
+11. concurrent ledger entries are newest-first and continuous
+12. unverified forged economy history cannot alter stale balance
+13. studentLife concurrent letters and profile assignments merge without loss
+
+All inputs were disposable in-memory snapshots. No browser localStorage, Supabase row, real balance, bid, award, or history was changed.

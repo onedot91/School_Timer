@@ -643,6 +643,57 @@ export const grantWeeklyCurrencyAllowance = (balances: CurrencyBalances): Curren
     return nextBalances;
   }, {});
 
+export const createWeeklyCurrencyCycle = (
+  value: unknown,
+  taxCreatedAt: string,
+  allowanceCreatedAt: string,
+): CurrencyTaxResult & { history: CurrencyHistory } => {
+  const current = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const previousBalances = normalizeCurrencyBalances(current.currencyBalances);
+  const taxResult = collectCurrencyTax(
+    previousBalances,
+    normalizeStudentEconomyStates(current.studentEconomy),
+  );
+  const balances = grantWeeklyCurrencyAllowance(taxResult.balances);
+  const appendChanges = (
+    history: CurrencyHistory,
+    beforeBalances: CurrencyBalances,
+    afterBalances: CurrencyBalances,
+    reason: 'tax' | 'allowance',
+    createdAt: string,
+  ) => CURRENCY_STUDENT_NUMBERS.reduce<CurrencyHistory>((nextHistory, studentNumber) => {
+    const studentKey = String(studentNumber);
+    return appendCurrencyHistoryEntry(nextHistory, {
+      studentNumber,
+      before: beforeBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE,
+      after: afterBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE,
+      reason,
+      createdAt,
+    });
+  }, history);
+  const historyAfterTax = appendChanges(
+    normalizeCurrencyHistory(current.currencyHistory),
+    previousBalances,
+    taxResult.balances,
+    'tax',
+    taxCreatedAt,
+  );
+
+  return {
+    balances,
+    economy: taxResult.economy,
+    history: appendChanges(
+      historyAfterTax,
+      taxResult.balances,
+      balances,
+      'allowance',
+      allowanceCreatedAt,
+    ),
+  };
+};
+
 export const normalizeAuctionItems = (value: unknown): AuctionItem[] => {
   const parsedItems = Array.isArray(value) ? value : [];
   if (parsedItems.length === 0) return DEFAULT_AUCTION_ITEMS.map((item) => ({ ...item }));

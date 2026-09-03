@@ -1,0 +1,25 @@
+Invocation:
+node --import tsx .omo/evidence/weekly-economy-concurrency-qa/final-review/final-driver.ts
+
+Surface:
+Library seam with isolated in-memory fake settings. The driver directly invokes applyStudentEconomyAction, purchaseStudentProfile, createWeeklyCurrencyCycle, appendCurrencyHistoryEntry, and mergeConcurrentCurrencyUpdatesIntoSettings. No Supabase, localStorage, browser profile, or production currency was used.
+
+Exit code: 0
+
+Observed output:
+{
+  "scenarios": 10,
+  "passed": 10,
+  "labels": [
+    "house purchase survives stale teacher save",
+    "shop purchase debits and stores inventory",
+    "stock invest and withdraw preserve wallet/position",
+    "transfer keeps sender debit and recipient credit",
+    "profile random/selected purchase paths are isolated and atomic",
+    "weekly tax then allowance uses latest persisted purchase",
+    "newer teacher reset keeps ownership without restoring debit",
+    "repeated merge is idempotent",
+    "unverified forged history cannot alter stale balance",
+    "impossible negative reconciliation is rejected"
+  ]
+}

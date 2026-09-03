@@ -78,6 +78,19 @@ const asRecord = (value: unknown): Record<string, unknown> => (
 
 const valuesEqual = (left: unknown, right: unknown) => isDeepStrictEqual(left, right);
 
+const getProtectedCurrencyHistoryEntries = (value: unknown, studentNumber: number) => {
+  const entries = asRecord(value)[String(studentNumber)];
+  return Array.isArray(entries)
+    ? entries.filter((entry) => {
+        const reason = asRecord(entry).reason;
+        return reason === 'shop_purchase'
+          || reason === 'stock_trade'
+          || reason === 'bank_transfer'
+          || reason === 'reset';
+      })
+    : [];
+};
+
 const onlyOwnMapEntryChanged = (
   previous: unknown,
   next: unknown,
@@ -123,6 +136,13 @@ const canStudentUpdate = (previous: unknown, next: unknown, studentNumber: numbe
     const missingValue = key === 'currencyBalances' ? 100 : key === 'currencyHistory' ? [] : undefined;
     if (!onlyOwnMapEntryChanged(previousRecord[key], nextRecord[key], studentNumber, missingValue)) return false;
   }
+  const previousStudentEconomy = asRecord(previousRecord.studentEconomy)[String(studentNumber)];
+  const nextStudentEconomy = asRecord(nextRecord.studentEconomy)[String(studentNumber)];
+  if (!valuesEqual(previousStudentEconomy, nextStudentEconomy)) return false;
+  if (!valuesEqual(
+    getProtectedCurrencyHistoryEntries(previousRecord.currencyHistory, studentNumber),
+    getProtectedCurrencyHistoryEntries(nextRecord.currencyHistory, studentNumber),
+  )) return false;
   if (!onlyOwnProgressChanged(previousRecord.studentSudoku, nextRecord.studentSudoku, studentNumber)) return false;
   return onlyOwnProgressChanged(previousRecord.studentNumberBaseball, nextRecord.studentNumberBaseball, studentNumber);
 };

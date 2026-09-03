@@ -1,0 +1,5 @@
+Exact invocation:
+npm run lint
+
+Observed exit code: 0
+Observed output: tsc --noEmit completed with no diagnostics.

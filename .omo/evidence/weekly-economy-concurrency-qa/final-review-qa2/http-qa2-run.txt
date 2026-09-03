@@ -1,0 +1,39 @@
+Manual QA evidence (fresh run, 2026-09-03 Asia/Seoul)
+
+Isolation
+- Process: node --import tsx .omo/evidence/weekly-economy-concurrency-qa/final-review-qa2/http-qa-server.ts
+- Surface: localhost HTTP wrapper around api/student-economy.ts and api/shared-settings.ts.
+- Upstream fetch is an in-memory fake Supabase row; no external network or real student data.
+- Cookie values are intentionally redacted here; each curl used a signed token emitted by the isolated server for the named student.
+
+Invocation: curl -i -X POST http://127.0.0.1:<qa-port>/api/student-economy (student 1; buy_house pink-cottage; requestId qa2-house-buy-01)
+Observed: HTTP/1.1 200 OK; balance=200; ownedHouseIds=["pink-cottage"]; history delta=-100 reason=shop_purchase; applied=true.
+
+Invocation: same curl POST and same requestId/action (student 1 replay)
+Observed: HTTP/1.1 200 OK; balance=200; one unchanged history entry; message=이미 처리되었습니다.; applied=false.
+
+Invocation: curl -i -X POST http://127.0.0.1:<qa-port>/api/student-economy (student 2; buy_item snack; requestId qa2-shop-buy-02)
+Observed: HTTP/1.1 200 OK; balance=75; inventory.snack=1; history delta=-25 reason=shop_purchase; applied=true.
+
+Invocation: curl -i -X POST http://127.0.0.1:<qa-port>/api/student-economy (student 3; invest sunny amount 40 date 2026-09-03; requestId qa2-stock-invest-03)
+Observed: HTTP/1.1 200 OK; balance=170; investments.sunny={investedAmount:40,currentAmount:40,lastSettledDateKey:"2026-09-03"}; history reason=stock_trade.
+
+Invocation: curl -i -X POST http://127.0.0.1:<qa-port>/api/student-economy (student 3; withdraw_investment sunny date 2026-09-04; requestId qa2-stock-withdraw-03)
+Observed: HTTP/1.1 200 OK; balance=210; investments={} and a +40 stock_trade history entry.
+
+Invocation: curl -i -X POST http://127.0.0.1:<qa-port>/api/student-economy (student 2; transfer 25 to student 3 date 2026-09-03; requestId qa2-transfer-02-01)
+Observed: HTTP/1.1 200 OK; balances={2:50,3:235}; sender history delta=-25 and recipient history delta=+25 with the same requestId; one recipient mailbox letter.
+
+Invocation: curl -i -X POST http://127.0.0.1:<qa-port>/api/student-economy (student 4; draw_profile; requestId qa2-profile-draw-04)
+Observed: HTTP/1.1 200 OK; balance=70; profilePrice=30; profileReason=purchased; assignment changed to a valid profile image; history id=currency-profile-qa2-profile-draw-04.
+
+Invocation: curl -i -X POST http://127.0.0.1:<qa-port>/api/student-economy (student 5; select_house null; requestId qa2-house-select-05)
+Observed: HTTP/1.1 200 OK; balance=100; currencyHistoryEntries[5]=[]; activeHouseId=null; applied=true (zero-delta state mutation).
+
+Invocation: curl -i -X PUT http://127.0.0.1:<qa-port>/api/shared-settings (student 1; forged processedRequestIds)
+Observed: HTTP/1.1 403 Forbidden; {"error":"STUDENT_SETTINGS_SCOPE_VIOLATION"}; fake row was not patched.
+
+Invocation: curl -i -X PUT http://127.0.0.1:<qa-port>/api/shared-settings (student 1; forged reset history delta +799)
+Observed: HTTP/1.1 403 Forbidden; {"error":"STUDENT_SETTINGS_SCOPE_VIOLATION"}; fake row was not patched.
+
+The server /dump endpoint after all requests contained only the fake row and the expected isolated QA request IDs; no Supabase credentials or production data were used.

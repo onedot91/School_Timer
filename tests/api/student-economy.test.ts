@@ -98,6 +98,8 @@ test('iPhone 학생 예금은 전체 설정 PUT 없이 본인 고마만 원자�
     const savedValue = Reflect.get(result.upstreamBodies[0] as object, 'value') as Record<string, unknown>;
     assert.deepEqual(Reflect.get(savedValue.studentEconomy as object, '2'), previousValue.studentEconomy[2]);
     assert.deepEqual(savedValue.schedule, previousValue.schedule);
+    const history = Reflect.get(savedValue.currencyHistory as object, '1') as Array<{ id: string }>;
+    assert.equal(history[0]?.id, 'currency-economy-student-economy-1-deposit-request-1');
   });
 });
 
@@ -112,6 +114,21 @@ test('학생 거래 API는 10고마보다 적은 예금을 거부한다', async 
     assert.deepEqual(result.body, { error: 'INVALID_BANK_AMOUNT' });
     assert.equal(result.fetchCount, 1);
     assert.equal(result.upstreamBodies.length, 0);
+  });
+});
+
+test('학생 송금 원장은 같은 서버 요청 ID로 송신자와 수신자를 연결한다', async () => {
+  await withEnvironment(async () => {
+    const result = await runStudentAction(
+      { type: 'transfer', amount: 20, recipientNumber: 2, dateKey: '2026-09-03' },
+      'student-economy-1-transfer-request',
+    );
+
+    assert.equal(result.statusCode, 200);
+    const savedValue = Reflect.get(result.upstreamBodies[0] as object, 'value') as Record<string, unknown>;
+    const history = savedValue.currencyHistory as Record<string, Array<{ id: string }>>;
+    assert.equal(history['1'][0]?.id, 'currency-economy-student-economy-1-transfer-request-1');
+    assert.equal(history['2'][0]?.id, 'currency-economy-student-economy-1-transfer-request-2');
   });
 });
 

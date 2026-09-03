@@ -1,0 +1,17 @@
+Invocation:
+npm test -- --test-reporter=dot
+
+Surface:
+Repository Node test suite.
+
+Exit code: 0
+
+Observed result:
+tests 480
+pass 480
+fail 0
+cancelled 0
+skipped 0
+todo 0
+
+The suite printed one expected malformed personal-question fixture error to stderr; its test passed and the run remained green.

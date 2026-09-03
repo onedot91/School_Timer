@@ -177,7 +177,7 @@ import {
   finalizeAuctionAwardInSettings,
   appendCurrencyHistoryEntry,
   clampCurrencyBalance,
-  collectCurrencyTax,
+  createWeeklyCurrencyCycle,
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
   formatCurrencyAmount,
@@ -186,7 +186,6 @@ import {
   getAuctionItemDisplayName,
   getAuctionVisibleDayCount,
   getStudentLabelStyle,
-  grantWeeklyCurrencyAllowance,
   normalizeAuctionAwards,
   normalizeAuctionBidHistory,
   normalizeAuctionBids,
@@ -6872,27 +6871,20 @@ export default function TimerPage() {
     const emptyAuctionBids = normalizeAuctionBids(null, AUCTION_ITEM_IDS);
     const emptyAuctionBidHistory = normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS);
     const emptyAuctionAwards = normalizeAuctionAwards(null, AUCTION_ITEM_IDS);
-    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
-    const taxResult = collectCurrencyTax(previousBalances, studentEconomyStates);
-    const taxedBalances = taxResult.balances;
-    const taxedStudentEconomyStates = taxResult.economy;
-    const nextBalances = grantWeeklyCurrencyAllowance(taxedBalances);
     const taxHistoryCreatedAt = new Date().toISOString();
     const allowanceHistoryCreatedAt = new Date().toISOString();
-    const historyAfterTax = appendCurrencyChangesToHistory(
-      currencyHistoryRef.current,
-      previousBalances,
-      taxedBalances,
-      'tax',
+    const currencyCycle = createWeeklyCurrencyCycle(
+      {
+        currencyBalances: currencyBalancesRef.current,
+        currencyHistory: currencyHistoryRef.current,
+        studentEconomy: studentEconomyStates,
+      },
       taxHistoryCreatedAt,
-    );
-    const nextHistory = appendCurrencyChangesToHistory(
-      historyAfterTax,
-      taxedBalances,
-      nextBalances,
-      'allowance',
       allowanceHistoryCreatedAt,
     );
+    const nextBalances = currencyCycle.balances;
+    const nextHistory = currencyCycle.history;
+    const taxedStudentEconomyStates = currencyCycle.economy;
 
     setAuctionItems(nextAuctionItems);
     setTemporaryVisibleAuctionItemIds(new Set());
@@ -6938,9 +6930,23 @@ export default function TimerPage() {
     };
     let savedSnapshot: Record<string, unknown> = { ...snapshot };
     void updateSharedSettings((currentValue) => {
+      const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
+        ? currentValue as Record<string, unknown>
+        : {};
+      const latestCurrencyCycle = createWeeklyCurrencyCycle(
+        Object.keys(current).length > 0 ? current : snapshot,
+        taxHistoryCreatedAt,
+        allowanceHistoryCreatedAt,
+      );
       savedSnapshot = mergeConcurrentCurrencyUpdatesIntoSettings(
         currentValue,
-        snapshot,
+        {
+          ...snapshot,
+          currencyBalances: latestCurrencyCycle.balances,
+          currencyHistory: latestCurrencyCycle.history,
+          studentEconomy: latestCurrencyCycle.economy,
+          studentLife: current.studentLife ?? snapshot.studentLife,
+        },
         knownWeeklyMissionRewardIdsRef.current,
         knownAuctionAwardKeysRef.current,
         false,
@@ -6955,6 +6961,7 @@ export default function TimerPage() {
           normalizeCurrencyBalances(savedSnapshot.currencyBalances),
           normalizeCurrencyHistory(savedSnapshot.currencyHistory),
         );
+        setStudentEconomyStates(normalizeStudentEconomyStates(savedSnapshot.studentEconomy));
         const savedAwards = normalizeAuctionAwards(savedSnapshot.auctionAwards, AUCTION_ITEM_IDS);
         if (JSON.stringify(savedAwards) !== JSON.stringify(auctionAwards)) {
           setAuctionAwards(savedAwards);

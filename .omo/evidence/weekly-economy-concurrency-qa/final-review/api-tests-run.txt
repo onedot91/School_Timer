@@ -1,0 +1,23 @@
+Invocation:
+node --import tsx --test tests/api/student-economy.test.ts tests/api/shared-settings.test.ts
+
+Surface:
+API handlers with mocked global fetch and signed disposable test device sessions. Upstream calls target a fake Supabase URL and return in-memory Response objects; no network or production data is touched.
+
+Exit code: 0
+
+Observed result:
+tests 20
+pass 20
+fail 0
+cancelled 0
+skipped 0
+todo 0
+
+Relevant observed cases include:
+- generic student settings writes cannot forge processed economy request IDs
+- iPhone student deposit saves only own economy/balance and emits deterministic ledger ID
+- student transfer links sender and recipient ledger IDs to one server request ID
+- iPhone student stock investment debits wallet and stores position
+- student profile draw validates session and stores assignment
+- student transaction cannot use another student number

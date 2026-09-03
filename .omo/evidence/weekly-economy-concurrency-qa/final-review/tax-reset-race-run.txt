@@ -1,0 +1,26 @@
+Invocation:
+node --import tsx .omo/evidence/weekly-economy-concurrency-qa/tax-reset-race.ts
+
+Surface:
+Library/API seam with isolated in-memory fake settings. A concurrent 200-goma deposit is created through applyStudentEconomyAction; stale and current teacher weekly tax/reset snapshots are merged without external writes.
+
+Exit code: 0
+
+Observed result:
+{
+  "scenario": "teacher tax/reset racing a 200-goma deposit",
+  "tax": {
+    "rawMergeWallet": 45,
+    "cycleWallet": 100,
+    "expectedWalletUsingRemoteEconomy": 100,
+    "rawMergeDeposit": 200,
+    "cycleDeposit": 145,
+    "expectedDepositAfterTax": 145,
+    "verdict": "PASS"
+  },
+  "reset": {
+    "observedError": null,
+    "expectedError": null,
+    "verdict": "PASS"
+  }
+}

@@ -1,0 +1,18 @@
+Invocation:
+npm test -- --test-reporter=dot
+
+Surface:
+Repository Node test suite, including API tests and all library tests.
+
+Exit code: 0
+
+Observed result:
+tests 473
+pass 473
+fail 0
+cancelled 0
+skipped 0
+todo 0
+duration_ms 2317.692541
+
+The suite logs an expected malformed personal-question fixture message (QUESTION_STUDENT_INVALID_RESPONSE) while its corresponding test passes; this is stderr noise, not a failing test.

@@ -278,6 +278,9 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
   const nextBalances = normalizeCurrencyBalances(next.currencyBalances);
   const remoteAwards = normalizeAuctionAwards(remote.auctionAwards, AUCTION_ITEM_IDS);
   const nextAwards = normalizeAuctionAwards(next.auctionAwards, AUCTION_ITEM_IDS);
+  const remoteStudentEconomy = normalizeStudentEconomyStates(remote.studentEconomy);
+  const nextStudentEconomy = normalizeStudentEconomyStates(next.studentEconomy);
+  const mergedStudentEconomy = { ...nextStudentEconomy };
 
   const rebaseMissingEntries = (
     entries: readonly CurrencyHistoryEntry[],
@@ -291,6 +294,27 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       return rebasedEntry;
     });
   };
+
+  const getLatestReset = (entries: readonly CurrencyHistoryEntry[]) => entries
+    .filter((entry) => entry.reason === 'reset')
+    .reduce<CurrencyHistoryEntry | null>((latest, entry) => {
+      if (!latest) return entry;
+      return (Date.parse(entry.createdAt) || 0) > (Date.parse(latest.createdAt) || 0) ? entry : latest;
+    }, null);
+
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const latestReset = getLatestReset(nextHistory[studentKey]);
+    if (!latestReset) return;
+    const resetTime = Date.parse(latestReset.createdAt) || 0;
+    const balanceAfterReset = latestReset.after + nextHistory[studentKey]
+      .filter((entry) => (Date.parse(entry.createdAt) || 0) > resetTime)
+      .reduce((total, entry) => total + entry.delta, 0);
+    if (balanceAfterReset < CURRENCY_BALANCE_MIN || balanceAfterReset > CURRENCY_BALANCE_MAX) {
+      throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    }
+    nextBalances[studentKey] = balanceAfterReset;
+    nextHistory[studentKey] = rebaseMissingEntries(nextHistory[studentKey], balanceAfterReset);
+  });
 
   Object.keys(nextHistory).forEach((studentKey) => {
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
@@ -478,10 +502,78 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     ];
   });
 
+  const economyStudentsWithRemoteActivity = new Set<string>();
+  const newRemoteRequestIds = new Set<string>();
+  Object.entries(remoteStudentEconomy).forEach(([studentKey, remoteState]) => {
+    const remoteRequestIds = remoteState.processedRequestIds;
+    const nextState = nextStudentEconomy[studentKey];
+    const nextRequestIds = new Set(nextState?.processedRequestIds ?? []);
+    const unseenRequestIds = remoteRequestIds.filter((requestId) => !nextRequestIds.has(requestId));
+    if (unseenRequestIds.length > 0) {
+      economyStudentsWithRemoteActivity.add(studentKey);
+      unseenRequestIds.forEach((requestId) => newRemoteRequestIds.add(requestId));
+      mergedStudentEconomy[studentKey] = remoteState;
+    }
+  });
+
+  const isEconomyHistoryEntry = (entry: CurrencyHistoryEntry) => (
+    entry.reason === 'shop_purchase' || entry.reason === 'stock_trade' || entry.reason === 'bank_transfer'
+  );
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const remoteLatestReset = getLatestReset(remoteHistory[studentKey]);
+    const nextLatestReset = getLatestReset(nextHistory[studentKey]);
+    const remoteResetTime = remoteLatestReset ? Date.parse(remoteLatestReset.createdAt) || 0 : 0;
+    const nextResetTime = nextLatestReset ? Date.parse(nextLatestReset.createdAt) || 0 : 0;
+    if (remoteResetTime > nextResetTime) {
+      if (!remoteLatestReset) throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+      const acceptedChangesAfterReset = nextHistory[studentKey].filter((entry) => (
+        (Date.parse(entry.createdAt) || 0) > remoteResetTime
+      ));
+      const balanceAfterReset = remoteLatestReset.after
+        + acceptedChangesAfterReset.reduce((total, entry) => total + entry.delta, 0);
+      if (balanceAfterReset < CURRENCY_BALANCE_MIN || balanceAfterReset > CURRENCY_BALANCE_MAX) {
+        throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+      }
+      nextBalances[studentKey] = balanceAfterReset;
+      nextHistory[studentKey] = rebaseMissingEntries(
+        [
+          ...acceptedChangesAfterReset,
+          ...remoteHistory[studentKey].filter((entry) => (Date.parse(entry.createdAt) || 0) <= remoteResetTime),
+        ]
+          .sort((left, right) => (Date.parse(right.createdAt) || 0) - (Date.parse(left.createdAt) || 0)),
+        balanceAfterReset,
+      );
+    }
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const latestResetTime = Math.max(remoteResetTime, nextResetTime);
+    const missingEconomyChanges = remoteHistory[studentKey].filter((entry) => {
+      if (!isEconomyHistoryEntry(entry) || existingIds.has(entry.id)) return false;
+      const belongsToVerifiedActivity = [...newRemoteRequestIds].some((requestId) => (
+        entry.id === `currency-economy-${requestId}-${studentKey}`
+        || entry.id === `currency-profile-${requestId}`
+      ));
+      return belongsToVerifiedActivity && (Date.parse(entry.createdAt) || 0) > latestResetTime;
+    });
+    if (missingEconomyChanges.length === 0) return;
+
+    const nextBalance = nextBalances[studentKey]
+      + missingEconomyChanges.reduce((total, entry) => total + entry.delta, 0);
+    if (nextBalance < CURRENCY_BALANCE_MIN || nextBalance > CURRENCY_BALANCE_MAX) {
+      throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    }
+    nextBalances[studentKey] = nextBalance;
+    const combinedHistory = [...nextHistory[studentKey], ...missingEconomyChanges]
+      .sort((left, right) => (Date.parse(right.createdAt) || 0) - (Date.parse(left.createdAt) || 0));
+    nextHistory[studentKey] = rebaseMissingEntries(combinedHistory, nextBalance);
+  });
+
   return {
     ...next,
     studentPets: remote.studentPets ?? next.studentPets,
-    studentEconomy: next.studentEconomy ?? remote.studentEconomy,
+    studentEconomy: mergedStudentEconomy,
+    studentLife: economyStudentsWithRemoteActivity.size > 0
+      ? mergeStudentLifeStates(remote.studentLife, next.studentLife)
+      : next.studentLife ?? remote.studentLife,
     currencyBalances: nextBalances,
     currencyHistory: nextHistory,
     auctionAwards: nextAwards,
@@ -591,3 +683,5 @@ import {
 import { mergeClassDonationActivity } from './classDonation.js';
 import { appDataMode, canWriteSharedBackend } from './dataMode.js';
 import { mergeStudentEmotionHistories } from './studentEmotion.js';
+import { normalizeStudentEconomyStates } from './studentEconomy.js';
+import { mergeStudentLifeStates } from './studentLife.js';

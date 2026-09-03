@@ -1,0 +1,28 @@
+Invocation:
+node --import tsx .omo/evidence/weekly-economy-concurrency-qa/tax-reset-race.ts
+
+Surface:
+Library/API seam using applyStudentEconomyAction to create an isolated concurrent 200-goma deposit, then collectCurrencyTax/grantWeeklyCurrencyAllowance and mergeConcurrentCurrencyUpdatesIntoSettings for stale teacher tax/reset snapshots. No production writes.
+
+Exit code: 0. The driver reports scenario-level verdicts in JSON.
+
+Observed output:
+{
+  "scenario": "teacher tax/reset racing a 200-goma deposit",
+  "tax": {
+    "rawMergeWallet": 45,
+    "cycleWallet": 100,
+    "expectedWalletUsingRemoteEconomy": 100,
+    "rawMergeDeposit": 200,
+    "cycleDeposit": 145,
+    "expectedDepositAfterTax": 145,
+    "verdict": "PASS"
+  },
+  "reset": {
+    "observedError": null,
+    "expectedError": null,
+    "verdict": "PASS"
+  }
+}
+
+Interpretation: the raw merge seam alone retains the remote deposit but cannot compute tax from a stale no-deposit teacher snapshot (raw 45/200). The production weekly-cycle seam `createWeeklyCurrencyCycle(remote, ...)` recomputes from the latest remote economy and observes the expected 100/145. Reset also completes without error.

@@ -1,0 +1,14 @@
+Fresh API guard evidence (2026-09-03 Asia/Seoul)
+
+Exact invocation:
+node --import tsx --test tests/api/shared-settings.test.ts --test-name-pattern='generic student settings writes cannot forge|generic student settings writes cannot alter'
+
+Observed exit code: 0
+Observed result: tests=16, pass=16, fail=0, skipped=0, todo=0.
+Relevant passing cases:
+- generic student settings writes cannot forge processed economy request IDs
+- generic student settings writes cannot alter a server economy ledger entry
+- generic student settings writes cannot forge a teacher currency reset
+- student sessions cannot change another student balance entry
+
+The handler-level tests use mocked fetch responses and signed disposable device sessions. No external Supabase request was made.

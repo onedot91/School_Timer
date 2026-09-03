@@ -278,6 +278,7 @@ const createMutation = (
   let nextBalances = { ...balances, [studentKey]: result.wallet };
   let nextHistory = result.applied && result.wallet !== wallet
     ? appendCurrencyHistoryEntry(history, {
+        id: `currency-economy-${requestId}-${studentKey}`,
         studentNumber,
         before: wallet,
         after: result.wallet,
@@ -293,6 +294,7 @@ const createMutation = (
     changedStudentKeys.push(recipientKey);
     nextBalances = { ...nextBalances, [recipientKey]: recipientWallet + action.amount };
     nextHistory = appendCurrencyHistoryEntry(nextHistory, {
+      id: `currency-economy-${requestId}-${recipientKey}`,
       studentNumber: action.recipientNumber,
       before: recipientWallet,
       after: recipientWallet + action.amount,

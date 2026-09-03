@@ -165,6 +165,41 @@ export const normalizeStudentLifeState = (value: unknown): StudentLifeState => {
   };
 };
 
+export const mergeStudentLifeStates = (remoteValue: unknown, nextValue: unknown): StudentLifeState => {
+  const remote = normalizeStudentLifeState(remoteValue);
+  const next = normalizeStudentLifeState(nextValue);
+  const mergeById = <Entry extends { readonly id: string; readonly createdAt: string }>(
+    remoteEntries: readonly Entry[],
+    nextEntries: readonly Entry[],
+    mergeDuplicate?: (remoteEntry: Entry, nextEntry: Entry) => Entry,
+  ) => {
+    const entries = new Map(nextEntries.map((entry) => [entry.id, entry]));
+    remoteEntries.forEach((remoteEntry) => {
+      const nextEntry = entries.get(remoteEntry.id);
+      entries.set(
+        remoteEntry.id,
+        nextEntry && mergeDuplicate ? mergeDuplicate(remoteEntry, nextEntry) : remoteEntry,
+      );
+    });
+    return [...entries.values()].sort(
+      (left, right) => (Date.parse(left.createdAt) || 0) - (Date.parse(right.createdAt) || 0),
+    );
+  };
+
+  return normalizeStudentLifeState({
+    letters: mergeById(remote.letters, next.letters, (remoteLetter, nextLetter) => ({
+      ...remoteLetter,
+      readAt: remoteLetter.readAt ?? nextLetter.readAt,
+    })),
+    books: mergeById(remote.books, next.books),
+    failureStories: mergeById(remote.failureStories, next.failureStories),
+    failureProfileAssignments: {
+      ...next.failureProfileAssignments,
+      ...remote.failureProfileAssignments,
+    },
+  });
+};
+
 export const clearPracticeFailureStories = (state: StudentLifeState): StudentLifeState => (
   state.failureStories.length === 0 ? state : { ...state, failureStories: [] }
 );

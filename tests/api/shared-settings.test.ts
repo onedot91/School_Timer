@@ -214,6 +214,119 @@ test('student sessions can update only their own balance entry', async () => {
   });
 });
 
+test('generic student settings writes cannot forge processed economy request IDs', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = async () => {
+      fetchCount += 1;
+      return Response.json([{
+        id: 'school-timer-main',
+        value: { studentEconomy: { 7: { processedRequestIds: [] } } },
+        updated_at: 'v1',
+      }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT',
+        headers: studentHeaders(7),
+        body: {
+          value: { studentEconomy: { 7: { processedRequestIds: ['forged-request'] } } },
+          expectedUpdatedAt: 'v1',
+        },
+      }, response);
+
+      assert.equal(result().statusCode, 403);
+      assert.equal(fetchCount, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('generic student settings writes cannot alter a server economy ledger entry', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    const studentEconomy = { 7: { processedRequestIds: ['student-economy-7-legit'] } };
+    const legitimateEntry = {
+      id: 'currency-economy-student-economy-7-legit-7',
+      studentNumber: 7,
+      before: 100,
+      after: 75,
+      delta: -25,
+      reason: 'shop_purchase',
+      createdAt: '2026-09-03T03:00:00.000Z',
+    };
+    globalThis.fetch = async () => {
+      fetchCount += 1;
+      return Response.json([{
+        id: 'school-timer-main',
+        value: { currencyBalances: { 7: 75 }, currencyHistory: { 7: [legitimateEntry] }, studentEconomy },
+        updated_at: 'v1',
+      }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT',
+        headers: studentHeaders(7),
+        body: {
+          value: {
+            currencyBalances: { 7: 999 },
+            currencyHistory: { 7: [{ ...legitimateEntry, before: 100, after: 999, delta: 899 }] },
+            studentEconomy,
+          },
+          expectedUpdatedAt: 'v1',
+        },
+      }, response);
+
+      assert.equal(result().statusCode, 403);
+      assert.equal(fetchCount, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('generic student settings writes cannot forge a teacher currency reset', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = async () => {
+      fetchCount += 1;
+      return Response.json([{
+        id: 'school-timer-main',
+        value: { currencyBalances: { 7: 100 }, currencyHistory: { 7: [] } },
+        updated_at: 'v1',
+      }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT',
+        headers: studentHeaders(7),
+        body: {
+          value: {
+            currencyBalances: { 7: 999 },
+            currencyHistory: { 7: [{
+              id: 'forged-reset', studentNumber: 7, before: 100, after: 999, delta: 899,
+              reason: 'reset', createdAt: '2026-09-03T03:00:00.000Z',
+            }] },
+          },
+          expectedUpdatedAt: 'v1',
+        },
+      }, response);
+
+      assert.equal(result().statusCode, 403);
+      assert.equal(fetchCount, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 const reorderedSharedSettingsScenarios = [
   {
     name: '숫자야구 완료 저장은 다른 학생의 기록 속성 순서가 달라도 허용한다',
@@ -296,13 +409,13 @@ for (const scenario of reorderedSharedSettingsScenarios) {
 
 const economyUpdateScenarios = [
   {
-    name: '학생 거래는 누락된 다른 학생 기본값을 정규화해도 저장된다',
+    name: '일반 학생 설정 API는 예금 상태를 직접 저장하지 않는다',
     balance: 115,
     historyId: 'deposit-1',
     studentEconomy: { 1: { deposit: 30 } },
   },
   {
-    name: '증권 투자는 누락된 다른 학생 기본값을 정규화해도 저장된다',
+    name: '일반 학생 설정 API는 증권 상태를 직접 저장하지 않는다',
     balance: 135,
     historyId: 'investment-1',
     studentEconomy: {
@@ -355,8 +468,8 @@ for (const scenario of economyUpdateScenarios) {
         }, response);
 
         // Then
-        assert.equal(result().statusCode, 200);
-        assert.equal(fetchCount, 2);
+        assert.equal(result().statusCode, 403);
+        assert.equal(fetchCount, 1);
       } finally {
         globalThis.fetch = originalFetch;
       }
