@@ -41,6 +41,7 @@ import {
   loadAnnouncementNote,
   loadAnnouncementNoteHistory,
   loadSharedSettingsRow,
+  loadSharedSettingsUpdatedAt,
   saveAnnouncementNote,
   updateSharedSettings,
 } from '../lib/supabaseSettings';
@@ -4931,9 +4932,16 @@ export default function TimerPage() {
       isChecking = true;
 
       try {
+        const remoteUpdatedAt = await loadSharedSettingsUpdatedAt();
+        if (
+          isCancelled
+          || isSharedSettingsSavePendingRef.current
+          || !remoteUpdatedAt
+          || remoteUpdatedAt === lastSharedSettingsUpdatedAtRef.current
+        ) return;
+
         const remoteRow = await loadSharedSettingsRow();
         if (isCancelled || isSharedSettingsSavePendingRef.current || !remoteRow?.updated_at) return;
-        if (remoteRow.updated_at === lastSharedSettingsUpdatedAtRef.current) return;
 
         const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow.value);
         if (!remoteSettings) return;

@@ -282,8 +282,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       ? parsed.expectedUpdatedAt
       : current?.updated_at ?? '';
     const endpoint = hasCurrentRow
-      ? `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(expectedUpdatedAt ?? '')}`
-      : `${configuration.url}/rest/v1/app_settings?on_conflict=id`;
+      ? `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(expectedUpdatedAt ?? '')}&select=id`
+      : `${configuration.url}/rest/v1/app_settings?on_conflict=id&select=id`;
     const result = await fetch(endpoint, {
       method: hasCurrentRow ? 'PATCH' : 'POST',
       headers: {

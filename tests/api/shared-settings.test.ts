@@ -208,6 +208,7 @@ test('student sessions can update only their own balance entry', async () => {
       }, response);
       assert.equal(result().statusCode, 200);
       assert.equal(requests.length, 2);
+      assert.equal(new URL(requests[1] ?? '').searchParams.get('select'), 'id');
     } finally {
       globalThis.fetch = originalFetch;
     }
