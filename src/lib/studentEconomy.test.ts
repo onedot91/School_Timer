@@ -51,8 +51,26 @@ test('첨부한 46개 고마 스킨은 선택 가능한 카탈로그에 등록�
   ];
 
   assert.deepEqual(
-    STUDENT_CHARACTER_PRIZES.slice(-46).map((character) => character.name),
+    STUDENT_CHARACTER_PRIZES.slice(56, 102).map((character) => character.name),
     addedSkinNames,
+  );
+});
+
+test('멸종위기 동물 8종 고마 스킨은 선택 가능한 카탈로그에 등록된다', () => {
+  const addedSkins = [
+    { id: 'character-103', name: '대륙사슴 고마', imageSrc: '/goma-skins/continental-deer-goma.png' },
+    { id: 'character-104', name: '무산쇠족제비 고마', imageSrc: '/goma-skins/musan-weasel-goma.png' },
+    { id: 'character-105', name: '반달가슴곰 고마', imageSrc: '/goma-skins/asiatic-black-bear-goma.png' },
+    { id: 'character-106', name: '수달 고마', imageSrc: '/goma-skins/otter-goma.png' },
+    { id: 'character-107', name: '산양 고마', imageSrc: '/goma-skins/goral-goma.png' },
+    { id: 'character-108', name: '붉은박쥐 고마', imageSrc: '/goma-skins/red-bat-goma.png' },
+    { id: 'character-109', name: '표범 고마', imageSrc: '/goma-skins/leopard-goma.png' },
+    { id: 'character-110', name: '호랑이 고마', imageSrc: '/goma-skins/tiger-goma.png' },
+  ];
+
+  assert.deepEqual(
+    STUDENT_CHARACTER_PRIZES.slice(102).map(({ id, name, imageSrc }) => ({ id, name, imageSrc })),
+    addedSkins,
   );
 });
 

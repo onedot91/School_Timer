@@ -9419,7 +9419,7 @@ export default function TimerPage() {
           <div className="teacher-shop-skin-list">
             {STUDENT_CHARACTER_PRIZES.map((character) => (
               <article key={character.id}>
-                <img src={character.imageSrc} alt="" />
+                <img src={character.imageSrc} alt="" width={192} height={192} loading="lazy" />
                 <span>{character.name}</span>
               </article>
             ))}

@@ -133,6 +133,14 @@ export const STUDENT_CHARACTER_PRIZES = [
   { id: 'character-100', name: '풍선 고마', imageSrc: '/goma-skins/balloon-goma.png' },
   { id: 'character-101', name: '흑백 고마', imageSrc: '/goma-skins/grayscale-goma.png' },
   { id: 'character-102', name: '힐러 고마', imageSrc: '/goma-skins/healer-goma.png' },
+  { id: 'character-103', name: '대륙사슴 고마', imageSrc: '/goma-skins/continental-deer-goma.png' },
+  { id: 'character-104', name: '무산쇠족제비 고마', imageSrc: '/goma-skins/musan-weasel-goma.png' },
+  { id: 'character-105', name: '반달가슴곰 고마', imageSrc: '/goma-skins/asiatic-black-bear-goma.png' },
+  { id: 'character-106', name: '수달 고마', imageSrc: '/goma-skins/otter-goma.png' },
+  { id: 'character-107', name: '산양 고마', imageSrc: '/goma-skins/goral-goma.png' },
+  { id: 'character-108', name: '붉은박쥐 고마', imageSrc: '/goma-skins/red-bat-goma.png' },
+  { id: 'character-109', name: '표범 고마', imageSrc: '/goma-skins/leopard-goma.png' },
+  { id: 'character-110', name: '호랑이 고마', imageSrc: '/goma-skins/tiger-goma.png' },
 ] as const;
 
 export const DEFAULT_STUDENT_CHARACTER = {
