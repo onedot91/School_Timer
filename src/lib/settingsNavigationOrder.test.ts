@@ -57,7 +57,8 @@ test('교사 편지 설정은 여유 있는 최근 대화 목록과 구분된 �
 
   assert.match(panelStyles, /grid-template-columns: minmax\(16rem, 18rem\) minmax\(0, 1fr\)/);
   assert.match(styles, /\.teacher-mail-chat \{ grid-template-rows: auto minmax\(0, 1fr\) auto; \}/);
-  assert.match(styles, /\.teacher-mail-list \{[\s\S]*?gap: \.55rem;[\s\S]*?padding: \.7rem;/);
+  assert.match(styles, /\.teacher-mail-list \{[\s\S]*?gap: \.8rem;[\s\S]*?padding: \.9rem;/);
+  assert.match(styles, /\.teacher-mail-list button \{[\s\S]*?min-height: 5rem;[\s\S]*?overflow: hidden;/);
   assert.match(styles, /\.teacher-mail-chat-message h4 \{[\s\S]*?border-bottom: 1px solid #dce7e0;[\s\S]*?padding-bottom: \.48rem;/);
   assert.match(desktopMailStyles, /min-height: 100%/);
   assert.match(desktopMailStyles, /grid-template-rows: minmax\(0, 1fr\)/);
