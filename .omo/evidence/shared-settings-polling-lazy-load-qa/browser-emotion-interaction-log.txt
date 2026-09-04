@@ -1,0 +1,3 @@
+Invocation: click radio 기쁘다; type event 오늘은 실습을 잘했어요 and self-message 나는 잘하고 있어; click 기록하기; click 확인.
+Observed confirmation AX: 오늘의 감정 기록을 확정했어요, both entered strings present.
+After confirmation the selected radio 기쁘다 has Value=1; no crash or route reset.

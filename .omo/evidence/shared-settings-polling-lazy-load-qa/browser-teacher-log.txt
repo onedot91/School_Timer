@@ -1,0 +1,4 @@
+Invocation: reset entry; click 0번 학급 시계 선택; wait 900ms; capture.
+Observed URL: http://127.0.0.1:3000/. AX date 9월 5일 토요일, 설정 button, 일정이 없습니다.
+Observed metrics: innerWidth=1075, innerHeight=605, document scrollWidth=1075, scrollHeight=605.
+Screenshot was emitted from the live browser; timer, schedule card, mascot, and tool rail fit without document overflow.

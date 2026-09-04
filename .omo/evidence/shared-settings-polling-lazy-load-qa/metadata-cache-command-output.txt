@@ -1,0 +1,3 @@
+$ node --import tsx --input-type=module -e '<disposable fetch stub; no live backend>'
+{"pass":true,"first":{"updatedAt":"v1"},"second":{"updatedAt":"v1"},"afterTtl":{"updatedAt":"v2"},"write":{"status":200,"body":{"updatedAt":"2026-09-04T16:47:30.861Z"}},"postWrite":{"updatedAt":"2026-09-04T16:47:30.861Z"},"fetchCalls":3}
+Interpretation: first two concurrent/sequential metadata reads share one upstream read; after 1050ms a fresh read occurs; a teacher PUT updates cache and immediate metadata read returns the write timestamp without another upstream read.

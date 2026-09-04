@@ -1,0 +1,3 @@
+Attempted exact viewport invocation through available Codex in-app browser.
+Prerequisite unavailable: CUA in-app browser exposes innerWidth=1075 and innerHeight=605 and no viewport override; named Chrome is unavailable in this subagent.
+Therefore exact 1280x800 browser scenario is BLOCKED by environment. Available viewport checks passed with document width/height equal to 1075x605 on student overview, mailbox, emotions, missions, store, and teacher timer.

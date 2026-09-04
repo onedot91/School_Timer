@@ -1,0 +1,4 @@
+Surface: Codex in-app browser, http://127.0.0.1:3000/, VITE_DATA_MODE=mock.
+Invocation: press Ctrl+Alt+Enter.
+Observed AX: heading 번호 선택; buttons 0번 학급 시계 선택 and 1번...23번 경매장 선택.
+This confirms reset returns to the entry selector and teacher entry is visible.

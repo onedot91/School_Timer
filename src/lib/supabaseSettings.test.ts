@@ -91,13 +91,14 @@ test('보안 프록시가 없으면 익명 Supabase 설정 저장을 시도하�
   assert.equal(enabled, false);
 });
 
-test('학생 설정 변경은 투영된 읽기 결과 대신 쓰기용 전체 행을 사용한다', async () => {
+test('학생 설정 변경은 서버가 병합할 투영된 행만 사용한다', async () => {
   const source = await readFile(new URL('./supabaseSettings.ts', import.meta.url), 'utf8');
   const updateStart = source.indexOf('export const updateSharedSettings');
   const updateEnd = source.indexOf('\nexport const donateToClassGoal', updateStart);
   const updateSource = source.slice(updateStart, updateEnd);
 
-  assert.match(source, /fetchJson\('\/api\/shared-settings\?full=1'\)/);
+  assert.doesNotMatch(source, /\/api\/shared-settings\?full=1/);
+  assert.match(source, /fetchJson\('\/api\/shared-settings'\)/);
   assert.match(updateSource, /loadWritableSharedSettingsRow\(\)/);
 });
 

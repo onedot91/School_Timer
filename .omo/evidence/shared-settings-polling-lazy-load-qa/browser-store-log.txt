@@ -1,0 +1,4 @@
+Invocation: goto http://127.0.0.1:3000/#student-store; click 상점으로 이동; click tabs 고마 스킨 뽑기 and 집.
+Observed URLs: /#student-store then /#student-store-shop.
+Observed AX: plaza navigation, then 상점 heading and selected tabs 프로필/고마 스킨 뽑기/집; each panel rendered after click.
+Observed metrics: document scrollWidth=1075, scrollHeight=605; .student-shop-items-panel clientHeight=417, scrollHeight=1690; intentional internal item scroll.

@@ -1,0 +1,15 @@
+$ npm run lint
+tsc --noEmit: exit 0
+
+$ npm test
+tests 507, pass 507, fail 0, skipped 0
+
+$ npm run build
+vite build: exit 0
+Relevant output chunks:
+AuctionPage-Cb7GbsnK.js 80.46 kB
+StudentMissionsPage-C-PShIhr.js 13.65 kB
+StudentStorePage-CXlz80_m.js 47.49 kB
+StudentMailboxPage-Dt84QD_S.js 12.05 kB
+StudentEmotionPage-BNcCwMa_.js 12.52 kB
+TimerPage-CHJAd6K9.js 324.89 kB

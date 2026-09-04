@@ -1,0 +1,10 @@
+$ node --import tsx --test tests/api/shared-settings.test.ts
+✔ 16 shared-settings handler tests (including concurrent metadata dedupe, scoped reads/writes, conflict and known-version teacher write)
+ℹ tests 16
+ℹ pass 16
+ℹ fail 0
+
+$ npm test
+ℹ tests 507
+ℹ pass 507
+ℹ fail 0

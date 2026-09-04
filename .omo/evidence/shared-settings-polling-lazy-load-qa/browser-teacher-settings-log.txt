@@ -1,0 +1,4 @@
+Invocation: teacher timer click 설정; then click 미션.
+Observed AX dialog heading 설정; navigation groups 과목/시간표/추첨, 학생 생활, 고마 경제, 기타 설정.
+Observed mission panel AX: 기존 미션 공개, mission visibility checkboxes, start student number popup, +20/-20 controls.
+Screenshot was emitted from live browser; settings dialog uses internal horizontal navigation (NAV client 1042 / scroll 1198), not document overflow.

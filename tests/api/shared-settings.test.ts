@@ -5,6 +5,7 @@ import handler from '../../api/shared-settings.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
+let environmentSequence = 0;
 const createResponse = () => {
   let statusCode = 200;
   let body: unknown;
@@ -22,7 +23,8 @@ const withEnvironment = async (run: () => Promise<void>) => {
     key: process.env.SUPABASE_SERVICE_ROLE_KEY,
     secret: process.env.DEVICE_SESSION_SECRET,
   };
-  process.env.SUPABASE_URL = 'https://school-timer.supabase.co';
+  environmentSequence += 1;
+  process.env.SUPABASE_URL = `https://school-timer-${environmentSequence}.supabase.co`;
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-test';
   process.env.DEVICE_SESSION_SECRET = SESSION_SECRET;
   try {
@@ -93,6 +95,59 @@ test('registered devices can poll only the shared settings timestamp', async () 
   });
 });
 
+test('an older metadata request cannot replace the version cached by a completed write', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let releaseMetadata: (() => void) | undefined;
+    let markMetadataStarted: (() => void) | undefined;
+    const metadataGate = new Promise<void>((resolve) => { releaseMetadata = resolve; });
+    const metadataStarted = new Promise<void>((resolve) => { markMetadataStarted = resolve; });
+    globalThis.fetch = async (_input, init) => {
+      if (!init?.method) {
+        markMetadataStarted?.();
+        await metadataGate;
+        return Response.json([{ updated_at: 'v1' }]);
+      }
+      return Response.json([{ id: 'school-timer-main' }]);
+    };
+
+    try {
+      const metadataResponses = [createResponse(), createResponse()];
+      const pendingMetadata = Promise.all(metadataResponses.map(({ response }) => handler({
+        method: 'GET',
+        headers: studentHeaders(7),
+        query: { metadata: '1' },
+      }, response)));
+      await metadataStarted;
+
+      const writeResponse = createResponse();
+      await handler({
+        method: 'PUT',
+        headers: teacherHeaders(),
+        body: { value: { schedule: ['수학'] }, expectedUpdatedAt: 'v1' },
+      }, writeResponse.response);
+      const writtenUpdatedAt = (writeResponse.result().body as { updatedAt: string }).updatedAt;
+      releaseMetadata?.();
+      await pendingMetadata;
+
+      const nextMetadataResponse = createResponse();
+      await handler({
+        method: 'GET',
+        headers: studentHeaders(7),
+        query: { metadata: '1' },
+      }, nextMetadataResponse.response);
+
+      metadataResponses.forEach(({ result }) => {
+        assert.deepEqual(result().body, { updatedAt: writtenUpdatedAt });
+      });
+      assert.deepEqual(nextMetadataResponse.result().body, { updatedAt: writtenUpdatedAt });
+    } finally {
+      releaseMetadata?.();
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 test('student sessions receive only their own large JSON map entries', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
@@ -134,12 +189,21 @@ test('student sessions receive only their own large JSON map entries', async () 
   });
 });
 
-test('teacher and explicit writable reads keep the complete settings row', async () => {
+test('teacher reads stay complete while student full queries remain scoped', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
     const requests: string[] = [];
     globalThis.fetch = async (input) => {
       requests.push(String(input));
+      const select = new URL(String(input)).searchParams.get('select');
+      if (select !== 'id,value,updated_at') {
+        return Response.json([{
+          id: 'school-timer-main',
+          auctionItems: [{ id: 'day-1' }],
+          currencyBalances: 145,
+          updated_at: 'v2',
+        }]);
+      }
       return Response.json([{
         id: 'school-timer-main',
         value: { weeklySchedule: ['월요일'] },
@@ -157,11 +221,16 @@ test('teacher and explicit writable reads keep the complete settings row', async
       }, studentResponse.response);
 
       assert.equal(requests.length, 2);
-      requests.forEach((request) => {
-        assert.equal(new URL(request).searchParams.get('select'), 'id,value,updated_at');
-      });
+      assert.equal(new URL(requests[0] ?? '').searchParams.get('select'), 'id,value,updated_at');
+      assert.doesNotMatch(new URL(requests[1] ?? '').searchParams.get('select') ?? '', /(?:^|,)value(?:,|$)/);
       assert.equal((teacherResponse.result().body as { scope?: string }).scope, 'full');
-      assert.equal((studentResponse.result().body as { scope?: string }).scope, 'full');
+      const studentRow = studentResponse.result().body as {
+        scope?: string;
+        value?: Record<string, unknown>;
+      };
+      assert.equal(studentRow.scope, 'student');
+      assert.deepEqual(studentRow.value?.currencyBalances, { 7: 145 });
+      assert.equal(Reflect.has(studentRow.value ?? {}, 'weeklySchedule'), false);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -195,11 +264,13 @@ test('student sessions can update only their own balance entry', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
     const requests: string[] = [];
-    globalThis.fetch = async (input) => {
+    let savedValue: unknown;
+    globalThis.fetch = async (input, init) => {
       requests.push(String(input));
       if (requests.length === 1) {
         return Response.json([{ id: 'school-timer-main', value: { schedule: ['수학'], currencyBalances: { 7: 100, 8: 100 } }, updated_at: 'v1' }]);
       }
+      savedValue = JSON.parse(String(init?.body)).value;
       return Response.json([{ id: 'school-timer-main' }]);
     };
     try {
@@ -207,11 +278,50 @@ test('student sessions can update only their own balance entry', async () => {
       await handler({
         method: 'PUT',
         headers: studentHeaders(7),
-        body: { value: { schedule: ['수학'], currencyBalances: { 7: 105, 8: 100 } }, expectedUpdatedAt: 'v1' },
+        body: { value: { currencyBalances: { 7: 105 } }, expectedUpdatedAt: 'v1' },
       }, response);
       assert.equal(result().statusCode, 200);
       assert.equal(requests.length, 2);
       assert.equal(new URL(requests[1] ?? '').searchParams.get('select'), 'id');
+      assert.deepEqual(savedValue, {
+        schedule: ['수학'],
+        currencyBalances: { 7: 105, 8: 100 },
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('student scoped updates keep the merged settings value within the size limit', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = async () => {
+      fetchCount += 1;
+      return Response.json([{
+        id: 'school-timer-main',
+        value: { schedule: 'a'.repeat(600_000) },
+        updated_at: 'v1',
+      }]);
+    };
+
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT',
+        headers: studentHeaders(7),
+        body: {
+          value: { studentLife: 'b'.repeat(600_000) },
+          expectedUpdatedAt: 'v1',
+        },
+      }, response);
+
+      assert.deepEqual(result(), {
+        statusCode: 400,
+        body: { error: 'INVALID_SHARED_SETTINGS' },
+      });
+      assert.equal(fetchCount, 1);
     } finally {
       globalThis.fetch = originalFetch;
     }

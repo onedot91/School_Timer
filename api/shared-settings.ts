@@ -70,6 +70,7 @@ type UpdatedAtCache = {
 
 let updatedAtCache: UpdatedAtCache | null = null;
 let updatedAtRequest: { readonly url: string; readonly promise: Promise<string | null> } | null = null;
+let updatedAtCacheGeneration = 0;
 
 const parseBody = (body: unknown) => {
   const parsed = typeof body === 'string' ? JSON.parse(body) : body;
@@ -157,6 +158,17 @@ const canStudentUpdate = (previous: unknown, next: unknown, studentNumber: numbe
   return onlyOwnProgressChanged(previousRecord.studentNumberBaseball, nextRecord.studentNumberBaseball, studentNumber);
 };
 
+const mergeStudentUpdate = (previous: unknown, next: unknown) => {
+  const previousRecord = asRecord(previous);
+  const nextRecord = asRecord(next);
+  const merged = { ...previousRecord, ...nextRecord };
+  for (const key of STUDENT_SCOPED_MAP_FIELDS) {
+    if (!(key in nextRecord)) continue;
+    merged[key] = { ...asRecord(previousRecord[key]), ...asRecord(nextRecord[key]) };
+  }
+  return merged;
+};
+
 const getConfiguration = () => {
   const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -221,7 +233,9 @@ const loadUpdatedAt = async (url: string, key: string) => {
   }
   if (updatedAtRequest?.url === url) return updatedAtRequest.promise;
 
-  const promise = (async () => {
+  const cacheGeneration = updatedAtCacheGeneration;
+  const cacheExpiresAt = Date.now() + UPDATED_AT_CACHE_TTL_MS;
+  const fetchPromise = (async () => {
     const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=updated_at`, {
       headers: supabaseHeaders(key),
       signal: AbortSignal.timeout(8000),
@@ -232,13 +246,18 @@ const loadUpdatedAt = async (url: string, key: string) => {
     const updatedAt = Reflect.get(rows[0], 'updated_at');
     return typeof updatedAt === 'string' ? updatedAt : null;
   })();
+  const promise = fetchPromise.then((value) => {
+    if (cacheGeneration !== updatedAtCacheGeneration && updatedAtCache?.url === url) {
+      return updatedAtCache.value;
+    }
+    updatedAtCache = { url, value, expiresAt: cacheExpiresAt };
+    return value;
+  });
   const request = { url, promise };
   updatedAtRequest = request;
 
   try {
-    const value = await promise;
-    updatedAtCache = { url, value, expiresAt: Date.now() + UPDATED_AT_CACHE_TTL_MS };
-    return value;
+    return await promise;
   } finally {
     if (updatedAtRequest === request) updatedAtRequest = null;
   }
@@ -263,7 +282,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         response.status(200).json({ updatedAt: await loadUpdatedAt(configuration.url, configuration.key) });
         return;
       }
-      const shouldLoadFullRow = session.role === 'teacher' || request.query?.full === '1';
+      const shouldLoadFullRow = session.role === 'teacher';
       const row = shouldLoadFullRow
         ? await loadRow(configuration.url, configuration.key)
         : await loadStudentRow(configuration.url, configuration.key, session.studentNumber);
@@ -299,7 +318,15 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
       return;
     }
-    if (session.role === 'student' && !canStudentUpdate(current?.value ?? null, parsed.value, session.studentNumber)) {
+    const nextValue = session.role === 'student'
+      ? mergeStudentUpdate(current?.value ?? null, parsed.value)
+      : parsed.value;
+    if (session.role === 'student'
+      && Buffer.byteLength(JSON.stringify(nextValue), 'utf8') > MAX_SETTINGS_BYTES) {
+      response.status(400).json({ error: 'INVALID_SHARED_SETTINGS' });
+      return;
+    }
+    if (session.role === 'student' && !canStudentUpdate(current?.value ?? null, nextValue, session.studentNumber)) {
       response.status(403).json({ error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' });
       return;
     }
@@ -319,8 +346,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         Prefer: hasCurrentRow ? 'return=representation' : 'resolution=merge-duplicates,return=representation',
       },
       body: JSON.stringify(hasCurrentRow
-        ? { value: parsed.value, updated_at: updatedAt }
-        : { id: SETTINGS_ID, value: parsed.value, updated_at: updatedAt }),
+        ? { value: nextValue, updated_at: updatedAt }
+        : { id: SETTINGS_ID, value: nextValue, updated_at: updatedAt }),
       signal: AbortSignal.timeout(8000),
     });
     if (!result.ok) throw new Error(`SHARED_SETTINGS_WRITE_HTTP_${result.status}`);
@@ -329,6 +356,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
       return;
     }
+    updatedAtCacheGeneration += 1;
     updatedAtCache = {
       url: configuration.url,
       value: updatedAt,

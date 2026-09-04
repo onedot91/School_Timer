@@ -1,0 +1,4 @@
+Invocation: overview click 오늘의 감정 고르기; wait 700ms; capture.
+Observed URL: /#student-emotions. AX heading 감정 구슬; 4 color zones and 36 radio buttons.
+Observed metrics: innerWidth=1075, innerHeight=605, document scrollWidth=1075, scrollHeight=605.
+Screenshot was emitted from the live browser; four Korean-labeled color panels fit without document overflow.

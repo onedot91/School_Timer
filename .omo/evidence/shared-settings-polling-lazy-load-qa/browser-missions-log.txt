@@ -1,0 +1,3 @@
+Invocation: goto http://127.0.0.1:3000/#student-missions; wait 900ms; capture.
+Observed URL: /#student-missions. AX heading 미션; daily and weekly mission cards including ㄱㄴㄷ 게임, 스도쿠, 숫자 야구.
+Observed metrics: document scrollWidth=1075, scrollHeight=605; MAIN.student-mission-groups clientHeight=497, scrollHeight=938 (intentional internal vertical scroll).

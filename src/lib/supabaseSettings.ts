@@ -88,7 +88,7 @@ export const loadSharedSettingsRow = async () => {
 const loadWritableSharedSettingsRow = async () => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
-    const row = await fetchJson('/api/shared-settings?full=1') as SettingsRow | null;
+    const row = await fetchJson('/api/shared-settings') as SettingsRow | null;
     cachedWritableSharedSettingsRow = row;
     return row;
   }
@@ -169,7 +169,7 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
           id: SHARED_SETTINGS_ID,
           value: nextValue,
           updated_at: result.updatedAt,
-          scope: 'full',
+          scope: currentRow?.scope,
         };
         return result.updatedAt;
       } catch (error) {

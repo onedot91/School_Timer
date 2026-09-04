@@ -1,0 +1,5 @@
+Invocation: click 1번 경매장 선택; wait 1200ms; capture settled UI.
+Observed URL: http://127.0.0.1:3000/#student-overview.
+Observed AX: heading 학생 개요; 우편함 열기, 실패 전시관과 책장 열기, 오늘의 감정 고르기, 고마 벌기 열기, 고마 쓰기 열기.
+Observed metrics: innerWidth=1075, innerHeight=605, document scrollWidth=1075, scrollHeight=605.
+Screenshot was emitted from the live browser: illustrated character/cabin overview, no overlap or clipped document edge.
