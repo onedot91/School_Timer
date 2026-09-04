@@ -643,8 +643,54 @@ export const grantWeeklyCurrencyAllowance = (balances: CurrencyBalances): Curren
     return nextBalances;
   }, {});
 
+const getKoreanDateKeyFromTimestamp = (timestamp: string) => {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+const settleMaturedDeposits = (
+  balances: CurrencyBalances,
+  economy: StudentEconomyStates,
+  settlementDateKey: string,
+): CurrencyTaxResult => {
+  const normalizedEconomy = normalizeStudentEconomyStates(economy);
+  return CURRENCY_STUDENT_NUMBERS.reduce<CurrencyTaxResult>((next, studentNumber) => {
+    const key = String(studentNumber);
+    const state = normalizedEconomy[key];
+    const wallet = balances[key] ?? DEFAULT_CURRENCY_BALANCE;
+    if (!state || !settlementDateKey) {
+      next.balances[key] = wallet;
+      return next;
+    }
+
+    const maturedDeposits = state.deposits.filter((deposit) => (
+      deposit.maturityDate && deposit.maturityDate <= settlementDateKey
+    ));
+    const activeDeposits = state.deposits.filter((deposit) => (
+      !deposit.maturityDate || deposit.maturityDate > settlementDateKey
+    ));
+    const payout = maturedDeposits.reduce((sum, deposit) => sum + deposit.principal + deposit.interest, 0);
+    next.balances[key] = wallet + payout;
+    next.economy[key] = {
+      ...state,
+      deposit: activeDeposits.reduce((sum, deposit) => sum + deposit.principal, 0),
+      deposits: activeDeposits,
+    };
+    return next;
+  }, { balances: {}, economy: { ...normalizedEconomy } });
+};
+
 export const createWeeklyCurrencyCycle = (
   value: unknown,
+  interestCreatedAt: string,
   taxCreatedAt: string,
   allowanceCreatedAt: string,
 ): CurrencyTaxResult & { history: CurrencyHistory } => {
@@ -652,16 +698,21 @@ export const createWeeklyCurrencyCycle = (
     ? value as Record<string, unknown>
     : {};
   const previousBalances = normalizeCurrencyBalances(current.currencyBalances);
-  const taxResult = collectCurrencyTax(
+  const interestResult = settleMaturedDeposits(
     previousBalances,
     normalizeStudentEconomyStates(current.studentEconomy),
+    getKoreanDateKeyFromTimestamp(interestCreatedAt),
+  );
+  const taxResult = collectCurrencyTax(
+    interestResult.balances,
+    interestResult.economy,
   );
   const balances = grantWeeklyCurrencyAllowance(taxResult.balances);
   const appendChanges = (
     history: CurrencyHistory,
     beforeBalances: CurrencyBalances,
     afterBalances: CurrencyBalances,
-    reason: 'tax' | 'allowance',
+    reason: CurrencyHistoryReason,
     createdAt: string,
   ) => CURRENCY_STUDENT_NUMBERS.reduce<CurrencyHistory>((nextHistory, studentNumber) => {
     const studentKey = String(studentNumber);
@@ -673,9 +724,16 @@ export const createWeeklyCurrencyCycle = (
       createdAt,
     });
   }, history);
-  const historyAfterTax = appendChanges(
+  const historyAfterInterest = appendChanges(
     normalizeCurrencyHistory(current.currencyHistory),
     previousBalances,
+    interestResult.balances,
+    'bank_transfer',
+    interestCreatedAt,
+  );
+  const historyAfterTax = appendChanges(
+    historyAfterInterest,
+    interestResult.balances,
     taxResult.balances,
     'tax',
     taxCreatedAt,

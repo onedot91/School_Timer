@@ -6880,6 +6880,7 @@ export default function TimerPage() {
     const emptyAuctionBids = normalizeAuctionBids(null, AUCTION_ITEM_IDS);
     const emptyAuctionBidHistory = normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS);
     const emptyAuctionAwards = normalizeAuctionAwards(null, AUCTION_ITEM_IDS);
+    const interestHistoryCreatedAt = new Date().toISOString();
     const taxHistoryCreatedAt = new Date().toISOString();
     const allowanceHistoryCreatedAt = new Date().toISOString();
     const currencyCycle = createWeeklyCurrencyCycle(
@@ -6888,6 +6889,7 @@ export default function TimerPage() {
         currencyHistory: currencyHistoryRef.current,
         studentEconomy: studentEconomyStates,
       },
+      interestHistoryCreatedAt,
       taxHistoryCreatedAt,
       allowanceHistoryCreatedAt,
     );
@@ -6944,6 +6946,7 @@ export default function TimerPage() {
         : {};
       const latestCurrencyCycle = createWeeklyCurrencyCycle(
         Object.keys(current).length > 0 ? current : snapshot,
+        interestHistoryCreatedAt,
         taxHistoryCreatedAt,
         allowanceHistoryCreatedAt,
       );
@@ -12160,7 +12163,7 @@ export default function TimerPage() {
               const actionCopy = {
                 weeklyClose: {
                   title: '이번 주 경매를 마감할까요?',
-                  body: '물품 초기화, 입찰가 초기화, 세금 징수, 주급 제공을 순서대로 처리합니다.',
+                  body: '물품과 입찰가를 초기화한 뒤, 만기 예금 정산, 세금 징수, 주급 제공을 순서대로 처리합니다.',
                   action: '주간 마감',
                 },
                 currency: {

@@ -674,6 +674,7 @@ test('weekly currency cycle uses the latest persisted purchase before tax and al
   };
   const cycle = createWeeklyCurrencyCycle(
     source,
+    '2026-09-03T02:59:59.999Z',
     '2026-09-03T03:00:00.000Z',
     '2026-09-03T03:00:00.001Z',
   );
@@ -684,6 +685,73 @@ test('weekly currency cycle uses the latest persisted purchase before tax and al
   assert.equal(cycle.history['10'][2].reason, 'shop_purchase');
   assert.equal(cycle.history['10'][1].before, 189);
   assert.equal(cycle.history['10'][1].after, 95);
+});
+
+test('weekly currency cycle settles matured deposit interest before tax and allowance', () => {
+  const source = {
+    currencyBalances: { 1: 20 },
+    currencyHistory: { 1: [] },
+    studentEconomy: {
+      1: {
+        deposits: [{
+          id: 'deposit-1',
+          principal: 100,
+          openedOn: '2026-08-31',
+          maturityDate: '2026-09-02',
+          interest: 10,
+        }],
+      },
+    },
+  };
+
+  const cycle = createWeeklyCurrencyCycle(
+    source,
+    '2026-09-03T02:59:59.999Z',
+    '2026-09-03T03:00:00.000Z',
+    '2026-09-03T03:00:00.001Z',
+  );
+
+  assert.equal(cycle.balances['1'], 165);
+  assert.equal(cycle.economy['1']?.deposit, 0);
+  assert.deepEqual(cycle.economy['1']?.deposits, []);
+  assert.deepEqual(cycle.history['1'].map((entry) => entry.reason), [
+    'allowance',
+    'tax',
+    'bank_transfer',
+  ]);
+  assert.deepEqual(cycle.history['1'].map(({ before, after }) => ({ before, after })), [
+    { before: 65, after: 165 },
+    { before: 130, after: 65 },
+    { before: 20, after: 130 },
+  ]);
+});
+
+test('weekly currency cycle does not settle deposit interest before maturity', () => {
+  const cycle = createWeeklyCurrencyCycle(
+    {
+      currencyBalances: { 1: 20 },
+      currencyHistory: { 1: [] },
+      studentEconomy: {
+        1: {
+          deposits: [{
+            id: 'deposit-1',
+            principal: 100,
+            openedOn: '2026-09-03',
+            maturityDate: '2026-09-07',
+            interest: 10,
+          }],
+        },
+      },
+    },
+    '2026-09-03T02:59:59.999Z',
+    '2026-09-03T03:00:00.000Z',
+    '2026-09-03T03:00:00.001Z',
+  );
+
+  assert.equal(cycle.balances['1'], 100);
+  assert.equal(cycle.economy['1']?.deposit, 60);
+  assert.equal(cycle.economy['1']?.deposits[0]?.interest, 6);
+  assert.deepEqual(cycle.history['1'].map((entry) => entry.reason), ['allowance', 'tax']);
 });
 
 test('unverified economy-looking history cannot change a stale teacher balance', () => {
