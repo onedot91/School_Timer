@@ -13589,6 +13589,55 @@ a[href]:active {
 .teacher-letter-paper button { display: inline-flex; min-height: 2.65rem; align-items: center; gap: .35rem; margin-top: 1rem; border-radius: .75rem; background: #006241; padding: .55rem .85rem; color: #fff; font-family: inherit; font-weight: 900; }
 .teacher-letter-paper button:disabled { display: none; }
 
+@media (min-width: 768px) {
+  .teacher-mail-settings {
+    min-height: 100%;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .teacher-mail-inbox,
+  .teacher-mail-composer {
+    min-height: 0;
+  }
+
+  .teacher-mail-inbox {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .teacher-mail-empty {
+    display: grid;
+    place-items: center;
+    text-align: center;
+  }
+
+  .teacher-mail-reader {
+    grid-template-rows: minmax(0, 10rem) minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .teacher-mail-list {
+    max-height: none;
+    min-height: 0;
+  }
+
+  .teacher-letter-paper {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .teacher-mail-composer > label {
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .teacher-mail-composer textarea {
+    height: 100%;
+    min-height: 0;
+    resize: none;
+  }
+}
+
 .teacher-writing-settings {
   --writing-ink: #4a2e1c;
   --writing-orange: #dd6b22;
