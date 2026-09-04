@@ -16,6 +16,12 @@ import EntrySelectPage from './pages/EntrySelectPage';
 const AuctionPage = lazy(() => import('./pages/AuctionPage'));
 const TimerPage = lazy(() => import('./pages/TimerPage'));
 
+const preloadEntryPage = (entryNumber: number | null) => {
+  if (entryNumber === 0) return import('./pages/TimerPage');
+  if (entryNumber !== null) return import('./pages/AuctionPage');
+  return null;
+};
+
 const SELECTED_ENTRY_NUMBER_STORAGE_KEY = 'school-timer-entry-number-v1';
 const TEACHER_ENTRY_VISIBLE_STORAGE_KEY = 'school-timer-teacher-entry-visible-v1';
 const STUDENT_HOME_HASH = '#student-overview';
@@ -105,6 +111,7 @@ export default function RootApp() {
   const [teacherEntryVisible, setTeacherEntryVisible] = useState(() => getStoredTeacherEntryVisible());
 
   const selectEntryNumber = async (studentNumber: number, registrationKey?: string) => {
+    void preloadEntryPage(studentNumber)?.catch(() => undefined);
     if (requiresDeviceRegistration) {
       const canUseExistingSession = deviceSession?.role === 'teacher'
         || (deviceSession?.role === 'student' && deviceSession.studentNumber === studentNumber);
@@ -143,6 +150,7 @@ export default function RootApp() {
     if (!requiresDeviceRegistration) return;
 
     let cancelled = false;
+    void preloadEntryPage(selectedEntryNumber)?.catch(() => undefined);
     void loadDeviceSession()
       .then((session) => {
         if (cancelled) return;

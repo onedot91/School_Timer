@@ -1,20 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import '../classword.css';
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
-import AuctionRoom from '../components/AuctionRoom';
 import StudentActionProgress from '../components/student/StudentActionProgress';
-import StudentEmotionPage from '../components/student/StudentEmotionPage';
-import StudentFailureExhibitionPage from '../components/student/StudentFailureExhibitionPage';
-import StudentMissionsPage from '../components/student/StudentMissionsPage';
-import StudentMailboxPage from '../components/student/StudentMailboxPage';
-import StudentLibraryPage from '../components/student/StudentLibraryPage';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
-import StudentStorePage from '../components/student/StudentStorePage';
-import StudentSudokuPage from '../components/student/StudentSudokuPage';
-import StudentNumberBaseballPage from '../components/student/StudentNumberBaseballPage';
-import StudentClasswordPage from '../components/student/StudentClasswordPage';
-import StudentTodayFriendPage from '../components/student/StudentTodayFriendPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
 import { getKoreanDateKey } from '../lib/classword';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
@@ -190,6 +179,18 @@ import {
   getUnavailableStudentFeature,
   type StudentFeatureReleaseId,
 } from '../lib/studentFeatureRelease';
+
+const AuctionRoom = lazy(() => import('../components/AuctionRoom'));
+const StudentEmotionPage = lazy(() => import('../components/student/StudentEmotionPage'));
+const StudentFailureExhibitionPage = lazy(() => import('../components/student/StudentFailureExhibitionPage'));
+const StudentMissionsPage = lazy(() => import('../components/student/StudentMissionsPage'));
+const StudentMailboxPage = lazy(() => import('../components/student/StudentMailboxPage'));
+const StudentLibraryPage = lazy(() => import('../components/student/StudentLibraryPage'));
+const StudentStorePage = lazy(() => import('../components/student/StudentStorePage'));
+const StudentSudokuPage = lazy(() => import('../components/student/StudentSudokuPage'));
+const StudentNumberBaseballPage = lazy(() => import('../components/student/StudentNumberBaseballPage'));
+const StudentClasswordPage = lazy(() => import('../components/student/StudentClasswordPage'));
+const StudentTodayFriendPage = lazy(() => import('../components/student/StudentTodayFriendPage'));
 
 interface AuctionPageProps {
   studentNumber: number;
@@ -1930,6 +1931,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
       <main className="mx-auto w-full max-w-7xl">
+        <Suspense
+          fallback={(
+            <section className="grid min-h-[60vh] place-items-center text-lg font-bold text-[#526159]" role="status">
+              화면을 불러오는 중이에요.
+            </section>
+          )}
+        >
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage
             studentNumber={studentNumber}
@@ -2245,6 +2253,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           />
           </StudentStorePage>
         ) : null}
+        </Suspense>
       </main>
       {unavailableStudentFeature ? (
         <StudentConfirmDialog

@@ -72,15 +72,18 @@ test('registered devices can poll only the shared settings timestamp', async () 
       return Response.json([{ updated_at: 'v2' }]);
     };
     try {
-      const { response, result } = createResponse();
-      await handler({
+      const first = createResponse();
+      const second = createResponse();
+      await Promise.all([first, second].map(({ response }) => handler({
         method: 'GET',
         headers: studentHeaders(7),
         query: { metadata: '1' },
-      }, response);
+      }, response)));
 
-      assert.equal(result().statusCode, 200);
-      assert.deepEqual(result().body, { updatedAt: 'v2' });
+      assert.equal(first.result().statusCode, 200);
+      assert.equal(second.result().statusCode, 200);
+      assert.deepEqual(first.result().body, { updatedAt: 'v2' });
+      assert.deepEqual(second.result().body, { updatedAt: 'v2' });
       assert.equal(requests.length, 1);
       assert.match(requests[0] ?? '', /select=updated_at/);
       assert.doesNotMatch(requests[0] ?? '', /select=[^&]*value/);

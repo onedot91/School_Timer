@@ -25,6 +25,7 @@ interface SettingsRow {
 
 const SETTINGS_ID = 'school-timer-main';
 const MAX_SETTINGS_BYTES = 1_048_576;
+const UPDATED_AT_CACHE_TTL_MS = 1_000;
 const STUDENT_SHARED_FIELDS = [
   'auctionBids',
   'auctionItems',
@@ -60,6 +61,15 @@ const STUDENT_MUTABLE_FIELDS = new Set([
   'studentSudoku',
   'studentNumberBaseball',
 ]);
+
+type UpdatedAtCache = {
+  readonly url: string;
+  readonly value: string | null;
+  readonly expiresAt: number;
+};
+
+let updatedAtCache: UpdatedAtCache | null = null;
+let updatedAtRequest: { readonly url: string; readonly promise: Promise<string | null> } | null = null;
 
 const parseBody = (body: unknown) => {
   const parsed = typeof body === 'string' ? JSON.parse(body) : body;
@@ -206,15 +216,32 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number) =
 };
 
 const loadUpdatedAt = async (url: string, key: string) => {
-  const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=updated_at`, {
-    headers: supabaseHeaders(key),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!result.ok) throw new Error(`SHARED_SETTINGS_READ_HTTP_${result.status}`);
-  const rows: unknown = await result.json();
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  const updatedAt = Reflect.get(rows[0], 'updated_at');
-  return typeof updatedAt === 'string' ? updatedAt : null;
+  if (updatedAtCache?.url === url && updatedAtCache.expiresAt > Date.now()) {
+    return updatedAtCache.value;
+  }
+  if (updatedAtRequest?.url === url) return updatedAtRequest.promise;
+
+  const promise = (async () => {
+    const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=updated_at`, {
+      headers: supabaseHeaders(key),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!result.ok) throw new Error(`SHARED_SETTINGS_READ_HTTP_${result.status}`);
+    const rows: unknown = await result.json();
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    const updatedAt = Reflect.get(rows[0], 'updated_at');
+    return typeof updatedAt === 'string' ? updatedAt : null;
+  })();
+  const request = { url, promise };
+  updatedAtRequest = request;
+
+  try {
+    const value = await promise;
+    updatedAtCache = { url, value, expiresAt: Date.now() + UPDATED_AT_CACHE_TTL_MS };
+    return value;
+  } finally {
+    if (updatedAtRequest === request) updatedAtRequest = null;
+  }
 };
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
@@ -302,6 +329,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
       return;
     }
+    updatedAtCache = {
+      url: configuration.url,
+      value: updatedAt,
+      expiresAt: Date.now() + UPDATED_AT_CACHE_TTL_MS,
+    };
     response.status(200).json({ updatedAt });
   } catch (error) {
     if (error instanceof SyntaxError) {
