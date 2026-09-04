@@ -16,6 +16,7 @@ import {
   getStudentLetters,
   getStudentSentLetters,
   getTeacherLetters,
+  getTeacherConversationOrder,
   getTeacherLetterRecipients,
   getTeacherStudentConversation,
   getUnreadTeacherLetterCount,
@@ -196,6 +197,21 @@ test('교사 대화에는 같은 번호의 수신·발신 편지만 시간순으
     ['teacher-sent', 'student-reply'],
   );
   assert.equal(getTeacherStudentConversation(state, 24).length, 0);
+});
+
+test('교사 채팅방은 최근 대화가 위에 오고 빈 방은 번호순으로 이어진다', () => {
+  const state = createStudentLetters(normalizeStudentLifeState(null), [
+    {
+      id: 'older-conversation', recipient: 4, senderLabel: '선생님', title: '',
+      content: '먼저 대화했습니다.', createdAt: '2026-09-02T01:00:00.000Z',
+    },
+    {
+      id: 'newer-conversation', recipient: 0, senderLabel: '2번', senderStudentNumber: 2,
+      title: '', content: '가장 최근 대화입니다.', createdAt: '2026-09-03T01:00:00.000Z',
+    },
+  ]);
+
+  assert.deepEqual(getTeacherConversationOrder(state).slice(0, 6), [2, 4, 1, 3, 5, 6]);
 });
 
 test('교사는 선택한 대화의 수신 편지를 한 번에 읽음 처리한다', () => {

@@ -300,6 +300,14 @@ export const getTeacherStudentConversation = (
     : []
 );
 
+export const getTeacherConversationOrder = (state: StudentLifeState): readonly number[] => (
+  Array.from({ length: MAX_STUDENT_NUMBER }, (_, index) => index + 1).sort((left, right) => {
+    const leftCreatedAt = Date.parse(getTeacherStudentConversation(state, left).at(-1)?.createdAt ?? '') || 0;
+    const rightCreatedAt = Date.parse(getTeacherStudentConversation(state, right).at(-1)?.createdAt ?? '') || 0;
+    return rightCreatedAt - leftCreatedAt || left - right;
+  })
+);
+
 export const getUnreadTeacherLetterCount = (state: StudentLifeState): number => (
   state.letters.filter(
     (letter) => letter.recipient === TEACHER_LETTER_RECIPIENT && letter.readAt === null,

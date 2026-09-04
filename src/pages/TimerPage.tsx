@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import '../classword.css';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, Reply, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -105,6 +105,7 @@ import {
   ALL_STUDENTS_LETTER_RECIPIENT,
   createStudentLetter,
   createStudentLetters,
+  getTeacherConversationOrder,
   getTeacherLetterRecipients,
   getTeacherStudentConversation,
   getUnreadTeacherLetterCount,
@@ -304,16 +305,25 @@ const emotionCalendarDateFormatter = new Intl.DateTimeFormat('ko-KR', {
 });
 
 const teacherLetterDateFormatter = new Intl.DateTimeFormat('ko-KR', {
-  year: 'numeric',
   month: 'long',
   day: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
 });
 
+const teacherThreadDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  month: 'numeric',
+  day: 'numeric',
+});
+
 const formatTeacherLetterDate = (createdAt: string): string => {
   const date = new Date(createdAt);
   return Number.isNaN(date.getTime()) ? '날짜 확인 불가' : teacherLetterDateFormatter.format(date);
+};
+
+const formatTeacherThreadDate = (createdAt: string): string => {
+  const date = new Date(createdAt);
+  return Number.isNaN(date.getTime()) ? '' : teacherThreadDateFormatter.format(date);
 };
 
 const formatCurrencyAdjustmentSummary = ({ delta }: CurrencyAdjustmentSummary) => {
@@ -3896,8 +3906,8 @@ export default function TimerPage() {
   const [mailRecipient, setMailRecipient] = useState(1);
   const [mailTitle, setMailTitle] = useState('');
   const [mailContent, setMailContent] = useState('');
-  const [mailReplyToId, setMailReplyToId] = useState<string | undefined>();
   const [selectedMailStudentNumber, setSelectedMailStudentNumber] = useState(1);
+  const [isStartingTeacherConversation, setIsStartingTeacherConversation] = useState(false);
   const teacherLetterReadInFlightRef = useRef<Set<string>>(new Set());
   const mailConversationEndRef = useRef<HTMLDivElement>(null);
   const [isMailSending, setIsMailSending] = useState(false);
@@ -8928,7 +8938,6 @@ export default function TimerPage() {
       recipient,
       senderLabel: '선생님',
       senderStudentNumber: null,
-      replyToId: mailReplyToId,
       title: mailTitle.trim(),
       content,
       createdAt,
@@ -8950,9 +8959,9 @@ export default function TimerPage() {
       setStudentLife(savedState);
       setMailTitle('');
       setMailContent('');
-      setMailReplyToId(undefined);
       if (mailRecipient !== ALL_STUDENTS_LETTER_RECIPIENT) {
         setSelectedMailStudentNumber(mailRecipient);
+        setIsStartingTeacherConversation(false);
       }
       setMailStatus(mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT
         ? '모든 학생에게 보냈습니다.'
@@ -9209,6 +9218,8 @@ export default function TimerPage() {
       )).length,
     };
   });
+  const sortedTeacherMailConversations = getTeacherConversationOrder(studentLife)
+    .map((studentNumber) => teacherMailConversations[studentNumber - 1]);
   const selectedTeacherConversation = teacherMailConversations[selectedMailStudentNumber - 1]?.letters ?? [];
   const selectedConversationUnreadIds = selectedTeacherConversation
     .filter((letter) => letter.recipient === ALL_STUDENTS_LETTER_RECIPIENT && letter.readAt === null)
@@ -9218,25 +9229,35 @@ export default function TimerPage() {
     if (
       !isSettingsOpen
       || settingsPanel !== 'mail'
+      || isStartingTeacherConversation
       || selectedConversationUnreadIds.length === 0
     ) return;
     void markTeacherLettersAsRead(selectedConversationUnreadIds);
-  }, [isSettingsOpen, selectedConversationUnreadIds.join('|'), settingsPanel]);
+  }, [isSettingsOpen, isStartingTeacherConversation, selectedConversationUnreadIds.join('|'), settingsPanel]);
 
   useEffect(() => {
-    if (!isSettingsOpen || settingsPanel !== 'mail') return;
-    mailConversationEndRef.current?.scrollIntoView({ block: 'end' });
-  }, [isSettingsOpen, selectedMailStudentNumber, selectedTeacherConversation.length, settingsPanel]);
+    const firstActiveConversation = sortedTeacherMailConversations.find((conversation) => conversation.latestLetter !== null);
+    if (
+      !isSettingsOpen
+      || settingsPanel !== 'mail'
+      || isStartingTeacherConversation
+      || selectedTeacherConversation.length > 0
+      || !firstActiveConversation
+    ) return;
+    setSelectedMailStudentNumber(firstActiveConversation.studentNumber);
+    setMailRecipient(firstActiveConversation.studentNumber);
+  }, [
+    sortedTeacherMailConversations[0]?.latestLetter?.id,
+    isSettingsOpen,
+    isStartingTeacherConversation,
+    selectedTeacherConversation.length,
+    settingsPanel,
+  ]);
 
-  const replyToStudentLetter = (letter: (typeof selectedTeacherConversation)[number]) => {
-    if (!letter.senderStudentNumber) return;
-    setMailRecipient(letter.senderStudentNumber);
-    setMailTitle(letter.title.startsWith('답장:')
-      ? letter.title
-      : `답장: ${letter.title || '편지'}`);
-    setMailContent('');
-    setMailReplyToId(letter.id);
-  };
+  useEffect(() => {
+    if (!isSettingsOpen || settingsPanel !== 'mail' || isStartingTeacherConversation) return;
+    mailConversationEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [isSettingsOpen, isStartingTeacherConversation, selectedMailStudentNumber, selectedTeacherConversation.length, settingsPanel]);
 
   const addFeaturedWriting = () => {
     const writing = createEmptyFeaturedWriting(crypto.randomUUID());
@@ -9629,33 +9650,38 @@ export default function TimerPage() {
     <section className="settings-card teacher-mail-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-mail-title">
       <aside className="teacher-mail-inbox">
         <header className="teacher-mail-section-header">
-          <h3 id="teacher-mail-title">학생별 대화</h3>
-          <span>{unreadTeacherLetterCount > 0 ? `새 편지 ${unreadTeacherLetterCount}` : '1:1 편지'}</span>
+          <h3 id="teacher-mail-title">대화</h3>
+          <button type="button" className="teacher-mail-new-button" onClick={() => {
+            setIsStartingTeacherConversation(true);
+            setMailTitle('');
+            setMailContent('');
+            setMailStatus('');
+          }}>
+            <Plus size={15} aria-hidden="true" />새 편지
+          </button>
         </header>
         <nav className="teacher-mail-list" aria-label="학생별 편지 대화 목록">
-          {teacherMailConversations.map(({ studentNumber, latestLetter, unreadCount }) => (
+          {sortedTeacherMailConversations.map(({ studentNumber, latestLetter, unreadCount }) => (
             <button
               key={studentNumber}
               type="button"
-              className={`${studentNumber === selectedMailStudentNumber ? 'is-selected' : ''}${unreadCount > 0 ? ' is-unread' : ''}`}
-              aria-pressed={studentNumber === selectedMailStudentNumber}
+              className={`${!isStartingTeacherConversation && studentNumber === selectedMailStudentNumber ? 'is-selected' : ''}${unreadCount > 0 ? ' is-unread' : ''}`}
+              aria-pressed={!isStartingTeacherConversation && studentNumber === selectedMailStudentNumber}
               aria-label={`${studentNumber}번과의 대화${unreadCount > 0 ? `, 새 편지 ${unreadCount}개` : ''}`}
               onClick={() => {
                 setSelectedMailStudentNumber(studentNumber);
                 setMailRecipient(studentNumber);
-                setMailReplyToId(undefined);
+                setIsStartingTeacherConversation(false);
                 setMailStatus('');
               }}
             >
-              <span className="teacher-mail-list-meta">
-                <strong>{studentNumber}번</strong>
-                {unreadCount > 0 ? <span className="teacher-mail-list-new">{unreadCount}</span> : null}
-                {latestLetter ? <time dateTime={latestLetter.createdAt}>{formatTeacherLetterDate(latestLetter.createdAt)}</time> : null}
+              <span className="teacher-mail-thread-copy">
+                <strong>{studentNumber}번 학생</strong>
+                {latestLetter ? <span>{`${latestLetter.recipient === ALL_STUDENTS_LETTER_RECIPIENT ? '' : '나: '}${latestLetter.content}`}</span> : null}
               </span>
-              <span className="teacher-mail-list-title">
-                {latestLetter
-                  ? `${latestLetter.recipient === ALL_STUDENTS_LETTER_RECIPIENT ? '학생' : '나'} · ${latestLetter.content}`
-                  : '아직 주고받은 편지가 없습니다.'}
+              <span className="teacher-mail-thread-tail">
+                {latestLetter ? <time dateTime={latestLetter.createdAt}>{formatTeacherThreadDate(latestLetter.createdAt)}</time> : null}
+                {unreadCount > 0 ? <span className="teacher-mail-list-new">{unreadCount}</span> : null}
               </span>
             </button>
           ))}
@@ -9664,34 +9690,29 @@ export default function TimerPage() {
 
       <div className="teacher-mail-chat">
         <header className="teacher-mail-chat-header">
-          <div>
-            <span>편지 대화</span>
-            <h3>{selectedMailStudentNumber}번 학생</h3>
-          </div>
-          <span>{selectedTeacherConversation.length}개 메시지</span>
+          <div><h3>{isStartingTeacherConversation ? '새 편지' : `${selectedMailStudentNumber}번 학생`}</h3></div>
         </header>
-        <div className="teacher-mail-chat-log" role="log" aria-label={`${selectedMailStudentNumber}번 학생과 주고받은 편지`} aria-live="polite">
-          {selectedTeacherConversation.length === 0 ? (
+        <div className={`teacher-mail-chat-log${isStartingTeacherConversation ? ' is-new' : ''}`} role="log" aria-label={isStartingTeacherConversation ? '새 편지 작성' : `${selectedMailStudentNumber}번 학생과 주고받은 편지`} aria-live="polite">
+          {isStartingTeacherConversation ? (
+            <label className="teacher-mail-new-recipient">
+              <span>누구에게 보낼까요?</span>
+              <select value={mailRecipient} onChange={(event) => setMailRecipient(Number(event.target.value))}>
+                <option value={ALL_STUDENTS_LETTER_RECIPIENT}>모든 학생</option>
+                {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}번 학생</option>)}
+              </select>
+            </label>
+          ) : selectedTeacherConversation.length === 0 ? (
             <div className="teacher-mail-chat-empty">
               <Mail size={30} aria-hidden="true" />
-              <strong>아직 대화가 없습니다.</strong>
-              <span>아래에서 첫 편지를 보내 보세요.</span>
+              <strong>첫 편지를 보내 보세요.</strong>
             </div>
           ) : selectedTeacherConversation.map((letter) => {
             const isIncoming = letter.recipient === ALL_STUDENTS_LETTER_RECIPIENT;
             return (
-              <article key={letter.id} className={`teacher-mail-chat-message ${isIncoming ? 'is-incoming' : 'is-outgoing'}`}>
-                <header>
-                  <strong>{isIncoming ? `${selectedMailStudentNumber}번` : '선생님'}</strong>
-                  <time dateTime={letter.createdAt}>{formatTeacherLetterDate(letter.createdAt)}</time>
-                </header>
+              <article key={letter.id} className={`teacher-mail-chat-message ${isIncoming ? 'is-incoming' : 'is-outgoing'}`} aria-label={isIncoming ? '학생이 보낸 편지' : '내가 보낸 편지'}>
                 {letter.title ? <h4>{letter.title}</h4> : null}
                 <p>{letter.content}</p>
-                {isIncoming ? (
-                  <button type="button" onClick={() => replyToStudentLetter(letter)}>
-                    <Reply size={15} aria-hidden="true" />이 편지에 답장
-                  </button>
-                ) : null}
+                <time dateTime={letter.createdAt}>{formatTeacherLetterDate(letter.createdAt)}</time>
               </article>
             );
           })}
@@ -9699,25 +9720,10 @@ export default function TimerPage() {
         </div>
 
         <div className="teacher-mail-composer">
-          <div className="teacher-mail-compose-fields">
-            <label>
-              <span>받는 학생</span>
-              <select value={mailRecipient} onChange={(event) => {
-                const recipient = Number(event.target.value);
-                setMailRecipient(recipient);
-                setMailReplyToId(undefined);
-                if (recipient !== ALL_STUDENTS_LETTER_RECIPIENT) setSelectedMailStudentNumber(recipient);
-              }}>
-                <option value={ALL_STUDENTS_LETTER_RECIPIENT} disabled={Boolean(mailReplyToId)}>모든 학생</option>
-                {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}번</option>)}
-              </select>
-            </label>
-            <label>
-              <span>제목</span>
-              <input value={mailTitle} maxLength={40} onChange={(event) => setMailTitle(event.target.value)} placeholder="제목 (선택)" />
-            </label>
-          </div>
-          {mailReplyToId ? <span className="teacher-mail-reply-context"><Reply size={14} aria-hidden="true" />선택한 편지에 답장 중</span> : null}
+          <label className="teacher-mail-compose-subject">
+            <span className="sr-only">제목</span>
+            <input value={mailTitle} maxLength={40} onChange={(event) => setMailTitle(event.target.value)} placeholder="제목 추가 (선택)" />
+          </label>
           <label className="teacher-mail-compose-message">
             <span className="sr-only">편지 내용</span>
             <textarea value={mailContent} maxLength={300} onChange={(event) => setMailContent(event.target.value)} placeholder={`${mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT ? '모든 학생' : `${mailRecipient}번 학생`}에게 전할 내용을 적어 주세요`} />

@@ -46,20 +46,17 @@ test('읽지 않은 학생 편지가 있으면 편지 메뉴에 붉은 New 배�
   assert.match(styles, /\.settings-navigation-new-badge \{[^}]*background: var\(--teacher-urgent\);/s);
 });
 
-test('교사 편지 설정은 받은 편지와 작성 영역을 좌우로 배치한다', async () => {
+test('교사 편지 설정은 최근 대화 목록보다 채팅 영역을 넓게 배치한다', async () => {
   const styles = await readFile(new URL('../index.css', import.meta.url), 'utf8');
   const panelStylesStart = styles.indexOf('.teacher-mail-settings {');
   const panelStylesEnd = styles.indexOf('}', panelStylesStart);
   const panelStyles = styles.slice(panelStylesStart, panelStylesEnd);
-  const readerStylesStart = styles.indexOf('.teacher-mail-reader {');
-  const readerStylesEnd = styles.indexOf('}', readerStylesStart);
-  const readerStyles = styles.slice(readerStylesStart, readerStylesEnd);
   const desktopMailStylesStart = styles.indexOf('@media (min-width: 768px) {\n  .teacher-mail-settings {');
   const desktopMailStylesEnd = styles.indexOf('\n  }', desktopMailStylesStart);
   const desktopMailStyles = styles.slice(desktopMailStylesStart, desktopMailStylesEnd);
 
-  assert.match(panelStyles, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(readerStyles, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(panelStyles, /grid-template-columns: minmax\(15rem, 17rem\) minmax\(0, 1fr\)/);
+  assert.match(styles, /\.teacher-mail-chat \{ grid-template-rows: auto minmax\(0, 1fr\) auto; \}/);
   assert.match(desktopMailStyles, /min-height: 100%/);
   assert.match(desktopMailStyles, /grid-template-rows: minmax\(0, 1fr\)/);
   assert.match(styles, /@media \(max-width: 767px\) \{[\s\S]*?\.teacher-mail-settings \{ grid-template-columns: minmax\(0, 1fr\); \}/);
