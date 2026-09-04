@@ -687,7 +687,7 @@ test('weekly currency cycle uses the latest persisted purchase before tax and al
   assert.equal(cycle.history['10'][1].after, 95);
 });
 
-test('weekly currency cycle settles matured deposit interest before tax and allowance', () => {
+test('weekly currency cycle settles deposit interest before tax and allowance', () => {
   const source = {
     currencyBalances: { 1: 20 },
     currencyHistory: { 1: [] },
@@ -726,7 +726,7 @@ test('weekly currency cycle settles matured deposit interest before tax and allo
   ]);
 });
 
-test('weekly currency cycle does not settle deposit interest before maturity', () => {
+test('weekly currency cycle settles Thursday and Friday deposits before Monday maturity', () => {
   const cycle = createWeeklyCurrencyCycle(
     {
       currencyBalances: { 1: 20 },
@@ -748,10 +748,14 @@ test('weekly currency cycle does not settle deposit interest before maturity', (
     '2026-09-03T03:00:00.001Z',
   );
 
-  assert.equal(cycle.balances['1'], 100);
-  assert.equal(cycle.economy['1']?.deposit, 60);
-  assert.equal(cycle.economy['1']?.deposits[0]?.interest, 6);
-  assert.deepEqual(cycle.history['1'].map((entry) => entry.reason), ['allowance', 'tax']);
+  assert.equal(cycle.balances['1'], 165);
+  assert.equal(cycle.economy['1']?.deposit, 0);
+  assert.deepEqual(cycle.economy['1']?.deposits, []);
+  assert.deepEqual(cycle.history['1'].map((entry) => entry.reason), [
+    'allowance',
+    'tax',
+    'bank_transfer',
+  ]);
 });
 
 test('unverified economy-looking history cannot change a stale teacher balance', () => {
