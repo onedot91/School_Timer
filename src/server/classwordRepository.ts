@@ -238,12 +238,17 @@ export const loadClasswordQuizDefinition = async (
   configuration: ClasswordRepositoryConfiguration,
   dateKey: string,
 ): Promise<ClasswordQuizDefinition | null> => {
-  const value = await request(
-    configuration,
-    `classword_quizzes?quiz_date=eq.${encodeURIComponent(dateKey)}&select=question_id,initial_hint,meaning,answer,written_prefix,written_suffix,spoken_prefix,spoken_suffix&limit=1`,
-  );
-  const row = parseRows(value)[0];
-  return row ? mapQuizDefinitionRow(row) : null;
+  try {
+    const value = await request(
+      configuration,
+      `classword_quizzes?quiz_date=eq.${encodeURIComponent(dateKey)}&select=question_id,initial_hint,meaning,answer,written_prefix,written_suffix,spoken_prefix,spoken_suffix&limit=1`,
+    );
+    const row = parseRows(value)[0];
+    return row ? mapQuizDefinitionRow(row) : null;
+  } catch (error) {
+    if (error instanceof ClasswordRepositoryError && error.code === 'CLASSWORD_DATABASE_HTTP_404') return null;
+    throw error;
+  }
 };
 
 export const saveClasswordQuizDefinition = async (

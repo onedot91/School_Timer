@@ -446,6 +446,62 @@ test('학생 퀴즈 조회는 힌트와 자신의 완료·보상 상태만 반�
   });
 });
 
+test('맞춤 퀴즈 테이블이 아직 없더라도 자동 퀴즈 정답 보상을 지급한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const question = getDailyClasswordQuiz(TODAY);
+    const answer = QUIZ_ANSWERS[question.id];
+    assert.ok(answer);
+    let completionSaved = false;
+    let rewardClaimed = false;
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      if (url.includes('/classword_quizzes')) {
+        return Response.json({ code: 'PGRST205' }, { status: 404 });
+      }
+      if (url.includes('/rpc/claim_weekly_mission_reward')) {
+        rewardClaimed = true;
+        return Response.json({
+          missionType: 'classword_quiz_correct',
+          weekKey: TODAY,
+          completed: true,
+          awarded: true,
+          rewardAmount: 7,
+          balance: 107,
+        });
+      }
+      if (init?.method === 'POST') {
+        completionSaved = true;
+        return new Response(null, { status: 204 });
+      }
+      return completionSaved
+        ? Response.json([{
+            quiz_date: TODAY,
+            question_id: question.id,
+            student_number: 3,
+            completed_at: '2026-09-04T01:00:00.000Z',
+          }])
+        : Response.json([]);
+    };
+
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'POST',
+        headers: sessionHeaders('student', 3),
+        body: { action: 'answer_quiz', dateKey: TODAY, answer },
+      }, response);
+
+      assert.equal(result().statusCode, 200);
+      assert.equal(Reflect.get(result().body as object, 'correct'), true);
+      assert.equal(Reflect.get(result().body as object, 'balance'), 107);
+      assert.equal(rewardClaimed, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상태를 저장한다', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
