@@ -13,6 +13,7 @@ import {
   FAILURE_PROFILE_OPTIONS,
   getRandomAvailableFailureProfile,
   getFailureProfileImage,
+  getFailureStoriesNewestFirst,
   getFailureRelayWindow,
   getSelectedFailureStamp,
   normalizeFailureProfileAssignments,
@@ -30,6 +31,20 @@ const storyInput = {
   createdAt: '2026-08-23T01:00:00.000Z',
   updatedAt: '2026-08-23T01:00:00.000Z',
 };
+
+test('실패 이야기는 작성 후 일주일 동안만 전시에 나타난다', () => {
+  const referenceTime = Date.parse('2026-09-04T01:00:00.000Z');
+  const stories = [
+    { ...storyInput, id: 'expired', createdAt: '2026-08-28T01:00:00.000Z', stamps: [] },
+    { ...storyInput, id: 'visible-old', createdAt: '2026-08-28T01:00:00.001Z', stamps: [] },
+    { ...storyInput, id: 'visible-new', createdAt: '2026-09-04T00:00:00.000Z', stamps: [] },
+  ];
+
+  assert.deepEqual(
+    getFailureStoriesNewestFirst(stories, referenceTime).map((story) => story.id),
+    ['visible-new', 'visible-old'],
+  );
+});
 
 test('본인 실패 카드는 응원하기 대신 내가 쓴 글 배지를 표시한다', () => {
   const profileAssignments = normalizeFailureProfileAssignments(null);

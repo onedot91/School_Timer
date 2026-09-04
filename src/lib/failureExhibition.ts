@@ -224,6 +224,7 @@ export { getFailureStoryTone, type FailureStoryTone } from './failureStoryTone.j
 const MAX_STUDENT_NUMBER = 23;
 const MAX_FAILURE_STORIES = 300;
 const MAX_STORY_LENGTH = 400;
+export const FAILURE_STORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const FAILURE_RELAY_VISIBLE_COUNT = 6;
 export const FAILURE_RELAY_DUAL_ROW_MIN_COUNT = 8;
 
@@ -327,9 +328,18 @@ export const toggleFailureStamp = (
   };
 });
 
-export const getFailureStoriesNewestFirst = (stories: readonly FailureStory[]): readonly FailureStory[] => (
-  [...stories].sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-);
+export const getFailureStoriesNewestFirst = (
+  stories: readonly FailureStory[],
+  referenceTime = Date.now(),
+): readonly FailureStory[] => {
+  const cutoff = referenceTime - FAILURE_STORY_RETENTION_MS;
+  return stories
+    .filter((story) => {
+      const createdTime = Date.parse(story.createdAt);
+      return Number.isFinite(createdTime) && createdTime > cutoff;
+    })
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+};
 
 export const getFailureRelayWindow = (
   stories: readonly FailureStory[],
