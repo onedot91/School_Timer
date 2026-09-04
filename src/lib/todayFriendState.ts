@@ -12,7 +12,7 @@ import {
   type TodayFriendPayload,
   type TodayFriendSubmission,
   type TodayFriendWeek,
-} from './todayFriend';
+} from './todayFriend.js';
 
 export interface TodayFriendQuestion {
   readonly id: string;

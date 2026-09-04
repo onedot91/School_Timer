@@ -7,13 +7,13 @@ import {
   type TodayFriendSubmissionStatus,
   type TodayFriendWeek,
   type TodayFriendWeekDay,
-} from './todayFriend';
+} from './todayFriend.js';
 import {
   TODAY_FRIEND_INITIAL_STATE,
   type TodayFriendPartnerDay,
   type TodayFriendQuestion,
   type TodayFriendState,
-} from './todayFriendState';
+} from './todayFriendState.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)

@@ -284,6 +284,22 @@ export const getTeacherLetters = (state: StudentLifeState): readonly StudentLett
   [...state.letters].reverse().filter((letter) => letter.recipient === TEACHER_LETTER_RECIPIENT)
 );
 
+export const getTeacherStudentConversation = (
+  state: StudentLifeState,
+  studentNumber: number,
+): readonly StudentLetter[] => (
+  isStudentNumber(studentNumber)
+    ? state.letters.filter((letter) => (
+      (letter.recipient === TEACHER_LETTER_RECIPIENT && letter.senderStudentNumber === studentNumber)
+      || (
+        letter.recipient === studentNumber
+        && letter.senderStudentNumber === null
+        && letter.senderLabel === '선생님'
+      )
+    )).sort((left, right) => (Date.parse(left.createdAt) || 0) - (Date.parse(right.createdAt) || 0))
+    : []
+);
+
 export const getUnreadTeacherLetterCount = (state: StudentLifeState): number => (
   state.letters.filter(
     (letter) => letter.recipient === TEACHER_LETTER_RECIPIENT && letter.readAt === null,
@@ -295,6 +311,25 @@ export const markTeacherLetterRead = (
   letterId: string,
   readAt: string,
 ): StudentLifeState => markStudentLetterRead(state, TEACHER_LETTER_RECIPIENT, letterId, readAt);
+
+export const markTeacherLettersRead = (
+  state: StudentLifeState,
+  letterIds: readonly string[],
+  readAt: string,
+): StudentLifeState => {
+  const letterIdSet = new Set(letterIds);
+  if (letterIdSet.size === 0) return state;
+  return {
+    ...state,
+    letters: state.letters.map((letter) => (
+      letterIdSet.has(letter.id)
+        && letter.recipient === TEACHER_LETTER_RECIPIENT
+        && letter.readAt === null
+        ? { ...letter, readAt }
+        : letter
+    )),
+  };
+};
 
 export const getUnreadStudentLetterCount = (
   state: StudentLifeState,

@@ -9,6 +9,7 @@ const SERVER_MODULES = [
   'api/device-session.ts',
   'api/shared-settings.ts',
   'api/student-economy.ts',
+  'api/today-friend.ts',
   'api/weekly-mission.ts',
   'api/weekly-missions.ts',
   'src/lib/bankMailbox.ts',
@@ -20,11 +21,17 @@ const SERVER_MODULES = [
   'src/lib/studentEconomySettings.ts',
   'src/lib/studentEmotion.ts',
   'src/lib/studentLife.ts',
+  'src/lib/todayFriend.ts',
+  'src/lib/todayFriendCodec.ts',
+  'src/lib/todayFriendState.ts',
   'src/lib/weeklyMission.ts',
   'src/server/deviceSession.ts',
   'src/server/classwordMissionSettlement.ts',
   'src/server/classwordRepository.ts',
   'src/server/requestRateLimit.ts',
+  'src/server/todayFriendRepository.ts',
+  'src/server/todayFriendRequest.ts',
+  'src/server/todayFriendRows.ts',
 ] as const;
 
 test('Vercel ESM server dependencies use explicit JavaScript extensions', async () => {

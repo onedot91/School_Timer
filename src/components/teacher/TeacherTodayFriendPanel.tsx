@@ -98,7 +98,7 @@ export default function TeacherTodayFriendPanel() {
         <button type="button" aria-label="현황 새로고침" title="새로고침" onClick={() => { void loadState(); }}><RefreshCw aria-hidden="true" /></button>
       </nav>
       {message ? <p className="teacher-today-friend-message" role="status">{message}</p> : null}
-      {isLoading || !state ? <div className="teacher-today-friend-loading">불러오는 중…</div> : tab === 'review' ? (
+      {isLoading ? <div className="teacher-today-friend-loading">불러오는 중…</div> : !state ? null : tab === 'review' ? (
         <TeacherTodayFriendReview submissions={dateSubmissions} isSaving={isSaving} onReview={review} />
       ) : (
         <TeacherTodayFriendPlan state={state} dateKey={dateKey} isSaving={isSaving} onPlanAction={updatePlan} onQuestionsChange={updateQuestions} />

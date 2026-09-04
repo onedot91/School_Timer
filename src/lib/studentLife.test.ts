@@ -17,9 +17,11 @@ import {
   getStudentSentLetters,
   getTeacherLetters,
   getTeacherLetterRecipients,
+  getTeacherStudentConversation,
   getUnreadTeacherLetterCount,
   getUnreadStudentLetterCount,
   markTeacherLetterRead,
+  markTeacherLettersRead,
   markStudentLetterRead,
   normalizeStudentLifeState,
 } from './studentLife.ts';
@@ -167,6 +169,60 @@ test('교사가 새 편지를 읽으면 교사 미읽음 수가 줄고 읽은 �
 
   assert.equal(getUnreadTeacherLetterCount(read), 1);
   assert.equal(getTeacherLetters(read)[0]?.readAt, '2026-09-02T03:00:00.000Z');
+});
+
+test('교사 대화에는 같은 번호의 수신·발신 편지만 시간순으로 모인다', () => {
+  const state = createStudentLetters(normalizeStudentLifeState(null), [
+    {
+      id: 'teacher-sent', recipient: 7, senderLabel: '선생님', title: '먼저',
+      content: '교사가 먼저 보냈습니다.', createdAt: '2026-09-02T01:00:00.000Z',
+    },
+    {
+      id: 'student-reply', recipient: 0, senderLabel: '7번', senderStudentNumber: 7,
+      title: '답장', content: '학생이 답했습니다.', createdAt: '2026-09-02T02:00:00.000Z',
+    },
+    {
+      id: 'other-student', recipient: 0, senderLabel: '8번', senderStudentNumber: 8,
+      title: '다른 학생', content: '다른 대화입니다.', createdAt: '2026-09-02T03:00:00.000Z',
+    },
+    {
+      id: 'bank-letter', recipient: 7, senderLabel: '은행원 돝돝', title: '은행',
+      content: '시스템 편지입니다.', createdAt: '2026-09-02T04:00:00.000Z',
+    },
+  ]);
+
+  assert.deepEqual(
+    getTeacherStudentConversation(state, 7).map((letter) => letter.id),
+    ['teacher-sent', 'student-reply'],
+  );
+  assert.equal(getTeacherStudentConversation(state, 24).length, 0);
+});
+
+test('교사는 선택한 대화의 수신 편지를 한 번에 읽음 처리한다', () => {
+  const state = createStudentLetters(normalizeStudentLifeState(null), [
+    {
+      id: 'student-first', recipient: 0, senderLabel: '7번', senderStudentNumber: 7,
+      title: '첫 편지', content: '첫 번째입니다.', createdAt: '2026-09-02T01:00:00.000Z',
+    },
+    {
+      id: 'student-second', recipient: 0, senderLabel: '7번', senderStudentNumber: 7,
+      title: '둘째 편지', content: '두 번째입니다.', createdAt: '2026-09-02T02:00:00.000Z',
+    },
+    {
+      id: 'teacher-sent', recipient: 7, senderLabel: '선생님', title: '보낸 편지',
+      content: '교사가 보냈습니다.', createdAt: '2026-09-02T03:00:00.000Z',
+    },
+  ]);
+
+  const read = markTeacherLettersRead(
+    state,
+    ['student-first', 'student-second', 'teacher-sent'],
+    '2026-09-02T04:00:00.000Z',
+  );
+
+  assert.equal(getUnreadTeacherLetterCount(read), 0);
+  assert.ok(getTeacherStudentConversation(read, 7).filter((letter) => letter.recipient === 0).every((letter) => letter.readAt !== null));
+  assert.equal(read.letters.find((letter) => letter.id === 'teacher-sent')?.readAt, null);
 });
 
 test('기존 편지는 답장 정보 없이도 그대로 정규화된다', () => {

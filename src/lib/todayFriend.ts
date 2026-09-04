@@ -1,4 +1,4 @@
-import { getKoreanLocalDateKey } from './studentEmotion';
+import { getKoreanLocalDateKey } from './studentEmotion.js';
 
 export const TODAY_FRIEND_REWARD = 15;
 export const TODAY_FRIEND_STUDENT_COUNT = 23;
