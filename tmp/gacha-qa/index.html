@@ -1,0 +1,71 @@
+<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Gacha isolated QA</title></head><body><div id="root"></div><script type="module">
+import '/src/index.css';
+const params = new URLSearchParams(location.search);
+if (params.has('reduced')) {
+  const nativeMatchMedia = window.matchMedia.bind(window);
+  window.matchMedia = query => query === '(prefers-reduced-motion)' || query === '(prefers-reduced-motion: reduce)' ? { matches: true, media: query, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; }, onchange: null } : nativeMatchMedia(query);
+}
+const { default: React, useState, useRef } = await import('react');
+const { createRoot } = await import('react-dom/client');
+const { default: Gacha } = await import('/src/components/student/StudentCharacterGacha.tsx');
+const { default: Reveal } = await import('/src/components/student/StudentCharacterGachaReveal.tsx');
+const { createStudentEconomyState, applyStudentEconomyAction, STUDENT_CHARACTER_PRIZES } = await import('/src/lib/studentEconomy.ts');
+const h = React.createElement;
+function App() {
+  const [state,setState] = useState(createStudentEconomyState());
+  const [wallet,setWallet] = useState(2000);
+  const [saving,setSaving] = useState(false);
+  const [mode,setMode] = useState('normal');
+  const [calls,setCalls] = useState(0);
+  const [mounted,setMounted] = useState(true);
+  const [cycle,setCycle] = useState(0);
+  const [broken,setBroken] = useState(false);
+  const trigger = useRef(null);
+  const run = async action => {
+    setCalls(n=>n+1); setSaving(true);
+    await new Promise(resolve=>setTimeout(resolve, mode==='delay' ? 6500 : 120));
+    if (mode==='fail') { setSaving(false); return false; }
+    if (mode==='reject') { setSaving(false); throw new Error('QA failure'); }
+    const result = applyStudentEconomyAction({ state, action, wallet, availableWallet:wallet, requestId:'qa-draw-'+calls,characterDrawRoll:mode==='double'?0:9 });
+    setState(result.state); setWallet(result.wallet); setSaving(false);
+    return true;
+  };
+  return h('main',{style:{padding:12}},
+    h('header',{style:{height:164,padding:12,display:'grid',alignContent:'start',gap:8}},
+      h('strong',null,'독립 가챠 QA · 메모리 상태만 사용'),
+      h('div',{style:{display:'flex',gap:12}},
+        h('label',null,'응답 ',h('select',{value:mode,onChange:e=>setMode(e.target.value),'aria-label':'응답 모드'},['normal','double','delay','fail','reject'].map(m=>h('option',{key:m},m)))),
+        h('button',{onClick:()=>{setState(createStudentEconomyState());setWallet(2000);setCycle(n=>n+1);setCalls(0);setMounted(true);}},'초기화'),
+        h('button',{onClick:()=>setMounted(x=>!x)},'화면 나가기·돌아오기'),
+        h('button',{onClick:()=>{setWallet(99);setCycle(n=>n+1);}},'잔액 부족'),
+        h('button',{onClick:()=>{setState({...createStudentEconomyState(),ownedCharacterIds:STUDENT_CHARACTER_PRIZES.map(p=>p.id)});setCycle(n=>n+1);}},'전체 수집'),
+        h('button',{onClick:()=>{setState({...createStudentEconomyState(),ownedCharacterIds:STUDENT_CHARACTER_PRIZES.slice(0,-1).map(p=>p.id)});setWallet(1000);setCycle(n=>n+1);}},'마지막 스킨'),
+        h('button',{ref:trigger,onClick:()=>setBroken(true)},'이미지 실패')), 
+      h('output',{id:'qa-state'},JSON.stringify({wallet,calls,owned:state.ownedCharacterIds.length,active:state.activeCharacterId,saving,mounted,reduced:params.has('reduced')})),
+      h('output',{id:'qa-probe',style:{fontSize:10,display:'block',whiteSpace:'nowrap',overflow:'hidden',maxWidth:'100%'}},'')),
+    mounted ? h(Gacha,{key:cycle,state,availableBalance:wallet,isSaving:saving,onAction:run}) : h('p',null,'가챠 화면을 벗어났어요.'),
+    broken ? h(Reveal,{capsuleSrc:'/missing-capsule-qa.png',character:{name:'이미지 실패 고마',imageSrc:'/missing-skin-qa.png'},bonusCharacter:mode==='double'?{name:'두 번째 이미지 실패 고마',imageSrc:'/missing-bonus-qa.png'}:undefined,origin:{left:520,top:330,width:125,height:125},returnFocusRef:trigger,onClose:()=>setBroken(false)}) : null);
+}
+createRoot(document.getElementById('root')).render(h(React.StrictMode,null,h(App)));
+let previousCaught = false;
+let handoffs=[];
+let minFrame=Infinity,maxFrame=0,frames=0,last=performance.now();
+function probe(now) {
+  const root=document.querySelector('.student-character-gacha');
+  const target=document.querySelector('.student-claw-capsule-slot.is-target');
+  const caught=document.querySelector('.student-claw-caught');
+  if(root?.classList.contains('stage-rolling') && caught && target){
+    const visible=+getComputedStyle(caught).opacity>.99;
+    if(visible&&!previousCaught){
+      const a=target.getBoundingClientRect(),b=caught.getBoundingClientRect();
+      handoffs.push({dx:Math.round((a.x+a.width/2-b.x-b.width/2)*10)/10,dy:Math.round((a.y+a.height/2-b.y-b.height/2)*10)/10,scale:Math.round(a.width/b.width*100)/100,source:target.querySelector('img').getAttribute('src')});
+    }
+    previousCaught=visible; frames++;minFrame=Math.min(minFrame,now-last);maxFrame=Math.max(maxFrame,now-last);
+  } else previousCaught=false;
+  last=now;
+  const out=document.getElementById('qa-probe');
+  if(out)out.textContent=JSON.stringify({handoffs,frames,maxFrame:Math.round(maxFrame)});
+  requestAnimationFrame(probe);
+}
+requestAnimationFrame(probe);
+</script></body></html>

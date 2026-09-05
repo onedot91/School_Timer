@@ -1,0 +1,20 @@
+<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mission isolated QA</title></head><body><div id="root"></div><div style="position:fixed;bottom:0;left:0;z-index:1000;background:white;font:11px sans-serif;padding:4px"><a href="#student-missions">미션으로</a> <button id="first">첫 책 등록</button> <button id="second">둘째 책 등록</button> <output id="qa-state"></output></div><script type="module">
+const memory=new Map();
+Object.defineProperty(window,'localStorage',{value:{getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,String(value)),removeItem:key=>memory.delete(key),clear:()=>memory.clear(),key:index=>[...memory.keys()][index]??null,get length(){return memory.size}}});
+const nativeFetch=window.fetch.bind(window);
+window.fetch=(input,init)=>{const url=new URL(typeof input==='string'?input:input.url,location.origin);if(url.pathname.startsWith('/api/')||url.origin!==location.origin)throw new Error('QA forbids backend fetch');return nativeFetch(input,init)};
+const {default:React}=await import('react');
+const {createRoot}=await import('react-dom/client');
+const {loadStoredStudentPetSnapshot,storeStudentPetSnapshot}=await import('/src/lib/studentPet.ts');
+const {placeCanvasLibraryBook}=await import('/src/lib/canvasLibraryClient.ts');
+const {default:AuctionPage}=await import('/src/pages/AuctionPage.tsx');
+await import('/src/index.css');
+const baseline=loadStoredStudentPetSnapshot();
+storeStudentPetSnapshot({...baseline,currencyBalances:{...baseline.currencyBalances,1:100}});
+createRoot(document.querySelector('#root')).render(React.createElement(AuctionPage,{studentNumber:1}));
+let lastResult=null;
+const register=async index=>{lastResult=await placeCanvasLibraryBook({studentNumber:1,title:'검증용 책 '+index,author:'가상 작가',pageCount:100},index-1);window.dispatchEvent(new Event('focus'))};
+document.querySelector('#first').onclick=()=>register(1);
+document.querySelector('#second').onclick=()=>register(2);
+setInterval(()=>{const snapshot=loadStoredStudentPetSnapshot();document.querySelector('#qa-state').textContent=JSON.stringify({balance:snapshot.currencyBalances['1'],books:snapshot.studentLife.books.length,slots:snapshot.studentLife.books.map(b=>b.librarySlot),rewardEntries:snapshot.currencyHistory['1']?.filter(e=>e.id.includes('book_stack')).length??0,result:lastResult?.ok??null})},100);
+</script></body></html>

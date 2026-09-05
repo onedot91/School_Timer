@@ -629,3 +629,43 @@ test('집 건축하기 구매는 교사 물품 구매 현황에 표시된다', (
 
   assert.deepEqual(labels, ['집 고치기', '집 건축하기']);
 });
+
+test('10개 확률 구간 중 정확히 한 구간은 같은 100고마로 미보유 스킨 두 개를 지급한다', () => {
+  let doubles = 0;
+  for (let roll = 0; roll < 10; roll += 1) {
+    const result = applyStudentEconomyAction({
+      state: null, action: { type: 'draw_character' }, wallet: 145, availableWallet: 145,
+      requestId: 'double-probability-boundary', characterDrawRoll: roll,
+    });
+    const count = result.state.ownedCharacterIds.length;
+    assert.equal(count, roll === 0 ? 2 : 1);
+    assert.equal(result.wallet, 45);
+    assert.equal(new Set(result.state.ownedCharacterIds).size, count);
+    assert.equal(result.state.activeCharacterId, result.state.ownedCharacterIds[0]);
+    if (count === 2) doubles += 1;
+  }
+  assert.equal(doubles, 1);
+});
+
+test('더블 캡슐도 중복 스킨을 제외하고 같은 요청을 다시 차감하거나 지급하지 않는다', () => {
+  const before = { ownedCharacterIds: STUDENT_CHARACTER_PRIZES.slice(0, 12).map((prize) => prize.id) };
+  const result = applyStudentEconomyAction({ state: before, action: { type: 'draw_character' }, wallet: 200, availableWallet: 200, requestId: 'double-idempotent-request', characterDrawRoll: 0 });
+  const newIds = result.state.ownedCharacterIds.filter((id) => !before.ownedCharacterIds.includes(id));
+  assert.equal(newIds.length, 2);
+  const repeated = applyStudentEconomyAction({ state: result.state, action: { type: 'draw_character' }, wallet: result.wallet, availableWallet: result.wallet, requestId: 'double-idempotent-request', characterDrawRoll: 9 });
+  assert.equal(repeated.applied, false);
+  assert.equal(repeated.wallet, 100);
+  assert.deepEqual(repeated.state.ownedCharacterIds, result.state.ownedCharacterIds);
+});
+
+test('미보유 스킨이 하나뿐이면 특별 구간에서도 한 개만 지급하고 모두 보유하면 차감을 막는다', () => {
+  const remaining = STUDENT_CHARACTER_PRIZES.at(-1);
+  const result = applyStudentEconomyAction({
+    state: { ownedCharacterIds: STUDENT_CHARACTER_PRIZES.slice(0, -1).map((prize) => prize.id) },
+    action: { type: 'draw_character' }, wallet: 200, availableWallet: 200, requestId: 'double-last-skin', characterDrawRoll: 0,
+  });
+  assert.equal(result.wallet, 100);
+  assert.equal(result.state.ownedCharacterIds.length, STUDENT_CHARACTER_PRIZES.length);
+  assert.equal(result.state.activeCharacterId, remaining.id);
+  assert.throws(() => applyStudentEconomyAction({ state: result.state, action: { type: 'draw_character' }, wallet: 100, availableWallet: 100, requestId: 'double-all-skins', characterDrawRoll: 0 }), /ALL_CHARACTERS_OWNED/);
+});

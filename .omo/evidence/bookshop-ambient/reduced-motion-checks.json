@@ -1,0 +1,34 @@
+[
+  {
+    "scenario": "water-west",
+    "state": "{\"state\":{\"lampOn\":true,\"wateredPlantIds\":[\"wall-plant-west\"],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null},\"action\":null}"
+  },
+  {
+    "scenario": "water-east",
+    "state": "{\"state\":{\"lampOn\":true,\"wateredPlantIds\":[\"wall-plant-east\"],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null},\"action\":null}"
+  },
+  {
+    "scenario": "lamp-off",
+    "state": "{\"state\":{\"lampOn\":false,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null},\"action\":null}"
+  },
+  {
+    "scenario": "sit",
+    "state": "{\"state\":{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":\"reading-bench\"},\"action\":null}"
+  },
+  {
+    "scenario": "book-open",
+    "state": "{\"state\":{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":true,\"bookmarkFound\":true,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null},\"action\":null}"
+  },
+  {
+    "scenario": "pet-second",
+    "state": "{\"state\":{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":2,\"teaFull\":false,\"benchObjectId\":null},\"action\":null}"
+  },
+  {
+    "scenario": "pour",
+    "state": "{\"state\":{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":true,\"benchObjectId\":null},\"action\":null}"
+  },
+  {
+    "scenario": "drink",
+    "state": "{\"state\":{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null},\"action\":null}"
+  }
+]

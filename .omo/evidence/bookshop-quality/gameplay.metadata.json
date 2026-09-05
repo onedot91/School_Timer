@@ -1,0 +1,41 @@
+{
+  "file": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/bookshop-quality/gameplay.webm",
+  "size_bytes": 3518827,
+  "container": {
+    "doctype": "webm",
+    "timestamp_scale_ns": 1000000,
+    "duration_ticks": 133299.1875,
+    "muxing_app": "Chrome",
+    "writing_app": "Chrome"
+  },
+  "tracks": [
+    {
+      "number": 1,
+      "type": 1,
+      "codec": "V_VP9",
+      "width": 624,
+      "height": 376
+    }
+  ],
+  "cluster_count": 40,
+  "video_block_count": 4000,
+  "keyframe_count": 40,
+  "laced_block_count": 0,
+  "first_frame_seconds": 0.0,
+  "last_frame_seconds": 133.299,
+  "duration_seconds": 133.29918750000002,
+  "estimated_fps_over_timestamp_span": 30.00022505795242,
+  "frame_delta_seconds": {
+    "min": 0.016,
+    "median": 0.033,
+    "max": 0.052000000000000005
+  },
+  "timestamps_monotonic": true,
+  "verification": "Python standard library EBML parsing validates element boundaries, metadata and block timestamp headers. Does not decode video pixels.",
+  "limitations": [
+    "Canvas-only video does not include surrounding DOM or browser chrome.",
+    "No audio track is present.",
+    "Encoding dimensions are 624×376, not a full 1280×800 viewport capture.",
+    "Capture request FPS and decoded picture quality are not independently proven by the container parser."
+  ]
+}

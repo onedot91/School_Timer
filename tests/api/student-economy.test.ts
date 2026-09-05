@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import { syncBuiltinESMExports } from 'node:module';
 import test from 'node:test';
 
 import handler from '../../api/student-economy.js';
@@ -225,6 +227,53 @@ test('고정된 같은 밀리초에서도 저장 버전은 현재 행보다 1ms 
     } finally {
       Date.now = originalNow;
       globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('스킨 뽑기 API는 저장 충돌 때 확률을 다시 굴리지 않고 획득 목록과 100고마를 함께 저장한다', async (context) => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let rollCalls = 0;
+    const random = context.mock.method(crypto, 'randomInt', () => rollCalls++ === 0 ? 0 : 9);
+    syncBuiltinESMExports();
+    const writes: Record<string, unknown>[] = [];
+    globalThis.fetch = async (_input, init) => {
+      if (init?.method !== 'PATCH') return Response.json([{
+        id: 'school-timer-main',
+        value: writes.length === 0 ? previousValue : { ...previousValue, currencyBalances: { 1: 145, 2: 333 } },
+        updated_at: writes.length === 0 ? '2026-09-05T00:00:00.000Z' : '2026-09-05T00:00:00.001Z',
+      }]);
+      const body: unknown = JSON.parse(String(init.body));
+      assert.ok(body && typeof body === 'object');
+      const value: unknown = Reflect.get(body, 'value');
+      assert.ok(value && typeof value === 'object');
+      writes.push(value as Record<string, unknown>);
+      return Response.json(writes.length === 1 ? [] : [{ id: 'school-timer-main' }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({ method: 'POST', headers: studentHeaders(1), body: { studentNumber: 1, action: { type: 'draw_character' }, requestId: 'skin-draw-conflict-retry' } }, response);
+      const output = result();
+      assert.equal(output.statusCode, 200);
+      assert.equal(writes.length, 2);
+      assert.equal(random.mock.callCount(), 1);
+      assert.deepEqual(random.mock.calls[0].arguments, [10]);
+      const firstEconomy = Reflect.get(writes[0].studentEconomy as object, '1');
+      const savedEconomy = Reflect.get(writes[1].studentEconomy as object, '1');
+      assert.deepEqual(savedEconomy, firstEconomy);
+      const ids: unknown = Reflect.get(savedEconomy, 'ownedCharacterIds');
+      assert.ok(Array.isArray(ids) && ids.length === 2);
+      assert.equal(new Set(ids).size, ids.length);
+      assert.equal(Reflect.get(savedEconomy, 'activeCharacterId'), ids[0]);
+      assert.equal(Reflect.get(writes[1].currencyBalances as object, '1'), 45);
+      assert.equal(Reflect.get(writes[1].currencyBalances as object, '2'), 333);
+      assert.deepEqual(Reflect.get(writes[1].studentEconomy as object, '2'), previousValue.studentEconomy[2]);
+      assert.deepEqual(Reflect.get(output.body as object, 'studentEconomy'), savedEconomy);
+    } finally {
+      globalThis.fetch = originalFetch;
+      random.mock.restore();
+      syncBuiltinESMExports();
     }
   });
 });

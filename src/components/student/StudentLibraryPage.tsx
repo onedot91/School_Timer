@@ -22,6 +22,10 @@ interface StudentLibraryPageProps {
 }
 
 const FULL_LIBRARY_ROOM = createFullLibraryRoom();
+const FAILURE_BOARD_ENTRY_ROOM = {
+  ...FULL_LIBRARY_ROOM,
+  spawn: FULL_LIBRARY_ROOM.failureBoard?.interactionPoint ?? FULL_LIBRARY_ROOM.spawn,
+};
 
 const toPlacedBook = (book: StudentBook): LibraryPlacedBook | null => (
   book.librarySlot === undefined
@@ -71,7 +75,7 @@ export default function StudentLibraryPage({
   return (
     <CanvasLibraryGame
       studentNumber={studentNumber}
-      room={FULL_LIBRARY_ROOM}
+      room={initialFailureBoardOpen ? FAILURE_BOARD_ENTRY_ROOM : FULL_LIBRARY_ROOM}
       books={placedBooks}
       unplacedBooks={unplacedBooks}
       onPlace={onPlace}

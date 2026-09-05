@@ -8,6 +8,7 @@ export const STUDENT_TRANSFER_MAXIMUM = 30;
 const BANK_INTEREST_RATE = 0.1;
 
 export const STUDENT_CHARACTER_DRAW_PRICE = 100;
+export const STUDENT_CHARACTER_DOUBLE_DRAW_CHANCE = 0.1;
 export const STUDENT_CUSTOM_HOUSE_COUPON_PRICE = 50;
 
 export interface StudentShopCatalogItem {
@@ -847,6 +848,7 @@ export const applyStudentEconomyAction = ({
   requestId,
   shopCatalog,
   stockMarket,
+  characterDrawRoll,
 }: {
   state: unknown;
   action: StudentEconomyAction;
@@ -855,6 +857,7 @@ export const applyStudentEconomyAction = ({
   requestId: string;
   shopCatalog?: unknown;
   stockMarket?: unknown;
+  characterDrawRoll?: number;
 }): StudentEconomyResult => {
   const state = normalizeStudentEconomyState(rawState);
   if (state.processedRequestIds.includes(requestId)) {
@@ -975,14 +978,23 @@ export const applyStudentEconomyAction = ({
     const remaining = STUDENT_CHARACTER_PRIZES.filter((character) => !state.ownedCharacterIds.includes(character.id));
     if (remaining.length < 1) throw new Error('ALL_CHARACTERS_OWNED');
     spend(STUDENT_CHARACTER_DRAW_PRICE);
-    const character = remaining[hashText(requestId) % remaining.length];
+    const firstIndex = hashText(requestId) % remaining.length;
+    const character = remaining[firstIndex];
+    const roll = characterDrawRoll ?? hashText(requestId + '-double') % 10;
+    const isDouble = remaining.length > 1 && roll < STUDENT_CHARACTER_DOUBLE_DRAW_CHANCE * 10;
+    const bonusIndex = isDouble
+      ? (firstIndex + 1 + hashText(requestId + '-bonus-skin') % (remaining.length - 1)) % remaining.length
+      : null;
+    const prizes = bonusIndex === null ? [character] : [character, remaining[bonusIndex]];
     reason = 'shop_purchase';
     nextState = {
       ...state,
-      ownedCharacterIds: [...state.ownedCharacterIds, character.id],
+      ownedCharacterIds: [...state.ownedCharacterIds, ...prizes.map((prize) => prize.id)],
       activeCharacterId: character.id,
     };
-    message = `${character.name} 스킨을 뽑았습니다.`;
+    message = isDouble
+      ? `더블 캡슐! ${prizes.map((prize) => prize.name).join(', ')} 스킨을 뽑았습니다.`
+      : `${character.name} 스킨을 뽑았습니다.`;
   } else if (action.type === 'select_character') {
     if (action.characterId !== null && !state.ownedCharacterIds.includes(action.characterId)) throw new Error('CHARACTER_NOT_OWNED');
     nextState = { ...state, activeCharacterId: action.characterId };

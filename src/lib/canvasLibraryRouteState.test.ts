@@ -10,7 +10,20 @@ test('local library placement updates only the atomic book and reward state', as
   assert.notEqual(end, -1);
   const placementSource = source.slice(start, end);
 
-  assert.match(placementSource, /if \(isSupabaseSettingsEnabled\) \{\s*applySharedSettingsValue\(result\.value\)/);
+  assert.match(placementSource, /if \(isSupabaseSettingsEnabled\) \{\s*if \(applySharedSettingsValue\(result\.value, result\.updatedAt\)\) \{\s*sharedSettingsUpdatedAtRef.current = result.updatedAt/);
   assert.match(placementSource, /\} else \{\s*setStudentLifeSnapshot\(normalizeStudentLifeState\(result\.value\.studentLife\)\);\s*setCurrencyBalances\(normalizeCurrencyBalances\(result\.value\.currencyBalances\)\);\s*setCurrencyHistory\(normalizeCurrencyHistory\(result\.value\.currencyHistory\)\);/);
   assert.doesNotMatch(placementSource, /setStudentMissionVisibility|setStudentStockMarket/);
+});
+
+test('failure mission deep-links to the bookshop board and enters at the board', async () => {
+  const [page, library] = await Promise.all([
+    readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../components/student/StudentLibraryPage.tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(page, /'library-failure-board': '#student-library-failure-board'/);
+  assert.match(page, /onOpenFailureExhibition=\{\(\) => navigateStudentView\('library-failure-board'\)\}/);
+  assert.match(page, /initialFailureBoardOpen=\{activeStudentView === 'library-failure-board'\}/);
+  assert.match(page, /<StudentLibraryPage\s+key=\{activeStudentView\}/);
+  assert.match(library, /spawn: FULL_LIBRARY_ROOM.failureBoard\?\.interactionPoint/);
+  assert.match(library, /room=\{initialFailureBoardOpen \? FAILURE_BOARD_ENTRY_ROOM : FULL_LIBRARY_ROOM\}/);
 });

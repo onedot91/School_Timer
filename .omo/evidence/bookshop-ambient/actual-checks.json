@@ -1,0 +1,159 @@
+[
+  {
+    "check": "lamp off",
+    "dom": "{\"lampOn\":false,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "lamp on",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "서쪽 벽 화분 · wall-plant-west 1",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[\"wall-plant-west\"],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "서쪽 벽 화분 · wall-plant-west 2",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[\"wall-plant-west\"],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "동쪽 벽 화분 · wall-plant-east 1",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}\n진행 동작: water"
+  },
+  {
+    "check": "동쪽 벽 화분 · wall-plant-east 2",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[\"wall-plant-east\"],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "테이블 책 · table-book 1",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":true,\"bookmarkFound\":true,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "테이블 책 · table-book 2",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":true,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "책방 고양이 · bookshop-cat 1",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":1,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "책방 고양이 · bookshop-cat 2",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":1,\"teaFull\":false,\"benchObjectId\":null}\n진행 동작: pet"
+  },
+  {
+    "check": "책방 고양이 · bookshop-cat 3",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":3,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "책방 고양이 · bookshop-cat 4",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":3,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "bench cue click focus",
+    "dom": {
+      "focused": "VIDEO",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":\"reading-bench\"}",
+      "x": "470.00"
+    }
+  },
+  {
+    "check": "bench then movement",
+    "dom": {
+      "x": "495.00"
+    }
+  },
+  {
+    "check": "bench cue click unobscured",
+    "dom": {
+      "focused": "CANVAS",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}",
+      "x": "470.00"
+    }
+  },
+  {
+    "check": "bench escape",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "bench E exit",
+    "dom": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+  },
+  {
+    "check": "modal blocks movement",
+    "dom": {
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}",
+      "x": "228.00",
+      "y": "346.00"
+    }
+  },
+  {
+    "check": "carried tea click blocked retains focus",
+    "dom": {
+      "body": "E차 따르기책을 먼저 꽂아 주세요책을 먼저 꽂아 주세요",
+      "focused": "CANVAS",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+    }
+  },
+  {
+    "check": "registration carrying after ambient block placement success",
+    "dom": "- main \"우리 반 도서관 게임\":\n  - application \"우리 반 도서관. WASD 또는 방향키로 이동하고 E 또는 Enter로 가까운 곳을 살펴보세요.\" [active]\n  - button \"도서관 나가기\":\n  - 'button \"가까운 곳 살펴보기: 책장 열기\"':\n    - generic: E\n    - generic: 책장 열기\n  - paragraph:\n    - generic: 51번 자리에 책을 꽂았어요.\n  - generic: 51번 자리에 책을 꽂았어요."
+  },
+  {
+    "check": "100 books 서쪽 벽 화분 · wall-plant-west",
+    "dom": {
+      "action": "",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[\"wall-plant-west\"],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+    }
+  },
+  {
+    "check": "100 books 동쪽 벽 화분 · wall-plant-east",
+    "dom": {
+      "action": "",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[\"wall-plant-east\"],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+    }
+  },
+  {
+    "check": "100 books 스탠드 · reading-lamp",
+    "dom": {
+      "action": "",
+      "state": "{\"lampOn\":false,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+    }
+  },
+  {
+    "check": "100 books 벤치 · reading-bench",
+    "dom": {
+      "action": "",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":\"reading-bench\"}"
+    }
+  },
+  {
+    "check": "100 books 테이블 책 · table-book",
+    "dom": {
+      "action": "",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":true,\"bookmarkFound\":true,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+    }
+  },
+  {
+    "check": "100 books 책방 고양이 · bookshop-cat",
+    "dom": {
+      "action": "",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":1,\"teaFull\":false,\"benchObjectId\":null}"
+    }
+  },
+  {
+    "check": "100 books 차 세트 · tea-set",
+    "dom": {
+      "action": "",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":true,\"benchObjectId\":null}"
+    }
+  },
+  {
+    "check": "exit reentry resets tea and ambient",
+    "dom": {
+      "height": 800,
+      "scrollHeight": 800,
+      "scrollWidth": 1280,
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}",
+      "width": 1280
+    }
+  }
+]

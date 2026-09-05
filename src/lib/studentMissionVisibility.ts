@@ -33,7 +33,7 @@ export const STUDENT_MISSION_VISIBILITY_GROUPS = [
       { id: 'failureExhibition', label: '실패 전시하기' },
       { id: 'sudoku', label: '스도쿠' },
       { id: 'numberBaseball', label: '숫자 야구' },
-      { id: 'bookStack', label: '읽은 책 쌓기' },
+      { id: 'bookStack', label: '책책책 책을 읽읍시다' },
     ],
   },
 ] as const satisfies ReadonlyArray<{

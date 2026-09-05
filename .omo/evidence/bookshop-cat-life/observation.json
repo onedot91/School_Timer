@@ -1,0 +1,22 @@
+{
+  "empty": [
+    {
+      "seconds": 0,
+      "state": "{\"position\":{\"x\":346,\"y\":272},\"facing\":\"down\",\"behavior\":\"look\",\"elapsedMs\":785.4000000119213,\"remainingMs\":2064.869431702047,\"attentionCooldownMs\":0,\"yieldRetryMs\":0,\"path\":[],\"rngState\":1825939701,\"lastRest\":null,\"reaction\":\"head-up\",\"lockedApproach\":null}"
+    },
+    {
+      "seconds": 135.773,
+      "state": "{\"position\":{\"x\":412.8016000399987,\"y\":192},\"facing\":\"left\",\"behavior\":\"walk\",\"elapsedMs\":2216.5999999999767,\"remainingMs\":0,\"attentionCooldownMs\":0,\"yieldRetryMs\":0,\"path\":[{\"x\":410,\"y\":192},{\"x\":402,\"y\":192},{\"x\":402,\"y\":200},{\"x\":402,\"y\":208},{\"x\":402,\"y\":216},{\"x\":402,\"y\":224}],\"rngState\":4060144772,\"lastRest\":\"stretch\",\"reaction\":\"head-up\",\"lockedApproach\":null}"
+    }
+  ],
+  "full": [
+    {
+      "seconds": 0,
+      "state": "{\"position\":{\"x\":146,\"y\":352},\"facing\":\"down\",\"behavior\":\"look\",\"elapsedMs\":507.0999999880787,\"remainingMs\":2524.4653318658475,\"attentionCooldownMs\":0,\"yieldRetryMs\":0,\"path\":[],\"rngState\":2215269682,\"lastRest\":null,\"reaction\":\"head-up\",\"lockedApproach\":null}"
+    },
+    {
+      "seconds": 116.579,
+      "state": "{\"position\":{\"x\":106,\"y\":352},\"facing\":\"down\",\"behavior\":\"sleep\",\"elapsedMs\":11516.5,\"remainingMs\":368.37732503563166,\"attentionCooldownMs\":0,\"yieldRetryMs\":0,\"path\":[],\"rngState\":2780903510,\"lastRest\":\"sleep\",\"reaction\":\"head-up\",\"lockedApproach\":null}"
+    }
+  ]
+}

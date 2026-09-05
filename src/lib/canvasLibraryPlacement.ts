@@ -1,4 +1,5 @@
 import { createBookStackMissionEntry } from './bookStackMission.js';
+import { BOOK_STACK_WEEKLY_MISSION_TYPE, claimWeeklyMissionRewardInSettings, getKoreanIsoWeekKey } from './weeklyMission.js';
 import { appendLibraryCompetitionPlacement, parseLibraryCompetitionState } from './libraryCompetition.js';
 import {
   normalizeBookReflection,
@@ -225,7 +226,14 @@ const applyPlacement = (
   const placedLife = normalizeStudentLifeState({ ...studentLife, books });
   const book = placedLife.books.find((candidate) => candidate.id === bookId);
   if (!book) return placementError(403, 'LIBRARY_BOOK_FORBIDDEN');
-  return success(current, placedLife, book, true, false, false);
+  const reward = claimWeeklyMissionRewardInSettings(
+    { ...current, studentLife: placedLife },
+    studentNumber,
+    getKoreanIsoWeekKey(new Date(serverTimestamp)),
+    BOOK_STACK_WEEKLY_MISSION_TYPE,
+    serverTimestamp,
+  );
+  return success(reward.value, placedLife, book, true, reward.awarded, false);
 };
 
 export const applyLibraryPlacementCommand = (

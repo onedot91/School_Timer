@@ -1,4 +1,4 @@
-import { BookOpen, History, RefreshCw, Trophy, X } from 'lucide-react';
+import { AlertCircle, BookOpen, History, LoaderCircle, RefreshCw, Trophy, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { libraryCompetitionClient, type LibraryCompetitionHistoryResponse, type LibraryCompetitionResponse } from '../../../lib/libraryCompetitionClient';
 import { useModalFocus } from '../../../lib/useModalFocus';
@@ -20,12 +20,14 @@ export function LibraryCompetitionPanel({ onClose, onSnapshot, returnFocusRef }:
   const [month, setMonth] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
   useModalFocus({ dialogRef, isOpen: true, onDismiss: onClose, initialFocusRef: closeRef, returnFocusRef });
 
   const load = useCallback(async (archive: boolean, selectedMonth?: string) => {
     const token = ++request.current;
     setLoading(true);
     setMessage('');
+    setLoadFailed(false);
     try {
       if (archive) {
         let result = await libraryCompetitionClient.history(selectedMonth);
@@ -46,6 +48,7 @@ export function LibraryCompetitionPanel({ onClose, onSnapshot, returnFocusRef }:
       }
     } catch (error) {
       if (token !== request.current) return;
+      setLoadFailed(true);
       if (error instanceof Error) setMessage(error.message);
       else throw error;
     } finally {
@@ -68,11 +71,11 @@ export function LibraryCompetitionPanel({ onClose, onSnapshot, returnFocusRef }:
         <button type="button" aria-pressed={past} onClick={() => { setPast(true); void load(true); }}><History aria-hidden="true" />지난 기록</button>
         <button type="button" className="library-competition-icon" disabled={loading} aria-label="순위 새로고침" onClick={() => { void load(past, month || undefined); }}><RefreshCw aria-hidden="true" /></button>
       </nav>
-      {message && <p role="status" className="library-competition-message">{message}</p>}
+      {message && <p role={loadFailed ? 'alert' : 'status'} className={`library-competition-message${loadFailed ? ' is-error' : ''}`}>{loadFailed && <AlertCircle aria-hidden="true" />}{message}</p>}
       {past && history && history.months.length > 0 && <label className="library-competition-month">기록 월<select aria-label="지난 기록 월" value={month} onChange={event => { setMonth(event.target.value); void load(true, event.target.value); }}>
         <option value="" disabled>월 선택</option>{history.months.map(entry => <option key={entry.seasonId} value={entry.seasonId}>{entry.seasonId.replace('-', '년 ')}월</option>)}
       </select></label>}
-      {loading ? <p className="library-competition-empty" role="status">기록을 불러오는 중…</p> : standings.length > 0 ? <LibraryCompetitionTable standings={standings} /> : <p className="library-competition-empty">{past ? '아직 지난 기록이 없어요.' : '아직 챌린지를 열 수 없어요. 책방은 그대로 이용할 수 있어요.'}</p>}
+      {loading ? <p className="library-competition-empty" role="status"><LoaderCircle aria-hidden="true" />기록을 불러오는 중…</p> : standings.length > 0 ? <LibraryCompetitionTable standings={standings} /> : <p className="library-competition-empty">{past ? '아직 지난 기록이 없어요.' : '아직 챌린지를 열 수 없어요. 책방은 그대로 이용할 수 있어요.'}</p>}
       {past && history?.archive && <details className="library-competition-books"><summary><BookOpen aria-hidden="true" />보관된 책 {history.archive.books.length}권</summary><ul>{history.archive.books.map(book => <li key={book.id}><strong>{book.title}</strong><span>{book.author}</span>{book.reflection ? <span>{book.reflection}</span> : null}</li>)}</ul></details>}
       <footer className="library-competition-footer"><BookOpen aria-hidden="true" /><span>함께 채우는 책방 · 최대 100권</span></footer>
     </div>

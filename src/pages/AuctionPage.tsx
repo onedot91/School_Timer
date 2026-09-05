@@ -136,9 +136,12 @@ import {
   type WeeklyMissionStatuses,
 } from '../lib/weeklyMission';
 import {
+  isStudentSettingsSnapshotFresh,
   loadStudentSettingsSnapshot,
   shouldLoadFullStudentSettings,
   storeStudentSettingsSnapshot,
+  storeStudentProfileSnapshot,
+  STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS,
   STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
 } from '../lib/studentSettingsSync';
@@ -202,7 +205,7 @@ interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'today-friend' | 'classword' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'today-friend' | 'classword' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'library-failure-board' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -239,6 +242,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   library: '#student-library',
   'library-bookstore': '#student-library-bookstore',
   'library-bookshelf': '#student-library-bookshelf',
+  'library-failure-board': '#student-library-failure-board',
   store: '#student-store',
   'store-bank': '#student-store-bank',
   'store-shop': '#student-store-shop',
@@ -493,6 +497,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const pageScrollRef = useRef<HTMLDivElement>(null);
   const unavailableFeatureTriggerRef = useRef<HTMLElement>(null);
   const sharedSettingsUpdatedAtRef = useRef<string | null>(null);
+  const minimumSettingsUpdatedAtRef = useRef<string | null>(null);
   const isSharedSettingsRefreshInFlightRef = useRef(false);
   const pendingFullSettingsRefreshRef = useRef(false);
 
@@ -841,12 +846,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           action,
           requestId: `student-profile-${studentNumber}-${createBrowserRequestId()}`,
         });
+        minimumSettingsUpdatedAtRef.current = result.updatedAt;
         setStudentLifeSnapshot(result.studentLife);
+        storeStudentProfileSnapshot(studentNumber, result.studentLife);
         setCurrencyBalances((current) => ({ ...current, ...result.currencyBalanceEntries }));
         setCurrencyHistory((current) => ({ ...current, ...result.currencyHistoryEntries }));
         setStudentEconomyStates((current) => ({ ...current, [studentKey]: result.studentEconomy }));
         sharedSettingsUpdatedAtRef.current = null;
         invalidateSharedSettingsCache();
+        void refreshAuctionState({ forceFull: true });
         if (!result.applied || !result.profileImage) {
           if (purchase.type === 'selected') showStatusMessage(result.message);
           return { ok: false, message: result.message };
@@ -1168,7 +1176,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     [auctionItems, firstVisibleItem, selectedItemId, visibleDayCount],
   );
 
-  const applySharedSettingsValue = useCallback((value: SharedSettingsValue) => {
+  const applySharedSettingsValue = useCallback((value: SharedSettingsValue, updatedAt?: string) => {
+    if (!isStudentSettingsSnapshotFresh(updatedAt, minimumSettingsUpdatedAtRef.current)) return false;
+    if (updatedAt) minimumSettingsUpdatedAtRef.current = updatedAt;
     setCompetitionSeasonId(parseLibraryCompetitionState(value.libraryCompetition)?.seasonId ?? null);
     setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
     setCurrencyHistory(normalizeCurrencyHistory(value.currencyHistory));
@@ -1207,6 +1217,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }),
       previous,
     ));
+    return true;
   }, [applySharedNumberBaseball, applySharedStudentSudoku, setStudentLifeSnapshot, studentNumber]);
 
   const refreshAuctionState = useCallback(async ({ forceFull = false }: { forceFull?: boolean } = {}) => {
@@ -1255,10 +1266,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             const value = row?.value && typeof row.value === 'object'
               ? row.value as SharedSettingsValue
               : {};
-            applySharedSettingsValue(value);
-            sharedSettingsUpdatedAtRef.current = row?.updated_at ?? null;
-            if (row?.updated_at && row.value && typeof row.value === 'object') {
-              storeStudentSettingsSnapshot({ studentNumber, updatedAt: row.updated_at, value });
+            if (applySharedSettingsValue(value, row?.updated_at)) {
+              sharedSettingsUpdatedAtRef.current = row?.updated_at ?? null;
+              if (row?.updated_at && row.value && typeof row.value === 'object') {
+                storeStudentSettingsSnapshot({ studentNumber, updatedAt: row.updated_at, value });
+              }
             }
           }
         } catch (error) {
@@ -1276,7 +1288,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setCompetitionSeasonId(response.competition.state?.seasonId ?? null);
     if (response.value.studentLife === undefined) return;
     if (isSupabaseSettingsEnabled) {
-      applySharedSettingsValue(response.value);
+      if (!applySharedSettingsValue(response.value, response.updatedAt ?? undefined)) return;
       if (response.updatedAt) {
         sharedSettingsUpdatedAtRef.current = response.updatedAt;
         storeStudentSettingsSnapshot({ studentNumber, updatedAt: response.updatedAt, value: response.value });
@@ -1289,7 +1301,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   }, [applySharedSettingsValue, setStudentLifeSnapshot, studentNumber]);
 
   useEffect(() => {
-    if (!['library', 'library-bookstore', 'library-bookshelf'].includes(activeStudentView)) return;
+    if (!['library', 'library-bookstore', 'library-bookshelf', 'library-failure-board'].includes(activeStudentView)) return;
     let active = true;
     const refresh = async () => {
       try {
@@ -1322,9 +1334,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
     setCompetitionSeasonId(parseLibraryCompetitionState(result.value.libraryCompetition)?.seasonId ?? null);
     if (isSupabaseSettingsEnabled) {
-      applySharedSettingsValue(result.value);
-      sharedSettingsUpdatedAtRef.current = result.updatedAt;
-      storeStudentSettingsSnapshot({ studentNumber, updatedAt: result.updatedAt, value: result.value });
+      if (applySharedSettingsValue(result.value, result.updatedAt)) {
+        sharedSettingsUpdatedAtRef.current = result.updatedAt;
+        storeStudentSettingsSnapshot({ studentNumber, updatedAt: result.updatedAt, value: result.value });
+      }
     } else {
       setStudentLifeSnapshot(normalizeStudentLifeState(result.value.studentLife));
       setCurrencyBalances(normalizeCurrencyBalances(result.value.currencyBalances));
@@ -1337,8 +1350,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     if (!isSupabaseSettingsEnabled) return;
     const snapshot = loadStudentSettingsSnapshot(studentNumber);
     if (!snapshot) return;
+    if (!applySharedSettingsValue(snapshot.value, snapshot.updatedAt)) return;
     sharedSettingsUpdatedAtRef.current = snapshot.updatedAt;
-    applySharedSettingsValue(snapshot.value);
     setIsLoading(false);
   }, [applySharedSettingsValue, studentNumber]);
 
@@ -1354,14 +1367,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       || activeStudentView === 'mailbox'
       || activeStudentView === 'library'
       || activeStudentView === 'library-bookstore'
-      || activeStudentView === 'library-bookshelf';
+      || activeStudentView === 'library-bookshelf'
+      || activeStudentView === 'library-failure-board';
     refreshWhenVisible(isStudentStoreView(activeStudentView) || isEntryRefreshView);
 
     const syncView = isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
-    const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView];
-    const intervalId = intervalMs === undefined
-      ? undefined
-      : window.setInterval(() => refreshWhenVisible(), intervalMs);
+    const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView] ?? STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS;
+    const intervalId = window.setInterval(() => refreshWhenVisible(), intervalMs);
     const refreshOnReturn = () => {
       if (document.visibilityState !== 'visible') return;
       const now = Date.now();
@@ -2052,7 +2064,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             numberBaseballStatus={numberBaseballStatus}
             onOpenEmotions={() => navigateStudentView('emotions')}
             onOpenMailbox={() => navigateStudentView('mailbox')}
-            onOpenFailureExhibition={() => navigateStudentView('library')}
+            onOpenFailureExhibition={() => navigateStudentView('library-failure-board')}
             onOpenBookStack={() => navigateStudentView('library-bookshelf')}
             onOpenSudoku={async (difficulty) => {
               const startedDifficulty = await startSudoku(difficulty);
@@ -2137,8 +2149,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onBack={() => navigateStudentView('overview')}
           />
         ) : null}
-        {activeStudentView === 'library' || activeStudentView === 'library-bookstore' || activeStudentView === 'library-bookshelf' ? (
+        {activeStudentView === 'library' || activeStudentView === 'library-bookstore' || activeStudentView === 'library-bookshelf' || activeStudentView === 'library-failure-board' ? (
           <StudentLibraryPage
+            key={activeStudentView}
             studentNumber={studentNumber}
             books={studentLife.books}
             onPlace={placeLibraryBook}
@@ -2149,7 +2162,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             isFailureSaving={isStudentLifeSaving}
             onCreateFailure={createStudentFailureStory}
             onStampFailure={stampStudentFailureStory}
-            initialFailureBoardOpen={false}
+            initialFailureBoardOpen={activeStudentView === 'library-failure-board'}
             onBack={() => navigateStudentView('overview')}
           />
         ) : null}

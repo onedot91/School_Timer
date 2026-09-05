@@ -6,8 +6,14 @@ import type {
   LibraryScene,
   LibraryShelf,
 } from '../../../lib/canvasLibraryWorld';
+import { resolveLibraryBookRoom } from '../../../lib/canvasLibraryWorld';
 import { CANVAS_LIBRARY_PALETTE as palette } from './CanvasLibraryPalette';
+import { resolveLibraryCatRoom } from '../../../lib/canvasLibraryCat';
+import { drawLibraryAmbientLight, drawLibraryAmbientObject, drawLibraryAmbientTool } from './CanvasLibraryAmbient';
 import { drawCompetitionBoard } from './CanvasLibraryCompetitionBoard';
+import { drawLibraryCharacter, drawLibraryCarryBook, drawLibraryBookSpine } from './CanvasLibraryCharacter';
+import { drawLibraryClerkBody, drawLibraryClerkHands, drawLibraryClerkTransfer } from './CanvasLibraryClerk';
+import { getLibraryActionProgress, getLibraryBearPose, getLibraryBookMotion, getLibraryPlacedBookRect, LIBRARY_BEAR_BOUNDS } from '../../../lib/canvasLibraryPose';
 
 const LOGICAL_WIDTH = 624;
 const LOGICAL_HEIGHT = 376;
@@ -116,7 +122,7 @@ const drawRoomBase = (context: DrawContext, room: LibraryRoom) => {
   const endX = pixel(walkableBounds.x + walkableBounds.width);
   const endY = pixel(walkableBounds.y + walkableBounds.height);
   context.save();
-  context.globalAlpha = 0.38;
+  context.globalAlpha = 0.18;
   for (let row = 0, y = startY; y < endY; row += 1, y += tileHeight) {
     const offset = row % 2 === 0 ? 0 : -tileWidth / 2;
     for (let x = startX + offset; x < endX; x += tileWidth) {
@@ -127,10 +133,10 @@ const drawRoomBase = (context: DrawContext, room: LibraryRoom) => {
       context.fillRect(left, Math.min(endY - 1, y + tileHeight - 1), Math.max(1, right - left - 1), 1);
       context.fillRect(Math.max(left, right - 1), y + 2, 1, Math.min(tileHeight - 3, endY - y - 2));
       if (seed % 4 === 0) {
-        context.globalAlpha = 0.52;
+        context.globalAlpha = 0.28;
         context.fillStyle = palette.paper[3];
         context.fillRect(left + 4, y + 2, Math.max(2, Math.min(12, right - left - 7)), 1);
-        context.globalAlpha = 0.38;
+        context.globalAlpha = 0.18;
       }
       context.fillStyle = palette.paper[1];
       if (seed % 7 === 0) context.fillRect(left + 13 + (seed % 17), y + 7, 7, 1);
@@ -177,26 +183,78 @@ const drawRoomBase = (context: DrawContext, room: LibraryRoom) => {
     context.fillRect(x, pixel(upperWall.y + 8), 2, Math.max(2, wainscotBottom - pixel(upperWall.y + 9)));
   }
 
-  context.fillStyle = palette.green[1];
-  context.fillRect(pixel(bounds.x + 3), pixel(walkableBounds.y), 15, pixel(walkableBounds.height));
-  context.fillRect(pixel(bounds.x + bounds.width - 18), pixel(walkableBounds.y), 15, pixel(walkableBounds.height));
-  context.fillStyle = palette.green[3];
-  context.fillRect(pixel(bounds.x + 15), pixel(walkableBounds.y), 3, pixel(walkableBounds.height - 3));
-  context.fillRect(pixel(bounds.x + bounds.width - 18), pixel(walkableBounds.y), 3, pixel(walkableBounds.height - 3));
-  context.fillStyle = palette.green[0];
-  for (let y = pixel(walkableBounds.y + 18); y < endY - 8; y += 44) {
-    context.fillRect(pixel(bounds.x + 5), y, 10, 2);
-    context.fillRect(pixel(bounds.x + bounds.width - 15), y, 10, 2);
+  const sideTop = pixel(walkableBounds.y - 10);
+  const sideHeight = endY - sideTop;
+  const leftWallX = pixel(bounds.x + 3);
+  const rightWallX = endX;
+  const sideWidth = Math.max(3, startX - leftWallX);
+  for (const wallX of [leftWallX, rightWallX]) {
+    context.fillStyle = palette.green[1];
+    context.fillRect(wallX, sideTop, sideWidth, sideHeight);
+    context.fillStyle = palette.green[0];
+    context.fillRect(wallX, sideTop, 2, sideHeight);
+    context.fillStyle = palette.green[2];
+    context.fillRect(wallX + 2, sideTop, Math.max(1, sideWidth - 4), sideHeight);
   }
-
+  context.fillStyle = palette.green[3];
+  context.fillRect(startX - 2, sideTop, 2, sideHeight);
+  context.fillRect(endX, sideTop, 2, sideHeight);
   context.fillStyle = palette.timber[0];
-  context.fillRect(startX, endY - 3, pixel(walkableBounds.width), 3);
-
-  const thresholdY = pixel(bounds.y + bounds.height - 13);
-  context.fillStyle = palette.timber[0];
-  context.fillRect(pixel(room.spawn.x - 20), thresholdY, 40, 3);
+  context.fillRect(startX - 1, endY - 3, endX - startX + 2, 3);
   context.fillStyle = palette.timber[2];
-  context.fillRect(pixel(room.spawn.x - 18), thresholdY, 36, 2);
+  context.fillRect(startX, endY - 3, endX - startX, 1);
+
+  if (room.exit) {
+    const door = room.exit.visualRect;
+    fillRect(context, { x: door.x, y: door.y + door.height - 3, width: door.width, height: 3 }, palette.timber[0]);
+    fillRect(context, { x: door.x + 2, y: door.y + door.height - 3, width: door.width - 4, height: 1 }, palette.timber[3]);
+  } else {
+    const thresholdY = pixel(bounds.y + bounds.height - 13);
+    context.fillStyle = palette.timber[0];
+    context.fillRect(pixel(room.spawn.x - 20), thresholdY, 40, 3);
+    context.fillStyle = palette.timber[2];
+    context.fillRect(pixel(room.spawn.x - 18), thresholdY, 36, 2);
+  }
+};
+
+const drawEntranceForeground = (context: DrawContext, room: LibraryRoom) => {
+  if (!room.exit) return;
+  const { x, y, width, height } = room.exit.visualRect;
+  const doorX = pixel(x);
+  const doorY = pixel(y);
+  const doorWidth = pixel(width);
+  const doorHeight = pixel(height);
+  context.fillStyle = palette.timber[0];
+  context.fillRect(doorX, doorY, doorWidth, doorHeight);
+  context.fillStyle = palette.timber[3];
+  context.fillRect(doorX + 1, doorY + 1, doorWidth - 2, 2);
+  context.fillRect(doorX + 1, doorY + 3, 2, doorHeight - 4);
+  context.fillStyle = palette.timber[1];
+  context.fillRect(doorX + doorWidth - 3, doorY + 3, 2, doorHeight - 4);
+  context.fillStyle = palette.ink[0];
+  context.fillRect(doorX + 4, doorY + 4, doorWidth - 8, doorHeight - 7);
+  context.fillStyle = palette.timber[2];
+  context.fillRect(doorX + 5, doorY + 5, doorWidth - 11, doorHeight - 9);
+  for (const panelY of [doorY + 8, doorY + 25]) {
+    context.fillStyle = palette.timber[0];
+    context.fillRect(doorX + 9, panelY, doorWidth - 20, 12);
+    context.fillStyle = palette.timber[1];
+    context.fillRect(doorX + 10, panelY + 1, doorWidth - 22, 10);
+    context.fillStyle = palette.timber[3];
+    context.fillRect(doorX + 9, panelY + 12, doorWidth - 20, 1);
+  }
+  context.fillStyle = palette.timber[0];
+  context.fillRect(doorX + doorWidth - 12, doorY + 20, 5, 6);
+  context.fillStyle = palette.paper[0];
+  context.fillRect(doorX + doorWidth - 11, doorY + 20, 3, 6);
+  context.fillStyle = palette.paper[1];
+  context.fillRect(doorX + doorWidth - 12, doorY + 21, 5, 3);
+  context.fillStyle = palette.paper[3];
+  context.fillRect(doorX + doorWidth - 12, doorY + 21, 2, 1);
+  context.fillStyle = palette.stone[0];
+  context.fillRect(doorX + 4, doorY + 10, 2, 4);
+  context.fillRect(doorX + 4, doorY + 31, 2, 4);
+  context.clearRect(doorX, doorY + doorHeight - 3, doorWidth, 3);
 };
 
 const drawMotivatedLight = (context: DrawContext, room: LibraryRoom) => {
@@ -209,20 +267,11 @@ const drawMotivatedLight = (context: DrawContext, room: LibraryRoom) => {
   for (let row = 0; row < 6; row += 1) {
     context.fillRect(beamLeft - row * 13, beamTop + row * 14, pixel(windowRect.width + row * 7), 10);
   }
-  const lamp = room.readingArea.lampRect;
-  for (let ring = 3; ring >= 0; ring -= 1) {
-    context.globalAlpha = 0.08 + (3 - ring) * 0.035;
-    context.fillRect(
-      pixel(lamp.x - 17 - ring * 5),
-      pixel(lamp.y + lamp.height - 4 - ring * 2),
-      pixel(lamp.width + 34 + ring * 10),
-      5 + ring * 4,
-    );
-  }
   context.restore();
 };
 
 const drawEntryRug = (context: DrawContext, room: LibraryRoom) => {
+  if (room.exit) return;
   if (room.failureBoard) {
     drawRug(context, {
       x: room.spawn.x - 34,
@@ -257,17 +306,16 @@ const drawEntryRug = (context: DrawContext, room: LibraryRoom) => {
 
 const drawCirculationInlay = (context: DrawContext, room: LibraryRoom) => {
   if (!room.failureBoard) return;
-  const centerX = pixel(room.spawn.x + 57);
-  context.fillStyle = palette.timber[2];
-  context.fillRect(centerX, pixel(room.walkableBounds.y + 28), 2, pixel(room.walkableBounds.height - 38));
-  context.fillStyle = palette.paper[1];
-  context.fillRect(centerX + 2, pixel(room.walkableBounds.y + 28), 1, pixel(room.walkableBounds.height - 38));
-  for (const [x, y, width] of [[132, 218, 225], [319, 146, 102], [357, 223, 149]] as const) {
-    context.fillStyle = palette.timber[2];
-    context.fillRect(x, y, width, 2);
-    context.fillStyle = palette.paper[1];
-    context.fillRect(x, y + 2, width, 1);
+  const centerX = pixel(room.spawn.x);
+  const bottom = pixel(room.walkableBounds.y + room.walkableBounds.height - 26);
+  context.save();
+  context.globalAlpha = 0.35;
+  context.fillStyle = palette.paper[3];
+  for (const dx of [-21, 21]) {
+    context.fillRect(centerX + dx, bottom - 37, 1, 28);
+    context.fillRect(centerX + dx - (dx < 0 ? 0 : 4), bottom - 37, 5, 1);
   }
+  context.restore();
 };
 
 const drawWindow = (context: DrawContext, rect: LibraryRect) => {
@@ -318,7 +366,7 @@ const drawRug = (context: DrawContext, rect: LibraryRect) => {
   }
 };
 
-const drawLamp = (context: DrawContext, rect: LibraryRect) => {
+const drawLamp = (context: DrawContext, rect: LibraryRect, on = true, switchPoint?: LibraryPoint) => {
   const x = pixel(rect.x);
   const y = pixel(rect.y);
   const width = Math.max(8, pixel(rect.width));
@@ -326,9 +374,9 @@ const drawLamp = (context: DrawContext, rect: LibraryRect) => {
   context.fillStyle = palette.paper[0];
   context.fillRect(x - 6, y + height - 2, width + 12, 2);
   context.fillRect(x - 2, y + height - 4, width + 4, 1);
-  context.fillStyle = palette.paper[1];
+  context.fillStyle = on ? palette.paper[1] : palette.stone[1];
   context.fillRect(x + 2, y + 2, width - 4, 4);
-  context.fillStyle = palette.paper[3];
+  context.fillStyle = on ? palette.paper[3] : palette.paper[0];
   context.fillRect(x + 4, y, width - 8, 2);
   context.fillStyle = palette.paper[0];
   context.fillRect(x, y + 6, width, 2);
@@ -336,39 +384,33 @@ const drawLamp = (context: DrawContext, rect: LibraryRect) => {
   context.fillRect(x + Math.floor(width / 2) - 1, y + 8, 2, height - 10);
   context.fillStyle = palette.timber[0];
   context.fillRect(x + Math.floor(width / 2) - 4, y + height - 2, 8, 2);
+  if (switchPoint) {
+    fillRect(context, { x: switchPoint.x - 1, y: switchPoint.y - 2, width: 3, height: 5 }, palette.timber[0]);
+    fillRect(context, { x: switchPoint.x - 1, y: switchPoint.y - 1, width: 2, height: 3 }, palette.paper[1]);
+    fillRect(context, { x: switchPoint.x - 1, y: switchPoint.y - 1, width: 1, height: 1 }, palette.paper[3]);
+  }
 };
 
 const drawFailureBoard = (context: DrawContext, rect: LibraryRect) => {
-  const x = pixel(rect.x);
-  const y = pixel(rect.y);
-  const width = pixel(rect.width);
-  const height = pixel(rect.height);
-  const cork: LibraryRect = { x: x + 5, y: y + 7, width: width - 10, height: height - 13 };
-
-  context.fillStyle = palette.ink[0];
-  context.fillRect(x - 2, y + 2, width + 4, height - 2);
-  context.fillStyle = palette.timber[0];
-  context.fillRect(x, y, width, height);
-  context.fillStyle = palette.timber[2];
-  context.fillRect(x + 2, y + 2, width - 4, height - 4);
-  context.fillStyle = palette.timber[3];
-  context.fillRect(x + 4, y + 4, width - 8, height - 8);
+  const { x, y, width, height } = rect;
+  fillRect(context, { x: x + 1, y: y + 1, width, height }, palette.green[0]);
+  fillRect(context, rect, palette.timber[0]);
+  fillRect(context, insetRect(rect, 1), palette.timber[2]);
+  fillRect(context, { x: x + 2, y: y + 2, width: width - 4, height: 1 }, palette.timber[3]);
+  fillRect(context, { x: x + 2, y: y + 3, width: 1, height: height - 5 }, palette.timber[3]);
+  const cork = insetRect(rect, 4);
   fillRect(context, cork, palette.timber[1]);
-  context.fillStyle = palette.timber[2];
-  for (let grainX = x + 11; grainX < x + width - 10; grainX += 19) {
-    context.fillRect(grainX, y + 17 + (grainX % 3), 8, 1);
-    context.fillRect(grainX + 3, y + height - 17 - (grainX % 5), 5, 1);
+  context.save();
+  context.globalAlpha = 0.16;
+  for (let cy = cork.y + 2; cy < cork.y + cork.height - 1; cy += 3) {
+    for (let cx = cork.x + 2; cx < cork.x + cork.width - 1; cx += 3) {
+      const noise = coordinateNoise(cx, cy);
+      if (noise % 3 !== 0) continue;
+      context.fillStyle = noise % 2 === 0 ? palette.timber[3] : palette.timber[0];
+      context.fillRect(pixel(cx + noise % 2), pixel(cy), 1, 1);
+    }
   }
-  context.fillStyle = palette.paper[3];
-  context.fillRect(x + Math.floor(width / 2) - 5, y - 3, 10, 3);
-  context.fillStyle = palette.paper[0];
-  context.fillRect(x + Math.floor(width / 2) - 3, y - 5, 6, 3);
-  context.fillStyle = palette.bookCoral[0];
-  context.fillRect(x + Math.floor(width / 2) - 1, y - 6, 2, 2);
-  context.fillStyle = palette.paper[3];
-  context.fillRect(x + 18, y + 50, width - 36, 2);
-  context.fillStyle = palette.timber[3];
-  context.fillRect(x + 12, y + height - 8, width - 24, 2);
+  context.restore();
 };
 
 const drawFailureBoardNotes = (context: DrawContext, rect: LibraryRect, rawCount: number | undefined) => {
@@ -402,20 +444,6 @@ const drawFailureBoardNotes = (context: DrawContext, rect: LibraryRect, rawCount
   }
 };
 
-const drawWallPlanter = (context: DrawContext, x: number, y: number) => {
-  context.fillStyle = palette.green[0];
-  context.fillRect(x + 5, y, 3, 16);
-  context.fillRect(x, y + 3, 7, 4);
-  context.fillRect(x + 8, y + 5, 7, 4);
-  context.fillStyle = palette.green[3];
-  context.fillRect(x + 2, y + 3, 4, 2);
-  context.fillRect(x + 9, y + 5, 4, 2);
-  context.fillStyle = palette.lavender[0];
-  context.fillRect(x + 2, y + 15, 11, 5);
-  context.fillStyle = palette.lavender[1];
-  context.fillRect(x + 3, y + 15, 9, 2);
-};
-
 const drawStaticRoom = (context: DrawContext, room: LibraryRoom) => {
   drawRoomBase(context, room);
   drawMotivatedLight(context, room);
@@ -423,20 +451,18 @@ const drawStaticRoom = (context: DrawContext, room: LibraryRoom) => {
   drawWindow(context, room.readingArea.windowRect);
   drawEntryRug(context, room);
   drawRug(context, room.readingArea.rug);
-  drawLamp(context, room.readingArea.lampRect);
   if (room.failureBoard) {
     drawFailureBoard(context, room.failureBoard.visualRect);
-    drawWallPlanter(context, 330, 72);
-    drawWallPlanter(context, 486, 67);
   }
 };
 
-const drawDecorativeBook = (context: DrawContext, book: LibraryRect, index: number) => {
+const drawDecorativeBook = (context: DrawContext, book: LibraryRoom['readingArea']['decorativeBookRects'][number], index: number) => {
+  const colors = (book.tone ?? (index % 2 === 0 ? 'coral' : 'blue')) === 'coral' ? palette.bookCoral : palette.bookBlue;
   context.fillStyle = palette.ink[0];
   context.fillRect(pixel(book.x + 1), pixel(book.y + 1), pixel(book.width), pixel(book.height));
-  context.fillStyle = index % 2 === 0 ? palette.bookCoral[0] : palette.bookBlue[0];
+  context.fillStyle = colors[0];
   context.fillRect(pixel(book.x), pixel(book.y), pixel(book.width), pixel(book.height));
-  context.fillStyle = index % 2 === 0 ? palette.bookCoral[1] : palette.bookBlue[1];
+  context.fillStyle = colors[1];
   context.fillRect(pixel(book.x), pixel(book.y), pixel(book.width), Math.min(2, pixel(book.height)));
   context.fillStyle = palette.paper[2];
   context.fillRect(pixel(book.x + book.width - 1), pixel(book.y + 1), 1, Math.max(1, pixel(book.height - 2)));
@@ -507,14 +533,16 @@ const drawDesk = (context: DrawContext, room: LibraryRoom) => {
   drawPixelLine(context, x + Math.floor(width * 0.2) + 8, y + 19, x + Math.floor(width * 0.2) + 18, y + 19, palette.paper[0]);
   drawPixelLine(context, x + Math.floor(width * 0.2) + 8, y + 23, x + Math.floor(width * 0.2) + 16, y + 23, palette.paper[0]);
   drawSteppedLine(context, x + Math.floor(width * 0.2) + 18, y + 8, x + Math.floor(width * 0.2) + 10, y + 18, palette.ink[1]);
-  context.fillStyle = palette.paper[0];
-  context.fillRect(x + width - 29, y + 15, 18, 5);
-  context.fillStyle = palette.paper[3];
-  context.fillRect(x + width - 26, y + 12, 12, 4);
-  context.fillRect(x + width - 23, y + 10, 6, 2);
-  context.fillStyle = palette.timber[0];
-  context.fillRect(x + width - 21, y + 20, 2, 13);
-  context.fillRect(x + width - 25, y + 32, 10, 2);
+  if (!room.ambientObjects?.some(object => object.kind === 'tea')) {
+    context.fillStyle = palette.paper[0];
+    context.fillRect(x + width - 29, y + 15, 18, 5);
+    context.fillStyle = palette.paper[3];
+    context.fillRect(x + width - 26, y + 12, 12, 4);
+    context.fillRect(x + width - 23, y + 10, 6, 2);
+    context.fillStyle = palette.timber[0];
+    context.fillRect(x + width - 21, y + 20, 2, 13);
+    context.fillRect(x + width - 25, y + 32, 10, 2);
+  }
   context.fillStyle = palette.timber[0];
   context.fillRect(x + 10, y + height - 7, width - 20, 2);
   context.fillStyle = palette.paper[1];
@@ -525,7 +553,7 @@ const drawDesk = (context: DrawContext, room: LibraryRoom) => {
   context.fillRect(x + width - 11, y + height, 6, 3);
 };
 
-const drawShelf = (context: DrawContext, shelf: LibraryShelf) => {
+const drawShelf = (context: DrawContext, shelf: LibraryShelf, drawFrame = true) => {
   const rect = shelf.visualRect;
   const x = pixel(rect.x);
   const y = pixel(rect.y);
@@ -533,18 +561,24 @@ const drawShelf = (context: DrawContext, shelf: LibraryShelf) => {
   const height = pixel(rect.height);
   const frontDepth = shelf.variant === 'wide-low' ? 7 : shelf.variant === 'compact' ? 6 : 9;
   const hasRaisedCap = shelf.variant === 'narrow-tall' || shelf.variant === 'endcap';
-  drawWoodBlock(context, rect, frontDepth);
+  if (drawFrame) drawWoodBlock(context, rect, frontDepth);
 
+  const horizontalInset = shelf.variant === 'wide-low' || shelf.variant === 'endcap' ? 8 : 9;
+  const left = x + horizontalInset;
+  const right = x + width - horizontalInset;
   const rows = [...new Set(shelf.slots.map((slot) => pixel(slot.rect.y)))];
   for (const rowY of rows) {
     const rowSlots = shelf.slots.filter((slot) => pixel(slot.rect.y) === rowY);
-    const left = Math.min(...rowSlots.map((slot) => pixel(slot.rect.x)));
-    const right = Math.max(...rowSlots.map((slot) => pixel(slot.rect.x + slot.rect.width)));
     const rowHeight = Math.max(...rowSlots.map((slot) => pixel(slot.rect.height)));
     context.fillStyle = palette.timber[0];
     context.fillRect(left - 1, rowY - 1, right - left + 2, rowHeight + 2);
-    context.fillStyle = palette.ink[1];
+    context.fillStyle = palette.recess[1];
     context.fillRect(left, rowY, right - left, rowHeight);
+    context.fillStyle = palette.recess[0];
+    context.fillRect(left, rowY, right - left, 3);
+    context.fillRect(left, rowY, 2, rowHeight);
+    context.fillStyle = palette.recess[2];
+    context.fillRect(left + 2, rowY + rowHeight - 2, right - left - 2, 2);
     context.fillStyle = palette.timber[0];
     for (let markX = left + 8; markX < right - 2; markX += 17) {
       context.fillRect(markX, rowY + rowHeight - 3, 7, 1);
@@ -554,6 +588,8 @@ const drawShelf = (context: DrawContext, shelf: LibraryShelf) => {
     context.fillStyle = palette.timber[3];
     context.fillRect(left - 1, rowY + rowHeight, right - left + 2, 1);
   }
+
+  if (!drawFrame) return;
 
   context.fillStyle = palette.timber[3];
   context.fillRect(x + 2, y + 1, width - 4, hasRaisedCap ? 3 : 2);
@@ -579,12 +615,10 @@ const drawShelf = (context: DrawContext, shelf: LibraryShelf) => {
     }
   }
   if (shelf.variant === 'endcap') {
-    context.fillStyle = palette.green[2];
+    context.fillStyle = palette.timber[1];
     context.fillRect(x + width - 7, y + 5, 5, height - 12);
-    context.fillStyle = palette.green[3];
+    context.fillStyle = palette.timber[3];
     context.fillRect(x + width - 7, y + 5, 1, height - 13);
-    context.fillRect(x + width - 6, y + 8, 3, 2);
-    context.fillRect(x + width - 6, y + height - 15, 3, 2);
   }
   if (shelf.variant === 'wide-low') {
     context.fillStyle = palette.bookBlue[1];
@@ -601,30 +635,37 @@ const drawShelf = (context: DrawContext, shelf: LibraryShelf) => {
   }
 };
 
+const enclosingRect = (rects: readonly LibraryRect[]): LibraryRect => {
+  const x = Math.min(...rects.map(rect => rect.x));
+  const y = Math.min(...rects.map(rect => rect.y));
+  return { x, y, width: Math.max(...rects.map(rect => rect.x + rect.width)) - x,
+    height: Math.max(...rects.map(rect => rect.y + rect.height)) - y };
+};
+
+const drawShelfGroup = (context: DrawContext, shelves: readonly LibraryShelf[], rect: LibraryRect) => {
+  if (shelves.length === 1) {
+    drawShelf(context, shelves[0]);
+    return;
+  }
+  drawWoodBlock(context, rect, 7);
+  for (const shelf of shelves) drawShelf(context, shelf, false);
+  fillRect(context, { x: rect.x + 2, y: rect.y + 1, width: rect.width - 4, height: 2 }, palette.timber[3]);
+  for (const x of [rect.x + 4, rect.x + rect.width - 9]) {
+    fillRect(context, { x, y: rect.y + rect.height, width: 5, height: 3 }, palette.timber[0]);
+  }
+  for (const shelf of shelves.slice(1)) {
+    fillRect(context, { x: shelf.visualRect.x - 2, y: rect.y + 5, width: 4, height: rect.height - 12 }, palette.timber[1]);
+    fillRect(context, { x: shelf.visualRect.x - 2, y: rect.y + 5, width: 1, height: rect.height - 12 }, palette.timber[3]);
+  }
+};
+
 const drawPlacedBook = (
   context: DrawContext,
   room: LibraryRoom,
   book: LibraryPlacedBook,
 ) => {
-  const slot = room.shelves.flatMap((shelf) => shelf.slots).find((item) => item.id === book.slotId);
-  if (!slot) return;
-  const rect = slot.rect;
-  const colors = [palette.bookCoral, palette.bookBlue, palette.bookSage][Math.abs(book.slotId) % 3];
-  const x = pixel(rect.x);
-  const y = pixel(rect.y);
-  const width = Math.max(2, pixel(rect.width));
-  const height = Math.max(2, pixel(rect.height));
-  context.fillStyle = palette.ink[0];
-  context.fillRect(x + 1, y + 1, width, height);
-  context.fillStyle = colors[0];
-  context.fillRect(x, y, width, height);
-  context.fillStyle = colors[1];
-  context.fillRect(x, y, width, 1);
-  context.fillRect(x, y + height - 1, width, 1);
-  context.fillStyle = palette.paper[2];
-  context.fillRect(x + width - 1, y + 1, 1, Math.max(1, height - 2));
-  context.fillStyle = palette.paper[3];
-  if (width > 2) context.fillRect(x + 1, y + Math.floor(height / 2), width - 2, 1);
+  const rect = getLibraryPlacedBookRect(room, book);
+  if (rect) drawLibraryBookSpine(context,rect,book);
 };
 
 const drawReadingTable = (context: DrawContext, rect: LibraryRect) => {
@@ -662,22 +703,41 @@ const drawBeanbag = (context: DrawContext, rect: LibraryRect) => {
   const y = pixel(rect.y);
   const width = pixel(rect.width);
   const height = pixel(rect.height);
-  context.fillStyle = palette.ink[0];
-  context.fillRect(x + 8, y + 2, width - 16, height - 1);
-  context.fillRect(x + 3, y + 8, width - 6, height - 12);
-  context.fillRect(x, y + 16, width, height - 20);
-  context.fillStyle = palette.lavender[0];
-  context.fillRect(x + 8, y + 3, width - 16, height - 5);
-  context.fillRect(x + 3, y + 9, width - 6, height - 14);
-  context.fillRect(x + 1, y + 17, width - 2, height - 22);
-  context.fillStyle = palette.lavender[1];
-  context.fillRect(x + 10, y + 5, width - 20, 4);
-  context.fillRect(x + 5, y + 10, 5, height - 19);
-  context.fillStyle = palette.bookCoral[1];
-  context.fillRect(x + Math.floor(width / 2) - 1, y + 9, 2, height - 14);
-  context.fillRect(x + 7, y + height - 8, width - 14, 2);
+  context.fillStyle = palette.timber[0];
+  context.fillRect(x + 7, y + height - 5, 4, 5);
+  context.fillRect(x + width - 11, y + height - 5, 4, 5);
   context.fillStyle = palette.ink[1];
-  context.fillRect(x + 6, y + height - 3, width - 12, 2);
+  context.fillRect(x + 6, y + 2, width - 12, height - 8);
+  context.fillRect(x + 3, y + 6, width - 6, height - 11);
+  context.fillStyle = palette.lavender[0];
+  context.fillRect(x + 7, y + 3, width - 14, 15);
+  context.fillRect(x + 4, y + 7, width - 8, 15);
+  context.fillStyle = palette.lavender[1];
+  context.fillRect(x + 8, y + 4, width - 16, 3);
+  context.fillRect(x + 6, y + 8, 2, 9);
+  context.fillStyle = palette.ink[1];
+  context.fillRect(x + 8, y + 18, width - 16, 2);
+  context.fillStyle = palette.lavender[1];
+  context.fillRect(x + 8, y + 20, width - 16, height - 28);
+  context.fillStyle = palette.lavender[0];
+  context.fillRect(x + 8, y + height - 8, width - 16, 4);
+  context.fillStyle = palette.ink[1];
+  context.fillRect(x + 7, y + height - 4, width - 14, 1);
+};
+
+const drawBeanbagArms = (context: DrawContext, rect: LibraryRect) => {
+  const x = pixel(rect.x);
+  const y = pixel(rect.y);
+  const width = pixel(rect.width);
+  const height = pixel(rect.height);
+  for (const armX of [x + 1, x + width - 9]) {
+    context.fillStyle = palette.ink[1];
+    context.fillRect(armX, y + 15, 8, height - 19);
+    context.fillStyle = palette.lavender[0];
+    context.fillRect(armX + 1, y + 16, 6, height - 21);
+    context.fillStyle = palette.lavender[1];
+    context.fillRect(armX + 1, y + 16, 6, 3);
+  }
 };
 
 const drawVase = (context: DrawContext, rect: LibraryRect) => {
@@ -705,23 +765,6 @@ const drawVase = (context: DrawContext, rect: LibraryRect) => {
   context.fillRect(x, y + height - 2, width, 2);
 };
 
-const getActionProgress = (scene: LibraryScene) => {
-  if (!scene.action || scene.reducedMotion) return null;
-  const elapsed = Math.max(0, scene.timeMs - scene.action.startedAt);
-  return elapsed < 500 ? elapsed / 500 : null;
-};
-
-const getBearFeet = (scene: LibraryScene, room?: LibraryRoom): LibraryPoint => {
-  const beanbag = room?.readingArea.beanbagVisualRect;
-  if (scene.seated && beanbag) {
-    return {
-      x: beanbag.x + beanbag.width / 2,
-      y: beanbag.y + beanbag.height - 4,
-    };
-  }
-  return scene.player.position;
-};
-
 const drawPixelOval = (context: DrawContext, x: number, y: number, width: number, height: number, color: string) => {
   context.fillStyle = color;
   for (let row = 0; row < height; row += 1) {
@@ -731,135 +774,15 @@ const drawPixelOval = (context: DrawContext, x: number, y: number, width: number
   }
 };
 
-const drawBearPart = (context: DrawContext, x: number, y: number, width: number, height: number) => {
-  drawPixelOval(context, x, y, width, height, palette.bear[0]);
-  drawPixelOval(context, x + 1, y + 1, width - 2, height - 2, palette.bear[2]);
-};
-
-const drawSatchel = (context: DrawContext, x: number, y: number, facing: LibraryScene['player']['facing']) => {
-  const left = facing === 'left';
-  const bagX = x + (left ? 1 : 22);
-  drawSteppedLine(context, x + (left ? 23 : 9), y + 25, bagX + 4, y + 32, palette.bear[0]);
-  drawSteppedLine(context, x + (left ? 22 : 10), y + 25, bagX + 4, y + 31, palette.paper[3]);
-  context.fillStyle = palette.bear[0];
-  context.fillRect(bagX + 3, y + 27, 4, 5);
-  drawPixelOval(context, bagX, y + 29, 10, 8, palette.bear[0]);
-  context.fillStyle = palette.paper[3];
-  context.fillRect(bagX + 4, y + 28, 2, 3);
-  drawPixelOval(context, bagX + 1, y + 30, 8, 6, palette.paper[3]);
-  context.fillStyle = palette.paper[1];
-  context.fillRect(bagX + 3, y + 32, 1, 3);
-  context.fillRect(bagX + 6, y + 33, 1, 2);
-  context.fillStyle = palette.bear[0];
-  context.fillRect(bagX + 3, y + 36, 1, 2);
-  context.fillRect(bagX + 6, y + 36, 1, 2);
-};
-
-const drawCarriedBook = (context: DrawContext, x: number, y: number) => {
-  context.fillStyle = palette.ink[0];
-  context.fillRect(x - 1, y - 1, 10, 8);
-  context.fillStyle = palette.bookBlue[0];
-  context.fillRect(x, y, 8, 6);
-  context.fillStyle = palette.bookBlue[1];
-  context.fillRect(x + 1, y, 6, 2);
-  context.fillStyle = palette.paper[3];
-  context.fillRect(x + 6, y + 2, 1, 3);
-};
-
-const drawBear = (context: DrawContext, scene: LibraryScene, room: LibraryRoom) => {
-  const { player } = scene;
-  const feet = getBearFeet(scene, room);
-  const x = pixel(feet.x - 16);
-  const y = pixel(feet.y - 38);
-  const safeTime = Number.isFinite(scene.timeMs) ? Math.max(0, scene.timeMs) : 0;
-  const walking = player.isWalking && !scene.reducedMotion && !scene.seated;
-  const step = walking ? Math.floor(safeTime / 140) % 2 : 0;
-  const facing = scene.seated ? 'down' : player.facing;
-  const sideFacing = facing === 'left' || facing === 'right';
-  const left = facing === 'left';
-  const actionProgress = getActionProgress(scene);
-  const showCarriedBook = Boolean(scene.carriedDraft)
-    && !(scene.action?.kind === 'receive' && actionProgress !== null);
-
-  const leftLift = walking && step === 1 ? 1 : 0;
-  const rightLift = walking && step === 0 ? 1 : 0;
-  drawBearPart(context, x + 5, y + 30 - leftLift, 9, 8);
-  drawBearPart(context, x + 18, y + 30 - rightLift, 9, 8);
-  drawBearPart(context, x + 3, y + 21, 26, 14);
-  if (facing === 'up') drawBearPart(context, x + 13, y + 29, 6, 5);
-
-  const armSwing = walking ? (step === 0 ? -1 : 1) : 0;
-  if (showCarriedBook) {
-    if (sideFacing) {
-      drawBearPart(context, x + (left ? 1 : 26), y + 24, 5, 8);
-      drawBearPart(context, x + (left ? 4 : 20), y + 26, 8, 7);
-    } else {
-      drawBearPart(context, x + 5, y + 25, 7, 8);
-      drawBearPart(context, x + 20, y + 25, 7, 8);
-    }
-  } else {
-    drawBearPart(context, x + 1, y + 23 + armSwing, 7, 10);
-    drawBearPart(context, x + 24, y + 23 - armSwing, 7, 10);
-  }
-  context.fillStyle = palette.bear[3];
-  context.fillRect(x + 7, y + 25, 2, 5);
-
-  const headShift = left ? -1 : facing === 'right' ? 1 : 0;
-  drawBearPart(context, x + 2 + headShift, y + 1, 9, 10);
-  drawBearPart(context, x + 21 + headShift, y + 1, 9, 10);
-  drawPixelOval(context, x + 4 + headShift, y + 3, 5, 5, palette.bear[3]);
-  drawPixelOval(context, x + 23 + headShift, y + 3, 5, 5, palette.bear[3]);
-  drawBearPart(context, x + 1 + headShift, y + 5, 30, 20);
-  context.fillStyle = palette.bear[3];
-  context.fillRect(x + 7 + headShift, y + 7, 10, 1);
-  context.fillRect(x + 4 + headShift, y + 10, 1, 5);
-  if (facing !== 'up') {
-    context.fillStyle = palette.bear[0];
-    const nearEye = left ? 7 : facing === 'right' ? 13 : 9;
-    const farEye = left ? 18 : facing === 'right' ? 24 : 21;
-    context.fillRect(x + nearEye, y + 14, 2, 2);
-    context.fillRect(x + farEye, y + 14, 2, 2);
-  }
-
-  const tailX = facing === 'right' ? x - 2 : x + 26;
-  context.fillStyle = palette.bear[0];
-  context.fillRect(tailX + 2, y + 20, 5, 8);
-  context.fillRect(tailX, y + 23, 8, 3);
-  context.fillStyle = palette.scarf[1];
-  context.fillRect(tailX + 3, y + 21, 2, 6);
-  context.fillRect(tailX + 1, y + 24, 6, 1);
-  drawPixelOval(context, x + 3, y + 22, 26, 6, palette.bear[0]);
-  drawPixelOval(context, x + 4, y + 23, 24, 3, palette.scarf[0]);
-  context.fillStyle = palette.scarf[1];
-  context.fillRect(x + 7, y + 23, 18, 2);
-  drawSatchel(context, x, y, showCarriedBook && sideFacing ? (left ? 'right' : 'left') : facing);
-
-  if (scene.seated) {
-    drawBearPart(context, x + 3, y + 30, 11, 8);
-    drawBearPart(context, x + 18, y + 30, 11, 8);
-    drawPixelOval(context, x + 6, y + 33, 5, 3, palette.bear[1]);
-    drawPixelOval(context, x + 21, y + 33, 5, 3, palette.bear[1]);
-  }
-  if (showCarriedBook && facing !== 'up') {
-    const bookX = sideFacing ? x + (left ? 0 : 24) : x + 12;
-    drawCarriedBook(context, bookX, y + 27);
-    if (sideFacing) {
-      drawBearPart(context, bookX + (left ? -1 : 6), y + 28, 3, 4);
-      drawBearPart(context, bookX + (left ? 6 : -3), y + 29, 5, 5);
-    } else {
-      drawBearPart(context, bookX - 2, y + 29, 4, 5);
-      drawBearPart(context, bookX + 7, y + 29, 4, 5);
-    }
-  }
-};
-
 const findShelfForBook = (room: LibraryRoom, book: LibraryPlacedBook) =>
   room.shelves.find((shelf) => shelf.slots.some((slot) => slot.id === book.slotId));
 
 const getEntityRect = (room: LibraryRoom, id: string): LibraryRect | null => {
-  if (id === room.desk.id) return room.desk.visualRect;
+  if (id === room.desk.id) return room.desk.clerk?.visualRect ?? room.desk.visualRect;
   if (id === room.failureBoard?.id) return room.failureBoard.visualRect;
   if (id === room.competitionBoard?.id) return room.competitionBoard.visualRect;
+  const ambient = room.ambientObjects?.find(object => object.id === id);
+  if (ambient) return ambient.visualRect;
   if (id === 'reading-nook') return room.readingArea.beanbagVisualRect ?? room.readingArea.rug;
   const shelf = room.shelves.find((item) => item.id === id);
   if (shelf) return shelf.visualRect;
@@ -900,10 +823,10 @@ const drawSelectedSlot = (context: DrawContext, room: LibraryRoom, selectedSlotI
 };
 
 const isPlayerBehind = (scene: LibraryScene, rect: LibraryRect, floorY: number) => {
-  if (scene.seated || scene.player.position.y >= floorY) return false;
-  const left = scene.player.position.x - 18;
-  const right = scene.player.position.x + 18;
-  const top = scene.player.position.y - 38;
+  if (scene.seated || scene.ambientState?.benchObjectId || scene.player.position.y >= floorY) return false;
+  const left = scene.player.position.x + LIBRARY_BEAR_BOUNDS.left;
+  const right = scene.player.position.x + LIBRARY_BEAR_BOUNDS.right;
+  const top = scene.player.position.y + LIBRARY_BEAR_BOUNDS.top;
   return right > rect.x
     && left < rect.x + rect.width
     && scene.player.position.y > rect.y
@@ -923,7 +846,7 @@ const drawWithPlayerOcclusion = (
   layer.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
   draw(layer);
   context.save();
-  context.globalAlpha = 0.3;
+  context.globalAlpha = 0.28;
   context.drawImage(layer.canvas, 0, 0);
   context.restore();
 };
@@ -938,20 +861,27 @@ const createDepthEntities = (
       id: room.desk.id,
       floorY: room.desk.footCollider.y + room.desk.footCollider.height,
       shadow: (context) => drawContactShadow(context, room.desk.footCollider),
-      body: (context) => drawDesk(context, room),
+      body: (context) => {
+        drawLibraryClerkBody(context, room, scene);
+        drawDesk(context, room);
+        drawLibraryClerkHands(context, room, scene);
+      },
     },
     {
       id: 'player',
-      floorY: scene.player.position.y,
+      floorY: getLibraryBearPose(scene, room).feet.y,
       shadow: (context) => {
-        if (scene.seated) return;
-        const feet = getBearFeet(scene, room);
+        if (scene.seated || getLibraryBearPose(scene,room).benchSeated) return;
+        const feet = getLibraryBearPose(scene, room).feet;
         context.save();
         context.globalAlpha = 0.25;
         drawPixelOval(context, pixel(feet.x - 12), pixel(feet.y - 3), 24, 5, palette.bear[0]);
         context.restore();
       },
-      body: (context) => drawBear(context, scene, room),
+      body: (context) => {
+        if (getLibraryBearPose(scene,room).facing === 'up') drawBookTransfer(context,room,scene);
+        drawLibraryCharacter(context,scene,room);
+      },
     },
   ];
 
@@ -961,9 +891,16 @@ const createDepthEntities = (
     entities.push({
       id: board.id,
       floorY,
-      shadow: context => drawContactShadow(context, board.footCollider),
-      body: context => drawWithPlayerOcclusion(context, occlusionLayer,
-        isPlayerBehind(scene, board.visualRect, floorY), target => drawCompetitionBoard(target, board.visualRect)),
+      shadow: () => undefined,
+      body: context => drawWithPlayerOcclusion(
+        context,
+        occlusionLayer,
+        isPlayerBehind(scene, board.visualRect, floorY),
+        target => {
+          drawContactShadow(target, board.footCollider);
+          drawCompetitionBoard(target, board.visualRect);
+        },
+      ),
     });
   }
 
@@ -976,7 +913,9 @@ const createDepthEntities = (
     },
     {
       id: 'reading-bench',
-      floorY: room.readingArea.benchFootCollider.y + room.readingArea.benchFootCollider.height,
+      floorY: getLibraryBearPose(scene, room).benchSeated
+        ? getLibraryBearPose(scene, room).feet.y - 1
+        : room.readingArea.benchFootCollider.y + room.readingArea.benchFootCollider.height,
       shadow: (context) => drawContactShadow(context, room.readingArea.benchFootCollider),
       body: (context) => drawBench(context, room.readingArea.benchVisualRect),
     },
@@ -986,23 +925,46 @@ const createDepthEntities = (
     const beanbagCollider = room.readingArea.beanbagFootCollider;
     entities.push({
       id: 'reading-beanbag',
-      floorY: beanbagCollider.y + beanbagCollider.height,
+      floorY: scene.seated ? getLibraryBearPose(scene, room).feet.y - 1 : beanbagCollider.y + beanbagCollider.height,
       shadow: (context) => drawContactShadow(context, beanbagCollider),
       body: (context) => drawBeanbag(context, beanbagRect),
     });
+    entities.push({
+      id: 'reading-beanbag-arms',
+      floorY: scene.seated ? getLibraryBearPose(scene, room).feet.y + 1 : beanbagCollider.y + beanbagCollider.height + 0.1,
+      shadow: () => undefined,
+      body: context => drawBeanbagArms(context, beanbagRect),
+    });
   }
 
+  const shelfGroups = new Map<string, LibraryShelf[]>();
   for (const shelf of room.shelves) {
-    const floorY = shelf.footCollider.y + shelf.footCollider.height;
+    const id = shelf.visualGroupId ?? shelf.id;
+    const group = shelfGroups.get(id) ?? [];
+    group.push(shelf);
+    shelfGroups.set(id, group);
+  }
+  for (const [id, shelves] of shelfGroups) {
+    const visualRect = enclosingRect(shelves.map(shelf => shelf.visualRect));
+    const footCollider = enclosingRect(shelves.map(shelf => shelf.footCollider));
+    const floorY = footCollider.y + footCollider.height;
     entities.push({
-      id: shelf.id,
+      id,
       floorY,
-      shadow: (context) => drawContactShadow(context, shelf.footCollider),
+      shadow: (context) => drawContactShadow(context, footCollider),
       body: (context) => drawWithPlayerOcclusion(
         context,
         occlusionLayer,
-        isPlayerBehind(scene, shelf.visualRect, floorY),
-        (target) => drawShelf(target, shelf),
+        isPlayerBehind(scene, visualRect, floorY),
+        (target) => {
+          drawShelfGroup(target, shelves, visualRect);
+          for (const book of scene.placedBooks) {
+            if (!shelves.some(shelf => findShelfForBook(room, book)?.id === shelf.id)) continue;
+            const progress = getLibraryActionProgress(scene);
+            if (scene.action?.kind === 'place' && scene.action.slotId === book.slotId && progress !== null && progress < 0.8) continue;
+            drawPlacedBook(target, room, book);
+          }
+        },
       ),
     });
   }
@@ -1025,51 +987,83 @@ const createDepthEntities = (
     });
   }
 
-  for (const book of scene.placedBooks) {
-    const shelf = findShelfForBook(room, book);
-    if (!shelf) continue;
-    const actionProgress = getActionProgress(scene);
-    if (scene.action?.kind === 'place' && scene.action.slotId === book.slotId && actionProgress !== null) continue;
+  const ambientObjects = room.ambientObjects ?? [];
+  if (!ambientObjects.some(object => object.kind === 'lamp')) {
+    entities.push({ id: 'reading-lamp', floorY: room.readingArea.lampRect.y + room.readingArea.lampRect.height,
+      shadow: () => undefined, body: context => drawLamp(context, room.readingArea.lampRect) });
+  }
+  for (const object of ambientObjects) {
+    if (object.kind === 'bench') continue;
+    const tabletop = object.kind === 'tea';
+    const support = room.readingArea.tableFootCollider;
+    const floorY = support.y + support.height;
     entities.push({
-      id: `placed-book:${book.slotId}`,
-      floorY: shelf.footCollider.y + shelf.footCollider.height + 0.25,
+      id: object.id,
+      floorY: tabletop ? floorY + 0.75 : object.visualRect.y + object.visualRect.height,
       shadow: () => undefined,
-      body: (context) => drawWithPlayerOcclusion(
-        context,
-        occlusionLayer,
-        isPlayerBehind(scene, shelf.visualRect, shelf.footCollider.y + shelf.footCollider.height),
-        (target) => drawPlacedBook(target, room, book),
-      ),
+      body: context => object.kind === 'lamp'
+        ? drawLamp(context, object.visualRect, scene.ambientState?.lampOn !== false, object.actionPoint)
+        : drawLibraryAmbientObject(context, object, scene, room),
     });
+  }
+  if (scene.ambientAction) {
+    const object = ambientObjects.find(object => object.id === scene.ambientAction?.objectId);
+    const tabletop = object?.kind === 'tea';
+    const pose = getLibraryBearPose(scene,room);
+    const support = room.readingArea.tableFootCollider;
+    const supportBottom = support.y + support.height;
+    entities.push({ id: 'ambient-tool',
+      floorY: tabletop ? Math.max(pose.feet.y + 0.1, supportBottom + 1) : pose.feet.y + (pose.facing === 'up' ? -0.1 : 0.1),
+      shadow: () => undefined, body: context => drawLibraryAmbientTool(context,room,scene) });
   }
 
   return entities.sort((a, b) => a.floorY - b.floorY || a.id.localeCompare(b.id));
 };
 
+const drawBookTransfer = (context: DrawContext, room: LibraryRoom, scene: LibraryScene) => {
+  if (room.desk.clerk && scene.action?.kind === 'receive') return;
+  const motion = getLibraryBookMotion(scene,room);
+  if (!motion?.visible || motion.inHands) return;
+  const book = scene.carriedDraft ?? scene.placedBooks.find(book => book.slotId === scene.action?.slotId);
+  drawLibraryCarryBook(context,motion.center,motion.turn,book,motion);
+};
+
 const drawBookAction = (context: DrawContext, room: LibraryRoom, scene: LibraryScene) => {
-  const progress = getActionProgress(scene);
-  if (progress === null || !scene.action) return;
-  const eased = 1 - Math.pow(1 - progress, 3);
-  const feet = getBearFeet(scene, room);
-  const side = scene.player.facing === 'left' ? -12 : scene.player.facing === 'right' ? 12 : 0;
-  const hand = { x: feet.x + side, y: feet.y - 8 };
-  let start = hand;
-  let end = hand;
-  if (scene.action.kind === 'receive') {
-    start = {
-      x: room.desk.visualRect.x + room.desk.visualRect.width * 0.72,
-      y: room.desk.visualRect.y + 15,
-    };
-  } else {
-    const slot = room.shelves
-      .flatMap((shelf) => shelf.slots)
-      .find((item) => item.id === scene.action?.slotId);
-    if (!slot) return;
-    end = { x: slot.rect.x + slot.rect.width / 2, y: slot.rect.y + slot.rect.height / 2 };
+  const motion = getLibraryBookMotion(scene, room);
+  if (!motion) return;
+  if (getLibraryBearPose(scene,room).facing !== 'up') drawBookTransfer(context,room,scene);
+  const progress = getLibraryActionProgress(scene);
+  if (!motion.landed || progress === null) return;
+  const slot = room.shelves.flatMap(shelf => shelf.slots).find(slot => slot.id === scene.action?.slotId);
+  if (!slot) return;
+  const spread = Math.floor((progress - 0.8) * 30);
+  const cx = pixel(slot.rect.x + slot.rect.width / 2);
+  const cy = pixel(slot.rect.y + slot.rect.height / 2);
+  context.fillStyle = palette.paper[3];
+  for (const [dx, dy] of [[-1,-1],[1,-1],[-1,1],[1,1]]) {
+    context.fillRect(cx + dx * (5 + spread), cy + dy * (4 + spread), 2, 1);
+    context.fillRect(cx + dx * (5 + spread), cy + dy * (4 + spread) - 1, 1, 3);
   }
-  const x = pixel(start.x + (end.x - start.x) * eased - 4);
-  const y = pixel(start.y + (end.y - start.y) * eased - 3 - Math.sin(progress * Math.PI) * 4);
-  drawCarriedBook(context, x, y);
+};
+
+const drawLivingLight = (context: DrawContext, room: LibraryRoom, scene: LibraryScene) => {
+  if (scene.reducedMotion) return;
+  const window = room.readingArea.windowRect;
+  const phase = scene.timeMs / 6500;
+  context.save();
+  context.globalAlpha = 0.12 + Math.sin(phase) * 0.025;
+  context.fillStyle = palette.paper[3];
+  const top = pixel(room.walkableBounds.y + 3);
+  for (let row = 0; row < 4; row += 1) {
+    context.fillRect(pixel(window.x - 12 - row * 12), top + row * 12, pixel(window.width + row * 6), 8);
+  }
+  context.globalAlpha = 0.4;
+  for (let dot = 0; dot < 3; dot += 1) {
+    const x = window.x + 8 + dot * 16 + Math.round(Math.sin(phase + dot) * 2);
+    const y = top + 9 + dot * 12 + Math.round(Math.cos(phase + dot) * 3);
+    context.fillRect(pixel(x), pixel(y), 1, 1);
+  }
+  context.restore();
 };
 
 export const createLibraryRenderer = (
@@ -1097,20 +1091,44 @@ export const createLibraryRenderer = (
   if (!occlusionContext) throw new Error('가림 Canvas 2D context를 사용할 수 없습니다.');
   occlusionContext.imageSmoothingEnabled = false;
 
+  const entranceCanvas = document.createElement('canvas');
+  entranceCanvas.width = LOGICAL_WIDTH;
+  entranceCanvas.height = LOGICAL_HEIGHT;
+  const entranceContext = entranceCanvas.getContext('2d');
+  if (!entranceContext) throw new Error('출입구 Canvas 2D context를 사용할 수 없습니다.');
+  entranceContext.imageSmoothingEnabled = false;
+  drawEntranceForeground(entranceContext, room);
+
   let disposed = false;
+  let packedBooks: LibraryScene['placedBooks'] | undefined;
+  let packedRoom = room;
 
   return {
     draw: (scene) => {
       if (disposed) return;
+      if (packedBooks !== scene.placedBooks) {
+        packedBooks = scene.placedBooks;
+        packedRoom = resolveLibraryBookRoom(room, scene.placedBooks);
+      }
+      const currentRoom = resolveLibraryCatRoom(packedRoom, scene.catState, scene.player);
       context.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
       context.drawImage(staticCanvas, 0, 0);
+      drawLivingLight(context, room, scene);
+      drawLibraryAmbientLight(context, room, scene);
       if (room.failureBoard) drawFailureBoardNotes(context, room.failureBoard.visualRect, scene.boardNoteCount);
-      const entities = createDepthEntities(room, scene, occlusionContext);
+      const entities = createDepthEntities(currentRoom, scene, occlusionContext);
       for (const entity of entities) entity.shadow(context);
       for (const entity of entities) entity.body(context);
-      drawBookAction(context, room, scene);
-      drawSelectedSlot(context, room, scene.selectedSlotId);
-      drawCue(context, room, scene);
+      drawBookAction(context, currentRoom, scene);
+      drawLibraryClerkTransfer(context, currentRoom, scene);
+      if (room.exit) {
+        context.save();
+        context.globalAlpha = 0.55;
+        context.drawImage(entranceCanvas, 0, 0);
+        context.restore();
+      }
+      drawSelectedSlot(context, currentRoom, scene.selectedSlotId);
+      drawCue(context, currentRoom, scene);
     },
     dispose: () => {
       disposed = true;
@@ -1118,6 +1136,8 @@ export const createLibraryRenderer = (
       staticCanvas.height = 0;
       occlusionCanvas.width = 0;
       occlusionCanvas.height = 0;
+      entranceCanvas.width = 0;
+      entranceCanvas.height = 0;
     },
   };
 };

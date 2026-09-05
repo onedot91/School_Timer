@@ -8,6 +8,11 @@ export const STUDENT_SETTINGS_SYNC_INTERVAL_MS: Partial<Record<StudentSyncView, 
 };
 
 export const STUDENT_FOREGROUND_SYNC_COOLDOWN_MS = 2_000;
+export const STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS = 10_000;
+
+export const isStudentSettingsSnapshotFresh = (updatedAt: string | null | undefined, minimumUpdatedAt: string | null) => (
+  minimumUpdatedAt === null || (typeof updatedAt === 'string' && Date.parse(updatedAt) >= Date.parse(minimumUpdatedAt))
+);
 
 export type StudentSettingsSnapshot = {
   studentNumber: number;
@@ -51,6 +56,17 @@ export const storeStudentSettingsSnapshot = (snapshot: StudentSettingsSnapshot) 
   try {
     window.localStorage.setItem(STUDENT_SETTINGS_CACHE_KEY, JSON.stringify(snapshot));
     return true;
+  } catch {
+    return false;
+  }
+};
+
+export const storeStudentProfileSnapshot = (studentNumber: number, studentLife: unknown) => {
+  try {
+    const snapshot = loadStudentSettingsSnapshot(studentNumber);
+    if (!snapshot) return false;
+    // A partial receipt must not advance the full-row synchronization timestamp.
+    return storeStudentSettingsSnapshot({ ...snapshot, value: { ...snapshot.value, studentLife } });
   } catch {
     return false;
   }

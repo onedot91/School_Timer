@@ -62,6 +62,7 @@ export default function StudentTodayFriendPage({
   const loadMission = useCallback(async () => {
     setIsLoading(true);
     setLoadError('');
+    setMission(null);
     setPreviewGenre(null);
     try {
       setMission(await loadStudentTodayFriendMission(studentNumber, dateKey));
@@ -128,6 +129,14 @@ export default function StudentTodayFriendPage({
       <main className="student-today-friend-main">
         {isLoading ? <section className="student-today-friend-loading" aria-label="오늘의 친구 불러오는 중"><Clock3 aria-hidden="true" /><p>오늘의 친구를 준비하고 있어요.</p></section> : null}
         {loadError ? <section className="student-today-friend-loading" role="alert"><p>{loadError}</p><button type="button" onClick={() => { void loadMission(); }}><RefreshCw aria-hidden="true" />다시 불러오기</button></section> : null}
+        {!isLoading && !loadError && !mission ? (
+          <section className="student-today-friend-loading" role="status">
+            <Clock3 aria-hidden="true" />
+            <h2>주말에는 오늘의 친구도 쉬어요</h2>
+            <p>오늘의 친구 미션은 월요일부터 금요일까지 만날 수 있어요.</p>
+            <button type="button" onClick={onBack}>미션으로 돌아가기</button>
+          </section>
+        ) : null}
         {displayedMission ? (
           <>
         <TodayFriendPartnerCard

@@ -44,18 +44,21 @@ export const createBookStackMissionEntry = (
 ): BookStackMissionEntry => {
   const current = toRecord(value);
   const currentStudentLife = normalizeStudentLifeState(current.studentLife);
-  const studentLife = addStudentBook(currentStudentLife, input);
+  const studentLife = normalizeStudentLifeState(addStudentBook(currentStudentLife, input));
   const balances = normalizeCurrencyBalances(current.currencyBalances);
   const history = normalizeCurrencyHistory(current.currencyHistory);
   const applied = studentLife.books.length > currentStudentLife.books.length;
+  const placed = applied && studentLife.books.some((book) => (
+    book.id === input.id && book.studentNumber === input.studentNumber && book.librarySlot !== undefined
+  ));
 
-  if (!applied) {
+  if (!placed) {
     return {
-      value: current,
-      studentLife: currentStudentLife,
+      value: applied ? { ...current, studentLife } : current,
+      studentLife,
       balances,
       history,
-      applied: false,
+      applied,
       awarded: false,
       balance: balances[String(input.studentNumber)],
     };

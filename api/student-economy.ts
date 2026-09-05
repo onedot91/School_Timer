@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import {
   AUCTION_ITEM_IDS,
   DEFAULT_CURRENCY_BALANCE,
@@ -182,6 +183,7 @@ const createMutation = (
   action: StudentEconomyApiAction,
   requestId: string,
   createdAt: string,
+  characterDrawRoll?: number,
 ) => {
   const current = asRecord(currentValue);
   const studentKey = String(studentNumber);
@@ -279,6 +281,7 @@ const createMutation = (
     requestId,
     shopCatalog: current.studentShopCatalog,
     stockMarket: current.studentStockMarket,
+    characterDrawRoll,
   });
 
   let nextBalances = { ...balances, [studentKey]: result.wallet };
@@ -376,6 +379,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
 
     const createdAt = new Date().toISOString();
+    const characterDrawRoll = parsed.action.type === 'draw_character' ? randomInt(10) : undefined;
     for (let attempt = 0; attempt < UPDATE_RETRY_LIMIT; attempt += 1) {
       const current = await loadRow(configuration.url, configuration.key);
       if (!current) {
@@ -388,6 +392,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         parsed.action,
         parsed.requestId,
         createdAt,
+        characterDrawRoll,
       );
       const updatedAt = nextUpdatedAt(current.updated_at ?? '');
       const endpoint = `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(current.updated_at ?? '')}&select=id`;

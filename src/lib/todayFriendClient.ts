@@ -100,7 +100,9 @@ const parseMission = (value: unknown): TodayFriendStudentMission => {
 export const loadStudentTodayFriendMission = async (
   studentNumber: number,
   dateKey: string,
-): Promise<TodayFriendStudentMission> => {
+): Promise<TodayFriendStudentMission | null> => {
+  const weekday = new Date(`${dateKey}T12:00:00+09:00`).getUTCDay();
+  if (weekday === 0 || weekday === 6) return null;
   if (appDataMode === 'mock') return getTodayFriendStudentMission(prepareLocalState(dateKey), dateKey, studentNumber);
   return parseMission(await request(`/api/today-friend?dateKey=${encodeURIComponent(dateKey)}`));
 };

@@ -15,6 +15,7 @@ const STUDENT_VIEW_FEATURES: Readonly<Record<string, StudentFeatureReleaseId>> =
   library: 'bookstore',
   'library-bookstore': 'bookstore',
   'library-bookshelf': 'bookstore',
+  'library-failure-board': 'bookstore',
   'store-bank': 'bank',
   'store-securities': 'securities',
   'store-securities-trade': 'securities',

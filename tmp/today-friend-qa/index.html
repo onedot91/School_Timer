@@ -1,0 +1,13 @@
+<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Today Friend weekday QA</title></head><body><div id="root"></div><script type="module">
+const NativeDate=Date;
+window.Date=class extends NativeDate {constructor(...args){super(...(args.length?args:['2026-09-07T03:00:00.000Z']))} static now(){return new NativeDate('2026-09-07T03:00:00.000Z').getTime()}};
+const memory=new Map();
+Object.defineProperty(window,'localStorage',{value:{getItem:key=>memory.get(key)??null,setItem:(key,value)=>memory.set(key,String(value)),removeItem:key=>memory.delete(key)}});
+const nativeFetch=window.fetch.bind(window);
+window.fetch=(input,init)=>{const url=new URL(typeof input==='string'?input:input.url,location.origin);if(url.pathname.startsWith('/api/')||url.origin!==location.origin)throw new Error('QA forbids backend fetch');return nativeFetch(input,init)};
+const {default:React}=await import('react');
+const {createRoot}=await import('react-dom/client');
+const {default:Page}=await import('/src/components/student/StudentTodayFriendPage.tsx');
+await import('/src/index.css');
+createRoot(document.querySelector('#root')).render(React.createElement(Page,{studentNumber:1,profileAssignments:{},onBack:()=>{},onSendRecommendation:async()=>false}));
+</script></body></html>

@@ -215,7 +215,7 @@ test('교사가 추가한 미션은 일일 미션의 가장 앞에 표시된다'
   assert.match(markup, /<h2 id="daily-mission-title">일일 미션<\/h2><p class="student-group-heading-description">\(매일매일 할 수 있는 미션\)<\/p>/);
   assert.match(markup, /<h2 id="weekly-mission-title">주간 미션<\/h2><p class="student-group-heading-description">\(일주일에 한 번 할 수 있는 미션\)<\/p>/);
   assert.match(markup, /실패 전시하기/);
-  assert.match(markup, /읽은 책 쌓기/);
+  assert.match(markup, /책책책 책을 읽읍시다/);
   assert.match(markup, /보상 10고마/);
   assert.match(markup, /ㄱㄴㄷ 게임[\s\S]*?보상 5고마/);
   assert.doesNotMatch(markup, /\d+개|\d+\/\d+ 완료/);
@@ -365,7 +365,7 @@ test('전용 일러스트가 있는 미션 카드는 해당 4대3 이미지를 �
   assert.match(markup, /src="\/mission-illustrations\/number-baseball\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/newspaper-question\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/failure-exhibition\.png"/);
-  assert.match(markup, /src="\/mission-illustrations\/book-stacking\.png"/);
+  assert.match(markup, /src="\/mission-illustrations\/read-books\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/classword-game\.png"/);
   assert.match(markup, /src="\/mission-illustrations\/today-friend\.png"/);
 });

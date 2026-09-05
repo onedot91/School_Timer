@@ -7,6 +7,7 @@ import {
   replaceSnapshotBooksWithAuthoritative,
 } from './canvasLibraryPlacement.js';
 import { normalizeStudentLifeState } from './studentLife.js';
+import { normalizeCurrencyBalances } from './currency.js';
 import { mergeConcurrentCurrencyUpdatesIntoSettings } from './weeklyMission.js';
 
 const requestId = '123e4567-e89b-42d3-a456-426614174000';
@@ -127,7 +128,7 @@ test('새 책 재시도는 같은 명령에만 멱등 성공하고 요청 ID 재
   assert.deepEqual(mismatch, { ok: false, error: { status: 400, code: 'INVALID_LIBRARY_COMMAND' } });
 });
 
-test('기존 자기 책은 중복·보상 없이 배치되고 같은 슬롯 재시도만 성공한다', () => {
+test('기존 자기 책도 등록한 주에 10고마를 받고 같은 슬롯 재시도에는 중복 지급하지 않는다', () => {
   const original = makeBook(10, { studentNumber: 3 });
   const value = { currencyBalances: { 3: 44 }, currencyHistory: { 3: [] }, studentLife: { books: [original] } };
   const command = { action: 'placeLibraryBook', requestId, slotId: 22, book: { kind: 'existing', bookId: original.id } };
@@ -137,20 +138,66 @@ test('기존 자기 책은 중복·보상 없이 배치되고 같은 슬롯 재�
   assert.equal(placed.studentLife.books.length, 1);
   assert.equal(placed.book.librarySlot, 22);
   assert.equal(placed.applied, true);
-  assert.equal(placed.awarded, false);
-  assert.deepEqual(placed.value.currencyBalances, value.currencyBalances);
+  assert.equal(placed.awarded, true);
+  assert.equal(normalizeCurrencyBalances(placed.value.currencyBalances)['3'], 54);
 
   const replay = applyLibraryPlacementCommand(placed.value, 3, command, createdAt);
   assert.equal(replay.ok, true);
   if (!replay.ok) return;
   assert.equal(replay.replayed, true);
   assert.equal(replay.applied, false);
+  assert.equal(replay.awarded, false);
   assert.equal(replay.studentLife.books.length, 1);
+  assert.deepEqual(replay.value.currencyHistory, placed.value.currencyHistory);
+  assert.deepEqual(replay.value.currencyBalances, placed.value.currencyBalances);
 
   assert.deepEqual(applyLibraryPlacementCommand(placed.value, 3, { ...command, slotId: 23 }, createdAt), {
     ok: false,
     error: { status: 409, code: 'LIBRARY_BOOK_ALREADY_PLACED' },
   });
+});
+
+test('신규·기존 책 등록은 주간 보상을 공유하고 한국 시간 월요일에 다시 한 번만 지급한다', () => {
+  const initial = {
+    currencyBalances: { 3: 40 }, currencyHistory: { 3: [] },
+    studentLife: { books: [makeBook(0, { studentNumber: 3 }), makeBook(1, { studentNumber: 3 })] },
+  };
+  const first = applyLibraryPlacementCommand(initial, 3, newCommand(), '2026-09-06T14:59:58.000Z');
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  assert.equal(first.awarded, true);
+
+  const existingCommand = {
+    action: 'placeLibraryBook', requestId, slotId: 18, book: { kind: 'existing', bookId: 'legacy-0' },
+  };
+  const second = applyLibraryPlacementCommand(first.value, 3, existingCommand, '2026-09-06T14:59:59.000Z');
+  assert.equal(second.ok, true);
+  if (!second.ok) return;
+  assert.equal(second.awarded, false);
+  assert.deepEqual(second.value.currencyBalances, first.value.currencyBalances);
+
+  const replayNextWeek = applyLibraryPlacementCommand(second.value, 3, existingCommand, '2026-09-06T15:00:00.000Z');
+  assert.equal(replayNextWeek.ok, true);
+  if (!replayNextWeek.ok) return;
+  assert.equal(replayNextWeek.replayed, true);
+  assert.equal(replayNextWeek.awarded, false);
+
+  const nextWeek = applyLibraryPlacementCommand(replayNextWeek.value, 3, {
+    ...existingCommand, slotId: 19, book: { kind: 'existing', bookId: 'legacy-1' },
+  }, '2026-09-06T15:00:00.000Z');
+  assert.equal(nextWeek.ok, true);
+  if (!nextWeek.ok) return;
+  assert.equal(nextWeek.awarded, true);
+  assert.equal(normalizeCurrencyBalances(nextWeek.value.currencyBalances)['3'], 60);
+
+  const nextNew = applyLibraryPlacementCommand(nextWeek.value, 3, newCommand({
+    requestId: '123e4567-e89b-42d3-a456-426614174001', slotId: 20,
+  }), '2026-09-07T03:00:00.000Z');
+  assert.equal(nextNew.ok, true);
+  if (!nextNew.ok) return;
+  assert.equal(nextNew.awarded, false);
+  assert.deepEqual(nextNew.value.currencyBalances, nextWeek.value.currencyBalances);
+  assert.deepEqual(nextNew.value.currencyHistory, nextWeek.value.currencyHistory);
 });
 
 test('타인 책·잘못된 학생·잘못된 시각은 상태를 바꾸지 않고 거절한다', () => {
@@ -189,11 +236,22 @@ test('소유자가 다른 중복 ID 책은 모호한 이동을 거절하고 어�
 });
 
 test('점유 슬롯과 100석 만석은 모든 기록을 보존한 채 구분해 거절한다', () => {
-  const oneOccupied = { studentLife: { books: [makeBook(0, { librarySlot: 17 })] } };
+  const oneOccupied = {
+    currencyBalances: { 1: 40 }, currencyHistory: { 1: [] },
+    studentLife: { books: [makeBook(0, { librarySlot: 17 }), makeBook(1, { studentNumber: 1 })] },
+  };
+  const beforeOccupied = structuredClone(oneOccupied);
   assert.deepEqual(applyLibraryPlacementCommand(oneOccupied, 1, newCommand(), createdAt), {
     ok: false,
     error: { status: 409, code: 'LIBRARY_SLOT_OCCUPIED' },
   });
+  assert.deepEqual(applyLibraryPlacementCommand(oneOccupied, 1, newCommand({
+    book: { kind: 'existing', bookId: 'legacy-1' },
+  }), createdAt), {
+    ok: false,
+    error: { status: 409, code: 'LIBRARY_SLOT_OCCUPIED' },
+  });
+  assert.deepEqual(oneOccupied, beforeOccupied);
 
   const books = Array.from({ length: 101 }, (_, index) => makeBook(index, index < 100 ? { librarySlot: index } : {}));
   const full = { studentLife: { books } };

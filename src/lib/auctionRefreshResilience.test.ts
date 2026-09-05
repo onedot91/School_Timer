@@ -21,6 +21,16 @@ test('student sync checks settings metadata before requesting the full settings 
   assert.doesNotMatch(source, /}, 3000\)/);
 });
 
+test('all student views refresh shared profiles and discard snapshots older than a committed profile', async () => {
+  const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
+  assert.match(source, /STUDENT_SETTINGS_SYNC_INTERVAL_MS\[syncView\] \?\? STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS/);
+  assert.match(source, /if \(!isStudentSettingsSnapshotFresh\(updatedAt, minimumSettingsUpdatedAtRef.current\)\) return false/);
+  const purchase = source.slice(source.indexOf('const selectStudentFailureProfile = async'), source.indexOf('const feedStudentPet = async'));
+  assert.match(purchase, /minimumSettingsUpdatedAtRef.current = result.updatedAt/);
+  assert.match(purchase, /storeStudentProfileSnapshot\(studentNumber, result.studentLife\)/);
+  assert.match(purchase, /refreshAuctionState\(\{ forceFull: true \}\)/);
+});
+
 test('student economy saves refresh the full row instead of treating a partial response as synchronized', async () => {
   const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
   const actionStart = source.indexOf('const runStudentEconomyAction = async');

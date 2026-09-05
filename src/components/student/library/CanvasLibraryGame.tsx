@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -8,15 +9,21 @@ import {
   type RefObject,
   type ReactNode,
 } from 'react';
-import { BookOpen, LogOut, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, LogOut, X } from 'lucide-react';
+import { createLibraryAudio } from '../../../lib/canvasLibraryAudio';
+import { CANVAS_LIBRARY_PALETTE } from './CanvasLibraryPalette';
 import { useModalFocus } from '../../../lib/useModalFocus';
 import { CanvasLibraryPlacementExpectedError } from '../../../lib/canvasLibraryClient';
 import {
   createLibraryPlayer,
   createSmallLibraryRoom,
+  isLibraryExitIntent,
+  resolveLibraryBookRoom,
   getNearbyLibraryTarget,
+  findLibraryPlayerPath,
   placeLibraryDraft,
   stepLibraryPlayer,
+  type LibraryAmbientObject,
   type LibraryBookDraft,
   type LibraryPlacedBook,
   type LibraryPoint,
@@ -25,7 +32,10 @@ import {
   type LibraryShelf,
   type LibraryTarget,
 } from '../../../lib/canvasLibraryWorld';
+import { createLibraryAmbientState, createLibraryAmbientAction, completeLibraryAmbientAction, getLibraryAmbientLabel, type LibraryAmbientAction } from '../../../lib/canvasLibraryAmbient';
+import { createLibraryCatNavigation, createLibraryCatState, stepLibraryCat, resolveLibraryCatRoom, startLibraryCatPet, finishLibraryCatPet, cancelLibraryCatPet, type LibraryCatState } from '../../../lib/canvasLibraryCat';
 import { createLibraryRenderer } from './CanvasLibraryRenderer';
+import { getLibraryActionDuration, getLibraryBearPose, getLibraryBookThickness, getLibraryBookTone, LIBRARY_WALK_FRAME_MS } from '../../../lib/canvasLibraryPose';
 import StudentConfirmDialog from '../StudentConfirmDialog';
 import { MAX_BOOK_REFLECTION_LENGTH, normalizeBookReflection } from '../../../lib/studentLife';
 
@@ -41,6 +51,8 @@ type CanvasLibraryGameBaseProps = {
   readonly seasonId?: string | null;
   readonly initialFailureBoardOpen?: boolean;
   readonly boardNoteCount?: number;
+  readonly catSeed?: number;
+  readonly initialCatState?: LibraryCatState;
 };
 
 export type CanvasLibraryGameProps = CanvasLibraryGameBaseProps & (
@@ -54,6 +66,7 @@ type GameModal =
   | { readonly kind: 'competition-board' }
   | { readonly kind: 'registration' }
   | { readonly kind: 'confirm-registration'; readonly draft: LibraryBookDraft }
+  | { readonly kind: 'confirm-exit' }
   | { readonly kind: 'slots'; readonly shelfId: string }
   | { readonly kind: 'details'; readonly book: LibraryPlacedBook }
   | null;
@@ -72,7 +85,9 @@ const isPointInside = (point: LibraryPoint, rect: { readonly x: number; readonly
   && point.y <= rect.y + rect.height
 );
 
-const sameTarget = (first: LibraryTarget | null, second: LibraryTarget | null) => first?.id === second?.id;
+const sameTarget = (first: LibraryTarget | null, second: LibraryTarget | null) => first?.id === second?.id
+  && Math.round(first?.interactionPoint.x ?? 0) === Math.round(second?.interactionPoint.x ?? 0)
+  && Math.round(first?.interactionPoint.y ?? 0) === Math.round(second?.interactionPoint.y ?? 0);
 
 const validateRegistration = (title: string, author: string, reflection: string): string | null => {
   const normalizedTitle = title.trim();
@@ -105,11 +120,16 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const { studentNumber, room: suppliedRoom, unplacedBooks = [], onBack } = props;
   const defaultRoomRef = useRef<LibraryRoom | null>(null);
   if (!defaultRoomRef.current) defaultRoomRef.current = createSmallLibraryRoom();
-  const room = suppliedRoom ?? defaultRoomRef.current;
+  const baseRoom = suppliedRoom ?? defaultRoomRef.current;
   const controlledBooks = props.books;
-
   const [localBooks, setLocalBooks] = useState<readonly LibraryPlacedBook[]>([]);
   const books = controlledBooks ?? localBooks;
+  const room = useMemo(() => resolveLibraryBookRoom(baseRoom, books), [baseRoom, books]);
+  const catNavigation = useMemo(() => createLibraryCatNavigation(room), [room]);
+  const [initialCatState] = useState(() => import.meta.env.DEV && props.initialCatState
+    ? props.initialCatState
+    : createLibraryCatState(room, catNavigation, import.meta.env.DEV && props.catSeed !== undefined ? props.catSeed : Math.floor(Math.random() * 0x100000000), createLibraryPlayer(room, studentNumber)));
+
   const [carriedDraft, setCarriedDraft] = useState<LibraryBookDraft | null>(null);
   const [nearbyTarget, setNearbyTarget] = useState<LibraryTarget | null>(null);
   const [modal, setModal] = useState<GameModal>(() => props.initialFailureBoardOpen && props.renderFailureBoard ? { kind: 'failure-board' } : null);
@@ -126,10 +146,21 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const preserveRegistrationRef = useRef(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState(0);
   const [isPlacing, setIsPlacing] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(false);
   const [readingBookIndex, setReadingBookIndex] = useState(0);
-  const audioRef = useRef<AudioContext | null>(null);
-  const soundEnabledRef = useRef(false);
+  const [ambientState, setAmbientState] = useState(createLibraryAmbientState);
+  const [ambientBusy, setAmbientBusy] = useState(false);
+  const [ambientNotice, setAmbientNotice] = useState<string | null>(null);
+  const ambientNoticeTimerRef = useRef<number | null>(null);
+  const ambientApproachRef = useRef<{ objectId: string; path: readonly LibraryPoint[]; stalledMs: number } | null>(null);
+  const receiveApproachRef = useRef<{ book: LibraryBookDraft; path: readonly LibraryPoint[]; stalledMs: number; waiting: boolean } | null>(null);
+  const [receiving, setReceiving] = useState(false);
+  const [clerkGreeting, setClerkGreeting] = useState(false);
+  const clerkGreetingRef = useRef(false);
+  const pausedAtRef = useRef<number | null>(null);
+  const audioRef = useRef<ReturnType<typeof createLibraryAudio> | null>(null);
+  const pendingSoundRef = useRef<{ readonly kind: 'place'; readonly startedAt: number } | null>(null);
+  const [placementNotice, setPlacementNotice] = useState<string | null>(null);
+  const placementNoticeTimerRef = useRef<number | null>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -144,6 +175,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const placementCueTimerRef = useRef<number | null>(null);
   const placementPendingRef = useRef(false);
   const mountedRef = useRef(true);
+  const exitCompletedRef = useRef(false);
+  const exitArmedRef = useRef(true);
+  const onBackRef = useRef(onBack);
   const sceneStateRef = useRef<LibraryScene>({
     player: createLibraryPlayer(room, studentNumber),
     placedBooks: books,
@@ -152,6 +186,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     selectedSlotId: null,
     timeMs: 0,
     reducedMotion: false,
+    ambientState,
+    catState: initialCatState,
+    clerkState: room.desk.clerk ? { timeMs: 0 } : undefined,
   });
 
   const registrationDialogRef = useRef<HTMLElement>(null);
@@ -171,32 +208,15 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   modalRef.current = modal;
   booksRef.current = books;
   carriedDraftRef.current = carriedDraft;
-  soundEnabledRef.current = soundEnabled;
+  onBackRef.current = onBack;
 
-  const playBookSound = async (kind: 'receive' | 'place') => {
-    if (!soundEnabledRef.current) return;
-    try {
-      const audio = audioRef.current ?? new AudioContext();
-      audioRef.current = audio;
-      if (audio.state === 'suspended') await audio.resume();
-      if (!mountedRef.current || !soundEnabledRef.current || audio.state !== 'running') return;
-      const tone = audio.createOscillator();
-      const gain = audio.createGain();
-      const now = audio.currentTime;
-      tone.type = 'sine';
-      tone.frequency.setValueAtTime(kind === 'receive' ? 520 : 360, now);
-      tone.frequency.exponentialRampToValueAtTime(kind === 'receive' ? 760 : 180, now + 0.12);
-      gain.gain.setValueAtTime(0.025, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-      tone.connect(gain);
-      gain.connect(audio.destination);
-      tone.onended = () => { tone.disconnect(); gain.disconnect(); };
-      tone.start();
-      tone.stop(now + 0.17);
-    } catch {
-      if (mountedRef.current) setSoundEnabled(false);
-      soundEnabledRef.current = false;
-    }
+  const unlockAudio = () => {
+    if (pausedRef.current || document.hidden) return;
+    void audioRef.current?.unlock();
+  };
+
+  const playPlacementSound = () => {
+    if (!pausedRef.current && !document.hidden) audioRef.current?.play('place');
   };
 
   const clearHeldInput = () => {
@@ -205,13 +225,97 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     if (current.player.isWalking) sceneStateRef.current = { ...current, player: { ...current.player, isWalking: false } };
   };
 
+  const showAmbientNotice = (message: string | null) => {
+    if (ambientNoticeTimerRef.current !== null) window.clearTimeout(ambientNoticeTimerRef.current);
+    setAmbientNotice(message);
+    ambientNoticeTimerRef.current = message ? window.setTimeout(() => {
+      setAmbientNotice(null);
+      ambientNoticeTimerRef.current = null;
+    }, 2000) : null;
+  };
+
+  const beginReceive = (book: LibraryBookDraft, time: number) => {
+    receiveApproachRef.current = null;
+    carriedDraftRef.current = book;
+    setCarriedDraft(book);
+    clearHeldInput();
+    const current = sceneStateRef.current;
+    sceneStateRef.current = { ...current, carriedDraft: book,
+      player: { ...current.player, facing: room.desk.clerk ? 'up' : current.player.facing, isWalking: false },
+      action: current.reducedMotion ? undefined : { kind: 'receive', startedAt: time } };
+    setReceiving(!current.reducedMotion);
+    if (current.reducedMotion) showAmbientNotice('책장에 꽂아 주세요');
+  };
+
+  const finishAmbientAction = (action: LibraryAmbientAction) => {
+    const current = sceneStateRef.current;
+    const result = completeLibraryAmbientAction(current.ambientState ?? createLibraryAmbientState(), action);
+    sceneStateRef.current = { ...current, ambientState: result.state, ambientAction: undefined,
+      catState: action.kind === 'pet' && current.catState ? finishLibraryCatPet(current.catState) : current.catState };
+    setAmbientState(result.state);
+    setAmbientBusy(false);
+    showAmbientNotice(result.notice);
+  };
+
+  const beginAmbientAction = (object: LibraryAmbientObject, time: number) => {
+    const current = sceneStateRef.current;
+    const action = createLibraryAmbientAction(current.ambientState ?? createLibraryAmbientState(), object, time);
+    const target = object.actionPoint ?? object.interactionPoint;
+    const dx = target.x - current.player.position.x;
+    const dy = target.y - current.player.position.y;
+    const facing = Math.abs(dx) > Math.abs(dy) ? dx < 0 ? 'left' : 'right' : dy < 0 ? 'up' : 'down';
+    const actionScene = { ...current, ambientAction: action, player: { ...current.player, facing, isWalking: false } } satisfies LibraryScene;
+    const canReach = action.kind === 'sit' || [0.25, 0.5, 0.75].every(progress => getLibraryBearPose({ ...actionScene, reducedMotion: false, timeMs: time + action.durationMs * progress }, room).reachable);
+    if (!canReach) {
+      sceneStateRef.current = { ...current, catState: current.catState?.behavior === 'pet' ? cancelLibraryCatPet(current.catState) : current.catState };
+      ambientApproachRef.current = null;
+      setAmbientBusy(false);
+      showAmbientNotice('조금 더 가까이 다가가 주세요');
+      return;
+    }
+    sceneStateRef.current = actionScene;
+    ambientApproachRef.current = null;
+    setAmbientBusy(true);
+    if (current.reducedMotion) finishAmbientAction(action);
+  };
+
+  const standFromBench = () => {
+    const current = sceneStateRef.current;
+    if (!current.ambientState?.benchObjectId) return false;
+    const next = { ...current.ambientState, benchObjectId: null };
+    sceneStateRef.current = { ...current, ambientState: next };
+    setAmbientState(next);
+    showAmbientNotice(null);
+    clearHeldInput();
+    return true;
+  };
+
   const closeModal = () => {
     if (placementPendingRef.current) return;
     clearHeldInput();
     setFormError(null);
     setSlotError(null);
     setModal(null);
+    modalRef.current = null;
     sceneStateRef.current = { ...sceneStateRef.current, selectedSlotId: null, seated: false };
+  };
+
+  const finishExit = () => {
+    if (exitCompletedRef.current || placementPendingRef.current || !onBackRef.current) return;
+    exitCompletedRef.current = true;
+    clearHeldInput();
+    onBackRef.current();
+  };
+
+  const requestExit = () => {
+    const current = sceneStateRef.current;
+    if (!onBackRef.current || exitCompletedRef.current || pausedRef.current || modalRef.current
+      || placementPendingRef.current || current.action || current.ambientAction || ambientApproachRef.current
+      || (receiveApproachRef.current && !receiveApproachRef.current.waiting)) return;
+    clearHeldInput();
+    exitArmedRef.current = false;
+    modalRef.current = { kind: 'confirm-exit' };
+    setModal(modalRef.current);
   };
 
   useDialogFocus(
@@ -241,7 +345,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     if (modal?.kind !== 'slots' || isPlacing) return;
     const dialog = slotDialogRef.current;
     if (!dialog || dialog.contains(document.activeElement)) return;
-    (slotButtonRefs.current[activeSlotIndex] ?? firstSlotRef.current)?.focus({ preventScroll: true });
+    const button = slotButtonRefs.current[activeSlotIndex] ?? firstSlotRef.current;
+    button?.focus({ preventScroll: true });
+    button?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
   }, [activeSlotIndex, isPlacing, modal?.kind]);
 
   useEffect(() => {
@@ -282,35 +388,136 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       const held = new Set(heldKeyboardRef.current);
       const input = movementVector(held);
       let current = sceneStateRef.current;
-      const action = current.action && time - current.action.startedAt < 500 && !current.reducedMotion ? current.action : undefined;
-      const canMove = !pausedRef.current && modalRef.current === null && !action;
+      if (current.clerkState && !pausedRef.current && modalRef.current === null) {
+        const previous = current.clerkState;
+        const timeMs = previous.timeMs + elapsedMs;
+        const greetingStartedAt = previous.greetingStartedAt ??
+          (!current.action && !current.ambientAction && !receiveApproachRef.current && !carriedDraftRef.current
+            && Math.hypot(current.player.position.x - room.desk.interactionPoint.x, current.player.position.y - room.desk.interactionPoint.y) <= 90 ? timeMs : undefined);
+        current = { ...current, clerkState: { timeMs, greetingStartedAt } };
+        const greetingVisible = greetingStartedAt !== undefined && timeMs - greetingStartedAt < 3000;
+        if (greetingVisible !== clerkGreetingRef.current) {
+          clerkGreetingRef.current = greetingVisible;
+          setClerkGreeting(greetingVisible);
+        }
+      }
+      if (current.catState) {
+        current = { ...current, catState: stepLibraryCat(room, catNavigation, current.catState, current.player, input, elapsedMs, {
+          paused: pausedRef.current || modalRef.current !== null || Boolean(current.action || current.ambientAction || ambientApproachRef.current || receiveApproachRef.current),
+          reducedMotion: current.reducedMotion,
+        }) };
+      }
+      let activeRoom = resolveLibraryCatRoom(room, current.catState, current.player);
+      if (!pausedRef.current && modalRef.current === null) {
+        const reception = receiveApproachRef.current;
+        if (reception && !reception.waiting && room.desk.clerk) {
+          while (reception.path.length > 1 && Math.hypot(reception.path[0].x - current.player.position.x, reception.path[0].y - current.player.position.y) < 0.01) reception.path = reception.path.slice(1);
+          const target = reception.path[0] ?? room.desk.clerk.receivePoint;
+          const dx = target.x - current.player.position.x;
+          const dy = target.y - current.player.position.y;
+          const distance = Math.hypot(dx, dy);
+          if (distance <= 1.5 && reception.path.length <= 1) {
+            sceneStateRef.current = current;
+            beginReceive(reception.book, time);
+            current = sceneStateRef.current;
+          } else {
+            const next = stepLibraryPlayer(activeRoom, current.player, { x: dx / distance, y: dy / distance }, Math.min(elapsedMs, distance * 10));
+            const moved = Math.hypot(next.position.x - current.player.position.x, next.position.y - current.player.position.y);
+            reception.stalledMs = moved < 0.05 ? reception.stalledMs + elapsedMs : 0;
+            current = { ...current, player: next };
+            if (reception.stalledMs > 250) {
+              reception.waiting = true;
+              showAmbientNotice('조금 더 가까이 다가와 직원에게 말을 걸어 주세요');
+            }
+          }
+        }
+        const approach = ambientApproachRef.current;
+        if (approach) {
+          const object = activeRoom.ambientObjects?.find(item => item.id === approach.objectId);
+          if (object) {
+            while (approach.path.length > 1 && Math.hypot(approach.path[0].x - current.player.position.x, approach.path[0].y - current.player.position.y) < 0.01) approach.path = approach.path.slice(1);
+            const waypoint = approach.path[0] ?? object.interactionPoint;
+            const dx = waypoint.x - current.player.position.x;
+            const dy = waypoint.y - current.player.position.y;
+            const distance = Math.hypot(dx, dy);
+            if (distance <= 1.5 && approach.path.length <= 1) {
+              sceneStateRef.current = current;
+              beginAmbientAction(object, time);
+              current = sceneStateRef.current;
+            } else {
+              const next = stepLibraryPlayer(activeRoom, current.player, { x: dx / distance, y: dy / distance }, Math.min(elapsedMs, distance * 10));
+              const moved = Math.hypot(next.position.x - current.player.position.x, next.position.y - current.player.position.y);
+              approach.stalledMs = moved < 0.05 ? approach.stalledMs + elapsedMs : 0;
+              current = { ...current, player: next };
+              if (approach.stalledMs > 250) {
+                if (current.catState && object.kind === 'cat') current = { ...current, catState: cancelLibraryCatPet(current.catState) };
+                ambientApproachRef.current = null;
+                setAmbientBusy(false);
+                showAmbientNotice('조금 더 가까이 다가가 주세요');
+              }
+            }
+          } else {
+            ambientApproachRef.current = null;
+            setAmbientBusy(false);
+          }
+        }
+        if (current.ambientAction && (current.reducedMotion || time - current.ambientAction.startedAt >= current.ambientAction.durationMs)) {
+          sceneStateRef.current = current;
+          finishAmbientAction(current.ambientAction);
+          current = sceneStateRef.current;
+        }
+      }
+      const pendingSound = pendingSoundRef.current;
+      if (pendingSound && (current.reducedMotion || time - pendingSound.startedAt >= 400)) {
+        pendingSoundRef.current = null;
+        if (time - pendingSound.startedAt < 650) playPlacementSound();
+      }
+      const actionTime = pausedRef.current ? current.timeMs : time;
+      const action = current.action && actionTime - current.action.startedAt < getLibraryActionDuration(current.action, room) && !current.reducedMotion ? current.action : undefined;
+      if (current.action?.kind === 'receive' && !action && !pausedRef.current) {
+        setReceiving(false);
+        showAmbientNotice('책장에 꽂아 주세요');
+      }
+      activeRoom = resolveLibraryCatRoom(room, current.catState, current.player);
+      const canMove = !exitCompletedRef.current && !placementPendingRef.current && !pausedRef.current && modalRef.current === null && !action && !current.ambientAction && !ambientApproachRef.current && (!receiveApproachRef.current || receiveApproachRef.current.waiting) && !current.ambientState?.benchObjectId;
       const player = canMove && (input.x !== 0 || input.y !== 0)
-        ? stepLibraryPlayer(room, current.player, input, elapsedMs)
-        : current.player.isWalking
+        ? stepLibraryPlayer(activeRoom, current.player, input, elapsedMs)
+        : current.player.isWalking && ((!ambientApproachRef.current && !receiveApproachRef.current) || pausedRef.current)
           ? { ...current.player, isWalking: false }
           : current.player;
       if (!hasMovedRef.current && player.position !== current.player.position) {
         hasMovedRef.current = true;
         setHasMoved(true);
       }
-      const target = getNearbyLibraryTarget(room, player, booksRef.current);
+      const walkTimeMs = player.isWalking
+        ? current.player.isWalking ? (current.walkTimeMs ?? 0) + elapsedMs : 0
+        : 0;
+      const target = getNearbyLibraryTarget(resolveLibraryCatRoom(room, current.catState, player), player, booksRef.current);
       current = {
         ...current,
         player,
         placedBooks: booksRef.current,
         carriedDraft: carriedDraftRef.current,
         nearbyTarget: target,
-        timeMs: time,
+        timeMs: pausedRef.current ? current.timeMs : time,
+        walkTimeMs,
         action,
         seated: modalRef.current?.kind === 'reading',
       };
       sceneStateRef.current = current;
+      if (canMove && exitArmedRef.current && isLibraryExitIntent(room, player, input)) requestExit();
       canvas.dataset.playerX = player.position.x.toFixed(2);
       canvas.dataset.playerY = player.position.y.toFixed(2);
       canvas.dataset.nearbyTarget = target?.id ?? '';
       canvas.dataset.facing = player.facing;
       canvas.dataset.action = action?.kind ?? '';
+      canvas.dataset.receiveApproach = receiveApproachRef.current ? receiveApproachRef.current.waiting ? 'waiting' : 'approaching' : '';
+      canvas.dataset.clerkState = current.clerkState ? JSON.stringify(current.clerkState) : '';
+      canvas.dataset.ambientAction = current.ambientAction?.kind ?? (ambientApproachRef.current ? 'approach' : '');
+      canvas.dataset.ambientState = JSON.stringify(current.ambientState);
+      canvas.dataset.catState = current.catState ? JSON.stringify(current.catState) : '';
       canvas.dataset.seated = String(current.seated);
+      canvas.dataset.walkPhase = String(Math.floor(walkTimeMs / LIBRARY_WALK_FRAME_MS) % 4);
       if (!sameTarget(target, nearbyTargetRef.current)) {
         nearbyTargetRef.current = target;
         setNearbyTarget(target);
@@ -320,19 +527,18 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     };
     frameId = requestAnimationFrame(drawFrame);
     return () => {
-      mountedRef.current = false;
       cancelAnimationFrame(frameId);
       renderer.dispose();
       if (rendererRef.current === renderer) rendererRef.current = null;
     };
-  }, [room]);
+  }, [room, catNavigation]);
 
   useEffect(() => {
     sceneStateRef.current = { ...sceneStateRef.current, boardNoteCount: props.boardNoteCount ?? 0 };
   }, [props.boardNoteCount]);
 
   useEffect(() => {
-    const target = getNearbyLibraryTarget(room, sceneStateRef.current.player, books);
+    const target = getNearbyLibraryTarget(resolveLibraryCatRoom(room, sceneStateRef.current.catState, sceneStateRef.current.player), sceneStateRef.current.player, books);
     sceneStateRef.current = { ...sceneStateRef.current, placedBooks: books, nearbyTarget: target };
     nearbyTargetRef.current = target;
     setNearbyTarget(target);
@@ -344,34 +550,59 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
 
   useEffect(() => {
     mountedRef.current = true;
+    audioRef.current = createLibraryAudio();
+    audioRef.current.setEnabled(true);
     const handleBlur = () => {
+      pausedAtRef.current ??= performance.now();
       pausedRef.current = true;
+      audioRef.current?.setPaused(true);
+      pendingSoundRef.current = null;
       clearHeldInput();
       setPausedByBlur(true);
     };
     const handleFocus = () => {
-      pausedRef.current = false;
-      setPausedByBlur(false);
+      if (!document.hidden && pausedAtRef.current !== null) {
+        const pauseDuration = performance.now() - pausedAtRef.current;
+        const current = sceneStateRef.current;
+        sceneStateRef.current = { ...current,
+          action: current.action ? { ...current.action, startedAt: current.action.startedAt + pauseDuration } : undefined,
+          ambientAction: current.ambientAction ? { ...current.ambientAction, startedAt: current.ambientAction.startedAt + pauseDuration } : undefined,
+        };
+        pausedAtRef.current = null;
+      }
+      pausedRef.current = document.hidden;
+      audioRef.current?.setPaused(document.hidden);
+      setPausedByBlur(document.hidden);
     };
     const handleVisibility = () => {
       if (document.hidden) handleBlur();
       else handleFocus();
     };
-    const handleKeyUp = (event: KeyboardEvent) => heldKeyboardRef.current.delete(event.key.toLowerCase());
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      heldKeyboardRef.current.delete(key);
+      if (key === 'arrowdown' || key === 's') exitArmedRef.current = true;
+    };
     window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('keyup', handleKeyUp);
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
+      mountedRef.current = false;
       clearHeldInput();
       if (placementCueTimerRef.current !== null) window.clearTimeout(placementCueTimerRef.current);
+      if (placementNoticeTimerRef.current !== null) window.clearTimeout(placementNoticeTimerRef.current);
+      pendingSoundRef.current = null;
+      ambientApproachRef.current = null;
+      receiveApproachRef.current = null;
+      if (ambientNoticeTimerRef.current !== null) window.clearTimeout(ambientNoticeTimerRef.current);
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('keyup', handleKeyUp);
       document.removeEventListener('visibilitychange', handleVisibility);
       const audio = audioRef.current;
       audioRef.current = null;
-      if (audio && audio.state !== 'closed') void audio.close().catch(() => undefined);
+      audio?.dispose();
     };
   }, []);
 
@@ -382,10 +613,55 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   };
 
   const interact = () => {
-    if (modalRef.current || pausedRef.current || sceneStateRef.current.action) return;
+    if (modalRef.current || pausedRef.current || sceneStateRef.current.action || sceneStateRef.current.ambientAction || ambientApproachRef.current) return;
+    canvasRef.current?.focus({ preventScroll: true });
+    if (standFromBench()) return;
     const target = sceneStateRef.current.nearbyTarget;
     if (!target) return;
-    if (target.kind === 'failure-board') {
+    if (receiveApproachRef.current) {
+      if (target.kind === 'registration-desk') {
+        const current = sceneStateRef.current;
+        const path = findLibraryPlayerPath(resolveLibraryCatRoom(room, current.catState, current.player), current.player, room.desk.clerk?.receivePoint ?? room.desk.interactionPoint);
+        receiveApproachRef.current.path = path ?? [];
+        receiveApproachRef.current.waiting = path === null;
+        receiveApproachRef.current.stalledMs = 0;
+        if (!path) showAmbientNotice('조금 더 가까이 다가와 직원에게 말을 걸어 주세요');
+        clearHeldInput();
+      } else showAmbientNotice('직원에게 책을 먼저 받아 주세요');
+      return;
+    }
+    if (target.kind === 'ambient') {
+      if (carriedDraftRef.current) {
+        showAmbientNotice('책을 먼저 꽂아 주세요');
+        return;
+      }
+      let activeRoom = resolveLibraryCatRoom(room, sceneStateRef.current.catState, sceneStateRef.current.player);
+      let object = activeRoom.ambientObjects?.find(item => item.id === target.objectId);
+      if (!object) return;
+      const current = sceneStateRef.current;
+      if (object.kind === 'cat' && current.catState) {
+        sceneStateRef.current = { ...current, catState: startLibraryCatPet(room, catNavigation, current.catState, current.player) };
+        activeRoom = resolveLibraryCatRoom(room, sceneStateRef.current.catState, current.player);
+        object = activeRoom.ambientObjects?.find(item => item.id === target.objectId);
+        if (!object) return;
+      }
+      clearHeldInput();
+      showAmbientNotice(null);
+      if (Math.hypot(object.interactionPoint.x - sceneStateRef.current.player.position.x, object.interactionPoint.y - sceneStateRef.current.player.position.y) <= 1.5) {
+        beginAmbientAction(object, performance.now());
+      } else {
+        const path = findLibraryPlayerPath(activeRoom, sceneStateRef.current.player, object.interactionPoint);
+        if (!path) {
+          const stopped = sceneStateRef.current;
+          sceneStateRef.current = { ...stopped, catState: stopped.catState?.behavior === 'pet' ? cancelLibraryCatPet(stopped.catState) : stopped.catState };
+          showAmbientNotice('조금 더 가까이 다가가 주세요');
+          return;
+        }
+        ambientApproachRef.current = { objectId: object.id, path, stalledMs: 0 };
+        setAmbientBusy(true);
+      }
+      canvasRef.current?.focus({ preventScroll: true });
+    } else if (target.kind === 'failure-board') {
       if (props.renderFailureBoard) openModal({ kind: 'failure-board' });
     } else if (target.kind === 'competition-board') {
       if (props.renderCompetition) openModal({ kind: 'competition-board' });
@@ -394,6 +670,10 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       sceneStateRef.current = { ...sceneStateRef.current, seated: true };
       openModal({ kind: 'reading' });
     } else if (target.kind === 'registration-desk') {
+      if (carriedDraftRef.current) {
+        showAmbientNotice('들고 있는 책을 먼저 꽂아 주세요');
+        return;
+      }
       if (!preserveRegistrationRef.current) {
         setTitle('');
         setAuthor('');
@@ -412,8 +692,31 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
 
   const handleSceneKeyDown = (event: ReactKeyboardEvent<HTMLCanvasElement>) => {
     const key = event.key.toLowerCase();
+    if (modalRef.current || pausedRef.current) return;
+    if (receiveApproachRef.current && !receiveApproachRef.current.waiting) {
+      if (MOVEMENT_KEYS.has(key) || key === 'e' || key === 'enter' || key === 'escape') event.preventDefault();
+      return;
+    }
+    if (sceneStateRef.current.ambientAction) {
+      if (MOVEMENT_KEYS.has(key) || key === 'e' || key === 'enter' || key === 'escape') event.preventDefault();
+      return;
+    }
+    if (ambientApproachRef.current && (MOVEMENT_KEYS.has(key) || key === 'escape')) {
+      const current = sceneStateRef.current;
+      if (current.catState?.behavior === 'pet') sceneStateRef.current = { ...current, catState: cancelLibraryCatPet(current.catState) };
+      ambientApproachRef.current = null;
+      setAmbientBusy(false);
+      clearHeldInput();
+      event.preventDefault();
+      if (key === 'escape') return;
+    }
+    if (sceneStateRef.current.ambientState?.benchObjectId && (MOVEMENT_KEYS.has(key) || key === 'escape')) {
+      event.preventDefault();
+      standFromBench();
+    }
     if (MOVEMENT_KEYS.has(key)) {
       event.preventDefault();
+      if (!event.repeat && (key === 'arrowdown' || key === 's')) exitArmedRef.current = true;
       heldKeyboardRef.current.add(key);
       return;
     }
@@ -431,6 +734,11 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       y: (event.clientY - rect.top) * room.height / rect.height,
     };
     const target = sceneStateRef.current.nearbyTarget;
+    if (target?.kind === 'ambient') {
+      const object = resolveLibraryCatRoom(room, sceneStateRef.current.catState, sceneStateRef.current.player).ambientObjects?.find(item => item.id === target.objectId);
+      if (object && isPointInside(point, object.visualRect)) interact();
+      return;
+    }
     if (target?.kind === 'competition-board' && room.competitionBoard && isPointInside(point, room.competitionBoard.visualRect)) {
       interact();
       return;
@@ -443,7 +751,8 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       interact();
       return;
     }
-    if (target?.kind === 'registration-desk' && isPointInside(point, room.desk.visualRect)) {
+    if (target?.kind === 'registration-desk' && (isPointInside(point, room.desk.visualRect)
+      || (room.desk.clerk && isPointInside(point, room.desk.clerk.visualRect)))) {
       interact();
       return;
     }
@@ -470,12 +779,19 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   };
 
   const carryExistingBook = (book: LibraryBookDraft) => {
+    if (carriedDraftRef.current || receiveApproachRef.current || sceneStateRef.current.action) return;
     clearHeldInput();
-    setCarriedDraft(book);
-    sceneStateRef.current = { ...sceneStateRef.current, action: { kind: 'receive', startedAt: performance.now() } };
-    void playBookSound('receive');
+    if (room.desk.clerk) {
+      const current = sceneStateRef.current;
+      const path = findLibraryPlayerPath(resolveLibraryCatRoom(room, current.catState, current.player), current.player, room.desk.clerk.receivePoint);
+      receiveApproachRef.current = { book, path: path ?? [], stalledMs: 0, waiting: path === null };
+      if (!path) showAmbientNotice('조금 더 가까이 다가와 직원에게 말을 걸어 주세요');
+      setReceiving(true);
+    } else beginReceive(book, performance.now());
+    setPlacementNotice(null);
     setFormError(null);
     setModal(null);
+    modalRef.current = null;
   };
 
   const chooseSlot = async (shelf: LibraryShelf, slotIndex: number) => {
@@ -538,7 +854,13 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       selectedSlotId: placedBook.slotId,
       action: { kind: 'place', startedAt: performance.now(), slotId: placedBook.slotId },
     };
-    void playBookSound('place');
+    pendingSoundRef.current = { kind: 'place', startedAt: sceneStateRef.current.action?.startedAt ?? performance.now() };
+    setPlacementNotice(`${placedBook.slotId + 1}번 자리에 책을 꽂았어요.`);
+    if (placementNoticeTimerRef.current !== null) window.clearTimeout(placementNoticeTimerRef.current);
+    placementNoticeTimerRef.current = window.setTimeout(() => {
+      setPlacementNotice(null);
+      placementNoticeTimerRef.current = null;
+    }, 2800);
     setModal(null);
     if (placementCueTimerRef.current !== null) window.clearTimeout(placementCueTimerRef.current);
     if (sceneStateRef.current.reducedMotion) {
@@ -572,18 +894,37 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     if (nextIndex < 0) return;
     setActiveSlotIndex(nextIndex);
     sceneStateRef.current = { ...sceneStateRef.current, selectedSlotId: shelf.slots[nextIndex]?.id ?? null };
-    slotButtonRefs.current[nextIndex]?.focus();
+    const button = slotButtonRefs.current[nextIndex];
+    button?.focus({ preventScroll: true });
+    button?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
   };
 
   const statusText = seasonNotice ?? (pausedByBlur
     ? '일시 멈춤'
+    : ambientNotice
+      ? ambientNotice
+    : ambientState.benchObjectId
+      ? '잠깐 쉬는 중 · E 또는 이동키로 일어나기'
+    : ambientBusy
+      ? '살펴보는 중…'
+    : receiving
+      ? '직원에게 책을 받는 중…'
     : carriedDraft
       ? `운반 중 · ${carriedDraft.title}`
+      : placementNotice
+        ? placementNotice
+      : clerkGreeting && room.desk.clerk
+        ? '책을 받아 가세요'
       : hasMoved
         ? ''
         : 'WASD 또는 방향키로 이동');
-  const nearbyActionLabel = nearbyTarget?.kind === 'registration-desk'
-    ? '가까운 곳 살펴보기: 책 등록'
+  const ambientObject = resolveLibraryCatRoom(room, sceneStateRef.current.catState, sceneStateRef.current.player).ambientObjects?.find(item => item.id === (ambientState.benchObjectId ?? (nearbyTarget?.kind === 'ambient' ? nearbyTarget.objectId : null)));
+  const nearbyActionLabel = ambientState.benchObjectId
+    ? '일어나기'
+    : nearbyTarget?.kind === 'ambient' && ambientObject
+      ? getLibraryAmbientLabel(ambientObject, ambientState)
+    : nearbyTarget?.kind === 'registration-desk'
+    ? room.desk.clerk ? '직원에게 말 걸기' : '가까운 곳 살펴보기: 책 등록'
     : nearbyTarget?.kind === 'failure-board'
       ? '가까운 곳 살펴보기: 실패 자랑소'
       : nearbyTarget?.kind === 'competition-board'
@@ -594,14 +935,15 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       ? '가까운 곳 살펴보기: 책장 열기'
         : null;
   const readingBook = books[readingBookIndex % Math.max(1, books.length)];
-  const cueRect = nearbyTarget?.kind === 'registration-desk' ? room.desk.visualRect
+  const cueRect = ambientObject ? ambientObject.visualRect
+    : nearbyTarget?.kind === 'registration-desk' ? room.desk.clerk?.visualRect ?? room.desk.visualRect
     : nearbyTarget?.kind === 'failure-board' ? room.failureBoard?.visualRect
       : nearbyTarget?.kind === 'competition-board' ? room.competitionBoard?.visualRect
       : nearbyTarget?.kind === 'reading-nook' ? room.readingArea.beanbagVisualRect
         : nearbyTarget && 'shelfId' in nearbyTarget ? room.shelves.find(shelf => shelf.id === nearbyTarget.shelfId)?.visualRect : null;
 
   return (
-    <main className="student-canvas-library" aria-label="우리 반 도서관 게임">
+    <main className="student-canvas-library" aria-label="우리 반 도서관 게임" onPointerDownCapture={unlockAudio} onKeyDownCapture={unlockAudio}>
       <div ref={stageRef} className="student-canvas-library-stage">
         <div
           className="student-canvas-library-frame"
@@ -621,28 +963,24 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
           />
 
           {onBack ? (
-            <button type="button" className="student-canvas-library-back" aria-label="도서관 나가기" onClick={onBack}>
+            <button type="button" className="student-canvas-library-back" aria-label="도서관 나가기" disabled={isPlacing || ambientBusy || (receiving && !receiveApproachRef.current?.waiting)} onClick={requestExit}>
               <LogOut aria-hidden="true" />
             </button>
           ) : null}
 
-          <button type="button" className="student-canvas-library-sound" aria-label={soundEnabled ? '효과음 끄기' : '효과음 켜기'} aria-pressed={soundEnabled} onClick={() => { const enabled = !soundEnabled; soundEnabledRef.current = enabled; setSoundEnabled(enabled); if (enabled) void playBookSound('receive'); }}>
-            {soundEnabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
-          </button>
-
-          {nearbyActionLabel && cueRect && !modal ? (
-            <button type="button" className="student-canvas-library-world-cue" style={{left: `${(cueRect.x + cueRect.width / 2) / room.width * 100}%`, top: `${Math.max(8, cueRect.y - 16) / room.height * 100}%`}} onClick={interact} aria-label={nearbyActionLabel}>
+          {nearbyActionLabel && cueRect && !modal && !ambientBusy ? (
+            <button type="button" className="student-canvas-library-world-cue" style={{left: `${(cueRect.x + cueRect.width / 2) / room.width * 100}%`, top: `${Math.max(42, cueRect.y - (ambientObject?.kind === 'cat' ? 12 + 22 / displayScale : 16)) / room.height * 100}%`}} onClick={interact} aria-label={nearbyActionLabel}>
               <kbd>E</kbd><span>{nearbyActionLabel.replace('가까운 곳 살펴보기: ', '')}</span>
             </button>
           ) : null}
 
           {statusText ? (
-            <p className="student-canvas-library-status">
+            <p className="student-canvas-library-status" title={statusText}>
               {carriedDraft ? <BookOpen aria-hidden="true" /> : null}
               <span>{statusText}</span>
             </p>
           ) : null}
-          <span className="student-canvas-library-visually-hidden" aria-live="polite">{nearbyActionLabel ?? statusText}</span>
+          <span className="student-canvas-library-visually-hidden" aria-live="polite">{ambientNotice ?? placementNotice ?? nearbyActionLabel ?? statusText}</span>
 
         </div>
       </div>
@@ -683,7 +1021,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
               {readingBook ? <small>{readingBook.studentNumber}번 친구가 꽂은 책</small> : null}
             </div>
             <div className="student-canvas-library-actions">
-              {books.length > 1 ? <button type="button" onClick={() => setReadingBookIndex(index => index + 1)}>다른 책 펼치기</button> : null}
+              {books.length > 1 ? <button type="button" onClick={() => { setReadingBookIndex(index => index + 1); }}>다른 책 펼치기</button> : null}
               <button type="button" onClick={closeModal}>일어나기</button>
             </div>
           </section>
@@ -703,6 +1041,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
             <button type="button" className="student-canvas-library-dialog-close" aria-label="책 등록 닫기" onClick={closeModal}><X aria-hidden="true" /></button>
             <span className="student-canvas-library-kicker">등록대</span>
             <h1 id={registrationTitleId}>읽은 책 등록</h1>
+            {room.desk.clerk ? <p>어서 오세요! 읽은 책을 알려 주세요.</p> : null}
             {books.length >= 100 ? (
               <p className="student-canvas-library-error" role="status">100자리가 모두 찼어요. 꽂힌 책은 읽을 수 있어요.</p>
             ) : (
@@ -760,7 +1099,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
             <h1 id={slotTitleId}>책을 둘 자리</h1>
             {activeSlot ? (
               <p className="student-canvas-library-slot-caption" aria-live="polite">
-                <span>{activeSlot.id + 1}번 · {activeSlotBook ? '책' : '빈자리'}</span>
+                <span>{isPlacing ? '책을 저장하고 있어요…' : `${activeSlot.id + 1}번 · ${activeSlotBook ? '책' : '빈자리'}`}</span>
                 <strong>{activeSlotLabel}</strong>
               </p>
             ) : null}
@@ -768,14 +1107,14 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
               className="student-canvas-library-slot-grid"
               data-columns={activeShelf.columns}
               style={{
-                gridTemplateColumns: `repeat(${activeShelf.columns}, minmax(0, 1fr))`,
+                gridTemplateColumns: `repeat(${activeShelf.columns}, minmax(${activeShelf.columns === 15 ? 44 : 0}px, 1fr))`,
                 gridTemplateRows: `repeat(${activeShelf.rows}, minmax(${room.failureBoard ? 96 : 44}px, 1fr))`,
               }}
             >
               {activeShelf.slots.map((slot, index) => {
                 const occupied = books.find((book) => book.slotId === slot.id);
                 const label = occupied?.title ?? `빈자리 ${slot.id + 1}`;
-                const spineThickness = occupied ? Math.min(7, Math.max(3, Math.round(occupied.pageCount / 100))) : null;
+                const spineThickness = occupied ? getLibraryBookThickness(occupied.pageCount) : null;
                 return (
                   <button
                     key={slot.id}
@@ -798,7 +1137,8 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
                     <span
                       className="student-canvas-library-slot-spine"
                       data-state={occupied ? 'book' : 'empty'}
-                      data-tone={slot.id % 3}
+                      data-tone={occupied ? getLibraryBookTone(occupied) : undefined}
+                      style={occupied ? { backgroundColor: CANVAS_LIBRARY_PALETTE.bookSpines[getLibraryBookTone(occupied)][0], width: `${Math.min(88, 48 + (spineThickness ?? 8) * 2)}%` } : undefined}
                       data-thickness={spineThickness ?? undefined}
                       data-height={slot.id % 3}
                       aria-hidden="true"
@@ -813,6 +1153,18 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
           </section>
         </div>
       ) : null}
+
+      <StudentConfirmDialog
+        isOpen={modal?.kind === 'confirm-exit'}
+        title={carriedDraft || receiveApproachRef.current ? '들고 있는 책의 운반을 취소하고 나갈까요?' : '책방 밖으로 나갈까요?'}
+        description={carriedDraft || receiveApproachRef.current ? '새로 입력한 미배치 책 내용은 남지 않아요. 이미 등록된 책은 삭제되지 않아요.' : '읽던 책은 다음에 다시 살펴볼 수 있어요.'}
+        confirmLabel={carriedDraft || receiveApproachRef.current ? '운반 취소하고 나가기' : '나가기'}
+        cancelLabel="책방에 머물기"
+        isPending={false}
+        returnFocusRef={canvasRef}
+        onCancel={closeModal}
+        onConfirm={finishExit}
+      />
 
       {modal?.kind === 'details' ? (
         <div className="student-canvas-library-scrim" role="presentation" onPointerDown={closeModal}>

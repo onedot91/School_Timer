@@ -1,0 +1,74 @@
+{
+  "collisionChecks": [
+    {
+      "label": "차 세트 · tea-set",
+      "dir": "왼쪽",
+      "position": {
+        "x": "286.27",
+        "y": "308.00"
+      }
+    },
+    {
+      "label": "테이블 책 · table-book",
+      "dir": "오른쪽",
+      "position": {
+        "x": "427.00",
+        "y": "271.00"
+      }
+    },
+    {
+      "label": "벤치 · reading-bench",
+      "dir": "위쪽",
+      "position": {
+        "x": "470.00",
+        "y": "330.63"
+      }
+    },
+    {
+      "label": "독서 공간",
+      "dir": "위쪽",
+      "position": {
+        "x": "548.00",
+        "y": "317.01"
+      }
+    },
+    {
+      "label": "스탠드 · reading-lamp",
+      "dir": "위쪽",
+      "position": {
+        "x": "552.00",
+        "y": "266.34"
+      }
+    },
+    {
+      "label": "책방 고양이 · bookshop-cat",
+      "dir": "왼쪽",
+      "position": {
+        "x": "393.67",
+        "y": "163.00"
+      }
+    }
+  ],
+  "interactionChecks": [
+    {
+      "label": "차 세트 · tea-set",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":true,\"benchObjectId\":null}"
+    },
+    {
+      "label": "테이블 책 · table-book",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":true,\"bookmarkFound\":true,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+    },
+    {
+      "label": "벤치 · reading-bench",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":\"reading-bench\"}"
+    },
+    {
+      "label": "스탠드 · reading-lamp",
+      "state": "{\"lampOn\":false,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":0,\"teaFull\":false,\"benchObjectId\":null}"
+    },
+    {
+      "label": "책방 고양이 · bookshop-cat",
+      "state": "{\"lampOn\":true,\"wateredPlantIds\":[],\"bookOpen\":false,\"bookmarkFound\":false,\"catReactions\":1,\"teaFull\":false,\"benchObjectId\":null}"
+    }
+  ]
+}

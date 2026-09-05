@@ -387,12 +387,13 @@ export default function StudentMissionsPage({
             </motion.div> : null}
             {studentMissionVisibility.bookStack ? <motion.div {...missionEntrance(4)}>
               <StudentMissionCard
-                title="읽은 책 쌓기"
-                illustrationSrc="/mission-illustrations/book-stacking.png"
+                title="책책책 책을 읽읍시다"
+                illustrationSrc="/mission-illustrations/read-books.png"
+                description="책장에 책을 등록하면 일주일에 한 번 10고마를 받아요"
                 rewardAmount={BOOK_STACK_WEEKLY_REWARD}
                 verificationMode="automatic"
                 status={isBookStackMissionCompleted ? 'completed' : 'incomplete'}
-                actionLabel={isBookStackMissionCompleted ? '쌓은 책 보기' : '책 쌓기'}
+                actionLabel={isBookStackMissionCompleted ? '등록한 책 보기' : '책장에 책 등록하기'}
                 onAction={onOpenBookStack}
               />
             </motion.div> : null}
