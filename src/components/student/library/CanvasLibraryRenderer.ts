@@ -304,20 +304,6 @@ const drawEntryRug = (context: DrawContext, room: LibraryRoom) => {
   }
 };
 
-const drawCirculationInlay = (context: DrawContext, room: LibraryRoom) => {
-  if (!room.failureBoard) return;
-  const centerX = pixel(room.spawn.x);
-  const bottom = pixel(room.walkableBounds.y + room.walkableBounds.height - 26);
-  context.save();
-  context.globalAlpha = 0.35;
-  context.fillStyle = palette.paper[3];
-  for (const dx of [-21, 21]) {
-    context.fillRect(centerX + dx, bottom - 37, 1, 28);
-    context.fillRect(centerX + dx - (dx < 0 ? 0 : 4), bottom - 37, 5, 1);
-  }
-  context.restore();
-};
-
 const drawWindow = (context: DrawContext, rect: LibraryRect) => {
   fillRect(context, rect, palette.ink[0]);
   fillRect(context, insetRect(rect, 2), palette.timber[1]);
@@ -447,7 +433,6 @@ const drawFailureBoardNotes = (context: DrawContext, rect: LibraryRect, rawCount
 const drawStaticRoom = (context: DrawContext, room: LibraryRoom) => {
   drawRoomBase(context, room);
   drawMotivatedLight(context, room);
-  drawCirculationInlay(context, room);
   drawWindow(context, room.readingArea.windowRect);
   drawEntryRug(context, room);
   drawRug(context, room.readingArea.rug);

@@ -77,7 +77,6 @@ export function LibraryCompetitionPanel({ onClose, onSnapshot, returnFocusRef }:
       </select></label>}
       {loading ? <p className="library-competition-empty" role="status"><LoaderCircle aria-hidden="true" />기록을 불러오는 중…</p> : standings.length > 0 ? <LibraryCompetitionTable standings={standings} /> : <p className="library-competition-empty">{past ? '아직 지난 기록이 없어요.' : '아직 챌린지를 열 수 없어요. 책방은 그대로 이용할 수 있어요.'}</p>}
       {past && history?.archive && <details className="library-competition-books"><summary><BookOpen aria-hidden="true" />보관된 책 {history.archive.books.length}권</summary><ul>{history.archive.books.map(book => <li key={book.id}><strong>{book.title}</strong><span>{book.author}</span>{book.reflection ? <span>{book.reflection}</span> : null}</li>)}</ul></details>}
-      <footer className="library-competition-footer"><BookOpen aria-hidden="true" /><span>함께 채우는 책방 · 최대 100권</span></footer>
     </div>
   </div>;
 }
