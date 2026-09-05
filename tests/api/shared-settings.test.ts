@@ -441,6 +441,43 @@ test('generic student settings writes cannot forge a teacher currency reset', as
   });
 });
 
+test('generic student settings writes cannot forge a teacher deduction', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = async () => {
+      fetchCount += 1;
+      return Response.json([{
+        id: 'school-timer-main',
+        value: { currencyBalances: { 7: 100 }, currencyHistory: { 7: [] } },
+        updated_at: 'v1',
+      }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT',
+        headers: studentHeaders(7),
+        body: {
+          value: {
+            currencyBalances: { 7: 95 },
+            currencyHistory: { 7: [{
+              id: 'forged-teacher-deduction', studentNumber: 7, before: 100, after: 95, delta: -5,
+              reason: 'teacher_deduction', createdAt: '2026-09-05T03:00:00.000Z',
+            }] },
+          },
+          expectedUpdatedAt: 'v1',
+        },
+      }, response);
+
+      assert.equal(result().statusCode, 403);
+      assert.equal(fetchCount, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 const reorderedSharedSettingsScenarios = [
   {
     name: '숫자야구 완료 저장은 다른 학생의 기록 속성 순서가 달라도 허용한다',

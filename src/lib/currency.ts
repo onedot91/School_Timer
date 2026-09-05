@@ -1,4 +1,12 @@
-import { applyStudentEconomyTax, normalizeStudentEconomyStates, type StudentEconomyStates } from './studentEconomy.js';
+import {
+  applyStudentEconomyTax,
+  applyTeacherCurrencyDeduction,
+  getStudentEconomyState,
+  normalizeStudentEconomyStates,
+  type StudentEconomyStates,
+} from './studentEconomy.js';
+import { normalizeStudentEmotionHistory } from './studentEmotion.js';
+import { createStudentLetter, normalizeStudentLifeState } from './studentLife.js';
 
 export type CurrencyBalances = Record<string, number>;
 
@@ -10,6 +18,7 @@ export type CurrencyHistoryReason =
   | 'auction_award'
   | 'weekly_mission'
   | 'daily_emotion'
+  | 'weekly_emotion'
   | 'sudoku_mission'
   | 'number_baseball_mission'
   | 'classroom_role'
@@ -19,6 +28,7 @@ export type CurrencyHistoryReason =
   | 'bank_transfer'
   | 'shop_purchase'
   | 'stock_trade'
+  | 'teacher_deduction'
   | 'bulk_adjust';
 
 export interface CurrencyHistoryEntry {
@@ -92,6 +102,7 @@ export const CURRENCY_BALANCE_MAX = 999999;
 export const CURRENCY_BALANCE_STEP = 5;
 export const CURRENCY_UNIT_LABEL = '고마';
 export const DAILY_EMOTION_MISSION_REWARD = 5;
+export const WEEKLY_EMOTION_MISSION_REWARD = 25;
 export const AUCTION_BID_STEP = 1;
 export const AUCTION_MISSIONS_STORAGE_KEY = 'auctionMissions-v1';
 export const AUCTION_MISSION_MAX_COUNT = 4;
@@ -275,6 +286,7 @@ const CURRENCY_HISTORY_REASONS = [
   'auction_award',
   'weekly_mission',
   'daily_emotion',
+  'weekly_emotion',
   'sudoku_mission',
   'number_baseball_mission',
   'classroom_role',
@@ -284,6 +296,7 @@ const CURRENCY_HISTORY_REASONS = [
   'bank_transfer',
   'shop_purchase',
   'stock_trade',
+  'teacher_deduction',
   'bulk_adjust',
 ] as const satisfies readonly CurrencyHistoryReason[];
 
@@ -359,6 +372,98 @@ export const appendCurrencyHistoryEntry = (
   };
 };
 
+export const applyTeacherCurrencyDeductionInSettings = (
+  value: unknown,
+  {
+    studentNumber,
+    amount,
+    teacherReason,
+    requestId,
+    createdAt = new Date().toISOString(),
+  }: {
+    studentNumber: number;
+    amount: number;
+    teacherReason: string;
+    requestId: string;
+    createdAt?: string;
+  },
+) => {
+  if (!CURRENCY_STUDENT_NUMBERS.includes(studentNumber)) throw new Error('INVALID_STUDENT_NUMBER');
+  const normalizedReason = teacherReason.trim().slice(0, 60);
+  if (normalizedReason.length === 0) throw new Error('TEACHER_DEDUCTION_REASON_REQUIRED');
+
+  const current = value && typeof value === 'object' && !Array.isArray(value)
+    ? { ...(value as Record<string, unknown>) }
+    : {};
+  const balances = normalizeCurrencyBalances(current.currencyBalances);
+  const history = normalizeCurrencyHistory(current.currencyHistory);
+  const economy = normalizeStudentEconomyStates(current.studentEconomy);
+  const studentKey = String(studentNumber);
+  const before = balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const deduction = applyTeacherCurrencyDeduction({
+    state: getStudentEconomyState(economy, studentNumber),
+    wallet: before,
+    amount,
+    requestId,
+  });
+  if (!deduction.applied) {
+    return {
+      value: current,
+      applied: false,
+      wallet: before,
+      deposit: getStudentEconomyState(economy, studentNumber).deposit,
+      walletDeduction: 0,
+      depositDeduction: 0,
+    };
+  }
+
+  const historyEntry: CurrencyHistoryEntry = {
+    id: `currency-economy-${requestId}-${studentKey}`,
+    studentNumber,
+    delta: deduction.wallet - before,
+    before,
+    after: deduction.wallet,
+    reason: 'teacher_deduction',
+    createdAt,
+  };
+  const nextHistory = normalizeCurrencyHistory({
+    ...history,
+    [studentKey]: [historyEntry, ...(history[studentKey] ?? [])],
+  });
+  const nextLife = createStudentLetter(normalizeStudentLifeState(current.studentLife), {
+    id: `teacher-deduction-letter-${requestId}`,
+    recipient: studentNumber,
+    senderLabel: '선생님',
+    senderStudentNumber: null,
+    title: '고마 차감 안내',
+    content: [
+      `선생님이 ${amount.toLocaleString('ko-KR')}고마를 차감했어요.`,
+      '',
+      '차감 사유',
+      normalizedReason,
+      ...(deduction.depositDeduction > 0
+        ? ['', `보유 고마가 부족해 ${deduction.depositDeduction.toLocaleString('ko-KR')}고마는 예금에서 사용했어요.`]
+        : []),
+    ].join('\n'),
+    createdAt,
+  });
+
+  return {
+    value: {
+      ...current,
+      currencyBalances: { ...balances, [studentKey]: deduction.wallet },
+      currencyHistory: nextHistory,
+      studentEconomy: { ...economy, [studentKey]: deduction.state },
+      studentLife: nextLife,
+    },
+    applied: true,
+    wallet: deduction.wallet,
+    deposit: deduction.state.deposit,
+    walletDeduction: deduction.walletDeduction,
+    depositDeduction: deduction.depositDeduction,
+  };
+};
+
 const getDailyEmotionRewardId = (studentNumber: number, dateKey: string) => (
   `daily-emotion-${studentNumber}-${dateKey}`
 );
@@ -407,6 +512,84 @@ export const claimDailyEmotionRewardInSettings = (
         before,
         after,
         reason: 'daily_emotion' as const,
+        createdAt,
+      },
+      ...existingEntries,
+    ],
+  };
+  const nextBalances = { ...balances, [studentKey]: after };
+
+  return {
+    value: {
+      ...current,
+      currencyBalances: nextBalances,
+      currencyHistory: nextHistory,
+    },
+    awarded: true,
+    balance: after,
+    history: nextHistory,
+  };
+};
+
+const getWeeklyEmotionRewardId = (studentNumber: number, mondayDateKey: string) => (
+  `weekly-emotion-${studentNumber}-${mondayDateKey}`
+);
+
+export const hasWeeklyEmotionReward = (
+  currencyHistory: unknown,
+  studentNumber: number,
+  mondayDateKey: string,
+) => (
+  normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
+).some((entry) => entry.id === getWeeklyEmotionRewardId(studentNumber, mondayDateKey));
+
+export const claimWeeklyEmotionRewardInSettings = (
+  value: unknown,
+  studentNumber: number,
+  weekdayDateKeys: readonly string[],
+  createdAt = new Date().toISOString(),
+): {
+  value: Record<string, unknown>;
+  awarded: boolean;
+  balance: number;
+  history: CurrencyHistory;
+} => {
+  const current = value && typeof value === 'object'
+    ? { ...(value as Record<string, unknown>) }
+    : {};
+  const balances = normalizeCurrencyBalances(current.currencyBalances);
+  const history = normalizeCurrencyHistory(current.currencyHistory);
+  const studentKey = String(studentNumber);
+  const existingEntries = history[studentKey] ?? [];
+  const before = balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const mondayDateKey = weekdayDateKeys[0] ?? '';
+  const rewardId = getWeeklyEmotionRewardId(studentNumber, mondayDateKey);
+  const emotionDateKeys = new Set(
+    (normalizeStudentEmotionHistory(current.studentEmotionHistory)[studentKey] ?? [])
+      .map((entry) => entry.dateKey),
+  );
+  const isWeekComplete = weekdayDateKeys.length === 5
+    && weekdayDateKeys.every((dateKey) => emotionDateKeys.has(dateKey));
+
+  if (
+    !isWeekComplete
+    || existingEntries.some((entry) => entry.id === rewardId)
+    || before > CURRENCY_BALANCE_MAX - WEEKLY_EMOTION_MISSION_REWARD
+  ) {
+    return { value: current, awarded: false, balance: before, history };
+  }
+
+  const after = before + WEEKLY_EMOTION_MISSION_REWARD;
+  const nextHistory = {
+    ...history,
+    [studentKey]: [
+      {
+        id: rewardId,
+        studentNumber,
+        delta: WEEKLY_EMOTION_MISSION_REWARD,
+        before,
+        after,
+        reason: 'weekly_emotion' as const,
         createdAt,
       },
       ...existingEntries,

@@ -16705,6 +16705,19 @@ a[href]:active {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--apple-accent) 18%, transparent) !important;
 }
 
+.utility-pane-card .currency-deduction-amount-input,
+.utility-pane-card .currency-deduction-amount-input:focus,
+.utility-pane-card .currency-deduction-amount-input:focus-visible {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
 .currency-panel .utility-pane-card > div:first-child {
   background: transparent !important;
 }
@@ -23728,6 +23741,99 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   border-radius: 1rem;
   background: #f1f6f2;
 }
+
+.student-emotion-view .student-header-status {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.student-emotion-participation {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: .35rem;
+  padding: .2rem .42rem;
+  border: 1px solid color-mix(in srgb, var(--apple-accent) 18%, var(--apple-separator));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--apple-accent-soft) 35%, var(--apple-surface));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .82);
+}
+
+.student-emotion-participation[data-complete="true"] {
+  border-color: color-mix(in srgb, #b98432 65%, var(--apple-separator));
+  background: color-mix(in srgb, #fff3c4 58%, var(--apple-surface));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .9),
+    0 3px 10px rgba(138, 100, 28, .16);
+}
+
+.student-emotion-participation-reward {
+  display: inline-flex;
+  min-width: 8.5rem;
+  height: 1.8rem;
+  align-items: center;
+  justify-content: center;
+  gap: .12rem;
+  border: 1px solid color-mix(in srgb, #b98432 32%, var(--apple-separator));
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff3c4 45%, var(--apple-surface));
+  color: #8a641c;
+  font-family: var(--font-display);
+  font-size: var(--student-readable-text-min, .875rem);
+  font-weight: 950;
+  letter-spacing: -.03em;
+  line-height: 1;
+}
+
+.student-emotion-participation-reward[data-complete="true"] {
+  border-color: #087854;
+  background: #087854;
+  color: #fff;
+  box-shadow: 0 2px 7px rgba(8, 120, 84, .24);
+}
+
+.student-emotion-participation-week {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+}
+
+.student-emotion-participation-day {
+  display: grid;
+  grid-template-columns: 1.15rem 2rem;
+  place-items: center;
+  gap: .05rem;
+  padding: .08rem .16rem;
+  border-radius: .55rem;
+}
+
+.student-emotion-participation-day-label {
+  color: var(--apple-text-secondary);
+  font-size: var(--student-readable-text-min, .875rem);
+  font-weight: 950;
+}
+
+.student-emotion-participation-day .student-emotion-orb-compact {
+  width: 2rem;
+  height: 1.85rem;
+}
+
+.student-emotion-participation-day .student-emotion-orb img {
+  border: 0;
+  border-radius: .5rem;
+  padding: .16rem;
+}
+
+.student-emotion-participation-empty {
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 2px dashed color-mix(in srgb, var(--apple-text-tertiary) 38%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--apple-surface) 62%, transparent);
+}
+
 .student-emotion-section-tabs button {
   display: flex;
   min-height: 2.75rem;

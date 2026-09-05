@@ -402,6 +402,26 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
 
   Object.keys(nextHistory).forEach((studentKey) => {
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
+    const missingWeeklyEmotionRewards = remoteHistory[studentKey].filter((entry) => (
+      entry.reason === 'weekly_emotion' && entry.delta === 25 && !existingIds.has(entry.id)
+    ));
+
+    if (missingWeeklyEmotionRewards.length === 0) return;
+
+    const rewardAmount = missingWeeklyEmotionRewards.reduce((total, entry) => total + entry.delta, 0);
+    const nextBalance = nextBalances[studentKey] + rewardAmount;
+    if (nextBalance > CURRENCY_BALANCE_MAX) {
+      throw new Error('CURRENCY_RECONCILIATION_CONFLICT');
+    }
+    nextBalances[studentKey] = nextBalance;
+    nextHistory[studentKey] = [
+      ...rebaseMissingEntries(missingWeeklyEmotionRewards, nextBalance),
+      ...nextHistory[studentKey],
+    ];
+  });
+
+  Object.keys(nextHistory).forEach((studentKey) => {
+    const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
     const missingDailyWritingRewards = remoteHistory[studentKey].filter((entry) => (
       entry.reason === 'daily_writing' && entry.delta === 25 && !existingIds.has(entry.id)
     ));
@@ -517,7 +537,10 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
   });
 
   const isEconomyHistoryEntry = (entry: CurrencyHistoryEntry) => (
-    entry.reason === 'shop_purchase' || entry.reason === 'stock_trade' || entry.reason === 'bank_transfer'
+    entry.reason === 'shop_purchase'
+    || entry.reason === 'stock_trade'
+    || entry.reason === 'bank_transfer'
+    || entry.reason === 'teacher_deduction'
   );
   Object.keys(nextHistory).forEach((studentKey) => {
     const remoteLatestReset = getLatestReset(remoteHistory[studentKey]);

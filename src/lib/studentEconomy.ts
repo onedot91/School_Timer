@@ -334,6 +334,14 @@ export interface StudentEconomyTaxResult {
   wallet: number;
 }
 
+export interface TeacherCurrencyDeductionResult {
+  state: StudentEconomyState;
+  wallet: number;
+  walletDeduction: number;
+  depositDeduction: number;
+  applied: boolean;
+}
+
 const MAX_PROCESSED_REQUESTS = 24;
 const MAX_STOCK_MARKET_HISTORY = 30;
 const STOCK_IDS = new Set<string>(STUDENT_STOCKS.map((stock) => stock.id));
@@ -781,6 +789,54 @@ const assertTransactionAmount = (amount: number) => {
   if (!Number.isInteger(amount) || amount < STUDENT_ECONOMY_AMOUNT_STEP || amount > STUDENT_ECONOMY_AMOUNT_MAX) {
     throw new Error('INVALID_ECONOMY_AMOUNT');
   }
+};
+
+export const applyTeacherCurrencyDeduction = ({
+  state: rawState,
+  wallet: rawWallet,
+  amount,
+  requestId,
+}: {
+  state: unknown;
+  wallet: number;
+  amount: number;
+  requestId: string;
+}): TeacherCurrencyDeductionResult => {
+  const state = normalizeStudentEconomyState(rawState);
+  const wallet = clampAmount(rawWallet);
+  if (state.processedRequestIds.includes(requestId)) {
+    return { state, wallet, walletDeduction: 0, depositDeduction: 0, applied: false };
+  }
+  if (!Number.isInteger(amount) || amount <= 0 || amount > 999_999 || requestId.trim().length === 0) {
+    throw new Error('INVALID_TEACHER_DEDUCTION');
+  }
+  if (wallet + state.deposit < amount) throw new Error('INSUFFICIENT_STUDENT_ASSETS');
+
+  const walletDeduction = Math.min(wallet, amount);
+  const depositDeduction = amount - walletDeduction;
+  let remainingDepositDeduction = depositDeduction;
+  const deposits = state.deposits.flatMap((deposit) => {
+    if (remainingDepositDeduction === 0) return [deposit];
+    const deduction = Math.min(deposit.principal, remainingDepositDeduction);
+    remainingDepositDeduction -= deduction;
+    const principal = deposit.principal - deduction;
+    return principal > 0
+      ? [{ ...deposit, principal, interest: calculateBankInterest(principal) }]
+      : [];
+  });
+
+  return {
+    state: {
+      ...state,
+      deposit: deposits.reduce((sum, deposit) => sum + deposit.principal, 0),
+      deposits,
+      processedRequestIds: [...state.processedRequestIds, requestId].slice(-MAX_PROCESSED_REQUESTS),
+    },
+    wallet: wallet - walletDeduction,
+    walletDeduction,
+    depositDeduction,
+    applied: true,
+  };
 };
 
 export const applyStudentEconomyAction = ({

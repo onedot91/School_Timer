@@ -97,6 +97,7 @@ const getProtectedCurrencyHistoryEntries = (value: unknown, studentNumber: numbe
         return reason === 'shop_purchase'
           || reason === 'stock_trade'
           || reason === 'bank_transfer'
+          || reason === 'teacher_deduction'
           || reason === 'reset';
       })
     : [];

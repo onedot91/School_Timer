@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Heart, MessageCircle, PencilLine } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Coins, Heart, MessageCircle, PencilLine } from 'lucide-react';
 import {
   STUDENT_EMOTION_COMMENT_MAX_LENGTH,
   STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH,
@@ -8,6 +8,7 @@ import {
   getStudentEmotion,
   getStudentEmotionsByZone,
   getKoreanLocalDateKey,
+  getSchoolWeekDateKeys,
   type StudentEmotionEntry,
   type StudentEmotionDefinition,
   type StudentEmotionId,
@@ -61,6 +62,45 @@ interface StudentEmotionPageProps {
   isSaving: boolean;
   onSave: (emotionId: StudentEmotionId, comment: string, selfMessage: string) => Promise<boolean>;
   onBack: () => void;
+}
+
+const SCHOOL_WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
+
+function StudentEmotionParticipation({ weekEntries }: { weekEntries: Array<StudentEmotionEntry | null> }) {
+  const isComplete = weekEntries.every((entry) => entry !== null);
+  const summary = weekEntries
+    .map((entry, index) => `${SCHOOL_WEEKDAY_LABELS[index]}요일 ${getStudentEmotion(entry?.emotionId)?.label ?? '기록 없음'}`)
+    .join(', ');
+
+  return (
+    <div
+      className="student-emotion-participation"
+      data-complete={isComplete}
+      aria-label={`나의 이번 주 감정 구슬, ${summary}. 다섯 칸 보상 25고마${isComplete ? ' 달성' : ''}`}
+    >
+      <div className="student-emotion-participation-week" aria-hidden="true">
+        {weekEntries.map((entry, weekdayIndex) => {
+          const emotion = getStudentEmotion(entry?.emotionId);
+          return (
+            <div
+              key={SCHOOL_WEEKDAY_LABELS[weekdayIndex]}
+              className={`student-emotion-participation-day${emotion ? ' is-filled' : ''}`}
+              data-zone={emotion?.zone}
+            >
+              <span className="student-emotion-participation-day-label">{SCHOOL_WEEKDAY_LABELS[weekdayIndex]}</span>
+              {emotion
+                ? <StudentEmotionOrbVisual emotion={emotion} compact />
+                : <span className="student-emotion-participation-empty" />}
+            </div>
+          );
+        })}
+      </div>
+      <span className="student-emotion-participation-reward" data-complete={isComplete} aria-hidden="true">
+        {isComplete ? <Check size={16} strokeWidth={3} /> : <Coins size={15} />}
+        <strong>다 채우면 25고마</strong>
+      </span>
+    </div>
+  );
 }
 
 interface EmotionCalendarDay {
@@ -148,6 +188,7 @@ export default function StudentEmotionPage({
     () => new Map(history.map((entry) => [entry.dateKey, entry])),
     [history],
   );
+  const schoolWeekEntries = getSchoolWeekDateKeys().map((dateKey) => historyByDate.get(dateKey) ?? null);
   const calendarDays = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
   const monthlyZoneCounts = useMemo(() => {
     const counts: Record<StudentEmotionZoneId, number> = {
@@ -239,7 +280,11 @@ export default function StudentEmotionPage({
 
   return (
     <div className={`student-view student-emotion-view student-emotion-view-${activeSection}`}>
-      <StudentHeader title="감정 구슬" onBack={onBack} actions={<div className="student-emotion-section-tabs" role="tablist" aria-label="감정 구슬 메뉴">
+      <StudentHeader
+        title="감정 구슬"
+        onBack={onBack}
+        status={<StudentEmotionParticipation weekEntries={schoolWeekEntries} />}
+        actions={<div className="student-emotion-section-tabs" role="tablist" aria-label="감정 구슬 메뉴">
         <button
           type="button"
           role="tab"
@@ -266,7 +311,8 @@ export default function StudentEmotionPage({
           <CalendarDays size={18} aria-hidden="true" />
           내 기록
         </button>
-      </div>} />
+      </div>}
+      />
 
       {activeSection === 'pick' ? <main
         id="emotion-section-pick-panel"

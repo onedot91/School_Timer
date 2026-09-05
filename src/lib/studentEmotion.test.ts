@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   createStudentEmotionEntry,
+  getSchoolWeekDateKeys,
   getTodayStudentEmotionEntry,
   getStudentEmotionsByZone,
   mergeStudentEmotionHistories,
@@ -9,6 +10,23 @@ import {
   STUDENT_EMOTION_ZONES,
   upsertStudentEmotionEntry,
 } from './studentEmotion';
+
+test('weekly emotion strip includes only Monday through Friday', () => {
+  assert.deepEqual(getSchoolWeekDateKeys(new Date(2026, 7, 15, 9)), [
+    '2026-08-10',
+    '2026-08-11',
+    '2026-08-12',
+    '2026-08-13',
+    '2026-08-14',
+  ]);
+  assert.deepEqual(getSchoolWeekDateKeys(new Date(2026, 7, 16, 9)), [
+    '2026-08-10',
+    '2026-08-11',
+    '2026-08-12',
+    '2026-08-13',
+    '2026-08-14',
+  ]);
+});
 
 test('emotion catalog follows the supplied four-zone 3x3 order', () => {
   assert.deepEqual(

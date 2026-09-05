@@ -3,7 +3,7 @@ export type StudentFeatureReleaseId = 'bank' | 'securities' | 'bookstore' | 'emo
 export const STUDENT_FEATURE_RELEASES: Readonly<Record<StudentFeatureReleaseId, boolean>> = {
   bank: true,
   securities: false,
-  bookstore: false,
+  bookstore: true,
   emotionOrbs: true,
   petEgg: false,
 };

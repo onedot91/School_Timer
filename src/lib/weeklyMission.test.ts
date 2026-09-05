@@ -21,11 +21,15 @@ import {
 import { hasPersonalQuestionSubmission } from './questionSubmissionStatus';
 import {
   claimDailyEmotionRewardInSettings,
+  claimWeeklyEmotionRewardInSettings,
   createWeeklyCurrencyCycle,
+  applyTeacherCurrencyDeductionInSettings,
   finalizeAuctionAwardInSettings,
   hasDailyEmotionReward,
+  hasWeeklyEmotionReward,
   type CurrencyHistory,
 } from './currency';
+import { createStudentEmotionEntry, getSchoolWeekDateKeys } from './studentEmotion';
 import { claimDailyWritingRewardInSettings, hasDailyWritingReward } from './dailyWriting';
 
 test('Korean ISO week key matches the question site contract', () => {
@@ -251,6 +255,31 @@ test('stale settings saves preserve a concurrent daily emotion reward', () => {
     reason: 'daily_emotion',
     createdAt: '2026-08-11T01:00:00.000Z',
   });
+});
+
+test('stale settings saves preserve a concurrent weekly emotion reward', () => {
+  const weekdayDateKeys = getSchoolWeekDateKeys(new Date(2026, 7, 14, 9));
+  const remote = claimWeeklyEmotionRewardInSettings({
+    currencyBalances: { 6: 120 },
+    currencyHistory: { 6: [] },
+    studentEmotionHistory: {
+      6: weekdayDateKeys.map((dateKey) => createStudentEmotionEntry(
+        6,
+        'calm',
+        '차분한 하루',
+        new Date(`${dateKey}T09:00:00+09:00`),
+      )),
+    },
+  }, 6, weekdayDateKeys, '2026-08-14T01:00:00.000Z').value;
+
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, {
+    scheduleNotice: '수정된 공지',
+    currencyBalances: { 6: 120 },
+    currencyHistory: { 6: [] },
+  });
+
+  assert.equal((merged.currencyBalances as Record<string, number>)['6'], 145);
+  assert.equal(hasWeeklyEmotionReward(merged.currencyHistory, 6, weekdayDateKeys[0]), true);
 });
 
 test('stale settings saves rebase multiple concurrent rewards as one continuous ledger', () => {
@@ -509,6 +538,36 @@ test('stale teacher saves preserve a concurrent house purchase, debit, and owner
   const mergedAgain = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
   assert.equal((mergedAgain.currencyBalances as Record<string, number>)['10'], 189);
   assert.equal((mergedAgain.currencyHistory as Record<string, unknown[]>)['10'].length, 1);
+});
+
+test('stale settings saves preserve a teacher deduction from deposit and its letter', () => {
+  const stale = {
+    currencyBalances: { 12: 0 },
+    currencyHistory: { 12: [] },
+    studentEconomy: {
+      12: {
+        deposits: [{ id: 'deposit-1', principal: 20, openedOn: '2026-09-01', maturityDate: '2026-09-03', interest: 2 }],
+        processedRequestIds: [],
+      },
+    },
+    studentLife: { letters: [] },
+  };
+  const remote = applyTeacherCurrencyDeductionInSettings(stale, {
+    studentNumber: 12,
+    amount: 10,
+    teacherReason: '준비물 미지참',
+    requestId: 'teacher-deduction-merge',
+    createdAt: '2026-09-05T03:00:00.000Z',
+  }).value;
+
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale);
+  const economy = (merged.studentEconomy as Record<string, { deposit: number; processedRequestIds: string[] }>)['12'];
+  const letters = (merged.studentLife as { letters: Array<{ title: string }> }).letters;
+  assert.equal((merged.currencyBalances as Record<string, number>)['12'], 0);
+  assert.equal(economy.deposit, 10);
+  assert.deepEqual(economy.processedRequestIds, ['teacher-deduction-merge']);
+  assert.equal((merged.currencyHistory as Record<string, unknown[]>)['12'].length, 1);
+  assert.equal(letters[0]?.title, '고마 차감 안내');
 });
 
 test('a newer teacher currency reset keeps the purchase but does not restore its old debit', () => {

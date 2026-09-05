@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import '../classword.css';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -172,6 +172,7 @@ import {
   AUCTION_MISSIONS_STORAGE_KEY,
   AUCTION_WEEKDAY_LABELS,
   adjustCurrencyBalancesForStudents,
+  applyTeacherCurrencyDeductionInSettings,
   createAuctionItemTemplate,
   CURRENCY_BALANCE_MAX,
   CURRENCY_BALANCE_STEP,
@@ -3811,6 +3812,11 @@ export default function TimerPage() {
   const [currencyStudentNumberInput, setCurrencyStudentNumberInput] = useState('');
   const [currencyBalanceInput, setCurrencyBalanceInput] = useState('');
   const [isCurrencyDirectInputVisible, setIsCurrencyDirectInputVisible] = useState(false);
+  const [isCurrencyDeductionVisible, setIsCurrencyDeductionVisible] = useState(false);
+  const [currencyDeductionAmount, setCurrencyDeductionAmount] = useState(String(CURRENCY_BALANCE_STEP));
+  const [currencyDeductionReason, setCurrencyDeductionReason] = useState('');
+  const [currencyDeductionError, setCurrencyDeductionError] = useState('');
+  const [isCurrencyDeductionSaving, setIsCurrencyDeductionSaving] = useState(false);
   const [currencyGroupStudentNumbers, setCurrencyGroupStudentNumbers] = useState<number[]>([]);
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => (
     isSupabaseSettingsEnabled
@@ -6731,6 +6737,9 @@ export default function TimerPage() {
     setCurrencyStudentNumberInput(nextInput);
     setCurrencyAdjustmentSummary(null);
     setIsCurrencyDirectInputVisible(false);
+    setIsCurrencyDeductionVisible(false);
+    setCurrencyDeductionReason('');
+    setCurrencyDeductionError('');
 
     const nextStudentNumber = Number(nextInput);
     if (CURRENCY_STUDENT_NUMBERS.includes(nextStudentNumber)) {
@@ -6748,6 +6757,14 @@ export default function TimerPage() {
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
     const before = previousBalances[key] ?? DEFAULT_CURRENCY_BALANCE;
     const after = clampCurrencyBalance(amount);
+    if (after < before) {
+      setCurrencyDeductionAmount(String(before - after));
+      setCurrencyDeductionReason('');
+      setCurrencyDeductionError('');
+      setIsCurrencyDeductionVisible(true);
+      setIsCurrencyDirectInputVisible(false);
+      return;
+    }
     const nextBalances = { ...previousBalances, [key]: after };
     const nextHistory = appendCurrencyHistoryEntry(currencyHistoryRef.current, {
       studentNumber,
@@ -6760,6 +6777,9 @@ export default function TimerPage() {
   };
 
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
+    setIsCurrencyDeductionVisible(false);
+    setCurrencyDeductionReason('');
+    setCurrencyDeductionError('');
     const key = String(studentNumber);
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
     const before = previousBalances[key] ?? DEFAULT_CURRENCY_BALANCE;
@@ -6775,6 +6795,84 @@ export default function TimerPage() {
       reason: 'manual',
     });
     commitCurrencyAdjustment(nextBalances, nextHistory, 'student', delta);
+  };
+
+  const submitCurrencyDeduction = async () => {
+    if (editingCurrencyNumber === null || isCurrencyDeductionSaving) return;
+    const amount = Number(currencyDeductionAmount);
+    const teacherReason = currencyDeductionReason.trim();
+    if (!Number.isInteger(amount) || amount <= 0 || teacherReason.length === 0) return;
+
+    setIsCurrencyDeductionSaving(true);
+    setCurrencyDeductionError('');
+    const requestId = `teacher-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const createdAt = new Date().toISOString();
+    try {
+      let savedValue: Record<string, unknown>;
+      if (!isSupabaseSettingsEnabled) {
+        const snapshot = loadStoredStudentPetSnapshot();
+        const result = applyTeacherCurrencyDeductionInSettings(snapshot, {
+          studentNumber: editingCurrencyNumber,
+          amount,
+          teacherReason,
+          requestId,
+          createdAt,
+        });
+        savedValue = result.value;
+        const stored = storeStudentPetSnapshot({
+          ...snapshot,
+          currencyBalances: normalizeCurrencyBalances(savedValue.currencyBalances),
+          currencyHistory: normalizeCurrencyHistory(savedValue.currencyHistory),
+          studentEconomy: normalizeStudentEconomyStates(savedValue.studentEconomy),
+          studentLife: normalizeStudentLifeState(savedValue.studentLife),
+        });
+        if (!stored) throw new Error('LOCAL_DEDUCTION_SAVE_FAILED');
+      } else {
+        if (sharedSettingsSaveTimeoutRef.current !== null) {
+          window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+          sharedSettingsSaveTimeoutRef.current = null;
+        }
+        isSharedSettingsSavePendingRef.current = true;
+        const fallbackSnapshot = buildSharedSettingsSnapshot();
+        savedValue = { ...fallbackSnapshot };
+        const updatedAt = await updateSharedSettings((currentValue) => {
+          const source = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
+            ? currentValue
+            : fallbackSnapshot;
+          const result = applyTeacherCurrencyDeductionInSettings(source, {
+            studentNumber: editingCurrencyNumber,
+            amount,
+            teacherReason,
+            requestId,
+            createdAt,
+          });
+          savedValue = result.value;
+          return savedValue;
+        });
+        lastSharedSettingsUpdatedAtRef.current = updatedAt;
+        skipNextSharedSettingsSaveRef.current = true;
+      }
+
+      const savedBalances = normalizeCurrencyBalances(savedValue.currencyBalances);
+      const savedHistory = normalizeCurrencyHistory(savedValue.currencyHistory);
+      commitCurrencyState(savedBalances, savedHistory);
+      setStudentEconomyStates(normalizeStudentEconomyStates(savedValue.studentEconomy));
+      setStudentLife(normalizeStudentLifeState(savedValue.studentLife));
+      setCurrencyBalanceInput(String(savedBalances[String(editingCurrencyNumber)] ?? 0));
+      setCurrencyAdjustmentSummary({ target: 'student', delta: -amount });
+      setCurrencyDeductionReason('');
+      setIsCurrencyDeductionVisible(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      setCurrencyDeductionError(
+        message === 'INSUFFICIENT_STUDENT_ASSETS'
+          ? '고마가 부족해요.'
+          : '저장하지 못했어요.',
+      );
+    } finally {
+      isSharedSettingsSavePendingRef.current = false;
+      setIsCurrencyDeductionSaving(false);
+    }
   };
 
   const adjustAllCurrencyBalances = (delta: number) => {
@@ -7801,6 +7899,21 @@ export default function TimerPage() {
     editingCurrencyNumber === null
       ? null
       : (currencyBalances[String(editingCurrencyNumber)] ?? DEFAULT_CURRENCY_BALANCE);
+  const selectedCurrencyDeposit = editingCurrencyNumber === null
+    ? 0
+    : (studentEconomyStates[String(editingCurrencyNumber)]?.deposit ?? 0);
+  const selectedCurrencyTotal = (selectedCurrencyBalance ?? 0) + selectedCurrencyDeposit;
+  const parsedCurrencyDeductionAmount = Number(currencyDeductionAmount);
+  const currencyWalletDeduction = Number.isInteger(parsedCurrencyDeductionAmount)
+    ? Math.min(selectedCurrencyBalance ?? 0, Math.max(0, parsedCurrencyDeductionAmount))
+    : 0;
+  const currencyDepositDeduction = Number.isInteger(parsedCurrencyDeductionAmount)
+    ? Math.max(0, parsedCurrencyDeductionAmount - currencyWalletDeduction)
+    : 0;
+  const isCurrencyDeductionInvalid = !Number.isInteger(parsedCurrencyDeductionAmount)
+    || parsedCurrencyDeductionAmount <= 0
+    || parsedCurrencyDeductionAmount > selectedCurrencyTotal
+    || currencyDeductionReason.trim().length === 0;
   const parsedCurrencyBalanceInput = Number(currencyBalanceInput);
   const isCurrencyBalanceInputInvalid = currencyBalanceInput.trim().length === 0
     || !Number.isInteger(parsedCurrencyBalanceInput)
@@ -11413,6 +11526,9 @@ export default function TimerPage() {
                           onClick={() => {
                             setIsCurrencyPanelOpen(false);
                             setEditingCurrencyNumber(null);
+                            setIsCurrencyDeductionVisible(false);
+                            setCurrencyDeductionReason('');
+                            setCurrencyDeductionError('');
                           }}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF7EC]"
                           title="화폐 닫기"
@@ -11450,6 +11566,7 @@ export default function TimerPage() {
                           setCurrencyAdjustmentSummary(null);
                           setCurrencyStudentNumberInput('');
                           setIsCurrencyDirectInputVisible(false);
+                          setIsCurrencyDeductionVisible(false);
                           setEditingCurrencyNumber(null);
                         }}
                         className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
@@ -11468,6 +11585,7 @@ export default function TimerPage() {
                           setCurrencyAdjustmentSummary(null);
                           setCurrencyStudentNumberInput('');
                           setIsCurrencyDirectInputVisible(false);
+                          setIsCurrencyDeductionVisible(false);
                           setEditingCurrencyNumber(null);
                         }}
                         className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
@@ -11571,14 +11689,27 @@ export default function TimerPage() {
                           <div className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]">
                             <span className="font-mono text-[1.2rem] font-black leading-none">{editingCurrencyNumber}</span>
                           </div>
-                          <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-3 py-2.5 text-right font-mono text-[1.08rem] font-black leading-none text-[#1F2523]">
+                          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-2 py-2.5 font-mono text-[0.9rem] font-black leading-none text-[#1F2523]" aria-label={`현재 보유 ${selectedCurrencyBalance}고마, 예금 ${selectedCurrencyDeposit}고마`}>
+                            <Coins size={15} className="shrink-0 text-[#B1772B]" aria-hidden="true" />
                             <span>{formatCurrencyAmount(selectedCurrencyBalance)}</span>
-                            {currencyAdjustmentSummary?.target === 'student' ? (
-                              <span className="whitespace-nowrap text-[0.72rem] font-black text-[#006241]">
-                                {formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}
-                              </span>
-                            ) : null}
+                            <span className="text-[#A8B5AF]" aria-hidden="true">+</span>
+                            <Landmark size={15} className="shrink-0 text-[#39735B]" aria-hidden="true" />
+                            <span>{formatCurrencyAmount(selectedCurrencyDeposit)}</span>
                           </div>
+                          {currencyAdjustmentSummary?.target === 'student' ? (
+                            <div
+                              className={`inline-flex h-9 min-w-[2.75rem] shrink-0 items-center justify-center rounded-[0.75rem] px-2 font-mono text-[0.72rem] font-black leading-none ring-1 ring-inset ${
+                                currencyAdjustmentSummary.delta < 0
+                                  ? 'bg-[#F8ECE2] text-[#8A4B2B] ring-[#E7CDB8]'
+                                  : 'bg-[#DFF1E8] text-[#006241] ring-[#B8DACB]'
+                              }`}
+                              role="status"
+                              aria-live="polite"
+                              aria-label={`이번 증감 ${formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}고마`}
+                            >
+                              {formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}
+                            </div>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => adjustCurrencyBalance(editingCurrencyNumber, -CURRENCY_BALANCE_STEP)}
@@ -11598,15 +11729,116 @@ export default function TimerPage() {
                             +
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-[0.85rem] border border-[#CFE0D8] bg-white text-[0.82rem] font-extrabold text-[#466258] transition-colors hover:bg-[#F7FBF9]"
-                          aria-expanded={isCurrencyDirectInputVisible}
-                          aria-controls="currency-direct-setting"
-                          onClick={() => setIsCurrencyDirectInputVisible((previous) => !previous)}
-                        >
-                          직접 설정
-                        </button>
+                        <div className="mt-2 grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            className={`inline-flex h-9 items-center justify-center rounded-[0.75rem] border text-[0.78rem] font-extrabold transition-[background-color,border-color,color] ${
+                              isCurrencyDeductionVisible
+                                ? 'border-[#C99365] bg-[#FFF1DF] text-[#7A4328]'
+                                : 'border-[#E4D7C9] bg-white text-[#6E5139] hover:bg-[#FFF7EC]'
+                            }`}
+                            aria-expanded={isCurrencyDeductionVisible}
+                            aria-controls="currency-deduction-setting"
+                            onClick={() => {
+                              setIsCurrencyDeductionVisible((previous) => !previous);
+                              setCurrencyDeductionAmount(String(CURRENCY_BALANCE_STEP));
+                              setCurrencyDeductionReason('');
+                              setCurrencyDeductionError('');
+                              setIsCurrencyDirectInputVisible(false);
+                            }}
+                          >
+                            차감
+                          </button>
+                          <button
+                            type="button"
+                            className={`inline-flex h-9 items-center justify-center rounded-[0.75rem] border text-[0.78rem] font-extrabold transition-[background-color,border-color,color] ${
+                              isCurrencyDirectInputVisible
+                                ? 'border-[#9FC7B8] bg-[#EAF6F0] text-[#006241]'
+                                : 'border-[#CFE0D8] bg-white text-[#466258] hover:bg-[#F7FBF9]'
+                            }`}
+                            aria-expanded={isCurrencyDirectInputVisible}
+                            aria-controls="currency-direct-setting"
+                            onClick={() => {
+                              setIsCurrencyDirectInputVisible((previous) => !previous);
+                              setIsCurrencyDeductionVisible(false);
+                              setCurrencyDeductionError('');
+                            }}
+                          >
+                            직접 설정
+                          </button>
+                        </div>
+                        {isCurrencyDeductionVisible ? (
+                          <div id="currency-deduction-setting" className="mt-1.5 rounded-[0.9rem] border border-[#E4C99F] bg-[#FFF9EE] p-2">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setCurrencyDeductionAmount(String(Math.max(1, (Number.isInteger(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0) - CURRENCY_BALANCE_STEP)))}
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] border border-[#E2CFB3] bg-white font-mono text-base font-black text-[#765538] transition-[background-color,transform] hover:bg-[#FFF3DE] active:scale-95"
+                                aria-label="차감액 줄이기"
+                              >
+                                −
+                              </button>
+                              <label className="flex h-9 min-w-0 flex-1 items-center rounded-[0.7rem] border border-[#E2CFB3] bg-white px-2">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={selectedCurrencyTotal}
+                                  value={currencyDeductionAmount}
+                                  onChange={(event) => {
+                                    setCurrencyDeductionAmount(event.target.value);
+                                    setCurrencyDeductionError('');
+                                  }}
+                                  className="currency-deduction-amount-input min-w-0 flex-1 appearance-none bg-transparent text-right font-mono text-[0.92rem] font-black text-[#4D3827] outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                  aria-label="차감할 고마"
+                                  autoFocus
+                                />
+                                <span className="ml-1 text-[0.68rem] font-extrabold text-[#765538]">고마</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setCurrencyDeductionAmount(String(Math.min(selectedCurrencyTotal, (Number.isInteger(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0) + CURRENCY_BALANCE_STEP)))}
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] border border-[#E2CFB3] bg-white font-mono text-base font-black text-[#765538] transition-[background-color,transform] hover:bg-[#FFF3DE] active:scale-95"
+                                aria-label="차감액 늘리기"
+                              >
+                                +
+                              </button>
+                              {currencyDepositDeduction > 0 ? (
+                                <span
+                                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[0.7rem] bg-[#E8F2EC] px-2 font-mono text-[0.68rem] font-black text-[#39735B]"
+                                  aria-label={`예금에서 ${currencyDepositDeduction}고마 차감`}
+                                >
+                                  <Landmark size={13} aria-hidden="true" />
+                                  −{formatCurrencyAmount(currencyDepositDeduction)}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                maxLength={60}
+                                value={currencyDeductionReason}
+                                onChange={(event) => {
+                                  setCurrencyDeductionReason(event.target.value);
+                                  setCurrencyDeductionError('');
+                                }}
+                                className="h-9 min-w-0 flex-1 rounded-[0.7rem] border border-[#E2CFB3] bg-white px-2.5 text-[0.8rem] font-bold text-[#4D3827] outline-none transition-colors placeholder:text-[#B6A38D] focus:border-[#9A6B35]"
+                                placeholder="차감 사유"
+                                aria-label="차감 사유"
+                              />
+                              <button
+                                type="button"
+                                disabled={isCurrencyDeductionInvalid || isCurrencyDeductionSaving}
+                                onClick={() => void submitCurrencyDeduction()}
+                                className="h-9 w-[5.6rem] shrink-0 rounded-[0.7rem] bg-[#8B4D2D] px-2 font-mono text-[0.76rem] font-black text-white transition-[background-color,transform] hover:bg-[#713C22] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#C8B7AA]"
+                              >
+                                {isCurrencyDeductionSaving ? '저장 중' : `−${formatCurrencyAmount(Number.isFinite(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0)} 차감`}
+                              </button>
+                            </div>
+                            {currencyDeductionError ? (
+                              <p className="mt-2 text-center text-[0.76rem] font-bold text-[#A34F45]" role="alert">{currencyDeductionError}</p>
+                            ) : null}
+                          </div>
+                        ) : null}
                         {isCurrencyDirectInputVisible ? (
                           <div id="currency-direct-setting" className="mt-2 flex items-center gap-2">
                             <label className="flex min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] border border-[#CFE0D8] bg-white px-3">

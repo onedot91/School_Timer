@@ -287,3 +287,20 @@ export const getTodayStudentEmotionEntry = (
   const todayKey = getKoreanLocalDateKey(today);
   return getStudentEmotionEntries(history, studentNumber).find((entry) => entry.dateKey === todayKey) ?? null;
 };
+
+export const getSchoolWeekDateKeys = (
+  referenceDate = new Date(),
+) => {
+  const referenceWeekday = referenceDate.getDay();
+  const mondayOffset = referenceWeekday === 0 ? -6 : 1 - referenceWeekday;
+  const monday = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate() + mondayOffset,
+  );
+
+  return Array.from({ length: 5 }, (_, weekdayIndex) => {
+    const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + weekdayIndex);
+    return getKoreanLocalDateKey(date);
+  });
+};

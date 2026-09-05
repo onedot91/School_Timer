@@ -7,18 +7,22 @@ import {
   AUCTION_MAX_ITEM_COUNT,
   AUCTION_MAX_ITEMS_PER_DAY,
   adjustCurrencyBalancesForStudents,
+  applyTeacherCurrencyDeductionInSettings,
   applyAuctionAwardToCurrencyState,
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
   claimDailyEmotionRewardInSettings,
+  claimWeeklyEmotionRewardInSettings,
   collectCurrencyTax,
   finalizeAuctionAwardInSettings,
   getAuctionAwardsForDay,
   hasDailyEmotionReward,
+  hasWeeklyEmotionReward,
   pickAvailableAuctionMissionIllustrationIndex,
   normalizeAuctionMissions,
 } from './currency.ts';
 import { normalizeStudentEconomyState } from './studentEconomy.ts';
+import { createStudentEmotionEntry, getSchoolWeekDateKeys } from './studentEmotion.ts';
 
 test('선택한 번호에만 화폐를 일괄 조정하고 중복 번호는 한 번만 반영한다', () => {
   // Given
@@ -72,6 +76,75 @@ test('사용 가능 고마가 부족하면 세금은 예금 원금에서만 추�
   assert.equal(result.balances['1'], 0);
   assert.equal(result.economy['1']?.deposits[0]?.principal, 60);
   assert.equal(result.economy['1']?.deposits[0]?.interest, 6);
+});
+
+test('교사 차감은 지갑이 부족한 만큼 예금에서 사용하고 사유 편지를 만든다', () => {
+  const result = applyTeacherCurrencyDeductionInSettings({
+    currencyBalances: { '12': 5 },
+    currencyHistory: { '12': [] },
+    studentEconomy: {
+      '12': {
+        deposits: [
+          { id: 'deposit-1', principal: 20, openedOn: '2026-09-01', maturityDate: '2026-09-03', interest: 2 },
+          { id: 'deposit-2', principal: 10, openedOn: '2026-09-02', maturityDate: '2026-09-04', interest: 1 },
+        ],
+      },
+    },
+    studentLife: { letters: [] },
+  }, {
+    studentNumber: 12,
+    amount: 15,
+    teacherReason: '준비물 미지참',
+    requestId: 'teacher-deduction-1',
+    createdAt: '2026-09-05T01:00:00.000Z',
+  });
+
+  const value = result.value;
+  const economy = normalizeStudentEconomyState((value.studentEconomy as Record<string, unknown>)['12']);
+  const letters = (value.studentLife as { letters: Array<{ content: string }> }).letters;
+  assert.equal(result.applied, true);
+  assert.equal(result.walletDeduction, 5);
+  assert.equal(result.depositDeduction, 10);
+  assert.equal((value.currencyBalances as Record<string, number>)['12'], 0);
+  assert.equal(economy.deposit, 20);
+  assert.equal(economy.deposits[0]?.principal, 10);
+  assert.equal(economy.deposits[0]?.interest, 1);
+  assert.equal(letters[0]?.content, [
+    '선생님이 15고마를 차감했어요.',
+    '',
+    '차감 사유',
+    '준비물 미지참',
+    '',
+    '보유 고마가 부족해 10고마는 예금에서 사용했어요.',
+  ].join('\n'));
+});
+
+test('교사 차감 요청은 중복 처리되지 않고 총 보유액을 넘으면 거부된다', () => {
+  const first = applyTeacherCurrencyDeductionInSettings({
+    currencyBalances: { '3': 20 },
+    currencyHistory: { '3': [] },
+  }, {
+    studentNumber: 3,
+    amount: 5,
+    teacherReason: '교구 파손',
+    requestId: 'teacher-deduction-2',
+  });
+  const duplicate = applyTeacherCurrencyDeductionInSettings(first.value, {
+    studentNumber: 3,
+    amount: 5,
+    teacherReason: '교구 파손',
+    requestId: 'teacher-deduction-2',
+  });
+
+  assert.equal(duplicate.applied, false);
+  assert.equal((duplicate.value.currencyBalances as Record<string, number>)['3'], 15);
+  assert.equal((duplicate.value.studentLife as { letters: unknown[] }).letters.length, 1);
+  assert.throws(() => applyTeacherCurrencyDeductionInSettings(first.value, {
+    studentNumber: 3,
+    amount: 16,
+    teacherReason: '교구 파손',
+    requestId: 'teacher-deduction-3',
+  }), /INSUFFICIENT_STUDENT_ASSETS/);
 });
 
 test('요일별 경매 물품을 최대 6개까지 구성한다', () => {
@@ -235,6 +308,62 @@ test('감정 구슬 일일 미션은 같은 날짜에 한 번만 5고마를 지�
   assert.equal(second.balance, 105);
   assert.equal(hasDailyEmotionReward(second.value.currencyHistory, 7, '2026-08-11'), true);
   assert.equal(second.history['7'].filter((entry) => entry.reason === 'daily_emotion').length, 1);
+});
+
+test('월요일부터 금요일 감정 구슬을 모두 채우면 주간 25고마를 한 번만 지급한다', () => {
+  const weekdayDateKeys = getSchoolWeekDateKeys(new Date(2026, 7, 14, 9));
+  const studentEmotionHistory = {
+    7: weekdayDateKeys.map((dateKey, index) => createStudentEmotionEntry(
+      7,
+      index % 2 === 0 ? 'happy' : 'calm',
+      `${index + 1}일차 감정`,
+      new Date(`${dateKey}T09:00:00+09:00`),
+    )),
+  };
+  const initial = {
+    currencyBalances: { 7: 125 },
+    currencyHistory: { 7: [] },
+    studentEmotionHistory,
+  };
+
+  const first = claimWeeklyEmotionRewardInSettings(
+    initial,
+    7,
+    weekdayDateKeys,
+    '2026-08-14T01:00:00.000Z',
+  );
+  const second = claimWeeklyEmotionRewardInSettings(
+    first.value,
+    7,
+    weekdayDateKeys,
+    '2026-08-14T02:00:00.000Z',
+  );
+
+  assert.equal(first.awarded, true);
+  assert.equal(first.balance, 150);
+  assert.equal(second.awarded, false);
+  assert.equal(second.balance, 150);
+  assert.equal(hasWeeklyEmotionReward(second.history, 7, weekdayDateKeys[0]), true);
+  assert.equal(second.history['7'].filter((entry) => entry.reason === 'weekly_emotion').length, 1);
+});
+
+test('평일 감정 구슬이 네 칸이면 주간 보상을 지급하지 않는다', () => {
+  const weekdayDateKeys = getSchoolWeekDateKeys(new Date(2026, 7, 14, 9));
+  const result = claimWeeklyEmotionRewardInSettings({
+    currencyBalances: { 7: 120 },
+    currencyHistory: { 7: [] },
+    studentEmotionHistory: {
+      7: weekdayDateKeys.slice(0, 4).map((dateKey) => createStudentEmotionEntry(
+        7,
+        'happy',
+        '감정 기록',
+        new Date(`${dateKey}T09:00:00+09:00`),
+      )),
+    },
+  }, 7, weekdayDateKeys);
+
+  assert.equal(result.awarded, false);
+  assert.equal(result.balance, 120);
 });
 
 test('잔액보다 큰 낙찰과 확정 중 변경된 입찰은 거부한다', () => {

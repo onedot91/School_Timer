@@ -29,6 +29,7 @@ import {
   normalizeCurrencyHistory,
   appendCurrencyHistoryEntry,
   claimDailyEmotionRewardInSettings,
+  claimWeeklyEmotionRewardInSettings,
   hasDailyEmotionReward,
   type AuctionAwards,
   type AuctionBidHistory,
@@ -59,6 +60,7 @@ import {
   getStudentEmotionEntries,
   getStudentEmotion,
   getKoreanLocalDateKey,
+  getSchoolWeekDateKeys,
   getTodayStudentEmotionEntry,
   loadStoredStudentEmotionHistory,
   mergeStudentEmotionHistories,
@@ -1149,24 +1151,41 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             mergeStudentEmotionHistories(current.studentEmotionHistory, studentEmotionHistory),
             entry,
           );
-          const reward = claimDailyEmotionRewardInSettings(
+          const dailyReward = claimDailyEmotionRewardInSettings(
             { ...current, studentEmotionHistory: savedHistory },
             studentNumber,
             entry.dateKey,
             entry.updatedAt,
           );
-          savedBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
-          savedCurrencyHistory = reward.history;
-          return reward.value;
+          const weeklyReward = claimWeeklyEmotionRewardInSettings(
+            dailyReward.value,
+            studentNumber,
+            getSchoolWeekDateKeys(),
+            entry.updatedAt,
+          );
+          savedBalances = normalizeCurrencyBalances(weeklyReward.value.currencyBalances);
+          savedCurrencyHistory = weeklyReward.history;
+          return weeklyReward.value;
         });
       } else {
         savedHistory = upsertStudentEmotionEntry(studentEmotionHistory, entry);
         if (!storeStudentEmotionHistory(savedHistory)) return false;
         const snapshot = loadStoredStudentPetSnapshot();
-        const reward = claimDailyEmotionRewardInSettings(snapshot, studentNumber, entry.dateKey, entry.updatedAt);
-        savedBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
-        savedCurrencyHistory = reward.history;
-        if (reward.awarded && !storeStudentPetSnapshot({
+        const dailyReward = claimDailyEmotionRewardInSettings(
+          { ...snapshot, studentEmotionHistory: savedHistory },
+          studentNumber,
+          entry.dateKey,
+          entry.updatedAt,
+        );
+        const weeklyReward = claimWeeklyEmotionRewardInSettings(
+          dailyReward.value,
+          studentNumber,
+          getSchoolWeekDateKeys(),
+          entry.updatedAt,
+        );
+        savedBalances = normalizeCurrencyBalances(weeklyReward.value.currencyBalances);
+        savedCurrencyHistory = weeklyReward.history;
+        if ((dailyReward.awarded || weeklyReward.awarded) && !storeStudentPetSnapshot({
           ...snapshot,
           currencyBalances: savedBalances,
           currencyHistory: savedCurrencyHistory,
