@@ -1,0 +1,34 @@
+{
+  "capacityMetrics": {
+    "text": "100자리가 모두 찼어요. 꽂힌 책은 읽을 수 있어요.",
+    "lines": [
+      {
+        "x": 460,
+        "y": 432.390625,
+        "width": 272.9375,
+        "height": 17
+      }
+    ]
+  },
+  "zoom200": {
+    "banner": {
+      "left": 1112.171875,
+      "top": 16,
+      "right": 1256,
+      "bottom": 82.5
+    },
+    "close": {
+      "left": 972,
+      "top": 60,
+      "right": 1060,
+      "bottom": 148
+    },
+    "intersects": false,
+    "modeText": "연습 모드",
+    "detailClip": "inset(50%)",
+    "detailBox": [
+      1,
+      1
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+5110911b862ca4ae5b729398089d68c3945a105fb1559c7c144913b82dace1e1  src/lib/canvasLibraryWorld.ts
+762c1c0c9d082fa8b9c4829497c6156e7cc0de8f9d7d88bfb5f399d868dcc7d4  src/components/student/library/CanvasLibraryGame.tsx
+9979f2100bb0ce0d9f4f5eb2f87be952fc83340af2f3c5ad3a379a2c8dafebce  src/components/student/library/CanvasLibraryRenderer.ts
+30ef750ab37ffb6a977974e9423fa8f6f9e734c3f284895cedc2f66d4b00c1e3  src/components/student/library/CanvasLibraryPalette.ts
+964712c26249fb09ede9646ffde0134c1375361d24e8cb855a45a35b66ea55ff  src/index.css
+d760bf722f423ce10a590c5d35f04f3fd9fbaf1d9cecfbc1950315d0c0f7ecb6  .omo/evidence/canvas-library/full-room.html
+38091d0e21b84ed3ded191f97729d8ee24b6e7dc4d2e56aee17f7f461c8c03c3  .omo/evidence/canvas-library/full-room.tsx
+ab1814d05a06aa8cd08fa78b1ab2ac86710700040efd1cf420b7092498e52e39  .omo/evidence/canvas-library/full-room-qa.mjs
+e831e2e60173e7a74d9bd07e181e53654dae94b58d411917b3597428b535adcb  .omo/evidence/canvas-library/full-room-qa.json
+a1bb41784e65c55c97d250a84c9aac7d8eae0d615329066ef5c5e6fde350a230  .omo/evidence/canvas-library/full-room-empty.png
+4632a0ee946c075977c227d871d4b64f3350295080524fb27ae844dad9d5f695  .omo/evidence/canvas-library/full-room-empty-picker.png
+a15c484d1cdd2e72183ee71b002743da71754d5b427e271cfe999296308a1dca  .omo/evidence/canvas-library/full-room-100.png
+acc01310f8cf74d69ed3b79c6ef4957e1b0b8f73bc59a514b43ddd6d280e7655  .omo/evidence/canvas-library/full-room-first-picker.png
+cee63259e93cdfb8cbee3f37a04b2f8647e86f2b9f231ec2fc9cbbd7379712c6  .omo/evidence/canvas-library/full-room-last-picker.png
+3c98bfbcdf0f17e068fbc27b314e5970c4073eecf49ca8128a8223d2e0e0632d  .omo/evidence/canvas-library/full-room-last-details.png

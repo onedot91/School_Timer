@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 function getCssRule(css: string, selector: string) {
-  const ruleStart = css.indexOf(`${selector} {`);
+  const ruleStart = css.startsWith(`${selector} {`) ? 0 : css.indexOf(`\n${selector} {`);
   const ruleEnd = css.indexOf('\n}', ruleStart);
 
   assert.ok(ruleStart >= 0, `${selector} 규칙이 필요합니다.`);

@@ -1,0 +1,533 @@
+{
+  "generatedAt": "2026-09-05T06:25:56.666Z",
+  "server": {
+    "host": "127.0.0.1",
+    "port": "3024",
+    "strictPort": true
+  },
+  "checks": {
+    "viewport": {
+      "width": 1280,
+      "height": 800,
+      "overflowX": 0,
+      "overflowY": 0
+    },
+    "pointerup": [
+      {
+        "before": {
+          "x": 312,
+          "y": 340,
+          "target": ""
+        },
+        "during": {
+          "x": 327,
+          "y": 340,
+          "target": ""
+        },
+        "after": {
+          "x": 327,
+          "y": 340,
+          "target": ""
+        },
+        "settled": {
+          "x": 327,
+          "y": 340,
+          "target": ""
+        }
+      },
+      {
+        "before": {
+          "x": 327,
+          "y": 340,
+          "target": ""
+        },
+        "during": {
+          "x": 342.01,
+          "y": 340,
+          "target": ""
+        },
+        "after": {
+          "x": 342.01,
+          "y": 340,
+          "target": ""
+        },
+        "settled": {
+          "x": 342.01,
+          "y": 340,
+          "target": ""
+        }
+      }
+    ],
+    "pointercancel": [
+      {
+        "before": {
+          "x": 342.01,
+          "y": 340,
+          "target": ""
+        },
+        "during": {
+          "x": 327.01,
+          "y": 340,
+          "target": ""
+        },
+        "after": {
+          "x": 327.01,
+          "y": 340,
+          "target": ""
+        },
+        "settled": {
+          "x": 327.01,
+          "y": 340,
+          "target": ""
+        },
+        "pointerId": 1
+      },
+      {
+        "before": {
+          "x": 327.01,
+          "y": 340,
+          "target": ""
+        },
+        "during": {
+          "x": 312.01,
+          "y": 340,
+          "target": ""
+        },
+        "after": {
+          "x": 312.01,
+          "y": 340,
+          "target": ""
+        },
+        "settled": {
+          "x": 312.01,
+          "y": 340,
+          "target": ""
+        },
+        "pointerId": 1
+      }
+    ],
+    "lostpointercapture": [
+      {
+        "before": {
+          "x": 312.01,
+          "y": 340,
+          "target": ""
+        },
+        "during": {
+          "x": 312.01,
+          "y": 325.01,
+          "target": ""
+        },
+        "after": {
+          "x": 312.01,
+          "y": 325.01,
+          "target": ""
+        },
+        "settled": {
+          "x": 312.01,
+          "y": 325.01,
+          "target": ""
+        },
+        "pointerId": 1
+      },
+      {
+        "before": {
+          "x": 312.01,
+          "y": 325.01,
+          "target": ""
+        },
+        "during": {
+          "x": 312.01,
+          "y": 310.02,
+          "target": ""
+        },
+        "after": {
+          "x": 312.01,
+          "y": 310.02,
+          "target": ""
+        },
+        "settled": {
+          "x": 312.01,
+          "y": 310.02,
+          "target": ""
+        },
+        "pointerId": 1
+      }
+    ],
+    "pointerStops": true,
+    "farCanvasShelfClickNoModal": {
+      "shelfPoint": {
+        "x": 548,
+        "y": 170
+      },
+      "dialogs": 0
+    },
+    "nearRegistrationClickOpensForm": true,
+    "carryingNearPlaced": {
+      "position": {
+        "x": 197.03,
+        "y": 121.66,
+        "target": "placed-book:0"
+      },
+      "semanticAction": "가까운 곳 살펴보기: 책장 열기",
+      "clickOutcome": "shelf-picker",
+      "keyOutcome": "shelf-picker"
+    },
+    "controlStates": [
+      "initial",
+      "registration",
+      "slots",
+      "details"
+    ],
+    "unmountDuringHeldPointer": {
+      "heldBeforeUnmount": {
+        "x": 323.67,
+        "y": 340
+      },
+      "rootEmpty": true,
+      "staleErrors": []
+    }
+  },
+  "controls": {
+    "initial": [
+      {
+        "tag": "button",
+        "label": "도서관 나가기",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "위로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "왼쪽으로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "아래로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "오른쪽으로 이동",
+        "width": 44,
+        "height": 44
+      }
+    ],
+    "registration": [
+      {
+        "tag": "button",
+        "label": "도서관 나가기",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "가까운 곳 살펴보기: 책 등록",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "위로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "왼쪽으로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "아래로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "오른쪽으로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "책 등록 닫기",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "input",
+        "label": "",
+        "width": 392,
+        "height": 48
+      },
+      {
+        "tag": "input",
+        "label": "",
+        "width": 392,
+        "height": 48
+      },
+      {
+        "tag": "input",
+        "label": "",
+        "width": 392,
+        "height": 48
+      },
+      {
+        "tag": "button",
+        "label": "취소",
+        "width": 190,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "책 받기",
+        "width": 190,
+        "height": 45
+      }
+    ],
+    "details": [
+      {
+        "tag": "button",
+        "label": "도서관 나가기",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "가까운 곳 살펴보기: 책 정보",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "위로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "왼쪽으로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "아래로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "오른쪽으로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "책 정보 닫기",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "도서관으로",
+        "width": 392,
+        "height": 45
+      }
+    ],
+    "slots": [
+      {
+        "tag": "button",
+        "label": "도서관 나가기",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "가까운 곳 살펴보기: 책장 열기",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "위로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "왼쪽으로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "아래로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "오른쪽으로 이동",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "책장 닫기",
+        "width": 44,
+        "height": 44
+      },
+      {
+        "tag": "button",
+        "label": "첫 책",
+        "width": 103.328125,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 2",
+        "width": 103.328125,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 3",
+        "width": 103.34375,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 4",
+        "width": 103.328125,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 5",
+        "width": 103.328125,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 6",
+        "width": 103.34375,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 7",
+        "width": 103.328125,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 8",
+        "width": 103.328125,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 9",
+        "width": 103.34375,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 10",
+        "width": 103.328125,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 11",
+        "width": 103.328125,
+        "height": 45
+      },
+      {
+        "tag": "button",
+        "label": "빈자리 12",
+        "width": 103.34375,
+        "height": 45
+      }
+    ]
+  },
+  "blockedRequests": [],
+  "errors": [],
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-initial.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-details.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-carrying-near-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-slots.png"
+  ],
+  "cleanup": [
+    "Owned isolated Playwright Chrome closed; Vite 3024 teardown is performed by the parent shell session."
+  ],
+  "sourceSha256": {
+    "src/lib/canvasLibraryWorld.ts": "37694777158380f21ee7154e2f49ea1c95fc26949ed337a1453ceb4b16c966d3",
+    "src/lib/useModalFocus.ts": "2e161b8d3e8f54b839e9cbdad243ed4873c2532c03a4f1213f770e7ad65307fa",
+    "src/components/student/library/CanvasLibraryGame.tsx": "11a40a021a2c17edf4a8f102334736fb05e4ce1ab3e56f42ba4a84820cf17c3a",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "baf3fa7b5a93b6984b68d862fc0a937821464af9a47d76ac1312df65258705a0",
+    "src/components/student/library/CanvasLibraryPalette.ts": "30ef750ab37ffb6a977974e9423fa8f6f9e734c3f284895cedc2f66d4b00c1e3",
+    "src/index.css": "bc1c56b9355ca6f9cb2f127949e181ed6b0b56ee5d8645b98b9a32ac2be99bfd",
+    ".omo/evidence/canvas-library/play.tsx": "2e2d0c328bbd90f648bc5a350b2a8b56d05ed57c86158dfb36ef73ae04a1e801"
+  },
+  "pointerControlsPassed": true,
+  "findings": [
+    {
+      "severity": "medium",
+      "kind": "product",
+      "title": "Carrying near placed book has the wrong Canvas interaction cue",
+      "expected": "Carrying a draft near a placed book should guide the player to the shelf picker.",
+      "observed": "Canvas cue renders 'Enter  책 보기' while DOM nearby action and E/click open '책을 둘 자리'.",
+      "artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-carrying-near-placed.png",
+      "source": "src/components/student/library/CanvasLibraryRenderer.ts:607"
+    }
+  ],
+  "passed": false,
+  "failure": "Pointer/control checks passed, but contextual Canvas cue mismatch is a confirmed product finding.",
+  "manualQa": {
+    "surfaceEvidence": [
+      { "scenarioId": "PTR-001", "criterionReference": "Task 3 pointer model", "surface": "Canvas directional controls", "exactInvocation": "getByRole(button,{name:'오른쪽으로 이동',exact:true}); mouse.down; wait150ms; mouse.up; wait330ms; repeat twice", "verdict": "PASS", "artifactRefs": ["A1", "A2"] },
+      { "scenarioId": "PTR-002", "criterionReference": "Task 3 pointercancel cleanup", "surface": "Canvas directional controls", "exactInvocation": "Real mouse hold; dispatch PointerEvent(pointercancel) with observed pointerId; wait330ms; repeat twice", "verdict": "PASS", "artifactRefs": ["A1", "A2"] },
+      { "scenarioId": "PTR-003", "criterionReference": "Task 3 lost-capture cleanup", "surface": "Canvas directional controls", "exactInvocation": "Real mouse hold; dispatch PointerEvent(lostpointercapture) with observed pointerId; wait330ms; repeat twice", "verdict": "PASS", "artifactRefs": ["A1", "A2"] },
+      { "scenarioId": "PTR-004", "criterionReference": "Task 3 §84 controls >=44px", "surface": "Initial/registration/details/slots", "exactInvocation": "locator(button:visible,input:visible).evaluateAll(getBoundingClientRect); assert width,height >=44", "verdict": "PASS", "artifactRefs": ["A1", "A3"] },
+      { "scenarioId": "PTR-005", "criterionReference": "Task 3 no teleport/remote interaction", "surface": "Canvas shelf hotspot", "exactInvocation": "mouse.click(mapped far shelf visual-rect center); assert dialog count === 0", "verdict": "PASS", "artifactRefs": ["A1", "A4"] },
+      { "scenarioId": "PTR-006", "criterionReference": "Task 3 spatial hotspot access", "surface": "Registration desk", "exactInvocation": "Keyboard walk to x≈109,y≈304; click nearby registration button; assert dialog", "verdict": "PASS", "artifactRefs": ["A1", "A5"] },
+      { "scenarioId": "PTR-007", "criterionReference": "Task 3 lifecycle cleanup", "surface": "React unmount fixture", "exactInvocation": "Real mouse hold; window.__qaUnmount(); mouse.up; wait220ms; assert root empty and no page errors", "verdict": "PASS", "artifactRefs": ["A1", "A6"] },
+      { "scenarioId": "PTR-008", "criterionReference": "Task 3 contextual interaction guidance", "surface": "Carrying near placed book", "exactInvocation": "Register/place first; carry second to placed-book; screenshot; click and press E; assert shelf picker", "verdict": "FAIL", "artifactRefs": ["A1", "A7", "A8"] }
+    ],
+    "adversarialCases": [
+      { "scenarioId": "ADV-001", "criterionReference": "Task 3 pointer model", "adversarialClass": "cancel/resume interruption", "expectedBehavior": "pointercancel clears held direction and position settles", "verdict": "PASS", "artifactRefs": ["A1", "A2"] },
+      { "scenarioId": "ADV-002", "criterionReference": "Task 3 pointer model", "adversarialClass": "repeated interruptions/timing", "expectedBehavior": "pointerup, cancel, lostcapture each repeated twice; no post-stop movement", "verdict": "PASS", "artifactRefs": ["A1", "A2"] },
+      { "scenarioId": "ADV-003", "criterionReference": "Task 3 source integrity", "adversarialClass": "stale hashes", "expectedBehavior": "current seven hashes equal pinned root-play-qa receipt", "verdict": "PASS", "artifactRefs": ["A1", "A9"] },
+      { "scenarioId": "ADV-004", "criterionReference": "repository safety", "adversarialClass": "dirty preservation", "expectedBehavior": "existing dirty worktree is not reverted or edited", "verdict": "PASS", "artifactRefs": ["A1", "A9"] },
+      { "scenarioId": "ADV-005", "criterionReference": "runtime hygiene", "adversarialClass": "bounded command cleanup", "expectedBehavior": "browser closes in finally; port 3024 is free", "verdict": "PASS", "artifactRefs": ["A1", "A10"] },
+      { "scenarioId": "ADV-006", "criterionReference": "existing untrusted-text coverage", "adversarialClass": "malformed/prompt injection", "expectedBehavior": "not applicable to pointer/control-only change; prior root receipt covers it", "verdict": "NOT_APPLICABLE", "artifactRefs": ["A9"] },
+      { "scenarioId": "ADV-007", "criterionReference": "QA evidence discipline", "adversarialClass": "misleading output vs assumed PASS", "expectedBehavior": "compare Canvas cue against DOM/E outcome and record mismatch as FAIL", "verdict": "FAIL", "artifactRefs": ["A1", "A7", "A8"] }
+    ],
+    "artifactRefs": [
+      { "id": "A1", "kind": "JSON", "description": "Full bounded pointer/control receipt", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-3-pointer-qa.json" },
+      { "id": "A2", "kind": "script", "description": "Bounded Playwright held-pointer script", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-3-pointer-qa.mjs" },
+      { "id": "A3", "kind": "PNG set", "description": "1280×800 initial and modal control states", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-initial.png; /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-registration.png; /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-details.png; /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-slots.png" },
+      { "id": "A4", "kind": "JSON field", "description": "Far shelf Canvas click yielded zero dialogs", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-3-pointer-qa.json" },
+      { "id": "A5", "kind": "JSON field", "description": "Near registration click opened form", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-3-pointer-qa.json" },
+      { "id": "A6", "kind": "fixture+JSON", "description": "React unmount while held pointer", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/unmount.html; /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/unmount.tsx; /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-3-pointer-qa.json" },
+      { "id": "A7", "kind": "PNG", "description": "Carrying-near-placed Canvas cue screenshot", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/pointer-carrying-near-placed.png" },
+      { "id": "A8", "kind": "source", "description": "Renderer cue branch vs Game semantic branch", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/src/components/student/library/CanvasLibraryRenderer.ts:607; /Users/ibyeonghyeon/Documents/GitHub/School_Timer/src/components/student/library/CanvasLibraryGame.tsx:461" },
+      { "id": "A9", "kind": "JSON", "description": "Pinned source hashes and zero blocked/errors", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-3-pointer-qa.json" },
+      { "id": "A10", "kind": "text", "description": "Port teardown receipt", "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-3-pointer-port-free.txt" }
+    ]
+  }
+}

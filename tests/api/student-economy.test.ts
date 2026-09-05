@@ -64,7 +64,7 @@ const runStudentAction = async (action: Record<string, unknown>, requestId: stri
     fetchCount += 1;
     upstreamUrls.push(String(input));
     if (fetchCount === 1) {
-      return Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: 'v1' }]);
+      return Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: '2026-09-05T00:00:00.000Z' }]);
     }
     upstreamBodies.push(JSON.parse(String(init?.body)));
     return Response.json([{ id: 'school-timer-main' }]);
@@ -191,6 +191,39 @@ test('학생 거래 API는 다른 번호로 거래할 수 없다', async () => {
       assert.equal(result().statusCode, 403);
       assert.equal(fetchCalled, false);
     } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('고정된 같은 밀리초에서도 저장 버전은 현재 행보다 1ms 증가한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalNow = Date.now;
+    const currentUpdatedAt = '2026-08-26T00:00:00.000Z';
+    let savedUpdatedAt = '';
+    Date.now = () => Date.parse(currentUpdatedAt);
+    globalThis.fetch = async (_input, init) => {
+      if (!init?.method) {
+        return Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: currentUpdatedAt }]);
+      }
+      savedUpdatedAt = Reflect.get(JSON.parse(String(init.body)), 'updated_at') as string;
+      return Response.json([{ id: 'school-timer-main' }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({
+        method: 'POST', headers: studentHeaders(1),
+        body: {
+          studentNumber: 1,
+          action: { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' },
+          requestId: 'student-economy-monotonic-version',
+        },
+      }, response);
+      assert.equal(result().statusCode, 200);
+      assert.equal(Date.parse(savedUpdatedAt), Date.parse(currentUpdatedAt) + 1);
+    } finally {
+      Date.now = originalNow;
       globalThis.fetch = originalFetch;
     }
   });

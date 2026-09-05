@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-09-05T06:43:18.828Z",
+  "checks": {
+    "emptyViewport": {
+      "width": 1280,
+      "height": 800,
+      "x": 0,
+      "y": 0
+    },
+    "registerCarryPlaceLastRead": true,
+    "fullViewport": {
+      "width": 1280,
+      "height": 800,
+      "x": 0,
+      "y": 0
+    },
+    "shelfPickers": [
+      {
+        "shelf": "full-wide-left",
+        "slots": 20,
+        "inspectedTitle": "우리 반 도서관 책 20"
+      },
+      {
+        "shelf": "full-wide-center",
+        "slots": 20,
+        "inspectedTitle": "우리 반 도서관 책 40"
+      }
+    ]
+  },
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-empty.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-carry.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-last-slots.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-last-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-last-details.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-100-books.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-shelf-full-wide-left.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-read-full-wide-left.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-shelf-full-wide-center.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-read-full-wide-center.png"
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "cleanup": [
+    "Owned isolated Chrome closed; root owns stable Vite3027 teardown."
+  ],
+  "passed": false,
+  "failure": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('heading', { name: '책을 둘 자리', exact: true }) to be visible\u001b[22m\n",
+  "failureStack": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('heading', { name: '책을 둘 자리', exact: true }) to be visible\u001b[22m\n\n    at /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-room-qa.mjs:137:71"
+}

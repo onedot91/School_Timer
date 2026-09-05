@@ -1,0 +1,1621 @@
+{
+  "verdict": "PASS",
+  "invocation": "node --import tsx .omo/evidence/library-competition/domain-scenario.mjs",
+  "scenarios": [
+    {
+      "name": "idle",
+      "initial": [
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 15,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ],
+      "final": [
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 6,
+          "reachedAt": "2026-09-07T06:13:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 5,
+          "reachedAt": "2026-09-02T06:30:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 5,
+          "reachedAt": "2026-09-07T23:45:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 3,
+          "reachedAt": "2026-09-01T02:41:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 2,
+          "reachedAt": "2026-09-02T00:27:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 2,
+          "reachedAt": "2026-09-03T02:02:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 2,
+          "reachedAt": "2026-09-04T01:38:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 1,
+          "reachedAt": "2026-09-01T23:04:00.000Z",
+          "rank": 15,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 1,
+          "reachedAt": "2026-09-04T03:37:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 17,
+          "isOurSchool": true
+        }
+      ]
+    },
+    {
+      "name": "steady",
+      "initial": [
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 10,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 15,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ],
+      "final": [
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 16,
+          "reachedAt": "2026-09-16T02:06:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 15,
+          "reachedAt": "2026-09-15T01:41:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 15,
+          "reachedAt": "2026-09-25T06:14:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 13,
+          "reachedAt": "2026-09-14T00:46:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 10,
+          "reachedAt": "2026-09-11T06:25:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 10,
+          "reachedAt": "2026-09-14T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 10,
+          "reachedAt": "2026-09-14T01:57:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 10,
+          "reachedAt": "2026-09-21T05:59:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 9,
+          "reachedAt": "2026-09-11T01:57:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 9,
+          "reachedAt": "2026-09-14T01:01:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 9,
+          "reachedAt": "2026-09-14T06:02:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 9,
+          "reachedAt": "2026-09-15T23:05:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 8,
+          "reachedAt": "2026-09-14T02:06:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 6,
+          "reachedAt": "2026-09-14T05:36:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 6,
+          "reachedAt": "2026-09-15T02:19:00.000Z",
+          "rank": 15,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 5,
+          "reachedAt": "2026-09-10T02:59:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 5,
+          "reachedAt": "2026-09-14T06:28:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ]
+    },
+    {
+      "name": "burst",
+      "initial": [
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 15,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ],
+      "final": [
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 10,
+          "reachedAt": "2026-09-30T06:59:59.999Z",
+          "rank": 1,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 6,
+          "reachedAt": "2026-09-07T06:13:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 5,
+          "reachedAt": "2026-09-02T06:30:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 5,
+          "reachedAt": "2026-09-07T23:45:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 3,
+          "reachedAt": "2026-09-01T02:41:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 2,
+          "reachedAt": "2026-09-02T00:27:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 2,
+          "reachedAt": "2026-09-03T02:02:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 2,
+          "reachedAt": "2026-09-04T01:38:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 15,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 1,
+          "reachedAt": "2026-09-01T23:04:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 1,
+          "reachedAt": "2026-09-04T03:37:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ]
+    },
+    {
+      "name": "paused",
+      "initial": [
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 15,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ],
+      "final": [
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 15,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ]
+    },
+    {
+      "name": "resume",
+      "initial": [
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 15,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ],
+      "final": [
+        {
+          "schoolId": "school-06",
+          "schoolName": "대전목동초등학교",
+          "region": "대전광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 1,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-07",
+          "schoolName": "옥동초등학교",
+          "region": "울산광역시",
+          "count": 3,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 2,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-01",
+          "schoolName": "서울공덕초등학교",
+          "region": "서울특별시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 3,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-04",
+          "schoolName": "인천송도초등학교",
+          "region": "인천광역시",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 4,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-09",
+          "schoolName": "수원초등학교",
+          "region": "경기도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 5,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-10",
+          "schoolName": "강릉초등학교",
+          "region": "강원특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 6,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-11",
+          "schoolName": "충주초등학교",
+          "region": "충청북도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 7,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-12",
+          "schoolName": "공주초등학교",
+          "region": "충청남도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 8,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-13",
+          "schoolName": "전주초등학교",
+          "region": "전북특별자치도",
+          "count": 2,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 9,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-08",
+          "schoolName": "도담초등학교",
+          "region": "세종특별자치시",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 10,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-14",
+          "schoolName": "목포초등학교",
+          "region": "전라남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 11,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-16",
+          "schoolName": "진주초등학교",
+          "region": "경상남도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 12,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-17",
+          "schoolName": "제주동초등학교",
+          "region": "제주특별자치도",
+          "count": 1,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 13,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-02",
+          "schoolName": "연포초등학교",
+          "region": "부산광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 14,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-03",
+          "schoolName": "대구장동초등학교",
+          "region": "대구광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 15,
+          "isOurSchool": true
+        },
+        {
+          "schoolId": "school-05",
+          "schoolName": "광주서림초등학교",
+          "region": "광주광역시",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 16,
+          "isOurSchool": false
+        },
+        {
+          "schoolId": "school-15",
+          "schoolName": "영주남부초등학교",
+          "region": "경상북도",
+          "count": 0,
+          "reachedAt": "2026-09-01T00:00:00.000Z",
+          "rank": 17,
+          "isOurSchool": false
+        }
+      ]
+    }
+  ],
+  "checks": [
+    "17 rows per scenario",
+    "integer 0..100 bounds",
+    "idle growth without registrations",
+    "same confirmed count for steady and burst",
+    "paused growth frozen",
+    "resume has no catch-up"
+  ],
+  "cleanup": "Pure synchronous domain driver; no server, browser, temporary state, or network resources created.",
+  "automated": {
+    "tests": 38,
+    "failed": 0,
+    "command": "node --import tsx --test src/lib/libraryCompetition.test.ts src/lib/libraryCompetitionBoundaries.test.ts src/lib/libraryCompetitionSimulation.test.ts src/lib/libraryCompetitionPacing.test.ts src/lib/libraryCompetitionGrowth.test.ts",
+    "typecheck": "npm run lint exited 0",
+    "redEvidence": [
+      {
+        "phase": "creation stub",
+        "passed": 0,
+        "failed": 1,
+        "reason": "Competition creation is not implemented"
+      },
+      {
+        "phase": "simulation stubs",
+        "passed": 2,
+        "failed": 12,
+        "reason": "LibraryCompetitionInputError invalid-event"
+      },
+      {
+        "phase": "exact closing boundary",
+        "passed": 10,
+        "failed": 1,
+        "reason": "Monday opening differed by 1ms; fixed normalization"
+      },
+      {
+        "phase": "student ID independence",
+        "passed": 0,
+        "failed": 1,
+        "reason": "bookId included student number in entropy; changed to placement index"
+      }
+    ]
+  },
+  "sourceHashes": [
+    "5afcd7ea122c29147a8d9615da88e4c5f8cdf408ea043c9bd551d52c5176aadc  src/lib/libraryCompetition.ts",
+    "a708f3619c83a3a7d6a3c51b62c3fb25b7450c8e4b35969aa25adbccf67c2ad3  src/lib/libraryCompetitionTypes.ts",
+    "b0589e939e2eadecc068e022de25f9e1dd1de2f63bf127fa2af705a6f8ca6722  src/lib/libraryCompetitionTime.ts",
+    "66a728f875d59cad7741d00f18dd4b929ce007e00995df946cdeffb1183ffd91  src/lib/libraryCompetitionCodec.ts",
+    "19d86c1ce92caf3b1cac77242a3cdff3d69c338e70e0430c67b9740b39512795  src/lib/libraryCompetitionProfiles.ts",
+    "cf53d78edb7b2f833e47f78e67ced3694bec0ed8a81711f9da01c479b4b6e8f6  src/lib/libraryCompetitionEvents.ts",
+    "b29ee9f26c56395137f754c56d043631a07b79425e1d33b5222366b814b216ef  src/lib/libraryCompetitionProjection.ts"
+  ]
+}

@@ -1,0 +1,970 @@
+{
+  "invocation": "npm run dev -- --host 127.0.0.1 --port 3039; node .omo/evidence/canvas-library/task-6-shelf-spines-qa.mjs",
+  "viewport": [
+    1280,
+    800
+  ],
+  "emptyState": {
+    "intrinsic": [
+      624,
+      376
+    ],
+    "css": [
+      1248,
+      752
+    ],
+    "overflow": [
+      0,
+      0
+    ]
+  },
+  "fullState": {
+    "intrinsic": [
+      624,
+      376
+    ],
+    "css": [
+      1248,
+      752
+    ],
+    "overflow": [
+      0,
+      0
+    ]
+  },
+  "shelves": [
+    "full-wide-left",
+    "full-wide-center",
+    "full-compact-back",
+    "full-tall-island",
+    "full-endcap-island"
+  ],
+  "shelfStyles": [
+    "wide-low",
+    "compact",
+    "narrow-tall",
+    "endcap"
+  ],
+  "mixedPageCounts": true,
+  "spineInspection": {
+    "count": 100,
+    "allHaveBasePixels": true,
+    "allVertical": true,
+    "allWithinSlots": true,
+    "allHaveBindingBands": true,
+    "maxWidth": 4,
+    "minWidth": 2,
+    "checks": [
+      {
+        "slotId": 0,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 1,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 2,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 3,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 4,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 5,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 6,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 7,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 8,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 9,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 10,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 11,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 12,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 13,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 14,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 15,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 16,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 17,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 18,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 19,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 20,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 21,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 22,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 23,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 24,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 25,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 26,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 27,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 28,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 29,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 30,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 31,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 32,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 33,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 34,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 35,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 36,
+        "width": 3,
+        "height": 13,
+        "basePixels": 21,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 37,
+        "width": 3,
+        "height": 12,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 38,
+        "width": 3,
+        "height": 11,
+        "basePixels": 17,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 39,
+        "width": 4,
+        "height": 13,
+        "basePixels": 31,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 40,
+        "width": 2,
+        "height": 4,
+        "basePixels": 2,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 41,
+        "width": 2,
+        "height": 3,
+        "basePixels": 1,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 42,
+        "width": 2,
+        "height": 5,
+        "basePixels": 3,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 43,
+        "width": 2,
+        "height": 4,
+        "basePixels": 2,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 44,
+        "width": 2,
+        "height": 3,
+        "basePixels": 1,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 45,
+        "width": 2,
+        "height": 5,
+        "basePixels": 3,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 46,
+        "width": 2,
+        "height": 4,
+        "basePixels": 2,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 47,
+        "width": 2,
+        "height": 3,
+        "basePixels": 1,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 48,
+        "width": 2,
+        "height": 5,
+        "basePixels": 3,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 49,
+        "width": 2,
+        "height": 4,
+        "basePixels": 2,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 50,
+        "width": 2,
+        "height": 3,
+        "basePixels": 1,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 51,
+        "width": 2,
+        "height": 5,
+        "basePixels": 3,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 52,
+        "width": 2,
+        "height": 4,
+        "basePixels": 2,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 53,
+        "width": 2,
+        "height": 3,
+        "basePixels": 1,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 54,
+        "width": 2,
+        "height": 5,
+        "basePixels": 3,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 55,
+        "width": 2,
+        "height": 4,
+        "basePixels": 2,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 56,
+        "width": 2,
+        "height": 3,
+        "basePixels": 1,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 57,
+        "width": 2,
+        "height": 5,
+        "basePixels": 3,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 58,
+        "width": 2,
+        "height": 4,
+        "basePixels": 2,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 59,
+        "width": 2,
+        "height": 3,
+        "basePixels": 1,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 60,
+        "width": 4,
+        "height": 10,
+        "basePixels": 22,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 61,
+        "width": 4,
+        "height": 9,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 62,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 63,
+        "width": 4,
+        "height": 10,
+        "basePixels": 22,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 64,
+        "width": 4,
+        "height": 9,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 65,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 66,
+        "width": 4,
+        "height": 10,
+        "basePixels": 22,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 67,
+        "width": 4,
+        "height": 9,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 68,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 69,
+        "width": 4,
+        "height": 10,
+        "basePixels": 22,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 70,
+        "width": 4,
+        "height": 9,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 71,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 72,
+        "width": 4,
+        "height": 10,
+        "basePixels": 22,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 73,
+        "width": 4,
+        "height": 9,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 74,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 75,
+        "width": 4,
+        "height": 10,
+        "basePixels": 22,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 76,
+        "width": 4,
+        "height": 9,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 77,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 78,
+        "width": 4,
+        "height": 10,
+        "basePixels": 22,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 79,
+        "width": 4,
+        "height": 9,
+        "basePixels": 19,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 80,
+        "width": 2,
+        "height": 6,
+        "basePixels": 4,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 81,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 82,
+        "width": 3,
+        "height": 7,
+        "basePixels": 9,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 83,
+        "width": 2,
+        "height": 6,
+        "basePixels": 4,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 84,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 85,
+        "width": 3,
+        "height": 7,
+        "basePixels": 9,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 86,
+        "width": 2,
+        "height": 6,
+        "basePixels": 4,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 87,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 88,
+        "width": 3,
+        "height": 7,
+        "basePixels": 9,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 89,
+        "width": 2,
+        "height": 6,
+        "basePixels": 4,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 90,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 91,
+        "width": 3,
+        "height": 7,
+        "basePixels": 9,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 92,
+        "width": 2,
+        "height": 6,
+        "basePixels": 4,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 93,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 94,
+        "width": 3,
+        "height": 7,
+        "basePixels": 9,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 95,
+        "width": 2,
+        "height": 6,
+        "basePixels": 4,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 96,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 97,
+        "width": 3,
+        "height": 7,
+        "basePixels": 9,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 98,
+        "width": 2,
+        "height": 6,
+        "basePixels": 4,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      },
+      {
+        "slotId": 99,
+        "width": 3,
+        "height": 8,
+        "basePixels": 11,
+        "withinSlot": true,
+        "hasTopBand": true,
+        "hasBottomBand": true
+      }
+    ]
+  },
+  "screenshots": [
+    "task-6-shelf-spines-empty.png",
+    "task-6-shelf-spines-full-100.png"
+  ],
+  "screenshotSha256": {
+    "task-6-shelf-spines-empty.png": "a1bb41784e65c55c97d250a84c9aac7d8eae0d615329066ef5c5e6fde350a230",
+    "task-6-shelf-spines-full-100.png": "4cc6a6e238b46b10c85271e9778bc1f2769d52e2186a1be314fd4e35b93500f3"
+  },
+  "errors": [],
+  "blockedRequests": []
+}

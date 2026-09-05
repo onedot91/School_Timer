@@ -1,0 +1,115 @@
+{
+  "generatedAt": "2026-09-05T06:58:58.440Z",
+  "checks": {
+    "emptyViewport": {
+      "width": 1280,
+      "height": 800,
+      "x": 0,
+      "y": 0
+    },
+    "registerCarryPlaceLastRead": true,
+    "fullViewport": {
+      "width": 1280,
+      "height": 800,
+      "x": 0,
+      "y": 0
+    },
+    "shelfPickers": [
+      {
+        "shelf": "full-wide-left",
+        "slots": 20,
+        "inspectedTitle": "우리 반 도서관 책 20",
+        "approach": {
+          "x": 107,
+          "y": 124.99,
+          "target": "full-wide-left"
+        }
+      },
+      {
+        "shelf": "full-wide-center",
+        "slots": 20,
+        "inspectedTitle": "우리 반 도서관 책 40",
+        "approach": {
+          "x": 280.33,
+          "y": 124.99,
+          "target": "full-wide-center"
+        }
+      },
+      {
+        "shelf": "full-compact-back",
+        "slots": 20,
+        "inspectedTitle": "우리 반 도서관 책 60",
+        "approach": {
+          "x": 427,
+          "y": 124.99,
+          "target": "full-compact-back"
+        }
+      },
+      {
+        "shelf": "full-tall-island",
+        "slots": 20,
+        "inspectedTitle": "우리 반 도서관 책 80",
+        "approach": {
+          "x": 253.68,
+          "y": 261.65,
+          "target": "full-tall-island"
+        }
+      },
+      {
+        "shelf": "full-endcap-island",
+        "slots": 20,
+        "inspectedTitle": "백 번째 책장의 아주 긴 한글 제목 확인본",
+        "approach": {
+          "x": 383.67,
+          "y": 268.32,
+          "target": "full-endcap-island"
+        }
+      }
+    ],
+    "latestApproach": {
+      "shelf": "full-endcap-island",
+      "x": 383.67,
+      "y": 268.32,
+      "target": "full-endcap-island"
+    }
+  },
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-empty.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-carry.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-last-slots.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-last-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-last-details.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-100-books.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-shelf-full-wide-left.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-selected-last-full-wide-left.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-read-full-wide-left.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-shelf-full-wide-center.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-selected-last-full-wide-center.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-read-full-wide-center.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-shelf-full-compact-back.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-selected-last-full-compact-back.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-read-full-compact-back.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-shelf-full-tall-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-selected-last-full-tall-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-read-full-tall-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-shelf-full-endcap-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-selected-last-full-endcap-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-full-read-full-endcap-island.png"
+  ],
+  "errors": [],
+  "blockedRequests": [],
+  "cleanup": [
+    "Owned isolated Chrome closed; root owns stable Vite3027 teardown."
+  ],
+  "sourceSha256": {
+    "src/lib/canvasLibraryWorld.ts": "5110911b862ca4ae5b729398089d68c3945a105fb1559c7c144913b82dace1e1",
+    "src/components/student/library/CanvasLibraryGame.tsx": "762c1c0c9d082fa8b9c4829497c6156e7cc0de8f9d7d88bfb5f399d868dcc7d4",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "9979f2100bb0ce0d9f4f5eb2f87be952fc83340af2f3c5ad3a379a2c8dafebce",
+    "src/components/student/library/CanvasLibraryPalette.ts": "30ef750ab37ffb6a977974e9423fa8f6f9e734c3f284895cedc2f66d4b00c1e3",
+    "src/lib/useModalFocus.ts": "2e161b8d3e8f54b839e9cbdad243ed4873c2532c03a4f1213f770e7ad65307fa",
+    "src/index.css": "ecc0dd6bf67c0fa39518610b9fee8b0184989ba87ca9e6dc3773e7239337cbb2",
+    ".omo/evidence/canvas-library/full-room.tsx": "38091d0e21b84ed3ded191f97729d8ee24b6e7dc4d2e56aee17f7f461c8c03c3"
+  },
+  "passed": true
+}

@@ -1,0 +1,7 @@
+# Goma pixel bear and ground contact
+
+- [x] 1. Reproduce the floating-foot/shadow gap at actual1280×800 and pin the current renderer output. before.png and grounding-red.json reproduce3emptylogicalpixelrows in all8direction/walk samples.
+- [x] 2. Refine the original code-drawn character using the supplied round orange bear, green leaf scarf and cream garlic bag; anchor feet and player-only shadow to the same ground point. Preserve other furniture, inputs, data and callbacks. grounding.json now has0emptyrows in all8samples; character has rounded32×38silhouette, doteyes withoutwhite muzzle, greenleafscarf, garlicbag.
+- [x] 3. Verify standing/walking four directions, carry/receive/place, seated/standing and occlusion; run tests/typecheck/build, fresh independent visual and integrity review, clean up task-owned server/browser.52real-player states passed;580tests/typecheck/build/diffcheck passed; bear_grounding_integrity and bear_grounding_visual both PASS on current hashes; server3044/isolatedbrowsersclosed. Full evidence in library-bear-grounding/report.md.
+
+Reference is character identity/proportions, not an exact raster clone. No image generation, asset replacement, new dependencies, or persistence changes. Scope renderer/palette plus a focused regression test if needed. Mock-only QA. In-app capture limitation from previous turn: requested1280×800 returned actual1075×672; isolated bundled Playwright/Chrome is the fallback for exactviewport. Task-owned server cleanup will be recorded when launched.

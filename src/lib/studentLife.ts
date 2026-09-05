@@ -26,8 +26,10 @@ export interface StudentBook {
   readonly title: string;
   readonly author: string;
   readonly pageCount: number;
+  readonly reflection?: string;
   readonly createdAt: string;
   readonly colorIndex: number;
+  readonly librarySlot?: number;
 }
 
 export type BookStackLayout = {
@@ -56,7 +58,6 @@ export const TEACHER_LETTER_RECIPIENT = 0;
 export const ALL_STUDENTS_LETTER_RECIPIENT = 0;
 const MAX_LETTERS = 600;
 const MAX_LETTER_CONTENT_LENGTH = 800;
-const MAX_BOOKS = 600;
 const BOOK_PAPER_THICKNESS_PER_PAGE_CM = 0.005;
 const BOOK_SPINE_MIN_HEIGHT_PX = 27;
 const BOOK_SPINE_MAX_HEIGHT_PX = 45;
@@ -112,19 +113,36 @@ const parseLetter = (value: unknown): StudentLetter | null => {
   };
 };
 
+export const MAX_BOOK_REFLECTION_LENGTH = 100;
+
+export const normalizeBookReflection = (value: unknown): string | null => {
+  if (typeof value !== 'string' || /[\r\n]/.test(value)) return null;
+  const reflection = value.trim();
+  return reflection.length >= 1 && reflection.length <= MAX_BOOK_REFLECTION_LENGTH ? reflection : null;
+};
+
 const parseBook = (value: unknown, fallbackColorIndex: number): StudentBook | null => {
   if (!value || typeof value !== 'object') return null;
   const book = value as Partial<StudentBook>;
   if (typeof book.id !== 'string' || book.id.length === 0 || !isStudentNumber(book.studentNumber)) return null;
   if (typeof book.title !== 'string' || book.title.trim().length === 0) return null;
-  if (typeof book.pageCount !== 'number' || !Number.isInteger(book.pageCount) || book.pageCount < 1 || book.pageCount > 5000) return null;
+  const reflection = normalizeBookReflection(book.reflection);
+  if ('reflection' in book && reflection === null) return null;
+  if (typeof book.pageCount !== 'number' || !Number.isInteger(book.pageCount) || book.pageCount < (reflection === null ? 1 : 0) || book.pageCount > 5000) return null;
   if (typeof book.createdAt !== 'string') return null;
+  const librarySlot = typeof book.librarySlot === 'number'
+    && Number.isInteger(book.librarySlot)
+    && book.librarySlot >= 0
+    && book.librarySlot <= 99
+    ? book.librarySlot
+    : undefined;
   return {
     id: book.id.slice(0, 80),
     studentNumber: book.studentNumber,
     title: book.title.trim().slice(0, 50),
     author: typeof book.author === 'string' ? book.author.trim().slice(0, 30) : '',
     pageCount: book.pageCount,
+    ...(reflection === null ? {} : { reflection }),
     createdAt: book.createdAt,
     colorIndex: typeof book.colorIndex === 'number'
       && Number.isInteger(book.colorIndex)
@@ -132,6 +150,7 @@ const parseBook = (value: unknown, fallbackColorIndex: number): StudentBook | nu
       && book.colorIndex < BOOK_COLOR_COUNT
       ? book.colorIndex
       : fallbackColorIndex,
+    ...(librarySlot === undefined ? {} : { librarySlot }),
   };
 };
 
@@ -152,7 +171,15 @@ const normalizeBooks = (value: unknown): readonly StudentBook[] => {
     books.push(book);
     reverseRankByStudent.set(book.studentNumber, reverseRank + 1);
   }
-  return books.reverse().slice(-MAX_BOOKS);
+  const claimedLibrarySlots = new Set<number>();
+  return books.reverse().map((book) => {
+    if (book.librarySlot === undefined || !claimedLibrarySlots.has(book.librarySlot)) {
+      if (book.librarySlot !== undefined) claimedLibrarySlots.add(book.librarySlot);
+      return book;
+    }
+    const { librarySlot: _librarySlot, ...unplacedBook } = book;
+    return unplacedBook;
+  });
 };
 
 export const normalizeStudentLifeState = (value: unknown): StudentLifeState => {
@@ -198,6 +225,24 @@ export const mergeStudentLifeStates = (remoteValue: unknown, nextValue: unknown)
       ...remote.failureProfileAssignments,
     },
   });
+};
+
+const toStudentLifeRecord = (value: unknown): Record<string, unknown> | null => (
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+);
+
+export const replaceStudentLifeBooksWithAuthoritative = (
+  incomingValue: unknown,
+  authoritativeValue: unknown,
+): Record<string, unknown> => {
+  const incoming = toStudentLifeRecord(incomingValue) ?? {};
+  const authoritative = authoritativeValue === undefined ? incomingValue : authoritativeValue;
+  return {
+    ...incoming,
+    books: normalizeStudentLifeState(authoritative).books,
+  };
 };
 
 export const clearPracticeFailureStories = (state: StudentLifeState): StudentLifeState => (
@@ -256,7 +301,7 @@ export const addStudentBook = (state: StudentLifeState, input: BookInput): Stude
     : 0;
   const book = parseBook({ ...input, colorIndex }, colorIndex);
   if (!book) return state;
-  return { ...state, books: [...state.books, book].slice(-MAX_BOOKS) };
+  return { ...state, books: [...state.books, book] };
 };
 
 export const getStudentLetters = (

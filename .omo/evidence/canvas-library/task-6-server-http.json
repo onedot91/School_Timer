@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-05",
+  "harness": "node --import tsx .omo/evidence/canvas-library/task-6-server-harness.mjs",
+  "driver": "node .omo/evidence/canvas-library/task-6-server-driver.mjs",
+  "driverExit": 0,
+  "curl": {
+    "command": "curl -i http://127.0.0.1:3031/api/shared-settings",
+    "status": 401,
+    "body": { "error": "DEVICE_REGISTRATION_REQUIRED" }
+  },
+  "unauthenticated": 401,
+  "crossSite": 403,
+  "malformed": 400,
+  "sameSlot": [200, 409],
+  "sameSlotBookCount": 1,
+  "differentSlots": [200, 200],
+  "differentSlotIds": [10, 11],
+  "timeoutReplay": 200,
+  "timeoutState": { "bookCount": 1, "balance": 10, "rewardHistoryCount": 1 },
+  "externalNetwork": "fake PostgREST is loopback-only; no production credentials or .env were read",
+  "cleanup": "executor-owned port 3031 process stopped; later PID 11271 is root-owned and untouched"
+}
+

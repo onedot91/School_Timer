@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-09-05T07:16:47.061Z",
+  "passed": true,
+  "source": {
+    "src/lib/studentLife.ts": "3af9cb7d792bb8fa8869b5a29cda9493685a079931c56e2f6aa212f278506031",
+    "src/lib/canvasLibraryPlacement.ts": "799b7523f750f2a95f2f3b325235e8326d2a5a777ca03628b43d80ad0d1f9d20",
+    "src/lib/weeklyMission.ts": "6b767a02ee3f50273f98bfd66b15ac9b185cf5a4085c00769ef2874c35b83a6d",
+    "src/lib/bookStackMission.ts": "ee556db6593d100542f5fecbefc41fd05b4884fa266e47acd03282ca4fa7500f"
+  },
+  "cases": [
+    {
+      "case": "700-history-new-placement",
+      "pass": true,
+      "records": 701,
+      "rewardDelta": 10
+    },
+    {
+      "case": "cross-week-identical-replay-and-metadata-reuse",
+      "pass": true,
+      "records": 701,
+      "rewardDelta": 0
+    },
+    {
+      "case": "malformed-types-and-forged-session-field",
+      "pass": true
+    },
+    {
+      "case": "existing-ownership-and-replay",
+      "pass": true,
+      "records": 700,
+      "rewardDelta": 0
+    },
+    {
+      "case": "100-actual-transforms-capacity-no-eviction",
+      "pass": true,
+      "records": 700,
+      "placed": 100
+    },
+    {
+      "case": "generic-stale-removal-and-teacher-no-economy-reconcile",
+      "pass": true
+    },
+    {
+      "case": "duplicate-and-invalid-slots-retain-all-records",
+      "pass": true
+    },
+    {
+      "case": "duplicate-legacy-id-cannot-modify-foreign-record",
+      "pass": true
+    },
+    {
+      "case": "economy-active-teacher-cannot-clear-remote-slot",
+      "pass": true,
+      "preservedRecords": 700
+    }
+  ],
+  "cleanup": "No browser/server/process resources created; synchronous library driver exited.",
+  "deferred": "HTTP/auth/CAS/size enforcement and route integration are task6."
+}

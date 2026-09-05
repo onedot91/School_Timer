@@ -1,0 +1,10 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import CanvasLibraryGame from '../../../src/components/student/library/CanvasLibraryGame';
+import { createFullLibraryRoom } from '../../../src/lib/canvasLibraryWorld';
+import '../../../src/index.css';
+const room = createFullLibraryRoom();
+const shelf = room.shelves[Number(new URLSearchParams(location.search).get('shelf') ?? 0)];
+const slot = shelf.slots[0];
+const root = document.getElementById('root');
+if (root) createRoot(root).render(<CanvasLibraryGame studentNumber={23} room={{...room,spawn:slot.interactionPoint}} books={[{slotId:slot.id,studentNumber:23,title:'책장 검증 책',author:'합성 작가',pageCount:100}]} onPlace={async()=>null} />);

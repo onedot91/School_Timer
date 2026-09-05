@@ -1,7 +1,17 @@
 {
   "schema_version": 2,
-  "active_work_id": "apple-ui-refresh-plan",
+  "active_work_id": "canvas-library",
   "works": {
+    "canvas-library": {
+      "work_id": "canvas-library",
+      "active_plan": ".omo/plans/canvas-library.md",
+      "plan_name": "canvas-library",
+      "session_ids": ["codex:01a06f8c-f1d7-7501-9d24-c1437fd29db3"],
+      "status": "completed",
+      "worktree_path": null,
+      "delivery_mode": "direct",
+      "goal_binding": "existing active thread goal; full code-based topdown shared library objective unchanged"
+    },
     "mission-feature": {
       "work_id": "mission-feature",
       "active_plan": ".omo/plans/mission-feature.md",

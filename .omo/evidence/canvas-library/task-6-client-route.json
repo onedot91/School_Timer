@@ -1,0 +1,58 @@
+{
+  "geometry": {
+    "viewport": [
+      1280,
+      800
+    ],
+    "canvas": [
+      1248,
+      752
+    ],
+    "stage": [
+      12,
+      12,
+      1256,
+      776
+    ],
+    "documentOverflow": [
+      0,
+      0
+    ],
+    "studentHeaderCount": 0
+  },
+  "position": {
+    "x": 113.54,
+    "y": 123.34,
+    "target": "full-wide-left"
+  },
+  "persisted": {
+    "bookId": "library:23:20d77df1-0880-4180-9ec3-3b0395373edc",
+    "slot": 0,
+    "bookCount": 2,
+    "legacyPreserved": true,
+    "balance": 40,
+    "rewardEntries": 1
+  },
+  "requests": [
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;700;800&family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&display=swap",
+      "action": "blocked-external"
+    },
+    {
+      "url": "https://www.react-grab.com/api/version?source=browser&v=0.2.0&t=1788593841649",
+      "action": "blocked-external"
+    },
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Geist:wght@500&display=swap",
+      "action": "blocked-external"
+    },
+    {
+      "url": "/api/question-submission-status",
+      "action": "fake-api"
+    },
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Geist:wght@500&display=swap",
+      "action": "blocked-external"
+    }
+  ]
+}

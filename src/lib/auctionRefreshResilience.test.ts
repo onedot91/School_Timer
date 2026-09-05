@@ -54,3 +54,13 @@ test('student economy actions take an immediate ref lock before React rerenders'
   assert.match(actionSource, /isEconomySavingRef\.current = true;\n\s+setIsEconomySaving\(true\)/);
   assert.match(actionSource, /finally \{\n\s+isEconomySavingRef\.current = false;\n\s+setIsEconomySaving\(false\)/);
 });
+
+test('local failure story creation keeps the saved student life in the combined pet snapshot', async () => {
+  const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
+  const creationStart = source.indexOf('const createStudentFailureStory = async');
+  const creationEnd = source.indexOf('\n\n  const stampStudentFailureStory', creationStart);
+  const creationSource = source.slice(creationStart, creationEnd);
+
+  assert.match(creationSource, /storeStudentLifeState\(result\.studentLife\)/);
+  assert.match(creationSource, /storeStudentPetSnapshot\(\{\s*\.\.\.snapshot,\s*studentLife: result\.studentLife,/);
+});

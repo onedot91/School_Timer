@@ -1,0 +1,215 @@
+{
+  "generatedAt": "2026-09-05T06:58:23.390Z",
+  "shelves": [
+    {
+      "shelfId": "full-wide-left",
+      "columns": 10,
+      "rows": 2,
+      "labels": 20,
+      "firstLabel": "첫 번째 별빛 도서관 탐험기",
+      "lastLabel": "우리 반 도서관 책 20",
+      "firstFocusInset": {
+        "top": 6,
+        "right": 614.40625,
+        "bottom": 86,
+        "left": 6,
+        "outlineClear": true
+      },
+      "lastFocusInset": {
+        "top": 86,
+        "right": 6.015625,
+        "bottom": 6,
+        "left": 614.390625,
+        "outlineClear": true
+      },
+      "modalFrozen": true,
+      "enterDetails": true,
+      "escapeReturn": true
+    },
+    {
+      "shelfId": "full-compact-back",
+      "columns": 5,
+      "rows": 4,
+      "labels": 20,
+      "firstLabel": "우리 반 도서관 책 41",
+      "lastLabel": "우리 반 도서관 책 60",
+      "firstFocusInset": {
+        "top": 6,
+        "right": 546.8125,
+        "bottom": 246,
+        "left": 6,
+        "outlineClear": true
+      },
+      "lastFocusInset": {
+        "top": 246,
+        "right": 6.015625,
+        "bottom": 6,
+        "left": 546.796875,
+        "outlineClear": true
+      },
+      "modalFrozen": true,
+      "enterDetails": true,
+      "escapeReturn": true
+    },
+    {
+      "shelfId": "full-tall-island",
+      "columns": 4,
+      "rows": 5,
+      "labels": 20,
+      "firstLabel": "우리 반 도서관 책 61",
+      "lastLabel": "우리 반 도서관 책 80",
+      "firstFocusInset": {
+        "top": 6,
+        "right": 513,
+        "bottom": 326,
+        "left": 6,
+        "outlineClear": true
+      },
+      "lastFocusInset": {
+        "top": 326,
+        "right": 6,
+        "bottom": 6,
+        "left": 513,
+        "outlineClear": true
+      },
+      "modalFrozen": true,
+      "enterDetails": true,
+      "escapeReturn": true
+    }
+  ],
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-wide-left-first.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-wide-left-last.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-compact-back-first.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-compact-back-last.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-tall-island-first.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-tall-island-last.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-tall-200-last.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-tall-200-first.png"
+  ],
+  "blockedRequests": [],
+  "errors": [],
+  "cleanup": [
+    "Owned isolated Chrome closed; owned Vite3028 teardown follows."
+  ],
+  "text200": {
+    "documentOverflow": {
+      "x": 0,
+      "y": 0
+    },
+    "captionInViewport": true,
+    "focusLayouts": [
+      {
+        "label": "우리 반 도서관 책 80",
+        "inViewport": true,
+        "separated": true,
+        "caption": {
+          "top": 229.1875,
+          "bottom": 373.1875
+        },
+        "focus": {
+          "top": 560.1875,
+          "bottom": 704.1875
+        }
+      },
+      {
+        "label": "우리 반 도서관 책 79",
+        "inViewport": true,
+        "separated": true,
+        "caption": {
+          "top": 229.1875,
+          "bottom": 373.1875
+        },
+        "focus": {
+          "top": 560.1875,
+          "bottom": 704.1875
+        }
+      },
+      {
+        "label": "우리 반 도서관 책 78",
+        "inViewport": true,
+        "separated": true,
+        "caption": {
+          "top": 229.1875,
+          "bottom": 373.1875
+        },
+        "focus": {
+          "top": 560.1875,
+          "bottom": 704.1875
+        }
+      },
+      {
+        "label": "우리 반 도서관 책 77",
+        "inViewport": true,
+        "separated": true,
+        "caption": {
+          "top": 229.1875,
+          "bottom": 373.1875
+        },
+        "focus": {
+          "top": 560.1875,
+          "bottom": 704.1875
+        }
+      },
+      {
+        "label": "우리 반 도서관 책 73",
+        "inViewport": true,
+        "separated": true,
+        "caption": {
+          "top": 229.1875,
+          "bottom": 373.1875
+        },
+        "focus": {
+          "top": 403.1875,
+          "bottom": 547.1875
+        }
+      },
+      {
+        "label": "우리 반 도서관 책 69",
+        "inViewport": true,
+        "separated": true,
+        "caption": {
+          "top": 229.1875,
+          "bottom": 373.1875
+        },
+        "focus": {
+          "top": 488.1875,
+          "bottom": 632.1875
+        }
+      },
+      {
+        "label": "우리 반 도서관 책 65",
+        "inViewport": true,
+        "separated": true,
+        "caption": {
+          "top": 229.1875,
+          "bottom": 373.1875
+        },
+        "focus": {
+          "top": 403.1875,
+          "bottom": 547.1875
+        }
+      },
+      {
+        "label": "우리 반 도서관 책 61",
+        "inViewport": true,
+        "separated": true,
+        "caption": {
+          "top": 229.1875,
+          "bottom": 373.1875
+        },
+        "focus": {
+          "top": 417.1875,
+          "bottom": 561.1875
+        }
+      }
+    ],
+    "closeReachable": true,
+    "closeInViewport": true
+  },
+  "sourceSha256": {
+    "src/components/student/library/CanvasLibraryGame.tsx": "762c1c0c9d082fa8b9c4829497c6156e7cc0de8f9d7d88bfb5f399d868dcc7d4",
+    "src/index.css": "ecc0dd6bf67c0fa39518610b9fee8b0184989ba87ca9e6dc3773e7239337cbb2"
+  },
+  "passed": true
+}

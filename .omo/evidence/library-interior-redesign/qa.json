@@ -1,0 +1,190 @@
+{
+  "generatedAt": "2026-09-05T09:30:30.593Z",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/entered.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/entrance-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-stories.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-stamp-menu.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-stamped.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-compose.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-compose-cancelled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-created.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-closed-carry-retained.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/dense-empty-picker.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/reloaded-book.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-100.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-picker-full-left-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-picker-bottom-full-left-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-picker-full-north-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-picker-bottom-full-north-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-picker-full-island-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-picker-bottom-full-island-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-picker-full-right-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/full-picker-bottom-full-right-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/reading-nook-route.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/legacy-route-board.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-text-200.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-text-200-card.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/board-text-200-lower-card.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/empty-room.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-interior-redesign/empty-board.png"
+  ],
+  "checks": {
+    "entranceRegistration": true,
+    "boardCreateStampCancel": true,
+    "oneModalOwner": true,
+    "carryRetained": true,
+    "bookIDsPreserved": true,
+    "fourVariedShelves100Slots": true,
+    "min44Targets": true,
+    "legacyRouteEmbedded": true,
+    "text200": true
+  },
+  "errors": [],
+  "blockedRequests": [
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    }
+  ],
+  "cleanup": [
+    "isolated Chrome closed; root owns3042"
+  ],
+  "zoomScroll": {
+    "windowY": 0,
+    "rootY": 0,
+    "bodyY": 0,
+    "innerY": 1805,
+    "headerBefore": {
+      "x": 100,
+      "y": 136,
+      "width": 1080,
+      "height": 128
+    },
+    "headerAfter": {
+      "x": 100,
+      "y": 136,
+      "width": 1080,
+      "height": 128
+    },
+    "closeRect": {
+      "x": 1120,
+      "y": 144,
+      "width": 44,
+      "height": 88
+    }
+  },
+  "sourceSha256": {
+    "src/lib/canvasLibraryWorld.ts": "f98e954a418218c1c50da16c767abb278c70aecef14af066990eb47129150b3e",
+    "src/lib/canvasLibraryClient.ts": "f6d8b75f8c15abc3b5f093dab17defbde08207aa3f3afd99cd0aca007a4d3115",
+    "src/lib/canvasLibraryPlacement.ts": "799b7523f750f2a95f2f3b325235e8326d2a5a777ca03628b43d80ad0d1f9d20",
+    "src/lib/studentLife.ts": "3af9cb7d792bb8fa8869b5a29cda9493685a079931c56e2f6aa212f278506031",
+    "src/lib/studentPet.ts": "63434e18aee97ef8361c85a5afd1ad7422ac0599d6c2fd0947e1c9f7f5a01c01",
+    "src/pages/AuctionPage.tsx": "0bced55f6d0278a92fb0a41ba22cf7297682aca7dfcfda5b158dff64dd81f003",
+    "src/components/student/StudentLibraryPage.tsx": "a2154c2575cd022f1ee05ade4804d7a6d0a7d53885c22db4daedce22fb80be23",
+    "src/components/student/library/CanvasLibraryGame.tsx": "c3407aa4b698d50ff59747d26d00cdf5d55e553f3d863de3e43789f9b6ee8e80",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "f5630b411c1751d4cb1d780a2bd38ce3dc58e6d340b493ef88b39724def94d8c",
+    "src/index.css": "dfee087de352b728c7b82b146510307677eb3c5a2d9c2f9906f50ed31a6c5834",
+    "src/components/student/library/CanvasLibraryPalette.ts": "83f3006605e75a4c6c62512409cc6f66df0ac2cb5b614621f5548ba272fe6cb4",
+    "src/components/student/StudentFailureExhibitionPage.tsx": "3eeb8bc3de19da2ebd792a2eef287ff1ff9a0f422e06eb0b88ed8a1fe4bb2109",
+    "src/components/student/StudentFailureMessage.tsx": "249590222e1b796dea0b9dd4c1724a0ee1718b1521cab67cd4f1238ceef14f29"
+  },
+  "passed": true
+}

@@ -1,0 +1,9 @@
+# Library layout feedback
+
+Approved scope: integrate existing failure stories as a physical in-room bulletinboard, move registration next to entrance, reduce shelf count and tighten book spine spacing while preserving100 stable positions and stored records. No new dependencies, backend schema or destructive migration. Existing dirty changes remain intact.
+
+- [x] 1. Revise world/renderer layout and preserve100 IDs/reachability; integrate existing failure board and game/modal presentation. Implemented two50-slot shelves, entrance desk and physical board. Fixed local story-create stale snapshot overwrite discovered by full-route QA.
+- [x] 2. Verify actual1280×800 full-route keyboard entry/register/place/board/create/stamp/cancel and dense100-book scene with isolated data; tests/typecheck/build. qa.json:21 current captures, no pageerrors/document overflow, source hashes stable. 576 tests passed; lint and build passed. Text200 reflows to a single internally scrollable column without overlapping cards; root scroll0 and fixed close/header bounds explicitly measured after fourth-card scroll.
+- [x] 3. Independent visual reviews, cleanup and final handoff. Both final reviewers PASS on21 source-bound captures; review-integrity.md addendum and review-visual-final.md. Dedicated3042/3043 servers and QA browser tabs cleaned, original user server/tab retained. Final synthesis: evidence/library-layout-feedback/verification.md.
+
+Game plane remains Canvas2D; author-game-levels principles apply to spatial communication/navigation only, not a Three.js conversion. Keep one active modal owner, draft retained when board opens/closes, no movement during forms, no visible directional pad. Small fixture retains its legacy testing contract when possible. User old failure links remain compatible but no separate failure page is shown.

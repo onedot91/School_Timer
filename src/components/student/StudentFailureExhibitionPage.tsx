@@ -1,5 +1,5 @@
 import { ArrowRight, HeartHandshake, Library, Pencil, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   FAILURE_STAMP_OPTIONS,
   type FailureStampId,
@@ -20,6 +20,9 @@ interface StudentFailureExhibitionPageProps {
   readonly onStamp: (storyId: string, stampId: FailureStampId) => Promise<boolean>;
   readonly onOpenBookshelf: () => void;
   readonly onBack: () => void;
+  readonly embedded?: boolean;
+  readonly onRequestClose?: () => void;
+  readonly returnFocusRef?: RefObject<HTMLCanvasElement | null>;
 }
 
 type CheerNotice = {
@@ -55,6 +58,9 @@ export default function StudentFailureExhibitionPage({
   onStamp,
   onOpenBookshelf,
   onBack,
+  embedded = false,
+  onRequestClose,
+  returnFocusRef,
 }: StudentFailureExhibitionPageProps) {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [cheerNotice, setCheerNotice] = useState<CheerNotice | null>(null);
@@ -62,7 +68,9 @@ export default function StudentFailureExhibitionPage({
   const composerTriggerRef = useRef<HTMLButtonElement>(null);
   const cheerDialogRef = useRef<HTMLDivElement>(null);
   const cheerConfirmRef = useRef<HTMLButtonElement>(null);
+  const boardRef = useRef<HTMLElement>(null);
   const isCheerNoticeOpen = cheerNotice !== null;
+  const isChildDialogOpen = isComposerOpen || isCheerNoticeOpen;
   const cheerSnapshot = useMemo(() => {
     const entries = stories
       .filter((story) => story.studentNumber === studentNumber)
@@ -94,6 +102,20 @@ export default function StudentFailureExhibitionPage({
     initialFocusRef: cheerConfirmRef,
   });
 
+  const requestBoardClose = () => {
+    if (isSaving || isChildDialogOpen) return;
+    onRequestClose?.();
+  };
+
+  useModalFocus({
+    dialogRef: boardRef,
+    isOpen: embedded && !isChildDialogOpen,
+    onDismiss: requestBoardClose,
+    initialFocusRef: composerTriggerRef,
+    returnFocusRef,
+    isDismissible: !isSaving,
+  });
+
   useEffect(() => {
     if (isComposerOpen || cheerNotice) return;
     const storageKey = `${CHEER_SEEN_STORAGE_PREFIX}:${studentNumber}`;
@@ -119,72 +141,105 @@ export default function StudentFailureExhibitionPage({
     };
   }, [isCheerNoticeOpen, isComposerOpen]);
 
-  return (
-    <div className="student-view student-failure-view">
-      <StudentHeader
-        title={(
-          <span className="student-failure-header-title" aria-label="실패 자랑소. 실패의 의미는 한 판 더!">
-            <span>실패 자랑소</span>
-            <span className="student-failure-header-catchphrase">실패의 의미는 한 판 더!</span>
-          </span>
-        )}
-        onBack={onBack}
-        actions={(
-          <nav className="student-failure-side" aria-label="실패 전시관 메뉴">
-            <button type="button" className="student-bookshelf-entry student-failure-bookshelf-entry" onClick={onOpenBookshelf}>
-              <span className="student-bookshelf-entry-icon"><Library aria-hidden="true" /></span>
-              <span className="student-bookshelf-entry-copy"><strong>책장으로 가기</strong></span>
-              <ArrowRight className="student-bookshelf-entry-arrow" aria-hidden="true" />
-            </button>
-          </nav>
-        )}
-      />
-      <div className="student-failure-layout">
-        <section className="student-failure-gallery-shell" aria-label="실패 이야기">
-          <div
-            className="student-failure-gallery"
-            data-empty={stories.length === 0}
-          >
-            {stories.length === 0 ? (
-              <div className="student-failure-empty">
-                <div className="student-failure-empty-card" role="status">
-                  <HeartHandshake aria-hidden="true" />
-                  <strong>아직 걸린 이야기가 없어요</strong>
-                </div>
-              </div>
-            ) : (
-              <StudentFailureRelay
-                studentNumber={studentNumber}
-                profileAssignments={profileAssignments}
-                stories={stories}
-                isSaving={isSaving}
-                isExternallyPaused={isComposerOpen || isCheerNoticeOpen}
-                latestRevealRequest={relayRevealRequest}
-                onStamp={onStamp}
-              />
-            )}
+  const gallery = (
+    <section className="student-failure-gallery-shell" aria-label="실패 이야기">
+      <div
+        className="student-failure-gallery"
+        data-empty={stories.length === 0}
+      >
+        {stories.length === 0 ? (
+          <div className="student-failure-empty">
+            <div className="student-failure-empty-card" role="status">
+              <HeartHandshake aria-hidden="true" />
+              <strong>아직 걸린 이야기가 없어요</strong>
+            </div>
           </div>
-          <button
-            ref={composerTriggerRef}
-            type="button"
-            className={`student-failure-create-fab${stories.length === 0 ? ' student-failure-empty-action' : ''}`}
-            aria-label="실패 이야기 전시하기"
-            title="실패 이야기 전시하기"
-            aria-haspopup="dialog"
-            aria-expanded={isComposerOpen}
-            aria-controls={isComposerOpen ? 'student-failure-compose-dialog' : undefined}
-            onClick={() => {
-              setIsComposerOpen(true);
-            }}
-          >
-            <Pencil aria-hidden="true" />
-            {stories.length === 0 ? (
-              <span className="student-failure-empty-action-label">첫 이야기 걸기</span>
-            ) : null}
-          </button>
-        </section>
-
+        ) : (
+          <StudentFailureRelay
+            studentNumber={studentNumber}
+            profileAssignments={profileAssignments}
+            stories={stories}
+            isSaving={isSaving}
+            isExternallyPaused={isChildDialogOpen}
+            latestRevealRequest={relayRevealRequest}
+            onStamp={onStamp}
+          />
+        )}
       </div>
+      <button
+        ref={composerTriggerRef}
+        type="button"
+        className={`student-failure-create-fab${stories.length === 0 ? ' student-failure-empty-action' : ''}`}
+        aria-label="실패 이야기 전시하기"
+        title="실패 이야기 전시하기"
+        aria-haspopup="dialog"
+        aria-expanded={isComposerOpen}
+        aria-controls={isComposerOpen ? 'student-failure-compose-dialog' : undefined}
+        onClick={() => {
+          setIsComposerOpen(true);
+        }}
+      >
+        <Pencil aria-hidden="true" />
+        {stories.length === 0 ? (
+          <span className="student-failure-empty-action-label">첫 이야기 걸기</span>
+        ) : null}
+      </button>
+    </section>
+  );
+
+  return (
+    <>
+      {embedded ? (
+        <section
+          ref={boardRef}
+          className="student-canvas-library-failure-board"
+          role="dialog"
+          aria-modal={isChildDialogOpen ? undefined : 'true'}
+          aria-hidden={isChildDialogOpen ? 'true' : undefined}
+          inert={isChildDialogOpen}
+          aria-label="실패 자랑소 게시판"
+          data-child-dialog-open={isChildDialogOpen}
+        >
+          <header className="student-canvas-library-failure-board-header">
+            <div className="student-canvas-library-failure-board-title">
+              <span>실패 자랑소</span>
+              <small>실패의 의미는 한 판 더!</small>
+            </div>
+            <button
+              type="button"
+              className="student-canvas-library-failure-board-close"
+              aria-label="실패 자랑소 닫기"
+              disabled={isSaving || isChildDialogOpen}
+              onClick={requestBoardClose}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div className="student-canvas-library-failure-board-content">{gallery}</div>
+        </section>
+      ) : (
+        <div className="student-view student-failure-view">
+          <StudentHeader
+            title={(
+              <span className="student-failure-header-title" aria-label="실패 자랑소. 실패의 의미는 한 판 더!">
+                <span>실패 자랑소</span>
+                <span className="student-failure-header-catchphrase">실패의 의미는 한 판 더!</span>
+              </span>
+            )}
+            onBack={onBack}
+            actions={(
+              <nav className="student-failure-side" aria-label="실패 전시관 메뉴">
+                <button type="button" className="student-bookshelf-entry student-failure-bookshelf-entry" onClick={onOpenBookshelf}>
+                  <span className="student-bookshelf-entry-icon"><Library aria-hidden="true" /></span>
+                  <span className="student-bookshelf-entry-copy"><strong>책장으로 가기</strong></span>
+                  <ArrowRight className="student-bookshelf-entry-arrow" aria-hidden="true" />
+                </button>
+              </nav>
+            )}
+          />
+          <div className="student-failure-layout">{gallery}</div>
+        </div>
+      )}
 
       {isComposerOpen ? (
         <FailureComposerDialog
@@ -246,6 +301,6 @@ export default function StudentFailureExhibitionPage({
         </div>
       ) : null}
 
-    </div>
+    </>
   );
 }

@@ -1,0 +1,923 @@
+{
+  "generatedAt": "2026-09-05T08:25:29.585Z",
+  "count": 52,
+  "receipts": [
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-qa.json",
+      "generatedAt": "2026-09-05T08:18:15.334Z",
+      "selectedCount": 34,
+      "checks": {
+        "bookcaseMaterial": {
+          "color": "rgb(105, 80, 68)",
+          "image": "repeating-linear-gradient(0deg, rgb(105, 80, 68) 0px, rgb(105, 80, 68) 22.4px, rgb(58, 48, 43) 22.4px, rgb(58, 48, 43) 23.4px)",
+          "timber": "#695044"
+        },
+        "newPlacementPersisted": true,
+        "reloadedBookInspected": true,
+        "legacyNoDuplicateOrReward": true,
+        "localFailureRetainsAndRetries": true,
+        "realBlurStopsAndDoesNotResume": true,
+        "reducedMotionStillPlayable": true,
+        "text200CloseReachable": true,
+        "full100CapacityAndAllFivePickers": true
+      }
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-browser.json",
+      "generatedAt": "2026-09-05T08:18:43.379Z",
+      "selectedCount": 10,
+      "checks": {
+        "registration": true,
+        "student23Placement": {
+          "id": "library:23:6a630a8e-a5cf-478a-996d-f071cf1d3d37",
+          "slot": 0
+        },
+        "conflictingPlacementDraftRetained": true,
+        "precommitFailureRetryExactlyOnce": {
+          "requestId": "ac335e50-99a1-4b60-bcf6-07e27b6fe969",
+          "attempts": 2
+        },
+        "otherStudentRefreshRead": true,
+        "cancelAndMalformedInput": true,
+        "untrustedMetadataLiteral": {
+          "id": "library:1:767e16da-e3bc-4efa-b3b1-d765ff6bfcca",
+          "escaped": true
+        },
+        "postcommitDropReplay": {
+          "requestId": "5cf2f688-0b47-43ad-bb96-72af118ebee7",
+          "attempts": 2,
+          "duplicateCount": 1
+        },
+        "student2RefreshReadStudent1": true,
+        "syntheticDatabase": {
+          "bookCount": 4,
+          "ids": [
+            "library:23:6a630a8e-a5cf-478a-996d-f071cf1d3d37",
+            "library:1:ac335e50-99a1-4b60-bcf6-07e27b6fe969",
+            "library:1:767e16da-e3bc-4efa-b3b1-d765ff6bfcca",
+            "library:1:5cf2f688-0b47-43ad-bb96-72af118ebee7"
+          ],
+          "slots": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "balances": {
+            "1": 10,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0,
+            "9": 0,
+            "10": 0,
+            "11": 0,
+            "12": 0,
+            "13": 0,
+            "14": 0,
+            "15": 0,
+            "16": 0,
+            "17": 0,
+            "18": 0,
+            "19": 0,
+            "20": 0,
+            "21": 0,
+            "22": 0,
+            "23": 10
+          },
+          "weeklyMissionEntries": {
+            "1": 1,
+            "23": 1
+          }
+        }
+      }
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-qa.json",
+      "generatedAt": "2026-09-05T08:18:20.548Z",
+      "selectedCount": 6,
+      "checks": {
+        "readonlyBanner": "실제 데이터 보기 전용\n저장과 거래는 실제 데이터에 반영되지 않아요.",
+        "persistentMovementPadRemoved": true,
+        "readonlyPlacementBlocked": true,
+        "exactSnapshotUnchanged": true,
+        "carriedDraftRetained": true,
+        "noPlacementPut": true,
+        "escapeClosesPicker": true,
+        "carriedAfterEscape": true,
+        "syntheticApiOnly": true,
+        "nonlocalRequestsBlocked": true
+      }
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-bookcase-modal-qa.json",
+      "generatedAt": "2026-09-05T08:18:13.624Z",
+      "selectedCount": 2,
+      "checks": {
+        "keyboardMovementAndNoDirectionalPad": true,
+        "newPlacementPersisted": true,
+        "reloadedBookInspected": true,
+        "legacyNoDuplicateOrReward": true,
+        "localFailureRetainsAndRetries": true,
+        "realBlurStopsAndDoesNotResume": true,
+        "reducedMotionStillPlayable": true,
+        "text200CloseReachable": true,
+        "full100CapacityAndAllFivePickers": true,
+        "emptyAllFiveBookcases": true,
+        "bookSpinePaletteDistinct": true,
+        "mixedAllFiveBookcases": true,
+        "keyboardSelectionAndEScape": true,
+        "text200PickerCloseReachable": true,
+        "fullAllFiveBookcases": true
+      }
+    }
+  ],
+  "captures": [
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-entered.png",
+      "sha256": "a3747cf04e2939eb57f3c192d3fccdc38a47720fa900c8c8177052bb674b415b",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-registration.png",
+      "sha256": "abc0241d11fb6dbf57dca9a931a846ac5b0587bc32996196a8c67b3092da6f14",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-carry.png",
+      "sha256": "58aadc468f4d8e55270405a915da639b4611f29091000ada24a76e571f217c49",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-picker.png",
+      "sha256": "43397664b196edc330999f40acc79b034ac29caf28d63e0734b904322e491591",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-placed.png",
+      "sha256": "52b4e9a32f0cf9babfa537dd1e675ea0dbbf00d9bc5894f0f94be9fae494af78",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-reloaded.png",
+      "sha256": "82a2b0d0c013e5d777e91f4ca872e089defc0a588aa5ae79fa5390c9ed0e93d4",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-reloaded-details.png",
+      "sha256": "b8ff6fedbafd51117b4bb4ea2aa35c114d7d744bcda2d0434c79e87c5c4c6303",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-legacy-carry.png",
+      "sha256": "df345e6160aabb7665057632578991cabe560d3523e71fa8f8c1e9026f88eec9",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-legacy-placed.png",
+      "sha256": "51a5404427700b7b0de525994c592dc702c8770ae4fbc0af05676e79a9fdc83d",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-invalid-input.png",
+      "sha256": "e97deb9e213dd308088afff5cf5c1b33f3dd8b911763fb32d1e06da3f452e38b",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-save-failed.png",
+      "sha256": "88187aeaf2311337b826a00a118adda5135fafc6bf13b9315334806eed38fd60",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-failed-carry-retained.png",
+      "sha256": "4a812c495b7a22e68d69ba9ee7d96384b39f063b7bb052f7f88dcc2edc88068f",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-save-retried.png",
+      "sha256": "88e31be9ce86449343717d1112739ad9942cb1e477373855c9168e952a2e3fdc",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-blur-return.png",
+      "sha256": "7cd53453128fab448f6f10ec743dbf6312b6814674464b0f05d2b3959c41ff51",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-reduced-motion.png",
+      "sha256": "3716921ed4187b3261d7913b91aab9a76d485e8ea8bace1859df85ebe096a503",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-text-200.png",
+      "sha256": "368d159f9a6bcf3baa92f70196f3dc7e1a55d4cedec818ca7a85d222bbe9d751",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-text-200-actions.png",
+      "sha256": "f2367ec14dba3a59dd414ae4330c5a080dbdebebf174e6e8a8a874817bbdc7ec",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-100.png",
+      "sha256": "52859a91cf54c957925833bc2860668be0267f8c246d0b0325649ae656849771",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-desk.png",
+      "sha256": "af4219de528918f27cc7bb598f217ef4c1ce8b87266d545f5483fb0d4d25a9a9",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-wide-left.png",
+      "sha256": "d1582bc3d4fb2869a20e539c81f70c00671b234d994c65540b348f640ffda7b4",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-wide-center.png",
+      "sha256": "f2fdf2b65c8db575af74f8ea74d0be8d9007af3a56cc7ea8ce6398d398234e2f",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-compact-back.png",
+      "sha256": "4b4aab4433c0d4273d223b15a3f9cd565bc09e1e9f5a8f9f5bffd0afbf4375b8",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-tall-island.png",
+      "sha256": "a173781969f2f736a367a479a38338ee8d4bd7b94e31f18c41e693e4f90001d2",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-endcap-island.png",
+      "sha256": "a0ac40dc2eaa52592ceb5eae3847a26dcbae62971ca10d91c1190261e1431f54",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-wide-left.png",
+      "sha256": "06dd75b5e3feb5673086cdb7fbc3e58394341611d5fa204accfff25465b15f3c",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-wide-center.png",
+      "sha256": "951b34a9660822bd4ee3627e9a8e25680db73a22a7eab36bc1416f30388e2901",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-compact-back.png",
+      "sha256": "c86252385286fc83f71dce86e1d8b11d632d8142eedc03fbbf40165b286d6e31",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-tall-island.png",
+      "sha256": "3c2a004bc8a1f0dca44e5e95734b38613596c41c393fee10e9e5886aee3ce5e5",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-endcap-island.png",
+      "sha256": "6a6a5a2144b59c59b7b612847c52adc8f357a68081ba685092785a67449996e2",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-wide-left.png",
+      "sha256": "f542ec6db5c42f20d3351ebf50150470b49b12254f623178e3d5aa6bc5e1e181",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-wide-center.png",
+      "sha256": "691d8d619ed6cca785059d6206c477b5aba83d8621cfd9b5c2084cde5db3f4a0",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-compact-back.png",
+      "sha256": "e40cc6b75b4b898e8b4474fdda54d34e61f84d81bcb880caca7ad0806fd06b59",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-tall-island.png",
+      "sha256": "ca0b46903c0fec40ee87ef410bf7c8c40a4f17b7f5e1644b4ab1c283a041c0fd",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-endcap-island.png",
+      "sha256": "315e003e59e52f412dbb95a2961e20ea6f21fff330eeca361f6b00db0db9ce24",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-1-registered.png",
+      "sha256": "96793932b1aee6f294cb4a5455109dfd1a063e3164aff570ee81a5e7b63cf6a2",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-23-registered.png",
+      "sha256": "baf7bc898efd0edb1a4076d0a80874c01502d2c8a8821a950650a4d32cf78d19",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-23-carrying-shared.png",
+      "sha256": "288612601b5d1f6d05792fff0478ce30b7e9c4cf4d3a4ef494aa24caf1a9d193",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-23-placed-shared.png",
+      "sha256": "e5bdb6a1fd1f2540ddf0639c74108947e2510989ce4b5628d9ae6b179b613781",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-1-conflict-draft-retained.png",
+      "sha256": "9764919e63908553c0717c2c38014e377d61d87c6d9d18a4211c5e807d6d8409",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-1-precommit-retried.png",
+      "sha256": "33c728fe408ff6e8d8ed79e36ed5532d6c2e6dfd32f46b20df0c2870724d26a5",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-1-other-student-details.png",
+      "sha256": "739910e3f7cf63f9f368ff84890d52dfeb3573398a56fb75b90b20e0d9402383",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-1-untrusted-metadata-details.png",
+      "sha256": "5af7cca2635309acd93109c1a6366087bbb3f310966022ed6d0992c8df74f7b4",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-1-shared-final.png",
+      "sha256": "db9c07ce1c5c05c7f67e42eee23fd5bf4c1707d63a11b20a6f728748c8baab24",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-shared-2-student1-details.png",
+      "sha256": "8d841a5a961c678314286e1bbe07539107bea504e62cba8795621d54c5528131",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-entered.png",
+      "sha256": "695eedf5e05947c3a9d92c1ce300ec67cd2d58103da815ea200fb8d51543f2e4",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-registration.png",
+      "sha256": "a106f899d2e78ed9ba3356a4f4479b66bd52d190b2f67404d8ab1d963f030387",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-carried.png",
+      "sha256": "abf82cf19e1f17576ba4f34b0b4142301b1dda2f2b3ed42d0f01765668605e5f",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-picker-before-block.png",
+      "sha256": "e3ad86a819f97bf7049c46cfe7b05dcfa6e475a1c470f1d1cacf1b0bbc6dddc4",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-placement-blocked-carried-retained.png",
+      "sha256": "5c703527bb9f052f5687de4996d46fac625807a5b10a2a012512782c9dcfe9bb",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-escape-closed-carried.png",
+      "sha256": "b4dcb2fd77b264a10701f80ba018005189a87c3ef0a7f2b46cfca46773ab7211",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-bookcase-modal-bookcase-keyboard-empty-error.png",
+      "sha256": "531b3f1a4f34b01380ab2813c503e78fbef16a9c3581c8a26f0a438cb94a2376",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-bookcase-modal-bookcase-text-200-picker.png",
+      "sha256": "5bbf02ce4d803064cfabf9679dab034525198a306b14785a61f2dea68dbd43b8",
+      "width": 1280,
+      "height": 800
+    }
+  ],
+  "diff": {
+    "command": "image-diff",
+    "dimensionsMatch": true,
+    "reference": {
+      "width": 1280,
+      "height": 800
+    },
+    "actual": {
+      "width": 1280,
+      "height": 800
+    },
+    "totalPixels": 1024000,
+    "diffPixels": 588562,
+    "diffRatio": 0.5748,
+    "similarityScore": 43,
+    "alphaChannelIntact": true,
+    "hotspots": [
+      {
+        "gridX": 3,
+        "gridY": 3,
+        "x": 480,
+        "y": 300,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.9811
+      },
+      {
+        "gridX": 4,
+        "gridY": 3,
+        "x": 640,
+        "y": 300,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.9808
+      },
+      {
+        "gridX": 5,
+        "gridY": 1,
+        "x": 800,
+        "y": 100,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.9751
+      },
+      {
+        "gridX": 2,
+        "gridY": 1,
+        "x": 320,
+        "y": 100,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.9746
+      },
+      {
+        "gridX": 3,
+        "gridY": 1,
+        "x": 480,
+        "y": 100,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.97
+      },
+      {
+        "gridX": 4,
+        "gridY": 1,
+        "x": 640,
+        "y": 100,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.97
+      },
+      {
+        "gridX": 3,
+        "gridY": 6,
+        "x": 480,
+        "y": 600,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.9368
+      },
+      {
+        "gridX": 4,
+        "gridY": 6,
+        "x": 640,
+        "y": 600,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.9368
+      },
+      {
+        "gridX": 3,
+        "gridY": 4,
+        "x": 480,
+        "y": 400,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.9326
+      },
+      {
+        "gridX": 4,
+        "gridY": 4,
+        "x": 640,
+        "y": 400,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.9326
+      },
+      {
+        "gridX": 2,
+        "gridY": 6,
+        "x": 320,
+        "y": 600,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8744
+      },
+      {
+        "gridX": 5,
+        "gridY": 6,
+        "x": 800,
+        "y": 600,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8744
+      },
+      {
+        "gridX": 2,
+        "gridY": 3,
+        "x": 320,
+        "y": 300,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8707
+      },
+      {
+        "gridX": 5,
+        "gridY": 3,
+        "x": 800,
+        "y": 300,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8706
+      },
+      {
+        "gridX": 4,
+        "gridY": 5,
+        "x": 640,
+        "y": 500,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8668
+      },
+      {
+        "gridX": 3,
+        "gridY": 5,
+        "x": 480,
+        "y": 500,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8548
+      },
+      {
+        "gridX": 2,
+        "gridY": 4,
+        "x": 320,
+        "y": 400,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8408
+      },
+      {
+        "gridX": 5,
+        "gridY": 4,
+        "x": 800,
+        "y": 400,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8408
+      },
+      {
+        "gridX": 2,
+        "gridY": 7,
+        "x": 320,
+        "y": 700,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8326
+      },
+      {
+        "gridX": 5,
+        "gridY": 7,
+        "x": 800,
+        "y": 700,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8326
+      },
+      {
+        "gridX": 3,
+        "gridY": 7,
+        "x": 480,
+        "y": 700,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8055
+      },
+      {
+        "gridX": 4,
+        "gridY": 7,
+        "x": 640,
+        "y": 700,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.8055
+      },
+      {
+        "gridX": 5,
+        "gridY": 5,
+        "x": 800,
+        "y": 500,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.7962
+      },
+      {
+        "gridX": 2,
+        "gridY": 5,
+        "x": 320,
+        "y": 500,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.7947
+      },
+      {
+        "gridX": 6,
+        "gridY": 5,
+        "x": 960,
+        "y": 500,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.7563
+      },
+      {
+        "gridX": 1,
+        "gridY": 5,
+        "x": 160,
+        "y": 500,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.7463
+      },
+      {
+        "gridX": 6,
+        "gridY": 4,
+        "x": 960,
+        "y": 400,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.7367
+      },
+      {
+        "gridX": 6,
+        "gridY": 6,
+        "x": 960,
+        "y": 600,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.7282
+      },
+      {
+        "gridX": 1,
+        "gridY": 4,
+        "x": 160,
+        "y": 400,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.7192
+      },
+      {
+        "gridX": 1,
+        "gridY": 2,
+        "x": 160,
+        "y": 200,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.7014
+      },
+      {
+        "gridX": 6,
+        "gridY": 2,
+        "x": 960,
+        "y": 200,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6951
+      },
+      {
+        "gridX": 1,
+        "gridY": 3,
+        "x": 160,
+        "y": 300,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6904
+      },
+      {
+        "gridX": 6,
+        "gridY": 1,
+        "x": 960,
+        "y": 100,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6867
+      },
+      {
+        "gridX": 6,
+        "gridY": 3,
+        "x": 960,
+        "y": 300,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6863
+      },
+      {
+        "gridX": 1,
+        "gridY": 6,
+        "x": 160,
+        "y": 600,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6844
+      },
+      {
+        "gridX": 6,
+        "gridY": 0,
+        "x": 960,
+        "y": 0,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6623
+      },
+      {
+        "gridX": 1,
+        "gridY": 1,
+        "x": 160,
+        "y": 100,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.635
+      },
+      {
+        "gridX": 2,
+        "gridY": 2,
+        "x": 320,
+        "y": 200,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6218
+      },
+      {
+        "gridX": 2,
+        "gridY": 0,
+        "x": 320,
+        "y": 0,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6181
+      },
+      {
+        "gridX": 5,
+        "gridY": 0,
+        "x": 800,
+        "y": 0,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6181
+      },
+      {
+        "gridX": 3,
+        "gridY": 0,
+        "x": 480,
+        "y": 0,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6129
+      },
+      {
+        "gridX": 4,
+        "gridY": 0,
+        "x": 640,
+        "y": 0,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.6118
+      },
+      {
+        "gridX": 5,
+        "gridY": 2,
+        "x": 800,
+        "y": 200,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.5335
+      },
+      {
+        "gridX": 1,
+        "gridY": 7,
+        "x": 160,
+        "y": 700,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.5123
+      },
+      {
+        "gridX": 6,
+        "gridY": 7,
+        "x": 960,
+        "y": 700,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.5123
+      },
+      {
+        "gridX": 7,
+        "gridY": 0,
+        "x": 1120,
+        "y": 0,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.4896
+      },
+      {
+        "gridX": 3,
+        "gridY": 2,
+        "x": 480,
+        "y": 200,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.44
+      },
+      {
+        "gridX": 4,
+        "gridY": 2,
+        "x": 640,
+        "y": 200,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.44
+      },
+      {
+        "gridX": 1,
+        "gridY": 0,
+        "x": 160,
+        "y": 0,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.271
+      },
+      {
+        "gridX": 0,
+        "gridY": 1,
+        "x": 0,
+        "y": 100,
+        "width": 160,
+        "height": 100,
+        "diffRatio": 0.0248
+      }
+    ],
+    "summary": "43/100 similarity; 588562/1024000 pixels differ; 50 hotspot region(s)."
+  },
+  "target": "Intent comparison, not a pixel-perfect clone: replace card-grid with real wood shelves/spines; no directional pad."
+}

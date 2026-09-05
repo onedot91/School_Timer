@@ -1,0 +1,19 @@
+{
+  "before": {
+    "hiddenBookMissionCount": 0,
+    "missionBookStack": false,
+    "stockMinimum": 17,
+    "stockComment": "보존 표식: 금요일 급등"
+  },
+  "after": {
+    "hiddenBookMissionCount": 0,
+    "missionBookStack": false,
+    "stockMinimum": 17,
+    "stockComment": "보존 표식: 금요일 급등"
+  },
+  "placement": {
+    "bookId": "library:23:523b0bf4-8623-494d-8ac0-88617c5a5b9e",
+    "slot": 0,
+    "balance": 40
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "meaning": "PIN old form visible; RED integrated Canvas absent",
+  "viewport": [
+    1280,
+    800
+  ],
+  "student": 23,
+  "sourceSha": "f692936fd886fb02ccd96c47f563a17a479af3c51d7b8eb75f3d69b765f9cabe",
+  "blocked": [
+    "/css2",
+    "/api/version",
+    "/css2",
+    "/api/question-submission-status"
+  ],
+  "cleanup": "Isolated Chrome closes in finally; root-owned3033 server remains until task6 QA ends."
+}

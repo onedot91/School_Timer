@@ -108,7 +108,18 @@ export default function StudentFailureMessage({
         </div>}
       </footer>
       {!isMine && isStampMenuOpen ? (
-        <div id={stampMenuId} className="student-failure-stamps" role="group" aria-label="응원 도장 선택">
+        <div
+          id={stampMenuId}
+          className="student-failure-stamps"
+          role="group"
+          aria-label="응원 도장 선택"
+          onKeyDownCapture={(event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            onStampMenuToggle(story.id);
+          }}
+        >
           <span className="student-failure-stamps-title"><HeartHandshake aria-hidden="true" />어떤 마음을 보낼까요?</span>
           {FAILURE_STAMP_OPTIONS.map((stamp) => {
             const StampIcon = FAILURE_STAMP_PRESENTATIONS[stamp.id].Icon;

@@ -1,0 +1,226 @@
+{
+  "generatedAt": "2026-09-05T11:27:35.165Z",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-entered.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-entrance-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-receive-start.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-receive-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-receive-settled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-stories.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-stamp-menu.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-stamped.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-compose.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-compose-cancelled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-created.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-closed-carry-retained.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-dense-empty-picker.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-place-start.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-place-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-reloaded-book.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-100.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-picker-full-left-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-picker-bottom-full-left-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-picker-full-north-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-picker-bottom-full-north-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-picker-full-island-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-picker-bottom-full-island-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-picker-full-right-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-full-picker-bottom-full-right-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-reading-nook-route.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-reading-seated.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-reading-next-book.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-reading-standing.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-up-start.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-up-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-up-settled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-right-start.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-right-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-right-settled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-down-start.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-down-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-down-settled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-left-start.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-left-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-walk-left-settled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-behind-shelf.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-in-front-of-shelf.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-library-route-room.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-legacy-route-board.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-text-200.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-text-200-card.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-board-text-200-lower-card.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-empty-room.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-empty-board.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-carry-pose/play-reduced-motion-placed.png"
+  ],
+  "checks": {
+    "directionalWalking": true,
+    "receivePlaceAnimation": true,
+    "seatedReading": true,
+    "readableDomCue": true,
+    "reducedMotion": true,
+    "mute": true,
+    "roomFirstRoute": true,
+    "entranceRegistration": true,
+    "boardCreateStampCancel": true,
+    "oneModalOwner": true,
+    "carryRetained": true,
+    "bookIDsPreserved": true,
+    "fourVariedShelves100Slots": true,
+    "min44Targets": true,
+    "legacyRouteEmbedded": true,
+    "text200": true
+  },
+  "errors": [],
+  "blockedRequests": [
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    }
+  ],
+  "cleanup": [
+    "isolated Chrome closed; root owns3045"
+  ],
+  "readableFont": {
+    "size": "16px",
+    "font": "-apple-system, \"system-ui\", \"SF Pro Text\", \"Apple SD Gothic Neo\", \"Noto Sans KR\", sans-serif",
+    "tag": "BUTTON"
+  },
+  "zoomScroll": {
+    "windowY": 0,
+    "rootY": 0,
+    "bodyY": 0,
+    "innerY": 1805,
+    "headerBefore": {
+      "x": 100,
+      "y": 136,
+      "width": 1080,
+      "height": 128
+    },
+    "headerAfter": {
+      "x": 100,
+      "y": 136,
+      "width": 1080,
+      "height": 128
+    },
+    "closeRect": {
+      "x": 1120,
+      "y": 144,
+      "width": 44,
+      "height": 88
+    }
+  },
+  "sourceSha256": {
+    "src/lib/canvasLibraryWorld.ts": "e57b8def7eb4e6d3c2d277bfe4057a5f484247da6edba70e73f0cddda58b9c62",
+    "src/lib/canvasLibraryClient.ts": "9e65e7b63d581f823d89214fc06c47a4cbb48ece1c897b20c5198124fbc884ba",
+    "src/lib/canvasLibraryPlacement.ts": "1c67b24fe8fdd0e05e111c095b609ab597b0ecbe931efd59b63b81862ccf6fa9",
+    "src/lib/studentLife.ts": "3af9cb7d792bb8fa8869b5a29cda9493685a079931c56e2f6aa212f278506031",
+    "src/lib/studentPet.ts": "b59341ab9cb4a1eecfbdc603644396e707c05e85ed2eb8e0eabf534181f079eb",
+    "src/pages/AuctionPage.tsx": "aaabca53448d123cfca925336e39a3bfa9f47b36b4c5fe2b436e59fd3d73865c",
+    "src/components/student/StudentLibraryPage.tsx": "2c389aafd9d3d8adaeb3018b1b97dcf2151c359c6f0c68a44fa47e0d57978f78",
+    "src/components/student/library/CanvasLibraryGame.tsx": "5a33bf38ac83ddcfe94d122e4b9579eb5be1a29d9b819d1e7310e4c557db0cdd",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "d50145985188a14640eb177ffee2da8a5ca8f938c9b3177cbd4297fc7dd44b17",
+    "src/index.css": "a49dae4977234fe0d94d05c1cd758788cc0eb2038367e84b07fd737093acf3da",
+    "src/components/student/library/CanvasLibraryPalette.ts": "c230ec82097f64e873f16ac733dcab453617205910e8ba43d181aa6a1582bb40",
+    "src/components/student/StudentFailureExhibitionPage.tsx": "3eeb8bc3de19da2ebd792a2eef287ff1ff9a0f422e06eb0b88ed8a1fe4bb2109",
+    "src/components/student/StudentFailureMessage.tsx": "249590222e1b796dea0b9dd4c1724a0ee1718b1521cab67cd4f1238ceef14f29"
+  },
+  "passed": true
+}

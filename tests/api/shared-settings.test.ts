@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import handler from '../../api/shared-settings.js';
+import studentEconomyHandler from '../../api/student-economy.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
@@ -71,7 +72,7 @@ test('registered devices can poll only the shared settings timestamp', async () 
     const requests: string[] = [];
     globalThis.fetch = async (input) => {
       requests.push(String(input));
-      return Response.json([{ updated_at: 'v2' }]);
+      return Response.json([{ updated_at: '2026-09-05T00:00:01.000Z' }]);
     };
     try {
       const first = createResponse();
@@ -84,8 +85,8 @@ test('registered devices can poll only the shared settings timestamp', async () 
 
       assert.equal(first.result().statusCode, 200);
       assert.equal(second.result().statusCode, 200);
-      assert.deepEqual(first.result().body, { updatedAt: 'v2' });
-      assert.deepEqual(second.result().body, { updatedAt: 'v2' });
+      assert.deepEqual(first.result().body, { updatedAt: '2026-09-05T00:00:01.000Z' });
+      assert.deepEqual(second.result().body, { updatedAt: '2026-09-05T00:00:01.000Z' });
       assert.equal(requests.length, 1);
       assert.match(requests[0] ?? '', /select=updated_at/);
       assert.doesNotMatch(requests[0] ?? '', /select=[^&]*value/);
@@ -102,11 +103,16 @@ test('an older metadata request cannot replace the version cached by a completed
     let markMetadataStarted: (() => void) | undefined;
     const metadataGate = new Promise<void>((resolve) => { releaseMetadata = resolve; });
     const metadataStarted = new Promise<void>((resolve) => { markMetadataStarted = resolve; });
-    globalThis.fetch = async (_input, init) => {
-      if (!init?.method) {
+    globalThis.fetch = async (input, init) => {
+      if (!init?.method && new URL(String(input)).searchParams.get('select') === 'updated_at') {
         markMetadataStarted?.();
         await metadataGate;
-        return Response.json([{ updated_at: 'v1' }]);
+        return Response.json([{ updated_at: '2026-09-05T00:00:00.000Z' }]);
+      }
+      if (!init?.method) {
+        return Response.json([{
+          id: 'school-timer-main', value: { schedule: [] }, updated_at: '2026-09-05T00:00:00.000Z',
+        }]);
       }
       return Response.json([{ id: 'school-timer-main' }]);
     };
@@ -124,7 +130,7 @@ test('an older metadata request cannot replace the version cached by a completed
       await handler({
         method: 'PUT',
         headers: teacherHeaders(),
-        body: { value: { schedule: ['수학'] }, expectedUpdatedAt: 'v1' },
+        body: { value: { schedule: ['수학'] }, expectedUpdatedAt: '2026-09-05T00:00:00.000Z' },
       }, writeResponse.response);
       const writtenUpdatedAt = (writeResponse.result().body as { updatedAt: string }).updatedAt;
       releaseMetadata?.();
@@ -156,7 +162,7 @@ test('student sessions receive only their own large JSON map entries', async () 
       requests.push(String(input));
       return Response.json([{
         id: 'school-timer-main',
-        updated_at: 'v2',
+        updated_at: '2026-09-05T00:00:01.000Z',
         auctionItems: [{ id: 'day-1' }],
         currencyBalances: 145,
         currencyHistory: [{ id: 'history-7' }],
@@ -201,13 +207,13 @@ test('teacher reads stay complete while student full queries remain scoped', asy
           id: 'school-timer-main',
           auctionItems: [{ id: 'day-1' }],
           currencyBalances: 145,
-          updated_at: 'v2',
+          updated_at: '2026-09-05T00:00:01.000Z',
         }]);
       }
       return Response.json([{
         id: 'school-timer-main',
         value: { weeklySchedule: ['월요일'] },
-        updated_at: 'v2',
+        updated_at: '2026-09-05T00:00:01.000Z',
       }]);
     };
     try {
@@ -243,14 +249,14 @@ test('student sessions cannot change teacher-owned settings', async () => {
     let fetchCount = 0;
     globalThis.fetch = async () => {
       fetchCount += 1;
-      return Response.json([{ id: 'school-timer-main', value: { schedule: ['수학'], currencyBalances: { 7: 100 } }, updated_at: 'v1' }]);
+      return Response.json([{ id: 'school-timer-main', value: { schedule: ['수학'], currencyBalances: { 7: 100 } }, updated_at: '2026-09-05T00:00:00.000Z' }]);
     };
     try {
       const { response, result } = createResponse();
       await handler({
         method: 'PUT',
         headers: studentHeaders(7),
-        body: { value: { schedule: ['체육'], currencyBalances: { 7: 100 } }, expectedUpdatedAt: 'v1' },
+        body: { value: { schedule: ['체육'], currencyBalances: { 7: 100 } }, expectedUpdatedAt: '2026-09-05T00:00:00.000Z' },
       }, response);
       assert.equal(result().statusCode, 403);
       assert.equal(fetchCount, 1);
@@ -268,7 +274,7 @@ test('student sessions can update only their own balance entry', async () => {
     globalThis.fetch = async (input, init) => {
       requests.push(String(input));
       if (requests.length === 1) {
-        return Response.json([{ id: 'school-timer-main', value: { schedule: ['수학'], currencyBalances: { 7: 100, 8: 100 } }, updated_at: 'v1' }]);
+        return Response.json([{ id: 'school-timer-main', value: { schedule: ['수학'], currencyBalances: { 7: 100, 8: 100 } }, updated_at: '2026-09-05T00:00:00.000Z' }]);
       }
       savedValue = JSON.parse(String(init?.body)).value;
       return Response.json([{ id: 'school-timer-main' }]);
@@ -278,7 +284,7 @@ test('student sessions can update only their own balance entry', async () => {
       await handler({
         method: 'PUT',
         headers: studentHeaders(7),
-        body: { value: { currencyBalances: { 7: 105 } }, expectedUpdatedAt: 'v1' },
+        body: { value: { currencyBalances: { 7: 105 } }, expectedUpdatedAt: '2026-09-05T00:00:00.000Z' },
       }, response);
       assert.equal(result().statusCode, 200);
       assert.equal(requests.length, 2);
@@ -302,7 +308,7 @@ test('student scoped updates keep the merged settings value within the size limi
       return Response.json([{
         id: 'school-timer-main',
         value: { schedule: 'a'.repeat(600_000) },
-        updated_at: 'v1',
+        updated_at: '2026-09-05T00:00:00.000Z',
       }]);
     };
 
@@ -313,7 +319,7 @@ test('student scoped updates keep the merged settings value within the size limi
         headers: studentHeaders(7),
         body: {
           value: { studentLife: 'b'.repeat(600_000) },
-          expectedUpdatedAt: 'v1',
+          expectedUpdatedAt: '2026-09-05T00:00:00.000Z',
         },
       }, response);
 
@@ -337,7 +343,7 @@ test('generic student settings writes cannot forge processed economy request IDs
       return Response.json([{
         id: 'school-timer-main',
         value: { studentEconomy: { 7: { processedRequestIds: [] } } },
-        updated_at: 'v1',
+        updated_at: '2026-09-05T00:00:00.000Z',
       }]);
     };
     try {
@@ -347,7 +353,7 @@ test('generic student settings writes cannot forge processed economy request IDs
         headers: studentHeaders(7),
         body: {
           value: { studentEconomy: { 7: { processedRequestIds: ['forged-request'] } } },
-          expectedUpdatedAt: 'v1',
+          expectedUpdatedAt: '2026-09-05T00:00:00.000Z',
         },
       }, response);
 
@@ -378,7 +384,7 @@ test('generic student settings writes cannot alter a server economy ledger entry
       return Response.json([{
         id: 'school-timer-main',
         value: { currencyBalances: { 7: 75 }, currencyHistory: { 7: [legitimateEntry] }, studentEconomy },
-        updated_at: 'v1',
+        updated_at: '2026-09-05T00:00:00.000Z',
       }]);
     };
     try {
@@ -392,7 +398,7 @@ test('generic student settings writes cannot alter a server economy ledger entry
             currencyHistory: { 7: [{ ...legitimateEntry, before: 100, after: 999, delta: 899 }] },
             studentEconomy,
           },
-          expectedUpdatedAt: 'v1',
+          expectedUpdatedAt: '2026-09-05T00:00:00.000Z',
         },
       }, response);
 
@@ -413,7 +419,7 @@ test('generic student settings writes cannot forge a teacher currency reset', as
       return Response.json([{
         id: 'school-timer-main',
         value: { currencyBalances: { 7: 100 }, currencyHistory: { 7: [] } },
-        updated_at: 'v1',
+        updated_at: '2026-09-05T00:00:00.000Z',
       }]);
     };
     try {
@@ -429,7 +435,7 @@ test('generic student settings writes cannot forge a teacher currency reset', as
               reason: 'reset', createdAt: '2026-09-03T03:00:00.000Z',
             }] },
           },
-          expectedUpdatedAt: 'v1',
+          expectedUpdatedAt: '2026-09-05T00:00:00.000Z',
         },
       }, response);
 
@@ -450,7 +456,7 @@ test('generic student settings writes cannot forge a teacher deduction', async (
       return Response.json([{
         id: 'school-timer-main',
         value: { currencyBalances: { 7: 100 }, currencyHistory: { 7: [] } },
-        updated_at: 'v1',
+        updated_at: '2026-09-05T00:00:00.000Z',
       }]);
     };
     try {
@@ -466,7 +472,7 @@ test('generic student settings writes cannot forge a teacher deduction', async (
               reason: 'teacher_deduction', createdAt: '2026-09-05T03:00:00.000Z',
             }] },
           },
-          expectedUpdatedAt: 'v1',
+          expectedUpdatedAt: '2026-09-05T00:00:00.000Z',
         },
       }, response);
 
@@ -537,7 +543,7 @@ for (const scenario of reorderedSharedSettingsScenarios) {
       globalThis.fetch = async () => {
         fetchCount += 1;
         return fetchCount === 1
-          ? Response.json([{ id: 'school-timer-main', value: scenario.previousValue, updated_at: 'v1' }])
+          ? Response.json([{ id: 'school-timer-main', value: scenario.previousValue, updated_at: '2026-09-05T00:00:00.000Z' }])
           : Response.json([{ id: 'school-timer-main' }]);
       };
 
@@ -546,7 +552,7 @@ for (const scenario of reorderedSharedSettingsScenarios) {
         await handler({
           method: 'PUT',
           headers: studentHeaders(7),
-          body: { value: scenario.nextValue, expectedUpdatedAt: 'v1' },
+          body: { value: scenario.nextValue, expectedUpdatedAt: '2026-09-05T00:00:00.000Z' },
         }, response);
 
         assert.equal(result().statusCode, 200);
@@ -596,7 +602,7 @@ for (const scenario of economyUpdateScenarios) {
       globalThis.fetch = async () => {
         fetchCount += 1;
         return fetchCount === 1
-          ? Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: 'v1' }])
+          ? Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: '2026-09-05T00:00:00.000Z' }])
           : Response.json([{ id: 'school-timer-main' }]);
       };
 
@@ -614,7 +620,7 @@ for (const scenario of economyUpdateScenarios) {
               currencyHistory: normalizedHistory,
               studentEconomy: scenario.studentEconomy,
             },
-            expectedUpdatedAt: 'v1',
+            expectedUpdatedAt: '2026-09-05T00:00:00.000Z',
           },
         }, response);
 
@@ -634,14 +640,14 @@ test('student sessions cannot change another student balance entry', async () =>
     let fetchCount = 0;
     globalThis.fetch = async () => {
       fetchCount += 1;
-      return Response.json([{ id: 'school-timer-main', value: { currencyBalances: { 7: 100 } }, updated_at: 'v1' }]);
+      return Response.json([{ id: 'school-timer-main', value: { currencyBalances: { 7: 100 } }, updated_at: '2026-09-05T00:00:00.000Z' }]);
     };
     try {
       const { response, result } = createResponse();
       await handler({
         method: 'PUT',
         headers: studentHeaders(7),
-        body: { value: { currencyBalances: { 7: 100, 8: 999 } }, expectedUpdatedAt: 'v1' },
+        body: { value: { currencyBalances: { 7: 100, 8: 999 } }, expectedUpdatedAt: '2026-09-05T00:00:00.000Z' },
       }, response);
       assert.equal(result().statusCode, 403);
       assert.equal(fetchCount, 1);
@@ -651,24 +657,371 @@ test('student sessions cannot change another student balance entry', async () =>
   });
 });
 
-test('teacher update with a known version writes without rereading shared settings', async () => {
+test('teacher update with a known version rereads authoritative books before writing', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
     const requests: string[] = [];
-    globalThis.fetch = async (input) => {
+    globalThis.fetch = async (input, init) => {
       requests.push(String(input));
-      return Response.json([{ id: 'school-timer-main' }]);
+      return init?.method === 'PATCH'
+        ? Response.json([{ id: 'school-timer-main' }])
+        : Response.json([{
+            id: 'school-timer-main',
+            value: { studentLife: { books: [{
+              id: 'book-1', studentNumber: 1, title: '권위 책', author: '작가', pageCount: 10,
+              createdAt: '2026-09-05T00:00:00.000Z', colorIndex: 0, librarySlot: 4,
+            }] } },
+            updated_at: '2026-09-05T00:00:00.000Z',
+          }]);
     };
     try {
       const { response, result } = createResponse();
       await handler({
         method: 'PUT',
         headers: teacherHeaders(),
-        body: { value: { dailyWriting: { assignment: null } }, expectedUpdatedAt: 'v1' },
+        body: { value: { dailyWriting: { assignment: null } }, expectedUpdatedAt: '2026-09-05T00:00:00.000Z' },
       }, response);
       assert.equal(result().statusCode, 200);
-      assert.equal(requests.length, 1);
-      assert.match(requests[0] ?? '', /updated_at=eq\.v1/);
+      assert.equal(requests.length, 2);
+      assert.equal(
+        new URL(requests[1] ?? '').searchParams.get('updated_at'),
+        'eq.2026-09-05T00:00:00.000Z',
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+type FakeSettingsRow = { id: string; value: Record<string, unknown>; updated_at: string };
+
+const createStatefulPostgrest = (
+  initial: FakeSettingsRow | null,
+  options: { readBarrier?: number; throwAfterFirstCommit?: boolean } = {},
+) => {
+  let row = initial ? structuredClone(initial) : null;
+  let readCount = 0;
+  let releaseReads: (() => void) | undefined;
+  const readsReady = options.readBarrier
+    ? new Promise<void>((resolve) => { releaseReads = resolve; })
+    : Promise.resolve();
+  let committedThenThrew = false;
+  const requests: Array<{ url: string; method: string; body: unknown }> = [];
+
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? 'GET';
+    const body = init?.body ? JSON.parse(String(init.body)) : null;
+    requests.push({ url: url.toString(), method, body });
+    if (url.hostname.endsWith('.supabase.co') === false) throw new Error('unexpected outbound fetch');
+
+    if (method === 'GET') {
+      const snapshot = row ? structuredClone(row) : null;
+      readCount += 1;
+      if (options.readBarrier && readCount === options.readBarrier) releaseReads?.();
+      if (options.readBarrier && readCount <= options.readBarrier) await readsReady;
+      return Response.json(snapshot ? [snapshot] : []);
+    }
+    if (method === 'PATCH') {
+      const expected = url.searchParams.get('updated_at')?.replace(/^eq\./, '') ?? '';
+      if (!row || row.updated_at !== expected) return Response.json([]);
+      row = { id: row.id, value: structuredClone(body.value), updated_at: body.updated_at };
+      if (options.throwAfterFirstCommit && !committedThenThrew) {
+        committedThenThrew = true;
+        throw new DOMException('synthetic timeout after commit', 'TimeoutError');
+      }
+      return Response.json([{ id: row.id }]);
+    }
+    if (method === 'POST') {
+      if (row) return Response.json({ code: '23505' }, { status: 409 });
+      row = structuredClone(body);
+      return Response.json([{ id: row?.id }]);
+    }
+    return Response.json({ error: 'unsupported' }, { status: 500 });
+  };
+  return { fetch, state: () => structuredClone(row), requests };
+};
+
+const placementCommand = (
+  requestId: string,
+  slotId: number,
+  title = '달빛 우체국',
+) => ({
+  action: 'placeLibraryBook',
+  requestId,
+  slotId,
+  book: { kind: 'new', title, author: '고마 작가', pageCount: 321 },
+});
+
+test('placement command is student-only and returns an authoritative student projection', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const fake = createStatefulPostgrest({
+      id: 'school-timer-main',
+      value: {
+        schedule: ['비공개'], currencyBalances: { 1: 0, 2: 999 },
+        studentLife: { letters: [{
+          id: 'keep', recipient: 1, senderLabel: '선생님', senderStudentNumber: null,
+          replyToId: null, title: '안내', content: '보존', createdAt: '2026-09-05T00:00:00.000Z', readAt: null,
+        }], books: [] },
+      },
+      updated_at: '2026-09-05T00:00:00.000Z',
+    });
+    globalThis.fetch = fake.fetch;
+    try {
+      const command = placementCommand('11111111-1111-4111-8111-111111111111', 17);
+      const teacher = createResponse();
+      await handler({ method: 'PUT', headers: teacherHeaders(), body: command }, teacher.response);
+      assert.deepEqual(teacher.result(), { statusCode: 403, body: { error: 'LIBRARY_BOOK_FORBIDDEN' } });
+
+      const student = createResponse();
+      await handler({ method: 'PUT', headers: studentHeaders(1), body: command }, student.response);
+      assert.equal(student.result().statusCode, 200);
+      const payload = student.result().body as { book: { librarySlot?: number }; updatedAt: string; value: Record<string, unknown> };
+      assert.equal(payload.book.librarySlot, 17);
+      assert.equal(typeof payload.updatedAt, 'string');
+      assert.equal(Reflect.has(payload.value, 'schedule'), false);
+      assert.deepEqual(payload.value.currencyBalances, { 1: 10 });
+      assert.equal(((payload.value.studentLife as { letters: Array<{ id: string }> }).letters)[0]?.id, 'keep');
+      assert.equal((fake.state()?.value.studentLife as { books: unknown[] }).books.length, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('same-slot race has exactly one winner while different-slot CAS retries retain both books', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const initial = { id: 'school-timer-main', value: { currencyBalances: { 1: 0, 2: 0 }, currencyHistory: {}, studentLife: { books: [] } }, updated_at: '2026-09-05T00:00:00.000Z' };
+    try {
+      const same = createStatefulPostgrest(initial, { readBarrier: 2 });
+      globalThis.fetch = same.fetch;
+      const sameResponses = [createResponse(), createResponse()];
+      await Promise.all([
+        handler({ method: 'PUT', headers: studentHeaders(1), body: placementCommand('11111111-1111-4111-8111-111111111111', 9, '첫 책') }, sameResponses[0].response),
+        handler({ method: 'PUT', headers: studentHeaders(2), body: placementCommand('22222222-2222-4222-8222-222222222222', 9, '둘째 책') }, sameResponses[1].response),
+      ]);
+      assert.deepEqual(sameResponses.map(({ result }) => result().statusCode).sort(), [200, 409]);
+      assert.equal((same.state()?.value.studentLife as { books: unknown[] }).books.length, 1);
+
+      const different = createStatefulPostgrest(initial, { readBarrier: 2 });
+      globalThis.fetch = different.fetch;
+      const differentResponses = [createResponse(), createResponse()];
+      await Promise.all([
+        handler({ method: 'PUT', headers: studentHeaders(1), body: placementCommand('33333333-3333-4333-8333-333333333333', 10, '셋째 책') }, differentResponses[0].response),
+        handler({ method: 'PUT', headers: studentHeaders(2), body: placementCommand('44444444-4444-4444-8444-444444444444', 11, '넷째 책') }, differentResponses[1].response),
+      ]);
+      assert.deepEqual(differentResponses.map(({ result }) => result().statusCode), [200, 200]);
+      const books = (different.state()?.value.studentLife as { books: Array<{ librarySlot: number }> }).books;
+      assert.deepEqual(books.map((book) => book.librarySlot).sort(), [10, 11]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('simultaneous initial-row placement uses insert-only and both commands survive duplicate retry', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const fake = createStatefulPostgrest(null, { readBarrier: 2 });
+    globalThis.fetch = fake.fetch;
+    try {
+      const responses = [createResponse(), createResponse()];
+      await Promise.all([
+        handler({ method: 'PUT', headers: studentHeaders(1), body: placementCommand('55555555-5555-4555-8555-555555555555', 20) }, responses[0].response),
+        handler({ method: 'PUT', headers: studentHeaders(2), body: placementCommand('66666666-6666-4666-8666-666666666666', 21) }, responses[1].response),
+      ]);
+      assert.deepEqual(responses.map(({ result }) => result().statusCode), [200, 200]);
+      assert.equal((fake.state()?.value.studentLife as { books: unknown[] }).books.length, 2);
+      const posts = fake.requests.filter((request) => request.method === 'POST');
+      assert.equal(posts.length, 2);
+      assert.equal(posts.every((request) => new URL(request.url).searchParams.has('on_conflict') === false), true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('timeout after commit replay returns the same receipt and does not duplicate reward', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const fake = createStatefulPostgrest({
+      id: 'school-timer-main', value: { currencyBalances: { 1: 0 }, currencyHistory: { 1: [] }, studentLife: { books: [] } },
+      updated_at: '2026-09-05T00:00:00.000Z',
+    }, { throwAfterFirstCommit: true });
+    globalThis.fetch = fake.fetch;
+    try {
+      const response = createResponse();
+      await handler({
+        method: 'PUT', headers: studentHeaders(1),
+        body: placementCommand('77777777-7777-4777-8777-777777777777', 31),
+      }, response.response);
+      assert.equal(response.result().statusCode, 200);
+      const state = fake.state();
+      assert.equal((state?.value.studentLife as { books: unknown[] }).books.length, 1);
+      assert.equal((state?.value.currencyBalances as Record<string, number>)['1'], 10);
+      assert.equal(((state?.value.currencyHistory as Record<string, unknown[]>)['1'] ?? []).length, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('generic writers preserve authoritative books, monotonic versions, and the 1MB rejection leaves state unchanged', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalNow = Date.now;
+    const initialUpdatedAt = '2026-09-05T00:00:00.000Z';
+    const authoritativeBook = {
+      id: 'authoritative', studentNumber: 1, title: '보존', author: '작가', pageCount: 10,
+      createdAt: '2026-09-05T00:00:00.000Z', colorIndex: 0, librarySlot: 1,
+    };
+    const fake = createStatefulPostgrest({
+      id: 'school-timer-main', value: { marker: 'old', studentLife: { books: [authoritativeBook], letters: [{ id: 'old-letter' }] } },
+      updated_at: initialUpdatedAt,
+    });
+    Date.now = () => Date.parse(initialUpdatedAt);
+    globalThis.fetch = fake.fetch;
+    try {
+      const beforeVersion = fake.state()?.updated_at ?? '';
+      const write = createResponse();
+      await handler({
+        method: 'PUT', headers: teacherHeaders(),
+        body: { value: { marker: 'new', studentLife: { books: [], letters: [{ id: 'new-letter' }] } }, expectedUpdatedAt: beforeVersion },
+      }, write.response);
+      assert.equal(write.result().statusCode, 200);
+      assert.equal(Date.parse(fake.state()?.updated_at ?? ''), Date.parse(beforeVersion) + 1);
+      assert.deepEqual((fake.state()?.value.studentLife as { books: unknown }).books, [authoritativeBook]);
+
+      const beforeOversize = fake.state();
+      const oversized = createResponse();
+      await handler({
+        method: 'PUT', headers: teacherHeaders(),
+        body: { value: { huge: 'x'.repeat(1_048_577) }, expectedUpdatedAt: fake.state()?.updated_at },
+      }, oversized.response);
+      assert.equal(oversized.result().statusCode, 400);
+      assert.deepEqual(fake.state(), beforeOversize);
+    } finally {
+      Date.now = originalNow;
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('fixed-millisecond economy and library writers cannot alias a CAS version or erase either result', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalNow = Date.now;
+    const initialUpdatedAt = '2026-08-26T00:00:00.000Z';
+    const fake = createStatefulPostgrest({
+      id: 'school-timer-main',
+      value: {
+        currencyBalances: { 1: 145 }, currencyHistory: { 1: [] }, studentEconomy: {},
+        studentLife: { letters: [], books: [], failureStories: [], failureProfileAssignments: {} },
+      },
+      updated_at: initialUpdatedAt,
+    }, { readBarrier: 2 });
+    Date.now = () => Date.parse(initialUpdatedAt);
+    globalThis.fetch = fake.fetch;
+    try {
+      const economy = createResponse();
+      const library = createResponse();
+      await Promise.all([
+        studentEconomyHandler({
+          method: 'POST', headers: studentHeaders(1),
+          body: {
+            studentNumber: 1,
+            action: { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' },
+            requestId: 'student-economy-cross-writer-cas',
+          },
+        }, economy.response),
+        handler({
+          method: 'PUT', headers: studentHeaders(1),
+          body: placementCommand('88888888-8888-4888-8888-888888888888', 40),
+        }, library.response),
+      ]);
+      assert.equal(economy.result().statusCode, 200);
+      assert.equal(library.result().statusCode, 200);
+      const state = fake.state();
+      assert.equal((state?.value.studentLife as { books: unknown[] }).books.length, 1);
+      assert.equal(Reflect.get(
+        Reflect.get(state?.value.studentEconomy as object, '1') as object,
+        'deposit',
+      ), 30);
+      assert.equal((state?.value.currencyBalances as Record<string, number>)['1'], 125);
+      assert.equal(Date.parse(state?.updated_at ?? ''), Date.parse(initialUpdatedAt) + 2);
+    } finally {
+      Date.now = originalNow;
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('placement rejects malformed authoritative rows and upstream write failures without reporting success', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async () => Response.json([{
+        id: 'school-timer-main', value: { studentLife: { books: [] } }, updated_at: 'not-a-date',
+      }]);
+      const malformed = createResponse();
+      await handler({
+        method: 'PUT', headers: studentHeaders(1),
+        body: placementCommand('99999999-9999-4999-8999-999999999999', 50),
+      }, malformed.response);
+      assert.deepEqual(malformed.result(), { statusCode: 502, body: { error: 'LIBRARY_SAVE_FAILED' } });
+
+      let fetchCount = 0;
+      globalThis.fetch = async (_input, init) => {
+        fetchCount += 1;
+        return init?.method === 'PATCH'
+          ? Response.json({ error: 'synthetic' }, { status: 500 })
+          : Response.json([{
+              id: 'school-timer-main', value: { studentLife: { books: [] } },
+              updated_at: '2026-09-05T00:00:00.000Z',
+            }]);
+      };
+      const failedWrite = createResponse();
+      await handler({
+        method: 'PUT', headers: studentHeaders(1),
+        body: placementCommand('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab', 51),
+      }, failedWrite.response);
+      assert.deepEqual(failedWrite.result(), { statusCode: 502, body: { error: 'LIBRARY_SAVE_FAILED' } });
+      assert.equal(fetchCount, 2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('placement stops after five fresh CAS conflicts and leaves authoritative state unchanged', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const authoritative = {
+      id: 'school-timer-main', value: { marker: 'keep', studentLife: { books: [] } },
+      updated_at: '2026-09-05T00:00:00.000Z',
+    };
+    let reads = 0;
+    let patches = 0;
+    globalThis.fetch = async (_input, init) => {
+      if (!init?.method) {
+        reads += 1;
+        return Response.json([structuredClone(authoritative)]);
+      }
+      patches += 1;
+      return Response.json([]);
+    };
+    try {
+      const response = createResponse();
+      await handler({
+        method: 'PUT', headers: studentHeaders(1),
+        body: placementCommand('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 60),
+      }, response.response);
+      assert.deepEqual(response.result(), { statusCode: 409, body: { error: 'SHARED_SETTINGS_CONFLICT' } });
+      assert.equal(reads, 5);
+      assert.equal(patches, 5);
+      assert.deepEqual(authoritative.value, { marker: 'keep', studentLife: { books: [] } });
     } finally {
       globalThis.fetch = originalFetch;
     }

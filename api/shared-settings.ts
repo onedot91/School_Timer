@@ -1,7 +1,16 @@
 import { isDeepStrictEqual } from 'node:util';
 
+import {
+  applyLibraryPlacementCommand,
+  parseLibraryPlacementCommand,
+  replaceSnapshotBooksWithAuthoritative,
+  type LibraryPlacementCommand,
+} from '../src/lib/canvasLibraryPlacement.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
+import { parseLibraryCompetitionState } from '../src/lib/libraryCompetition.js';
+import { competitionView, ensureCompetition, isCompetitionCommand, updateCompetitionSettings } from '../src/server/libraryCompetitionService.js';
+import { commitCompetition, competitionRecord, LibraryCompetitionError, loadCompetitionHistory, loadCompetitionRow } from '../src/server/libraryCompetitionRepository.js';
 
 interface ApiRequest {
   readonly method?: string;
@@ -23,6 +32,12 @@ interface SettingsRow {
   readonly scope?: 'full' | 'student';
 }
 
+type WritableSettingsRow = {
+  readonly id: typeof SETTINGS_ID;
+  readonly value: Record<string, unknown>;
+  readonly updated_at: string;
+};
+
 const SETTINGS_ID = 'school-timer-main';
 const MAX_SETTINGS_BYTES = 1_048_576;
 const UPDATED_AT_CACHE_TTL_MS = 1_000;
@@ -38,6 +53,7 @@ const STUDENT_SHARED_FIELDS = [
   'studentShopCatalog',
   'studentStockMarket',
   'studentLife',
+  'libraryCompetition',
   'dailyWriting',
   'studentSudoku',
   'studentNumberBaseball',
@@ -86,6 +102,20 @@ const asRecord = (value: unknown): Record<string, unknown> => (
     ? Object.fromEntries(Object.entries(value))
     : {}
 );
+
+const parseWritableRow = (value: unknown): WritableSettingsRow => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('SHARED_SETTINGS_DATABASE_INVALID_RESPONSE');
+  }
+  const id = Reflect.get(value, 'id');
+  const rowValue = Reflect.get(value, 'value');
+  const updatedAt = Reflect.get(value, 'updated_at');
+  if (id !== SETTINGS_ID || !rowValue || typeof rowValue !== 'object' || Array.isArray(rowValue)
+    || typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt))) {
+    throw new Error('SHARED_SETTINGS_DATABASE_INVALID_RESPONSE');
+  }
+  return { id: SETTINGS_ID, value: asRecord(rowValue), updated_at: updatedAt };
+};
 
 const valuesEqual = (left: unknown, right: unknown) => isDeepStrictEqual(left, right);
 
@@ -190,7 +220,132 @@ const loadRow = async (url: string, key: string) => {
   });
   if (!result.ok) throw new Error(`SHARED_SETTINGS_READ_HTTP_${result.status}`);
   const rows: unknown = await result.json();
-  return Array.isArray(rows) && rows.length > 0 ? rows[0] as SettingsRow : null;
+  if (!Array.isArray(rows)) throw new Error('SHARED_SETTINGS_DATABASE_INVALID_RESPONSE');
+  return rows.length > 0 ? parseWritableRow(rows[0]) : null;
+};
+
+const nextUpdatedAt = (currentUpdatedAt: string | null): string => {
+  const currentTime = currentUpdatedAt === null ? -1 : Date.parse(currentUpdatedAt);
+  if (currentUpdatedAt !== null && !Number.isFinite(currentTime)) {
+    throw new Error('SHARED_SETTINGS_DATABASE_INVALID_RESPONSE');
+  }
+  return new Date(Math.max(Date.now(), currentTime + 1)).toISOString();
+};
+
+const cacheUpdatedAt = (url: string, updatedAt: string) => {
+  updatedAtCacheGeneration += 1;
+  updatedAtCache = {
+    url,
+    value: updatedAt,
+    expiresAt: Date.now() + UPDATED_AT_CACHE_TTL_MS,
+  };
+};
+
+const projectStudentValue = (value: unknown, studentNumber: number): Record<string, unknown> => {
+  const source = asRecord(value);
+  const studentKey = String(studentNumber);
+  return Object.fromEntries([
+    ...STUDENT_SHARED_FIELDS.map((field) => [field, source[field]]),
+    ...STUDENT_SCOPED_MAP_FIELDS.map((field) => {
+      const ownValue = asRecord(source[field])[studentKey];
+      return [field, ownValue === undefined ? {} : { [studentKey]: ownValue }];
+    }),
+  ]);
+};
+
+const saveValue = async (
+  url: string,
+  key: string,
+  current: WritableSettingsRow | null,
+  value: Record<string, unknown>,
+  updatedAt: string,
+): Promise<'saved' | 'conflict'> => {
+  const endpoint = current
+    ? `${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(current.updated_at)}&select=id`
+    : `${url}/rest/v1/app_settings?select=id`;
+  const result = await fetch(endpoint, {
+    method: current ? 'PATCH' : 'POST',
+    headers: {
+      ...supabaseHeaders(key),
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(current
+      ? { value, updated_at: updatedAt }
+      : { id: SETTINGS_ID, value, updated_at: updatedAt }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!result.ok) {
+    if (!current) {
+      const failure: unknown = await result.json().catch(() => null);
+      if (result.status === 409 || asRecord(failure).code === '23505') return 'conflict';
+    }
+    throw new Error(`SHARED_SETTINGS_WRITE_HTTP_${result.status}`);
+  }
+  const savedRows: unknown = await result.json();
+  if (!Array.isArray(savedRows)) throw new Error('SHARED_SETTINGS_DATABASE_INVALID_RESPONSE');
+  return savedRows.length > 0 ? 'saved' : 'conflict';
+};
+
+const waitForRetry = async () => {
+  const delayMs = 20 + Math.floor(Math.random() * 81);
+  await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+};
+
+const handleLibraryPlacement = async (
+  command: LibraryPlacementCommand,
+  studentNumber: number,
+  configuration: { readonly url: string; readonly key: string },
+  response: ApiResponse,
+) => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const loaded = await loadRow(configuration.url, configuration.key);
+    const current = loaded?.value.libraryCompetition
+      ? (await ensureCompetition(configuration, false)).row
+      : loaded;
+    const createdAt = nextUpdatedAt(current?.updated_at ?? null);
+    const placement = applyLibraryPlacementCommand(current?.value ?? {}, studentNumber, command, createdAt);
+    if (placement.ok === false) {
+      response.status(placement.error.status).json({ error: placement.error.code });
+      return;
+    }
+    if (placement.replayed) {
+      if (!current) throw new Error('SHARED_SETTINGS_DATABASE_INVALID_RESPONSE');
+      cacheUpdatedAt(configuration.url, current.updated_at);
+      response.status(200).json({
+        book: placement.book,
+        updatedAt: current.updated_at,
+        value: projectStudentValue(current.value, studentNumber),
+      });
+      return;
+    }
+    if (Buffer.byteLength(JSON.stringify(placement.value), 'utf8') > MAX_SETTINGS_BYTES) {
+      response.status(400).json({ error: 'INVALID_LIBRARY_COMMAND' });
+      return;
+    }
+    try {
+      const state = parseLibraryCompetitionState(current?.value.libraryCompetition);
+      const value = placement.value;
+      const saved = state
+        ? (await commitCompetition(configuration, { current, value, updatedAt: createdAt }) ? 'saved' : 'conflict')
+        : await saveValue(configuration.url, configuration.key, current, value, createdAt);
+      if (saved === 'saved') {
+        cacheUpdatedAt(configuration.url, createdAt);
+        response.status(200).json({
+          book: placement.book,
+          updatedAt: createdAt,
+          value: projectStudentValue(value, studentNumber),
+        });
+        return;
+      }
+    } catch (error) {
+      const isAmbiguousTimeout = error instanceof TypeError
+        || (error instanceof DOMException && error.name === 'TimeoutError');
+      if (!isAmbiguousTimeout) throw error;
+    }
+    if (attempt < 4) await waitForRetry();
+  }
+  response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
 };
 
 const loadStudentRow = async (url: string, key: string, studentNumber: number) => {
@@ -278,6 +433,20 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
   if (request.method === 'GET') {
     try {
+      if (request.query?.libraryCompetitionHistory === '1') {
+        const month = request.query.month;
+        if (month !== undefined && (typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))) {
+          response.status(400).json({ error: 'INVALID_LIBRARY_COMPETITION_COMMAND' });
+          return;
+        }
+        response.status(200).json(await loadCompetitionHistory(configuration, typeof month === 'string' ? month : undefined));
+        return;
+      }
+      if (request.query?.libraryCompetition === '1') {
+        const row = await loadCompetitionRow(configuration);
+        response.status(200).json({ ok: true, competition: competitionView(row), value: session.role === 'teacher' ? row?.value ?? {} : projectStudentValue(row?.value, session.studentNumber), updatedAt: row?.updated_at ?? null, rolledOver: false });
+        return;
+      }
       const metadataOnly = request.query?.metadata === '1';
       if (metadataOnly) {
         response.status(200).json({ updatedAt: await loadUpdatedAt(configuration.url, configuration.key) });
@@ -289,6 +458,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         : await loadStudentRow(configuration.url, configuration.key, session.studentNumber);
       response.status(200).json(row && shouldLoadFullRow ? { ...row, scope: 'full' } : row);
     } catch (error) {
+      if (error instanceof LibraryCompetitionError) {
+        response.status(error.status).json({ error: error.code });
+        return;
+      }
       console.error('Failed to load shared settings.', error);
       response.status(502).json({ error: 'SHARED_SETTINGS_READ_FAILED' });
     }
@@ -304,26 +477,83 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   try {
+    const commandBody: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+    if (isCompetitionCommand(commandBody)) {
+      const command = competitionRecord(commandBody);
+      if (command.action === 'libraryCompetitionSettings' && session.role !== 'teacher') {
+        response.status(403).json({ error: 'LIBRARY_COMPETITION_FORBIDDEN' });
+        return;
+      }
+      try {
+        if (Buffer.byteLength(JSON.stringify(command), 'utf8') > 16_384) throw new LibraryCompetitionError('INVALID_LIBRARY_COMPETITION_COMMAND', 400);
+        if (command.action === 'libraryCompetitionHistory') {
+          if (command.month !== undefined && (typeof command.month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(command.month))) throw new LibraryCompetitionError('INVALID_LIBRARY_COMPETITION_COMMAND', 400);
+          response.status(200).json(await loadCompetitionHistory(configuration, typeof command.month === 'string' ? command.month : undefined));
+          return;
+        }
+        if (command.action === 'libraryCompetition' && command.intent !== 'open' && command.intent !== 'enter') throw new LibraryCompetitionError('INVALID_LIBRARY_COMPETITION_COMMAND', 400);
+        const result = command.action === 'libraryCompetitionSettings'
+          ? await updateCompetitionSettings(configuration, command)
+          : await ensureCompetition(configuration, command.intent === 'open');
+        const row = result.row;
+        if (row) cacheUpdatedAt(configuration.url, row.updated_at);
+        response.status(200).json({ ok: true, competition: competitionView(row), value: session.role === 'teacher' ? row?.value ?? {} : projectStudentValue(row?.value, session.studentNumber), updatedAt: row?.updated_at ?? null, rolledOver: result.rolledOver });
+      } catch (error) {
+        if (error instanceof LibraryCompetitionError) response.status(error.status).json({ error: error.code });
+        else response.status(502).json({ error: 'LIBRARY_COMPETITION_SAVE_FAILED' });
+      }
+      return;
+    }
+    const placement = parseLibraryPlacementCommand(request.body);
+    if (placement.ok) {
+      if (session.role !== 'student') {
+        response.status(403).json({ error: 'LIBRARY_BOOK_FORBIDDEN' });
+        return;
+      }
+      try {
+        await handleLibraryPlacement(
+          placement.command,
+          session.studentNumber,
+          configuration,
+          response,
+        );
+      } catch (error) {
+        if (error instanceof LibraryCompetitionError) response.status(error.status).json({ error: error.code });
+        else response.status(502).json({ error: 'LIBRARY_SAVE_FAILED' });
+      }
+      return;
+    }
+    if (request.body && typeof request.body === 'object'
+      && Reflect.get(request.body, 'action') === 'placeLibraryBook') {
+      response.status(400).json({ error: 'INVALID_LIBRARY_COMMAND' });
+      return;
+    }
     const parsed = parseBody(request.body);
-    if (!parsed || Buffer.byteLength(JSON.stringify(parsed.value), 'utf8') > MAX_SETTINGS_BYTES) {
+    const serializedIncoming = parsed ? JSON.stringify(parsed.value) : undefined;
+    if (!parsed || serializedIncoming === undefined
+      || Buffer.byteLength(serializedIncoming, 'utf8') > MAX_SETTINGS_BYTES) {
       response.status(400).json({ error: 'INVALID_SHARED_SETTINGS' });
       return;
     }
-    const canUseKnownTeacherVersion = session.role === 'teacher' && parsed.expectedUpdatedAt !== null;
-    const current = canUseKnownTeacherVersion
-      ? null
-      : await loadRow(configuration.url, configuration.key);
-    if (!canUseKnownTeacherVersion
-      && parsed.expectedUpdatedAt !== null
+    const current = await loadRow(configuration.url, configuration.key);
+    if (parsed.expectedUpdatedAt !== null
       && parsed.expectedUpdatedAt !== (current?.updated_at ?? null)) {
       response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
       return;
     }
-    const nextValue = session.role === 'student'
+    const mergedValue = session.role === 'student'
       ? mergeStudentUpdate(current?.value ?? null, parsed.value)
       : parsed.value;
-    if (session.role === 'student'
-      && Buffer.byteLength(JSON.stringify(nextValue), 'utf8') > MAX_SETTINGS_BYTES) {
+    if (Buffer.byteLength(JSON.stringify(mergedValue), 'utf8') > MAX_SETTINGS_BYTES) {
+      response.status(400).json({ error: 'INVALID_SHARED_SETTINGS' });
+      return;
+    }
+    const mergedRecord = asRecord(mergedValue);
+    const currentRecord = asRecord(current?.value);
+    const nextValue = Reflect.has(mergedRecord, 'studentLife') || Reflect.has(currentRecord, 'studentLife') || Reflect.has(mergedRecord, 'libraryCompetition') || Reflect.has(currentRecord, 'libraryCompetition')
+      ? replaceSnapshotBooksWithAuthoritative(mergedValue, current?.value ?? {})
+      : mergedRecord;
+    if (Buffer.byteLength(JSON.stringify(nextValue), 'utf8') > MAX_SETTINGS_BYTES) {
       response.status(400).json({ error: 'INVALID_SHARED_SETTINGS' });
       return;
     }
@@ -331,38 +561,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       response.status(403).json({ error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' });
       return;
     }
-    const updatedAt = new Date().toISOString();
-    const hasCurrentRow = canUseKnownTeacherVersion || current !== null;
-    const expectedUpdatedAt = canUseKnownTeacherVersion
-      ? parsed.expectedUpdatedAt
-      : current?.updated_at ?? '';
-    const endpoint = hasCurrentRow
-      ? `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(expectedUpdatedAt ?? '')}&select=id`
-      : `${configuration.url}/rest/v1/app_settings?on_conflict=id&select=id`;
-    const result = await fetch(endpoint, {
-      method: hasCurrentRow ? 'PATCH' : 'POST',
-      headers: {
-        ...supabaseHeaders(configuration.key),
-        'Content-Type': 'application/json',
-        Prefer: hasCurrentRow ? 'return=representation' : 'resolution=merge-duplicates,return=representation',
-      },
-      body: JSON.stringify(hasCurrentRow
-        ? { value: nextValue, updated_at: updatedAt }
-        : { id: SETTINGS_ID, value: nextValue, updated_at: updatedAt }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!result.ok) throw new Error(`SHARED_SETTINGS_WRITE_HTTP_${result.status}`);
-    const savedRows: unknown = await result.json();
-    if (!Array.isArray(savedRows) || savedRows.length === 0) {
+    const updatedAt = nextUpdatedAt(current?.updated_at ?? null);
+    const saved = await saveValue(configuration.url, configuration.key, current, nextValue, updatedAt);
+    if (saved === 'conflict') {
       response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
       return;
     }
-    updatedAtCacheGeneration += 1;
-    updatedAtCache = {
-      url: configuration.url,
-      value: updatedAt,
-      expiresAt: Date.now() + UPDATED_AT_CACHE_TTL_MS,
-    };
+    cacheUpdatedAt(configuration.url, updatedAt);
     response.status(200).json({ updatedAt });
   } catch (error) {
     if (error instanceof SyntaxError) {

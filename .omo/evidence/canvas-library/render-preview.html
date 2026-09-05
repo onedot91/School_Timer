@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canvas Library renderer preview</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #182b2c; }
+      body { display: grid; place-items: center; }
+      canvas { width: 1248px; height: 752px; image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <canvas aria-label="렌더러 시각 진단"></canvas>
+    <script type="module" src="/render-preview.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2026-09-05T06:47:59.181Z",
+  "checks": {
+    "viewport": {
+      "width": 1280,
+      "height": 800,
+      "overflowX": 0,
+      "overflowY": 0
+    },
+    "deskApproach": {
+      "x": 108.69,
+      "y": 303.33,
+      "target": "registration-desk"
+    },
+    "invalidAndModalFreeze": true
+  },
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-small-empty.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-small-walk-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-small-walk-settled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-small-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-small-invalid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-small-carry.png"
+  ],
+  "blockedRequests": [],
+  "errors": [],
+  "cleanup": [
+    "Owned isolated Chrome browser and contexts closed; root Vite3027 remains registered for ongoing QA."
+  ],
+  "passed": false,
+  "failure": "TimeoutError: page.waitForFunction: Timeout 30000ms exceeded.",
+  "failureStack": "page.waitForFunction: Timeout 30000ms exceeded.\n    at /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-play-qa.mjs:88:14"
+}

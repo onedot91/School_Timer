@@ -1,0 +1,41 @@
+{
+  "phase": "before",
+  "sourceStart": "5a33bf38ac83ddcfe94d122e4b9579eb5be1a29d9b819d1e7310e4c557db0cdd",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/before-shelf-0-cue.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/before-shelf-0-opened.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/before-shelf-1-cue.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/before-shelf-1-opened.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/before-shelf-2-cue.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/before-shelf-2-opened.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/before-shelf-3-cue.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/before-shelf-3-opened.png"
+  ],
+  "checks": [
+    {
+      "shelf": 0,
+      "label": "가까운 곳 살펴보기: 책 정보",
+      "openedShelf": false
+    },
+    {
+      "shelf": 1,
+      "label": "가까운 곳 살펴보기: 책 정보",
+      "openedShelf": false
+    },
+    {
+      "shelf": 2,
+      "label": "가까운 곳 살펴보기: 책 정보",
+      "openedShelf": false
+    },
+    {
+      "shelf": 3,
+      "label": "가까운 곳 살펴보기: 책 정보",
+      "openedShelf": false
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    "isolated Chrome closed"
+  ],
+  "sourceEnd": "5a33bf38ac83ddcfe94d122e4b9579eb5be1a29d9b819d1e7310e4c557db0cdd"
+}

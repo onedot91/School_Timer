@@ -106,7 +106,11 @@ import {
 } from '../lib/studentEconomy';
 import { updateStudentEconomy } from '../lib/studentEconomyClient';
 import { createBrowserRequestId } from '../lib/requestId';
-import { createBookStackMissionEntry } from '../lib/bookStackMission';
+import {
+  CanvasLibraryPlacementExpectedError,
+  placeCanvasLibraryBook,
+} from '../lib/canvasLibraryClient';
+import type { LibraryBookDraft, LibraryPlacedBook } from '../lib/canvasLibraryWorld';
 import {
   loadStoredClassroomRoleMissionSettings,
   normalizeClassroomRoleMissionSettings,
@@ -142,7 +146,6 @@ import {
   TEACHER_LETTER_RECIPIENT,
   applyPendingStudentLetterReads,
   createStudentLetter,
-  getStudentBooks,
   getStudentLetters,
   getStudentSentLetters,
   getUnreadStudentLetterCount,
@@ -181,10 +184,11 @@ import {
   getUnavailableStudentFeature,
   type StudentFeatureReleaseId,
 } from '../lib/studentFeatureRelease';
+import { libraryCompetitionClient, LibraryCompetitionClientError, type LibraryCompetitionResponse } from '../lib/libraryCompetitionClient';
+import { parseLibraryCompetitionState } from '../lib/libraryCompetition';
 
 const AuctionRoom = lazy(() => import('../components/AuctionRoom'));
 const StudentEmotionPage = lazy(() => import('../components/student/StudentEmotionPage'));
-const StudentFailureExhibitionPage = lazy(() => import('../components/student/StudentFailureExhibitionPage'));
 const StudentMissionsPage = lazy(() => import('../components/student/StudentMissionsPage'));
 const StudentMailboxPage = lazy(() => import('../components/student/StudentMailboxPage'));
 const StudentLibraryPage = lazy(() => import('../components/student/StudentLibraryPage'));
@@ -217,6 +221,7 @@ type SharedSettingsValue = {
   studentShopCatalog?: unknown;
   studentStockMarket?: unknown;
   studentLife?: unknown;
+  libraryCompetition?: unknown;
   dailyWriting?: unknown;
   studentSudoku?: unknown;
   studentNumberBaseball?: unknown;
@@ -421,6 +426,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   ));
   const [hasWeeklyMissionSyncError, setHasWeeklyMissionSyncError] = useState(false);
   const [activeStudentView, setActiveStudentView] = useState<StudentView>(() => getStudentViewFromHash());
+  const [competitionSeasonId, setCompetitionSeasonId] = useState<string | null>(null);
   const [unavailableStudentFeature, setUnavailableStudentFeature] = useState<Exclude<StudentFeatureReleaseId, 'petEgg'> | null>(() => {
     const feature = getUnavailableStudentFeature(getStudentViewFromHash());
     return feature === 'petEgg' ? null : feature;
@@ -686,7 +692,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const visibleDayCount = getAuctionVisibleDayCount();
   const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
   const studentSentLetters = getStudentSentLetters(studentLife, studentNumber);
-  const studentBooks = getStudentBooks(studentLife, studentNumber);
   const failureStories = getFailureStoriesNewestFirst(studentLife.failureStories);
   const profileAssignments = studentLife.failureProfileAssignments;
   const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber, currentDateKey);
@@ -764,57 +769,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
-  const addStudentBookEntry = async (title: string, author: string, pageCount: number) => {
-    if (isStudentLifeSaving) return false;
-    setIsStudentLifeSaving(true);
-    try {
-      const input = {
-        id: createBrowserRequestId(),
-        studentNumber,
-        title,
-        author,
-        pageCount,
-        createdAt: new Date().toISOString(),
-      };
-      let result = createBookStackMissionEntry({
-        currencyBalances,
-        currencyHistory,
-        studentLife,
-      }, input);
-
-      if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          result = createBookStackMissionEntry(currentValue, input);
-          return result.value;
-        });
-      } else {
-        const snapshot = loadStoredStudentPetSnapshot();
-        result = createBookStackMissionEntry({
-          ...snapshot,
-          studentLife: loadStoredStudentLifeState(),
-        }, input);
-        if (!result.applied) return false;
-        storeStudentLifeState(result.studentLife);
-        if (!storeStudentPetSnapshot({
-          ...snapshot,
-          currencyBalances: result.balances,
-          currencyHistory: result.history,
-        })) return false;
-      }
-
-      if (!result.applied) return false;
-      setStudentLifeSnapshot(result.studentLife);
-      setCurrencyBalances(result.balances);
-      setCurrencyHistory(result.history);
-      return true;
-    } catch (error) {
-      if (error instanceof Error) return false;
-      throw error;
-    } finally {
-      setIsStudentLifeSaving(false);
-    }
-  };
-
   const createStudentFailureStory = async (failure: string, lesson: string) => {
     if (isStudentLifeSaving) return false;
     setIsStudentLifeSaving(true);
@@ -847,6 +801,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         storeStudentLifeState(result.studentLife);
         if (!storeStudentPetSnapshot({
           ...snapshot,
+          studentLife: result.studentLife,
           currencyBalances: result.balances,
           currencyHistory: result.history,
         })) return false;
@@ -1214,6 +1169,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   );
 
   const applySharedSettingsValue = useCallback((value: SharedSettingsValue) => {
+    setCompetitionSeasonId(parseLibraryCompetitionState(value.libraryCompetition)?.seasonId ?? null);
     setCurrencyBalances(normalizeCurrencyBalances(value.currencyBalances));
     setCurrencyHistory(normalizeCurrencyHistory(value.currencyHistory));
     setAuctionItems(normalizeAuctionItems(value.auctionItems));
@@ -1315,6 +1271,67 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setIsLoading(false);
     }
   }, [applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku, setStudentLifeSnapshot, studentNumber]);
+
+  const applyCompetitionSnapshot = useCallback((response: LibraryCompetitionResponse) => {
+    setCompetitionSeasonId(response.competition.state?.seasonId ?? null);
+    if (response.value.studentLife === undefined) return;
+    if (isSupabaseSettingsEnabled) {
+      applySharedSettingsValue(response.value);
+      if (response.updatedAt) {
+        sharedSettingsUpdatedAtRef.current = response.updatedAt;
+        storeStudentSettingsSnapshot({ studentNumber, updatedAt: response.updatedAt, value: response.value });
+      }
+    } else {
+      setStudentLifeSnapshot(normalizeStudentLifeState(response.value.studentLife));
+      if (response.value.currencyBalances !== undefined) setCurrencyBalances(normalizeCurrencyBalances(response.value.currencyBalances));
+      if (response.value.currencyHistory !== undefined) setCurrencyHistory(normalizeCurrencyHistory(response.value.currencyHistory));
+    }
+  }, [applySharedSettingsValue, setStudentLifeSnapshot, studentNumber]);
+
+  useEffect(() => {
+    if (!['library', 'library-bookstore', 'library-bookshelf'].includes(activeStudentView)) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await libraryCompetitionClient.read('enter');
+        if (active) applyCompetitionSnapshot(response);
+      } catch (error) {
+        if (!(error instanceof LibraryCompetitionClientError)) throw error;
+      }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    void refresh();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { active = false; document.removeEventListener('visibilitychange', onVisible); };
+  }, [activeStudentView, applyCompetitionSnapshot]);
+
+  const placeLibraryBook = async (
+    draft: LibraryBookDraft,
+    slotId: number,
+  ): Promise<LibraryPlacedBook | null> => {
+    const result = await placeCanvasLibraryBook(draft, slotId, competitionSeasonId ?? undefined);
+    if (result.ok === false) {
+      if (result.error.code === 'LIBRARY_SEASON_CHANGED') {
+        try { applyCompetitionSnapshot(await libraryCompetitionClient.read('enter')); }
+        catch (error) { if (!(error instanceof LibraryCompetitionClientError)) throw error; }
+      }
+      if (result.error.code === 'LIBRARY_SLOT_OCCUPIED' || result.error.code === 'SHARED_SETTINGS_CONFLICT') {
+        await refreshAuctionState({ forceFull: true });
+      }
+      throw new CanvasLibraryPlacementExpectedError(result.error);
+    }
+    setCompetitionSeasonId(parseLibraryCompetitionState(result.value.libraryCompetition)?.seasonId ?? null);
+    if (isSupabaseSettingsEnabled) {
+      applySharedSettingsValue(result.value);
+      sharedSettingsUpdatedAtRef.current = result.updatedAt;
+      storeStudentSettingsSnapshot({ studentNumber, updatedAt: result.updatedAt, value: result.value });
+    } else {
+      setStudentLifeSnapshot(normalizeStudentLifeState(result.value.studentLife));
+      setCurrencyBalances(normalizeCurrencyBalances(result.value.currencyBalances));
+      setCurrencyHistory(normalizeCurrencyHistory(result.value.currencyHistory));
+    }
+    return result.placedBook;
+  };
 
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) return;
@@ -2120,23 +2137,19 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onBack={() => navigateStudentView('overview')}
           />
         ) : null}
-        {activeStudentView === 'library' || activeStudentView === 'library-bookstore' ? (
-          <StudentFailureExhibitionPage
-            studentNumber={studentNumber}
-            profileAssignments={profileAssignments}
-            stories={failureStories}
-            isSaving={isStudentLifeSaving}
-            onCreate={createStudentFailureStory}
-            onStamp={stampStudentFailureStory}
-            onOpenBookshelf={() => navigateStudentView('library-bookshelf')}
-            onBack={() => navigateStudentView('overview')}
-          />
-        ) : null}
-        {activeStudentView === 'library-bookshelf' ? (
+        {activeStudentView === 'library' || activeStudentView === 'library-bookstore' || activeStudentView === 'library-bookshelf' ? (
           <StudentLibraryPage
-            books={studentBooks}
-            isSaving={isStudentLifeSaving}
-            onAdd={addStudentBookEntry}
+            studentNumber={studentNumber}
+            books={studentLife.books}
+            onPlace={placeLibraryBook}
+            competitionSeasonId={competitionSeasonId}
+            onCompetitionSnapshot={applyCompetitionSnapshot}
+            failureStories={failureStories}
+            profileAssignments={profileAssignments}
+            isFailureSaving={isStudentLifeSaving}
+            onCreateFailure={createStudentFailureStory}
+            onStampFailure={stampStudentFailureStory}
+            initialFailureBoardOpen={false}
             onBack={() => navigateStudentView('overview')}
           />
         ) : null}

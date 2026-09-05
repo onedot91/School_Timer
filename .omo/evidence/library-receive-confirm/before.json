@@ -1,0 +1,19 @@
+{
+  "phase": "before",
+  "sourceStart": "7864220e9a6f11f67f043386446759a59fa6d0de2b28b54b01152af2c0ee204a",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/before-form.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/before-submitted.png"
+  ],
+  "checks": [
+    {
+      "confirmation": 0,
+      "dialogCount": 0
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    "isolated Chrome closed"
+  ],
+  "sourceEnd": "7864220e9a6f11f67f043386446759a59fa6d0de2b28b54b01152af2c0ee204a"
+}

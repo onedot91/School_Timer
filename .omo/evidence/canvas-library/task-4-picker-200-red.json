@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-09-05T06:54:19.382Z",
+  "shelves": [
+    {
+      "shelfId": "full-wide-left",
+      "columns": 10,
+      "rows": 2,
+      "labels": 20,
+      "firstLabel": "첫 번째 별빛 도서관 탐험기",
+      "lastLabel": "우리 반 도서관 책 20",
+      "modalFrozen": true,
+      "enterDetails": true,
+      "escapeReturn": true
+    },
+    {
+      "shelfId": "full-compact-back",
+      "columns": 5,
+      "rows": 4,
+      "labels": 20,
+      "firstLabel": "우리 반 도서관 책 41",
+      "lastLabel": "우리 반 도서관 책 60",
+      "modalFrozen": true,
+      "enterDetails": true,
+      "escapeReturn": true
+    },
+    {
+      "shelfId": "full-tall-island",
+      "columns": 4,
+      "rows": 5,
+      "labels": 20,
+      "firstLabel": "우리 반 도서관 책 61",
+      "lastLabel": "우리 반 도서관 책 80",
+      "modalFrozen": true,
+      "enterDetails": true,
+      "escapeReturn": true
+    }
+  ],
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-wide-left-first.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-wide-left-last.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-compact-back-first.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-compact-back-last.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-tall-island-first.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-full-tall-island-last.png"
+  ],
+  "blockedRequests": [],
+  "errors": [],
+  "cleanup": [
+    "Owned isolated Chrome closed; owned Vite3028 teardown follows."
+  ],
+  "text200": {
+    "documentOverflow": {
+      "x": 0,
+      "y": 0
+    },
+    "captionInViewport": true,
+    "focusLayouts": [
+      {
+        "label": "우리 반 도서관 책 80",
+        "inViewport": true,
+        "separated": true
+      },
+      {
+        "label": "우리 반 도서관 책 79",
+        "inViewport": true,
+        "separated": true
+      },
+      {
+        "label": "우리 반 도서관 책 78",
+        "inViewport": true,
+        "separated": true
+      },
+      {
+        "label": "우리 반 도서관 책 77",
+        "inViewport": true,
+        "separated": true
+      },
+      {
+        "label": "우리 반 도서관 책 73",
+        "inViewport": true,
+        "separated": true
+      },
+      {
+        "label": "우리 반 도서관 책 69",
+        "inViewport": true,
+        "separated": true
+      },
+      {
+        "label": "우리 반 도서관 책 65",
+        "inViewport": true,
+        "separated": false
+      },
+      {
+        "label": "우리 반 도서관 책 61",
+        "inViewport": true,
+        "separated": false
+      }
+    ],
+    "closeReachable": true
+  },
+  "passed": false,
+  "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n",
+  "failureStack": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    at file:///Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-4-picker-qa.mjs:160:10"
+}

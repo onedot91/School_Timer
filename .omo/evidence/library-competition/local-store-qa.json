@@ -1,0 +1,14 @@
+{
+  "verdict": "PASS",
+  "channel": "Chrome native localStorage, isolated context",
+  "scenarios": [
+    "first open counts confirmed book",
+    "reload retains native storage",
+    "missed months archive once",
+    "new month starts zero",
+    "archive retains original book",
+    "currency remains unchanged",
+    "revision increases across season"
+  ],
+  "cleanup": "Isolated context and browser closed in finally; root-owned 3044 server untouched"
+}

@@ -32,7 +32,9 @@ const inertOwnership = new WeakMap<HTMLElement, InertOwnership>();
 
 const getFocusableElements = (dialog: HTMLElement): HTMLElement[] => (
   Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => (
-    element.getClientRects().length > 0 && element.getAttribute('aria-hidden') !== 'true'
+    element.tabIndex >= 0
+    && element.getClientRects().length > 0
+    && element.getAttribute('aria-hidden') !== 'true'
   ))
 );
 

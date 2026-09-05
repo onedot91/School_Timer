@@ -1,0 +1,154 @@
+{
+  "generatedAt": "2026-09-05T11:09:03.583Z",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/entered.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-initial.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-focused.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/history-empty.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-korean-key.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-enter.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-text-200.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-text-200-bottom.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-click.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/carry-start.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/carry-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/carry-settled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/slot-picker.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/failure-board-regression.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/month-check.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/ranking-rolled-over.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/history-ranking.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/history-books.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/history-text-200.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/new-month-reentry.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-settings.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-invalid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-confirm.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-saved.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-history.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-conflict.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-reloaded.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-resumed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/teacher-text-200.png"
+  ],
+  "checks": {
+    "ranking17": true,
+    "inputs": true,
+    "carryNotCounted": true,
+    "confirmedPlacement": true,
+    "archiveOnce": true,
+    "teacherConflict": true,
+    "zoom200": true
+  },
+  "errors": [],
+  "blockedRequests": [
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    }
+  ],
+  "cleanup": [
+    "student clock-isolated context closed",
+    "isolated context closed",
+    "isolated Chrome closed; root3044 server retained"
+  ],
+  "sourceEnd": {
+    "src/lib/canvasLibraryWorld.ts": "e57b8def7eb4e6d3c2d277bfe4057a5f484247da6edba70e73f0cddda58b9c62",
+    "src/lib/canvasLibraryClient.ts": "9e65e7b63d581f823d89214fc06c47a4cbb48ece1c897b20c5198124fbc884ba",
+    "src/lib/canvasLibraryPlacement.ts": "1c67b24fe8fdd0e05e111c095b609ab597b0ecbe931efd59b63b81862ccf6fa9",
+    "src/lib/studentLife.ts": "3af9cb7d792bb8fa8869b5a29cda9493685a079931c56e2f6aa212f278506031",
+    "src/lib/studentPet.ts": "b59341ab9cb4a1eecfbdc603644396e707c05e85ed2eb8e0eabf534181f079eb",
+    "src/pages/AuctionPage.tsx": "aaabca53448d123cfca925336e39a3bfa9f47b36b4c5fe2b436e59fd3d73865c",
+    "src/components/student/StudentLibraryPage.tsx": "2c389aafd9d3d8adaeb3018b1b97dcf2151c359c6f0c68a44fa47e0d57978f78",
+    "src/components/student/library/CanvasLibraryGame.tsx": "5a33bf38ac83ddcfe94d122e4b9579eb5be1a29d9b819d1e7310e4c557db0cdd",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "b70fa465418af1f74700dad65c77cc83a816cc80e1007df4ab6395ea5a055a0c",
+    "src/index.css": "a49dae4977234fe0d94d05c1cd758788cc0eb2038367e84b07fd737093acf3da",
+    "src/components/student/library/CanvasLibraryPalette.ts": "c230ec82097f64e873f16ac733dcab453617205910e8ba43d181aa6a1582bb40",
+    "src/components/student/StudentFailureExhibitionPage.tsx": "3eeb8bc3de19da2ebd792a2eef287ff1ff9a0f422e06eb0b88ed8a1fe4bb2109",
+    "src/components/student/StudentFailureMessage.tsx": "249590222e1b796dea0b9dd4c1724a0ee1718b1521cab67cd4f1238ceef14f29",
+    "src/pages/TimerPage.tsx": "6dcd1772afb94faf1d0d7a07c8cdcda33f923a7318c740bc14aeac5efdb27be9",
+    "src/components/student/library/LibraryCompetitionPanel.tsx": "63bb3661931e5a458beaeac5c68954485148355259fa2f8d2dccc5f23974ce60",
+    "src/components/student/library/LibraryCompetitionTable.tsx": "bc24bbe17f15c24a7a1b0d624c5b82a0e8ee46350f72cb1747cdddf2e7f02922",
+    "src/components/teacher/TeacherLibraryCompetitionPanel.tsx": "29ca8db43c577780f6055b39884632f0683400e042236e0fb98b3bd276668f8e",
+    "src/lib/libraryCompetition.ts": "5afcd7ea122c29147a8d9615da88e4c5f8cdf408ea043c9bd551d52c5176aadc",
+    "src/lib/libraryCompetitionClient.ts": "306d3ee1bd6a459b7d3d501f0cf02e9831aded7825b9a718dda07a452739a3d5",
+    "src/lib/libraryCompetitionCodec.ts": "66a728f875d59cad7741d00f18dd4b929ce007e00995df946cdeffb1183ffd91",
+    "src/lib/libraryCompetitionEvents.ts": "cf53d78edb7b2f833e47f78e67ced3694bec0ed8a81711f9da01c479b4b6e8f6",
+    "src/lib/libraryCompetitionLocalArchive.ts": "9ccd2d20a7e1a5ccaf2e468d052558d24adda5c644060ebecbc22be4323bb680",
+    "src/lib/libraryCompetitionLocalSnapshot.ts": "650561a61222912eb4f214e00c5c7ed60d34b499ed4b501c09234ccc2c33b6ed",
+    "src/lib/libraryCompetitionLocalStore.ts": "c0a44530530bd67bbeb5bdf877debcde1fae7615aea534d5fad957362fd8a4d1",
+    "src/lib/libraryCompetitionProfiles.ts": "19d86c1ce92caf3b1cac77242a3cdff3d69c338e70e0430c67b9740b39512795",
+    "src/lib/libraryCompetitionProjection.ts": "b29ee9f26c56395137f754c56d043631a07b79425e1d33b5222366b814b216ef",
+    "src/lib/libraryCompetitionResponse.ts": "5f7bb248e07d58268fba79dd34ed553671ee06e8fa528aa5c7d071bbe5f43393",
+    "src/lib/libraryCompetitionTime.ts": "b0589e939e2eadecc068e022de25f9e1dd1de2f63bf127fa2af705a6f8ca6722",
+    "src/lib/libraryCompetitionTransport.ts": "6ff6c75f982c315ddd9f28bf9b9edeef90d8dcb00cc53959f60bc592d97b2399",
+    "src/lib/libraryCompetitionTypes.ts": "a708f3619c83a3a7d6a3c51b62c3fb25b7450c8e4b35969aa25adbccf67c2ad3"
+  },
+  "sourceStart": {
+    "src/lib/canvasLibraryWorld.ts": "e57b8def7eb4e6d3c2d277bfe4057a5f484247da6edba70e73f0cddda58b9c62",
+    "src/lib/canvasLibraryClient.ts": "9e65e7b63d581f823d89214fc06c47a4cbb48ece1c897b20c5198124fbc884ba",
+    "src/lib/canvasLibraryPlacement.ts": "1c67b24fe8fdd0e05e111c095b609ab597b0ecbe931efd59b63b81862ccf6fa9",
+    "src/lib/studentLife.ts": "3af9cb7d792bb8fa8869b5a29cda9493685a079931c56e2f6aa212f278506031",
+    "src/lib/studentPet.ts": "b59341ab9cb4a1eecfbdc603644396e707c05e85ed2eb8e0eabf534181f079eb",
+    "src/pages/AuctionPage.tsx": "aaabca53448d123cfca925336e39a3bfa9f47b36b4c5fe2b436e59fd3d73865c",
+    "src/components/student/StudentLibraryPage.tsx": "2c389aafd9d3d8adaeb3018b1b97dcf2151c359c6f0c68a44fa47e0d57978f78",
+    "src/components/student/library/CanvasLibraryGame.tsx": "5a33bf38ac83ddcfe94d122e4b9579eb5be1a29d9b819d1e7310e4c557db0cdd",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "b70fa465418af1f74700dad65c77cc83a816cc80e1007df4ab6395ea5a055a0c",
+    "src/index.css": "a49dae4977234fe0d94d05c1cd758788cc0eb2038367e84b07fd737093acf3da",
+    "src/components/student/library/CanvasLibraryPalette.ts": "c230ec82097f64e873f16ac733dcab453617205910e8ba43d181aa6a1582bb40",
+    "src/components/student/StudentFailureExhibitionPage.tsx": "3eeb8bc3de19da2ebd792a2eef287ff1ff9a0f422e06eb0b88ed8a1fe4bb2109",
+    "src/components/student/StudentFailureMessage.tsx": "249590222e1b796dea0b9dd4c1724a0ee1718b1521cab67cd4f1238ceef14f29",
+    "src/pages/TimerPage.tsx": "6dcd1772afb94faf1d0d7a07c8cdcda33f923a7318c740bc14aeac5efdb27be9",
+    "src/components/student/library/LibraryCompetitionPanel.tsx": "63bb3661931e5a458beaeac5c68954485148355259fa2f8d2dccc5f23974ce60",
+    "src/components/student/library/LibraryCompetitionTable.tsx": "bc24bbe17f15c24a7a1b0d624c5b82a0e8ee46350f72cb1747cdddf2e7f02922",
+    "src/components/teacher/TeacherLibraryCompetitionPanel.tsx": "29ca8db43c577780f6055b39884632f0683400e042236e0fb98b3bd276668f8e",
+    "src/lib/libraryCompetition.ts": "5afcd7ea122c29147a8d9615da88e4c5f8cdf408ea043c9bd551d52c5176aadc",
+    "src/lib/libraryCompetitionClient.ts": "306d3ee1bd6a459b7d3d501f0cf02e9831aded7825b9a718dda07a452739a3d5",
+    "src/lib/libraryCompetitionCodec.ts": "66a728f875d59cad7741d00f18dd4b929ce007e00995df946cdeffb1183ffd91",
+    "src/lib/libraryCompetitionEvents.ts": "cf53d78edb7b2f833e47f78e67ced3694bec0ed8a81711f9da01c479b4b6e8f6",
+    "src/lib/libraryCompetitionLocalArchive.ts": "9ccd2d20a7e1a5ccaf2e468d052558d24adda5c644060ebecbc22be4323bb680",
+    "src/lib/libraryCompetitionLocalSnapshot.ts": "650561a61222912eb4f214e00c5c7ed60d34b499ed4b501c09234ccc2c33b6ed",
+    "src/lib/libraryCompetitionLocalStore.ts": "c0a44530530bd67bbeb5bdf877debcde1fae7615aea534d5fad957362fd8a4d1",
+    "src/lib/libraryCompetitionProfiles.ts": "19d86c1ce92caf3b1cac77242a3cdff3d69c338e70e0430c67b9740b39512795",
+    "src/lib/libraryCompetitionProjection.ts": "b29ee9f26c56395137f754c56d043631a07b79425e1d33b5222366b814b216ef",
+    "src/lib/libraryCompetitionResponse.ts": "5f7bb248e07d58268fba79dd34ed553671ee06e8fa528aa5c7d071bbe5f43393",
+    "src/lib/libraryCompetitionTime.ts": "b0589e939e2eadecc068e022de25f9e1dd1de2f63bf127fa2af705a6f8ca6722",
+    "src/lib/libraryCompetitionTransport.ts": "6ff6c75f982c315ddd9f28bf9b9edeef90d8dcb00cc53959f60bc592d97b2399",
+    "src/lib/libraryCompetitionTypes.ts": "a708f3619c83a3a7d6a3c51b62c3fb25b7450c8e4b35969aa25adbccf67c2ad3"
+  }
+}

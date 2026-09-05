@@ -467,6 +467,18 @@ test('새 책을 쌓아도 기존 책의 색상은 바뀌지 않는다', () => {
   ]);
 });
 
+test('기존 편지와 실패 이야기의 보존 한도는 책 기록 확장과 무관하게 유지된다', () => {
+  const state = normalizeStudentLifeState({
+    letters: Array.from({ length: 601 }, (_, index) => ({
+      id: `letter-${index}`, recipient: 1, senderLabel: '선생님', title: '', content: '확인',
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(), readAt: null,
+    })),
+  });
+
+  assert.equal(state.letters.length, 600);
+  assert.equal(state.letters[0]?.id, 'letter-1');
+});
+
 test('학생 생활 상태는 유효한 실패 이야기와 익명 응원 도장을 복구한다', () => {
   // Given
   const saved = {

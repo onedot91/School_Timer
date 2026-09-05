@@ -1,0 +1,5 @@
+Cleanup time: 2026-09-05 final QA run
+3036 synthetic harness: terminated via owned terminal session 61540 (SIGINT, exit 0)
+3034 Vite preview: terminated via owned terminal session 30916 (SIGINT, exit 1 from interrupt)
+Playwright browser contexts: closed by task-6-shared-browser.mjs finally block
+No root-owned ports or product files touched.

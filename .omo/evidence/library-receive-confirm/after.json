@@ -1,0 +1,53 @@
+{
+  "phase": "after",
+  "sourceStart": "4a22d6b4cfefeaa32dd1f1ade58f781e1bbad5188c556a41342ef416e294e433",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-form.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-submitted.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-back-to-edit.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-invalid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-long-text.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-text-zoom.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-text-zoom-actions.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-received.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-near-shelf.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-receive-confirm/after-reflection-details.png"
+  ],
+  "checks": [
+    {
+      "confirmation": 1,
+      "dialogCount": 1
+    },
+    "수정·Escape·X·바깥 클릭은 입력 보존; 빈 감상은 확인 진입 차단; Enter는 확인창까지만; 포커스 trap",
+    {
+      "scrollY": 0,
+      "scrollHeight": 800,
+      "canvas": {
+        "x": 328,
+        "y": 212,
+        "width": 624,
+        "height": 376,
+        "top": 212,
+        "right": 952,
+        "bottom": 588,
+        "left": 328
+      }
+    },
+    "명시적 확인 후에만 운반, canvas 포커스 복귀; 긴 제목/글쓴이와 200% 글자 확대",
+    {
+      "playerX": "268.66",
+      "playerY": "279.33",
+      "nearbyTarget": "full-island-bookcase",
+      "facing": "right",
+      "action": "",
+      "seated": "false"
+    },
+    "직접 걸어서 책 배치 후 책장 재열기 및 감상 읽기 PASS"
+  ],
+  "errors": [],
+  "cleanup": [
+    "isolated Chrome closed"
+  ],
+  "sourceEnd": "4a22d6b4cfefeaa32dd1f1ade58f781e1bbad5188c556a41342ef416e294e433"
+}

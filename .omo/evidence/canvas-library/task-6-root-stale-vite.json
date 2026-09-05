@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-09-05T07:28:42.575Z",
+  "screenshots": [],
+  "checks": {},
+  "errors": [],
+  "blockedRequests": [
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    }
+  ],
+  "cleanup": [
+    "Isolated Chrome closed; root3033Vite managed separately."
+  ],
+  "passed": false,
+  "failure": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('application') to be visible\u001b[22m\n",
+  "stack": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('application') to be visible\u001b[22m\n\n    at /Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-qa.mjs:78:87"
+}

@@ -1,0 +1,162 @@
+{
+  "generatedAt": "2026-09-05T09:04:08.643Z",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/entered.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/entrance-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-stories.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-stamp-menu.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-stamped.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-compose.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-compose-cancelled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-created.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-closed-carry-retained.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/dense-empty-picker.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/reloaded-book.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/full-100.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/full-picker-full-left-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/full-picker-bottom-full-left-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/full-picker-full-center-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/full-picker-bottom-full-center-bookcase.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/legacy-route-board.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-text-200.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-text-200-card.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-layout-feedback/board-text-200-lower-card.png"
+  ],
+  "checks": {
+    "entranceRegistration": true,
+    "boardCreateStampCancel": true,
+    "oneModalOwner": true,
+    "carryRetained": true,
+    "bookIDsPreserved": true,
+    "twoShelves100Slots": true,
+    "min44Targets": true,
+    "legacyRouteEmbedded": true,
+    "text200": true
+  },
+  "errors": [],
+  "blockedRequests": [
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    }
+  ],
+  "cleanup": [
+    "isolated Chrome closed; root owns3042"
+  ],
+  "zoomScroll": {
+    "windowY": 0,
+    "rootY": 0,
+    "bodyY": 0,
+    "innerY": 1805,
+    "headerBefore": {
+      "x": 100,
+      "y": 136,
+      "width": 1080,
+      "height": 128
+    },
+    "headerAfter": {
+      "x": 100,
+      "y": 136,
+      "width": 1080,
+      "height": 128
+    },
+    "closeRect": {
+      "x": 1120,
+      "y": 144,
+      "width": 44,
+      "height": 88
+    }
+  },
+  "sourceSha256": {
+    "src/lib/canvasLibraryWorld.ts": "420a5b26590caa178b5dedab3641a4ba09828095a9afa3cd458903ab141b05b6",
+    "src/lib/canvasLibraryClient.ts": "f6d8b75f8c15abc3b5f093dab17defbde08207aa3f3afd99cd0aca007a4d3115",
+    "src/lib/canvasLibraryPlacement.ts": "799b7523f750f2a95f2f3b325235e8326d2a5a777ca03628b43d80ad0d1f9d20",
+    "src/lib/studentLife.ts": "3af9cb7d792bb8fa8869b5a29cda9493685a079931c56e2f6aa212f278506031",
+    "src/lib/studentPet.ts": "63434e18aee97ef8361c85a5afd1ad7422ac0599d6c2fd0947e1c9f7f5a01c01",
+    "src/pages/AuctionPage.tsx": "0bced55f6d0278a92fb0a41ba22cf7297682aca7dfcfda5b158dff64dd81f003",
+    "src/components/student/StudentLibraryPage.tsx": "a2154c2575cd022f1ee05ade4804d7a6d0a7d53885c22db4daedce22fb80be23",
+    "src/components/student/library/CanvasLibraryGame.tsx": "b8b5cc0e04a3f0ef917b73ee7ddc3036088a69efbb4e7f5b593bc60f8759842e",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "2dc94a5424abafd4abcb0711b9852df55d2e594473a03ec0d7625b119c362771",
+    "src/index.css": "986a308303677e34f2bfaaaab5f1d11fbc14d427b7ee0cd37ccd131347f77dd1",
+    "src/components/student/StudentFailureExhibitionPage.tsx": "3eeb8bc3de19da2ebd792a2eef287ff1ff9a0f422e06eb0b88ed8a1fe4bb2109",
+    "src/components/student/StudentFailureMessage.tsx": "249590222e1b796dea0b9dd4c1724a0ee1718b1521cab67cd4f1238ceef14f29"
+  },
+  "passed": true
+}

@@ -1,0 +1,181 @@
+{
+  "generatedAt": "2026-09-05T08:18:15.334Z",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-entered.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-carry.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-picker.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-reloaded.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-reloaded-details.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-legacy-carry.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-legacy-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-invalid-input.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-save-failed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-failed-carry-retained.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-save-retried.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-blur-return.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-reduced-motion.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-text-200.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-text-200-actions.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-100.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-desk.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-wide-left.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-wide-center.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-compact-back.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-tall-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-full-full-endcap-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-wide-left.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-wide-center.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-compact-back.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-tall-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-empty-full-endcap-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-wide-left.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-wide-center.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-compact-back.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-tall-island.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-root-route-mixed-full-endcap-island.png"
+  ],
+  "checks": {
+    "bookcaseMaterial": {
+      "color": "rgb(105, 80, 68)",
+      "image": "repeating-linear-gradient(0deg, rgb(105, 80, 68) 0px, rgb(105, 80, 68) 22.4px, rgb(58, 48, 43) 22.4px, rgb(58, 48, 43) 23.4px)",
+      "timber": "#695044"
+    },
+    "newPlacementPersisted": true,
+    "reloadedBookInspected": true,
+    "legacyNoDuplicateOrReward": true,
+    "localFailureRetainsAndRetries": true,
+    "realBlurStopsAndDoesNotResume": true,
+    "reducedMotionStillPlayable": true,
+    "text200CloseReachable": true,
+    "full100CapacityAndAllFivePickers": true
+  },
+  "errors": [],
+  "blockedRequests": [
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    },
+    {
+      "path": "/css2",
+      "method": "GET"
+    }
+  ],
+  "cleanup": [
+    "Isolated Chrome closed; root3033Vite managed separately."
+  ],
+  "sourceSha256": {
+    "src/lib/canvasLibraryWorld.ts": "bb9bac62d44930acee1c649ebaa79516d86a80a63316a1133bfe8b325edf842e",
+    "src/lib/canvasLibraryClient.ts": "f6d8b75f8c15abc3b5f093dab17defbde08207aa3f3afd99cd0aca007a4d3115",
+    "src/lib/canvasLibraryPlacement.ts": "799b7523f750f2a95f2f3b325235e8326d2a5a777ca03628b43d80ad0d1f9d20",
+    "src/lib/studentLife.ts": "3af9cb7d792bb8fa8869b5a29cda9493685a079931c56e2f6aa212f278506031",
+    "src/lib/studentPet.ts": "63434e18aee97ef8361c85a5afd1ad7422ac0599d6c2fd0947e1c9f7f5a01c01",
+    "src/pages/AuctionPage.tsx": "d816e50e76c8b0daacfb26b8c0ddc903ea7d7607f3281ac60d67bf797e36ffd5",
+    "src/components/student/StudentLibraryPage.tsx": "0269b7386ddc2679e2abf3071cffbcae35c6e96f185ac6a148bfcea455651c63",
+    "src/components/student/library/CanvasLibraryGame.tsx": "85e95e2ff896e2c8d58fca152c08cf6e5d8c95aeace00ba2a3cf71ff2a54e110",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "bbed35c35c5d2d50b5d2488b89a431fc523762a6b781a1c610e55d884326819d",
+    "src/index.css": "df69c2f6fcc244348e1e0513a4eb6557e958409e414e4c6cbc4652d0af8c32a6"
+  },
+  "passed": true
+}

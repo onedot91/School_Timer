@@ -1,0 +1,345 @@
+{
+  "generatedAt": "2026-09-05T08:18:20.548Z",
+  "invocation": "DISABLE_HMR=true VITE_DATA_MODE=readonly node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 3040 --strictPort",
+  "browserInvocation": "bundled Playwright chromium.launch({ executablePath: \"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" })",
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 1
+  },
+  "screenshots": [
+    {
+      "name": "entered",
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-entered.png",
+      "sha256": "695eedf5e05947c3a9d92c1ce300ec67cd2d58103da815ea200fb8d51543f2e4",
+      "signature": {
+        "magic": "89504e470d0a1a0a",
+        "width": 1280,
+        "height": 800,
+        "bytes": 23005
+      }
+    },
+    {
+      "name": "registration",
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-registration.png",
+      "sha256": "a106f899d2e78ed9ba3356a4f4479b66bd52d190b2f67404d8ab1d963f030387",
+      "signature": {
+        "magic": "89504e470d0a1a0a",
+        "width": 1280,
+        "height": 800,
+        "bytes": 50255
+      }
+    },
+    {
+      "name": "carried",
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-carried.png",
+      "sha256": "abf82cf19e1f17576ba4f34b0b4142301b1dda2f2b3ed42d0f01765668605e5f",
+      "signature": {
+        "magic": "89504e470d0a1a0a",
+        "width": 1280,
+        "height": 800,
+        "bytes": 24311
+      }
+    },
+    {
+      "name": "picker-before-block",
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-picker-before-block.png",
+      "sha256": "e3ad86a819f97bf7049c46cfe7b05dcfa6e475a1c470f1d1cacf1b0bbc6dddc4",
+      "signature": {
+        "magic": "89504e470d0a1a0a",
+        "width": 1280,
+        "height": 800,
+        "bytes": 56396
+      }
+    },
+    {
+      "name": "placement-blocked-carried-retained",
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-placement-blocked-carried-retained.png",
+      "sha256": "5c703527bb9f052f5687de4996d46fac625807a5b10a2a012512782c9dcfe9bb",
+      "signature": {
+        "magic": "89504e470d0a1a0a",
+        "width": 1280,
+        "height": 800,
+        "bytes": 62068
+      }
+    },
+    {
+      "name": "escape-closed-carried",
+      "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/task-6-readonly-escape-closed-carried.png",
+      "sha256": "b4dcb2fd77b264a10701f80ba018005189a87c3ef0a7f2b46cfca46773ab7211",
+      "signature": {
+        "magic": "89504e470d0a1a0a",
+        "width": 1280,
+        "height": 800,
+        "bytes": 24502
+      }
+    }
+  ],
+  "blockedRequests": [
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;700;800&family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&display=swap",
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Geist:wght@500&display=swap",
+      "path": "/css2",
+      "method": "GET"
+    },
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Geist:wght@500&display=swap",
+      "path": "/css2",
+      "method": "GET"
+    }
+  ],
+  "syntheticApiRequests": [
+    {
+      "path": "/api/version",
+      "method": "GET"
+    },
+    {
+      "path": "/api/question-submission-status",
+      "method": "GET"
+    }
+  ],
+  "placementPuts": [],
+  "pageErrors": [],
+  "checks": {
+    "readonlyBanner": "실제 데이터 보기 전용\n저장과 거래는 실제 데이터에 반영되지 않아요.",
+    "persistentMovementPadRemoved": true,
+    "readonlyPlacementBlocked": true,
+    "exactSnapshotUnchanged": true,
+    "carriedDraftRetained": true,
+    "noPlacementPut": true,
+    "escapeClosesPicker": true,
+    "carriedAfterEscape": true,
+    "syntheticApiOnly": true,
+    "nonlocalRequestsBlocked": true
+  },
+  "cleanup": [
+    "Isolated bundled-Playwright Chrome context/browser closed; port3040 server is stopped by parent harness."
+  ],
+  "sourceSha256Start": {
+    "src/lib/dataMode.ts": "fa4ae10d20273c3a5b7df19de3e7d63ed415b3d634e6b4f223bab86dada6f688",
+    "src/lib/canvasLibraryClient.ts": "f6d8b75f8c15abc3b5f093dab17defbde08207aa3f3afd99cd0aca007a4d3115",
+    "src/components/student/library/CanvasLibraryGame.tsx": "85e95e2ff896e2c8d58fca152c08cf6e5d8c95aeace00ba2a3cf71ff2a54e110",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "bbed35c35c5d2d50b5d2488b89a431fc523762a6b781a1c610e55d884326819d",
+    "src/index.css": "df69c2f6fcc244348e1e0513a4eb6557e958409e414e4c6cbc4652d0af8c32a6"
+  },
+  "startGame": {
+    "hash": "#student-library-bookshelf",
+    "mainLabel": null,
+    "playerX": "312.00",
+    "playerY": "340.00",
+    "nearbyTarget": "",
+    "status": "WASD 또는 방향키로 이동",
+    "alert": null,
+    "dialog": null,
+    "dataMode": "실제 데이터 보기 전용저장과 거래는 실제 데이터에 반영되지 않아요."
+  },
+  "startStorage": {
+    "react-scan-widget-settings-v2": "{\"corner\":\"bottom-right\",\"dimensions\":{\"isFullWidth\":false,\"isFullHeight\":false,\"width\":550,\"height\":350,\"position\":{\"x\":24,\"y\":24}},\"lastDimensions\":{\"isFullWidth\":false,\"isFullHeight\":false,\"width\":550,\"height\":350,\"position\":{\"x\":24,\"y\":24}},\"componentsTree\":{\"width\":240}}",
+    "school-timer-entry-number-v1": "23",
+    "school-timer-practice-failure-stories-reset-v1": "1",
+    "school-timer-student-pets-v1": "{\"currencyBalances\":{\"23\":30},\"currencyHistory\":{\"23\":[]},\"studentLife\":{\"letters\":[],\"failureStories\":[],\"failureProfileAssignments\":{},\"books\":[{\"id\":\"readonly-own-unplaced\",\"studentNumber\":23,\"title\":\"읽기 전용에 남은 책\",\"author\":\"합성 작가\",\"pageCount\":92,\"createdAt\":\"2025-01-01T00:00:00.000Z\",\"colorIndex\":0},{\"id\":\"readonly-other-placed\",\"studentNumber\":2,\"title\":\"친구의 합성 책\",\"author\":\"공유 작가\",\"pageCount\":115,\"createdAt\":\"2025-01-02T00:00:00.000Z\",\"colorIndex\":1,\"librarySlot\":0}]}}"
+  },
+  "startCss": {
+    "viewport": [
+      1280,
+      800
+    ],
+    "banner": {
+      "rect": [
+        1133.03,
+        8,
+        134.97,
+        34.25
+      ],
+      "display": "flex",
+      "position": "fixed",
+      "backgroundColor": "rgba(255, 254, 250, 0.94)",
+      "backgroundImage": "none",
+      "color": "rgb(32, 35, 31)",
+      "fontSize": "13px",
+      "lineHeight": "16.25px",
+      "overflow": "visible"
+    },
+    "stage": {
+      "rect": [
+        12,
+        12,
+        1256,
+        776
+      ],
+      "display": "grid",
+      "position": "fixed",
+      "backgroundColor": "rgb(24, 43, 44)",
+      "backgroundImage": "none",
+      "color": "rgb(24, 43, 44)",
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "overflow": "hidden"
+    },
+    "canvas": {
+      "rect": [
+        16,
+        24,
+        1248,
+        752
+      ],
+      "display": "block",
+      "position": "static",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none",
+      "color": "rgb(24, 43, 44)",
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "overflow": "clip"
+    },
+    "dialog": null
+  },
+  "registrationGame": {
+    "hash": "#student-library-bookshelf",
+    "mainLabel": null,
+    "playerX": "112.00",
+    "playerY": "304.99",
+    "nearbyTarget": "registration-desk",
+    "status": null,
+    "alert": null,
+    "dialog": "등록대읽은 책 등록책 제목글쓴이쪽수취소책 받기전에 등록한 책 가져가기읽기 전용에 남은 책합성 작가 · 92쪽",
+    "dataMode": "실제 데이터 보기 전용저장과 거래는 실제 데이터에 반영되지 않아요."
+  },
+  "carriedGame": {
+    "hash": "#student-library-bookshelf",
+    "mainLabel": null,
+    "playerX": "112.00",
+    "playerY": "304.99",
+    "nearbyTarget": "registration-desk",
+    "status": "운반 중 · 읽기 전용 새 책",
+    "alert": null,
+    "dialog": null,
+    "dataMode": "실제 데이터 보기 전용저장과 거래는 실제 데이터에 반영되지 않아요."
+  },
+  "carriedStorage": {
+    "react-scan-widget-settings-v2": "{\"corner\":\"bottom-right\",\"dimensions\":{\"isFullWidth\":false,\"isFullHeight\":false,\"width\":550,\"height\":350,\"position\":{\"x\":24,\"y\":24}},\"lastDimensions\":{\"isFullWidth\":false,\"isFullHeight\":false,\"width\":550,\"height\":350,\"position\":{\"x\":24,\"y\":24}},\"componentsTree\":{\"width\":240}}",
+    "school-timer-entry-number-v1": "23",
+    "school-timer-practice-failure-stories-reset-v1": "1",
+    "school-timer-student-pets-v1": "{\"currencyBalances\":{\"23\":30},\"currencyHistory\":{\"23\":[]},\"studentLife\":{\"letters\":[],\"failureStories\":[],\"failureProfileAssignments\":{},\"books\":[{\"id\":\"readonly-own-unplaced\",\"studentNumber\":23,\"title\":\"읽기 전용에 남은 책\",\"author\":\"합성 작가\",\"pageCount\":92,\"createdAt\":\"2025-01-01T00:00:00.000Z\",\"colorIndex\":0},{\"id\":\"readonly-other-placed\",\"studentNumber\":2,\"title\":\"친구의 합성 책\",\"author\":\"공유 작가\",\"pageCount\":115,\"createdAt\":\"2025-01-02T00:00:00.000Z\",\"colorIndex\":1,\"librarySlot\":0}]}}"
+  },
+  "endGame": {
+    "hash": "#student-library-bookshelf",
+    "mainLabel": null,
+    "playerX": "385.34",
+    "playerY": "271.66",
+    "nearbyTarget": "full-endcap-island",
+    "status": "운반 중 · 읽기 전용 새 책",
+    "alert": "읽기 전용 모드에서는 책을 꽂을 수 없어요.",
+    "dialog": "책장책을 둘 자리100번 · 빈자리빈자리 10081828384858687888990919293949596979899100읽기 전용 모드에서는 책을 꽂을 수 없어요.",
+    "dataMode": "실제 데이터 보기 전용저장과 거래는 실제 데이터에 반영되지 않아요."
+  },
+  "endStorage": {
+    "react-scan-widget-settings-v2": "{\"corner\":\"bottom-right\",\"dimensions\":{\"isFullWidth\":false,\"isFullHeight\":false,\"width\":550,\"height\":350,\"position\":{\"x\":24,\"y\":24}},\"lastDimensions\":{\"isFullWidth\":false,\"isFullHeight\":false,\"width\":550,\"height\":350,\"position\":{\"x\":24,\"y\":24}},\"componentsTree\":{\"width\":240}}",
+    "school-timer-entry-number-v1": "23",
+    "school-timer-practice-failure-stories-reset-v1": "1",
+    "school-timer-student-pets-v1": "{\"currencyBalances\":{\"23\":30},\"currencyHistory\":{\"23\":[]},\"studentLife\":{\"letters\":[],\"failureStories\":[],\"failureProfileAssignments\":{},\"books\":[{\"id\":\"readonly-own-unplaced\",\"studentNumber\":23,\"title\":\"읽기 전용에 남은 책\",\"author\":\"합성 작가\",\"pageCount\":92,\"createdAt\":\"2025-01-01T00:00:00.000Z\",\"colorIndex\":0},{\"id\":\"readonly-other-placed\",\"studentNumber\":2,\"title\":\"친구의 합성 책\",\"author\":\"공유 작가\",\"pageCount\":115,\"createdAt\":\"2025-01-02T00:00:00.000Z\",\"colorIndex\":1,\"librarySlot\":0}]}}"
+  },
+  "endCss": {
+    "viewport": [
+      1280,
+      800
+    ],
+    "banner": {
+      "rect": [
+        1133.03,
+        8,
+        134.97,
+        34.25
+      ],
+      "display": "flex",
+      "position": "fixed",
+      "backgroundColor": "rgba(255, 254, 250, 0.94)",
+      "backgroundImage": "none",
+      "color": "rgb(32, 35, 31)",
+      "fontSize": "13px",
+      "lineHeight": "16.25px",
+      "overflow": "visible"
+    },
+    "stage": {
+      "rect": [
+        12,
+        12,
+        1256,
+        776
+      ],
+      "display": "grid",
+      "position": "fixed",
+      "backgroundColor": "rgb(24, 43, 44)",
+      "backgroundImage": "none",
+      "color": "rgb(24, 43, 44)",
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "overflow": "hidden"
+    },
+    "canvas": {
+      "rect": [
+        16,
+        24,
+        1248,
+        752
+      ],
+      "display": "block",
+      "position": "static",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none",
+      "color": "rgb(24, 43, 44)",
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "overflow": "clip"
+    },
+    "dialog": {
+      "rect": [
+        320,
+        57.3,
+        640,
+        685.39
+      ],
+      "display": "flex",
+      "position": "relative",
+      "backgroundColor": "rgb(105, 80, 68)",
+      "backgroundImage": "repeating-linear-gradient(0deg, rgb(105, 80, 68) 0px, rgb(105, 80, 68) 22.4px, rgb(58, 48, 43) 22.4px, rgb(58, 48, 43) 23.4px)",
+      "color": "rgb(24, 43, 44)",
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "overflow": "hidden"
+    }
+  },
+  "endViewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "endGameAfterEscape": {
+    "hash": "#student-library-bookshelf",
+    "mainLabel": null,
+    "playerX": "385.34",
+    "playerY": "271.66",
+    "nearbyTarget": "full-endcap-island",
+    "status": "운반 중 · 읽기 전용 새 책",
+    "alert": null,
+    "dialog": null,
+    "dataMode": "실제 데이터 보기 전용저장과 거래는 실제 데이터에 반영되지 않아요."
+  },
+  "sourceSha256End": {
+    "src/lib/dataMode.ts": "fa4ae10d20273c3a5b7df19de3e7d63ed415b3d634e6b4f223bab86dada6f688",
+    "src/lib/canvasLibraryClient.ts": "f6d8b75f8c15abc3b5f093dab17defbde08207aa3f3afd99cd0aca007a4d3115",
+    "src/components/student/library/CanvasLibraryGame.tsx": "85e95e2ff896e2c8d58fca152c08cf6e5d8c95aeace00ba2a3cf71ff2a54e110",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "bbed35c35c5d2d50b5d2488b89a431fc523762a6b781a1c610e55d884326819d",
+    "src/index.css": "df69c2f6fcc244348e1e0513a4eb6557e958409e414e4c6cbc4652d0af8c32a6"
+  },
+  "pngSignature": {
+    "magic": "89504e470d0a1a0a",
+    "width": 1280,
+    "height": 800,
+    "bytes": 62068
+  },
+  "passed": true
+}

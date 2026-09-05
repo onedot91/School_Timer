@@ -1,0 +1,69 @@
+{
+  "generatedAt": "2026-09-05T11:17:03.675Z",
+  "invocation": "node --import tsx .omo/evidence/library-competition/state-qa.mjs",
+  "fixture": "INJECTED FIXTURE: actual LibraryCompetitionPanel and TeacherLibraryCompetitionPanel; singleton client methods replaced in page realm only; no production/API requests",
+  "viewport": [
+    1280,
+    800
+  ],
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/state-qa-student-loading.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/state-qa-student-unavailable.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/state-qa-student-inactive-readonly.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/state-qa-teacher-loading.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/state-qa-teacher-unavailable.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-competition/state-qa-teacher-inactive.png"
+  ],
+  "checks": {
+    "studentLoading": {
+      "readCalls": "open",
+      "ariaBusy": true
+    },
+    "studentUnavailable": {
+      "message": true,
+      "readCalls": "open"
+    },
+    "studentInactiveReadonly": {
+      "inactive": true,
+      "readCalls": "readonly",
+      "writeCalls": "",
+      "escapeFocusRestored": true
+    },
+    "teacherLoading": {
+      "readCalls": "enter",
+      "ariaBusy": true
+    },
+    "teacherUnavailable": {
+      "message": true,
+      "readCalls": "enter"
+    },
+    "teacherInactive": {
+      "inactive": true,
+      "readCalls": "enter",
+      "writeCalls": ""
+    }
+  },
+  "blockedRequests": [],
+  "errors": [],
+  "cleanup": [
+    "isolated Chrome context closed",
+    "isolated Chrome closed; root-owned 127.0.0.1:3044 retained"
+  ],
+  "sourceStart": {
+    "src/components/student/library/LibraryCompetitionPanel.tsx": "63bb3661931e5a458beaeac5c68954485148355259fa2f8d2dccc5f23974ce60",
+    "src/components/student/library/LibraryCompetitionTable.tsx": "bc24bbe17f15c24a7a1b0d624c5b82a0e8ee46350f72cb1747cdddf2e7f02922",
+    "src/components/teacher/TeacherLibraryCompetitionPanel.tsx": "29ca8db43c577780f6055b39884632f0683400e042236e0fb98b3bd276668f8e",
+    "src/lib/libraryCompetitionClient.ts": "306d3ee1bd6a459b7d3d501f0cf02e9831aded7825b9a718dda07a452739a3d5",
+    "src/lib/libraryCompetitionTransport.ts": "6ff6c75f982c315ddd9f28bf9b9edeef90d8dcb00cc53959f60bc592d97b2399",
+    "src/index.css": "a49dae4977234fe0d94d05c1cd758788cc0eb2038367e84b07fd737093acf3da"
+  },
+  "sourceEnd": {
+    "src/components/student/library/LibraryCompetitionPanel.tsx": "63bb3661931e5a458beaeac5c68954485148355259fa2f8d2dccc5f23974ce60",
+    "src/components/student/library/LibraryCompetitionTable.tsx": "bc24bbe17f15c24a7a1b0d624c5b82a0e8ee46350f72cb1747cdddf2e7f02922",
+    "src/components/teacher/TeacherLibraryCompetitionPanel.tsx": "29ca8db43c577780f6055b39884632f0683400e042236e0fb98b3bd276668f8e",
+    "src/lib/libraryCompetitionClient.ts": "306d3ee1bd6a459b7d3d501f0cf02e9831aded7825b9a718dda07a452739a3d5",
+    "src/lib/libraryCompetitionTransport.ts": "6ff6c75f982c315ddd9f28bf9b9edeef90d8dcb00cc53959f60bc592d97b2399",
+    "src/index.css": "a49dae4977234fe0d94d05c1cd758788cc0eb2038367e84b07fd737093acf3da"
+  },
+  "sourceHashesEqual": true
+}

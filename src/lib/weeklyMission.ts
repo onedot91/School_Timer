@@ -594,9 +594,12 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     ...next,
     studentPets: remote.studentPets ?? next.studentPets,
     studentEconomy: mergedStudentEconomy,
-    studentLife: economyStudentsWithRemoteActivity.size > 0
-      ? mergeStudentLifeStates(remote.studentLife, next.studentLife)
-      : next.studentLife ?? remote.studentLife,
+    studentLife: replaceStudentLifeBooksWithAuthoritative(
+      economyStudentsWithRemoteActivity.size > 0
+        ? mergeStudentLifeStates(remote.studentLife, next.studentLife)
+        : next.studentLife ?? remote.studentLife,
+      remote.studentLife ?? next.studentLife,
+    ),
     currencyBalances: nextBalances,
     currencyHistory: nextHistory,
     auctionAwards: nextAwards,
@@ -707,4 +710,4 @@ import { mergeClassDonationActivity } from './classDonation.js';
 import { appDataMode, canWriteSharedBackend } from './dataMode.js';
 import { mergeStudentEmotionHistories } from './studentEmotion.js';
 import { normalizeStudentEconomyStates } from './studentEconomy.js';
-import { mergeStudentLifeStates } from './studentLife.js';
+import { mergeStudentLifeStates, replaceStudentLifeBooksWithAuthoritative } from './studentLife.js';

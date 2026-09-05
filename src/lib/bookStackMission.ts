@@ -17,7 +17,9 @@ interface BookStackMissionInput {
   readonly title: string;
   readonly author: string;
   readonly pageCount: number;
+  readonly reflection?: string;
   readonly createdAt: string;
+  readonly librarySlot?: number;
 }
 
 export interface BookStackMissionEntry {

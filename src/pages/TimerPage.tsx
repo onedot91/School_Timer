@@ -129,6 +129,7 @@ import { MissionRewardInput } from '../components/teacher/MissionRewardInput';
 import TeacherWritingSettings from '../components/teacher/TeacherWritingSettings';
 import TeacherClasswordPanel from '../components/teacher/TeacherClasswordPanel';
 import TeacherTodayFriendPanel from '../components/teacher/TeacherTodayFriendPanel';
+import { TeacherLibraryCompetitionPanel } from '../components/teacher/TeacherLibraryCompetitionPanel';
 import AuctionAwardPresentationDialog, {
   type AuctionAwardPresentation,
 } from '../components/teacher/AuctionAwardPresentationDialog';
@@ -231,7 +232,7 @@ import {
 } from '../lib/studentMissionVisibility';
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'today-friend' | 'bookstore';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
 type TeacherShopTab = 'items' | 'skins' | 'houses' | 'characters';
 type SettingsNavigationGroup = {
   readonly label: string;
@@ -272,6 +273,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
       { panel: 'writing', label: '글쓰기', icon: NotebookText },
       { panel: 'classword', label: '낱말판', icon: StickyNote },
       { panel: 'today-friend', label: '오늘의 친구', icon: HeartHandshake },
+      { panel: 'library-competition', label: '책방 챌린지', icon: Trophy },
       { panel: 'missions', label: '미션', icon: ClipboardCheck },
     ],
   },
@@ -12382,6 +12384,8 @@ export default function TimerPage() {
                               ? <TeacherClasswordPanel profileAssignments={studentLife.failureProfileAssignments} />
                               : settingsPanel === 'today-friend'
                                 ? <TeacherTodayFriendPanel />
+                              : settingsPanel === 'library-competition'
+                                ? <TeacherLibraryCompetitionPanel />
                               : settingsPanel === 'bookstore'
                                 ? bookstoreSettingsPanel
                                 : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'

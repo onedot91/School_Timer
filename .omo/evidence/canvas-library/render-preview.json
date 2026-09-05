@@ -1,0 +1,81 @@
+{
+  "viewport": [
+    1280,
+    800
+  ],
+  "blockedRequestCount": 0,
+  "states": {
+    "empty": {
+      "intrinsic": [
+        624,
+        376
+      ],
+      "css": [
+        1248,
+        752
+      ],
+      "opaquePixels": 234624,
+      "blackPixels": 0,
+      "distinctColors": 24,
+      "stableAfter250Ms": true,
+      "documentOverflow": [
+        0,
+        0
+      ]
+    },
+    "carry": {
+      "intrinsic": [
+        624,
+        376
+      ],
+      "css": [
+        1248,
+        752
+      ],
+      "opaquePixels": 234624,
+      "blackPixels": 0,
+      "distinctColors": 24,
+      "stableAfter250Ms": true,
+      "documentOverflow": [
+        0,
+        0
+      ]
+    },
+    "placed": {
+      "intrinsic": [
+        624,
+        376
+      ],
+      "css": [
+        1248,
+        752
+      ],
+      "opaquePixels": 234624,
+      "blackPixels": 0,
+      "distinctColors": 117,
+      "stableAfter250Ms": true,
+      "documentOverflow": [
+        0,
+        0
+      ]
+    },
+    "reduced": {
+      "intrinsic": [
+        624,
+        376
+      ],
+      "css": [
+        1248,
+        752
+      ],
+      "opaquePixels": 234624,
+      "blackPixels": 0,
+      "distinctColors": 24,
+      "stableAfter250Ms": true,
+      "documentOverflow": [
+        0,
+        0
+      ]
+    }
+  }
+}

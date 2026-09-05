@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2026-09-05T05:30:20.882Z",
+  "url": "http://127.0.0.1:3020/.omo/evidence/canvas-library/baseline.html",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "sourceSha256": {
+    "src/components/student/StudentLibraryPage.tsx": "f692936fd886fb02ccd96c47f563a17a479af3c51d7b8eb75f3d69b765f9cabe",
+    "src/lib/studentLife.ts": "2fc2061f88ec144fb35ba9e347bd597cb2c9ab941b5132a24cd4c72d308360a7",
+    "src/index.css": "3d9095bfc8fbc4749287ed10d6b8ebb153af2ac48ac065e881e78cc9c614da85"
+  },
+  "fixture": {
+    "baselineBook": {
+      "id": "qa-baseline",
+      "studentNumber": 1,
+      "title": "달빛 우체국",
+      "author": "김별",
+      "pageCount": 80,
+      "createdAt": "2026-09-05T00:00:00.000Z",
+      "colorIndex": 0
+    },
+    "initialBookshelfCount": 1,
+    "initialHasBaselineTitle": true,
+    "confirmationText": "별빛 도서관\n이 책을 쌓을까요?\n\n김하늘 지음 · 120쪽으로 기록해요.\n\n취소\n책 쌓기",
+    "countBeforeConfirm": 1,
+    "cancelDialogVisible": 0,
+    "countAfterCancel": 1,
+    "countAfterConfirm": 2,
+    "addedBookText": "별빛 도서관\n120쪽",
+    "invalidPageZero": {
+      "dialogCount": 0,
+      "bookshelfCount": 2
+    }
+  },
+  "absentCanvasRed": {
+    "canvasCount": 0,
+    "walkableRoomTextPresent": false
+  },
+  "blockedRequests": [],
+  "server": {
+    "pid": 75560,
+    "port": 3020,
+    "command": "/usr/local/bin/node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 3020 --strictPort"
+  },
+  "browser": {
+    "engine": "Playwright Chromium API",
+    "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "context": "isolated, closed in finally"
+  },
+  "screenshot": {
+    "path": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/baseline.png",
+    "bytes": 340318,
+    "signature": "89504e470d0a1a0a",
+    "dimensions": {
+      "width": 1280,
+      "height": 800
+    }
+  }
+}

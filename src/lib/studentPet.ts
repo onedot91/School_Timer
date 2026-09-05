@@ -22,6 +22,7 @@ import {
   normalizeStudentLifeState,
   type StudentLifeState,
 } from './studentLife';
+import { preserveLibraryLocalFields } from './libraryCompetitionLocalSnapshot.js';
 
 export const STUDENT_PET_STORAGE_KEY = 'school-timer-student-pets-v1';
 export const STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY = 'school-timer-student-pet-position-overrides-v1';
@@ -433,12 +434,13 @@ export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
 
 export const storeStudentPetSnapshot = (
   snapshot: StudentPetLocalSnapshot,
-  storage?: Pick<Storage, 'setItem'>,
+  storage?: Pick<Storage, 'setItem'> & Partial<Pick<Storage, 'getItem'>>,
 ) => {
   const targetStorage = storage ?? (typeof window === 'undefined' ? null : window.localStorage);
   if (targetStorage === null) return false;
   try {
-    targetStorage.setItem(STUDENT_PET_STORAGE_KEY, JSON.stringify({
+    targetStorage.setItem(STUDENT_PET_STORAGE_KEY, JSON.stringify(preserveLibraryLocalFields(
+      targetStorage.getItem?.(STUDENT_PET_STORAGE_KEY) ?? null, {
       studentPets: normalizeStudentPetStates(snapshot.studentPets),
       currencyBalances: normalizeCurrencyBalances(snapshot.currencyBalances),
       currencyHistory: normalizeCurrencyHistory(snapshot.currencyHistory),
@@ -448,7 +450,7 @@ export const storeStudentPetSnapshot = (
       auctionBids: normalizeAuctionBids(snapshot.auctionBids, AUCTION_ITEM_IDS),
       auctionBidHistory: normalizeAuctionBidHistory(snapshot.auctionBidHistory, AUCTION_ITEM_IDS),
       auctionAwards: normalizeAuctionAwards(snapshot.auctionAwards, AUCTION_ITEM_IDS),
-    }));
+    })));
     return true;
   } catch (error) {
     if (error instanceof Error) return false;

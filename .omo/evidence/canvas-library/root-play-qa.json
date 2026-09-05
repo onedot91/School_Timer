@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-09-05T06:30:05.377Z",
+  "checks": {
+    "viewport": {
+      "width": 1280,
+      "height": 800,
+      "overflowX": 0,
+      "overflowY": 0
+    },
+    "deskApproach": {
+      "x": 108.67,
+      "y": 305.02,
+      "target": "registration-desk"
+    },
+    "invalidAndModalFreeze": true,
+    "slotKeyboardAndFocusTrap": true,
+    "actualBookLoop": true,
+    "inRangeCanvasShelfClick": true,
+    "pointerDeskAndSecondBook": true,
+    "untrustedTextIsLiteral": true,
+    "text200CloseReachable": true,
+    "realBlurAndResume": {
+      "stopped": {
+        "x": 238.68,
+        "y": 121.73,
+        "target": "placed-book:1"
+      },
+      "noStuckKey": true
+    },
+    "reducedMotionStillPlayable": true
+  },
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-empty.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-walk-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-walk-settled.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-registration.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-invalid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-carry.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-slots.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-placement-start.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-placement-mid.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-details.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-carrying-near-placed.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-long-details.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-text-200.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-text-200-actions.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/canvas-library/root-reduced-motion.png"
+  ],
+  "blockedRequests": [],
+  "errors": [],
+  "cleanup": [
+    "Owned isolated Chrome browser and contexts closed; root Vite3023 remains registered for ongoing QA."
+  ],
+  "sourceSha256": {
+    "src/lib/canvasLibraryWorld.ts": "37694777158380f21ee7154e2f49ea1c95fc26949ed337a1453ceb4b16c966d3",
+    "src/lib/useModalFocus.ts": "2e161b8d3e8f54b839e9cbdad243ed4873c2532c03a4f1213f770e7ad65307fa",
+    "src/components/student/library/CanvasLibraryGame.tsx": "11a40a021a2c17edf4a8f102334736fb05e4ce1ab3e56f42ba4a84820cf17c3a",
+    "src/components/student/library/CanvasLibraryRenderer.ts": "b21940d721ed9c9062f78c21939b65299e8113f7a555f599629326895de73ca7",
+    "src/components/student/library/CanvasLibraryPalette.ts": "30ef750ab37ffb6a977974e9423fa8f6f9e734c3f284895cedc2f66d4b00c1e3",
+    "src/index.css": "bc1c56b9355ca6f9cb2f127949e181ed6b0b56ee5d8645b98b9a32ac2be99bfd",
+    ".omo/evidence/canvas-library/play.tsx": "2e2d0c328bbd90f648bc5a350b2a8b56d05ed57c86158dfb36ef73ae04a1e801"
+  },
+  "passed": true
+}

@@ -1,0 +1,57 @@
+{
+  "phase": "after",
+  "sourceStart": "7864220e9a6f11f67f043386446759a59fa6d0de2b28b54b01152af2c0ee204a",
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-0-cue.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-0-opened.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-0-selected-book.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-0-Enter.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-0-korean.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-0-click.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-1-cue.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-1-opened.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-1-selected-book.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-1-Enter.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-1-korean.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-1-click.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-2-cue.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-2-opened.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-2-selected-book.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-2-Enter.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-2-korean.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-2-click.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-3-cue.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-3-opened.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-3-selected-book.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-3-Enter.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-3-korean.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-shelf-open/after-shelf-3-click.png"
+  ],
+  "checks": [
+    {
+      "shelf": 0,
+      "label": "가까운 곳 살펴보기: 책장 열기",
+      "openedShelf": true
+    },
+    {
+      "shelf": 1,
+      "label": "가까운 곳 살펴보기: 책장 열기",
+      "openedShelf": true
+    },
+    {
+      "shelf": 2,
+      "label": "가까운 곳 살펴보기: 책장 열기",
+      "openedShelf": true
+    },
+    {
+      "shelf": 3,
+      "label": "가까운 곳 살펴보기: 책장 열기",
+      "openedShelf": true
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    "isolated Chrome closed"
+  ],
+  "sourceEnd": "7864220e9a6f11f67f043386446759a59fa6d0de2b28b54b01152af2c0ee204a"
+}

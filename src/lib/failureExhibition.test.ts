@@ -157,6 +157,29 @@ test('빈 실패 자랑소는 전시 카드 구조와 하나의 작성 행동을
   assert.doesNotMatch(markup, /student-failure-relay-toolbar/);
 });
 
+test('도서관 게시판 모드는 기존 실패 전시 기능만 포함하고 별도 페이지 머리말을 만들지 않는다', () => {
+  const markup = renderToStaticMarkup(createElement(StudentFailureExhibitionPage, {
+    studentNumber: 7,
+    profileAssignments: normalizeFailureProfileAssignments(null),
+    stories: [],
+    isSaving: false,
+    onCreate: async () => false,
+    onStamp: async () => false,
+    onOpenBookshelf: () => undefined,
+    onBack: () => undefined,
+    embedded: true,
+    onRequestClose: () => undefined,
+  }));
+
+  assert.match(markup, /student-canvas-library-failure-board/);
+  assert.match(markup, /role="dialog"/);
+  assert.match(markup, /aria-modal="true"/);
+  assert.match(markup, /실패 자랑소 닫기/);
+  assert.match(markup, /student-failure-empty-card/);
+  assert.doesNotMatch(markup, /student-header/);
+  assert.doesNotMatch(markup, /책장으로 가기/);
+});
+
 test('저장 가능한 프로필 카탈로그는 비둘기를 포함한 79개의 동물만 제공한다', () => {
   assert.equal(FAILURE_PROFILE_IMAGES.length, 79);
   assert.equal(FAILURE_PROFILE_OPTIONS.length, 79);

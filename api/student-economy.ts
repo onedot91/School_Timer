@@ -160,6 +160,12 @@ const supabaseHeaders = (key: string) => ({
   Authorization: `Bearer ${key}`,
 });
 
+const nextUpdatedAt = (currentUpdatedAt: string): string => {
+  const currentTime = Date.parse(currentUpdatedAt);
+  if (!Number.isFinite(currentTime)) throw new Error('STUDENT_ECONOMY_DATABASE_INVALID_RESPONSE');
+  return new Date(Math.max(Date.now(), currentTime + 1)).toISOString();
+};
+
 const loadRow = async (url: string, key: string) => {
   const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=id,value,updated_at`, {
     headers: supabaseHeaders(key),
@@ -383,7 +389,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         parsed.requestId,
         createdAt,
       );
-      const updatedAt = new Date().toISOString();
+      const updatedAt = nextUpdatedAt(current.updated_at ?? '');
       const endpoint = `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(current.updated_at ?? '')}&select=id`;
       const result = await fetch(endpoint, {
         method: 'PATCH',

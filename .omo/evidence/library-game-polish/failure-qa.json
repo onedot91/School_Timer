@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "screenshots": [
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-game-polish/placement-pending-locked.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-game-polish/placement-failed-carry-retained.png",
+    "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/library-game-polish/placement-retry-confirmed.png"
+  ],
+  "errors": [],
+  "cleanup": "isolated Chrome closed"
+}

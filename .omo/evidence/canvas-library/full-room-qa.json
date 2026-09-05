@@ -1,0 +1,124 @@
+{
+  "viewport": [
+    1280,
+    800
+  ],
+  "emptyInitial": {
+    "intrinsic": [
+      624,
+      376
+    ],
+    "css": [
+      1248,
+      752
+    ],
+    "player": [
+      312,
+      340
+    ],
+    "target": "",
+    "overflow": [
+      0,
+      0
+    ]
+  },
+  "emptyFirstShelf": {
+    "intrinsic": [
+      624,
+      376
+    ],
+    "css": [
+      1248,
+      752
+    ],
+    "player": [
+      105.33,
+      121.68
+    ],
+    "target": "full-wide-left",
+    "overflow": [
+      0,
+      0
+    ]
+  },
+  "emptyPickerButtons": 20,
+  "fullInitial": {
+    "intrinsic": [
+      624,
+      376
+    ],
+    "css": [
+      1248,
+      752
+    ],
+    "player": [
+      312,
+      340
+    ],
+    "target": "",
+    "overflow": [
+      0,
+      0
+    ]
+  },
+  "fullFirstShelf": {
+    "intrinsic": [
+      624,
+      376
+    ],
+    "css": [
+      1248,
+      752
+    ],
+    "player": [
+      107.03,
+      121.66
+    ],
+    "target": "full-wide-left",
+    "overflow": [
+      0,
+      0
+    ]
+  },
+  "fullFirstPickerCaption": "첫 번째 별빛 도서관 탐험기",
+  "fullLastShelf": {
+    "intrinsic": [
+      624,
+      376
+    ],
+    "css": [
+      1248,
+      752
+    ],
+    "player": [
+      388.69,
+      269.99
+    ],
+    "target": "full-endcap-island",
+    "overflow": [
+      0,
+      0
+    ]
+  },
+  "fullLastPickerCaption": "백 번째 책장의 아주 긴 한글 제목 확인본",
+  "firstBookVisible": true,
+  "lastBookVisible": true,
+  "screenshots": [
+    "full-room-empty.png",
+    "full-room-empty-picker.png",
+    "full-room-100.png",
+    "full-room-first-picker.png",
+    "full-room-last-picker.png",
+    "full-room-last-details.png"
+  ],
+  "screenshotSha256": {
+    "full-room-empty.png": "a1bb41784e65c55c97d250a84c9aac7d8eae0d615329066ef5c5e6fde350a230",
+    "full-room-empty-picker.png": "4632a0ee946c075977c227d871d4b64f3350295080524fb27ae844dad9d5f695",
+    "full-room-100.png": "a15c484d1cdd2e72183ee71b002743da71754d5b427e271cfe999296308a1dca",
+    "full-room-first-picker.png": "acc01310f8cf74d69ed3b79c6ef4957e1b0b8f73bc59a514b43ddd6d280e7655",
+    "full-room-last-picker.png": "cee63259e93cdfb8cbee3f37a04b2f8647e86f2b9f231ec2fc9cbbd7379712c6",
+    "full-room-last-details.png": "3c98bfbcdf0f17e068fbc27b314e5970c4073eecf49ca8128a8223d2e0e0632d"
+  },
+  "errors": [],
+  "blockedRequests": []
+}

@@ -1,0 +1,8 @@
+baf3fa7b5a93b6984b68d862fc0a937821464af9a47d76ac1312df65258705a0  src/components/student/library/CanvasLibraryRenderer.ts
+30ef750ab37ffb6a977974e9423fa8f6f9e734c3f284895cedc2f66d4b00c1e3  src/components/student/library/CanvasLibraryPalette.ts
+3ad350878c745d9adf9b4e2c232089012a8ff576430beba677911743425e105d  .omo/evidence/canvas-library/render-before-empty.png
+28d056ba631c2a28aa88c83b05b103299ce896e3a663b04898edfeaf2ce79224  .omo/evidence/canvas-library/render-empty.png
+f722855f379cd82357cb21791292f9bd590d1825defde27150feadf1dc76a33a  .omo/evidence/canvas-library/render-carry.png
+cbb7c84e455b049af22739e4566a3b83b4b44f384174858bd5a97e906817c995  .omo/evidence/canvas-library/render-placed.png
+6b4bab3b90ccc1183faa70ddee34a7210fa1076e1c09ba3eea75808546728ecd  .omo/evidence/canvas-library/render-reduced.png
+18f73341c289ef122f8a60f983a01db3eb9ef8793f933ab5a6e1c58082fed52c  .omo/evidence/canvas-library/render-preview.json
