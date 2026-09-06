@@ -110,7 +110,7 @@ async function startReview(rootElement: HTMLElement): Promise<void> {
     };
     const seedOwnEntry = async () => {
       const board = await client.loadClasswordBoard(dateKey);
-      const topic = topics.CLASSWORD_TOPICS_V1.find(candidate => candidate.title === board.topic);
+      const topic = topics.getClasswordTopicCatalog(dateKey).find(candidate => candidate.title === board.topic);
       const word = topic?.examples[0] ?? '가방';
       const initial = domain.getClasswordInitialFromWord(word);
       if (!domain.isClasswordInitial(initial)) return;

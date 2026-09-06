@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { getDailyClasswordQuiz } from './classwordQuiz';
 import { getKoreanDateKey, CLASSWORD_INITIALS, validateClasswordWord, getClasswordInitialFromWord, parseClasswordBoard } from './classword';
 import { CLASSWORD_VOCABULARY_V1 } from './classwordVocabulary';
-import { CLASSWORD_TOPICS_V1, resolveClasswordMonth, resolveClasswordTopic, getElapsedClasswordTopics } from './classwordTopics';
+import { CLASSWORD_TOPICS_V1, CLASSWORD_TOPICS_V2, resolveClasswordMonth, resolveClasswordTopic, getElapsedClasswordTopics } from './classwordTopics';
 import { assertClasswordParticipation, getClasswordDisplayDate, getClasswordWeekdayIndex } from './classwordSchedule';
 
 test('published v1 date-to-ID ordering stays frozen across catalog maintenance', () => {
@@ -68,7 +68,7 @@ test('semantic families never touch in the fixed deck, including cycle boundarie
   }
 });
 
-test('all rolling 262-weekday windows stay unique over five years and cycle seams', () => {
+test('quizzes stay unique for 262 weekdays and topics repeat only after the full selected deck', () => {
   const dates: string[] = [];
   const day = new Date('2026-09-07T00:00:00Z');
   while (dates.length < 1500) {
@@ -78,8 +78,14 @@ test('all rolling 262-weekday windows stay unique over five years and cycle seam
   const topics = dates.map((date) => resolveClasswordTopic(date, '').topic);
   const questions = dates.map((date) => getDailyClasswordQuiz(date).id);
   for (let start = 0; start <= dates.length - 262; start += 1) {
-    assert.equal(new Set(topics.slice(start, start + 262)).size, 262, dates[start]);
     assert.equal(new Set(questions.slice(start, start + 262)).size, 262, dates[start]);
+  }
+  const topicCount = CLASSWORD_TOPICS_V2.length;
+  for (let start = 0; start <= dates.length - topicCount; start += 1) {
+    assert.equal(new Set(topics.slice(start, start + topicCount)).size, topicCount, dates[start]);
+    if (start + topicCount < dates.length) {
+      assert.equal(topics[start + topicCount], topics[start], dates[start]);
+    }
   }
 });
 
@@ -116,7 +122,7 @@ test('manual topics override automatic topics without rewriting earlier dates or
   assert.deepEqual(getElapsedClasswordTopics('2026-09-06'), []);
   assert.equal(getElapsedClasswordTopics('2026-09-07').length, 1);
   assert.equal(getElapsedClasswordTopics('2026-09-13').length, 5);
-  assert.equal(getElapsedClasswordTopics('2040-01-01').length, 300);
+  assert.equal(getElapsedClasswordTopics('2040-01-01').length, CLASSWORD_TOPICS_V2.length);
 });
 
 test('monthly calendar merges all weekday defaults and stored overrides and parses their source', () => {
