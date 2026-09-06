@@ -76,6 +76,14 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 - At the final 1280×800 check, reject clipping, overlap, unintended document scrolling, or first-screen overflow. Additional width checks are not required unless requested; preserve keyboard access, text zoom, and overflow safety.
 - Optional audio failures stay non-fatal; autoplay/device restrictions must not block core actions.
 
+## UI 문구 최소화
+
+- 모든 화면은 핵심 정보와 행동에 필요한 문구만 남긴다. 문구 없이도 용도와 조작이 명확하면 추가하지 않는다.
+- 제목·버튼·상태를 반복 설명하는 부제, 장식용 슬로건, 환영 문구, 당연한 사용법, 개발·구현 설명은 넣지 않는다. 빈 공간을 채우기 위한 문구도 금지한다.
+- 버튼은 행동을 명확히 나타내는 짧은 이름을 쓴다. 안내가 꼭 필요하면 가장 짧고 구체적인 문장으로 한 번만 표시한다.
+- 오류와 해결 방법, 로딩·빈 상태, 비용·조건·되돌릴 수 없는 결과처럼 판단에 필요한 정보와 접근성 레이블은 유지한다. 상황별 안내는 해당 상황에서만 표시한다.
+- UI를 추가하거나 수정할 때 문구마다 “없애도 사용자가 이해하고 행동할 수 있는가?”를 확인하고, 그렇다면 삭제한다. 기존 문구 정리는 요청한 작업 범위 안에서 진행한다.
+
 ## ANTI-PATTERNS
 
 - Do not edit `dist/`, `tmp/`, `.omo/`, or `node_modules/` as source.

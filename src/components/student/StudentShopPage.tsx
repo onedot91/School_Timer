@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ArrowRight, Gamepad2, Hammer, LockKeyhole, Users } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
@@ -10,6 +10,7 @@ import {
   type StudentEconomyState,
 } from '../../lib/studentEconomy';
 import StudentConfirmDialog from './StudentConfirmDialog';
+import StudentHouseCelebration, { getStudentHouseCelebration, type StudentHouseCelebrationResult } from './StudentHouseCelebration';
 import StudentCharacterGacha from './StudentCharacterGacha';
 import StudentProfileGachaDialog from './StudentProfileGachaDialog';
 import {
@@ -73,6 +74,14 @@ export default function StudentShopPage({
   const [houseName, setHouseName] = useState(state.customHouseDesign?.name ?? '나의 집');
   const [houseTheme, setHouseTheme] = useState<StudentCustomHouseTheme>(state.customHouseDesign?.theme ?? 'natural');
   const [pendingPurchase, setPendingPurchase] = useState<PendingPurchase | null>(null);
+  const [houseCelebration, setHouseCelebration] = useState<StudentHouseCelebrationResult | null>(null);
+  const [purchaseSaving, setPurchaseSaving] = useState(false);
+  const [purchaseError, setPurchaseError] = useState('');
+  const purchaseInFlight = useRef(false);
+  const mountedRef = useRef(true);
+  const houseTabRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  useEffect(() => { setPurchaseError(''); }, [pendingPurchase]);
   const [profileGachaPrice, setProfileGachaPrice] = useState<number | null>(null);
   const randomProfileButtonRef = useRef<HTMLButtonElement>(null);
   const repaired = (state.inventory.house_repair ?? 0) > 0;
@@ -119,7 +128,7 @@ export default function StudentShopPage({
           <button id="student-shop-tab-items" type="button" role="tab" aria-controls="student-shop-panel-items" aria-selected={tab === 'items'} tabIndex={tab === 'items' ? 0 : -1} className={tab === 'items' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'items')} onClick={() => setTab('items')}><Users aria-hidden="true" />프로필</button>
           <>
             <button id="student-shop-tab-characters" type="button" role="tab" aria-controls="student-shop-panel-characters" aria-selected={tab === 'characters'} tabIndex={tab === 'characters' ? 0 : -1} className={tab === 'characters' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'characters')} onClick={() => setTab('characters')}><Gamepad2 aria-hidden="true" />고마 스킨 뽑기</button>
-            <button id="student-shop-tab-houses" type="button" role="tab" aria-controls="student-shop-panel-houses" aria-selected={tab === 'houses'} tabIndex={tab === 'houses' ? 0 : -1} className={tab === 'houses' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'houses')} onClick={() => setTab('houses')}><Hammer aria-hidden="true" />집</button>
+            <button ref={houseTabRef} id="student-shop-tab-houses" type="button" role="tab" aria-controls="student-shop-panel-houses" aria-selected={tab === 'houses'} tabIndex={tab === 'houses' ? 0 : -1} className={tab === 'houses' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'houses')} onClick={() => setTab('houses')}><Hammer aria-hidden="true" />집</button>
           </>
         </nav>
       ) : null}
@@ -288,18 +297,34 @@ export default function StudentShopPage({
         confirmLabel={pendingPurchase?.kind === 'profile'
           ? pendingPurchase.price === 0 ? '프로필 받기' : '교체하기'
           : '구매하기'}
-        isPending={isSaving}
+        isPending={isSaving || purchaseSaving}
         onCancel={() => setPendingPurchase(null)}
         onConfirm={() => {
-          if (!pendingPurchase) return;
-          const save = pendingPurchase.kind === 'profile'
-            ? onSelectProfile(pendingPurchase.purchase)
-            : onAction(pendingPurchase.action);
-          void save.then((saved) => {
-            if (typeof saved === 'boolean' ? saved : saved.ok) setPendingPurchase(null);
-          });
+          if (!pendingPurchase || purchaseInFlight.current || isSaving) return;
+          const purchase = pendingPurchase;
+          purchaseInFlight.current = true;
+          setPurchaseSaving(true);
+          setPurchaseError('');
+          void (async () => {
+            try {
+              const saved = purchase.kind === 'profile'
+                ? await onSelectProfile(purchase.purchase)
+                : await onAction(purchase.action);
+              if (!mountedRef.current) return;
+              if (typeof saved === 'boolean' ? saved : saved.ok) {
+                setPendingPurchase(null);
+                if (purchase.kind === 'economy') setHouseCelebration(getStudentHouseCelebration(purchase.action));
+              } else setPurchaseError('구매를 완료하지 못했어요. 다시 시도해 주세요.');
+            } catch {
+              if (mountedRef.current) setPurchaseError('구매를 완료하지 못했어요. 다시 시도해 주세요.');
+            } finally {
+              purchaseInFlight.current = false;
+              if (mountedRef.current) setPurchaseSaving(false);
+            }
+          })();
         }}
       >
+        {purchaseError ? <p role="alert">{purchaseError}</p> : null}
         {pendingPurchase?.kind === 'profile' && activeProfile ? (
           <div
             className="student-confirm-profile-swap"
@@ -327,6 +352,7 @@ export default function StudentShopPage({
           </div>
         ) : null}
       </StudentConfirmDialog>
+      {houseCelebration ? <StudentHouseCelebration result={houseCelebration} onClose={() => setHouseCelebration(null)} returnFocusRef={houseTabRef} /> : null}
       <StudentProfileGachaDialog
         isOpen={profileGachaPrice !== null}
         price={profileGachaPrice ?? 0}

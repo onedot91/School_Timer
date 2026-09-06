@@ -18532,6 +18532,169 @@ a[href]:active {
   }
 }
 
+/* Auction ceremony: last call, the hammer, then the student's ownership paper. */
+.auction-ceremony-backdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: #092b24bf !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.auction-ceremony {
+  --auction-ink: #173f32;
+  --auction-paper: #fff9e9;
+  --auction-gold: #e5c58c;
+  --auction-ease: cubic-bezier(.23, 1, .32, 1);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(68rem, 100%);
+  height: min(43rem, calc(100dvh - 3rem));
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid #d1be854d;
+  border-radius: 1.75rem;
+  background: #123e32;
+  color: var(--auction-paper);
+  box-shadow: 0 32px 90px #061d225c, inset 0 1px 0 #fff3c722;
+  animation: auctionCeremonyEnter 260ms var(--auction-ease) both;
+}
+.auction-ceremony::before {
+  content: '';
+  position: absolute;
+  inset: .65rem;
+  z-index: -1;
+  border: 1px solid #dfc48a24;
+  border-radius: 1.15rem;
+  pointer-events: none;
+}
+.auction-ceremony-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 5rem; padding: 1rem 2rem; flex-shrink: 0; }
+.auction-ceremony-brand { display: flex; align-items: center; gap: .7rem; color: #efd7a3; font-weight: 750; font-size: .95rem; letter-spacing: .04em; }
+.auction-ceremony-controls { display: flex; gap: .5rem; }
+.auction-ceremony button { cursor: pointer; transition: transform 140ms var(--auction-ease), background-color 140ms ease; }
+.auction-ceremony button:active { transform: scale(.97); }
+.auction-ceremony button:focus-visible { outline: 3px solid var(--auction-gold); outline-offset: 4px; }
+.auction-ceremony-controls button, .auction-ceremony-records header button { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border: 1px solid #ebd9b03d; border-radius: 50%; color: #f9eccf; background: #ffffff09; }
+.auction-ceremony-controls svg { width: 1.1rem; height: 1.1rem; }
+.auction-ceremony-scene { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; perspective: 1200px; }
+.auction-ceremony-spotlight { position: absolute; inset: -5rem 0 -3rem; z-index: -1; background: radial-gradient(ellipse at 50% 42%, #7ba4772e, transparent 65%); pointer-events: none; }
+.auction-ceremony-spotlight::after { content: ''; position: absolute; left: 20%; right: 20%; bottom: 1.3rem; height: 2.5rem; background: radial-gradient(ellipse, #081f1b88, transparent 70%); }
+.auction-ceremony-lot { position: absolute; inset: 3.5rem 3rem auto; text-align: center; }
+.auction-ceremony-lot h3 { max-width: 47rem; margin: .8rem auto 1rem; font-size: clamp(1.8rem, 3.3vw, 2.75rem); font-weight: 800; line-height: 1.3; letter-spacing: -.055em; word-break: keep-all; overflow-wrap: anywhere; }
+.auction-ceremony-bid { color: #f4d997; font-family: var(--font-mono); font-size: clamp(2.5rem, 5.6vw, 4.75rem); font-weight: 800; letter-spacing: -.06em; line-height: 1.1; font-variant-numeric: tabular-nums; animation: auctionCeremonyBid 160ms var(--auction-ease) both; }
+.auction-ceremony-bid-marks { display: flex; justify-content: center; gap: .45rem; margin-top: .85rem; }
+.auction-ceremony-bid-marks i { width: 1.4rem; height: 2px; background: #edf2d92b; }
+.auction-ceremony-bid-marks i[data-past="true"] { background: #e5c58c; }
+.auction-ceremony-gavel-scene { position: absolute; width: 20rem; height: 13.125rem; left: calc(50% - 10rem); bottom: .3rem; }
+.auction-ceremony-gavel { width: 100%; height: 100%; overflow: visible; }
+.auction-ceremony-mallet { transform-origin: 270px 114px; transform: rotate(0deg); }
+.auction-ceremony-impact { opacity: 0; }
+.auction-ceremony-stamp { position: absolute; z-index: 3; top: 36%; left: calc(50% - 5.5rem); width: 11rem; text-align: center; transform: rotate(-10deg); opacity: 0; color: #f5dfb0; border: 4px double currentColor; padding: .35rem .75rem .55rem; border-radius: .6rem; background: #173f32; }
+.auction-ceremony-stamp > span { display: block; font-size: 3.3rem; font-weight: 950; line-height: 1.15; letter-spacing: .15em; padding-left: .15em; }
+.auction-ceremony[data-phase="strike"] .auction-ceremony-mallet { animation: auctionCeremonyStrike 580ms linear both; }
+.auction-ceremony[data-phase="strike"] .auction-ceremony-block { transform-origin: 126px 194px; animation: auctionCeremonyBlock 240ms var(--auction-ease) var(--auction-impact-at) both; }
+.auction-ceremony[data-phase="strike"] .auction-ceremony-impact { animation: auctionCeremonyImpact 260ms var(--auction-ease) var(--auction-impact-at) both; }
+.auction-ceremony[data-phase="strike"] .auction-ceremony-stamp { animation: auctionCeremonyStamp 260ms var(--auction-ease) var(--auction-impact-at) both; }
+.auction-ceremony[data-phase="strike"] .auction-ceremony-lot { animation: auctionCeremonyLotOut 180ms var(--auction-ease) var(--auction-impact-at) both; }
+.auction-ceremony:is([data-phase="reveal"], [data-phase="result"]) :is(.auction-ceremony-lot, .auction-ceremony-gavel-scene, .auction-ceremony-stamp) { visibility: hidden; }
+.auction-ceremony-certificate { position: relative; width: min(49rem, calc(100% - 6rem)); min-height: 23.5rem; padding: .65rem; color: var(--auction-ink); border-radius: .35rem; background: var(--auction-paper); box-shadow: 0 20px 35px #061d224a; visibility: hidden; transform-origin: center; }
+.auction-ceremony-certificate-inner { display: grid; grid-template-columns: .95fr 1.35fr; min-height: 22rem; border: 1px solid #b0965b66; background: radial-gradient(ellipse at 12% 10%, #f7e5b54d, transparent 50%); }
+.auction-ceremony-portrait { position: relative; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: .85rem; margin-block: 1.5rem; padding: 0 1.25rem; border-right: 1px solid #c5ae783d; }
+.auction-ceremony-profile { display: grid; place-items: center; width: 12.75rem; height: 12.75rem; border-radius: 50%; background: #e9e7cd; border: 1px solid #c9c495; outline: 1px solid #d2c7a1; outline-offset: 6px; overflow: hidden; }
+.auction-ceremony-profile img { width: 100%; height: 100%; object-fit: contain; }
+.auction-ceremony-deed { position: relative; align-self: center; min-width: 0; padding: 1.5rem 2rem; }
+.auction-ceremony-deed h3 { margin: .8rem 0 1rem; font-size: clamp(1.8rem, 3.1vw, 2.7rem); font-weight: 700; letter-spacing: -.055em; line-height: 1.22; }
+.auction-ceremony-deed h3 strong { font-weight: 900; }
+.auction-ceremony-deed-item { display: grid; gap: .45rem; padding-top: 1rem; border-top: 1px solid #bda66c52; }
+.auction-ceremony-deed-item > span { max-width: 100%; color: var(--auction-ink); font-size: clamp(1.3rem, 1.85vw, 1.55rem); font-weight: 800; line-height: 1.45; letter-spacing: -.035em; word-break: keep-all; overflow-wrap: anywhere; }
+.auction-ceremony-deed-item > strong { padding-right: 3rem; font-size: clamp(1.7rem, 3vw, 2.6rem); font-family: var(--font-mono); font-weight: 800; letter-spacing: -.06em; overflow-wrap: anywhere; }
+.auction-ceremony-seal { position: absolute; bottom: 1.5rem; right: 1rem; display: grid; align-content: center; width: 3.5rem; height: 3.5rem; border: 3px double #a75e46; border-radius: 50%; color: #a75e46; font-size: .95rem; text-align: center; line-height: 1.1; font-weight: 900; transform: rotate(-12deg); }
+.auction-ceremony[data-phase="reveal"] .auction-ceremony-certificate { visibility: visible; animation: auctionCeremonyUnfold var(--auction-reveal-duration) var(--auction-ease) both; }
+.auction-ceremony[data-phase="reveal"] .auction-ceremony-profile { animation: auctionCeremonyProfile 400ms var(--auction-ease) 100ms both; }
+.auction-ceremony[data-phase="reveal"] .auction-ceremony-deed h3 { animation: auctionCeremonyBid 260ms var(--auction-ease) 200ms both; }
+.auction-ceremony[data-phase="result"] .auction-ceremony-certificate { visibility: visible; }
+.auction-ceremony-paper-bits { position: absolute; pointer-events: none; inset: 0; overflow: hidden; }
+.auction-ceremony-paper-bits i { position: absolute; left: 50%; top: 45%; width: 7px; height: 11px; background: #e6c784; opacity: 0; }
+.auction-ceremony-paper-bits i:nth-child(2n) { background: #acc9a5; }
+.auction-ceremony-paper-bits i:nth-child(3n) { background: #f7eccc; width: 5px; height: 7px; }
+.auction-ceremony[data-phase="reveal"] .auction-ceremony-paper-bits i { animation: auctionCeremonyPaper 620ms var(--auction-ease) var(--bit-delay) both; }
+.auction-ceremony-footer { position: relative; display: flex; min-height: 6.5rem; align-items: center; justify-content: center; flex-shrink: 0; padding: 1rem 2rem 1.5rem; gap: 1rem; }
+.auction-ceremony-footer > p { color: #bac6ad; font-size: .85rem; }
+.auction-ceremony-confirm { width: 12rem; min-height: 3rem; border-radius: .6rem; border: 1px solid #f2ddb0; background: #ecdbb4; color: #244631; font-weight: 850; }
+.auction-ceremony-history-toggle { position: absolute; right: 2rem; display: flex; align-items: center; gap: .45rem; min-height: 2.75rem; color: #cbd4bc; font-size: .8rem; }
+.auction-ceremony-records { position: absolute; z-index: 5; width: min(28rem, calc(100% - 3rem)); max-height: calc(100% - 8rem); right: 1.5rem; bottom: 6.2rem; display: flex; flex-direction: column; padding: 1.25rem; background: var(--auction-paper); color: var(--auction-ink); border: 1px solid #c1ae7a; border-radius: .85rem; box-shadow: 0 12px 35px #041e2870; }
+.auction-ceremony-records header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.auction-ceremony-records h3 { font-weight: 850; font-size: 1.2rem; }
+.auction-ceremony-records header button { color: var(--auction-ink); border-color: #a69d7555; }
+.auction-ceremony-records ol { overflow-y: auto; margin-top: .75rem; min-height: 0; }
+.auction-ceremony-records li { display: grid; grid-template-columns: 2rem 1fr auto; gap: .75rem; align-items: center; min-height: 3rem; border-top: 1px solid #b1b18c44; font-family: var(--font-mono); }
+.auction-ceremony-records li > :first-child { color: #8d8d70; font-size: .8rem; }
+.auction-ceremony-completed { flex-shrink: 0; max-height: 6rem; overflow-y: auto; border-top: 1px solid #b1b18c66; margin-top: .75rem; padding-top: .75rem; font-size: .75rem; }
+.auction-ceremony-completed p { margin-top: .3rem; }
+.auction-ceremony-error { max-width: 32rem; text-align: center; padding: 2rem; }
+.auction-ceremony-error h3 { margin: 1rem 0; font-size: 2rem; font-weight: 850; }
+.auction-ceremony-error p { color: #cfdbc3; line-height: 1.6; word-break: keep-all; }
+@media (hover: hover) and (pointer: fine) {
+  .auction-ceremony-controls button:hover { background: #ffffff18; }
+  .auction-ceremony-confirm:hover { background: #fff0ce; }
+  .auction-ceremony-history-toggle:hover { color: white; }
+}
+@keyframes auctionCeremonyEnter { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes auctionCeremonyBid { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+@keyframes auctionCeremonyStrike {
+  0% { transform: rotate(0deg); }
+  35% { transform: rotate(32deg); }
+  46% { transform: rotate(34deg); }
+  58.62% { transform: rotate(-3deg); }
+  72% { transform: rotate(5deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes auctionCeremonyBlock { 0% { transform: scaleY(.9); } 50% { transform: scaleY(1.025); } 100% { transform: none; } }
+@keyframes auctionCeremonyImpact { from { opacity: .9; transform: translateY(2px); } to { opacity: 0; transform: translateY(-6px); } }
+@keyframes auctionCeremonyStamp { from { opacity: 0; transform: rotate(-10deg) scale(1.3); } 55% { opacity: 1; transform: rotate(-10deg) scale(.97); } to { opacity: 1; transform: rotate(-10deg) scale(1); } }
+@keyframes auctionCeremonyLotOut { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes auctionCeremonyUnfold { from { opacity: 0; transform: rotateX(-68deg) scale(.96); } 50% { opacity: 1; } to { opacity: 1; transform: rotateX(0) scale(1); } }
+@keyframes auctionCeremonyProfile { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes auctionCeremonyPaper { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 15% { opacity: .8; } 100% { opacity: 0; transform: translate(var(--bit-x), var(--bit-y)) rotate(var(--bit-turn)); } }
+@keyframes auctionCeremonyFade { from { opacity: 0; } to { opacity: 1; } }
+.auction-ceremony[data-reduced-motion="true"], .auction-ceremony[data-reduced-motion="true"] * { animation: none !important; transition: none !important; }
+.auction-ceremony[data-reduced-motion="true"] :is(.auction-ceremony-gavel-scene, .auction-ceremony-paper-bits) { display: none; }
+.auction-ceremony[data-reduced-motion="true"][data-phase="strike"] .auction-ceremony-lot { visibility: hidden; }
+.auction-ceremony[data-reduced-motion="true"][data-phase="strike"] .auction-ceremony-stamp { opacity: 1; transform: none; animation: auctionCeremonyFade 120ms linear !important; }
+.auction-ceremony[data-reduced-motion="true"][data-phase="reveal"] .auction-ceremony-certificate { animation: auctionCeremonyFade 160ms linear !important; }
+@media (prefers-reduced-motion: reduce) {
+  .auction-ceremony, .auction-ceremony * { animation: none !important; transition: none !important; }
+  .auction-ceremony :is(.auction-ceremony-gavel-scene, .auction-ceremony-paper-bits) { display: none; }
+  .auction-ceremony[data-phase="strike"] .auction-ceremony-lot { visibility: hidden; }
+  .auction-ceremony[data-phase="strike"] .auction-ceremony-stamp { opacity: 1; transform: none; }
+  .auction-ceremony[data-phase="reveal"] .auction-ceremony-certificate { animation: auctionCeremonyFade 160ms linear !important; }
+}
+@media (max-width: 47.999rem), (max-height: 39rem) {
+  .auction-ceremony-backdrop { padding: .75rem; }
+  .auction-ceremony { height: calc(100dvh - 1.5rem); overflow-y: auto; }
+  .auction-ceremony-header { padding: 1rem 1.25rem; }
+  .auction-ceremony-scene { min-height: 28rem; }
+  .auction-ceremony-certificate { width: calc(100% - 2.5rem); }
+  .auction-ceremony-certificate-inner { grid-template-columns: minmax(0, .8fr) minmax(0, 1fr); }
+  .auction-ceremony-profile { width: min(12.75rem, 20vw); height: auto; aspect-ratio: 1; }
+  .auction-ceremony-deed { padding: 1.5rem 1.1rem; }
+  .auction-ceremony-footer { flex-wrap: wrap; }
+  .auction-ceremony-history-toggle { position: static; }
+}
+@media (max-width: 30rem) {
+  .auction-ceremony-brand { gap: .35rem; font-size: .8rem; }
+  .auction-ceremony-certificate-inner { grid-template-columns: 1fr; }
+  .auction-ceremony-portrait { margin: 1rem 0 0; border-right: 0; gap: .6rem; }
+  .auction-ceremony-profile { width: 7rem; }
+  .auction-ceremony-deed { padding: 1rem 1.25rem; }
+  .auction-ceremony-deed h3 { font-size: 1.8rem; }
+  .auction-ceremony-scene { min-height: 34rem; }
+}
+
 .timer-main-shell .random-board {
   border-color: color-mix(in srgb, var(--apple-separator-strong) 80%, transparent) !important;
   box-shadow: 0 1.5rem 4rem rgba(29, 29, 31, 0.14) !important;
@@ -28255,4 +28418,123 @@ body {
   color: var(--teacher-text) !important;
   background: color-mix(in srgb, var(--teacher-surface) 84%, var(--teacher-surface-muted)) !important;
   box-shadow: none !important;
+}
+
+.student-house-celebration-backdrop {
+  position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; overflow: auto;
+  padding: 1rem; background: rgba(15, 38, 29, .76); backdrop-filter: blur(6px);
+  animation: house-celebration-fade 180ms ease-out both;
+}
+.student-house-celebration {
+  --house-reveal-delay: 1150ms;
+  --house-ease-out: cubic-bezier(.22, 1, .36, 1);
+  position: relative; isolation: isolate; width: min(100%, 43rem); max-height: calc(100dvh - 2rem); overflow: auto;
+  border: 1px solid #f4e3bb; border-radius: 1.75rem; background: #fffaf0; color: #204d3c;
+  box-shadow: 0 32px 96px #061c2e55, 0 0 0 6px #ffffff0a;
+  animation: house-celebration-enter 300ms var(--house-ease-out) both;
+}
+.student-house-celebration[data-kind="purchase"] { --house-reveal-delay: 560ms; }
+.student-house-celebration-close {
+  position: absolute; z-index: 5; top: .8rem; right: .8rem; display: grid; place-items: center;
+  width: 2.75rem; height: 2.75rem; border: 1px solid #dedcca; border-radius: 50%; background: #ffffffb3; color: #426050;
+}
+.student-house-celebration-close svg { width: 1.25rem; height: 1.25rem; }
+.student-house-celebration-header { position: relative; z-index: 3; padding: 1.7rem 3.5rem 1.35rem; text-align: center; }
+.student-house-celebration-header > span { display: inline-flex; align-items: center; gap: .35rem; color: #65816c; font-size: .8rem; font-weight: 800; letter-spacing: .08em; }
+.student-house-celebration-header > span svg { width: 1rem; height: 1rem; }
+.student-house-celebration-header h2 { margin: .55rem 0 .45rem; color: #234d38; font-family: var(--font-display); font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 950; line-height: 1.25; word-break: keep-all; }
+.student-house-celebration-header p { margin: 0; color: #697c6d; font-size: .93rem; line-height: 1.5; word-break: keep-all; }
+.student-house-celebration-stage {
+  position: relative; isolation: isolate; height: clamp(17rem, 43dvh, 22rem); margin: 0 .8rem; overflow: hidden; border-radius: 1rem;
+  background: radial-gradient(ellipse at 50% 46%, #557957 0, #315c48 44%, #1d4036 100%);
+}
+.student-house-celebration-stage::before {
+  content: ''; position: absolute; inset: 1rem; border: 1px solid #f1dfa233; border-radius: .5rem;
+  background: radial-gradient(circle, #fff9d666 1px, transparent 1.6px) 0 0 / 37px 37px;
+  mask-image: radial-gradient(ellipse, transparent 28%, #000 85%); pointer-events: none;
+}
+.student-house-celebration-rays { position: absolute; inset: -65%; opacity: 0; background: repeating-conic-gradient(from 5deg, #f8dc9422 0 9deg, transparent 9deg 28deg); }
+.student-house-celebration-orbit { position: absolute; top: 10%; left: 25%; width: 50%; height: 75%; border: 1px solid #ffe0a64d; border-radius: 50%; transform: rotate(-24deg) scaleX(1.35); opacity: .45; }
+.student-house-celebration-ground { position: absolute; width: 64%; height: 24%; left: 18%; bottom: 6%; border-radius: 50%; background: radial-gradient(ellipse, #b0cc8777 0, #83a77044 48%, transparent 72%); }
+.student-house-celebration-ring { position: absolute; inset: 12% 28%; border: 2px solid #f4d685; border-radius: 50%; opacity: 0; }
+.student-house-celebration-art { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; }
+.student-house-celebration-art img { position: absolute; width: 65%; height: 98%; object-fit: contain; filter: drop-shadow(0 12px 5px #10261e55); }
+.student-house-celebration-before { opacity: 0; }
+.student-house-celebration-house { opacity: 0; }
+.student-house-celebration-fallback { width: 40%; height: 50%; color: #ffe3a0; }
+.student-house-celebration-tool, .student-house-celebration-key {
+  position: absolute; z-index: 3; display: grid; place-items: center; width: 3.5rem; height: 3.5rem;
+  border: 1px solid #fff0b6; border-radius: 1rem; background: linear-gradient(145deg, #fff3c9, #e4b454);
+  color: #6a4c20; box-shadow: 0 7px 0 #172b2822, inset 0 1px 0 #fff; opacity: 0;
+}
+.student-house-celebration-tool svg { width: 1.7rem; height: 1.7rem; }
+.student-house-celebration-tool.is-hammer { left: 19%; top: 26%; transform-origin: 80% 80%; }
+.student-house-celebration-tool.is-roller { right: 19%; top: 47%; }
+.student-house-celebration-key { width: 3.2rem; height: 3.2rem; left: calc(50% - 1.6rem); top: 9%; border-radius: 50%; }
+.student-house-celebration-key svg { width: 1.75rem; height: 1.75rem; }
+.student-house-celebration-sweep { position: absolute; z-index: 3; left: 25%; width: 50%; top: 22%; height: 3px; opacity: 0; background: linear-gradient(90deg, transparent, #fff2b7, transparent); box-shadow: 0 0 18px #ffe4a3; }
+.student-house-celebration-confetti { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
+.student-house-celebration-confetti i { position: absolute; left: 50%; top: 52%; width: 7px; height: 12px; border-radius: 2px; background: var(--piece-color); opacity: 0; }
+.student-house-celebration-confetti i:nth-child(3n) { width: 6px; height: 6px; border-radius: 50%; }
+.student-house-celebration-star { position: absolute; z-index: 3; width: 1.3rem; height: 1.3rem; color: #ffe6a2; opacity: 0; }
+.student-house-celebration-star.star-0 { left: 21%; top: 19%; }
+.student-house-celebration-star.star-1 { right: 20%; top: 33%; width: 1.8rem; height: 1.8rem; }
+.student-house-celebration-star.star-2 { left: 17%; bottom: 22%; width: .85rem; height: .85rem; }
+.student-house-celebration-star.star-3 { right: 29%; bottom: 20%; }
+.student-house-celebration-star.star-4 { right: 32%; top: 12%; width: .7rem; height: .7rem; }
+.student-house-celebration-star.star-5 { left: 32%; top: 46%; width: .7rem; height: .7rem; }
+.student-house-celebration-seal { position: absolute; z-index: 5; bottom: 7%; left: 50%; display: inline-flex; align-items: center; gap: .35rem; transform: translateX(-50%); border: 1px solid #f5e6b6; border-radius: 999px; background: #fff4cf; padding: .4rem .85rem; color: #456746; white-space: nowrap; font-size: .8rem; font-weight: 900; opacity: 0; box-shadow: 0 4px 12px #112b2e33; }
+.student-house-celebration-seal svg { width: 1rem; height: 1rem; }
+.student-house-celebration footer { display: grid; justify-items: center; gap: .9rem; padding: 1.25rem 1.5rem 1.5rem; }
+.student-house-celebration footer > span { display: inline-flex; align-items: center; gap: .4rem; color: #74816c; font-size: .85rem; font-weight: 750; }
+.student-house-celebration footer > span svg { width: 1rem; height: 1rem; color: #b58a41; }
+.student-house-celebration footer > button { min-height: 3rem; width: min(100%, 17rem); padding: .65rem 1.25rem; border: 1px solid #214632; border-radius: .85rem; background: #285c40; color: #fffbee; font-size: 1rem; font-weight: 850; box-shadow: 0 3px 0 #183e2d; }
+.student-house-celebration button { transition: transform 150ms var(--house-ease-out), background-color 150ms ease; }
+.student-house-celebration button:active { transform: translateY(2px); }
+.student-house-celebration button:focus-visible { outline: 3px solid #d8a34b; outline-offset: 3px; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-rays { animation: house-celebration-rays 3200ms var(--house-ease-out) both; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-ring { animation: house-celebration-ring 1100ms var(--house-ease-out) var(--house-reveal-delay) both; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-house { animation: house-celebration-house 1000ms var(--house-ease-out) var(--house-reveal-delay) both; }
+.student-house-celebration[data-ready="true"][data-kind="repair"] .student-house-celebration-house { animation: house-celebration-rebuild 1100ms var(--house-ease-out) 800ms both; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-before { animation: house-celebration-old 1900ms var(--house-ease-out) both; }
+.student-house-celebration[data-ready="true"] .is-hammer { animation: house-celebration-hammer 1300ms ease-in-out both; }
+.student-house-celebration[data-ready="true"] .is-roller { animation: house-celebration-roller 1300ms ease-in-out 200ms both; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-sweep { animation: house-celebration-sweep 1000ms var(--house-ease-out) 800ms both; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-key { animation: house-celebration-key 1450ms var(--house-ease-out) both; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-confetti i { animation: house-celebration-confetti 1600ms cubic-bezier(.16,.65,.28,1) calc(var(--house-reveal-delay) + var(--piece-delay)) both; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-star { animation: house-celebration-star 1300ms var(--house-ease-out) calc(var(--house-reveal-delay) + 150ms) both; }
+.student-house-celebration[data-ready="true"] .student-house-celebration-star:nth-of-type(even) { animation-delay: calc(var(--house-reveal-delay) + 350ms); }
+.student-house-celebration[data-ready="true"] .student-house-celebration-seal { animation: house-celebration-seal 500ms var(--house-ease-out) calc(var(--house-reveal-delay) + 700ms) both; }
+@keyframes house-celebration-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes house-celebration-enter { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes house-celebration-rays { from { opacity: 0; transform: rotate(-18deg); } 50% { opacity: .8; } to { opacity: .35; transform: rotate(15deg); } }
+@keyframes house-celebration-ring { from { opacity: .65; transform: scale(.8); } to { opacity: 0; transform: scale(1.6); } }
+@keyframes house-celebration-house { from { opacity: 0; transform: translateY(45px) scale(.9) rotate(-4deg); } 55% { opacity: 1; transform: translateY(-8px) scale(1.035) rotate(1deg); } 78% { transform: translateY(3px) scale(.995); } to { opacity: 1; transform: none; } }
+@keyframes house-celebration-old { 0% { opacity: 0; transform: scale(.96); } 12%, 30%, 50% { opacity: 1; transform: rotate(-1deg); } 22%, 40% { transform: rotate(1deg); } 65% { opacity: 1; } 100% { opacity: 0; transform: none; } }
+@keyframes house-celebration-rebuild { from { opacity: 1; clip-path: inset(100% 0 0); transform: translateY(2px); } to { opacity: 1; clip-path: inset(0); transform: none; } }
+@keyframes house-celebration-hammer { 0% { opacity: 0; transform: translate(-12px, -12px) rotate(-25deg); } 15%, 45%, 75% { opacity: 1; transform: rotate(-28deg); } 30%, 60% { opacity: 1; transform: rotate(12deg); } 100% { opacity: 0; transform: translate(-12px, 12px) rotate(12deg); } }
+@keyframes house-celebration-roller { from { opacity: 0; transform: translateY(20px) rotate(12deg); } 25% { opacity: 1; } 65% { opacity: 1; transform: translateY(-34px) rotate(-8deg); } to { opacity: 0; transform: translateY(-45px); } }
+@keyframes house-celebration-sweep { 0% { opacity: 0; transform: translateY(180px); } 15%, 70% { opacity: .8; } 100% { opacity: 0; transform: translateY(0); } }
+@keyframes house-celebration-key { from { opacity: 0; transform: translateY(-28px) rotate(-45deg) scale(.92); } 30% { opacity: 1; transform: translateY(12px) rotate(10deg); } 55% { opacity: 1; transform: rotate(-8deg); } to { opacity: 0; transform: translateY(45px) rotate(25deg) scale(.92); } }
+@keyframes house-celebration-confetti { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 12% { opacity: 1; } 65% { opacity: .9; } 100% { opacity: 0; transform: translate(var(--piece-x), var(--piece-y)) rotate(var(--piece-turn)); } }
+@keyframes house-celebration-star { 0% { opacity: 0; transform: scale(.8) rotate(-15deg); } 40% { opacity: 1; transform: scale(1.15) rotate(8deg); } to { opacity: .65; transform: none; } }
+@keyframes house-celebration-seal { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.student-house-celebration[data-reduced-motion="true"] *, .student-house-celebration[data-reduced-motion="true"] { animation: none !important; }
+.student-house-celebration[data-reduced-motion="true"] .student-house-celebration-house,
+.student-house-celebration[data-reduced-motion="true"] .student-house-celebration-seal { opacity: 1; }
+.student-house-celebration[data-reduced-motion="true"] .student-house-celebration-rays { opacity: .2; }
+.student-house-celebration[data-reduced-motion="true"] .student-house-celebration-star { opacity: .65; }
+@media (prefers-reduced-motion: reduce) {
+  .student-house-celebration-backdrop, .student-house-celebration, .student-house-celebration * { animation: none !important; transition: none !important; }
+  .student-house-celebration .student-house-celebration-house, .student-house-celebration .student-house-celebration-seal { opacity: 1; }
+  .student-house-celebration .student-house-celebration-rays { opacity: .2; }
+  .student-house-celebration .student-house-celebration-star { opacity: .65; }
+}
+@media (max-width: 40rem) {
+  .student-house-celebration-header { padding: 3rem 1.25rem 1.25rem; }
+  .student-house-celebration-stage { height: 17rem; }
+  .student-house-celebration-art img { width: 90%; }
+  .student-house-celebration footer { padding: 1rem; }
+  .student-house-celebration-tool.is-hammer { left: 10%; }
+  .student-house-celebration-tool.is-roller { right: 10%; }
 }

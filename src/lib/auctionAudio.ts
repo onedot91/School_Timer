@@ -60,7 +60,7 @@ export const prepareAuctionAudio = () => {
   return auctionAudioPreparePromise;
 };
 
-export const playAuctionSound = async (kind: 'start' | 'bid' | 'final', stepIndex = 0) => {
+export const playAuctionSound = async (kind: 'start' | 'bid' | 'strike' | 'final', stepIndex = 0) => {
   try {
     const ctx = await prepareAuctionAudio();
     if (!ctx) return;
@@ -160,7 +160,13 @@ export const playAuctionSound = async (kind: 'start' | 'bid' | 'final', stepInde
       return;
     }
 
-    playNoise(0, 0.2, 0.1, 'lowpass');
+    if (kind === 'strike') {
+      playNoise(0, 0.11, 0.19, 'lowpass');
+      playTone({ frequency: 180, startOffset: 0, duration: 0.13, type: 'sine', volume: 0.16, endFrequency: 80, filterFrequency: 700 });
+      playTone({ frequency: 740, startOffset: 0, duration: 0.035, type: 'triangle', volume: 0.065, endFrequency: 260, filterFrequency: 1400 });
+      return;
+    }
+
     playTone({ frequency: 220, startOffset: 0, duration: 0.11, type: 'sine', volume: 0.07, endFrequency: 146.83, filterFrequency: 780 });
     playTone({ frequency: 329.63, startOffset: 0.08, duration: 0.15, type: 'triangle', volume: 0.07, endFrequency: 493.88 });
     playTone({ frequency: 659.25, startOffset: 0.19, duration: 0.18, type: 'triangle', volume: 0.078, endFrequency: 880 });

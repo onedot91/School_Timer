@@ -50,7 +50,6 @@ import {
   getWeeklyMissionRewardIds,
   mergeConcurrentCurrencyUpdatesIntoSettings,
 } from '../lib/weeklyMission';
-import { playAuctionSound } from '../lib/auctionAudio';
 import {
   normalizeClassDonationSettings,
   type ClassDonationSettings,
@@ -131,6 +130,7 @@ import TeacherClasswordPanel from '../components/teacher/TeacherClasswordPanel';
 import TeacherTodayFriendPanel from '../components/teacher/TeacherTodayFriendPanel';
 import { TeacherLibraryCompetitionPanel } from '../components/teacher/TeacherLibraryCompetitionPanel';
 import AuctionAwardPresentationDialog, {
+  AUCTION_CEREMONY_TIMING,
   type AuctionAwardPresentation,
 } from '../components/teacher/AuctionAwardPresentationDialog';
 import {
@@ -524,7 +524,7 @@ const ANNOUNCEMENT_MIN_RULE_GAP_PX = 52;
 const ANNOUNCEMENT_SAFETY_PHRASE = '차 조심, 낯선 사람 조심!';
 const ANNOUNCEMENT_NOTE_PLACEHOLDER = '알림장을 입력하세요';
 const ANNOUNCEMENT_NOTE_HIGHLIGHTS_STORAGE_KEY = 'announcementNoteHighlights-v1';
-const AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS = 1400;
+const AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS = AUCTION_CEREMONY_TIMING.resultHold;
 const QUESTION_SUBMISSION_AUTO_REFRESH_MS = 15_000;
 const WEEKLY_SUBJECTS_STORAGE_KEY = 'weeklySubjects-v1';
 const SUBJECT_CATALOG_STORAGE_KEY = 'subjectCatalog-v1';
@@ -4233,7 +4233,7 @@ export default function TimerPage() {
     dialogRef: awardPresentationDialogRef,
     isOpen: awardPresentation !== null,
     onDismiss: () => setAwardPresentation(null),
-    isDismissible: awardPresentation?.isComplete === true && queuedAwardItems.length === 0,
+    isDismissible: Boolean(awardPresentation?.error) || (awardPresentation?.hasRevealed === true && queuedAwardItems.length === 0),
     returnFocusRef: awardReturnFocusRef,
   });
   const repeatPickEnabledRef = useRef(repeatPickEnabled);
@@ -7227,7 +7227,6 @@ export default function TimerPage() {
       awardedAt: new Date().toISOString(),
     };
 
-    void playAuctionSound('start');
     setPendingAwardItemId(null);
     setAwardPresentation({
       item,
@@ -7235,8 +7234,9 @@ export default function TimerPage() {
       steps,
       award,
       currentIndex: 0,
-      isComplete: steps.length <= 1,
+      isComplete: false,
       hasFinalized: false,
+      hasRevealed: false,
     });
     return true;
   };
@@ -7314,8 +7314,14 @@ export default function TimerPage() {
     });
   }, []);
 
+  const revealAwardPresentation = useCallback((presentationKey: string) => {
+    setAwardPresentation(previous => previous?.award.awardedAt === presentationKey && previous.hasFinalized
+      ? { ...previous, hasRevealed: true }
+      : previous);
+  }, []);
+
   useEffect(() => {
-    if (!awardPresentation?.isComplete || awardPresentation.hasFinalized) return;
+    if (!awardPresentation?.isComplete || awardPresentation.hasFinalized || awardPresentation.error) return;
     const awardPresentationKey = `${awardPresentation.award.itemId}:${awardPresentation.award.awardedAt}`;
     if (finalizedAwardPresentationKeysRef.current.has(awardPresentationKey)) return;
     finalizedAwardPresentationKeysRef.current.add(awardPresentationKey);
@@ -7324,8 +7330,15 @@ export default function TimerPage() {
       setAuctionAwards((previous) => ({ ...previous, ...result.awards }));
       commitCurrencyState(result.balances, result.history);
       setAwardPresentation((previous) => (
-        previous ? { ...previous, hasFinalized: true } : previous
+        previous?.award.awardedAt === award.awardedAt ? { ...previous, hasFinalized: true } : previous
       ));
+    };
+    const showFinalizationError = () => {
+      finalizedAwardPresentationKeysRef.current.delete(awardPresentationKey);
+      setQueuedAwardItems([]);
+      setAwardPresentation(previous => previous?.award.awardedAt === award.awardedAt
+        ? { ...previous, error: '저장 결과를 확인하지 못했어요. 창을 닫고 경매 상태를 확인해 주세요.' }
+        : previous);
     };
 
     if (!isSupabaseSettingsEnabled) {
@@ -7340,9 +7353,8 @@ export default function TimerPage() {
         })) throw new Error('AUCTION_AWARD_LOCAL_SAVE_FAILED');
         applyFinalizedState(result);
       } catch (error) {
-        finalizedAwardPresentationKeysRef.current.delete(awardPresentationKey);
         console.error('Failed to finalize auction award.', error);
-        setAwardPresentation(null);
+        showFinalizationError();
       }
       return;
     }
@@ -7356,14 +7368,13 @@ export default function TimerPage() {
         if (finalizedState) applyFinalizedState(finalizedState);
       })
       .catch((error) => {
-        finalizedAwardPresentationKeysRef.current.delete(awardPresentationKey);
         console.error('Failed to finalize auction award in Supabase.', error);
-        setAwardPresentation(null);
+        showFinalizationError();
       });
   }, [awardPresentation]);
 
   useEffect(() => {
-    if (!awardPresentation?.isComplete || !awardPresentation.hasFinalized || queuedAwardItems.length === 0) return;
+    if (!awardPresentation?.hasRevealed || !awardPresentation.hasFinalized || queuedAwardItems.length === 0) return;
 
     const timeoutId = window.setTimeout(() => {
       const nextIndex = queuedAwardItems.findIndex((item) => {
@@ -13042,12 +13053,14 @@ export default function TimerPage() {
         <AuctionAwardPresentationDialog
           key={awardPresentation.award.awardedAt}
           presentation={awardPresentation}
+          profileAssignments={studentLife.failureProfileAssignments}
           completedItems={awardPresentationCompletedItems}
           hasQueuedPresentations={queuedAwardItems.length > 0}
           dialogRef={awardPresentationDialogRef}
           onComplete={completeAwardPresentation}
+          onRevealComplete={revealAwardPresentation}
           onDismiss={() => {
-            if (queuedAwardItems.length === 0) {
+            if (awardPresentation.error || (awardPresentation.hasRevealed && queuedAwardItems.length === 0)) {
               setAwardPresentation(null);
             }
           }}
