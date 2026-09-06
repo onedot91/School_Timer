@@ -63,6 +63,30 @@ test('등록대 직원은 상단 책장과 분리되고 책 받기와 양옆 통
   }
 });
 
+test('책방 오브젝트는 입구와 주요 동선을 유지하고 카트·화분만 이동을 막는다', () => {
+  const room = createFullLibraryRoom();
+  const decorations = room.decorations ?? [];
+  assert.deepEqual(decorations.map(decoration => decoration.kind), ['return-cart', 'wall-clock', 'cat-bed', 'globe', 'tall-plant']);
+  assert.deepEqual(decorations.filter(decoration => decoration.footCollider).map(decoration => decoration.kind), ['return-cart', 'tall-plant']);
+  for (const decoration of decorations) {
+    const rect = decoration.visualRect;
+    assert.ok(rect.x >= 0 && rect.y >= 0 && rect.x + rect.width <= room.width && rect.y + rect.height <= room.height);
+    const collider = decoration.footCollider;
+    if (!collider) continue;
+    assert.ok(room.obstacles.includes(collider));
+    const visitor = playerAt({ x: collider.x + collider.width / 2, y: collider.y + collider.height + 12 });
+    const moved = stepLibraryPlayer(room, visitor, { x: 0, y: -1 }, 400);
+    assert.ok(moved.position.y >= collider.y + collider.height + moved.feetCollider.height / 2);
+  }
+  const destinations = [room.desk.interactionPoint, ...room.shelves.map(shelf => shelf.interactionPoint),
+    room.failureBoard!.interactionPoint, room.competitionBoard!.interactionPoint, room.readingArea.interactionPoint!,
+    { x: room.spawn.x, y: room.walkableBounds.y + room.walkableBounds.height - 5 }];
+  for (const destination of destinations) assert.ok(findLibraryPlayerPath(room, playerAt(room.spawn), destination), JSON.stringify(destination));
+  const bed = decorations.find(decoration => decoration.kind === 'cat-bed')!;
+  const bedCenter = { x: bed.visualRect.x + bed.visualRect.width / 2, y: bed.visualRect.y + bed.visualRect.height / 2 };
+  assert.ok(findLibraryPlayerPath(room, playerAt(room.spawn), bedCenter));
+});
+
 test('작은 도서관은 두 종류 선반과 20개 이하의 고유 슬롯을 제공한다', () => {
   // Given
   // When
@@ -528,8 +552,8 @@ test('빈 책방과 100권 책방에서 실제 이동으로 모든 책장과 시
 test('붉은 책을 없애고 차 세트를 독서 테이블 안에 배치한다', () => {
   const room = createFullLibraryRoom();
   const objects = room.ambientObjects ?? [];
-  assert.equal(objects.length, 6);
-  assert.equal(new Set(objects.map(object => object.id)).size, 6);
+  assert.equal(objects.length, 7);
+  assert.equal(new Set(objects.map(object => object.id)).size, 7);
   assert.equal(objects.find(object => object.kind === 'bench')?.visualRect, room.readingArea.benchVisualRect);
   assert.equal(objects.find(object => object.kind === 'lamp')?.visualRect, room.readingArea.lampRect);
   assert.equal(objects.some(object => object.id === 'table-book'), false);
@@ -539,7 +563,7 @@ test('붉은 책을 없애고 차 세트를 독서 테이블 안에 배치한다
   const cat = objects.find(object => object.kind === 'cat');
   assert.ok(tea);
   assert.ok(cat);
-  assert.equal(room.obstacles.length, 13);
+  assert.equal(room.obstacles.length, 15);
   assert.ok(cat.visualRect.y + cat.visualRect.height < room.readingArea.rug.y);
   const table = room.readingArea.tableVisualRect;
   assert.ok(tea.visualRect.x >= table.x);
@@ -837,7 +861,7 @@ test('중앙 책장과 직원 사이에 몸 전체가 지나는 여유를 두고
 });
 
 test('양쪽 화분은 받침까지 포함한 같은 높이와 물 주기 위치를 사용한다', () => {
-  const plants = createFullLibraryRoom().ambientObjects?.filter(object => object.kind === 'plant') ?? [];
+  const plants = createFullLibraryRoom().ambientObjects?.filter(object => object.id === 'wall-plant-west' || object.id === 'wall-plant-east') ?? [];
   assert.equal(plants.length, 2);
   assert.equal(plants[0].visualRect.y, plants[1].visualRect.y);
   assert.equal(plants[0].visualRect.height, plants[1].visualRect.height);

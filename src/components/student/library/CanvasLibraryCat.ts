@@ -35,7 +35,7 @@ export function drawLibraryCat(ctx: Context, cat: LibraryCatState, reducedMotion
   const grooming = cat.behavior === 'groom';
   const walking = !reducedMotion && (cat.behavior === 'walk' || cat.behavior === 'yield');
   const seated = cat.behavior === 'sit' || grooming || (pet && cat.reaction === 'head-up');
-  const stride = walking ? [0, 1, 0, -1][Math.floor(time / 160) % 4] : 0;
+  const stride = walking ? [0, 1, 0, -1][Math.floor(time / (cat.bedTarget ? 80 : 160)) % 4] : 0;
   const tail = reducedMotion ? 0 : Math.round(Math.sin(time / (sleeping ? 650 : 400)));
   ctx.save();
   ctx.translate(Math.round(cat.position.x), Math.round(cat.position.y));

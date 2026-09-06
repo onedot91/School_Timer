@@ -29,6 +29,15 @@ export type LibraryAmbientObject = {
   readonly actionPoint?: LibraryPoint;
 };
 
+export type LibraryDecoration = {
+  readonly id: string;
+  readonly kind: 'return-cart' | 'wall-clock' | 'cat-bed' | 'globe' | 'tall-plant';
+  readonly layer: 'floor' | 'wall' | 'furniture';
+  readonly visualRect: LibraryRect;
+  readonly footCollider?: LibraryRect;
+  readonly interactionPoint?: LibraryPoint;
+};
+
 export type LibraryRoom = {
   readonly width: 624; readonly height: 376;
   readonly bounds: LibraryRect; readonly walkableBounds: LibraryRect;
@@ -66,6 +75,7 @@ export type LibraryRoom = {
   };
   readonly obstacles: readonly LibraryRect[];
   readonly ambientObjects?: readonly LibraryAmbientObject[];
+  readonly decorations?: readonly LibraryDecoration[];
 };
 
 export type LibraryPlayer = {
@@ -85,6 +95,7 @@ export type LibraryBookDraft = {
 export type LibraryPlacedBook = LibraryBookDraft & { readonly slotId: number };
 
 export type LibraryTarget =
+  | { readonly kind: 'decoration'; readonly id: string; readonly interactionPoint: LibraryPoint }
   | { readonly kind: 'ambient'; readonly id: string; readonly objectId: string; readonly interactionPoint: LibraryPoint }
   | { readonly kind: 'registration-desk'; readonly id: 'registration-desk'; readonly interactionPoint: LibraryPoint }
   | { readonly kind: 'failure-board'; readonly id: 'failure-board'; readonly interactionPoint: LibraryPoint }
@@ -108,6 +119,7 @@ export type LibraryScene = {
   readonly clerkState?: { readonly timeMs: number; readonly greetingStartedAt?: number };
   readonly ambientState?: LibraryAmbientState;
   readonly ambientAction?: LibraryAmbientAction;
+  readonly cartPosition?: LibraryPoint;
 };
 
 export type LibraryPlacementResult = {
@@ -331,6 +343,13 @@ export const createFullLibraryRoom = (): LibraryRoom => {
     // Movement can stop up to one 2px substep before the south boundary.
     triggerRect: { x: 332, y: baseRoom.walkableBounds.y + baseRoom.walkableBounds.height - 2, width: 36, height: 2 },
   };
+  const decorations: readonly LibraryDecoration[] = [
+    { id: 'return-cart', kind: 'return-cart', layer: 'furniture', visualRect: { x: 67, y: 148, width: 48, height: 48 }, footCollider: { x: 69, y: 180, width: 44, height: 16 }, interactionPoint: { x: 59, y: 172 } },
+    { id: 'wall-clock', kind: 'wall-clock', layer: 'wall', visualRect: { x: 116, y: 14, width: 26, height: 26 } },
+    { id: 'cat-bed', kind: 'cat-bed', layer: 'floor', visualRect: { x: 450, y: 154, width: 44, height: 24 }, interactionPoint: { x: 502, y: 177 } },
+    { id: 'shelf-globe', kind: 'globe', layer: 'wall', visualRect: { x: 238, y: 17, width: 25, height: 27 } },
+    { id: 'reading-tall-plant', kind: 'tall-plant', layer: 'furniture', visualRect: { x: 560, y: 136, width: 36, height: 57 }, footCollider: { x: 567, y: 176, width: 22, height: 17 } },
+  ];
   return {
     ...baseRoom,
     desk,
@@ -338,10 +357,13 @@ export const createFullLibraryRoom = (): LibraryRoom => {
     readingArea,
     failureBoard,
     competitionBoard,
-    ambientObjects,
+    ambientObjects: [...ambientObjects, { id: 'reading-tall-plant', kind: 'plant', visualRect: decorations.find(decoration => decoration.kind === 'tall-plant')!.visualRect,
+      interactionPoint: { x: 550, y: 188 }, actionPoint: { x: 578, y: 176 } }],
     spawn: { x: 350, y: 306 },
     exit,
+    decorations,
     obstacles: [
+      ...decorations.flatMap(decoration => decoration.footCollider ? [decoration.footCollider] : []),
       ...shelves.map((shelf) => shelf.footCollider),
       desk.visualRect,
       { ...desk.clerk.visualRect, height: desk.visualRect.y - desk.clerk.visualRect.y },
@@ -504,6 +526,7 @@ export const getNearbyLibraryTarget = (
     return [{ kind: 'placed-book', id: `placed-book:${book.slotId}`, slotId: book.slotId, shelfId: slot.shelfId, interactionPoint: slot.interactionPoint, book }];
   });
   const targets: readonly LibraryTarget[] = [
+    ...(room.decorations ?? []).flatMap((object): LibraryTarget[] => object.interactionPoint ? [{ kind: 'decoration', id: object.id, interactionPoint: object.interactionPoint }] : []),
     ...placedTargets,
     { kind: 'registration-desk', id: room.desk.id, interactionPoint: room.desk.interactionPoint },
     ...(room.failureBoard ? [{ kind: 'failure-board', id: room.failureBoard.id, interactionPoint: room.failureBoard.interactionPoint } as const] : []),
@@ -518,7 +541,7 @@ export const getNearbyLibraryTarget = (
   const nearby = targets
     .map((target) => {
       const object = target.kind === 'ambient' ? room.ambientObjects?.find(candidate => candidate.id === target.objectId) : undefined;
-      const surface = target.kind === 'registration-desk'
+      const surface = target.kind === 'decoration' ? room.decorations?.find(object => object.id === target.id)?.visualRect : target.kind === 'registration-desk'
         ? { ...room.desk.visualRect, y: room.desk.clerk?.visualRect.y ?? room.desk.visualRect.y,
           height: room.desk.visualRect.y + room.desk.visualRect.height - (room.desk.clerk?.visualRect.y ?? room.desk.visualRect.y) }
         : target.kind === 'shelf' ? room.shelves.find(shelf => shelf.id === target.shelfId)?.visualRect

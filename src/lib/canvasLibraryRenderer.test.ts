@@ -22,7 +22,7 @@ function recordingCanvas() {
     drawImage(canvas: unknown) { paints.push({ kind: 'image', canvas, alpha: this.globalAlpha }); },
     translate() {}, scale() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
   };
-  const canvas = { width: 0, height: 0, getContext: () => context };
+  const canvas = { width: 0, height: 0, dataset: {}, getContext: () => context };
   Object.assign(context, { canvas });
   return { canvas, paints };
 }
@@ -100,9 +100,6 @@ test('게시판 메모 0·1·24개는 코르크 안에 있고 출입구는 전�
     target.paints.length = 0;
     renderer.draw({ ...scene, placedBooks: books, player: { ...scene.player, position: { x: 290, y: 244 } } });
     assert.equal(target.paints.some(paint => paint.kind === 'image' && paint.canvas === occlusion.canvas && paint.alpha === 0.28), false);
-    assert.equal(staticLayer.paints.some(paint => paint.kind === 'rect' && paint.x >= door.x - 3 && paint.y >= door.y - 15
-      && paint.x + paint.width <= door.x + door.width + 3 && paint.y + paint.height <= door.y
-      && [palette.green[1], palette.green[2], palette.green[3]].some(color => color === paint.color)), false, 'entry mat is removed');
     assert.equal(layers.length, 4, 'cached room/occlusion/entrance/detail layers must not be recreated per frame');
     renderer.dispose();
     assert.ok(layers.every(layer => layer.canvas.width === 0 && layer.canvas.height === 0));

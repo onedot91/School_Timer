@@ -14,6 +14,7 @@ export type LibraryCatState = {
   readonly lastRest: LibraryCatRest | null;
   readonly reaction: 'head-up' | 'stretch' | 'sleepy';
   readonly lockedApproach: LibraryPoint | null;
+  readonly bedTarget?: LibraryPoint;
 };
 export type LibraryCatNavigation = {
   readonly nodes: readonly LibraryPoint[];
@@ -54,7 +55,7 @@ const timed = (state: LibraryCatState, behavior: LibraryCatState['behavior'], mi
 const face = (from: LibraryPoint, to: LibraryPoint): LibraryPlayer['facing'] => Math.abs(to.x - from.x) > Math.abs(to.y - from.y) ? (to.x < from.x ? 'left' : 'right') : (to.y < from.y ? 'up' : 'down');
 
 export const createLibraryCatNavigation = (room: LibraryRoom): LibraryCatNavigation => {
-  const obstacles = [...staticObstacles(room), ...room.shelves.map(shelf => shelf.visualRect), ...(room.competitionBoard ? [room.competitionBoard.visualRect] : []), ...(room.ambientObjects ?? []).filter(object => object.kind === 'plant').map(object => object.visualRect)];
+  const obstacles = [...staticObstacles(room), ...room.shelves.map(shelf => shelf.visualRect), ...(room.competitionBoard ? [room.competitionBoard.visualRect] : []), ...(room.ambientObjects ?? []).filter(object => object.kind === 'plant').map(object => object.visualRect), ...(room.decorations ?? []).filter(decoration => decoration.footCollider).map(decoration => decoration.visualRect)];
   const bounds = room.walkableBounds;
   const nodes: LibraryPoint[] = [];
   const coordinate = new Map<string, number>();
@@ -166,31 +167,58 @@ export const stepLibraryCat = (room: LibraryRoom, nav: LibraryCatNavigation, sta
   const moving = input.x !== 0 || input.y !== 0;
   const approaching = moving && input.x * (state.position.x - player.position.x) + input.y * (state.position.y - player.position.y) > 0;
   let next = { ...state, attentionCooldownMs: Math.max(0, state.attentionCooldownMs - delta), yieldRetryMs: Math.max(0, state.yieldRetryMs - delta) };
-  if (approaching && gap < 52 && state.behavior !== 'yield' && next.yieldRetryMs === 0) next = { ...choosePath(nav, next, player, true), yieldRetryMs: 500 };
-  else if (!moving && gap < 40 && next.attentionCooldownMs === 0) return { ...next, behavior: 'watch', facing: face(state.position, player.position), elapsedMs: state.elapsedMs + delta, path: [], remainingMs: 0 };
+  if (!state.bedTarget && approaching && gap < 52 && state.behavior !== 'yield' && next.yieldRetryMs === 0) next = { ...choosePath(nav, next, player, true), yieldRetryMs: 500 };
+  else if (!state.bedTarget && !moving && gap < 40 && next.attentionCooldownMs === 0) return { ...next, behavior: 'watch', facing: face(state.position, player.position), elapsedMs: state.elapsedMs + delta, path: [], remainingMs: 0 };
   else if (state.behavior === 'watch') next = timed(next, 'look', 2000, 4000);
   if (next.behavior === 'walk' || next.behavior === 'yield') {
-    let position = next.position; let path = [...next.path]; let budget = delta * 0.024; let facing = next.facing;
+    let position = next.position; let path = [...next.path]; let budget = delta * (next.bedTarget ? 0.072 : 0.024); let facing = next.facing;
     while (path.length && budget > 0) {
       const target = path[0]; const length = distance(position, target);
       if (length < 0.001) { path.shift(); continue; }
       const amount = Math.min(length, budget, 2);
       const proposed = { x: position.x + (target.x - position.x) / length * amount, y: position.y + (target.y - position.y) / length * amount };
-      if (!safe(nav, proposed) || overlaps(envelope(proposed), feet(player))) return timed({ ...next, position, facing }, 'look', 2000, 4000);
+      if (!safe(nav, proposed) || overlaps(envelope(proposed), feet(player))) return timed({ ...next, position, facing, bedTarget: undefined }, 'look', 2000, 4000);
       facing = face(position, target); position = proposed; budget -= amount;
       if (amount >= length) path.shift();
     }
     next = { ...next, position, path, facing, elapsedMs: next.elapsedMs + delta };
-    return path.length ? next : (next.behavior === 'yield' ? timed(next, 'look', 2000, 4000) : rest(next));
+    return path.length ? next : next.bedTarget ? timed({ ...next, lastRest: 'sleep', attentionCooldownMs: 12000 }, 'sleep', 12000)
+      : (next.behavior === 'yield' ? timed(next, 'look', 2000, 4000) : rest(next));
   }
   next = { ...next, elapsedMs: next.elapsedMs + delta, remainingMs: Math.max(0, next.remainingMs - delta) };
   if (next.remainingMs > 0) return next;
-  return next.behavior === 'look' ? choosePath(nav, next, player, false) : timed(next, 'look', 2000, 4000);
+  return next.behavior === 'look' ? choosePath(nav, next, player, false) : timed({ ...next, bedTarget: undefined }, 'look', 2000, 4000);
+};
+
+export const callLibraryCatToBed = (room: LibraryRoom, nav: LibraryCatNavigation, state: LibraryCatState, player: LibraryPlayer, reducedMotion = false): LibraryCatState | null => {
+  const bed = room.decorations?.find(decoration => decoration.kind === 'cat-bed');
+  if (!bed || state.behavior === 'pet') return null;
+  const destination = { x: bed.visualRect.x + bed.visualRect.width / 2, y: bed.visualRect.y + bed.visualRect.height / 2 + 4 };
+  const start = nearest(nav.nodes, state.position);
+  const end = nearest(nav.nodes, destination);
+  if (start < 0 || end < 0 || distance(nav.nodes[end], destination) > 4 || !clearSegment(nav, state.position, nav.nodes[start])) return null;
+  const previous = new Map<number, number>([[start, -1]]);
+  const queue = [start];
+  for (let cursor = 0; cursor < queue.length && !previous.has(end); cursor += 1) {
+    for (const index of nav.neighbors[queue[cursor]]) {
+      if (previous.has(index) || overlaps(envelope(nav.nodes[index]), feet(player))) continue;
+      previous.set(index, queue[cursor]);
+      queue.push(index);
+    }
+  }
+  if (!previous.has(end) || !clearSegment(nav, nav.nodes[end], destination) || overlaps(envelope(destination), feet(player))) return null;
+  const path: LibraryPoint[] = [];
+  for (let index = end; index >= 0; index = previous.get(index) ?? -1) path.unshift(nav.nodes[index]);
+  if (distance(path[0], state.position) < 0.01) path.shift();
+  if (distance(nav.nodes[end], destination) > 0.001) path.push(destination);
+  const target = destination;
+  if (reducedMotion || !path.length) return timed({ ...state, position: target, bedTarget: target, path: [], lockedApproach: null, lastRest: 'sleep', attentionCooldownMs: 12000 }, 'sleep', 12000);
+  return { ...state, bedTarget: target, behavior: 'walk', path, elapsedMs: 0, remainingMs: 0, lockedApproach: null };
 };
 
 export const startLibraryCatPet = (room: LibraryRoom, _nav: LibraryCatNavigation, state: LibraryCatState, player: LibraryPlayer): LibraryCatState => {
   const lockedApproach = approach(room, state, player);
-  return { ...state, behavior: 'pet', elapsedMs: 0, remainingMs: 700, path: [], lockedApproach, facing: face(state.position, lockedApproach ?? player.position) };
+  return { ...state, bedTarget: undefined, behavior: 'pet', elapsedMs: 0, remainingMs: 700, path: [], lockedApproach, facing: face(state.position, lockedApproach ?? player.position) };
 };
 export const finishLibraryCatPet = (state: LibraryCatState): LibraryCatState => {
   const [rngState, value] = random(state.rngState);

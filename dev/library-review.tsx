@@ -22,9 +22,10 @@ const directions = ['down', 'up', 'left', 'right'] as const;
 const directionLabels = { down: '정면', up: '후면', left: '왼쪽', right: '오른쪽' };
 const ambientLabels: Readonly<Record<string, string>> = {
   'wall-plant-west': '서쪽 벽 화분', 'wall-plant-east': '동쪽 벽 화분', 'reading-lamp': '스탠드',
-  'reading-bench': '벤치', 'bookshop-cat': '책방 고양이', 'tea-set': '차 세트',
+  'reading-bench': '벤치', 'bookshop-cat': '책방 고양이', 'tea-set': '차 세트', 'reading-tall-plant': '큰 화분',
 };
 const startPoints = [
+  ...(room.decorations ?? []).flatMap(object => object.interactionPoint ? [{ label: object.kind === 'return-cart' ? '반납 카트' : '고양이 방석', point: object.interactionPoint }] : []),
   { label: '입구', point: room.spawn },
   { label: '등록대', point: room.desk.interactionPoint },
   ...room.shelves.map((shelf, index) => ({ label: `책장 ${index + 1}`, point: shelf.interactionPoint })),

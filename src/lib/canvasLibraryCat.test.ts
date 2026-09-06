@@ -89,7 +89,9 @@ test('long simulations stay within furniture bounds, walk at 24px/s and visit ev
 test('walking paths have 40–100 logical pixel lengths and nonrepeating rest selection', () => {
   for (let seed = 1; seed <= 30; seed += 1) {
     const state = { ...catFor(seed), remainingMs: 1 };
-    const distant = { ...player, position: { x: 18, y: 104 } };
+    const distantPosition = nav.nodes.reduce((farthest, point) => distance(point, state.position) > distance(farthest, state.position) ? point : farthest);
+    const distant = { ...player, position: distantPosition };
+    assert.ok(distance(distant.position, state.position) > 100);
     const next = stepLibraryCat(room, nav, state, distant, { x: 0, y: 0 }, 16);
     assert.equal(next.behavior, 'walk');
     const length = next.path.reduce((sum, point, index) => sum + distance(point, index ? next.path[index - 1] : next.position), 0);

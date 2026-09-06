@@ -36,6 +36,8 @@ import { createLibraryAmbientState, createLibraryAmbientAction, completeLibraryA
 import { createLibraryCatNavigation, createLibraryCatState, stepLibraryCat, resolveLibraryCatRoom, startLibraryCatPet, finishLibraryCatPet, cancelLibraryCatPet, type LibraryCatState } from '../../../lib/canvasLibraryCat';
 import { createLibraryRenderer } from './CanvasLibraryRenderer';
 import { CanvasLibraryNameplates, getLibraryNameplates, getLibraryNameplateOpacity } from './CanvasLibraryNameplates';
+import { canParkLibraryCart, resolveLibraryCartRoom, stepLibraryCart } from '../../../lib/canvasLibraryCart';
+import { callLibraryCatToBed } from '../../../lib/canvasLibraryCat';
 import { getLibraryActionDuration, getLibraryBearPose, getLibraryBookThickness, getLibraryBookTone, LIBRARY_WALK_FRAME_MS } from '../../../lib/canvasLibraryPose';
 import StudentConfirmDialog from '../StudentConfirmDialog';
 import { MAX_BOOK_REFLECTION_LENGTH, normalizeBookReflection } from '../../../lib/studentLife';
@@ -130,7 +132,10 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const controlledBooks = props.books;
   const [localBooks, setLocalBooks] = useState<readonly LibraryPlacedBook[]>([]);
   const books = controlledBooks ?? localBooks;
-  const room = useMemo(() => resolveLibraryBookRoom(baseRoom, books), [baseRoom, books]);
+  const [parkedCartPosition, setParkedCartPosition] = useState<LibraryPoint>();
+  const [movingCart, setMovingCart] = useState(false);
+  const movingCartRef = useRef(false);
+  const room = useMemo(() => resolveLibraryCartRoom(resolveLibraryBookRoom(baseRoom, books), parkedCartPosition), [baseRoom, books, parkedCartPosition]);
   const catNavigation = useMemo(() => createLibraryCatNavigation(room), [room]);
   const [initialCatState] = useState(() => import.meta.env.DEV && props.initialCatState
     ? props.initialCatState
@@ -323,6 +328,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
 
   const requestExit = () => {
     const current = sceneStateRef.current;
+    if (movingCartRef.current) { showAmbientNotice('카트를 놓은 뒤 나가 주세요'); return; }
     if (!onBackRef.current || exitCompletedRef.current || pausedRef.current || modalRef.current
       || placementPendingRef.current || current.action || current.ambientAction || ambientApproachRef.current
       || (receiveApproachRef.current && !receiveApproachRef.current.waiting)) return;
@@ -418,11 +424,11 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       }
       if (current.catState) {
         current = { ...current, catState: stepLibraryCat(room, catNavigation, current.catState, current.player, input, elapsedMs, {
-          paused: pausedRef.current || modalRef.current !== null || Boolean(current.action || current.ambientAction || ambientApproachRef.current || receiveApproachRef.current),
+          paused: pausedRef.current || modalRef.current !== null || movingCartRef.current || Boolean(current.action || current.ambientAction || ambientApproachRef.current || receiveApproachRef.current),
           reducedMotion: current.reducedMotion,
         }) };
       }
-      let activeRoom = resolveLibraryCatRoom(room, current.catState, current.player);
+      let activeRoom = resolveLibraryCatRoom(resolveLibraryCartRoom(room, current.cartPosition), current.catState, current.player);
       if (!pausedRef.current && modalRef.current === null) {
         const reception = receiveApproachRef.current;
         if (reception && !reception.waiting && room.desk.clerk) {
@@ -494,13 +500,19 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
         setReceiving(false);
         showAmbientNotice('책장에 꽂아 주세요');
       }
-      activeRoom = resolveLibraryCatRoom(room, current.catState, current.player);
+      activeRoom = resolveLibraryCatRoom(resolveLibraryCartRoom(room, current.cartPosition), current.catState, current.player);
       const canMove = !exitCompletedRef.current && !placementPendingRef.current && !pausedRef.current && modalRef.current === null && !action && !current.ambientAction && !ambientApproachRef.current && (!receiveApproachRef.current || receiveApproachRef.current.waiting) && !current.ambientState?.benchObjectId;
-      const player = canMove && (input.x !== 0 || input.y !== 0)
+      let player = canMove && !movingCartRef.current && (input.x !== 0 || input.y !== 0)
         ? stepLibraryPlayer(activeRoom, current.player, input, elapsedMs)
         : current.player.isWalking && ((!ambientApproachRef.current && !receiveApproachRef.current) || pausedRef.current)
           ? { ...current.player, isWalking: false }
           : current.player;
+      if (canMove && movingCartRef.current) {
+        const moved = stepLibraryCart(activeRoom, current.player, input, elapsedMs);
+        player = moved.player;
+        current = { ...current, cartPosition: moved.position };
+        activeRoom = resolveLibraryCatRoom(resolveLibraryCartRoom(room, moved.position), current.catState, player);
+      }
       if (!hasMovedRef.current && player.position !== current.player.position) {
         hasMovedRef.current = true;
         setHasMoved(true);
@@ -508,7 +520,10 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       const walkTimeMs = player.isWalking
         ? current.player.isWalking ? (current.walkTimeMs ?? 0) + Math.hypot(player.position.x - frameStartPosition.x, player.position.y - frameStartPosition.y) * 10 : 0
         : 0;
-      const target = getNearbyLibraryTarget(resolveLibraryCatRoom(room, current.catState, player), player, booksRef.current, current.nearbyTarget);
+      const heldCart = movingCartRef.current ? activeRoom.decorations?.find(decoration => decoration.kind === 'return-cart') : undefined;
+      const target: LibraryTarget | null = heldCart?.interactionPoint
+        ? { kind: 'decoration', id: heldCart.id, interactionPoint: heldCart.interactionPoint }
+        : getNearbyLibraryTarget(resolveLibraryCatRoom(activeRoom, current.catState, player), player, booksRef.current, current.nearbyTarget);
       current = {
         ...current,
         player,
@@ -521,9 +536,11 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
         seated: modalRef.current?.kind === 'reading',
       };
       sceneStateRef.current = current;
-      if (canMove && exitArmedRef.current && isLibraryExitIntent(room, player, input)) requestExit();
+      if (canMove && !movingCartRef.current && exitArmedRef.current && isLibraryExitIntent(room, player, input)) requestExit();
       canvas.dataset.playerX = player.position.x.toFixed(2);
       canvas.dataset.playerY = player.position.y.toFixed(2);
+      canvas.dataset.cartPosition = current.cartPosition ? JSON.stringify(current.cartPosition) : '';
+      canvas.dataset.movingCart = String(movingCartRef.current);
       canvas.dataset.nearbyTarget = target?.id ?? '';
       canvas.dataset.facing = player.facing;
       canvas.dataset.action = action?.kind ?? '';
@@ -632,9 +649,22 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     setModal(nextModal);
   };
 
+  const releaseCart = () => {
+    const current = sceneStateRef.current;
+    const activeRoom = resolveLibraryCartRoom(room, current.cartPosition);
+    clearHeldInput();
+    if (!canParkLibraryCart(activeRoom, current.player)) { showAmbientNotice('통로를 막고 있어요. 카트를 조금 옆으로 옮겨 주세요'); return; }
+    movingCartRef.current = false;
+    setMovingCart(false);
+    setParkedCartPosition(current.cartPosition);
+    showAmbientNotice('카트를 놓았어요');
+    canvasRef.current?.focus({ preventScroll: true });
+  };
+
   const interact = () => {
     if (modalRef.current || pausedRef.current || sceneStateRef.current.action || sceneStateRef.current.ambientAction || ambientApproachRef.current) return;
     canvasRef.current?.focus({ preventScroll: true });
+    if (movingCartRef.current) { releaseCart(); return; }
     if (standFromBench()) return;
     const target = sceneStateRef.current.nearbyTarget;
     if (!target) return;
@@ -650,7 +680,25 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       } else showAmbientNotice('직원에게 책을 먼저 받아 주세요');
       return;
     }
-    if (target.kind === 'ambient') {
+    if (target.kind === 'decoration') {
+      if (carriedDraftRef.current) { showAmbientNotice('책을 먼저 꽂아 주세요'); return; }
+      const current = sceneStateRef.current;
+      const decoration = room.decorations?.find(object => object.id === target.id);
+      if (decoration?.kind === 'return-cart') {
+        movingCartRef.current = true;
+        setMovingCart(true);
+        sceneStateRef.current = { ...current, cartPosition: { x: decoration.visualRect.x, y: decoration.visualRect.y } };
+        clearHeldInput();
+        showAmbientNotice('방향키로 옮기고 E 또는 Esc로 놓아요');
+      } else if (decoration?.kind === 'cat-bed') {
+        if (!current.catState) { showAmbientNotice('고양이가 아직 보이지 않아요'); return; }
+        if (current.catState.bedTarget) { showAmbientNotice(current.catState.behavior === 'sleep' ? '고양이가 방석에서 쉬고 있어요' : '고양이가 방석으로 오고 있어요'); return; }
+        const called = callLibraryCatToBed(room, catNavigation, current.catState, current.player, current.reducedMotion);
+        if (!called) { showAmbientNotice('고양이가 올 수 있도록 방석 옆의 길을 비워 주세요'); return; }
+        sceneStateRef.current = { ...current, catState: called };
+        showAmbientNotice(current.reducedMotion ? '고양이가 방석에서 쉬어요' : '고양이가 방석으로 달려와요');
+      }
+    } else if (target.kind === 'ambient') {
       if (carriedDraftRef.current) {
         showAmbientNotice('책을 먼저 꽂아 주세요');
         return;
@@ -717,6 +765,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const handleSceneKeyDown = (event: ReactKeyboardEvent<HTMLCanvasElement>) => {
     const key = event.key.toLowerCase();
     if (modalRef.current || pausedRef.current) return;
+    if (movingCartRef.current && key === 'escape') { event.preventDefault(); releaseCart(); return; }
     if (receiveApproachRef.current && !receiveApproachRef.current.waiting) {
       if (MOVEMENT_KEYS.has(key) || key === 'e' || key === 'enter' || key === 'escape') event.preventDefault();
       return;
@@ -758,6 +807,11 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       y: (event.clientY - rect.top) * room.height / rect.height,
     };
     const target = sceneStateRef.current.nearbyTarget;
+    if (target?.kind === 'decoration') {
+      const decoration = resolveLibraryCartRoom(room, sceneStateRef.current.cartPosition).decorations?.find(object => object.id === target.id);
+      if (decoration && isPointInside(point, decoration.visualRect)) interact();
+      return;
+    }
     if (target?.kind === 'ambient') {
       const object = resolveLibraryCatRoom(room, sceneStateRef.current.catState, sceneStateRef.current.player).ambientObjects?.find(item => item.id === target.objectId);
       if (object && isPointInside(point, object.visualRect)) interact();
@@ -928,6 +982,8 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     ? '일시 멈춤'
     : ambientNotice
       ? ambientNotice
+    : movingCart
+      ? '방향키로 옮기기 · E / Esc 놓기'
     : ambientState.benchObjectId
       ? '잠깐 쉬는 중 · E 또는 이동키로 일어나기'
     : ambientBusy
@@ -946,6 +1002,8 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const ambientObject = resolveLibraryCatRoom(room, sceneStateRef.current.catState, sceneStateRef.current.player).ambientObjects?.find(item => item.id === (ambientState.benchObjectId ?? (nearbyTarget?.kind === 'ambient' ? nearbyTarget.objectId : null)));
   const nearbyActionLabel = ambientState.benchObjectId
     ? '일어나기'
+    : nearbyTarget?.kind === 'decoration'
+      ? nearbyTarget.id === 'return-cart' ? movingCart ? '카트 놓기' : '카트 잡기' : '고양이 부르기'
     : nearbyTarget?.kind === 'ambient' && ambientObject
       ? getLibraryAmbientLabel(ambientObject, ambientState)
     : nearbyTarget?.kind === 'registration-desk'
@@ -960,7 +1018,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       ? '가까운 곳 살펴보기: 책장 열기'
         : null;
   const readingBook = books[readingBookIndex % Math.max(1, books.length)];
-  const cueRect = ambientObject ? ambientObject.visualRect
+  const cueRect = nearbyTarget?.kind === 'decoration'
+    ? resolveLibraryCartRoom(room, sceneStateRef.current.cartPosition).decorations?.find(object => object.id === nearbyTarget.id)?.visualRect
+    : ambientObject ? ambientObject.visualRect
     : nearbyTarget?.kind === 'registration-desk' ? room.desk.clerk?.visualRect ?? room.desk.visualRect
     : nearbyTarget?.kind === 'failure-board' ? room.failureBoard?.visualRect
       : nearbyTarget?.kind === 'competition-board' ? room.competitionBoard?.visualRect

@@ -15,6 +15,8 @@ import { drawLibraryCharacter, drawLibraryCarryBook, drawLibraryBookSpine } from
 import { drawLibraryClerkBody, drawLibraryClerkHands, drawLibraryClerkTransfer } from './CanvasLibraryClerk';
 import { getLibraryActionProgress, getLibraryBearPose, getLibraryBookMotion, getLibraryPlacedBookRect } from '../../../lib/canvasLibraryPose';
 import { getLibraryNameplates, isLibraryFurnitureOccluded as isPlayerBehind } from './CanvasLibraryNameplates';
+import { drawLibraryDecoration, drawLibraryClockHands, getLibraryClockHands } from './CanvasLibraryDecorations';
+import { resolveLibraryCartRoom } from '../../../lib/canvasLibraryCart';
 
 const LOGICAL_WIDTH = 624;
 const LOGICAL_HEIGHT = 376;
@@ -448,6 +450,9 @@ const drawStaticRoom = (context: DrawContext, room: LibraryRoom) => {
   drawMotivatedLight(context, room);
   drawWindow(context, room.readingArea.windowRect);
   drawEntryRug(context, room);
+  for (const decoration of room.decorations ?? []) {
+    if (decoration.layer !== 'furniture') drawLibraryDecoration(context, decoration);
+  }
   drawRug(context, room.readingArea.rug);
   if (room.failureBoard) {
     drawFailureBoard(context, room.failureBoard.visualRect);
@@ -793,6 +798,8 @@ const findShelfForBook = (room: LibraryRoom, book: LibraryPlacedBook) =>
   room.shelves.find((shelf) => shelf.slots.some((slot) => slot.id === book.slotId));
 
 const getEntityRect = (room: LibraryRoom, id: string): LibraryRect | null => {
+  const decoration = room.decorations?.find(object => object.id === id);
+  if (decoration) return decoration.visualRect;
   if (id === room.desk.id) return room.desk.clerk?.visualRect ?? room.desk.visualRect;
   if (id === room.failureBoard?.id) return room.failureBoard.visualRect;
   if (id === room.competitionBoard?.id) return room.competitionBoard.visualRect;
@@ -890,6 +897,19 @@ const createDepthEntities = (
       },
     },
   ];
+
+  for (const decoration of room.decorations ?? []) {
+    if (decoration.layer !== 'furniture' || !decoration.footCollider) continue;
+    const collider = decoration.footCollider;
+    const floorY = collider.y + collider.height;
+    entities.push({
+      id: decoration.id, floorY,
+      shadow: context => drawContactShadow(context, collider),
+      body: context => drawWithPlayerOcclusion(context, occlusionLayer,
+        isPlayerBehind(scene, decoration.visualRect, floorY),
+        target => drawLibraryDecoration(target, decoration, scene)),
+    });
+  }
 
   if (room.competitionBoard) {
     const board = room.competitionBoard;
@@ -1000,6 +1020,7 @@ const createDepthEntities = (
       shadow: () => undefined, body: context => drawLamp(context, room.readingArea.lampRect) });
   }
   for (const object of ambientObjects) {
+    if (room.decorations?.some(decoration => decoration.id === object.id)) continue;
     if (object.kind === 'bench') continue;
     const tabletop = object.kind === 'tea';
     const support = room.readingArea.tableFootCollider;
@@ -1109,7 +1130,6 @@ export const createLibraryRenderer = (
   if (!detailContext) throw new Error('가구 장식 Canvas 2D context를 사용할 수 없습니다.');
   detailContext.imageSmoothingEnabled = false;
   drawFurnitureDetails(detailContext, room);
-  if (room.failureBoard) drawCachedDetails(staticContext, furnitureDetails, room.failureBoard.visualRect);
 
   let disposed = false;
   let packedBooks: LibraryScene['placedBooks'] | undefined;
@@ -1122,9 +1142,15 @@ export const createLibraryRenderer = (
         packedBooks = scene.placedBooks;
         packedRoom = resolveLibraryBookRoom(room, scene.placedBooks);
       }
-      const currentRoom = resolveLibraryCatRoom(packedRoom, scene.catState, scene.player);
+      const currentRoom = resolveLibraryCatRoom(resolveLibraryCartRoom(packedRoom, scene.cartPosition), scene.catState, scene.player);
       context.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
       context.drawImage(staticCanvas, 0, 0);
+      const clock = room.decorations?.find(decoration => decoration.kind === 'wall-clock');
+      if (clock) {
+        const timestamp = Date.now();
+        drawLibraryClockHands(context, clock, timestamp);
+        canvas.dataset.clockTime = getLibraryClockHands(timestamp).label;
+      }
       drawLivingLight(context, room, scene);
       drawLibraryAmbientLight(context, room, scene);
       if (room.failureBoard) drawFailureBoardNotes(context, room.failureBoard.visualRect, scene.boardNoteCount);

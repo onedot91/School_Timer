@@ -24,12 +24,8 @@ export const getLibraryNameplates = (room: LibraryRoom) => {
       occlusion: { rect: { x, y, width: right - x, height: bottom - y }, floorY: Math.max(...shelves.map(shelf => shelf.footCollider.y + shelf.footCollider.height)) } });
   }
   const desk = room.desk.visualRect;
-  nameplates.push({ id: room.desk.id, text: '책 등록', rect: { x: Math.round(desk.x + desk.width / 2) - 22, y: desk.y + desk.height - 11, width: 44, height: 10 }, fontSize: 8,
+  nameplates.push({ id: room.desk.id, text: '책 등록대', rect: { x: Math.round(desk.x + desk.width / 2) - 22, y: desk.y + desk.height - 11, width: 44, height: 10 }, fontSize: 8,
     foregroundFloorY: room.desk.footCollider.y + room.desk.footCollider.height });
-  if (room.failureBoard) {
-    const board = room.failureBoard.visualRect;
-    nameplates.push({ id: room.failureBoard.id, text: '?', rect: { x: Math.round(board.x + board.width / 2) - 10, y: board.y + 6, width: 20, height: 14 }, fontSize: 11 });
-  }
   return nameplates;
 };
 

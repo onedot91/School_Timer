@@ -34,7 +34,7 @@ test('조명은 완료 시 왕복 전환되고 라벨은 다음 행동을 안내
 
 test('화분은 각각 한 번 자라고 이후에는 잎 반응만 실행한다', () => {
   const plants = createFullLibraryRoom().ambientObjects?.filter(object => object.kind === 'plant') ?? [];
-  assert.equal(plants.length, 2);
+  assert.equal(plants.length, 3);
   let state = createLibraryAmbientState();
   for (const plant of plants) {
     assert.equal(getLibraryAmbientLabel(plant, state), '물 주기');
