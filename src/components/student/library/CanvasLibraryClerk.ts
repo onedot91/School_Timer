@@ -22,6 +22,8 @@ export function drawLibraryClerkBody(context: Context, room: LibraryRoom, scene:
   const { x, y } = clerk.visualRect;
   const time = scene.reducedMotion ? 0 : scene.clerkState?.timeMs ?? 0;
   const blink = time % 4600 > 4440;
+  const nearby = Math.hypot(scene.player.position.x - clerk.receivePoint.x, scene.player.position.y - clerk.receivePoint.y) < 90;
+  const gaze = nearby && !scene.reducedMotion ? Math.sign(scene.player.position.x - (x + 18)) : 0;
   rect(context, x + 8, y + 24, 21, 12, colors.outline);
   rect(context, x + 9, y + 25, 19, 10, colors.furLight);
   rect(context, x + 11, y + 28, 15, 8, colors.coral);
@@ -64,8 +66,8 @@ export function drawLibraryClerkBody(context: Context, room: LibraryRoom, scene:
     rect(context, x + dx + 2, y + 22, 5, 2, colors.earShade);
     rect(context, x + dx + 2, y + 10, 3, 2, colors.fur);
   }
-  rect(context, x + 12, y + 15, 2, blink ? 1 : 2, colors.outline);
-  rect(context, x + 23, y + 15, 2, blink ? 1 : 2, colors.outline);
+  rect(context, x + 12 + gaze, y + 15, 2, blink ? 1 : 2, colors.outline);
+  rect(context, x + 23 + gaze, y + 15, 2, blink ? 1 : 2, colors.outline);
   rect(context, x + 17, y + 18, 4, 2, colors.outline);
   rect(context, x + 18, y + 20, 2, 2, colors.outline);
   rect(context, x + 15, y + 21, 2, 1, colors.outline);
@@ -81,14 +83,11 @@ export function drawLibraryClerkHands(context: Context, room: LibraryRoom, scene
   if (!hand) return;
   const receiving = scene.action?.kind === 'receive';
   const wave = receiving ? 0 : greeting(scene);
-  const sorting = !scene.reducedMotion && !wave && !receiving
-    ? Math.floor((scene.clerkState?.timeMs ?? 0) / 900) % 6 === 0 ? 1 : 0 : 0;
   if (!receiving) {
-    const center = { x: hand.x + sorting, y: hand.y };
-    drawLibraryCarryBook(context, center, 0, undefined, { width: 10, height: 7 });
+    drawLibraryCarryBook(context, hand, 0, undefined, { width: 10, height: 7 });
   }
   for (const direction of [-1, 1]) {
-    const x = hand.x + direction * 5 + sorting;
+    const x = hand.x + direction * 5;
     const y = wave && direction < 0 ? clerk.visualRect.y + 27 - wave : hand.y;
     const shoulderX = clerk.handoffPoint.x + direction * 9;
     const shoulderY = clerk.visualRect.y + 29;

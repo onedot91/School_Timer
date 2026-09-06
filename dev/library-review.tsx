@@ -178,7 +178,7 @@ function Review() {
   const [saveMode, setSaveMode] = useState<'success' | 'failure' | 'delayed'>('success');
   const [startIndex, setStartIndex] = useState(0);
   const [gameVersion, setGameVersion] = useState(0);
-  const [metrics, setMetrics] = useState({ width: innerWidth, height: innerHeight, fps: 0 });
+  const [metrics, setMetrics] = useState({ width: innerWidth, height: innerHeight, fps: 0, frameP95: 0 });
   const [recording, setRecording] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState('');
@@ -253,10 +253,16 @@ function Review() {
     let frame = 0;
     let count = 0;
     let start = performance.now();
+    let previousFrame = start;
+    let frameTimes: number[] = [];
     const update = (now: number) => {
       count += 1;
+      frameTimes.push(now - previousFrame);
+      previousFrame = now;
       if (now - start >= 1000) {
-        setMetrics({ width: innerWidth, height: innerHeight, fps: Math.round(count * 1000 / (now - start)) });
+        frameTimes.sort((a, b) => a - b);
+        setMetrics({ width: innerWidth, height: innerHeight, fps: Math.round(count * 1000 / (now - start)), frameP95: frameTimes[Math.floor((frameTimes.length - 1) * 0.95)] ?? 0 });
+        frameTimes = [];
         const canvas = document.querySelector<HTMLCanvasElement>('.student-canvas-library-scene');
         const nextDiagnostics = { state: canvas?.dataset.ambientState ?? '', action: canvas?.dataset.ambientAction ?? '', cat: canvas?.dataset.catState ?? '' };
         setAmbientDiagnostics(previous => previous.state === nextDiagnostics.state && previous.action === nextDiagnostics.action && previous.cat === nextDiagnostics.cat ? previous : nextDiagnostics);
@@ -330,7 +336,7 @@ function Review() {
       if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
       setVideoUrl(null);
       videoUrlRef.current = null;
-      const stream = canvas.captureStream(30);
+      const stream = canvas.captureStream(60);
       streamRef.current = stream;
       const mimeType = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(type => MediaRecorder.isTypeSupported(type));
       if (!mimeType) throw new Error('WebM 녹화를 지원하지 않습니다.');
@@ -356,7 +362,7 @@ function Review() {
       setCaptureError(error instanceof Error ? error.message : '녹화를 시작하지 못했습니다.');
     }
   };
-  const resetBooks = (full: boolean) => { setBooks(full ? fullBooks : []); setGameVersion(version => version + 1); };
+  const resetBooks = (count: number) => { setBooks(fullBooks.slice(0, count)); setGameVersion(version => version + 1); };
   const place = async (book: LibraryBookDraft, slotId: number) => {
     if (saveMode === 'delayed') await new Promise(resolve => window.setTimeout(resolve, 2500));
     if (saveMode === 'failure') throw new Error('개발 검수용 저장 실패');
@@ -435,7 +441,7 @@ function Review() {
         renderCompetition={appDataMode === 'mock' ? (onClose, returnFocusRef) => <LibraryCompetitionPanel onClose={onClose} onSnapshot={() => undefined} returnFocusRef={returnFocusRef} /> : undefined}
         onBack={() => { if (recorderRef.current?.state === 'recording') recorderRef.current.stop(); setGame(false); }} />
       {controls ? <details className="review-game-controls">
-        <summary>개발 검수 · {metrics.width}×{metrics.height} · {metrics.fps} FPS · {recording ? '녹화 중' : `${books.length}권`}</summary>
+        <summary>개발 검수 · {metrics.width}×{metrics.height} · {metrics.fps} FPS · p95 {metrics.frameP95.toFixed(1)}ms · {recording ? '녹화 중' : `${books.length}권`}</summary>
         <div className="review-controls">
           <label>출발 위치 <select value={startIndex} disabled={recording} onChange={event => { setStartIndex(Number(event.target.value)); setGameVersion(version => version + 1); }}>{startPoints.map((point,index) => <option key={point.label} value={index}>{point.label}</option>)}<option value={nearCatStartIndex}>시드 고양이 옆</option></select></label>
           <label>고양이 시드 <input type="number" aria-label="고양이 시드" value={catSeed} disabled={recording} onChange={event => { const value = event.currentTarget.valueAsNumber; if (Number.isFinite(value)) setCatSeed(Math.trunc(value) >>> 0); }} /></label>
@@ -443,8 +449,9 @@ function Review() {
           <label>고양이 시작 동작 <select value={catFixture} disabled={recording} onChange={event => setCatFixture(catFixtureBehaviors.find(value => value === event.target.value) ?? '')}><option value="">자율 생활</option>{catFixtureBehaviors.map(value => <option key={value} value={value}>{catBehaviorLabels[value]}</option>)}</select></label>
           <label>게시판 메모 <select value={boardNoteCount} onChange={event => setBoardNoteCount(Number(event.target.value))}>{[0, 1, 24].map(count => <option key={count} value={count}>{count}개</option>)}</select></label>
           <label>저장 응답 <select value={saveMode} onChange={event => { const value = event.target.value; if (value === 'success' || value === 'failure' || value === 'delayed') setSaveMode(value); }}><option value="success">성공</option><option value="failure">실패</option><option value="delayed">2.5초 지연 후 성공</option></select></label>
-          <button disabled={recording} onClick={() => resetBooks(false)}>빈 책방으로 초기화</button>
-          <button disabled={recording} onClick={() => resetBooks(true)}>100권 채우기</button>
+          <button disabled={recording} onClick={() => resetBooks(0)}>빈 책방으로 초기화</button>
+          <button disabled={recording} onClick={() => resetBooks(30)}>30권 채우기</button>
+          <button disabled={recording} onClick={() => resetBooks(100)}>100권 채우기</button>
           <button disabled={recording} onClick={() => setGameVersion(version => version + 1)}>같은 위치에서 재시작</button>
           <label>키 입력 유지 <select value={inputDuration} onChange={event => setInputDuration(Number(event.target.value))}><option value={100}>100ms</option><option value={250}>250ms</option><option value={1000}>1000ms</option></select></label>
           {([['ArrowLeft', '왼쪽'], ['ArrowRight', '오른쪽'], ['ArrowUp', '위쪽'], ['ArrowDown', '아래쪽']] as const).map(([key, label]) => <button key={key} onPointerDown={event => event.preventDefault()} onClick={() => driveInput(key)}>{label} {inputDuration}ms</button>)}

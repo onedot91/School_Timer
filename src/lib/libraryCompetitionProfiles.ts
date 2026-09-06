@@ -28,8 +28,8 @@ export function createLibraryCompetitionProfiles(state: Pick<LibraryCompetitionS
     .sort((left, right) => left.order - right.order || left.schoolId.localeCompare(right.schoolId))
   return schools.map((school, index) => {
     const random = (key: string) => competitionRandom(`${seed}:${school.schoolId}:${key}`)
-    if (index < 4) return { schoolId: school.schoolId, role: 'relaxed', initial: Math.floor(random('initial') * 2), responseProbability: (15 + Math.floor(random('response') * 16)) / 100, capRatio: (25 + Math.floor(random('cap') * 21)) / 100, capOffset: 1 }
-    if (index < 12) return { schoolId: school.schoolId, role: 'middle', initial: Math.floor(random('initial') * 3), responseProbability: (35 + Math.floor(random('response') * 21)) / 100, capRatio: (50 + Math.floor(random('cap') * 31)) / 100, capOffset: 2 }
-    return { schoolId: school.schoolId, role: 'leader', initial: 1 + Math.floor(random('initial') * 3), responseProbability: (55 + (index - 12) * 10) / 100, capRatio: 1, capOffset: 3 + Math.floor(random('cap') * 4) }
+    if (index < 4) return { schoolId: school.schoolId, role: 'relaxed', initial: 0, responseProbability: (15 + Math.floor(random('response') * 16)) / 100, capRatio: (25 + Math.floor(random('cap') * 21)) / 100, capOffset: 1 }
+    if (index < 14) return { schoolId: school.schoolId, role: 'middle', initial: 0, responseProbability: (35 + Math.floor(random('response') * 21)) / 100, capRatio: (50 + Math.floor(random('cap') * 31)) / 100, capOffset: 2 }
+    return { schoolId: school.schoolId, role: 'leader', initial: 1, responseProbability: index === 14 ? 0.85 : 0.95, capRatio: 1, capOffset: index - 13 }
   })
 }

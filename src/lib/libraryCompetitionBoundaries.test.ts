@@ -59,19 +59,20 @@ test('Given confirmed chronological events When stale or next-season events arri
   assert.equal(state.placements.length, 1)
 })
 
-test('Given monthly shared seeds When roles are assigned Then four relaxed eight middle and four leaders rotate', () => {
+test('Given monthly shared seeds When roles are assigned Then four relaxed ten middle and two close rivals rotate', () => {
   const september = createLibraryCompetitionProfiles(create())
   const october = createLibraryCompetitionProfiles({ seasonId: '2026-10', seed: 'boundary' })
   assert.equal(september.filter(row => row.role === 'relaxed').length, 4)
-  assert.equal(september.filter(row => row.role === 'middle').length, 8)
-  assert.equal(september.filter(row => row.role === 'leader').length, 4)
+  assert.equal(september.filter(row => row.role === 'middle').length, 10)
+  assert.equal(september.filter(row => row.role === 'leader').length, 2)
   assert.ok(september.some(row => october.find(next => next.schoolId === row.schoolId)?.role !== row.role))
-  assert.deepEqual(september.filter(row => row.role === 'leader').map(row => row.responseProbability).sort(), [0.55, 0.65, 0.75, 0.85])
+  assert.deepEqual(september.filter(row => row.role === 'leader').map(row => row.responseProbability).sort(), [0.85, 0.95])
+  assert.deepEqual(september.filter(row => row.role === 'leader').map(row => row.capOffset).sort(), [1, 2])
   for (const row of september) {
     switch (row.role) {
-      case 'relaxed': assert.ok(row.initial <= 1 && row.responseProbability >= 0.15 && row.responseProbability <= 0.30 && row.capRatio >= 0.25 && row.capRatio <= 0.45); break
-      case 'middle': assert.ok(row.initial <= 2 && row.responseProbability >= 0.35 && row.responseProbability <= 0.55 && row.capRatio >= 0.50 && row.capRatio <= 0.80); break
-      case 'leader': assert.ok(row.initial >= 1 && row.initial <= 3 && row.capOffset >= 3 && row.capOffset <= 6); break
+      case 'relaxed': assert.ok(row.initial === 0 && row.responseProbability >= 0.15 && row.responseProbability <= 0.30 && row.capRatio >= 0.25 && row.capRatio <= 0.45); break
+      case 'middle': assert.ok(row.initial === 0 && row.responseProbability >= 0.35 && row.responseProbability <= 0.55 && row.capRatio >= 0.50 && row.capRatio <= 0.80); break
+      case 'leader': assert.ok(row.initial === 1 && row.capRatio === 1); break
       default: { const exhaustive: never = row.role; assert.fail(exhaustive) }
     }
   }

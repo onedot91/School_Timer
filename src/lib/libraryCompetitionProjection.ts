@@ -1,8 +1,8 @@
 import { LIBRARY_COMPETITION_SCHOOLS, LIBRARY_COMPETITION_OUR_SCHOOL_ID, LibraryCompetitionInputError } from './libraryCompetitionTypes.js'
 import type { LibraryCompetitionStanding, LibraryCompetitionState } from './libraryCompetitionTypes.js'
-import { createLibraryCompetitionProfiles } from './libraryCompetitionProfiles.js'
+import { competitionRandom, createLibraryCompetitionProfiles } from './libraryCompetitionProfiles.js'
 import { createLibraryCompetitionEvents } from './libraryCompetitionEvents.js'
-import { competitionMonthBounds, parseCompetitionTimestamp } from './libraryCompetitionTime.js'
+import { addCompetitionBusinessMinutes, competitionMonthBounds, parseCompetitionTimestamp } from './libraryCompetitionTime.js'
 
 type AccumulatedSchool = { count: number; reachedAt: string; lastGrowthAt: number }
 
@@ -13,6 +13,8 @@ export function projectLibraryCompetition(state: LibraryCompetitionState, at: st
   const progress = new Map<string, AccumulatedSchool>(profiles.map(profile => [profile.schoolId, { count: profile.initial, reachedAt: state.startedAt, lastGrowthAt: Number.NEGATIVE_INFINITY }]))
   progress.set(LIBRARY_COMPETITION_OUR_SCHOOL_ID, { count: 0, reachedAt: state.startedAt, lastGrowthAt: Number.NEGATIVE_INFINITY })
   let ownCount = 0
+  const growthUnlocks = state.placements.map(placement => addCompetitionBusinessMinutes(Date.parse(placement.at), 45))
+  let pacedOwnCount = 0
   let paused = false
   for (const event of createLibraryCompetitionEvents(state, profiles, end)) {
     const eventTime = new Date(event.at).toISOString()
@@ -37,7 +39,12 @@ export function projectLibraryCompetition(state: LibraryCompetitionState, at: st
         const school = progress.get(event.schoolId)
         const profile = profiles.find(item => item.schoolId === event.schoolId)
         if (!school || !profile) break
-        const cap = Math.min(100, Math.ceil(ownCount * profile.capRatio) + profile.capOffset)
+        // Passive growth also waits after a placement, so a newly earned lead is not erased immediately.
+        while (pacedOwnCount < growthUnlocks.length && (growthUnlocks[pacedOwnCount] ?? Infinity) <= event.at) pacedOwnCount += 1
+        const resting = pacedOwnCount >= 4
+          && competitionRandom(`${state.seasonId}:${state.seed}:rest:${Math.floor(pacedOwnCount / 4)}`) < 0.35
+        const cap = Math.min(100, Math.ceil(pacedOwnCount * profile.capRatio) + profile.capOffset,
+          profile.role === 'leader' && !resting ? 100 : Math.max(0, pacedOwnCount - 1))
         if (school.count >= cap || event.at - school.lastGrowthAt < 3_600_000) break
         school.count += 1
         school.reachedAt = eventTime

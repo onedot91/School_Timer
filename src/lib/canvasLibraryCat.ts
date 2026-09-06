@@ -21,6 +21,7 @@ export type LibraryCatNavigation = {
   readonly obstacles: readonly LibraryRect[];
   readonly bounds: LibraryRect;
   readonly spawnIndices: readonly number[];
+  readonly restIndices: readonly number[];
 };
 const GRID = 8;
 const distance = (a: LibraryPoint, b: LibraryPoint) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -81,7 +82,13 @@ export const createLibraryCatNavigation = (room: LibraryRoom): LibraryCatNavigat
   }
   const interactionPoints = [room.desk.interactionPoint, ...room.shelves.flatMap(shelf => [shelf.interactionPoint, ...shelf.slots.map(slot => slot.interactionPoint)]), ...(room.ambientObjects ?? []).filter(object => object.kind !== 'cat').map(object => object.interactionPoint), ...[room.failureBoard?.interactionPoint, room.competitionBoard?.interactionPoint, room.readingArea.interactionPoint].filter((point): point is LibraryPoint => point !== undefined)];
   const spawnIndices = [...connected].filter(index => distance(nodes[index], room.spawn) >= 56 && interactionPoints.every(point => distance(nodes[index], point) >= 36));
-  return { nodes, neighbors, obstacles, bounds, spawnIndices };
+  const rug = room.readingArea.rug;
+  const restIndices = spawnIndices.filter(index => {
+    const point = nodes[index];
+    const rugEdge = { x: Math.max(rug.x, Math.min(rug.x + rug.width, point.x)), y: Math.max(rug.y, Math.min(rug.y + rug.height, point.y)) };
+    return distance(point, rugEdge) <= 24 || point.x - bounds.x <= 48 || bounds.x + bounds.width - point.x <= 48;
+  });
+  return { nodes, neighbors, obstacles, bounds, spawnIndices, restIndices };
 };
 
 const safeApproaches = (room: LibraryRoom, p: LibraryPoint, collider: LibraryPlayer['feetCollider']): LibraryPoint[] => {
@@ -133,7 +140,10 @@ const choosePath = (nav: LibraryCatNavigation, state: LibraryCatState, player: L
   }
   if (!candidates.length) return timed(state, 'look', 2000, 4000);
   const [rngState, value] = random(state.rngState);
-  let selected = candidates[Math.floor(value * candidates.length)];
+  const quiet = candidates.filter(index => nav.restIndices.includes(index));
+  const pool = !yielding && quiet.length && value < 0.75 ? quiet : candidates;
+  const pick = !yielding && quiet.length ? value < 0.75 ? value / 0.75 : (value - 0.75) / 0.25 : value;
+  let selected = pool[Math.min(pool.length - 1, Math.floor(pick * pool.length))];
   if (yielding) selected = candidates.sort((a, b) => distance(nav.nodes[b], player.position) - distance(nav.nodes[a], player.position))[0];
   const path: LibraryPoint[] = [];
   for (let index = selected; index >= 0; index = previous.get(index) ?? -1) path.unshift(nav.nodes[index]);

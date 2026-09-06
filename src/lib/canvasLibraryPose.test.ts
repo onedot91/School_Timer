@@ -22,6 +22,18 @@ const closePoint = (actual: LibraryPoint, expected: LibraryPoint) => {
   assert.ok(Math.abs(actual.y - expected.y) < 1e-8, `y: ${actual.y} !== ${expected.y}`);
 };
 
+test('직원은 먼 곳에서 책을 내려 정리하고 가까이 오면 전달 자세로 멈춘다', () => {
+  const clerk = room.desk.clerk;
+  assert.ok(clerk);
+  const scene = { ...baseScene, clerkState: { timeMs: 800 } };
+  const sorted = getLibraryClerkHand(scene, room);
+  const resting = getLibraryClerkHand({ ...scene, clerkState: { timeMs: 1800 } }, room);
+  assert.ok(sorted && resting);
+  closePoint(sorted, { x: resting.x - 2, y: resting.y + 3 });
+  closePoint(getLibraryClerkHand({ ...scene, player: { ...scene.player, position: clerk.receivePoint } }, room)!, resting);
+  closePoint(getLibraryClerkHand({ ...scene, reducedMotion: true }, room)!, resting);
+});
+
 test('상호작용 팔의 가로·세로·대각선과 팔꿈치 내부는 몸통 털색으로 이어진다', () => {
   for (const [elbow, hand] of [
     [{ x: 5, y: 0 }, { x: 10, y: 0 }], [{ x: -5, y: 0 }, { x: -10, y: 0 }],
@@ -163,7 +175,8 @@ test('보행 시간은 네 디딤을 순환하고 정지 시 벽시계가 흘러
     ...baseScene, player, timeMs: 99000, walkTimeMs: frame * LIBRARY_WALK_FRAME_MS,
   }, room));
   assert.deepEqual(poses.map(pose => pose.frame), [0, 1, 2, 3, 0]);
-  assert.deepEqual(poses.map(pose => pose.stride), [1, 0, -1, 0, 1]);
+  assert.deepEqual(poses.map(pose => pose.stride), [0, 1, 0, -1, 0]);
+  assert.deepEqual(poses.map(pose => pose.bodyOffsetY), [0, 1, 0, 1, 0]);
   for (const pose of poses) closePoint(pose.feet, player.position);
 
   const stopped = { ...baseScene, player: { ...player, isWalking: false }, walkTimeMs: 140 };
@@ -186,6 +199,7 @@ test('모션 줄이기는 보행과 받기 연출 없이 안정된 운반 또는
     const book = getLibraryBookMotion(scene, room);
     assert.equal(pose.walking, false);
     assert.equal(pose.stride, 0);
+    assert.equal(pose.bodyOffsetY, 0);
     assert.equal(pose.reach, 0);
     assert.equal(getLibraryActionProgress(scene), null);
     assert.ok(book);

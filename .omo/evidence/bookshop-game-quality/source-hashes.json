@@ -1,0 +1,14 @@
+{
+  "src/lib/canvasLibraryWorld.ts": "bdda5f8a2bd055822f31aeb86b1ec748c64b771329b19f09ccce109c500638c3",
+  "src/lib/canvasLibraryCat.ts": "88dd344321f087f8e50eeff0d865fcd95d8636404a22c903984e4273107895db",
+  "src/lib/canvasLibraryPose.ts": "420fe6a5c85538bafe9b9008fadd23b6ac0c43605d8a8a9be8a7f3587eeb33cc",
+  "src/components/student/library/CanvasLibraryRenderer.ts": "c8a759cdee81024b981e0081016877fc83a504d70e88ce4e425b42aa56f8d7bd",
+  "src/components/student/library/CanvasLibraryGame.tsx": "9456b19fd6fc8f3b567eb6a0b69b88d76d041032e542aefd164d0177ed66aca9",
+  "src/components/student/library/CanvasLibraryCharacter.ts": "efaa6a5e4c28b6bfb247cc4a1a358e40b36451cdf13dc3cb97192b09531ae938",
+  "src/components/student/library/CanvasLibraryClerk.ts": "52387de10855e87223f704f6eeb5d43f612aa7ceafdf5c57b164745a91abcae4",
+  "src/components/student/library/CanvasLibraryAmbient.ts": "1918d591cdcc00cf5800469dc5c660ceef41e0087ffba2c82d008bfab04a1a7a",
+  "src/components/student/library/CanvasLibraryCompetitionBoard.ts": "665c2362e0be58b891e04c3297ce601904fe142e06e84b6625624d404026cf4a",
+  "src/index.css": "14adeb46467b6e2e59aefb92e4f417c842b37fb8885cac017d8932f05292ae36",
+  "dev/library-review.tsx": "0e8fdad1e40429a267a6fb98bee18587973225b3244bb3833dd5bbf8280bf27a",
+  "DESIGN.md": "e2fea0cb5ac113dd84dd2dbcfa720eb16b172754080af1bd5abff10069f8d459"
+}

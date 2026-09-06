@@ -1,0 +1,46 @@
+{
+  "source": "route-original.webm",
+  "sourceSectionsSeconds": [
+    [
+      0,
+      4
+    ],
+    [
+      14,
+      23
+    ],
+    [
+      44,
+      53
+    ],
+    [
+      74,
+      82
+    ],
+    [
+      89,
+      98
+    ],
+    [
+      127,
+      137
+    ],
+    [
+      187,
+      199
+    ],
+    [
+      206,
+      215
+    ]
+  ],
+  "output": "bookshop-walkthrough.mp4",
+  "width": 1248.0,
+  "height": 752.0,
+  "fps": 30.0,
+  "writtenFrames": 2100,
+  "decodedFrames": 2100,
+  "durationSeconds": 70.0,
+  "codec": "avc1",
+  "verification": "OpenCV full decode; ffprobe unavailable"
+}

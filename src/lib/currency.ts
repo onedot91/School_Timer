@@ -440,7 +440,7 @@ export const applyTeacherCurrencyDeductionInSettings = (
       `선생님이 ${amount.toLocaleString('ko-KR')}고마를 차감했어요.`,
       '',
       '차감 사유',
-      normalizedReason,
+      `: ${normalizedReason}`,
       ...(deduction.depositDeduction > 0
         ? ['', `보유 고마가 부족해 ${deduction.depositDeduction.toLocaleString('ko-KR')}고마는 예금에서 사용했어요.`]
         : []),

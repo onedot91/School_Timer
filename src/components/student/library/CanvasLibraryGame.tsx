@@ -154,6 +154,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const ambientApproachRef = useRef<{ objectId: string; path: readonly LibraryPoint[]; stalledMs: number } | null>(null);
   const receiveApproachRef = useRef<{ book: LibraryBookDraft; path: readonly LibraryPoint[]; stalledMs: number; waiting: boolean } | null>(null);
   const [receiving, setReceiving] = useState(false);
+  const [bookActionBusy, setBookActionBusy] = useState(false);
   const [clerkGreeting, setClerkGreeting] = useState(false);
   const clerkGreetingRef = useRef(false);
   const pausedAtRef = useRef<number | null>(null);
@@ -235,6 +236,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   };
 
   const beginReceive = (book: LibraryBookDraft, time: number) => {
+    setBookActionBusy(true);
     receiveApproachRef.current = null;
     carriedDraftRef.current = book;
     setCarriedDraft(book);
@@ -388,6 +390,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       const held = new Set(heldKeyboardRef.current);
       const input = movementVector(held);
       let current = sceneStateRef.current;
+      const frameStartPosition = current.player.position;
       if (current.clerkState && !pausedRef.current && modalRef.current === null) {
         const previous = current.clerkState;
         const timeMs = previous.timeMs + elapsedMs;
@@ -474,6 +477,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       }
       const actionTime = pausedRef.current ? current.timeMs : time;
       const action = current.action && actionTime - current.action.startedAt < getLibraryActionDuration(current.action, room) && !current.reducedMotion ? current.action : undefined;
+      if (current.action && !action) setBookActionBusy(false);
       if (current.action?.kind === 'receive' && !action && !pausedRef.current) {
         setReceiving(false);
         showAmbientNotice('책장에 꽂아 주세요');
@@ -490,9 +494,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
         setHasMoved(true);
       }
       const walkTimeMs = player.isWalking
-        ? current.player.isWalking ? (current.walkTimeMs ?? 0) + elapsedMs : 0
+        ? current.player.isWalking ? (current.walkTimeMs ?? 0) + Math.hypot(player.position.x - frameStartPosition.x, player.position.y - frameStartPosition.y) * 10 : 0
         : 0;
-      const target = getNearbyLibraryTarget(resolveLibraryCatRoom(room, current.catState, player), player, booksRef.current);
+      const target = getNearbyLibraryTarget(resolveLibraryCatRoom(room, current.catState, player), player, booksRef.current, current.nearbyTarget);
       current = {
         ...current,
         player,
@@ -847,6 +851,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     booksRef.current = nextBooks;
     carriedDraftRef.current = null;
     setCarriedDraft(null);
+    setBookActionBusy(true);
     sceneStateRef.current = {
       ...sceneStateRef.current,
       placedBooks: nextBooks,
@@ -941,6 +946,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       : nearbyTarget?.kind === 'competition-board' ? room.competitionBoard?.visualRect
       : nearbyTarget?.kind === 'reading-nook' ? room.readingArea.beanbagVisualRect
         : nearbyTarget && 'shelfId' in nearbyTarget ? room.shelves.find(shelf => shelf.id === nearbyTarget.shelfId)?.visualRect : null;
+  const cueY = ambientState.benchObjectId
+    ? getLibraryBearPose(sceneStateRef.current, room).feet.y - 46 - 22 / displayScale
+    : (cueRect?.y ?? 42) - (ambientObject?.kind === 'cat' ? 12 + 22 / displayScale : 16);
 
   return (
     <main className="student-canvas-library" aria-label="우리 반 도서관 게임" onPointerDownCapture={unlockAudio} onKeyDownCapture={unlockAudio}>
@@ -968,8 +976,8 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
             </button>
           ) : null}
 
-          {nearbyActionLabel && cueRect && !modal && !ambientBusy ? (
-            <button type="button" className="student-canvas-library-world-cue" style={{left: `${(cueRect.x + cueRect.width / 2) / room.width * 100}%`, top: `${Math.max(42, cueRect.y - (ambientObject?.kind === 'cat' ? 12 + 22 / displayScale : 16)) / room.height * 100}%`}} onClick={interact} aria-label={nearbyActionLabel}>
+          {nearbyActionLabel && cueRect && !modal && !ambientBusy && !isPlacing && !bookActionBusy && (!receiving || receiveApproachRef.current?.waiting) ? (
+            <button key={nearbyTarget?.id} type="button" className="student-canvas-library-world-cue" style={{left: `clamp(8rem, ${(cueRect.x + cueRect.width / 2) / room.width * 100}%, calc(100% - 8rem))`, top: `${Math.max(42, cueY) / room.height * 100}%`}} onClick={interact} aria-label={nearbyActionLabel}>
               <kbd>E</kbd><span>{nearbyActionLabel.replace('가까운 곳 살펴보기: ', '')}</span>
             </button>
           ) : null}

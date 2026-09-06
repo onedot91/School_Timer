@@ -22,6 +22,8 @@ const safeCat = (cat: LibraryCatState) => {
 };
 
 test('seeded visits spawn varied cats only on connected safe floor away from entry and interactions', () => {
+  assert.ok(nav.restIndices.length > 0);
+  assert.ok(nav.restIndices.every(index => nav.spawnIndices.includes(index)), 'rest spots retain spawn safety and interaction clearance');
   const positions = new Set<string>();
   const excluded = [room.spawn, room.desk.interactionPoint, ...room.shelves.flatMap(shelf => [shelf.interactionPoint, ...shelf.slots.map(slot => slot.interactionPoint)]), ...(room.ambientObjects ?? []).filter(object => object.kind !== 'cat').map(object => object.interactionPoint), room.failureBoard!.interactionPoint, room.competitionBoard!.interactionPoint, room.readingArea.interactionPoint!];
   for (let seed = 1; seed <= 120; seed += 1) {

@@ -128,9 +128,11 @@ const makeShelf = (
     const column = index % columns;
     const horizontalInset = variant === 'wide-low' || variant === 'endcap' ? 8 : 9;
     const verticalInset = variant === 'wide-low' ? 9 : 13;
+    const topInset = visualGroupId ? 14 : verticalInset;
+    const bottomInset = visualGroupId ? 6 : verticalInset;
     const gap = 1;
     const slotWidth = Math.min(7, Math.floor((visualRect.width - horizontalInset * 2 - gap * (columns - 1)) / columns));
-    const slotHeight = Math.floor((visualRect.height - verticalInset * 2 - 4 * (rows - 1)) / rows);
+    const slotHeight = Math.floor((visualRect.height - topInset - bottomInset - 4 * (rows - 1)) / rows);
     return {
       id: firstSlotId + index,
       shelfId: id,
@@ -138,7 +140,7 @@ const makeShelf = (
       column,
       rect: {
         x: visualRect.x + horizontalInset + column * (slotWidth + gap),
-        y: visualRect.y + verticalInset + row * (slotHeight + 4),
+        y: visualRect.y + topInset + row * (slotHeight + 4),
         width: slotWidth,
         height: slotHeight,
       },
@@ -486,6 +488,7 @@ const distance = (first: LibraryPoint, second: LibraryPoint): number => Math.hyp
 export const getNearbyLibraryTarget = (
   room: LibraryRoom, player: LibraryPlayer,
   placedBooks: readonly LibraryPlacedBook[],
+  previousTarget?: LibraryTarget | null,
 ): LibraryTarget | null => {
   const pickerShelf = room.shelves
     .filter((shelf) => shelf.slots.length >= 20)
@@ -536,8 +539,11 @@ export const getNearbyLibraryTarget = (
       return { target, distance: reach, facingRank: inFront ? 0 : 1 };
     })
     .filter((candidate) => candidate.distance <= 28)
-    .sort((first, second) => first.facingRank - second.facingRank || first.distance - second.distance || first.target.id.localeCompare(second.target.id))[0];
-  return nearby?.target ?? null;
+    .sort((first, second) => first.facingRank - second.facingRank || first.distance - second.distance || first.target.id.localeCompare(second.target.id));
+  const best = nearby[0];
+  const previous = nearby.find(candidate => candidate.target.id === previousTarget?.id);
+  return previous && best && previous.facingRank === best.facingRank && previous.distance <= best.distance + 3
+    ? previous.target : best?.target ?? null;
 };
 
 const isValidDraft = (draft: LibraryBookDraft): boolean => (

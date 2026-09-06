@@ -16,9 +16,14 @@ export function drawLibraryAmbientLight(ctx: Context, room: LibraryRoom, scene: 
   if (scene.ambientState?.lampOn === false) return;
   const lamp = room.ambientObjects?.find(object => object.kind === 'lamp')?.visualRect ?? room.readingArea.lampRect;
   ctx.save();
-  for (let ring = 3; ring >= 0; ring -= 1) {
-    ctx.globalAlpha = 0.07 + (3 - ring) * 0.035;
-    rect(ctx, lamp.x - 17 - ring * 5, lamp.y + lamp.height - 4 - ring * 2, lamp.width + 34 + ring * 10, 5 + ring * 4, p.paper[3]);
+  const centerX = lamp.x + lamp.width / 2;
+  const centerY = lamp.y + lamp.height - 1;
+  const alpha = ctx.globalAlpha;
+  for (let band = -4; band <= 4; band += 1) {
+    const distance = Math.abs(band);
+    const width = [56, 52, 44, 34, 20][distance];
+    ctx.globalAlpha = alpha * (0.12 + (4 - distance) * 0.018);
+    rect(ctx, centerX - width / 2, centerY + band * 2, width, 2, p.paper[3]);
   }
   ctx.restore();
 }

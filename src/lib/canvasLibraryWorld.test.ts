@@ -57,6 +57,10 @@ test('등록대 직원은 상단 책장과 분리되고 책 받기와 양옆 통
     assert.ok(stepLibraryPlayer(room, player, { x: 0, y: 1 }, 50).position.y > player.position.y);
   }
   assert.deepEqual(room.shelves.flatMap(shelf => shelf.slots).map(slot => slot.id), Array.from({ length: 100 }, (_, id) => id));
+  for (const shelf of room.shelves) {
+    assert.equal(shelf.slots[0].rect.y, shelf.visualRect.y + 14);
+    assert.ok(shelf.slots.every(slot => slot.rect.y + slot.rect.height <= shelf.visualRect.y + shelf.visualRect.height - 6));
+  }
 });
 
 test('작은 도서관은 두 종류 선반과 20개 이하의 고유 슬롯을 제공한다', () => {
@@ -573,6 +577,27 @@ test('생활 대상이 옆에 있어도 책장 중심 10px 안에서는 피커�
   const target = getNearbyLibraryTarget({ ...room, ambientObjects: [object] }, playerAt(shelf.interactionPoint), []);
   assert.equal(target?.kind, 'shelf');
   assert.equal(target?.id, shelf.id);
+});
+
+test('E 대상은 3px 경계에서 유지하되 방향·거리 우선과 이동한 좌표를 따른다', () => {
+  const base = createSmallLibraryRoom();
+  const player = { ...createLibraryPlayer(base), facing: 'left' as const };
+  const object = (id: string, x: number): LibraryAmbientObject => ({
+    id, kind: 'cat', visualRect: { x, y: 340, width: 8, height: 8 },
+    interactionPoint: { x, y: 340 }, actionPoint: { x, y: 340 },
+  });
+  const original = getNearbyLibraryTarget({ ...base, ambientObjects: [object('kept', 298)] }, player, []);
+  assert.ok(original);
+  const near = { ...base, ambientObjects: [object('kept', 298), object('new', 300)] };
+  assert.equal(getNearbyLibraryTarget(near, player, [])?.id, 'new');
+  assert.equal(getNearbyLibraryTarget(near, player, [], original)?.id, 'kept');
+  const moved = getNearbyLibraryTarget({ ...near, ambientObjects: [object('kept', 297), object('new', 300)] }, player, [], original);
+  assert.equal(moved?.id, 'kept');
+  assert.equal(moved.interactionPoint.x, 297);
+  assert.equal(getNearbyLibraryTarget({ ...near, ambientObjects: [object('kept', 298), object('new', 304)] }, player, [], original)?.id, 'new');
+  assert.equal(getNearbyLibraryTarget({ ...near, ambientObjects: [object('kept', 270), object('new', 300)] }, player, [], original)?.id, 'new');
+  assert.equal(getNearbyLibraryTarget({ ...near, ambientObjects: [object('kept', 298), object('right', 326)] }, { ...player, facing: 'right' }, [], original)?.id, 'right');
+  assert.equal(getNearbyLibraryTarget({ ...near, ambientObjects: [] }, player, [], original), null);
 });
 
 test('서가와 등록대는 앞뒤와 양옆에서 E 대상으로 선택할 수 있다', () => {

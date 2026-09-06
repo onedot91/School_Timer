@@ -1289,6 +1289,23 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   font-size: 0.875rem;
 }
 
+.student-canvas-library-world-cue span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .student-canvas-library-world-cue {
+    animation: library-cue-appear 140ms ease-out;
+  }
+}
+
+@keyframes library-cue-appear {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 2px)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
 .student-canvas-library-nearby-action {
   top: 0.5rem;
   right: 0.5rem;

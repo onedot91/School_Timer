@@ -65,7 +65,7 @@ export function drawLibraryBookSpine(context: Context, box: LibraryRect, book?: 
   rect(context,x,y,width,1,colors[1]);
   rect(context,x,y+height-1,width,1,colors[1]);
   rect(context,x+width-1,y+1,1,Math.max(1,height-2),palette.paper[2]);
-  if (width > 2) rect(context,x+1,y+Math.floor(height/2),width-2,1,palette.paper[3]);
+  if (width > 2) rect(context,x+1,y+Math.floor(height * (0.4 + (book ? getLibraryBookTone(book) % 3 : 1) * 0.12)),width-2,1,colors[1]);
 }
 
 export function drawLibraryCarryBook(context: Context, center: {x:number;y:number}, turn = 0, book?: LibraryBookDraft, size?: {width:number;height:number}) {
@@ -99,14 +99,14 @@ export function drawLibraryInteractionHand(context: Context, pose: ReturnType<ty
 
 export function drawLibraryCharacter(context: Context, scene: LibraryScene, room?: LibraryRoom) {
   const pose = getLibraryBearPose(scene, room);
-  const {facing, stride, carrying, benchSeated, ambientProgress} = pose;
+  const {facing, stride, bodyOffsetY, carrying, benchSeated, ambientProgress} = pose;
   const clerkReceiving = Boolean(room?.desk.clerk && scene.action?.kind === 'receive' && pose.progress !== null);
   const interacting = ambientProgress !== null && scene.ambientAction?.kind !== 'sit';
   const side = facing === 'left' || facing === 'right';
   const back = facing === 'up';
   const mirrored = facing === 'left';
   const x = Math.round(pose.feet.x - 16);
-  const y = Math.round(pose.feet.y - 38);
+  const y = Math.round(pose.feet.y - 38 + bodyOffsetY);
   context.save();
   context.translate(x, y);
   if (mirrored) { context.translate(32,0); context.scale(-1,1); }
@@ -116,8 +116,8 @@ export function drawLibraryCharacter(context: Context, scene: LibraryScene, room
     rect(context, 19, 29, 5, 7, palette.bear[0]);
     rect(context, 10, 30, 3, 5, palette.bear[2]);
     rect(context, 20, 30, 3, 5, palette.bear[2]);
-  } else if (side) paw(context,15-stride,31-Math.max(0,stride),7,7,true);
-  else { paw(context,8,31-Math.max(0,stride),7,7); paw(context,18,31-Math.max(0,-stride),7,7); }
+  } else if (side) paw(context,15-stride*2,31-Math.max(0,stride)-bodyOffsetY,7,7,true);
+  else { paw(context,8,31-Math.max(0,stride)-bodyOffsetY,7,7); paw(context,18,31-Math.max(0,-stride)-bodyOffsetY,7,7); }
   if (side && !mirrored) bag(context,5,25);
   shape(context,side ? [[12,21],[22,22],[25,27],[24,34],[11,34],[9,29]] : [[9,21],[23,21],[26,26],[25,33],[21,35],[11,35],[7,32],[6,27]],palette.bear[0]);
   shape(context,side ? [[13,22],[21,23],[24,27],[23,33],[12,33],[10,29]] : [[10,22],[22,22],[25,27],[24,32],[20,34],[12,34],[8,31],[7,27]],palette.bear[2]);
@@ -126,7 +126,7 @@ export function drawLibraryCharacter(context: Context, scene: LibraryScene, room
     shape(context,[[15,28],[18,29],[19,31],[17,32],[14,31],[13,30]],palette.bear[1]);
     rect(context,14,29,3,1,palette.bear[3]);
   }
-  if (side) paw(context,10+stride,32-Math.max(0,-stride),8,6);
+  if (side) paw(context,10+stride*2,32-Math.max(0,-stride)-bodyOffsetY,8,6);
 
   if (!carrying && !scene.seated && !benchSeated && !interacting) {
     if (side) paw(context,16,25+stride,6,8);

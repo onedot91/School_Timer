@@ -48,7 +48,13 @@ export function getLibraryClerkHand(scene: LibraryScene, room: LibraryRoom): Lib
   if (!clerk) return null;
   const resting = { x: clerk.handoffPoint.x + 5, y: clerk.handoffPoint.y - 5 };
   const progress = getLibraryActionProgress(scene, room);
-  if (scene.action?.kind !== 'receive' || progress === null) return resting;
+  if (scene.action?.kind !== 'receive' || progress === null) {
+    const near = Math.hypot(scene.player.position.x - clerk.receivePoint.x, scene.player.position.y - clerk.receivePoint.y) < 72;
+    const phase = (scene.clerkState?.timeMs ?? 0) % 8000;
+    const amount = scene.reducedMotion || near ? 0 : phase < 450 ? ease(phase / 450)
+      : phase < 1000 ? 1 : phase < 1600 ? 1 - ease((phase - 1000) / 600) : 0;
+    return { x: resting.x - amount * 2, y: resting.y + amount * 3 };
+  }
   if (progress < 0.2) return mix(resting, clerk.handoffPoint, ease(progress / 0.2));
   return mix(clerk.handoffPoint, resting, ease((progress - 0.2) / 0.2));
 }
@@ -88,15 +94,16 @@ export function getLibraryBearPose(scene: LibraryScene, room?: LibraryRoom) {
   const walking = scene.player.isWalking && !scene.reducedMotion && !scene.seated && !benchSeated && !scene.ambientAction;
   const time = scene.walkTimeMs ?? scene.timeMs;
   const frame = walking && Number.isFinite(time) ? Math.floor(Math.max(0, time) / LIBRARY_WALK_FRAME_MS) % 4 : 1;
-  const stride = walking ? [1, 0, -1, 0][frame] : 0;
+  const stride = walking ? [0, 1, 0, -1][frame] : 0;
+  const bodyOffsetY = walking && Math.abs(stride) === 1 ? 1 : 0;
   const progress = getLibraryActionProgress(scene, room);
   const carrying = Boolean(scene.carriedDraft) || (scene.action?.kind === 'place' && progress !== null);
   const reach = progress === null ? 0 : scene.action?.kind === 'receive'
     ? Math.sin(Math.min(1, progress / 0.7) * Math.PI) * 2
     : progress < 0.2 ? ease(progress / 0.2) * 4 : (1 - ease((progress - 0.2) / 0.8)) * 4;
   const direction = facing === 'left' ? -1 : facing === 'right' ? 1 : 0;
-  const shoulder = { x: feet.x + (direction || 1) * 5, y: feet.y - 12 };
-  let hand = { x: feet.x + direction * (10 + Math.round(reach)), y: feet.y - 10 - Math.round(reach) };
+  const shoulder = { x: feet.x + (direction || 1) * 5, y: feet.y - 12 + bodyOffsetY };
+  let hand = { x: feet.x + direction * (10 + Math.round(reach)), y: feet.y - 10 - Math.round(reach) + bodyOffsetY };
   if (room?.desk.clerk && scene.action?.kind === 'receive' && progress !== null) {
     hand = { x: feet.x, y: feet.y - 10 };
   }
@@ -127,7 +134,7 @@ export function getLibraryBearPose(scene: LibraryScene, room?: LibraryRoom) {
   if (!reachable) hand = mix(shoulder, hand, 12 / distance);
   const elbow = { x: shoulder.x + (hand.x - shoulder.x) * 0.5,
     y: shoulder.y + (hand.y - shoulder.y) * 0.5 + Math.min(2, Math.abs(hand.x - shoulder.x) / 4) };
-  return { feet, facing, walking, frame, stride, carrying, shoulder, elbow, hand, reachable, progress, ambientProgress, benchSeated, reach: Math.round(reach) };
+  return { feet, facing, walking, frame, stride, bodyOffsetY, carrying, shoulder, elbow, hand, reachable, progress, ambientProgress, benchSeated, reach: Math.round(reach) };
 }
 
 export function getLibraryBookMotion(scene: LibraryScene, room: LibraryRoom) {

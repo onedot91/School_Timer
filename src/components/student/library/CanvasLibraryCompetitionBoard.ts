@@ -9,8 +9,11 @@ export const drawCompetitionBoard = (context: CanvasRenderingContext2D, rect: Li
     context.fillRect(x + left, y + top, width, height);
   };
   paint(palette.timber[0], 4, 30, rect.width - 8, rect.height - 30);
-  paint(palette.timber[3], 0, 27, rect.width, 6);
-  paint(palette.paper[3], 3, 27, rect.width - 6, 2);
+  paint(palette.timber[0], 0, 24, rect.width, 9);
+  paint(palette.timber[2], 1, 25, rect.width - 2, 6);
+  paint(palette.timber[3], 2, 25, rect.width - 4, 1);
+  paint(palette.timber[1], rect.width - 4, 27, 3, 38);
+  paint(palette.timber[1], 1, 31, rect.width - 2, 2);
   paint(palette.lavender[0], 7, 33, rect.width - 14, 29);
   paint(palette.lavender[1], 10, 35, rect.width - 20, 24);
   paint(palette.timber[2], 7, 62, rect.width - 14, 5);
