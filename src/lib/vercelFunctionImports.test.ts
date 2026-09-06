@@ -19,6 +19,8 @@ const SERVER_MODULES = [
   'src/lib/classwordSchedule.ts',
   'src/lib/classwordTopics.ts',
   'src/lib/classwordVocabulary.ts',
+  'src/lib/classwordVocabularyGrade34.ts',
+  'src/lib/classwordCatalog/vocabularyGrade34.ts',
   'src/lib/classwordCatalog/types.ts',
   'src/lib/classwordCatalog/vocabularyLearning.ts',
   'src/lib/classwordCatalog/vocabularyNature.ts',

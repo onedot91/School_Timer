@@ -38,11 +38,11 @@ async function startReview(rootElement: HTMLElement): Promise<void> {
     import('../src/lib/classword'),
     import('../src/lib/classwordSchedule'),
     import('../src/lib/classwordTopics'),
-    import('../src/lib/classwordVocabulary'),
+    import('../src/lib/classwordVocabularyGrade34'),
   ]);
   const StudentClasswordPage = studentModule.default;
   const TeacherClasswordPanel = teacherModule.default;
-  const longestQuestion = vocabulary.CLASSWORD_VOCABULARY_V1.reduce((longest, question) => {
+  const longestQuestion = vocabulary.CLASSWORD_VOCABULARY_V2.reduce((longest, question) => {
     const length = (value: typeof question) => value.meaning.length
       + value.examples.reduce((total, example) => total + example.prefix.length + example.suffix.length, 0);
     return length(question) > length(longest) ? question : longest;
@@ -99,7 +99,7 @@ async function startReview(rootElement: HTMLElement): Promise<void> {
     };
     const previewQuestion = async (longest: boolean) => {
       const question = longest ? longestQuestion
-        : vocabulary.CLASSWORD_VOCABULARY_V1[Math.floor(Math.random() * vocabulary.CLASSWORD_VOCABULARY_V1.length)];
+        : vocabulary.CLASSWORD_VOCABULARY_V2[Math.floor(Math.random() * vocabulary.CLASSWORD_VOCABULARY_V2.length)];
       if (!question) return;
       await client.updateTeacherClasswordQuiz({
         dateKey: displayDateKey, answer: question.answer, initialHint: question.initialHint, meaning: question.meaning,

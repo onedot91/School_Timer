@@ -1,6 +1,7 @@
 import { isClasswordDateKey } from './classword.js';
 import { CLASSWORD_ANNUAL_START, getClasswordWeekdayIndex } from './classwordSchedule.js';
 import { CLASSWORD_VOCABULARY_V1 } from './classwordVocabulary.js';
+import { CLASSWORD_GRADE34_START, CLASSWORD_VOCABULARY_V2 } from './classwordVocabularyGrade34.js';
 
 export type ClasswordQuizExample = {
   readonly register: 'written' | 'spoken';
@@ -146,8 +147,9 @@ export const getDailyClasswordQuiz = (dateKey: string): ClasswordQuizPrompt => {
 export const getDailyClasswordQuizDefinition = (dateKey: string): ClasswordQuizDefinition => {
   if (!isClasswordDateKey(dateKey)) throw new Error('CLASSWORD_QUIZ_INVALID_DATE');
   const dayNumber = Math.floor(Date.parse(`${dateKey}T00:00:00.000Z`) / 86_400_000);
+  const annualQuestions = dateKey >= CLASSWORD_GRADE34_START ? CLASSWORD_VOCABULARY_V2 : CLASSWORD_VOCABULARY_V1;
   const question = dateKey >= CLASSWORD_ANNUAL_START
-    ? CLASSWORD_VOCABULARY_V1[getClasswordWeekdayIndex(dateKey) % CLASSWORD_VOCABULARY_V1.length]
+    ? annualQuestions[getClasswordWeekdayIndex(dateKey) % annualQuestions.length]
     : CLASSWORD_QUIZ_QUESTIONS[Math.abs(dayNumber) % CLASSWORD_QUIZ_QUESTIONS.length];
   if (!question) throw new Error('CLASSWORD_QUIZ_NOT_FOUND');
   return question;
