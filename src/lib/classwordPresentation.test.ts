@@ -33,13 +33,13 @@ const css = readFileSync(new URL('../classword.css', import.meta.url), 'utf8');
 const indexCss = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 
 test('낱말판은 3초 갱신과 화면 복귀 즉시 갱신을 유지한다', () => {
-  assert.match(studentPage, /window\.setInterval\([\s\S]*?}, 3000\)/);
+  assert.match(studentPage, /window\.setInterval\(refreshOnReturn, 3000\)/);
   assert.match(studentPage, /window\.addEventListener\('focus', refreshOnReturn\)/);
   assert.match(studentPage, /document\.addEventListener\('visibilitychange', refreshOnReturn\)/);
 });
 
 test('14칸 완성은 배너를 표시하고 동작 줄이기에서는 입자 모션을 제거한다', () => {
-  assert.match(studentPage, /board\.entries\.length === 14/);
+  assert.match(studentPage, /!readOnly && currentBoard\.entries\.length === 14/);
   assert.match(studentPage, /className="classword-complete-banner"/);
   assert.match(studentPage, /reducedMotion \? null : <span className="classword-particles"/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.classword-particles/);
@@ -86,7 +86,7 @@ test('낱말 확인 단계는 안내 문구 없이 접근 가능한 체크와 X 
 test('낱말 확인은 체크 버튼 클릭 뒤에만 저장하고 저장 중 진행 바를 보여 준다', () => {
   assert.doesNotMatch(studentBoard, /window\.addEventListener\('keydown'/);
   assert.match(studentPage, /saving=\{saving\}/);
-  assert.match(studentPage, /disabled=\{loading \|\| !board\.topic\}/);
+  assert.match(studentPage, /disabled=\{readOnly \|\| loading \|\| !currentBoard\.topic\}/);
   assert.doesNotMatch(studentPage, /낱말판에 저장했어요\./);
   assert.match(studentPage, /setBoard\(\(currentBoard\) =>/);
   assert.match(studentBoard, /className="classword-save-progress"[\s\S]*?role="progressbar"[\s\S]*?aria-label="낱말 저장 중"/);
@@ -204,10 +204,11 @@ test('보너스 문제 정답을 맞히면 입력값을 유지한 채 입력창�
   assert.doesNotMatch(studentQuiz, /setAnswer\(''\)/);
   assert.match(client, /saveClasswordQuizAnswer/);
   assert.match(studentQuiz, /loadSavedClasswordQuizAnswer/);
-  assert.match(studentQuiz, /savedAnswer \|\| getDailyClasswordQuizAnswer\(state\.dateKey\)/);
+  assert.match(studentQuiz, /setAnswer\(savedAnswer\)/);
+  assert.doesNotMatch(studentQuiz, /getDailyClasswordQuizAnswer/);
   assert.match(studentPage, /studentNumber=\{studentNumber\}/);
-  assert.match(studentQuiz, /disabled=\{saving \|\| completed\}/);
-  assert.match(studentQuiz, /disabled=\{saving \|\| completed \|\| !answer\.trim\(\)\}/);
+  assert.match(studentQuiz, /disabled=\{loading \|\| readOnly \|\| saving \|\| completed\}/);
+  assert.match(studentQuiz, /disabled=\{loading \|\| readOnly \|\| saving \|\| completed \|\| !answer\.trim\(\)\}/);
 });
 
 test('기본 낱말판은 7×2로 배치하고 모든 정답 낱말 글자 크기를 일관되게 유지한다', () => {

@@ -380,6 +380,15 @@ test('전체 도서관의 실패 이야기 게시판은 상호작용 범위 안�
   assert.equal(room.failureBoard.visualRect.width >= 120 && room.failureBoard.visualRect.height >= 70, true);
 });
 
+test('잠긴 게시판 상호작용은 실제 이름과 전시 화면 대신 가린 이름과 힌트를 사용한다', async () => {
+  const source = await readFile(new URL('../components/student/library/CanvasLibraryGame.tsx', import.meta.url), 'utf8');
+
+  assert.match(source, /STUDENT_FEATURE_RELEASES\.failureExhibition/);
+  assert.match(source, /getStudentFailureExhibitionHint\(\)/);
+  assert.match(source, /STUDENT_FAILURE_EXHIBITION_HIDDEN_LABEL/);
+  assert.doesNotMatch(source, /가까운 곳 살펴보기: 실패 자랑소/);
+});
+
 test('전체 도서관의 독서 코너는 러그·테이블·벤치·조명을 하나의 영역으로 묶고 발판을 추적한다', () => {
   const room = createFullLibraryRoom();
   const area = room.readingArea;

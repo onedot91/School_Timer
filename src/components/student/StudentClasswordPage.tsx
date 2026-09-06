@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getKoreanDateKey, type ClasswordBoard as ClasswordBoardData, type ClasswordInitial } from '../../lib/classword';
 import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
+import { getClasswordDisplayDate, isClasswordWeekday } from '../../lib/classwordSchedule';
 import { playClasswordSound } from '../../lib/classwordAudio';
 import {
   CLASSWORD_LOCAL_CHANGE_EVENT,
@@ -49,6 +50,8 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   CLASSWORD_ENTRY_CONFLICT: '방금 다른 친구가 이 칸을 채웠어요.',
   CLASSWORD_TOPIC_REQUIRED: '오늘의 주제가 아직 정해지지 않았어요.',
   BACKEND_WRITE_DISABLED: '읽기 전용 모드에서는 낱말을 바꿀 수 없어요.',
+  CLASSWORD_WEEKEND_CLOSED: '주말에는 쉬어요. 월요일에 다시 만나요.',
+  TODAY_ONLY: '날짜가 바뀌었어요. 오늘 낱말판을 확인해 주세요.',
 };
 
 const getErrorMessage = (error: unknown): string => {
@@ -73,73 +76,98 @@ export default function StudentClasswordPage({
   const [quizLoadError, setQuizLoadError] = useState('');
   const [feedback, setFeedback] = useState<{ readonly kind: 'status' | 'error'; readonly message: string } | null>(null);
   const completionCountRef = useRef(0);
-  const dateKey = getKoreanDateKey();
+  const [dateKey, setDateKey] = useState(getKoreanDateKey);
+  const displayDateKey = getClasswordDisplayDate(dateKey);
+  const readOnly = !isClasswordWeekday(dateKey);
+  const currentBoard = board.dateKey === displayDateKey
+    ? board
+    : { ...EMPTY_BOARD, dateKey: displayDateKey };
+  const currentQuizState = quizState?.dateKey === displayDateKey ? quizState : null;
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
-      const nextBoard = await loadClasswordBoard(dateKey);
+      const nextBoard = await loadClasswordBoard(displayDateKey);
+      if (getKoreanDateKey() !== dateKey) return;
       setBoard(nextBoard);
       setLoading(false);
-      if (nextBoard.entries.length === 14) {
+      if (!readOnly && nextBoard.entries.length === 14) {
         if (completionCountRef.current < 14) void playClasswordSound('complete');
       }
       completionCountRef.current = nextBoard.entries.length;
     } catch (error) {
+      if (getKoreanDateKey() !== dateKey) return;
       setLoading(false);
       setFeedback({ kind: 'error', message: getErrorMessage(error) });
     }
-  }, [dateKey]);
+  }, [dateKey, displayDateKey, readOnly]);
 
   const refreshQuiz = useCallback(async (): Promise<void> => {
     try {
-      const nextState = await loadClasswordQuizStudentState(dateKey, studentNumber);
+      const nextState = await loadClasswordQuizStudentState(displayDateKey, studentNumber);
+      if (getKoreanDateKey() !== dateKey) return;
       setQuizState(nextState);
       setQuizLoadError('');
     } catch {
+      if (getKoreanDateKey() !== dateKey) return;
       setQuizLoadError('낱말 퀴즈를 불러오지 못했어요.');
     } finally {
-      setQuizLoading(false);
+      if (getKoreanDateKey() === dateKey) setQuizLoading(false);
     }
-  }, [dateKey, studentNumber]);
+  }, [dateKey, displayDateKey, studentNumber]);
 
   useEffect(() => {
+    setLoading(true);
+    setQuizLoading(true);
+    setFeedback(null);
+    setQuizLoadError('');
+    completionCountRef.current = 0;
     void refresh();
     void refreshQuiz();
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        void refresh();
-        void refreshQuiz();
-      }
-    }, 3000);
     const refreshOnReturn = () => {
+      const today = getKoreanDateKey();
+      if (today !== dateKey) {
+        setDateKey(today);
+        return;
+      }
       if (document.visibilityState === 'visible') {
         void refresh();
         void refreshQuiz();
       }
     };
+    const interval = window.setInterval(refreshOnReturn, 3000);
+    const midnight = Date.parse(`${dateKey}T00:00:00+09:00`) + 86_400_000;
+    const rollover = window.setTimeout(refreshOnReturn, Math.max(1, midnight - Date.now()));
     window.addEventListener('focus', refreshOnReturn);
     window.addEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, refreshOnReturn);
     document.addEventListener('visibilitychange', refreshOnReturn);
     return () => {
       window.clearInterval(interval);
+      window.clearTimeout(rollover);
       window.removeEventListener('focus', refreshOnReturn);
       window.removeEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, refreshOnReturn);
       document.removeEventListener('visibilitychange', refreshOnReturn);
     };
-  }, [refresh, refreshQuiz]);
+  }, [dateKey, refresh, refreshQuiz]);
 
   const submitQuiz = async (answer: string): Promise<boolean> => {
+    const today = getKoreanDateKey();
+    if (!isClasswordWeekday(today) || today !== dateKey || quizSaving || quizLoading) {
+      setDateKey(today);
+      return false;
+    }
     setQuizSaving(true);
     try {
       const result = await submitClasswordQuizAnswer({ dateKey, studentNumber, answer });
+      if (result.balance !== null) onRewardBalance(result.balance);
+      if (getKoreanDateKey() !== dateKey) return result.correct;
       setQuizState(result.correct
         ? { ...result.state, rewardAmount: result.rewardAmount }
         : result.state);
       setQuizLoadError('');
-      if (result.balance !== null) onRewardBalance(result.balance);
       void playClasswordSound(result.correct ? 'success' : 'error');
       return result.correct;
     } catch (error) {
+      if (getKoreanDateKey() !== dateKey) throw error;
       const message = getErrorMessage(error);
       setQuizLoadError(message === '낱말판을 저장하지 못했어요.'
         ? '정답을 확인하지 못했어요.'
@@ -156,6 +184,11 @@ export default function StudentClasswordPage({
     readonly initial: ClasswordInitial;
     readonly word: string;
   }): Promise<ClasswordSaveResult> => {
+    const today = getKoreanDateKey();
+    if (!isClasswordWeekday(today) || today !== dateKey || saving || loading) {
+      setDateKey(today);
+      return 'error';
+    }
     setSaving(true);
     setFeedback(null);
     try {
@@ -163,7 +196,9 @@ export default function StudentClasswordPage({
         ...input,
         dateKey,
         studentNumber,
-      }, board.topic);
+      }, currentBoard.topic);
+      if (result.balance !== null) onRewardBalance(result.balance);
+      if (getKoreanDateKey() !== dateKey) return 'saved';
       setBoard((currentBoard) => ({
         ...currentBoard,
         entries: [
@@ -175,9 +210,9 @@ export default function StudentClasswordPage({
       }));
       void playClasswordSound('success');
       onMissionSubmitted(result.awarded);
-      if (result.balance !== null) onRewardBalance(result.balance);
       return 'saved';
     } catch (error) {
+      if (getKoreanDateKey() !== dateKey) return 'error';
       const message = getErrorMessage(error);
       const conflict = error instanceof ClasswordClientError
         && (error.code === 'CLASSWORD_ENTRY_CONFLICT' || error.code === 'CLASSWORD_INITIAL_OCCUPIED');
@@ -191,16 +226,23 @@ export default function StudentClasswordPage({
   };
 
   const remove = async (entryId: string): Promise<boolean> => {
+    const today = getKoreanDateKey();
+    if (!isClasswordWeekday(today) || today !== dateKey || saving || loading) {
+      setDateKey(today);
+      return false;
+    }
     setSaving(true);
     setFeedback(null);
     try {
       await removeClasswordEntry(entryId, studentNumber);
+      if (getKoreanDateKey() !== dateKey) return true;
       setBoard((currentBoard) => ({
         ...currentBoard,
         entries: currentBoard.entries.filter((entry) => entry.id !== entryId),
       }));
       return true;
     } catch (error) {
+      if (getKoreanDateKey() !== dateKey) return false;
       setFeedback({ kind: 'error', message: getErrorMessage(error) });
       void playClasswordSound('error');
       void refresh();
@@ -210,11 +252,11 @@ export default function StudentClasswordPage({
     }
   };
 
-  const completed = board.entries.length === 14;
+  const completed = !readOnly && currentBoard.entries.length === 14;
   const topicCopy = loading
     ? { lead: '오늘의 낱말판을 ', emphasis: '펼치는 중이에요.' }
-    : board.topic
-      ? { lead: '오늘의 주제는 ', emphasis: board.topic, trailing: '입니다.' }
+    : currentBoard.topic
+      ? { lead: displayDateKey !== dateKey ? '금요일의 주제는 ' : '오늘의 주제는 ', emphasis: currentBoard.topic, trailing: '입니다.' }
       : { lead: '오늘의 주제를 ', emphasis: '준비하고 있어요.' };
   return (
     <div className="student-view student-classword-view">
@@ -229,6 +271,7 @@ export default function StudentClasswordPage({
         onBack={onBack}
         backLabel="미션으로 돌아가기"
         backText="미션"
+        status={readOnly ? <span role="status">{displayDateKey !== dateKey ? '주말에는 쉬어요 · 금요일 낱말판' : '주말에는 쉬어요'}</span> : undefined}
       />
 
       <main className={`classword-paper${completed ? ' is-complete' : ''}`} aria-busy={loading || saving || quizSaving}>
@@ -249,10 +292,10 @@ export default function StudentClasswordPage({
           </motion.div>
         ) : null}
         <ClasswordBoard
-          board={board}
+          board={currentBoard}
           studentNumber={studentNumber}
           profileAssignments={profileAssignments}
-          disabled={loading || !board.topic}
+          disabled={readOnly || loading || !currentBoard.topic}
           saving={saving}
           onSave={save}
           onDelete={remove}
@@ -262,10 +305,12 @@ export default function StudentClasswordPage({
           }}
         />
         <ClasswordQuiz
+          key={`${dateKey}:${studentNumber}:${currentQuizState?.question.id ?? 'loading'}`}
           studentNumber={studentNumber}
-          state={quizState}
+          state={currentQuizState}
           loading={quizLoading}
           saving={quizSaving}
+          readOnly={readOnly}
           loadError={quizLoadError}
           onSubmit={submitQuiz}
         />

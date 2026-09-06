@@ -16,6 +16,12 @@ import {
   type ClasswordQuizTeacherInput,
 } from '../src/lib/classwordQuiz.js';
 import {
+  assertClasswordParticipation,
+  ClasswordScheduleError,
+  getClasswordDisplayDate,
+  isClasswordWeekday,
+} from '../src/lib/classwordSchedule.js';
+import {
   claimClasswordReward,
   claimClasswordQuizReward,
   ClasswordRepositoryError,
@@ -105,6 +111,7 @@ const parseBody = (body: unknown): Record<string, unknown> => {
 
 const parseAction = (body: unknown): ClasswordAction => {
   const value = parseBody(body);
+  if (isClasswordDateKey(value.dateKey)) isClasswordWeekday(value.dateKey);
   const action = value.action;
   if (action === 'save_entry') {
     if (
@@ -200,6 +207,13 @@ const loadResolvedQuiz = async (configuration: ClasswordRepositoryConfiguration,
   return { question: custom ?? getDailyClasswordQuizDefinition(dateKey), source: custom ? 'teacher' as const : 'automatic' as const };
 };
 
+const getRequestedDate = (request: ApiRequest, session: DeviceSession): string => {
+  const dateKey = getQueryString(request.query?.dateKey) ?? getKoreanDateKey();
+  if (!isClasswordDateKey(dateKey)) throw new ClasswordApiError(400, 'INVALID_DATE');
+  const displayDate = getClasswordDisplayDate(dateKey);
+  return session.role === 'student' ? displayDate : dateKey;
+};
+
 const handleGet = async (
   request: ApiRequest,
   response: ApiResponse,
@@ -207,8 +221,7 @@ const handleGet = async (
   session: DeviceSession,
 ): Promise<void> => {
   if (getQueryString(request.query?.quiz) === '1') {
-    const dateKey = getQueryString(request.query?.dateKey) ?? getKoreanDateKey();
-    if (!isClasswordDateKey(dateKey)) throw new ClasswordApiError(400, 'INVALID_DATE');
+    const dateKey = getRequestedDate(request, session);
     const resolved = await loadResolvedQuiz(configuration, dateKey);
     const question = toClasswordQuizPrompt(resolved.question);
     const completions = await loadClasswordQuizCompletions(configuration, dateKey, question.id);
@@ -249,9 +262,10 @@ const handleGet = async (
     response.status(200).json(await loadClasswordRounds(configuration, monthKey));
     return;
   }
-  const dateKey = getQueryString(request.query?.dateKey) ?? getKoreanDateKey();
-  if (!isClasswordDateKey(dateKey)) throw new ClasswordApiError(400, 'INVALID_DATE');
-  await pruneExpiredEntries(configuration);
+  const dateKey = getRequestedDate(request, session);
+  if (session.role === 'teacher' || isClasswordWeekday(getKoreanDateKey())) {
+    await pruneExpiredEntries(configuration);
+  }
   response.status(200).json(await loadClasswordBoard(configuration, dateKey));
 };
 
@@ -265,7 +279,7 @@ const handlePost = async (
   switch (action.type) {
     case 'save_entry': {
       if (session.role !== 'student') throw new ClasswordApiError(403, 'STUDENT_REQUIRED');
-      if (action.dateKey !== getKoreanDateKey()) throw new ClasswordApiError(403, 'TODAY_ONLY');
+      assertClasswordParticipation(action.dateKey);
       await pruneExpiredEntries(configuration);
       const topic = await loadClasswordTopic(configuration, action.dateKey);
       if (!topic.trim()) throw new ClasswordApiError(400, 'CLASSWORD_TOPIC_REQUIRED');
@@ -287,6 +301,7 @@ const handlePost = async (
       return;
     }
     case 'delete_entry':
+      if (session.role === 'student') assertClasswordParticipation(getKoreanDateKey());
       await pruneExpiredEntries(configuration);
       await deleteClasswordEntry(
         configuration,
@@ -298,7 +313,7 @@ const handlePost = async (
       return;
     case 'answer_quiz': {
       if (session.role !== 'student') throw new ClasswordApiError(403, 'STUDENT_REQUIRED');
-      if (action.dateKey !== getKoreanDateKey()) throw new ClasswordApiError(403, 'TODAY_ONLY');
+      assertClasswordParticipation(action.dateKey);
       const resolved = await loadResolvedQuiz(configuration, action.dateKey);
       const question = toClasswordQuizPrompt(resolved.question);
       const existingCompletions = await loadClasswordQuizCompletions(
@@ -430,6 +445,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
     response.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
   } catch (error) {
+    if (error instanceof ClasswordScheduleError) {
+      response.status(error.code === 'CLASSWORD_INVALID_DATE' ? 400 : 403).json({ error: error.code });
+      return;
+    }
     if (error instanceof ClasswordApiError || error instanceof ClasswordRepositoryError) {
       response.status(error.status).json({ error: error.code });
       return;

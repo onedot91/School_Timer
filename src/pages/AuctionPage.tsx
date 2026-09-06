@@ -268,7 +268,9 @@ const getStoreSection = (view: StudentView): StudentStoreSection => (
 
 const isStudentStoreView = (view: StudentView) => view === 'store' || view.startsWith('store-');
 
-const STUDENT_UNAVAILABLE_FEATURE_COPY: Readonly<Record<Exclude<StudentFeatureReleaseId, 'petEgg'>, {
+type StudentUnavailableNoticeFeature = Exclude<StudentFeatureReleaseId, 'failureExhibition' | 'petEgg'>;
+
+const STUDENT_UNAVAILABLE_FEATURE_COPY: Readonly<Record<StudentUnavailableNoticeFeature, {
   kicker: string;
   title: string;
   description: string;
@@ -431,9 +433,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [hasWeeklyMissionSyncError, setHasWeeklyMissionSyncError] = useState(false);
   const [activeStudentView, setActiveStudentView] = useState<StudentView>(() => getStudentViewFromHash());
   const [competitionSeasonId, setCompetitionSeasonId] = useState<string | null>(null);
-  const [unavailableStudentFeature, setUnavailableStudentFeature] = useState<Exclude<StudentFeatureReleaseId, 'petEgg'> | null>(() => {
+  const [unavailableStudentFeature, setUnavailableStudentFeature] = useState<StudentUnavailableNoticeFeature | null>(() => {
     const feature = getUnavailableStudentFeature(getStudentViewFromHash());
-    return feature === 'petEgg' ? null : feature;
+    return feature === 'petEgg' || feature === 'failureExhibition' ? null : feature;
   });
   const [sudokuDifficulty, setSudokuDifficulty] = useState<SudokuDifficulty>(activeSudokuDifficulty ?? 'basic');
 
@@ -501,7 +503,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const isSharedSettingsRefreshInFlightRef = useRef(false);
   const pendingFullSettingsRefreshRef = useRef(false);
 
-  const openUnavailableStudentFeature = useCallback((feature: Exclude<StudentFeatureReleaseId, 'petEgg'>) => {
+  const openUnavailableStudentFeature = useCallback((feature: StudentUnavailableNoticeFeature) => {
     unavailableFeatureTriggerRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
@@ -512,7 +514,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const syncViewFromHistory = () => {
       const requestedView = getStudentViewFromHash();
       const unavailableFeature = getUnavailableStudentFeature(requestedView);
-      if (unavailableFeature && unavailableFeature !== 'petEgg') {
+      if (unavailableFeature === 'failureExhibition') {
+        setUnavailableStudentFeature(null);
+        setActiveStudentView(requestedView);
+      } else if (unavailableFeature && unavailableFeature !== 'petEgg') {
         const fallbackView = getStudentFeatureFallbackView(unavailableFeature);
         openUnavailableStudentFeature(unavailableFeature);
         setActiveStudentView(fallbackView);
@@ -533,6 +538,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const navigateStudentView = useCallback((view: StudentView) => {
     const unavailableFeature = getUnavailableStudentFeature(view);
+    if (unavailableFeature === 'failureExhibition') {
+      setUnavailableStudentFeature(null);
+      setActiveStudentView(view);
+      pageScrollRef.current?.scrollTo({ top: 0 });
+      if (window.location.hash !== STUDENT_VIEW_HASHES[view]) window.location.hash = STUDENT_VIEW_HASHES[view];
+      return;
+    }
     if (unavailableFeature && unavailableFeature !== 'petEgg') {
       openUnavailableStudentFeature(unavailableFeature);
       return;

@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle2, Send, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { getDailyClasswordQuizAnswer, type ClasswordQuizStudentState } from '../../lib/classwordQuiz';
+import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
 import { loadSavedClasswordQuizAnswer } from '../../lib/classwordQuizAnswerStore';
 
 type ClasswordQuizProps = {
@@ -9,6 +9,7 @@ type ClasswordQuizProps = {
   readonly state: ClasswordQuizStudentState | null;
   readonly loading: boolean;
   readonly saving: boolean;
+  readonly readOnly?: boolean;
   readonly loadError: string;
   readonly onSubmit: (answer: string) => Promise<boolean>;
 };
@@ -20,6 +21,7 @@ export default function ClasswordQuiz({
   state,
   loading,
   saving,
+  readOnly = false,
   loadError,
   onSubmit,
 }: ClasswordQuizProps) {
@@ -27,18 +29,18 @@ export default function ClasswordQuiz({
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
 
   useEffect(() => {
-    if (!state?.completed) return;
-    const savedAnswer = loadSavedClasswordQuizAnswer(window.localStorage, {
+    setSubmissionState('idle');
+    const savedAnswer = state?.completed ? loadSavedClasswordQuizAnswer(window.localStorage, {
       dateKey: state.dateKey,
       studentNumber,
       questionId: state.question.id,
-    });
-    setAnswer(savedAnswer || getDailyClasswordQuizAnswer(state.dateKey));
+    }) : '';
+    setAnswer(savedAnswer);
   }, [state?.completed, state?.dateKey, state?.question.id, studentNumber]);
 
   const submit = async (): Promise<void> => {
     const nextAnswer = answer.trim();
-    if (!nextAnswer || saving || state?.completed) return;
+    if (!nextAnswer || loading || readOnly || saving || state?.completed) return;
     setSubmissionState('idle');
     try {
       const correct = await onSubmit(nextAnswer);
@@ -60,7 +62,7 @@ export default function ClasswordQuiz({
         <div className="classword-quiz-body">
           <span className="classword-quiz-heading-art">
             <img src="/classword/bonus-question.png" alt="" aria-hidden="true" width="1448" height="1086" />
-            <strong className="classword-quiz-reward-copy">1~10고마 즉시 지급</strong>
+            {readOnly ? null : <strong className="classword-quiz-reward-copy">1~10고마 즉시 지급</strong>}
           </span>
           <div className="classword-quiz-copy">
             <p><span>뜻</span><strong>{state.question.meaning}</strong></p>
@@ -99,7 +101,7 @@ export default function ClasswordQuiz({
                   maxLength={20}
                   autoComplete="off"
                   placeholder="정답 입력"
-                  disabled={saving || completed}
+                  disabled={loading || readOnly || saving || completed}
                 />
                 <button
                   type="submit"
@@ -110,7 +112,7 @@ export default function ClasswordQuiz({
                       : submissionState === 'error'
                         ? 'is-error'
                         : undefined}
-                  disabled={saving || completed || !answer.trim()}
+                  disabled={loading || readOnly || saving || completed || !answer.trim()}
                   data-reward-amount={completed && state.rewardAmount !== null ? state.rewardAmount : undefined}
                   aria-live="polite"
                   aria-atomic="true"

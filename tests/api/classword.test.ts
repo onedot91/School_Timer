@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { afterEach, beforeEach, mock } from 'node:test';
 
 import handler from '../../api/classword.js';
 import { getClasswordEntryRetentionCutoff, getKoreanDateKey } from '../../src/lib/classword.js';
@@ -7,7 +7,11 @@ import { getDailyClasswordQuiz } from '../../src/lib/classwordQuiz.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
-const TODAY = getKoreanDateKey();
+const TODAY = '2026-09-04';
+beforeEach(() => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(`${TODAY}T01:00:00.000Z`) });
+});
+afterEach(() => mock.timers.reset());
 const QUIZ_ANSWERS: Readonly<Record<string, string>> = {
   'saving-resources': '절약',
   'caring-for-others': '배려',
@@ -73,11 +77,11 @@ test('학생 조회는 전용 라운드와 낱말 행을 내부 응답으로 변
       requestedUrls.push(url);
       if (init?.method === 'DELETE') return new Response(null, { status: 204 });
       if (url.includes('/classword_rounds')) {
-        return Response.json([{ round_date: '2026-08-29', topic: '동물' }]);
+        return Response.json([{ round_date: '2026-08-28', topic: '동물' }]);
       }
       return Response.json([{
-        id: 'entry-1', round_date: '2026-08-29', initial: 'ㄱ', word: '강아지',
-        student_number: 3, created_at: '2026-08-29T01:00:00.000Z', updated_at: '2026-08-29T01:00:00.000Z',
+        id: 'entry-1', round_date: '2026-08-28', initial: 'ㄱ', word: '강아지',
+        student_number: 3, created_at: '2026-08-28T01:00:00.000Z', updated_at: '2026-08-28T01:00:00.000Z',
       }]);
     };
 
@@ -86,18 +90,19 @@ test('학생 조회는 전용 라운드와 낱말 행을 내부 응답으로 변
       const { response, result } = createResponse();
       await handler({
         method: 'GET',
-        query: { dateKey: '2026-08-29' },
+        query: { dateKey: '2026-08-28' },
         headers: sessionHeaders('student'),
       }, response);
 
       // Then
       assert.equal(result().statusCode, 200);
       assert.deepEqual(result().body, {
-        dateKey: '2026-08-29',
+        dateKey: '2026-08-28',
         topic: '동물',
+        source: 'teacher',
         entries: [{
-          id: 'entry-1', dateKey: '2026-08-29', initial: 'ㄱ', word: '강아지', studentNumber: 3,
-          createdAt: '2026-08-29T01:00:00.000Z', updatedAt: '2026-08-29T01:00:00.000Z',
+          id: 'entry-1', dateKey: '2026-08-28', initial: 'ㄱ', word: '강아지', studentNumber: 3,
+          createdAt: '2026-08-28T01:00:00.000Z', updatedAt: '2026-08-28T01:00:00.000Z',
         }],
       });
       const legacyHost = ['classword', 'vercel', 'app'].join('.');

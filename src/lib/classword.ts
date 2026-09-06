@@ -19,12 +19,14 @@ export type ClasswordEntry = {
 export type ClasswordBoard = {
   readonly dateKey: string;
   readonly topic: string;
+  readonly source?: 'automatic' | 'teacher';
   readonly entries: readonly ClasswordEntry[];
 };
 
 export type ClasswordRoundSummary = {
   readonly dateKey: string;
   readonly topic: string;
+  readonly source?: 'automatic' | 'teacher';
 };
 
 export type ClasswordWordErrorCode =
@@ -200,6 +202,7 @@ export const parseClasswordBoard = (value: unknown): ClasswordBoard => {
   return {
     dateKey: value.dateKey,
     topic: value.topic,
+    ...parseTopicSource(value.source),
     entries: value.entries.map(parseEntry),
   };
 };
@@ -210,6 +213,12 @@ export const parseClasswordRounds = (value: unknown): readonly ClasswordRoundSum
     if (!isRecord(round) || !isClasswordDateKey(round.dateKey) || typeof round.topic !== 'string') {
       throw new ClasswordParseError();
     }
-    return { dateKey: round.dateKey, topic: round.topic };
+    return { dateKey: round.dateKey, topic: round.topic, ...parseTopicSource(round.source) };
   });
+};
+
+const parseTopicSource = (value: unknown): Pick<ClasswordRoundSummary, 'source'> => {
+  if (value === undefined) return {};
+  if (value !== 'automatic' && value !== 'teacher') throw new ClasswordParseError();
+  return { source: value };
 };

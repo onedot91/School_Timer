@@ -6,6 +6,9 @@ import {
   type ClasswordInitial,
   type ClasswordRoundSummary,
 } from './classword';
+import { assertClasswordParticipation } from './classwordSchedule';
+import { resolveClasswordTopic } from './classwordTopics';
+import { validateClasswordWord } from './classword';
 
 const CLASSWORD_LOCAL_STORAGE_KEY = 'school-timer-classword-v1';
 
@@ -65,7 +68,7 @@ export const loadLocalClasswordBoard = (storage: Storage, dateKey: string): Clas
   const state = readState(storage);
   return {
     dateKey,
-    topic: state.rounds.find((round) => round.dateKey === dateKey)?.topic ?? '',
+    ...resolveClasswordTopic(dateKey, state.rounds.find((round) => round.dateKey === dateKey)?.topic ?? ''),
     entries: state.entries
       .filter((entry) => entry.dateKey === dateKey)
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt)),
@@ -101,7 +104,12 @@ export const saveLocalClasswordEntry = (
   storage: Storage,
   input: SaveLocalClasswordEntryInput,
 ): ClasswordEntry => {
+  assertClasswordParticipation(input.dateKey);
   const state = readState(storage);
+  const topic = resolveClasswordTopic(input.dateKey, state.rounds.find((round) => round.dateKey === input.dateKey)?.topic ?? '').topic;
+  if (!topic) throw new ClasswordLocalError('CLASSWORD_TOPIC_REQUIRED');
+  const validation = validateClasswordWord(input.word, input.initial, topic);
+  if (validation.ok === false) throw new ClasswordLocalError(validation.code);
   const currentEntry = input.entryId
     ? state.entries.find((entry) => entry.id === input.entryId)
     : undefined;
@@ -109,6 +117,7 @@ export const saveLocalClasswordEntry = (
   if (currentEntry && currentEntry.studentNumber !== input.studentNumber) {
     throw new ClasswordLocalError('CLASSWORD_ENTRY_FORBIDDEN');
   }
+  if (currentEntry && currentEntry.dateKey !== input.dateKey) throw new ClasswordLocalError('TODAY_ONLY');
   const studentEntry = state.entries.find((entry) => (
     entry.dateKey === input.dateKey
     && entry.studentNumber === input.studentNumber
@@ -124,12 +133,12 @@ export const saveLocalClasswordEntry = (
 
   const timestamp = new Date().toISOString();
   const nextEntry: ClasswordEntry = currentEntry
-    ? { ...currentEntry, initial: input.initial, word: input.word, updatedAt: timestamp }
+    ? { ...currentEntry, initial: input.initial, word: validation.word, updatedAt: timestamp }
     : {
         id: crypto.randomUUID(),
         dateKey: input.dateKey,
         initial: input.initial,
-        word: input.word,
+        word: validation.word,
         studentNumber: input.studentNumber,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -156,6 +165,7 @@ export const deleteLocalClasswordEntry = (
   if (!teacher && entry.studentNumber !== studentNumber) {
     throw new ClasswordLocalError('CLASSWORD_ENTRY_FORBIDDEN');
   }
+  if (!teacher) assertClasswordParticipation(entry.dateKey);
   writeState(storage, {
     ...state,
     entries: state.entries.filter((candidate) => candidate.id !== entryId),

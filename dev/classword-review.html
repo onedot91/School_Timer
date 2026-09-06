@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>낱말판 개발 검수</title>
+    <style>
+      .classword-review-controls { position: fixed; z-index: 100; right: 12px; bottom: 8px; width: min(460px, calc(100vw - 24px)); border: 1px solid #6a806d; border-radius: 12px; background: #fffdf5; color: #263c2b; box-shadow: 0 4px 20px #0002; font: 13px/1.45 system-ui; }
+      .classword-review-controls summary { padding: 10px 12px; cursor: pointer; font-weight: 700; }
+      .classword-review-controls > div { display: grid; gap: 8px; max-height: 320px; overflow: auto; padding: 0 12px 12px; }
+      .classword-review-controls fieldset { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 6px; border: 1px solid #ccd7ca; }
+      .classword-review-controls button, .classword-review-controls input { min-height: 44px; border: 1px solid #a7b7a4; border-radius: 6px; padding: 6px 8px; background: white; color: inherit; font: inherit; }
+      .classword-review-controls button:focus-visible, .classword-review-controls summary:focus-visible { outline: 3px solid #16744b; outline-offset: 2px; }
+      .classword-review-controls output { white-space: pre-wrap; overflow-wrap: anywhere; }
+      .classword-review-teacher { height: 100dvh; overflow: auto; padding: 16px; }
+      .classword-review-teacher .settings-dialog { position: relative; width: 100%; max-width: 1100px; max-height: none; margin: auto; padding: 20px; border-radius: 20px; background: #fffdf5; }
+    </style>
+  </head>
+  <body>
+    <div id="root">이 검수 화면은 개발 서버의 mock 모드에서만 열립니다.</div>
+    <script type="module" src="/dev/classword-review.tsx"></script>
+  </body>
+</html>

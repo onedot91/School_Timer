@@ -9,6 +9,7 @@ import {
   type ClasswordBoard,
 } from '../../lib/classword';
 import type { ClasswordQuizTeacherInput, ClasswordQuizTeacherSummary } from '../../lib/classwordQuiz';
+import { getClasswordTopicCandidates } from '../../lib/classwordTopics';
 import {
   clearClasswordDate,
   loadClasswordBoard,
@@ -26,11 +27,6 @@ import {
 } from '../../lib/failureExhibition';
 import StudentConfirmDialog from '../student/StudentConfirmDialog';
 import ClasswordCalendar from './ClasswordCalendar';
-
-const RANDOM_TOPICS = [
-  '학교에서 볼 수 있는 것', '여름에 생각나는 것', '내가 좋아하는 음식', '동물',
-  '우리 동네', '기분을 나타내는 말', '운동', '자연에서 볼 수 있는 것',
-] as const;
 
 const monthKeyOf = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
@@ -65,11 +61,14 @@ export default function TeacherClasswordPanel({
   const [clearStep, setClearStep] = useState<0 | 1 | 2>(0);
   const [pendingDeleteEntry, setPendingDeleteEntry] = useState<ClasswordBoard['entries'][number] | null>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const refreshVersionRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const refreshVersion = ++refreshVersionRef.current;
     try {
       if (surface === 'utility') {
         const nextTodayBoard = await loadClasswordBoard(today);
+        if (refreshVersion !== refreshVersionRef.current) return;
         setTodayBoard(nextTodayBoard);
         setMessage('');
         return;
@@ -82,6 +81,7 @@ export default function TeacherClasswordPanel({
         selectedDateKey === today ? selectedBoardRequest : loadClasswordBoard(today),
         loadClasswordUsedTopics(),
       ]);
+      if (refreshVersion !== refreshVersionRef.current) return;
       setRounds(nextRounds);
       setBoard(nextBoard);
       setTodayBoard(nextTodayBoard);
@@ -89,6 +89,7 @@ export default function TeacherClasswordPanel({
       setTopic(nextBoard.topic);
       setMessage('');
     } catch {
+      if (refreshVersion !== refreshVersionRef.current) return;
       setMessage('낱말판 정보를 불러오지 못했습니다.');
     }
   }, [month, selectedDateKey, surface, today]);
@@ -98,6 +99,9 @@ export default function TeacherClasswordPanel({
   useEffect(() => {
     if (surface !== 'settings') return;
     let active = true;
+    setQuizSummary(null);
+    setQuizDraft({ initialHint: '', meaning: '', writtenExample: '', spokenExample: '', answer: '' });
+    setQuizMessage('');
     const loadQuizSummary = async () => {
       try {
         const nextSummary = await loadTeacherClasswordQuizSummary(selectedDateKey);
@@ -163,8 +167,7 @@ export default function TeacherClasswordPanel({
   };
 
   const chooseRandomTopic = () => {
-    const used = new Set(usedTopics);
-    const candidates = RANDOM_TOPICS.filter((candidate) => !used.has(candidate));
+    const candidates = getClasswordTopicCandidates(usedTopics);
     const candidate = candidates[Math.floor(Math.random() * candidates.length)];
     if (!candidate) {
       setMessage('모든 추천 주제를 한 번씩 사용했습니다.');
@@ -187,6 +190,19 @@ export default function TeacherClasswordPanel({
       await refresh();
     } catch {
       setMessage('주제를 저장하지 못했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetTopic = async () => {
+    setBusy(true);
+    try {
+      await updateClasswordTopic(selectedDateKey, '');
+      await refresh();
+      setMessage('자동 주제로 되돌렸습니다. 학생 낱말은 유지됩니다.');
+    } catch {
+      setMessage('자동 주제로 되돌리지 못했습니다.');
     } finally {
       setBusy(false);
     }
@@ -363,20 +379,27 @@ export default function TeacherClasswordPanel({
               rounds={rounds}
               onMonthChange={setMonth}
               onSelect={(dateKey) => {
+                if (busy || quizBusy || dateKey === selectedDateKey) return;
                 setSelectedDateKey(dateKey);
+                setTopic('');
+                setQuizSummary(null);
+                setQuizMessage('');
                 setClearStep(0);
               }}
             />
             <section className="teacher-classword-editor" aria-labelledby={`${idPrefix}-editor-title`}>
               <header>
                 <div><span>{selectedDateKey}</span><h3 id={`${idPrefix}-editor-title`}>날짜별 주제 설정</h3></div>
-                <strong>{board.entries.length}/14칸</strong>
+                <strong>{board.source === 'teacher' ? '직접 설정' : '자동 주제'} · {board.entries.length}/14칸</strong>
               </header>
               <div className="teacher-classword-topic-field">
                 <label htmlFor={`${idPrefix}-topic`}>이날의 주제</label>
                 <span><input id={`${idPrefix}-topic`} value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={40} disabled={busy} /><button type="button" onClick={chooseRandomTopic} disabled={busy} aria-label="사용하지 않은 주제 무작위 추천"><Dice5 aria-hidden="true" /> 추천</button></span>
               </div>
               <button type="button" className="teacher-classword-save" onClick={() => void saveTopic()} disabled={busy || !topic.trim()}><Save aria-hidden="true" /> 주제 저장</button>
+              {board.dateKey === selectedDateKey && board.source === 'teacher' ? (
+                <button type="button" className="teacher-classword-save" onClick={() => void resetTopic()} disabled={busy}>자동 주제로 되돌리기</button>
+              ) : null}
               {message ? <p className="teacher-classword-message" role="status">{message}</p> : null}
               {selectedDateKey !== today ? (
                 <details className="teacher-classword-history">

@@ -10,6 +10,7 @@ import {
   type ClasswordQuizTeacherSummary,
 } from './classwordQuiz';
 import { getRandomClasswordQuizRewardAmount } from './classwordQuizReward';
+import { assertClasswordParticipation, getClasswordDisplayDate } from './classwordSchedule';
 
 const CLASSWORD_QUIZ_LOCAL_STORAGE_KEY = 'school-timer-classword-quiz-v1';
 const CLASSWORD_CUSTOM_QUIZ_LOCAL_STORAGE_KEY = 'school-timer-classword-custom-quizzes-v1';
@@ -125,9 +126,10 @@ export const deleteLocalTeacherClasswordQuiz = (storage: Storage, dateKey: strin
 
 export const loadLocalClasswordQuizStudentState = (
   storage: Storage,
-  dateKey: string,
+  requestedDate: string,
   studentNumber: number,
 ): ClasswordQuizStudentState => {
+  const dateKey = getClasswordDisplayDate(requestedDate);
   const definition = getResolvedQuiz(storage, dateKey);
   const question = toClasswordQuizPrompt(definition);
   const completion = readCompletions(storage).find((candidate) => (
@@ -169,6 +171,7 @@ export const submitLocalClasswordQuizAnswer = (
   answer: string,
   randomSource: () => number = Math.random,
 ): { readonly correct: boolean; readonly state: ClasswordQuizStudentState; readonly rewardAmount: number } => {
+  assertClasswordParticipation(dateKey);
   const currentState = loadLocalClasswordQuizStudentState(storage, dateKey, studentNumber);
   const completions = readCompletions(storage);
   if (currentState.completed) {

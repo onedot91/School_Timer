@@ -1,5 +1,6 @@
 import {
   getClasswordEntryRetentionCutoff,
+  getKoreanDateKey,
   parseClasswordBoard,
   parseClasswordRounds,
   validateClasswordWord,
@@ -39,6 +40,8 @@ import {
   claimWeeklyMissionRewardInSettings,
 } from './weeklyMission';
 import { appDataMode } from './dataMode';
+import { assertClasswordParticipation, ClasswordScheduleError, isClasswordWeekday } from './classwordSchedule';
+import { getElapsedClasswordTopics, resolveClasswordMonth } from './classwordTopics';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory } from './currency';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
 
@@ -105,8 +108,17 @@ const dispatchLocalChange = (): void => {
 
 const getPrunedLocalStorage = (): Storage => {
   const storage = window.localStorage;
-  pruneLocalClasswordEntries(storage, getClasswordEntryRetentionCutoff());
+  if (isClasswordWeekday(getKoreanDateKey())) pruneLocalClasswordEntries(storage, getClasswordEntryRetentionCutoff());
   return storage;
+};
+
+const assertClientParticipation = (dateKey: string): void => {
+  try {
+    assertClasswordParticipation(dateKey);
+  } catch (error) {
+    if (error instanceof ClasswordScheduleError) throw new ClasswordClientError(error.code);
+    throw error;
+  }
 };
 
 export const loadClasswordBoard = async (dateKey: string): Promise<ClasswordBoard> => {
@@ -116,14 +128,17 @@ export const loadClasswordBoard = async (dateKey: string): Promise<ClasswordBoar
 
 export const loadClasswordRounds = async (monthKey: string): Promise<readonly ClasswordRoundSummary[]> => {
   if (appDataMode === 'mock') {
-    return loadLocalClasswordRounds(getPrunedLocalStorage()).filter((round) => round.dateKey.startsWith(`${monthKey}-`));
+    return resolveClasswordMonth(monthKey, loadLocalClasswordRounds(getPrunedLocalStorage()));
   }
   return parseClasswordRounds(await request(`/api/classword?monthKey=${encodeURIComponent(monthKey)}`));
 };
 
 export const loadClasswordUsedTopics = async (): Promise<readonly string[]> => {
   if (appDataMode === 'mock') {
-    return [...new Set(loadLocalClasswordRounds(getPrunedLocalStorage()).map((round) => round.topic.trim()).filter(Boolean))];
+    return [...new Set([
+      ...loadLocalClasswordRounds(getPrunedLocalStorage()).map((round) => round.topic.trim()).filter(Boolean),
+      ...getElapsedClasswordTopics(),
+    ])];
   }
   const value = await request('/api/classword?usedTopics=1');
   if (!Array.isArray(value) || !value.every((topic) => typeof topic === 'string')) {
@@ -187,6 +202,7 @@ export const submitClasswordQuizAnswer = async (input: {
   readonly answer: string;
 }): Promise<SubmitClasswordQuizAnswerResult> => {
   if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
+  assertClientParticipation(input.dateKey);
   if (appDataMode === 'mock') {
     const storage = getPrunedLocalStorage();
     const result = submitLocalClasswordQuizAnswer(
@@ -266,6 +282,7 @@ export const saveClasswordEntry = async (
   const validation = validateClasswordWord(input.word, input.initial, topic);
   if (validation.ok === false) throw new ClasswordClientError(validation.code);
   if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
+  assertClientParticipation(input.dateKey);
   if (appDataMode === 'mock') {
     try {
       const entry = saveLocalClasswordEntry(getPrunedLocalStorage(), { ...input, word: validation.word });
@@ -284,7 +301,7 @@ export const saveClasswordEntry = async (
       dispatchLocalChange();
       return { entry, awarded: reward.awarded, balance: reward.balance };
     } catch (error) {
-      if (error instanceof ClasswordLocalError) throw new ClasswordClientError(error.code);
+      if (error instanceof ClasswordLocalError || error instanceof ClasswordScheduleError) throw new ClasswordClientError(error.code);
       throw error;
     }
   }
@@ -316,13 +333,14 @@ export const removeClasswordEntry = async (
   teacher = false,
 ): Promise<void> => {
   if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
+  if (!teacher) assertClientParticipation(getKoreanDateKey());
   if (appDataMode === 'mock') {
     try {
       deleteLocalClasswordEntry(getPrunedLocalStorage(), entryId, studentNumber, teacher);
       dispatchLocalChange();
       return;
     } catch (error) {
-      if (error instanceof ClasswordLocalError) throw new ClasswordClientError(error.code);
+      if (error instanceof ClasswordLocalError || error instanceof ClasswordScheduleError) throw new ClasswordClientError(error.code);
       throw error;
     }
   }

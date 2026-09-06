@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 
 import { getDailyClasswordQuiz } from './classwordQuiz';
 import {
@@ -10,9 +10,15 @@ import {
   submitLocalClasswordQuizAnswer,
 } from './classwordQuizLocalStore';
 
-test('연습 모드에서는 교사 출제 문제가 자동 문제를 대체하고 다시 되돌릴 수 있다', () => {
+const mockDate = (context: TestContext, dateKey = '2026-09-04'): void => {
+  context.mock.timers.enable({ apis: ['Date'], now: new Date(`${dateKey}T01:00:00.000Z`) });
+};
+
+test('연습 모드에서는 교사 출제 문제가 자동 문제를 대체하고 다시 되돌릴 수 있다', (context) => {
+  mockDate(context);
   const storage = new MemoryStorage();
-  const dateKey = '2026-08-30';
+  const dateKey = '2026-09-04';
+  const automatic = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
   saveLocalTeacherClasswordQuiz(storage, {
     dateKey, initialHint: 'ㄷㅈ', meaning: '서로 힘을 합쳐 돕는 일', answer: '도움',
     writtenExample: '친구와 도움을 주고받았다.', spokenExample: '내가 먼저 도움을 줄게.',
@@ -26,17 +32,25 @@ test('연습 모드에서는 교사 출제 문제가 자동 문제를 대체하�
   assert.equal(submitLocalClasswordQuizAnswer(storage, dateKey, 3, '도움', () => 0).correct, true);
 
   deleteLocalTeacherClasswordQuiz(storage, dateKey);
-  assert.equal(loadLocalClasswordQuizTeacherSummary(storage, dateKey).source, 'automatic');
+  const restored = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
+  assert.equal(restored.source, 'automatic');
+  assert.equal(restored.question.id, automatic.question.id);
+  assert.equal(loadLocalClasswordQuizStudentState(storage, dateKey, 3).completed, false);
 });
 
 class MemoryStorage implements Storage {
   readonly #values = new Map<string, string>();
+  #writeCount = 0;
+  get writeCount(): number { return this.#writeCount; }
   get length(): number { return this.#values.size; }
   clear(): void { this.#values.clear(); }
   getItem(key: string): string | null { return this.#values.get(key) ?? null; }
   key(index: number): string | null { return [...this.#values.keys()][index] ?? null; }
   removeItem(key: string): void { this.#values.delete(key); }
-  setItem(key: string, value: string): void { this.#values.set(key, value); }
+  setItem(key: string, value: string): void {
+    this.#writeCount += 1;
+    this.#values.set(key, value);
+  }
 }
 
 const ANSWERS: Readonly<Record<string, string>> = {
@@ -49,24 +63,81 @@ const ANSWERS: Readonly<Record<string, string>> = {
   'showing-respect': '존중',
 };
 
-test('오답은 저장하지 않고 정답은 학생·날짜·문제별 한 번만 저장한다', () => {
+test('오답은 저장하지 않고 정답은 학생·날짜·문제별 한 번만 저장한다', (context) => {
+  mockDate(context);
   const storage = new MemoryStorage();
-  const dateKey = '2026-08-30';
+  const dateKey = '2026-09-04';
   const question = getDailyClasswordQuiz(dateKey);
   const answer = ANSWERS[question.id];
   assert.ok(answer);
 
-  assert.equal(submitLocalClasswordQuizAnswer(storage, dateKey, 3, '오답').correct, false);
+  const firstRandom = context.mock.fn(() => 0);
+  const repeatedRandom = context.mock.fn(() => .999999);
+  const wrong = submitLocalClasswordQuizAnswer(storage, dateKey, 3, '오답', firstRandom);
+  assert.equal(wrong.correct, false);
+  assert.equal(wrong.rewardAmount, 0);
+  assert.equal(storage.writeCount, 0);
+  assert.equal(firstRandom.mock.callCount(), 0);
   assert.equal(loadLocalClasswordQuizStudentState(storage, dateKey, 3).completed, false);
 
-  const firstCorrect = submitLocalClasswordQuizAnswer(storage, dateKey, 3, answer, () => 0);
-  const repeatedCorrect = submitLocalClasswordQuizAnswer(storage, dateKey, 3, answer, () => .999999);
+  const firstCorrect = submitLocalClasswordQuizAnswer(storage, dateKey, 3, answer, firstRandom);
+  const repeatedCorrect = submitLocalClasswordQuizAnswer(storage, dateKey, 3, answer, repeatedRandom);
   assert.equal(firstCorrect.correct, true);
   assert.equal(firstCorrect.rewardAmount, 1);
   assert.equal(repeatedCorrect.correct, true);
   assert.equal(repeatedCorrect.rewardAmount, 1);
+  assert.equal(firstRandom.mock.callCount(), 1);
+  assert.equal(repeatedRandom.mock.callCount(), 0);
+  assert.equal(storage.writeCount, 1);
   const completedState = loadLocalClasswordQuizStudentState(storage, dateKey, 3);
   assert.equal(completedState.completed, true);
   assert.equal(completedState.rewardAmount, 1);
   assert.deepEqual(loadLocalClasswordQuizTeacherSummary(storage, dateKey).correctStudentNumbers, [3]);
+});
+
+for (const weekend of ['2026-09-12', '2026-09-13']) {
+  test(`${weekend}에는 금요일 문제를 읽고 제출은 날짜를 바꿔도 저장하지 않는다`, (context) => {
+    // Given
+    mockDate(context, '2026-09-11');
+    const storage = new MemoryStorage();
+    const friday = '2026-09-11';
+    const summary = loadLocalClasswordQuizTeacherSummary(storage, friday);
+    const completed = submitLocalClasswordQuizAnswer(storage, friday, 3, summary.answer, () => 0);
+    const writes = storage.writeCount;
+    context.mock.timers.setTime(new Date(`${weekend}T01:00:00.000Z`).getTime());
+
+    // When
+    const weekendState = loadLocalClasswordQuizStudentState(storage, weekend, 3);
+    const otherStudent = loadLocalClasswordQuizStudentState(storage, weekend, 4);
+
+    // Then
+    assert.deepEqual(weekendState, completed.state);
+    assert.equal(weekendState.dateKey, friday);
+    assert.equal(otherStudent.question.id, completed.state.question.id);
+    assert.equal(otherStudent.completed, false);
+    for (const dateKey of [friday, weekend]) {
+      assert.throws(() => submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer),
+        /CLASSWORD_WEEKEND_CLOSED/);
+      assert.throws(() => submitLocalClasswordQuizAnswer(storage, dateKey, 4, summary.answer),
+        /CLASSWORD_WEEKEND_CLOSED/);
+    }
+    assert.equal(storage.writeCount, writes);
+    assert.deepEqual(loadLocalClasswordQuizTeacherSummary(storage, friday).correctStudentNumbers, [3]);
+  });
+}
+
+test('평일에도 과거 퀴즈 날짜로 제출하면 완료나 보상을 저장하지 않는다', (context) => {
+  // Given
+  mockDate(context, '2026-09-14');
+  const storage = new MemoryStorage();
+  const summary = loadLocalClasswordQuizTeacherSummary(storage, '2026-09-11');
+  const random = context.mock.fn(() => .999999);
+
+  // When
+  const submit = () => submitLocalClasswordQuizAnswer(storage, '2026-09-11', 3, summary.answer, random);
+
+  // Then
+  assert.throws(submit, /TODAY_ONLY/);
+  assert.equal(storage.writeCount, 0);
+  assert.equal(random.mock.callCount(), 0);
 });

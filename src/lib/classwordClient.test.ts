@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { saveLocalClasswordTopic } from './classwordLocalStore';
 
 import {
   CLASSWORD_LOCAL_CHANGE_EVENT,
@@ -38,10 +39,12 @@ class MemoryStorage implements Storage {
   }
 }
 
-test('연습 모드 낱말 제출은 당일 5고마를 한 번만 지급한다', async () => {
+test('연습 모드 낱말 제출은 당일 5고마를 한 번만 지급한다', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-04T01:00:00Z') });
   // Given
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const storage = new MemoryStorage();
+  saveLocalClasswordTopic(storage, '2026-09-04', '동물');
   const fakeWindow = new EventTarget() as EventTarget & { readonly localStorage: Storage };
   Object.defineProperty(fakeWindow, 'localStorage', { value: storage });
   Object.defineProperty(globalThis, 'window', { configurable: true, value: fakeWindow });
@@ -49,14 +52,14 @@ test('연습 모드 낱말 제출은 당일 5고마를 한 번만 지급한다',
   try {
     // When
     const first = await saveClasswordEntry({
-      dateKey: '2026-08-30',
+      dateKey: '2026-09-04',
       initial: 'ㄱ',
       word: '강아지',
       studentNumber: 10,
     }, '동물');
     const repeated = await saveClasswordEntry({
       entryId: first.entry.id,
-      dateKey: '2026-08-30',
+      dateKey: '2026-09-04',
       initial: 'ㄱ',
       word: '기린',
       studentNumber: 10,
@@ -69,7 +72,7 @@ test('연습 모드 낱말 제출은 당일 5고마를 한 번만 지급한다',
     assert.equal(repeated.balance, 105);
     assert.equal(loadStoredStudentPetSnapshot().currencyBalances['10'], 105);
     assert.equal(loadStoredStudentPetSnapshot().currencyHistory['10']?.filter(
-      (entry) => entry.id === 'weekly-mission-classword_word_entry-10-2026-08-30',
+      (entry) => entry.id === 'weekly-mission-classword_word_entry-10-2026-09-04',
     ).length ?? 0, 1);
   } finally {
     if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
@@ -77,10 +80,12 @@ test('연습 모드 낱말 제출은 당일 5고마를 한 번만 지급한다',
   }
 });
 
-test('연습 모드 보너스 정답 보상은 1~10고마 범위에서 한 번만 지급한다', async () => {
+test('연습 모드 보너스 정답 보상은 1~10고마 범위에서 한 번만 지급한다', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-04T01:00:00Z') });
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const originalRandom = Math.random;
   const storage = new MemoryStorage();
+  saveLocalClasswordTopic(storage, '2026-09-04', '동물');
   const fakeWindow = new EventTarget() as EventTarget & { readonly localStorage: Storage };
   Object.defineProperty(fakeWindow, 'localStorage', { value: storage });
   Object.defineProperty(globalThis, 'window', { configurable: true, value: fakeWindow });
@@ -94,25 +99,25 @@ test('연습 모드 보너스 정답 보상은 1~10고마 범위에서 한 번�
     'putting-into-action': '실천',
     'showing-respect': '존중',
   };
-  const answer = answerByQuestion[getDailyClasswordQuiz('2026-08-30').id];
+  const answer = answerByQuestion[getDailyClasswordQuiz('2026-09-04').id];
   assert.ok(answer);
   let savedAnswerWhenRefreshStarted = '';
   fakeWindow.addEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, () => {
     savedAnswerWhenRefreshStarted = loadSavedClasswordQuizAnswer(storage, {
-      dateKey: '2026-08-30',
+      dateKey: '2026-09-04',
       studentNumber: 10,
-      questionId: getDailyClasswordQuiz('2026-08-30').id,
+      questionId: getDailyClasswordQuiz('2026-09-04').id,
     });
   });
 
   try {
     const first = await submitClasswordQuizAnswer({
-      dateKey: '2026-08-30',
+      dateKey: '2026-09-04',
       studentNumber: 10,
       answer,
     });
     const repeated = await submitClasswordQuizAnswer({
-      dateKey: '2026-08-30',
+      dateKey: '2026-09-04',
       studentNumber: 10,
       answer,
     });

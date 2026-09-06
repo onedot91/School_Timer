@@ -38,6 +38,11 @@ import { createLibraryRenderer } from './CanvasLibraryRenderer';
 import { getLibraryActionDuration, getLibraryBearPose, getLibraryBookThickness, getLibraryBookTone, LIBRARY_WALK_FRAME_MS } from '../../../lib/canvasLibraryPose';
 import StudentConfirmDialog from '../StudentConfirmDialog';
 import { MAX_BOOK_REFLECTION_LENGTH, normalizeBookReflection } from '../../../lib/studentLife';
+import {
+  getStudentFailureExhibitionHint,
+  STUDENT_FAILURE_EXHIBITION_HIDDEN_LABEL,
+  STUDENT_FEATURE_RELEASES,
+} from '../../../lib/studentFeatureRelease';
 
 type PlaceBook = (draft: LibraryBookDraft, slotId: number) => Promise<LibraryPlacedBook | null>;
 
@@ -132,7 +137,11 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
 
   const [carriedDraft, setCarriedDraft] = useState<LibraryBookDraft | null>(null);
   const [nearbyTarget, setNearbyTarget] = useState<LibraryTarget | null>(null);
-  const [modal, setModal] = useState<GameModal>(() => props.initialFailureBoardOpen && props.renderFailureBoard ? { kind: 'failure-board' } : null);
+  const [modal, setModal] = useState<GameModal>(() => (
+    STUDENT_FEATURE_RELEASES.failureExhibition && props.initialFailureBoardOpen && props.renderFailureBoard
+      ? { kind: 'failure-board' }
+      : null
+  ));
   const [pausedByBlur, setPausedByBlur] = useState(false);
   const [hasMoved, setHasMoved] = useState(false);
   const [displayScale, setDisplayScale] = useState(1);
@@ -666,7 +675,11 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       }
       canvasRef.current?.focus({ preventScroll: true });
     } else if (target.kind === 'failure-board') {
-      if (props.renderFailureBoard) openModal({ kind: 'failure-board' });
+      if (STUDENT_FEATURE_RELEASES.failureExhibition && props.renderFailureBoard) {
+        openModal({ kind: 'failure-board' });
+      } else {
+        showAmbientNotice(getStudentFailureExhibitionHint());
+      }
     } else if (target.kind === 'competition-board') {
       if (props.renderCompetition) openModal({ kind: 'competition-board' });
     } else if (target.kind === 'reading-nook') {
@@ -931,7 +944,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     : nearbyTarget?.kind === 'registration-desk'
     ? room.desk.clerk ? '직원에게 말 걸기' : '가까운 곳 살펴보기: 책 등록'
     : nearbyTarget?.kind === 'failure-board'
-      ? '가까운 곳 살펴보기: 실패 자랑소'
+      ? `가까운 곳 살펴보기: ${STUDENT_FEATURE_RELEASES.failureExhibition ? '실패 자랑소' : STUDENT_FAILURE_EXHIBITION_HIDDEN_LABEL}`
       : nearbyTarget?.kind === 'competition-board'
         ? '가까운 곳 살펴보기: 전국 책방 챌린지'
       : nearbyTarget?.kind === 'reading-nook'
@@ -993,7 +1006,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
         </div>
       </div>
 
-      {modal?.kind === 'failure-board' ? props.renderFailureBoard?.(closeModal, canvasRef) : null}
+      {STUDENT_FEATURE_RELEASES.failureExhibition && modal?.kind === 'failure-board'
+        ? props.renderFailureBoard?.(closeModal, canvasRef)
+        : null}
       {modal?.kind === 'competition-board' ? props.renderCompetition?.(closeModal, canvasRef) : null}
 
       {modal?.kind === 'confirm-registration' ? (

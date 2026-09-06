@@ -7,6 +7,7 @@ import {
   type ClasswordRoundSummary,
 } from '../lib/classword.js';
 import type { ClasswordQuizCompletion, ClasswordQuizDefinition } from '../lib/classwordQuiz.js';
+import { getElapsedClasswordTopics, resolveClasswordMonth, resolveClasswordTopic } from '../lib/classwordTopics.js';
 import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
@@ -176,7 +177,7 @@ export const loadClasswordBoard = async (
   const round = parseRows(roundValue)[0];
   return {
     dateKey,
-    topic: round && typeof round.topic === 'string' ? round.topic : '',
+    ...resolveClasswordTopic(dateKey, round && typeof round.topic === 'string' ? round.topic : ''),
     entries: parseRows(entriesValue).map(mapEntryRow),
   };
 };
@@ -192,10 +193,10 @@ export const loadClasswordRounds = async (
     configuration,
     `classword_rounds?round_date=gte.${start}&round_date=lt.${nextMonth}&select=round_date,topic&order=round_date.asc`,
   );
-  return parseClasswordRounds(parseRows(value).map((row) => ({
+  return resolveClasswordMonth(monthKey, parseClasswordRounds(parseRows(value).map((row) => ({
     dateKey: row.round_date,
     topic: row.topic,
-  })));
+  }))));
 };
 
 export const loadClasswordUsedTopics = async (
@@ -205,9 +206,10 @@ export const loadClasswordUsedTopics = async (
     configuration,
     'classword_rounds?topic=neq.&select=topic',
   );
-  return [...new Set(parseRows(value)
+  const storedTopics = parseRows(value)
     .map((row) => typeof row.topic === 'string' ? row.topic.trim() : '')
-    .filter(Boolean))];
+    .filter(Boolean);
+  return [...new Set([...storedTopics, ...getElapsedClasswordTopics()])];
 };
 
 export const loadClasswordTopic = async (
@@ -219,7 +221,7 @@ export const loadClasswordTopic = async (
     `classword_rounds?round_date=eq.${encodeURIComponent(dateKey)}&select=topic`,
   );
   const row = parseRows(value)[0];
-  return row && typeof row.topic === 'string' ? row.topic : '';
+  return resolveClasswordTopic(dateKey, row && typeof row.topic === 'string' ? row.topic : '').topic;
 };
 
 export const loadClasswordQuizCompletions = async (

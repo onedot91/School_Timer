@@ -1,5 +1,5 @@
 import { Check, Trash2, UserRoundCheck, X } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   CLASSWORD_INITIALS,
@@ -50,12 +50,29 @@ export default function ClasswordBoard({
   const [message, setMessage] = useState('');
   const [moveTarget, setMoveTarget] = useState<ClasswordInitial | null>(null);
   const [movingFromInitial, setMovingFromInitial] = useState<ClasswordInitial | null>(null);
-  const moveTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const moveTriggerRef = useRef<HTMLElement | null>(null);
+  const boardRef = useRef<HTMLElement | null>(null);
+  const previousDateRef = useRef(board.dateKey);
   const entriesByInitial = useMemo(
     () => new Map(board.entries.map((entry) => [entry.initial, entry])),
     [board.entries],
   );
   const ownEntry = board.entries.find((entry) => entry.studentNumber === studentNumber) ?? null;
+
+  useEffect(() => {
+    if (saving) return;
+    const dateChanged = previousDateRef.current !== board.dateKey;
+    previousDateRef.current = board.dateKey;
+    if (!disabled && !dateChanged) return;
+    moveTriggerRef.current = boardRef.current;
+    if (boardRef.current?.contains(document.activeElement)) boardRef.current.focus({ preventScroll: true });
+    setSelectedInitial(null);
+    setMovingFromInitial(null);
+    setMoveTarget(null);
+    setWord('');
+    setPendingWord('');
+    setMessage('');
+  }, [board.dateKey, disabled, saving]);
 
   const closeEditor = (): void => {
     setSelectedInitial(null);
@@ -74,6 +91,7 @@ export default function ClasswordBoard({
   };
 
   const selectInitial = (initial: ClasswordInitial, trigger: HTMLButtonElement): void => {
+    if (disabled || saving) return;
     const entry = entriesByInitial.get(initial);
     if (entry && entry.studentNumber !== studentNumber) return;
     if (!entry && ownEntry) {
@@ -85,7 +103,7 @@ export default function ClasswordBoard({
   };
 
   const confirmMove = (): void => {
-    if (!moveTarget || !ownEntry) return;
+    if (disabled || saving || !moveTarget || !ownEntry) return;
     const target = moveTarget;
     setMoveTarget(null);
     setMovingFromInitial(ownEntry.initial);
@@ -93,7 +111,7 @@ export default function ClasswordBoard({
   };
 
   const prepareSave = (): void => {
-    if (!selectedInitial) return;
+    if (disabled || saving || !selectedInitial) return;
     const validation = validateClasswordWord(word, selectedInitial, board.topic);
     if (validation.ok === false) {
       setMessage(validation.message);
@@ -104,7 +122,7 @@ export default function ClasswordBoard({
   };
 
   const confirmSave = async (): Promise<void> => {
-    if (!selectedInitial || !pendingWord) return;
+    if (disabled || saving || !selectedInitial || !pendingWord) return;
     const result = await onSave({
       ...(ownEntry ? { entryId: ownEntry.id } : {}),
       initial: selectedInitial,
@@ -114,7 +132,7 @@ export default function ClasswordBoard({
   };
 
   const confirmEdit = async (): Promise<void> => {
-    if (!selectedInitial || !ownEntry) return;
+    if (disabled || saving || !selectedInitial || !ownEntry) return;
     const validation = validateClasswordWord(word, selectedInitial, board.topic);
     if (validation.ok === false) {
       setMessage(validation.message);
@@ -130,14 +148,14 @@ export default function ClasswordBoard({
   };
 
   const removeOwnEntry = async (): Promise<void> => {
-    if (!ownEntry) return;
+    if (disabled || saving || !ownEntry) return;
     const deleted = await onDelete(ownEntry.id);
     if (deleted) closeEditor();
   };
 
   return (
     <>
-      <section className="classword-grid" aria-label="초성 낱말판">
+      <section ref={boardRef} className="classword-grid" aria-label="초성 낱말판" tabIndex={-1}>
         {CLASSWORD_INITIALS.map((initial) => {
           const storedEntry = entriesByInitial.get(initial);
           const entry = movingFromInitial === initial ? undefined : storedEntry;
@@ -170,7 +188,7 @@ export default function ClasswordBoard({
                         className="classword-confirm-accept"
                         onClick={() => void confirmSave()}
                         aria-label="낱말 확인"
-                        disabled={saving}
+                        disabled={disabled || saving}
                       >
                         <Check aria-hidden="true" />
                       </button>
@@ -179,7 +197,7 @@ export default function ClasswordBoard({
                         className="classword-confirm-revise"
                         onClick={() => setPendingWord('')}
                         aria-label="낱말 고치기"
-                        disabled={saving}
+                        disabled={disabled || saving}
                       >
                         <X aria-hidden="true" />
                       </button>
