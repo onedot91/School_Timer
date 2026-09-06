@@ -35,6 +35,7 @@ import {
 import { createLibraryAmbientState, createLibraryAmbientAction, completeLibraryAmbientAction, getLibraryAmbientLabel, type LibraryAmbientAction } from '../../../lib/canvasLibraryAmbient';
 import { createLibraryCatNavigation, createLibraryCatState, stepLibraryCat, resolveLibraryCatRoom, startLibraryCatPet, finishLibraryCatPet, cancelLibraryCatPet, type LibraryCatState } from '../../../lib/canvasLibraryCat';
 import { createLibraryRenderer } from './CanvasLibraryRenderer';
+import { CanvasLibraryNameplates, getLibraryNameplates, getLibraryNameplateOpacity } from './CanvasLibraryNameplates';
 import { getLibraryActionDuration, getLibraryBearPose, getLibraryBookThickness, getLibraryBookTone, LIBRARY_WALK_FRAME_MS } from '../../../lib/canvasLibraryPose';
 import StudentConfirmDialog from '../StudentConfirmDialog';
 import { MAX_BOOK_REFLECTION_LENGTH, normalizeBookReflection } from '../../../lib/studentLife';
@@ -145,6 +146,8 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const [pausedByBlur, setPausedByBlur] = useState(false);
   const [hasMoved, setHasMoved] = useState(false);
   const [displayScale, setDisplayScale] = useState(1);
+  const nameplates = useMemo(() => getLibraryNameplates(room), [room]);
+  const nameplateElementsRef = useRef<Array<HTMLSpanElement | null>>([]);
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [reflection, setReflection] = useState('');
@@ -365,7 +368,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     const stage = stageRef.current;
     if (!stage) return;
     const updateScale = () => {
-      const nextScale = Math.max(1, Math.floor(Math.min(stage.clientWidth / room.width, stage.clientHeight / room.height)));
+      const nextScale = Math.min(stage.clientWidth / room.width, stage.clientHeight / room.height);
       setDisplayScale(nextScale);
     };
     updateScale();
@@ -536,6 +539,10 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
         setNearbyTarget(target);
       }
       renderer.draw(current);
+      nameplates.forEach((nameplate, index) => {
+        const element = nameplateElementsRef.current[index];
+        if (element) element.style.opacity = String(getLibraryNameplateOpacity(nameplate, current, room));
+      });
       frameId = requestAnimationFrame(drawFrame);
     };
     frameId = requestAnimationFrame(drawFrame);
@@ -544,7 +551,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       renderer.dispose();
       if (rendererRef.current === renderer) rendererRef.current = null;
     };
-  }, [room, catNavigation]);
+  }, [room, catNavigation, nameplates]);
 
   useEffect(() => {
     sceneStateRef.current = { ...sceneStateRef.current, boardNoteCount: props.boardNoteCount ?? 0 };
@@ -982,6 +989,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
             onBlur={clearHeldInput}
             onPointerUp={handleCanvasPointerUp}
           />
+          <CanvasLibraryNameplates room={room} displayScale={displayScale} elementsRef={nameplateElementsRef} />
 
           {onBack ? (
             <button type="button" className="student-canvas-library-back" aria-label="도서관 나가기" disabled={isPlacing || ambientBusy || (receiving && !receiveApproachRef.current?.waiting)} onClick={requestExit}>

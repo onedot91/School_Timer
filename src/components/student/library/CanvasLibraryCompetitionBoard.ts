@@ -14,8 +14,9 @@ export const drawCompetitionBoard = (context: CanvasRenderingContext2D, rect: Li
   paint(palette.timber[3], 2, 25, rect.width - 4, 1);
   paint(palette.timber[1], rect.width - 4, 27, 3, 38);
   paint(palette.timber[1], 1, 31, rect.width - 2, 2);
-  paint(palette.lavender[0], 7, 33, rect.width - 14, 29);
-  paint(palette.lavender[1], 10, 35, rect.width - 20, 24);
+  paint(palette.timber[0], 7, 33, rect.width - 14, 29);
+  paint(palette.paper[2], 10, 35, rect.width - 20, 24);
+  paint(palette.paper[3], 11, 36, rect.width - 22, 1);
   paint(palette.timber[2], 7, 62, rect.width - 14, 5);
   paint(palette.timber[0], 8, 67, 8, 3);
   paint(palette.timber[0], rect.width - 16, 67, 8, 3);

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import CanvasLibraryGame from '../src/components/student/library/CanvasLibraryGame';
 import { drawLibraryCharacter } from '../src/components/student/library/CanvasLibraryCharacter';
 import { createLibraryRenderer } from '../src/components/student/library/CanvasLibraryRenderer';
+import { CanvasLibraryNameplates } from '../src/components/student/library/CanvasLibraryNameplates';
 import { createLibraryCatNavigation, createLibraryCatState, resolveLibraryCatRoom, stepLibraryCat, type LibraryCatState } from '../src/lib/canvasLibraryCat';
 import { getLibraryBearPose, getLibraryBookMotion } from '../src/lib/canvasLibraryPose';
 import { completeLibraryAmbientAction, createLibraryAmbientAction, createLibraryAmbientState } from '../src/lib/canvasLibraryAmbient';
@@ -143,7 +144,10 @@ function ScenePreview({ scene }: { scene: LibraryScene }) {
     return () => renderer.current?.dispose();
   }, []);
   useEffect(() => renderer.current?.draw(scene), [scene]);
-  return <canvas id="review-scene" ref={ref} aria-label="실제 책방 렌더러 자세 미리보기" />;
+  return <div style={{ position: 'relative', width: 624, maxWidth: '100%' }}>
+    <canvas id="review-scene" ref={ref} aria-label="실제 책방 렌더러 자세 미리보기" />
+    <CanvasLibraryNameplates room={room} displayScale={1} scene={scene} />
+  </div>;
 }
 
 function RecordingPreview({ source }: { source: string }) {
@@ -390,7 +394,7 @@ function Review() {
       .review-cell { margin:0; padding:8px; background:#fff8e5; border:1px solid #b99872; border-radius:6px; }
       .review-cell canvas { width:144px; height:144px; image-rendering:pixelated; }
       .review-cell figcaption { font-size:11px; padding-top:6px; white-space:nowrap; }
-      #review-scene { width:624px; height:376px; image-rendering:pixelated; max-width:100%; }
+      #review-scene { display:block; width:624px; height:auto; image-rendering:pixelated; max-width:100%; }
       .review-game-controls { max-height:calc(100dvh - 20px); overflow:auto; position:fixed; z-index:200; right:10px; bottom:10px; width:min(460px,calc(100vw - 20px)); font-size:12px; box-shadow:0 4px 20px #0004; }
       .review-game-controls summary { cursor:pointer; font-weight:700; padding:4px; }
       .review-game-controls .review-controls { margin:0; }
@@ -408,7 +412,7 @@ function Review() {
         <button disabled={recording} onClick={() => setGame(true)}>실제 게임 검수 열기</button>
         <output>{metrics.width} × {metrics.height} · 화면 {metrics.fps} FPS</output>
         <span>F8: 게임 검수 도구 표시/숨기기</span>
-        <label>게시판 메모 <select value={boardNoteCount} onChange={event => setBoardNoteCount(Number(event.target.value))}>{[0, 1, 24].map(count => <option key={count} value={count}>{count}개</option>)}</select></label>
+        <label>게시판 메모 <select value={boardNoteCount} onChange={event => setBoardNoteCount(Number(event.target.value))}>{[0, 1, 2, 24].map(count => <option key={count} value={count}>{count}개</option>)}</select></label>
       </div>
       <div className="review-controls">
         {(['normal', 'receive', 'place', 'seated'] as const).map(value => <button key={value} aria-pressed={!ambientPreview && !catPreview && mode === value} onClick={() => { setMode(value); setAmbientPreview(''); setCatPreview(''); setTime(0); }}>{({ normal:'기본', receive:'책 받기', place:'책 꽂기', seated:'앉기' })[value]}</button>)}
@@ -447,7 +451,7 @@ function Review() {
           <label>고양이 시드 <input type="number" aria-label="고양이 시드" value={catSeed} disabled={recording} onChange={event => { const value = event.currentTarget.valueAsNumber; if (Number.isFinite(value)) setCatSeed(Math.trunc(value) >>> 0); }} /></label>
           <button disabled={recording} onClick={() => setCatSeed(Math.floor(Math.random() * 0x100000000))}>새 시드로 재시작</button>
           <label>고양이 시작 동작 <select value={catFixture} disabled={recording} onChange={event => setCatFixture(catFixtureBehaviors.find(value => value === event.target.value) ?? '')}><option value="">자율 생활</option>{catFixtureBehaviors.map(value => <option key={value} value={value}>{catBehaviorLabels[value]}</option>)}</select></label>
-          <label>게시판 메모 <select value={boardNoteCount} onChange={event => setBoardNoteCount(Number(event.target.value))}>{[0, 1, 24].map(count => <option key={count} value={count}>{count}개</option>)}</select></label>
+          <label>게시판 메모 <select value={boardNoteCount} onChange={event => setBoardNoteCount(Number(event.target.value))}>{[0, 1, 2, 24].map(count => <option key={count} value={count}>{count}개</option>)}</select></label>
           <label>저장 응답 <select value={saveMode} onChange={event => { const value = event.target.value; if (value === 'success' || value === 'failure' || value === 'delayed') setSaveMode(value); }}><option value="success">성공</option><option value="failure">실패</option><option value="delayed">2.5초 지연 후 성공</option></select></label>
           <button disabled={recording} onClick={() => resetBooks(0)}>빈 책방으로 초기화</button>
           <button disabled={recording} onClick={() => resetBooks(30)}>30권 채우기</button>

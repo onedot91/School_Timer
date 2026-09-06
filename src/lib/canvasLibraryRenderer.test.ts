@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createLibraryRenderer } from '../components/student/library/CanvasLibraryRenderer';
 import { CANVAS_LIBRARY_PALETTE as palette } from '../components/student/library/CanvasLibraryPalette';
+import { getLibraryNameplates, getLibraryNameplateOpacity } from '../components/student/library/CanvasLibraryNameplates';
 import { getLibraryPlacedBookRect } from './canvasLibraryPose';
 import { createFullLibraryRoom, createLibraryPlayer, type LibraryScene } from './canvasLibraryWorld';
 
@@ -59,6 +60,13 @@ test('게시판 메모 0·1·24개는 코르크 안에 있고 출입구는 전�
     assert.ok(corkTexture.every(paint => paint.kind === 'rect' && paint.width === 1 && paint.height === 1 && paint.alpha === 0.16));
     const scene: LibraryScene = { player: createLibraryPlayer(room), placedBooks: [], carriedDraft: null,
       nearbyTarget: null, selectedSlotId: null, timeMs: 0, reducedMotion: true };
+    const nameplates = getLibraryNameplates(room);
+    const deskNameplate = nameplates.find(nameplate => nameplate.id === room.desk.id);
+    const shelfNameplate = nameplates.find(nameplate => nameplate.id === 'central-bookcase');
+    assert.ok(deskNameplate && shelfNameplate);
+    assert.equal(getLibraryNameplateOpacity(deskNameplate, scene, room), 1);
+    assert.equal(getLibraryNameplateOpacity(deskNameplate, { ...scene, player: { ...scene.player, position: room.desk.interactionPoint } }, room), 0, 'desk text must not cover the foreground bear');
+    assert.equal(getLibraryNameplateOpacity(shelfNameplate, { ...scene, player: { ...scene.player, position: { x: 190, y: 192 } } }, room), 0.28, 'shelf text follows furniture occlusion');
     for (const count of [0, 1, 24]) {
       target.paints.length = 0;
       renderer.draw({ ...scene, boardNoteCount: count });
@@ -95,7 +103,7 @@ test('게시판 메모 0·1·24개는 코르크 안에 있고 출입구는 전�
     assert.equal(staticLayer.paints.some(paint => paint.kind === 'rect' && paint.x >= door.x - 3 && paint.y >= door.y - 15
       && paint.x + paint.width <= door.x + door.width + 3 && paint.y + paint.height <= door.y
       && [palette.green[1], palette.green[2], palette.green[3]].some(color => color === paint.color)), false, 'entry mat is removed');
-    assert.equal(layers.length, 3, 'cached room/occlusion/entrance layers must not be recreated per frame');
+    assert.equal(layers.length, 4, 'cached room/occlusion/entrance/detail layers must not be recreated per frame');
     renderer.dispose();
     assert.ok(layers.every(layer => layer.canvas.width === 0 && layer.canvas.height === 0));
   } finally {

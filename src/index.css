@@ -1225,6 +1225,20 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   touch-action: none;
 }
 
+.student-canvas-library-nameplate {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--library-ink-deep);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
 .student-canvas-library-scene:focus-visible,
 .student-canvas-library :is(button, input, textarea, select, summary, [tabindex]):focus-visible {
   outline: 3px solid var(--library-ink-deep);

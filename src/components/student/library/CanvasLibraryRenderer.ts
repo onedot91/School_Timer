@@ -13,7 +13,8 @@ import { drawLibraryAmbientLight, drawLibraryAmbientObject, drawLibraryAmbientTo
 import { drawCompetitionBoard } from './CanvasLibraryCompetitionBoard';
 import { drawLibraryCharacter, drawLibraryCarryBook, drawLibraryBookSpine } from './CanvasLibraryCharacter';
 import { drawLibraryClerkBody, drawLibraryClerkHands, drawLibraryClerkTransfer } from './CanvasLibraryClerk';
-import { getLibraryActionProgress, getLibraryBearPose, getLibraryBookMotion, getLibraryPlacedBookRect, LIBRARY_BEAR_BOUNDS } from '../../../lib/canvasLibraryPose';
+import { getLibraryActionProgress, getLibraryBearPose, getLibraryBookMotion, getLibraryPlacedBookRect } from '../../../lib/canvasLibraryPose';
+import { getLibraryNameplates, isLibraryFurnitureOccluded as isPlayerBehind } from './CanvasLibraryNameplates';
 
 const LOGICAL_WIDTH = 624;
 const LOGICAL_HEIGHT = 376;
@@ -206,6 +207,16 @@ const drawRoomBase = (context: DrawContext, room: LibraryRoom) => {
 
   if (room.exit) {
     const door = room.exit.visualRect;
+    const sillY = door.y + door.height - 3;
+    for (const [wallX, wallWidth] of [[startX, door.x - startX], [door.x + door.width, endX - door.x - door.width]]) {
+      fillRect(context, { x: wallX, y: endY - 3, width: wallWidth, height: sillY - endY + 6 }, palette.green[1]);
+      fillRect(context, { x: wallX, y: endY - 3, width: wallWidth, height: 2 }, palette.green[3]);
+      fillRect(context, { x: wallX, y: sillY + 1, width: wallWidth, height: 2 }, palette.green[0]);
+    }
+    context.save();
+    context.globalAlpha = 0.2;
+    fillRect(context, { x: door.x - 2, y: sillY + 3, width: door.width + 4, height: 2 }, palette.timber[0]);
+    context.restore();
     fillRect(context, { x: door.x, y: door.y + door.height - 3, width: door.width, height: 3 }, palette.timber[0]);
     fillRect(context, { x: door.x + 2, y: door.y + door.height - 3, width: door.width - 4, height: 1 }, palette.timber[3]);
   } else {
@@ -406,18 +417,20 @@ const drawFailureBoardNotes = (context: DrawContext, rect: LibraryRect, rawCount
   const columns = 8;
   const rows = 3;
   const horizontalPadding = Math.max(7, Math.floor(rect.width * 0.07));
-  const topPadding = Math.max(10, Math.floor(rect.height * 0.17));
+  const topPadding = Math.max(23, Math.floor(rect.height * 0.17));
   const bottomPadding = Math.max(7, Math.floor(rect.height * 0.1));
   const cellWidth = Math.max(7, Math.floor((rect.width - horizontalPadding * 2) / columns));
   const cellHeight = Math.max(9, Math.floor((rect.height - topPadding - bottomPadding) / rows));
-  const paperWidth = Math.max(5, cellWidth - Math.max(2, Math.floor(cellWidth * 0.2)));
-  const paperHeight = Math.max(7, cellHeight - Math.max(2, Math.floor(cellHeight * 0.18)));
+  const maxPaperWidth = Math.max(5, cellWidth - Math.max(2, Math.floor(cellWidth * 0.2)));
+  const maxPaperHeight = Math.max(7, cellHeight - Math.max(2, Math.floor(cellHeight * 0.18)));
   const colors = [palette.bookCoral[0], palette.bookBlue[0], palette.bookSage[0]];
   for (let index = 0; index < count; index += 1) {
     const column = index % columns;
     const row = Math.floor(index / columns);
-    const paperX = x + horizontalPadding + column * cellWidth;
-    const paperY = y + topPadding + row * cellHeight + (column % 2);
+    const paperWidth = maxPaperWidth - index % 2;
+    const paperHeight = maxPaperHeight - (index % 3 === 1 ? 1 : 0);
+    const paperX = x + horizontalPadding + column * cellWidth + index % 2;
+    const paperY = y + topPadding + row * cellHeight + ((column + row) % 2);
     context.fillStyle = palette.paper[2];
     context.fillRect(paperX, paperY, paperWidth, paperHeight);
     context.fillStyle = palette.paper[3];
@@ -461,7 +474,7 @@ const drawContactShadow = (context: DrawContext, rect: LibraryRect, inset = 1) =
   const width = Math.max(2, pixel(rect.width - inset * 2));
   context.globalAlpha *= 0.12;
   context.fillRect(x + 2, y - 1, width, 5);
-  context.globalAlpha *= 2;
+  context.globalAlpha *= 2.5;
   context.fillRect(x, y - 2, width, 3);
   context.restore();
 };
@@ -495,7 +508,7 @@ const drawWoodBlock = (context: DrawContext, rect: LibraryRect, frontDepth: numb
 
 const drawDesk = (context: DrawContext, room: LibraryRoom) => {
   const rect = room.desk.visualRect;
-  drawWoodBlock(context, rect, 7);
+  drawWoodBlock(context, rect, 11);
   const x = pixel(rect.x);
   const y = pixel(rect.y);
   const width = pixel(rect.width);
@@ -551,8 +564,8 @@ const drawShelf = (context: DrawContext, shelf: LibraryShelf, drawFrame = true) 
     context.fillStyle = palette.recess[1];
     context.fillRect(left, rowY, right - left, rowHeight);
     context.fillStyle = palette.recess[0];
-    context.fillRect(left, rowY, right - left, 3);
-    context.fillRect(left, rowY, 2, rowHeight);
+    context.fillRect(left, rowY, right - left, 4);
+    context.fillRect(left, rowY, 3, rowHeight);
     context.fillStyle = palette.recess[2];
     context.fillRect(left + 2, rowY + rowHeight - 2, right - left - 2, 2);
     context.fillStyle = palette.timber[0];
@@ -616,6 +629,23 @@ const enclosingRect = (rects: readonly LibraryRect[]): LibraryRect => {
   const y = Math.min(...rects.map(rect => rect.y));
   return { x, y, width: Math.max(...rects.map(rect => rect.x + rect.width)) - x,
     height: Math.max(...rects.map(rect => rect.y + rect.height)) - y };
+};
+
+const drawNameplate = (context: DrawContext, rect: LibraryRect) => {
+  fillRect(context, rect, palette.timber[0]);
+  fillRect(context, insetRect(rect, 1), palette.paper[3]);
+};
+
+const drawFurnitureDetails = (context: DrawContext, room: LibraryRoom) => {
+  for (const nameplate of getLibraryNameplates(room)) drawNameplate(context, nameplate.rect);
+};
+
+const drawCachedDetails = (context: DrawContext, layer: HTMLCanvasElement, rect: LibraryRect) => {
+  const x = pixel(rect.x);
+  const y = pixel(rect.y);
+  const width = pixel(rect.width);
+  const height = pixel(rect.height);
+  context.drawImage(layer, x, y, width, height, x, y, width, height);
 };
 
 const drawShelfGroup = (context: DrawContext, shelves: readonly LibraryShelf[], rect: LibraryRect) => {
@@ -807,17 +837,6 @@ const drawSelectedSlot = (context: DrawContext, room: LibraryRoom, selectedSlotI
   if (slot) drawCornerHighlight(context, insetRect(slot.rect, -1));
 };
 
-const isPlayerBehind = (scene: LibraryScene, rect: LibraryRect, floorY: number) => {
-  if (scene.seated || scene.ambientState?.benchObjectId || scene.player.position.y >= floorY) return false;
-  const left = scene.player.position.x + LIBRARY_BEAR_BOUNDS.left;
-  const right = scene.player.position.x + LIBRARY_BEAR_BOUNDS.right;
-  const top = scene.player.position.y + LIBRARY_BEAR_BOUNDS.top;
-  return right > rect.x
-    && left < rect.x + rect.width
-    && scene.player.position.y > rect.y
-    && top < rect.y + rect.height;
-};
-
 const drawWithPlayerOcclusion = (
   context: DrawContext,
   layer: DrawContext,
@@ -840,6 +859,7 @@ const createDepthEntities = (
   room: LibraryRoom,
   scene: LibraryScene,
   occlusionLayer: DrawContext,
+  furnitureDetails: HTMLCanvasElement,
 ): DepthEntity[] => {
   const entities: DepthEntity[] = [
     {
@@ -849,6 +869,7 @@ const createDepthEntities = (
       body: (context) => {
         drawLibraryClerkBody(context, room, scene);
         drawDesk(context, room);
+        drawCachedDetails(context, furnitureDetails, room.desk.visualRect);
         drawLibraryClerkHands(context, room, scene);
       },
     },
@@ -943,6 +964,7 @@ const createDepthEntities = (
         isPlayerBehind(scene, visualRect, floorY),
         (target) => {
           drawShelfGroup(target, shelves, visualRect);
+          drawCachedDetails(target, furnitureDetails, visualRect);
           for (const book of scene.placedBooks) {
             if (!shelves.some(shelf => findShelfForBook(room, book)?.id === shelf.id)) continue;
             const progress = getLibraryActionProgress(scene);
@@ -1080,6 +1102,15 @@ export const createLibraryRenderer = (
   entranceContext.imageSmoothingEnabled = false;
   drawEntranceForeground(entranceContext, room);
 
+  const furnitureDetails = document.createElement('canvas');
+  furnitureDetails.width = LOGICAL_WIDTH;
+  furnitureDetails.height = LOGICAL_HEIGHT;
+  const detailContext = furnitureDetails.getContext('2d');
+  if (!detailContext) throw new Error('가구 장식 Canvas 2D context를 사용할 수 없습니다.');
+  detailContext.imageSmoothingEnabled = false;
+  drawFurnitureDetails(detailContext, room);
+  if (room.failureBoard) drawCachedDetails(staticContext, furnitureDetails, room.failureBoard.visualRect);
+
   let disposed = false;
   let packedBooks: LibraryScene['placedBooks'] | undefined;
   let packedRoom = room;
@@ -1097,7 +1128,7 @@ export const createLibraryRenderer = (
       drawLivingLight(context, room, scene);
       drawLibraryAmbientLight(context, room, scene);
       if (room.failureBoard) drawFailureBoardNotes(context, room.failureBoard.visualRect, scene.boardNoteCount);
-      const entities = createDepthEntities(currentRoom, scene, occlusionContext);
+      const entities = createDepthEntities(currentRoom, scene, occlusionContext, furnitureDetails);
       for (const entity of entities) entity.shadow(context);
       for (const entity of entities) entity.body(context);
       drawBookAction(context, currentRoom, scene);
@@ -1119,6 +1150,8 @@ export const createLibraryRenderer = (
       occlusionCanvas.height = 0;
       entranceCanvas.width = 0;
       entranceCanvas.height = 0;
+      furnitureDetails.width = 0;
+      furnitureDetails.height = 0;
     },
   };
 };
