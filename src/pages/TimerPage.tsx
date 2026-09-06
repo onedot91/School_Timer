@@ -2141,6 +2141,9 @@ function AnnouncementNotebookOverlay({
   const noteDisplayRef = useRef<HTMLDivElement>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const announcementDialogRef = useRef<HTMLDivElement>(null);
+  const announcementAwardConfirmRef = useRef<HTMLDivElement>(null);
+  const announcementAwardTriggerRef = useRef<HTMLButtonElement>(null);
+  const announcementAwardCancelRef = useRef<HTMLButtonElement>(null);
   const announcementHistoryTriggerRef = useRef<HTMLButtonElement>(null);
   const hasRestoredRef = useRef(false);
   const hasEditedNoteTextRef = useRef(false);
@@ -2153,8 +2156,20 @@ function AnnouncementNotebookOverlay({
     isOpen,
     onDismiss: onClose,
     initialFocusRef: noteTextareaRef,
-    isDismissible: !isHistoryOpen,
+    isDismissible: !isHistoryOpen && !isAwardQueueConfirmOpen,
   });
+
+  useModalFocus({
+    dialogRef: announcementAwardConfirmRef,
+    isOpen: isOpen && isAwardQueueConfirmOpen,
+    onDismiss: () => setIsAwardQueueConfirmOpen(false),
+    initialFocusRef: announcementAwardCancelRef,
+    returnFocusRef: announcementAwardTriggerRef,
+  });
+
+  useEffect(() => {
+    if (!isOpen) setIsAwardQueueConfirmOpen(false);
+  }, [isOpen]);
 
   useEffect(() => {
     if (hasRestoredRef.current) return;
@@ -2476,6 +2491,8 @@ function AnnouncementNotebookOverlay({
   };
 
   const startAnnouncementDayAwards = () => {
+    if (!isAwardQueueConfirmOpen) return;
+    setIsAwardQueueConfirmOpen(false);
     if (announcementDayAwardableAuctionItems.length === 0) {
       setIsAwardMenuOpen(false);
       return;
@@ -2691,7 +2708,7 @@ function AnnouncementNotebookOverlay({
         ref={announcementDialogRef}
         className="apple-material-layer announcement-shell mascot-shell app-tone-calm relative mx-auto flex h-[calc(100dvh-1.5rem)] w-full max-w-[1220px] flex-col overflow-hidden rounded-[2rem] md:rounded-[3rem]"
         role="dialog"
-        aria-modal="true"
+        aria-modal={isAwardQueueConfirmOpen ? undefined : 'true'}
         aria-label="알림장"
         tabIndex={-1}
       >
@@ -2865,6 +2882,7 @@ function AnnouncementNotebookOverlay({
                       >
                         <div
                           className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                          ref={announcementAwardConfirmRef}
                           role="dialog"
                           aria-modal="true"
                           aria-labelledby="announcement-award-confirm-title"
@@ -2880,6 +2898,7 @@ function AnnouncementNotebookOverlay({
                             <button
                               type="button"
                               onClick={() => setIsAwardQueueConfirmOpen(false)}
+                              ref={announcementAwardCancelRef}
                               className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
                             >
                               취소
@@ -2887,6 +2906,7 @@ function AnnouncementNotebookOverlay({
                             <button
                               type="button"
                               onClick={startAnnouncementDayAwards}
+                              disabled={!hasAwardableAuctionItems}
                               className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
                             >
                               낙찰 시작
@@ -2947,10 +2967,11 @@ function AnnouncementNotebookOverlay({
                       </div>
                     ) : null}
                     <button
+                      ref={announcementAwardTriggerRef}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => setIsAwardQueueConfirmOpen(true)}
                       disabled={!hasAwardableAuctionItems}
-                      className={`announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] items-center justify-center gap-2 rounded-full border px-4 font-black ${
+                      className={`announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-full border ${
                         hasAwardableAuctionItems
                           ? 'border-[#00754A] bg-[#00754A] text-white'
                           : 'border-[#D9E4DE] text-[#8A7A6B]'
@@ -2958,13 +2979,9 @@ function AnnouncementNotebookOverlay({
                       style={hasAwardableAuctionItems ? { background: '#00754A', borderColor: '#00754A', color: '#FFFFFF' } : undefined}
                       type="button"
                       title={hasAwardableAuctionItems ? '해당 날짜 낙찰 발표' : '해당 날짜 낙찰 대기 물품 없음'}
-                      aria-label={hasAwardableAuctionItems ? `해당 날짜 낙찰 발표 ${announcementDayAwardableAuctionItems.length}건` : '해당 날짜 낙찰 대기 물품 없음'}
+                      aria-label={hasAwardableAuctionItems ? '해당 날짜 낙찰 발표' : '해당 날짜 낙찰 대기 물품 없음'}
                     >
-                      <Trophy size={18} className={hasAwardableAuctionItems ? 'text-white' : 'text-[#8A7A6B]'} />
-                      <span className="hidden text-[0.86rem] sm:inline">낙찰</span>
-                      {hasAwardableAuctionItems ? (
-                        <span className="rounded-full bg-white/18 px-1.5 text-[0.72rem]">{announcementDayAwardableAuctionItems.length}</span>
-                      ) : null}
+                      <Trophy size={20} aria-hidden="true" className={hasAwardableAuctionItems ? 'text-white' : 'text-[#8A7A6B]'} />
                     </button>
                     <button
                       onMouseDown={(event) => event.preventDefault()}

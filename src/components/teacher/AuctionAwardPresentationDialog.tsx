@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { ChevronDown, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
 import { playAuctionSound } from '../../lib/auctionAudio';
 import { FAILURE_EMPTY_PROFILE_IMAGE, getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
@@ -86,14 +86,11 @@ export default function AuctionAwardPresentationDialog({
   const [replay] = useState(() => getAuctionAwardReplaySteps(presentation.steps, presentation.award));
   const [index, setIndex] = useState(0);
   const [revealing, setRevealing] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-  const soundEnabledRef = useRef(soundEnabled);
   const playedStepRef = useRef(-1);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const historyToggleRef = useRef<HTMLButtonElement>(null);
-  soundEnabledRef.current = soundEnabled;
   const key = presentation.award.awardedAt;
   const isResult = presentation.hasRevealed;
   const phase = presentation.error ? 'error' : isResult ? 'result' : revealing ? 'reveal'
@@ -123,16 +120,16 @@ export default function AuctionAwardPresentationDialog({
   useEffect(() => {
     if (presentation.isComplete || playedStepRef.current === index) return;
     playedStepRef.current = index;
-    if (soundEnabledRef.current) void playAuctionSound(index === 0 ? 'start' : 'bid', index);
+    void playAuctionSound(index === 0 ? 'start' : 'bid', index);
   }, [index, presentation.isComplete]);
 
   useEffect(() => {
     if (!presentation.hasFinalized || presentation.error || presentation.hasRevealed) return;
     const timers = [
-      window.setTimeout(() => { if (soundEnabledRef.current) void playAuctionSound('strike'); }, AUCTION_CEREMONY_TIMING.impact),
+      window.setTimeout(() => { void playAuctionSound('strike'); }, AUCTION_CEREMONY_TIMING.impact),
       window.setTimeout(() => {
         setRevealing(true);
-        if (soundEnabledRef.current) void playAuctionSound('final');
+        void playAuctionSound('final');
       }, AUCTION_CEREMONY_TIMING.reveal),
       window.setTimeout(() => onRevealComplete(key), AUCTION_CEREMONY_TIMING.settled),
     ];
@@ -166,9 +163,6 @@ export default function AuctionAwardPresentationDialog({
       <header className="auction-ceremony-header">
         <span className="auction-ceremony-brand">{presentation.weekdayLabel} 경매</span>
         <div className="auction-ceremony-controls">
-          <button type="button" aria-label={soundEnabled ? '경매 효과음 끄기' : '경매 효과음 켜기'} aria-pressed={soundEnabled} onClick={() => setSoundEnabled(value => !value)}>
-            {soundEnabled ? <Volume2 aria-hidden="true"/> : <VolumeX aria-hidden="true"/>}
-          </button>
           {canDismiss && <button type="button" aria-label="낙찰 결과 닫기" onClick={onDismiss}><X aria-hidden="true"/></button>}
         </div>
       </header>
