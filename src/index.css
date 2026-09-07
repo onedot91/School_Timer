@@ -8900,15 +8900,15 @@ h3 {
     opacity: 0;
     filter: blur(4px);
   }
-  15% {
+  16.5% {
     opacity: 0;
     filter: blur(4px);
   }
-  21%, 79% {
+  19.5%, 80.5% {
     opacity: 1;
     filter: blur(0);
   }
-  85% {
+  83.5% {
     opacity: 0;
     filter: blur(4px);
   }
