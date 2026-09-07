@@ -358,7 +358,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
 
 export interface StudentCharacterRosterSlot {
   studentNumber: number;
-  character: StudentCharacter | null;
+  characters: StudentCharacter[];
 }
 
 export const getStudentCharacterRoster = (): StudentCharacterRosterSlot[] => {
@@ -377,8 +377,6 @@ export const getStudentCharacterRoster = (): StudentCharacterRosterSlot[] => {
   return Array.from({ length: 23 }, (_, index) => {
     const studentNumber = index + 1;
     const characters = characterByStudentNumber.get(studentNumber) ?? [];
-    return characters.length > 0
-      ? characters.map((character) => ({ studentNumber, character }))
-      : [{ studentNumber, character: null }];
-  }).flat();
+    return { studentNumber, characters };
+  });
 };

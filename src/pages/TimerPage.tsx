@@ -9710,22 +9710,26 @@ export default function TimerPage() {
         <section id="teacher-shop-panel-characters" role="tabpanel" aria-labelledby="teacher-shop-tab-characters" className="settings-card teacher-shop-collection teacher-shop-characters rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
           <header><div><h3>교실 캐릭터</h3><p>교사 화면에서 돌아다니는 학생 제작 캐릭터</p></div><span>1~23번</span></header>
           <div className="teacher-shop-character-grid">
-            {teacherStudentCharacterRoster.map(({ studentNumber, character }) => {
-              const speech = character?.speech ?? null;
-              return (
-                <article key={character?.id ?? studentNumber} data-empty={character === null ? 'true' : undefined} aria-label={character ? `${studentNumber}번 캐릭터, 멘트: ${speech ?? '멘트 대기'}` : `${studentNumber}번 캐릭터와 멘트 등록 대기`}>
-                  <strong>{studentNumber}번</strong>
-                  <div className="teacher-shop-character-stage">
-                    {character
-                      ? <img src={character.imageSrc} alt={character.alt} width={192} height={192} loading="lazy" decoding="async" />
-                      : <span className="teacher-shop-character-placeholder">캐릭터 대기</span>}
-                  </div>
-                  <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
-                    {speech ? <q>{speech}</q> : <span>멘트 대기</span>}
-                  </p>
-                </article>
-              );
-            })}
+            {teacherStudentCharacterRoster.map(({ studentNumber, characters }) => (
+              <article key={studentNumber} data-empty={characters.length === 0 ? 'true' : undefined} aria-label={`${studentNumber}번 캐릭터 ${characters.length}개`}>
+                <strong>{studentNumber}번</strong>
+                {(characters.length > 0 ? characters : [null]).map((character) => {
+                  const speech = character?.speech ?? null;
+                  return (
+                    <div className="teacher-shop-character-entry" key={character?.id ?? 'empty'}>
+                      <div className="teacher-shop-character-stage">
+                        {character
+                          ? <img src={character.imageSrc} alt={character.alt} width={192} height={192} loading="lazy" decoding="async" />
+                          : <span className="teacher-shop-character-placeholder">캐릭터 대기</span>}
+                      </div>
+                      <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
+                        {speech ? <q>{speech}</q> : <span>멘트 대기</span>}
+                      </p>
+                    </div>
+                  );
+                })}
+              </article>
+            ))}
           </div>
         </section>
       ) : null}
