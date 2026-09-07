@@ -1338,7 +1338,7 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
         throw new TypeError('Failed to fetch');
       };
       await assert.rejects(client.updateStudentSharedSettings(7, (value) => value), /Failed to fetch/);
-      assert.equal(failedAttempts, 6, '조건부 저장 3회 후 결과 확인 조회도 3회로 제한한다');
+      assert.equal(failedAttempts, 5, '조건부 저장 3회 후 결과 확인 조회는 2회로 제한한다');
       assert.deepEqual(fake.state(), beforeFailure);
     } finally {
       globalThis.fetch = originalFetch;
@@ -1365,7 +1365,7 @@ test('공유 설정 전송은 불확실한 저장을 한 번만 적용하고 조
     const delays: number[] = [];
     context.mock.method(globalThis, 'setTimeout', (callback: () => void, delay?: number) => {
       delays.push(delay ?? 0);
-      return originalSetTimeout(callback, delay === 45_000 ? 20 : 0);
+      return originalSetTimeout(callback, delay === 45_000 || delay === 12_000 ? 20 : 0);
     });
     for (const scenario of ['lost', 'mismatch', 'conflict', '502', '503', '504', 'long-retry', 'invalid-receipt', 'request-timeout', 'body-timeout']) {
       client.invalidateSharedSettingsCache();
@@ -1414,7 +1414,7 @@ test('공유 설정 전송은 불확실한 저장을 한 번만 적용하고 조
       assert.equal(puts, ['long-retry', 'invalid-receipt'].includes(scenario) ? 1 : 2, scenario);
     }
     assert.ok(delays.includes(1000), '짧은 Retry-After를 준수한다');
-    assert.ok(delays.every((delay) => delay <= 3000 || delay === 45_000), '긴 Retry-After는 재전송하지 않고 결과를 확인한다');
+    assert.ok(delays.every((delay) => delay <= 3000 || delay === 45_000 || delay === 12_000), '긴 Retry-After는 재전송하지 않고 결과를 확인한다');
     client.invalidateSharedSettingsCache();
     globalThis.fetch = async () => Response.json({});
     let malformedUpdaterCalls = 0;
@@ -1429,6 +1429,15 @@ test('공유 설정 전송은 불확실한 저장을 한 번만 적용하고 조
     };
     assert.equal(await client.loadSharedSettingsUpdatedAt(), 'metadata-recovered');
     assert.equal(metadataCalls, 2);
+    let stalledReads = 0;
+    globalThis.fetch = async () => { stalledReads += 1; return new Promise<Response>(() => {}); };
+    delays.length = 0;
+    await assert.rejects(client.loadSharedSettingsRow(), /SHARED_SETTINGS_REQUEST_TIMEOUT/);
+    assert.equal(stalledReads, 2, '멈춘 조회는 한 번만 재시도한다');
+    assert.equal(delays.filter(delay => delay === 12_000).length, 2);
+    assert.ok(!delays.includes(45_000), '조회에 저장용 45초 대기 시간을 사용하지 않는다');
+    globalThis.fetch = async () => Response.json(null);
+    assert.equal(await client.loadSharedSettingsRow(), null, '실패한 공용 조회를 제거하여 다음 조회가 복구된다');
   } finally {
     context.mock.restoreAll();
     globalThis.fetch = originalFetch;

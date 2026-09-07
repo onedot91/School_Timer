@@ -76,6 +76,7 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 - Student UI is Chromebook-first. The device resolution `1280×800` includes Chrome tabs/address bar and the OS shelf; it is not the web content viewport. Use `window.innerWidth === 1280` and `window.innerHeight === 650` as the primary conservative browser-content QA size, before changes and after the final layout edit. Also check `1280×600` for shorter windows and `1280×800` as a fullscreen regression.
 - Base layout on the actual CSS viewport (`100dvh`, container dimensions), never `screen.height`. Do not subtract browser chrome again from `100dvh`. At the final checks reject clipping, overlap, unreachable primary actions, and unintended document scrolling. Long lists/forms may scroll inside a bounded panel; preserve readable text, 44px controls, keyboard access, and text zoom. Do not shrink the whole UI with CSS zoom or transforms to force a fit.
 - Optional audio failures stay non-fatal; autoplay/device restrictions must not block core actions.
+- Loading fixes require before/after measurements. Keep Vercel functions near the Seoul Supabase database (`icn1`); verify the deployed response region after release. Separate read timeouts from write confirmation, and never shorten loading by treating unconfirmed saves as successful. Keep feature-only panels out of initial bundles.
 
 ## UI 문구 최소화
 

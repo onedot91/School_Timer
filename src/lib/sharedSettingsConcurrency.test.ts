@@ -25,6 +25,9 @@ const withClient = async (t: TestContext, run: (
     scope: 'full' | 'student';
     rejectNext: boolean;
     afterCommit?: () => Promise<void>;
+    beforeCommit?: () => Promise<void>;
+    invalidNextReceipt?: boolean;
+    afterRead?: () => Promise<void>;
   },
 ) => Promise<void>) => {
   const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null }, define: {
@@ -46,7 +49,9 @@ const withClient = async (t: TestContext, run: (
           if (value[field]) value[field] = { 7: record(value[field])['7'] };
         }
       }
-      return Response.json({ id: 'school-timer-main', scope: backend.scope, value, updated_at: timestamp() });
+      const updatedAt = timestamp();
+      await backend.afterRead?.();
+      return Response.json({ id: 'school-timer-main', scope: backend.scope, value, updated_at: updatedAt });
     }
     const body = record(JSON.parse(String(init.body)));
     backend.writes.push(body);
@@ -55,6 +60,7 @@ const withClient = async (t: TestContext, run: (
       backend.conflicts++;
       return Response.json({}, { status: 409 });
     }
+    await backend.beforeCommit?.();
     for (const [field, value] of Object.entries(record(body.value))) {
       backend.value[field] = STUDENT_MUTABLE_MAP_FIELDS.some((name) => name === field)
         ? { ...record(backend.value[field] ?? {}), ...record(value) }
@@ -63,6 +69,7 @@ const withClient = async (t: TestContext, run: (
     backend.version++;
     const updatedAt = timestamp();
     await backend.afterCommit?.();
+    if (backend.invalidNextReceipt) { backend.invalidNextReceipt = false; return Response.json({}); }
     return Response.json({ updatedAt });
   });
   try {
@@ -161,5 +168,76 @@ test('저장 중 전용 API가 캐시를 무효화하면 늦은 영수증을 캐
     assert.equal(backend.reads, 2); assert.equal(backend.writes.length, 2); assert.equal(backend.conflicts, 0);
     assert.deepEqual(backend.value.currencyBalances, { 7: 135, 8: 237 });
     assert.deepEqual(backend.value.studentNumberBaseball, { '8:week': { legacy: true }, '7:week': { attempts: ['123'] } });
+  });
+});
+
+
+test('동시에 필요한 설정 조회는 한 요청으로 합치고 완료 뒤에는 최신값을 다시 조회한다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    const held = gate();
+    backend.afterRead = () => held.promise;
+    const reads = Array.from({ length: 8 }, () => client.loadSharedSettingsRow());
+    assert.equal(backend.reads, 1);
+    held.release();
+    const rows = await Promise.all(reads);
+    rows.forEach(row => assert.deepEqual(record(row?.value).currencyBalances, { 7: 100, 8: 237 }));
+    backend.version++;
+    await client.loadSharedSettingsRow();
+    assert.equal(backend.reads, 2);
+  });
+});
+
+test('조회 중 캐시 무효화 후의 요청은 이전 응답에 합쳐지지 않는다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    const held = gate();
+    backend.afterRead = async () => { backend.afterRead = undefined; await held.promise; };
+    const stale = client.loadSharedSettingsRow();
+    client.invalidateSharedSettingsCache();
+    backend.value.currencyBalances = { 7: 120, 8: 237 }; backend.version++;
+    const fresh = await client.loadSharedSettingsRow();
+    assert.equal(backend.reads, 2);
+    assert.equal(record(record(fresh?.value).currencyBalances)['7'], 120);
+    held.release(); await stale;
+    await client.updateStudentSharedSettings(7, current => ({ ...record(current), currencyBalances: { 7: 125 } }));
+    assert.equal(backend.conflicts, 0);
+  });
+});
+
+test('저장 완료 이후 조회는 저장 전 진행 중이던 조회와 합쳐지지 않는다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    await client.loadSharedSettingsRow();
+    const held = gate();
+    backend.afterRead = async () => { backend.afterRead = undefined; await held.promise; };
+    const stale = client.loadSharedSettingsRow();
+    await client.updateStudentSharedSettings(7, current => ({ ...record(current), currencyBalances: { 7: 125 } }));
+    const fresh = await client.loadSharedSettingsRow();
+    assert.equal(record(record(fresh?.value).currencyBalances)['7'], 125);
+    held.release(); await stale;
+    await client.updateStudentSharedSettings(7, current => ({ ...record(current), currencyBalances: { 7: 130 } }));
+    assert.equal(backend.conflicts, 0);
+    assert.equal(backend.reads, 3);
+  });
+});
+
+
+test('저장 응답이 손상되면 커밋 전 시작된 배경 조회와 별도로 저장 결과를 확인한다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    await client.loadSharedSettingsRow();
+    const saving = gate(); const commit = gate(); const oldRead = gate();
+    backend.beforeCommit = async () => { backend.beforeCommit = undefined; saving.release(); await commit.promise; };
+    backend.invalidNextReceipt = true;
+    const save = client.updateStudentSharedSettings(7, current => ({ ...record(current), currencyBalances: { 7: 125 } }));
+    await saving.promise;
+    client.invalidateSharedSettingsCache();
+    backend.afterRead = async () => { backend.afterRead = undefined; await oldRead.promise; };
+    const background = client.loadSharedSettingsRow();
+    commit.release();
+    const unblock = setTimeout(oldRead.release, 1000);
+    try {
+      assert.equal(await save, new Date(Date.UTC(2026, 8, 7, 0, 0, 1)).toISOString());
+      assert.equal(backend.reads, 3);
+      assert.equal(backend.writes.length, 1);
+      assert.equal(record(backend.value.currencyBalances)['7'], 125);
+    } finally { clearTimeout(unblock); oldRead.release(); await background; }
   });
 });

@@ -105,7 +105,7 @@ test('학생 설정 변경은 서버가 병합할 투영된 행만 사용한다'
 test('서버 프록시 모드에서는 Supabase 브라우저 클라이언트 없이 API를 호출한다', async () => {
   const source = await readFile(new URL('./supabaseSettings.ts', import.meta.url), 'utf8');
   const functionNames = [
-    'loadSharedSettingsRow',
+    'fetchSharedSettingsRow',
     'loadSharedSettingsUpdatedAt',
     'saveSharedSettings',
     'updateSharedSettings',
@@ -116,7 +116,7 @@ test('서버 프록시 모드에서는 Supabase 브라우저 클라이언트 없
   ] as const;
 
   functionNames.forEach((functionName) => {
-    const functionStart = source.indexOf(`export const ${functionName}`);
+    const functionStart = source.indexOf(`const ${functionName}`);
     const functionEnd = source.indexOf('\nexport const ', functionStart + 1);
     const functionSource = source.slice(functionStart, functionEnd < 0 ? undefined : functionEnd);
     const proxyBranch = functionSource.indexOf('if (useServerProxy)');

@@ -24,6 +24,11 @@ export type SettingsRow = {
 
 let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
 let settingsCacheGeneration = 0;
+let sharedSettingsRead: {
+  generation: number;
+  cachedRow: SettingsRow | null | undefined;
+  promise: Promise<SettingsRow | null>;
+} | undefined;
 let sharedSettingsUpdateQueue: Promise<unknown> = Promise.resolve();
 
 const enqueueSharedSettingsUpdate = <T>(update: () => Promise<T>) => {
@@ -49,6 +54,7 @@ const supabase = isSupabaseSettingsEnabled && !useServerProxy
   : null;
 
 const fetchJsonOnce = async (input: string, init?: RequestInit) => {
+  const requestTimeoutMs = !init?.method || init.method === 'GET' ? 12_000 : 45_000;
   const controller = new AbortController();
   const abort = () => controller.abort(init?.signal?.reason);
   init?.signal?.addEventListener('abort', abort, { once: true });
@@ -59,7 +65,7 @@ const fetchJsonOnce = async (input: string, init?: RequestInit) => {
       const error = new DOMException('SHARED_SETTINGS_REQUEST_TIMEOUT', 'TimeoutError');
       controller.abort(error);
       reject(error);
-    }, 45_000);
+    }, requestTimeoutMs);
   });
   try {
     return await Promise.race([timeout, (async () => {
@@ -94,6 +100,7 @@ const fetchJsonOnce = async (input: string, init?: RequestInit) => {
 };
 
 const fetchJson = async (input: string, init?: RequestInit, retryNetwork = false) => {
+  const retryLimit = !init?.method || init.method === 'GET' ? 1 : 2;
   let uncertainWrite = false;
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -104,7 +111,7 @@ const fetchJson = async (input: string, init?: RequestInit, retryNetwork = false
         || [502, 503, 504].includes(Reflect.get(error, 'status'));
       uncertainWrite ||= init?.method === 'PUT' && (transient || error.name === 'SyntaxError');
       if (uncertainWrite) Reflect.set(error, 'uncertainWrite', true);
-      if (!retryNetwork || attempt >= 2 || !transient || init?.signal?.aborted
+      if (!retryNetwork || attempt >= retryLimit || !transient || init?.signal?.aborted
         || Reflect.get(error, 'retryAfterMs') > 3000) throw error;
       const delay = Math.max(250 * 2 ** attempt + Math.random() * 250, Reflect.get(error, 'retryAfterMs') ?? 0);
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -157,7 +164,7 @@ export const loadSharedSettings = async () => {
   return data?.value ?? null;
 };
 
-export const loadSharedSettingsRow = async () => {
+const fetchSharedSettingsRow = async () => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const generation = settingsCacheGeneration;
@@ -189,15 +196,22 @@ export const loadSharedSettingsRow = async () => {
   return data ?? null;
 };
 
+export const loadSharedSettingsRow = (): Promise<SettingsRow | null> => {
+  if (sharedSettingsRead?.generation === settingsCacheGeneration
+    && sharedSettingsRead.cachedRow === cachedWritableSharedSettingsRow) return sharedSettingsRead.promise;
+  const request = {
+    generation: settingsCacheGeneration,
+    cachedRow: cachedWritableSharedSettingsRow,
+    promise: fetchSharedSettingsRow(),
+  };
+  sharedSettingsRead = request;
+  const clear = () => { if (sharedSettingsRead === request) sharedSettingsRead = undefined; };
+  void request.promise.then(clear, clear);
+  return request.promise;
+};
+
 const loadWritableSharedSettingsRow = async () => {
   if (!isSupabaseSettingsEnabled) return null;
-  if (useServerProxy) {
-    const generation = settingsCacheGeneration;
-    const row = parseSettingsRow(await fetchJson('/api/shared-settings', undefined, true));
-    if (generation === settingsCacheGeneration) cachedWritableSharedSettingsRow = row;
-    return row;
-  }
-  if (!supabase) return null;
   return loadSharedSettingsRow();
 };
 
@@ -289,7 +303,7 @@ export const updateSharedSettings = async (
           return result.updatedAt;
         } catch (error) {
           if (error instanceof Error && Reflect.get(error, 'uncertainWrite')) {
-            cachedWritableSharedSettingsRow = undefined;
+            invalidateSharedSettingsCache();
             const savedRow = await loadWritableSharedSettingsRow();
             if (typeof savedRow?.updated_at === 'string'
               && savedRow.updated_at !== currentRow?.updated_at
@@ -299,7 +313,7 @@ export const updateSharedSettings = async (
             throw new Error('SHARED_SETTINGS_SAVE_UNCONFIRMED', { cause: error });
           }
           if (error instanceof Error && Reflect.get(error, 'status') === 409) {
-            cachedWritableSharedSettingsRow = undefined;
+            invalidateSharedSettingsCache();
             continue;
           }
           throw error;

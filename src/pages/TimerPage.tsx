@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+﻿import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import '../classword.css';
 import { reportSaveFailure } from '../lib/saveFailureClient';
@@ -128,10 +128,6 @@ import {
 } from '../lib/bookstore';
 import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
 import { MissionRewardInput } from '../components/teacher/MissionRewardInput';
-import TeacherWritingSettings from '../components/teacher/TeacherWritingSettings';
-import TeacherClasswordPanel from '../components/teacher/TeacherClasswordPanel';
-import TeacherTodayFriendPanel from '../components/teacher/TeacherTodayFriendPanel';
-import { TeacherLibraryCompetitionPanel } from '../components/teacher/TeacherLibraryCompetitionPanel';
 import AuctionAwardPresentationDialog, {
   AUCTION_CEREMONY_TIMING,
   type AuctionAwardPresentation,
@@ -233,6 +229,15 @@ import {
   STUDENT_MISSION_VISIBILITY_GROUPS,
   type StudentMissionVisibility,
 } from '../lib/studentMissionVisibility';
+
+const TeacherWritingSettings = lazy(() => import('../components/teacher/TeacherWritingSettings'));
+const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherClasswordPanel'));
+const TeacherTodayFriendPanel = lazy(() => import('../components/teacher/TeacherTodayFriendPanel'));
+const TeacherLibraryCompetitionPanel = lazy(() => import('../components/teacher/TeacherLibraryCompetitionPanel').then((module) => ({ default: module.TeacherLibraryCompetitionPanel })));
+
+const TeacherPanelLoadFallback = () => (
+  <p className="p-4 text-center" role="status">불러오는 중</p>
+);
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
@@ -11295,14 +11300,16 @@ export default function TimerPage() {
               <div id="timer-classword-panel" className="timer-classword-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[120] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
                 <section className="timer-classword-panel-card content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden" aria-labelledby="teacher-classword-utility-today-title">
                   <div className="timer-classword-panel-scroll is-board-only custom-scrollbar">
-                    <TeacherClasswordPanel
-                      profileAssignments={studentLife.failureProfileAssignments}
-                      surface="utility"
-                      onUtilityClose={() => {
-                        setIsClasswordPanelOpen(false);
-                        window.requestAnimationFrame(() => classwordPanelTriggerRef.current?.focus({ preventScroll: true }));
-                      }}
-                    />
+                    <Suspense fallback={<TeacherPanelLoadFallback />}>
+                      <TeacherClasswordPanel
+                        profileAssignments={studentLife.failureProfileAssignments}
+                        surface="utility"
+                        onUtilityClose={() => {
+                          setIsClasswordPanelOpen(false);
+                          window.requestAnimationFrame(() => classwordPanelTriggerRef.current?.focus({ preventScroll: true }));
+                        }}
+                      />
+                    </Suspense>
                   </div>
                 </section>
               </div>
@@ -12470,33 +12477,35 @@ export default function TimerPage() {
                 aria-label={`${currentSettingsNavigationItem?.label ?? '설정'} 설정`}
               >
                 <div key={settingsPanel} className="settings-body custom-scrollbar overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
-                  {settingsPanel === 'schedule'
-                    ? scheduleSettingsPanel
-                    : settingsPanel === 'subjects'
-                      ? subjectSettingsPanel
-                      : settingsPanel === 'draw'
-                        ? drawSettingsPanel
-                        : settingsPanel === 'shop'
-                          ? shopSettingsPanel
-                        : settingsPanel === 'stocks'
-                          ? stockSettingsPanel
-                        : settingsPanel === 'emotion'
-                            ? emotionSettingsPanel
-                            : settingsPanel === 'mail'
-                              ? mailSettingsPanel
-                              : settingsPanel === 'writing'
-                                ? writingSettingsPanel
-                              : settingsPanel === 'classword'
-                              ? <TeacherClasswordPanel profileAssignments={studentLife.failureProfileAssignments} />
-                              : settingsPanel === 'today-friend'
-                                ? <TeacherTodayFriendPanel />
-                              : settingsPanel === 'library-competition'
-                                ? <TeacherLibraryCompetitionPanel />
-                              : settingsPanel === 'bookstore'
-                                ? bookstoreSettingsPanel
-                                : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'
-                                  ? auctionSettingsPanel
-                                  : null}
+                  <Suspense fallback={<TeacherPanelLoadFallback />}>
+                    {settingsPanel === 'schedule'
+                      ? scheduleSettingsPanel
+                      : settingsPanel === 'subjects'
+                        ? subjectSettingsPanel
+                        : settingsPanel === 'draw'
+                          ? drawSettingsPanel
+                          : settingsPanel === 'shop'
+                            ? shopSettingsPanel
+                          : settingsPanel === 'stocks'
+                            ? stockSettingsPanel
+                          : settingsPanel === 'emotion'
+                              ? emotionSettingsPanel
+                              : settingsPanel === 'mail'
+                                ? mailSettingsPanel
+                                : settingsPanel === 'writing'
+                                  ? writingSettingsPanel
+                                : settingsPanel === 'classword'
+                                ? <TeacherClasswordPanel profileAssignments={studentLife.failureProfileAssignments} />
+                                : settingsPanel === 'today-friend'
+                                  ? <TeacherTodayFriendPanel />
+                                : settingsPanel === 'library-competition'
+                                  ? <TeacherLibraryCompetitionPanel />
+                                : settingsPanel === 'bookstore'
+                                  ? bookstoreSettingsPanel
+                                  : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'
+                                    ? auctionSettingsPanel
+                                    : null}
+                  </Suspense>
                 </div>
               </section>
             </div>
