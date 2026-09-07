@@ -777,7 +777,10 @@ export const finalizeAuctionAwardInSettings = (
   const history = normalizeCurrencyHistory(current.currencyHistory);
   const awards = normalizeAuctionAwards(current.auctionAwards, AUCTION_ITEM_IDS);
 
-  if (awards[award.itemId]) {
+  const existingAward = awards[award.itemId];
+  if (existingAward) {
+    if (existingAward.winner !== award.winner || existingAward.amount !== award.amount
+      || existingAward.awardedAt !== award.awardedAt) throw new Error('AUCTION_ALREADY_AWARDED');
     return { value: current, awarded: false, balances, history, awards };
   }
 

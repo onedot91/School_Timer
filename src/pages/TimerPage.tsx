@@ -4202,6 +4202,9 @@ export default function TimerPage() {
   const [queuedAwardItems, setQueuedAwardItems] = useState<AuctionItem[]>([]);
   const [temporaryVisibleAuctionItemIds, setTemporaryVisibleAuctionItemIds] = useState<Set<string>>(() => new Set());
   const [awardPresentation, setAwardPresentation] = useState<AuctionAwardPresentation | null>(null);
+  const awardPresentationRef = useRef(awardPresentation);
+  awardPresentationRef.current = awardPresentation;
+  const awardQueueAdvanceRef = useRef<{ key: string; dueAt: number } | null>(null);
   const [characterImageError, setCharacterImageError] = useState(false);
   const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -4958,6 +4961,7 @@ export default function TimerPage() {
       if (
         !sharedSettingsHydratedRef.current ||
         isChecking ||
+        awardPresentationRef.current !== null ||
         isSharedSettingsSavePendingRef.current ||
         hasUnsavedWeeklySubjectsRef.current ||
         hasUnsavedSubjectCatalogRef.current ||
@@ -4972,13 +4976,14 @@ export default function TimerPage() {
         const remoteUpdatedAt = await loadSharedSettingsUpdatedAt();
         if (
           isCancelled
+          || awardPresentationRef.current !== null
           || isSharedSettingsSavePendingRef.current
           || !remoteUpdatedAt
           || remoteUpdatedAt === lastSharedSettingsUpdatedAtRef.current
         ) return;
 
         const remoteRow = await loadSharedSettingsRow();
-        if (isCancelled || isSharedSettingsSavePendingRef.current || !remoteRow?.updated_at) return;
+        if (isCancelled || awardPresentationRef.current !== null || isSharedSettingsSavePendingRef.current || !remoteRow?.updated_at) return;
 
         const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow.value);
         if (!remoteSettings) return;
@@ -7339,23 +7344,29 @@ export default function TimerPage() {
   }, []);
 
   useEffect(() => {
-    if (!awardPresentation?.isComplete || awardPresentation.hasFinalized || awardPresentation.error) return;
+    if (!awardPresentation || awardPresentation.hasFinalized || awardPresentation.error) return;
     const awardPresentationKey = `${awardPresentation.award.itemId}:${awardPresentation.award.awardedAt}`;
     if (finalizedAwardPresentationKeysRef.current.has(awardPresentationKey)) return;
     finalizedAwardPresentationKeysRef.current.add(awardPresentationKey);
     const award = awardPresentation.award;
     const applyFinalizedState = (result: ReturnType<typeof finalizeAuctionAwardInSettings>) => {
+      // Keep any earlier teacher edits queued, but do not save this receipt a second time.
+      if (!isSharedSettingsSavePendingRef.current) skipNextSharedSettingsSaveRef.current = true;
+      knownAuctionAwardKeysRef.current = getAuctionAwardKeys(result.awards);
+      knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(result.history);
       setAuctionAwards((previous) => ({ ...previous, ...result.awards }));
       commitCurrencyState(result.balances, result.history);
       setAwardPresentation((previous) => (
         previous?.award.awardedAt === award.awardedAt ? { ...previous, hasFinalized: true } : previous
       ));
     };
-    const showFinalizationError = () => {
+    const showFinalizationError = (error: unknown) => {
       finalizedAwardPresentationKeysRef.current.delete(awardPresentationKey);
       setQueuedAwardItems([]);
       setAwardPresentation(previous => previous?.award.awardedAt === award.awardedAt
-        ? { ...previous, error: '저장 결과를 확인하지 못했어요. 창을 닫고 경매 상태를 확인해 주세요.' }
+        ? { ...previous, error: error instanceof Error && error.message === 'AUCTION_ALREADY_AWARDED'
+          ? '이미 낙찰된 상품입니다. 창을 닫고 경매 결과를 확인해 주세요.'
+          : '저장 결과를 확인하지 못했어요. 창을 닫고 경매 상태를 확인해 주세요.' }
         : previous);
     };
 
@@ -7372,7 +7383,7 @@ export default function TimerPage() {
         applyFinalizedState(result);
       } catch (error) {
         console.error('Failed to finalize auction award.', error);
-        showFinalizationError();
+        showFinalizationError(error);
       }
       return;
     }
@@ -7382,17 +7393,25 @@ export default function TimerPage() {
       finalizedState = finalizeAuctionAwardInSettings(currentValue, award);
       return finalizedState.value;
     })
-      .then(() => {
+      .then((updatedAt) => {
+        lastSharedSettingsUpdatedAtRef.current = updatedAt;
         if (finalizedState) applyFinalizedState(finalizedState);
       })
       .catch((error) => {
         console.error('Failed to finalize auction award in Supabase.', error);
-        showFinalizationError();
+        showFinalizationError(error);
       });
   }, [awardPresentation]);
 
   useEffect(() => {
-    if (!awardPresentation?.hasRevealed || !awardPresentation.hasFinalized || queuedAwardItems.length === 0) return;
+    if (!awardPresentation?.hasRevealed || !awardPresentation.hasFinalized || queuedAwardItems.length === 0) {
+      awardQueueAdvanceRef.current = null;
+      return;
+    }
+    const key = awardPresentation.award.awardedAt;
+    if (awardQueueAdvanceRef.current?.key !== key) {
+      awardQueueAdvanceRef.current = { key, dueAt: Date.now() + AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS };
+    }
 
     const timeoutId = window.setTimeout(() => {
       const nextIndex = queuedAwardItems.findIndex((item) => {
@@ -7413,7 +7432,7 @@ export default function TimerPage() {
 
       setQueuedAwardItems(queuedAwardItems.slice(nextIndex + 1));
       startAwardPresentationForItem(nextItem);
-    }, AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS);
+    }, Math.max(0, awardQueueAdvanceRef.current.dueAt - Date.now()));
 
     return () => window.clearTimeout(timeoutId);
   }, [awardPresentation, queuedAwardItems, auctionBids, auctionAwards]);

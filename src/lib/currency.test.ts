@@ -290,6 +290,21 @@ test('같은 낙찰은 공유 설정에서 한 번만 차감한다', () => {
   assert.equal(second.history['7'].filter((entry) => entry.reason === 'auction_award').length, 1);
 });
 
+test('다른 기기에서 확정한 낙찰을 현재 요청의 성공으로 처리하지 않는다', () => {
+  const savedAward = { itemId: 'item-a', winner: 8, amount: 45, awardedAt: '2026-07-14T00:00:00.000Z' };
+  const initial = { currencyBalances: { 7: 100, 8: 55 }, currencyHistory: { 7: [], 8: [] }, auctionAwards: { 'item-a': savedAward } };
+  const before = structuredClone(initial);
+
+  for (const requested of [
+    { ...savedAward, winner: 7 },
+    { ...savedAward, amount: 40 },
+    { ...savedAward, awardedAt: '2026-07-14T00:00:01.000Z' },
+  ]) {
+    assert.throws(() => finalizeAuctionAwardInSettings(initial, requested), /AUCTION_ALREADY_AWARDED/);
+  }
+  assert.deepEqual(initial, before);
+});
+
 test('감정 구슬 일일 미션은 같은 날짜에 한 번만 5고마를 지급한다', () => {
   // Given
   const initial = {

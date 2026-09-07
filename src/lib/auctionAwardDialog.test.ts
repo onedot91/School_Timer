@@ -88,6 +88,15 @@ test('저장 대기 중에는 낙찰 도장과 결과 닫기를 제공하지 않
   assert.doesNotMatch(markup, /class="auction-ceremony-stamp"|aria-label="낙찰 결과 닫기"|class="auction-ceremony-confirm"/);
 });
 
+test('저장이 호가 재생보다 먼저 끝나도 호가를 건너뛰거나 도장을 찍지 않는다', () => {
+  const markup = renderDialog({ hasFinalized: true });
+
+  assert.match(markup, /data-phase="bidding"/);
+  assert.match(markup, /class="auction-ceremony-certificate" aria-hidden="true"/);
+  assert.doesNotMatch(markup, /class="auction-ceremony-stamp"|class="auction-ceremony-confirm"/);
+  assert.match(timerPageSource, /if \(!awardPresentation \|\| awardPresentation\.hasFinalized \|\| awardPresentation\.error\) return/);
+});
+
 test('저장 성공 후 타격을 시작하고 프로필 공개가 끝나기 전에는 닫지 않는다', () => {
   const markup = renderDialog({ isComplete: true, hasFinalized: true });
 
@@ -95,7 +104,13 @@ test('저장 성공 후 타격을 시작하고 프로필 공개가 끝나기 전
   assert.match(markup, /class="auction-ceremony-stamp"/);
   assert.match(markup, /class="auction-ceremony-certificate" aria-hidden="true"/);
   assert.doesNotMatch(markup, /aria-label="낙찰 결과 닫기"|class="auction-ceremony-confirm"/);
-  assert.match(dialogSource, /if \(!presentation\.hasFinalized \|\| presentation\.error \|\| presentation\.hasRevealed\) return/);
+  assert.match(dialogSource, /if \(!presentation\.isComplete \|\| !presentation\.hasFinalized \|\| presentation\.error \|\| presentation\.hasRevealed\) return/);
+});
+
+test('화면 처리가 늦어져도 결과가 실제로 펼쳐진 뒤 공개 시간을 센다', () => {
+  assert.match(dialogSource, /if \(!revealing \|\| presentation\.hasRevealed \|\| presentation\.error\) return/);
+  assert.match(dialogSource, /\(\) => onRevealComplete\(key\),\s*AUCTION_CEREMONY_TIMING\.settled - AUCTION_CEREMONY_TIMING\.reveal/);
+  assert.doesNotMatch(dialogSource, /setTimeout\(\(\) => onRevealComplete\(key\), AUCTION_CEREMONY_TIMING\.settled\)/);
 });
 
 test('저장 실패는 축하 결과 대신 오류와 독립적인 닫기를 제공한다', () => {
@@ -156,7 +171,8 @@ test('연속 낙찰은 프로필 공개 후 결과 유지 시간을 갖고 다�
   assert.ok(AUCTION_CEREMONY_TIMING.impact < AUCTION_CEREMONY_TIMING.reveal);
   assert.ok(AUCTION_CEREMONY_TIMING.reveal < AUCTION_CEREMONY_TIMING.settled);
   assert.match(timerPageSource, /AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS = AUCTION_CEREMONY_TIMING\.resultHold/);
-  assert.match(timerPageSource, /if \(!awardPresentation\?\.hasRevealed \|\| !awardPresentation\.hasFinalized \|\| queuedAwardItems\.length === 0\) return/);
+  assert.match(timerPageSource, /if \(!awardPresentation\?\.hasRevealed \|\| !awardPresentation\.hasFinalized \|\| queuedAwardItems\.length === 0\) \{/);
+  assert.match(timerPageSource, /Math\.max\(0, awardQueueAdvanceRef\.current\.dueAt - Date\.now\(\)\)/);
 });
 
 test('오늘 낙찰은 교사와 학생 화면에서도 학생 번호 뒤에 금액을 괄호로 표시한다', () => {

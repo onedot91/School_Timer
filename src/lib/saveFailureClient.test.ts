@@ -39,12 +39,13 @@ test('actual save client reports final failures, preserves offline reports, and 
     };
     for (const [hash, feature] of [['#student-number-baseball', 'numberBaseball'], ['#student-emotions', 'emotion'], ['#student-store-auction', 'auction']]) {
       location.hash = hash;
-      await assert.rejects(settings.updateStudentSharedSettings(3, () => ({})), /HTTP_502/);
+      await assert.rejects(settings.updateStudentSharedSettings(3, () => ({})), /SHARED_SETTINGS_SAVE_UNCONFIRMED/);
       assert.equal(pending().at(-1)?.feature, feature);
+      assert.equal(pending().at(-1)?.code, 'response');
     }
     assert.equal(sent.length, 0, 'offline reports stay on the device');
     assert.equal(pending().length, 3);
-    await assert.rejects(settings.updateStudentSharedSettings(3, () => ({})), /HTTP_502/);
+    await assert.rejects(settings.updateStudentSharedSettings(3, () => ({})), /SHARED_SETTINGS_SAVE_UNCONFIRMED/);
     assert.equal(pending().length, 3, 'a pending duplicate is coalesced');
     const stopError = new Error('BID_TOO_LOW');
     await assert.rejects(client.withSaveFailureReporting('auction', async () => { throw stopError; }), (error) => error === stopError);

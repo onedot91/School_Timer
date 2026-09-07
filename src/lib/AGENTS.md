@@ -34,6 +34,7 @@ Several modules are imported by both the Vite client and Node/Vercel code; brows
 - Storage keys and legacy migration branches are compatibility contracts; changing or removing either can strand classroom data.
 - Economy, currency history, weekly rewards, and profile/life updates are coupled state transitions. Preserve request IDs and claim markers so retries stay idempotent.
 - Keep mutations routed through `updateSharedSettings`, feature API clients, or the existing atomic domain transition; direct object patches can lose concurrent updates.
+- 공유 설정 저장은 같은 브라우저의 공통 대기열을 거친다. 앞선 저장의 성공·실패가 끝난 뒤 최신 캐시로 다음 updater를 실행하고, 저장 중 무효화된 캐시를 늦은 응답으로 복원하지 않는다.
 
 ## 학생 저장 범위와 회귀 검증
 

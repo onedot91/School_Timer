@@ -94,7 +94,7 @@ export default function AuctionAwardPresentationDialog({
   const key = presentation.award.awardedAt;
   const isResult = presentation.hasRevealed;
   const phase = presentation.error ? 'error' : isResult ? 'result' : revealing ? 'reveal'
-    : presentation.hasFinalized ? 'strike' : presentation.isComplete ? 'saving' : 'bidding';
+    : !presentation.isComplete ? 'bidding' : presentation.hasFinalized ? 'strike' : 'saving';
   const canDismiss = Boolean(presentation.error) || (isResult && !hasQueuedPresentations);
   const itemName = getAuctionItemDisplayName(presentation.item.name, presentation.item.dayIndex);
   const step = replay[index];
@@ -124,17 +124,25 @@ export default function AuctionAwardPresentationDialog({
   }, [index, presentation.isComplete]);
 
   useEffect(() => {
-    if (!presentation.hasFinalized || presentation.error || presentation.hasRevealed) return;
+    if (!presentation.isComplete || !presentation.hasFinalized || presentation.error || presentation.hasRevealed) return;
     const timers = [
       window.setTimeout(() => { void playAuctionSound('strike'); }, AUCTION_CEREMONY_TIMING.impact),
       window.setTimeout(() => {
         setRevealing(true);
         void playAuctionSound('final');
       }, AUCTION_CEREMONY_TIMING.reveal),
-      window.setTimeout(() => onRevealComplete(key), AUCTION_CEREMONY_TIMING.settled),
     ];
     return () => timers.forEach(window.clearTimeout);
-  }, [presentation.hasFinalized, presentation.hasRevealed, presentation.error, key, onRevealComplete]);
+  }, [presentation.isComplete, presentation.hasFinalized, presentation.hasRevealed, presentation.error]);
+
+  useEffect(() => {
+    if (!revealing || presentation.hasRevealed || presentation.error) return;
+    const timer = window.setTimeout(
+      () => onRevealComplete(key),
+      AUCTION_CEREMONY_TIMING.settled - AUCTION_CEREMONY_TIMING.reveal,
+    );
+    return () => window.clearTimeout(timer);
+  }, [revealing, presentation.hasRevealed, presentation.error, key, onRevealComplete]);
 
   useEffect(() => {
     if (canDismiss) confirmRef.current?.focus({ preventScroll: true });
@@ -177,7 +185,7 @@ export default function AuctionAwardPresentationDialog({
             <div className="auction-ceremony-bid-marks" aria-hidden="true">{replay.map((_, i) => <i key={i} data-past={i <= index}/>)}</div>
           </div>
           <div className="auction-ceremony-gavel-scene" aria-hidden="true"><AuctionGavel/></div>
-          {presentation.hasFinalized && <div className="auction-ceremony-stamp" aria-hidden="true"><span>낙찰</span></div>}
+          {presentation.isComplete && presentation.hasFinalized && <div className="auction-ceremony-stamp" aria-hidden="true"><span>낙찰</span></div>}
           <article className="auction-ceremony-certificate" aria-hidden={!showCertificate}>
             <div className="auction-ceremony-certificate-inner">
               <div className="auction-ceremony-portrait">

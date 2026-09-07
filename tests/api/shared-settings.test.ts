@@ -1308,7 +1308,12 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
       assert.equal(failBeforeRequest, false);
       assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 135, 8: 177 });
       loseReceipt = true;
-      await client.updateStudentSharedSettings(7, (value) => claimSudokuRewardInSettings(value, 7, 'lost-receipt', 5, createdAt).value);
+      let lostReceiptUpdaterCalls = 0;
+      await client.updateStudentSharedSettings(7, (value) => {
+        lostReceiptUpdaterCalls += 1;
+        return claimSudokuRewardInSettings(value, 7, 'lost-receipt', 5, createdAt).value;
+      });
+      assert.equal(lostReceiptUpdaterCalls, 1, '응답 유실 복구는 이미 실행한 updater를 다시 호출하지 않는다');
       assert.equal(loseReceipt, false);
       assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 140, 8: 177 });
       assert.equal(normalizeCurrencyHistory(fake.state()?.value.currencyHistory)['7'].length, 5);
@@ -1333,11 +1338,100 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
         throw new TypeError('Failed to fetch');
       };
       await assert.rejects(client.updateStudentSharedSettings(7, (value) => value), /Failed to fetch/);
-      assert.equal(failedAttempts, 3);
+      assert.equal(failedAttempts, 6, '조건부 저장 3회 후 결과 확인 조회도 3회로 제한한다');
       assert.deepEqual(fake.state(), beforeFailure);
     } finally {
       globalThis.fetch = originalFetch;
       await server.close();
     }
   });
+});
+
+test('공유 설정 전송은 불확실한 저장을 한 번만 적용하고 조회로 확인한다', async (context) => {
+  const { createServer } = await import('vite');
+  const server = await createServer({
+    configFile: false, envDir: false, logLevel: 'silent',
+    server: { middlewareMode: true, watch: null },
+    define: {
+      'import.meta.env.PROD': 'true',
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fake.invalid'),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('test-only'),
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  try {
+    const client = await server.ssrLoadModule('/src/lib/supabaseSettings.ts') as typeof import('../../src/lib/supabaseSettings.js');
+    const delays: number[] = [];
+    context.mock.method(globalThis, 'setTimeout', (callback: () => void, delay?: number) => {
+      delays.push(delay ?? 0);
+      return originalSetTimeout(callback, delay === 45_000 ? 20 : 0);
+    });
+    for (const scenario of ['lost', 'mismatch', 'conflict', '502', '503', '504', 'long-retry', 'invalid-receipt', 'request-timeout', 'body-timeout']) {
+      client.invalidateSharedSettingsCache();
+      let row = { id: 'school-timer-main', value: { counter: 0, nested: { a: 1, b: 2 } }, updated_at: '2026-09-07T00:00:00.000Z', scope: 'full' };
+      let puts = 0;
+      let updaterCalls = 0;
+      let applied = 0;
+      globalThis.fetch = async (input, init) => {
+        assert.equal(String(input), '/api/shared-settings');
+        if (init?.method !== 'PUT') return Response.json(row);
+        puts += 1;
+        if (puts === 1 && scenario === 'conflict') {
+          row = { ...row, value: { ...row.value, counter: 10 }, updated_at: '2026-09-07T00:00:00.001Z' };
+        }
+        const body = JSON.parse(String(init.body));
+        if (body.expectedUpdatedAt !== row.updated_at) return Response.json({}, { status: 409 });
+        row = { ...row, value: { ...body.value, nested: { b: 2, a: 1 } }, updated_at: '2026-09-07T00:00:00.002Z' };
+        applied += 1;
+        if (puts === 1) {
+          if (scenario === 'mismatch') row.value.counter += 10;
+          if (scenario === 'lost' || scenario === 'mismatch') throw new TypeError('Failed to fetch');
+          if (['502', '503', '504'].includes(scenario)) return Response.json({}, { status: Number(scenario), headers: { 'Retry-After': '1' } });
+          if (scenario === 'long-retry') return Response.json({}, { status: 503, headers: { 'Retry-After': '999999' } });
+          if (scenario === 'invalid-receipt') return Response.json({});
+          if (scenario === 'request-timeout') return new Promise<Response>(() => {});
+          if (scenario === 'body-timeout') return new Response(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('{')); } }));
+        }
+        return Response.json({ updatedAt: row.updated_at });
+      };
+      const save = client.updateSharedSettings((value) => {
+        updaterCalls += 1;
+        assert.ok(value && typeof value === 'object');
+        const counter = Reflect.get(value, 'counter');
+        assert.equal(typeof counter, 'number');
+        return { ...value, counter: counter + 1 };
+      });
+      if (scenario === 'mismatch') {
+        await assert.rejects(save, /SHARED_SETTINGS_SAVE_UNCONFIRMED/);
+        assert.equal(row.value.counter, 11);
+      } else {
+        assert.equal(await save, row.updated_at);
+        assert.equal(row.value.counter, scenario === 'conflict' ? 11 : 1);
+      }
+      assert.equal(updaterCalls, scenario === 'conflict' ? 2 : 1, scenario);
+      assert.equal(applied, 1, scenario);
+      assert.equal(puts, ['long-retry', 'invalid-receipt'].includes(scenario) ? 1 : 2, scenario);
+    }
+    assert.ok(delays.includes(1000), '짧은 Retry-After를 준수한다');
+    assert.ok(delays.every((delay) => delay <= 3000 || delay === 45_000), '긴 Retry-After는 재전송하지 않고 결과를 확인한다');
+    client.invalidateSharedSettingsCache();
+    globalThis.fetch = async () => Response.json({});
+    let malformedUpdaterCalls = 0;
+    await assert.rejects(client.updateSharedSettings(() => { malformedUpdaterCalls += 1; return {}; }), /INVALID_RESPONSE/);
+    assert.equal(malformedUpdaterCalls, 0);
+    let metadataCalls = 0;
+    globalThis.fetch = async (input) => {
+      assert.equal(String(input), '/api/shared-settings?metadata=1');
+      metadataCalls += 1;
+      if (metadataCalls === 1) return Response.json({}, { status: 503 });
+      return Response.json({ updatedAt: 'metadata-recovered' });
+    };
+    assert.equal(await client.loadSharedSettingsUpdatedAt(), 'metadata-recovered');
+    assert.equal(metadataCalls, 2);
+  } finally {
+    context.mock.restoreAll();
+    globalThis.fetch = originalFetch;
+    await server.close();
+  }
 });

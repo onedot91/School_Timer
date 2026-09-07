@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseClassDonationResult } from './classDonation.js';
 import { isReadOnlyDataMode } from './dataMode.js';
-import { createStudentSettingsUpdate } from './studentSettingsUpdate.js';
+import { createStudentSettingsUpdate, STUDENT_MUTABLE_MAP_FIELDS } from './studentSettingsUpdate.js';
 import { getSaveFailureFeature, withSaveFailureReporting } from './saveFailureClient.js';
 import {
   isSupabaseSettingsEnabled,
@@ -24,6 +24,13 @@ export type SettingsRow = {
 
 let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
 let settingsCacheGeneration = 0;
+let sharedSettingsUpdateQueue: Promise<unknown> = Promise.resolve();
+
+const enqueueSharedSettingsUpdate = <T>(update: () => Promise<T>) => {
+  const result = sharedSettingsUpdateQueue.then(update);
+  sharedSettingsUpdateQueue = result.catch(() => undefined);
+  return result;
+};
 
 export const invalidateSharedSettingsCache = () => {
   settingsCacheGeneration += 1;
@@ -42,34 +49,108 @@ const supabase = isSupabaseSettingsEnabled && !useServerProxy
   : null;
 
 const fetchJsonOnce = async (input: string, init?: RequestInit) => {
-  const response = await fetch(input, {
-    credentials: 'same-origin',
-    cache: 'no-store',
-    ...init,
+  const controller = new AbortController();
+  const abort = () => controller.abort(init?.signal?.reason);
+  init?.signal?.addEventListener('abort', abort, { once: true });
+  if (init?.signal?.aborted) abort();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new DOMException('SHARED_SETTINGS_REQUEST_TIMEOUT', 'TimeoutError');
+      controller.abort(error);
+      reject(error);
+    }, 45_000);
   });
-  if (!response.ok) {
-    const error = new Error(`SHARED_API_HTTP_${response.status}`);
-    Reflect.set(error, 'status', response.status);
-    throw error;
+  try {
+    return await Promise.race([timeout, (async () => {
+      const response = await fetch(input, {
+        credentials: 'same-origin', cache: 'no-store', ...init, signal: controller.signal,
+      });
+      if (!response.ok) {
+        const error = new Error(`SHARED_API_HTTP_${response.status}`);
+        Reflect.set(error, 'status', response.status);
+        const retryAfter = response.headers.get('Retry-After');
+        if (retryAfter) {
+          const delay = /^\d+(\.\d+)?$/.test(retryAfter)
+            ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - Date.now();
+          if (Number.isFinite(delay)) Reflect.set(error, 'retryAfterMs', Math.max(0, delay));
+        }
+        throw error;
+      }
+      const value: unknown = response.status === 204 ? null : await response.json();
+      if (input === '/api/shared-settings' && init?.method === 'PUT'
+        && (!value || typeof value !== 'object' || typeof Reflect.get(value, 'updatedAt') !== 'string'
+          || !Reflect.get(value, 'updatedAt'))) {
+        const error = new Error('SHARED_SETTINGS_INVALID_RESPONSE');
+        Reflect.set(error, 'uncertainWrite', true);
+        throw error;
+      }
+      return value;
+    })()]);
+  } finally {
+    clearTimeout(timer);
+    init?.signal?.removeEventListener('abort', abort);
   }
-  return response.status === 204 ? null : response.json();
 };
 
 const fetchJson = async (input: string, init?: RequestInit, retryNetwork = false) => {
+  let uncertainWrite = false;
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await fetchJsonOnce(input, init);
     } catch (error) {
-      // Replay the same conditional write: a lost receipt must not become an
-      // unconditional second mutation. HTTP conflicts use the rebase path below.
-      if (!retryNetwork || attempt >= 2 || !(error instanceof Error)
-        || !['TypeError', 'TimeoutError'].includes(error.name)) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      if (!(error instanceof Error)) throw error;
+      const transient = ['TypeError', 'TimeoutError', 'AbortError'].includes(error.name)
+        || [502, 503, 504].includes(Reflect.get(error, 'status'));
+      uncertainWrite ||= init?.method === 'PUT' && (transient || error.name === 'SyntaxError');
+      if (uncertainWrite) Reflect.set(error, 'uncertainWrite', true);
+      if (!retryNetwork || attempt >= 2 || !transient || init?.signal?.aborted
+        || Reflect.get(error, 'retryAfterMs') > 3000) throw error;
+      const delay = Math.max(250 * 2 ** attempt + Math.random() * 250, Reflect.get(error, 'retryAfterMs') ?? 0);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 };
 
 const SHARED_SETTINGS_UPDATE_RETRY_LIMIT = 5;
+
+const parseSettingsRow = (value: unknown): SettingsRow | null => {
+  if (value === null) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
+  const id = Reflect.get(value, 'id');
+  const settings: unknown = Reflect.get(value, 'value');
+  const timestamp = Reflect.get(value, 'updated_at');
+  const scope = Reflect.get(value, 'scope');
+  if (id !== SHARED_SETTINGS_ID || !settings || typeof settings !== 'object' || Array.isArray(settings)
+    || typeof timestamp !== 'string' || !timestamp
+    || (scope !== undefined && scope !== 'student' && scope !== 'full')) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
+  return { id, value: settings, updated_at: timestamp, ...(scope === 'student' || scope === 'full' ? { scope } : {}) };
+};
+
+const equalJson = (left: unknown, right: unknown): boolean => {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length
+      && left.every((item, index) => equalJson(item, right[index]));
+  }
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length
+    && keys.every((key) => Object.hasOwn(right, key) && equalJson(Reflect.get(left, key), Reflect.get(right, key)));
+};
+
+const matchesSavedUpdate = (actual: unknown, intended: unknown, studentNumber?: number) => {
+  if (studentNumber === undefined) return equalJson(actual, intended);
+  if (!actual || !intended || typeof actual !== 'object' || typeof intended !== 'object') return false;
+  return Object.entries(intended).every(([field, expected]) => {
+    const received = Reflect.get(actual, field);
+    if (STUDENT_MUTABLE_MAP_FIELDS.some((name) => name === field)) {
+      return !!received && !!expected && typeof received === 'object' && typeof expected === 'object'
+        && equalJson(Reflect.get(received, String(studentNumber)), Reflect.get(expected, String(studentNumber)));
+    }
+    return equalJson(received, expected);
+  });
+};
 
 export const loadSharedSettings = async () => {
   const data = await loadSharedSettingsRow();
@@ -80,7 +161,7 @@ export const loadSharedSettingsRow = async () => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const generation = settingsCacheGeneration;
-    const row = await fetchJson('/api/shared-settings', undefined, true) as SettingsRow | null;
+    const row = parseSettingsRow(await fetchJson('/api/shared-settings', undefined, true));
     // Student projections contain every field the scoped writer needs. Keep newer receipts
     // when a background read that started before a save arrives afterwards.
     const currentTimestamp = cachedWritableSharedSettingsRow?.updated_at;
@@ -111,8 +192,9 @@ export const loadSharedSettingsRow = async () => {
 const loadWritableSharedSettingsRow = async () => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
-    const row = await fetchJson('/api/shared-settings', undefined, true) as SettingsRow | null;
-    cachedWritableSharedSettingsRow = row;
+    const generation = settingsCacheGeneration;
+    const row = parseSettingsRow(await fetchJson('/api/shared-settings', undefined, true));
+    if (generation === settingsCacheGeneration) cachedWritableSharedSettingsRow = row;
     return row;
   }
   if (!supabase) return null;
@@ -121,7 +203,7 @@ const loadWritableSharedSettingsRow = async () => {
 
 export const loadSharedSettingsUpdatedAt = async () => {
   if (!isSupabaseSettingsEnabled) return null;
-  if (useServerProxy) return ((await fetchJson('/api/shared-settings?metadata=1')) as { updatedAt: string | null }).updatedAt;
+  if (useServerProxy) return ((await fetchJson('/api/shared-settings?metadata=1', undefined, true)) as { updatedAt: string | null }).updatedAt;
   if (!supabase) return null;
 
   const { data, error } = await supabase
@@ -178,12 +260,13 @@ export const updateSharedSettings = async (
   updater: (currentValue: unknown) => unknown,
   studentNumber?: number,
 ) => {
-  return withSaveFailureReporting(getSaveFailureFeature(), async () => {
+  return withSaveFailureReporting(getSaveFailureFeature(), () => enqueueSharedSettingsUpdate(async () => {
     if (!isSupabaseSettingsEnabled) return null;
     if (isReadOnlyDataMode) return (await loadSharedSettingsRow())?.updated_at ?? null;
 
     if (useServerProxy) {
       for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
+        const generation = settingsCacheGeneration;
         const currentRow = cachedWritableSharedSettingsRow === undefined
           ? await loadWritableSharedSettingsRow()
           : cachedWritableSharedSettingsRow;
@@ -197,7 +280,7 @@ export const updateSharedSettings = async (
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ value: studentUpdate?.patch ?? nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
           }, typeof currentRow?.updated_at === 'string') as { updatedAt: string };
-          cachedWritableSharedSettingsRow = {
+          if (generation === settingsCacheGeneration) cachedWritableSharedSettingsRow = {
             id: SHARED_SETTINGS_ID,
             value: studentUpdate?.value ?? nextValue,
             updated_at: result.updatedAt,
@@ -205,6 +288,16 @@ export const updateSharedSettings = async (
           };
           return result.updatedAt;
         } catch (error) {
+          if (error instanceof Error && Reflect.get(error, 'uncertainWrite')) {
+            cachedWritableSharedSettingsRow = undefined;
+            const savedRow = await loadWritableSharedSettingsRow();
+            if (typeof savedRow?.updated_at === 'string'
+              && savedRow.updated_at !== currentRow?.updated_at
+              && matchesSavedUpdate(savedRow.value, studentUpdate?.patch ?? nextValue, studentNumber)) {
+              return savedRow.updated_at;
+            }
+            throw new Error('SHARED_SETTINGS_SAVE_UNCONFIRMED', { cause: error });
+          }
           if (error instanceof Error && Reflect.get(error, 'status') === 409) {
             cachedWritableSharedSettingsRow = undefined;
             continue;
@@ -255,7 +348,7 @@ export const updateSharedSettings = async (
     }
 
     throw new Error('SHARED_SETTINGS_CONFLICT');
-  }, studentNumber);
+  }), studentNumber);
 };
 
 export const updateStudentSharedSettings = async (

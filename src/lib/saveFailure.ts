@@ -51,7 +51,7 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (status === 409 || error.message === 'SHARED_SETTINGS_CONFLICT') return 'conflict';
   if (status === 408 || status === 429 || status >= 500) return 'server';
   if (error.name === 'QuotaExceededError' || /LOCAL_SAVE_FAILED|STORAGE/.test(error.message)) return 'storage';
-  if (error.name === 'SyntaxError' || /INVALID_RESPONSE/.test(error.message)) return 'response';
+  if (error.name === 'SyntaxError' || /INVALID_RESPONSE|SHARED_SETTINGS_SAVE_UNCONFIRMED/.test(error.message)) return 'response';
   if (error.name === 'TypeError' || error.name === 'TimeoutError' || error.name === 'AbortError') return 'network';
   return null;
 };
