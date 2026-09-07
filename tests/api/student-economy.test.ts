@@ -1,3 +1,5 @@
+import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
+import { normalizeCurrencyHistory } from '../../src/lib/currency.js';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { syncBuiltinESMExports } from 'node:module';
@@ -275,5 +277,62 @@ test('스킨 뽑기 API는 저장 충돌 때 확률을 다시 굴리지 않고 �
       random.mock.restore();
       syncBuiltinESMExports();
     }
+  });
+});
+
+test('학생 집 구매는 제작자 보상과 고키리 편지를 함께 저장하고 재시도에도 중복 지급하지 않는다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const untouched = { id: 'untouched', studentNumber: 2, before: 200, after: 222, delta: 22, reason: 'manual', createdAt: '2026-09-01T00:00:00.000Z' };
+    let value = {
+      ...previousValue,
+      currencyBalances: { 1: 500, 2: 222, 7: 75 },
+      currencyHistory: { 1: [], 2: [untouched], 7: [] },
+      studentEconomy: { ...previousValue.studentEconomy, 1: { inventory: { house_repair: 1 } }, 7: { inventory: { house_repair: 1 } } },
+    };
+    let conflict = true;
+    let writes = 0;
+    globalThis.fetch = async (_input, init) => {
+      if (init?.method !== 'PATCH') return Response.json([{ id: 'school-timer-main', value, updated_at: '2026-09-05T00:00:00.000Z' }]);
+      writes += 1;
+      if (conflict) {
+        conflict = false;
+        value.currencyBalances[7] += 5;
+        return Response.json([]);
+      }
+      value = JSON.parse(String(init.body)).value;
+      return Response.json([{ id: 'school-timer-main' }]);
+    };
+    const buy = async (studentNumber: number, requestId: string, action: Record<string, unknown> = { type: 'buy_house', houseId: 'student-house-7' }) => {
+      const { response, result } = createResponse();
+      await handler({ method: 'POST', headers: studentHeaders(studentNumber), body: { studentNumber, requestId, action } }, response);
+      return result();
+    };
+    try {
+      assert.equal((await buy(1, 'house-purchase-one')).statusCode, 200);
+      assert.equal(writes, 2);
+      assert.equal(value.currencyBalances[1], 400);
+      assert.equal(value.currencyBalances[7], 90);
+      assert.deepEqual(value.currencyHistory[2], [untouched]);
+      assert.deepEqual(value.studentEconomy[2], previousValue.studentEconomy[2]);
+      assert.deepEqual(value.schedule, ['수학']);
+      const life = normalizeStudentLifeState(value.studentLife);
+      assert.equal(life.letters.length, 1);
+      assert.equal(life.letters[0].recipient, 7);
+      assert.equal(life.letters[0].senderLabel, '목수 고키리');
+      assert.equal(life.letters[0].senderStudentNumber, null);
+      assert.match(life.letters[0].content, /10고마/);
+      assert.equal(normalizeCurrencyHistory(value.currencyHistory)['7'][0].reason, 'house_creator_reward');
+      assert.equal((await buy(1, 'house-purchase-one')).statusCode, 200);
+      assert.equal((await buy(1, 'house-purchase-two')).statusCode, 400);
+      assert.equal(value.currencyBalances[7], 90);
+      assert.equal(normalizeStudentLifeState(value.studentLife).letters.length, 1);
+      assert.equal((await buy(1, 'house-select', { type: 'select_house', houseId: 'student-house-7' })).statusCode, 200);
+      assert.equal(value.currencyBalances[7], 90);
+      value.currencyBalances[7] = 300;
+      assert.equal((await buy(7, 'house-self-purchase')).statusCode, 200);
+      assert.equal(value.currencyBalances[7], 200);
+      assert.equal(normalizeStudentLifeState(value.studentLife).letters.length, 1);
+    } finally { globalThis.fetch = originalFetch; }
   });
 });

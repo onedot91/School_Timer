@@ -14,6 +14,7 @@ const SERVER_MODULES = [
   'api/weekly-mission.ts',
   'api/weekly-missions.ts',
   'src/lib/bankMailbox.ts',
+  'src/lib/studentHouseReward.ts',
   'src/lib/currency.ts',
   'src/lib/classword.ts',
   'src/lib/classwordQuiz.ts',

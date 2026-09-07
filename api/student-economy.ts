@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto';
 import {
   AUCTION_ITEM_IDS,
+  CURRENCY_BALANCE_MAX,
   DEFAULT_CURRENCY_BALANCE,
   appendCurrencyHistoryEntry,
   getReservedAuctionBidAmount,
@@ -10,6 +11,7 @@ import {
   normalizeCurrencyBalances,
   normalizeCurrencyHistory,
 } from '../src/lib/currency.js';
+import { createHousePurchaseLetter, HOUSE_CREATOR_REWARD } from '../src/lib/studentHouseReward.js';
 import { createBankMailboxLetters } from '../src/lib/bankMailbox.js';
 import {
   applyStudentEconomyAction,
@@ -72,6 +74,7 @@ const ACTION_TYPES = new Set([
   'select_profile',
 ]);
 const ACTION_ERRORS = new Set([
+  'HOUSE_CREATOR_BALANCE_LIMIT',
   'ALL_CHARACTERS_OWNED',
   'CHARACTER_NOT_OWNED',
   'CUSTOM_HOUSE_COUPON_OWNED',
@@ -312,8 +315,25 @@ const createMutation = (
     });
   }
 
+  const houseLetter = createHousePurchaseLetter({ action, studentNumber, applied: result.applied, createdAt });
+  if (houseLetter) {
+    const creatorKey = String(houseLetter.recipient);
+    const before = balances[creatorKey] ?? DEFAULT_CURRENCY_BALANCE;
+    if (before > CURRENCY_BALANCE_MAX - HOUSE_CREATOR_REWARD) throw new Error('HOUSE_CREATOR_BALANCE_LIMIT');
+    changedStudentKeys.push(creatorKey);
+    nextBalances[creatorKey] = before + HOUSE_CREATOR_REWARD;
+    nextHistory = appendCurrencyHistoryEntry(nextHistory, {
+      id: `currency-economy-${requestId}-${creatorKey}`,
+      studentNumber: houseLetter.recipient,
+      before,
+      after: before + HOUSE_CREATOR_REWARD,
+      reason: 'house_creator_reward',
+      createdAt,
+    });
+  }
+
   const nextStudentLife = result.applied
-    ? createBankMailboxLetters({ action, studentNumber, requestId, createdAt }).reduce(
+    ? [...createBankMailboxLetters({ action, studentNumber, requestId, createdAt }), ...(houseLetter ? [houseLetter] : [])].reduce(
         (life, letter) => createStudentLetter(life, letter),
         studentLife,
       )

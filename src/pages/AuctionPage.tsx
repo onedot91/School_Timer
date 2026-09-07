@@ -1,3 +1,5 @@
+import { CURRENCY_BALANCE_MAX } from '../lib/currency';
+import { createHousePurchaseLetter, HOUSE_CREATOR_REWARD } from '../lib/studentHouseReward';
 import { reportSaveFailure } from '../lib/saveFailureClient';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import '../classword.css';
@@ -1911,26 +1913,45 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             reason: result.reason,
           });
         }
+        const houseLetter = createHousePurchaseLetter({ action, studentNumber, applied: result.applied, createdAt: bankMailCreatedAt });
+        if (houseLetter) {
+          const creatorKey = String(houseLetter.recipient);
+          const before = nextBalances[creatorKey] ?? DEFAULT_CURRENCY_BALANCE;
+          if (before > CURRENCY_BALANCE_MAX - HOUSE_CREATOR_REWARD) throw new Error('HOUSE_CREATOR_BALANCE_LIMIT');
+          nextBalances[creatorKey] = before + HOUSE_CREATOR_REWARD;
+          savedHistory = appendCurrencyHistoryEntry(savedHistory, {
+            id: `currency-economy-${requestId}-${creatorKey}`,
+            studentNumber: houseLetter.recipient,
+            before,
+            after: before + HOUSE_CREATOR_REWARD,
+            reason: 'house_creator_reward',
+            createdAt: bankMailCreatedAt,
+          });
+          savedStudentLife = createStudentLetter(savedStudentLife, houseLetter);
+        }
         savedBalances = nextBalances;
         if (!storeStudentPetSnapshot({
           ...snapshot,
           currencyBalances: nextBalances,
           currencyHistory: savedHistory,
           studentEconomy: savedEconomyStates,
-        })) return false;
-        storeStudentLifeState(savedStudentLife);
+          studentLife: savedStudentLife,
+        })) { reportSaveFailure('economy', 'storage', studentNumber); return false; }
+
       }
 
       setCurrencyBalances(savedBalances);
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
       setStudentLifeSnapshot(savedStudentLife);
-      if (resultMessage && action.type !== 'draw_character') showStatusMessage(resultMessage);
+      if (resultMessage && action.type !== 'draw_character' && action.type !== 'buy_house') showStatusMessage(resultMessage);
       if (isSupabaseSettingsEnabled) void refreshAuctionState({ forceFull: true });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      const userMessage = message === 'INSUFFICIENT_AVAILABLE_CURRENCY'
+      const userMessage = message === 'HOUSE_CREATOR_BALANCE_LIMIT'
+        ? '제작자의 고마 보유 한도로 구매할 수 없습니다. 선생님께 알려 주세요.'
+        : message === 'INSUFFICIENT_AVAILABLE_CURRENCY'
         ? '사용 가능한 고마가 부족합니다.'
         : message === 'INVALID_BANK_AMOUNT'
           ? '예금은 10고마부터 맡길 수 있습니다.'

@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="/app-diagnostics.js" defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500;700;800&family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&display=swap" />
@@ -24,6 +25,7 @@
       <main id="app-startup" style="min-height:100dvh;display:grid;place-content:center;padding:24px;box-sizing:border-box;background:#f8f5ef;color:#263d34;text-align:center;font-family:system-ui,sans-serif">
         <p id="app-startup-message" role="status">화면을 불러오는 중이에요.</p>
         <button id="app-startup-reload" type="button" hidden style="min-height:44px;padding:12px 24px;border:0;border-radius:24px;background:#087a59;color:white;font:inherit;cursor:pointer">새로고침</button>
+        <a id="app-startup-diagnostics" href="/diagnostics.html" target="_blank" rel="noopener" hidden style="padding:12px;min-height:44px;color:inherit">진단 기록</a>
       </main>
     </div>
     <script src="/app-startup.js"></script>

@@ -8,8 +8,11 @@
     if (!startup?.isConnected) return;
     if (message) message.textContent = text;
     if (reload) reload.hidden = false;
+    const diagnostics = document.getElementById('app-startup-diagnostics');
+    if (diagnostics) diagnostics.hidden = false;
   };
   const timeout = window.setTimeout(() => {
+    window.schoolStartupDiagnostics?.record('startup-timeout');
     showRecovery('화면을 불러오는 데 시간이 걸리고 있어요. 연결을 확인하고 새로고침해 주세요.');
   }, 15_000);
 

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>접속 진단 기록 · School</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 24px; min-height: 100dvh; background: #f8f5ef; color: #263d34; font: 16px/1.6 system-ui, sans-serif; }
+      main { max-width: 800px; margin: auto; }
+      h1 { font-size: 24px; }
+      button { min-height: 44px; padding: 10px 24px; border: 0; border-radius: 24px; background: #087a59; color: white; font: inherit; cursor: pointer; }
+      button:disabled { opacity: .5; cursor: default; }
+      pre { padding: 16px; background: white; border: 1px solid #d4ddd6; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    </style>
+    <script src="/app-diagnostics.js" defer></script>
+    <script src="/diagnostics-view.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <h1>접속 진단 기록</h1>
+      <p>이 브라우저의 최근 7일 오류를 최대 20개 보관합니다. 학생 정보와 작성 내용은 포함하지 않으며 자동 전송하지 않습니다.</p>
+      <button id="copy" type="button" disabled>진단 기록 복사</button>
+      <p id="status" role="status">기록을 불러오는 중이에요.</p>
+      <pre id="records"></pre>
+      <noscript>진단 기록을 보려면 JavaScript를 켜 주세요.</noscript>
+    </main>
+  </body>
+</html>

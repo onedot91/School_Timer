@@ -27,6 +27,7 @@ export type CurrencyHistoryReason =
   | 'pet_feed'
   | 'bank_transfer'
   | 'shop_purchase'
+  | 'house_creator_reward'
   | 'stock_trade'
   | 'teacher_deduction'
   | 'bulk_adjust';
@@ -295,6 +296,7 @@ const CURRENCY_HISTORY_REASONS = [
   'pet_feed',
   'bank_transfer',
   'shop_purchase',
+  'house_creator_reward',
   'stock_trade',
   'teacher_deduction',
   'bulk_adjust',

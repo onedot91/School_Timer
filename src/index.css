@@ -330,7 +330,9 @@
   transform: rotate(2deg);
 }
 
+.student-mail-envelope-stamp[data-house="true"],
 .student-mail-envelope-stamp[data-bank="true"],
+.student-mail-postmark[data-house="true"],
 .student-mail-postmark[data-bank="true"],
 .student-mail-envelope-stamp[data-donation="true"],
 .student-mail-postmark[data-donation="true"],
@@ -343,6 +345,7 @@
   background: rgb(231 244 233 / 82%);
 }
 
+.student-mail-envelope-stamp[data-house="true"],
 .student-mail-envelope-stamp[data-bank="true"],
 .student-mail-envelope-stamp[data-donation="true"],
 .student-mail-envelope-stamp[data-writing="true"],
@@ -354,7 +357,9 @@
   transform: rotate(2deg);
 }
 
+.student-mail-envelope-stamp[data-house="true"] img,
 .student-mail-envelope-stamp[data-bank="true"] img,
+.student-mail-postmark[data-house="true"] img,
 .student-mail-postmark[data-bank="true"] img,
 .student-mail-envelope-stamp[data-donation="true"] img,
 .student-mail-postmark[data-donation="true"] img,
@@ -518,6 +523,7 @@
   transform: rotate(3deg);
 }
 
+.student-mail-postmark[data-house="true"],
 .student-mail-postmark[data-bank="true"],
 .student-mail-postmark[data-donation="true"],
 .student-mail-postmark[data-writing="true"],

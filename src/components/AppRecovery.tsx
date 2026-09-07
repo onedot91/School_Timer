@@ -1,4 +1,5 @@
 import { Component, useEffect, useState, type ReactNode } from 'react';
+import { recordStartupFailure } from '../lib/appDiagnostics';
 
 const reloadPage = () => window.location.reload();
 
@@ -21,6 +22,7 @@ export function AppRecoveryScreen({
           <p className="runtime-fallback-description">{description}</p>
         </div>
         <button type="button" className="runtime-fallback-action" onClick={onRetry}>{actionLabel}</button>
+        <a href="/diagnostics.html" target="_blank" rel="noopener" className="inline-flex min-h-11 items-center justify-center p-3 underline">진단 기록</a>
       </section>
     </main>
   );
@@ -30,7 +32,10 @@ export function AppLoadingScreen({ label = '화면을 불러오는 중이에요.
   const Container = embedded ? 'section' : 'main';
   const [delayed, setDelayed] = useState(false);
   useEffect(() => {
-    const timeout = window.setTimeout(() => setDelayed(true), 15_000);
+    const timeout = window.setTimeout(() => {
+      recordStartupFailure('page-timeout');
+      setDelayed(true);
+    }, 15_000);
     return () => window.clearTimeout(timeout);
   }, []);
   return (
@@ -52,6 +57,10 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, { failu
 
   static getDerivedStateFromError() {
     return { failure: hasChunkFailure() ? 'chunk' : 'runtime' };
+  }
+
+  componentDidCatch() {
+    if (!hasChunkFailure()) recordStartupFailure('render');
   }
 
   private handleRuntimeError = () => {

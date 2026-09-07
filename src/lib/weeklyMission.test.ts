@@ -942,3 +942,23 @@ test('stale settings preserve role outcomes at both wallet limits through zero-d
     }
   }
 });
+
+test('stale teacher saves preserve house creator rewards and letters exactly once', () => {
+  const createdAt = '2026-09-07T00:00:00.000Z';
+  const reward = { id: 'currency-economy-house-sale-request-7', studentNumber: 7, delta: 10, before: 75, after: 85, reason: 'house_creator_reward', createdAt };
+  const letter = { id: 'house-sale-student-house-7-1', recipient: 7, senderLabel: '목수 고키리', senderStudentNumber: null, title: '멋진 집이 팔렸어요!', content: '10고마를 넣어 두었단다.', createdAt, readAt: null };
+  const remote = {
+    currencyBalances: { 1: 400, 7: 85 },
+    currencyHistory: { 1: [{ id: 'currency-economy-house-sale-request-1', studentNumber: 1, delta: -100, before: 500, after: 400, reason: 'shop_purchase', createdAt }], 7: [reward] },
+    studentEconomy: { 1: { inventory: { house_repair: 1 }, ownedHouseIds: ['student-house-7'], activeHouseId: 'student-house-7', processedRequestIds: ['house-sale-request'] } },
+    studentLife: { letters: [letter] },
+  };
+  const stale = { currencyBalances: { 1: 500, 7: 75 }, currencyHistory: {}, studentEconomy: {}, studentLife: { letters: [] } };
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale);
+  assert.equal((merged.currencyBalances as Record<string, number>)['7'], 85);
+  assert.deepEqual((merged.currencyHistory as Record<string, unknown[]>)['7'], [reward]);
+  assert.equal(normalizeStudentLifeState(merged.studentLife).letters.length, 1);
+  const repeated = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
+  assert.equal((repeated.currencyBalances as Record<string, number>)['7'], 85);
+  assert.equal(normalizeStudentLifeState(repeated.studentLife).letters.length, 1);
+});

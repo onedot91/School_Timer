@@ -540,6 +540,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
 
   const isEconomyHistoryEntry = (entry: CurrencyHistoryEntry) => (
     entry.reason === 'shop_purchase'
+    || entry.reason === 'house_creator_reward'
     || entry.reason === 'stock_trade'
     || entry.reason === 'bank_transfer'
     || entry.reason === 'teacher_deduction'

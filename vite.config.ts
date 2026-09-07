@@ -3,9 +3,13 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
+  const buildId = command === 'build' ? new Date().toISOString() : 'development';
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), {
+      name: 'app-build-id',
+      transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'app-build', content: buildId }, injectTo: 'head-prepend' }],
+    }],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
