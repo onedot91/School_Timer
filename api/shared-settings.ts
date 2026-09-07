@@ -8,6 +8,7 @@ import {
 } from '../src/lib/canvasLibraryPlacement.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
+import { STUDENT_MUTABLE_MAP_FIELDS, STUDENT_MUTABLE_PROGRESS_FIELDS, STUDENT_MUTABLE_SHARED_FIELDS } from '../src/lib/studentSettingsUpdate.js';
 import { parseLibraryCompetitionState } from '../src/lib/libraryCompetition.js';
 import { competitionView, ensureCompetition, isCompetitionCommand, updateCompetitionSettings } from '../src/server/libraryCompetitionService.js';
 import { commitCompetition, competitionRecord, LibraryCompetitionError, loadCompetitionHistory, loadCompetitionRow } from '../src/server/libraryCompetitionRepository.js';
@@ -59,23 +60,14 @@ const STUDENT_SHARED_FIELDS = [
   'studentNumberBaseball',
 ] as const;
 const STUDENT_SCOPED_MAP_FIELDS = [
-  'currencyBalances',
-  'currencyHistory',
-  'studentEmotionHistory',
-  'studentPets',
+  ...STUDENT_MUTABLE_MAP_FIELDS,
   'studentEconomy',
 ] as const;
 const STUDENT_MUTABLE_FIELDS = new Set([
-  'auctionBids',
-  'auctionBidHistory',
-  'currencyBalances',
-  'currencyHistory',
-  'studentEmotionHistory',
-  'studentPets',
-  'studentLife',
+  ...STUDENT_MUTABLE_SHARED_FIELDS,
+  ...STUDENT_MUTABLE_MAP_FIELDS,
+  ...STUDENT_MUTABLE_PROGRESS_FIELDS,
   'studentEconomy',
-  'studentSudoku',
-  'studentNumberBaseball',
 ]);
 
 type UpdatedAtCache = {

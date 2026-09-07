@@ -129,3 +129,34 @@ test('서버 프록시 모드에서는 Supabase 브라우저 클라이언트 없
     );
   });
 });
+
+test('학생 저장 함수는 보기 전용에서 성공을 가장하지 않고 쓰기를 거절한다', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({
+    configFile: false, envDir: false, logLevel: 'silent',
+    server: { middlewareMode: true, watch: null },
+    define: {
+      'import.meta.env.PROD': 'false',
+      'import.meta.env.VITE_DATA_MODE': JSON.stringify('readonly'),
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://readonly-test.supabase.co'),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('test-only'),
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  let updates = 0;
+  globalThis.fetch = async () => { requests += 1; throw new Error('Unexpected network call'); };
+  try {
+    const client = await server.ssrLoadModule('/src/lib/supabaseSettings.ts') as typeof import('./supabaseSettings.js');
+    assert.equal(client.isSupabaseSettingsEnabled, true);
+    await assert.rejects(client.updateStudentSharedSettings(7, () => {
+      updates += 1;
+      return {};
+    }), /READ_ONLY_DATA_MODE/);
+    assert.equal(requests, 0);
+    assert.equal(updates, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await server.close();
+  }
+});

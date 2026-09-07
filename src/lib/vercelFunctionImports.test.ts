@@ -33,6 +33,7 @@ const SERVER_MODULES = [
   'src/lib/studentEconomy.ts',
   'src/lib/studentEconomySettings.ts',
   'src/lib/studentEmotion.ts',
+  'src/lib/studentSettingsUpdate.ts',
   'src/lib/studentLife.ts',
   'src/lib/canvasLibraryPlacement.ts',
   'src/lib/libraryCompetition.ts',

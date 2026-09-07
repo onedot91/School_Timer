@@ -30,6 +30,7 @@
 
 - `TimerPage` and `AuctionPage` both read and mutate the single shared settings value through `supabaseSettings.ts`.
 - Preserve unrelated fields inside every `updateSharedSettings(currentValue => nextValue)` callback; replacing the whole value can erase concurrent domains.
+- 학생 페이지에서는 `updateStudentSharedSettings(studentNumber, updater)`를 사용한다. 조회 응답은 본인 범위이므로 정규화로 채운 타인 잔액·기록·펫을 직접 저장하지 않는다. 상세 계약과 검증 기준은 `../lib/AGENTS.md`를 따른다.
 - Keep `updated_at` comparisons, cache invalidation, in-flight guards, and pending-save refs aligned when changing refresh behavior.
 - Supabase-disabled behavior still depends on local snapshots from `studentPet`, `studentLife`, `studentEconomy`, and feature-specific storage helpers.
 - Normalize persisted or remote values at the existing library boundary before applying them to page state.

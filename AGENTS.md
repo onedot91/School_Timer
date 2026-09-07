@@ -70,6 +70,7 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 - Relative imports from `api/` into `src/server/` keep explicit `.js` specifiers for Vercel ESM.
 - `VITE_DATA_MODE=mock` forbids shared-backend reads/writes; `readonly` reads but does not write; production may write.
 - Treat localStorage, API, and Supabase payloads as `unknown` until a domain normalizer accepts them.
+- 학생의 공용 설정 변경은 `updateStudentSharedSettings(studentNumber, updater)`를 사용한다. 화면 표시용 정규화 결과를 전체 저장 데이터로 취급하지 않는다. 변경 시 학생 범위 GET → 저장 API 테스트로 다른 학생 데이터 보존을 검증한다. 상세 규칙은 `src/lib/AGENTS.md`를 따른다.
 - Storage keys, item/profile identifiers, JSONB keys, RPC signatures, and literal public-asset URL paths are compatibility contracts.
 - User-facing text is Korean. Preserve the warm cream/green/paper classroom identity and existing character assets.
 - Student UI is Chromebook-first. For layout work, observe `window.innerWidth === 1280` and `window.innerHeight === 800` before the change and again after the final layout edit.

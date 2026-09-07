@@ -8,7 +8,7 @@ import {
   type CurrencyHistory,
 } from './currency';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
-import { isSupabaseSettingsEnabled, updateSharedSettings } from './supabaseSettings';
+import { isSupabaseSettingsEnabled, updateStudentSharedSettings } from './supabaseSettings';
 import {
   SUDOKU_REWARDS,
   createSudokuPuzzle,
@@ -67,7 +67,7 @@ export const useStudentSudokuState = ({
       try {
         let savedProgress: StudentSudokuProgress = {};
         if (isSupabaseSettingsEnabled) {
-          await updateSharedSettings((currentValue) => {
+          await updateStudentSharedSettings(studentNumber, (currentValue) => {
             savedProgress = { ...getStudentSudokuProgressFromSettings(currentValue), [key]: entry };
             const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
               ? Object.fromEntries(Object.entries(currentValue))
@@ -86,7 +86,7 @@ export const useStudentSudokuState = ({
       }
     });
     return saveQueueRef.current;
-  }, []);
+  }, [studentNumber]);
 
   const startSudoku = useCallback(async (difficulty: SudokuDifficulty) => {
     const activeDifficulty = getActiveSudokuDifficulty(studentSudokuProgress, studentNumber, koreanWeekKey);
@@ -116,7 +116,7 @@ export const useStudentSudokuState = ({
       let completionSaved = false;
       try {
         if (isSupabaseSettingsEnabled) {
-          await updateSharedSettings((currentValue) => {
+          await updateStudentSharedSettings(studentNumber, (currentValue) => {
             const reward = claimSudokuRewardInSettings(
               currentValue,
               studentNumber,

@@ -62,6 +62,7 @@ Vercel Node serverless boundary. Nine direct TypeScript handlers authenticate de
 - Mock `globalThis.fetch`; assert rejected requests make no upstream call. Restore fetch and every changed `process.env` value in `finally`.
 - Build signed teacher/student cookies with `createDeviceSessionToken`; use `sec-fetch-site: same-origin` for accepted mutations and explicit cross-site headers for rejection cases.
 - Cover exact status/error codes, scope isolation, size limits, conflict paths, `Retry-After`, and external request shape.
+- 학생 공용 설정 저장 테스트는 학생 GET 투영부터 시작한다. 실제 PostgREST처럼 누락 JSON 경로는 `null`로 반환하고, 다른 학생의 비기본 잔액·기존 기록이 저장 후 보존되는지 확인한다. 학생용 요청 필터와 별개로 직접 보낸 타인 데이터 변경 요청은 계속 `403`이어야 한다.
 - Target one file with `node --import tsx --test tests/api/<handler>.test.ts`; run `src/lib/vercelFunctionImports.test.ts` whenever handler files or server imports change.
 
 ## ANTI-PATTERNS

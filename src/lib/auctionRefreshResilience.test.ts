@@ -77,7 +77,7 @@ test('local failure story creation keeps the saved student life in the combined 
 test('입찰 저장은 잔액과 교사 소유 설정을 다시 쓰지 않는다', async () => {
   const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
   const start = source.indexOf('const submitBid =');
-  const sharedStart = source.indexOf('await updateSharedSettings', start);
+  const sharedStart = source.indexOf('await updateStudentSharedSettings', start);
   const sharedEnd = source.indexOf('await refreshAuctionState();', sharedStart);
   assert.ok(start >= 0 && sharedStart > start && sharedEnd > sharedStart);
   const sharedSave = source.slice(sharedStart, sharedEnd);

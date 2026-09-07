@@ -20,7 +20,7 @@ import {
   type StudentNumberBaseballProgress,
 } from './numberBaseball';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
-import { isSupabaseSettingsEnabled, updateSharedSettings } from './supabaseSettings';
+import { isSupabaseSettingsEnabled, updateStudentSharedSettings } from './supabaseSettings';
 import { getKoreanIsoWeekKey } from './weeklyMission';
 
 type UseStudentNumberBaseballStateOptions = {
@@ -57,7 +57,7 @@ export const useStudentNumberBaseballState = ({
       try {
         let savedProgress: StudentNumberBaseballProgress = {};
         if (isSupabaseSettingsEnabled) {
-          await updateSharedSettings((currentValue) => {
+          await updateStudentSharedSettings(studentNumber, (currentValue) => {
             savedProgress = {
               ...getStudentNumberBaseballProgressFromSettings(currentValue),
               [targetProgressKey]: entry,
@@ -79,7 +79,7 @@ export const useStudentNumberBaseballState = ({
       }
     });
     return saveQueueRef.current;
-  }, []);
+  }, [studentNumber]);
 
   const saveProgress = useCallback((entry: NumberBaseballProgressEntry) => (
     saveProgressAtKey(progressKey, entry)
@@ -98,7 +98,7 @@ export const useStudentNumberBaseballState = ({
       let completionSaved = false;
       try {
         if (isSupabaseSettingsEnabled) {
-          await updateSharedSettings((currentValue) => {
+          await updateStudentSharedSettings(studentNumber, (currentValue) => {
             const reward = claimNumberBaseballRewardInSettings(
               currentValue,
               studentNumber,

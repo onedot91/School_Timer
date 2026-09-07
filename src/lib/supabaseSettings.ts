@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseClassDonationResult } from './classDonation.js';
 import { isReadOnlyDataMode } from './dataMode.js';
+import { createStudentSettingsUpdate } from './studentSettingsUpdate.js';
 import {
   isSupabaseSettingsEnabled,
   shouldEnableSupabaseSettings,
@@ -149,7 +150,10 @@ export const saveSharedSettings = async (value: unknown) => {
   return updatedAt;
 };
 
-export const updateSharedSettings = async (updater: (currentValue: unknown) => unknown) => {
+export const updateSharedSettings = async (
+  updater: (currentValue: unknown) => unknown,
+  studentNumber?: number,
+) => {
   if (!isSupabaseSettingsEnabled) return null;
   if (isReadOnlyDataMode) return (await loadSharedSettingsRow())?.updated_at ?? null;
 
@@ -159,15 +163,18 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
         ? await loadWritableSharedSettingsRow()
         : cachedWritableSharedSettingsRow;
       const nextValue = updater(currentRow?.value ?? null);
+      const studentUpdate = studentNumber === undefined
+        ? null
+        : createStudentSettingsUpdate(currentRow?.value, nextValue, studentNumber);
       try {
         const result = await fetchJson('/api/shared-settings', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
+          body: JSON.stringify({ value: studentUpdate?.patch ?? nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
         }) as { updatedAt: string };
         cachedWritableSharedSettingsRow = {
           id: SHARED_SETTINGS_ID,
-          value: nextValue,
+          value: studentUpdate?.value ?? nextValue,
           updated_at: result.updatedAt,
           scope: currentRow?.scope,
         };
@@ -186,7 +193,10 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
 
   for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
     const currentRow = await loadSharedSettingsRow();
-    const nextValue = updater(currentRow?.value ?? null);
+    const updatedValue = updater(currentRow?.value ?? null);
+    const nextValue = studentNumber === undefined
+      ? updatedValue
+      : createStudentSettingsUpdate(currentRow?.value, updatedValue, studentNumber).value;
     const updatedAt = new Date().toISOString();
 
     if (!currentRow) {
@@ -220,6 +230,14 @@ export const updateSharedSettings = async (updater: (currentValue: unknown) => u
   }
 
   throw new Error('SHARED_SETTINGS_CONFLICT');
+};
+
+export const updateStudentSharedSettings = async (
+  studentNumber: number,
+  updater: (currentValue: unknown) => unknown,
+) => {
+  if (isReadOnlyDataMode) throw new Error('READ_ONLY_DATA_MODE');
+  return updateSharedSettings(updater, studentNumber);
 };
 
 export const donateToClassGoal = async (

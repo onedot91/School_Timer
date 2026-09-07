@@ -3,7 +3,8 @@ import test from 'node:test';
 
 import handler from '../../api/shared-settings.js';
 import studentEconomyHandler from '../../api/student-economy.js';
-import { claimDailyEmotionRewardInSettings, claimNumberBaseballRewardInSettings, claimWeeklyEmotionRewardInSettings } from '../../src/lib/currency.js';
+import { claimDailyEmotionRewardInSettings, claimNumberBaseballRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionAwards, AUCTION_ITEM_IDS } from '../../src/lib/currency.js';
+import { normalizeStudentPetStates } from '../../src/lib/studentPet.js';
 import { appendNumberBaseballAttempt, createNumberBaseballAnswer, createNumberBaseballProgressEntry, getNumberBaseballGameId } from '../../src/lib/numberBaseball.js';
 import { createStudentEmotionEntry, upsertStudentEmotionEntry } from '../../src/lib/studentEmotion.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
@@ -859,6 +860,19 @@ const createStatefulPostgrest = (
       readCount += 1;
       if (options.readBarrier && readCount === options.readBarrier) releaseReads?.();
       if (options.readBarrier && readCount <= options.readBarrier) await readsReady;
+      const select = url.searchParams.get('select');
+      if (snapshot && select && !select.split(',').includes('value')) {
+        return Response.json([Object.fromEntries(select.split(',').map((field) => {
+          if (field === 'id') return ['id', snapshot.id];
+          if (field === 'updated_at') return ['updated_at', snapshot.updated_at];
+          const match = /^(\w+):value->(\w+)(?:->"(\d+)")?$/.exec(field);
+          assert.ok(match, `unsupported projection: ${field}`);
+          const raw = snapshot.value[match[2]];
+          const projected = match[3] && raw && typeof raw === 'object'
+            ? Reflect.get(raw, match[3]) : match[3] ? null : raw;
+          return [match[1], projected ?? null];
+        }))]);
+      }
       return Response.json(snapshot ? [snapshot] : []);
     }
     if (method === 'PATCH') {
@@ -1163,6 +1177,129 @@ test('placement stops after five fresh CAS conflicts and leaves authoritative st
       assert.deepEqual(authoritative.value, { marker: 'keep', studentLife: { books: [] } });
     } finally {
       globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐시, 충돌 재시도에서도 타인 기록을 보존한다', async () => {
+  const { createServer } = await import('vite');
+  await withEnvironment(async () => {
+    const server = await createServer({
+      configFile: false, envDir: false, logLevel: 'silent',
+      server: { middlewareMode: true, watch: null },
+      define: {
+        'import.meta.env.PROD': 'true',
+        'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
+        'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('test-only'),
+      },
+    });
+    const originalFetch = globalThis.fetch;
+    const createdAt = '2026-09-07T03:00:00.000Z';
+    const otherHistory = [{ id: 'other-history', studentNumber: 8, before: 100, after: 145, delta: 45, reason: 'manual', createdAt }];
+    const otherPet = { ...normalizeStudentPetStates({})['8'], name: '다른 학생 펫' };
+    const initial = {
+      version: 42, teacherOnly: { notice: '보존할 설정' },
+      auctionItems: [{ id: 'item-1', name: '테스트 물품', startPrice: 10, dayIndex: 0 }],
+      auctionBids: {}, auctionBidHistory: {}, auctionAwards: { legacy: { winner: 8 } },
+      currencyBalances: { 7: 100, 8: 145 }, currencyHistory: { 7: [], 8: otherHistory },
+      studentPets: { 7: normalizeStudentPetStates({})['7'], 8: otherPet },
+      studentEconomy: { 7: { deposit: 30 }, 8: { deposit: 50 } },
+      studentEmotionHistory: { 8: [createStudentEmotionEntry(8, 'calm', '보존할 감정', new Date(createdAt))] },
+      studentNumberBaseball: { '8:legacy': { legacy: true } },
+      studentSudoku: { '8:legacy': { legacy: true } },
+    };
+    const fake = createStatefulPostgrest({ id: 'school-timer-main', value: initial, updated_at: createdAt });
+    const statuses: number[] = [];
+    let forceConflict = false;
+    globalThis.fetch = async (input, init) => {
+      if (String(input) !== '/api/shared-settings') return fake.fetch(input, init);
+      if (forceConflict && init?.method === 'PUT') {
+        forceConflict = false;
+        const concurrent = createResponse();
+        await handler({ method: 'PUT', headers: teacherHeaders(), body: {
+          value: { ...fake.state()?.value, currencyBalances: { 7: 125, 8: 177 } },
+          expectedUpdatedAt: fake.state()?.updated_at,
+        } }, concurrent.response);
+        assert.equal(concurrent.result().statusCode, 200);
+      }
+      const request = createResponse();
+      await handler({
+        method: init?.method ?? 'GET', headers: studentHeaders(7),
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      }, request.response);
+      const result = request.result();
+      statuses.push(result.statusCode);
+      return Response.json(result.body, { status: result.statusCode });
+    };
+    try {
+      const client = await server.ssrLoadModule('/src/lib/supabaseSettings.ts') as typeof import('../../src/lib/supabaseSettings.js');
+      assert.equal(client.isSupabaseSettingsEnabled, true);
+      const row = await client.loadSharedSettingsRow();
+      assert.equal(row?.scope, 'student');
+      assert.ok(row?.value && typeof row.value === 'object');
+      assert.deepEqual(Reflect.get(row.value, 'currencyBalances'), { 7: 100 });
+      assert.equal(Reflect.get(row.value, 'studentMissionVisibility'), null);
+      assert.equal(Reflect.has(row.value, 'teacherOnly'), false);
+
+      await client.updateStudentSharedSettings(7, (value) => {
+        const reward = claimNumberBaseballRewardInSettings(value, 7, 'roundtrip-game', 20, createdAt);
+        return { ...reward.value, studentNumberBaseball: { '7:2026-37': { attempts: [] } } };
+      });
+      await client.updateStudentSharedSettings(7, (value) => {
+        const reward = claimDailyEmotionRewardInSettings(value, 7, '2026-09-07', createdAt);
+        return { ...reward.value, studentEmotionHistory: { 7: [createStudentEmotionEntry(7, 'happy', '조회 후 저장', new Date(createdAt))] } };
+      });
+      forceConflict = true;
+      await client.updateStudentSharedSettings(7, (value) => {
+        assert.ok(value && typeof value === 'object');
+        assert.deepEqual(Reflect.get(value, 'auctionItems'), initial.auctionItems);
+        const reward = claimSudokuRewardInSettings(value, 7, 'roundtrip-sudoku', 5, createdAt);
+        return { ...reward.value, studentSudoku: { '7:2026-37:easy': { cells: [] } } };
+      });
+      await client.updateStudentSharedSettings(7, (value) => {
+        assert.ok(value && typeof value === 'object');
+        return {
+          ...value, version: 1,
+          currencyBalances: normalizeCurrencyBalances(Reflect.get(value, 'currencyBalances')),
+          currencyHistory: normalizeCurrencyHistory(Reflect.get(value, 'currencyHistory')),
+          studentPets: { ...normalizeStudentPetStates(Reflect.get(value, 'studentPets')), 7: { ...otherPet, name: '내 펫' } },
+          auctionAwards: normalizeAuctionAwards(Reflect.get(value, 'auctionAwards'), AUCTION_ITEM_IDS),
+          auctionBids: { 'item-1': { amount: 10, bidder: 7 } },
+          auctionBidHistory: { 'item-1': [{ itemId: 'item-1', amount: 10, bidder: 7, createdAt }] },
+        };
+      });
+      const saved = fake.state()?.value;
+      assert.ok(saved);
+      assert.deepEqual(saved.currencyBalances, { 7: 130, 8: 177 });
+      assert.deepEqual(normalizeCurrencyHistory(saved.currencyHistory)['8'], otherHistory);
+      assert.equal(normalizeCurrencyHistory(saved.currencyHistory)['7'].length, 3);
+      assert.deepEqual(saved.studentEconomy, initial.studentEconomy);
+      assert.deepEqual(saved.auctionAwards, initial.auctionAwards);
+      assert.deepEqual(saved.teacherOnly, initial.teacherOnly);
+      assert.equal(saved.version, 42);
+      assert.deepEqual(saved.auctionBids, { 'item-1': { amount: 10, bidder: 7 } });
+      for (const field of ['studentPets', 'studentEmotionHistory', 'studentSudoku', 'studentNumberBaseball']) {
+        const key = field === 'studentPets' || field === 'studentEmotionHistory' ? '8' : '8:legacy';
+        assert.ok(saved[field] && typeof saved[field] === 'object');
+        assert.deepEqual(Reflect.get(saved[field], key), Reflect.get(initial[field], key));
+      }
+      assert.equal(statuses.filter((status) => status === 409).length, 1);
+      assert.ok(statuses.every((status) => status === 200 || status === 409));
+      client.invalidateSharedSettingsCache();
+      await client.updateStudentSharedSettings(7, (value) => claimSudokuRewardInSettings(value, 7, 'roundtrip-sudoku', 5, createdAt).value);
+      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 130, 8: 177 });
+
+      const forbidden = createResponse();
+      await handler({ method: 'PUT', headers: studentHeaders(7), body: {
+        value: { currencyBalances: { 8: 999 } }, expectedUpdatedAt: fake.state()?.updated_at,
+      } }, forbidden.response);
+      assert.equal(forbidden.result().statusCode, 403);
+      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 130, 8: 177 });
+      await assert.rejects(client.updateStudentSharedSettings(8, () => ({ currencyBalances: { 8: 999 } })), /SHARED_API_HTTP_403/);
+      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 130, 8: 177 });
+    } finally {
+      globalThis.fetch = originalFetch;
+      await server.close();
     }
   });
 });

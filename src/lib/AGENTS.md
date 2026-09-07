@@ -25,7 +25,7 @@ Several modules are imported by both the Vite client and Node/Vercel code; brows
 - `readonly`: read the shared backend through the proxy; reject or no-op writes as each public API specifies.
 - `production`: forced for production builds; shared reads and writes enabled when credentials and proxy are available.
 - Use `appDataMode`, `canReadSharedBackend`, and `canWriteSharedBackend`; do not duplicate environment checks in features.
-- `supabaseSettings.ts` caches a writable full settings row and retries compare-and-set conflicts. A student-scoped projection must never become the base for a write.
+- `supabaseSettings.ts`는 교사 전체 스냅샷 또는 학생 범위 스냅샷을 캐시하고 compare-and-set 충돌을 재시도한다. 학생 GET은 전체 학급 데이터가 아니며, 누락된 학생은 기본값으로 저장할 대상이 아니다.
 
 ## PERSISTENCE CONTRACTS
 
@@ -34,6 +34,15 @@ Several modules are imported by both the Vite client and Node/Vercel code; brows
 - Storage keys and legacy migration branches are compatibility contracts; changing or removing either can strand classroom data.
 - Economy, currency history, weekly rewards, and profile/life updates are coupled state transitions. Preserve request IDs and claim markers so retries stay idempotent.
 - Keep mutations routed through `updateSharedSettings`, feature API clients, or the existing atomic domain transition; direct object patches can lose concurrent updates.
+
+## 학생 저장 범위와 회귀 검증
+
+- 학생 화면·훅의 일반 설정 변경은 `updateStudentSharedSettings(studentNumber, updater)`를 사용한다. 전체 스냅샷 저장 함수 `updateSharedSettings`/`saveSharedSettings`는 교사 경로에만 사용한다. 경제·기부 등 기존 전용 API/RPC는 그대로 사용한다.
+- `createStudentSettingsUpdate`가 학생별 map에서 본인 항목만 전송하고, 교사 필드·서버 경제 상태를 제외한다. 캐시에는 읽어 둔 설정을 보존한다. 기능별로 같은 필터를 복제하거나 서버 권한 검사를 완화하지 않는다.
+- `normalizeCurrencyBalances`/`normalizeCurrencyHistory`/펫·게임 정규화는 계산·표시에 필요하지만, 기본값 생성·정렬·과거 필드 제거가 발생할 수 있다. 다른 학생의 원본을 정규화 결과로 덮어쓰지 않는다.
+- 진행 map은 GET에서 공유되고 PUT에서 전체 교체되므로 다른 학생의 원본 항목을 유지해야 한다. 학생별 map의 병합과 혼동하지 않는다.
+- 학생 저장 변경은 실제 학생 범위 GET 응답으로 시작하는 클라이언트 → API 회귀 테스트를 포함한다. 다른 학생의 비기본 잔액·비어 있지 않은 기록, 누락 필드의 `null`, 연속 저장, `409` 재조회·재시도, 보상 중복 방지를 검증한다. 로컬 mock 저장 성공만으로 서버 저장을 검증했다고 판단하지 않는다.
+- 공통 허용 필드를 바꾸면 API 권한 계약과 `studentSettingsUpdate.test.ts`, `tests/api/shared-settings.test.ts`를 함께 확인한다. 학생 코드의 전체 저장 함수 직접 import는 회귀 테스트가 차단한다.
 
 ## CLIENT / SERVER BOUNDARY
 

@@ -45,7 +45,7 @@ import {
   invalidateSharedSettingsCache,
   loadSharedSettingsRow,
   loadSharedSettingsUpdatedAt,
-  updateSharedSettings,
+  updateStudentSharedSettings,
 } from '../lib/supabaseSettings';
 import {
   createClassDonationThankYouLetter,
@@ -719,7 +719,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     try {
       let saved = studentLife;
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
+        await updateStudentSharedSettings(studentNumber, (currentValue) => {
           const current = currentValue && typeof currentValue === 'object' ? currentValue as Record<string, unknown> : {};
           saved = change(normalizeStudentLifeState(current.studentLife));
           return { ...current, studentLife: saved };
@@ -761,7 +761,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     try {
       let saved = studentLife;
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
+        await updateStudentSharedSettings(studentNumber, (currentValue) => {
           const current = currentValue && typeof currentValue === 'object' ? currentValue as Record<string, unknown> : {};
           saved = markStudentLetterRead(normalizeStudentLifeState(current.studentLife), studentNumber, letterId, readAt);
           return { ...current, studentLife: saved };
@@ -804,7 +804,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }, input);
 
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
+        await updateStudentSharedSettings(studentNumber, (currentValue) => {
           result = createFailureExhibitionMissionEntry(currentValue, input);
           return result.value;
         });
@@ -938,7 +938,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       let savedBalances = currencyBalances;
 
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
+        await updateStudentSharedSettings(studentNumber, (currentValue) => {
           const current = currentValue && typeof currentValue === 'object'
             ? currentValue as Record<string, unknown>
             : {};
@@ -1013,7 +1013,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     try {
       let savedPets = studentPetStates;
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
+        await updateStudentSharedSettings(studentNumber, (currentValue) => {
           const current = currentValue && typeof currentValue === 'object'
             ? currentValue as Record<string, unknown>
             : {};
@@ -1078,7 +1078,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const scheduledSave = petPositionSaveQueueRef.current
       .catch(() => undefined)
       .then(async () => {
-        await updateSharedSettings((currentValue) => {
+        await updateStudentSharedSettings(studentNumber, (currentValue) => {
           const current = currentValue && typeof currentValue === 'object'
             ? currentValue as Record<string, unknown>
             : {};
@@ -1118,7 +1118,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       let savedCurrencyHistory: CurrencyHistory = currencyHistory;
       let savedBalances = currencyBalances;
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
+        await updateStudentSharedSettings(studentNumber, (currentValue) => {
           const current = currentValue && typeof currentValue === 'object'
             ? currentValue as Record<string, unknown>
             : {};
@@ -1602,7 +1602,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     try {
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
+        await updateStudentSharedSettings(studentNumber, (currentValue) => {
           const currentObject = currentValue && typeof currentValue === 'object'
             ? (currentValue as Record<string, unknown>)
             : {};
@@ -1818,7 +1818,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       const letterCreatedAt = new Date().toISOString();
       const result = await donateToClassGoal(studentNumber, donationAmount, requestId);
       let savedStudentLife = studentLife;
-      await updateSharedSettings((currentValue) => {
+      await updateStudentSharedSettings(studentNumber, (currentValue) => {
         const current = currentValue && typeof currentValue === 'object'
           ? currentValue as Record<string, unknown>
           : {};
