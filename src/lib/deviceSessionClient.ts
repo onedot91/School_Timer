@@ -30,7 +30,21 @@ const requestSession = async (init?: RequestInit) => {
   return parseSession(await response.json());
 };
 
-export const loadDeviceSession = () => requestSession();
+export const DEVICE_SESSION_READ_TIMEOUT_MS = 15_000;
+
+export const loadDeviceSession = async (signal?: AbortSignal) => {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) controller.abort();
+  const timeout = setTimeout(abort, DEVICE_SESSION_READ_TIMEOUT_MS);
+  try {
+    return await requestSession({ signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
+  }
+};
 
 export const registerDeviceSession = (entryNumber: number, registrationKey?: string) => requestSession({
   method: 'POST',

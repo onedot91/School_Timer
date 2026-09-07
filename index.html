@@ -19,8 +19,14 @@
     <meta property="og:type" content="website" />
     <title>School</title>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin:0">
+    <div id="root">
+      <main id="app-startup" style="min-height:100dvh;display:grid;place-content:center;padding:24px;box-sizing:border-box;background:#f8f5ef;color:#263d34;text-align:center;font-family:system-ui,sans-serif">
+        <p id="app-startup-message" role="status">화면을 불러오는 중이에요.</p>
+        <button id="app-startup-reload" type="button" hidden style="min-height:44px;padding:12px 24px;border:0;border-radius:24px;background:#087a59;color:white;font:inherit;cursor:pointer">새로고침</button>
+      </main>
+    </div>
+    <script src="/app-startup.js"></script>
     <noscript>
       <a href="/privacy.html">개인정보처리방침</a>
     </noscript>

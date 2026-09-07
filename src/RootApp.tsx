@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { StudentRapidClickGuard } from './components/student/StudentRapidClickGuard';
 import { StudentProfanityGuard } from './components/student/StudentProfanityGuard';
+import { AppLoadingScreen, AppRecoveryScreen } from './components/AppRecovery';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { startSaveFailureReporting } from './lib/saveFailureClient';
 import {
@@ -27,9 +28,7 @@ const SELECTED_ENTRY_NUMBER_STORAGE_KEY = 'school-timer-entry-number-v1';
 const TEACHER_ENTRY_VISIBLE_STORAGE_KEY = 'school-timer-teacher-entry-visible-v1';
 const STUDENT_HOME_HASH = '#student-overview';
 
-const PageLoadFallback = () => (
-  <main className="entry-session-loading" aria-label="화면 불러오는 중" role="status" />
-);
+const PageLoadFallback = () => <AppLoadingScreen />;
 
 const getPlatformText = () => {
   if (typeof window === 'undefined') return '';
@@ -105,7 +104,8 @@ const storeTeacherEntryVisible = () => {
 };
 
 export default function RootApp() {
-  const [hasRuntimeError, setHasRuntimeError] = useState(false);
+  const [sessionLoadFailed, setSessionLoadFailed] = useState(false);
+  const [sessionAttempt, setSessionAttempt] = useState(0);
   const [selectedEntryNumber, setSelectedEntryNumber] = useState<number | null>(() => getStoredEntryNumber());
   const [deviceSession, setDeviceSession] = useState<BrowserDeviceSession | null>(null);
   const [isDeviceSessionReady, setIsDeviceSessionReady] = useState(!requiresDeviceRegistration);
@@ -153,11 +153,13 @@ export default function RootApp() {
     if (!requiresDeviceRegistration) return;
 
     let cancelled = false;
+    const controller = new AbortController();
     void preloadEntryPage(selectedEntryNumber)?.catch(() => undefined);
-    void loadDeviceSession()
+    void loadDeviceSession(controller.signal)
       .then((session) => {
         if (cancelled) return;
         setDeviceSession(session);
+        setIsDeviceSessionReady(true);
         const storedNumber = getStoredEntryNumber();
         const canUseStoredNumber = session?.role === 'teacher'
           || (session?.role === 'student' && session.studentNumber === storedNumber);
@@ -168,33 +170,14 @@ export default function RootApp() {
       })
       .catch(() => {
         if (cancelled) return;
-        clearStoredEntryNumber();
-        setSelectedEntryNumber(null);
-        setDeviceSession(null);
-      })
-      .finally(() => {
-        if (!cancelled) setIsDeviceSessionReady(true);
+        setSessionLoadFailed(true);
       });
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, []);
-
-  useEffect(() => {
-    const handleRuntimeError = (event: ErrorEvent | PromiseRejectionEvent) => {
-      console.error('School Timer runtime failed.', 'reason' in event ? event.reason : event.error);
-      setHasRuntimeError(true);
-    };
-
-    window.addEventListener('error', handleRuntimeError);
-    window.addEventListener('unhandledrejection', handleRuntimeError);
-
-    return () => {
-      window.removeEventListener('error', handleRuntimeError);
-      window.removeEventListener('unhandledrejection', handleRuntimeError);
-    };
-  }, []);
+  }, [sessionAttempt]);
 
   useEffect(() => {
     const handleEntryResetShortcut = (event: KeyboardEvent) => {
@@ -225,30 +208,17 @@ export default function RootApp() {
     return (
       <>
         <NetworkStatusBanner />
-        <main className="entry-session-loading" aria-label="기기 등록 확인 중" />
-      </>
-    );
-  }
-
-  if (hasRuntimeError) {
-    return (
-      <>
-        <NetworkStatusBanner />
-        <main className="runtime-fallback-page">
-          <section className="runtime-fallback-surface">
-            <h1 className="runtime-fallback-title">화면을 다시 불러와 주세요</h1>
-            <p className="runtime-fallback-description">
-              설정을 적용하는 중 문제가 생겼습니다. 새로고침하면 저장된 설정으로 다시 시작합니다.
-            </p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="runtime-fallback-action"
-            >
-              새로고침
-            </button>
-          </section>
-        </main>
+        {sessionLoadFailed ? (
+          <AppRecoveryScreen
+            title="기기 등록을 확인하지 못했어요"
+            description="연결을 확인하고 다시 시도해 주세요."
+            actionLabel="다시 시도"
+            onRetry={() => {
+              setSessionLoadFailed(false);
+              setSessionAttempt((attempt) => attempt + 1);
+            }}
+          />
+        ) : <AppLoadingScreen label="기기 등록 확인 중" />}
       </>
     );
   }

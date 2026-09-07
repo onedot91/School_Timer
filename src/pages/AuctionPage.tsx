@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import '../classword.css';
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
+import { AppLoadingScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
@@ -1988,11 +1989,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
       <main className="mx-auto w-full max-w-7xl">
         <Suspense
-          fallback={(
-            <section className="grid min-h-[60vh] place-items-center text-lg font-bold text-[#526159]" role="status">
-              화면을 불러오는 중이에요.
-            </section>
-          )}
+          fallback={<AppLoadingScreen embedded />}
         >
         {activeStudentView === 'overview' ? (
           <StudentOverviewPage
