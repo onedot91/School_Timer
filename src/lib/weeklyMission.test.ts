@@ -1,3 +1,5 @@
+import { applyClassroomRoleMissionResultInSettings, normalizeClassroomRoleMissionSettings } from './classroomRoleMission';
+import { normalizeStudentLifeState } from './studentLife';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -20,6 +22,8 @@ import {
 } from './weeklyMission';
 import { hasPersonalQuestionSubmission } from './questionSubmissionStatus';
 import {
+  CURRENCY_BALANCE_MAX,
+  normalizeCurrencyHistory,
   claimDailyEmotionRewardInSettings,
   claimWeeklyEmotionRewardInSettings,
   createWeeklyCurrencyCycle,
@@ -878,4 +882,63 @@ test('question status fallback clears only students with a personal submission',
   assert.equal(hasPersonalQuestionSubmission(statuses, 6), true);
   assert.equal(hasPersonalQuestionSubmission(statuses, 7), false);
   assert.equal(hasPersonalQuestionSubmission(statuses, 9), false);
+});
+
+
+test('two teacher tabs preserve unseen role deduction, result and letter without losing intended pause', () => {
+  const initial = {
+    classroomRoleMission: normalizeClassroomRoleMissionSettings({ anchorDateKey: '2026-09-07', anchorStartStudentNumber: 1 }),
+    currencyBalances: { '1': 100, '2': 777 },
+    currencyHistory: { '1': [], '2': [] },
+    studentLife: { letters: [] },
+    subjectCatalog: ['기존 과목'],
+  };
+  const command = { studentNumber: 1, dateKey: '2026-09-07', nextResult: 'penalized' as const, requestId: 'two-tab-role', createdAt: '2026-09-07T01:00:00.000Z' };
+  const remote = applyClassroomRoleMissionResultInSettings(initial, command);
+  const stale = { ...initial, classroomRoleMission: { ...initial.classroomRoleMission, enabled: false }, subjectCatalog: ['새 과목'] };
+  const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale);
+  const settings = normalizeClassroomRoleMissionSettings(merged.classroomRoleMission);
+  assert.equal(settings.enabled, false);
+  assert.equal(settings.results['2026-09-07']?.['1'], 'penalized');
+  assert.equal(Reflect.get(Object(merged.currencyBalances), '1'), 80);
+  assert.equal(Reflect.get(Object(merged.currencyBalances), '2'), 777);
+  assert.deepEqual(merged.subjectCatalog, ['새 과목']);
+  assert.equal(normalizeStudentLifeState(merged.studentLife).letters.length, 1);
+  const repeated = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
+  assert.equal(normalizeStudentLifeState(repeated.studentLife).letters.length, 1);
+  assert.equal(Reflect.get(Object(repeated.currencyBalances), '1'), 80);
+
+  const observedDeletion = { ...remote, studentLife: { letters: [] } };
+  const deletionSaved = mergeConcurrentCurrencyUpdatesIntoSettings(remote, observedDeletion);
+  assert.equal(normalizeStudentLifeState(deletionSaved.studentLife).letters.length, 0);
+  const newAnchor = { ...stale, classroomRoleMission: { ...stale.classroomRoleMission, anchorStartStudentNumber: 10, results: {} } };
+  assert.deepEqual(normalizeClassroomRoleMissionSettings(mergeConcurrentCurrencyUpdatesIntoSettings(remote, newAnchor).classroomRoleMission).results, {});
+
+  const cancelledRemote = applyClassroomRoleMissionResultInSettings(remote, { ...command, nextResult: undefined, requestId: 'two-tab-cancel', createdAt: '2026-09-07T01:01:00.000Z' });
+  const cancellationSaved = mergeConcurrentCurrencyUpdatesIntoSettings(cancelledRemote, remote);
+  assert.equal(normalizeClassroomRoleMissionSettings(cancellationSaved.classroomRoleMission).results['2026-09-07']?.['1'], undefined);
+  assert.equal(Reflect.get(Object(cancellationSaved.currencyBalances), '1'), 100);
+});
+
+
+test('stale settings preserve role outcomes at both wallet limits through zero-delta history', () => {
+  for (const [balance, nextResult] of [[0, 'penalized'], [CURRENCY_BALANCE_MAX, 'rewarded']] as const) {
+    const stale = {
+      classroomRoleMission: normalizeClassroomRoleMissionSettings({ anchorDateKey: '2026-09-07', anchorStartStudentNumber: 1 }),
+      currencyBalances: { '1': balance, '2': 777 }, currencyHistory: { '1': [], '2': [] },
+    };
+    const remote = applyClassroomRoleMissionResultInSettings(stale, {
+      studentNumber: 1, nextResult, dateKey: '2026-09-07', requestId: `merge-limit-${nextResult}`, createdAt: '2026-09-07T01:00:00.000Z',
+    });
+    const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale);
+    const repeated = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged);
+    for (const saved of [merged, repeated]) {
+      assert.equal(normalizeClassroomRoleMissionSettings(saved.classroomRoleMission).results['2026-09-07']?.['1'], nextResult);
+      assert.equal(Reflect.get(Object(saved.currencyBalances), '1'), balance);
+      assert.equal(Reflect.get(Object(saved.currencyBalances), '2'), 777);
+      const entries = normalizeCurrencyHistory(saved.currencyHistory)['1'];
+      assert.equal(entries.length, 1);
+      assert.equal(entries[0].delta, 0);
+    }
+  }
 });

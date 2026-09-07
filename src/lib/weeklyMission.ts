@@ -281,6 +281,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
   const remoteStudentEconomy = normalizeStudentEconomyStates(remote.studentEconomy);
   const nextStudentEconomy = normalizeStudentEconomyStates(next.studentEconomy);
   const mergedStudentEconomy = { ...nextStudentEconomy };
+  const unseenClassroomRoleChanges: CurrencyHistoryEntry[] = [];
 
   const rebaseMissingEntries = (
     entries: readonly CurrencyHistoryEntry[],
@@ -446,6 +447,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
       entry.reason === 'classroom_role' && !existingIds.has(entry.id)
     ));
     if (missingClassroomRoleChanges.length === 0) return;
+    unseenClassroomRoleChanges.push(...missingClassroomRoleChanges);
 
     const nextBalance = nextBalances[studentKey]
       + missingClassroomRoleChanges.reduce((total, entry) => total + entry.delta, 0);
@@ -590,14 +592,52 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     nextHistory[studentKey] = rebaseMissingEntries(combinedHistory, nextBalance);
   });
 
+  const roleChangeDateKey = (entry: CurrencyHistoryEntry) => {
+    const timestamp = Date.parse(entry.createdAt);
+    return Number.isFinite(timestamp) ? new Date(timestamp + 9 * 60 * 60 * 1000).toISOString().slice(0, 10) : '';
+  };
+  const remoteRole = isRecord(remote.classroomRoleMission) ? remote.classroomRoleMission : {};
+  const nextRole = isRecord(next.classroomRoleMission) ? next.classroomRoleMission : {};
+  const remoteRoleResults = isRecord(remoteRole.results) ? remoteRole.results : {};
+  const mergedRoleResults = { ...(isRecord(nextRole.results) ? nextRole.results : {}) };
+  const hasChangedRoleAnchor = nextRole.anchorDateKey !== remoteRole.anchorDateKey
+    || nextRole.anchorStartStudentNumber !== remoteRole.anchorStartStudentNumber;
+  const originalNextHistory = normalizeCurrencyHistory(next.currencyHistory);
+  unseenClassroomRoleChanges.forEach((entry) => {
+    if (hasChangedRoleAnchor) return;
+    const dateKey = roleChangeDateKey(entry);
+    if (!dateKey) return;
+    const studentKey = String(entry.studentNumber);
+    const hasNewerLocalRoleChange = originalNextHistory[studentKey].some((localEntry) => (
+      localEntry.reason === 'classroom_role' && roleChangeDateKey(localEntry) === dateKey
+      && Date.parse(localEntry.createdAt) > Date.parse(entry.createdAt)
+    ));
+    if (hasNewerLocalRoleChange) return;
+    const dailyResults = { ...(isRecord(mergedRoleResults[dateKey]) ? mergedRoleResults[dateKey] : {}) };
+    const remoteDailyResults = isRecord(remoteRoleResults[dateKey]) ? remoteRoleResults[dateKey] : {};
+    if (Object.hasOwn(remoteDailyResults, studentKey)) dailyResults[studentKey] = remoteDailyResults[studentKey];
+    else delete dailyResults[studentKey];
+    if (Object.keys(dailyResults).length > 0) mergedRoleResults[dateKey] = dailyResults;
+    else delete mergedRoleResults[dateKey];
+  });
+  const unseenRoleLetterIds = new Set(unseenClassroomRoleChanges.filter((entry) => entry.delta < 0)
+    .map((entry) => `teacher-deduction-letter-classroom-role-${roleChangeDateKey(entry)}-${entry.studentNumber}`));
+  const preservedRoleLetters = normalizeStudentLifeState(remote.studentLife).letters
+    .filter((letter) => unseenRoleLetterIds.has(letter.id) && unseenClassroomRoleChanges.some((entry) => (
+      entry.delta < 0 && entry.studentNumber === letter.recipient && entry.createdAt === letter.createdAt
+    )));
+  const nextLife = economyStudentsWithRemoteActivity.size > 0
+    ? mergeStudentLifeStates(remote.studentLife, next.studentLife)
+    : next.studentLife ?? remote.studentLife;
+
   return {
     ...next,
     studentPets: remote.studentPets ?? next.studentPets,
     studentEconomy: mergedStudentEconomy,
+    ...(unseenClassroomRoleChanges.length > 0 && !hasChangedRoleAnchor
+      ? { classroomRoleMission: { ...nextRole, results: mergedRoleResults } } : {}),
     studentLife: replaceStudentLifeBooksWithAuthoritative(
-      economyStudentsWithRemoteActivity.size > 0
-        ? mergeStudentLifeStates(remote.studentLife, next.studentLife)
-        : next.studentLife ?? remote.studentLife,
+      preservedRoleLetters.length > 0 ? mergeStudentLifeStates({ letters: preservedRoleLetters }, nextLife) : nextLife,
       remote.studentLife ?? next.studentLife,
     ),
     currencyBalances: nextBalances,
@@ -710,4 +750,4 @@ import { mergeClassDonationActivity } from './classDonation.js';
 import { appDataMode, canWriteSharedBackend } from './dataMode.js';
 import { mergeStudentEmotionHistories } from './studentEmotion.js';
 import { normalizeStudentEconomyStates } from './studentEconomy.js';
-import { mergeStudentLifeStates, replaceStudentLifeBooksWithAuthoritative } from './studentLife.js';
+import { mergeStudentLifeStates, normalizeStudentLifeState, replaceStudentLifeBooksWithAuthoritative } from './studentLife.js';

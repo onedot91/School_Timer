@@ -1,4 +1,9 @@
-import { CURRENCY_STUDENT_NUMBERS } from './currency.js';
+import {
+  CURRENCY_STUDENT_NUMBERS, DEFAULT_CURRENCY_BALANCE, appendCurrencyHistoryEntry,
+  clampCurrencyBalance, createTeacherCurrencyDeductionLetter, normalizeCurrencyBalances,
+  normalizeCurrencyHistory,
+} from './currency.js';
+import { STUDENT_PET_STORAGE_KEY } from './studentPet.js';
 
 export const CLASSROOM_ROLE_MISSION_REWARD = 20;
 export const CLASSROOM_ROLE_MISSION_STORAGE_KEY = 'classroomRoleMission-v1';
@@ -104,11 +109,26 @@ export const normalizeClassroomRoleMissionSettings = (
   };
 };
 
+export const isClassroomRoleSchoolDay = (dateKey: string) => {
+  const timestamp = parseDateKeyAtUtcNoon(dateKey);
+  if (timestamp === null) return false;
+  const day = new Date(timestamp).getUTCDay();
+  return day !== 0 && day !== 6;
+};
+
+const getSchoolDayIndex = (timestamp: number) => {
+  const day = Math.floor(timestamp / 86_400_000);
+  // 1970-01-05 is Monday; Saturday and Sunday keep Friday's index.
+  const mondayOffset = day - 4;
+  const week = Math.floor(mondayOffset / 7);
+  return week * 5 + Math.min(mondayOffset - week * 7, 4);
+};
+
 const getDateOffset = (anchorDateKey: string, dateKey: string) => {
   const anchorTimestamp = parseDateKeyAtUtcNoon(anchorDateKey);
   const dateTimestamp = parseDateKeyAtUtcNoon(dateKey);
   if (anchorTimestamp === null || dateTimestamp === null) return 0;
-  return Math.floor((dateTimestamp - anchorTimestamp) / 86_400_000);
+  return getSchoolDayIndex(dateTimestamp) - getSchoolDayIndex(anchorTimestamp);
 };
 
 const wrapStudentNumber = (value: number) => (
@@ -135,7 +155,7 @@ export const getStudentClassroomRole = (
   settingsValue: unknown,
   studentNumber: number,
   dateKey = getTodayClassroomRoleDateKey(),
-) => getClassroomRoleAssignments(settingsValue, dateKey)
+) => !isClassroomRoleSchoolDay(dateKey) ? null : getClassroomRoleAssignments(settingsValue, dateKey)
   .find((assignment) => assignment.studentNumber === studentNumber) ?? null;
 
 export const setClassroomRoleMissionStartForDate = (
@@ -203,8 +223,50 @@ export const getClassroomRoleMissionBalanceDelta = (
     : -CLASSROOM_ROLE_MISSION_REWARD;
 };
 
+export const applyClassroomRoleMissionResultInSettings = (
+  value: unknown,
+  { studentNumber, nextResult, dateKey, requestId, createdAt }: {
+    studentNumber: number;
+    nextResult: ClassroomRoleMissionResult | undefined;
+    dateKey: string;
+    requestId: string;
+    createdAt: string;
+  },
+): Record<string, unknown> => {
+  const current = isRecord(value) ? value : {};
+  const settings = normalizeClassroomRoleMissionSettings(current.classroomRoleMission);
+  if (!isClassroomRoleSchoolDay(dateKey) || !getStudentClassroomRole(settings, studentNumber, dateKey)) return current;
+  const studentKey = String(studentNumber);
+  const previousResult = settings.results[dateKey]?.[studentKey];
+  const history = normalizeCurrencyHistory(current.currencyHistory);
+  const historyId = `classroom-role-${requestId}`;
+  if (previousResult === nextResult || history[studentKey]?.some((entry) => entry.id === historyId)) return current;
+  const balances = normalizeCurrencyBalances(current.currencyBalances);
+  const before = balances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const after = clampCurrencyBalance(before + getClassroomRoleMissionBalanceDelta(previousResult, nextResult));
+  const nextHistory = appendCurrencyHistoryEntry(history, {
+    id: historyId, studentNumber, before, after, reason: 'classroom_role', createdAt,
+  });
+  return {
+    ...current,
+    currencyBalances: { ...(isRecord(current.currencyBalances) ? current.currencyBalances : {}), [studentKey]: after },
+    currencyHistory: { ...(isRecord(current.currencyHistory) ? current.currencyHistory : {}), [studentKey]: nextHistory[studentKey] },
+    classroomRoleMission: setClassroomRoleMissionResult(settings, studentNumber, nextResult, dateKey),
+    ...(nextResult === 'penalized' && before > after ? {
+      studentLife: createTeacherCurrencyDeductionLetter(current.studentLife, {
+        studentNumber, amount: before - after, teacherReason: '1인1역 제대로 하지 않음',
+        requestId: `classroom-role-${dateKey}-${studentNumber}`, createdAt,
+      }),
+    } : {}),
+  };
+};
+
 export const loadStoredClassroomRoleMissionSettings = () => {
   try {
+    const snapshot: unknown = JSON.parse(localStorage.getItem(STUDENT_PET_STORAGE_KEY) ?? 'null');
+    if (isRecord(snapshot) && 'classroomRoleMission' in snapshot) {
+      return normalizeClassroomRoleMissionSettings(snapshot.classroomRoleMission);
+    }
     const saved = localStorage.getItem(CLASSROOM_ROLE_MISSION_STORAGE_KEY);
     return normalizeClassroomRoleMissionSettings(saved ? JSON.parse(saved) : null);
   } catch (error) {
@@ -215,6 +277,13 @@ export const loadStoredClassroomRoleMissionSettings = () => {
 
 export const storeClassroomRoleMissionSettings = (value: unknown) => {
   try {
+    const snapshot: unknown = JSON.parse(localStorage.getItem(STUDENT_PET_STORAGE_KEY) ?? 'null');
+    if (isRecord(snapshot) && 'classroomRoleMission' in snapshot) {
+      localStorage.setItem(STUDENT_PET_STORAGE_KEY, JSON.stringify({
+        ...snapshot, classroomRoleMission: normalizeClassroomRoleMissionSettings(value),
+      }));
+      return true;
+    }
     localStorage.setItem(
       CLASSROOM_ROLE_MISSION_STORAGE_KEY,
       JSON.stringify(normalizeClassroomRoleMissionSettings(value)),

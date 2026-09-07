@@ -46,7 +46,7 @@
 
 ## SAFE PAGE QA
 
-- For layout-affecting edits, observe the latest code at exactly `1280x800`; check clipping, overlap, unintended scroll, first-screen fit, keyboard focus, and text zoom safety.
+- For layout-affecting edits, observe the latest code at browser-content `1280x650`, also `1280x600` and fullscreen `1280x800`; check clipping, overlap, unintended scroll, first-screen fit, keyboard focus, and text zoom safety.
 - Treat bids, balances, awards, donations, rewards, stock actions, letters, and shared settings as live data. Do not click their mutation controls against the real profile.
 - Exercise mutation flows only with mocks, isolated fake state, or a disposable local-only browser profile; reversing a live action is not restoration.
 - Entry registration can alter the device session. Use an existing disposable session or code-level checks for registration behavior.

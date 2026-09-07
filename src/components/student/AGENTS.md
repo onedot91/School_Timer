@@ -47,7 +47,7 @@ Student-facing screens and interaction primitives. `src/pages/AuctionPage.tsx` o
 - Student styles are global `.student-*` rules in `src/index.css`; component class names are a cross-file contract.
 - Reuse existing shell, header, card, action, dialog, and state classes before adding variants.
 - `AuctionPage` imports `src/classword.css`; keep classword-specific exceptions there rather than mixing selectors arbitrarily.
-- Layout work is Chromebook-first. Validate exact `1280x800` after the final layout-affecting edit.
+- Layout work is Chromebook-first. Validate browser-content `1280x650` after the final layout-affecting edit, plus `1280x600` and fullscreen `1280x800`. Device resolution includes browser chrome; use `100dvh` without subtracting it again.
 - Maintain keyboard focus visibility, reduced-motion behavior, text zoom safety, and bounded internal scrolling.
 
 ## QA AND ANTI-PATTERNS
@@ -55,5 +55,5 @@ Student-facing screens and interaction primitives. `src/pages/AuctionPage.tsx` o
 - Never exercise live balances, bids, awards, donations, rewards, purchases, letters, or mission writes as disposable QA.
 - Use isolated fake state, mocks, or a disposable local-only profile; code-level checks are preferred for mutation paths.
 - Clicking an inverse action is not restoration: clamping, history records, request IDs, and concurrent writes remain observable.
-- For read-only UI QA, cover hash back/forward behavior, disabled/pending states, modal focus return, Escape, and overflow at `1280x800`.
+- For read-only UI QA, cover hash back/forward behavior, disabled/pending states, modal focus return, Escape, and overflow at `1280x650` and the shorter `1280x600` viewport.
 - Do not move persistence into leaf components, duplicate normalizers, bypass request guards, or silently swallow typed failure outcomes.

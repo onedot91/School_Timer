@@ -27106,7 +27106,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   }
 
   .student-overview-view {
-    width: min(100%, var(--student-overview-content-width), calc(177.7778dvh - 16.4444rem));
+    width: min(100%, var(--student-overview-content-width), calc((100dvh - 2 * var(--student-shell-inset) - var(--student-shell-gap) - var(--student-overview-action-height)) * 16 / 9));
     min-width: 0;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) var(--student-overview-action-height);
@@ -27319,6 +27319,8 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-store-view[data-store-section="bank"] .student-bank-grid article,
   .student-store-view[data-store-section="securities"] .student-stock-grid article { align-content: center; }
 
+  .student-store-view[data-store-section="bank"] .student-economy-panel { grid-template-rows: minmax(0, 1fr); }
+  .student-store-view[data-store-section="bank"] .student-bank-grid { min-height: 0; }
   .student-store-view[data-store-section="bank"] .student-bank-grid article {
     grid-template-rows: auto auto auto;
     align-content: center;
@@ -28575,3 +28577,63 @@ body {
 .teacher-save-warning-dialog small { margin-top: .8rem; }
 .teacher-save-warning-dialog button:disabled { opacity: .5; }
 .teacher-save-warning-error { color: var(--teacher-urgent); }
+
+@media (min-width: 64rem) and (max-height: 45rem) {
+  .student-mode-page {
+    --student-shell-inset: .5rem;
+    --student-shell-gap: .5rem;
+    --student-header-height: 4rem;
+    --student-overview-action-height: 6rem;
+    --student-card-radius: 1rem;
+    --student-content-height: calc(100dvh - 5.5rem);
+    --student-today-friend-profile-size: clamp(11rem, 36dvh, 15rem);
+  }
+
+  .student-header-copy h1 { font-size: 1.75rem; }
+  .student-overview-destinations .student-section-icon { display: none; }
+  .student-overview-destinations .student-section-title { font-size: 1.25rem; white-space: nowrap; }
+  .student-overview-balance-dock .student-balance-detail { padding-block: .25rem; }
+
+  .student-store-view[data-store-section="auction"] .auction-room-shell { padding: .75rem; }
+  .student-store-view[data-store-section="auction"] .auction-current-items { gap: .5rem; }
+  .student-store-view[data-store-section="auction"] .auction-item-card { padding: .5rem .65rem !important; }
+  .student-store-view[data-store-section="auction"] .auction-item-card-content {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: .3rem .65rem;
+  }
+  .student-store-view[data-store-section="auction"] .auction-item-identity { grid-column: 1 / -1; grid-row: 1; }
+  .student-store-view[data-store-section="auction"] .auction-item-identity h3 { font-size: 1.2rem; line-height: 1.25; }
+  .student-store-view[data-store-section="auction"] .auction-item-current-bid { grid-column: 1; grid-row: 2; gap: .15rem; }
+  .student-store-view[data-store-section="auction"] .auction-item-current-bid > span { font-size: .875rem; }
+  .student-store-view[data-store-section="auction"] .auction-item-current-bid > strong { font-size: 1.5rem; }
+  .student-store-view[data-store-section="auction"] .auction-item-bidder {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 0;
+    align-self: center;
+    padding: 0;
+    border: 0;
+    gap: .4rem;
+  }
+  .student-store-view[data-store-section="auction"] .auction-item-bidder > img { width: 2.25rem; height: 2.25rem; }
+  .student-store-view[data-store-section="auction"] .auction-bid-panel { padding: .65rem .85rem; }
+  .student-store-view[data-store-section="auction"] .auction-bid-panel :is(input, button) { min-height: 2.75rem; }
+
+  .student-store-view[data-store-section="bank"] .student-bank-grid article {
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    align-content: stretch;
+  }
+  .student-store-view[data-store-section="bank"] .student-bank-card-scene {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: auto;
+    object-fit: contain;
+  }
+  .student-store-view[data-store-section="bank"] .student-bank-summary { height: 5rem; }
+
+  .student-today-friend-view .today-friend-form-fields { gap: .6rem; }
+  .student-today-friend-view .today-friend-field-card { padding: .75rem; }
+}

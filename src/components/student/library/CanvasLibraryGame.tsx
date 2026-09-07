@@ -586,6 +586,10 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   }, [carriedDraft]);
 
   useEffect(() => {
+    if (!modalRef.current) canvasRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
     mountedRef.current = true;
     audioRef.current = createLibraryAudio();
     audioRef.current.setEnabled(true);

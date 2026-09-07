@@ -1,6 +1,8 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import '../classword.css';
+import { reportSaveFailure } from '../lib/saveFailureClient';
+import { isReadOnlyDataMode } from '../lib/dataMode';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
 import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
@@ -214,11 +216,11 @@ import {
 } from '../lib/currency';
 import {
   getClassroomRoleAssignments,
-  getClassroomRoleMissionBalanceDelta,
+  applyClassroomRoleMissionResultInSettings,
+  isClassroomRoleSchoolDay,
   getTodayClassroomRoleDateKey,
   loadStoredClassroomRoleMissionSettings,
   normalizeClassroomRoleMissionSettings,
-  setClassroomRoleMissionResult,
   setClassroomRoleMissionStartForDate,
   storeClassroomRoleMissionSettings,
   type ClassroomRoleMissionResult,
@@ -3866,6 +3868,9 @@ export default function TimerPage() {
       ? normalizeAuctionAwards(null, AUCTION_ITEM_IDS)
       : loadStoredStudentPetSnapshot().auctionAwards
   ));
+  const [isClassroomRoleSaving, setIsClassroomRoleSaving] = useState(false);
+  const classroomRoleSavingRef = useRef(false);
+  const [classroomRoleError, setClassroomRoleError] = useState('');
   const [classroomRoleMission, setClassroomRoleMission] = useState<ClassroomRoleMissionSettings>(
     loadStoredClassroomRoleMissionSettings,
   );
@@ -4471,6 +4476,7 @@ export default function TimerPage() {
       ? lastPersistedAuctionMissionsRef.current
       : normalizeAuctionMissions(auctionMissions);
   const todayClassroomRoleDateKey = getTodayClassroomRoleDateKey();
+  const isTodayClassroomRoleSchoolDay = isClassroomRoleSchoolDay(todayClassroomRoleDateKey);
   const todayClassroomRoleAssignments = getClassroomRoleAssignments(
     { ...classroomRoleMission, enabled: true },
     todayClassroomRoleDateKey,
@@ -7184,6 +7190,7 @@ export default function TimerPage() {
   };
 
   const updateTodayClassroomRoleStart = (studentNumber: number) => {
+    if (!isClassroomRoleSchoolDay(getTodayClassroomRoleDateKey()) || classroomRoleSavingRef.current) return;
     setClassroomRoleMission((previous) => setClassroomRoleMissionStartForDate(
       previous,
       studentNumber,
@@ -7191,29 +7198,74 @@ export default function TimerPage() {
     ));
   };
 
-  const updateClassroomRoleMissionResult = (
+  const updateClassroomRoleMissionResult = async (
     studentNumber: number,
     result: ClassroomRoleMissionResult,
   ) => {
     const dateKey = getTodayClassroomRoleDateKey();
+    if (classroomRoleSavingRef.current || !isClassroomRoleSchoolDay(dateKey) || isReadOnlyDataMode) return;
     const currentSettings = normalizeClassroomRoleMissionSettings(classroomRoleMission, dateKey);
+    if (!currentSettings.enabled) return;
     const previousResult = currentSettings.results[dateKey]?.[String(studentNumber)];
     const nextResult = previousResult === result ? undefined : result;
-
-    const delta = getClassroomRoleMissionBalanceDelta(previousResult, nextResult);
-    const studentKey = String(studentNumber);
-    const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
-    const before = previousBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
-    const after = clampCurrencyBalance(before + delta);
-    const nextBalances = { ...previousBalances, [studentKey]: after };
-    const nextHistory = appendCurrencyHistoryEntry(currencyHistoryRef.current, {
-      studentNumber,
-      before,
-      after,
-      reason: 'classroom_role',
-    });
-    commitCurrencyAdjustment(nextBalances, nextHistory, 'student', after - before);
-    setClassroomRoleMission(setClassroomRoleMissionResult(currentSettings, studentNumber, nextResult, dateKey));
+    const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const createdAt = new Date().toISOString();
+    classroomRoleSavingRef.current = true;
+    setIsClassroomRoleSaving(true);
+    setClassroomRoleError('');
+    try {
+      const fallback = buildSharedSettingsSnapshot();
+      let savedValue: Record<string, unknown> = { ...fallback };
+      if (!isSupabaseSettingsEnabled) {
+        const snapshot = loadStoredStudentPetSnapshot();
+        savedValue = applyClassroomRoleMissionResultInSettings({ ...fallback, ...snapshot }, {
+          studentNumber, nextResult, dateKey, requestId, createdAt,
+        });
+        const stored = storeStudentPetSnapshot({
+          ...snapshot,
+          classroomRoleMission: normalizeClassroomRoleMissionSettings(savedValue.classroomRoleMission),
+          currencyBalances: normalizeCurrencyBalances(savedValue.currencyBalances),
+          currencyHistory: normalizeCurrencyHistory(savedValue.currencyHistory),
+          studentLife: normalizeStudentLifeState(savedValue.studentLife),
+        });
+        if (!stored) {
+          reportSaveFailure('settings', 'storage');
+          throw new Error('LOCAL_SAVE_FAILED');
+        }
+      } else {
+        const hasPendingSettings = sharedSettingsSaveTimeoutRef.current !== null;
+        if (sharedSettingsSaveTimeoutRef.current !== null) {
+          window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+          sharedSettingsSaveTimeoutRef.current = null;
+        }
+        isSharedSettingsSavePendingRef.current = true;
+        const updatedAt = await updateSharedSettings((currentValue) => {
+          const source = hasPendingSettings
+            ? mergeConcurrentCurrencyUpdatesIntoSettings(
+              currentValue, fallback, knownWeeklyMissionRewardIdsRef.current, knownAuctionAwardKeysRef.current,
+            )
+            : currentValue ?? fallback;
+          savedValue = applyClassroomRoleMissionResultInSettings(source, {
+            studentNumber, nextResult, dateKey, requestId, createdAt,
+          });
+          return savedValue;
+        });
+        lastSharedSettingsUpdatedAtRef.current = updatedAt;
+        skipNextSharedSettingsSaveRef.current = true;
+      }
+      commitCurrencyState(
+        normalizeCurrencyBalances(savedValue.currencyBalances),
+        normalizeCurrencyHistory(savedValue.currencyHistory),
+      );
+      setStudentLife(normalizeStudentLifeState(savedValue.studentLife));
+      setClassroomRoleMission(normalizeClassroomRoleMissionSettings(savedValue.classroomRoleMission));
+    } catch {
+      setClassroomRoleError('저장하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      isSharedSettingsSavePendingRef.current = false;
+      classroomRoleSavingRef.current = false;
+      setIsClassroomRoleSaving(false);
+    }
   };
 
   const getAwardSteps = (item: AuctionItem) => {
@@ -10491,13 +10543,14 @@ export default function TimerPage() {
             <div>
               <h3 className="section-title text-[1.05rem] font-black text-[#1F2523]">1인 1역</h3>
               <p className="mt-1 text-[0.82rem] font-bold text-[#65736C]">
-                칠판부터 물수건까지 각 1명, 우유는 2명입니다. 매일 담당 번호가 한 칸씩 이동합니다. 완료 20고마, 미수행 -20고마
+                평일마다 담당 번호가 한 칸씩 이동합니다. 완료 +20고마, 미수행 -20고마
               </p>
             </div>
             <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#CFE3D8] bg-[#F6FAF7] px-4 font-extrabold text-[#006241]">
               <input
                 type="checkbox"
                 checked={classroomRoleMission.enabled}
+                disabled={isClassroomRoleSaving}
                 onChange={(event) => setClassroomRoleMission((previous) => ({
                   ...previous,
                   enabled: event.target.checked,
@@ -10514,6 +10567,7 @@ export default function TimerPage() {
               onChange={(event) => updateTodayClassroomRoleStart(Number(event.target.value))}
               className="section-title h-11 rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] px-3 text-[0.95rem] font-black text-[#1F2523] outline-none focus:border-[#7FB59F]"
               aria-label="오늘 1인 1역 시작 학생 번호"
+              disabled={!isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
             >
               {CURRENCY_STUDENT_NUMBERS.map((studentNumber) => (
                 <option key={studentNumber} value={studentNumber}>{studentNumber}번</option>
@@ -10521,6 +10575,9 @@ export default function TimerPage() {
             </select>
           </label>
 
+          {!isTodayClassroomRoleSchoolDay && <p className="text-sm font-bold text-[#65736C]">주말에는 1인 1역을 쉬어요.</p>}
+          {classroomRoleError && <p role="alert" className="text-sm font-bold text-[#9B4A43]">{classroomRoleError}</p>}
+          {isClassroomRoleSaving && <p role="status" className="text-sm font-bold text-[#65736C]">저장 중</p>}
           <div className="grid gap-2 md:grid-cols-3">
             {todayClassroomRoleAssignments.map((assignment) => {
               const result = classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(assignment.studentNumber)];
@@ -10539,7 +10596,7 @@ export default function TimerPage() {
                     <button
                       type="button"
                       onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'rewarded')}
-                      disabled={!classroomRoleMission.enabled}
+                      disabled={!classroomRoleMission.enabled || !isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
                       aria-pressed={result === 'rewarded'}
                       className={`min-h-10 rounded-[0.75rem] border border-[#9CCDBE] px-2 text-[0.8rem] font-black text-[#006241] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:text-[#6F7D70] ${result === 'rewarded' ? 'bg-[#DDF2E9]' : 'bg-white'}`}
                     >
@@ -10548,7 +10605,7 @@ export default function TimerPage() {
                     <button
                       type="button"
                       onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'penalized')}
-                      disabled={!classroomRoleMission.enabled}
+                      disabled={!classroomRoleMission.enabled || !isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
                       aria-pressed={result === 'penalized'}
                       className={`min-h-10 rounded-[0.75rem] border border-[#E3AAA5] px-2 text-[0.8rem] font-black text-[#9B4A43] transition-colors hover:bg-[#FFF0ED] disabled:cursor-not-allowed disabled:text-[#7D6865] ${result === 'penalized' ? 'bg-[#FFE3DE]' : 'bg-white'}`}
                     >

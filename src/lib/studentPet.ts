@@ -23,6 +23,7 @@ import {
   type StudentLifeState,
 } from './studentLife';
 import { preserveLibraryLocalFields } from './libraryCompetitionLocalSnapshot.js';
+import { normalizeClassroomRoleMissionSettings, type ClassroomRoleMissionSettings } from './classroomRoleMission.js';
 
 export const STUDENT_PET_STORAGE_KEY = 'school-timer-student-pets-v1';
 export const STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY = 'school-timer-student-pet-position-overrides-v1';
@@ -62,6 +63,7 @@ export interface StudentPetState {
 export type StudentPetStates = Record<string, StudentPetState>;
 
 export interface StudentPetLocalSnapshot {
+  classroomRoleMission?: ClassroomRoleMissionSettings;
   studentPets: StudentPetStates;
   currencyBalances: CurrencyBalances;
   currencyHistory: CurrencyHistory;
@@ -412,19 +414,22 @@ export const loadStoredStudentPetSnapshot = (): StudentPetLocalSnapshot => {
   try {
     const saved = window.localStorage.getItem(STUDENT_PET_STORAGE_KEY);
     if (!saved) return { ...fallback, studentLife: loadStoredStudentLifeState() };
-    const parsed = JSON.parse(saved) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(saved);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return fallback;
+    const record: Record<string, unknown> = Object.fromEntries(Object.entries(parsed));
     return {
-      studentPets: normalizeStudentPetStates(parsed.studentPets),
-      currencyBalances: normalizeCurrencyBalances(parsed.currencyBalances),
-      currencyHistory: normalizeCurrencyHistory(parsed.currencyHistory),
-      studentEconomy: normalizeStudentEconomyStates(parsed.studentEconomy),
-      studentLife: 'studentLife' in parsed
-        ? normalizeStudentLifeState(parsed.studentLife)
+      ...('classroomRoleMission' in record ? { classroomRoleMission: normalizeClassroomRoleMissionSettings(record.classroomRoleMission) } : {}),
+      studentPets: normalizeStudentPetStates(record.studentPets),
+      currencyBalances: normalizeCurrencyBalances(record.currencyBalances),
+      currencyHistory: normalizeCurrencyHistory(record.currencyHistory),
+      studentEconomy: normalizeStudentEconomyStates(record.studentEconomy),
+      studentLife: 'studentLife' in record
+        ? normalizeStudentLifeState(record.studentLife)
         : loadStoredStudentLifeState(),
-      auctionItems: normalizeAuctionItems(parsed.auctionItems),
-      auctionBids: normalizeAuctionBids(parsed.auctionBids, AUCTION_ITEM_IDS),
-      auctionBidHistory: normalizeAuctionBidHistory(parsed.auctionBidHistory, AUCTION_ITEM_IDS),
-      auctionAwards: normalizeAuctionAwards(parsed.auctionAwards, AUCTION_ITEM_IDS),
+      auctionItems: normalizeAuctionItems(record.auctionItems),
+      auctionBids: normalizeAuctionBids(record.auctionBids, AUCTION_ITEM_IDS),
+      auctionBidHistory: normalizeAuctionBidHistory(record.auctionBidHistory, AUCTION_ITEM_IDS),
+      auctionAwards: normalizeAuctionAwards(record.auctionAwards, AUCTION_ITEM_IDS),
     };
   } catch (error) {
     if (error instanceof Error) return fallback;
@@ -439,8 +444,15 @@ export const storeStudentPetSnapshot = (
   const targetStorage = storage ?? (typeof window === 'undefined' ? null : window.localStorage);
   if (targetStorage === null) return false;
   try {
+    const saved = targetStorage.getItem?.(STUDENT_PET_STORAGE_KEY) ?? null;
+    const previous: unknown = saved ? JSON.parse(saved) : null;
+    const roleSettings = snapshot.classroomRoleMission ?? (
+      previous && typeof previous === 'object' && 'classroomRoleMission' in previous
+        ? normalizeClassroomRoleMissionSettings(previous.classroomRoleMission) : undefined
+    );
     targetStorage.setItem(STUDENT_PET_STORAGE_KEY, JSON.stringify(preserveLibraryLocalFields(
-      targetStorage.getItem?.(STUDENT_PET_STORAGE_KEY) ?? null, {
+      saved, {
+      ...(roleSettings ? { classroomRoleMission: normalizeClassroomRoleMissionSettings(roleSettings) } : {}),
       studentPets: normalizeStudentPetStates(snapshot.studentPets),
       currencyBalances: normalizeCurrencyBalances(snapshot.currencyBalances),
       currencyHistory: normalizeCurrencyHistory(snapshot.currencyHistory),

@@ -353,7 +353,7 @@ export const appendCurrencyHistoryEntry = (
   const createdAt = entry.createdAt ?? new Date().toISOString();
   const before = clampCurrencyBalance(entry.before);
   const after = clampCurrencyBalance(entry.after);
-  if (before === after) return normalizedHistory;
+  if (before === after && entry.reason !== 'classroom_role') return normalizedHistory;
 
   return {
     ...normalizedHistory,
@@ -370,6 +370,36 @@ export const appendCurrencyHistoryEntry = (
       ...(normalizedHistory[studentKey] ?? []),
     ],
   };
+};
+
+export const createTeacherCurrencyDeductionLetter = (
+  studentLife: unknown,
+  { studentNumber, amount, teacherReason, requestId, createdAt, depositDeduction = 0 }: {
+    studentNumber: number;
+    amount: number;
+    teacherReason: string;
+    requestId: string;
+    createdAt: string;
+    depositDeduction?: number;
+  },
+) => {
+  return createStudentLetter(normalizeStudentLifeState(studentLife), {
+    id: `teacher-deduction-letter-${requestId}`,
+    recipient: studentNumber,
+    senderLabel: '선생님',
+    senderStudentNumber: null,
+    title: '고마 차감 안내',
+    content: [
+      `선생님이 ${amount.toLocaleString('ko-KR')}고마를 차감했어요.`,
+      '',
+      '차감 사유',
+      `: ${teacherReason.trim().slice(0, 60)}`,
+      ...(depositDeduction > 0
+        ? ['', `보유 고마가 부족해 ${depositDeduction.toLocaleString('ko-KR')}고마는 예금에서 사용했어요.`]
+        : []),
+    ].join('\n'),
+    createdAt,
+  });
 };
 
 export const applyTeacherCurrencyDeductionInSettings = (
@@ -430,22 +460,9 @@ export const applyTeacherCurrencyDeductionInSettings = (
     ...history,
     [studentKey]: [historyEntry, ...(history[studentKey] ?? [])],
   });
-  const nextLife = createStudentLetter(normalizeStudentLifeState(current.studentLife), {
-    id: `teacher-deduction-letter-${requestId}`,
-    recipient: studentNumber,
-    senderLabel: '선생님',
-    senderStudentNumber: null,
-    title: '고마 차감 안내',
-    content: [
-      `선생님이 ${amount.toLocaleString('ko-KR')}고마를 차감했어요.`,
-      '',
-      '차감 사유',
-      `: ${normalizedReason}`,
-      ...(deduction.depositDeduction > 0
-        ? ['', `보유 고마가 부족해 ${deduction.depositDeduction.toLocaleString('ko-KR')}고마는 예금에서 사용했어요.`]
-        : []),
-    ].join('\n'),
-    createdAt,
+  const nextLife = createTeacherCurrencyDeductionLetter(current.studentLife, {
+    studentNumber, amount, teacherReason: normalizedReason, requestId, createdAt,
+    depositDeduction: deduction.depositDeduction,
   });
 
   return {

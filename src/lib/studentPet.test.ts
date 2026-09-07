@@ -1,7 +1,11 @@
+import { applyClassroomRoleMissionResultInSettings, loadStoredClassroomRoleMissionSettings, normalizeClassroomRoleMissionSettings, storeClassroomRoleMissionSettings, CLASSROOM_ROLE_MISSION_STORAGE_KEY } from './classroomRoleMission.js';
+import { normalizeCurrencyBalances, normalizeCurrencyHistory } from './currency.js';
+import { normalizeStudentLifeState } from './studentLife.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   STUDENT_PET_HATCH_AMOUNT,
+  STUDENT_PET_STORAGE_KEY,
   applyStudentPetPositionOverrides,
   feedStudentPetEgg,
   getStudentPetState,
@@ -180,4 +184,62 @@ test('a newly hatched pet needs a name before the name request is cleared', () =
   assert.equal(named?.name, '보리');
   assert.equal(named?.pendingNamePetId, null);
   assert.deepEqual(normalizeStudentPetStates({ 2: named })['2'], named);
+});
+
+
+test('역할 차감의 잔액·결과·우편은 저장 실패와 재진입에서도 함께 유지된다', () => {
+  const data = new Map<string, string>();
+  let failSnapshot = false;
+  const storage = {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      if (key === CLASSROOM_ROLE_MISSION_STORAGE_KEY || failSnapshot) throw new Error('QUOTA');
+      data.set(key, value);
+    },
+  };
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { localStorage: storage } });
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+  try {
+    const role = normalizeClassroomRoleMissionSettings({ enabled: true, anchorDateKey: '2026-09-07', anchorStartStudentNumber: 3 });
+    data.set(CLASSROOM_ROLE_MISSION_STORAGE_KEY, JSON.stringify(role));
+    const initial = { ...loadStoredStudentPetSnapshot(), currencyBalances: normalizeCurrencyBalances({ 3: 100, 4: 333 }) };
+    assert.equal(storeStudentPetSnapshot(initial), true);
+    const applyAndStore = (requestId: string) => {
+      const snapshot = loadStoredStudentPetSnapshot();
+      const next = applyClassroomRoleMissionResultInSettings({ ...snapshot, classroomRoleMission: loadStoredClassroomRoleMissionSettings() }, {
+        studentNumber: 3, nextResult: 'penalized', dateKey: '2026-09-07', requestId, createdAt: '2026-09-07T00:00:00.000Z',
+      });
+      return storeStudentPetSnapshot({ ...snapshot,
+        classroomRoleMission: normalizeClassroomRoleMissionSettings(next.classroomRoleMission),
+        currencyBalances: normalizeCurrencyBalances(next.currencyBalances),
+        currencyHistory: normalizeCurrencyHistory(next.currencyHistory),
+        studentLife: normalizeStudentLifeState(next.studentLife),
+      });
+    };
+    const before = data.get(STUDENT_PET_STORAGE_KEY);
+    failSnapshot = true;
+    assert.equal(applyAndStore('failed'), false);
+    assert.equal(data.get(STUDENT_PET_STORAGE_KEY), before);
+    failSnapshot = false;
+    assert.equal(applyAndStore('success'), true);
+    assert.equal(loadStoredClassroomRoleMissionSettings().results['2026-09-07']['3'], 'penalized');
+    assert.equal(applyAndStore('retry-after-reload'), true);
+    const reloaded = loadStoredStudentPetSnapshot();
+    assert.equal(reloaded.currencyBalances['3'], 80);
+    assert.equal(reloaded.currencyBalances['4'], 333);
+    assert.equal(reloaded.studentLife.letters.length, 1);
+    assert.equal(reloaded.currencyHistory['3'].length, 1);
+    assert.equal(storeClassroomRoleMissionSettings({ ...loadStoredClassroomRoleMissionSettings(), enabled: false }), true);
+    assert.equal(loadStoredClassroomRoleMissionSettings().enabled, false);
+    assert.equal(storeStudentPetSnapshot({ ...initial, currencyBalances: reloaded.currencyBalances, currencyHistory: reloaded.currencyHistory, studentLife: reloaded.studentLife }), true);
+    assert.equal(loadStoredClassroomRoleMissionSettings().results['2026-09-07']['3'], 'penalized');
+    assert.equal(loadStoredClassroomRoleMissionSettings().enabled, false);
+  } finally {
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+    if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  }
 });

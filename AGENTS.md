@@ -73,8 +73,8 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 - 학생의 공용 설정 변경은 `updateStudentSharedSettings(studentNumber, updater)`를 사용한다. 화면 표시용 정규화 결과를 전체 저장 데이터로 취급하지 않는다. 변경 시 학생 범위 GET → 저장 API 테스트로 다른 학생 데이터 보존을 검증한다. 상세 규칙은 `src/lib/AGENTS.md`를 따른다.
 - Storage keys, item/profile identifiers, JSONB keys, RPC signatures, and literal public-asset URL paths are compatibility contracts.
 - User-facing text is Korean. Preserve the warm cream/green/paper classroom identity and existing character assets.
-- Student UI is Chromebook-first. For layout work, observe `window.innerWidth === 1280` and `window.innerHeight === 800` before the change and again after the final layout edit.
-- At the final 1280×800 check, reject clipping, overlap, unintended document scrolling, or first-screen overflow. Additional width checks are not required unless requested; preserve keyboard access, text zoom, and overflow safety.
+- Student UI is Chromebook-first. The device resolution `1280×800` includes Chrome tabs/address bar and the OS shelf; it is not the web content viewport. Use `window.innerWidth === 1280` and `window.innerHeight === 650` as the primary conservative browser-content QA size, before changes and after the final layout edit. Also check `1280×600` for shorter windows and `1280×800` as a fullscreen regression.
+- Base layout on the actual CSS viewport (`100dvh`, container dimensions), never `screen.height`. Do not subtract browser chrome again from `100dvh`. At the final checks reject clipping, overlap, unreachable primary actions, and unintended document scrolling. Long lists/forms may scroll inside a bounded panel; preserve readable text, 44px controls, keyboard access, and text zoom. Do not shrink the whole UI with CSS zoom or transforms to force a fit.
 - Optional audio failures stay non-fatal; autoplay/device restrictions must not block core actions.
 
 ## UI 문구 최소화
