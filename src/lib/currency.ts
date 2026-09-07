@@ -476,6 +476,23 @@ export const hasDailyEmotionReward = (
   normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? []
 ).some((entry) => entry.id === getDailyEmotionRewardId(studentNumber, dateKey));
 
+const withStudentCurrencyReward = (
+  current: Record<string, unknown>,
+  studentKey: string,
+  balance: number,
+  entries: CurrencyHistoryEntry[],
+): Record<string, unknown> => {
+  const storedBalances = current.currencyBalances && typeof current.currencyBalances === 'object' && !Array.isArray(current.currencyBalances)
+    ? Object.fromEntries(Object.entries(current.currencyBalances)) : {};
+  const storedHistory = current.currencyHistory && typeof current.currencyHistory === 'object' && !Array.isArray(current.currencyHistory)
+    ? Object.fromEntries(Object.entries(current.currencyHistory)) : {};
+  return {
+    ...current,
+    currencyBalances: { ...storedBalances, [studentKey]: balance },
+    currencyHistory: { ...storedHistory, [studentKey]: entries },
+  };
+};
+
 export const claimDailyEmotionRewardInSettings = (
   value: unknown,
   studentNumber: number,
@@ -517,14 +534,8 @@ export const claimDailyEmotionRewardInSettings = (
       ...existingEntries,
     ],
   };
-  const nextBalances = { ...balances, [studentKey]: after };
-
   return {
-    value: {
-      ...current,
-      currencyBalances: nextBalances,
-      currencyHistory: nextHistory,
-    },
+    value: withStudentCurrencyReward(current, studentKey, after, nextHistory[studentKey]),
     awarded: true,
     balance: after,
     history: nextHistory,
@@ -595,14 +606,8 @@ export const claimWeeklyEmotionRewardInSettings = (
       ...existingEntries,
     ],
   };
-  const nextBalances = { ...balances, [studentKey]: after };
-
   return {
-    value: {
-      ...current,
-      currencyBalances: nextBalances,
-      currencyHistory: nextHistory,
-    },
+    value: withStudentCurrencyReward(current, studentKey, after, nextHistory[studentKey]),
     awarded: true,
     balance: after,
     history: nextHistory,
@@ -720,12 +725,12 @@ export const claimNumberBaseballRewardInSettings = (
       createdAt,
     }, ...existingEntries],
   };
-  const nextValue = {
-    ...current,
-    currencyBalances: { ...balances, [studentKey]: after },
-    currencyHistory: nextHistory,
+  return {
+    value: withStudentCurrencyReward(current, studentKey, after, nextHistory[studentKey]),
+    awarded: true,
+    balance: after,
+    history: nextHistory,
   };
-  return { value: nextValue, awarded: true, balance: after, history: nextHistory };
 };
 
 export const applyAuctionAwardToCurrencyState = (

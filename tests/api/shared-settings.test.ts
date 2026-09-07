@@ -3,6 +3,9 @@ import test from 'node:test';
 
 import handler from '../../api/shared-settings.js';
 import studentEconomyHandler from '../../api/student-economy.js';
+import { claimDailyEmotionRewardInSettings, claimNumberBaseballRewardInSettings, claimWeeklyEmotionRewardInSettings } from '../../src/lib/currency.js';
+import { appendNumberBaseballAttempt, createNumberBaseballAnswer, createNumberBaseballProgressEntry, getNumberBaseballGameId } from '../../src/lib/numberBaseball.js';
+import { createStudentEmotionEntry, upsertStudentEmotionEntry } from '../../src/lib/studentEmotion.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
@@ -48,6 +51,142 @@ const studentHeaders = (studentNumber: number) => ({
 const teacherHeaders = () => ({
   cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'teacher' }, SESSION_SECRET)}`,
   'sec-fetch-site': 'same-origin',
+});
+
+test('숫자 야구는 학생 범위 데이터로 완료와 보상을 저장하고 다른 학생 기록을 보존한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const createdAt = '2026-09-07T00:00:00.000Z';
+    const otherHistory = [{
+      id: 'other-reward', studentNumber: 8, before: 100, after: 140,
+      delta: 40, reason: 'manual', createdAt,
+    }];
+    const gameId = getNumberBaseballGameId(7, '2026-37');
+    const entry = appendNumberBaseballAttempt(
+      createNumberBaseballProgressEntry(gameId),
+      createNumberBaseballAnswer(7, '2026-37'),
+      createNumberBaseballAnswer(7, '2026-37'),
+      createdAt,
+    );
+    assert.ok(entry);
+    const previous = {
+      currencyBalances: { 7: 100, 8: 140 },
+      currencyHistory: { 7: [], 8: otherHistory },
+      studentNumberBaseball: {},
+    };
+    let savedValue: unknown;
+    globalThis.fetch = async (_input, init) => {
+      if (init?.method === 'PATCH') {
+        savedValue = JSON.parse(String(init.body)).value;
+        return Response.json([{ id: 'school-timer-main' }]);
+      }
+      return Response.json([{ id: 'school-timer-main', value: previous, updated_at: createdAt }]);
+    };
+    try {
+      const reward = claimNumberBaseballRewardInSettings({
+        currencyBalances: { 7: 100 }, currencyHistory: { 7: [] }, studentNumberBaseball: {},
+      }, 7, gameId, 20, createdAt);
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT', headers: studentHeaders(7),
+        body: {
+          value: { ...reward.value, studentNumberBaseball: { '7:2026-37': entry } },
+          expectedUpdatedAt: createdAt,
+        },
+      }, response);
+      assert.equal(result().statusCode, 200);
+      assert.deepEqual(savedValue, {
+        ...previous,
+        currencyBalances: { 7: 120, 8: 140 },
+        currencyHistory: { 7: reward.history['7'], 8: otherHistory },
+        studentNumberBaseball: { '7:2026-37': entry },
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+for (const weekComplete of [false, true]) {
+  test(`감정 구슬은 학생 범위에서 기록과 ${weekComplete ? '주간' : '일일'} 보상을 저장하고 재시도해도 중복 지급하지 않는다`, async () => {
+    await withEnvironment(async () => {
+      const originalFetch = globalThis.fetch;
+      const dates = ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11'];
+      const dateKey = weekComplete ? dates[4] : dates[0];
+      const createdAt = `${dateKey}T03:00:00.000Z`;
+      const entries = (weekComplete ? dates : [dateKey]).map((date) => (
+        createStudentEmotionEntry(7, 'happy', '연습 기록', new Date(`${date}T03:00:00.000Z`))
+      ));
+      const entry = entries.at(-1);
+      assert.ok(entry);
+      const otherEntry = createStudentEmotionEntry(8, 'calm', '다른 학생 기록', new Date(createdAt));
+      const previous = {
+        currencyBalances: { 7: 100, 8: 145 },
+        currencyHistory: { 7: [], 8: [{ id: 'preserve-other-history' }] },
+        studentEmotionHistory: { 7: entries.slice(0, -1), 8: [otherEntry] },
+      };
+      const fake = createStatefulPostgrest({ id: 'school-timer-main', value: previous, updated_at: createdAt });
+      globalThis.fetch = fake.fetch;
+      try {
+        let scoped: Record<string, unknown> = {
+          currencyBalances: { 7: 100 }, currencyHistory: { 7: [] },
+          studentEmotionHistory: { 7: entries.slice(0, -1) },
+        };
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const history = upsertStudentEmotionEntry({ 7: entries }, entry);
+          const daily = claimDailyEmotionRewardInSettings({ ...scoped, studentEmotionHistory: history }, 7, dateKey, createdAt);
+          const weekly = claimWeeklyEmotionRewardInSettings(daily.value, 7, dates, createdAt);
+          const { response, result } = createResponse();
+          await handler({
+            method: 'PUT', headers: studentHeaders(7),
+            body: { value: weekly.value, expectedUpdatedAt: fake.state()?.updated_at },
+          }, response);
+          assert.equal(result().statusCode, 200);
+          const saved = fake.state()?.value;
+          assert.deepEqual(saved?.currencyBalances, { 7: weekComplete ? 130 : 105, 8: 145 });
+          assert.deepEqual(saved?.currencyHistory, { 7: weekly.history['7'], 8: previous.currencyHistory[8] });
+          assert.deepEqual(saved?.studentEmotionHistory, { 7: history['7'], 8: [otherEntry] });
+          assert.equal(weekly.history['7'].length, weekComplete ? 2 : 1);
+          scoped = weekly.value;
+        }
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  });
+}
+
+test('학생 입찰 저장은 다른 학생 잔액과 기존 낙찰 및 교사 설정을 보존한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const createdAt = '2026-09-07T03:00:00.000Z';
+    const previous = {
+      version: 2,
+      currencyBalances: { 7: 100, 8: 145 },
+      currencyHistory: { 8: [{ id: 'preserve-history' }] },
+      auctionBids: {},
+      auctionBidHistory: {},
+      auctionAwards: { 'past-item': { winner: 8, amount: 5, awardedAt: createdAt } },
+    };
+    const fake = createStatefulPostgrest({ id: 'school-timer-main', value: previous, updated_at: createdAt });
+    globalThis.fetch = fake.fetch;
+    try {
+      const auctionBids = { 'item-a': { amount: 10, bidder: 7 } };
+      const auctionBidHistory = { 'item-a': [{ itemId: 'item-a', amount: 10, bidder: 7, createdAt }] };
+      const { response, result } = createResponse();
+      await handler({
+        method: 'PUT', headers: studentHeaders(7),
+        body: { value: {
+          currencyBalances: { 7: 100 }, currencyHistory: {},
+          auctionAwards: previous.auctionAwards, auctionBids, auctionBidHistory,
+        }, expectedUpdatedAt: createdAt },
+      }, response);
+      assert.equal(result().statusCode, 200);
+      assert.deepEqual(fake.state()?.value, { ...previous, auctionBids, auctionBidHistory });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 
 test('unregistered devices cannot read shared classroom settings', async () => {

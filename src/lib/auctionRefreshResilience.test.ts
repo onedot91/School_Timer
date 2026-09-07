@@ -74,3 +74,14 @@ test('local failure story creation keeps the saved student life in the combined 
   assert.match(creationSource, /storeStudentLifeState\(result\.studentLife\)/);
   assert.match(creationSource, /storeStudentPetSnapshot\(\{\s*\.\.\.snapshot,\s*studentLife: result\.studentLife,/);
 });
+test('입찰 저장은 잔액과 교사 소유 설정을 다시 쓰지 않는다', async () => {
+  const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
+  const start = source.indexOf('const submitBid =');
+  const sharedStart = source.indexOf('await updateSharedSettings', start);
+  const sharedEnd = source.indexOf('await refreshAuctionState();', sharedStart);
+  assert.ok(start >= 0 && sharedStart > start && sharedEnd > sharedStart);
+  const sharedSave = source.slice(sharedStart, sharedEnd);
+  assert.match(sharedSave, /auctionBids:/);
+  assert.match(sharedSave, /auctionBidHistory:/);
+  assert.doesNotMatch(sharedSave, /(?:currencyBalances|currencyHistory|auctionAwards|version):/);
+});

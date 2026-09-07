@@ -53,7 +53,6 @@ export const useStudentNumberBaseballState = ({
   ), [currencyHistory, gameId, studentNumber]);
 
   const saveProgressAtKey = useCallback((targetProgressKey: string, entry: NumberBaseballProgressEntry) => {
-    setProgress((current) => ({ ...current, [targetProgressKey]: entry }));
     saveQueueRef.current = saveQueueRef.current.then(async () => {
       try {
         let savedProgress: StudentNumberBaseballProgress = {};

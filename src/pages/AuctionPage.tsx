@@ -1643,8 +1643,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
           return {
             ...currentObject,
-            version: 1,
-            currencyBalances: currentBalances,
             auctionBids: {
               ...currentBids,
               [item.id]: {
@@ -1664,7 +1662,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 },
               ],
             },
-            auctionAwards: currentAwards,
           };
         });
         await refreshAuctionState();
