@@ -426,7 +426,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-22-additional.png',
     alt: '22번 학생이 만든 추가 캐릭터',
     speech: '이겼다',
-    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+    walkTransform: { right: 'scaleX(-1)', left: 'none' },
   },
   {
     id: 'student-3-additional',

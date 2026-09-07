@@ -1,0 +1,5 @@
+<html lang="ko"><meta charset="utf-8"><style>body{background:#f5f1e8;font:20px sans-serif;display:flex;gap:50px}img{width:300px;height:300px;object-fit:contain}section{text-align:center}</style><script type="module">
+import {STUDENT_CHARACTERS} from '/src/lib/studentCharacters.ts';
+const c=STUDENT_CHARACTERS.find(c=>c.id==='student-22-additional');
+for(const direction of ['left','right']){const section=document.createElement('section');const label=document.createElement('p');label.textContent=direction==='left'?'← 왼쪽 이동':'오른쪽 이동 →';const image=document.createElement('img');image.src=c.imageSrc;image.style.transform=c.walkTransform[direction];section.append(label,image);document.body.append(section);}
+</script></html>

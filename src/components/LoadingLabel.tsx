@@ -1,6 +1,6 @@
 export default function LoadingLabel({ children = '불러오는 중' }: { readonly children?: string }) {
   const letters = Array.from(children);
-  const dotsStart = .9 + Math.max(0, letters.length - 1) * .08 + .4;
+  const dotsStart = .9 + Math.max(0, letters.length - 1) * .08 + .7;
   return (
     <span className="goma-loading-label">
       <span className="sr-only">{children}</span>
@@ -10,7 +10,7 @@ export default function LoadingLabel({ children = '불러오는 중' }: { readon
         ))}
       </span>
       <span className="goma-loading-dots" aria-hidden="true">
-        {[0, 1, 2].map((index) => <span key={index} style={{ animationDelay: `${dotsStart + index * .12}s` }}>.</span>)}
+        {[0, 1, 2].map((index) => <span key={index} style={{ animationDelay: `${dotsStart + index * .18}s` }}>.</span>)}
       </span>
     </span>
   );

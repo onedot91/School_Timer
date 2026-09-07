@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import '../classword.css';
 import { reportSaveFailure } from '../lib/saveFailureClient';
 import { isReadOnlyDataMode } from '../lib/dataMode';
+import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
 import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
@@ -3661,7 +3662,8 @@ const STUDENT_CHARACTER_SPAWN_SCALES = [0.85, 0.9, 0.95, 0.95, 1, 1, 1, 1.05, 1.
 
 const shouldStudentCharacterSpeak = (spawnOrder: number, characterIndex: number, streamIndex: number) => {
   const seed = (spawnOrder + 7) * 37 + (characterIndex + 3) * 19 + streamIndex * 11;
-  return seed % 17 === 0 || seed % 23 === 5 || seed % 29 === 9;
+  const speechChance = (1 - (16 / 17) * (22 / 23) * (28 / 29)) * 1.5;
+  return getStableHash(`student-speech:${seed}`) / 0x100000000 < speechChance;
 };
 
 const getStableHash = (value: string) => {
@@ -3752,6 +3754,7 @@ function StudentCharacterShowcase({
     '--student-character-depth-mid-b': path.depthMidB,
     '--student-character-depth-end': path.depthEnd,
     '--student-character-image-transform': imageTransform,
+    '--student-character-look-transform': character.walkTransform?.[direction === 'left' ? 'right' : 'left'] || (direction === 'left' ? 'none' : 'scaleX(-1)'),
     '--student-character-speech-top': character.speechTop || '-0.65rem',
   } as React.CSSProperties;
 
@@ -3759,6 +3762,7 @@ function StudentCharacterShowcase({
     <div
       key={character.id}
       className={`student-character-showcase student-character-walk-${direction}`}
+      data-direction={direction}
       aria-label={`${modeLabel} 자캐`}
       style={frameStyle}
     >
@@ -3775,6 +3779,9 @@ function StudentCharacterShowcase({
                   {character.speech}
                 </div>
               ) : null}
+              <span className="student-character-greeting" aria-hidden="true">안녕!</span>
+              <span className="student-character-look-question" aria-hidden="true">뭐지?</span>
+              <div className="student-character-gesture">
               <img
                 src={characterImageSrc}
                 alt={characterImageAlt}
@@ -3782,6 +3789,7 @@ function StudentCharacterShowcase({
                 draggable={false}
                 onError={() => onImageError(character.id)}
               />
+              </div>
             </div>
           </div>
         </div>
@@ -10817,7 +10825,7 @@ export default function TimerPage() {
         {noticeBanner}
         <div className="editorial-home-layout flex-1 flex min-h-0 flex-col lg:grid lg:grid-cols-[minmax(0,1.36fr)_minmax(22.75rem,28rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,29.5rem)] 2xl:grid-cols-[minmax(0,1.56fr)_minmax(24.5rem,30rem)]">
           {!isSettingsOpen && !isSettingsMaterialMounted ? (
-            <div className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">
+            <StudentCharacterStage>
               {activeStudentCharacterWalkers.map((walker) => (
                 <React.Fragment key={walker.renderKey}>
                   <StudentCharacterShowcase
@@ -10832,7 +10840,7 @@ export default function TimerPage() {
                   />
                 </React.Fragment>
               ))}
-            </div>
+            </StudentCharacterStage>
           ) : null}
           {/* Left: Timer Display */}
           <div className="timer-pane editorial-timer-pane relative flex h-full min-h-0 flex-col items-center justify-center p-4 md:p-6 lg:px-6 lg:py-7 xl:px-8 xl:py-8">

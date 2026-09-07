@@ -25,9 +25,12 @@ export default function GomaLoadingAnimation() {
           <g className="goma-scarf-tail"><image href={artwork} width="160" height="106.667" clipPath={`url(#${id}-scarf)`} /></g>
         </g>
         <g fill="#f4ce68" stroke="#cba043" strokeWidth="1" strokeLinejoin="miter" shapeRendering="crispEdges">
-          <path className="goma-spark goma-spark-one" d="M0-4h2v3h3v2H2v3H0V1h-3v-2h3Z" />
-          <path className="goma-spark goma-spark-two" d="M0-3h2v2h2v2H2v2H0V1h-2v-2h2Z" />
-          <path className="goma-spark goma-spark-three" d="M0 0h2v2H0Z" />
+          {['one', 'two', 'three'].map((star) => (
+            <g className={`goma-spark goma-spark-${star}`} key={star}>
+              <path d="M0 0h2v2H0Z" />
+              <path className="goma-spark-flash" d="M0-3h2v3h3v2H2v3H0V2h-3V0h3Z" />
+            </g>
+          ))}
         </g>
         <g fill="#eee4cb" stroke="#d9ccb1" strokeWidth="1" shapeRendering="crispEdges">
           <path className="goma-cloud goma-cloud-far" d="M0 0h4v-3h6v3h4v2h3v4H-3V2h3Z" />
