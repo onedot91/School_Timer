@@ -1,3 +1,4 @@
+import { reportSaveFailure } from './saveFailureClient.js';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   claimSudokuRewardInSettings,
@@ -76,7 +77,7 @@ export const useStudentSudokuState = ({
           });
         } else {
           savedProgress = { ...loadStoredStudentSudokuProgress(), [key]: entry };
-          if (!storeStudentSudokuProgress(savedProgress)) return false;
+          if (!storeStudentSudokuProgress(savedProgress)) { reportSaveFailure('sudoku', 'storage', studentNumber); return false; }
         }
         setStudentSudokuProgress(savedProgress);
         return true;
@@ -160,12 +161,12 @@ export const useStudentSudokuState = ({
             ...snapshot,
             currencyBalances: savedBalances,
             currencyHistory: savedHistory,
-          })) return false;
+          })) { reportSaveFailure('sudoku', 'storage', studentNumber); return false; }
           savedProgress = {
             ...loadStoredStudentSudokuProgress(),
             [key]: { ...entry, completedAt },
           };
-          if (!storeStudentSudokuProgress(savedProgress)) return false;
+          if (!storeStudentSudokuProgress(savedProgress)) { reportSaveFailure('sudoku', 'storage', studentNumber); return false; }
         }
         if (!completionSaved) return false;
         setStudentSudokuProgress(savedProgress);

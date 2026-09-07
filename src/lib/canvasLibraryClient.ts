@@ -1,3 +1,4 @@
+import { reportSaveFailure, withSaveFailureReporting } from './saveFailureClient.js';
 import { applyLibraryPlacementCommand, type LibraryPlacementCommand } from './canvasLibraryPlacement.js';
 import { appDataMode, type AppDataMode } from './dataMode.js';
 import { createBrowserRequestId } from './requestId.js';
@@ -266,7 +267,7 @@ const defaultClient = createCanvasLibraryClient({
   withLocalLock: withBrowserLocalLock,
 });
 
-export const placeCanvasLibraryBook = async (draft: LibraryBookDraft, slotId: number, seasonId?: string): Promise<CanvasLibraryPlacementResult> => {
+const placeCanvasLibraryBookWithoutReporting = async (draft: LibraryBookDraft, slotId: number, seasonId?: string): Promise<CanvasLibraryPlacementResult> => {
   if (appDataMode !== 'readonly' && (appDataMode === 'mock' || !isSupabaseSettingsEnabled)) {
     try {
       const latest = await libraryCompetitionClient.read('enter');
@@ -277,4 +278,17 @@ export const placeCanvasLibraryBook = async (draft: LibraryBookDraft, slotId: nu
     }
   }
   return defaultClient.placeBook(draft, slotId, seasonId);
+};
+
+export const placeCanvasLibraryBook = async (draft: LibraryBookDraft, slotId: number, seasonId?: string): Promise<CanvasLibraryPlacementResult> => {
+  const result = await withSaveFailureReporting('library', () => placeCanvasLibraryBookWithoutReporting(draft, slotId, seasonId), draft.studentNumber);
+  if (result.ok === false) {
+    const code = result.error.code;
+    if (code === 'LIBRARY_LOCAL_SAVE_FAILED') reportSaveFailure('library', 'storage', draft.studentNumber);
+    else if (code === 'LIBRARY_SAVE_FAILED') reportSaveFailure('library', 'server', draft.studentNumber);
+    else if (code === 'LIBRARY_NETWORK_FAILED') reportSaveFailure('library', 'network', draft.studentNumber);
+    else if (code === 'SHARED_SETTINGS_CONFLICT') reportSaveFailure('library', 'conflict', draft.studentNumber);
+    else if (code === 'INVALID_LIBRARY_RESPONSE') reportSaveFailure('library', 'response', draft.studentNumber);
+  }
+  return result;
 };

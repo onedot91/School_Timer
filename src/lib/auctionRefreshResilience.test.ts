@@ -78,10 +78,24 @@ test('입찰 저장은 잔액과 교사 소유 설정을 다시 쓰지 않는다
   const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
   const start = source.indexOf('const submitBid =');
   const sharedStart = source.indexOf('await updateStudentSharedSettings', start);
-  const sharedEnd = source.indexOf('await refreshAuctionState();', sharedStart);
+  const sharedEnd = source.indexOf('void refreshAuctionState({ forceFull: true });', sharedStart);
   assert.ok(start >= 0 && sharedStart > start && sharedEnd > sharedStart);
   const sharedSave = source.slice(sharedStart, sharedEnd);
   assert.match(sharedSave, /auctionBids:/);
   assert.match(sharedSave, /auctionBidHistory:/);
   assert.doesNotMatch(sharedSave, /(?:currencyBalances|currencyHistory|auctionAwards|version):/);
+});
+
+
+test('입찰은 서버 저장 확인 직후 반영하고 전체 조회는 백그라운드에서 진행한다', async () => {
+  const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
+  const start = source.indexOf('const submitBid =');
+  const end = source.indexOf('} else {', start);
+  const bid = source.slice(start, end);
+  assert.match(bid, /const updatedAt = await updateStudentSharedSettings/);
+  assert.match(bid, /setAuctionBids\(savedBids\)/);
+  assert.match(bid, /setAuctionBidHistory\(savedBidHistory\)/);
+  assert.match(bid, /isStudentSettingsSnapshotFresh\(updatedAt/);
+  assert.match(bid, /void refreshAuctionState\(\{ forceFull: true \}\)/);
+  assert.doesNotMatch(bid, /await refreshAuctionState/);
 });

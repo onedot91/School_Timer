@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { StudentRapidClickGuard } from './components/student/StudentRapidClickGuard';
 import { StudentProfanityGuard } from './components/student/StudentProfanityGuard';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
+import { startSaveFailureReporting } from './lib/saveFailureClient';
 import {
   clearDeviceSession,
   loadDeviceSession,
@@ -109,6 +110,8 @@ export default function RootApp() {
   const [deviceSession, setDeviceSession] = useState<BrowserDeviceSession | null>(null);
   const [isDeviceSessionReady, setIsDeviceSessionReady] = useState(!requiresDeviceRegistration);
   const [teacherEntryVisible, setTeacherEntryVisible] = useState(() => getStoredTeacherEntryVisible());
+
+  useEffect(() => startSaveFailureReporting(), [selectedEntryNumber]);
 
   const selectEntryNumber = async (studentNumber: number, registrationKey?: string) => {
     void preloadEntryPage(studentNumber)?.catch(() => undefined);

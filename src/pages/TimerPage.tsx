@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import '../classword.css';
+import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
 import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
@@ -11354,6 +11355,7 @@ export default function TimerPage() {
                         {scheduleYoutubeCount}개 영상
                       </button>
                     ) : null}
+                    <TeacherSaveFailureWarning returnFocusRef={settingsTriggerRef} />
                     <button
                       ref={settingsTriggerRef}
                       type="button"

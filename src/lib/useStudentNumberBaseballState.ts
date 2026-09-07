@@ -1,3 +1,4 @@
+import { reportSaveFailure } from './saveFailureClient.js';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   claimNumberBaseballRewardInSettings,
@@ -69,7 +70,7 @@ export const useStudentNumberBaseballState = ({
           });
         } else {
           savedProgress = { ...loadStoredStudentNumberBaseballProgress(), [targetProgressKey]: entry };
-          if (!storeStudentNumberBaseballProgress(savedProgress)) return false;
+          if (!storeStudentNumberBaseballProgress(savedProgress)) { reportSaveFailure('numberBaseball', 'storage', studentNumber); return false; }
         }
         setProgress(savedProgress);
         return true;
@@ -142,9 +143,9 @@ export const useStudentNumberBaseballState = ({
             ...snapshot,
             currencyBalances: savedBalances,
             currencyHistory: savedHistory,
-          })) return false;
+          })) { reportSaveFailure('numberBaseball', 'storage', studentNumber); return false; }
           savedProgress = { ...loadStoredStudentNumberBaseballProgress(), [progressKey]: entry };
-          if (!storeStudentNumberBaseballProgress(savedProgress)) return false;
+          if (!storeStudentNumberBaseballProgress(savedProgress)) { reportSaveFailure('numberBaseball', 'storage', studentNumber); return false; }
         }
         if (!completionSaved) return false;
         setProgress(savedProgress);

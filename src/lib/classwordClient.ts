@@ -1,3 +1,4 @@
+import { withSaveFailureReporting } from './saveFailureClient.js';
 import {
   getClasswordEntryRetentionCutoff,
   getKoreanDateKey,
@@ -72,7 +73,7 @@ export type SubmitClasswordQuizAnswerResult = {
 export class ClasswordClientError extends Error {
   readonly code: string;
 
-  constructor(code: string) {
+  constructor(code: string, readonly status?: number) {
     super(code);
     this.name = 'ClasswordClientError';
     this.code = code;
@@ -83,7 +84,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
 );
 
-const request = async (path: string, init?: RequestInit): Promise<unknown> => {
+const requestWithoutReporting = async (path: string, init?: RequestInit): Promise<unknown> => {
   const response = await fetch(path, {
     ...init,
     headers: {
@@ -97,11 +98,17 @@ const request = async (path: string, init?: RequestInit): Promise<unknown> => {
     const code = isRecord(value) && typeof value.error === 'string'
       ? value.error
       : `CLASSWORD_HTTP_${response.status}`;
-    throw new ClasswordClientError(code);
+    throw new ClasswordClientError(code, response.status);
   }
   return value;
 };
 
+
+const request = (path: string, init?: RequestInit): Promise<unknown> => (
+  init?.method && init.method !== 'GET'
+    ? withSaveFailureReporting('classword', () => requestWithoutReporting(path, init))
+    : requestWithoutReporting(path, init)
+);
 const dispatchLocalChange = (): void => {
   window.dispatchEvent(new CustomEvent(CLASSWORD_LOCAL_CHANGE_EVENT));
 };

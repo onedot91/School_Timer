@@ -28538,3 +28538,40 @@ body {
   .student-house-celebration-tool.is-hammer { left: 10%; }
   .student-house-celebration-tool.is-roller { right: 10%; }
 }
+
+.teacher-save-warning { flex-shrink: 0; }
+.teacher-save-warning-trigger {
+  display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: .35rem;
+  border: 1px solid var(--teacher-urgent); border-radius: var(--apple-radius-control);
+  background: var(--teacher-surface); color: var(--teacher-urgent); padding: .4rem .55rem;
+  font-size: .75rem; font-weight: 800; white-space: nowrap;
+}
+.teacher-save-warning-trigger b { font-variant-numeric: tabular-nums; }
+.teacher-save-warning-trigger:focus-visible, .teacher-save-warning-dialog button:focus-visible {
+  outline: 3px solid var(--apple-focus); outline-offset: 3px;
+}
+.teacher-save-warning-backdrop {
+  position: fixed; inset: 0; z-index: 400; display: grid; place-items: center;
+  padding: 1rem; background: var(--apple-scrim);
+}
+.teacher-save-warning-dialog {
+  display: flex; flex-direction: column; width: min(34rem, 100%); max-height: min(44rem, calc(100dvh - 2rem));
+  border: 1px solid var(--teacher-border); border-radius: var(--apple-radius-panel);
+  padding: 1.25rem; background: var(--teacher-surface); color: var(--teacher-text);
+  box-shadow: 0 20px 60px #18211e33;
+}
+.teacher-save-warning-dialog header, .teacher-save-warning-dialog h2 { display: flex; align-items: center; gap: .5rem; }
+.teacher-save-warning-dialog header { justify-content: space-between; flex-shrink: 0; }
+.teacher-save-warning-dialog h2 { font-size: 1.2rem; font-weight: 800; color: var(--teacher-urgent); }
+.teacher-save-warning-dialog p { margin-top: .75rem; font-size: .9rem; overflow-wrap: anywhere; }
+.teacher-save-warning-dialog button { min-height: 44px; min-width: 44px; border-radius: var(--apple-radius-control); }
+.teacher-save-warning-dialog header button { display: grid; place-items: center; }
+.teacher-save-warning-list { overflow-y: auto; min-height: 0; margin-top: .75rem; }
+.teacher-save-warning-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .8rem 0; border-bottom: 1px solid var(--teacher-border); }
+.teacher-save-warning-list li > div { min-width: 0; display: grid; gap: .2rem; overflow-wrap: anywhere; }
+.teacher-save-warning-list strong { font-size: .92rem; }
+.teacher-save-warning-list span, .teacher-save-warning-list time, .teacher-save-warning-dialog small { font-size: .8rem; color: var(--teacher-text-secondary); }
+.teacher-save-warning-list button { flex-shrink: 0; padding: .4rem .7rem; border: 1px solid var(--teacher-border); font-weight: 700; font-size: .8rem; }
+.teacher-save-warning-dialog small { margin-top: .8rem; }
+.teacher-save-warning-dialog button:disabled { opacity: .5; }
+.teacher-save-warning-error { color: var(--teacher-urgent); }

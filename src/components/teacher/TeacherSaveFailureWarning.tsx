@@ -1,0 +1,83 @@
+import { AlertTriangle, X } from 'lucide-react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
+import { SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
+import { acknowledgeSaveFailure, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
+import { useModalFocus } from '../../lib/useModalFocus';
+
+export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFocusRef: RefObject<HTMLButtonElement | null> }) {
+  const [alerts, setAlerts] = useState<SaveFailureAlert[]>([]);
+  const [unavailable, setUnavailable] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const refreshRef = useRef<() => Promise<void>>(async () => undefined);
+  useModalFocus({ dialogRef, isOpen, onDismiss: () => setIsOpen(false), returnFocusRef, isDismissible: savingId === null });
+
+  useEffect(() => {
+    let disposed = false;
+    let loading = false;
+    const refresh = async () => {
+      if (loading) return;
+      loading = true;
+      try {
+        const result = await loadSaveFailureAlerts();
+        if (!disposed) { setAlerts(result.alerts); setHasMore(result.hasMore); setUnavailable(false); }
+      } catch { if (!disposed) setUnavailable(true); }
+      finally { loading = false; }
+    };
+    refreshRef.current = refresh;
+    const onChange = () => void refresh();
+    onChange();
+    const interval = window.setInterval(onChange, SAVE_FAILURE_POLL_MS);
+    window.addEventListener(SAVE_FAILURE_CHANGE_EVENT, onChange);
+    window.addEventListener('storage', onChange);
+    window.addEventListener('online', onChange);
+    window.addEventListener('focus', onChange);
+    return () => {
+      disposed = true; window.clearInterval(interval);
+      window.removeEventListener(SAVE_FAILURE_CHANGE_EVENT, onChange);
+      window.removeEventListener('storage', onChange);
+      window.removeEventListener('online', onChange);
+      window.removeEventListener('focus', onChange);
+    };
+  }, []);
+
+  const acknowledge = async (alert: SaveFailureAlert) => {
+    setSavingId(alert.id); setError('');
+    try {
+      await acknowledgeSaveFailure(alert);
+      setAlerts((current) => current.filter((item) => item.id !== alert.id));
+      await refreshRef.current();
+    } catch { setError('확인 처리를 저장하지 못했습니다. 다시 시도해 주세요.'); }
+    finally { setSavingId(null); dialogRef.current?.focus({ preventScroll: true }); }
+  };
+  const warning = alerts.length > 0 || unavailable;
+  const label = alerts.length > 0 ? `저장 오류 ${alerts.length}${hasMore ? '+' : ''}건` : '저장 오류 확인 불가';
+  return <>
+    {warning ? <span className="teacher-save-warning" role="alert">
+      <button type="button" ref={triggerRef} className="teacher-save-warning-trigger" onClick={() => setIsOpen(true)} aria-label={label} title={label} aria-haspopup="dialog">
+        <AlertTriangle size={19} aria-hidden="true" /><span>저장 오류</span>{alerts.length > 0 ? <b>{alerts.length}{hasMore ? '+' : ''}</b> : null}
+      </button>
+    </span> : null}
+    {isOpen && createPortal(<div className="teacher-save-warning-backdrop teacher-settings-theme" onClick={() => { if (!savingId) setIsOpen(false); }}>
+      <div ref={dialogRef} tabIndex={-1} className="teacher-save-warning-dialog" role="dialog" aria-modal="true" aria-labelledby="save-warning-title" onClick={(event) => event.stopPropagation()}>
+        <header><h2 id="save-warning-title"><AlertTriangle size={22} aria-hidden="true" /> 저장 오류</h2><button type="button" aria-label="저장 오류 닫기" disabled={savingId !== null} onClick={() => setIsOpen(false)}><X size={22} /></button></header>
+        {alerts.length > 0 ? <p>기록이 저장되지 않았습니다. 오류 수정과 재저장이 필요합니다.</p> : null}
+        {unavailable ? <p className="teacher-save-warning-error" role="alert">오류 알림을 조회하지 못했습니다. 연결 상태를 확인해 주세요.</p> : null}
+        {error ? <p className="teacher-save-warning-error" role="alert">{error}</p> : null}
+        <ul className="teacher-save-warning-list">
+          {alerts.map((alert) => <li key={alert.id}>
+            <div><strong>{alert.studentNumber === 0 ? '교사' : `${alert.studentNumber}번 학생`} · {SAVE_FAILURE_FEATURES[alert.feature]}</strong><span>{SAVE_FAILURE_CODE_LABELS[alert.code]}</span><time dateTime={alert.occurredAt}>{new Date(alert.occurredAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></div>
+            <button type="button" disabled={savingId !== null} onClick={() => void acknowledge(alert)} aria-label={`${alert.studentNumber === 0 ? '교사' : `${alert.studentNumber}번 학생`} ${SAVE_FAILURE_FEATURES[alert.feature]} 오류 확인 처리`}>{savingId === alert.id ? '저장 중' : '확인 처리'}</button>
+          </li>)}
+        </ul>
+        {!warning ? <p role="status">미확인 저장 오류가 없습니다.</p> : null}
+        {alerts.length > 0 ? <small>확인 처리는 기록 복구가 아닙니다.</small> : null}
+      </div>
+    </div>, document.body)}
+  </>;
+}

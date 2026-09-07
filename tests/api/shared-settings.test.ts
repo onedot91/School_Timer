@@ -1210,9 +1210,11 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
     };
     const fake = createStatefulPostgrest({ id: 'school-timer-main', value: initial, updated_at: createdAt });
     const statuses: number[] = [];
+    const methods: string[] = [];
     let forceConflict = false;
     globalThis.fetch = async (input, init) => {
       if (String(input) !== '/api/shared-settings') return fake.fetch(input, init);
+      methods.push(init?.method ?? 'GET');
       if (forceConflict && init?.method === 'PUT') {
         forceConflict = false;
         const concurrent = createResponse();
@@ -1245,6 +1247,7 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
         const reward = claimNumberBaseballRewardInSettings(value, 7, 'roundtrip-game', 20, createdAt);
         return { ...reward.value, studentNumberBaseball: { '7:2026-37': { attempts: [] } } };
       });
+      assert.deepEqual(methods, ['GET', 'PUT'], '화면에서 조회한 학생 범위를 저장 전 다시 조회하지 않는다');
       await client.updateStudentSharedSettings(7, (value) => {
         const reward = claimDailyEmotionRewardInSettings(value, 7, '2026-09-07', createdAt);
         return { ...reward.value, studentEmotionHistory: { 7: [createStudentEmotionEntry(7, 'happy', '조회 후 저장', new Date(createdAt))] } };

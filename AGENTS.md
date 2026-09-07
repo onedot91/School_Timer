@@ -87,6 +87,9 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 
 ## ANTI-PATTERNS
 
+- 기록 저장 경로를 추가·수정할 때 최종 저장 실패는 `saveFailureClient`의 공통 보고 경로에 연결한다. 재시도로 복구된 충돌과 정상적인 업무 거절은 보고하지 않는다. 학생 번호·기능·오류 코드만 전송하며 학생 답변·비밀키·원문 오류 메시지는 포함하지 않는다.
+- 오류 알림은 실패한 학급 설정 저장과 독립적으로 전송하고, 전송 실패 시 재시도할 수 있도록 보관한다. 후속 저장 성공으로 이전 오류를 자동 삭제하지 않는다. 교사의 확인 처리는 기록 복구와 구분하며, 오류 조회 실패도 교사 경고로 표시한다.
+
 - Do not edit `dist/`, `tmp/`, `.omo/`, or `node_modules/` as source.
 - Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `DEVICE_REGISTRATION_KEY`, or `DEVICE_SESSION_SECRET` through a `VITE_` variable or browser import.
 - Do not import `src/server/` into browser bundles; it uses Node APIs and service credentials.

@@ -14,6 +14,10 @@ const asRecord = (value: unknown): Record<string, unknown> => (
     : {}
 );
 
+const unchanged = (previous: unknown, next: unknown) => (
+  previous === next || JSON.stringify(previous) === JSON.stringify(next)
+);
+
 export const createStudentSettingsUpdate = (
   currentValue: unknown,
   nextValue: unknown,
@@ -32,13 +36,13 @@ export const createStudentSettingsUpdate = (
   const value = { ...current };
 
   for (const field of STUDENT_MUTABLE_SHARED_FIELDS) {
-    if (next[field] === undefined) continue;
+    if (next[field] === undefined || unchanged(current[field], next[field])) continue;
     patch[field] = next[field];
     value[field] = next[field];
   }
   for (const field of STUDENT_MUTABLE_MAP_FIELDS) {
     const ownValue = asRecord(next[field])[studentKey];
-    if (ownValue === undefined) continue;
+    if (ownValue === undefined || unchanged(asRecord(current[field])[studentKey], ownValue)) continue;
     patch[field] = { [studentKey]: ownValue };
     value[field] = { ...asRecord(current[field]), [studentKey]: ownValue };
   }
@@ -46,6 +50,8 @@ export const createStudentSettingsUpdate = (
     if (next[field] === undefined) continue;
     const ownEntries = Object.fromEntries(Object.entries(asRecord(next[field]))
       .filter(([key]) => key.startsWith(`${studentKey}:`)));
+    const currentProgress = asRecord(current[field]);
+    if (Object.entries(ownEntries).every(([key, entry]) => unchanged(currentProgress[key], entry))) continue;
     // Progress maps are shared in GET and replaced in PUT; retain untouched entries verbatim.
     patch[field] = { ...asRecord(current[field]), ...ownEntries };
     value[field] = patch[field];

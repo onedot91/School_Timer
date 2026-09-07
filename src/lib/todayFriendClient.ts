@@ -1,3 +1,4 @@
+import { withSaveFailureReporting } from './saveFailureClient.js';
 import { appendCurrencyHistoryEntry, normalizeCurrencyBalances } from './currency';
 import { appDataMode } from './dataMode';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
@@ -31,7 +32,7 @@ import { getKoreanIsoWeekKey } from './weeklyMission';
 export class TodayFriendClientError extends Error {
   readonly code: string;
 
-  constructor(code: string) {
+  constructor(code: string, readonly status?: number) {
     super(code);
     this.name = 'TodayFriendClientError';
     this.code = code;
@@ -54,7 +55,7 @@ const isNullableString = (value: unknown): value is string | null => value === n
 
 const getWeekKey = (dateKey: string): string => getKoreanIsoWeekKey(new Date(`${dateKey}T12:00:00+09:00`));
 
-const request = async (path: string, init?: RequestInit): Promise<unknown> => {
+const requestWithoutReporting = async (path: string, init?: RequestInit): Promise<unknown> => {
   const response = await fetch(path, {
     ...init,
     headers: {
@@ -66,11 +67,17 @@ const request = async (path: string, init?: RequestInit): Promise<unknown> => {
   const value: unknown = await response.json();
   if (!response.ok) {
     const code = isRecord(value) && typeof value.error === 'string' ? value.error : `TODAY_FRIEND_HTTP_${response.status}`;
-    throw new TodayFriendClientError(code);
+    throw new TodayFriendClientError(code, response.status);
   }
   return value;
 };
 
+
+const request = (path: string, init?: RequestInit): Promise<unknown> => (
+  init?.method && init.method !== 'GET'
+    ? withSaveFailureReporting('todayFriend', () => requestWithoutReporting(path, init))
+    : requestWithoutReporting(path, init)
+);
 const prepareLocalState = (dateKey: string): TodayFriendState => {
   const prepared = ensureTodayFriendDay(loadLocalTodayFriendState(window.localStorage), getWeekKey(dateKey), dateKey);
   saveLocalTodayFriendState(window.localStorage, prepared);

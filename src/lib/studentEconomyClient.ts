@@ -1,3 +1,4 @@
+import { withSaveFailureReporting } from './saveFailureClient.js';
 import type { CurrencyBalances, CurrencyHistory } from './currency.js';
 import type { StudentEconomyAction, StudentEconomyState } from './studentEconomy.js';
 import type { StudentLifeState } from './studentLife.js';
@@ -48,38 +49,40 @@ export const updateStudentEconomy = async ({
   readonly action: StudentEconomyApiAction;
   readonly requestId: string;
 }): Promise<StudentEconomyUpdateResult> => {
-  const requestBody = JSON.stringify({ studentNumber, action, requestId });
-  let lastNetworkError: TypeError | null = null;
+  return withSaveFailureReporting('economy', async () => {
+    const requestBody = JSON.stringify({ studentNumber, action, requestId });
+    let lastNetworkError: TypeError | null = null;
 
-  for (let attempt = 0; attempt < REQUEST_ATTEMPT_LIMIT; attempt += 1) {
-    let response: Response;
-    try {
-      response = await fetch('/api/student-economy', {
-        method: 'POST',
-        credentials: 'same-origin',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody,
-      });
-    } catch (error) {
-      if (error instanceof TypeError && attempt + 1 < REQUEST_ATTEMPT_LIMIT) {
-        lastNetworkError = error;
-        continue;
+    for (let attempt = 0; attempt < REQUEST_ATTEMPT_LIMIT; attempt += 1) {
+      let response: Response;
+      try {
+        response = await fetch('/api/student-economy', {
+          method: 'POST',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+        });
+      } catch (error) {
+        if (error instanceof TypeError && attempt + 1 < REQUEST_ATTEMPT_LIMIT) {
+          lastNetworkError = error;
+          continue;
+        }
+        throw error;
       }
-      throw error;
+
+      const body: unknown = await response.json().catch(() => null);
+      if (response.ok) return body as StudentEconomyUpdateResult;
+
+      const requestError = new StudentEconomyRequestError(
+        getErrorCode(body) || `STUDENT_ECONOMY_HTTP_${response.status}`,
+        response.status,
+      );
+      if (attempt + 1 < REQUEST_ATTEMPT_LIMIT && RETRYABLE_STATUS_CODES.has(response.status)) continue;
+      throw requestError;
     }
 
-    const body: unknown = await response.json().catch(() => null);
-    if (response.ok) return body as StudentEconomyUpdateResult;
-
-    const requestError = new StudentEconomyRequestError(
-      getErrorCode(body) || `STUDENT_ECONOMY_HTTP_${response.status}`,
-      response.status,
-    );
-    if (attempt + 1 < REQUEST_ATTEMPT_LIMIT && RETRYABLE_STATUS_CODES.has(response.status)) continue;
-    throw requestError;
-  }
-
-  if (lastNetworkError) throw lastNetworkError;
-  throw new StudentEconomyRequestError('STUDENT_ECONOMY_UPDATE_FAILED', 502);
+    if (lastNetworkError) throw lastNetworkError;
+    throw new StudentEconomyRequestError('STUDENT_ECONOMY_UPDATE_FAILED', 502);
+  }, studentNumber);
 };

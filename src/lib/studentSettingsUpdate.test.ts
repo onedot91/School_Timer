@@ -22,7 +22,7 @@ test('학생 저장 요청은 기본값으로 채운 타인 데이터와 교사 
     studentEmotionHistory: { 7: [], 8: [] },
   }, 7);
   assert.deepEqual(prepared.patch, {
-    currencyBalances: { 7: 155 }, currencyHistory: { 7: [] },
+    currencyBalances: { 7: 155 },
     studentPets: { 7: { name: '새 이름' } }, studentEmotionHistory: { 7: [] },
   });
   assert.deepEqual(prepared.value, { ...current, ...prepared.patch });
@@ -74,4 +74,21 @@ test('학생 코드와 공용 헬퍼는 전체 설정 저장 함수를 직접 �
       }
     }
   }
+});
+
+
+test('변경하지 않은 대용량 기록은 재전송하지 않고 실제 바뀐 게임 필드만 전송한다', () => {
+  const current = {
+    studentLife: { letters: Array.from({ length: 300 }, (_, id) => ({ id, body: '기존 기록'.repeat(100) })) },
+    studentNumberBaseball: { '7:week': { attempts: [] }, '8:week': { attempts: ['123'] } },
+    studentSudoku: { '8:week': { cells: Array(81).fill(0) } },
+    currencyHistory: { 7: Array.from({ length: 300 }, (_, id) => ({ id, amount: 1 })) },
+    currencyBalances: { 7: 100 },
+  };
+  const next = { ...structuredClone(current), studentNumberBaseball: { ...current.studentNumberBaseball, '7:week': { attempts: ['456'] } } };
+  const result = createStudentSettingsUpdate(current, next, 7);
+  assert.deepEqual(Object.keys(result.patch), ['studentNumberBaseball']);
+  assert.deepEqual(result.value, next);
+  assert.deepEqual(createStudentSettingsUpdate(current, structuredClone(current), 7).patch, {});
+  assert.ok(JSON.stringify(result.patch).length < JSON.stringify(next).length / 100);
 });

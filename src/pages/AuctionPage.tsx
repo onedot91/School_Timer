@@ -1,3 +1,4 @@
+import { reportSaveFailure } from '../lib/saveFailureClient';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import '../classword.css';
 import { ArrowRight, X } from 'lucide-react';
@@ -1144,7 +1145,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         });
       } else {
         savedHistory = upsertStudentEmotionEntry(studentEmotionHistory, entry);
-        if (!storeStudentEmotionHistory(savedHistory)) return false;
+        if (!storeStudentEmotionHistory(savedHistory)) { reportSaveFailure('emotion', 'storage', studentNumber); return false; }
         const snapshot = loadStoredStudentPetSnapshot();
         const dailyReward = claimDailyEmotionRewardInSettings(
           { ...snapshot, studentEmotionHistory: savedHistory },
@@ -1164,7 +1165,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           ...snapshot,
           currencyBalances: savedBalances,
           currencyHistory: savedCurrencyHistory,
-        })) return false;
+        })) { reportSaveFailure('emotion', 'storage', studentNumber); return false; }
       }
       setStudentEmotionHistory(savedHistory);
       setCurrencyBalances(savedBalances);
@@ -1602,7 +1603,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     try {
       if (isSupabaseSettingsEnabled) {
-        await updateStudentSharedSettings(studentNumber, (currentValue) => {
+        let savedBids: AuctionBids = {};
+        let savedBidHistory: AuctionBidHistory = {};
+        const updatedAt = await updateStudentSharedSettings(studentNumber, (currentValue) => {
           const currentObject = currentValue && typeof currentValue === 'object'
             ? (currentValue as Record<string, unknown>)
             : {};
@@ -1641,30 +1644,25 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             throw new Error('DUPLICATE_BID_AMOUNT');
           }
 
-          return {
-            ...currentObject,
-            auctionBids: {
-              ...currentBids,
-              [item.id]: {
-                amount: bidAmount,
-                bidder: studentNumber,
-              },
-            },
-            auctionBidHistory: {
-              ...currentHistory,
-              [item.id]: [
-                ...(currentHistory[item.id] ?? []),
-                {
-                  itemId: item.id,
-                  bidder: studentNumber,
-                  amount: bidAmount,
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            },
+          savedBids = {
+            ...currentBids,
+            [item.id]: { amount: bidAmount, bidder: studentNumber },
           };
+          savedBidHistory = {
+            ...currentHistory,
+            [item.id]: [
+              ...(currentHistory[item.id] ?? []),
+              { itemId: item.id, bidder: studentNumber, amount: bidAmount, createdAt: new Date().toISOString() },
+            ],
+          };
+          return { ...currentObject, auctionBids: savedBids, auctionBidHistory: savedBidHistory };
         });
-        await refreshAuctionState();
+        if (isStudentSettingsSnapshotFresh(updatedAt ?? undefined, minimumSettingsUpdatedAtRef.current)) {
+          if (updatedAt) minimumSettingsUpdatedAtRef.current = updatedAt;
+          setAuctionBids(savedBids);
+          setAuctionBidHistory(savedBidHistory);
+        }
+        void refreshAuctionState({ forceFull: true });
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         const currentBids = snapshot.auctionBids;
@@ -1722,6 +1720,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       void playAuctionSound('bid');
       showStatusMessage('입찰이 완료되었습니다.');
     } catch (error) {
+      if (!isSupabaseSettingsEnabled && error instanceof Error && error.message === 'AUCTION_BID_LOCAL_SAVE_FAILED') reportSaveFailure('auction', 'storage', studentNumber);
       console.error('Failed to submit auction bid.', error);
       showStatusMessage(error instanceof Error && error.message === 'INSUFFICIENT_FUNDS'
         ? '예약금을 제외한 사용 가능 고마가 부족합니다.'
