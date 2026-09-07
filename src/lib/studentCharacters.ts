@@ -85,19 +85,6 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     },
   },
   {
-    id: 'student-6-wizard',
-    name: '마법사 자캐',
-    creatorName: '6번',
-    imageSrc: '/student-characters/character-6.png',
-    alt: '6번 학생이 만든 마법사 캐릭터',
-    themeColor: '#6D45B8',
-    speech: '연금술사의 토큰이 있으면 나한테 오도록 해!',
-    walkTransform: {
-      right: 'none',
-      left: 'none',
-    },
-  },
-  {
     id: 'student-7-orange-car',
     name: '주황 자동차 자캐',
     creatorName: '7번',
@@ -268,6 +255,105 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
       left: 'none',
     },
   },
+  {
+    id: 'student-2-additional',
+    name: '2번 추가 자캐',
+    creatorName: '2번',
+    imageSrc: '/student-characters/character-2-additional.png',
+    alt: '2번 학생이 만든 추가 캐릭터',
+    speech: '프랑스 우승 가자',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-5-additional',
+    name: '5번 추가 자캐',
+    creatorName: '5번',
+    imageSrc: '/student-characters/character-5-additional.png',
+    alt: '5번 학생이 만든 추가 캐릭터',
+    speech: '기쁘다!',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-8-additional',
+    name: '8번 추가 자캐',
+    creatorName: '8번',
+    imageSrc: '/student-characters/character-8-additional.png',
+    alt: '8번 학생이 만든 추가 캐릭터',
+    speech: '오니니 나래 렌코쿠 코주로',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-9-additional',
+    name: '9번 추가 자캐',
+    creatorName: '9번',
+    imageSrc: '/student-characters/character-9-additional.png',
+    alt: '9번 학생이 만든 추가 캐릭터',
+    speech: '따뜻하다, 잘해보자!',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-10-additional',
+    name: '10번 추가 자캐',
+    creatorName: '10번',
+    imageSrc: '/student-characters/character-10-additional.png',
+    alt: '10번 학생이 만든 추가 캐릭터',
+    speech: '야르',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-11-additional',
+    name: '11번 추가 자캐',
+    creatorName: '11번',
+    imageSrc: '/student-characters/character-11-additional.png',
+    alt: '11번 학생이 만든 추가 캐릭터',
+    speech: '농담',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-15-additional',
+    name: '15번 추가 자캐',
+    creatorName: '15번',
+    imageSrc: '/student-characters/character-15-additional.png',
+    alt: '15번 학생이 만든 추가 캐릭터',
+    speech: '야르',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-16-additional',
+    name: '16번 추가 자캐',
+    creatorName: '16번',
+    imageSrc: '/student-characters/character-16-additional.png',
+    alt: '16번 학생이 만든 추가 캐릭터',
+    speech: '뀨?',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-17-additional',
+    name: '17번 추가 자캐',
+    creatorName: '17번',
+    imageSrc: '/student-characters/character-17-additional.png',
+    alt: '17번 학생이 만든 추가 캐릭터',
+    speech: '안뇽하슈아!',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-21-additional',
+    name: '21번 추가 자캐',
+    creatorName: '21번',
+    imageSrc: '/student-characters/character-21-additional.png',
+    alt: '21번 학생이 만든 추가 캐릭터',
+    speech: '내 껌 어디갔노',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-23-additional',
+    name: '23번 추가 자캐',
+    creatorName: '23번',
+    imageSrc: '/student-characters/character-23-additional.png',
+    alt: '23번 학생이 만든 추가 캐릭터',
+    speech: '도마도!',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
 ];
 
 export interface StudentCharacterRosterSlot {
@@ -276,19 +362,23 @@ export interface StudentCharacterRosterSlot {
 }
 
 export const getStudentCharacterRoster = (): StudentCharacterRosterSlot[] => {
-  const characterByStudentNumber = new Map<number, StudentCharacter>();
+  const characterByStudentNumber = new Map<number, StudentCharacter[]>();
 
   STUDENT_CHARACTERS.forEach((character) => {
     const match = /^(\d+)번$/.exec(character.creatorName ?? '');
     const studentNumber = match ? Number(match[1]) : 0;
-    if (studentNumber >= 1 && studentNumber <= 23) characterByStudentNumber.set(studentNumber, character);
+    if (studentNumber >= 1 && studentNumber <= 23) {
+      const characters = characterByStudentNumber.get(studentNumber) ?? [];
+      characters.push(character);
+      characterByStudentNumber.set(studentNumber, characters);
+    }
   });
 
   return Array.from({ length: 23 }, (_, index) => {
     const studentNumber = index + 1;
-    return {
-      studentNumber,
-      character: characterByStudentNumber.get(studentNumber) ?? null,
-    };
-  });
+    const characters = characterByStudentNumber.get(studentNumber) ?? [];
+    return characters.length > 0
+      ? characters.map((character) => ({ studentNumber, character }))
+      : [{ studentNumber, character: null }];
+  }).flat();
 };

@@ -9713,7 +9713,7 @@ export default function TimerPage() {
             {teacherStudentCharacterRoster.map(({ studentNumber, character }) => {
               const speech = character?.speech ?? null;
               return (
-                <article key={studentNumber} data-empty={character === null ? 'true' : undefined} aria-label={character ? `${studentNumber}번 캐릭터, 멘트: ${speech ?? '멘트 대기'}` : `${studentNumber}번 캐릭터와 멘트 등록 대기`}>
+                <article key={character?.id ?? studentNumber} data-empty={character === null ? 'true' : undefined} aria-label={character ? `${studentNumber}번 캐릭터, 멘트: ${speech ?? '멘트 대기'}` : `${studentNumber}번 캐릭터와 멘트 등록 대기`}>
                   <strong>{studentNumber}번</strong>
                   <div className="teacher-shop-character-stage">
                     {character

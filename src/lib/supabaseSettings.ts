@@ -75,6 +75,8 @@ const fetchJsonOnce = async (input: string, init?: RequestInit) => {
       if (!response.ok) {
         const error = new Error(`SHARED_API_HTTP_${response.status}`);
         Reflect.set(error, 'status', response.status);
+        const body: unknown = await response.json().catch(() => null);
+        if (body && typeof body === 'object') Reflect.set(error, 'serverCode', Reflect.get(body, 'error'));
         const retryAfter = response.headers.get('Retry-After');
         if (retryAfter) {
           const delay = /^\d+(\.\d+)?$/.test(retryAfter)
@@ -93,6 +95,9 @@ const fetchJsonOnce = async (input: string, init?: RequestInit) => {
       }
       return value;
     })()]);
+  } catch (error) {
+    if (error instanceof Error || error instanceof DOMException) Reflect.set(error, 'endpoint', input.split('?')[0]);
+    throw error;
   } finally {
     clearTimeout(timer);
     init?.signal?.removeEventListener('abort', abort);

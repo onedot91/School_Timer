@@ -28557,7 +28557,7 @@ body {
   padding: 1rem; background: var(--apple-scrim);
 }
 .teacher-save-warning-dialog {
-  display: flex; flex-direction: column; width: min(34rem, 100%); max-height: min(44rem, calc(100dvh - 2rem));
+  display: flex; flex-direction: column; width: min(44rem, 100%); max-height: min(44rem, calc(100dvh - 2rem));
   border: 1px solid var(--teacher-border); border-radius: var(--apple-radius-panel);
   padding: 1.25rem; background: var(--teacher-surface); color: var(--teacher-text);
   box-shadow: 0 20px 60px #18211e33;
@@ -28569,8 +28569,14 @@ body {
 .teacher-save-warning-dialog button { min-height: 44px; min-width: 44px; border-radius: var(--apple-radius-control); }
 .teacher-save-warning-dialog header button { display: grid; place-items: center; }
 .teacher-save-warning-list { overflow-y: auto; min-height: 0; margin-top: .75rem; }
-.teacher-save-warning-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .8rem 0; border-bottom: 1px solid var(--teacher-border); }
+.teacher-save-warning-list li { display: flex; flex-direction: column; align-items: stretch; gap: .65rem; padding: 1rem .2rem; border-bottom: 1px solid var(--teacher-border); }
 .teacher-save-warning-list li > div { min-width: 0; display: grid; gap: .2rem; overflow-wrap: anywhere; }
+.teacher-save-warning-list li p, .teacher-save-warning-list li small { margin-top: 0; }
+.teacher-save-warning-action { padding: .65rem; border-left: 3px solid var(--teacher-border); }
+.teacher-save-warning-list li .teacher-save-warning-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+.teacher-save-warning-list summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; font-size: .85rem; font-weight: 700; }
+.teacher-save-warning-list textarea { display: block; width: 100%; min-height: 8rem; resize: vertical; border: 1px solid var(--teacher-border); border-radius: var(--apple-radius-control); padding: .65rem; background: var(--teacher-surface); color: var(--teacher-text); font-size: .8rem; }
+.teacher-save-warning-list summary:focus-visible, .teacher-save-warning-list textarea:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: -3px; }
 .teacher-save-warning-list strong { font-size: .92rem; }
 .teacher-save-warning-list span, .teacher-save-warning-list time, .teacher-save-warning-dialog small { font-size: .8rem; color: var(--teacher-text-secondary); }
 .teacher-save-warning-list button { flex-shrink: 0; padding: .4rem .7rem; border: 1px solid var(--teacher-border); font-weight: 700; font-size: .8rem; }

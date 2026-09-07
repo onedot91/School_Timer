@@ -56,6 +56,15 @@ test('save alerts use independent rows, enforce roles, and retain acknowledgemen
     assert.equal((await invoke('POST', report)).status, 200);
     assert.deepEqual((await invoke('GET', undefined, true)).value, { alerts: [{ ...newer, acknowledgedAt: null }], hasMore: false });
     assert.equal(rows.size, 2);
+    const diagnosticReport = { ...report, id: 'failure-diagnostic-789', diagnostics: { errorCode: 'SHARED_SETTINGS_WRITE_FAILED', httpStatus: 502, endpoint: '/api/shared-settings', online: false } };
+    assert.equal((await invoke('POST', { ...diagnosticReport, diagnostics: { ...diagnosticReport.diagnostics, message: 'private content', requestBody: 'secret' } })).status, 200);
+    assert.deepEqual((await invoke('GET', undefined, true)).value, { alerts: [{ ...newer, acknowledgedAt: null }, { ...diagnosticReport, acknowledgedAt: null }], hasMore: false });
+    assert.equal((await invoke('POST', { action: 'acknowledge', alert: diagnosticReport }, true)).status, 200);
+    assert.equal((await invoke('POST', diagnosticReport)).status, 200);
+    const storedDiagnostic = rows.get(`${SAVE_FAILURE_ROW_PREFIX}3-${diagnosticReport.id}`);
+    assert.deepEqual(storedDiagnostic?.diagnostics, diagnosticReport.diagnostics);
+    assert.equal(typeof storedDiagnostic?.acknowledgedAt, 'string');
+    assert.deepEqual((await invoke('GET', undefined, true)).value, { alerts: [{ ...newer, acknowledgedAt: null }], hasMore: false });
     t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 503 }));
     assert.equal((await invoke('GET', undefined, true)).status, 502);
     assert.equal((await invoke('POST', report)).status, 502);

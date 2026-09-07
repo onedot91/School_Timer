@@ -1,7 +1,8 @@
 import { isReadOnlyDataMode } from './dataMode.js';
 import { isSupabaseSettingsEnabled } from './supabaseConfig.js';
 import { createBrowserRequestId } from './requestId.js';
-import { classifySaveFailure, parseSaveFailureAlert, SAVE_FAILURE_POLL_MS, type SaveFailureAlert, type SaveFailureCode, type SaveFailureFeature } from './saveFailure.js';
+import { classifySaveFailure, parseSaveFailureAlert, parseSaveFailureDiagnostics, SAVE_FAILURE_POLL_MS, type SaveFailureAlert, type SaveFailureCode, type SaveFailureFeature, type SaveFailureDiagnostics } from './saveFailure.js';
+import { collectSaveFailureDiagnostics } from './saveFailureDiagnostics.js';
 
 export const SAVE_FAILURE_STORAGE_KEY = 'school-timer-save-failures-v1';
 export const SAVE_FAILURE_CHANGE_EVENT = 'school-timer-save-failure-change';
@@ -46,14 +47,18 @@ export const flushSaveFailureReports = async () => {
   } finally { flushing = false; }
 };
 
-export const reportSaveFailure = (feature: SaveFailureFeature, code: SaveFailureCode, studentNumber?: number) => {
+export const reportSaveFailure = (feature: SaveFailureFeature, code: SaveFailureCode, studentNumber?: number, details?: SaveFailureDiagnostics) => {
   if (typeof window === 'undefined' || isReadOnlyDataMode) return;
   try {
     const actor = studentNumber ?? currentActor();
     if (actor === null) return;
     const alerts = readLocal();
-    if (alerts.some((item) => item.studentNumber === actor && item.feature === feature && item.code === code && item.acknowledgedAt === null)) return;
-    writeLocal([...alerts, { id: createBrowserRequestId(), studentNumber: actor, feature, code, occurredAt: new Date().toISOString(), acknowledgedAt: null }]);
+    const diagnostics = parseSaveFailureDiagnostics({ ...captureSaveFailureContext(), ...details });
+    if (alerts.some((item) => item.studentNumber === actor && item.feature === feature && item.code === code && item.acknowledgedAt === null
+      && item.diagnostics?.errorCode === diagnostics?.errorCode && item.diagnostics?.causeCode === diagnostics?.causeCode
+      && item.diagnostics?.httpStatus === diagnostics?.httpStatus && item.diagnostics?.view === diagnostics?.view
+      && item.diagnostics?.endpoint === diagnostics?.endpoint && item.diagnostics?.online === diagnostics?.online)) return;
+    writeLocal([...alerts, { id: createBrowserRequestId(), studentNumber: actor, feature, code, occurredAt: new Date().toISOString(), acknowledgedAt: null, ...(diagnostics ? { diagnostics } : {}) }]);
     void flushSaveFailureReports();
   } catch { /* Error reporting must never interrupt the original save result. */ }
 };
@@ -66,16 +71,35 @@ export const getSaveFailureFeature = (): SaveFailureFeature => {
   if (hash.includes('emotion')) return 'emotion';
   if (hash.includes('auction')) return 'auction';
   if (hash.includes('library')) return 'library';
+  if (hash.includes('donation')) return 'donation';
+  if (hash.includes('store-bank') || hash.includes('store-shop')) return 'economy';
+  if (hash.includes('classword')) return 'classword';
+  if (hash.includes('today-friend')) return 'todayFriend';
   if (hash.includes('overview')) return 'pet';
   return hash.startsWith('#student') ? 'studentLife' : 'settings';
 };
 
+const captureSaveFailureContext = (): SaveFailureDiagnostics => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const hash = window.location?.hash ?? '';
+    return parseSaveFailureDiagnostics({
+      view: hash.startsWith('#student-') ? hash.slice('#student-'.length) : 'teacher',
+      online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
+    }) ?? {};
+  } catch { return {}; }
+};
+
 export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, save: () => Promise<T>, studentNumber?: number): Promise<T> => {
+  const context = captureSaveFailureContext();
+  const actor = studentNumber ?? (typeof window === 'undefined' ? undefined : currentActor() ?? undefined);
   try { return await save(); }
   catch (error) {
     const code = classifySaveFailure(error);
     if (code) {
-      try { reportSaveFailure(feature, code, studentNumber); } catch { return Promise.reject(error); }
+      try { reportSaveFailure(feature, code, actor, collectSaveFailureDiagnostics(error, {
+        ...context, online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
+      })); } catch { return Promise.reject(error); }
     }
     throw error;
   }

@@ -28,7 +28,7 @@ test('actual save client reports final failures, preserves offline reports, and 
       assert.equal(String(input), '/api/shared-settings');
       if (init?.method === 'PUT') {
         if (conflictOnce) { conflictOnce = false; return Response.json({}, { status: 409 }); }
-        return Response.json({ updatedAt: '2026-09-07T00:00:01Z' }, { status });
+        return Response.json(status === 502 ? { error: 'SHARED_SETTINGS_WRITE_FAILED', message: 'private student content' } : { updatedAt: '2026-09-07T00:00:01Z' }, { status });
       }
       return Response.json({ id: 'school-timer-main', scope: 'full', value: {}, updated_at: '2026-09-07T00:00:00Z' });
     });
@@ -42,6 +42,7 @@ test('actual save client reports final failures, preserves offline reports, and 
       await assert.rejects(settings.updateStudentSharedSettings(3, () => ({})), /SHARED_SETTINGS_SAVE_UNCONFIRMED/);
       assert.equal(pending().at(-1)?.feature, feature);
       assert.equal(pending().at(-1)?.code, 'response');
+      assert.deepEqual(pending().at(-1)?.diagnostics, { errorCode: 'SHARED_SETTINGS_SAVE_UNCONFIRMED', causeCode: 'SHARED_SETTINGS_WRITE_FAILED', httpStatus: 502, errorName: 'Error', endpoint: '/api/shared-settings', view: hash.slice('#student-'.length), online: false });
     }
     assert.equal(sent.length, 0, 'offline reports stay on the device');
     assert.equal(pending().length, 3);
@@ -67,6 +68,16 @@ test('actual save client reports final failures, preserves offline reports, and 
     assert.equal(pending().length, 0);
     assert.equal(sent.length, 5);
     navigator.onLine = false;
+    location.hash = '#student-number-baseball';
+    await assert.rejects(client.withSaveFailureReporting('numberBaseball', async () => {
+      location.hash = '#student-overview';
+      storage.set('school-timer-entry-number-v1', '4');
+      throw new TypeError('private answer must not be reported');
+    }), TypeError);
+    assert.equal(pending().at(-1)?.studentNumber, 3, 'an in-flight failure retains the initiating student');
+    assert.equal(pending().at(-1)?.diagnostics?.view, 'number-baseball', 'navigation does not relabel the failing screen');
+    assert.ok(!JSON.stringify(pending()).includes('private answer'));
+    storage.set('school-timer-entry-number-v1', '3');
     t.mock.method(localStorage, 'setItem', () => { throw new DOMException('full', 'QuotaExceededError'); });
     const original = new TypeError('original save failed');
     await assert.rejects(client.withSaveFailureReporting('emotion', async () => { throw original; }, 3), (error) => error === original);
