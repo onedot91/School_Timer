@@ -14,7 +14,7 @@ test('등록된 이동 캐릭터를 번호에 연결하고 미등록 번호는 �
   const roster = getStudentCharacterRoster();
 
   assert.equal(roster[0]?.characters[0], STUDENT_CHARACTERS.find(({ creatorName }) => creatorName === '1번'));
-  for (const studentNumber of [6, 14, 19, 20]) {
+  for (const studentNumber of [20]) {
     assert.equal(roster.find((slot) => slot.studentNumber === studentNumber)?.characters.length, 0);
   }
 });
@@ -38,10 +38,17 @@ test('교사 캐릭터 카드에는 자캐 이름을 표시하지 않는다', as
 
 test('추가 캐릭터는 기존 캐릭터와 함께 번호에 연결된다', () => {
   const roster = getStudentCharacterRoster();
-  for (const studentNumber of [2, 5, 8, 9, 10, 11, 15, 16, 21, 23]) {
+  for (const studentNumber of [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 15, 16, 18, 21, 22, 23]) {
     assert.equal(roster.find((slot) => slot.studentNumber === studentNumber)?.characters.length, 2);
   }
   assert.equal(roster.find((slot) => slot.studentNumber === 17)?.characters.length, 1);
   assert.equal(roster.find((slot) => slot.studentNumber === 17)?.characters[0]?.speech, '안뇽하슈아!');
   assert.equal(roster.flatMap(({ characters }) => characters).length, STUDENT_CHARACTERS.length);
+});
+
+test('12번 추가 캐릭터는 좌우 멘트를 따로 표시하고 방향을 유지한다', () => {
+  const character = STUDENT_CHARACTERS.find(({ id }) => id === 'student-12-additional');
+  assert.deepEqual(character?.speechBubbles?.map(({ text }) => text), ['흥!', '에베베베']);
+  assert.deepEqual(character?.walkTransform, { right: 'none', left: 'none' });
+  for (const studentNumber of [6, 14, 19]) assert.equal(getStudentCharacterRoster().find((slot) => slot.studentNumber === studentNumber)?.characters.length, 1);
 });

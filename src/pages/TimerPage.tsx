@@ -3767,7 +3767,11 @@ function StudentCharacterShowcase({
           <div className="student-character-spawn-scale">
             <div className="student-character-frame">
               {shouldSpeak && character.speech && !shouldUseSpeechImage ? (
-                <div className="student-character-speech" aria-hidden="true">
+                character.speechBubbles ? character.speechBubbles.map((bubble) => (
+                  <div key={bubble.text} className="student-character-speech" style={{ left: bubble.left, top: bubble.top }} aria-hidden="true">
+                    {bubble.text}
+                  </div>
+                )) : <div className="student-character-speech" aria-hidden="true">
                   {character.speech}
                 </div>
               ) : null}
@@ -9717,14 +9721,17 @@ export default function TimerPage() {
                   const speech = character?.speech ?? null;
                   return (
                     <div className="teacher-shop-character-entry" key={character?.id ?? 'empty'}>
-                      <div className="teacher-shop-character-stage">
+                      <div className="teacher-shop-character-stage" data-dual-speech={character?.speechBubbles ? true : undefined}>
+                        {character?.speechBubbles?.map((bubble) => (
+                          <span className="teacher-shop-character-bubble" key={bubble.text} style={{ left: bubble.left, top: bubble.top }}>{bubble.text}</span>
+                        ))}
                         {character
                           ? <img src={character.imageSrc} alt={character.alt} width={192} height={192} loading="lazy" decoding="async" />
                           : <span className="teacher-shop-character-placeholder">캐릭터 대기</span>}
                       </div>
-                      <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
+                      {!character?.speechBubbles ? <p className="teacher-shop-character-message" data-empty={speech === null ? 'true' : undefined}>
                         {speech ? <q>{speech}</q> : <span>멘트 대기</span>}
-                      </p>
+                      </p> : null}
                     </div>
                   );
                 })}
