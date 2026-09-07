@@ -4498,6 +4498,11 @@ export default function TimerPage() {
     { ...classroomRoleMission, enabled: true },
     todayClassroomRoleDateKey,
   );
+  const hasUnpaidClassroomRoleReward = classroomRoleMission.enabled
+    && isTodayClassroomRoleSchoolDay
+    && todayClassroomRoleAssignments.some(({ studentNumber }) => (
+      classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(studentNumber)] === undefined
+    ));
 
   const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
     version: 1,
@@ -12475,6 +12480,14 @@ export default function TimerPage() {
                           >
                             <ItemIcon size={19} aria-hidden="true" />
                             <span>{item.label}</span>
+                            {item.panel === 'missions' && hasUnpaidClassroomRoleReward ? (
+                              <span
+                                className="settings-navigation-new-badge"
+                                aria-label="오늘 1인1역 보상 미지급"
+                              >
+                                미지급
+                              </span>
+                            ) : null}
                             {item.panel === 'mail' && unreadTeacherLetterCount > 0 ? (
                               <span
                                 className="settings-navigation-new-badge"
