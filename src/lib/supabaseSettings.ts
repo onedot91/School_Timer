@@ -41,7 +41,7 @@ const supabase = isSupabaseSettingsEnabled && !useServerProxy
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
-const fetchJson = async (input: string, init?: RequestInit) => {
+const fetchJsonOnce = async (input: string, init?: RequestInit) => {
   const response = await fetch(input, {
     credentials: 'same-origin',
     cache: 'no-store',
@@ -55,6 +55,20 @@ const fetchJson = async (input: string, init?: RequestInit) => {
   return response.status === 204 ? null : response.json();
 };
 
+const fetchJson = async (input: string, init?: RequestInit, retryNetwork = false) => {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await fetchJsonOnce(input, init);
+    } catch (error) {
+      // Replay the same conditional write: a lost receipt must not become an
+      // unconditional second mutation. HTTP conflicts use the rebase path below.
+      if (!retryNetwork || attempt >= 2 || !(error instanceof Error)
+        || !['TypeError', 'TimeoutError'].includes(error.name)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+  }
+};
+
 const SHARED_SETTINGS_UPDATE_RETRY_LIMIT = 5;
 
 export const loadSharedSettings = async () => {
@@ -66,7 +80,7 @@ export const loadSharedSettingsRow = async () => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const generation = settingsCacheGeneration;
-    const row = await fetchJson('/api/shared-settings') as SettingsRow | null;
+    const row = await fetchJson('/api/shared-settings', undefined, true) as SettingsRow | null;
     // Student projections contain every field the scoped writer needs. Keep newer receipts
     // when a background read that started before a save arrives afterwards.
     const currentTimestamp = cachedWritableSharedSettingsRow?.updated_at;
@@ -97,7 +111,7 @@ export const loadSharedSettingsRow = async () => {
 const loadWritableSharedSettingsRow = async () => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
-    const row = await fetchJson('/api/shared-settings') as SettingsRow | null;
+    const row = await fetchJson('/api/shared-settings', undefined, true) as SettingsRow | null;
     cachedWritableSharedSettingsRow = row;
     return row;
   }
@@ -182,7 +196,7 @@ export const updateSharedSettings = async (
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ value: studentUpdate?.patch ?? nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
-          }) as { updatedAt: string };
+          }, typeof currentRow?.updated_at === 'string') as { updatedAt: string };
           cachedWritableSharedSettingsRow = {
             id: SHARED_SETTINGS_ID,
             value: studentUpdate?.value ?? nextValue,

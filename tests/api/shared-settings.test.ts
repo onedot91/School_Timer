@@ -1212,9 +1212,15 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
     const statuses: number[] = [];
     const methods: string[] = [];
     let forceConflict = false;
+    let failBeforeRequest = false;
+    let loseReceipt = false;
     globalThis.fetch = async (input, init) => {
       if (String(input) !== '/api/shared-settings') return fake.fetch(input, init);
       methods.push(init?.method ?? 'GET');
+      if (failBeforeRequest) {
+        failBeforeRequest = false;
+        throw new TypeError('Failed to fetch');
+      }
       if (forceConflict && init?.method === 'PUT') {
         forceConflict = false;
         const concurrent = createResponse();
@@ -1231,6 +1237,10 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
       }, request.response);
       const result = request.result();
       statuses.push(result.statusCode);
+      if (loseReceipt && init?.method === 'PUT' && result.statusCode === 200) {
+        loseReceipt = false;
+        throw new TypeError('Failed to fetch');
+      }
       return Response.json(result.body, { status: result.statusCode });
     };
     try {
@@ -1292,14 +1302,39 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
       await client.updateStudentSharedSettings(7, (value) => claimSudokuRewardInSettings(value, 7, 'roundtrip-sudoku', 5, createdAt).value);
       assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 130, 8: 177 });
 
+      failBeforeRequest = true;
+      client.invalidateSharedSettingsCache();
+      await client.updateStudentSharedSettings(7, (value) => claimSudokuRewardInSettings(value, 7, 'network-retry', 5, createdAt).value);
+      assert.equal(failBeforeRequest, false);
+      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 135, 8: 177 });
+      loseReceipt = true;
+      await client.updateStudentSharedSettings(7, (value) => claimSudokuRewardInSettings(value, 7, 'lost-receipt', 5, createdAt).value);
+      assert.equal(loseReceipt, false);
+      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 140, 8: 177 });
+      assert.equal(normalizeCurrencyHistory(fake.state()?.value.currencyHistory)['7'].length, 5);
+      assert.deepEqual(fake.state()?.value.studentEconomy, initial.studentEconomy);
+      failBeforeRequest = true;
+      await client.updateStudentSharedSettings(7, (value) => claimSudokuRewardInSettings(value, 7, 'lost-receipt', 5, createdAt).value);
+      assert.equal(failBeforeRequest, false);
+      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 140, 8: 177 });
+
       const forbidden = createResponse();
       await handler({ method: 'PUT', headers: studentHeaders(7), body: {
         value: { currencyBalances: { 8: 999 } }, expectedUpdatedAt: fake.state()?.updated_at,
       } }, forbidden.response);
       assert.equal(forbidden.result().statusCode, 403);
-      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 130, 8: 177 });
+      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 140, 8: 177 });
       await assert.rejects(client.updateStudentSharedSettings(8, () => ({ currencyBalances: { 8: 999 } })), /SHARED_API_HTTP_403/);
-      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 130, 8: 177 });
+      assert.deepEqual(fake.state()?.value.currencyBalances, { 7: 140, 8: 177 });
+      const beforeFailure = fake.state();
+      let failedAttempts = 0;
+      globalThis.fetch = async () => {
+        failedAttempts += 1;
+        throw new TypeError('Failed to fetch');
+      };
+      await assert.rejects(client.updateStudentSharedSettings(7, (value) => value), /Failed to fetch/);
+      assert.equal(failedAttempts, 3);
+      assert.deepEqual(fake.state(), beforeFailure);
     } finally {
       globalThis.fetch = originalFetch;
       await server.close();

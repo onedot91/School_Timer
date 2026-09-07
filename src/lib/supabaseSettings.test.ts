@@ -98,7 +98,7 @@ test('학생 설정 변경은 서버가 병합할 투영된 행만 사용한다'
   const updateSource = source.slice(updateStart, updateEnd);
 
   assert.doesNotMatch(source, /\/api\/shared-settings\?full=1/);
-  assert.match(source, /fetchJson\('\/api\/shared-settings'\)/);
+  assert.match(source, /fetchJson\('\/api\/shared-settings', undefined, true\)/);
   assert.match(updateSource, /loadWritableSharedSettingsRow\(\)/);
 });
 
