@@ -1,9 +1,74 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 const artwork = '/images/loading/goma-pencil.png';
 const scarfOutline = 'M38 41H55L61 47V54L56 56L49 59H38Z';
 
-export default function GomaLoadingAnimation() {
+export const gomaLoadingVariants = ['flight', 'jumping', 'parachute', 'skating', 'sailing', 'bubble', 'train', 'moon', 'rocket', 'carrot'] as const;
+export type GomaLoadingVariant = typeof gomaLoadingVariants[number];
+
+export default function GomaLoadingAnimation({ variant = 'random' }: {
+  readonly variant?: GomaLoadingVariant | 'random';
+}) {
+  const [randomVariant] = useState(() => gomaLoadingVariants[Math.floor(Math.random() * gomaLoadingVariants.length)]);
+  const selected = variant === 'random' ? randomVariant : variant;
+  return selected === 'flight' ? <GomaFlight /> : <GomaKineticScene key={selected} variant={selected} />;
+}
+
+function GomaKineticScene({ variant }: { readonly variant: Exclude<GomaLoadingVariant, 'flight'> }) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  if (failed) return <GomaFlight />;
+  const jumping = variant === 'jumping';
+  const particlePositions = variant === 'train' ? [[24, 67], [33, 46], [18, 89], [128, 33], [141, 74]] : variant === 'carrot' ? [[26, 90], [38, 102], [21, 109], [130, 95], [144, 71]] : variant === 'sailing' ? [[32, 96], [127, 95], [20, 104], [140, 90], [114, 106]] : jumping ? [[35, 105], [120, 107], [24, 75], [134, 58], [52, 40]] : [[22, 22], [129, 67], [36, 105], [133, 12], [15, 70]];
+  const starParticles = jumping || variant === 'skating' || variant === 'moon' || variant === 'rocket';
+  const actorClass = { jumping: 'goma-jumper', parachute: 'goma-parachutist', skating: 'goma-skater', sailing: 'goma-sailor', bubble: 'goma-bubble-rider', train: 'goma-cloud-train', moon: 'goma-moon-swing', rocket: 'goma-star-rocket', carrot: 'goma-carrot-car' }[variant];
+  const size = jumping ? 90 : variant === 'parachute' ? 112 : 128;
+  return <>
+    {!loaded && <GomaFlight />}
+    <div className={`goma-loading goma-kinetic${loaded ? '' : ' goma-loading-preload'}`} aria-hidden="true" data-variant={variant}>
+      <svg viewBox="0 0 160 128" focusable="false">
+        {jumping && <g shapeRendering="crispEdges">
+          <path className="goma-jump-shadow" fill="#d9d6bc" d="M48 117h64v3H48z" />
+          <g className="goma-spring-book" stroke="#382a1c" strokeWidth="2" strokeLinejoin="miter">
+            <path fill="#61a544" d="M42 103h76v12H42z" />
+            <path fill="#fff0c7" d="M46 106h70v6H46z" />
+            <path stroke="#d5bc83" strokeWidth="1" d="M49 109h64" />
+          </g>
+        </g>}
+        {(variant === 'skating' || variant === 'carrot' || variant === 'train') && <g className="goma-speed-lines" fill="none" stroke="#b8c99b" strokeWidth="2" shapeRendering="crispEdges">
+          <path className="goma-speed-line" d="M115 112h30m-8-44h20M18 94h18" />
+          <path className="goma-speed-line goma-speed-line-late" d="M110 117h38m-16-65h22M8 77h18" />
+        </g>}
+        {variant === 'sailing' && <g fill="none" strokeWidth="2" shapeRendering="crispEdges">
+          <path className="goma-water-wave" stroke="#b6d9cf" d="M-20 103h12v-3H4v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12" />
+          <path className="goma-water-wave goma-water-wave-near" stroke="#7eb9b5" d="M-20 115h12v-3H4v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12" />
+        </g>}
+        <g className={actorClass}>
+          <image href={`/images/loading/goma-${variant === 'moon' ? 'moon-side' : variant === 'parachute' ? 'parachute-arms' : variant}.png`} x={(160 - size) / 2} y={jumping ? 25 : variant === 'parachute' ? 8 : 0}
+            width={size} height={size}
+            onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
+        </g>
+        <g shapeRendering="crispEdges" strokeWidth="1" strokeLinejoin="miter">
+          {particlePositions.map(([x, y], index) => (
+            <g key={index} transform={`translate(${x} ${y})`}>
+              <g className={`goma-scene-particle goma-scene-particle-${index}`}>
+                {starParticles
+                  ? <path fill="#f5ca53" stroke="#cba043" d="M0-4h2v4h4v2H2v4H0V2h-4V0h4Z" />
+                  : variant === 'sailing' ? <path fill="#b2e2e4" stroke="#70b6be" d="M0-5h2v3h2v5H2v2h-3V3h-2v-5h3Z" />
+                  : variant === 'bubble' ? <path fill="none" stroke="#a5cfdc" d="M-3-5h6v2h2v6H3v2h-6V3h-2v-6h2Z" />
+                  : variant === 'train' ? <path fill="#e5eddf" stroke="#c3d2bd" d="M-5 0v-3h3v-2h4v2h3v3h2v4H-7V0Z" />
+                  : variant === 'carrot' ? <g><path fill="#8dbc64" stroke="#5e914d" d="M-4 2v-4h3v-2h6v4H2v3h-6Z" /><path fill="none" stroke="#5e914d" d="M-3 2L3-2" /></g>
+                  : <g stroke="#b4ad8d"><path fill="#fff9e4" d="M-4 0v-2h2v-2h4v2h2v2Z" /><path fill="none" d="M0 0v7l-2 2" /></g>}
+              </g>
+            </g>
+          ))}
+        </g>
+      </svg>
+    </div>
+  </>;
+}
+
+function GomaFlight() {
   const id = useId();
   return (
     <div className="goma-loading" aria-hidden="true">

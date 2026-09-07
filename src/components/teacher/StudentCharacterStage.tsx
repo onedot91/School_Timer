@@ -8,6 +8,7 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
     const seen = new WeakMap<HTMLElement, number>();
     const looked = new WeakSet<HTMLElement>();
     const greeted = new WeakSet<HTMLElement>();
+    const encounters = new WeakMap<HTMLElement, WeakSet<HTMLElement>>();
     const active = new Map<HTMLElement, { start: number; kind: 'look' | 'greet' }>();
     const clear = (node: HTMLElement) => {
       delete node.dataset.encounter;
@@ -41,6 +42,11 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
           const sameLevel = Math.abs(a.box.bottom - b.box.bottom) < Math.min(a.box.height, b.box.height) * .4;
           if (left.node.dataset.direction !== 'right' || right.node.dataset.direction !== 'left' || !sameLevel) continue;
           if (left.box.x < 0 || right.box.right > innerWidth || distance > (a.box.width + b.box.width) * .6) continue;
+          if (encounters.get(a.node)?.has(b.node)) continue;
+          const partners = encounters.get(a.node) ?? new WeakSet<HTMLElement>();
+          partners.add(b.node);
+          encounters.set(a.node, partners);
+          if (Math.random() >= .3) continue;
           for (const { node } of [left, right]) {
             greeted.add(node);
             node.dataset.greetingSpeaker = 'true';
