@@ -1,5 +1,7 @@
 import { Component, useEffect, useState, type ReactNode } from 'react';
 import { recordStartupFailure } from '../lib/appDiagnostics';
+import LoadingLabel from './LoadingLabel';
+import GomaLoadingAnimation from './GomaLoadingAnimation';
 
 const reloadPage = () => window.location.reload();
 
@@ -28,7 +30,7 @@ export function AppRecoveryScreen({
   );
 }
 
-export function AppLoadingScreen({ label = '화면을 불러오는 중이에요.', embedded = false }: { label?: string; embedded?: boolean }) {
+export function AppLoadingScreen({ label = '불러오는 중', embedded = false }: { label?: string; embedded?: boolean }) {
   const Container = embedded ? 'section' : 'main';
   const [delayed, setDelayed] = useState(false);
   useEffect(() => {
@@ -41,7 +43,8 @@ export function AppLoadingScreen({ label = '화면을 불러오는 중이에요.
   return (
     <Container className={embedded ? 'grid min-h-[60vh] place-items-center p-4' : 'runtime-fallback-page'}>
       <section className="runtime-fallback-surface">
-        <p role="status">{delayed ? '화면을 불러오는 데 시간이 걸리고 있어요.' : label}</p>
+        <GomaLoadingAnimation />
+        <p role="status">{delayed ? '화면을 불러오는 데 시간이 걸리고 있어요.' : <LoadingLabel>{label}</LoadingLabel>}</p>
         {delayed ? <button type="button" className="runtime-fallback-action" onClick={reloadPage}>새로고침</button> : null}
       </section>
     </Container>

@@ -13,7 +13,10 @@ test('학생 비동기 작업 중에는 처리 상태와 중앙 로딩 모달을
   assert.equal(inactiveMarkup, '');
   assert.match(activeMarkup, /role="status"/);
   assert.match(activeMarkup, /class="student-action-progress-card"/);
-  assert.match(activeMarkup, /class="student-action-progress-spinner"/);
+  assert.match(activeMarkup, /class="goma-loading" aria-hidden="true"/);
+  assert.match(activeMarkup, /class="goma-flight goma-artwork"/);
+  assert.match(activeMarkup, /focusable="false"/);
+  assert.match(activeMarkup, /href="\/images\/loading\/goma-pencil.png"/);
   assert.match(activeMarkup, />처리 중</);
   assert.match(activeMarkup, /aria-label="요청 처리 중"/);
   assert.doesNotMatch(activeMarkup, /role="progressbar"/);
@@ -30,17 +33,17 @@ test('학생 버튼은 pointer-down 동안 즉시 눌림 피드백을 준다', a
   assert.match(activeRule, /opacity:\s*\.88/);
 });
 
-test('동작 줄이기에서는 로딩 회전을 잔잔한 밝기 변화로 바꾼다', async () => {
+test('동작 줄이기에서는 고마와 배경의 움직임을 모두 멈춘다', async () => {
   const css = await readFile(new URL('../index.css', import.meta.url), 'utf8');
-  const progressStart = css.indexOf('.student-action-progress {');
-  const reducedMotionStart = css.indexOf('@media (prefers-reduced-motion: reduce)', progressStart);
-  const reducedMotionEnd = css.indexOf('@media (prefers-reduced-transparency: reduce)', reducedMotionStart);
-  const reducedMotionRule = css.slice(reducedMotionStart, reducedMotionEnd);
+  const sceneStart = css.indexOf('.goma-loading {');
+  const reducedMotionStart = css.indexOf('@media (prefers-reduced-motion: reduce)', sceneStart);
+  const reducedMotionRule = css.slice(reducedMotionStart);
 
-  assert.ok(progressStart >= 0);
+  assert.ok(sceneStart >= 0);
   assert.ok(reducedMotionStart >= 0);
-  assert.match(reducedMotionRule, /student-action-progress-spinner/);
-  assert.match(reducedMotionRule, /studentActionLoadingPulse/);
+  assert.match(reducedMotionRule, /\.goma-loading \*/);
+  assert.match(reducedMotionRule, /animation: none/);
+  assert.match(reducedMotionRule, /\.goma-spark, \.goma-wind \{ opacity: 0/);
 });
 
 test('학생 화면은 주요 비동기 저장 상태를 연결하고 랜덤 프로필 가챠에서만 중복 로딩 모달을 숨긴다', async () => {
