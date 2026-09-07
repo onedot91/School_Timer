@@ -8898,16 +8898,24 @@ h3 {
   0% {
     transform: translate3d(var(--student-character-walk-start), 0, 0) translateX(-50%);
     opacity: 0;
+    filter: blur(4px);
   }
-  8% {
-    opacity: 1;
+  15% {
+    opacity: 0;
+    filter: blur(4px);
   }
-  92% {
+  21%, 79% {
     opacity: 1;
+    filter: blur(0);
+  }
+  85% {
+    opacity: 0;
+    filter: blur(4px);
   }
   100% {
     transform: translate3d(var(--student-character-walk-end), 0, 0) translateX(-50%);
     opacity: 0;
+    filter: blur(4px);
   }
 }
 
