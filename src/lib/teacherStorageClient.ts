@@ -2,6 +2,19 @@ import { createStudentSaveDraftStore } from './studentSaveDraft.js';
 import { executeStorageCommand, loadStorageCommandReceipt, StorageCommandError, type StorageCommand } from './storageCommandClient.js';
 import { isStorageRecord } from './teacherStorageCommand.js';
 import { getStorageAvailability } from './storageAvailability.js';
+import { storageAvailabilityMessage } from './storageAvailabilityCopy.js';
+import { collectSaveFailureDiagnostics } from './saveFailureDiagnostics.js';
+import { classifySaveFailure } from './saveFailure.js';
+
+export const teacherSettingsSaveErrorMessage = (error: unknown): string => {
+  const availability = storageAvailabilityMessage(error);
+  if (availability) return availability;
+  const diagnostics = collectSaveFailureDiagnostics(error);
+  const code = error instanceof StorageCommandError && error.serverCode === 'TEACHER_SETTING_CONFLICT'
+    ? error.serverCode : diagnostics?.causeCode ?? diagnostics?.errorCode ?? classifySaveFailure(error) ?? 'unknown';
+  const details = [code, ...(diagnostics?.httpStatus ? [`HTTP ${diagnostics.httpStatus}`] : [])].join(' · ');
+  return `설정 저장 확인 불가 (${details}). 변경 내용은 보관했습니다. 저장 다시 확인을 눌러 주세요.`;
+};
 
 export const teacherStorageDrafts = createStudentSaveDraftStore();
 export const teacherCommandScope = (command: Pick<StorageCommand, 'action' | 'payload'>) => {

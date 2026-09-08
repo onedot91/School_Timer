@@ -1,4 +1,4 @@
-import { executeTeacherStorageCommand as executeStorageCommand, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused } from '../lib/teacherStorageClient';
+import { executeTeacherStorageCommand as executeStorageCommand, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord } from '../lib/teacherStorageCommand';
 ﻿import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
@@ -4531,6 +4531,7 @@ export default function TimerPage() {
   const teacherSettingsErrorRef = useRef(false);
   const [teacherSettingsSaveVersion, setTeacherSettingsSaveVersion] = useState(0);
   const [teacherSettingsSaveError, setTeacherSettingsSaveError] = useState('');
+  const [isTeacherSettingsRetrying, setIsTeacherSettingsRetrying] = useState(false);
   teacherSettingsErrorRef.current = Boolean(teacherSettingsSaveError);
 
   const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
@@ -4919,6 +4920,10 @@ export default function TimerPage() {
       const changes = createTeacherSettingsChanges(teacherSettingsBaseRef.current, snapshot);
       if (changes.length === 0) {
         isSharedSettingsSavePendingRef.current = false;
+        if (hasUnsavedAuctionItemsRef.current) {
+          hasUnsavedAuctionItemsRef.current = false;
+          setAuctionItemsSaveStatus('saved');
+        }
         return;
       }
       teacherSettingsSavingRef.current = true;
@@ -4937,7 +4942,7 @@ export default function TimerPage() {
           if (JSON.stringify(snapshot.subjectCatalog) === JSON.stringify(subjectCatalogRef.current)) hasUnsavedSubjectCatalogRef.current = false;
         })
         .catch((error) => {
-          setTeacherSettingsSaveError(storageAvailabilityMessage(error) ?? '설정 저장 결과를 확인하지 못했어요. 변경 내용은 보관했습니다.');
+          setTeacherSettingsSaveError(teacherSettingsSaveErrorMessage(error));
           console.error('Failed to save shared settings to Supabase.', error);
           if (hasUnsavedAuctionItemsRef.current && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current) {
             setAuctionItemsSaveErrorCode(classifySaveFailure(error) ?? 'unknown');
@@ -10221,6 +10226,9 @@ export default function TimerPage() {
   );
 
   const retryTeacherSettingsSave = async () => {
+    if (teacherSettingsSavingRef.current) return;
+    teacherSettingsSavingRef.current = true;
+    setIsTeacherSettingsRetrying(true);
     const scope = teacherCommandScope({ action: 'teacher.settings.patch', payload: {} });
     const pending = teacherStorageDrafts.load(scope);
     try {
@@ -10229,7 +10237,7 @@ export default function TimerPage() {
         if (isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
           const remote = normalizeSharedSchoolTimerSettings(saved.value);
           if (remote) {
-            const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot());
+            const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
             teacherSettingsBaseRef.current = { ...remote };
             const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, localChanges));
             if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
@@ -10238,9 +10246,9 @@ export default function TimerPage() {
         }
         lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
       } else {
-        const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot());
         const latest = await loadSharedSettingsRow();
         if (latest && isStorageRecord(latest.value)) {
+          const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
           const remote = normalizeSharedSchoolTimerSettings(latest.value);
           const preserved = remote && normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, localChanges));
           if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
@@ -10251,7 +10259,10 @@ export default function TimerPage() {
       skipNextSharedSettingsSaveRef.current = false;
       setTeacherSettingsSaveVersion(previous => previous + 1);
     } catch (error) {
-      setTeacherSettingsSaveError(storageAvailabilityMessage(error) ?? '저장 결과를 아직 확인하지 못했어요. 다시 확인해 주세요.');
+      setTeacherSettingsSaveError(teacherSettingsSaveErrorMessage(error));
+    } finally {
+      teacherSettingsSavingRef.current = false;
+      setIsTeacherSettingsRetrying(false);
     }
   };
 
@@ -12480,7 +12491,7 @@ export default function TimerPage() {
             >
             {teacherSettingsSaveError && <div className="teacher-settings-save-status flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-5 py-2" role="status">
               <span>{teacherSettingsSaveError}</span>
-              <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => void retryTeacherSettingsSave()}>저장 다시 확인</button>
+              <button type="button" className="min-h-11 rounded-full border px-4 font-bold disabled:cursor-wait disabled:opacity-60" disabled={isTeacherSettingsRetrying} onClick={() => void retryTeacherSettingsSave()}>{isTeacherSettingsRetrying ? '확인 중…' : '저장 다시 확인'}</button>
             </div>}
             <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
               <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">
@@ -12527,6 +12538,14 @@ export default function TimerPage() {
                           >
                             <ItemIcon size={19} aria-hidden="true" />
                             <span>{item.label}</span>
+                            {item.panel === 'auction' && auctionItems.every(isUnusedAuctionItem) ? (
+                              <span
+                                className="settings-navigation-new-badge"
+                                aria-label="경매 물품 미등록"
+                              >
+                                미등록
+                              </span>
+                            ) : null}
                             {item.panel === 'missions' && hasUnpaidClassroomRoleReward ? (
                               <span
                                 className="settings-navigation-new-badge"
