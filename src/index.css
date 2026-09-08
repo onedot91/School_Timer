@@ -8740,6 +8740,7 @@ h3 {
 }
 
 .student-character-showcase {
+  --student-character-lane-offset: calc(var(--student-character-lane, 0) * 18vh);
   --student-character-accent: #7aa160;
   --student-character-image-transform: none;
   --student-character-walk-start-top: 82vh;
@@ -16895,10 +16896,11 @@ a[href]:active {
   }
 
   .timer-main-shell .student-character-showcase {
-    --student-character-walk-start-top: calc(var(--student-character-route-start-top) - 32vh) !important;
-    --student-character-walk-mid-top-a: calc(var(--student-character-route-mid-top-a) - 32vh) !important;
-    --student-character-walk-mid-top-b: calc(var(--student-character-route-mid-top-b) - 32vh) !important;
-    --student-character-walk-end-top: calc(var(--student-character-route-end-top) - 32vh) !important;
+    --student-character-lane-offset: calc(var(--student-character-lane, 0) * 6vh);
+    --student-character-walk-start-top: calc(var(--student-character-route-start-top) - 32vh + var(--student-character-lane-offset)) !important;
+    --student-character-walk-mid-top-a: calc(var(--student-character-route-mid-top-a) - 32vh + var(--student-character-lane-offset)) !important;
+    --student-character-walk-mid-top-b: calc(var(--student-character-route-mid-top-b) - 32vh + var(--student-character-lane-offset)) !important;
+    --student-character-walk-end-top: calc(var(--student-character-route-end-top) - 32vh + var(--student-character-lane-offset)) !important;
     --student-character-depth-start: 50000 !important;
     --student-character-depth-mid-a: 48000 !important;
     --student-character-depth-mid-b: 51000 !important;

@@ -46,7 +46,6 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
           const partners = encounters.get(a.node) ?? new WeakSet<HTMLElement>();
           partners.add(b.node);
           encounters.set(a.node, partners);
-          if (Math.random() >= .9) continue;
           for (const { node } of [left, right]) {
             greeted.add(node);
             node.dataset.greetingSpeaker = 'true';

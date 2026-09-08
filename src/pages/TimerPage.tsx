@@ -3710,6 +3710,7 @@ function StudentCharacterShowcase({
   shouldSpeak,
   onImageError,
   onWalkComplete,
+  streamIndex,
 }: {
   character: StudentCharacter;
   timerType: TimerType;
@@ -3720,6 +3721,7 @@ function StudentCharacterShowcase({
   shouldSpeak: boolean;
   onImageError: (characterId: string) => void;
   onWalkComplete: () => void;
+  streamIndex: number;
 }) {
   const [initialAnimationDelaySeconds] = useState(animationDelaySeconds);
   const modeLabel =
@@ -3734,11 +3736,12 @@ function StudentCharacterShowcase({
     shouldUseSpeechImage && character.speechImageAlt ? character.speechImageAlt : character.alt;
   const imageTransform = character.walkTransform?.[direction] || (direction === 'left' ? 'scaleX(-1)' : 'none');
   const frameStyle = {
+    '--student-character-lane': streamIndex - 1,
     '--student-character-accent': character.themeColor || '#7AA160',
-    '--student-character-walk-start-top': path.startTop,
-    '--student-character-walk-mid-top-a': path.midTopA,
-    '--student-character-walk-mid-top-b': path.midTopB,
-    '--student-character-walk-end-top': path.endTop,
+    '--student-character-walk-start-top': `calc(${path.startTop} + var(--student-character-lane-offset))`,
+    '--student-character-walk-mid-top-a': `calc(${path.midTopA} + var(--student-character-lane-offset))`,
+    '--student-character-walk-mid-top-b': `calc(${path.midTopB} + var(--student-character-lane-offset))`,
+    '--student-character-walk-end-top': `calc(${path.endTop} + var(--student-character-lane-offset))`,
     '--student-character-route-start-top': path.startTop,
     '--student-character-route-mid-top-a': path.midTopA,
     '--student-character-route-mid-top-b': path.midTopB,
@@ -7910,15 +7913,15 @@ export default function TimerPage() {
     !isAnnouncementOpen &&
     !isCurrencyPanelOpen &&
     !showTimerNotification;
-  const [studentCharacterWalkCycles, setStudentCharacterWalkCycles] = useState([0, 0]);
+  const [studentCharacterWalkCycles, setStudentCharacterWalkCycles] = useState([0, 0, 0]);
   const getStudentCharacterWalker = (
     streamIndex: number,
   ): StudentCharacterWalker | null => {
     if (!canShowStudentCharacter) return null;
-    if (streamIndex > 0 && visibleStudentCharacters.length === 1) return null;
+    if (streamIndex >= visibleStudentCharacters.length) return null;
 
     const walkCycle = studentCharacterWalkCycles[streamIndex];
-    const spawnOrder = walkCycle * 2 + streamIndex;
+    const spawnOrder = walkCycle * 3 + streamIndex;
     const characterRoundIndex = Math.floor(spawnOrder / visibleStudentCharacters.length);
     const characterIndex = spawnOrder % visibleStudentCharacters.length;
     const roundCharacters = getShuffledStudentCharacters(
@@ -7939,23 +7942,18 @@ export default function TimerPage() {
       character,
       direction: spawnOrder % 2 === 0 ? 'right' : 'left',
       path: STUDENT_CHARACTER_WALK_PATHS[pathIndex],
-      animationDelaySeconds: streamIndex > 0 && walkCycle === 0 ? STUDENT_CHARACTER_WALK_SECONDS / 2 : 0,
+      animationDelaySeconds: walkCycle === 0 ? streamIndex * STUDENT_CHARACTER_WALK_SECONDS / 3 : 0,
       spawnScale: getStudentCharacterSpawnScale(renderKey),
       shouldSpeak,
     };
   };
-  const primaryStudentCharacterWalker = getStudentCharacterWalker(0);
-  let secondaryStudentCharacterWalker = getStudentCharacterWalker(1);
-  if (primaryStudentCharacterWalker?.shouldSpeak && secondaryStudentCharacterWalker?.shouldSpeak) {
-    secondaryStudentCharacterWalker = {
-      ...secondaryStudentCharacterWalker,
-      shouldSpeak: false,
-    };
-  }
-  const activeStudentCharacterWalkers = [
-    primaryStudentCharacterWalker,
-    secondaryStudentCharacterWalker,
-  ].filter((walker): walker is StudentCharacterWalker => walker !== null);
+  const activeStudentCharacterWalkers = [0, 1, 2]
+    .map(getStudentCharacterWalker)
+    .filter((walker): walker is StudentCharacterWalker => walker !== null);
+  const speakingWalkerIndex = activeStudentCharacterWalkers.findIndex((walker) => walker.shouldSpeak);
+  activeStudentCharacterWalkers.forEach((walker, index) => {
+    if (index !== speakingWalkerIndex) walker.shouldSpeak = false;
+  });
   const markStudentCharacterFailed = (characterId: string) => {
     setFailedStudentCharacterIds((previous) => {
       if (previous.has(characterId)) return previous;
@@ -10952,6 +10950,7 @@ export default function TimerPage() {
                 <React.Fragment key={walker.renderKey}>
                   <StudentCharacterShowcase
                     character={walker.character}
+                    streamIndex={walker.streamIndex}
                     timerType={timerType}
                     direction={walker.direction}
                     path={walker.path}

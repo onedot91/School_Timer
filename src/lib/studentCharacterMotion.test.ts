@@ -42,10 +42,10 @@ test('좁은 화면에서도 캐릭터별 경로의 위아래 이동 폭을 유�
   const narrowLayout = css.match(
     /@media \(max-width: 63\.999rem\) \{([\s\S]*?)\n\}/,
   )?.[1] ?? '';
-  assert.match(narrowLayout, /--student-character-walk-start-top: calc\(var\(--student-character-route-start-top\) - 32vh\)/);
-  assert.match(narrowLayout, /--student-character-walk-mid-top-a: calc\(var\(--student-character-route-mid-top-a\) - 32vh\)/);
-  assert.match(narrowLayout, /--student-character-walk-mid-top-b: calc\(var\(--student-character-route-mid-top-b\) - 32vh\)/);
-  assert.match(narrowLayout, /--student-character-walk-end-top: calc\(var\(--student-character-route-end-top\) - 32vh\)/);
+  assert.match(narrowLayout, /--student-character-walk-start-top: calc\(var\(--student-character-route-start-top\) - 32vh \+ var\(--student-character-lane-offset\)\)/);
+  assert.match(narrowLayout, /--student-character-walk-mid-top-a: calc\(var\(--student-character-route-mid-top-a\) - 32vh \+ var\(--student-character-lane-offset\)\)/);
+  assert.match(narrowLayout, /--student-character-walk-mid-top-b: calc\(var\(--student-character-route-mid-top-b\) - 32vh \+ var\(--student-character-lane-offset\)\)/);
+  assert.match(narrowLayout, /--student-character-walk-end-top: calc\(var\(--student-character-route-end-top\) - 32vh \+ var\(--student-character-lane-offset\)\)/);
 });
 
 test('동작 줄이기 PC에서도 캐릭터 걸음의 자연스러운 높낮이를 유지한다', () => {
