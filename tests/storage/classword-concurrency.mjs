@@ -29,6 +29,10 @@ try {
   for(const r of quiz)assert.deepEqual(r.rows[0].result,quiz[0].rows[0].result);
   const ledger=await admin.query('select count(*)::integer count from public.wallet_ledger where student_number=$1 and entry_id like $2',[winner,`%${dateKey}`]);
   assert.equal(ledger.rows[0].count,2);
-  console.log('PASS: SQL assertions; 23 students same initial exactly one winner; 24 identical quiz requests one reward and one completion');
+  const distinct=await Promise.all(clients.map((c,i)=>command(c,1,`different-quiz-${i}`,'complete_quiz',{dateKey:'2099-10-11',questionId:'distinct-requests'})));
+  assert.equal(distinct.filter(r=>r.rows[0].result.reward.awarded).length,1);
+  const amounts=new Set(distinct.map(r=>r.rows[0].result.reward.rewardAmount));
+  assert.equal(amounts.size,1);
+  console.log('PASS: SQL assertions; 23 students same initial exactly one winner; 24 identical and distinct quiz requests each pay exactly once; failed rewards roll back');
  } finally {await Promise.all(clients.map(c=>c.end()));}
 } finally {await admin.end();}

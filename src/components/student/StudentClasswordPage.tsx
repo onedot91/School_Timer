@@ -36,6 +36,11 @@ const EMPTY_BOARD: ClasswordBoardData = {
 };
 
 const ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  CLASSWORD_REWARD_PENDING: '보유 고마 한도 때문에 지급하지 못했어요. 선생님께 알려 주세요.',
+  CLASSWORD_REWARD_LIMIT_EXCEEDED: '보유 고마 한도 때문에 지급하지 못했어요. 선생님께 알려 주세요.',
+  CLASSWORD_REWARD_EVIDENCE_MISMATCH: '보상 기록을 확인해야 해요. 선생님께 알려 주세요.',
+  CLASSWORD_CONFIRMATION_REQUIRED: '지급 확인 중이에요. 같은 정답으로 다시 시도해 주세요.',
+  CLASSWORD_REWARD_SAVE_FAILED: '보상을 저장하지 못했어요. 같은 정답으로 다시 시도해 주세요.',
   empty: '낱말을 입력해 주세요.',
   same_topic: '주제와 다른 낱말을 찾아 주세요.',
   number_only: '숫자만 쓸 수 없어요.',

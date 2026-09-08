@@ -88,8 +88,9 @@ const request = async (
     if (path === 'rpc/classword_command_v2') {
       const body: unknown = await result.json().catch(() => null);
       const message = isRecord(body) && typeof body.message === 'string' ? body.message : '';
-      const business = ['CLASSWORD_STUDENT_ALREADY_ENTERED', 'CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_ENTRY_CHANGED', 'STORAGE_REQUEST_REUSED'];
+      const business = ['CLASSWORD_STUDENT_ALREADY_ENTERED', 'CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_ENTRY_CHANGED', 'STORAGE_REQUEST_REUSED', 'CLASSWORD_REWARD_LIMIT_EXCEEDED'];
       if (business.includes(message)) throw new ClasswordRepositoryError(409, message);
+      if (message === 'CLASSWORD_REWARD_EVIDENCE_MISMATCH') throw new ClasswordRepositoryError(409, message);
       if (message === 'CLASSWORD_ENTRY_FORBIDDEN') throw new ClasswordRepositoryError(403, message);
       if (message === 'STORAGE_MAINTENANCE' || message === 'STORAGE_NOT_ACTIVE') throw new ClasswordRepositoryError(503, message);
     }
@@ -112,6 +113,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
 const parseClasswordQuizRewardResult = (value: unknown): ClasswordQuizRewardResult => {
   if (
     !isRecord(value)
+    || value.completed !== true
     || value.missionType !== CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE
     || typeof value.awarded !== 'boolean'
     || typeof value.rewardAmount !== 'number'
@@ -336,12 +338,16 @@ export const loadClasswordQuizRewardAmount = async (
     `weekly_mission_rewards?student_number=eq.${studentNumber}&week_key=eq.${encodeURIComponent(dateKey)}&mission_type=eq.${CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE}&select=reward_amount&limit=1`,
   );
   const rewardAmount = parseRows(value)[0]?.reward_amount;
-  return typeof rewardAmount === 'number'
-    && Number.isInteger(rewardAmount)
-    && rewardAmount >= 1
-    && rewardAmount <= 10
-    ? rewardAmount
-    : null;
+  if (typeof rewardAmount !== 'number' || !Number.isInteger(rewardAmount)
+    || rewardAmount < 1 || rewardAmount > 10) return null;
+  const entryId = `weekly-mission-classword_quiz_correct-${studentNumber}-${dateKey}`;
+  const ledger = parseRows(await request(configuration,
+    `wallet_ledger?student_number=eq.${studentNumber}&entry_id=eq.${encodeURIComponent(entryId)}&select=delta,reason,balance_before,balance_after&limit=2`,
+  ));
+  const entry = ledger[0];
+  return ledger.length === 1 && entry?.delta === rewardAmount && entry.reason === 'weekly_mission'
+    && typeof entry.balance_before === 'number' && typeof entry.balance_after === 'number'
+    && entry.balance_after - entry.balance_before === rewardAmount ? rewardAmount : null;
 };
 
 export const saveClasswordQuizCompletion = async (

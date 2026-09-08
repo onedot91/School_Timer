@@ -38,7 +38,6 @@ import {
   saveLocalTeacherClasswordQuiz,
   submitLocalClasswordQuizAnswer,
 } from './classwordQuizLocalStore';
-import { claimClasswordQuizRewardInSettings } from './classwordQuizReward';
 import {
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
   claimWeeklyMissionRewardInSettings,
@@ -261,39 +260,31 @@ export const submitClasswordQuizAnswer = async (input: {
   if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
   assertClientParticipation(input.dateKey);
   if (appDataMode === 'mock') {
-    const storage = getPrunedLocalStorage();
-    const result = submitLocalClasswordQuizAnswer(
-      storage,
-      input.dateKey,
-      input.studentNumber,
-      input.answer,
-    );
-    if (!result.correct) {
-      return { ...result, awarded: false, balance: null };
-    }
-    saveClasswordQuizAnswer(storage, {
-      dateKey: result.state.dateKey,
-      studentNumber: input.studentNumber,
-      questionId: result.state.question.id,
-    }, input.answer);
-    const snapshot = loadStoredStudentPetSnapshot();
-    const reward = claimClasswordQuizRewardInSettings(
-      snapshot,
-      input.studentNumber,
-      input.dateKey,
-      result.rewardAmount,
-    );
-    if (reward.awarded && !storeStudentPetSnapshot({
-      ...snapshot,
-      currencyBalances: normalizeCurrencyBalances(reward.value.currencyBalances),
-      currencyHistory: normalizeCurrencyHistory(reward.value.currencyHistory),
-    })) throw new ClasswordClientError('CLASSWORD_REWARD_SAVE_FAILED');
-    dispatchLocalChange();
-    return {
-      ...result,
-      awarded: reward.awarded,
-      balance: reward.balance,
-    };
+    return withSaveFailureReporting('classword', async () => {
+      try {
+        const storage = getPrunedLocalStorage();
+        const result = submitLocalClasswordQuizAnswer(
+          storage,
+          input.dateKey,
+          input.studentNumber,
+          input.answer,
+        );
+        if (!result.correct) return result;
+        saveClasswordQuizAnswer(storage, {
+          dateKey: result.state.dateKey,
+          studentNumber: input.studentNumber,
+          questionId: result.state.question.id,
+        }, input.answer);
+        dispatchLocalChange();
+        return result;
+      } catch (error) {
+        if (error instanceof Error && (
+          error.message === 'CLASSWORD_REWARD_SAVE_FAILED'
+          || error.message === 'CLASSWORD_REWARD_PENDING'
+        )) throw new ClasswordClientError(error.message);
+        throw error;
+      }
+    }, input.studentNumber);
   }
   const value = await request('/api/classword', {
     method: 'POST',

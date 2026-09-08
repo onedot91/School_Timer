@@ -4,10 +4,12 @@ import { saveLocalClasswordTopic } from './classwordLocalStore';
 
 import {
   CLASSWORD_LOCAL_CHANGE_EVENT,
+  ClasswordClientError,
   saveClasswordEntry,
   submitClasswordQuizAnswer,
 } from './classwordClient';
-import { getDailyClasswordQuiz } from './classwordQuiz';
+import { getDailyClasswordQuiz, getDailyClasswordQuizDefinition } from './classwordQuiz';
+import { loadSaveFailureAlerts } from './saveFailureClient';
 import { loadSavedClasswordQuizAnswer } from './classwordQuizAnswerStore';
 import { loadStoredStudentPetSnapshot } from './studentPet';
 
@@ -132,6 +134,46 @@ test('연습 모드 보너스 정답 보상은 1~10고마 범위에서 한 번�
     assert.equal(savedAnswerWhenRefreshStarted, answer);
   } finally {
     Math.random = originalRandom;
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
+
+test('연습 퀴즈 잔액 저장 실패는 재시도 가능한 오류와 공통 저장 알림을 남긴다', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-04T01:00:00Z') });
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  class FailingStorage extends MemoryStorage {
+    failWallet = true;
+    override setItem(key: string, value: string): void {
+      if (this.failWallet && key === 'school-timer-student-pets-v1') throw new Error('quota');
+      super.setItem(key, value);
+    }
+  }
+  const storage = new FailingStorage();
+  const fakeWindow = new EventTarget();
+  Object.defineProperty(fakeWindow, 'localStorage', { value: storage });
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: fakeWindow });
+  const input = { dateKey: '2026-09-04', studentNumber: 10,
+    answer: getDailyClasswordQuizDefinition('2026-09-04').answer };
+  try {
+    await assert.rejects(submitClasswordQuizAnswer(input), (error: unknown) => (
+      error instanceof ClasswordClientError && error.code === 'CLASSWORD_REWARD_SAVE_FAILED'
+    ));
+    const { alerts } = await loadSaveFailureAlerts();
+    assert.equal(alerts.length, 1);
+    assert.equal(alerts[0].feature, 'classword');
+    assert.equal(alerts[0].code, 'storage');
+    assert.equal(alerts[0].studentNumber, 10);
+    assert.equal(JSON.stringify(alerts).includes(input.answer), false);
+    storage.failWallet = false;
+    const recovered = await submitClasswordQuizAnswer(input);
+    assert.equal(recovered.state.completed, true);
+    assert.equal(recovered.awarded, true);
+    const repeated = await submitClasswordQuizAnswer(input);
+    assert.equal(repeated.awarded, false);
+    assert.equal(repeated.balance, recovered.balance);
+  } finally {
     if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
     else Reflect.deleteProperty(globalThis, 'window');
   }

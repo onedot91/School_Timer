@@ -466,6 +466,7 @@ test('학생 퀴즈 조회는 힌트와 자신의 완료·보상 상태만 반�
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (input) => String(input).includes('/weekly_mission_rewards')
       ? Response.json([{ reward_amount: 7 }])
+      : String(input).includes('/wallet_ledger') ? Response.json([{ delta: 7, reason: 'weekly_mission', balance_before: 100, balance_after: 107 }])
       : String(input).includes('/classword_quizzes') ? Response.json([]) : Response.json([{
           quiz_date: TODAY,
           question_id: getDailyClasswordQuiz(TODAY).id,

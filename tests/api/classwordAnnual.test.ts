@@ -136,7 +136,7 @@ test('replaying a completed annual quiz preserves completion and receives the id
     const url = String(input);
     if (init?.method === 'POST') {
       mutations.push(url);
-      return Response.json({completion:{quiz_date:'2026-09-07',question_id:'teacher-annual',student_number:8,completed_at:'2026-09-07T00:00:00Z'},reward:{missionType:'classword_quiz_correct',awarded:false,rewardAmount:3,balance:13}});
+      return Response.json({completion:{quiz_date:'2026-09-07',question_id:'teacher-annual',student_number:8,completed_at:'2026-09-07T00:00:00Z'},reward:{missionType:'classword_quiz_correct',completed:true,awarded:false,rewardAmount:3,balance:13}});
     }
     if (url.includes('/classword_quizzes?')) return Response.json([{
       question_id: 'teacher-annual', initial_hint: 'ㄷㅇ', meaning: '친구에게 힘을 보탬', answer: '도움',

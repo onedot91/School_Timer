@@ -1,0 +1,685 @@
+diff --git a/api/classword.ts b/api/classword.ts
+index 450855e..d377906 100644
+--- a/api/classword.ts
++++ b/api/classword.ts
+@@ -252,8 +252,8 @@ const handleGet = async (
+     response.status(200).json({
+       dateKey,
+       question,
+-      completed: completion !== undefined,
+-      completedAt: completion?.completedAt ?? null,
++      completed: completion !== undefined && rewardAmount !== null,
++      completedAt: rewardAmount !== null ? completion?.completedAt ?? null : null,
+       rewardAmount,
+     });
+     return;
+diff --git a/src/components/student/ClasswordQuiz.tsx b/src/components/student/ClasswordQuiz.tsx
+index bbad9f1..36e1b0a 100644
+--- a/src/components/student/ClasswordQuiz.tsx
++++ b/src/components/student/ClasswordQuiz.tsx
+@@ -133,10 +133,11 @@ export default function ClasswordQuiz({
+                       : submissionState === 'incorrect'
+                         ? '오답'
+                         : submissionState === 'error'
+-                          ? '오류'
++                          ? '다시 시도'
+                           : '제출'}
+                 </button>
+               </div>
++              {loadError ? <p role="alert">{loadError}</p> : null}
+             </form>
+           </div>
+         </div>
+diff --git a/src/components/student/StudentClasswordPage.tsx b/src/components/student/StudentClasswordPage.tsx
+index 5988ac8..2ff3957 100644
+--- a/src/components/student/StudentClasswordPage.tsx
++++ b/src/components/student/StudentClasswordPage.tsx
+@@ -36,6 +36,11 @@ const EMPTY_BOARD: ClasswordBoardData = {
+ };
+ 
+ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
++  CLASSWORD_REWARD_PENDING: '보유 고마 한도 때문에 지급하지 못했어요. 선생님께 알려 주세요.',
++  CLASSWORD_REWARD_LIMIT_EXCEEDED: '보유 고마 한도 때문에 지급하지 못했어요. 선생님께 알려 주세요.',
++  CLASSWORD_REWARD_EVIDENCE_MISMATCH: '보상 기록을 확인해야 해요. 선생님께 알려 주세요.',
++  CLASSWORD_CONFIRMATION_REQUIRED: '지급 확인 중이에요. 같은 정답으로 다시 시도해 주세요.',
++  CLASSWORD_REWARD_SAVE_FAILED: '보상을 저장하지 못했어요. 같은 정답으로 다시 시도해 주세요.',
+   empty: '낱말을 입력해 주세요.',
+   same_topic: '주제와 다른 낱말을 찾아 주세요.',
+   number_only: '숫자만 쓸 수 없어요.',
+diff --git a/src/lib/classwordClient.test.ts b/src/lib/classwordClient.test.ts
+index 2299427..538955f 100644
+--- a/src/lib/classwordClient.test.ts
++++ b/src/lib/classwordClient.test.ts
+@@ -4,10 +4,12 @@ import { saveLocalClasswordTopic } from './classwordLocalStore';
+ 
+ import {
+   CLASSWORD_LOCAL_CHANGE_EVENT,
++  ClasswordClientError,
+   saveClasswordEntry,
+   submitClasswordQuizAnswer,
+ } from './classwordClient';
+-import { getDailyClasswordQuiz } from './classwordQuiz';
++import { getDailyClasswordQuiz, getDailyClasswordQuizDefinition } from './classwordQuiz';
++import { loadSaveFailureAlerts } from './saveFailureClient';
+ import { loadSavedClasswordQuizAnswer } from './classwordQuizAnswerStore';
+ import { loadStoredStudentPetSnapshot } from './studentPet';
+ 
+@@ -136,3 +138,43 @@ test('연습 모드 보너스 정답 보상은 1~10고마 범위에서 한 번
+     else Reflect.deleteProperty(globalThis, 'window');
+   }
+ });
++
++
++test('연습 퀴즈 잔액 저장 실패는 재시도 가능한 오류와 공통 저장 알림을 남긴다', async (context) => {
++  context.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-04T01:00:00Z') });
++  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
++  class FailingStorage extends MemoryStorage {
++    failWallet = true;
++    override setItem(key: string, value: string): void {
++      if (this.failWallet && key === 'school-timer-student-pets-v1') throw new Error('quota');
++      super.setItem(key, value);
++    }
++  }
++  const storage = new FailingStorage();
++  const fakeWindow = new EventTarget();
++  Object.defineProperty(fakeWindow, 'localStorage', { value: storage });
++  Object.defineProperty(globalThis, 'window', { configurable: true, value: fakeWindow });
++  const input = { dateKey: '2026-09-04', studentNumber: 10,
++    answer: getDailyClasswordQuizDefinition('2026-09-04').answer };
++  try {
++    await assert.rejects(submitClasswordQuizAnswer(input), (error: unknown) => (
++      error instanceof ClasswordClientError && error.code === 'CLASSWORD_REWARD_SAVE_FAILED'
++    ));
++    const { alerts } = await loadSaveFailureAlerts();
++    assert.equal(alerts.length, 1);
++    assert.equal(alerts[0].feature, 'classword');
++    assert.equal(alerts[0].code, 'storage');
++    assert.equal(alerts[0].studentNumber, 10);
++    assert.equal(JSON.stringify(alerts).includes(input.answer), false);
++    storage.failWallet = false;
++    const recovered = await submitClasswordQuizAnswer(input);
++    assert.equal(recovered.state.completed, true);
++    assert.equal(recovered.awarded, true);
++    const repeated = await submitClasswordQuizAnswer(input);
++    assert.equal(repeated.awarded, false);
++    assert.equal(repeated.balance, recovered.balance);
++  } finally {
++    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
++    else Reflect.deleteProperty(globalThis, 'window');
++  }
++});
+diff --git a/src/lib/classwordClient.ts b/src/lib/classwordClient.ts
+index 07f9689..6954ceb 100644
+--- a/src/lib/classwordClient.ts
++++ b/src/lib/classwordClient.ts
+@@ -38,7 +38,6 @@ import {
+   saveLocalTeacherClasswordQuiz,
+   submitLocalClasswordQuizAnswer,
+ } from './classwordQuizLocalStore';
+-import { claimClasswordQuizRewardInSettings } from './classwordQuizReward';
+ import {
+   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
+   claimWeeklyMissionRewardInSettings,
+@@ -261,39 +260,31 @@ export const submitClasswordQuizAnswer = async (input: {
+   if (appDataMode === 'readonly') throw new ClasswordClientError('BACKEND_WRITE_DISABLED');
+   assertClientParticipation(input.dateKey);
+   if (appDataMode === 'mock') {
+-    const storage = getPrunedLocalStorage();
+-    const result = submitLocalClasswordQuizAnswer(
+-      storage,
+-      input.dateKey,
+-      input.studentNumber,
+-      input.answer,
+-    );
+-    if (!result.correct) {
+-      return { ...result, awarded: false, balance: null };
+-    }
+-    saveClasswordQuizAnswer(storage, {
+-      dateKey: result.state.dateKey,
+-      studentNumber: input.studentNumber,
+-      questionId: result.state.question.id,
+-    }, input.answer);
+-    const snapshot = loadStoredStudentPetSnapshot();
+-    const reward = claimClasswordQuizRewardInSettings(
+-      snapshot,
+-      input.studentNumber,
+-      input.dateKey,
+-      result.rewardAmount,
+-    );
+-    if (reward.awarded && !storeStudentPetSnapshot({
+-      ...snapshot,
+-      currencyBalances: normalizeCurrencyBalances(reward.value.currencyBalances),
+-      currencyHistory: normalizeCurrencyHistory(reward.value.currencyHistory),
+-    })) throw new ClasswordClientError('CLASSWORD_REWARD_SAVE_FAILED');
+-    dispatchLocalChange();
+-    return {
+-      ...result,
+-      awarded: reward.awarded,
+-      balance: reward.balance,
+-    };
++    return withSaveFailureReporting('classword', async () => {
++      try {
++        const storage = getPrunedLocalStorage();
++        const result = submitLocalClasswordQuizAnswer(
++          storage,
++          input.dateKey,
++          input.studentNumber,
++          input.answer,
++        );
++        if (!result.correct) return result;
++        saveClasswordQuizAnswer(storage, {
++          dateKey: result.state.dateKey,
++          studentNumber: input.studentNumber,
++          questionId: result.state.question.id,
++        }, input.answer);
++        dispatchLocalChange();
++        return result;
++      } catch (error) {
++        if (error instanceof Error && (
++          error.message === 'CLASSWORD_REWARD_SAVE_FAILED'
++          || error.message === 'CLASSWORD_REWARD_PENDING'
++        )) throw new ClasswordClientError(error.message);
++        throw error;
++      }
++    }, input.studentNumber);
+   }
+   const value = await request('/api/classword', {
+     method: 'POST',
+diff --git a/src/lib/classwordQuizLocalStore.test.ts b/src/lib/classwordQuizLocalStore.test.ts
+index b267ed0..1e72bcf 100644
+--- a/src/lib/classwordQuizLocalStore.test.ts
++++ b/src/lib/classwordQuizLocalStore.test.ts
+@@ -88,7 +88,7 @@ test('오답은 저장하지 않고 정답은 학생·날짜·문제별 한 번
+   assert.equal(repeatedCorrect.rewardAmount, 1);
+   assert.equal(firstRandom.mock.callCount(), 1);
+   assert.equal(repeatedRandom.mock.callCount(), 0);
+-  assert.equal(storage.writeCount, 1);
++  assert.equal(storage.writeCount, 2);
+   const completedState = loadLocalClasswordQuizStudentState(storage, dateKey, 3);
+   assert.equal(completedState.completed, true);
+   assert.equal(completedState.rewardAmount, 1);
+@@ -141,3 +141,83 @@ test('평일에도 과거 퀴즈 날짜로 제출하면 완료나 보상을 저
+   assert.equal(storage.writeCount, 0);
+   assert.equal(random.mock.callCount(), 0);
+ });
++
++test('잔액 저장 실패는 완료로 표시하지 않고 같은 금액으로 한 번만 재시도한다', (context) => {
++  mockDate(context);
++  const walletKey = 'school-timer-student-pets-v1';
++  class FailingStorage extends MemoryStorage {
++    failWallet = true;
++    override setItem(key: string, value: string): void {
++      if (this.failWallet && key === walletKey) throw new Error('quota');
++      super.setItem(key, value);
++    }
++  }
++  const storage = new FailingStorage();
++  const dateKey = '2026-09-04';
++  const summary = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
++  assert.throws(() => submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, () => .5),
++    /CLASSWORD_REWARD_SAVE_FAILED/);
++  assert.equal(loadLocalClasswordQuizStudentState(storage, dateKey, 3).completed, false);
++  assert.deepEqual(loadLocalClasswordQuizTeacherSummary(storage, dateKey).correctStudentNumbers, []);
++  storage.failWallet = false;
++  const retryRandom = context.mock.fn(() => .9);
++  const recovered = submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, retryRandom);
++  assert.equal(recovered.state.completed, true);
++  assert.equal(recovered.rewardAmount, 6);
++  assert.equal(recovered.balance, 106);
++  assert.equal(retryRandom.mock.callCount(), 0);
++  const repeated = submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, retryRandom);
++  assert.equal(repeated.awarded, false);
++  assert.equal(repeated.balance, 106);
++});
++
++test('보유 한도에서는 지급 대기를 유지하고 여유가 생기면 원래 금액만 지급한다', (context) => {
++  mockDate(context);
++  const storage = new MemoryStorage();
++  const walletKey = 'school-timer-student-pets-v1';
++  storage.setItem(walletKey, JSON.stringify({ currencyBalances: { 3: 999999 } }));
++  const dateKey = '2026-09-04';
++  const summary = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
++  assert.throws(() => submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, () => .5),
++    /CLASSWORD_REWARD_PENDING/);
++  const pending = loadLocalClasswordQuizStudentState(storage, dateKey, 3);
++  assert.equal(pending.completed, false);
++  assert.equal(pending.rewardAmount, null);
++  storage.setItem(walletKey, JSON.stringify({ currencyBalances: { 3: 999990 } }));
++  const result = submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, () => .9);
++  assert.equal(result.state.completed, true);
++  assert.equal(result.rewardAmount, 6);
++  assert.equal(result.balance, 999996);
++});
++
++test('지급 대기 기록 저장 실패는 잔액을 변경하지 않는다', (context) => {
++  mockDate(context);
++  class FailingStorage extends MemoryStorage {
++    override setItem(): void { throw new Error('quota'); }
++  }
++  const storage = new FailingStorage();
++  const dateKey = '2026-09-04';
++  const summary = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
++  assert.throws(() => submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer), /CLASSWORD_REWARD_SAVE_FAILED/);
++  assert.equal(loadLocalClasswordQuizStudentState(storage, dateKey, 3).completed, false);
++  assert.equal(storage.getItem('school-timer-student-pets-v1'), null);
++});
++
++test('날짜별 기존 지급이 있으면 교사 문제 변경 뒤에도 금액을 유지하고 중복 지급하지 않는다', (context) => {
++  mockDate(context);
++  const storage = new MemoryStorage();
++  const dateKey = '2026-09-04';
++  const summary = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
++  const original = submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, () => .5);
++  saveLocalTeacherClasswordQuiz(storage, {
++    dateKey, initialHint: 'ㄷㅈ', meaning: '서로 힘을 합쳐 돕는 일', answer: '도움',
++    writtenExample: '친구와 도움을 주고받았다.', spokenExample: '내가 먼저 도움을 줄게.',
++  });
++  const random = context.mock.fn(() => .9);
++  const changed = submitLocalClasswordQuizAnswer(storage, dateKey, 3, '도움', random);
++  assert.equal(changed.awarded, false);
++  assert.equal(changed.state.completed, true);
++  assert.equal(changed.rewardAmount, original.rewardAmount);
++  assert.equal(changed.balance, original.balance);
++  assert.equal(random.mock.callCount(), 0);
++});
+diff --git a/src/lib/classwordQuizLocalStore.ts b/src/lib/classwordQuizLocalStore.ts
+index 25dd5ce..00962b2 100644
+--- a/src/lib/classwordQuizLocalStore.ts
++++ b/src/lib/classwordQuizLocalStore.ts
+@@ -9,7 +9,9 @@ import {
+   type ClasswordQuizTeacherInput,
+   type ClasswordQuizTeacherSummary,
+ } from './classwordQuiz';
+-import { getRandomClasswordQuizRewardAmount } from './classwordQuizReward';
++import { claimClasswordQuizRewardInSettings, getRandomClasswordQuizRewardAmount } from './classwordQuizReward';
++import { normalizeCurrencyBalances, normalizeCurrencyHistory } from './currency';
++import { STUDENT_PET_STORAGE_KEY } from './studentPet';
+ import { assertClasswordParticipation, getClasswordDisplayDate } from './classwordSchedule';
+ 
+ const CLASSWORD_QUIZ_LOCAL_STORAGE_KEY = 'school-timer-classword-quiz-v1';
+@@ -58,8 +60,31 @@ const readCompletions = (storage: Storage): readonly LocalClasswordQuizCompletio
+   }
+ };
+ 
++const readRewardSnapshot = (storage: Storage): Record<string, unknown> => {
++  const raw = storage.getItem(STUDENT_PET_STORAGE_KEY);
++  if (!raw) return {};
++  try {
++    const parsed: unknown = JSON.parse(raw);
++    if (isRecord(parsed)) return parsed;
++  } catch {}
++  throw new Error('CLASSWORD_REWARD_SAVE_FAILED');
++};
++
++const hasPaidReward = (storage: Storage, completion: LocalClasswordQuizCompletion): boolean => {
++  const history = normalizeCurrencyHistory(readRewardSnapshot(storage).currencyHistory);
++  return (history[String(completion.studentNumber)] ?? []).some((entry) => (
++    entry.id === `weekly-mission-classword_quiz_correct-${completion.studentNumber}-${completion.dateKey}`
++    && entry.delta === completion.rewardAmount
++    && entry.delta > 0
++  ));
++};
++
+ const writeCompletions = (storage: Storage, completions: readonly LocalClasswordQuizCompletion[]): void => {
+-  storage.setItem(CLASSWORD_QUIZ_LOCAL_STORAGE_KEY, JSON.stringify(completions));
++  try {
++    storage.setItem(CLASSWORD_QUIZ_LOCAL_STORAGE_KEY, JSON.stringify(completions));
++  } catch {
++    throw new Error('CLASSWORD_REWARD_SAVE_FAILED');
++  }
+ };
+ 
+ const readCustomQuiz = (storage: Storage, dateKey: string): ClasswordQuizDefinition | null => {
+@@ -137,12 +162,13 @@ export const loadLocalClasswordQuizStudentState = (
+     && candidate.questionId === question.id
+     && candidate.studentNumber === studentNumber
+   ));
++  const completed = completion !== undefined && hasPaidReward(storage, completion);
+   return {
+     dateKey,
+     question,
+-    completed: completion !== undefined,
+-    completedAt: completion?.completedAt ?? null,
+-    rewardAmount: completion && completion.rewardAmount > 0 ? completion.rewardAmount : null,
++    completed,
++    completedAt: completed ? completion.completedAt : null,
++    rewardAmount: completed ? completion.rewardAmount : null,
+   };
+ };
+ 
+@@ -158,7 +184,11 @@ export const loadLocalClasswordQuizTeacherSummary = (
+     answer: definition.answer,
+     source: readCustomQuiz(storage, dateKey) ? 'teacher' : 'automatic',
+     correctStudentNumbers: readCompletions(storage)
+-      .filter((completion) => completion.dateKey === dateKey && completion.questionId === question.id)
++      .filter((completion) => (
++        completion.dateKey === dateKey
++        && completion.questionId === question.id
++        && hasPaidReward(storage, completion)
++      ))
+       .map((completion) => completion.studentNumber)
+       .sort((left, right) => left - right),
+   };
+@@ -170,38 +200,60 @@ export const submitLocalClasswordQuizAnswer = (
+   studentNumber: number,
+   answer: string,
+   randomSource: () => number = Math.random,
+-): { readonly correct: boolean; readonly state: ClasswordQuizStudentState; readonly rewardAmount: number } => {
++): {
++  readonly correct: boolean;
++  readonly state: ClasswordQuizStudentState;
++  readonly rewardAmount: number;
++  readonly awarded: boolean;
++  readonly balance: number | null;
++} => {
+   assertClasswordParticipation(dateKey);
+   const currentState = loadLocalClasswordQuizStudentState(storage, dateKey, studentNumber);
+   const completions = readCompletions(storage);
++  const existing = completions.find((completion) => (
++    completion.dateKey === dateKey
++    && completion.questionId === currentState.question.id
++    && completion.studentNumber === studentNumber
++  ));
++  if (!existing && !isClasswordQuizDefinitionAnswerCorrect(getResolvedQuiz(storage, dateKey), answer)) {
++    return { correct: false, state: currentState, rewardAmount: 0, awarded: false, balance: null };
++  }
++  const snapshot = readRewardSnapshot(storage);
+   if (currentState.completed) {
+-    const existing = completions.find((completion) => (
+-      completion.dateKey === dateKey
+-      && completion.questionId === currentState.question.id
+-      && completion.studentNumber === studentNumber
+-    ));
+-    const rewardAmount = existing?.rewardAmount || getRandomClasswordQuizRewardAmount(randomSource);
+-    if (existing && existing.rewardAmount === 0) {
+-      writeCompletions(storage, completions.map((completion) => (
+-        completion === existing ? { ...completion, rewardAmount } : completion
+-      )));
+-    }
+-    return { correct: true, state: currentState, rewardAmount };
++    return {
++      correct: true,
++      state: currentState,
++      rewardAmount: currentState.rewardAmount ?? 0,
++      awarded: false,
++      balance: normalizeCurrencyBalances(snapshot.currencyBalances)[String(studentNumber)],
++    };
+   }
+-  if (!isClasswordQuizDefinitionAnswerCorrect(getResolvedQuiz(storage, dateKey), answer)) {
+-    return { correct: false, state: currentState, rewardAmount: 0 };
++  const priorReward = (normalizeCurrencyHistory(snapshot.currencyHistory)[String(studentNumber)] ?? [])
++    .find((entry) => entry.id === `weekly-mission-classword_quiz_correct-${studentNumber}-${dateKey}`
++      && entry.delta >= 1 && entry.delta <= 10);
++  const rewardAmount = priorReward?.delta || existing?.rewardAmount || getRandomClasswordQuizRewardAmount(randomSource);
++  // Keep the amount stable on retry; readers expose completion only after the wallet receipt exists.
++  if (!existing || existing.rewardAmount !== rewardAmount) {
++    const pending = {
++      dateKey,
++      questionId: currentState.question.id,
++      studentNumber,
++      completedAt: existing?.completedAt ?? new Date().toISOString(),
++      rewardAmount,
++    };
++    writeCompletions(storage, existing
++      ? completions.map((completion) => completion === existing ? pending : completion)
++      : [...completions, pending]);
+   }
+-  const rewardAmount = getRandomClasswordQuizRewardAmount(randomSource);
+-  writeCompletions(storage, [...completions, {
+-    dateKey,
+-    questionId: currentState.question.id,
+-    studentNumber,
+-    completedAt: new Date().toISOString(),
+-    rewardAmount,
+-  }]);
+-  return {
+-    correct: true,
+-    state: loadLocalClasswordQuizStudentState(storage, dateKey, studentNumber),
+-    rewardAmount,
+-  };
++  const reward = claimClasswordQuizRewardInSettings(snapshot, studentNumber, dateKey, rewardAmount);
++  if (reward.awarded) {
++    try {
++      storage.setItem(STUDENT_PET_STORAGE_KEY, JSON.stringify(reward.value));
++    } catch {
++      throw new Error('CLASSWORD_REWARD_SAVE_FAILED');
++    }
++  }
++  const state = loadLocalClasswordQuizStudentState(storage, dateKey, studentNumber);
++  if (!state.completed) throw new Error('CLASSWORD_REWARD_PENDING');
++  return { correct: true, state, rewardAmount, awarded: reward.awarded, balance: reward.balance };
+ };
+diff --git a/src/lib/saveFailure.ts b/src/lib/saveFailure.ts
+index 4725edf..3eb1fc4 100644
+--- a/src/lib/saveFailure.ts
++++ b/src/lib/saveFailure.ts
+@@ -88,6 +88,9 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
+   if (!(error instanceof Error) && !(typeof DOMException !== 'undefined' && error instanceof DOMException)) return null;
+   const errorCode = Reflect.get(error, 'code');
+   if (errorCode === 'CLASSWORD_INITIAL_OCCUPIED' || errorCode === 'CLASSWORD_STUDENT_ALREADY_ENTERED' || errorCode === 'CLASSWORD_ENTRY_CHANGED') return null;
++  if (errorCode === 'CLASSWORD_REWARD_LIMIT_EXCEEDED' || errorCode === 'CLASSWORD_REWARD_PENDING') return null;
++  if (errorCode === 'CLASSWORD_REWARD_SAVE_FAILED') return 'storage';
++  if (errorCode === 'CLASSWORD_REWARD_EVIDENCE_MISMATCH') return 'response';
+   const status = Reflect.get(error, 'status') ?? Number(/(?:HTTP_|HTTP )([0-9]{3})/.exec(error.message)?.[1]);
+   if (status === 401 || status === 403) return 'permission';
+   if (status === 409 || error.message === 'SHARED_SETTINGS_CONFLICT') return 'conflict';
+diff --git a/src/server/classwordRepository.ts b/src/server/classwordRepository.ts
+index 6ffa6a4..9035948 100644
+--- a/src/server/classwordRepository.ts
++++ b/src/server/classwordRepository.ts
+@@ -88,8 +88,9 @@ const request = async (
+     if (path === 'rpc/classword_command_v2') {
+       const body: unknown = await result.json().catch(() => null);
+       const message = isRecord(body) && typeof body.message === 'string' ? body.message : '';
+-      const business = ['CLASSWORD_STUDENT_ALREADY_ENTERED', 'CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_ENTRY_CHANGED', 'STORAGE_REQUEST_REUSED'];
++      const business = ['CLASSWORD_STUDENT_ALREADY_ENTERED', 'CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_ENTRY_CHANGED', 'STORAGE_REQUEST_REUSED', 'CLASSWORD_REWARD_LIMIT_EXCEEDED'];
+       if (business.includes(message)) throw new ClasswordRepositoryError(409, message);
++      if (message === 'CLASSWORD_REWARD_EVIDENCE_MISMATCH') throw new ClasswordRepositoryError(409, message);
+       if (message === 'CLASSWORD_ENTRY_FORBIDDEN') throw new ClasswordRepositoryError(403, message);
+       if (message === 'STORAGE_MAINTENANCE' || message === 'STORAGE_NOT_ACTIVE') throw new ClasswordRepositoryError(503, message);
+     }
+@@ -112,6 +113,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
+ const parseClasswordQuizRewardResult = (value: unknown): ClasswordQuizRewardResult => {
+   if (
+     !isRecord(value)
++    || value.completed !== true
+     || value.missionType !== CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE
+     || typeof value.awarded !== 'boolean'
+     || typeof value.rewardAmount !== 'number'
+@@ -336,12 +338,16 @@ export const loadClasswordQuizRewardAmount = async (
+     `weekly_mission_rewards?student_number=eq.${studentNumber}&week_key=eq.${encodeURIComponent(dateKey)}&mission_type=eq.${CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE}&select=reward_amount&limit=1`,
+   );
+   const rewardAmount = parseRows(value)[0]?.reward_amount;
+-  return typeof rewardAmount === 'number'
+-    && Number.isInteger(rewardAmount)
+-    && rewardAmount >= 1
+-    && rewardAmount <= 10
+-    ? rewardAmount
+-    : null;
++  if (typeof rewardAmount !== 'number' || !Number.isInteger(rewardAmount)
++    || rewardAmount < 1 || rewardAmount > 10) return null;
++  const entryId = `weekly-mission-classword_quiz_correct-${studentNumber}-${dateKey}`;
++  const ledger = parseRows(await request(configuration,
++    `wallet_ledger?student_number=eq.${studentNumber}&entry_id=eq.${encodeURIComponent(entryId)}&select=delta,reason,balance_before,balance_after&limit=2`,
++  ));
++  const entry = ledger[0];
++  return ledger.length === 1 && entry?.delta === rewardAmount && entry.reason === 'weekly_mission'
++    && typeof entry.balance_before === 'number' && typeof entry.balance_after === 'number'
++    && entry.balance_after - entry.balance_before === rewardAmount ? rewardAmount : null;
+ };
+ 
+ export const saveClasswordQuizCompletion = async (
+diff --git a/supabase/storage_classword_v2.sql b/supabase/storage_classword_v2.sql
+index e8c24cc..0a2f771 100644
+--- a/supabase/storage_classword_v2.sql
++++ b/supabase/storage_classword_v2.sql
+@@ -23,6 +23,36 @@ create trigger classword_storage_v2_guard before insert or update or delete on p
+ drop trigger if exists classword_storage_v2_guard on public.classword_quizzes;
+ create trigger classword_storage_v2_guard before insert or update or delete on public.classword_quizzes for each row execute function public.classword_guard_storage_v2();
+ 
++-- Completion is valid only with a matching, fully recorded daily payment.
++create or replace function public.classword_require_quiz_reward(p_student integer,p_date text)
++returns void language plpgsql security definer set search_path=pg_catalog,public as $$
++begin
++  if not exists (
++    select 1 from public.weekly_mission_rewards r
++    join public.wallet_ledger l on l.student_number=r.student_number
++      and l.entry_id=concat('weekly-mission-classword_quiz_correct-',r.student_number,'-',r.week_key)
++      and l.delta=r.reward_amount and l.reason='weekly_mission'
++      and l.balance_after-l.balance_before=l.delta
++    where r.student_number=p_student and r.week_key=p_date
++      and r.mission_type='classword_quiz_correct' and r.reward_amount between 1 and 10
++  ) then raise exception 'CLASSWORD_REWARD_EVIDENCE_MISMATCH'; end if;
++end;
++$$;
++
++create or replace function public.classword_quiz_reward_guard()
++returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
++begin
++  perform public.classword_require_quiz_reward(new.student_number,new.quiz_date::text);
++  return new;
++end;
++$$;
++drop trigger if exists classword_quiz_reward_guard on public.classword_quiz_completions;
++create constraint trigger classword_quiz_reward_guard
++  after insert or update on public.classword_quiz_completions
++  deferrable initially deferred for each row execute function public.classword_quiz_reward_guard();
++revoke all on function public.classword_require_quiz_reward(integer,text) from public,anon,authenticated;
++revoke all on function public.classword_quiz_reward_guard() from public,anon,authenticated;
++
+ create or replace function public.classword_command_v2(p_actor integer,p_request_id text,p_action text,p_payload jsonb,p_protocol_version integer)
+ returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
+ declare
+@@ -43,6 +73,9 @@ begin
+   select * into receipt from public.storage_receipts r where r.actor_key=v_actor_key and r.request_id=p_request_id;
+   if found then
+     if receipt.payload_hash<>v_payload_hash then raise exception 'STORAGE_REQUEST_REUSED'; end if;
++    if p_action='complete_quiz' then
++      perform public.classword_require_quiz_reward(p_actor,p_payload->>'dateKey');
++    end if;
+     return receipt.result;
+   end if;
+   perform set_config('school_timer.storage_protocol','2',true);
+@@ -85,6 +118,8 @@ begin
+       on conflict(quiz_date,question_id,student_number) do nothing;
+     select * into completion from public.classword_quiz_completions where quiz_date=(p_payload->>'dateKey')::date and question_id=p_payload->>'questionId' and student_number=p_actor;
+     reward := public.claim_weekly_mission_reward_v2(p_actor,p_payload->>'dateKey','classword_quiz_correct',p_payload->>'questionId',2);
++    if reward->>'completed' is distinct from 'true' then raise exception 'CLASSWORD_REWARD_LIMIT_EXCEEDED'; end if;
++    perform public.classword_require_quiz_reward(p_actor,p_payload->>'dateKey');
+     result := jsonb_build_object('completion',to_jsonb(completion),'reward',reward,'question',p_payload->'question');
+   elsif p_action='delete_entry' then
+     delete from public.classword_entries where id=(p_payload->>'entryId')::uuid
+diff --git a/tests/api/classword.test.ts b/tests/api/classword.test.ts
+index 360bb00..19b50db 100644
+--- a/tests/api/classword.test.ts
++++ b/tests/api/classword.test.ts
+@@ -466,6 +466,7 @@ test('학생 퀴즈 조회는 힌트와 자신의 완료·보상 상태만 반
+     const originalFetch = globalThis.fetch;
+     globalThis.fetch = async (input) => String(input).includes('/weekly_mission_rewards')
+       ? Response.json([{ reward_amount: 7 }])
++      : String(input).includes('/wallet_ledger') ? Response.json([{ delta: 7, reason: 'weekly_mission', balance_before: 100, balance_after: 107 }])
+       : String(input).includes('/classword_quizzes') ? Response.json([]) : Response.json([{
+           quiz_date: TODAY,
+           question_id: getDailyClasswordQuiz(TODAY).id,
+diff --git a/tests/api/classwordAnnual.test.ts b/tests/api/classwordAnnual.test.ts
+index fea717c..800a23e 100644
+--- a/tests/api/classwordAnnual.test.ts
++++ b/tests/api/classwordAnnual.test.ts
+@@ -136,7 +136,7 @@ test('replaying a completed annual quiz preserves completion and receives the id
+     const url = String(input);
+     if (init?.method === 'POST') {
+       mutations.push(url);
+-      return Response.json({completion:{quiz_date:'2026-09-07',question_id:'teacher-annual',student_number:8,completed_at:'2026-09-07T00:00:00Z'},reward:{missionType:'classword_quiz_correct',awarded:false,rewardAmount:3,balance:13}});
++      return Response.json({completion:{quiz_date:'2026-09-07',question_id:'teacher-annual',student_number:8,completed_at:'2026-09-07T00:00:00Z'},reward:{missionType:'classword_quiz_correct',completed:true,awarded:false,rewardAmount:3,balance:13}});
+     }
+     if (url.includes('/classword_quizzes?')) return Response.json([{
+       question_id: 'teacher-annual', initial_hint: 'ㄷㅇ', meaning: '친구에게 힘을 보탬', answer: '도움',
+diff --git a/tests/api/classwordRepository.test.ts b/tests/api/classwordRepository.test.ts
+index 03d5b70..152f381 100644
+--- a/tests/api/classwordRepository.test.ts
++++ b/tests/api/classwordRepository.test.ts
+@@ -1,6 +1,6 @@
+ import assert from 'node:assert/strict';
+ import test from 'node:test';
+-import { ClasswordRepositoryError, saveClasswordEntry } from '../../src/server/classwordRepository.js';
++import { ClasswordRepositoryError, saveClasswordEntry, loadClasswordQuizRewardAmount } from '../../src/server/classwordRepository.js';
+ const configuration = { url: 'https://example.invalid', key: 'test-only' };
+ const input = { requestId: 'fixture-request-1', dateKey: '2026-09-08', studentNumber: 3, initial: 'ㄱ', word: '강아지' } as const;
+ 
+@@ -24,3 +24,13 @@ for(const body of [{code:'23505'},{code:'23503'},{code:'23505',message:'private
+   try{await assert.rejects(saveClasswordEntry(configuration,input),(error:unknown)=>error instanceof ClasswordRepositoryError&&error.code==='CLASSWORD_DATABASE_HTTP_409'&&error.status===502);}finally{globalThis.fetch=originalFetch;}
+  });
+ }
++
++for (const entries of [[], [{delta: 5, reason: 'weekly_mission', balance_before: 100, balance_after: 105}], [{delta: 6, reason: 'weekly_mission', balance_before: 100, balance_after: 106}]]) {
++ test(`quiz reward read requires matching ledger: ${JSON.stringify(entries)}`, async () => {
++  const originalFetch=globalThis.fetch;
++  globalThis.fetch=async(url)=>String(url).includes('/weekly_mission_rewards')
++   ? Response.json([{reward_amount:6}]) : Response.json(entries);
++  try { assert.equal(await loadClasswordQuizRewardAmount(configuration,'2026-09-08',3), entries[0]?.delta === 6 ? 6 : null); }
++  finally {globalThis.fetch=originalFetch;}
++ });
++}
+diff --git a/tests/storage/classword-concurrency.mjs b/tests/storage/classword-concurrency.mjs
+index 4895d3f..3fd1962 100644
+--- a/tests/storage/classword-concurrency.mjs
++++ b/tests/storage/classword-concurrency.mjs
+@@ -29,6 +29,10 @@ try {
+   for(const r of quiz)assert.deepEqual(r.rows[0].result,quiz[0].rows[0].result);
+   const ledger=await admin.query('select count(*)::integer count from public.wallet_ledger where student_number=$1 and entry_id like $2',[winner,`%${dateKey}`]);
+   assert.equal(ledger.rows[0].count,2);
+-  console.log('PASS: SQL assertions; 23 students same initial exactly one winner; 24 identical quiz requests one reward and one completion');
++  const distinct=await Promise.all(clients.map((c,i)=>command(c,1,`different-quiz-${i}`,'complete_quiz',{dateKey:'2099-10-11',questionId:'distinct-requests'})));
++  assert.equal(distinct.filter(r=>r.rows[0].result.reward.awarded).length,1);
++  const amounts=new Set(distinct.map(r=>r.rows[0].result.reward.rewardAmount));
++  assert.equal(amounts.size,1);
++  console.log('PASS: SQL assertions; 23 students same initial exactly one winner; 24 identical and distinct quiz requests each pay exactly once; failed rewards roll back');
+  } finally {await Promise.all(clients.map(c=>c.end()));}
+ } finally {await admin.end();}
+diff --git a/tests/storage/classword-v2.sql b/tests/storage/classword-v2.sql
+index 2c729c6..a5b44b8 100644
+--- a/tests/storage/classword-v2.sql
++++ b/tests/storage/classword-v2.sql
+@@ -44,4 +44,42 @@ begin
+  if exists(select 1 from public.storage_receipts where request_id='entry-missing-wallet') then raise exception 'failed command receipt committed'; end if;
+ end;
+ $$;
++-- A rejected payment must not consume the completion or request identity.
++do $$
++declare result jsonb;
++begin
++ update public.wallet_accounts set balance=999999 where student_number=22;
++ begin
++  perform public.classword_command_v2(22,'quiz-cap-retry','complete_quiz','{"dateKey":"2099-09-09","questionId":"cap-quiz"}',2);
++  raise exception 'unpaid completion accepted';
++ exception when others then if sqlerrm<>'CLASSWORD_REWARD_LIMIT_EXCEEDED' then raise; end if; end;
++ if exists(select 1 from public.classword_quiz_completions where student_number=22)
++  or exists(select 1 from public.weekly_mission_rewards where student_number=22)
++  or exists(select 1 from public.wallet_ledger where student_number=22)
++  or exists(select 1 from public.storage_receipts where request_id='quiz-cap-retry')
++ then raise exception 'rejected reward left partial data'; end if;
++ update public.wallet_accounts set balance=100 where student_number=22;
++ result:=public.classword_command_v2(22,'quiz-cap-retry','complete_quiz','{"dateKey":"2099-09-09","questionId":"cap-quiz"}',2);
++ if result#>>'{reward,awarded}'<>'true' then raise exception 'retry did not pay'; end if;
++ if (select balance from public.wallet_accounts where student_number=22)<>100+(result#>>'{reward,rewardAmount}')::integer then raise exception 'wallet mismatch'; end if;
++ -- A legacy claim marker alone cannot prove payment.
++ insert into public.weekly_mission_rewards(student_number,week_key,mission_type,reward_amount,source_event_id)
++ values(21,'2099-09-09','classword_quiz_correct',6,'missing-ledger');
++ begin
++  perform public.classword_command_v2(21,'quiz-missing-proof','complete_quiz','{"dateKey":"2099-09-09","questionId":"missing-ledger"}',2);
++  raise exception 'claim without ledger accepted';
++ exception when others then if sqlerrm<>'CLASSWORD_REWARD_EVIDENCE_MISMATCH' then raise; end if; end;
++ if exists(select 1 from public.classword_quiz_completions where student_number=21)
++  or exists(select 1 from public.storage_receipts where request_id='quiz-missing-proof')
++ then raise exception 'unverified payment completed'; end if;
++end;
++$$;
++set constraints classword_quiz_reward_guard immediate;
++do $$ begin
++ begin
++  insert into public.classword_quiz_completions(quiz_date,question_id,student_number)
++   values('2099-09-09','bypass-attempt',20);
++  raise exception 'direct unpaid completion accepted';
++ exception when others then if sqlerrm<>'CLASSWORD_REWARD_EVIDENCE_MISMATCH' then raise; end if; end;
++end; $$;
+ rollback;

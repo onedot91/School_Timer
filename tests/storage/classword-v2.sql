@@ -44,4 +44,42 @@ begin
  if exists(select 1 from public.storage_receipts where request_id='entry-missing-wallet') then raise exception 'failed command receipt committed'; end if;
 end;
 $$;
+-- A rejected payment must not consume the completion or request identity.
+do $$
+declare result jsonb;
+begin
+ update public.wallet_accounts set balance=999999 where student_number=22;
+ begin
+  perform public.classword_command_v2(22,'quiz-cap-retry','complete_quiz','{"dateKey":"2099-09-09","questionId":"cap-quiz"}',2);
+  raise exception 'unpaid completion accepted';
+ exception when others then if sqlerrm<>'CLASSWORD_REWARD_LIMIT_EXCEEDED' then raise; end if; end;
+ if exists(select 1 from public.classword_quiz_completions where student_number=22)
+  or exists(select 1 from public.weekly_mission_rewards where student_number=22)
+  or exists(select 1 from public.wallet_ledger where student_number=22)
+  or exists(select 1 from public.storage_receipts where request_id='quiz-cap-retry')
+ then raise exception 'rejected reward left partial data'; end if;
+ update public.wallet_accounts set balance=100 where student_number=22;
+ result:=public.classword_command_v2(22,'quiz-cap-retry','complete_quiz','{"dateKey":"2099-09-09","questionId":"cap-quiz"}',2);
+ if result#>>'{reward,awarded}'<>'true' then raise exception 'retry did not pay'; end if;
+ if (select balance from public.wallet_accounts where student_number=22)<>100+(result#>>'{reward,rewardAmount}')::integer then raise exception 'wallet mismatch'; end if;
+ -- A legacy claim marker alone cannot prove payment.
+ insert into public.weekly_mission_rewards(student_number,week_key,mission_type,reward_amount,source_event_id)
+ values(21,'2099-09-09','classword_quiz_correct',6,'missing-ledger');
+ begin
+  perform public.classword_command_v2(21,'quiz-missing-proof','complete_quiz','{"dateKey":"2099-09-09","questionId":"missing-ledger"}',2);
+  raise exception 'claim without ledger accepted';
+ exception when others then if sqlerrm<>'CLASSWORD_REWARD_EVIDENCE_MISMATCH' then raise; end if; end;
+ if exists(select 1 from public.classword_quiz_completions where student_number=21)
+  or exists(select 1 from public.storage_receipts where request_id='quiz-missing-proof')
+ then raise exception 'unverified payment completed'; end if;
+end;
+$$;
+set constraints classword_quiz_reward_guard immediate;
+do $$ begin
+ begin
+  insert into public.classword_quiz_completions(quiz_date,question_id,student_number)
+   values('2099-09-09','bypass-attempt',20);
+  raise exception 'direct unpaid completion accepted';
+ exception when others then if sqlerrm<>'CLASSWORD_REWARD_EVIDENCE_MISMATCH' then raise; end if; end;
+end; $$;
 rollback;

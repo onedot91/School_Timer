@@ -23,6 +23,36 @@ create trigger classword_storage_v2_guard before insert or update or delete on p
 drop trigger if exists classword_storage_v2_guard on public.classword_quizzes;
 create trigger classword_storage_v2_guard before insert or update or delete on public.classword_quizzes for each row execute function public.classword_guard_storage_v2();
 
+-- Completion is valid only with a matching, fully recorded daily payment.
+create or replace function public.classword_require_quiz_reward(p_student integer,p_date text)
+returns void language plpgsql security definer set search_path=pg_catalog,public as $$
+begin
+  if not exists (
+    select 1 from public.weekly_mission_rewards r
+    join public.wallet_ledger l on l.student_number=r.student_number
+      and l.entry_id=concat('weekly-mission-classword_quiz_correct-',r.student_number,'-',r.week_key)
+      and l.delta=r.reward_amount and l.reason='weekly_mission'
+      and l.balance_after-l.balance_before=l.delta
+    where r.student_number=p_student and r.week_key=p_date
+      and r.mission_type='classword_quiz_correct' and r.reward_amount between 1 and 10
+  ) then raise exception 'CLASSWORD_REWARD_EVIDENCE_MISMATCH'; end if;
+end;
+$$;
+
+create or replace function public.classword_quiz_reward_guard()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
+begin
+  perform public.classword_require_quiz_reward(new.student_number,new.quiz_date::text);
+  return new;
+end;
+$$;
+drop trigger if exists classword_quiz_reward_guard on public.classword_quiz_completions;
+create constraint trigger classword_quiz_reward_guard
+  after insert or update on public.classword_quiz_completions
+  deferrable initially deferred for each row execute function public.classword_quiz_reward_guard();
+revoke all on function public.classword_require_quiz_reward(integer,text) from public,anon,authenticated;
+revoke all on function public.classword_quiz_reward_guard() from public,anon,authenticated;
+
 create or replace function public.classword_command_v2(p_actor integer,p_request_id text,p_action text,p_payload jsonb,p_protocol_version integer)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare
@@ -43,6 +73,9 @@ begin
   select * into receipt from public.storage_receipts r where r.actor_key=v_actor_key and r.request_id=p_request_id;
   if found then
     if receipt.payload_hash<>v_payload_hash then raise exception 'STORAGE_REQUEST_REUSED'; end if;
+    if p_action='complete_quiz' then
+      perform public.classword_require_quiz_reward(p_actor,p_payload->>'dateKey');
+    end if;
     return receipt.result;
   end if;
   perform set_config('school_timer.storage_protocol','2',true);
@@ -85,6 +118,8 @@ begin
       on conflict(quiz_date,question_id,student_number) do nothing;
     select * into completion from public.classword_quiz_completions where quiz_date=(p_payload->>'dateKey')::date and question_id=p_payload->>'questionId' and student_number=p_actor;
     reward := public.claim_weekly_mission_reward_v2(p_actor,p_payload->>'dateKey','classword_quiz_correct',p_payload->>'questionId',2);
+    if reward->>'completed' is distinct from 'true' then raise exception 'CLASSWORD_REWARD_LIMIT_EXCEEDED'; end if;
+    perform public.classword_require_quiz_reward(p_actor,p_payload->>'dateKey');
     result := jsonb_build_object('completion',to_jsonb(completion),'reward',reward,'question',p_payload->'question');
   elsif p_action='delete_entry' then
     delete from public.classword_entries where id=(p_payload->>'entryId')::uuid

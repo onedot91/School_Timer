@@ -133,10 +133,11 @@ export default function ClasswordQuiz({
                       : submissionState === 'incorrect'
                         ? '오답'
                         : submissionState === 'error'
-                          ? '오류'
+                          ? '다시 시도'
                           : '제출'}
                 </button>
               </div>
+              {loadError ? <p role="alert">{loadError}</p> : null}
             </form>
           </div>
         </div>

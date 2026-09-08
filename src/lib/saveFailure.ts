@@ -88,6 +88,9 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (!(error instanceof Error) && !(typeof DOMException !== 'undefined' && error instanceof DOMException)) return null;
   const errorCode = Reflect.get(error, 'code');
   if (errorCode === 'CLASSWORD_INITIAL_OCCUPIED' || errorCode === 'CLASSWORD_STUDENT_ALREADY_ENTERED' || errorCode === 'CLASSWORD_ENTRY_CHANGED') return null;
+  if (errorCode === 'CLASSWORD_REWARD_LIMIT_EXCEEDED' || errorCode === 'CLASSWORD_REWARD_PENDING') return null;
+  if (errorCode === 'CLASSWORD_REWARD_SAVE_FAILED') return 'storage';
+  if (errorCode === 'CLASSWORD_REWARD_EVIDENCE_MISMATCH') return 'response';
   const status = Reflect.get(error, 'status') ?? Number(/(?:HTTP_|HTTP )([0-9]{3})/.exec(error.message)?.[1]);
   if (status === 401 || status === 403) return 'permission';
   if (status === 409 || error.message === 'SHARED_SETTINGS_CONFLICT') return 'conflict';

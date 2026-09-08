@@ -88,7 +88,7 @@ test('오답은 저장하지 않고 정답은 학생·날짜·문제별 한 번�
   assert.equal(repeatedCorrect.rewardAmount, 1);
   assert.equal(firstRandom.mock.callCount(), 1);
   assert.equal(repeatedRandom.mock.callCount(), 0);
-  assert.equal(storage.writeCount, 1);
+  assert.equal(storage.writeCount, 2);
   const completedState = loadLocalClasswordQuizStudentState(storage, dateKey, 3);
   assert.equal(completedState.completed, true);
   assert.equal(completedState.rewardAmount, 1);
@@ -139,5 +139,85 @@ test('평일에도 과거 퀴즈 날짜로 제출하면 완료나 보상을 저�
   // Then
   assert.throws(submit, /TODAY_ONLY/);
   assert.equal(storage.writeCount, 0);
+  assert.equal(random.mock.callCount(), 0);
+});
+
+test('잔액 저장 실패는 완료로 표시하지 않고 같은 금액으로 한 번만 재시도한다', (context) => {
+  mockDate(context);
+  const walletKey = 'school-timer-student-pets-v1';
+  class FailingStorage extends MemoryStorage {
+    failWallet = true;
+    override setItem(key: string, value: string): void {
+      if (this.failWallet && key === walletKey) throw new Error('quota');
+      super.setItem(key, value);
+    }
+  }
+  const storage = new FailingStorage();
+  const dateKey = '2026-09-04';
+  const summary = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
+  assert.throws(() => submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, () => .5),
+    /CLASSWORD_REWARD_SAVE_FAILED/);
+  assert.equal(loadLocalClasswordQuizStudentState(storage, dateKey, 3).completed, false);
+  assert.deepEqual(loadLocalClasswordQuizTeacherSummary(storage, dateKey).correctStudentNumbers, []);
+  storage.failWallet = false;
+  const retryRandom = context.mock.fn(() => .9);
+  const recovered = submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, retryRandom);
+  assert.equal(recovered.state.completed, true);
+  assert.equal(recovered.rewardAmount, 6);
+  assert.equal(recovered.balance, 106);
+  assert.equal(retryRandom.mock.callCount(), 0);
+  const repeated = submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, retryRandom);
+  assert.equal(repeated.awarded, false);
+  assert.equal(repeated.balance, 106);
+});
+
+test('보유 한도에서는 지급 대기를 유지하고 여유가 생기면 원래 금액만 지급한다', (context) => {
+  mockDate(context);
+  const storage = new MemoryStorage();
+  const walletKey = 'school-timer-student-pets-v1';
+  storage.setItem(walletKey, JSON.stringify({ currencyBalances: { 3: 999999 } }));
+  const dateKey = '2026-09-04';
+  const summary = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
+  assert.throws(() => submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, () => .5),
+    /CLASSWORD_REWARD_PENDING/);
+  const pending = loadLocalClasswordQuizStudentState(storage, dateKey, 3);
+  assert.equal(pending.completed, false);
+  assert.equal(pending.rewardAmount, null);
+  storage.setItem(walletKey, JSON.stringify({ currencyBalances: { 3: 999990 } }));
+  const result = submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, () => .9);
+  assert.equal(result.state.completed, true);
+  assert.equal(result.rewardAmount, 6);
+  assert.equal(result.balance, 999996);
+});
+
+test('지급 대기 기록 저장 실패는 잔액을 변경하지 않는다', (context) => {
+  mockDate(context);
+  class FailingStorage extends MemoryStorage {
+    override setItem(): void { throw new Error('quota'); }
+  }
+  const storage = new FailingStorage();
+  const dateKey = '2026-09-04';
+  const summary = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
+  assert.throws(() => submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer), /CLASSWORD_REWARD_SAVE_FAILED/);
+  assert.equal(loadLocalClasswordQuizStudentState(storage, dateKey, 3).completed, false);
+  assert.equal(storage.getItem('school-timer-student-pets-v1'), null);
+});
+
+test('날짜별 기존 지급이 있으면 교사 문제 변경 뒤에도 금액을 유지하고 중복 지급하지 않는다', (context) => {
+  mockDate(context);
+  const storage = new MemoryStorage();
+  const dateKey = '2026-09-04';
+  const summary = loadLocalClasswordQuizTeacherSummary(storage, dateKey);
+  const original = submitLocalClasswordQuizAnswer(storage, dateKey, 3, summary.answer, () => .5);
+  saveLocalTeacherClasswordQuiz(storage, {
+    dateKey, initialHint: 'ㄷㅈ', meaning: '서로 힘을 합쳐 돕는 일', answer: '도움',
+    writtenExample: '친구와 도움을 주고받았다.', spokenExample: '내가 먼저 도움을 줄게.',
+  });
+  const random = context.mock.fn(() => .9);
+  const changed = submitLocalClasswordQuizAnswer(storage, dateKey, 3, '도움', random);
+  assert.equal(changed.awarded, false);
+  assert.equal(changed.state.completed, true);
+  assert.equal(changed.rewardAmount, original.rewardAmount);
+  assert.equal(changed.balance, original.balance);
   assert.equal(random.mock.callCount(), 0);
 });

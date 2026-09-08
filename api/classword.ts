@@ -252,8 +252,8 @@ const handleGet = async (
     response.status(200).json({
       dateKey,
       question,
-      completed: completion !== undefined,
-      completedAt: completion?.completedAt ?? null,
+      completed: completion !== undefined && rewardAmount !== null,
+      completedAt: rewardAmount !== null ? completion?.completedAt ?? null : null,
       rewardAmount,
     });
     return;
