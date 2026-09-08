@@ -36,10 +36,15 @@ export const selectTeacherSettings = (value: unknown): Record<string, unknown> =
   return settings;
 };
 
+// Compare the same JSON representation sent to the API: optional object fields are omitted.
+const persistedSettingJson = (value: unknown): string => (
+  canonicalStorageJson(JSON.parse(JSON.stringify(value ?? null)))
+);
+
 export const createTeacherSettingsChanges = (base: unknown, value: unknown): TeacherSettingChange[] => {
   const previous = selectTeacherSettings(base);
   const next = selectTeacherSettings(value);
-  return Object.keys(next).filter(field => canonicalStorageJson(previous[field] ?? null) !== canonicalStorageJson(next[field] ?? null))
+  return Object.keys(next).filter(field => persistedSettingJson(previous[field]) !== persistedSettingJson(next[field]))
     .map(field => ({ field, before: previous[field] ?? null, after: next[field] }));
 };
 

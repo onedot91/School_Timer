@@ -1,3 +1,4 @@
+import { normalizeSavedRandomDrawState } from '../../src/lib/randomDraw.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyTeacherStorageCommand } from '../../src/server/teacherStorageCommands.js';
@@ -113,4 +114,20 @@ test('initial auction configuration can be created from an absent storage field'
   const after = { auctionItems: normalizeAuctionItems([{ id: 'item-a', dayIndex: 0, name: '공책' }]) };
   const saved = apply({}, 'teacher.settings.patch', { changes: createTeacherSettingsChanges({}, after) });
   assert.deepEqual(saved.value.auctionItems, after.auctionItems);
+});
+
+test('teacher hydration with ordinary random draw history does not crash or invent changes', () => {
+  const randomDraw = normalizeSavedRandomDrawState({ activeCaseId: 'fixture', cases: [{
+    id: 'fixture', historyEntries: [{ id: 'draw-1', number: 3, kind: 'normal' }],
+  }] });
+  assert.equal(Object.hasOwn(randomDraw.cases[0].historyEntries[0], 'sourceEntryId'), true);
+  assert.equal(randomDraw.cases[0].historyEntries[0].sourceEntryId, undefined);
+  const hydrated = { randomDraw, scheduleNotice: 'before' };
+  const persisted = JSON.parse(JSON.stringify(hydrated));
+  assert.deepEqual(createTeacherSettingsChanges(persisted, hydrated), []);
+  const changes = createTeacherSettingsChanges(persisted, { ...hydrated, scheduleNotice: 'after' });
+  assert.deepEqual(changes, [{ field: 'scheduleNotice', before: 'before', after: 'after' }]);
+  const saved = apply(persisted, 'teacher.settings.patch', { changes });
+  assert.deepEqual(saved.value.randomDraw, persisted.randomDraw);
+  assert.equal(saved.value.scheduleNotice, 'after');
 });
