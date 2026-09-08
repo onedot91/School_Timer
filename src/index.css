@@ -26845,7 +26845,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-house-market article > img { width: min(100%, 15rem); height: 12rem; object-fit: contain; filter: drop-shadow(0 .55rem .6rem rgba(82,57,33,.18)); }
 .student-house-market article > h3 { color: #174b2b; font-size: 1.05rem; font-weight: 950; }
 .student-house-market article > button { min-width: 10rem; min-height: 3.1rem; border-radius: .9rem; background: var(--student-house-accent); padding: 0 1rem; color: #fff; font-weight: 950; }
-.currency-deduction-progress { height: 6px; margin-top: 8px; overflow: hidden; border-radius: 999px; background: #ead9c2; }
+.currency-deduction-progress { position: absolute; left: 8px; right: 8px; bottom: 4px; height: 3px; overflow: hidden; border-radius: 999px; background: #ead9c2; }
 .currency-deduction-progress > span { display: block; width: 40%; height: 100%; border-radius: inherit; background: #8b4d2d; animation: currency-deduction-progress 1.2s ease-in-out infinite; }
 @keyframes currency-deduction-progress { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
 @media (prefers-reduced-motion: reduce) { .currency-deduction-progress > span { width: 100%; animation: none; } }

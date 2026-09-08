@@ -8122,16 +8122,14 @@ export default function TimerPage() {
           disabled={isCurrencyDeductionInvalid || isCurrencyDeductionSaving}
           aria-busy={isCurrencyDeductionSaving}
           onClick={() => void submitCurrencyDeduction()}
-          className="h-9 w-[5.6rem] shrink-0 rounded-[0.7rem] bg-[#8B4D2D] px-2 font-mono text-[0.76rem] font-black text-white transition-[background-color,transform] hover:bg-[#713C22] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#C8B7AA]"
+          className="relative h-9 w-[5.6rem] shrink-0 overflow-hidden rounded-[0.7rem] bg-[#8B4D2D] px-2 font-mono text-[0.76rem] font-black text-white transition-[background-color,transform] hover:bg-[#713C22] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#C8B7AA]"
         >
           {isCurrencyDeductionSaving ? '저장 중' : `−${formatCurrencyAmount(Number.isFinite(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0)} 차감`}
+          {isCurrencyDeductionSaving ? (
+            <span className="currency-deduction-progress" aria-hidden="true"><span /></span>
+          ) : null}
         </button>
       </div>
-      {isCurrencyDeductionSaving ? (
-        <div className="currency-deduction-progress" role="progressbar" aria-label="차감 저장 중">
-          <span />
-        </div>
-      ) : null}
       {currencyDeductionError ? (
         <p className="mt-2 text-center text-[0.76rem] font-bold text-[#A34F45]" role="alert">{currencyDeductionError}</p>
       ) : null}
