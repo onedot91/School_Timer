@@ -28799,7 +28799,7 @@ body {
 .student-character-showcase[data-encounter],
 .student-character-showcase[data-encounter] .student-character-path,
 .student-character-showcase[data-encounter] .student-character-frame { animation-play-state: paused !important; }
-.student-character-showcase[data-encounter="look"][data-encounter-phase="act"] .student-character-image { transform: var(--student-character-look-transform); }
+.student-character-showcase[data-encounter="look"][data-encounter-phase="act"] .student-character-gesture { transform: scaleX(-1); }
 .student-character-showcase[data-encounter] .student-character-speech { visibility: hidden; }
 .student-character-greeting, .student-character-look-question { display: none; position: absolute; top: -.5rem; left: 50%; transform: translate(-50%, -100%); padding: .4rem .8rem; border: 2px solid #b1c3a6; border-radius: 999px; background: #fffdf5; color: #345131; font-weight: 800; white-space: nowrap; z-index: 3; }
 .student-character-showcase[data-greeting-speaker="true"][data-encounter="greet"] .student-character-greeting { display: block; }

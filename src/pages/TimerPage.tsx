@@ -3665,7 +3665,7 @@ const STUDENT_CHARACTER_SPAWN_SCALES = [0.85, 0.9, 0.95, 0.95, 1, 1, 1, 1.05, 1.
 
 const shouldStudentCharacterSpeak = (spawnOrder: number, characterIndex: number, streamIndex: number) => {
   const seed = (spawnOrder + 7) * 37 + (characterIndex + 3) * 19 + streamIndex * 11;
-  const speechChance = (1 - (16 / 17) * (22 / 23) * (28 / 29)) * 1.5;
+  const speechChance = 0.3;
   return getStableHash(`student-speech:${seed}`) / 0x100000000 < speechChance;
 };
 
@@ -3762,7 +3762,6 @@ function StudentCharacterShowcase({
     '--student-character-depth-mid-b': path.depthMidB,
     '--student-character-depth-end': path.depthEnd,
     '--student-character-image-transform': imageTransform,
-    '--student-character-look-transform': character.walkTransform?.[direction === 'left' ? 'right' : 'left'] || (direction === 'left' ? 'none' : 'scaleX(-1)'),
     '--student-character-speech-top': character.speechTop || '-0.65rem',
   } as React.CSSProperties;
 

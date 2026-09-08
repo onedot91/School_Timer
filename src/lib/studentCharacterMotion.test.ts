@@ -74,7 +74,24 @@ test('캐릭터는 화면 안에서 페이드하지 않고 이동 완료 후 교
 test('인사 높이는 이미지 크기가 아닌 같은 이동 경로로 판단한다', () => {
   const stage = readFileSync(new URL('../components/teacher/StudentCharacterStage.tsx', import.meta.url), 'utf8');
   assert.match(timerPage, /data-walk-lane=\{lane\}/);
-  assert.match(stage, /a\.node\.dataset\.walkLane !== undefined && a\.node\.dataset\.walkLane === b\.node\.dataset\.walkLane/);
+  assert.match(stage, /shouldCharactersGreet\(/);
+  assert.match(stage, /lane: a\.node\.dataset\.walkLane/);
+  assert.match(stage, /lane: b\.node\.dataset\.walkLane/);
   assert.doesNotMatch(stage, /Math\.abs\(a\.box\.bottom - b\.box\.bottom\)/);
-  assert.match(stage, /left\.node\.dataset\.direction !== 'right' \|\| right\.node\.dataset\.direction !== 'left' \|\| !sameLevel/);
+
+});
+
+test('새 만남은 이전 인사나 뒤돌아보기 때문에 생략하지 않는다', () => {
+  const stage = readFileSync(new URL('../components/teacher/StudentCharacterStage.tsx', import.meta.url), 'utf8');
+  const meeting = stage.slice(stage.indexOf('for (let i = 0;'), stage.indexOf('positions.forEach'));
+  assert.doesNotMatch(meeting, /greeted\.has|active\.has/);
+  assert.match(meeting, /active\.get\(a\.node\)\?\.kind === 'greet'/);
+  assert.match(meeting, /clear\(node\);/);
+  assert.match(meeting, /encounters\.get\(a\.node\)\?\.has\(b\.node\)/);
+});
+
+test('뒤돌아보기는 원래 이미지 변환을 유지한 채 전체를 제자리에서 반전한다', () => {
+  assert.match(css, /data-encounter="look"\]\[data-encounter-phase="act"\] \.student-character-gesture \{ transform: scaleX\(-1\); \}/);
+  assert.doesNotMatch(timerPage, /--student-character-look-transform/);
+  assert.match(css, /\.student-character-gesture \{[^}]*transform-origin: center bottom/);
 });

@@ -1,10 +1,12 @@
+import { shouldCharactersGreet } from '../../lib/studentCharacterEncounter';
 import { useEffect, useRef, type ReactNode } from 'react';
 
-export default function StudentCharacterStage({ children, lookBackProbability = .4 }: { children: ReactNode; lookBackProbability?: number }) {
+export default function StudentCharacterStage({ children, lookBackProbability = .3 }: { children: ReactNode; lookBackProbability?: number }) {
   const stage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = stage.current;
     if (!root) return;
+    const previousCenters = new WeakMap<HTMLElement, number>();
     const seen = new WeakMap<HTMLElement, number>();
     const looked = new WeakSet<HTMLElement>();
     const greeted = new WeakSet<HTMLElement>();
@@ -19,7 +21,7 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const timer = window.setInterval(() => {
       const now = performance.now();
-      if (document.hidden || reduced.matches) {
+      if (document.hidden) {
         active.forEach((_, node) => clear(node));
         return;
       }
@@ -36,17 +38,22 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
       for (let i = 0; i < positions.length; i++) {
         for (let j = i + 1; j < positions.length; j++) {
           const a = positions[i], b = positions[j];
-          if (active.has(a.node) || active.has(b.node) || greeted.has(a.node) || greeted.has(b.node)) continue;
-          const [left, right] = a.box.x < b.box.x ? [a, b] : [b, a];
-          const distance = right.box.x + right.box.width / 2 - left.box.x - left.box.width / 2;
-          const sameLevel = a.node.dataset.walkLane !== undefined && a.node.dataset.walkLane === b.node.dataset.walkLane;
-          if (left.node.dataset.direction !== 'right' || right.node.dataset.direction !== 'left' || !sameLevel) continue;
-          if (left.box.x < 0 || right.box.right > innerWidth || distance > (a.box.width + b.box.width) * .6) continue;
+          if (active.get(a.node)?.kind === 'greet' || active.get(b.node)?.kind === 'greet') continue;
+          if (!shouldCharactersGreet(
+            { lane: a.node.dataset.walkLane, direction: a.node.dataset.direction, left: a.box.left, right: a.box.right, previousCenter: previousCenters.get(a.node) },
+            { lane: b.node.dataset.walkLane, direction: b.node.dataset.direction, left: b.box.left, right: b.box.right, previousCenter: previousCenters.get(b.node) },
+            innerWidth,
+          )) continue;
           if (encounters.get(a.node)?.has(b.node)) continue;
           const partners = encounters.get(a.node) ?? new WeakSet<HTMLElement>();
           partners.add(b.node);
           encounters.set(a.node, partners);
-          for (const { node } of [left, right]) {
+          const reversePartners = encounters.get(b.node) ?? new WeakSet<HTMLElement>();
+          reversePartners.add(a.node);
+          encounters.set(b.node, reversePartners);
+          for (const { node } of [a, b]) {
+            clear(node);
+            looked.add(node);
             greeted.add(node);
             node.dataset.greetingSpeaker = 'true';
             node.dataset.encounter = 'greet';
@@ -56,6 +63,8 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
         }
       }
       positions.forEach(({ node, box }, index) => {
+        previousCenters.set(node, box.left + box.width / 2);
+        if (reduced.matches) return;
         if (!seen.has(node)) {
           seen.set(node, now);
           if (Math.random() >= lookBackProbability) looked.add(node);
