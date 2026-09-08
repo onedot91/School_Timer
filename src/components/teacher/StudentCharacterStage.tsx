@@ -35,6 +35,23 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
         }
       });
       const positions = nodes.map(node => ({ node, box: (node.querySelector('.student-character-image') ?? node).getBoundingClientRect() }));
+      const waiting = new Set<HTMLElement>();
+      for (let i = 0; i < positions.length; i++) {
+        for (let j = i + 1; j < positions.length; j++) {
+          const a = positions[i], b = positions[j];
+          const direction = a.node.dataset.direction;
+          if (direction !== b.node.dataset.direction || (direction !== 'left' && direction !== 'right')) continue;
+          if ([a, b].some(({ box }) => box.right <= 0 || box.left >= innerWidth)) continue;
+          const delta = (a.box.left + a.box.right - b.box.left - b.box.right) / 2;
+          const follower = (direction === 'right' ? delta < 0 : delta > 0) ? a.node : b.node;
+          const gap = (a.box.width + b.box.width) / 2 + 24;
+          if (Math.abs(delta) < gap + (follower.dataset.spacingWait ? 24 : 0)) waiting.add(follower);
+        }
+      }
+      nodes.forEach(node => {
+        if (waiting.has(node)) node.dataset.spacingWait = 'true';
+        else delete node.dataset.spacingWait;
+      });
       for (let i = 0; i < positions.length; i++) {
         for (let j = i + 1; j < positions.length; j++) {
           const a = positions[i], b = positions[j];
@@ -77,7 +94,11 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
         active.set(node, { start: now, kind: 'look' });
       });
     }, 100);
-    return () => { window.clearInterval(timer); active.forEach((_, node) => clear(node)); };
+    return () => {
+      window.clearInterval(timer);
+      active.forEach((_, node) => clear(node));
+      root.querySelectorAll<HTMLElement>('[data-spacing-wait]').forEach(node => delete node.dataset.spacingWait);
+    };
   }, [lookBackProbability]);
   return <div ref={stage} className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">{children}</div>;
 }

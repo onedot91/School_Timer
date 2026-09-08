@@ -8063,7 +8063,8 @@ export default function TimerPage() {
       <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => setCurrencyDeductionAmount(String(Math.max(1, (Number.isInteger(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0) - CURRENCY_BALANCE_STEP)))}
+          disabled={parsedCurrencyDeductionAmount <= CURRENCY_BALANCE_STEP}
+          onClick={() => setCurrencyDeductionAmount(String(Math.max(CURRENCY_BALANCE_STEP, (Number.isInteger(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0) - CURRENCY_BALANCE_STEP)))}
           className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] border border-[#E2CFB3] bg-white font-mono text-base font-black text-[#765538] transition-[background-color,transform] hover:bg-[#FFF3DE] active:scale-95"
           aria-label="차감액 줄이기"
         >
@@ -8119,12 +8120,18 @@ export default function TimerPage() {
         <button
           type="button"
           disabled={isCurrencyDeductionInvalid || isCurrencyDeductionSaving}
+          aria-busy={isCurrencyDeductionSaving}
           onClick={() => void submitCurrencyDeduction()}
           className="h-9 w-[5.6rem] shrink-0 rounded-[0.7rem] bg-[#8B4D2D] px-2 font-mono text-[0.76rem] font-black text-white transition-[background-color,transform] hover:bg-[#713C22] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#C8B7AA]"
         >
           {isCurrencyDeductionSaving ? '저장 중' : `−${formatCurrencyAmount(Number.isFinite(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0)} 차감`}
         </button>
       </div>
+      {isCurrencyDeductionSaving ? (
+        <div className="currency-deduction-progress" role="progressbar" aria-label="차감 저장 중">
+          <span />
+        </div>
+      ) : null}
       {currencyDeductionError ? (
         <p className="mt-2 text-center text-[0.76rem] font-bold text-[#A34F45]" role="alert">{currencyDeductionError}</p>
       ) : null}
