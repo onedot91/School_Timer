@@ -1,0 +1,10 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><title>캐릭터 방향 확인</title><style>body{display:flex;gap:60px;background:#dce2dc;font-family:sans-serif}figure{margin:30px}img{height:360px}figcaption{text-align:center}</style><body><script type="module">
+import { STUDENT_CHARACTERS } from '/src/lib/studentCharacters.ts';
+const character = STUDENT_CHARACTERS.find(item => item.id === 'student-2-additional');
+for (const direction of ['left','right']) {
+ const figure = document.createElement('figure');
+ const img = document.createElement('img'); img.src=character.imageSrc; img.alt=direction; img.style.transform=character.walkTransform[direction];
+ const caption=document.createElement('figcaption'); caption.textContent=direction;
+ figure.append(img,caption); document.body.append(figure);
+}
+</script></body></html>

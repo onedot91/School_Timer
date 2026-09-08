@@ -263,7 +263,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-2-additional.png',
     alt: '2번 학생이 만든 추가 캐릭터',
     speech: '프랑스 우승 가자',
-    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+    walkTransform: { right: 'scaleX(-1)', left: 'none' },
   },
   {
     id: 'student-5-additional',

@@ -9264,6 +9264,9 @@ export default function TimerPage() {
   );
 
   const auctionVisibleDayCount = getAuctionVisibleDayCount();
+  const todayAuctionDayIndex = new Date(scheduleFocusTick).getDay() - 1;
+  const isTodayAuctionUnregistered = todayAuctionDayIndex >= 0 && todayAuctionDayIndex < AUCTION_WEEKDAY_LABELS.length
+    && !auctionItems.some((item) => item.dayIndex === todayAuctionDayIndex && !isUnusedAuctionItem(item));
   const isAuctionScheduleClosed = auctionVisibleDayCount === 0;
   const isAuctionConfigurationExpanded =
     !isAuctionScheduleClosed || temporaryVisibleAuctionItemIds.size > 0;
@@ -12538,10 +12541,10 @@ export default function TimerPage() {
                           >
                             <ItemIcon size={19} aria-hidden="true" />
                             <span>{item.label}</span>
-                            {item.panel === 'auction' && auctionItems.every(isUnusedAuctionItem) ? (
+                            {item.panel === 'auction' && isTodayAuctionUnregistered ? (
                               <span
                                 className="settings-navigation-new-badge"
-                                aria-label="경매 물품 미등록"
+                                aria-label="오늘 경매 물품 미등록"
                               >
                                 미등록
                               </span>
