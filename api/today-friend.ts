@@ -4,6 +4,7 @@ import {
 } from '../src/lib/todayFriend.js';
 import {
   assignTodayFriendPair,
+  ensureTodayFriendDay,
   reassignTodayFriendPartners,
   reassignTodayFriendWeek,
   selectTodayFriendQuestion,
@@ -26,7 +27,7 @@ import {
   requestTodayFriendSubmissionRevision,
   saveTodayFriendDraft,
   storeTodayFriendPlanningState,
-  submitTodayFriendDraft,
+  loadTodayFriendSaveReceipt,
   TodayFriendRepositoryError,
   type TodayFriendRepositoryConfiguration,
 } from '../src/server/todayFriendRepository.js';
@@ -65,6 +66,13 @@ const handleGet = async (
   configuration: TodayFriendRepositoryConfiguration,
   session: DeviceSession,
 ): Promise<void> => {
+  if (typeof request.query?.requestId === 'string') {
+    if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
+    if (!request.query.requestId.trim() || request.query.requestId.length > 200) throw new TodayFriendApiError(400, 'INVALID_REQUEST_ID');
+    const submission = await loadTodayFriendSaveReceipt(configuration, `student:${session.studentNumber}`, request.query.requestId);
+    response.status(200).json({ found: submission !== null, submission });
+    return;
+  }
   const dateKey = typeof request.query?.dateKey === 'string' ? request.query.dateKey : getTodayFriendDateKey();
   if (!isTodayFriendDateKey(dateKey)) throw new TodayFriendApiError(400, 'INVALID_DATE');
   if (request.query?.teacher === '1') {
@@ -80,22 +88,23 @@ const updatePlan = async (
   configuration: TodayFriendRepositoryConfiguration,
   action: TodayFriendPlanningAction,
 ): Promise<void> => {
-  const state = await loadTodayFriendPlanningState(configuration, action.dateKey);
+  const expectedState = await loadTodayFriendPlanningState(configuration, action.dateKey);
+  const state = ensureTodayFriendDay(expectedState, getKoreanIsoWeekKey(new Date(`${action.dateKey}T12:00:00+09:00`)), action.dateKey);
   switch (action.type) {
     case 'reassign_week':
-      await storeTodayFriendPlanningState(configuration, reassignTodayFriendWeek(state, getKoreanIsoWeekKey(new Date(`${action.dateKey}T12:00:00+09:00`))));
+      await storeTodayFriendPlanningState(configuration, reassignTodayFriendWeek(state, getKoreanIsoWeekKey(new Date(`${action.dateKey}T12:00:00+09:00`))), expectedState);
       return;
     case 'reassign_partners':
-      await storeTodayFriendPlanningState(configuration, reassignTodayFriendPartners(state, action.dateKey));
+      await storeTodayFriendPlanningState(configuration, reassignTodayFriendPartners(state, action.dateKey), expectedState);
       return;
     case 'assign_pair':
-      await storeTodayFriendPlanningState(configuration, assignTodayFriendPair(state, action));
+      await storeTodayFriendPlanningState(configuration, assignTodayFriendPair(state, action), expectedState);
       return;
     case 'select_question':
-      await storeTodayFriendPlanningState(configuration, selectTodayFriendQuestion(state, action.dateKey, action.questionId));
+      await storeTodayFriendPlanningState(configuration, selectTodayFriendQuestion(state, action.dateKey, action.questionId), expectedState);
       return;
     case 'replace_questions':
-      await storeTodayFriendPlanningState(configuration, { ...state, questions: action.questions });
+      await storeTodayFriendPlanningState(configuration, { ...state, questions: action.questions }, expectedState);
       return;
   }
 };
@@ -107,24 +116,30 @@ const handlePost = async (
   session: DeviceSession,
 ): Promise<void> => {
   const action = parseTodayFriendAction(request.body);
-  if (action.type === 'save_draft') {
+  if (action.type === 'save_draft' || action.type === 'submit') {
     if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
+    const requestPayload = { action: action.type, dateKey: action.dateKey, payload: action.payload, expectedRevision: action.expectedRevision, ...(action.expectedMission ? { expectedMission: { partnerNumber: action.expectedMission.partnerNumber, genre: action.expectedMission.genre, question: action.expectedMission.question } } : {}) };
+    const actorKey = `student:${session.studentNumber}`;
+    const prior = await loadTodayFriendSaveReceipt(configuration, actorKey, action.requestId, requestPayload);
+    if (prior) { response.status(200).json(prior); return; }
     const mission = await loadTodayFriendMission(configuration, action.dateKey, session.studentNumber);
-    response.status(200).json(await saveTodayFriendDraft(configuration, mission, action.payload));
-    return;
-  }
-  if (action.type === 'submit') {
-    if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
-    response.status(200).json(await submitTodayFriendDraft(configuration, action.dateKey, session.studentNumber));
+    if (action.expectedMission && (action.expectedMission.partnerNumber !== mission.partnerNumber || action.expectedMission.genre !== mission.genre || action.expectedMission.question !== mission.question || (action.expectedMission.planningRevision !== undefined && action.expectedMission.planningRevision !== mission.planningRevision))) throw new TodayFriendApiError(409, 'TODAY_FRIEND_SUBMISSION_CONFLICT');
+    response.status(200).json(await saveTodayFriendDraft(configuration, mission, action.payload, {
+      expectedRevision: action.expectedRevision, requestId: action.requestId, actorKey, requestPayload,
+    }, action.type === 'submit'));
     return;
   }
   requireTeacher(session);
   if (action.type === 'review') {
+    const reviewPayload = { submissionId: action.submissionId, decision: action.decision, feedback: action.feedback, expectedRevision: action.expectedRevision };
+    const prior = await loadTodayFriendSaveReceipt(configuration, 'teacher:0', action.requestId, reviewPayload);
+    if (prior) { response.status(200).json(await loadTodayFriendState(configuration, prior.dateKey)); return; }
     const submission = await loadTodayFriendSubmission(configuration, action.submissionId);
+    if ((submission.storageRevision ?? 0) !== action.expectedRevision && submission.status !== 'approved') throw new TodayFriendApiError(409, 'TODAY_FRIEND_SUBMISSION_CONFLICT');
     if (action.decision === 'revision_requested') {
-      await requestTodayFriendSubmissionRevision(configuration, submission, action.feedback);
+      await requestTodayFriendSubmissionRevision(configuration, submission, action.feedback, { expectedRevision: action.expectedRevision, requestId: action.requestId, actorKey: 'teacher:0', requestPayload: reviewPayload });
     } else {
-      await approveTodayFriendSubmissionReward(configuration, submission.id);
+      await approveTodayFriendSubmissionReward(configuration, submission.id, action.expectedRevision);
     }
     response.status(200).json(await loadTodayFriendState(configuration, submission.dateKey));
     return;

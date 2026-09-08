@@ -47,6 +47,7 @@ const newCommand = (overrides: Record<string, unknown> = {}) => ({
 test('명령 파서는 신뢰하지 않는 본문을 엄격히 검사하고 문자열 본문을 실행하지 않는다', () => {
   const valid = parseLibraryPlacementCommand(newCommand());
   assert.equal(valid.ok, true);
+  assert.equal(parseLibraryPlacementCommand(newCommand({ protocolVersion: 2 })).ok, true);
   if (valid.ok) {
     assert.deepEqual(valid.command.book, { kind: 'new', title: '달빛 우체국', author: '고마 작가', pageCount: 321 });
   }
@@ -55,6 +56,8 @@ test('명령 파서는 신뢰하지 않는 본문을 엄격히 검사하고 문�
     null,
     'placeLibraryBook',
     { ...newCommand(), studentNumber: 1 },
+    newCommand({ protocolVersion: 1 }),
+    newCommand({ protocolVersion: 3 }),
     newCommand({ action: '<script>alert(1)</script>' }),
     newCommand({ requestId: 'not-a-uuid-0000000000000000000000000' }),
     newCommand({ slotId: -1 }),

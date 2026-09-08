@@ -14,9 +14,11 @@ import {
   type FailureProfileAssignments,
 } from '../../lib/failureExhibition';
 import StudentConfirmDialog from './StudentConfirmDialog';
+import type { ClasswordDraft } from '../../lib/classwordDraft';
 
 type SaveInput = {
   readonly entryId?: string;
+  readonly expectedRevision?: string;
   readonly initial: ClasswordInitial;
   readonly word: string;
 };
@@ -25,6 +27,8 @@ export type ClasswordSaveResult = 'saved' | 'conflict' | 'error';
 
 type ClasswordBoardProps = {
   readonly board: ClasswordBoardData;
+  readonly initialDraft: ClasswordDraft;
+  readonly onDraftChange: (draft: ClasswordDraft) => void;
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
   readonly disabled: boolean;
@@ -36,6 +40,8 @@ type ClasswordBoardProps = {
 
 export default function ClasswordBoard({
   board,
+  initialDraft,
+  onDraftChange,
   studentNumber,
   profileAssignments,
   disabled,
@@ -44,9 +50,14 @@ export default function ClasswordBoard({
   onDelete,
   onSelect,
 }: ClasswordBoardProps) {
-  const [selectedInitial, setSelectedInitial] = useState<ClasswordInitial | null>(null);
-  const [word, setWord] = useState('');
+  const [selectedInitial, setSelectedInitial] = useState<ClasswordInitial | null>(initialDraft.initial);
+  const [word, setWord] = useState(initialDraft.word);
   const [pendingWord, setPendingWord] = useState('');
+  const draftRef = useRef(initialDraft);
+  const updateDraft = (draft: ClasswordDraft): void => {
+    draftRef.current = draft;
+    onDraftChange(draft);
+  };
   const [message, setMessage] = useState('');
   const [moveTarget, setMoveTarget] = useState<ClasswordInitial | null>(null);
   const [movingFromInitial, setMovingFromInitial] = useState<ClasswordInitial | null>(null);
@@ -63,7 +74,7 @@ export default function ClasswordBoard({
     if (saving) return;
     const dateChanged = previousDateRef.current !== board.dateKey;
     previousDateRef.current = board.dateKey;
-    if (!disabled && !dateChanged) return;
+    if (!dateChanged) return;
     moveTriggerRef.current = boardRef.current;
     if (boardRef.current?.contains(document.activeElement)) boardRef.current.focus({ preventScroll: true });
     setSelectedInitial(null);
@@ -74,7 +85,8 @@ export default function ClasswordBoard({
     setMessage('');
   }, [board.dateKey, disabled, saving]);
 
-  const closeEditor = (): void => {
+  const closeEditor = (discardDraft = false): void => {
+    if (discardDraft) updateDraft({ initial: null, word: '' });
     setSelectedInitial(null);
     setMovingFromInitial(null);
     setWord('');
@@ -83,8 +95,10 @@ export default function ClasswordBoard({
   };
 
   const openEditor = (initial: ClasswordInitial, initialWord = ''): void => {
+    const nextWord = draftRef.current.initial === initial ? draftRef.current.word : initialWord;
+    updateDraft({ initial, word: nextWord });
     setSelectedInitial(initial);
-    setWord(initialWord);
+    setWord(nextWord);
     setPendingWord('');
     setMessage('');
     onSelect(initial);
@@ -124,11 +138,12 @@ export default function ClasswordBoard({
   const confirmSave = async (): Promise<void> => {
     if (disabled || saving || !selectedInitial || !pendingWord) return;
     const result = await onSave({
-      ...(ownEntry ? { entryId: ownEntry.id } : {}),
+      ...(ownEntry ? { entryId: ownEntry.id, expectedRevision: ownEntry.updatedAt } : {}),
       initial: selectedInitial,
       word: pendingWord,
     });
-    if (result !== 'error') closeEditor();
+    if (result === 'saved') closeEditor(true);
+    else if (result === 'conflict') setPendingWord('');
   };
 
   const confirmEdit = async (): Promise<void> => {
@@ -141,16 +156,17 @@ export default function ClasswordBoard({
     setMessage('');
     const result = await onSave({
       entryId: ownEntry.id,
+      expectedRevision: ownEntry.updatedAt,
       initial: selectedInitial,
       word: validation.word,
     });
-    if (result !== 'error') closeEditor();
+    if (result === 'saved') closeEditor(true);
   };
 
   const removeOwnEntry = async (): Promise<void> => {
     if (disabled || saving || !ownEntry) return;
     const deleted = await onDelete(ownEntry.id);
-    if (deleted) closeEditor();
+    if (deleted) closeEditor(true);
   };
 
   return (
@@ -175,7 +191,7 @@ export default function ClasswordBoard({
               <div className="classword-cell-editor" aria-busy={saving}>
                 <div className="classword-cell-editor-heading">
                   <strong>{getClasswordInitialLabel(initial)}</strong>
-                  <button type="button" onClick={closeEditor} aria-label="낱말 입력 닫기" disabled={disabled || saving}>
+                  <button type="button" onClick={() => closeEditor()} aria-label="낱말 입력 닫기" disabled={disabled || saving}>
                     <X aria-hidden="true" />
                   </button>
                 </div>
@@ -218,7 +234,11 @@ export default function ClasswordBoard({
                       <span className="sr-only">{getClasswordInitialLabel(initial)}으로 시작하는 낱말</span>
                       <input
                         value={word}
-                        onChange={(event) => setWord(sanitizeClasswordInput(event.target.value))}
+                        onChange={(event) => {
+                          const nextWord = sanitizeClasswordInput(event.target.value);
+                          setWord(nextWord);
+                          updateDraft({ initial: selectedInitial, word: nextWord });
+                        }}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
                             event.preventDefault();

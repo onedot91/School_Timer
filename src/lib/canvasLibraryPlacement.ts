@@ -72,7 +72,8 @@ const invalidPlacement = (): LibraryPlacementResult => ({
 });
 
 export const parseLibraryPlacementCommand = (value: unknown): LibraryCommandParseResult => {
-  if (!isRecord(value) || !hasExactKeys(value, ['action', 'requestId', 'slotId', 'book', ...('seasonId' in value ? ['seasonId'] : [])])) return invalid();
+  if (!isRecord(value) || !hasExactKeys(value, ['action', 'requestId', 'slotId', 'book', ...('seasonId' in value ? ['seasonId'] : []), ...('protocolVersion' in value ? ['protocolVersion'] : [])])) return invalid();
+  if ('protocolVersion' in value && value.protocolVersion !== 2) return invalid();
   if ('seasonId' in value && (typeof value.seasonId !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value.seasonId))) return invalid();
   const season = typeof value.seasonId === 'string' ? { seasonId: value.seasonId } : {};
   if (value.action !== 'placeLibraryBook' || typeof value.requestId !== 'string' || !UUID_PATTERN.test(value.requestId)) return invalid();

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Clock3, RefreshCw } from 'lucide-react';
 
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
@@ -13,9 +13,12 @@ import {
 } from '../../lib/todayFriend';
 import {
   loadStudentTodayFriendMission,
+  loadTodayFriendSubmissionReceipt,
   saveStudentTodayFriendDraft,
   submitStudentTodayFriendMission,
+  TodayFriendClientError,
 } from '../../lib/todayFriendClient';
+import { createTodayFriendSubmissionDraftStore, selectLatestTodayFriendSubmission, type TodayFriendPendingSubmission } from '../../lib/todayFriendSubmissionDraft';
 import type { TodayFriendStudentMission } from '../../lib/todayFriendState';
 import StudentHeader from './StudentHeader';
 import TodayFriendMissionForm from './TodayFriendMissionForm';
@@ -58,38 +61,86 @@ export default function StudentTodayFriendPage({
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [previewGenre, setPreviewGenre] = useState<TodayFriendGenre | null>(null);
+  const [draftStore] = useState(createTodayFriendSubmissionDraftStore);
+  const [pendingSubmission, setPendingSubmission] = useState<TodayFriendPendingSubmission | null>(null);
+  const [saveMessage, setSaveMessage] = useState('');
+  const loadSequence = useRef(0);
+  const saving = useRef(false);
 
   const loadMission = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     setIsLoading(true);
     setLoadError('');
     setMission(null);
     setPreviewGenre(null);
     try {
-      setMission(await loadStudentTodayFriendMission(studentNumber, dateKey));
+      const loaded = await loadStudentTodayFriendMission(studentNumber, dateKey);
+      if (sequence !== loadSequence.current) return;
+      const pending = loaded ? draftStore.load(loaded) : null;
+      setMission(loaded);
+      setPendingSubmission(pending);
+      setSaveMessage(pending ? '입력을 보존했어요. 저장 여부를 확인해 주세요.' : '');
     } catch (error) {
-      if (error instanceof Error) setLoadError('오늘의 미션을 불러오지 못했어요.');
-      else throw error;
+      if (!(error instanceof Error)) throw error;
+      if (sequence === loadSequence.current) setLoadError('오늘의 미션을 불러오지 못했어요.');
     } finally {
-      setIsLoading(false);
+      if (sequence === loadSequence.current) setIsLoading(false);
     }
-  }, [dateKey, studentNumber]);
+  }, [dateKey, draftStore, studentNumber]);
 
-  useEffect(() => { void loadMission(); }, [loadMission]);
+  useEffect(() => {
+    void loadMission();
+    return () => { loadSequence.current += 1; };
+  }, [loadMission]);
 
   const saveMission = async (payload: TodayFriendPayload, submit: boolean) => {
-    if (!mission || isSaving) return false;
+    if (!mission || saving.current) return false;
+    const previous = draftStore.load(mission);
+    const pending = draftStore.prepare(mission, payload, submit);
+    if (!pending) return false;
+    const sequence = loadSequence.current;
+    saving.current = true;
     setIsSaving(true);
+    setPendingSubmission(pending);
+    setSaveMessage('');
     try {
-      const submission = submit
-        ? await submitStudentTodayFriendMission({ mission, payload })
-        : await saveStudentTodayFriendDraft({ mission, payload });
-      setMission({ ...mission, submission });
+      const latest = previous ? await loadStudentTodayFriendMission(studentNumber, dateKey) : mission;
+      if (!latest || sequence !== loadSequence.current) return false;
+      const receipt = previous ? await loadTodayFriendSubmissionReceipt(pending.requestId) : null;
+      if (previous && !receipt?.found && draftStore.load(latest)?.requestId !== pending.requestId) {
+        setSaveMessage('미션이 변경됐어요. 입력을 보존했으니 선생님에게 확인해 주세요.');
+        return false;
+      }
+      const input = { mission: { ...mission, planningRevision: pending.planningRevision }, payload: pending.payload, requestId: pending.requestId, expectedRevision: pending.expectedRevision };
+      const submission = receipt?.found && receipt.submission ? receipt.submission : pending.submit
+        ? await submitStudentTodayFriendMission(input)
+        : await saveStudentTodayFriendDraft(input);
+      draftStore.confirm(mission, pending.requestId);
+      if (sequence !== loadSequence.current) return true;
+      setPendingSubmission(null);
+      setMission({ ...latest, submission: selectLatestTodayFriendSubmission(latest.submission, submission) });
       return true;
     } catch (error) {
-      if (error instanceof Error) return false;
-      throw error;
+      if (!(error instanceof Error)) throw error;
+      if (sequence !== loadSequence.current) return false;
+      if (error instanceof TodayFriendClientError && error.code === 'TODAY_FRIEND_SUBMISSION_CONFLICT') {
+        draftStore.confirm(mission, pending.requestId);
+        setPendingSubmission(null);
+        try {
+          const latest = await loadStudentTodayFriendMission(studentNumber, dateKey);
+          if (latest && sequence === loadSequence.current) setMission(latest);
+        } catch (refreshError) {
+          if (!(refreshError instanceof Error)) throw refreshError;
+        }
+        if (sequence !== loadSequence.current) return false;
+        setSaveMessage('다른 기기의 변경과 겹쳤어요. 입력을 확인한 뒤 다시 제출해 주세요.');
+      } else {
+        setSaveMessage('입력을 보존했어요. 저장 여부를 확인해 주세요.');
+      }
+      return false;
     } finally {
-      setIsSaving(false);
+      saving.current = false;
+      if (sequence === loadSequence.current) setIsSaving(false);
     }
   };
 
@@ -116,6 +167,7 @@ export default function StudentTodayFriendPage({
               <button
                 key={genre}
                 type="button"
+                disabled={isSaving}
                 aria-pressed={displayedGenre === genre}
                 onClick={() => setPreviewGenre(getTodayFriendPreviewGenre(mission.genre, genre))}
               >
@@ -158,8 +210,8 @@ export default function StudentTodayFriendPage({
           {status === 'submitted' ? <aside className="today-friend-status-card" data-status="submitted"><Clock3 aria-hidden="true" /><span><strong>선생님 확인을 기다리고 있어요</strong><small>승인되면 {TODAY_FRIEND_REWARD}고마를 받아요.</small></span></aside> : null}
           {status === 'approved' ? <aside className="today-friend-status-card" data-status="approved"><CheckCircle2 aria-hidden="true" /><span><strong>오늘의 친구 미션 완료!</strong><small>{TODAY_FRIEND_REWARD}고마 지급 완료</small></span></aside> : null}
           {status === 'revision_requested' && displayedMission.submission?.teacherFeedback ? <aside className="today-friend-revision"><strong>선생님이 수정을 부탁했어요</strong><p>{displayedMission.submission.teacherFeedback}</p></aside> : null}
-          {status !== 'submitted' && status !== 'approved' ? (
-            <TodayFriendMissionForm key={displayedMission.genre} mission={displayedMission} isSaving={isSaving} isPreview={isPreview} onSave={saveMission} onSendRecommendation={onSendRecommendation} />
+          {(status !== 'submitted' && status !== 'approved') || (!isPreview && pendingSubmission) ? (
+            <TodayFriendMissionForm key={JSON.stringify([displayedMission.dateKey, displayedMission.studentNumber, displayedMission.partnerNumber, displayedMission.genre, displayedMission.question])} mission={displayedMission} isSaving={isSaving} isPreview={isPreview} pendingPayload={isPreview ? undefined : pendingSubmission?.payload} saveMessage={isPreview ? '' : saveMessage} onSave={saveMission} onSendRecommendation={onSendRecommendation} />
           ) : null}
         </section>
           </>

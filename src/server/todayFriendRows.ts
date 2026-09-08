@@ -31,6 +31,7 @@ export const parseTodayFriendPlanningRow = (value: unknown): TodayFriendState | 
 export const parseTodayFriendSubmissionRow = (row: unknown): TodayFriendSubmission => {
   if (!isRecord(row)) throw new TodayFriendRowError('TODAY_FRIEND_DATABASE_INVALID_RESPONSE');
   const submission = parseTodayFriendSubmission({
+    storageRevision: row.storage_revision,
     id: row.id,
     dateKey: row.submission_date,
     studentNumber: row.student_number,

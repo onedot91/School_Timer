@@ -22,3 +22,11 @@ test('storage failures are distinguished from ordinary business validation', () 
   assert.equal(classifySaveFailure(new SyntaxError('Invalid JSON')), 'response');
   for (const message of ['INSUFFICIENT_BALANCE', 'BID_TOO_LOW', 'READ_ONLY_DATA_MODE']) assert.equal(classifySaveFailure(new Error(message)), null);
 });
+
+test('known Classword business conflicts do not generate save alerts; unknown conflicts still do', () => {
+  for (const code of ['CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_STUDENT_ALREADY_ENTERED']) {
+    assert.equal(classifySaveFailure(Object.assign(new Error(code), { code, status: 409 })), null);
+  }
+  assert.equal(classifySaveFailure(Object.assign(new Error('UNKNOWN_CONFLICT'), { status: 409 })), 'conflict');
+  assert.equal(classifySaveFailure(Object.assign(new Error('CLASSWORD_DATABASE_HTTP_409'), { status: 502 })), 'server');
+});

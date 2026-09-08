@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { acceptStorageProjection, captureStorageResponseContext, compareStorageTimestamps, isStorageResponseContextCurrent, readLatestStorageProjection, StorageResponseActorChangedError, type StorageResponseContext } from './storageResponseOrder.js';
+import { isStorageRecord } from './storageV2Codec.js';
 import { parseClassDonationResult } from './classDonation.js';
 import { isReadOnlyDataMode } from './dataMode.js';
 import { createStudentSettingsUpdate, STUDENT_MUTABLE_MAP_FIELDS } from './studentSettingsUpdate.js';
@@ -24,7 +26,9 @@ export type SettingsRow = {
 
 let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
 let settingsCacheGeneration = 0;
+let settingsActorContext: StorageResponseContext | undefined;
 let sharedSettingsRead: {
+  actorGeneration: number;
   generation: number;
   cachedRow: SettingsRow | null | undefined;
   promise: Promise<SettingsRow | null>;
@@ -40,6 +44,25 @@ const enqueueSharedSettingsUpdate = <T>(update: () => Promise<T>) => {
 export const invalidateSharedSettingsCache = () => {
   settingsCacheGeneration += 1;
   cachedWritableSharedSettingsRow = undefined;
+};
+
+const synchronizeSettingsActor = (): StorageResponseContext => {
+  const context = captureStorageResponseContext();
+  if (settingsActorContext?.generation !== context.generation) {
+    invalidateSharedSettingsCache();
+    settingsActorContext = context;
+  }
+  return context;
+};
+
+const orderSettingsRow = (context: StorageResponseContext, row: SettingsRow | null): SettingsRow | null => {
+  if (!row) {
+    const latest = readLatestStorageProjection(context);
+    return latest ? { id: SHARED_SETTINGS_ID, value: latest.value, updated_at: latest.updatedAt, scope: latest.scope } : null;
+  }
+  if (!isStorageRecord(row.value) || typeof row.updated_at !== 'string') throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
+  const projection = acceptStorageProjection(context, { value: row.value, updatedAt: row.updated_at, scope: row.scope });
+  return { id: row.id, value: projection.value, updated_at: projection.updatedAt, scope: projection.scope };
 };
 
 export interface AnnouncementNoteRecord {
@@ -178,15 +201,15 @@ export const loadSharedSettings = async () => {
   return data?.value ?? null;
 };
 
-const fetchSharedSettingsRow = async () => {
+const fetchSharedSettingsRow = async (context: StorageResponseContext) => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const generation = settingsCacheGeneration;
-    const row = parseSettingsRow(await fetchJson('/api/shared-settings', undefined, true));
+    const row = orderSettingsRow(context, parseSettingsRow(await fetchJson('/api/shared-settings', undefined, true)));
     // Student projections contain every field the scoped writer needs. Keep newer receipts
     // when a background read that started before a save arrives afterwards.
     const currentTimestamp = cachedWritableSharedSettingsRow?.updated_at;
-    const isFresh = !currentTimestamp || (row?.updated_at && row.updated_at >= currentTimestamp);
+    const isFresh = !currentTimestamp || (row?.updated_at && compareStorageTimestamps(row.updated_at, currentTimestamp) >= 0);
     if (generation === settingsCacheGeneration && isFresh && (row?.scope === 'full' || row?.scope === 'student')) {
       cachedWritableSharedSettingsRow = row;
     } else if (generation === settingsCacheGeneration && isFresh && row?.updated_at !== currentTimestamp) {
@@ -206,17 +229,20 @@ const fetchSharedSettingsRow = async () => {
     throw error;
   }
 
-  cachedWritableSharedSettingsRow = data ?? null;
-  return data ?? null;
+  const ordered = orderSettingsRow(context, data ?? null);
+  cachedWritableSharedSettingsRow = ordered;
+  return ordered;
 };
 
 export const loadSharedSettingsRow = (): Promise<SettingsRow | null> => {
-  if (sharedSettingsRead?.generation === settingsCacheGeneration
+  const context = synchronizeSettingsActor();
+  if (sharedSettingsRead?.actorGeneration === context.generation && sharedSettingsRead?.generation === settingsCacheGeneration
     && sharedSettingsRead.cachedRow === cachedWritableSharedSettingsRow) return sharedSettingsRead.promise;
   const request = {
+    actorGeneration: context.generation,
     generation: settingsCacheGeneration,
     cachedRow: cachedWritableSharedSettingsRow,
-    promise: fetchSharedSettingsRow(),
+    promise: fetchSharedSettingsRow(context),
   };
   sharedSettingsRead = request;
   const clear = () => { if (sharedSettingsRead === request) sharedSettingsRead = undefined; };
@@ -231,7 +257,12 @@ const loadWritableSharedSettingsRow = async () => {
 
 export const loadSharedSettingsUpdatedAt = async () => {
   if (!isSupabaseSettingsEnabled) return null;
-  if (useServerProxy) return ((await fetchJson('/api/shared-settings?metadata=1', undefined, true)) as { updatedAt: string | null }).updatedAt;
+  if (useServerProxy) {
+    const context = synchronizeSettingsActor();
+    const result = await fetchJson('/api/shared-settings?metadata=1', undefined, true) as { updatedAt: string | null };
+    if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+    return result.updatedAt;
+  }
   if (!supabase) return null;
 
   const { data, error } = await supabase
@@ -253,17 +284,15 @@ export const saveSharedSettings = async (value: unknown) => {
     if (isReadOnlyDataMode) return (await loadSharedSettingsRow())?.updated_at ?? null;
 
     if (useServerProxy) {
+      const context = synchronizeSettingsActor();
       const result = await fetchJson('/api/shared-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value }),
       }) as { updatedAt: string };
-      cachedWritableSharedSettingsRow = {
-        id: SHARED_SETTINGS_ID,
-        value,
-        updated_at: result.updatedAt,
-        scope: 'full',
-      };
+      cachedWritableSharedSettingsRow = orderSettingsRow(context, {
+        id: SHARED_SETTINGS_ID, value, updated_at: result.updatedAt, scope: 'full',
+      });
       return result.updatedAt;
     }
     if (!supabase) return null;
@@ -294,6 +323,7 @@ export const updateSharedSettings = async (
 
     if (useServerProxy) {
       for (let attempt = 0; attempt < SHARED_SETTINGS_UPDATE_RETRY_LIMIT; attempt += 1) {
+        const context = synchronizeSettingsActor();
         const generation = settingsCacheGeneration;
         const currentRow = cachedWritableSharedSettingsRow === undefined
           ? await loadWritableSharedSettingsRow()
@@ -318,12 +348,10 @@ export const updateSharedSettings = async (
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ value: studentUpdate?.patch ?? nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
           }, typeof currentRow?.updated_at === 'string', confirmSavedUpdate) as { updatedAt: string };
-          if (generation === settingsCacheGeneration) cachedWritableSharedSettingsRow = {
-            id: SHARED_SETTINGS_ID,
-            value: studentUpdate?.value ?? nextValue,
-            updated_at: result.updatedAt,
-            scope: currentRow?.scope,
-          };
+          const ordered = orderSettingsRow(context, {
+            id: SHARED_SETTINGS_ID, value: studentUpdate?.value ?? nextValue, updated_at: result.updatedAt, scope: currentRow?.scope,
+          });
+          if (generation === settingsCacheGeneration) cachedWritableSharedSettingsRow = ordered;
           return result.updatedAt;
         } catch (error) {
           if (error instanceof Error && Reflect.get(error, 'uncertainWrite')) {
@@ -404,7 +432,7 @@ export const donateToClassGoal = async (
       return parseClassDonationResult(await fetchJson('/api/class-donation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentNumber, amount, requestId }),
+        body: JSON.stringify({ protocolVersion: 2, studentNumber, amount, requestId }),
       }));
     }
     if (!supabase) throw new Error('CLASS_DONATION_NOT_CONFIGURED');

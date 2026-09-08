@@ -68,9 +68,10 @@ test('server verifies a personal question and forwards only its id to the atomic
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 6 }, headers: deviceHeaders(6) }, response);
+    await handler({ method: 'POST', body: { protocolVersion: 2, studentNumber: 6 }, headers: deviceHeaders(6) }, response);
     assert.equal(result().statusCode, 200);
     assert.deepEqual(rpcBodies, [{
+      p_protocol_version: 2,
       p_student_number: 6,
       p_week_key: currentWeekKey,
       p_source_question_id: 'personal-1',
@@ -98,7 +99,7 @@ test('invalid student numbers are rejected before any external request', async (
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 24 }, headers: teacherHeaders() }, response);
+    await handler({ method: 'POST', body: { protocolVersion: 2, studentNumber: 24 }, headers: teacherHeaders() }, response);
     assert.equal(result().statusCode, 400);
     assert.equal(fetchCalled, false);
   } finally {
@@ -120,7 +121,7 @@ test('an unregistered device is rejected before external mission checks', async 
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 6 } }, response);
+    await handler({ method: 'POST', body: { protocolVersion: 2, studentNumber: 6 } }, response);
 
     assert.equal(result().statusCode, 401);
     assert.deepEqual(result().body, { error: 'DEVICE_REGISTRATION_REQUIRED' });
@@ -161,7 +162,7 @@ test('repeated requests from the same client are rate limited before external ca
       const { response, result } = createResponse();
       await handler({
         method: 'POST',
-        body: { studentNumber: 23 },
+        body: { protocolVersion: 2, studentNumber: 23 },
         headers: { ...deviceHeaders(23), 'x-forwarded-for': '203.0.113.99' },
       }, response);
       assert.equal(result().statusCode, 200);
@@ -170,7 +171,7 @@ test('repeated requests from the same client are rate limited before external ca
     const { response, result } = createResponse();
     await handler({
       method: 'POST',
-      body: { studentNumber: 23 },
+      body: { protocolVersion: 2, studentNumber: 23 },
       headers: { ...deviceHeaders(23), 'x-forwarded-for': '203.0.113.99' },
     }, response);
 

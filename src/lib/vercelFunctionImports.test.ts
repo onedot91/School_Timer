@@ -1,6 +1,24 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
+import { dirname, extname, resolve } from 'node:path';
+import ts from 'typescript';
+
+test('all transitive API imports resolve as deployed Node ESM', async () => {
+  const visited = new Set<string>();
+  const visit = async (file: string): Promise<void> => {
+    if (visited.has(file)) return;
+    visited.add(file);
+    const source = await readFile(file, 'utf8');
+    const emitted = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+    for (const match of emitted.matchAll(/(?:from\s*|import\s*)['"](\.\.?\/[^'"]+)['"]/g)) {
+      const specifier = match[1];
+      assert.equal(extname(specifier), '.js', `${file}: ${specifier}`);
+      await visit(resolve(dirname(file), specifier).replace(/\.js$/, '.ts'));
+    }
+  };
+  for (const file of (await readdir('api')).filter(file => file.endsWith('.ts'))) await visit(resolve('api', file));
+});
 
 const SERVER_MODULES = [
   'api/announcement-notes.ts',

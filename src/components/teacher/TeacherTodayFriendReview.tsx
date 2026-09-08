@@ -1,7 +1,11 @@
 import { Check, Clock3, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 
+import { createStudentSaveDraftStore } from '../../lib/studentSaveDraft';
 import type { TodayFriendSubmission } from '../../lib/todayFriend';
+
+const feedbackDrafts = createStudentSaveDraftStore();
+const feedbackScope = (submissionId: string) => ({ studentNumber: 0, feature: 'teacher.todayFriend.feedback', entityId: submissionId });
 
 interface TeacherTodayFriendReviewProps {
   readonly submissions: readonly TodayFriendSubmission[];
@@ -32,8 +36,10 @@ const STATUS_LABELS = {
 
 export default function TeacherTodayFriendReview({ submissions, isSaving, onReview }: TeacherTodayFriendReviewProps) {
   const [selectedId, setSelectedId] = useState<string | null>(() => submissions.find((entry) => entry.status === 'submitted')?.id ?? submissions[0]?.id ?? null);
-  const [feedback, setFeedback] = useState('조금 더 구체적으로 적어 주세요.');
+  const [feedbackBySubmission, setFeedbackBySubmission] = useState<Record<string, string>>({});
   const selected = submissions.find((entry) => entry.id === selectedId) ?? submissions[0] ?? null;
+  const storedFeedback = selected ? feedbackDrafts.load(feedbackScope(selected.id))?.draft.payload : null;
+  const feedback = selected ? feedbackBySubmission[selected.id] ?? (typeof storedFeedback === 'string' ? storedFeedback : '조금 더 구체적으로 적어 주세요.') : '';
   const sorted = [...submissions].sort((first, second) => {
     const firstRank = first.status === 'submitted' ? 0 : first.status === 'revision_requested' ? 1 : first.status === 'draft' ? 2 : 3;
     const secondRank = second.status === 'submitted' ? 0 : second.status === 'revision_requested' ? 1 : second.status === 'draft' ? 2 : 3;
@@ -65,7 +71,14 @@ export default function TeacherTodayFriendReview({ submissions, isSaving, onRevi
             {selected.teacherFeedback ? <aside><strong>수정 요청 내용</strong><p>{selected.teacherFeedback}</p></aside> : null}
             {selected.status === 'submitted' ? (
               <div className="teacher-today-friend-review-actions">
-                <label><span>수정 요청 문구</span><textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} maxLength={300} /></label>
+                <label><span>수정 요청 문구</span><textarea value={feedback} onChange={(event) => {
+                  const value = event.target.value;
+                  setFeedbackBySubmission(previous => ({ ...previous, [selected.id]: value }));
+                  const scope = feedbackScope(selected.id);
+                  const existing = feedbackDrafts.load(scope);
+                  if (existing) feedbackDrafts.remove(scope, existing.draft.requestId);
+                  feedbackDrafts.save(scope, value);
+                }} maxLength={300} /></label>
                 <div>
                   <button type="button" disabled={isSaving || feedback.trim().length === 0} onClick={() => { void onReview(selected.id, 'revision_requested', feedback); }}><RotateCcw aria-hidden="true" />수정 요청</button>
                   <button type="button" disabled={isSaving} onClick={() => { void onReview(selected.id, 'approved', ''); }}><Check aria-hidden="true" />승인 · 15고마</button>

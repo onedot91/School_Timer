@@ -1,3 +1,4 @@
+import { prepareClasswordRequest, finishClasswordRequest } from './classwordRequestStore';
 import { withSaveFailureReporting } from './saveFailureClient.js';
 import {
   getClasswordEntryRetentionCutoff,
@@ -50,6 +51,7 @@ export const CLASSWORD_LOCAL_CHANGE_EVENT = 'school-timer-classword-change';
 
 export type SaveClasswordEntryInput = {
   readonly entryId?: string;
+  readonly expectedRevision?: string;
   readonly dateKey: string;
   readonly initial: ClasswordInitial;
   readonly word: string;
@@ -104,11 +106,42 @@ const requestWithoutReporting = async (path: string, init?: RequestInit): Promis
 };
 
 
-const request = (path: string, init?: RequestInit): Promise<unknown> => (
-  init?.method && init.method !== 'GET'
-    ? withSaveFailureReporting('classword', () => requestWithoutReporting(path, init))
-    : requestWithoutReporting(path, init)
-);
+const validateCommandResult = (value: unknown, body: Record<string, unknown>): unknown => {
+  if (!isRecord(value)) throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
+  if (body.action === 'save_entry') {
+    const board = parseClasswordBoard({ dateKey: body.dateKey, topic: '', entries: [value.entry] });
+    if (!board.entries[0] || typeof value.awarded !== 'boolean' || typeof value.balance !== 'number' || !Number.isFinite(value.balance)) throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
+  } else if (body.action === 'answer_quiz') {
+    parseClasswordQuizStudentState(value.state);
+    if (typeof value.correct !== 'boolean' || (value.correct && (typeof value.awarded !== 'boolean' || typeof value.balance !== 'number' || !Number.isFinite(value.balance) || typeof value.rewardAmount !== 'number' || !Number.isInteger(value.rewardAmount) || value.rewardAmount < 1 || value.rewardAmount > 10))) throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
+  } else if (value.saved !== true && value.deleted !== true) throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
+  return value;
+};
+
+const request = async (path: string, init?: RequestInit): Promise<unknown> => {
+  if (!init?.method || init.method === 'GET') return requestWithoutReporting(path, init);
+  const raw: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : null;
+  if (!isRecord(raw)) throw new ClasswordClientError('CLASSWORD_INVALID_REQUEST');
+  let storage: Storage | null = null;
+  let actor = 0;
+  try { storage = window.localStorage; actor = Number(storage.getItem('school-timer-entry-number-v1') ?? 0); } catch { storage = null; }
+  const body = prepareClasswordRequest(storage, actor, raw);
+  try {
+    const result = await withSaveFailureReporting('classword', async () => {
+      const status = await requestWithoutReporting(`${path}?requestId=${encodeURIComponent(String(body.requestId))}`);
+      if (!isRecord(status) || typeof status.committed !== 'boolean') throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
+      if (status.committed) return validateCommandResult(status.result, body);
+      return validateCommandResult(await requestWithoutReporting(path, { ...init, body: JSON.stringify(body) }), body);
+    });
+    finishClasswordRequest(storage, actor, String(body.action), body.requestId);
+    return result;
+  } catch (error) {
+    if (error instanceof ClasswordClientError && ['CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_STUDENT_ALREADY_ENTERED', 'CLASSWORD_ENTRY_CHANGED'].includes(error.code)) {
+      finishClasswordRequest(storage, actor, String(body.action), body.requestId);
+    }
+    throw error;
+  }
+};
 const dispatchLocalChange = (): void => {
   window.dispatchEvent(new CustomEvent(CLASSWORD_LOCAL_CHANGE_EVENT));
 };
@@ -186,7 +219,7 @@ export const updateTeacherClasswordQuiz = async (input: ClasswordQuizTeacherInpu
   }
   await request('/api/classword', {
     method: 'POST',
-    body: JSON.stringify({ action: 'save_quiz', ...input }),
+    body: JSON.stringify({ protocolVersion: 2, action: 'save_quiz', ...input }),
   });
 };
 
@@ -199,7 +232,7 @@ export const resetTeacherClasswordQuiz = async (dateKey: string): Promise<void> 
   }
   await request('/api/classword', {
     method: 'POST',
-    body: JSON.stringify({ action: 'delete_quiz', dateKey }),
+    body: JSON.stringify({ protocolVersion: 2, action: 'delete_quiz', dateKey }),
   });
 };
 
@@ -248,6 +281,7 @@ export const submitClasswordQuizAnswer = async (input: {
   const value = await request('/api/classword', {
     method: 'POST',
     body: JSON.stringify({
+      protocolVersion: 2,
       action: 'answer_quiz',
       dateKey: input.dateKey,
       answer: input.answer,
@@ -315,8 +349,9 @@ export const saveClasswordEntry = async (
   const value = await request('/api/classword', {
     method: 'POST',
     body: JSON.stringify({
+      protocolVersion: 2,
       action: 'save_entry',
-      ...(input.entryId ? { entryId: input.entryId } : {}),
+      ...(input.entryId ? { entryId: input.entryId, expectedRevision: input.expectedRevision } : {}),
       dateKey: input.dateKey,
       initial: input.initial,
       word: validation.word,
@@ -353,7 +388,7 @@ export const removeClasswordEntry = async (
   }
   await request('/api/classword', {
     method: 'POST',
-    body: JSON.stringify({ action: 'delete_entry', entryId }),
+    body: JSON.stringify({ protocolVersion: 2, action: 'delete_entry', entryId }),
   });
 };
 
@@ -366,7 +401,7 @@ export const updateClasswordTopic = async (dateKey: string, topic: string): Prom
   }
   await request('/api/classword', {
     method: 'POST',
-    body: JSON.stringify({ action: 'save_topic', dateKey, topic }),
+    body: JSON.stringify({ protocolVersion: 2, action: 'save_topic', dateKey, topic }),
   });
 };
 
@@ -379,6 +414,6 @@ export const clearClasswordDate = async (dateKey: string): Promise<void> => {
   }
   await request('/api/classword', {
     method: 'POST',
-    body: JSON.stringify({ action: 'delete_date_entries', dateKey, confirmation: 'DELETE' }),
+    body: JSON.stringify({ protocolVersion: 2, action: 'delete_date_entries', dateKey, confirmation: 'DELETE' }),
   });
 };

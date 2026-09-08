@@ -1,3 +1,5 @@
+import { executeTeacherStorageCommand as executeStorageCommand, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor } from '../lib/teacherStorageClient';
+import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord } from '../lib/teacherStorageCommand';
 ﻿import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import '../classword.css';
@@ -48,12 +50,10 @@ import {
   loadSharedSettingsRow,
   loadSharedSettingsUpdatedAt,
   saveAnnouncementNote,
-  updateSharedSettings,
 } from '../lib/supabaseSettings';
 import {
   getAuctionAwardKeys,
   getWeeklyMissionRewardIds,
-  mergeConcurrentCurrencyUpdatesIntoSettings,
 } from '../lib/weeklyMission';
 import {
   normalizeClassDonationSettings,
@@ -4523,6 +4523,14 @@ export default function TimerPage() {
       classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(studentNumber)] === undefined
     ));
 
+  const teacherSettingsBaseRef = useRef<Record<string, unknown>>({});
+  const teacherCommandQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const teacherSettingsSavingRef = useRef(false);
+  const teacherSettingsErrorRef = useRef(false);
+  const [teacherSettingsSaveVersion, setTeacherSettingsSaveVersion] = useState(0);
+  const [teacherSettingsSaveError, setTeacherSettingsSaveError] = useState('');
+  teacherSettingsErrorRef.current = Boolean(teacherSettingsSaveError);
+
   const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
     version: 1,
     weeklySchedule,
@@ -4564,10 +4572,14 @@ export default function TimerPage() {
     studentStockMarket,
   });
 
+  const latestTeacherSnapshotRef = useRef<Record<string, unknown>>({});
+  latestTeacherSnapshotRef.current = { ...buildSharedSettingsSnapshot() };
+
   const applySharedSettingsSnapshot = (
     remoteSettings: SharedSchoolTimerSettings,
     options: { applyManualTimer: boolean },
   ) => {
+    teacherSettingsBaseRef.current = { ...remoteSettings };
     skipNextSharedSettingsSaveRef.current = true;
     setWeeklySchedule(remoteSettings.weeklySchedule);
     if (!hasUnsavedWeeklySubjectsRef.current) {
@@ -4655,20 +4667,27 @@ export default function TimerPage() {
         const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow?.value);
         if (remoteSettings) {
           applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: true });
+          const pending = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.settings.patch', payload: {} }));
+          const editorChanges = loadTeacherSettingsEditor();
+          if (editorChanges.length > 0) {
+            const restored = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remoteSettings }, editorChanges));
+            if (restored) applySharedSettingsSnapshot(restored, { applyManualTimer: true });
+            teacherSettingsBaseRef.current = { ...remoteSettings };
+          }
+          if (pending || editorChanges.length > 0) setTeacherSettingsSaveError('보관된 설정 변경이 있어요. 저장 결과를 확인해 주세요.');
+          const letterDraft = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.mail.send', payload: {} }))?.draft.payload;
+          if (isStorageRecord(letterDraft) && typeof letterDraft.title === 'string' && typeof letterDraft.content === 'string') {
+            setMailTitle(letterDraft.title);
+            setMailContent(letterDraft.content);
+            if (Array.isArray(letterDraft.recipients)) {
+              if (letterDraft.recipients.length === 23) setMailRecipient(ALL_STUDENTS_LETTER_RECIPIENT);
+              else if (typeof letterDraft.recipients[0] === 'number') setMailRecipient(letterDraft.recipients[0]);
+            }
+            setMailStatus('이전 편지의 저장 결과를 확인하지 못했어요. 내용이 보관되어 있습니다.');
+          }
         } else {
-          const initialSnapshot = buildSharedSettingsSnapshot();
-          void updateSharedSettings((currentValue) => (
-            currentValue === null
-              ? initialSnapshot
-              : mergeConcurrentCurrencyUpdatesIntoSettings(
-                currentValue,
-                initialSnapshot,
-                new Set(),
-                new Set(),
-              )
-          )).catch((error) => {
-            console.error('Failed to initialize shared settings in Supabase.', error);
-          });
+          teacherSettingsBaseRef.current = {};
+          setTeacherSettingsSaveVersion(previous => previous + 1);
         }
       })
       .catch((error) => {
@@ -4864,6 +4883,8 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
+    saveTeacherSettingsEditor(createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot()));
+    if (teacherSettingsSavingRef.current || teacherSettingsSaveError) return;
 
     if (
       skipNextSharedSettingsSaveRef.current &&
@@ -4891,77 +4912,28 @@ export default function TimerPage() {
       const snapshot = buildSharedSettingsSnapshot();
       const auctionItemsEditVersionAtSave = auctionItemsEditVersionRef.current;
       if (hasUnsavedAuctionItemsRef.current) setAuctionItemsSaveStatus('pending');
-      const savedCurrencyInput = JSON.stringify({
-        balances: normalizeCurrencyBalances(snapshot.currencyBalances),
-        history: normalizeCurrencyHistory(snapshot.currencyHistory),
-        awards: normalizeAuctionAwards(snapshot.auctionAwards, AUCTION_ITEM_IDS),
-      });
-      const resetGenerationAtSave = currencyResetGenerationRef.current;
-      let savedSnapshot: Record<string, unknown> = { ...snapshot };
-      void updateSharedSettings((currentValue) => {
-        savedSnapshot = mergeConcurrentCurrencyUpdatesIntoSettings(
-          currentValue,
-          snapshot,
-          knownWeeklyMissionRewardIdsRef.current,
-          knownAuctionAwardKeysRef.current,
-        );
-        return savedSnapshot;
-      })
-        .then((updatedAt) => {
+      const changes = createTeacherSettingsChanges(teacherSettingsBaseRef.current, snapshot);
+      if (changes.length === 0) {
+        isSharedSettingsSavePendingRef.current = false;
+        return;
+      }
+      teacherSettingsSavingRef.current = true;
+      let saveConfirmed = false;
+      void executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.settings.patch', payload: { changes } })
+        .then(({ updatedAt }) => {
           lastSharedSettingsUpdatedAtRef.current = updatedAt;
-          if (hasUnsavedAuctionItemsRef.current
-            && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current
-            && JSON.stringify(savedSnapshot.auctionItems) === JSON.stringify(auctionItemsRef.current)) {
+          teacherSettingsBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsBaseRef.current, changes);
+          saveConfirmed = true;
+          if (hasUnsavedAuctionItemsRef.current && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current
+            && JSON.stringify(snapshot.auctionItems) === JSON.stringify(auctionItemsRef.current)) {
             hasUnsavedAuctionItemsRef.current = false;
             setAuctionItemsSaveStatus('saved');
           }
-          const savedWeeklySubjects = normalizeWeeklySubjects(savedSnapshot.weeklySubjects);
-          if (JSON.stringify(savedWeeklySubjects) === JSON.stringify(weeklySubjectsRef.current)) {
-            hasUnsavedWeeklySubjectsRef.current = false;
-          }
-          const savedSubjectCatalog = normalizeSubjectCatalog(savedSnapshot.subjectCatalog, []);
-          if (JSON.stringify(savedSubjectCatalog) === JSON.stringify(subjectCatalogRef.current)) {
-            hasUnsavedSubjectCatalogRef.current = false;
-          }
-          const currentCurrencyInput = JSON.stringify({
-            balances: currencyBalancesRef.current,
-            history: currencyHistoryRef.current,
-            awards: auctionAwardsRef.current,
-          });
-          if (currentCurrencyInput !== savedCurrencyInput) {
-            if (currencyResetGenerationRef.current !== resetGenerationAtSave) {
-              knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(savedSnapshot.currencyHistory);
-              knownAuctionAwardKeysRef.current = getAuctionAwardKeys(savedSnapshot.auctionAwards);
-            }
-            return;
-          }
-          knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(savedSnapshot.currencyHistory);
-          knownAuctionAwardKeysRef.current = getAuctionAwardKeys(savedSnapshot.auctionAwards);
-          const savedBalances = normalizeCurrencyBalances(savedSnapshot.currencyBalances);
-          const savedHistory = normalizeCurrencyHistory(savedSnapshot.currencyHistory);
-          if (
-            JSON.stringify(savedBalances) !== JSON.stringify(currencyBalancesRef.current) ||
-            JSON.stringify(savedHistory) !== JSON.stringify(currencyHistoryRef.current)
-          ) {
-            commitCurrencyState(savedBalances, savedHistory);
-          }
-          const savedAwards = normalizeAuctionAwards(savedSnapshot.auctionAwards, AUCTION_ITEM_IDS);
-          if (JSON.stringify(savedAwards) !== JSON.stringify(auctionAwards)) {
-            setAuctionAwards(savedAwards);
-          }
-          const savedBids = normalizeAuctionBids(savedSnapshot.auctionBids, AUCTION_ITEM_IDS);
-          if (JSON.stringify(savedBids) !== JSON.stringify(auctionBids)) {
-            setAuctionBids(savedBids);
-          }
-          const savedBidHistory = normalizeAuctionBidHistory(
-            savedSnapshot.auctionBidHistory,
-            AUCTION_ITEM_IDS,
-          );
-          if (JSON.stringify(savedBidHistory) !== JSON.stringify(auctionBidHistory)) {
-            setAuctionBidHistory(savedBidHistory);
-          }
+          if (JSON.stringify(snapshot.weeklySubjects) === JSON.stringify(weeklySubjectsRef.current)) hasUnsavedWeeklySubjectsRef.current = false;
+          if (JSON.stringify(snapshot.subjectCatalog) === JSON.stringify(subjectCatalogRef.current)) hasUnsavedSubjectCatalogRef.current = false;
         })
         .catch((error) => {
+          setTeacherSettingsSaveError('설정 저장 결과를 확인하지 못했어요. 변경 내용은 보관했습니다.');
           console.error('Failed to save shared settings to Supabase.', error);
           if (hasUnsavedAuctionItemsRef.current && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current) {
             setAuctionItemsSaveErrorCode(classifySaveFailure(error) ?? 'unknown');
@@ -4969,7 +4941,9 @@ export default function TimerPage() {
           }
         })
         .finally(() => {
+          teacherSettingsSavingRef.current = false;
           isSharedSettingsSavePendingRef.current = false;
+          if (saveConfirmed) setTeacherSettingsSaveVersion(previous => previous + 1);
         });
     }, 700);
 
@@ -4978,7 +4952,7 @@ export default function TimerPage() {
         window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
         sharedSettingsSaveTimeoutRef.current = null;
       }
-      isSharedSettingsSavePendingRef.current = false;
+      if (!teacherSettingsSavingRef.current) isSharedSettingsSavePendingRef.current = false;
     };
   }, [
     weeklySchedule,
@@ -5017,6 +4991,8 @@ export default function TimerPage() {
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
+    teacherSettingsSaveVersion,
+    teacherSettingsSaveError,
   ]);
 
   useEffect(() => {
@@ -5028,6 +5004,9 @@ export default function TimerPage() {
     const syncSharedSettingsFromRemote = async () => {
       if (
         !sharedSettingsHydratedRef.current ||
+        teacherSettingsErrorRef.current ||
+        teacherSettingsSavingRef.current ||
+        createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current).length > 0 ||
         isChecking ||
         awardPresentationRef.current !== null ||
         isSharedSettingsSavePendingRef.current ||
@@ -5052,7 +5031,10 @@ export default function TimerPage() {
         ) return;
 
         const remoteRow = await loadSharedSettingsRow();
-        if (isCancelled || awardPresentationRef.current !== null || isSharedSettingsSavePendingRef.current || !remoteRow?.updated_at) return;
+        if (isCancelled || awardPresentationRef.current !== null || isSharedSettingsSavePendingRef.current
+          || teacherSettingsSavingRef.current
+          || createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current).length > 0
+          || !remoteRow?.updated_at) return;
 
         const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow.value);
         if (!remoteSettings) return;
@@ -6799,6 +6781,27 @@ export default function TimerPage() {
     ));
   };
 
+  const runTeacherCurrencyCommand = (action: string, payload: Record<string, unknown>, target?: CurrencyAdjustmentTarget, delta = 0) => {
+    const requestId = crypto.randomUUID();
+    const queued = teacherCommandQueueRef.current.catch(() => undefined).then(async () => {
+      isSharedSettingsSavePendingRef.current = true;
+      try {
+        const saved = await executeStorageCommand({ requestId, action, payload });
+        lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+        commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
+        if (target) recordCurrencyAdjustment(target, delta);
+        setCurrencyDeductionError('');
+      } catch (error) {
+        setCurrencyDeductionError('저장 결과를 확인하지 못했어요. 최신 고마를 확인한 뒤 다시 시도해 주세요.');
+        throw error;
+      } finally {
+        isSharedSettingsSavePendingRef.current = false;
+      }
+    });
+    teacherCommandQueueRef.current = queued;
+    void queued.catch(() => undefined);
+  };
+
   const commitCurrencyAdjustment = (
     nextBalances: CurrencyBalances,
     nextHistory: CurrencyHistory,
@@ -6859,6 +6862,10 @@ export default function TimerPage() {
       setIsCurrencyDirectInputVisible(false);
       return;
     }
+    if (isSupabaseSettingsEnabled) {
+      runTeacherCurrencyCommand('teacher.currency.set', { studentNumbers: [studentNumber], amount: after, expectedBalance: before }, 'student', after - before);
+      return;
+    }
     const nextBalances = { ...previousBalances, [key]: after };
     const nextHistory = appendCurrencyHistoryEntry(currencyHistoryRef.current, {
       studentNumber,
@@ -6871,6 +6878,10 @@ export default function TimerPage() {
   };
 
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
+    if (isSupabaseSettingsEnabled) {
+      runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: [studentNumber], amount: delta }, 'student', delta);
+      return;
+    }
     setIsCurrencyDeductionVisible(false);
     setCurrencyDeductionReason('');
     setCurrencyDeductionError('');
@@ -6931,29 +6942,10 @@ export default function TimerPage() {
           throw new Error('LOCAL_DEDUCTION_SAVE_FAILED');
         }
       } else {
-        if (sharedSettingsSaveTimeoutRef.current !== null) {
-          window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
-          sharedSettingsSaveTimeoutRef.current = null;
-        }
         isSharedSettingsSavePendingRef.current = true;
-        const fallbackSnapshot = buildSharedSettingsSnapshot();
-        savedValue = { ...fallbackSnapshot };
-        const updatedAt = await updateSharedSettings((currentValue) => {
-          const source = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
-            ? currentValue
-            : fallbackSnapshot;
-          const result = applyTeacherCurrencyDeductionsInSettings(source, {
-            studentNumbers,
-            amount,
-            teacherReason,
-            requestId,
-            createdAt,
-          });
-          savedValue = result.value;
-          return savedValue;
-        });
-        lastSharedSettingsUpdatedAtRef.current = updatedAt;
-        skipNextSharedSettingsSaveRef.current = true;
+        const saved = await executeStorageCommand({ requestId, action: 'teacher.currency.deduct', payload: { studentNumbers, amount, teacherReason } });
+        savedValue = saved.value;
+        lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
       }
 
       const savedBalances = normalizeCurrencyBalances(savedValue.currencyBalances);
@@ -6980,6 +6972,10 @@ export default function TimerPage() {
   };
 
   const adjustAllCurrencyBalances = (delta: number) => {
+    if (isSupabaseSettingsEnabled) {
+      runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: CURRENCY_STUDENT_NUMBERS, amount: delta }, 'all', delta);
+      return;
+    }
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((balances, studentNumber) => {
       const key = String(studentNumber);
@@ -7012,6 +7008,10 @@ export default function TimerPage() {
       currencyGroupStudentNumbers.includes(studentNumber),
     );
     if (selectedStudentNumbers.length === 0) return;
+    if (isSupabaseSettingsEnabled) {
+      runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: selectedStudentNumbers, amount: delta }, 'group', delta);
+      return;
+    }
 
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = adjustCurrencyBalancesForStudents(previousBalances, selectedStudentNumbers, delta);
@@ -7026,6 +7026,10 @@ export default function TimerPage() {
   };
 
   const resetCurrencyBalances = () => {
+    if (isSupabaseSettingsEnabled) {
+      runTeacherCurrencyCommand('teacher.currency.reset', {});
+      return;
+    }
     currencyResetGenerationRef.current += 1;
     const normalizedPrevious = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = createDefaultCurrencyBalances();
@@ -7066,6 +7070,24 @@ export default function TimerPage() {
 
   const removeAuctionItem = (itemId: string) => {
     if (auctionItems.length <= 1 || !auctionItems.some((item) => item.id === itemId)) return;
+    if (isSupabaseSettingsEnabled) {
+      void executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.remove', payload: { itemId } })
+        .then(saved => {
+          setAuctionItems(previous => previous.filter(item => item.id !== itemId));
+          teacherSettingsBaseRef.current = { ...teacherSettingsBaseRef.current,
+            auctionItems: normalizeAuctionItems(teacherSettingsBaseRef.current.auctionItems).filter(item => item.id !== itemId) };
+          setAuctionBids(normalizeAuctionBids(saved.value.auctionBids, AUCTION_ITEM_IDS));
+          setAuctionBidHistory(normalizeAuctionBidHistory(saved.value.auctionBidHistory, AUCTION_ITEM_IDS));
+          setAuctionAwards(normalizeAuctionAwards(saved.value.auctionAwards, AUCTION_ITEM_IDS));
+          commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
+          lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+          setAuctionItemsSaveStatus('saved');
+        }).catch(error => {
+          setAuctionItemsSaveStatus('error');
+          setAuctionItemsSaveErrorCode(classifySaveFailure(error) ?? 'unknown');
+        });
+      return;
+    }
     markAuctionItemsEdited();
     setAuctionItems((previous) => {
       const normalizedPrevious = normalizeAuctionItems(previous);
@@ -7094,6 +7116,27 @@ export default function TimerPage() {
   };
 
   const completeWeeklyAuctionCycle = () => {
+    if (isSupabaseSettingsEnabled) {
+      const today = new Date();
+      const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (today.getDay() + 6) % 7);
+      const cycleKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+      void executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.weekly-close', payload: { cycleKey } })
+        .then(saved => {
+          commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
+          setStudentEconomyStates(normalizeStudentEconomyStates(saved.value.studentEconomy));
+          const items = normalizeAuctionItems(saved.value.auctionItems);
+          setAuctionItems(items);
+          teacherSettingsBaseRef.current = { ...teacherSettingsBaseRef.current, auctionItems: items };
+          setAuctionBids(normalizeAuctionBids(saved.value.auctionBids, AUCTION_ITEM_IDS));
+          setAuctionBidHistory(normalizeAuctionBidHistory(saved.value.auctionBidHistory, AUCTION_ITEM_IDS));
+          setAuctionAwards(normalizeAuctionAwards(saved.value.auctionAwards, AUCTION_ITEM_IDS));
+          setTemporaryVisibleAuctionItemIds(new Set());
+          setPendingAwardItemId(null);
+          setAwardPresentation(null);
+          lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+        }).catch(() => setCurrencyDeductionError('주간 정산 결과를 확인하지 못했어요. 최신 기록을 확인해 주세요.'));
+      return;
+    }
     const nextAuctionItems = normalizeAuctionItems(null);
     const emptyAuctionBids = normalizeAuctionBids(null, AUCTION_ITEM_IDS);
     const emptyAuctionBidHistory = normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS);
@@ -7139,70 +7182,6 @@ export default function TimerPage() {
       });
       return;
     }
-    if (!sharedSettingsHydratedRef.current) return;
-
-    if (sharedSettingsSaveTimeoutRef.current !== null) {
-      window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
-      sharedSettingsSaveTimeoutRef.current = null;
-    }
-
-    isSharedSettingsSavePendingRef.current = true;
-    const snapshot = {
-      ...buildSharedSettingsSnapshot(),
-      currencyBalances: nextBalances,
-      currencyHistory: nextHistory,
-      studentEconomy: taxedStudentEconomyStates,
-      auctionItems: nextAuctionItems,
-      auctionBids: emptyAuctionBids,
-      auctionBidHistory: emptyAuctionBidHistory,
-      auctionAwards: emptyAuctionAwards,
-    };
-    let savedSnapshot: Record<string, unknown> = { ...snapshot };
-    void updateSharedSettings((currentValue) => {
-      const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
-        ? currentValue as Record<string, unknown>
-        : {};
-      const latestCurrencyCycle = createWeeklyCurrencyCycle(
-        Object.keys(current).length > 0 ? current : snapshot,
-        interestHistoryCreatedAt,
-        taxHistoryCreatedAt,
-        allowanceHistoryCreatedAt,
-      );
-      savedSnapshot = mergeConcurrentCurrencyUpdatesIntoSettings(
-        currentValue,
-        {
-          ...snapshot,
-          currencyBalances: latestCurrencyCycle.balances,
-          currencyHistory: latestCurrencyCycle.history,
-          studentEconomy: latestCurrencyCycle.economy,
-          studentLife: current.studentLife ?? snapshot.studentLife,
-        },
-        knownWeeklyMissionRewardIdsRef.current,
-        knownAuctionAwardKeysRef.current,
-        false,
-      );
-      return savedSnapshot;
-    })
-      .then((updatedAt) => {
-        lastSharedSettingsUpdatedAtRef.current = updatedAt;
-        knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(savedSnapshot.currencyHistory);
-        knownAuctionAwardKeysRef.current = getAuctionAwardKeys(savedSnapshot.auctionAwards);
-        commitCurrencyState(
-          normalizeCurrencyBalances(savedSnapshot.currencyBalances),
-          normalizeCurrencyHistory(savedSnapshot.currencyHistory),
-        );
-        setStudentEconomyStates(normalizeStudentEconomyStates(savedSnapshot.studentEconomy));
-        const savedAwards = normalizeAuctionAwards(savedSnapshot.auctionAwards, AUCTION_ITEM_IDS);
-        if (JSON.stringify(savedAwards) !== JSON.stringify(auctionAwards)) {
-          setAuctionAwards(savedAwards);
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to complete weekly auction cycle in Supabase.', error);
-      })
-      .finally(() => {
-        isSharedSettingsSavePendingRef.current = false;
-      });
   };
 
   const addAuctionMission = () => {
@@ -7311,25 +7290,11 @@ export default function TimerPage() {
           throw new Error('LOCAL_SAVE_FAILED');
         }
       } else {
-        const hasPendingSettings = sharedSettingsSaveTimeoutRef.current !== null;
-        if (sharedSettingsSaveTimeoutRef.current !== null) {
-          window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
-          sharedSettingsSaveTimeoutRef.current = null;
-        }
-        isSharedSettingsSavePendingRef.current = true;
-        const updatedAt = await updateSharedSettings((currentValue) => {
-          const source = hasPendingSettings
-            ? mergeConcurrentCurrencyUpdatesIntoSettings(
-              currentValue, fallback, knownWeeklyMissionRewardIdsRef.current, knownAuctionAwardKeysRef.current,
-            )
-            : currentValue ?? fallback;
-          savedValue = applyClassroomRoleMissionResultInSettings(source, {
-            studentNumber, nextResult, dateKey, requestId, createdAt,
-          });
-          return savedValue;
-        });
-        lastSharedSettingsUpdatedAtRef.current = updatedAt;
-        skipNextSharedSettingsSaveRef.current = true;
+        const saved = await executeStorageCommand({ requestId, action: 'teacher.role.result', payload: {
+          studentNumber, nextResult: nextResult ?? null, dateKey,
+        } });
+        savedValue = saved.value;
+        lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
       }
       commitCurrencyState(
         normalizeCurrencyBalances(savedValue.currencyBalances),
@@ -7483,8 +7448,6 @@ export default function TimerPage() {
     finalizedAwardPresentationKeysRef.current.add(awardPresentationKey);
     const award = awardPresentation.award;
     const applyFinalizedState = (result: ReturnType<typeof finalizeAuctionAwardInSettings>) => {
-      // Keep any earlier teacher edits queued, but do not save this receipt a second time.
-      if (!isSharedSettingsSavePendingRef.current) skipNextSharedSettingsSaveRef.current = true;
       knownAuctionAwardKeysRef.current = getAuctionAwardKeys(result.awards);
       knownWeeklyMissionRewardIdsRef.current = getWeeklyMissionRewardIds(result.history);
       setAuctionAwards((previous) => ({ ...previous, ...result.awards }));
@@ -7521,14 +7484,13 @@ export default function TimerPage() {
       return;
     }
 
-    let finalizedState: ReturnType<typeof finalizeAuctionAwardInSettings> | null = null;
-    void updateSharedSettings((currentValue) => {
-      finalizedState = finalizeAuctionAwardInSettings(currentValue, award);
-      return finalizedState.value;
-    })
-      .then((updatedAt) => {
+    void executeStorageCommand({ requestId: `award-${awardPresentationKey}`, action: 'teacher.auction.finalize', payload: {
+      itemId: award.itemId, expectedBidder: award.winner, expectedAmount: award.amount,
+    } })
+      .then(({ updatedAt, value }) => {
         lastSharedSettingsUpdatedAtRef.current = updatedAt;
-        if (finalizedState) applyFinalizedState(finalizedState);
+        applyFinalizedState({ value, awarded: true, balances: normalizeCurrencyBalances(value.currencyBalances),
+          history: normalizeCurrencyHistory(value.currencyHistory), awards: normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS) });
       })
       .catch((error) => {
         console.error('Failed to finalize auction award in Supabase.', error);
@@ -9293,13 +9255,8 @@ export default function TimerPage() {
     try {
       let savedState = createStudentLetters(studentLife, letters);
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          savedState = createStudentLetters(normalizeStudentLifeState(current.studentLife), letters);
-          return { ...current, studentLife: savedState };
-        });
+        const saved = await executeStorageCommand({ requestId: batchId, action: 'teacher.mail.send', payload: { recipients, title: mailTitle.trim(), content } });
+        savedState = normalizeStudentLifeState(saved.value.studentLife);
       } else {
         savedState = createStudentLetters(loadStoredStudentLifeState(), letters);
         storeStudentLifeState(savedState);
@@ -9330,17 +9287,8 @@ export default function TimerPage() {
     try {
       let savedState = markTeacherLettersRead(studentLife, pendingLetterIds, readAt);
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          savedState = markTeacherLettersRead(
-            normalizeStudentLifeState(current.studentLife),
-            pendingLetterIds,
-            readAt,
-          );
-          return { ...current, studentLife: savedState };
-        });
+        const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.mail.read', payload: { letterIds: pendingLetterIds } });
+        savedState = normalizeStudentLifeState(saved.value.studentLife);
       } else {
         savedState = markTeacherLettersRead(loadStoredStudentLifeState(), pendingLetterIds, readAt);
         storeStudentLifeState(savedState);
@@ -9376,17 +9324,8 @@ export default function TimerPage() {
     try {
       let published = publishDailyWritingAssignment(dailyWriting, studentLife, draft);
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          published = publishDailyWritingAssignment(
-            normalizeDailyWritingState(current.dailyWriting),
-            normalizeStudentLifeState(current.studentLife),
-            draft,
-          );
-          return { ...current, dailyWriting: published.state, studentLife: published.studentLife };
-        });
+        const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.writing.publish', payload: draft });
+        published = { ...published, state: normalizeDailyWritingState(saved.value.dailyWriting), studentLife: normalizeStudentLifeState(saved.value.studentLife) };
       } else {
         published = publishDailyWritingAssignment(loadStoredDailyWritingState(), loadStoredStudentLifeState(), draft);
         storeStudentLifeState(published.studentLife);
@@ -9421,23 +9360,11 @@ export default function TimerPage() {
       let wasAwarded = initialReward.awarded;
       let savedDailyWriting = dailyWriting;
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          const reward = claimDailyWritingRewardInSettings(current, studentNumber, assignment.dateKey);
-          savedBalances = reward.balances;
-          savedHistory = reward.history;
-          wasAwarded = reward.awarded;
-          savedDailyWriting = hasDailyWritingReward(reward.history, studentNumber, assignment.dateKey)
-            ? markDailyWritingStudentRewarded(
-              normalizeDailyWritingState(current.dailyWriting),
-              studentNumber,
-              assignment.dateKey,
-            )
-            : normalizeDailyWritingState(current.dailyWriting);
-          return { ...reward.value, dailyWriting: savedDailyWriting };
-        });
+        const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.writing.reward', payload: { studentNumber, dateKey: assignment.dateKey } });
+        savedBalances = normalizeCurrencyBalances(saved.value.currencyBalances);
+        savedHistory = normalizeCurrencyHistory(saved.value.currencyHistory);
+        wasAwarded = isStorageRecord(saved.result) && saved.result.awarded === true;
+        savedDailyWriting = normalizeDailyWritingState(saved.value.dailyWriting);
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         const reward = claimDailyWritingRewardInSettings(snapshot, studentNumber, assignment.dateKey);
@@ -9486,23 +9413,11 @@ export default function TimerPage() {
       let savedDailyWriting = dailyWriting;
       let wasCancelled = false;
       if (isSupabaseSettingsEnabled) {
-        await updateSharedSettings((currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          const cancellation = cancelDailyWritingRewardInSettings(current, studentNumber, assignment.dateKey);
-          savedBalances = cancellation.balances;
-          savedHistory = cancellation.history;
-          wasCancelled = cancellation.cancelled;
-          savedDailyWriting = cancellation.cancelled
-            ? unmarkDailyWritingStudentRewarded(
-              normalizeDailyWritingState(current.dailyWriting),
-              studentNumber,
-              assignment.dateKey,
-            )
-            : normalizeDailyWritingState(current.dailyWriting);
-          return { ...cancellation.value, dailyWriting: savedDailyWriting };
-        });
+        const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.writing.cancel', payload: { studentNumber, dateKey: assignment.dateKey } });
+        savedBalances = normalizeCurrencyBalances(saved.value.currencyBalances);
+        savedHistory = normalizeCurrencyHistory(saved.value.currencyHistory);
+        wasCancelled = isStorageRecord(saved.result) && saved.result.cancelled === true;
+        savedDailyWriting = normalizeDailyWritingState(saved.value.dailyWriting);
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         const cancellation = cancelDailyWritingRewardInSettings(snapshot, studentNumber, assignment.dateKey);
@@ -9826,6 +9741,7 @@ export default function TimerPage() {
           <div className="teacher-shop-house-list">
             {STUDENT_HOUSE_DESIGNS.map((house) => (
               <article key={house.id}>
+                {'creatorStudentNumber' in house ? <span className="teacher-house-creator-badge" aria-label={`제작자 ${house.creatorStudentNumber}번`}>{house.creatorStudentNumber}번</span> : null}
                 <img src={house.imageSrc} alt="" />
                 <div><strong>{house.name}</strong><span>{house.price} 고마</span></div>
               </article>
@@ -10269,17 +10185,49 @@ export default function TimerPage() {
     </section>
   );
 
-  const resetClassDonation = async () => {
-    const resetState = { ...classDonation, totalAmount: 0, history: [] };
-    setClassDonation(resetState);
-    if (!isSupabaseSettingsEnabled) return;
+  const retryTeacherSettingsSave = async () => {
+    const scope = teacherCommandScope({ action: 'teacher.settings.patch', payload: {} });
+    const pending = teacherStorageDrafts.load(scope);
     try {
-      await updateSharedSettings((currentValue) => {
-        const current = currentValue && typeof currentValue === 'object'
-          ? currentValue as Record<string, unknown>
-          : {};
-        return { ...current, classDonation: resetState };
-      });
+      if (pending) {
+        const saved = await executeStorageCommand({ requestId: pending.draft.requestId, action: 'teacher.settings.patch', payload: pending.draft.payload });
+        if (isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
+          const remote = normalizeSharedSchoolTimerSettings(saved.value);
+          if (remote) {
+            const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot());
+            teacherSettingsBaseRef.current = { ...remote };
+            const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, localChanges));
+            if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
+            teacherSettingsBaseRef.current = { ...remote };
+          }
+        }
+        lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+      } else {
+        const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot());
+        const latest = await loadSharedSettingsRow();
+        if (latest && isStorageRecord(latest.value)) {
+          const remote = normalizeSharedSchoolTimerSettings(latest.value);
+          const preserved = remote && normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, localChanges));
+          if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
+          teacherSettingsBaseRef.current = remote ? { ...remote } : latest.value;
+        }
+      }
+      setTeacherSettingsSaveError('');
+      skipNextSharedSettingsSaveRef.current = false;
+      setTeacherSettingsSaveVersion(previous => previous + 1);
+    } catch {
+      setTeacherSettingsSaveError('저장 결과를 아직 확인하지 못했어요. 다시 확인해 주세요.');
+    }
+  };
+
+  const resetClassDonation = async () => {
+    if (!isSupabaseSettingsEnabled) {
+      setClassDonation(previous => ({ ...previous, totalAmount: 0, history: [] }));
+      return;
+    }
+    try {
+      const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.donation.reset', payload: {} });
+      setClassDonation(normalizeClassDonationSettings(saved.value.classDonation));
     } catch (error) {
       if (error instanceof Error) console.error('Failed to reset class donation.', error);
     }
@@ -12493,6 +12441,10 @@ export default function TimerPage() {
               className="settings-parent-content flex min-h-0 flex-1 flex-col"
               aria-hidden={hasSettingsChildModal ? 'true' : undefined}
             >
+            {teacherSettingsSaveError && <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-5 py-2" role="status">
+              <span>{teacherSettingsSaveError}</span>
+              <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => void retryTeacherSettingsSave()}>저장 다시 확인</button>
+            </div>}
             <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
               <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">
                 <Settings size={24} className="md:w-7 md:h-7" />

@@ -11,7 +11,9 @@ export const STUDENT_FOREGROUND_SYNC_COOLDOWN_MS = 2_000;
 export const STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS = 10_000;
 
 export const isStudentSettingsSnapshotFresh = (updatedAt: string | null | undefined, minimumUpdatedAt: string | null) => (
-  minimumUpdatedAt === null || (typeof updatedAt === 'string' && Date.parse(updatedAt) >= Date.parse(minimumUpdatedAt))
+  minimumUpdatedAt === null || (typeof updatedAt === 'string'
+    && Number.isFinite(Date.parse(updatedAt)) && Number.isFinite(Date.parse(minimumUpdatedAt))
+    && compareStorageTimestamps(updatedAt, minimumUpdatedAt) >= 0)
 );
 
 export type StudentSettingsSnapshot = {
@@ -71,3 +73,4 @@ export const storeStudentProfileSnapshot = (studentNumber: number, studentLife: 
     return false;
   }
 };
+import { compareStorageTimestamps } from './storageResponseOrder';

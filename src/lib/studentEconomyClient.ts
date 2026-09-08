@@ -31,8 +31,18 @@ export class StudentEconomyRequestError extends Error {
   }
 }
 
-const REQUEST_ATTEMPT_LIMIT = 2;
-const RETRYABLE_STATUS_CODES = new Set([408, 409, 425, 429, 502, 503, 504]);
+const UNCERTAIN_STATUS_CODES = new Set([408, 502, 504]);
+
+export const loadStudentEconomyReceipt = async (studentNumber: number, requestId: string): Promise<StudentEconomyUpdateResult | null> => {
+  const query = new URLSearchParams({ protocolVersion: '2', studentNumber: String(studentNumber), requestId });
+  const response = await fetch(`/api/student-economy?${query}`, {
+    credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) return null;
+  const body: unknown = await response.json();
+  if (!isRecord(body) || body.status !== 'committed') return null;
+  return parseUpdateResult(body.result, studentNumber);
+};
 
 const getErrorCode = (value: unknown) => {
   if (!value || typeof value !== 'object') return '';
@@ -102,47 +112,55 @@ const parseUpdateResult = (body: unknown, studentNumber: number): StudentEconomy
   };
 };
 
-export const updateStudentEconomy = async ({
+export const retryStudentEconomyRequest = async ({
   studentNumber,
   action,
   requestId,
 }: {
   readonly studentNumber: number;
-  readonly action: StudentEconomyApiAction;
+  readonly action: unknown;
   readonly requestId: string;
 }): Promise<StudentEconomyUpdateResult> => {
-  return withSaveFailureReporting('economy', async () => {
-    const requestBody = JSON.stringify({ studentNumber, action, requestId });
-    for (let attempt = 0; attempt < REQUEST_ATTEMPT_LIMIT; attempt += 1) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), 45_000);
-      let retryDelay = 250 + Math.floor(Math.random() * 250);
+  const outcome = await withSaveFailureReporting('economy', async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), 45_000);
+    try {
+      const response = await fetch('/api/student-economy', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ protocolVersion: 2, studentNumber, action, requestId }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        const error = new StudentEconomyRequestError(getErrorCode(body) || `STUDENT_ECONOMY_HTTP_${response.status}`, response.status);
+        // Domain denials and a paused/obsolete client are not failed persistence.
+        if ((isRecord(body) && body.businessRejected === true) || [401, 403, 426, 429].includes(response.status)
+          || ['STORAGE_MAINTENANCE', 'STORAGE_NOT_ACTIVE', 'STORAGE_REQUEST_REUSED'].includes(error.code)) return { error };
+        throw error;
+      }
+      return { result: parseUpdateResult(await response.json(), studentNumber) };
+    } catch (error) {
+      const uncertain = error instanceof StudentEconomyRequestError
+        ? UNCERTAIN_STATUS_CODES.has(error.status)
+        : error instanceof Error && ['TypeError', 'TimeoutError', 'AbortError'].includes(error.name);
+      if (!uncertain) throw error;
       try {
-        const response = await fetch('/api/student-economy', {
-          method: 'POST',
-          credentials: 'same-origin',
-          cache: 'no-store',
-          headers: { 'Content-Type': 'application/json' },
-          body: requestBody,
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          const body: unknown = await response.json().catch(() => null);
-          const retryAfter = response.headers.get('Retry-After');
-          const seconds = retryAfter === null ? NaN : Number(retryAfter);
-          const waitMs = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter ?? '') - Date.now();
-          if (Number.isFinite(waitMs)) retryDelay = Math.max(retryDelay, waitMs);
-          throw new StudentEconomyRequestError(getErrorCode(body) || `STUDENT_ECONOMY_HTTP_${response.status}`, response.status);
-        }
-        return parseUpdateResult(await response.json(), studentNumber);
-      } catch (error) {
-        const retryable = error instanceof StudentEconomyRequestError
-          ? RETRYABLE_STATUS_CODES.has(error.status)
-          : error instanceof Error && ['TypeError', 'TimeoutError', 'AbortError'].includes(error.name);
-        if (!retryable || attempt + 1 >= REQUEST_ATTEMPT_LIMIT || retryDelay > 5000) throw error;
-      } finally { clearTimeout(timeout); }
-      await new Promise((resolve) => setTimeout(resolve, retryDelay));
-    }
-    throw new StudentEconomyRequestError('STUDENT_ECONOMY_UPDATE_FAILED', 502);
+        const committed = await loadStudentEconomyReceipt(studentNumber, requestId);
+        if (committed) return { result: committed };
+      } catch (confirmationError) {
+        if (!(confirmationError instanceof Error)) throw confirmationError;
+      }
+      // Keep the caller's request ID: only an explicit retry may resubmit it.
+      throw new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504);
+    } finally { clearTimeout(timeout); }
   }, studentNumber);
+  if ('error' in outcome) throw outcome.error;
+  return outcome.result;
 };
+
+export const updateStudentEconomy = (input: {
+  readonly studentNumber: number;
+  readonly action: StudentEconomyApiAction;
+  readonly requestId: string;
+}): Promise<StudentEconomyUpdateResult> => retryStudentEconomyRequest(input);

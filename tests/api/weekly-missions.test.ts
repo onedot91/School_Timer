@@ -84,24 +84,27 @@ test('server checks the question source and internal classword entries independe
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 21 }, headers: deviceHeaders(21) }, response);
+    await handler({ method: 'POST', body: { protocolVersion: 2, studentNumber: 21 }, headers: deviceHeaders(21) }, response);
 
     assert.equal(result().statusCode, 200);
     assert.deepEqual(rpcBodies, [
       {
-        p_student_number: 21,
+        p_protocol_version: 2,
+      p_student_number: 21,
         p_week_key: weekKey,
         p_mission_type: PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
         p_source_event_id: 'personal-21',
       },
       {
-        p_student_number: 21,
+        p_protocol_version: 2,
+      p_student_number: 21,
         p_week_key: previousDateKey,
         p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
         p_source_event_id: 'final-entry-21',
       },
       {
-        p_student_number: 8,
+        p_protocol_version: 2,
+      p_student_number: 8,
         p_week_key: previousDateKey,
         p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
         p_source_event_id: 'final-entry-8',
@@ -165,7 +168,7 @@ test('a malformed question response does not block a valid internal classword re
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 21 }, headers: deviceHeaders(21) }, response);
+    await handler({ method: 'POST', body: { protocolVersion: 2, studentNumber: 21 }, headers: deviceHeaders(21) }, response);
 
     assert.equal(result().statusCode, 200);
     assert.deepEqual(claimedMissionTypes, [
@@ -235,7 +238,7 @@ test('월요일 접속 시 주말 동안 미처리된 날짜를 오래된 순서
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 21 }, headers: deviceHeaders(21) }, response);
+    await handler({ method: 'POST', body: { protocolVersion: 2, studentNumber: 21 }, headers: deviceHeaders(21) }, response);
 
     assert.equal(result().statusCode, 200);
     assert.deepEqual(classwordRewardKeys, [friday, sunday]);
@@ -291,10 +294,11 @@ test('마감 전에 삭제된 전날 낱말은 보상하지 않고 오늘 제출
 
   try {
     const { response, result } = createResponse();
-    await handler({ method: 'POST', body: { studentNumber: 7 }, headers: deviceHeaders(7) }, response);
+    await handler({ method: 'POST', body: { protocolVersion: 2, studentNumber: 7 }, headers: deviceHeaders(7) }, response);
 
     assert.equal(result().statusCode, 200);
     assert.deepEqual(rpcBodies[1], {
+      p_protocol_version: 2,
       p_student_number: 7,
       p_week_key: previousDateKey,
       p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
@@ -335,7 +339,7 @@ test('cross-site browser requests are rejected before external mission checks', 
     const { response, result } = createResponse();
     await handler({
       method: 'POST',
-      body: { studentNumber: 21 },
+      body: { protocolVersion: 2, studentNumber: 21 },
       headers: { 'sec-fetch-site': 'cross-site' },
     }, response);
 

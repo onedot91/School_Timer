@@ -64,7 +64,7 @@ const claimMission = async (
   configuration: ClasswordMissionConfiguration,
   input: MissionClaimInput,
 ): Promise<WeeklyMissionResult> => {
-  const rpcResponse = await fetch(`${configuration.url.replace(/\/$/, '')}/rest/v1/rpc/claim_weekly_mission_reward`, {
+  const rpcResponse = await fetch(`${configuration.url.replace(/\/$/, '')}/rest/v1/rpc/claim_weekly_mission_reward_v2`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -73,6 +73,7 @@ const claimMission = async (
       Authorization: `Bearer ${configuration.serviceRoleKey}`,
     },
     body: JSON.stringify({
+      p_protocol_version: 2,
       p_student_number: input.studentNumber,
       p_week_key: input.rewardKey,
       p_mission_type: input.missionType,
@@ -122,6 +123,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
   if (deviceSession.role === 'student' && deviceSession.studentNumber !== studentNumber) {
     response.status(403).json({ error: 'STUDENT_NUMBER_MISMATCH' });
+    return;
+  }
+
+  const parsedBody: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+  if (!parsedBody || typeof parsedBody !== 'object' || Reflect.get(parsedBody, 'protocolVersion') !== 2) {
+    response.status(409).json({ error: 'LEGACY_CLIENT_UPDATE_REQUIRED' });
     return;
   }
 

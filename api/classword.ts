@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 
 import {
   getKoreanDateKey,
@@ -22,14 +21,13 @@ import {
   isClasswordWeekday,
 } from '../src/lib/classwordSchedule.js';
 import {
-  claimClasswordReward,
-  claimClasswordQuizReward,
   ClasswordRepositoryError,
   deleteClasswordDateEntries,
   deleteClasswordEntry,
   deleteClasswordQuizDefinition,
   loadClasswordBoard,
   loadClasswordRounds,
+  loadClasswordRequestResult,
   loadClasswordTopic,
   loadClasswordQuizCompletions,
   loadClasswordQuizDefinition,
@@ -60,10 +58,11 @@ interface ApiResponse {
   json: (body: unknown) => void;
 }
 
-type ClasswordAction =
+type ClasswordAction = (
   | {
       readonly type: 'save_entry';
       readonly entryId?: string;
+      readonly expectedRevision?: string;
       readonly dateKey: string;
       readonly initial: import('../src/lib/classword.js').ClasswordInitial;
       readonly word: string;
@@ -73,7 +72,7 @@ type ClasswordAction =
   | { readonly type: 'save_quiz'; readonly input: ClasswordQuizTeacherInput }
   | { readonly type: 'delete_quiz'; readonly dateKey: string }
   | { readonly type: 'save_topic'; readonly dateKey: string; readonly topic: string }
-  | { readonly type: 'delete_date_entries'; readonly dateKey: string; readonly confirmation: 'DELETE' };
+  | { readonly type: 'delete_date_entries'; readonly dateKey: string; readonly confirmation: 'DELETE' }) & { readonly requestId: string };
 
 class ClasswordApiError extends Error {
   readonly status: number;
@@ -111,6 +110,8 @@ const parseBody = (body: unknown): Record<string, unknown> => {
 
 const parseAction = (body: unknown): ClasswordAction => {
   const value = parseBody(body);
+  if (value.protocolVersion !== 2) throw new ClasswordApiError(409, 'STORAGE_PROTOCOL_REQUIRED');
+  if (typeof value.requestId !== 'string' || value.requestId.length < 8 || value.requestId.length > 160) throw new ClasswordApiError(400, 'INVALID_REQUEST_ID');
   if (isClasswordDateKey(value.dateKey)) isClasswordWeekday(value.dateKey);
   const action = value.action;
   if (action === 'save_entry') {
@@ -119,10 +120,12 @@ const parseAction = (body: unknown): ClasswordAction => {
       || !isClasswordInitial(value.initial)
       || typeof value.word !== 'string'
       || value.word.length > 32
-      || (value.entryId !== undefined && (typeof value.entryId !== 'string' || value.entryId.length > 160))
+      || (value.entryId !== undefined && (typeof value.entryId !== 'string' || value.entryId.length > 160 || typeof value.expectedRevision !== 'string' || !Number.isFinite(Date.parse(value.expectedRevision))))
     ) throw new ClasswordApiError(400, 'INVALID_ENTRY');
     return {
       type: action,
+      requestId: value.requestId,
+      ...(typeof value.expectedRevision === 'string' ? { expectedRevision: value.expectedRevision } : {}),
       ...(typeof value.entryId === 'string' ? { entryId: value.entryId } : {}),
       dateKey: value.dateKey,
       initial: value.initial,
@@ -133,7 +136,7 @@ const parseAction = (body: unknown): ClasswordAction => {
     if (typeof value.entryId !== 'string' || value.entryId.length > 160) {
       throw new ClasswordApiError(400, 'INVALID_ENTRY');
     }
-    return { type: action, entryId: value.entryId };
+    return { type: action, requestId: value.requestId, entryId: value.entryId };
   }
   if (action === 'answer_quiz') {
     if (
@@ -141,7 +144,7 @@ const parseAction = (body: unknown): ClasswordAction => {
       || typeof value.answer !== 'string'
       || [...value.answer].length > 20
     ) throw new ClasswordApiError(400, 'INVALID_QUIZ_ANSWER');
-    return { type: action, dateKey: value.dateKey, answer: value.answer };
+    return { type: action, requestId: value.requestId, dateKey: value.dateKey, answer: value.answer };
   }
   if (action === 'save_quiz') {
     if (
@@ -165,23 +168,23 @@ const parseAction = (body: unknown): ClasswordAction => {
     } catch (error) {
       throw new ClasswordApiError(400, error instanceof Error ? error.message : 'INVALID_QUIZ');
     }
-    return { type: action, input };
+    return { type: action, requestId: value.requestId, input };
   }
   if (action === 'delete_quiz') {
     if (!isClasswordDateKey(value.dateKey)) throw new ClasswordApiError(400, 'INVALID_DATE');
-    return { type: action, dateKey: value.dateKey };
+    return { type: action, requestId: value.requestId, dateKey: value.dateKey };
   }
   if (action === 'save_topic') {
     if (!isClasswordDateKey(value.dateKey) || typeof value.topic !== 'string' || [...value.topic.trim()].length > 40) {
       throw new ClasswordApiError(400, 'INVALID_TOPIC');
     }
-    return { type: action, dateKey: value.dateKey, topic: value.topic.trim() };
+    return { type: action, requestId: value.requestId, dateKey: value.dateKey, topic: value.topic.trim() };
   }
   if (action === 'delete_date_entries') {
     if (!isClasswordDateKey(value.dateKey) || value.confirmation !== 'DELETE') {
       throw new ClasswordApiError(400, 'INVALID_DELETE_CONFIRMATION');
     }
-    return { type: action, dateKey: value.dateKey, confirmation: value.confirmation };
+    return { type: action, requestId: value.requestId, dateKey: value.dateKey, confirmation: value.confirmation };
   }
   throw new ClasswordApiError(400, 'INVALID_ACTION');
 };
@@ -220,6 +223,13 @@ const handleGet = async (
   configuration: ClasswordRepositoryConfiguration,
   session: DeviceSession,
 ): Promise<void> => {
+  const requestId = getQueryString(request.query?.requestId);
+  if (requestId !== null) {
+    if (requestId.length < 8 || requestId.length > 160) throw new ClasswordApiError(400, 'INVALID_REQUEST_ID');
+    const result = await loadClasswordRequestResult(configuration, session.role === 'teacher' ? 0 : session.studentNumber, requestId);
+    response.status(200).json({ committed: result !== null, result });
+    return;
+  }
   if (getQueryString(request.query?.quiz) === '1') {
     const dateKey = getRequestedDate(request, session);
     const resolved = await loadResolvedQuiz(configuration, dateKey);
@@ -250,7 +260,6 @@ const handleGet = async (
   }
   if (getQueryString(request.query?.usedTopics) === '1') {
     requireTeacher(session);
-    await pruneExpiredEntries(configuration);
     response.status(200).json(await loadClasswordUsedTopics(configuration));
     return;
   }
@@ -258,13 +267,11 @@ const handleGet = async (
   if (monthKey !== null) {
     requireTeacher(session);
     if (!isClasswordMonthKey(monthKey)) throw new ClasswordApiError(400, 'INVALID_MONTH');
-    await pruneExpiredEntries(configuration);
     response.status(200).json(await loadClasswordRounds(configuration, monthKey));
     return;
   }
   const dateKey = getRequestedDate(request, session);
   if (session.role === 'teacher' || isClasswordWeekday(getKoreanDateKey())) {
-    await pruneExpiredEntries(configuration);
   }
   response.status(200).json(await loadClasswordBoard(configuration, dateKey));
 };
@@ -285,17 +292,14 @@ const handlePost = async (
       if (!topic.trim()) throw new ClasswordApiError(400, 'CLASSWORD_TOPIC_REQUIRED');
       const validation = validateClasswordWord(action.word, action.initial, topic);
       if (validation.ok === false) throw new ClasswordApiError(400, validation.code);
-      const entry = await saveClasswordEntry(configuration, {
+      const { entry, reward } = await saveClasswordEntry(configuration, {
+        requestId: action.requestId,
+        expectedRevision: action.expectedRevision,
         ...(action.entryId ? { entryId: action.entryId } : {}),
         dateKey: action.dateKey,
         initial: action.initial,
         word: validation.word,
         studentNumber: session.studentNumber,
-      });
-      const reward = await claimClasswordReward(configuration, {
-        studentNumber: session.studentNumber,
-        entryId: entry.id,
-        dateKey: action.dateKey,
       });
       response.status(200).json({ entry, ...reward });
       return;
@@ -308,6 +312,7 @@ const handlePost = async (
         action.entryId,
         session.role === 'student' ? session.studentNumber : null,
         session.role === 'student' ? getKoreanDateKey() : null,
+        action.requestId,
       );
       response.status(200).json({ deleted: true });
       return;
@@ -324,26 +329,7 @@ const handlePost = async (
       const existingCompletion = existingCompletions.find(
         (completion) => completion.studentNumber === session.studentNumber,
       );
-      if (existingCompletion) {
-        const reward = await claimClasswordQuizReward(configuration, {
-          studentNumber: session.studentNumber,
-          entryId: question.id,
-          dateKey: action.dateKey,
-        });
-        response.status(200).json({
-          correct: true,
-          ...reward,
-          state: {
-            dateKey: action.dateKey,
-            question,
-            completed: true,
-            completedAt: existingCompletion.completedAt,
-            rewardAmount: reward.rewardAmount,
-          },
-        });
-        return;
-      }
-      if (!isClasswordQuizDefinitionAnswerCorrect(resolved.question, action.answer)) {
+      if (!existingCompletion && !isClasswordQuizDefinitionAnswerCorrect(resolved.question, action.answer)) {
         response.status(200).json({
           correct: false,
           state: {
@@ -356,17 +342,14 @@ const handlePost = async (
         });
         return;
       }
-      const completion = await saveClasswordQuizCompletion(
+      const { completion, reward } = await saveClasswordQuizCompletion(
         configuration,
         action.dateKey,
         question.id,
         session.studentNumber,
+        action.requestId,
+        question,
       );
-      const reward = await claimClasswordQuizReward(configuration, {
-        studentNumber: session.studentNumber,
-        entryId: question.id,
-        dateKey: action.dateKey,
-      });
       response.status(200).json({
         correct: true,
         ...reward,
@@ -384,27 +367,27 @@ const handlePost = async (
       requireTeacher(session);
       const question = buildTeacherClasswordQuiz(
         action.input,
-        `teacher-${action.input.dateKey}-${randomUUID()}`,
+        `teacher-${action.input.dateKey}-${action.requestId}`,
       );
-      await saveClasswordQuizDefinition(configuration, action.input.dateKey, question);
+      await saveClasswordQuizDefinition(configuration, action.input.dateKey, question, action.requestId);
       response.status(200).json({ saved: true });
       return;
     }
     case 'delete_quiz':
       requireTeacher(session);
-      await deleteClasswordQuizDefinition(configuration, action.dateKey);
+      await deleteClasswordQuizDefinition(configuration, action.dateKey, action.requestId);
       response.status(200).json({ deleted: true });
       return;
     case 'save_topic':
       requireTeacher(session);
       await pruneExpiredEntries(configuration);
-      await saveClasswordTopic(configuration, action.dateKey, action.topic);
+      await saveClasswordTopic(configuration, action.dateKey, action.topic, action.requestId);
       response.status(200).json({ saved: true });
       return;
     case 'delete_date_entries':
       requireTeacher(session);
       await pruneExpiredEntries(configuration);
-      await deleteClasswordDateEntries(configuration, action.dateKey);
+      await deleteClasswordDateEntries(configuration, action.dateKey, action.requestId);
       response.status(200).json({ deleted: true });
       return;
   }

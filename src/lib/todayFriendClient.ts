@@ -58,6 +58,7 @@ const getWeekKey = (dateKey: string): string => getKoreanIsoWeekKey(new Date(`${
 const requestWithoutReporting = async (path: string, init?: RequestInit): Promise<unknown> => {
   const response = await fetch(path, {
     ...init,
+    ...(typeof init?.body === 'string' ? { body: JSON.stringify({ ...JSON.parse(init.body), protocolVersion: 2 }) } : {}),
     headers: {
       Accept: 'application/json',
       ...(init?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -101,7 +102,7 @@ const parseMission = (value: unknown): TodayFriendStudentMission => {
     || !isNullableString(question)
     || (submissionValue !== null && submission === null)
   ) throw new TodayFriendClientError('TODAY_FRIEND_INVALID_RESPONSE');
-  return { dateKey, studentNumber, partnerNumber, genre, question, submission };
+  return { dateKey, studentNumber, partnerNumber, genre, question, submission, ...(typeof value.planningRevision === 'string' ? { planningRevision: value.planningRevision } : {}) };
 };
 
 export const loadStudentTodayFriendMission = async (
@@ -117,6 +118,8 @@ export const loadStudentTodayFriendMission = async (
 export const saveStudentTodayFriendDraft = async (input: {
   readonly mission: TodayFriendStudentMission;
   readonly payload: TodayFriendPayload;
+  readonly requestId?: string;
+  readonly expectedRevision?: number;
 }): Promise<TodayFriendSubmission> => {
   if (appDataMode === 'readonly') throw new TodayFriendClientError('BACKEND_WRITE_DISABLED');
   if (appDataMode === 'mock') {
@@ -130,7 +133,7 @@ export const saveStudentTodayFriendDraft = async (input: {
   }
   const value = await request('/api/today-friend', {
     method: 'POST',
-    body: JSON.stringify({ action: 'save_draft', dateKey: input.mission.dateKey, payload: input.payload }),
+    body: JSON.stringify({ action: 'save_draft', dateKey: input.mission.dateKey, expectedMission: { partnerNumber: input.mission.partnerNumber, genre: input.mission.genre, question: input.mission.question, planningRevision: input.mission.planningRevision }, payload: input.payload, requestId: input.requestId ?? crypto.randomUUID(), expectedRevision: input.expectedRevision ?? input.mission.submission?.storageRevision ?? 0 }),
   });
   const submission = parseTodayFriendSubmission(value);
   if (!submission) throw new TodayFriendClientError('TODAY_FRIEND_INVALID_RESPONSE');
@@ -140,9 +143,12 @@ export const saveStudentTodayFriendDraft = async (input: {
 export const submitStudentTodayFriendMission = async (input: {
   readonly mission: TodayFriendStudentMission;
   readonly payload: TodayFriendPayload;
+  readonly requestId?: string;
+  readonly expectedRevision?: number;
 }): Promise<TodayFriendSubmission> => {
-  await saveStudentTodayFriendDraft(input);
+  if (appDataMode === 'readonly') throw new TodayFriendClientError('BACKEND_WRITE_DISABLED');
   if (appDataMode === 'mock') {
+    await saveStudentTodayFriendDraft(input);
     const state = updateLocalTodayFriendState((current) => submitSavedTodayFriendSubmission(
       current,
       input.mission.dateKey,
@@ -153,7 +159,7 @@ export const submitStudentTodayFriendMission = async (input: {
     if (!submission) throw new TodayFriendClientError('SUBMISSION_SAVE_FAILED');
     return submission;
   }
-  const value = await request('/api/today-friend', { method: 'POST', body: JSON.stringify({ action: 'submit', dateKey: input.mission.dateKey }) });
+  const value = await request('/api/today-friend', { method: 'POST', body: JSON.stringify({ action: 'submit', dateKey: input.mission.dateKey, expectedMission: { partnerNumber: input.mission.partnerNumber, genre: input.mission.genre, question: input.mission.question, planningRevision: input.mission.planningRevision }, payload: input.payload, requestId: input.requestId ?? crypto.randomUUID(), expectedRevision: input.expectedRevision ?? input.mission.submission?.storageRevision ?? 0 }) });
   const submission = parseTodayFriendSubmission(value);
   if (!submission) throw new TodayFriendClientError('TODAY_FRIEND_INVALID_RESPONSE');
   return submission;
@@ -168,10 +174,12 @@ export const reviewStudentTodayFriendSubmission = async (input: {
   readonly submissionId: string;
   readonly decision: 'revision_requested' | 'approved';
   readonly feedback: string;
+  readonly expectedRevision?: number;
+  readonly requestId?: string;
 }): Promise<TodayFriendState> => {
   if (appDataMode === 'readonly') throw new TodayFriendClientError('BACKEND_WRITE_DISABLED');
   if (appDataMode !== 'mock') {
-    return parseTodayFriendState(await request('/api/today-friend', { method: 'POST', body: JSON.stringify({ action: 'review', ...input }) }));
+    return parseTodayFriendState(await request('/api/today-friend', { method: 'POST', body: JSON.stringify({ action: 'review', ...input, expectedRevision: input.expectedRevision ?? 0, requestId: input.requestId ?? crypto.randomUUID() }) }));
   }
   const current = loadLocalTodayFriendState(window.localStorage);
   const submission = current.submissions.find((entry) => entry.id === input.submissionId);
@@ -236,4 +244,13 @@ export const updateTeacherTodayFriendQuestions = (
     }).then(parseTodayFriendState);
   }
   return Promise.resolve(updateLocalTodayFriendState((state) => ({ ...state, questions })));
+};
+
+export const loadTodayFriendSubmissionReceipt = async (requestId: string): Promise<{ readonly found: boolean; readonly submission: TodayFriendSubmission | null }> => {
+  if (appDataMode === 'mock') return { found: false, submission: null };
+  const value = await request(`/api/today-friend?requestId=${encodeURIComponent(requestId)}`);
+  if (!isRecord(value) || typeof value.found !== 'boolean') throw new TodayFriendClientError('TODAY_FRIEND_INVALID_RESPONSE');
+  const submission = value.submission === null ? null : parseTodayFriendSubmission(value.submission);
+  if (value.found && !submission) throw new TodayFriendClientError('TODAY_FRIEND_INVALID_RESPONSE');
+  return { found: value.found, submission };
 };

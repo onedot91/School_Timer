@@ -56,7 +56,11 @@ function EmotionZonePanel({
   );
 }
 
+interface EmotionDraft { readonly emotionId: StudentEmotionId | null; readonly comment: string; readonly selfMessage: string }
 interface StudentEmotionPageProps {
+  draft?: EmotionDraft;
+  hasPendingSave?: boolean;
+  onDraftChange?: (draft: EmotionDraft) => void;
   todayEntry: StudentEmotionEntry | null;
   history: StudentEmotionEntry[];
   isSaving: boolean;
@@ -148,6 +152,9 @@ const getCalendarDays = (visibleMonth: Date): EmotionCalendarDay[] => {
 };
 
 export default function StudentEmotionPage({
+  draft,
+  hasPendingSave = false,
+  onDraftChange,
   todayEntry,
   history,
   isSaving,
@@ -155,9 +162,9 @@ export default function StudentEmotionPage({
   onBack,
 }: StudentEmotionPageProps) {
   const [activeSection, setActiveSection] = useState<'pick' | 'history'>('pick');
-  const [draftEmotionId, setDraftEmotionId] = useState<StudentEmotionId | null>(todayEntry?.emotionId ?? null);
-  const [comment, setComment] = useState(todayEntry?.comment ?? '');
-  const [selfMessage, setSelfMessage] = useState(todayEntry?.selfMessage ?? '');
+  const [draftEmotionId, setDraftEmotionId] = useState<StudentEmotionId | null>(draft?.emotionId ?? todayEntry?.emotionId ?? null);
+  const [comment, setComment] = useState(draft?.comment ?? todayEntry?.comment ?? '');
+  const [selfMessage, setSelfMessage] = useState(draft?.selfMessage ?? todayEntry?.selfMessage ?? '');
   const [isEmotionDialogOpen, setIsEmotionDialogOpen] = useState(false);
   const [isEmotionConfirmed, setIsEmotionConfirmed] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -216,6 +223,7 @@ export default function StudentEmotionPage({
   const selectedHistoryEmotion = getStudentEmotion(selectedHistoryEntry?.emotionId);
 
   useEffect(() => {
+    if (draft) return;
     setDraftEmotionId(todayEntry?.emotionId ?? null);
     setComment(todayEntry?.comment ?? '');
     setSelfMessage(todayEntry?.selfMessage ?? '');
@@ -223,7 +231,10 @@ export default function StudentEmotionPage({
 
   const selectEmotion = (emotion: StudentEmotionDefinition, trigger: HTMLButtonElement) => {
     emotionTriggerRef.current = trigger;
-    setDraftEmotionId(emotion.id as StudentEmotionId);
+    if (!hasPendingSave) {
+      setDraftEmotionId(emotion.id as StudentEmotionId);
+      onDraftChange?.({ emotionId: emotion.id as StudentEmotionId, comment, selfMessage });
+    }
     setSaveError('');
     setIsEmotionConfirmed(false);
     setIsEmotionDialogOpen(true);
@@ -237,7 +248,7 @@ export default function StudentEmotionPage({
   const confirmEmotion = async () => {
     if (!draftEmotionId || comment.trim().length === 0 || selfMessage.trim().length === 0 || isSaving) return false;
     if (!await onSave(draftEmotionId, comment, selfMessage)) {
-      setSaveError('이 기기에는 저장할 수 없어요. 잠시 후 다시 시도해 주세요.');
+      setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.');
       return false;
     }
     return true;
@@ -512,16 +523,19 @@ export default function StudentEmotionPage({
               확인
             </button>
           </div> : <>
+            {hasPendingSave ? <p role="status">이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.</p> : null}
             <label className="student-emotion-comment-field">
               <span id="emotion-event-label"><MessageCircle size={20} aria-hidden="true" />어떤 일이 있었나요?</span>
               <textarea
                 ref={emotionCommentRef}
                 value={comment}
+                readOnly={hasPendingSave}
                 maxLength={STUDENT_EMOTION_COMMENT_MAX_LENGTH}
                 rows={2}
                 placeholder="있었던 일을 구체적으로 적어주세요."
                 onChange={(event) => {
                   setComment(event.target.value);
+                  onDraftChange?.({ emotionId: draftEmotionId, comment: event.target.value, selfMessage });
                   setSaveError('');
                 }}
               />
@@ -531,10 +545,12 @@ export default function StudentEmotionPage({
               <span id="emotion-self-message-label"><Heart size={20} aria-hidden="true" />나에게 해주는 한 마디</span>
               <input
                 value={selfMessage}
+                readOnly={hasPendingSave}
                 maxLength={STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH}
                 placeholder="오늘의 나에게 한마디를 적어 주세요"
                 onChange={(event) => {
                   setSelfMessage(event.target.value);
+                  onDraftChange?.({ emotionId: draftEmotionId, comment, selfMessage: event.target.value });
                   setSaveError('');
                 }}
               />
@@ -551,7 +567,7 @@ export default function StudentEmotionPage({
               }}
             >
               <Check size={20} aria-hidden="true" />
-              {isSaving ? '저장 중' : '기록하기'}
+              {isSaving ? '저장 중' : hasPendingSave ? '저장 다시 확인' : '기록하기'}
             </button>
             {saveError ? <p role="alert">{saveError}</p> : null}
           </>}

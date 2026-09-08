@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getKoreanDateKey, type ClasswordBoard as ClasswordBoardData, type ClasswordInitial } from '../../lib/classword';
 import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
+import { EMPTY_CLASSWORD_DRAFT, loadClasswordDraft, storeClasswordDraft, type ClasswordDraft } from '../../lib/classwordDraft';
 import { getClasswordDisplayDate, isClasswordWeekday } from '../../lib/classwordSchedule';
 import { playClasswordSound } from '../../lib/classwordAudio';
 import {
@@ -45,6 +46,7 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   blocked_word: '다른 낱말을 써 주세요.',
   non_korean_start: '한글 낱말로 시작해 주세요.',
   wrong_initial: '선택한 초성으로 시작하는 낱말을 써 주세요.',
+  CLASSWORD_ENTRY_CHANGED: '다른 화면에서 내 낱말이 바뀌었어요. 확인한 뒤 다시 저장해 주세요.',
   CLASSWORD_STUDENT_ALREADY_ENTERED: '오늘은 한 칸만 채울 수 있어요.',
   CLASSWORD_INITIAL_OCCUPIED: '방금 다른 친구가 이 칸을 채웠어요.',
   CLASSWORD_ENTRY_CONFLICT: '방금 다른 친구가 이 칸을 채웠어요.',
@@ -52,6 +54,7 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   BACKEND_WRITE_DISABLED: '읽기 전용 모드에서는 낱말을 바꿀 수 없어요.',
   CLASSWORD_WEEKEND_CLOSED: '주말에는 쉬어요. 월요일에 다시 만나요.',
   TODAY_ONLY: '날짜가 바뀌었어요. 오늘 낱말판을 확인해 주세요.',
+  STORAGE_PROTOCOL_REQUIRED: '화면을 새로고침한 뒤 다시 저장해 주세요.',
 };
 
 const getErrorMessage = (error: unknown): string => {
@@ -76,6 +79,9 @@ export default function StudentClasswordPage({
   const [quizLoadError, setQuizLoadError] = useState('');
   const [feedback, setFeedback] = useState<{ readonly kind: 'status' | 'error'; readonly message: string } | null>(null);
   const completionCountRef = useRef(0);
+  const readGenerationRef = useRef(0);
+  const boardReadSequenceRef = useRef(0);
+  const quizReadSequenceRef = useRef(0);
   const [dateKey, setDateKey] = useState(getKoreanDateKey);
   const displayDateKey = getClasswordDisplayDate(dateKey);
   const readOnly = !isClasswordWeekday(dateKey);
@@ -83,11 +89,21 @@ export default function StudentClasswordPage({
     ? board
     : { ...EMPTY_BOARD, dateKey: displayDateKey };
   const currentQuizState = quizState?.dateKey === displayDateKey ? quizState : null;
+  const loadDraft = (): ClasswordDraft => {
+    try { return loadClasswordDraft(window.localStorage, studentNumber, displayDateKey); }
+    catch { return EMPTY_CLASSWORD_DRAFT; }
+  };
+  const saveDraft = (draft: ClasswordDraft): void => {
+    try { storeClasswordDraft(window.localStorage, studentNumber, displayDateKey, draft); }
+    catch { return; }
+  };
 
   const refresh = useCallback(async (): Promise<void> => {
+    const generation = readGenerationRef.current;
+    const sequence = ++boardReadSequenceRef.current;
     try {
       const nextBoard = await loadClasswordBoard(displayDateKey);
-      if (getKoreanDateKey() !== dateKey) return;
+      if (getKoreanDateKey() !== dateKey || generation !== readGenerationRef.current || sequence !== boardReadSequenceRef.current) return;
       setBoard(nextBoard);
       setLoading(false);
       if (!readOnly && nextBoard.entries.length === 14) {
@@ -95,20 +111,22 @@ export default function StudentClasswordPage({
       }
       completionCountRef.current = nextBoard.entries.length;
     } catch (error) {
-      if (getKoreanDateKey() !== dateKey) return;
+      if (getKoreanDateKey() !== dateKey || generation !== readGenerationRef.current || sequence !== boardReadSequenceRef.current) return;
       setLoading(false);
       setFeedback({ kind: 'error', message: getErrorMessage(error) });
     }
   }, [dateKey, displayDateKey, readOnly]);
 
   const refreshQuiz = useCallback(async (): Promise<void> => {
+    const generation = readGenerationRef.current;
+    const sequence = ++quizReadSequenceRef.current;
     try {
       const nextState = await loadClasswordQuizStudentState(displayDateKey, studentNumber);
-      if (getKoreanDateKey() !== dateKey) return;
+      if (getKoreanDateKey() !== dateKey || generation !== readGenerationRef.current || sequence !== quizReadSequenceRef.current) return;
       setQuizState(nextState);
       setQuizLoadError('');
     } catch {
-      if (getKoreanDateKey() !== dateKey) return;
+      if (getKoreanDateKey() !== dateKey || generation !== readGenerationRef.current || sequence !== quizReadSequenceRef.current) return;
       setQuizLoadError('낱말 퀴즈를 불러오지 못했어요.');
     } finally {
       if (getKoreanDateKey() === dateKey) setQuizLoading(false);
@@ -155,9 +173,11 @@ export default function StudentClasswordPage({
       setDateKey(today);
       return false;
     }
+    readGenerationRef.current += 1;
     setQuizSaving(true);
     try {
       const result = await submitClasswordQuizAnswer({ dateKey, studentNumber, answer });
+      readGenerationRef.current += 1;
       if (result.balance !== null) onRewardBalance(result.balance);
       if (getKoreanDateKey() !== dateKey) return result.correct;
       setQuizState(result.correct
@@ -181,6 +201,7 @@ export default function StudentClasswordPage({
 
   const save = async (input: {
     readonly entryId?: string;
+    readonly expectedRevision?: string;
     readonly initial: ClasswordInitial;
     readonly word: string;
   }): Promise<ClasswordSaveResult> => {
@@ -189,6 +210,7 @@ export default function StudentClasswordPage({
       setDateKey(today);
       return 'error';
     }
+    readGenerationRef.current += 1;
     setSaving(true);
     setFeedback(null);
     try {
@@ -197,6 +219,7 @@ export default function StudentClasswordPage({
         dateKey,
         studentNumber,
       }, currentBoard.topic);
+      readGenerationRef.current += 1;
       if (result.balance !== null) onRewardBalance(result.balance);
       if (getKoreanDateKey() !== dateKey) return 'saved';
       setBoard((currentBoard) => ({
@@ -215,7 +238,8 @@ export default function StudentClasswordPage({
       if (getKoreanDateKey() !== dateKey) return 'error';
       const message = getErrorMessage(error);
       const conflict = error instanceof ClasswordClientError
-        && (error.code === 'CLASSWORD_ENTRY_CONFLICT' || error.code === 'CLASSWORD_INITIAL_OCCUPIED');
+        && (error.code === 'CLASSWORD_ENTRY_CONFLICT' || error.code === 'CLASSWORD_INITIAL_OCCUPIED'
+          || error.code === 'CLASSWORD_STUDENT_ALREADY_ENTERED' || error.code === 'CLASSWORD_ENTRY_CHANGED');
       setFeedback({ kind: 'error', message });
       void playClasswordSound('error');
       void refresh();
@@ -231,10 +255,12 @@ export default function StudentClasswordPage({
       setDateKey(today);
       return false;
     }
+    readGenerationRef.current += 1;
     setSaving(true);
     setFeedback(null);
     try {
       await removeClasswordEntry(entryId, studentNumber);
+      readGenerationRef.current += 1;
       if (getKoreanDateKey() !== dateKey) return true;
       setBoard((currentBoard) => ({
         ...currentBoard,
@@ -292,7 +318,10 @@ export default function StudentClasswordPage({
           </motion.div>
         ) : null}
         <ClasswordBoard
+          key={`${studentNumber}:${displayDateKey}`}
           board={currentBoard}
+          initialDraft={loadDraft()}
+          onDraftChange={saveDraft}
           studentNumber={studentNumber}
           profileAssignments={profileAssignments}
           disabled={readOnly || loading || !currentBoard.topic}

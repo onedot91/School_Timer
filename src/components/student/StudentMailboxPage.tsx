@@ -11,7 +11,11 @@ import {
   normalizeDailyWritingLetterForDisplay,
 } from '../../lib/dailyWriting';
 
+interface MailboxDraft { readonly title: string; readonly content: string; readonly replyToId?: string }
 interface StudentMailboxPageProps {
+  readonly draft?: MailboxDraft;
+  readonly hasPendingSave?: boolean;
+  readonly onDraftChange?: (draft: MailboxDraft) => void;
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
   readonly letters: readonly StudentLetter[];
@@ -89,6 +93,9 @@ const preserveKoreanPhraseSpacing = (content: string): string => content
 
 export default function StudentMailboxPage({
   studentNumber,
+  draft,
+  hasPendingSave = false,
+  onDraftChange,
   profileAssignments,
   letters,
   sentLetters,
@@ -101,9 +108,10 @@ export default function StudentMailboxPage({
   const [mode, setMode] = useState<MailboxMode>('inbox');
   const [folder, setFolder] = useState<MailboxFolder>('inbox');
   const [selectedId, setSelectedId] = useState('');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [replyToId, setReplyToId] = useState<string | undefined>();
+  const [title, setTitle] = useState(draft?.title ?? '');
+  const [content, setContent] = useState(draft?.content ?? '');
+  const [replyToId, setReplyToId] = useState<string | undefined>(draft?.replyToId);
+  const [saveError, setSaveError] = useState('');
   const activeLetters = useMemo(
     () => (folder === 'inbox' ? letters : sentLetters).map(normalizeDailyWritingLetterForDisplay),
     [folder, letters, sentLetters],
@@ -136,16 +144,11 @@ export default function StudentMailboxPage({
   };
 
   const startCompose = () => {
-    setReplyToId(undefined);
-    setTitle('');
-    setContent('');
+    setSaveError('');
     setMode('compose');
   };
 
   const cancelCompose = () => {
-    setReplyToId(undefined);
-    setTitle('');
-    setContent('');
     setMode(folder);
   };
 
@@ -177,10 +180,12 @@ export default function StudentMailboxPage({
 
   const startReply = (letter: StudentLetter) => {
     if (letter.senderLabel !== '선생님') return;
+    if (hasPendingSave) { startCompose(); return; }
     const displayTitle = getLetterDisplayTitle(letter.title);
     setTitle(displayTitle.startsWith('답장:') ? displayTitle : `답장: ${displayTitle}`);
     setContent('');
     setReplyToId(letter.id);
+    onDraftChange?.({ title: displayTitle.startsWith('답장:') ? displayTitle : `답장: ${displayTitle}`, content: '', replyToId: letter.id });
     setMode('compose');
   };
 
@@ -304,7 +309,7 @@ export default function StudentMailboxPage({
             <form className="student-compose-card student-letter-paper student-letter-compose-paper" onSubmit={(event) => {
               event.preventDefault();
               void onSend(title, content, replyToId).then((saved) => {
-                if (!saved) return;
+                if (!saved) { setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.'); return; }
                 setTitle('');
                 setContent('');
                 setReplyToId(undefined);
@@ -326,18 +331,19 @@ export default function StudentMailboxPage({
               </label>
               <label>
                 <span>제목</span>
-                <input value={title} maxLength={40} onChange={(event) => setTitle(event.target.value)} placeholder="제목을 적어 주세요" />
+                <input value={title} readOnly={hasPendingSave} maxLength={40} onChange={(event) => { setTitle(event.target.value); onDraftChange?.({ title: event.target.value, content, ...(replyToId ? { replyToId } : {}) }); }} placeholder="제목을 적어 주세요" />
               </label>
               <label className="student-compose-body-field">
                 <span>내용</span>
-                <textarea value={content} maxLength={300} required onChange={(event) => setContent(event.target.value)} placeholder="전하고 싶은 마음을 적어 주세요" />
+                <textarea value={content} readOnly={hasPendingSave} maxLength={300} required onChange={(event) => { setContent(event.target.value); onDraftChange?.({ title, content: event.target.value, ...(replyToId ? { replyToId } : {}) }); }} placeholder="전하고 싶은 마음을 적어 주세요" />
               </label>
+              {hasPendingSave || saveError ? <p role="status">{hasPendingSave ? '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.' : saveError}</p> : null}
               <div className="student-compose-actions">
                 <button type="button" className="student-secondary-action" onClick={cancelCompose} disabled={isSaving}>
                   <X size={20} aria-hidden="true" />취소
                 </button>
                 <button type="submit" className="student-primary-action" disabled={isSaving || content.trim().length === 0}>
-                  <Send size={20} aria-hidden="true" />{isSaving ? '보내는 중' : '보내기'}
+                  <Send size={20} aria-hidden="true" />{isSaving ? '보내는 중' : hasPendingSave ? '저장 다시 확인' : '보내기'}
                 </button>
               </div>
             </form>

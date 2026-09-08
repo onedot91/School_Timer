@@ -114,3 +114,19 @@ test('칭찬하기는 행동과 이유와 직접 전할 한마디를 나누어 �
   assert.match(markup, /today-friend-compliment-quote-control/);
   assert.match(markup, /“.*placeholder="친구에게 직접 말하듯 적어요\.".*”/s);
 });
+
+test('미확인 제출은 원래 답변을 보여주고 입력 잠금과 수동 확인 버튼을 제공한다', () => {
+  const markup = renderToStaticMarkup(createElement(TodayFriendMissionForm, {
+    mission: createMission('interview'),
+    isSaving: false,
+    pendingPayload: { kind: 'interview', answer: '확인할 원래 답변' },
+    saveMessage: '입력을 보존했어요. 저장 여부를 확인해 주세요.',
+    onSave: async () => false,
+    onSendRecommendation: async () => true,
+  }));
+  assert.match(markup, /<fieldset[^>]*disabled=""/);
+  assert.match(markup, /확인할 원래 답변/);
+  assert.match(markup, /저장 확인 후 다시 제출/);
+  assert.match(markup, /role="status"[^>]*>입력을 보존했어요/);
+  assert.doesNotMatch(markup, /type="submit" disabled/);
+});

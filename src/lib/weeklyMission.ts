@@ -706,7 +706,7 @@ export const syncPersonalQuestionWeeklyMission = async (studentNumber: number) =
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ studentNumber }),
+    body: JSON.stringify({ protocolVersion: 2, studentNumber }),
   });
 
   if (!response.ok) {
@@ -724,7 +724,7 @@ export const syncWeeklyMissions = async (studentNumber: number) => {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ studentNumber }),
+    body: JSON.stringify({ protocolVersion: 2, studentNumber }),
   });
 
   if (!response.ok) {

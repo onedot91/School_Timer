@@ -77,12 +77,13 @@ test('local failure story creation keeps the saved student life in the combined 
 test('입찰 저장은 잔액과 교사 소유 설정을 다시 쓰지 않는다', async () => {
   const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
   const start = source.indexOf('const submitBid =');
-  const sharedStart = source.indexOf('await updateStudentSharedSettings', start);
+  const sharedStart = source.indexOf('await executeStudentStorageCommand', start);
   const sharedEnd = source.indexOf('void refreshAuctionState({ forceFull: true });', sharedStart);
   assert.ok(start >= 0 && sharedStart > start && sharedEnd > sharedStart);
   const sharedSave = source.slice(sharedStart, sharedEnd);
-  assert.match(sharedSave, /auctionBids:/);
-  assert.match(sharedSave, /auctionBidHistory:/);
+  assert.match(sharedSave, /'student\.auction\.bid', \{ itemId: item\.id, amount: bidAmount \}/);
+  assert.match(sharedSave, /response\.value\.auctionBids/);
+  assert.match(sharedSave, /response\.value\.auctionBidHistory/);
   assert.doesNotMatch(sharedSave, /(?:currencyBalances|currencyHistory|auctionAwards|version):/);
 });
 
@@ -92,7 +93,8 @@ test('입찰은 서버 저장 확인 직후 반영하고 전체 조회는 백그
   const start = source.indexOf('const submitBid =');
   const end = source.indexOf('} else {', start);
   const bid = source.slice(start, end);
-  assert.match(bid, /const updatedAt = await updateStudentSharedSettings/);
+  assert.match(bid, /const response = await executeStudentStorageCommand/);
+  assert.match(bid, /const updatedAt = response\.updatedAt/);
   assert.match(bid, /setAuctionBids\(savedBids\)/);
   assert.match(bid, /setAuctionBidHistory\(savedBidHistory\)/);
   assert.match(bid, /isStudentSettingsSnapshotFresh\(updatedAt/);

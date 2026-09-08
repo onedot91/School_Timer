@@ -1,0 +1,17 @@
+*
+!src
+!src/**
+!api
+!api/**
+!public
+!public/**
+!package.json
+!package-lock.json
+!index.html
+!vite.config.ts
+!tsconfig.json
+!vercel.json
+!metadata.json
+src/**/*.test.*
+src/**/*.integration.*
+public/**/.DS_Store

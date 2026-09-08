@@ -1,3 +1,4 @@
+import { executeStudentStorageCommand } from './studentStorageCommand.js';
 import { reportSaveFailure } from './saveFailureClient.js';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -9,7 +10,7 @@ import {
   type CurrencyHistory,
 } from './currency';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
-import { isSupabaseSettingsEnabled, updateStudentSharedSettings } from './supabaseSettings';
+import { isSupabaseSettingsEnabled } from './supabaseSettings';
 import {
   SUDOKU_REWARDS,
   createSudokuPuzzle,
@@ -30,6 +31,7 @@ import { getKoreanIsoWeekKey } from './weeklyMission';
 type UseStudentSudokuStateOptions = {
   readonly studentNumber: number;
   readonly currencyHistory: CurrencyHistory;
+  readonly onSharedSettingsChange: (value: Record<string, unknown>, updatedAt: string) => boolean;
   readonly onCurrencyBalancesChange: (balances: CurrencyBalances) => void;
   readonly onCurrencyHistoryChange: (history: CurrencyHistory) => void;
 };
@@ -37,6 +39,7 @@ type UseStudentSudokuStateOptions = {
 export const useStudentSudokuState = ({
   studentNumber,
   currencyHistory,
+  onSharedSettingsChange,
   onCurrencyBalancesChange,
   onCurrencyHistoryChange,
 }: UseStudentSudokuStateOptions) => {
@@ -68,13 +71,9 @@ export const useStudentSudokuState = ({
       try {
         let savedProgress: StudentSudokuProgress = {};
         if (isSupabaseSettingsEnabled) {
-          await updateStudentSharedSettings(studentNumber, (currentValue) => {
-            savedProgress = { ...getStudentSudokuProgressFromSettings(currentValue), [key]: entry };
-            const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
-              ? Object.fromEntries(Object.entries(currentValue))
-              : {};
-            return { ...current, studentSudoku: savedProgress };
-          });
+          const response = await executeStudentStorageCommand(studentNumber, 'student.sudoku.save', { key, cells: entry.cells }, key);
+          onSharedSettingsChange(response.value, response.updatedAt);
+          return true;
         } else {
           savedProgress = { ...loadStoredStudentSudokuProgress(), [key]: entry };
           if (!storeStudentSudokuProgress(savedProgress)) { reportSaveFailure('sudoku', 'storage', studentNumber); return false; }
@@ -87,7 +86,7 @@ export const useStudentSudokuState = ({
       }
     });
     return saveQueueRef.current;
-  }, [studentNumber]);
+  }, [onSharedSettingsChange, studentNumber]);
 
   const startSudoku = useCallback(async (difficulty: SudokuDifficulty) => {
     const activeDifficulty = getActiveSudokuDifficulty(studentSudokuProgress, studentNumber, koreanWeekKey);
@@ -117,29 +116,9 @@ export const useStudentSudokuState = ({
       let completionSaved = false;
       try {
         if (isSupabaseSettingsEnabled) {
-          await updateStudentSharedSettings(studentNumber, (currentValue) => {
-            const reward = claimSudokuRewardInSettings(
-              currentValue,
-              studentNumber,
-              weeklyMissionId,
-              SUDOKU_REWARDS[difficulty],
-              completedAt,
-            );
-            completionSaved = reward.awarded || hasSudokuReward(
-              reward.value.currencyHistory,
-              studentNumber,
-              weeklyMissionId,
-            );
-            savedBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
-            savedHistory = reward.history;
-            savedProgress = getStudentSudokuProgressFromSettings(reward.value);
-            if (!completionSaved) return reward.value;
-            savedProgress = {
-              ...savedProgress,
-              [key]: { ...entry, completedAt: savedProgress[key]?.completedAt ?? completedAt },
-            };
-            return { ...reward.value, studentSudoku: savedProgress };
-          });
+          const response = await executeStudentStorageCommand(studentNumber, 'student.sudoku.complete', { key, cells: entry.cells }, key);
+          onSharedSettingsChange(response.value, response.updatedAt);
+          return true;
         } else {
           const snapshot = loadStoredStudentPetSnapshot();
           const reward = claimSudokuRewardInSettings(
@@ -179,7 +158,7 @@ export const useStudentSudokuState = ({
       }
     });
     return saveQueueRef.current;
-  }, [onCurrencyBalancesChange, onCurrencyHistoryChange, studentNumber, weeklyMissionId]);
+  }, [onSharedSettingsChange, onCurrencyBalancesChange, onCurrencyHistoryChange, studentNumber, weeklyMissionId]);
 
   const applySharedStudentSudoku = useCallback((value: unknown) => {
     setStudentSudokuProgress(getStudentSudokuProgressFromSettings(value));

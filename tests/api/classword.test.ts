@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test, { afterEach, beforeEach, mock } from 'node:test';
 
-import handler from '../../api/classword.js';
+import realHandler from '../../api/classword.js';
+import { withClasswordRpcFixture } from './classwordRpcFixture.js';
+const handler: typeof realHandler = (request, response) => withClasswordRpcFixture(() => realHandler(request, response));
 import { getClasswordEntryRetentionCutoff, getKoreanDateKey } from '../../src/lib/classword.js';
 import { getDailyClasswordQuiz } from '../../src/lib/classwordQuiz.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
@@ -67,6 +69,44 @@ const withEnvironment = async (run: () => Promise<void>) => {
   }
 };
 
+test('old clients are rejected before any database writes', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let called = false;
+    globalThis.fetch = async () => { called = true; return Response.json([]); };
+    try {
+      const { response, result } = createResponse();
+      await handler({ method: 'POST', headers: sessionHeaders('student', 3),
+        body: { action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '강아지' } }, response);
+      assert.equal(result().statusCode, 409);
+      assert.deepEqual(result().body, { error: 'STORAGE_PROTOCOL_REQUIRED' });
+      assert.equal(called, false);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test('lost response lookup is limited to the signed actor and returns committed entry and reward', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url, init) => {
+      assert.match(String(url), /storage_receipts\?actor_key=eq.classword%3A3&request_id=eq.lost-request-123/);
+      assert.equal(init?.method, undefined);
+      return Response.json([{ action: 'classword:save_entry', result: {
+        entry: { id: 'entry-1', round_date: TODAY, initial: 'ㄱ', word: '강아지', student_number: 3, created_at: `${TODAY}T01:00:00Z`, updated_at: `${TODAY}T01:00:00Z` },
+        reward: { missionType: 'classword_word_entry', weekKey: TODAY, completed: true, awarded: true, rewardAmount: 5, balance: 105 },
+      } }]);
+    };
+    try {
+      const { response, result } = createResponse();
+      await handler({ method: 'GET', headers: sessionHeaders('student', 3), query: { requestId: 'lost-request-123', studentNumber: '4' } }, response);
+      assert.equal(result().statusCode, 200);
+      const body = result().body;
+      assert.ok(body && typeof body === 'object');
+      assert.equal(Reflect.get(body, 'committed'), true);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
 test('학생 조회는 전용 라운드와 낱말 행을 내부 응답으로 변환한다', async () => {
   // Given
   await withEnvironment(async () => {
@@ -111,7 +151,7 @@ test('학생 조회는 전용 라운드와 낱말 행을 내부 응답으로 변
         requestedUrls.some((url) => url.includes(
           `classword_entries?round_date=lt.${getClasswordEntryRetentionCutoff(getKoreanDateKey())}`,
         )),
-        true,
+        false,
       );
     } finally {
       globalThis.fetch = originalFetch;
@@ -135,7 +175,7 @@ test('학생 세션은 교사 전용 주제 저장을 호출할 수 없다', asy
       await handler({
         method: 'POST',
         headers: sessionHeaders('student'),
-        body: { action: 'save_topic', dateKey: '2026-08-29', topic: '동물' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'save_topic', dateKey: '2026-08-29', topic: '동물' },
       }, response);
 
       // Then
@@ -165,7 +205,7 @@ test('교사 주제 저장은 PostgREST의 빈 201 성공 응답을 처리한다
       await handler({
         method: 'POST',
         headers: sessionHeaders('teacher'),
-        body: { action: 'save_topic', dateKey: '2026-08-30', topic: '음식' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'save_topic', dateKey: '2026-08-30', topic: '음식' },
       }, response);
 
       assert.equal(result().statusCode, 200);
@@ -227,7 +267,7 @@ test('학생 제출은 오늘 낱말을 저장하고 당일 5고마를 지급한
         id: 'entry-new', round_date: TODAY, initial: 'ㄱ', word: '강아지',
         student_number: 3, created_at: '2026-08-29T01:00:00.000Z', updated_at: '2026-08-29T01:00:00.000Z',
       }]);
-      if (url.includes('/rpc/claim_weekly_mission_reward')) return Response.json({
+      if (url.endsWith('/rpc/claim_weekly_mission_reward_v2')) return Response.json({
         missionType: 'classword_word_entry',
         weekKey: TODAY,
         completed: true,
@@ -244,7 +284,7 @@ test('학생 제출은 오늘 낱말을 저장하고 당일 5고마를 지급한
       await handler({
         method: 'POST',
         headers: sessionHeaders('student', 3),
-        body: { action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '강아지' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '강아지' },
       }, response);
 
       // Then
@@ -302,7 +342,7 @@ test('학생 화면의 반복 조회 뒤에도 낱말 저장과 퀴즈 조회가
       await handler({
         method: 'POST',
         headers,
-        body: { action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '고구마' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '고구마' },
       }, saveResponse.response);
 
       const nextQuizResponse = createResponse();
@@ -338,7 +378,7 @@ test('오늘의 주제가 없으면 학생 낱말 제출을 거부한다', async
       await handler({
         method: 'POST',
         headers: sessionHeaders('student', 3),
-        body: { action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '강아지' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '강아지' },
       }, response);
 
       assert.equal(result().statusCode, 400);
@@ -358,7 +398,8 @@ test('동시에 같은 초성을 제출하면 DB UNIQUE 충돌을 이해하기 �
       if (String(input).includes('/classword_rounds')) {
         return Response.json([{ round_date: TODAY, topic: '동물' }]);
       }
-      return Response.json({ code: '23505' }, { status: 409 });
+      if (init?.method !== 'POST') return Response.json([]);
+      return Response.json({ code: 'P0001', message: 'CLASSWORD_INITIAL_OCCUPIED' }, { status: 400 });
     };
 
     try {
@@ -366,11 +407,11 @@ test('동시에 같은 초성을 제출하면 DB UNIQUE 충돌을 이해하기 �
       await handler({
         method: 'POST',
         headers: sessionHeaders('student', 3),
-        body: { action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '강아지' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'save_entry', dateKey: TODAY, initial: 'ㄱ', word: '강아지' },
       }, response);
 
       assert.equal(result().statusCode, 409);
-      assert.deepEqual(result().body, { error: 'CLASSWORD_ENTRY_CONFLICT' });
+      assert.deepEqual(result().body, { error: 'CLASSWORD_INITIAL_OCCUPIED' });
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -393,7 +434,7 @@ test('학생 삭제는 세션 학생 번호로 제한하고 교사는 날짜 전
       await handler({
         method: 'POST',
         headers: sessionHeaders('student', 3),
-        body: { action: 'delete_entry', entryId: 'entry-1' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'delete_entry', entryId: 'entry-1' },
       }, studentResponse.response);
       assert.equal(studentResponse.result().statusCode, 200);
       assert.equal(requests.some(({ url }) => /student_number=eq\.3/.test(url)), true);
@@ -402,7 +443,7 @@ test('학생 삭제는 세션 학생 번호로 제한하고 교사는 날짜 전
       await handler({
         method: 'POST',
         headers: sessionHeaders('teacher'),
-        body: { action: 'save_topic', dateKey: '2026-08-29', topic: '동물' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'save_topic', dateKey: '2026-08-29', topic: '동물' },
       }, topicResponse.response);
       assert.equal(topicResponse.result().statusCode, 200);
 
@@ -410,7 +451,7 @@ test('학생 삭제는 세션 학생 번호로 제한하고 교사는 날짜 전
       await handler({
         method: 'POST',
         headers: sessionHeaders('teacher'),
-        body: { action: 'delete_date_entries', dateKey: '2026-08-29', confirmation: 'DELETE' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'delete_date_entries', dateKey: '2026-08-29', confirmation: 'DELETE' },
       }, clearResponse.response);
       assert.equal(clearResponse.result().statusCode, 200);
       assert.equal(requests.some(({ url }) => url.includes('round_date=eq.2026-08-29')), true);
@@ -464,7 +505,8 @@ test('맞춤 퀴즈 테이블이 아직 없더라도 자동 퀴즈 정답 보상
       if (url.includes('/classword_quizzes')) {
         return Response.json({ code: 'PGRST205' }, { status: 404 });
       }
-      if (url.includes('/rpc/claim_weekly_mission_reward')) {
+      if (url.endsWith('/rpc/claim_weekly_mission_reward_v2')) {
+        assert.equal(JSON.parse(String(init?.body)).p_protocol_version, 2);
         rewardClaimed = true;
         return Response.json({
           missionType: 'classword_quiz_correct',
@@ -494,7 +536,7 @@ test('맞춤 퀴즈 테이블이 아직 없더라도 자동 퀴즈 정답 보상
       await handler({
         method: 'POST',
         headers: sessionHeaders('student', 3),
-        body: { action: 'answer_quiz', dateKey: TODAY, answer },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'answer_quiz', dateKey: TODAY, answer },
       }, response);
 
       assert.equal(result().statusCode, 200);
@@ -520,7 +562,7 @@ test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상
     globalThis.fetch = async (input, init) => {
       const url = String(input);
       if (url.includes('/classword_quizzes')) return Response.json([]);
-      if (url.includes('/rpc/claim_weekly_mission_reward')) {
+      if (url.endsWith('/rpc/claim_weekly_mission_reward_v2')) {
         const body = JSON.parse(String(init?.body));
         rewardMissionType = Reflect.get(body as object, 'p_mission_type');
         const awarded = !rewardClaimed;
@@ -555,7 +597,7 @@ test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상
       await handler({
         method: 'POST',
         headers: sessionHeaders('student', 3),
-        body: { action: 'answer_quiz', dateKey: TODAY, answer: '오답' },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'answer_quiz', dateKey: TODAY, answer: '오답' },
       }, wrong.response);
       assert.equal(Reflect.get(wrong.result().body as object, 'correct'), false);
       assert.equal(completionSaved, false);
@@ -564,7 +606,7 @@ test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상
       await handler({
         method: 'POST',
         headers: sessionHeaders('student', 3),
-        body: { action: 'answer_quiz', dateKey: TODAY, answer },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'answer_quiz', dateKey: TODAY, answer },
       }, correct.response);
       assert.equal(Reflect.get(correct.result().body as object, 'correct'), true);
       assert.equal(Reflect.get(correct.result().body as object, 'awarded'), true);
@@ -577,7 +619,7 @@ test('퀴즈 오답은 저장하지 않고 정답은 학생 번호로 완료 상
       await handler({
         method: 'POST',
         headers: sessionHeaders('student', 3),
-        body: { action: 'answer_quiz', dateKey: TODAY, answer },
+        body: { protocolVersion: 2, requestId: 'test-request-id', action: 'answer_quiz', dateKey: TODAY, answer },
       }, repeated.response);
       assert.equal(Reflect.get(repeated.result().body as object, 'awarded'), false);
       assert.equal(Reflect.get(repeated.result().body as object, 'rewardAmount'), 7);
@@ -632,7 +674,7 @@ test('교사는 날짜별 퀴즈를 저장하고 학생에게 정답 없이 출�
       await handler({
         method: 'POST', headers: sessionHeaders('teacher'),
         body: {
-          action: 'save_quiz', dateKey: TODAY, initialHint: 'ㄷㅈ', answer: '도움',
+          protocolVersion: 2, requestId: 'test-request-id', action: 'save_quiz', dateKey: TODAY, initialHint: 'ㄷㅈ', answer: '도움',
           meaning: '서로 힘을 합쳐 돕는 일', writtenExample: '친구와 도움을 주고받았다.',
           spokenExample: '내가 먼저 도움을 줄게.',
         },

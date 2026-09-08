@@ -71,6 +71,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return;
   }
 
+  const parsedBody: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+  if (!parsedBody || typeof parsedBody !== 'object' || Reflect.get(parsedBody, 'protocolVersion') !== 2) {
+    response.status(409).json({ error: 'LEGACY_CLIENT_UPDATE_REQUIRED' });
+    return;
+  }
+
   const rateLimit = consumeRequestRateLimit('weekly-mission', request.headers, studentNumber);
   if (!rateLimit.allowed) {
     response.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
@@ -101,7 +107,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
     const questionData = parseQuestionStudentResponse(await questionResponse.json());
     const personalQuestion = findPersonalQuestionForWeek(questionData, studentNumber, weekKey);
-    const rpcResponse = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/rpc/claim_personal_question_weekly_reward`, {
+    const rpcResponse = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/rpc/claim_personal_question_weekly_reward_v2`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -110,6 +116,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         Authorization: `Bearer ${serviceRoleKey}`,
       },
       body: JSON.stringify({
+        p_protocol_version: 2,
         p_student_number: studentNumber,
         p_week_key: weekKey,
         p_source_question_id: personalQuestion?.id ?? null,

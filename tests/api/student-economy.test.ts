@@ -1,13 +1,13 @@
 import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 import { normalizeCurrencyHistory } from '../../src/lib/currency.js';
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
-import { syncBuiltinESMExports } from 'node:module';
 import test from 'node:test';
 
 import handler from '../../api/student-economy.js';
 import { FAILURE_PROFILE_IMAGES } from '../../src/lib/failureExhibition.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
+import { parseStorageSnapshot } from '../../src/server/storageV2Repository.js';
+import { splitStorageState, assembleStorageState, isStorageRecord } from '../../src/lib/storageV2Codec.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 
@@ -59,280 +59,245 @@ const previousValue = {
   auctionAwards: {},
 };
 
-const runStudentAction = async (action: Record<string, unknown>, requestId: string) => {
-  const originalFetch = globalThis.fetch;
-  const upstreamBodies: unknown[] = [];
-  const upstreamUrls: string[] = [];
-  let fetchCount = 0;
-  globalThis.fetch = async (input, init) => {
-    fetchCount += 1;
-    upstreamUrls.push(String(input));
-    if (fetchCount === 1) {
-      return Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: '2026-09-05T00:00:00.000Z' }]);
+const fixture = (initial: Record<string, unknown> = previousValue) => {
+  let state = splitStorageState(initial);
+  const revisions: Record<string, number> = {};
+  const receipts = new Map<string, { hash: unknown; result: unknown }>();
+  const writes: Record<string, unknown>[] = [];
+  let beforeCommit: (() => void) | undefined;
+  let paused = false;
+  let loseCommitResponse = false;
+  const fetcher: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const body: unknown = JSON.parse(String(init?.body));
+    assert.ok(isStorageRecord(body));
+    if (url.endsWith('/storage_get_receipt')) {
+      const receipt = receipts.get(`${body.p_actor_key}/${body.p_request_id}`);
+      if (receipt && body.p_payload_hash && body.p_payload_hash !== receipt.hash) return Response.json({ message: 'STORAGE_REQUEST_REUSED' }, { status: 409 });
+      return Response.json(receipt ? { found: true, result: receipt.result, payloadHash: receipt.hash, action: 'student-economy', committedAt: '2026-09-08T00:00:01Z' } : { found: false });
     }
-    upstreamBodies.push(JSON.parse(String(init?.body)));
-    return Response.json([{ id: 'school-timer-main' }]);
+    if (paused) return Response.json({ message: 'STORAGE_MAINTENANCE' }, { status: 503 });
+    if (url.endsWith('/storage_load_snapshot')) return Response.json({ ...state, revisions, updated_at: '2026-09-08T00:00:00Z' });
+    assert.ok(url.endsWith('/storage_commit_mutation'));
+    writes.push(body);
+    const receiptKey = `${body.p_actor_key}/${body.p_request_id}`;
+    const prior = receipts.get(receiptKey);
+    if (prior) return prior.hash === body.p_payload_hash ? Response.json({ saved: true, result: prior.result }) : Response.json({ message: 'STORAGE_REQUEST_REUSED' }, { status: 409 });
+    if (beforeCommit) { const hook = beforeCommit; beforeCommit = undefined; hook(); }
+    assert.ok(isStorageRecord(body.p_expected));
+    for (const [key, revision] of Object.entries(body.p_expected)) if ((revisions[key] ?? 0) !== revision) return Response.json({ saved: false });
+    assert.ok(Array.isArray(body.p_resources));
+    assert.ok(Array.isArray(body.p_wallets));
+    assert.ok(Array.isArray(body.p_ledger));
+    const resources = new Map(state.resources.map((row) => [row.resource_key, row]));
+    for (const row of body.p_resources) {
+      assert.ok(isStorageRecord(row) && typeof row.resource_key === 'string');
+      if (row.value === null) resources.delete(row.resource_key);
+      else {
+        const parsed = parseStorageSnapshot({ resources: [row, { resource_key: '', category: 'root', owner_number: null, value: { kind: 'object', parentKey: null, member: '' } }], wallets: [], history: [], revisions: {}, updated_at: 'test' });
+        const resource = parsed.resources?.find((entry) => entry.resource_key === row.resource_key);
+        assert.ok(resource); resources.set(row.resource_key, resource);
+      }
+      revisions[row.resource_key] = (revisions[row.resource_key] ?? 0) + 1;
+    }
+    const wallets = new Map(state.wallets.map((row) => [row.student_number, row]));
+    for (const row of body.p_wallets) {
+      assert.ok(isStorageRecord(row) && typeof row.student_number === 'number' && typeof row.balance === 'number');
+      wallets.set(row.student_number, { student_number: row.student_number, balance: row.balance });
+      revisions[`wallet:${row.student_number}`] = (revisions[`wallet:${row.student_number}`] ?? 0) + 1;
+    }
+    const encoded = { resources: [...resources.values()], wallets: [...wallets.values()], history: [...state.history, ...body.p_ledger], revisions: {}, updated_at: 'test' };
+    state = splitStorageState(parseStorageSnapshot(encoded).value);
+    receipts.set(receiptKey, { hash: body.p_payload_hash, result: body.p_result });
+    if (loseCommitResponse) { loseCommitResponse = false; throw new TypeError('response lost'); }
+    return Response.json({ saved: true, result: body.p_result, updatedAt: '2026-09-08T00:00:01Z' });
   };
-  try {
-    const { response, result } = createResponse();
-    await handler({
-      method: 'POST',
-      headers: studentHeaders(1),
-      body: { studentNumber: 1, action, requestId },
-    }, response);
-    return { ...result(), upstreamBodies, upstreamUrls, fetchCount };
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  return {
+    fetcher, writes, value: () => assembleStorageState(state),
+    pause: () => { paused = true; },
+    loseResponse: () => { loseCommitResponse = true; },
+    replaceReceiptResult: (actor: string, id: string, result: unknown) => { const receipt = receipts.get(`${actor}/${id}`); assert.ok(receipt); receipts.set(`${actor}/${id}`, { ...receipt, result }); },
+    conflict: (number: number, balance: number) => { beforeCommit = () => {
+      state = { ...state, wallets: state.wallets.map((wallet) => wallet.student_number === number ? { ...wallet, balance } : wallet) };
+      revisions[`wallet:${number}`] = (revisions[`wallet:${number}`] ?? 0) + 1;
+    }; },
+  };
 };
 
-test('iPhone 학생 예금은 전체 설정 PUT 없이 본인 고마만 원자적으로 저장한다', async () => {
-  await withEnvironment(async () => {
-    const result = await runStudentAction(
-      { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' },
-      'student-economy-1-deposit-request',
-    );
+const act = async (studentNumber: number, action: Record<string, unknown>, requestId: string) => {
+  const { response, result } = createResponse();
+  await handler({ method: 'POST', headers: studentHeaders(studentNumber), body: { protocolVersion: 2, studentNumber, action, requestId } }, response);
+  return result();
+};
+const withFixture = async (run: (db: ReturnType<typeof fixture>) => Promise<void>, initial?: Record<string, unknown>) => withEnvironment(async () => {
+  const originalFetch = globalThis.fetch;
+  const db = fixture(initial);
+  globalThis.fetch = db.fetcher;
+  try { await run(db); } finally { globalThis.fetch = originalFetch; }
+});
 
+test('학생 예금은 학생 지갑·경제 상태·새 원장만 트랜잭션으로 저장한다', async () => {
+  await withFixture(async (db) => {
+    const result = await act(1, { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' }, 'deposit-request-1');
     assert.equal(result.statusCode, 200);
-    assert.equal(result.fetchCount, 2);
-    assert.equal(new URL(result.upstreamUrls[1]).searchParams.get('select'), 'id');
     assert.equal(Reflect.get(result.body as object, 'balance'), 115);
-    assert.equal(Reflect.get(Reflect.get(result.body as object, 'studentEconomy') as object, 'deposit'), 30);
-
-    const savedValue = Reflect.get(result.upstreamBodies[0] as object, 'value') as Record<string, unknown>;
-    assert.deepEqual(Reflect.get(savedValue.studentEconomy as object, '2'), previousValue.studentEconomy[2]);
-    assert.deepEqual(savedValue.schedule, previousValue.schedule);
-    const history = Reflect.get(savedValue.currencyHistory as object, '1') as Array<{ id: string }>;
-    assert.equal(history[0]?.id, 'currency-economy-student-economy-1-deposit-request-1');
+    assert.equal(Reflect.get(Reflect.get(result.body as object, 'studentEconomy'), 'deposit'), 30);
+    const current = db.value();
+    assert.deepEqual(Reflect.get(current.studentEconomy as object, '2'), previousValue.studentEconomy[2]);
+    assert.deepEqual(current.schedule, previousValue.schedule);
+    assert.deepEqual(Reflect.get(current.currencyHistory as object, '2'), previousValue.currencyHistory[2]);
+    assert.equal(normalizeCurrencyHistory(current.currencyHistory)['1'][0].id, 'currency-economy-deposit-request-1-1');
+    assert.ok(!JSON.stringify(db.writes).includes('legacyField'));
+    assert.ok(isStorageRecord(db.writes[0].p_expected));
+    assert.ok('wallet:1' in db.writes[0].p_expected);
+    assert.ok('scope:auctionBids:shared' in db.writes[0].p_expected);
   });
 });
 
-test('학생 거래 API는 10고마보다 적은 예금을 거부한다', async () => {
-  await withEnvironment(async () => {
-    const result = await runStudentAction(
-      { type: 'open_deposit', amount: 9, dateKey: '2026-08-26' },
-      'student-economy-deposit-below-minimum',
-    );
-
+test('잘못된 예금은 업무 거절이며 저장이나 재시도가 없다', async () => {
+  await withFixture(async (db) => {
+    const result = await act(1, { type: 'open_deposit', amount: 9, dateKey: '2026-08-26' }, 'small-deposit-id');
     assert.equal(result.statusCode, 400);
-    assert.deepEqual(result.body, { error: 'INVALID_BANK_AMOUNT' });
-    assert.equal(result.fetchCount, 1);
-    assert.equal(result.upstreamBodies.length, 0);
+    assert.deepEqual(result.body, { error: 'INVALID_BANK_AMOUNT', businessRejected: true });
+    assert.equal(db.writes.length, 0);
   });
 });
 
-test('학생 송금 원장은 같은 서버 요청 ID로 송신자와 수신자를 연결한다', async () => {
-  await withEnvironment(async () => {
-    const result = await runStudentAction(
-      { type: 'transfer', amount: 20, recipientNumber: 2, dateKey: '2026-09-03' },
-      'student-economy-1-transfer-request',
-    );
-
+test('동시 송금으로 수신 잔액이 바뀌면 최신 수신 잔액에서 다시 계산한다', async () => {
+  await withFixture(async (db) => {
+    db.conflict(2, 230);
+    const result = await act(1, { type: 'transfer', amount: 20, recipientNumber: 2, dateKey: '2026-09-03' }, 'transfer-request-1');
     assert.equal(result.statusCode, 200);
-    const savedValue = Reflect.get(result.upstreamBodies[0] as object, 'value') as Record<string, unknown>;
-    const history = savedValue.currencyHistory as Record<string, Array<{ id: string }>>;
-    assert.equal(history['1'][0]?.id, 'currency-economy-student-economy-1-transfer-request-1');
-    assert.equal(history['2'][0]?.id, 'currency-economy-student-economy-1-transfer-request-2');
+    assert.equal(db.writes.length, 2);
+    assert.deepEqual(db.value().currencyBalances, { 1: 125, 2: 250 });
+    const history = normalizeCurrencyHistory(db.value().currencyHistory);
+    assert.equal(history['1'][0].id, 'currency-economy-transfer-request-1-1');
+    assert.equal(history['2'].at(-1)?.id, 'currency-economy-transfer-request-1-2');
   });
 });
 
-test('iPhone 학생 증권 투자는 학생 세션에서 고마를 차감하고 포지션을 저장한다', async () => {
-  await withEnvironment(async () => {
-    const result = await runStudentAction(
-      { type: 'invest', stockId: 'sunny', amount: 30, dateKey: '2026-08-26' },
-      'student-economy-1-invest-request',
-    );
+test('동시 차감 뒤 잔액이 부족해지면 새 원장을 추가하지 않는다', async () => {
+  await withFixture(async (db) => {
+    db.conflict(1, 20);
+    const result = await act(1, { type: 'deposit', amount: 30 }, 'concurrent-spend-id');
+    assert.equal(result.statusCode, 400);
+    assert.deepEqual(result.body, { error: 'INSUFFICIENT_AVAILABLE_CURRENCY', businessRejected: true });
+    assert.equal(db.writes.length, 1);
+    assert.equal(Reflect.get(db.value().currencyBalances as object, '1'), 20);
+    assert.deepEqual(Reflect.get(db.value().currencyHistory as object, '1'), []);
+  });
+});
 
+test('투자 및 랜덤 프로필의 비용과 상태가 함께 저장된다', async () => {
+  await withFixture(async (db) => {
+    const result = await act(1, { type: 'invest', stockId: 'sunny', amount: 30, dateKey: '2026-08-26' }, 'invest-request-1');
     assert.equal(result.statusCode, 200);
     assert.equal(Reflect.get(result.body as object, 'balance'), 115);
-    const economy = Reflect.get(result.body as object, 'studentEconomy') as Record<string, unknown>;
-    const investments = economy.investments as Record<string, { investedAmount: number }>;
-    assert.equal(investments.sunny?.investedAmount, 30);
+    const profile = await act(1, { type: 'draw_profile' }, 'profile-request-1');
+    assert.equal(profile.statusCode, 200);
+    assert.equal(Reflect.get(profile.body as object, 'balance'), 115);
+    assert.ok(FAILURE_PROFILE_IMAGES.includes(Reflect.get(profile.body as object, 'profileImage')));
+    const expected = db.writes.at(-1)?.p_expected;
+    assert.ok(isStorageRecord(expected));
+    for (let number = 1; number <= 23; number += 1) assert.ok(`/studentLife/failureProfileAssignments/${number}` in expected);
   });
 });
 
-test('학생 프로필 뽑기는 학생 거래 API에서 권한을 확인하고 프로필을 저장한다', async () => {
-  await withEnvironment(async () => {
-    const result = await runStudentAction(
-      { type: 'draw_profile' },
-      'student-profile-1-first-draw',
-    );
-
+test('저장 충돌 때 스킨 추첨 결과와 비용은 동일하다', async () => {
+  await withFixture(async (db) => {
+    db.conflict(1, 150);
+    const result = await act(1, { type: 'draw_character' }, 'draw-conflict-id');
     assert.equal(result.statusCode, 200);
-    assert.equal(Reflect.get(result.body as object, 'applied'), true);
-    assert.equal(Reflect.get(result.body as object, 'balance'), 145);
-    const profileImage = Reflect.get(result.body as object, 'profileImage');
-    assert.equal(typeof profileImage, 'string');
-    assert.equal(FAILURE_PROFILE_IMAGES.includes(profileImage as typeof FAILURE_PROFILE_IMAGES[number]), true);
-
-    const savedValue = Reflect.get(result.upstreamBodies[0] as object, 'value') as Record<string, unknown>;
-    const savedStudentLife = savedValue.studentLife as Record<string, unknown>;
-    assert.equal(
-      Reflect.get(savedStudentLife.failureProfileAssignments as object, '1'),
-      profileImage,
-    );
-    assert.deepEqual(savedValue.schedule, previousValue.schedule);
+    assert.equal(db.writes.length, 2);
+    const economies = db.writes.map((write) => {
+      assert.ok(Array.isArray(write.p_resources));
+      return write.p_resources.find((row) => isStorageRecord(row) && row.resource_key === '/studentEconomy/1');
+    });
+    assert.deepEqual(economies[0], economies[1]);
+    assert.equal(Reflect.get(db.value().currencyBalances as object, '1'), 50);
   });
 });
 
-test('학생 거래 API는 다른 번호로 거래할 수 없다', async () => {
-  await withEnvironment(async () => {
-    const originalFetch = globalThis.fetch;
-    let fetchCalled = false;
-    globalThis.fetch = async () => { fetchCalled = true; return Response.json([]); };
-    try {
-      const { response, result } = createResponse();
-      await handler({
-        method: 'POST',
-        headers: studentHeaders(1),
-        body: {
-          studentNumber: 2,
-          action: { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' },
-          requestId: 'student-economy-2-wrong-student',
-        },
-      }, response);
+test('집 구매는 제작자 보상·편지까지 한 번만 저장하며 같은 ID의 변경 요청은 거절한다', async () => {
+  await withFixture(async (db) => {
+    db.conflict(7, 80);
+    const action = { type: 'buy_house', houseId: 'student-house-7' };
+    const first = await act(1, action, 'house-purchase-one');
+    assert.equal(first.statusCode, 200);
+    assert.equal(db.writes.length, 2);
+    assert.deepEqual(db.value().currencyBalances, { 1: 400, 2: 222, 7: 90 });
+    assert.equal(normalizeStudentLifeState(db.value().studentLife).letters.length, 1);
+    assert.equal((await act(1, action, 'house-purchase-one')).statusCode, 200);
+    assert.equal((await act(1, { type: 'select_house', houseId: 'student-house-7' }, 'house-purchase-one')).statusCode, 409);
+    assert.equal((await act(1, action, 'house-purchase-two')).statusCode, 400);
+    assert.equal(Reflect.get(db.value().currencyBalances as object, '7'), 90);
+    assert.equal(normalizeStudentLifeState(db.value().studentLife).letters.length, 1);
+  }, { ...previousValue, currencyBalances: { 1: 500, 2: 222, 7: 75 }, currencyHistory: { 1: [], 2: previousValue.currencyHistory[2], 7: [] }, studentEconomy: { ...previousValue.studentEconomy, 1: { inventory: { house_repair: 1 } } } });
+});
 
-      assert.equal(result().statusCode, 403);
-      assert.equal(fetchCalled, false);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+test('원본 편지와 알 수 없는 필드는 정규화 한도와 관계없이 유지한다', async () => {
+  const letters = Array.from({ length: 605 }, (_, index) => ({ id: `old-letter-${index}`, extra: true }));
+  await withFixture(async (db) => {
+    assert.equal((await act(1, { type: 'deposit', amount: 30 }, 'preserve-raw-id')).statusCode, 200);
+    const life = db.value().studentLife;
+    assert.ok(isStorageRecord(life));
+    assert.deepEqual(life.letters, letters);
+    assert.equal(life.unknownField, 'preserved');
+  }, { ...previousValue, studentLife: { ...previousValue.studentLife, letters, unknownField: 'preserved' } });
+});
+
+test('구형 프로토콜·다른 학생 접근은 DB 호출 전에 막고 점검 중에는 거래하지 않는다', async () => {
+  await withFixture(async (db) => {
+    const { response, result } = createResponse();
+    await handler({ method: 'POST', headers: studentHeaders(1), body: { studentNumber: 1, action: { type: 'deposit', amount: 30 }, requestId: 'old-client-id' } }, response);
+    assert.equal(result().statusCode, 426);
+    const denied = createResponse();
+    await handler({ method: 'POST', headers: studentHeaders(1), body: { protocolVersion: 2, studentNumber: 2, action: { type: 'deposit', amount: 30 }, requestId: 'wrong-student-id' } }, denied.response);
+    assert.equal(denied.result().statusCode, 403);
+    db.pause();
+    assert.equal((await act(1, { type: 'deposit', amount: 30 }, 'maintenance-id')).statusCode, 503);
+    assert.equal(db.writes.length, 0);
   });
 });
 
-test('고정된 같은 밀리초에서도 저장 버전은 현재 행보다 1ms 증가한다', async () => {
-  await withEnvironment(async () => {
-    const originalFetch = globalThis.fetch;
-    const originalNow = Date.now;
-    const currentUpdatedAt = '2026-08-26T00:00:00.000Z';
-    let savedUpdatedAt = '';
-    Date.now = () => Date.parse(currentUpdatedAt);
-    globalThis.fetch = async (_input, init) => {
-      if (!init?.method) {
-        return Response.json([{ id: 'school-timer-main', value: previousValue, updated_at: currentUpdatedAt }]);
-      }
-      savedUpdatedAt = Reflect.get(JSON.parse(String(init.body)), 'updated_at') as string;
-      return Response.json([{ id: 'school-timer-main' }]);
-    };
-    try {
-      const { response, result } = createResponse();
-      await handler({
-        method: 'POST', headers: studentHeaders(1),
-        body: {
-          studentNumber: 1,
-          action: { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' },
-          requestId: 'student-economy-monotonic-version',
-        },
-      }, response);
-      assert.equal(result().statusCode, 200);
-      assert.equal(Date.parse(savedUpdatedAt), Date.parse(currentUpdatedAt) + 1);
-    } finally {
-      Date.now = originalNow;
-      globalThis.fetch = originalFetch;
-    }
+test('응답 유실 뒤 영수증 조회는 본인 거래만 반환한다', async () => {
+  await withFixture(async (db) => {
+    db.loseResponse();
+    assert.equal((await act(1, { type: 'deposit', amount: 30 }, 'lost-response-id')).statusCode, 502);
+    const confirmed = createResponse();
+    await handler({ method: 'GET', headers: studentHeaders(1), query: { protocolVersion: '2', studentNumber: '1', requestId: 'lost-response-id' } }, confirmed.response);
+    assert.equal(confirmed.result().statusCode, 200);
+    assert.equal(Reflect.get(confirmed.result().body as object, 'status'), 'committed');
+    const denied = createResponse();
+    await handler({ method: 'GET', headers: studentHeaders(2), query: { protocolVersion: '2', studentNumber: '1', requestId: 'lost-response-id' } }, denied.response);
+    assert.equal(denied.result().statusCode, 403);
   });
 });
 
-test('스킨 뽑기 API는 저장 충돌 때 확률을 다시 굴리지 않고 획득 목록과 100고마를 함께 저장한다', async (context) => {
-  await withEnvironment(async () => {
-    const originalFetch = globalThis.fetch;
-    let rollCalls = 0;
-    const random = context.mock.method(crypto, 'randomInt', () => rollCalls++ === 0 ? 0 : 9);
-    syncBuiltinESMExports();
-    const writes: Record<string, unknown>[] = [];
-    globalThis.fetch = async (_input, init) => {
-      if (init?.method !== 'PATCH') return Response.json([{
-        id: 'school-timer-main',
-        value: writes.length === 0 ? previousValue : { ...previousValue, currencyBalances: { 1: 145, 2: 333 } },
-        updated_at: writes.length === 0 ? '2026-09-05T00:00:00.000Z' : '2026-09-05T00:00:00.001Z',
-      }]);
-      const body: unknown = JSON.parse(String(init.body));
-      assert.ok(body && typeof body === 'object');
-      const value: unknown = Reflect.get(body, 'value');
-      assert.ok(value && typeof value === 'object');
-      writes.push(value as Record<string, unknown>);
-      return Response.json(writes.length === 1 ? [] : [{ id: 'school-timer-main' }]);
-    };
-    try {
-      const { response, result } = createResponse();
-      await handler({ method: 'POST', headers: studentHeaders(1), body: { studentNumber: 1, action: { type: 'draw_character' }, requestId: 'skin-draw-conflict-retry' } }, response);
-      const output = result();
-      assert.equal(output.statusCode, 200);
-      assert.equal(writes.length, 2);
-      assert.equal(random.mock.callCount(), 1);
-      assert.deepEqual(random.mock.calls[0].arguments, [10]);
-      const firstEconomy = Reflect.get(writes[0].studentEconomy as object, '1');
-      const savedEconomy = Reflect.get(writes[1].studentEconomy as object, '1');
-      assert.deepEqual(savedEconomy, firstEconomy);
-      const ids: unknown = Reflect.get(savedEconomy, 'ownedCharacterIds');
-      assert.ok(Array.isArray(ids) && ids.length === 2);
-      assert.equal(new Set(ids).size, ids.length);
-      assert.equal(Reflect.get(savedEconomy, 'activeCharacterId'), ids[0]);
-      assert.equal(Reflect.get(writes[1].currencyBalances as object, '1'), 45);
-      assert.equal(Reflect.get(writes[1].currencyBalances as object, '2'), 333);
-      assert.deepEqual(Reflect.get(writes[1].studentEconomy as object, '2'), previousValue.studentEconomy[2]);
-      assert.deepEqual(Reflect.get(output.body as object, 'studentEconomy'), savedEconomy);
-    } finally {
-      globalThis.fetch = originalFetch;
-      random.mock.restore();
-      syncBuiltinESMExports();
-    }
-  });
-});
-
-test('학생 집 구매는 제작자 보상과 고키리 편지를 함께 저장하고 재시도에도 중복 지급하지 않는다', async () => {
-  await withEnvironment(async () => {
-    const originalFetch = globalThis.fetch;
-    const untouched = { id: 'untouched', studentNumber: 2, before: 200, after: 222, delta: 22, reason: 'manual', createdAt: '2026-09-01T00:00:00.000Z' };
-    let value = {
-      ...previousValue,
-      currencyBalances: { 1: 500, 2: 222, 7: 75 },
-      currencyHistory: { 1: [], 2: [untouched], 7: [] },
-      studentEconomy: { ...previousValue.studentEconomy, 1: { inventory: { house_repair: 1 } }, 7: { inventory: { house_repair: 1 } } },
-    };
-    let conflict = true;
-    let writes = 0;
-    globalThis.fetch = async (_input, init) => {
-      if (init?.method !== 'PATCH') return Response.json([{ id: 'school-timer-main', value, updated_at: '2026-09-05T00:00:00.000Z' }]);
-      writes += 1;
-      if (conflict) {
-        conflict = false;
-        value.currencyBalances[7] += 5;
-        return Response.json([]);
-      }
-      value = JSON.parse(String(init.body)).value;
-      return Response.json([{ id: 'school-timer-main' }]);
-    };
-    const buy = async (studentNumber: number, requestId: string, action: Record<string, unknown> = { type: 'buy_house', houseId: 'student-house-7' }) => {
-      const { response, result } = createResponse();
-      await handler({ method: 'POST', headers: studentHeaders(studentNumber), body: { studentNumber, requestId, action } }, response);
-      return result();
-    };
-    try {
-      assert.equal((await buy(1, 'house-purchase-one')).statusCode, 200);
-      assert.equal(writes, 2);
-      assert.equal(value.currencyBalances[1], 400);
-      assert.equal(value.currencyBalances[7], 90);
-      assert.deepEqual(value.currencyHistory[2], [untouched]);
-      assert.deepEqual(value.studentEconomy[2], previousValue.studentEconomy[2]);
-      assert.deepEqual(value.schedule, ['수학']);
-      const life = normalizeStudentLifeState(value.studentLife);
-      assert.equal(life.letters.length, 1);
-      assert.equal(life.letters[0].recipient, 7);
-      assert.equal(life.letters[0].senderLabel, '목수 고키리');
-      assert.equal(life.letters[0].senderStudentNumber, null);
-      assert.match(life.letters[0].content, /10고마/);
-      assert.equal(normalizeCurrencyHistory(value.currencyHistory)['7'][0].reason, 'house_creator_reward');
-      assert.equal((await buy(1, 'house-purchase-one')).statusCode, 200);
-      assert.equal((await buy(1, 'house-purchase-two')).statusCode, 400);
-      assert.equal(value.currencyBalances[7], 90);
-      assert.equal(normalizeStudentLifeState(value.studentLife).letters.length, 1);
-      assert.equal((await buy(1, 'house-select', { type: 'select_house', houseId: 'student-house-7' })).statusCode, 200);
-      assert.equal(value.currencyBalances[7], 90);
-      value.currencyBalances[7] = 300;
-      assert.equal((await buy(7, 'house-self-purchase')).statusCode, 200);
-      assert.equal(value.currencyBalances[7], 200);
-      assert.equal(normalizeStudentLifeState(value.studentLife).letters.length, 1);
-    } finally { globalThis.fetch = originalFetch; }
-  });
+test('학생 거래 POST와 영수증 GET은 타인 편지와 송금 수신자의 잔액·이력을 노출하지 않는다', async () => {
+  const life = normalizeStudentLifeState({ letters: [
+    { id: 'private-2', recipient: 2, senderLabel: '선생님', title: '비공개', content: '다른 학생 비밀 편지', createdAt: '2026-09-08T00:00:00Z' },
+    { id: 'own-1', recipient: 1, senderLabel: '선생님', title: '본인', content: '내 편지', createdAt: '2026-09-08T00:00:00Z' },
+  ] });
+  await withFixture(async (db) => {
+    const result = await act(1, { type: 'transfer', amount: 20, recipientNumber: 2, dateKey: '2026-09-08' }, 'private-transfer-id');
+    assert.equal(result.statusCode, 200);
+    assert.ok(isStorageRecord(result.body));
+    assert.deepEqual(result.body.currencyBalanceEntries, { 1: 125 });
+    assert.ok(isStorageRecord(result.body.currencyHistoryEntries));
+    assert.deepEqual(Object.keys(result.body.currencyHistoryEntries), ['1']);
+    assert.ok(!JSON.stringify(result.body).includes('다른 학생 비밀 편지'));
+    assert.ok(JSON.stringify(result.body).includes('내 편지'));
+    assert.equal(Reflect.get(db.value().currencyBalances as object, '2'), 242);
+    assert.ok(JSON.stringify(db.value().studentLife).includes('다른 학생 비밀 편지'));
+    db.replaceReceiptResult('student:1:economy:1', 'private-transfer-id', { ...result.body, currencyBalanceEntries: { 1: 125, 2: 242 }, currencyHistoryEntries: { ...result.body.currencyHistoryEntries, 2: previousValue.currencyHistory[2] }, studentLife: life });
+    const confirmed = createResponse();
+    await handler({ method: 'GET', headers: studentHeaders(1), query: { protocolVersion: '2', studentNumber: '1', requestId: 'private-transfer-id' } }, confirmed.response);
+    assert.equal(confirmed.result().statusCode, 200);
+    assert.ok(isStorageRecord(confirmed.result().body));
+    const body = confirmed.result().body;
+    assert.ok(isStorageRecord(body) && isStorageRecord(body.result));
+    assert.deepEqual(body.result.currencyBalanceEntries, { 1: 125 });
+    assert.ok(!JSON.stringify(body).includes('다른 학생 비밀 편지'));
+  }, { ...previousValue, studentLife: life });
 });

@@ -35,6 +35,8 @@ test('프로필 저장보다 늦게 도착한 과거 조회는 거부하고 같�
   assert.equal(isStudentSettingsSnapshotFresh(undefined, savedAt), false);
   assert.equal(isStudentSettingsSnapshotFresh('invalid', savedAt), false);
   assert.equal(isStudentSettingsSnapshotFresh(savedAt, null), true);
+  assert.equal(isStudentSettingsSnapshotFresh('2026-09-05T10:00:01.001001Z', '2026-09-05T10:00:01.001002Z'), false);
+  assert.equal(isStudentSettingsSnapshotFresh('2026-09-05T10:00:01.001003Z', '2026-09-05T10:00:01.001002Z'), true);
 });
 
 test('프로필 저장은 재입장 캐시도 갱신하되 전체 동기화 시각과 다른 영역은 유지한다', () => {

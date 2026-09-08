@@ -1,3 +1,4 @@
+import { executeStudentStorageCommand } from './studentStorageCommand.js';
 import { reportSaveFailure } from './saveFailureClient.js';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -21,12 +22,13 @@ import {
   type StudentNumberBaseballProgress,
 } from './numberBaseball';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
-import { isSupabaseSettingsEnabled, updateStudentSharedSettings } from './supabaseSettings';
+import { isSupabaseSettingsEnabled } from './supabaseSettings';
 import { getKoreanIsoWeekKey } from './weeklyMission';
 
 type UseStudentNumberBaseballStateOptions = {
   readonly studentNumber: number;
   readonly currencyHistory: CurrencyHistory;
+  readonly onSharedSettingsChange: (value: Record<string, unknown>, updatedAt: string) => boolean;
   readonly onCurrencyBalancesChange: (balances: CurrencyBalances) => void;
   readonly onCurrencyHistoryChange: (history: CurrencyHistory) => void;
 };
@@ -34,6 +36,7 @@ type UseStudentNumberBaseballStateOptions = {
 export const useStudentNumberBaseballState = ({
   studentNumber,
   currencyHistory,
+  onSharedSettingsChange,
   onCurrencyBalancesChange,
   onCurrencyHistoryChange,
 }: UseStudentNumberBaseballStateOptions) => {
@@ -58,16 +61,9 @@ export const useStudentNumberBaseballState = ({
       try {
         let savedProgress: StudentNumberBaseballProgress = {};
         if (isSupabaseSettingsEnabled) {
-          await updateStudentSharedSettings(studentNumber, (currentValue) => {
-            savedProgress = {
-              ...getStudentNumberBaseballProgressFromSettings(currentValue),
-              [targetProgressKey]: entry,
-            };
-            const current = currentValue && typeof currentValue === 'object' && !Array.isArray(currentValue)
-              ? Object.fromEntries(Object.entries(currentValue))
-              : {};
-            return { ...current, studentNumberBaseball: savedProgress };
-          });
+          const response = await executeStudentStorageCommand(studentNumber, 'student.baseball.save', { key: targetProgressKey, attempts: entry.attempts.map(({ guess }) => ({ guess })) }, targetProgressKey);
+          onSharedSettingsChange(response.value, response.updatedAt);
+          return true;
         } else {
           savedProgress = { ...loadStoredStudentNumberBaseballProgress(), [targetProgressKey]: entry };
           if (!storeStudentNumberBaseballProgress(savedProgress)) { reportSaveFailure('numberBaseball', 'storage', studentNumber); return false; }
@@ -80,7 +76,7 @@ export const useStudentNumberBaseballState = ({
       }
     });
     return saveQueueRef.current;
-  }, [studentNumber]);
+  }, [onSharedSettingsChange, studentNumber]);
 
   const saveProgress = useCallback((entry: NumberBaseballProgressEntry) => (
     saveProgressAtKey(progressKey, entry)
@@ -99,29 +95,9 @@ export const useStudentNumberBaseballState = ({
       let completionSaved = false;
       try {
         if (isSupabaseSettingsEnabled) {
-          await updateStudentSharedSettings(studentNumber, (currentValue) => {
-            const reward = claimNumberBaseballRewardInSettings(
-              currentValue,
-              studentNumber,
-              entry.gameId,
-              rewardAmount,
-              entry.completedAt ?? new Date().toISOString(),
-            );
-            completionSaved = reward.awarded || hasNumberBaseballReward(
-              reward.value.currencyHistory,
-              studentNumber,
-              entry.gameId,
-            );
-            savedBalances = normalizeCurrencyBalances(reward.value.currencyBalances);
-            savedHistory = reward.history;
-            savedProgress = {
-              ...getStudentNumberBaseballProgressFromSettings(reward.value),
-              [progressKey]: entry,
-            };
-            return completionSaved
-              ? { ...reward.value, studentNumberBaseball: savedProgress }
-              : reward.value;
-          });
+          const response = await executeStudentStorageCommand(studentNumber, 'student.baseball.complete', { key: progressKey, attempts: entry.attempts.map(({ guess }) => ({ guess })) }, progressKey);
+          onSharedSettingsChange(response.value, response.updatedAt);
+          return true;
         } else {
           const snapshot = loadStoredStudentPetSnapshot();
           const reward = claimNumberBaseballRewardInSettings(
@@ -158,7 +134,7 @@ export const useStudentNumberBaseballState = ({
       }
     });
     return saveQueueRef.current;
-  }, [onCurrencyBalancesChange, onCurrencyHistoryChange, progressKey, studentNumber]);
+  }, [onSharedSettingsChange, onCurrencyBalancesChange, onCurrencyHistoryChange, progressKey, studentNumber]);
 
   const applySharedProgress = useCallback((value: unknown) => {
     setProgress(getStudentNumberBaseballProgressFromSettings(value));

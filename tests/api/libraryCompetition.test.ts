@@ -56,11 +56,11 @@ test('archive transaction failure leaves original book slots competition and rew
   assert.equal(archives.size, 0);
 }));
 
-test('missing SQL disables new competition but leaves inactive legacy placement usable', async () => fixture(async ({ call, read, fail }) => {
+test('missing storage SQL disables competition and placement without legacy fallback writes', async () => fixture(async ({ call, read, fail }) => {
   fail(404);
   assert.equal((await call({ action: 'libraryCompetition', intent: 'open' })).body.error, 'LIBRARY_COMPETITION_UNAVAILABLE');
   const { seasonId: _seasonId, ...legacy } = command('2026-09');
-  assert.equal((await call(legacy)).status, 200);
+  assert.equal((await call(legacy)).status, 503);
   assert.equal(read().value.libraryCompetition, undefined);
 }));
 
@@ -105,7 +105,7 @@ test('generic teacher stale snapshot cannot resurrect archived books or overwrit
   const stale = structuredClone(read().value);
   await call({ action: 'libraryCompetition', intent: 'enter' });
   const active = structuredClone(read().value.libraryCompetition);
-  assert.equal((await call({ value: stale, expectedUpdatedAt: read().updated_at }, 'teacher')).status, 200);
+  assert.equal((await call({ value: stale, expectedUpdatedAt: read().updated_at }, 'teacher')).status, 409);
   assert.deepEqual(read().value.libraryCompetition, active);
   assert.deepEqual(record(read().value.studentLife).books, [book('carried')]);
 }));
@@ -175,8 +175,8 @@ test('same-millisecond CAS projection includes the just-committed initialization
   const originalNow = Date.now;
   Date.now = () => Date.parse('2026-09-05T01:00:00.000Z');
   try {
-    await fixture(async ({ call, read }) => {
-      read().updated_at = '2026-09-05T01:00:00.000Z';
+    await fixture(async ({ call, setTimestamp }) => {
+      setTimestamp('2026-09-05T01:00:00.000Z');
       const result = await call({ action: 'libraryCompetition', intent: 'open' });
       assert.equal(result.status, 200);
       const view = record(result.body.competition);

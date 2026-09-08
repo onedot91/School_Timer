@@ -123,7 +123,10 @@ export const saveLocalClasswordEntry = (
     && entry.studentNumber === input.studentNumber
     && entry.id !== input.entryId
   ));
-  if (studentEntry) throw new ClasswordLocalError('CLASSWORD_STUDENT_ALREADY_ENTERED');
+  if (studentEntry) {
+    if (!input.entryId && studentEntry.initial === input.initial && studentEntry.word === validation.word) return studentEntry;
+    throw new ClasswordLocalError('CLASSWORD_STUDENT_ALREADY_ENTERED');
+  }
   const occupiedEntry = state.entries.find((entry) => (
     entry.dateKey === input.dateKey
     && entry.initial === input.initial

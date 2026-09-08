@@ -1,4 +1,5 @@
 import { appDataMode, type AppDataMode } from './dataMode.js';
+import { createBrowserRequestId } from './requestId.js';
 import { invalidateSharedSettingsCache, isSupabaseSettingsEnabled } from './supabaseSettings.js';
 import { isCompetitionRecord, parseCompetitionHistoryResponse, parseCompetitionResponse } from './libraryCompetitionResponse.js';
 import { LibraryCompetitionClientError } from './libraryCompetitionTransport.js';
@@ -20,6 +21,15 @@ export type LibraryCompetitionClientDependencies = {
 
 export const createLibraryCompetitionClient = (dependencies: LibraryCompetitionClientDependencies) => {
   const local = dependencies.dataMode === 'mock' || !dependencies.isSharedConfigured;
+  const pendingRequestIds = new Map<string, string>();
+  const commandRequest = async <T>(command: Record<string, unknown>, parse: (value: unknown) => T | null): Promise<T> => {
+    const key = JSON.stringify(command);
+    const requestId = pendingRequestIds.get(key) ?? createBrowserRequestId();
+    pendingRequestIds.set(key, requestId);
+    const result = await request('/api/shared-settings', { ...command, protocolVersion: 2, requestId }, parse);
+    pendingRequestIds.delete(key);
+    return result;
+  };
   const request = async <T>(url: string, command: unknown, parse: (value: unknown) => T | null): Promise<T> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
@@ -47,7 +57,7 @@ export const createLibraryCompetitionClient = (dependencies: LibraryCompetitionC
     if (local) return dependencies.withLocalLock(() => dependencies.localRead(mode));
     return mode === 'readonly'
       ? request('/api/shared-settings?libraryCompetition=1', null, parseCompetitionResponse)
-      : request('/api/shared-settings', { action: 'libraryCompetition', intent: mode }, parseCompetitionResponse);
+      : commandRequest({ action: 'libraryCompetition', intent: mode }, parseCompetitionResponse);
   };
   const history = async (month?: string): Promise<LibraryCompetitionHistoryResponse> => {
     if (month !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new LibraryCompetitionClientError('LIBRARY_COMPETITION_INVALID');
@@ -57,7 +67,7 @@ export const createLibraryCompetitionClient = (dependencies: LibraryCompetitionC
   const settings = async (input: LibraryCompetitionSettingsInput): Promise<LibraryCompetitionResponse> => {
     if (dependencies.dataMode === 'readonly') throw new LibraryCompetitionClientError('READ_ONLY_DATA_MODE');
     if (local) return dependencies.withLocalLock(() => dependencies.localSettings(input));
-    return request('/api/shared-settings', { action: 'libraryCompetitionSettings', ...input }, parseCompetitionResponse);
+    return commandRequest({ action: 'libraryCompetitionSettings', ...input }, parseCompetitionResponse);
   };
   return { read, history, settings };
 };

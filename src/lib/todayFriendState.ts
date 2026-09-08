@@ -37,6 +37,7 @@ export interface TodayFriendState {
 }
 
 export interface TodayFriendStudentMission {
+  readonly planningRevision?: string;
   readonly dateKey: string;
   readonly studentNumber: number;
   readonly partnerNumber: number;

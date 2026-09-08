@@ -118,6 +118,7 @@ export const parseTodayFriendSubmission = (value: unknown): TodayFriendSubmissio
     || (rewardStatus !== 'pending' && rewardStatus !== 'paid')
   ) return null;
   return {
+    ...(typeof value.storageRevision === 'number' && Number.isSafeInteger(value.storageRevision) && value.storageRevision >= 0 ? { storageRevision: value.storageRevision } : {}),
     id,
     dateKey,
     studentNumber,

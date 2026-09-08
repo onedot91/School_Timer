@@ -27,7 +27,8 @@ const invoke = async (body: unknown) => {
     status: (value: number) => { statusCode = value; return response; },
     json: (value: unknown) => { responseBody = value; },
   };
-  await handler({ method: 'POST', body, headers: {
+  assert.ok(body && typeof body === 'object');
+  await handler({ method: 'POST', body: { protocolVersion: 2, requestId: 'annual-test-request', ...body }, headers: {
     cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'student', studentNumber: 8 }, SECRET)}`,
     'sec-fetch-site': 'same-origin',
   } }, response);
@@ -87,10 +88,10 @@ test('fresh weekday participation uses the automatic topic without saving a roun
     requests.push({ url, method });
     if (method === 'DELETE') return new Response(null, { status: 204 });
     if (url.includes('/classword_rounds?')) return Response.json([]);
-    if (url.includes('/classword_entries?')) return Response.json([{
+    if (url.endsWith('/rpc/classword_command_v2') && JSON.parse(String(init?.body)).p_action === 'save_entry') return Response.json({entry:{
       id: 'monday-entry', round_date: '2026-09-07', initial: 'ㄱ', word: '강아지', student_number: 8,
       created_at: '2026-09-07T01:00:00Z', updated_at: '2026-09-07T01:00:00Z',
-    }]);
+    },reward:{weekKey:'2026-09-07',missionType:'classword_word_entry',completed:true,awarded:true,rewardAmount:5,balance:15}});
     return Response.json({ weekKey: '2026-09-07', missionType: 'classword_word_entry', completed: true, awarded: true, rewardAmount: 5, balance: 15 });
   });
   // When
@@ -98,27 +99,32 @@ test('fresh weekday participation uses the automatic topic without saving a roun
   // Then
   assert.equal(result.statusCode, 200);
   assert.equal(requests.some(({ url, method }) => url.includes('/classword_rounds?') && method !== 'GET'), false);
-  assert.equal(requests.filter(({ url }) => url.includes('/rpc/claim_weekly_mission_reward')).length, 1);
+  assert.equal(requests.filter(({ url }) => url.includes('/rpc/claim_weekly_mission_reward')).length, 0);
+  assert.equal(requests.filter(({ url }) => url.endsWith('/rpc/classword_command_v2')).length, 2);
 });
 
 for (const action of ['save_entry', 'delete_entry']) {
   test(`${action} cannot change an old entry ID by supplying today's date`, async (context) => {
     // Given
     setup(context, '2026-09-07T01:00:00Z');
-    const requests: string[] = [];
-    context.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    const requests: Array<{url:string;body:Record<string, unknown>}> = [];
+    context.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
-      requests.push(url);
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      requests.push({url,body});
+      if (body.p_action && body.p_action !== 'prune') return Response.json({message:'CLASSWORD_ENTRY_FORBIDDEN'},{status:400});
       if (url.includes('/classword_rounds?')) return Response.json([{ topic: '동물' }]);
       return Response.json([]);
     });
     // When
-    const result = await invoke({ action, entryId: 'old-entry', dateKey: '2026-09-07', initial: 'ㄱ', word: '강아지' });
+    const result = await invoke({ action, entryId: 'old-entry', expectedRevision: '2026-09-04T01:00:00Z', dateKey: '2026-09-07', initial: 'ㄱ', word: '강아지' });
     // Then
     assert.deepEqual(result, { statusCode: 403, body: { error: 'CLASSWORD_ENTRY_FORBIDDEN' } });
-    const target = requests.find((url) => url.includes('id=eq.old-entry'));
-    assert.ok(target?.includes('student_number=eq.8&round_date=eq.2026-09-07'));
-    assert.equal(requests.some((url) => url.includes('/rpc/')), false);
+    const target = requests.find(({body}) => body.p_action === action);
+    assert.equal(target?.body.p_actor, 8);
+    assert.ok(target?.body.p_payload && typeof target.body.p_payload === 'object');
+    assert.equal(Reflect.get(target.body.p_payload,'dateKey'), '2026-09-07');
+    assert.equal(Reflect.get(target.body.p_payload,'entryId'), 'old-entry');
   });
 }
 
@@ -128,7 +134,10 @@ test('replaying a completed annual quiz preserves completion and receives the id
   const mutations: string[] = [];
   context.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
-    if (init?.method === 'POST') mutations.push(url);
+    if (init?.method === 'POST') {
+      mutations.push(url);
+      return Response.json({completion:{quiz_date:'2026-09-07',question_id:'teacher-annual',student_number:8,completed_at:'2026-09-07T00:00:00Z'},reward:{missionType:'classword_quiz_correct',awarded:false,rewardAmount:3,balance:13}});
+    }
     if (url.includes('/classword_quizzes?')) return Response.json([{
       question_id: 'teacher-annual', initial_hint: 'ㄷㅇ', meaning: '친구에게 힘을 보탬', answer: '도움',
       written_prefix: '친구에게 ', written_suffix: '을 주었다.', spoken_prefix: '내가 ', spoken_suffix: '을 줄게.',
@@ -145,5 +154,5 @@ test('replaying a completed annual quiz preserves completion and receives the id
   assert.ok(result.body && typeof result.body === 'object' && 'awarded' in result.body);
   assert.equal(result.body.awarded, false);
   assert.equal(mutations.length, 1);
-  assert.ok(mutations[0]?.endsWith('/rpc/claim_weekly_mission_reward'));
+  assert.ok(mutations[0]?.endsWith('/rpc/classword_command_v2'));
 });

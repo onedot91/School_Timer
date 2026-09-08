@@ -26845,6 +26845,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-house-market article > img { width: min(100%, 15rem); height: 12rem; object-fit: contain; filter: drop-shadow(0 .55rem .6rem rgba(82,57,33,.18)); }
 .student-house-market article > h3 { color: #174b2b; font-size: 1.05rem; font-weight: 950; }
 .student-house-market article > button { min-width: 10rem; min-height: 3.1rem; border-radius: .9rem; background: var(--student-house-accent); padding: 0 1rem; color: #fff; font-weight: 950; }
+.student-house-market article > button[data-owned="true"]:not(:disabled) { background: #e9f1fb; color: #234f7d; border: 2px solid #7396bc; }
 .student-house-market article > button:disabled { background: #d9c9b9; color: #695b50; }
 .student-custom-house-card { position: relative; isolation: isolate; overflow: hidden; }
 .student-custom-house-card-content { display: grid; justify-items: center; align-content: center; gap: .75rem; }
@@ -26957,7 +26958,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .teacher-shop-skin-list img { width: 3rem; height: 3rem; object-fit: contain; }
 .teacher-shop-skin-list span { overflow: hidden; color: #3c5145; font-size: .8rem; font-weight: 850; line-height: 1.35; text-overflow: ellipsis; word-break: keep-all; }
 .teacher-shop-house-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .65rem; min-height: 0; overflow-y: auto; align-content: start; padding: .15rem .25rem .15rem 0; }
-.teacher-shop-house-list > article { display: grid; grid-template-rows: 7rem auto; gap: .55rem; min-width: 0; border: 1px solid #e5d9ca; border-radius: 1rem; background: #fffaf2; padding: .7rem; }
+.teacher-shop-house-list > article { position: relative; display: grid; grid-template-rows: 7rem auto; gap: .55rem; min-width: 0; border: 1px solid #e5d9ca; border-radius: 1rem; background: #fffaf2; padding: .7rem; }
 .teacher-shop-house-list img { width: 100%; height: 7rem; object-fit: contain; filter: drop-shadow(0 .35rem .35rem rgba(82, 57, 33, .12)); }
 .teacher-shop-house-list article > div { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: .45rem; }
 .teacher-shop-house-list strong { overflow: hidden; color: #4b3828; font-size: .82rem; font-weight: 950; text-overflow: ellipsis; white-space: nowrap; }
@@ -29036,3 +29037,8 @@ body {
   .goma-preview-card { min-height: 310px; padding-block: 8px 16px; }
   .goma-preview-card .goma-loading { width: min(18rem, 100%); }
 }
+
+.teacher-shop-house-list .teacher-house-creator-badge { position: absolute; top: .6rem; left: .6rem; z-index: 1; padding: .2rem .55rem; border-radius: 999px; background: #e7f3ec; color: #216247; border: 1px solid #bfd9ca; font-size: .75rem; line-height: 1.4; }
+
+.student-mailbox-view .student-compose-body-field { grid-template-rows: auto minmax(6rem, 1fr); }
+.student-mailbox-view .student-compose-card textarea { min-height: 6rem; }

@@ -16,6 +16,8 @@ interface TodayFriendMissionFormProps {
   readonly mission: TodayFriendStudentMission;
   readonly isSaving: boolean;
   readonly isPreview?: boolean;
+  readonly pendingPayload?: TodayFriendPayload;
+  readonly saveMessage?: string;
   readonly onSave: (payload: TodayFriendPayload, submit: boolean) => Promise<boolean>;
   readonly onSendRecommendation: (letter: TodayFriendRecommendationLetter) => Promise<boolean>;
 }
@@ -28,6 +30,14 @@ const recommendationCategories = [
 ] as const;
 
 const declinedToExplainMessage = '말하고 싶지 않은 내용은 묻지 않아요.';
+
+const getDeviceStorage = (): Storage | null => {
+  try { // no-excuse-ok: catch
+    return typeof window === 'undefined' ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+};
 
 const getPayloadText = (payload: TodayFriendPayload | undefined): string => {
   if (!payload) return '';
@@ -44,13 +54,16 @@ export default function TodayFriendMissionForm({
   mission,
   isSaving,
   isPreview = false,
+  pendingPayload,
+  saveMessage = '',
   onSave,
   onSendRecommendation,
 }: TodayFriendMissionFormProps) {
-  const savedPayload = mission.submission?.payload;
-  const [deviceDraft] = useState(() => (
-    isPreview ? null : loadTodayFriendDeviceDraft(window.localStorage, mission)
-  ));
+  const savedPayload = pendingPayload ?? mission.submission?.payload;
+  const [deviceDraft] = useState(() => {
+    const storage = getDeviceStorage();
+    return isPreview || pendingPayload || !storage ? null : loadTodayFriendDeviceDraft(storage, mission);
+  });
   const [primaryText, setPrimaryText] = useState(() => deviceDraft?.primaryText ?? getPayloadText(savedPayload));
   const [secondaryText, setSecondaryText] = useState(() => (
     deviceDraft?.secondaryText
@@ -72,21 +85,9 @@ export default function TodayFriendMissionForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    setPrimaryText(deviceDraft?.primaryText ?? getPayloadText(mission.submission?.payload));
-    setSecondaryText(
-      deviceDraft?.secondaryText
-        ?? (mission.submission?.payload.kind === 'recommendation' || mission.submission?.payload.kind === 'emotion' || mission.submission?.payload.kind === 'compliment'
-          ? mission.submission.payload.reason ?? ''
-          : ''),
-    );
-    setTertiaryText(deviceDraft?.tertiaryText ?? (mission.submission?.payload.kind === 'compliment' ? mission.submission.payload.message ?? '' : ''));
-    setCategory(deviceDraft?.category ?? (mission.submission?.payload.kind === 'recommendation' ? mission.submission.payload.category : 'book'));
-    setDeclinedToExplain(deviceDraft?.declinedToExplain ?? (mission.submission?.payload.kind === 'emotion' ? mission.submission.payload.declinedToExplain : false));
-  }, [deviceDraft, mission.submission?.id, mission.submission?.revision, mission.submission?.status]);
-
-  useEffect(() => {
     if (!hasEdited || isPreview) return;
-    const saved = saveTodayFriendDeviceDraft(window.localStorage, mission, {
+    const storage = getDeviceStorage();
+    const saved = storage && saveTodayFriendDeviceDraft(storage, mission, {
       primaryText,
       secondaryText,
       tertiaryText,
@@ -125,9 +126,9 @@ export default function TodayFriendMissionForm({
     }
     setIsSubmitting(true);
     try {
-      const payload = buildPayload();
+      const payload = pendingPayload ?? buildPayload();
       let submittedPayload = payload;
-      if (payload.kind === 'recommendation') {
+      if (payload.kind === 'recommendation' && !pendingPayload) {
         const revision = mission.submission?.status === 'revision_requested'
           ? mission.submission.revision + 1
           : mission.submission?.revision ?? 1;
@@ -146,10 +147,11 @@ export default function TodayFriendMissionForm({
         submittedPayload = delivery.payload;
       }
       const saved = await onSave(submittedPayload, true);
-      if (saved) clearTodayFriendDeviceDraft(window.localStorage, mission);
+      const storage = getDeviceStorage();
+      if (saved && storage) clearTodayFriendDeviceDraft(storage, mission);
       setFormMessage(saved
         ? payload.kind === 'recommendation' ? '친구에게 편지를 보내고 미션을 제출했어요.' : '제출했어요.'
-        : '제출하지 못했어요. 다시 시도해 주세요.');
+        : '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.');
     } finally {
       setIsSubmitting(false);
     }
@@ -162,7 +164,7 @@ export default function TodayFriendMissionForm({
 
   return (
     <form className="today-friend-form" data-genre={mission.genre} onSubmit={handleSubmit}>
-      <div className="today-friend-form-fields">
+      <fieldset className="today-friend-form-fields" disabled={isSaving || isSubmitting || Boolean(pendingPayload)} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
         {mission.genre === 'interview' ? (
           <label className="today-friend-answer-card today-friend-field-card"><span>친구의 답</span><textarea value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구가 말한 내용을 적어요." maxLength={600} /></label>
         ) : null}
@@ -214,10 +216,10 @@ export default function TodayFriendMissionForm({
             </div>
           </>
         ) : null}
-      </div>
-      {formMessage ? <p className="today-friend-form-message" role="status">{formMessage}</p> : null}
+      </fieldset>
+      {saveMessage || formMessage ? <p className="today-friend-form-message" role="status">{saveMessage || formMessage}</p> : null}
       <div className="today-friend-form-actions">
-        <button type="submit" disabled={isSaving || isSubmitting || isPreview}>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : mission.submission?.status === 'revision_requested' ? '고쳐서 다시 제출' : '선생님께 제출'}</button>
+        <button type="submit" disabled={isSaving || isSubmitting || isPreview}>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : mission.submission?.status === 'revision_requested' ? '고쳐서 다시 제출' : '선생님께 제출'}</button>
       </div>
     </form>
   );

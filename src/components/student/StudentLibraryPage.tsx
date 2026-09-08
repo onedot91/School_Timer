@@ -13,6 +13,9 @@ interface StudentLibraryPageProps {
   readonly failureStories: readonly FailureStory[];
   readonly profileAssignments: FailureProfileAssignments;
   readonly isFailureSaving: boolean;
+  readonly failureDraft?: { readonly failure: string; readonly lesson: string };
+  readonly hasPendingFailureSave?: boolean;
+  readonly onFailureDraftChange?: (draft: { readonly failure: string; readonly lesson: string }) => void;
   readonly onCreateFailure: (failure: string, lesson: string) => Promise<boolean>;
   readonly onStampFailure: (storyId: string, stampId: FailureStampId) => Promise<boolean>;
   readonly initialFailureBoardOpen?: boolean;
@@ -57,6 +60,9 @@ export default function StudentLibraryPage({
   failureStories,
   profileAssignments,
   isFailureSaving,
+  failureDraft,
+  hasPendingFailureSave,
+  onFailureDraftChange,
   onCreateFailure,
   onStampFailure,
   initialFailureBoardOpen = false,
@@ -92,6 +98,9 @@ export default function StudentLibraryPage({
           profileAssignments={profileAssignments}
           stories={failureStories}
           isSaving={isFailureSaving}
+          savedDraft={failureDraft}
+          hasPendingSave={hasPendingFailureSave}
+          onDraftChange={onFailureDraftChange}
           onCreate={onCreateFailure}
           onStamp={onStampFailure}
           onOpenBookshelf={() => undefined}

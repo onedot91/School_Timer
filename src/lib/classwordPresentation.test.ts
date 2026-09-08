@@ -265,9 +265,9 @@ test('내 카드가 있을 때 빈 칸은 확인 모달을 거친 뒤에만 이�
   assert.match(studentBoard, /\{ownEntry && !movingFromInitial \? \(/);
 });
 
-test('칸 선점 충돌은 이동 편집을 닫아 기존 카드를 복원하고 일반 오류는 입력을 유지한다', () => {
+test('칸 선점 충돌과 일반 오류는 입력을 유지하고 저장 성공 때만 편집을 닫는다', () => {
   assert.match(studentBoard, /export type ClasswordSaveResult = 'saved' \| 'conflict' \| 'error';/);
-  assert.match(studentBoard, /const result = await onSave\([\s\S]*?if \(result !== 'error'\) closeEditor\(\);/);
+  assert.match(studentBoard, /const result = await onSave\([\s\S]*?if \(result === 'saved'\) closeEditor\(true\);/);
   assert.match(studentPage, /error\.code === 'CLASSWORD_ENTRY_CONFLICT' \|\| error\.code === 'CLASSWORD_INITIAL_OCCUPIED'/);
   assert.match(studentPage, /void refresh\(\);[\s\S]*?return conflict \? 'conflict' : 'error';/);
 });

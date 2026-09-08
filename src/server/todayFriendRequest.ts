@@ -3,9 +3,9 @@ import { parseTodayFriendPayload } from '../lib/todayFriendCodec.js';
 import type { TodayFriendQuestion } from '../lib/todayFriendState.js';
 
 export type TodayFriendAction =
-  | { readonly type: 'save_draft'; readonly dateKey: string; readonly payload: TodayFriendPayload }
-  | { readonly type: 'submit'; readonly dateKey: string }
-  | { readonly type: 'review'; readonly submissionId: string; readonly decision: 'revision_requested' | 'approved'; readonly feedback: string }
+  | { readonly type: 'save_draft'; readonly dateKey: string; readonly payload: TodayFriendPayload; readonly requestId: string; readonly expectedRevision: number; readonly expectedMission?: { readonly partnerNumber: number; readonly genre: string; readonly question: string | null; readonly planningRevision?: string } }
+  | { readonly type: 'submit'; readonly dateKey: string; readonly payload: TodayFriendPayload; readonly requestId: string; readonly expectedRevision: number; readonly expectedMission?: { readonly partnerNumber: number; readonly genre: string; readonly question: string | null; readonly planningRevision?: string } }
+  | { readonly type: 'review'; readonly submissionId: string; readonly decision: 'revision_requested' | 'approved'; readonly feedback: string; readonly expectedRevision: number; readonly requestId: string }
   | { readonly type: 'reassign_week'; readonly dateKey: string }
   | { readonly type: 'reassign_partners'; readonly dateKey: string }
   | { readonly type: 'assign_pair'; readonly dateKey: string; readonly firstStudentNumber: number; readonly secondStudentNumber: number }
@@ -80,15 +80,15 @@ const parseBody = (body: unknown): Record<string, unknown> => {
 
 export const parseTodayFriendAction = (body: unknown): TodayFriendAction => {
   const value = parseBody(body);
+  if (value.protocolVersion !== 2) throw new TodayFriendApiError(409, 'LEGACY_CLIENT_UPDATE_REQUIRED');
   const action = value.action;
-  if (action === 'save_draft') {
+  if (action === 'save_draft' || action === 'submit') {
     const payload = parseTodayFriendPayload(value.payload);
-    if (!isTodayFriendDateKey(value.dateKey) || payload === null) throw new TodayFriendApiError(400, 'INVALID_DRAFT');
-    return { type: action, dateKey: value.dateKey, payload };
-  }
-  if (action === 'submit') {
-    if (!isTodayFriendDateKey(value.dateKey)) throw new TodayFriendApiError(400, 'INVALID_DATE');
-    return { type: action, dateKey: value.dateKey };
+    if (!isTodayFriendDateKey(value.dateKey) || payload === null || typeof value.requestId !== 'string' || !value.requestId.trim() || value.requestId.length > 200
+      || typeof value.expectedRevision !== 'number' || !Number.isSafeInteger(value.expectedRevision) || value.expectedRevision < 0) throw new TodayFriendApiError(400, 'INVALID_DRAFT');
+    const expectedMission = value.expectedMission;
+    if (expectedMission !== undefined && (!isRecord(expectedMission) || !isStudentNumber(expectedMission.partnerNumber) || typeof expectedMission.genre !== 'string' || (expectedMission.question !== null && typeof expectedMission.question !== 'string'))) throw new TodayFriendApiError(400, 'INVALID_DRAFT');
+    return { type: action, dateKey: value.dateKey, payload, requestId: value.requestId, expectedRevision: value.expectedRevision, ...(isRecord(expectedMission) && typeof expectedMission.partnerNumber === 'number' && typeof expectedMission.genre === 'string' && (typeof expectedMission.question === 'string' || expectedMission.question === null) ? { expectedMission: { partnerNumber: expectedMission.partnerNumber, genre: expectedMission.genre, question: typeof expectedMission.question === 'string' ? expectedMission.question : null, ...(typeof expectedMission.planningRevision === 'string' ? { planningRevision: expectedMission.planningRevision } : {}) } } : {}) };
   }
   if (action === 'review') {
     if (
@@ -98,7 +98,9 @@ export const parseTodayFriendAction = (body: unknown): TodayFriendAction => {
       || typeof value.feedback !== 'string'
       || [...value.feedback].length > 300
     ) throw new TodayFriendApiError(400, 'INVALID_REVIEW');
-    return { type: action, submissionId: value.submissionId, decision: value.decision, feedback: value.feedback };
+    if (typeof value.expectedRevision !== 'number' || !Number.isSafeInteger(value.expectedRevision) || value.expectedRevision < 0) throw new TodayFriendApiError(400, 'INVALID_REVIEW');
+    if (typeof value.requestId !== 'string' || !value.requestId.trim() || value.requestId.length > 200) throw new TodayFriendApiError(400, 'INVALID_REVIEW');
+    return { type: action, submissionId: value.submissionId, decision: value.decision, feedback: value.feedback, expectedRevision: value.expectedRevision, requestId: value.requestId };
   }
   if (action === 'reassign_week' || action === 'reassign_partners') {
     if (!isTodayFriendDateKey(value.dateKey)) throw new TodayFriendApiError(400, 'INVALID_DATE');

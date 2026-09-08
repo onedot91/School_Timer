@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   parseClasswordBoard,
   parseClasswordRounds,
@@ -6,7 +7,7 @@ import {
   type ClasswordInitial,
   type ClasswordRoundSummary,
 } from '../lib/classword.js';
-import type { ClasswordQuizCompletion, ClasswordQuizDefinition } from '../lib/classwordQuiz.js';
+import type { ClasswordQuizCompletion, ClasswordQuizDefinition, ClasswordQuizPrompt } from '../lib/classwordQuiz.js';
 import { getElapsedClasswordTopics, resolveClasswordMonth, resolveClasswordTopic } from '../lib/classwordTopics.js';
 import {
   CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,
@@ -22,6 +23,8 @@ export type ClasswordRepositoryConfiguration = {
 
 export type ClasswordEntryWrite = {
   readonly entryId?: string;
+  readonly requestId: string;
+  readonly expectedRevision?: string;
   readonly dateKey: string;
   readonly initial: ClasswordInitial;
   readonly word: string;
@@ -69,12 +72,38 @@ const request = async (
     headers: { ...headers(configuration.key, init?.body !== undefined), ...init?.headers },
     signal: AbortSignal.timeout(8000),
   });
-  if (result.status === 409) throw new ClasswordRepositoryError(409, 'CLASSWORD_ENTRY_CONFLICT');
-  if (!result.ok) throw new ClasswordRepositoryError(502, `CLASSWORD_DATABASE_HTTP_${result.status}`);
+  if (result.status === 409 && path.startsWith('classword_entries?')) {
+    const body: unknown = await result.json().catch(() => null);
+    if (isRecord(body) && body.code === '23505' && typeof body.message === 'string') {
+      const constraint = /unique constraint "(classword_entries_(?:student|initial)_day_unique)"/.exec(body.message)?.[1];
+      if (constraint === 'classword_entries_student_day_unique') {
+        throw new ClasswordRepositoryError(409, 'CLASSWORD_STUDENT_ALREADY_ENTERED');
+      }
+      if (constraint === 'classword_entries_initial_day_unique') {
+        throw new ClasswordRepositoryError(409, 'CLASSWORD_INITIAL_OCCUPIED');
+      }
+    }
+  }
+  if (!result.ok) {
+    if (path === 'rpc/classword_command_v2') {
+      const body: unknown = await result.json().catch(() => null);
+      const message = isRecord(body) && typeof body.message === 'string' ? body.message : '';
+      const business = ['CLASSWORD_STUDENT_ALREADY_ENTERED', 'CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_ENTRY_CHANGED', 'STORAGE_REQUEST_REUSED'];
+      if (business.includes(message)) throw new ClasswordRepositoryError(409, message);
+      if (message === 'CLASSWORD_ENTRY_FORBIDDEN') throw new ClasswordRepositoryError(403, message);
+      if (message === 'STORAGE_MAINTENANCE' || message === 'STORAGE_NOT_ACTIVE') throw new ClasswordRepositoryError(503, message);
+    }
+    throw new ClasswordRepositoryError(502, `CLASSWORD_DATABASE_HTTP_${result.status}`);
+  }
   if (result.status === 204) return null;
   const body = await result.text();
   return body.length === 0 ? null : JSON.parse(body);
 };
+
+
+const command = (configuration: ClasswordRepositoryConfiguration, actor: number, action: string, payload: unknown, requestId: string = randomUUID()): Promise<unknown> => request(configuration, 'rpc/classword_command_v2', {
+  method: 'POST', body: JSON.stringify({ p_actor: actor, p_request_id: requestId, p_action: action, p_payload: payload, p_protocol_version: 2 }),
+});
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -224,6 +253,27 @@ export const loadClasswordTopic = async (
   return resolveClasswordTopic(dateKey, row && typeof row.topic === 'string' ? row.topic : '').topic;
 };
 
+export const loadClasswordRequestResult = async (
+  configuration: ClasswordRepositoryConfiguration, actor: number, requestId: string,
+): Promise<unknown | null> => {
+  const rows = parseRows(await request(configuration,
+    `storage_receipts?actor_key=eq.${encodeURIComponent(`classword:${actor}`)}&request_id=eq.${encodeURIComponent(requestId)}&select=action,result&limit=1`,
+  ));
+  const row = rows[0];
+  if (!row) return null;
+  if (!isRecord(row.result)) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+  if (row.action === 'classword:save_entry') return { entry: mapEntryRow(row.result.entry), ...parseWeeklyMissionResult(row.result.reward) };
+  if (row.action === 'classword:complete_quiz') {
+    const completion = mapQuizCompletionRow(row.result.completion);
+    const reward = parseClasswordQuizRewardResult(row.result.reward);
+    return { correct: true, ...reward, state: {
+      dateKey: completion.dateKey, question: row.result.question, completed: true,
+      completedAt: completion.completedAt, rewardAmount: reward.rewardAmount,
+    } };
+  }
+  return row.result;
+};
+
 export const loadClasswordQuizCompletions = async (
   configuration: ClasswordRepositoryConfiguration,
   dateKey: string,
@@ -257,11 +307,9 @@ export const saveClasswordQuizDefinition = async (
   configuration: ClasswordRepositoryConfiguration,
   dateKey: string,
   question: ClasswordQuizDefinition,
+  requestId?: string,
 ): Promise<void> => {
-  await request(configuration, 'classword_quizzes?on_conflict=quiz_date', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({
+  await command(configuration, 0, 'save_quiz', {
       quiz_date: dateKey,
       question_id: question.id,
       initial_hint: question.initialHint,
@@ -271,19 +319,12 @@ export const saveClasswordQuizDefinition = async (
       written_suffix: question.examples[0].suffix,
       spoken_prefix: question.examples[1].prefix,
       spoken_suffix: question.examples[1].suffix,
-    }),
-  });
+  }, requestId);
 };
 
 export const deleteClasswordQuizDefinition = async (
-  configuration: ClasswordRepositoryConfiguration,
-  dateKey: string,
-): Promise<void> => {
-  await request(configuration, `classword_quizzes?quiz_date=eq.${encodeURIComponent(dateKey)}`, {
-    method: 'DELETE',
-    headers: { Prefer: 'return=minimal' },
-  });
-};
+  configuration: ClasswordRepositoryConfiguration, dateKey: string, requestId?: string,
+): Promise<void> => { await command(configuration, 0, 'delete_quiz', { dateKey }, requestId); };
 
 export const loadClasswordQuizRewardAmount = async (
   configuration: ClasswordRepositoryConfiguration,
@@ -304,116 +345,51 @@ export const loadClasswordQuizRewardAmount = async (
 };
 
 export const saveClasswordQuizCompletion = async (
-  configuration: ClasswordRepositoryConfiguration,
-  dateKey: string,
-  questionId: string,
-  studentNumber: number,
-): Promise<ClasswordQuizCompletion> => {
-  await request(
-    configuration,
-    'classword_quiz_completions?on_conflict=quiz_date,question_id,student_number',
-    {
-      method: 'POST',
-      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
-      body: JSON.stringify({
-        quiz_date: dateKey,
-        question_id: questionId,
-        student_number: studentNumber,
-      }),
-    },
-  );
-  const completions = await loadClasswordQuizCompletions(configuration, dateKey, questionId);
-  const completion = completions.find((candidate) => candidate.studentNumber === studentNumber);
-  if (!completion) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
-  return completion;
+  configuration: ClasswordRepositoryConfiguration, dateKey: string, questionId: string, studentNumber: number, requestId: string, question: ClasswordQuizPrompt,
+): Promise<{ readonly completion: ClasswordQuizCompletion; readonly reward: ClasswordQuizRewardResult }> => {
+  const value = await command(configuration, studentNumber, 'complete_quiz', { dateKey, questionId, question }, requestId);
+  if (!isRecord(value)) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+  return { completion: mapQuizCompletionRow(value.completion), reward: parseClasswordQuizRewardResult(value.reward) };
 };
 
 export const saveClasswordEntry = async (
   configuration: ClasswordRepositoryConfiguration,
   input: ClasswordEntryWrite,
-): Promise<ClasswordEntry> => {
-  const value = await request(
-    configuration,
-    input.entryId
-      ? `classword_entries?id=eq.${encodeURIComponent(input.entryId)}&student_number=eq.${input.studentNumber}&round_date=eq.${encodeURIComponent(input.dateKey)}&select=id,round_date,initial,word,student_number,created_at,updated_at`
-      : 'classword_entries?select=id,round_date,initial,word,student_number,created_at,updated_at',
-    {
-      method: input.entryId ? 'PATCH' : 'POST',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({
-        round_date: input.dateKey,
-        initial: input.initial,
-        word: input.word,
-        student_number: input.studentNumber,
-        updated_at: new Date().toISOString(),
-      }),
-    },
-  );
-  const entry = parseRows(value)[0];
-  if (!entry) throw new ClasswordRepositoryError(input.entryId ? 403 : 502, input.entryId ? 'CLASSWORD_ENTRY_FORBIDDEN' : 'CLASSWORD_DATABASE_INVALID_RESPONSE');
-  return mapEntryRow(entry);
+): Promise<{ readonly entry: ClasswordEntry; readonly reward: WeeklyMissionResult }> => {
+  const value = await command(configuration, input.studentNumber, 'save_entry', {
+    dateKey: input.dateKey, initial: input.initial, word: input.word,
+    ...(input.entryId ? { entryId: input.entryId, expectedRevision: input.expectedRevision } : {}),
+  }, input.requestId);
+  if (!isRecord(value)) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+  return { entry: mapEntryRow(value.entry), reward: parseWeeklyMissionResult(value.reward) };
 };
 
 export const deleteClasswordEntry = async (
-  configuration: ClasswordRepositoryConfiguration,
-  entryId: string,
-  studentNumber: number | null,
-  dateKey: string | null = null,
-): Promise<void> => {
-  const studentFilter = studentNumber === null ? '' : `&student_number=eq.${studentNumber}`;
-  const dateFilter = dateKey === null ? '' : `&round_date=eq.${encodeURIComponent(dateKey)}`;
-  const value = await request(
-    configuration,
-    `classword_entries?id=eq.${encodeURIComponent(entryId)}${studentFilter}${dateFilter}&select=id`,
-    { method: 'DELETE', headers: { Prefer: 'return=representation' } },
-  );
-  if (parseRows(value).length === 0) {
-    throw new ClasswordRepositoryError(403, 'CLASSWORD_ENTRY_FORBIDDEN');
-  }
-};
+  configuration: ClasswordRepositoryConfiguration, entryId: string, studentNumber: number | null, dateKey: string | null = null, requestId?: string,
+): Promise<void> => { await command(configuration, studentNumber ?? 0, 'delete_entry', { entryId, dateKey }, requestId); };
 
 export const saveClasswordTopic = async (
-  configuration: ClasswordRepositoryConfiguration,
-  dateKey: string,
-  topic: string,
-): Promise<void> => {
-  await request(configuration, 'classword_rounds?on_conflict=round_date', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ round_date: dateKey, topic }),
-  });
-};
+  configuration: ClasswordRepositoryConfiguration, dateKey: string, topic: string, requestId?: string,
+): Promise<void> => { await command(configuration, 0, 'save_topic', { dateKey, topic }, requestId); };
 
 export const deleteClasswordDateEntries = async (
-  configuration: ClasswordRepositoryConfiguration,
-  dateKey: string,
-): Promise<void> => {
-  await request(configuration, `classword_entries?round_date=eq.${encodeURIComponent(dateKey)}`, {
-    method: 'DELETE',
-    headers: { Prefer: 'return=minimal' },
-  });
-};
+  configuration: ClasswordRepositoryConfiguration, dateKey: string, requestId?: string,
+): Promise<void> => { await command(configuration, 0, 'delete_date_entries', { dateKey }, requestId); };
 
 export const pruneClasswordEntries = async (
-  configuration: ClasswordRepositoryConfiguration,
-  cutoffDateKey: string,
-): Promise<void> => {
-  await request(
-    configuration,
-    `classword_entries?round_date=lt.${encodeURIComponent(cutoffDateKey)}`,
-    { method: 'DELETE', headers: { Prefer: 'return=minimal' } },
-  );
-};
+  configuration: ClasswordRepositoryConfiguration, cutoffDateKey: string,
+): Promise<void> => { await command(configuration, 0, 'prune', { dateKey: cutoffDateKey }); };
 
 export const claimClasswordReward = async (
   configuration: ClasswordRepositoryConfiguration,
   claim: ClasswordRewardClaim,
 ): Promise<WeeklyMissionResult> => parseWeeklyMissionResult(await request(
   configuration,
-  'rpc/claim_weekly_mission_reward',
+  'rpc/claim_weekly_mission_reward_v2',
   {
     method: 'POST',
     body: JSON.stringify({
+      p_protocol_version: 2,
       p_student_number: claim.studentNumber,
       p_week_key: claim.dateKey,
       p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
@@ -427,10 +403,11 @@ export const claimClasswordQuizReward = async (
   claim: ClasswordRewardClaim,
 ): Promise<ClasswordQuizRewardResult> => parseClasswordQuizRewardResult(await request(
   configuration,
-  'rpc/claim_weekly_mission_reward',
+  'rpc/claim_weekly_mission_reward_v2',
   {
     method: 'POST',
     body: JSON.stringify({
+      p_protocol_version: 2,
       p_student_number: claim.studentNumber,
       p_week_key: claim.dateKey,
       p_mission_type: CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE,

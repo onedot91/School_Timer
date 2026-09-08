@@ -26,3 +26,20 @@ test('readonly settings reject before any write', async () => {
 test('malformed shared response fails rather than showing fabricated empty standings', async () => {
   await assert.rejects(createLibraryCompetitionClient(deps({ dataMode: 'production', fetcher: async () => Response.json({ competition: {} }) })).read('open'), { code: 'LIBRARY_COMPETITION_INVALID_RESPONSE' });
 });
+
+test('uncertain teacher adjustment keeps one protocol v2 request identity until confirmed', async () => {
+  const bodies: Record<string, unknown>[] = [];
+  const client = createLibraryCompetitionClient(deps({ dataMode: 'production', fetcher: async (_url, init) => {
+    const body: unknown = JSON.parse(String(init?.body));
+    assert.ok(body !== null && typeof body === 'object' && !Array.isArray(body));
+    bodies.push(Object.fromEntries(Object.entries(body)));
+    if (bodies.length === 1) throw new TypeError('response lost');
+    return Response.json(empty);
+  } }));
+  const settings = { expectedRevision: 0, speed: 1 as const, paused: false, counts: [] };
+  await assert.rejects(client.settings(settings), { code: 'LIBRARY_COMPETITION_NETWORK' });
+  await client.settings(settings);
+  assert.equal(bodies[0].protocolVersion, 2);
+  assert.equal(typeof bodies[0].requestId, 'string');
+  assert.equal(bodies[0].requestId, bodies[1].requestId);
+});

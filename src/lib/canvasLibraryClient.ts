@@ -205,7 +205,7 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
           credentials: 'same-origin',
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(command),
+          body: JSON.stringify({ ...command, protocolVersion: 2 }),
           signal: controller.signal,
         });
         let body: unknown;

@@ -13,6 +13,7 @@ import {
 import { appDataMode } from './lib/dataMode';
 import { detectEntryResetPlatform, isEntryResetShortcut } from './lib/entryResetShortcut';
 import { isSupabaseSettingsEnabled } from './lib/supabaseConfig';
+import { captureStorageResponseContext } from './lib/storageResponseOrder';
 import EntrySelectPage from './pages/EntrySelectPage';
 
 const AuctionPage = lazy(() => import('./pages/AuctionPage'));
@@ -69,6 +70,7 @@ const getStoredEntryNumber = () => {
 const storeEntryNumber = (studentNumber: number) => {
   try {
     window.localStorage.setItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY, String(studentNumber));
+    captureStorageResponseContext();
   } catch (error) {
     if (error instanceof Error) return;
     throw error;
@@ -78,6 +80,7 @@ const storeEntryNumber = (studentNumber: number) => {
 const clearStoredEntryNumber = () => {
   try {
     window.localStorage.removeItem(SELECTED_ENTRY_NUMBER_STORAGE_KEY);
+    captureStorageResponseContext();
   } catch (error) {
     if (error instanceof Error) return;
     throw error;

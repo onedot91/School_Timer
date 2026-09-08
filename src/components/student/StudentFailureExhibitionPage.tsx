@@ -13,6 +13,9 @@ import StudentHeader from './StudentHeader';
 
 interface StudentFailureExhibitionPageProps {
   readonly studentNumber: number;
+  readonly savedDraft?: { readonly failure: string; readonly lesson: string };
+  readonly hasPendingSave?: boolean;
+  readonly onDraftChange?: (draft: { readonly failure: string; readonly lesson: string }) => void;
   readonly profileAssignments: FailureProfileAssignments;
   readonly stories: readonly FailureStory[];
   readonly isSaving: boolean;
@@ -51,6 +54,9 @@ const writeSeenCheerKeys = (storageKey: string, signature: string): void => {
 
 export default function StudentFailureExhibitionPage({
   studentNumber,
+  savedDraft,
+  hasPendingSave,
+  onDraftChange,
   profileAssignments,
   stories,
   isSaving,
@@ -63,6 +69,7 @@ export default function StudentFailureExhibitionPage({
   returnFocusRef,
 }: StudentFailureExhibitionPageProps) {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [composerDraft, setComposerDraft] = useState(savedDraft);
   const [cheerNotice, setCheerNotice] = useState<CheerNotice | null>(null);
   const [relayRevealRequest, setRelayRevealRequest] = useState(0);
   const composerTriggerRef = useRef<HTMLButtonElement>(null);
@@ -243,10 +250,14 @@ export default function StudentFailureExhibitionPage({
 
       {isComposerOpen ? (
         <FailureComposerDialog
+          savedDraft={composerDraft ?? savedDraft}
+          hasPendingSave={hasPendingSave}
+          onDraftChange={(draft) => { setComposerDraft(draft); onDraftChange?.(draft); }}
           isSaving={isSaving}
           onCreate={onCreate}
           onClose={closeComposer}
           onSaved={() => {
+            setComposerDraft(undefined);
             setIsComposerOpen(false);
             setRelayRevealRequest((current) => current + 1);
           }}

@@ -7,9 +7,9 @@ import {
   type CurrencyBalances,
   type CurrencyHistory,
   type CurrencyHistoryEntry,
-} from './currency';
-import { getKoreanLocalDateKey } from './studentEmotion';
-import { createStudentLetter, type StudentLetter, type StudentLifeState } from './studentLife';
+} from './currency.js';
+import { getKoreanLocalDateKey } from './studentEmotion.js';
+import { createStudentLetter, type StudentLetter, type StudentLifeState } from './studentLife.js';
 
 export const DAILY_WRITING_REWARD = 25;
 export const DAILY_WRITING_SENDER_LABEL = '밥집 아주머니 가히';
@@ -277,9 +277,10 @@ export const hasDailyWritingReward = (
   studentNumber: number,
   dateKey: string,
 ): boolean => (
-  normalizeCurrencyHistory(currencyHistory)[String(studentNumber)]?.some(
-    (entry) => entry.id === getDailyWritingRewardId(studentNumber, dateKey),
-  ) ?? false
+  (normalizeCurrencyHistory(currencyHistory)[String(studentNumber)] ?? [])
+    .filter((entry) => entry.id === getDailyWritingRewardId(studentNumber, dateKey)
+      || entry.id.startsWith(`${getDailyWritingRewardId(studentNumber, dateKey)}:`))
+    .reduce((total, entry) => total + entry.delta, 0) > 0
 );
 
 export const claimDailyWritingRewardInSettings = <T extends DailyWritingRewardSettingsValue>(

@@ -1,3 +1,5 @@
+import { parseTodayFriendState } from '../lib/todayFriendCodec.js';
+import { getStorageReceipt, storagePayloadHash, StorageRepositoryError } from './storageV2Repository.js';
 import {
   requestTodayFriendRevision,
   submitTodayFriendSubmission,
@@ -14,7 +16,6 @@ import {
 } from '../lib/todayFriendState.js';
 import { getKoreanIsoWeekKey } from '../lib/weeklyMission.js';
 import {
-  parseTodayFriendPlanningRow,
   parseTodayFriendRows,
   parseTodayFriendSubmissionRow,
   serializeTodayFriendSubmission,
@@ -56,7 +57,14 @@ const request = async (
     headers: { ...headers(configuration.key, init?.body !== undefined), ...init?.headers },
     signal: AbortSignal.timeout(8000),
   });
-  if (!response.ok) throw new TodayFriendRepositoryError(502, `TODAY_FRIEND_DATABASE_HTTP_${response.status}`);
+  if (!response.ok) {
+    const failure: unknown = await response.json().catch(() => null);
+    const code: unknown = failure && typeof failure === 'object' ? Reflect.get(failure, 'message') : null;
+    if (code === 'STORAGE_MAINTENANCE' || code === 'STORAGE_NOT_ACTIVE') throw new TodayFriendRepositoryError(503, code);
+    if (code === 'TODAY_FRIEND_SUBMISSION_CONFLICT' || code === 'TODAY_FRIEND_PLANNING_CONFLICT' || code === 'STORAGE_REQUEST_PAYLOAD_MISMATCH' || code === 'LEGACY_CLIENT_UPDATE_REQUIRED') throw new TodayFriendRepositoryError(409, code);
+    if (code === 'SUBMISSION_NOT_EDITABLE' || code === 'SUBMISSION_NOT_REVIEWABLE') throw new TodayFriendRepositoryError(400, code);
+    throw new TodayFriendRepositoryError(502, `TODAY_FRIEND_DATABASE_HTTP_${response.status}`);
+  }
   if (response.status === 204) return null;
   const text = await response.text();
   return text.length === 0 ? null : JSON.parse(text);
@@ -69,33 +77,20 @@ const getWeekKey = (dateKey: string): string => (
 const savePlanningState = async (
   configuration: TodayFriendRepositoryConfiguration,
   state: TodayFriendState,
+  expectedState: TodayFriendState,
 ): Promise<void> => {
-  await request(configuration, 'today_friend_settings?on_conflict=id', {
+  await request(configuration, 'rpc/save_today_friend_planning_v2', {
     method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({ id: 'main', state: toTodayFriendPlanningState(state), updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ p_state: toTodayFriendPlanningState(state), p_expected: toTodayFriendPlanningState(expectedState), p_protocol_version: 2 }),
   });
 };
 
 export const loadTodayFriendPlanningState = async (
   configuration: TodayFriendRepositoryConfiguration,
-  dateKey: string,
+  _dateKey: string,
 ): Promise<TodayFriendState> => {
-  try {
-    const value = await request(configuration, 'today_friend_settings?id=eq.main&select=state');
-    const current = parseTodayFriendPlanningRow(value) ?? TODAY_FRIEND_INITIAL_STATE;
-    const hasWeek = current.weeks.some((week) => week.weekKey === getWeekKey(dateKey));
-    const hasPartnerDay = current.partnerDays.some((day) => day.dateKey === dateKey);
-    if (hasWeek && hasPartnerDay) return current;
-    const prepared = ensureTodayFriendDay(current, getWeekKey(dateKey), dateKey);
-    await savePlanningState(configuration, prepared);
-    return prepared;
-  } catch (error) {
-    if (error instanceof TodayFriendRowError) {
-      throw new TodayFriendRepositoryError(502, error.code);
-    }
-    throw error;
-  }
+  const value = await request(configuration, 'rpc/load_today_friend_planning_v2', { method: 'POST', body: '{}' });
+  return value === null ? TODAY_FRIEND_INITIAL_STATE : parseTodayFriendState(value);
 };
 
 const loadSubmissionRows = async (
@@ -105,7 +100,7 @@ const loadSubmissionRows = async (
   try {
     const value = await request(
       configuration,
-      `today_friend_submissions?${filter}&select=id,submission_date,student_number,partner_number,genre,payload,status,revision,teacher_feedback,submitted_at,reviewed_at,reward_status&order=student_number.asc`,
+      `today_friend_submissions?${filter}&select=id,submission_date,student_number,partner_number,genre,payload,status,revision,teacher_feedback,submitted_at,reviewed_at,reward_status,storage_revision&order=student_number.asc`,
     );
     return parseTodayFriendRows(value).map(parseTodayFriendSubmissionRow);
   } catch (error) {
@@ -120,7 +115,7 @@ export const loadTodayFriendState = async (
   configuration: TodayFriendRepositoryConfiguration,
   dateKey: string,
 ): Promise<TodayFriendState> => {
-  const planning = await loadTodayFriendPlanningState(configuration, dateKey);
+  const planning = ensureTodayFriendDay(await loadTodayFriendPlanningState(configuration, dateKey), getWeekKey(dateKey), dateKey);
   const submissions = await loadSubmissionRows(configuration, `submission_date=eq.${encodeURIComponent(dateKey)}`);
   return { ...planning, submissions };
 };
@@ -129,18 +124,51 @@ export const loadTodayFriendMission = async (
   configuration: TodayFriendRepositoryConfiguration,
   dateKey: string,
   studentNumber: number,
-): Promise<TodayFriendStudentMission> => (
-  getTodayFriendStudentMission(await loadTodayFriendState(configuration, dateKey), dateKey, studentNumber)
-);
+): Promise<TodayFriendStudentMission> => {
+  const context = await request(configuration, 'rpc/load_today_friend_context_v2', { method: 'POST', body: JSON.stringify({ p_date_key: dateKey, p_week_key: getWeekKey(dateKey) }) });
+  if (!context || typeof context !== 'object') throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_DATABASE_INVALID_RESPONSE');
+  const state: unknown = Reflect.get(context, 'state');
+  const revision: unknown = Reflect.get(context, 'revision');
+  if (typeof revision !== 'string') throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_DATABASE_INVALID_RESPONSE');
+  const planning = ensureTodayFriendDay(state === null ? TODAY_FRIEND_INITIAL_STATE : parseTodayFriendState(state), getWeekKey(dateKey), dateKey);
+  const submissions = await loadSubmissionRows(configuration, `submission_date=eq.${encodeURIComponent(dateKey)}&student_number=eq.${studentNumber}`);
+  return { ...getTodayFriendStudentMission({ ...planning, submissions }, dateKey, studentNumber), planningRevision: revision };
+};
+
+export interface TodayFriendSaveOptions {
+  readonly expectedRevision: number;
+  readonly requestId: string;
+  readonly actorKey: string;
+  readonly requestPayload: unknown;
+  readonly planningRevision?: string;
+}
+
+export const loadTodayFriendSaveReceipt = async (
+  configuration: TodayFriendRepositoryConfiguration, actorKey: string, requestId: string, requestPayload?: unknown,
+): Promise<TodayFriendSubmission | null> => {
+  try {
+    const receipt = await getStorageReceipt(configuration, actorKey, requestId,
+      requestPayload === undefined ? undefined : { action: 'today_friend_submission', payload: requestPayload });
+    if (!receipt.found) return null;
+    if (receipt.action !== 'today_friend_submission') throw new TodayFriendRepositoryError(409, 'STORAGE_REQUEST_PAYLOAD_MISMATCH');
+    const row = parseTodayFriendRows(receipt.result)[0];
+    if (!row) throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_DATABASE_INVALID_RESPONSE');
+    return parseTodayFriendSubmissionRow(row);
+  } catch (error) {
+    if (error instanceof StorageRepositoryError) throw new TodayFriendRepositoryError(error.status, error.code);
+    throw error;
+  }
+};
 
 const persistSubmission = async (
   configuration: TodayFriendRepositoryConfiguration,
   submission: TodayFriendSubmission,
+  options: TodayFriendSaveOptions,
 ): Promise<TodayFriendSubmission> => {
-  const value = await request(configuration, 'today_friend_submissions?on_conflict=submission_date,student_number&select=id,submission_date,student_number,partner_number,genre,payload,status,revision,teacher_feedback,submitted_at,reviewed_at,reward_status', {
+  const value = await request(configuration, 'rpc/persist_today_friend_submission_v2', {
     method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify(serializeTodayFriendSubmission(submission)),
+    body: JSON.stringify({ p_submission: serializeTodayFriendSubmission(submission), p_expected_revision: options.expectedRevision,
+      p_request_id: options.requestId, p_actor_key: options.actorKey, p_payload_hash: storagePayloadHash('today_friend_submission', options.requestPayload), p_protocol_version: 2, p_expected_plan_revision: options.planningRevision ?? null, p_week_key: getWeekKey(submission.dateKey) }),
   });
   const row = parseTodayFriendRows(value)[0];
   if (!row) throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_DATABASE_INVALID_RESPONSE');
@@ -151,28 +179,16 @@ export const saveTodayFriendDraft = async (
   configuration: TodayFriendRepositoryConfiguration,
   mission: TodayFriendStudentMission,
   payload: TodayFriendPayload,
+  options: TodayFriendSaveOptions,
+  submit = false,
 ): Promise<TodayFriendSubmission> => {
+  if ((mission.submission?.storageRevision ?? 0) !== options.expectedRevision) throw new TodayFriendRepositoryError(409, 'TODAY_FRIEND_SUBMISSION_CONFLICT');
   const state = saveTodayFriendSubmission(
-    { ...(await loadTodayFriendState(configuration, mission.dateKey)), submissions: mission.submission ? [mission.submission] : [] },
-    { mission, payload },
+    { ...TODAY_FRIEND_INITIAL_STATE, submissions: mission.submission ? [mission.submission] : [] }, { mission, payload },
   );
-  const submission = state.submissions.find((entry) => entry.studentNumber === mission.studentNumber);
-  if (!submission) throw new TodayFriendRepositoryError(500, 'SUBMISSION_SAVE_FAILED');
-  return persistSubmission(configuration, submission);
-};
-
-export const submitTodayFriendDraft = async (
-  configuration: TodayFriendRepositoryConfiguration,
-  dateKey: string,
-  studentNumber: number,
-): Promise<TodayFriendSubmission> => {
-  const submissions = await loadSubmissionRows(
-    configuration,
-    `submission_date=eq.${encodeURIComponent(dateKey)}&student_number=eq.${studentNumber}`,
-  );
-  const current = submissions[0];
-  if (!current) throw new TodayFriendRepositoryError(404, 'SUBMISSION_NOT_FOUND');
-  return persistSubmission(configuration, submitTodayFriendSubmission(current, new Date().toISOString()));
+  const draft = state.submissions.find((entry) => entry.studentNumber === mission.studentNumber);
+  if (!draft) throw new TodayFriendRepositoryError(500, 'SUBMISSION_SAVE_FAILED');
+  return persistSubmission(configuration, submit ? submitTodayFriendSubmission(draft, new Date().toISOString()) : draft, { ...options, planningRevision: mission.planningRevision });
 };
 
 export const loadTodayFriendSubmission = async (
@@ -189,17 +205,19 @@ export const requestTodayFriendSubmissionRevision = async (
   configuration: TodayFriendRepositoryConfiguration,
   submission: TodayFriendSubmission,
   feedback: string,
+  options: TodayFriendSaveOptions,
 ): Promise<TodayFriendSubmission> => (
-  persistSubmission(configuration, requestTodayFriendRevision(submission, feedback, new Date().toISOString()))
+  persistSubmission(configuration, requestTodayFriendRevision(submission, feedback, new Date().toISOString()), options)
 );
 
 export const approveTodayFriendSubmissionReward = async (
   configuration: TodayFriendRepositoryConfiguration,
   submissionId: string,
+  expectedRevision: number,
 ): Promise<void> => {
-  await request(configuration, 'rpc/approve_today_friend_submission', {
+  await request(configuration, 'rpc/approve_today_friend_submission_v2', {
     method: 'POST',
-    body: JSON.stringify({ p_submission_id: submissionId }),
+    body: JSON.stringify({ p_submission_id: submissionId, p_protocol_version: 2, p_expected_revision: expectedRevision }),
   });
 };
 

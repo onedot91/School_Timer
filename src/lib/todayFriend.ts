@@ -85,6 +85,7 @@ export interface TodayFriendPartnerAssignment {
 }
 
 export interface TodayFriendSubmission {
+  readonly storageRevision?: number;
   readonly id: string;
   readonly dateKey: string;
   readonly studentNumber: number;

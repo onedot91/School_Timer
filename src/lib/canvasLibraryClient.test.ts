@@ -92,6 +92,7 @@ test('shared placement sends the exact command without browser student identity'
   assert.equal(result.ok, true);
   assert.deepEqual(bodies, [{
     action: 'placeLibraryBook',
+    protocolVersion: 2,
     requestId: UUID_ONE,
     slotId: 17,
     book: { kind: 'new', title: '달빛 우체국', author: '고마', pageCount: 120 },

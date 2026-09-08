@@ -28,9 +28,12 @@ import {
 } from '../src/lib/studentProfilePurchase.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
+import { commitStorageMutation, getStorageReceipt, loadStorageSnapshot, StorageRepositoryError } from '../src/server/storageV2Repository.js';
+import { storageResourceKey, storageScopeKey } from '../src/lib/storageV2Codec.js';
 
 interface ApiRequest {
   readonly method?: string;
+  readonly query?: Readonly<Record<string, string | readonly string[] | undefined>>;
   readonly body?: unknown;
   readonly headers?: RequestHeaders;
 }
@@ -41,13 +44,6 @@ interface ApiResponse {
   json: (body: unknown) => void;
 }
 
-interface SettingsRow {
-  readonly id: string;
-  readonly value: unknown;
-  readonly updated_at?: string;
-}
-
-const SETTINGS_ID = 'school-timer-main';
 const MAX_REQUEST_BYTES = 8_192;
 const UPDATE_RETRY_LIMIT = 5;
 const ACTION_TYPES = new Set([
@@ -80,6 +76,7 @@ const ACTION_ERRORS = new Set([
   'CUSTOM_HOUSE_COUPON_OWNED',
   'CUSTOM_HOUSE_COUPON_REQUIRED',
   'CUSTOM_HOUSE_NAME_REQUIRED',
+  'CUSTOM_HOUSE_NOT_REGISTERED',
   'DEPOSIT_NOT_AVAILABLE_TODAY',
   'DEPOSIT_NOT_FOUND',
   'DEPOSIT_NOT_MATURED',
@@ -158,35 +155,14 @@ const getConfiguration = () => {
   return url && key && sessionSecret?.length >= 32 ? { url: url.replace(/\/$/, ''), key, sessionSecret } : null;
 };
 
-const supabaseHeaders = (key: string) => ({
-  Accept: 'application/json',
-  apikey: key,
-  Authorization: `Bearer ${key}`,
-});
-
-const nextUpdatedAt = (currentUpdatedAt: string): string => {
-  const currentTime = Date.parse(currentUpdatedAt);
-  if (!Number.isFinite(currentTime)) throw new Error('STUDENT_ECONOMY_DATABASE_INVALID_RESPONSE');
-  return new Date(Math.max(Date.now(), currentTime + 1)).toISOString();
-};
-
-const loadRow = async (url: string, key: string) => {
-  const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=id,value,updated_at`, {
-    headers: supabaseHeaders(key),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!result.ok) throw new Error(`STUDENT_ECONOMY_READ_HTTP_${result.status}`);
-  const rows: unknown = await result.json();
-  return Array.isArray(rows) && rows.length > 0 ? rows[0] as SettingsRow : null;
-};
-
-const createMutation = (
+const createDomainMutation = (
   currentValue: unknown,
   studentNumber: number,
   action: StudentEconomyApiAction,
   requestId: string,
   createdAt: string,
   characterDrawRoll?: number,
+  profileDrawRoll = 0,
 ) => {
   const current = asRecord(currentValue);
   const studentKey = String(studentNumber);
@@ -239,7 +215,7 @@ const createMutation = (
       studentNumber,
       purchase,
       Math.max(0, wallet - reserved),
-      Math.random,
+      () => profileDrawRoll,
       createdAt,
       profileHistoryId,
     );
@@ -366,6 +342,56 @@ const createMutation = (
   };
 };
 
+// Domain normalizers are for calculation. Persist only new ledger/letter records and the actor's state.
+const createMutation = (...args: Parameters<typeof createDomainMutation>) => {
+  const mutation = createDomainMutation(...args);
+  const current = asRecord(args[0]);
+  const rawLife = asRecord(current.studentLife);
+  const rawHistory = asRecord(current.currencyHistory);
+  const rawLetters = Array.isArray(rawLife.letters) ? rawLife.letters : [];
+  const existingLetterIds = new Set(rawLetters.map((letter) => asRecord(letter).id));
+  const addedLetters = mutation.response.studentLife.letters.filter((letter) => !existingLetterIds.has(letter.id));
+  const currencyHistory = { ...rawHistory };
+  for (const [studentKey, entries] of Object.entries(mutation.response.currencyHistoryEntries)) {
+    const original = Array.isArray(rawHistory[studentKey]) ? rawHistory[studentKey] : [];
+    const originalIds = new Set(original.map((entry) => asRecord(entry).id));
+    currencyHistory[studentKey] = [...original, ...entries.filter((entry) => !originalIds.has(entry.id))];
+  }
+  const studentKey = String(args[1]);
+  const profile = mutation.response.studentLife.failureProfileAssignments[studentKey];
+  const rawProfiles = asRecord(rawLife.failureProfileAssignments);
+  const studentLife = {
+    ...rawLife,
+    ...(addedLetters.length ? { letters: [...rawLetters, ...addedLetters] } : {}),
+    ...(profile !== undefined && profile !== rawProfiles[studentKey]
+      ? { failureProfileAssignments: { ...rawProfiles, [studentKey]: profile } } : {}),
+  };
+  return { ...mutation, nextValue: {
+    ...mutation.nextValue, currencyHistory, studentLife,
+    studentEconomy: { ...asRecord(current.studentEconomy), [studentKey]: {
+      ...asRecord(asRecord(current.studentEconomy)[studentKey]), ...mutation.response.studentEconomy,
+    } },
+  } };
+};
+
+const scopeEconomyResult = (value: unknown, studentNumber: number, role: 'teacher' | 'student'): unknown => {
+  if (role === 'teacher') return value;
+  const result = asRecord(value), life = asRecord(result.studentLife);
+  const own = String(studentNumber);
+  const ownEntries = (entries: unknown): Record<string, unknown> => {
+    const record = asRecord(entries);
+    return Object.hasOwn(record, own) ? { [own]: record[own] } : {};
+  };
+  return { ...result,
+    currencyBalanceEntries: ownEntries(result.currencyBalanceEntries),
+    currencyHistoryEntries: ownEntries(result.currencyHistoryEntries),
+    studentLife: { ...life, letters: (Array.isArray(life.letters) ? life.letters : []).filter(letter => {
+      const row = asRecord(letter);
+      return row.recipient === studentNumber || row.senderStudentNumber === studentNumber;
+    }) },
+  };
+};
+
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader('Cache-Control', 'no-store');
   const configuration = getConfiguration();
@@ -378,6 +404,24 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     response.status(401).json({ error: 'DEVICE_REGISTRATION_REQUIRED' });
     return;
   }
+  if (request.method === 'GET') {
+    const requestId = request.query?.requestId;
+    const studentNumber = Number(request.query?.studentNumber);
+    if (request.query?.protocolVersion !== '2' || typeof requestId !== 'string' || !/^[a-zA-Z0-9-]{8,160}$/.test(requestId)
+      || !Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) {
+      response.status(400).json({ error: 'INVALID_STUDENT_ECONOMY_REQUEST' }); return;
+    }
+    if (session.role === 'student' && session.studentNumber !== studentNumber) {
+      response.status(403).json({ error: 'STUDENT_ECONOMY_SCOPE_VIOLATION' }); return;
+    }
+    try {
+      const receipt = await getStorageReceipt(configuration, `${session.role}:${session.role === 'student' ? session.studentNumber : 0}:economy:${studentNumber}`, requestId);
+      response.status(200).json(receipt.found ? { status: 'committed', result: scopeEconomyResult(receipt.result, studentNumber, session.role) } : { status: 'unknown' });
+    } catch (error) {
+      response.status(error instanceof StorageRepositoryError ? error.status : 502).json({ error: error instanceof StorageRepositoryError ? error.code : 'STUDENT_ECONOMY_STATUS_UNAVAILABLE' });
+    }
+    return;
+  }
   if (request.method !== 'POST') {
     response.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
     return;
@@ -388,7 +432,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   try {
-    const parsed = parseBody(request.body);
+    const rawBody: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+    if (asRecord(rawBody).protocolVersion !== 2) {
+      response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
+    }
+    const parsed = parseBody(rawBody);
     if (!parsed) {
       response.status(400).json({ error: 'INVALID_STUDENT_ECONOMY_ACTION' });
       return;
@@ -398,52 +446,62 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return;
     }
 
+    const actorKey = `${session.role}:${session.role === 'student' ? session.studentNumber : 0}:economy:${parsed.studentNumber}`;
+    const receipt = await getStorageReceipt(configuration, actorKey, parsed.requestId, {
+      action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
+    });
+    if (receipt.found) { response.status(200).json(scopeEconomyResult(receipt.result, parsed.studentNumber, session.role)); return; }
     const createdAt = new Date().toISOString();
     const characterDrawRoll = parsed.action.type === 'draw_character' ? randomInt(10) : undefined;
+    const profileDrawRoll = parsed.action.type === 'draw_profile' ? randomInt(1_000_000) / 1_000_000 : 0;
     for (let attempt = 0; attempt < UPDATE_RETRY_LIMIT; attempt += 1) {
-      const current = await loadRow(configuration.url, configuration.key);
-      if (!current) {
-        response.status(409).json({ error: 'SHARED_SETTINGS_NOT_FOUND' });
-        return;
+      try {
+        const current = await loadStorageSnapshot(configuration);
+        const confirmed = await getStorageReceipt(configuration, actorKey, parsed.requestId, {
+          action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
+        });
+        if (confirmed.found) { response.status(200).json(scopeEconomyResult(confirmed.result, parsed.studentNumber, session.role)); return; }
+        const mutation = createMutation(current.value, parsed.studentNumber, parsed.action, parsed.requestId, createdAt, characterDrawRoll, profileDrawRoll);
+        const readKeys = [
+          `wallet:${parsed.studentNumber}`,
+          storageResourceKey('studentEconomy', String(parsed.studentNumber)),
+          storageScopeKey('auctionBids', null), storageScopeKey('auctionAwards', null), storageScopeKey('auctionItems', null),
+        ];
+        if (parsed.action.type === 'buy_item') readKeys.push(storageScopeKey('studentShopCatalog', null));
+        if (['invest', 'withdraw_investment', 'settle_investments'].includes(parsed.action.type)) readKeys.push(storageScopeKey('studentStockMarket', null));
+        if (isStudentProfileAction(parsed.action)) {
+          for (let number = 1; number <= 23; number += 1) readKeys.push(storageResourceKey('studentLife', 'failureProfileAssignments', String(number)));
+        }
+        for (const key of Object.keys(mutation.response.currencyBalanceEntries)) readKeys.push(`wallet:${key}`);
+        const committed = await commitStorageMutation(configuration, {
+          snapshot: current, value: mutation.nextValue, actorKey, requestId: parsed.requestId,
+          action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
+          result: scopeEconomyResult({ ...mutation.response, updatedAt: createdAt }, parsed.studentNumber, session.role), readKeys,
+        });
+        if (committed.saved) {
+          response.status(200).json(scopeEconomyResult(committed.result, parsed.studentNumber, session.role)); return;
+        }
+      } catch (error) {
+        const retryable = error instanceof StorageRepositoryError && error.code === 'STORAGE_SERIALIZATION_RETRY';
+        if (!retryable || attempt + 1 >= UPDATE_RETRY_LIMIT) throw error;
       }
-      const mutation = createMutation(
-        current.value,
-        parsed.studentNumber,
-        parsed.action,
-        parsed.requestId,
-        createdAt,
-        characterDrawRoll,
-      );
-      const updatedAt = nextUpdatedAt(current.updated_at ?? '');
-      const endpoint = `${configuration.url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&updated_at=eq.${encodeURIComponent(current.updated_at ?? '')}&select=id`;
-      const result = await fetch(endpoint, {
-        method: 'PATCH',
-        headers: {
-          ...supabaseHeaders(configuration.key),
-          'Content-Type': 'application/json',
-          Prefer: 'return=representation',
-        },
-        body: JSON.stringify({ value: mutation.nextValue, updated_at: updatedAt }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!result.ok) throw new Error(`STUDENT_ECONOMY_WRITE_HTTP_${result.status}`);
-      const savedRows: unknown = await result.json();
-      if (!Array.isArray(savedRows) || savedRows.length === 0) continue;
-      response.status(200).json({ ...mutation.response, updatedAt });
-      return;
+      if (attempt + 1 < UPDATE_RETRY_LIMIT) await new Promise((resolve) => setTimeout(resolve, 25 * 2 ** attempt + randomInt(40)));
     }
-    response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
+    response.status(409).json({ error: 'STORAGE_CONFLICT' });
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     if (ACTION_ERRORS.has(message)) {
-      response.status(400).json({ error: message });
+      response.status(400).json({ error: message, businessRejected: true });
       return;
     }
     if (error instanceof SyntaxError) {
       response.status(400).json({ error: 'INVALID_BODY' });
       return;
     }
-    console.error('Failed to apply student economy action.', error);
+    if (error instanceof StorageRepositoryError) {
+      response.status(error.status).json({ error: error.code }); return;
+    }
+    console.error('Failed to apply student economy action.');
     response.status(502).json({ error: 'STUDENT_ECONOMY_UPDATE_FAILED' });
   }
 }

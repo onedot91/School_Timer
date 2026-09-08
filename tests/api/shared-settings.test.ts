@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import handler from '../../api/shared-settings.js';
+import { createStorageV2Fixture } from './storageV2Fixture.js';
+import { splitStorageState } from '../../src/lib/storageV2Codec.js';
 import studentEconomyHandler from '../../api/student-economy.js';
 import { claimDailyEmotionRewardInSettings, claimNumberBaseballRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionAwards, AUCTION_ITEM_IDS } from '../../src/lib/currency.js';
 import { normalizeStudentPetStates } from '../../src/lib/studentPet.js';
@@ -895,11 +897,32 @@ const createStatefulPostgrest = (
   return { fetch, state: () => structuredClone(row), requests };
 };
 
+const createStatefulStorageV2 = (initial: FakeSettingsRow | null, options: { readBarrier?: number; throwAfterFirstCommit?: boolean } = {}) => {
+  const fixture = createStorageV2Fixture(initial?.value ?? { currencyBalances: Object.fromEntries(Array.from({ length: 23 }, (_, index) => [index + 1, 0])) }, initial?.updated_at);
+  const requests: Array<{ url: string; method: string; body: unknown }> = [];
+  let reads = 0;
+  let release: (() => void) | undefined;
+  const barrier = new Promise<void>(resolve => { release = resolve; });
+  if (options.throwAfterFirstCommit) fixture.loseNextCommitResponse();
+  const fetcher: typeof fetch = async (input, init) => {
+    requests.push({ url: String(input), method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : null });
+    const response = await fixture.fetch(input, init);
+    if (String(input).endsWith('/storage_load_snapshot')) {
+      reads += 1;
+      if (options.readBarrier && reads === options.readBarrier) release?.();
+      if (options.readBarrier && reads <= options.readBarrier) await barrier;
+    }
+    return response;
+  };
+  return { fetch: fetcher, state: fixture.read, requests, receipts: fixture.receipts };
+};
+
 const placementCommand = (
   requestId: string,
   slotId: number,
   title = '달빛 우체국',
 ) => ({
+  protocolVersion: 2,
   action: 'placeLibraryBook',
   requestId,
   slotId,
@@ -909,7 +932,7 @@ const placementCommand = (
 test('placement command is student-only and returns an authoritative student projection', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
-    const fake = createStatefulPostgrest({
+    const fake = createStatefulStorageV2({
       id: 'school-timer-main',
       value: {
         schedule: ['비공개'], currencyBalances: { 1: 0, 2: 999 },
@@ -948,7 +971,7 @@ test('same-slot race has exactly one winner while different-slot CAS retries ret
     const originalFetch = globalThis.fetch;
     const initial = { id: 'school-timer-main', value: { currencyBalances: { 1: 0, 2: 0 }, currencyHistory: {}, studentLife: { books: [] } }, updated_at: '2026-09-05T00:00:00.000Z' };
     try {
-      const same = createStatefulPostgrest(initial, { readBarrier: 2 });
+      const same = createStatefulStorageV2(initial, { readBarrier: 2 });
       globalThis.fetch = same.fetch;
       const sameResponses = [createResponse(), createResponse()];
       await Promise.all([
@@ -958,7 +981,7 @@ test('same-slot race has exactly one winner while different-slot CAS retries ret
       assert.deepEqual(sameResponses.map(({ result }) => result().statusCode).sort(), [200, 409]);
       assert.equal((same.state()?.value.studentLife as { books: unknown[] }).books.length, 1);
 
-      const different = createStatefulPostgrest(initial, { readBarrier: 2 });
+      const different = createStatefulStorageV2(initial, { readBarrier: 2 });
       globalThis.fetch = different.fetch;
       const differentResponses = [createResponse(), createResponse()];
       await Promise.all([
@@ -974,10 +997,10 @@ test('same-slot race has exactly one winner while different-slot CAS retries ret
   });
 });
 
-test('simultaneous initial-row placement uses insert-only and both commands survive duplicate retry', async () => {
+test('simultaneous first book records preserve both commands without replacing the shared source', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
-    const fake = createStatefulPostgrest(null, { readBarrier: 2 });
+    const fake = createStatefulStorageV2(null, { readBarrier: 2 });
     globalThis.fetch = fake.fetch;
     try {
       const responses = [createResponse(), createResponse()];
@@ -987,9 +1010,10 @@ test('simultaneous initial-row placement uses insert-only and both commands surv
       ]);
       assert.deepEqual(responses.map(({ result }) => result().statusCode), [200, 200]);
       assert.equal((fake.state()?.value.studentLife as { books: unknown[] }).books.length, 2);
-      const posts = fake.requests.filter((request) => request.method === 'POST');
-      assert.equal(posts.length, 2);
-      assert.equal(posts.every((request) => new URL(request.url).searchParams.has('on_conflict') === false), true);
+      const commits = fake.requests.filter(request => request.url.endsWith('/storage_commit_mutation'));
+      assert.ok(commits.length >= 2);
+      assert.equal(fake.receipts.size, 2);
+      assert.equal(fake.requests.some(request => new URL(request.url).pathname.endsWith('/app_settings')), false);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -999,7 +1023,7 @@ test('simultaneous initial-row placement uses insert-only and both commands surv
 test('timeout after commit replay returns the same receipt and does not duplicate reward', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
-    const fake = createStatefulPostgrest({
+    const fake = createStatefulStorageV2({
       id: 'school-timer-main', value: { currencyBalances: { 1: 0 }, currencyHistory: { 1: [] }, studentLife: { books: [] } },
       updated_at: '2026-09-05T00:00:00.000Z',
     }, { throwAfterFirstCommit: true });
@@ -1067,7 +1091,7 @@ test('fixed-millisecond economy and library writers cannot alias a CAS version o
     const originalFetch = globalThis.fetch;
     const originalNow = Date.now;
     const initialUpdatedAt = '2026-08-26T00:00:00.000Z';
-    const fake = createStatefulPostgrest({
+    const fake = createStatefulStorageV2({
       id: 'school-timer-main',
       value: {
         currencyBalances: { 1: 145 }, currencyHistory: { 1: [] }, studentEconomy: {},
@@ -1084,7 +1108,7 @@ test('fixed-millisecond economy and library writers cannot alias a CAS version o
         studentEconomyHandler({
           method: 'POST', headers: studentHeaders(1),
           body: {
-            studentNumber: 1,
+            protocolVersion: 2, studentNumber: 1,
             action: { type: 'open_deposit', amount: 30, dateKey: '2026-08-26' },
             requestId: 'student-economy-cross-writer-cas',
           },
@@ -1126,14 +1150,12 @@ test('placement rejects malformed authoritative rows and upstream write failures
       assert.deepEqual(malformed.result(), { statusCode: 502, body: { error: 'LIBRARY_SAVE_FAILED' } });
 
       let fetchCount = 0;
-      globalThis.fetch = async (_input, init) => {
+      const backing = createStorageV2Fixture({ studentLife: { books: [] } });
+      globalThis.fetch = async (input, init) => {
         fetchCount += 1;
-        return init?.method === 'PATCH'
+        return String(input).endsWith('/storage_commit_mutation')
           ? Response.json({ error: 'synthetic' }, { status: 500 })
-          : Response.json([{
-              id: 'school-timer-main', value: { studentLife: { books: [] } },
-              updated_at: '2026-09-05T00:00:00.000Z',
-            }]);
+          : backing.fetch(input, init);
       };
       const failedWrite = createResponse();
       await handler({
@@ -1157,13 +1179,13 @@ test('placement stops after five fresh CAS conflicts and leaves authoritative st
     };
     let reads = 0;
     let patches = 0;
-    globalThis.fetch = async (_input, init) => {
-      if (!init?.method) {
+    globalThis.fetch = async (input) => {
+      if (String(input).endsWith('/storage_load_snapshot')) {
         reads += 1;
-        return Response.json([structuredClone(authoritative)]);
+        return Response.json({ ...splitStorageState(authoritative.value), updated_at: authoritative.updated_at, revisions: {} });
       }
       patches += 1;
-      return Response.json([]);
+      return Response.json({ saved: false });
     };
     try {
       const response = createResponse();

@@ -12,16 +12,16 @@ import {
   type AuctionItem,
   type CurrencyBalances,
   type CurrencyHistory,
-} from './currency';
+} from './currency.js';
 import {
   normalizeStudentEconomyStates,
   type StudentEconomyStates,
-} from './studentEconomy';
+} from './studentEconomy.js';
 import {
   loadStoredStudentLifeState,
   normalizeStudentLifeState,
   type StudentLifeState,
-} from './studentLife';
+} from './studentLife.js';
 import { preserveLibraryLocalFields } from './libraryCompetitionLocalSnapshot.js';
 import { normalizeClassroomRoleMissionSettings, type ClassroomRoleMissionSettings } from './classroomRoleMission.js';
 

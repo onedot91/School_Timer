@@ -151,6 +151,11 @@ export const DEFAULT_STUDENT_CHARACTER = {
 } as const;
 
 export const STUDENT_HOUSE_DESIGNS = [
+  { id: 'student-house-18', name: '고마의 집', creatorStudentNumber: 18, imageSrc: '/student-house-designs/고마의 집(18번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
+  { id: 'student-house-10', name: '꼬꼬댁 꼬꼬꼬', creatorStudentNumber: 10, imageSrc: '/student-house-designs/꼬꼬댁 꼬꼬꼬(10번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
+  { id: 'student-house-13', name: '삼색 냥이의 집', creatorStudentNumber: 13, imageSrc: '/student-house-designs/삼색 냥이의 집(13번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
+  { id: 'student-house-6', name: '소문의 낙원', creatorStudentNumber: 6, imageSrc: '/student-house-designs/소문의 낙원(6번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
+  { id: 'student-house-16', name: '지이입', creatorStudentNumber: 16, imageSrc: '/student-house-designs/지이입(16번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
   { id: 'student-house-4', name: '초록 집', creatorStudentNumber: 4, imageSrc: '/student-house-designs/초록 집(4번).png', price: 100, stagePosition: { width: 30, left: 50, bottom: 20 } },
   { id: 'student-house-11', name: '금물에다 집', creatorStudentNumber: 11, imageSrc: '/student-house-designs/금물에다 집(11번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 11 } },
   { id: 'student-house-8', name: '빵상', creatorStudentNumber: 8, imageSrc: '/student-house-designs/빵상(8번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },

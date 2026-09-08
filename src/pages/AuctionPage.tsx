@@ -1,3 +1,4 @@
+import { executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft } from '../lib/studentStorageCommand';
 import { CURRENCY_BALANCE_MAX } from '../lib/currency';
 import { createHousePurchaseLetter, HOUSE_CREATOR_REWARD } from '../lib/studentHouseReward';
 import { reportSaveFailure } from '../lib/saveFailureClient';
@@ -49,7 +50,6 @@ import {
   invalidateSharedSettingsCache,
   loadSharedSettingsRow,
   loadSharedSettingsUpdatedAt,
-  updateStudentSharedSettings,
 } from '../lib/supabaseSettings';
 import {
   createClassDonationThankYouLetter,
@@ -60,6 +60,7 @@ import {
 } from '../lib/classDonation';
 import { playAuctionSound, prepareAuctionAudio } from '../lib/auctionAudio';
 import {
+  STUDENT_EMOTIONS,
   createStudentEmotionEntry,
   getStudentEmotionEntries,
   getStudentEmotion,
@@ -108,7 +109,6 @@ import {
   type StudentShopCatalogItem,
   type StudentStockMarket,
 } from '../lib/studentEconomy';
-import { updateStudentEconomy } from '../lib/studentEconomyClient';
 import { createBrowserRequestId } from '../lib/requestId';
 import {
   CanvasLibraryPlacementExpectedError,
@@ -353,6 +353,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   } = useStudentSudokuState({
     studentNumber,
     currencyHistory,
+    onSharedSettingsChange: (value, updatedAt) => applySharedSettingsValue(value, updatedAt),
     onCurrencyBalancesChange: setCurrencyBalances,
     onCurrencyHistoryChange: setCurrencyHistory,
   });
@@ -370,6 +371,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   } = useStudentNumberBaseballState({
     studentNumber,
     currencyHistory,
+    onSharedSettingsChange: (value, updatedAt) => applySharedSettingsValue(value, updatedAt),
     onCurrencyBalancesChange: setCurrencyBalances,
     onCurrencyHistoryChange: setCurrencyHistory,
   });
@@ -716,22 +718,31 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const failureStories = getFailureStoriesNewestFirst(studentLife.failureStories);
   const profileAssignments = studentLife.failureProfileAssignments;
   const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber, currentDateKey);
+  const mailDraftValue = loadStudentStorageFormDraft(studentNumber, 'student.letter.send');
+  const mailDraft = typeof mailDraftValue.title === 'string' && typeof mailDraftValue.content === 'string'
+    ? { title: mailDraftValue.title, content: mailDraftValue.content, ...(typeof mailDraftValue.replyToId === 'string' ? { replyToId: mailDraftValue.replyToId } : {}) } : undefined;
+  const failureDraftValue = loadStudentStorageFormDraft(studentNumber, 'student.failure.create');
+  const failureDraft = typeof failureDraftValue.failure === 'string' && typeof failureDraftValue.lesson === 'string'
+    ? { failure: failureDraftValue.failure, lesson: failureDraftValue.lesson } : undefined;
+  const emotionDraftValue = loadStudentStorageFormDraft(studentNumber, 'student.emotion.save', currentDateKey);
+  const draftEmotionDefinition = STUDENT_EMOTIONS.find(({ id }) => id === emotionDraftValue.emotionId);
+  const emotionDraft = typeof emotionDraftValue.comment === 'string' && typeof emotionDraftValue.selfMessage === 'string'
+    ? { emotionId: draftEmotionDefinition?.id ?? null, comment: emotionDraftValue.comment, selfMessage: emotionDraftValue.selfMessage } : undefined;
 
-  const saveStudentLifeChange = async (change: (current: StudentLifeState) => StudentLifeState) => {
+  const saveStudentLifeChange = async (change: (current: StudentLifeState) => StudentLifeState, action: string, payload: unknown, entityId?: string) => {
     if (isStudentLifeSaving) return false;
     setIsStudentLifeSaving(true);
     try {
       let saved = studentLife;
       if (isSupabaseSettingsEnabled) {
-        await updateStudentSharedSettings(studentNumber, (currentValue) => {
-          const current = currentValue && typeof currentValue === 'object' ? currentValue as Record<string, unknown> : {};
-          saved = change(normalizeStudentLifeState(current.studentLife));
-          return { ...current, studentLife: saved };
-        });
+        const response = await executeStudentStorageCommand(studentNumber, action, payload, entityId);
+        applySharedSettingsValue(response.value, response.updatedAt);
+        return true;
       } else {
         saved = await updateStoredStudentLifeState(change);
       }
       setStudentLifeSnapshot(saved);
+      clearStudentStorageFormDraft(studentNumber, action, entityId);
       return true;
     } catch (error) {
       if (error instanceof Error) return false;
@@ -743,7 +754,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const sendStudentLetter = (title: string, content: string, replyToId?: string) => saveStudentLifeChange((current) => createStudentLetter(current, {
     id: createBrowserRequestId(), recipient: TEACHER_LETTER_RECIPIENT, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
-  }));
+  }), 'student.letter.send', { recipient: TEACHER_LETTER_RECIPIENT, title, content, ...(replyToId ? { replyToId } : {}) });
 
   const sendTodayFriendRecommendation = (letter: {
     readonly id: string;
@@ -755,7 +766,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     senderLabel: `${studentNumber}번`,
     senderStudentNumber: studentNumber,
     createdAt: new Date().toISOString(),
-  }));
+  }), 'student.letter.send', { letterId: letter.id, recipient: letter.recipient, title: letter.title, content: letter.content }, letter.id);
 
   const readStudentLetter = async (letterId: string) => {
     if (studentLetterReadOverlayRef.current.has(letterId)) return;
@@ -765,11 +776,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     try {
       let saved = studentLife;
       if (isSupabaseSettingsEnabled) {
-        await updateStudentSharedSettings(studentNumber, (currentValue) => {
-          const current = currentValue && typeof currentValue === 'object' ? currentValue as Record<string, unknown> : {};
-          saved = markStudentLetterRead(normalizeStudentLifeState(current.studentLife), studentNumber, letterId, readAt);
-          return { ...current, studentLife: saved };
-        });
+        const response = await executeStudentStorageCommand(studentNumber, 'student.letter.read', { letterId }, letterId);
+        applySharedSettingsValue(response.value, response.updatedAt);
+        return;
       } else {
         saved = await updateStoredStudentLifeState((current) => (
           markStudentLetterRead(current, studentNumber, letterId, readAt)
@@ -808,10 +817,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }, input);
 
       if (isSupabaseSettingsEnabled) {
-        await updateStudentSharedSettings(studentNumber, (currentValue) => {
-          result = createFailureExhibitionMissionEntry(currentValue, input);
-          return result.value;
-        });
+        const response = await executeStudentStorageCommand(studentNumber, 'student.failure.create', { failure, lesson });
+        applySharedSettingsValue(response.value, response.updatedAt);
+        return true;
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         result = createFailureExhibitionMissionEntry({
@@ -832,6 +840,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentLifeSnapshot(result.studentLife);
       setCurrencyBalances(result.balances);
       setCurrencyHistory(result.history);
+      clearStudentStorageFormDraft(studentNumber, 'student.failure.create');
       return true;
     } catch (error) {
       if (error instanceof Error) return false;
@@ -844,7 +853,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const stampStudentFailureStory = (storyId: string, stampId: FailureStampId) => saveStudentLifeChange((current) => ({
     ...current,
     failureStories: toggleFailureStamp(current.failureStories, storyId, studentNumber, stampId),
-  }));
+  }), 'student.failure.stamp', { storyId, stampId }, storyId);
 
   const selectStudentFailureProfile = async (purchase: StudentProfilePurchase): Promise<StudentProfilePurchaseOutcome> => {
     if (isStudentLifeSaving) return { ok: false, message: '프로필 변경을 처리하고 있어요.' };
@@ -857,11 +866,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         const action = purchase.type === 'random'
           ? { type: 'draw_profile' as const }
           : { type: 'select_profile' as const, profileImage: purchase.profileImage };
-        const result = await updateStudentEconomy({
-          studentNumber,
-          action,
-          requestId: `student-profile-${studentNumber}-${createBrowserRequestId()}`,
-        });
+        const result = await executeStudentEconomyWithDraft(studentNumber, action);
+        if (!isStudentSettingsSnapshotFresh(result.updatedAt, minimumSettingsUpdatedAtRef.current)) {
+          void refreshAuctionState({ forceFull: true });
+          return result.applied && result.profileImage ? { ok: true, profileImage: result.profileImage, price: result.profilePrice ?? 0 } : { ok: false, message: result.message };
+        }
         minimumSettingsUpdatedAtRef.current = result.updatedAt;
         setStudentLifeSnapshot(result.studentLife);
         storeStudentProfileSnapshot(studentNumber, result.studentLife);
@@ -942,41 +951,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       let savedBalances = currencyBalances;
 
       if (isSupabaseSettingsEnabled) {
-        await updateStudentSharedSettings(studentNumber, (currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          const currentBalances = normalizeCurrencyBalances(current.currencyBalances);
-          const currentHistory = normalizeCurrencyHistory(current.currencyHistory);
-          const currentPets = normalizeStudentPetStates(current.studentPets);
-          const currentPet = getStudentPetState(currentPets, studentNumber);
-          const currentBids = normalizeAuctionBids(current.auctionBids, AUCTION_ITEM_IDS);
-          const currentAwards = normalizeAuctionAwards(current.auctionAwards, AUCTION_ITEM_IDS);
-          const latestBalance = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
-          const latestReserved = getReservedAuctionBidAmount(
-            currentBids,
-            studentNumber,
-            undefined,
-            currentAwards,
-            activeAuctionItemIds,
-          );
-          if (latestBalance - latestReserved < STUDENT_PET_FEED_AMOUNT) throw new Error('INSUFFICIENT_FUNDS');
-
-          const nextBalance = latestBalance - STUDENT_PET_FEED_AMOUNT;
-          savedPet = feedStudentPetEgg(currentPet);
-          savedBalances = { ...currentBalances, [studentKey]: nextBalance };
-          return {
-            ...current,
-            currencyBalances: savedBalances,
-            currencyHistory: appendCurrencyHistoryEntry(currentHistory, {
-              studentNumber,
-              before: latestBalance,
-              after: nextBalance,
-              reason: 'pet_feed',
-            }),
-            studentPets: { ...currentPets, [studentKey]: savedPet },
-          };
-        });
+        const response = await executeStudentStorageCommand(studentNumber, 'student.pet.feed', {});
+        applySharedSettingsValue(response.value, response.updatedAt);
+        return true;
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         const currentPet = getStudentPetState(snapshot.studentPets, studentNumber);
@@ -1011,26 +988,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
-  const saveStudentPet = async (updatePet: (currentPet: StudentPetState) => StudentPetState | null) => {
+  const saveStudentPet = async (updatePet: (currentPet: StudentPetState) => StudentPetState | null, action: string, payload: unknown) => {
     if (isPetSaving) return false;
     setIsPetSaving(true);
     try {
       let savedPets = studentPetStates;
       if (isSupabaseSettingsEnabled) {
-        await updateStudentSharedSettings(studentNumber, (currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          const currentPets = normalizeStudentPetStates(current.studentPets);
-          const currentPet = getStudentPetState(currentPets, studentNumber);
-          const nextPet = updatePet(currentPet);
-          if (!nextPet) throw new Error('PET_UPDATE_REJECTED');
-          savedPets = normalizeStudentPetStates({
-            ...currentPets,
-            [studentKey]: nextPet,
-          });
-          return { ...current, studentPets: savedPets };
-        });
+        const response = await executeStudentStorageCommand(studentNumber, action, payload);
+        applySharedSettingsValue(response.value, response.updatedAt);
+        return true;
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         const currentPet = getStudentPetState(snapshot.studentPets, studentNumber);
@@ -1052,9 +1018,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
-  const nameCurrentStudentPet = (name: string) => saveStudentPet((currentPet) => nameStudentPet(currentPet, name));
+  const nameCurrentStudentPet = (name: string) => saveStudentPet((currentPet) => nameStudentPet(currentPet, name), 'student.pet.name', { name });
 
-  const changeStudentPet = (petId: string) => saveStudentPet((currentPet) => selectStudentPet(currentPet, petId));
+  const changeStudentPet = (petId: string) => saveStudentPet((currentPet) => selectStudentPet(currentPet, petId), 'student.pet.select', { petId });
 
   const saveStudentPetPosition = (
     target: 'pet' | 'goma',
@@ -1082,27 +1048,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const scheduledSave = petPositionSaveQueueRef.current
       .catch(() => undefined)
       .then(async () => {
-        await updateStudentSharedSettings(studentNumber, (currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          const currentPets = normalizeStudentPetStates(current.studentPets);
-          const currentPetAtSave = getStudentPetState(currentPets, studentNumber);
-          const savedPet = target === 'pet'
-            ? moveStudentPet(currentPetAtSave, position)
-            : moveGomaCharacter(currentPetAtSave, position);
-          if (!savedPet) throw new Error('PET_POSITION_UPDATE_REJECTED');
-          return {
-            ...current,
-            studentPets: normalizeStudentPetStates({ ...currentPets, [studentKey]: savedPet }),
-          };
-        });
+        await executeStudentStorageCommand(studentNumber, 'student.pet.move', { target, position }, target);
       });
     petPositionSaveQueueRef.current = scheduledSave;
-    void scheduledSave.catch((error) => {
+    return scheduledSave.then(() => true).catch((error) => {
       console.error('Failed to save student pet position.', error);
+      return false;
     });
-    return Promise.resolve(true);
   };
 
   const moveCurrentStudentPet = (position: StudentPetState['position']) => (
@@ -1122,30 +1074,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       let savedCurrencyHistory: CurrencyHistory = currencyHistory;
       let savedBalances = currencyBalances;
       if (isSupabaseSettingsEnabled) {
-        await updateStudentSharedSettings(studentNumber, (currentValue) => {
-          const current = currentValue && typeof currentValue === 'object'
-            ? currentValue as Record<string, unknown>
-            : {};
-          savedHistory = upsertStudentEmotionEntry(
-            mergeStudentEmotionHistories(current.studentEmotionHistory, studentEmotionHistory),
-            entry,
-          );
-          const dailyReward = claimDailyEmotionRewardInSettings(
-            { ...current, studentEmotionHistory: savedHistory },
-            studentNumber,
-            entry.dateKey,
-            entry.updatedAt,
-          );
-          const weeklyReward = claimWeeklyEmotionRewardInSettings(
-            dailyReward.value,
-            studentNumber,
-            getSchoolWeekDateKeys(),
-            entry.updatedAt,
-          );
-          savedBalances = normalizeCurrencyBalances(weeklyReward.value.currencyBalances);
-          savedCurrencyHistory = weeklyReward.history;
-          return weeklyReward.value;
-        });
+        const response = await executeStudentStorageCommand(studentNumber, 'student.emotion.save', { emotionId, comment, selfMessage }, entry.dateKey);
+        applySharedSettingsValue(response.value, response.updatedAt);
+        return true;
       } else {
         savedHistory = upsertStudentEmotionEntry(studentEmotionHistory, entry);
         if (!storeStudentEmotionHistory(savedHistory)) { reportSaveFailure('emotion', 'storage', studentNumber); return false; }
@@ -1173,6 +1104,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentEmotionHistory(savedHistory);
       setCurrencyBalances(savedBalances);
       setCurrencyHistory(savedCurrencyHistory);
+      clearStudentStorageFormDraft(studentNumber, 'student.emotion.save', entry.dateKey);
       return true;
     } catch (error) {
       console.error('Failed to save student emotion.', error);
@@ -1422,11 +1354,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           createWeeklyMissionStatuses('incomplete'),
         ));
         setHasWeeklyMissionSyncError(false);
-        const finalBalance = Math.max(...result.missions.map((mission) => mission.balance));
-        setCurrencyBalances((previous) => ({
-          ...previous,
-          [String(studentNumber)]: finalBalance,
-        }));
+        await refreshAuctionState({ forceFull: true });
       } catch (error) {
         if (!isActive) return;
         const isExpectedLocalFallback = error instanceof Error
@@ -1606,60 +1534,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     try {
       if (isSupabaseSettingsEnabled) {
-        let savedBids: AuctionBids = {};
-        let savedBidHistory: AuctionBidHistory = {};
-        const updatedAt = await updateStudentSharedSettings(studentNumber, (currentValue) => {
-          const currentObject = currentValue && typeof currentValue === 'object'
-            ? (currentValue as Record<string, unknown>)
-            : {};
-          const currentBalances = normalizeCurrencyBalances(currentObject.currencyBalances);
-          const currentBids = normalizeAuctionBids(currentObject.auctionBids, AUCTION_ITEM_IDS);
-          const currentHistory = normalizeAuctionBidHistory(currentObject.auctionBidHistory, AUCTION_ITEM_IDS);
-          const currentAwards = normalizeAuctionAwards(currentObject.auctionAwards, AUCTION_ITEM_IDS);
-          if (currentAwards[item.id]) {
-            throw new Error('ALREADY_AWARDED');
-          }
-          const latestBalance = currentBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
-          const latestBid = currentBids[item.id] ?? { amount: 0, bidder: null };
-          const latestMinimumBid = getMinimumAuctionBid(item, latestBid.amount);
-          const latestReservedExcludingItem = getReservedAuctionBidAmount(
-            currentBids,
-            studentNumber,
-            item.id,
-            currentAwards,
-            activeAuctionItemIds,
-          );
-          const latestAvailableForItem = Math.max(0, latestBalance - latestReservedExcludingItem);
-
-          if (latestBid.bidder === studentNumber) {
-            throw new Error('ALREADY_HIGHEST_BIDDER');
-          }
-
-          if (bidAmount > latestAvailableForItem) {
-            throw new Error('INSUFFICIENT_FUNDS');
-          }
-
-          if (bidAmount < latestMinimumBid) {
-            throw new Error('BID_TOO_LOW');
-          }
-
-          if (hasAuctionBidAmount(currentHistory, item.id, bidAmount)) {
-            throw new Error('DUPLICATE_BID_AMOUNT');
-          }
-
-          savedBids = {
-            ...currentBids,
-            [item.id]: { amount: bidAmount, bidder: studentNumber },
-          };
-          savedBidHistory = {
-            ...currentHistory,
-            [item.id]: [
-              ...(currentHistory[item.id] ?? []),
-              { itemId: item.id, bidder: studentNumber, amount: bidAmount, createdAt: new Date().toISOString() },
-            ],
-          };
-          return { ...currentObject, auctionBids: savedBids, auctionBidHistory: savedBidHistory };
-        });
+        const response = await executeStudentStorageCommand(studentNumber, 'student.auction.bid', { itemId: item.id, amount: bidAmount }, item.id);
+        const updatedAt = response.updatedAt;
+        const savedBids = normalizeAuctionBids(response.value.auctionBids, AUCTION_ITEM_IDS);
+        const savedBidHistory = normalizeAuctionBidHistory(response.value.auctionBidHistory, AUCTION_ITEM_IDS);
         if (isStudentSettingsSnapshotFresh(updatedAt ?? undefined, minimumSettingsUpdatedAtRef.current)) {
           if (updatedAt) minimumSettingsUpdatedAtRef.current = updatedAt;
           setAuctionBids(savedBids);
@@ -1817,26 +1695,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setIsDonating(true);
     try {
       const requestId = donationRequestIdRef.current;
-      const letterCreatedAt = new Date().toISOString();
       const result = await donateToClassGoal(studentNumber, donationAmount, requestId);
-      let savedStudentLife = studentLife;
-      await updateStudentSharedSettings(studentNumber, (currentValue) => {
-        const current = currentValue && typeof currentValue === 'object'
-          ? currentValue as Record<string, unknown>
-          : {};
-        savedStudentLife = createClassDonationThankYouLetter(
-          normalizeStudentLifeState(current.studentLife),
-          { studentNumber, donatedAmount: result.donatedAmount, requestId, createdAt: letterCreatedAt },
-        );
-        return { ...current, studentLife: savedStudentLife };
-      });
-      setCurrencyBalances((previous) => ({ ...previous, [studentKey]: result.balance }));
-      setStudentLifeSnapshot(savedStudentLife);
-      setClassDonation((previous) => ({
-        ...previous,
-        targetAmount: result.targetAmount,
-        totalAmount: result.totalAmount,
-      }));
+      if (!isSupabaseSettingsEnabled) {
+        const savedLife = await updateStoredStudentLifeState((current) => createClassDonationThankYouLetter(current, {
+          studentNumber, donatedAmount: result.donatedAmount, requestId, createdAt: new Date().toISOString(),
+        }));
+        setStudentLifeSnapshot(savedLife);
+      }
+      if (!isSupabaseSettingsEnabled) {
+        setCurrencyBalances((previous) => ({ ...previous, [studentKey]: result.balance }));
+        setClassDonation((previous) => ({ ...previous, targetAmount: result.targetAmount, totalAmount: result.totalAmount }));
+      }
       setIsDonationOpen(false);
       donationRequestIdRef.current = '';
       showStatusMessage(`${formatCurrency(result.donatedAmount)}를 기부했습니다.`);
@@ -1847,6 +1716,29 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       await refreshAuctionState();
     } finally {
       setIsDonating(false);
+    }
+  };
+
+  const retryPendingStudentEconomy = async () => {
+    if (isEconomySavingRef.current) return;
+    isEconomySavingRef.current = true;
+    setIsEconomySaving(true);
+    try {
+      const result = await confirmStudentEconomyDraft(studentNumber);
+      if (result && isStudentSettingsSnapshotFresh(result.updatedAt, minimumSettingsUpdatedAtRef.current)) {
+        setCurrencyBalances((previous) => ({ ...previous, ...result.currencyBalanceEntries }));
+        setCurrencyHistory((previous) => ({ ...previous, ...result.currencyHistoryEntries }));
+        setStudentEconomyStates((previous) => ({ ...previous, [studentKey]: result.studentEconomy }));
+        setStudentLifeSnapshot(result.studentLife);
+        minimumSettingsUpdatedAtRef.current = result.updatedAt;
+        showStatusMessage(result.message || '저장 결과를 확인했습니다.');
+        void refreshAuctionState({ forceFull: true });
+      }
+    } catch {
+      showStatusMessage('처리 결과를 확인하지 못했습니다. 같은 요청으로 다시 확인해 주세요.');
+    } finally {
+      isEconomySavingRef.current = false;
+      setIsEconomySaving(false);
     }
   };
 
@@ -1863,7 +1755,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       let resultMessage = '';
 
       if (isSupabaseSettingsEnabled) {
-        const result = await updateStudentEconomy({ studentNumber, action, requestId });
+        const result = await executeStudentEconomyWithDraft(studentNumber, action);
+        if (!isStudentSettingsSnapshotFresh(result.updatedAt, minimumSettingsUpdatedAtRef.current)) {
+          void refreshAuctionState({ forceFull: true });
+          return true;
+        }
+        minimumSettingsUpdatedAtRef.current = result.updatedAt;
         savedBalances = { ...currencyBalances, ...result.currencyBalanceEntries };
         savedHistory = { ...currencyHistory, ...result.currencyHistoryEntries };
         savedEconomyStates = { ...studentEconomyStates, [studentKey]: result.studentEconomy };
@@ -1949,7 +1846,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      const userMessage = message === 'HOUSE_CREATOR_BALANCE_LIMIT'
+      const userMessage = message === 'SAVE_DRAFT_PENDING'
+        ? '이전 고마 처리의 저장 결과를 먼저 확인해 주세요.'
+        : message === 'HOUSE_CREATOR_BALANCE_LIMIT'
         ? '제작자의 고마 보유 한도로 구매할 수 없습니다. 선생님께 알려 주세요.'
         : message === 'INSUFFICIENT_AVAILABLE_CURRENCY'
         ? '사용 가능한 고마가 부족합니다.'
@@ -2009,6 +1908,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
       <main className="mx-auto w-full max-w-7xl">
+        {isSupabaseSettingsEnabled && hasUnconfirmedStudentEconomyDraft(studentNumber) ? (
+          <section className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3" role="status" aria-label="고마 처리 확인">
+            <span>확인이 필요한 고마 처리가 있어요.</span>
+            <button type="button" className="student-primary-action" disabled={isEconomySaving || isStudentLifeSaving} onClick={() => void retryPendingStudentEconomy()}>저장 다시 확인</button>
+          </section>
+        ) : null}
         <Suspense
           fallback={<AppLoadingScreen embedded />}
         >
@@ -2049,6 +1954,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         ) : null}
         {activeStudentView === 'emotions' ? (
           <StudentEmotionPage
+            draft={emotionDraft}
+            hasPendingSave={hasUnconfirmedStudentStorageDraft(studentNumber, 'student.emotion.save', currentDateKey)}
+            onDraftChange={(draft) => saveStudentStorageFormDraft(studentNumber, 'student.emotion.save', draft, currentDateKey)}
             todayEntry={todayEmotionEntry}
             history={studentEmotionEntries}
             isSaving={isEmotionSaving}
@@ -2126,8 +2034,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           <StudentClasswordPage
             studentNumber={studentNumber}
             profileAssignments={profileAssignments}
-            onRewardBalance={(nextBalance) => {
-              setCurrencyBalances((previous) => ({ ...previous, [studentKey]: nextBalance }));
+            onRewardBalance={() => {
+              void refreshAuctionState({ forceFull: true });
             }}
             onMissionSubmitted={(awarded) => {
               setWeeklyMissionStatuses((previous) => ({
@@ -2164,6 +2072,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         ) : null}
         {activeStudentView === 'mailbox' ? (
           <StudentMailboxPage
+            draft={mailDraft}
+            hasPendingSave={hasUnconfirmedStudentStorageDraft(studentNumber, 'student.letter.send')}
+            onDraftChange={(draft) => saveStudentStorageFormDraft(studentNumber, 'student.letter.send', { recipient: TEACHER_LETTER_RECIPIENT, ...draft })}
             studentNumber={studentNumber}
             profileAssignments={profileAssignments}
             letters={studentLetters}
@@ -2186,6 +2097,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             failureStories={failureStories}
             profileAssignments={profileAssignments}
             isFailureSaving={isStudentLifeSaving}
+            failureDraft={failureDraft}
+            hasPendingFailureSave={hasUnconfirmedStudentStorageDraft(studentNumber, 'student.failure.create')}
+            onFailureDraftChange={(draft) => saveStudentStorageFormDraft(studentNumber, 'student.failure.create', draft)}
             onCreateFailure={createStudentFailureStory}
             onStampFailure={stampStudentFailureStory}
             initialFailureBoardOpen={activeStudentView === 'library-failure-board'}

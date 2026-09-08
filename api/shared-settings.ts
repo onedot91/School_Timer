@@ -1,4 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
+import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
+import { loadStorageSnapshot } from '../src/server/storageV2Repository.js';
 
 import {
   applyLibraryPlacementCommand,
@@ -206,6 +208,9 @@ const supabaseHeaders = (key: string) => ({
 });
 
 const loadRow = async (url: string, key: string) => {
+  if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
+    return { id: 'school-timer-main' as const, ...await loadStorageSnapshot({ url, key }) };
+  }
   const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=id,value,updated_at`, {
     headers: supabaseHeaders(key),
     signal: AbortSignal.timeout(8000),
@@ -236,13 +241,24 @@ const cacheUpdatedAt = (url: string, updatedAt: string) => {
 const projectStudentValue = (value: unknown, studentNumber: number): Record<string, unknown> => {
   const source = asRecord(value);
   const studentKey = String(studentNumber);
-  return Object.fromEntries([
+  const projected = Object.fromEntries([
     ...STUDENT_SHARED_FIELDS.map((field) => [field, source[field]]),
     ...STUDENT_SCOPED_MAP_FIELDS.map((field) => {
       const ownValue = asRecord(source[field])[studentKey];
       return [field, ownValue === undefined ? {} : { [studentKey]: ownValue }];
     }),
   ]);
+  if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
+    const life = asRecord(projected.studentLife);
+    projected.studentLife = { ...life, letters: Array.isArray(life.letters) ? life.letters.filter(letter => {
+      const entry = asRecord(letter);
+      return entry.recipient === studentNumber || entry.senderStudentNumber === studentNumber;
+    }) : [] };
+    for (const field of STUDENT_MUTABLE_PROGRESS_FIELDS) projected[field] = Object.fromEntries(
+      Object.entries(asRecord(projected[field])).filter(([key]) => key.startsWith(`${studentNumber}:`)),
+    );
+  }
+  return projected;
 };
 
 const saveValue = async (
@@ -291,7 +307,7 @@ const handleLibraryPlacement = async (
   response: ApiResponse,
 ) => {
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const loaded = await loadRow(configuration.url, configuration.key);
+    const loaded = await loadCompetitionRow(configuration);
     const current = loaded?.value.libraryCompetition
       ? (await ensureCompetition(configuration, false)).row
       : loaded;
@@ -316,11 +332,10 @@ const handleLibraryPlacement = async (
       return;
     }
     try {
-      const state = parseLibraryCompetitionState(current?.value.libraryCompetition);
       const value = placement.value;
-      const saved = state
-        ? (await commitCompetition(configuration, { current, value, updatedAt: createdAt }) ? 'saved' : 'conflict')
-        : await saveValue(configuration.url, configuration.key, current, value, createdAt);
+      const saved = await commitCompetition(configuration, { current, value, updatedAt: createdAt,
+        actorKey: `student:${studentNumber}`, requestId: command.requestId, action: 'placeLibraryBook', payload: command,
+      }) ? 'saved' : 'conflict';
       if (saved === 'saved') {
         cacheUpdatedAt(configuration.url, createdAt);
         response.status(200).json({
@@ -341,6 +356,10 @@ const handleLibraryPlacement = async (
 };
 
 const loadStudentRow = async (url: string, key: string, studentNumber: number) => {
+  if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
+    const row = await loadStorageSnapshot({ url, key });
+    return { id: SETTINGS_ID, value: projectStudentValue(row.value, studentNumber), updated_at: row.updated_at, scope: 'student' as const };
+  }
   const studentKey = String(studentNumber);
   const select = [
     'id',
@@ -376,6 +395,7 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number) =
 };
 
 const loadUpdatedAt = async (url: string, key: string) => {
+  if (process.env.STORAGE_PROTOCOL_VERSION === '2') return (await loadStorageSnapshot({ url, key })).updated_at;
   if (updatedAtCache?.url === url && updatedAtCache.expiresAt > Date.now()) {
     return updatedAtCache.value;
   }
@@ -421,6 +441,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   const session = getDeviceSession(request.headers, configuration.sessionSecret);
   if (!session) {
     response.status(401).json({ error: 'DEVICE_REGISTRATION_REQUIRED' });
+    return;
+  }
+  if (request.method === 'POST' || (request.method === 'GET' && request.query?.requestId !== undefined)) {
+    if (request.method === 'POST' && isCrossSiteRequest(request.headers)) {
+      response.status(403).json({ error: 'CROSS_SITE_REQUEST_BLOCKED' }); return;
+    }
+    await handleStorageCommand(request, response, configuration, session, projectStudentValue);
     return;
   }
   if (request.method === 'GET') {
@@ -470,6 +497,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   try {
     const commandBody: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+    if (process.env.STORAGE_PROTOCOL_VERSION === '2'
+      && (!commandBody || typeof commandBody !== 'object' || Reflect.get(commandBody, 'protocolVersion') !== 2)) {
+      response.status(409).json({ error: 'STORAGE_PROTOCOL_REQUIRED' }); return;
+    }
     if (isCompetitionCommand(commandBody)) {
       const command = competitionRecord(commandBody);
       if (command.action === 'libraryCompetitionSettings' && session.role !== 'teacher') {
@@ -519,6 +550,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       && Reflect.get(request.body, 'action') === 'placeLibraryBook') {
       response.status(400).json({ error: 'INVALID_LIBRARY_COMMAND' });
       return;
+    }
+    if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
+      response.status(409).json({ error: 'STORAGE_COMMAND_REQUIRED' }); return;
     }
     const parsed = parseBody(request.body);
     const serializedIncoming = parsed ? JSON.stringify(parsed.value) : undefined;
