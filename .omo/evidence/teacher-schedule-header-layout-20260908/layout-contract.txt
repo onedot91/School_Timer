@@ -1,0 +1,6 @@
+src/index.css:12644:.schedule-panel-actions > button {
+src/index.css:28558:.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) {
+src/index.css:28563:.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) > time,
+src/index.css:28564:.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) .schedule-panel-actions {
+src/index.css:28568:@container (max-width: 28rem) {
+src/index.css:28580:.timer-main-shell .schedule-panel-actions > button,

@@ -1,0 +1,76 @@
+Source: exact excerpts retained from CUA Playwright domSnapshot tool results in this task, synthetic localhost3041 and127.0.0.1:3041 only. These are transcribed tool-result excerpts, not a new automated browser run.
+
+AFTER STUDENT EMOTION SAVE (student overview):
+- button "오늘의 감정 감사하다. 감정 바꾸기"
+- region "고마 잔액":
+  - generic "17번 학생":
+    - strong: 17번
+  - generic: 사용 가능 고마
+  - strong: 105 고마
+
+TEACHER TAB ALREADY OPEN, AFTER STUDENT SEND (no reload action):
+- button "편지 새로 받은 편지 1개":
+  - generic: 편지
+  - generic "새로 받은 편지 1개": New
+- button "17번과의 대화, 새 편지 1개" [active]:
+  - strong: 17번 학생
+  - generic: 별도 학생 화면에서 보낸 합성 편지입니다.
+  - time: 9. 8.
+  - generic: "1"
+
+TEACHER OPENED CONVERSATION:
+- log "17번 학생과 주고받은 편지":
+  - article "학생이 보낸 편지":
+    - heading "공유 저장 검증" [level=4]
+    - paragraph: 별도 학생 화면에서 보낸 합성 편지입니다.
+    - time: 9월 8일 오후 06:31
+
+STUDENT TAB ALREADY OPEN, AFTER TEACHER SEND (no reload action):
+- tab "받은 편지, 새 편지 1개" [selected]:
+  - generic: 받은 편지
+  - generic: "1"
+- button "새 편지 1, 선생님, 교사 답장 검증, 2026. 9. 8.":
+  - time: 2026. 9. 8.
+
+STUDENT OPENED REPLY:
+- article "교사 답장 검증":
+  - heading "교사 답장 검증" [level=2]
+  - generic "선생 우표":
+  - paragraph: 학생과 교사 양쪽에서 저장을 확인했습니다.
+  - strong: 선생님 드림
+
+AFTER SYNTHETIC MAINTENANCE REJECTION:
+- textbox "제목":
+  - /placeholder: 제목을 적어 주세요
+  - text: 점검 중 초안 보존
+- textbox "내용":
+  - /placeholder: 전하고 싶은 마음을 적어 주세요
+  - text: 저장이 중단되어도 새로고침 뒤 남아 있어야 합니다.
+- status: 점검 중입니다. 잠시 후 다시 저장해 주세요.
+- button "보내기":
+  - text: 보내기
+- alert:
+  - strong: 저장 서비스 점검 중
+  - paragraph: 잠시 후 다시 저장해 주세요.
+  - button "저장 안내 닫기":
+
+AFTER goto('http://127.0.0.1:3041/#student-mailbox'):
+- textbox "제목":
+  - /placeholder: 제목을 적어 주세요
+  - text: 점검 중 초안 보존
+- textbox "내용":
+  - /placeholder: 전하고 싶은 마음을 적어 주세요
+  - text: 저장이 중단되어도 새로고침 뒤 남아 있어야 합니다.
+- status: 점검 중입니다. 잠시 후 다시 저장해 주세요.
+- alert:
+  - strong: 저장 서비스 점검 중
+  - paragraph: 잠시 후 다시 저장해 주세요.
+
+AFTER MANUAL RETRY AND goto('http://127.0.0.1:3041/'):
+- heading "학생 개요" [level=1]
+- button "오늘의 감정 감사하다. 감정 바꾸기"
+- region "고마 잔액":
+  - generic "17번 학생":
+    - strong: 17번
+  - generic: 사용 가능 고마
+  - strong: 105 고마

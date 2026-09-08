@@ -1,0 +1,10 @@
+[
+  {
+    "feature": "settings",
+    "category": "conflict",
+    "error_code": "SHARED_SETTINGS_CONFLICT",
+    "count": 6,
+    "first_at": "2026-09-08T07:14:56.436Z",
+    "last_at": "2026-09-08T07:17:31.850Z"
+  }
+]

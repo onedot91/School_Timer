@@ -1,0 +1,10 @@
+{
+  "result": [
+    {
+      "active": true,
+      "maintenance": false,
+      "reconciliation": []
+    }
+  ],
+  "note": "Final duplicate connector health query initially returned a tool-call error; one retry succeeded. No production mutation performed."
+}

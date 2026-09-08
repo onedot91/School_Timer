@@ -28554,6 +28554,33 @@ body {
 .teacher-save-warning-trigger:focus-visible, .teacher-save-warning-dialog button:focus-visible {
   outline: 3px solid var(--apple-focus); outline-offset: 3px;
 }
+
+.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) > time,
+.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) .schedule-panel-actions {
+  flex-basis: 100%;
+}
+
+@container (max-width: 28rem) {
+  .timer-main-shell .schedule-panel-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .timer-main-shell .schedule-panel-header > time,
+  .timer-main-shell .schedule-panel-header .schedule-panel-actions {
+    flex-basis: 100%;
+  }
+}
+
+.timer-main-shell .schedule-panel-actions > button,
+.timer-main-shell .schedule-panel-actions .teacher-save-warning-trigger {
+  min-height: var(--apple-control-min);
+}
 .teacher-save-warning-backdrop {
   position: fixed; inset: 0; z-index: 400; display: grid; place-items: center;
   padding: 1rem; background: var(--apple-scrim);

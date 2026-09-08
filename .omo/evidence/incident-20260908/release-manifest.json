@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "node": "v24.16.0",
+  "sourceHash": "41c9ffc79226b592f1f57eaaab3b21ddd3d613213c11203d63751d001d01df16",
+  "unchanged": true,
+  "results": [
+    {
+      "name": "typecheck",
+      "passed": true,
+      "milliseconds": 5078
+    },
+    {
+      "name": "unit-api",
+      "passed": true,
+      "milliseconds": 13644
+    },
+    {
+      "name": "server-dev",
+      "passed": true,
+      "milliseconds": 491
+    },
+    {
+      "name": "storage-sql",
+      "passed": true,
+      "milliseconds": 883
+    },
+    {
+      "name": "reward-sql",
+      "passed": true,
+      "milliseconds": 214
+    },
+    {
+      "name": "classword-sql",
+      "passed": true,
+      "milliseconds": 228
+    },
+    {
+      "name": "http",
+      "passed": true,
+      "milliseconds": 1058
+    },
+    {
+      "name": "emitted-runtime",
+      "passed": true,
+      "milliseconds": 1122
+    },
+    {
+      "name": "restore-drill",
+      "passed": true,
+      "milliseconds": 1108
+    },
+    {
+      "name": "production-build",
+      "passed": true,
+      "milliseconds": 3116
+    }
+  ]
+}

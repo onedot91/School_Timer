@@ -1,0 +1,128 @@
+[
+  {
+    "proname": "storage_apply_wallet_delta",
+    "args": "p_student_number integer, p_entry_id text, p_delta integer, p_reason text, p_created_at timestamp with time zone, p_operation_id text",
+    "body_hash": "7d64ae29ce7d1826058ce3c0e53205ac",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_bootstrap",
+    "args": "p_expected_updated_at timestamp with time zone, p_source jsonb, p_resources jsonb, p_wallets jsonb, p_history jsonb",
+    "body_hash": "0bcc97503273b55a5d3bcf49b3ee59b9",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_commit_mutation",
+    "args": "p_expected jsonb, p_resources jsonb, p_wallets jsonb, p_ledger jsonb, p_actor_key text, p_request_id text, p_payload_hash text, p_action text, p_result jsonb, p_archive jsonb",
+    "body_hash": "1b835f943a6f37f135d7e8e6acc27dd6",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_commit_scoped_mutation",
+    "args": "p_expected jsonb, p_resources jsonb, p_wallets jsonb, p_ledger jsonb, p_actor_key text, p_request_id text, p_payload_hash text, p_action text, p_result jsonb, p_archive jsonb, p_scope jsonb",
+    "body_hash": "4a26d976dfc39ac273124af62da2a0e7",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_get_receipt",
+    "args": "p_actor_key text, p_request_id text",
+    "body_hash": "d9c2c3eb697a2b3cf9f79512a1d9f21b",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_guard_legacy",
+    "args": "",
+    "body_hash": "5eef1785ea68dc82462eb46252e4fd33",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_immutable_ledger",
+    "args": "",
+    "body_hash": "3b81d4b3cba6f40590a20578d807b2c4",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_load_scope",
+    "args": "p_scope jsonb",
+    "body_hash": "9a1c94f40d23966d2edee83f6d8b2502",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_load_snapshot",
+    "args": "",
+    "body_hash": "53c30ab30d619a1d05d65293cd02445c",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_project_node",
+    "args": "p_key text",
+    "body_hash": "8d75b8a46d21ae4aceb14707399174f1",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_reconcile_wallets",
+    "args": "",
+    "body_hash": "f8dc1b5cab7035b0a48ec7bf0c4de21c",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_require_writable",
+    "args": "",
+    "body_hash": "fd9f081b8aae8ea5580f4f80618698b1",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_resource_in_scope",
+    "args": "p_key text, p_owner integer, p_value jsonb, p_selectors jsonb",
+    "body_hash": "b4c7210a821f1b76d8da86a0d5a65880",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_reward_audit_source",
+    "args": "",
+    "body_hash": "f1d55dc65084f4e6dcd1fe9a5015bd42",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_scope_keys",
+    "args": "p_category text, p_owner_number integer, p_value jsonb",
+    "body_hash": "9fb03623f50f41a812517b39bd3bf45b",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_set_maintenance",
+    "args": "p_maintenance boolean, p_active boolean",
+    "body_hash": "2c998be8e453227ce72b8e8659e500d9",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_validate_scope",
+    "args": "p_scope jsonb",
+    "body_hash": "eafc153196fd70965ca92836ce73a011",
+    "anon_execute": false,
+    "authenticated_execute": false
+  },
+  {
+    "proname": "storage_write_resource",
+    "args": "p_resource_key text, p_category text, p_owner_number integer, p_value jsonb",
+    "body_hash": "1bda04b9dd620ce83b111fe8abbaf376",
+    "anon_execute": false,
+    "authenticated_execute": false
+  }
+]

@@ -16,6 +16,9 @@ const validDate = (dateKey: string): boolean => {
 };
 const validTime = (value: string | null): value is string => value !== null && Number.isFinite(Date.parse(value));
 const validPeriod = (period: string): boolean => validDate(period) || /^\d{4}-(?:0[1-9]|[1-4]\d|5[0-3])$/.test(period);
+// Historical policy changes: c07aec1 (basic 10 → 5), 4db0168 (baseball first tier 15 → 20).
+const SUDOKU_BASIC_REWARD_CHANGED_AT = Date.parse('2026-08-20T04:25:07+09:00');
+const BASEBALL_FIRST_REWARD_CHANGED_AT = Date.parse('2026-08-24T01:00:40+09:00');
 
 export const collectActivityRewardExpectations = (settings: Record<string, unknown>): {
   expected: ExpectedReward[];
@@ -64,7 +67,8 @@ export const collectActivityRewardExpectations = (settings: Record<string, unkno
     const legacyId = `sudoku-reward-${puzzle.id}`;
     const id = validDate(period) ? legacyId : `sudoku-reward-${getSudokuWeeklyMissionId(studentNumber, period)}`;
     if (expected.has(`${studentNumber}:${id}`)) continue;
-    add('sudoku', studentNumber, period, SUDOKU_REWARDS[difficulty], id, id === legacyId ? [id] : [id, legacyId]);
+    const reward = difficulty === 'basic' && Date.parse(entry.completedAt ?? '') < SUDOKU_BASIC_REWARD_CHANGED_AT ? 10 : SUDOKU_REWARDS[difficulty];
+    add('sudoku', studentNumber, period, reward, id, id === legacyId ? [id] : [id, legacyId]);
   }
 
   for (const [key, entry] of Object.entries(normalizeStudentNumberBaseballProgress(settings.studentNumberBaseball))) {
@@ -72,7 +76,7 @@ export const collectActivityRewardExpectations = (settings: Record<string, unkno
     const studentNumber = Number(studentKey);
     if (!validPeriod(period) || !validTime(entry.completedAt)) continue;
     if (getNumberBaseballStatus(entry, createNumberBaseballAnswer(studentNumber, period)) !== 'completed') continue;
-    const amount = getNumberBaseballReward(entry.attempts.length);
+    const amount = entry.attempts.length <= 5 && Date.parse(entry.completedAt) < BASEBALL_FIRST_REWARD_CHANGED_AT ? 15 : getNumberBaseballReward(entry.attempts.length);
     if (amount !== null) add('baseball', studentNumber, period, amount, `number-baseball-reward-${entry.gameId}`);
   }
 

@@ -1,0 +1,52 @@
+{
+  "project": "prj_dfZ8BXVJW1Ruz2f38sEN9hOHhwVR",
+  "productionId": "dpl_7Wt4aGrKusAY4W8Dajrx4muAhb9g",
+  "domainDeployment": "dpl_7Wt4aGrKusAY4W8Dajrx4muAhb9g",
+  "state": "READY",
+  "sha": "98c14b58f53dc98dfe63089b2095fe25342c879d",
+  "url": "school-timer-o08hzf4qt-onedot9191s-projects.vercel.app",
+  "checks": [
+    {
+      "path": "/",
+      "status": 200,
+      "region": "icn1::wfp4q-1788859561659-9c6761f47635",
+      "cache": "public, max-age=0, must-revalidate"
+    },
+    {
+      "path": "/api/device-session",
+      "status": 401,
+      "region": "icn1::icn1::wfp4q-1788859561691-f779be3e2455",
+      "cache": "no-store",
+      "json": {
+        "error": "DEVICE_REGISTRATION_REQUIRED"
+      }
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 401,
+      "region": "icn1::icn1::5c6z4-1788859561780-c57da9a66ade",
+      "cache": "no-store",
+      "json": {
+        "error": "DEVICE_REGISTRATION_REQUIRED"
+      }
+    },
+    {
+      "path": "/api/save-alerts?audit=rewards",
+      "status": 401,
+      "region": "icn1::icn1::z6k9x-1788859561829-200103acc1b2",
+      "cache": "no-store",
+      "json": {
+        "error": "DEVICE_REGISTRATION_REQUIRED"
+      }
+    },
+    {
+      "path": "/api/student-economy",
+      "status": 401,
+      "region": "icn1::icn1::lzsw4-1788859561879-f21aae75916d",
+      "cache": "no-store",
+      "json": {
+        "error": "DEVICE_REGISTRATION_REQUIRED"
+      }
+    }
+  ]
+}

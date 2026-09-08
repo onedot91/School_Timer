@@ -38,7 +38,8 @@ export const buildRewardAudit = (input: unknown, questions: QuestionAudit = { ex
   for (const reward of [...activities.expected, ...questions.expected]) add(reward);
   for (const row of rows(input.weeklyRewards)) {
     const number = student(row.student_number), period = text(row.week_key), mission = text(row.mission_type), id = weeklyId(number, period, mission);
-    add({ id, studentNumber: number, feature: missionFeature(mission), dateKey: period, amount: amount(row.reward_amount), ledgerIds: [id] });
+    const ledgerIds = mission === 'personal_question' ? [id, `weekly-mission-correction-5-${number}-${period}`] : [id];
+    add({ id, studentNumber: number, feature: missionFeature(mission), dateKey: period, amount: amount(row.reward_amount), ledgerIds });
   }
   for (const row of rows(input.wordEntries)) {
     const number = student(row.student_number), period = text(row.round_date);

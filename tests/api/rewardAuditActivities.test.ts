@@ -9,6 +9,25 @@ const at = '2026-09-08T01:00:00.000Z';
 const story = (id: string, createdAt = at) => ({ id, studentNumber: 3, failure: '실패', lesson: '배움', createdAt });
 const book = (id: string, librarySlot?: number) => ({ id, studentNumber: 3, title: '책', pageCount: 5, createdAt: at, ...(librarySlot === undefined ? {} : { librarySlot }) });
 
+test('과거 게임 완료에는 당시 스도쿠 10과 숫자야구 15 보상 기준을 적용한다', () => {
+  const period = '2026-08-20';
+  const puzzle = createSudokuPuzzle(2, period, 'basic');
+  const completedAt = '2026-08-19T18:55:29Z';
+  const settings = { studentSudoku: { [`2:${period}:basic`]: { puzzleId: puzzle.id, cells: puzzle.solution, completedAt } }, studentNumberBaseball: { [`2:${period}`]: { gameId: getNumberBaseballGameId(2, period), attempts: [{ guess: createNumberBaseballAnswer(2, period), createdAt: completedAt }], completedAt } } };
+  assert.deepEqual(collectActivityRewardExpectations(settings).expected.map(row => row.amount), [10, 15]);
+  settings.studentSudoku[`2:${period}:basic`].completedAt = at;
+  settings.studentNumberBaseball[`2:${period}`].completedAt = at;
+  assert.deepEqual(collectActivityRewardExpectations(settings).expected.map(row => row.amount), [5, 20]);
+  for (const [completedAt, reward] of [['2026-08-19T19:25:06.999Z', 10], ['2026-08-19T19:25:07.000Z', 5]] as const) {
+    settings.studentSudoku[`2:${period}:basic`].completedAt = completedAt;
+    assert.equal(collectActivityRewardExpectations(settings).expected.find(row => row.feature === 'sudoku')?.amount, reward);
+  }
+  for (const [completedAt, reward] of [['2026-08-23T16:00:39.999Z', 15], ['2026-08-23T16:00:40.000Z', 20]] as const) {
+    settings.studentNumberBaseball[`2:${period}`].completedAt = completedAt;
+    assert.equal(collectActivityRewardExpectations(settings).expected.find(row => row.feature === 'baseball')?.amount, reward);
+  }
+});
+
 test('emotion expectations require valid records and all five school weekdays, once per date and week', () => {
   const entries = ['07', '08', '09', '10', '11'].map(day => ({ id: day, studentNumber: 3, dateKey: `2026-09-${day}`, emotionId: 'happy', comment: '즐거움', createdAt: at, updatedAt: at }));
   const { expected } = collectActivityRewardExpectations({ studentEmotionHistory: { 3: [...entries, entries[0], { ...entries[0], dateKey: '2026-02-30' }], 4: entries.slice(0, 4).map(entry => ({ ...entry, studentNumber: 4 })) } });

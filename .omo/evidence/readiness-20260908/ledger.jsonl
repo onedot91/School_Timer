@@ -1,0 +1,6 @@
+{"lane":"goal","sha":"98c14b58f53dc98dfe63089b2095fe25342c879d","verdict":"PASS","report":"/tmp/school-storage-review-evidence/goal.md"}
+{"lane":"code","sha":"98c14b58f53dc98dfe63089b2095fe25342c879d","verdict":"PASS","report":"/tmp/school-storage-review-evidence/code.md"}
+{"lane":"security","sha":"98c14b58f53dc98dfe63089b2095fe25342c879d","verdict":"PASS","report":"/tmp/school-storage-review-evidence/security.md"}
+{"lane":"qa","sha":"98c14b58f53dc98dfe63089b2095fe25342c879d","verdict":"PASS","report":"/tmp/school-storage-review-evidence/qa.md"}
+{"lane":"context","sha":"98c14b58f53dc98dfe63089b2095fe25342c879d","verdict":"PASS","report":"/tmp/school-storage-review-evidence/context.md"}
+{"lane":"debugging-runtime-and-evidence","sha":"98c14b58f53dc98dfe63089b2095fe25342c879d","verdict":"PASS","report":"/tmp/school-storage-review-evidence/final-check-complete.md"}

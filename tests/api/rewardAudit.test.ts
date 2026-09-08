@@ -4,6 +4,21 @@ import { buildRewardAudit } from '../../src/server/rewardAuditRepository.js';
 import { splitStorageState } from '../../src/lib/storageV2Codec.js';
 
 const source = () => ({ checkedAt: '2026-09-08T06:00:00Z', snapshot: { ...splitStorageState({ currencyBalances: { 17: 335 }, currencyHistory: {} }), revisions: {}, updated_at: '2026-09-08T06:00:00Z' }, walletMismatches: [], weeklyRewards: [], wordEntries: [], quizCompletions: [], friendSubmissions: [], friendRewards: [] });
+test('개인 질문 기본 10과 동일 학생·주차의 추가 5 지급을 합산한다', () => {
+  const history = [
+    { id: 'weekly-mission-17-2026-36', studentNumber: 17, delta: 10 },
+    { id: 'weekly-mission-correction-5-17-2026-36', studentNumber: 17, delta: 5 },
+    { id: 'weekly-mission-correction-5-17-2026-35', studentNumber: 17, delta: 5 },
+  ];
+  const input = { ...source(), weeklyRewards: [{ student_number: 17, week_key: '2026-36', mission_type: 'personal_question', reward_amount: 15 }], snapshot: { ...splitStorageState({ currencyBalances: { 17: 335 }, currencyHistory: { 17: history } }), revisions: {}, updated_at: '2026-09-08T06:00:00Z' } };
+  assert.deepEqual(buildRewardAudit(input).issues, []);
+  const withoutCorrection = { ...input, snapshot: { ...splitStorageState({ currencyBalances: { 17: 335 }, currencyHistory: { 17: history.filter(item => item.id !== 'weekly-mission-correction-5-17-2026-36') } }), revisions: {}, updated_at: '2026-09-08T06:00:00Z' } };
+  assert.equal(buildRewardAudit(withoutCorrection).issues[0].paidAmount, 10);
+  const missing = Array.from({ length: 6 }, (_, index) => ({ student_number: index + 1, week_key: '2026-29', mission_type: 'personal_question', reward_amount: 5 }));
+  const report = buildRewardAudit({ ...input, weeklyRewards: [...input.weeklyRewards, ...missing] });
+  assert.deepEqual(report.issues.map(issue => issue.id).sort(), missing.map(row => `weekly-mission-${row.student_number}-2026-29`).sort());
+  assert.ok(report.issues.every(issue => issue.paidAmount === 0 && issue.expectedAmount === 5));
+});
 test('지급 표식 +6은 실제 원장 지급을 대신하지 않으며 정답 중복은 하루 한 번만 센다', () => {
   const input = { ...source(), weeklyRewards: [{ student_number: 17, week_key: '2026-09-08', mission_type: 'classword_quiz_correct', reward_amount: 6 }], quizCompletions: [{ student_number: 17, quiz_date: '2026-09-08', id: 'answer1' }, { student_number: 17, quiz_date: '2026-09-08', id: 'answer2' }] };
   const report = buildRewardAudit(input);

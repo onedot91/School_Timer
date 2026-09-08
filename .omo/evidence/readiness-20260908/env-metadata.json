@@ -1,0 +1,59 @@
+[
+  {
+    "key": "STORAGE_PROTOCOL_VERSION",
+    "target": [
+      "production",
+      "preview"
+    ],
+    "type": "plain",
+    "value": "2"
+  },
+  {
+    "key": "DEVICE_SESSION_SECRET",
+    "target": [
+      "preview",
+      "production"
+    ],
+    "type": "sensitive"
+  },
+  {
+    "key": "DEVICE_REGISTRATION_KEY",
+    "target": [
+      "preview",
+      "production"
+    ],
+    "type": "sensitive"
+  },
+  {
+    "key": "SUPABASE_SERVICE_ROLE_KEY",
+    "target": [
+      "preview",
+      "production"
+    ],
+    "type": "sensitive"
+  },
+  {
+    "key": "VITE_YOUTUBE_API_KEY",
+    "target": [
+      "preview",
+      "production"
+    ],
+    "type": "sensitive"
+  },
+  {
+    "key": "VITE_SUPABASE_ANON_KEY",
+    "target": [
+      "preview",
+      "production"
+    ],
+    "type": "sensitive"
+  },
+  {
+    "key": "VITE_SUPABASE_URL",
+    "target": [
+      "preview",
+      "production"
+    ],
+    "type": "sensitive"
+  }
+]

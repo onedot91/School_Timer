@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/src/index.css">
+  <style>
+    body { margin: 0; padding: 24px; background: #eae8e1; }
+    .fixture-grid { display: grid; gap: 24px; }
+    .fixture-control-pane { container-type: inline-size; box-sizing: border-box; padding: 20px; border: 1px solid #c9cec8; background: #f4f2ec; }
+    .fixture-control-pane[data-scenario="narrow"] { width: 395px; }
+    .fixture-control-pane[data-scenario="warning-wide"] { width: 520px; }
+    .fixture-header { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #c9cec8; }
+    .fixture-header time { display: flex; min-width: 0; align-items: baseline; gap: 8px; white-space: nowrap; color: #1d1d1f; }
+    .fixture-header time > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 2rem; font-weight: 800; }
+    .fixture-header time > span:last-child { flex-shrink: 0; color: #77777d; font-size: 1.25rem; font-weight: 600; }
+    .fixture-actions { display: flex; min-width: 0; flex-shrink: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+    .fixture-settings { display: inline-flex; width: 44px; min-height: 44px; align-items: center; justify-content: center; border: 1px solid #c9cec8; border-radius: 12px; background: #f4f2ec; color: #4d6f60; }
+  </style>
+</head>
+<body>
+  <main class="timer-main-shell fixture-grid">
+    <section class="editorial-control-pane fixture-control-pane" data-scenario="narrow" aria-label="좁은 제어 패널">
+      <div class="schedule-panel-header fixture-header">
+        <time datetime="2026-09-08"><span>9월 8일</span><span>화요일</span></time>
+        <div class="schedule-panel-actions fixture-actions">
+          <span class="teacher-save-warning" role="alert"><button type="button" class="teacher-save-warning-trigger">저장 오류 <b>6</b></button></span>
+          <button type="button" class="teacher-save-warning-trigger teacher-reward-audit-trigger" data-warning="true">보상 점검 <b>31</b></button>
+          <button type="button" class="schedule-settings-button fixture-settings" aria-label="설정">설정</button>
+        </div>
+      </div>
+    </section>
+    <section class="editorial-control-pane fixture-control-pane" data-scenario="warning-wide" aria-label="경고가 있는 넓은 제어 패널">
+      <div class="schedule-panel-header fixture-header">
+        <time datetime="2026-09-08"><span>9월 8일</span><span>화요일</span></time>
+        <div class="schedule-panel-actions fixture-actions">
+          <span class="teacher-save-warning" role="alert"><button type="button" class="teacher-save-warning-trigger">저장 오류 <b>6</b></button></span>
+          <button type="button" class="teacher-save-warning-trigger teacher-reward-audit-trigger" data-warning="true">보상 점검 <b>31</b></button>
+          <button type="button" class="schedule-settings-button fixture-settings" aria-label="설정">설정</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
