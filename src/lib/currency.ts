@@ -483,6 +483,21 @@ export const applyTeacherCurrencyDeductionInSettings = (
   };
 };
 
+export const applyTeacherCurrencyDeductionsInSettings = (
+  value: unknown,
+  { studentNumbers, ...deduction }: Omit<Parameters<typeof applyTeacherCurrencyDeductionInSettings>[1], 'studentNumber'> & { studentNumbers: readonly number[] },
+) => {
+  const targets = [...new Set(studentNumbers)];
+  if (targets.length === 0 || targets.some(number => !CURRENCY_STUDENT_NUMBERS.includes(number))) {
+    throw new Error('INVALID_STUDENT_NUMBER');
+  }
+  let nextValue = applyTeacherCurrencyDeductionInSettings(value, { ...deduction, studentNumber: targets[0], requestId: `${deduction.requestId}-${targets[0]}` }).value;
+  for (const studentNumber of targets.slice(1)) {
+    nextValue = applyTeacherCurrencyDeductionInSettings(nextValue, { ...deduction, studentNumber, requestId: `${deduction.requestId}-${studentNumber}` }).value;
+  }
+  return { value: nextValue };
+};
+
 const getDailyEmotionRewardId = (studentNumber: number, dateKey: string) => (
   `daily-emotion-${studentNumber}-${dateKey}`
 );

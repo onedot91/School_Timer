@@ -8,6 +8,7 @@ import {
   AUCTION_MAX_ITEMS_PER_DAY,
   adjustCurrencyBalancesForStudents,
   applyTeacherCurrencyDeductionInSettings,
+  applyTeacherCurrencyDeductionsInSettings,
   applyAuctionAwardToCurrencyState,
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
@@ -399,4 +400,33 @@ test('잔액보다 큰 낙찰과 확정 중 변경된 입찰은 거부한다', (
   }, {
     itemId: 'item-a', winner: 7, amount: 40, awardedAt: '2026-07-14T00:00:00.000Z',
   }), /AUCTION_BID_CHANGED/);
+});
+
+
+test('모둠 차감은 선택한 학생에게 같은 금액과 사유를 한 번씩 적용한다', () => {
+  const initial = { currencyBalances: { 1: 30, 2: 2, 3: 99 }, currencyHistory: {},
+    studentEconomy: { 2: { deposit: 20 } }, studentLife: { letters: [] } };
+  const input = { studentNumbers: [1, 2, 1], amount: 5, teacherReason: '모둠 정리', requestId: 'group-test', createdAt: '2026-09-08T01:00:00.000Z' };
+  const { value } = applyTeacherCurrencyDeductionsInSettings(initial, input);
+  const balances = value.currencyBalances as Record<string, number>;
+  assert.equal(balances['1'], 25);
+  assert.equal(balances['2'], 0);
+  assert.equal(balances['3'], 99);
+  const economy = value.studentEconomy as Record<string, unknown>;
+  assert.equal(normalizeStudentEconomyState(economy['2']).deposit, 17);
+  const letters = (value.studentLife as { letters: Array<{ recipient: number; content: string }> }).letters;
+  assert.deepEqual(letters.map(letter => letter.recipient).sort(), [1, 2]);
+  assert.ok(letters.every(letter => letter.content.includes('모둠 정리')));
+  assert.deepEqual(applyTeacherCurrencyDeductionsInSettings(value, input).value, value);
+  assert.deepEqual(initial.currencyBalances, { 1: 30, 2: 2, 3: 99 });
+});
+
+test('모둠 중 한 명의 자산이 부족하거나 번호가 잘못되면 일부만 차감하지 않는다', () => {
+  const initial = { currencyBalances: { 1: 30, 2: 0 }, studentLife: { letters: [] } };
+  const original = structuredClone(initial);
+  const input = { amount: 5, teacherReason: '모둠 정리', requestId: 'group-rejected' };
+  assert.throws(() => applyTeacherCurrencyDeductionsInSettings(initial, { ...input, studentNumbers: [1, 2] }), /INSUFFICIENT_STUDENT_ASSETS/);
+  assert.throws(() => applyTeacherCurrencyDeductionsInSettings(initial, { ...input, studentNumbers: [1, 24] }), /INVALID_STUDENT_NUMBER/);
+  assert.throws(() => applyTeacherCurrencyDeductionsInSettings(initial, { ...input, studentNumbers: [] }), /INVALID_STUDENT_NUMBER/);
+  assert.deepEqual(initial, original);
 });

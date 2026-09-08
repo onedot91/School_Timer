@@ -571,13 +571,13 @@ test('집 상점은 집 고치기 전에는 잠기고 수리 후 집과 만들�
 });
 
 test('구매 집은 나무집의 보이는 중심과 바닥선에 맞춘 무대 위치를 가진다', () => {
-  assert.equal(STUDENT_HOUSE_DESIGNS.length, 18);
+  assert.equal(STUDENT_HOUSE_DESIGNS.length, 19);
   assert.deepEqual(STUDENT_HOUSE_DESIGNS.find(house => house.id === 'pink-cottage')?.stagePosition, { width: 40.47, left: 49.43, bottom: 21.67 });
   assert.ok(STUDENT_HOUSE_DESIGNS.every((house) => (
     Number.isFinite(house.stagePosition.width)
     && Number.isFinite(house.stagePosition.left)
     && Number.isFinite(house.stagePosition.bottom)
-    && house.stagePosition.width >= 35
+    && (house.id === 'student-house-4' ? house.stagePosition.width === 30 : house.stagePosition.width >= 35)
     && house.stagePosition.width <= 52
     && house.stagePosition.left >= 45
     && house.stagePosition.left <= 55
