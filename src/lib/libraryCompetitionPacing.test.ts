@@ -89,3 +89,27 @@ test('Given no teacher adjustment When rivals compete with modest progress Then 
   assert.equal(steady[0]?.isOurSchool, false)
   assert.equal(projectLibraryCompetition(burst, END)[0]?.isOurSchool, true)
 })
+
+test('Given ten or twenty books per weekday When bursts continue Then the field keeps pace without identical scores', () => {
+  for (const daily of [10, 20]) {
+    for (let seed = 0; seed < 32; seed += 1) {
+      let state = create(`rapid-${seed}`)
+      for (let day = 0; day < 4; day += 1) {
+        for (let book = 0; book < daily; book += 1) {
+          state = appendLibraryCompetitionPlacement(state, { bookId: `${day}-${book}`,
+            at: new Date(Date.parse(START) + day * COMPETITION_DAY + book * 60_000).toISOString() })
+        }
+      }
+      const rows = projectLibraryCompetition(state, '2026-09-04T06:59:00.000Z')
+      const own = rows.find(row => row.isOurSchool)
+      assert.ok(own)
+      assert.equal(own.count, daily * 4)
+      const rivals = rows.filter(row => !row.isOurSchool)
+      const average = rivals.reduce((sum, row) => sum + row.count, 0) / rivals.length
+      assert.ok(average >= own.count * 0.75, `Rivals lag behind at ${daily} daily books: ${seed}`)
+      assert.ok(Math.max(...rivals.map(row => row.count)) >= own.count * 0.85)
+      assert.ok(rivals.every(row => row.count >= own.count * 0.4 && row.count <= own.count + 2))
+      assert.ok(new Set(rivals.map(row => row.count)).size >= 5)
+    }
+  }
+})

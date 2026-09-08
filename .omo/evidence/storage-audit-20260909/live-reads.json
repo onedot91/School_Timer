@@ -1,0 +1,65 @@
+[
+  {
+    "path": "/api/shared-settings",
+    "status": 200,
+    "ms": 850,
+    "patchValid": true,
+    "region": "icn1::icn1::lmjj6-1788889602260-9ac334d79def"
+  },
+  {
+    "path": "/api/shared-settings?libraryCompetition=1",
+    "status": 200,
+    "ms": 239,
+    "patchValid": true,
+    "region": "icn1::icn1::qwvhd-1788889603083-69e683e5d355"
+  },
+  {
+    "path": "/api/shared-settings?libraryCompetitionHistory=1",
+    "status": 200,
+    "ms": 119,
+    "patchValid": null,
+    "region": "icn1::icn1::qwvhd-1788889603311-81756bf32daf"
+  },
+  {
+    "path": "/api/classword",
+    "status": 200,
+    "ms": 751,
+    "patchValid": null,
+    "region": "icn1::icn1::kwzdl-1788889603432-03dce8b11214"
+  },
+  {
+    "path": "/api/classword?quiz=1",
+    "status": 200,
+    "ms": 121,
+    "patchValid": null,
+    "region": "icn1::icn1::4m6px-1788889604183-516997d550a2"
+  },
+  {
+    "path": "/api/today-friend?teacher=1",
+    "status": 200,
+    "ms": 636,
+    "patchValid": null,
+    "region": "icn1::icn1::kwzdl-1788889604301-1a2c98090bc3"
+  },
+  {
+    "path": "/api/save-alerts",
+    "status": 200,
+    "ms": 83,
+    "patchValid": null,
+    "region": "icn1::icn1::qwvhd-1788889604937-6ed55dc8f646",
+    "alertCount": 4,
+    "codes": [
+      "LIBRARY_COMPETITION_NETWORK",
+      "LIBRARY_COMPETITION_NETWORK",
+      "LIBRARY_COMPETITION_NETWORK",
+      "LIBRARY_COMPETITION_NETWORK"
+    ]
+  },
+  {
+    "path": "/api/save-alerts?audit=rewards",
+    "status": 200,
+    "ms": 1910,
+    "patchValid": null,
+    "region": "icn1::icn1::qwvhd-1788889605022-12ed20c4cc59"
+  }
+]

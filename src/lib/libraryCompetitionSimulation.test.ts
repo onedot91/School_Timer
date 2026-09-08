@@ -38,11 +38,12 @@ test('Given placement bursts When less than forty-five business minutes elapsed 
   assert.deepEqual(rivals(empty, '2026-09-01T00:44:59.999Z').map(row => [row.schoolId, row.count, row.reachedAt]), rivals(burst, '2026-09-01T00:44:59.999Z').map(row => [row.schoolId, row.count, row.reachedAt]))
 })
 
-test('Given a fresh hundred-book burst When three business hours pass Then hourly growth cannot jump to catch up', () => {
+test('Given a fresh hundred-book burst When three business hours pass Then delayed responses catch up within school ceilings', () => {
   const state = create('burst', 100)
-  const initial = rivals(state, START)
   const later = rivals(state, '2026-09-01T03:00:00.000Z')
-  assert.ok(later.every(row => row.count - (initial.find(first => first.schoolId === row.schoolId)?.count ?? 0) <= 4))
+  assert.ok(Math.max(...later.map(row => row.count)) >= 80)
+  assert.ok(later.every(row => row.count <= 100))
+  assert.equal(own(state, '2026-09-01T03:00:00.000Z')?.count, 100)
 })
 
 test('Given a weekday closing When night and weekend pass Then rival scores freeze', () => {

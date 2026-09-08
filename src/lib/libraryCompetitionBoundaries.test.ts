@@ -70,8 +70,8 @@ test('Given monthly shared seeds When roles are assigned Then four relaxed ten m
   assert.deepEqual(september.filter(row => row.role === 'leader').map(row => row.capOffset).sort(), [1, 2])
   for (const row of september) {
     switch (row.role) {
-      case 'relaxed': assert.ok(row.initial === 0 && row.responseProbability >= 0.15 && row.responseProbability <= 0.30 && row.capRatio >= 0.25 && row.capRatio <= 0.45); break
-      case 'middle': assert.ok(row.initial === 0 && row.responseProbability >= 0.35 && row.responseProbability <= 0.55 && row.capRatio >= 0.50 && row.capRatio <= 0.80); break
+      case 'relaxed': assert.ok(row.initial === 0 && row.responseProbability >= 0.50 && row.responseProbability <= 0.65 && row.capRatio >= 0.65 && row.capRatio <= 0.80); break
+      case 'middle': assert.ok(row.initial === 0 && row.responseProbability >= 0.75 && row.responseProbability <= 0.87 && row.capRatio >= 0.82 && row.capRatio <= 0.95); break
       case 'leader': assert.ok(row.initial === 1 && row.capRatio === 1); break
       default: { const exhaustive: never = row.role; assert.fail(exhaustive) }
     }

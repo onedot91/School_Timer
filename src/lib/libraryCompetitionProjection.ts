@@ -45,7 +45,7 @@ export function projectLibraryCompetition(state: LibraryCompetitionState, at: st
           && competitionRandom(`${state.seasonId}:${state.seed}:rest:${Math.floor(pacedOwnCount / 4)}`) < 0.35
         const cap = Math.min(100, Math.ceil(pacedOwnCount * profile.capRatio) + profile.capOffset,
           profile.role === 'leader' && !resting ? 100 : Math.max(0, pacedOwnCount - 1))
-        if (school.count >= cap || event.at - school.lastGrowthAt < 3_600_000) break
+        if (school.count >= cap || (event.source !== 'response' && event.at - school.lastGrowthAt < 3_600_000)) break
         school.count += 1
         school.reachedAt = eventTime
         school.lastGrowthAt = event.at

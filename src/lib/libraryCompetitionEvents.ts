@@ -30,7 +30,14 @@ export function createLibraryCompetitionEvents(state: LibraryCompetitionState, p
     for (const profile of profiles) {
       const key = `${seed}:${profile.schoolId}:response:${placementIndex}`
       if (competitionRandom(key) >= Math.min(1, profile.responseProbability * settings.speed)) continue
-      const due = addCompetitionBusinessMinutes(at, 45 + Math.floor(competitionRandom(`${key}:delay`) * 136))
+      const schoolDay = `${seed}:${profile.schoolId}:activity:${competitionDayStart(at)}`
+      const interval = 30 + Math.floor(competitionRandom(`${schoolDay}:interval`) * 31)
+      const phase = Math.floor(competitionRandom(`${schoolDay}:phase`) * interval)
+      const ready = addCompetitionBusinessMinutes(at, 45)
+      const minute = Math.floor(ready / COMPETITION_MINUTE)
+      const wait = (phase - minute % interval + interval) % interval
+      const skippedSession = competitionRandom(`${key}:session`) < 0.35 ? interval : 0
+      const due = addCompetitionBusinessMinutes(ready, wait + skippedSession)
       if (due <= end) events.push({ kind: 'growth', at: due, id: key, schoolId: profile.schoolId, order: 2, source: 'response' })
     }
   }
@@ -49,7 +56,7 @@ export function createLibraryCompetitionEvents(state: LibraryCompetitionState, p
           const at = day + (8 * 60 + slot * 120 + 45 + Math.floor(competitionRandom(`${key}:minute`) * 75)) * COMPETITION_MINUTE
           if (at < catchupStart || at > end) continue
           const settings = getLibraryCompetitionSettings(state, new Date(at).toISOString())
-          if (!settings.paused && competitionRandom(key) < Math.min(1, 0.7 * settings.speed)) {
+          if (!settings.paused && competitionRandom(key) < Math.min(1, 0.85 * settings.speed)) {
             events.push({ kind: 'growth', at, id: key, schoolId: profile.schoolId, order: 2, source: 'catchup' })
           }
         }
@@ -58,10 +65,10 @@ export function createLibraryCompetitionEvents(state: LibraryCompetitionState, p
       const at = day + (8 * 60 + Math.floor(competitionRandom(`${key}:minute`) * 480)) * COMPETITION_MINUTE
       if (at < Date.parse(state.startedAt) || at > end) continue
       const settings = getLibraryCompetitionSettings(state, new Date(at).toISOString())
-      const supportInterval = Math.ceil(3 / settings.speed)
+      const supportInterval = Math.ceil(2 / settings.speed)
       const supportOffset = Math.floor(competitionRandom(`${seed}:${profile.schoolId}:support`) * supportInterval)
       const supported = profile.role !== 'leader' && businessDay % supportInterval === supportOffset
-      if (!settings.paused && (supported || competitionRandom(key) < 0.5 * settings.speed)) {
+      if (!settings.paused && (supported || competitionRandom(key) < 0.65 * settings.speed)) {
         events.push({ kind: 'growth', at, id: key, schoolId: profile.schoolId, order: 2, source: 'passive' })
       }
     }
