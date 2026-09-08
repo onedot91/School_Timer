@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
-export default function StudentCharacterStage({ children, lookBackProbability = .8 }: { children: ReactNode; lookBackProbability?: number }) {
+export default function StudentCharacterStage({ children, lookBackProbability = .4 }: { children: ReactNode; lookBackProbability?: number }) {
   const stage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = stage.current;
@@ -39,7 +39,7 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
           if (active.has(a.node) || active.has(b.node) || greeted.has(a.node) || greeted.has(b.node)) continue;
           const [left, right] = a.box.x < b.box.x ? [a, b] : [b, a];
           const distance = right.box.x + right.box.width / 2 - left.box.x - left.box.width / 2;
-          const sameLevel = Math.abs(a.box.bottom - b.box.bottom) < Math.min(a.box.height, b.box.height) * .4;
+          const sameLevel = a.node.dataset.walkLane !== undefined && a.node.dataset.walkLane === b.node.dataset.walkLane;
           if (left.node.dataset.direction !== 'right' || right.node.dataset.direction !== 'left' || !sameLevel) continue;
           if (left.box.x < 0 || right.box.right > innerWidth || distance > (a.box.width + b.box.width) * .6) continue;
           if (encounters.get(a.node)?.has(b.node)) continue;

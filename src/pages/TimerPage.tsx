@@ -3774,6 +3774,7 @@ function StudentCharacterShowcase({
         if (event.target === event.currentTarget && event.animationName === 'studentCharacterWalkAcross') onWalkComplete();
       }}
       data-direction={direction}
+      data-walk-lane={lane}
       aria-label={`${modeLabel} 자캐`}
       style={frameStyle}
     >

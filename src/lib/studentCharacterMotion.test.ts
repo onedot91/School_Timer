@@ -70,3 +70,11 @@ test('캐릭터는 화면 안에서 페이드하지 않고 이동 완료 후 교
   assert.match(timerPage, /event\.target === event\.currentTarget && event\.animationName === 'studentCharacterWalkAcross'/);
   assert.doesNotMatch(timerPage, /animationDelaySeconds: -\(shiftedElapsedSeconds/);
 });
+
+test('인사 높이는 이미지 크기가 아닌 같은 이동 경로로 판단한다', () => {
+  const stage = readFileSync(new URL('../components/teacher/StudentCharacterStage.tsx', import.meta.url), 'utf8');
+  assert.match(timerPage, /data-walk-lane=\{lane\}/);
+  assert.match(stage, /a\.node\.dataset\.walkLane !== undefined && a\.node\.dataset\.walkLane === b\.node\.dataset\.walkLane/);
+  assert.doesNotMatch(stage, /Math\.abs\(a\.box\.bottom - b\.box\.bottom\)/);
+  assert.match(stage, /left\.node\.dataset\.direction !== 'right' \|\| right\.node\.dataset\.direction !== 'left' \|\| !sameLevel/);
+});
