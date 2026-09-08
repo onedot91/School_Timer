@@ -92,3 +92,25 @@ test('removing a awarded auction item refunds it with a compensating entry and p
   assert.ok(Array.isArray(saved.auctionArchives));
   assert.equal(saved.auctionArchives.length, 1);
 });
+
+test('auction settings survive JSON object key reordering and legacy omitted defaults', () => {
+  const raw = [{ name: '공책', dayIndex: 0, id: 'item-a' }];
+  const base = { auctionItems: normalizeAuctionItems(raw) };
+  const after = { auctionItems: base.auctionItems.map(item => item.id === 'item-a' ? { ...item, name: '새 공책' } : item) };
+  const changes = createTeacherSettingsChanges(base, after);
+  const stored = assembleStorageState(splitStorageState({ auctionItems: raw }));
+  const saved = apply(stored, 'teacher.settings.patch', { changes }).value;
+  assert.equal(normalizeAuctionItems(saved.auctionItems)[0].name, '새 공책');
+  const reordered = JSON.parse(JSON.stringify(after, (_key, value) => value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value).reverse()) : value));
+  assert.deepEqual(createTeacherSettingsChanges(after, reordered), []);
+  assert.deepEqual(apply(reordered, 'teacher.settings.patch', { changes }).value.auctionItems, after.auctionItems);
+  const concurrent = { auctionItems: base.auctionItems.map(item => item.id === 'item-a' ? { ...item, name: '다른 기기 물품' } : item) };
+  assert.throws(() => apply(concurrent, 'teacher.settings.patch', { changes }), /TEACHER_SETTING_CONFLICT/);
+});
+
+test('initial auction configuration can be created from an absent storage field', () => {
+  const after = { auctionItems: normalizeAuctionItems([{ id: 'item-a', dayIndex: 0, name: '공책' }]) };
+  const saved = apply({}, 'teacher.settings.patch', { changes: createTeacherSettingsChanges({}, after) });
+  assert.deepEqual(saved.value.auctionItems, after.auctionItems);
+});

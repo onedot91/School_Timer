@@ -1,3 +1,5 @@
+import { canonicalStorageJson } from './storageV2Codec.js';
+
 export const TEACHER_SETTING_FIELDS = [
   'weeklySchedule', 'weeklySubjects', 'subjectCatalog', 'scheduleNotice', 'scheduleNoticeHighlights',
   'isNoticeEnabled', 'scheduleClockOffsetSeconds', 'scheduleYoutubeUrls', 'scheduleYoutubeFavorites',
@@ -37,7 +39,7 @@ export const selectTeacherSettings = (value: unknown): Record<string, unknown> =
 export const createTeacherSettingsChanges = (base: unknown, value: unknown): TeacherSettingChange[] => {
   const previous = selectTeacherSettings(base);
   const next = selectTeacherSettings(value);
-  return Object.keys(next).filter(field => JSON.stringify(previous[field]) !== JSON.stringify(next[field]))
+  return Object.keys(next).filter(field => canonicalStorageJson(previous[field] ?? null) !== canonicalStorageJson(next[field] ?? null))
     .map(field => ({ field, before: previous[field] ?? null, after: next[field] }));
 };
 

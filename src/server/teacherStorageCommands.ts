@@ -1,3 +1,4 @@
+import { canonicalStorageJson } from '../lib/storageV2Codec.js';
 import {
   AUCTION_ITEM_IDS, CURRENCY_BALANCE_MAX, CURRENCY_STUDENT_NUMBERS, DEFAULT_CURRENCY_BALANCE,
   appendCurrencyHistoryEntry, applyTeacherCurrencyDeductionsInSettings, clampCurrencyBalance,
@@ -56,8 +57,12 @@ export const applyTeacherStorageCommand = (
     const changes: TeacherSettingChange[] = payload.changes.map(change => {
       if (!isStorageRecord(change) || typeof change.field !== 'string' || !allowed.has(change.field)
         || !('before' in change) || !('after' in change)) return invalid();
-      if (JSON.stringify(present[change.field] ?? null) !== JSON.stringify(change.before)
-        && JSON.stringify(present[change.field]) !== JSON.stringify(change.after)) {
+      const currentField = present[change.field] ?? null;
+      const expectedValues = [canonicalStorageJson(change.before), canonicalStorageJson(change.after)];
+      const matchesCurrent = expectedValues.includes(canonicalStorageJson(currentField));
+      const matchesAuctionDefaults = change.field === 'auctionItems'
+        && expectedValues.includes(canonicalStorageJson(normalizeAuctionItems(currentField)));
+      if (!matchesCurrent && !matchesAuctionDefaults) {
         throw new TeacherStorageCommandError('TEACHER_SETTING_CONFLICT', 409);
       }
       return { field: change.field, before: change.before, after: change.after };
