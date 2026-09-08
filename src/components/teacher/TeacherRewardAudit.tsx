@@ -40,6 +40,7 @@ export default function TeacherRewardAudit() {
   const issues = (report?.issues ?? []).filter(issue => student === 'all' || String(issue.studentNumber) === student);
   const wallets = (report?.walletMismatches ?? []).filter(item => student === 'all' || String(item.studentNumber) === student);
   const refresh = () => { manualRequest.current?.abort(); const request = new AbortController(); manualRequest.current = request; void refreshRef.current(request.signal); };
+  if (count === 0 && !error && !isOpen) return null;
   return <>
     <button ref={returnFocusRef} className="teacher-save-warning-trigger teacher-reward-audit-trigger" data-warning={count > 0 || !!error} type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" aria-label={count > 0 ? `보상 점검 확인 필요 ${count}건` : '보상 점검'}>
       <ClipboardCheck size={18} aria-hidden="true" /><span>보상 점검</span>{count > 0 ? <b>{count}</b> : null}{error ? <span>!</span> : null}

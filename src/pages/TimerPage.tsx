@@ -7954,7 +7954,7 @@ export default function TimerPage() {
       ? activeSlotIndex
       : nextSlotIndex !== -1
         ? nextSlotIndex
-        : currentDaySchedule.length - 1;
+        : currentDaySchedule.length > 0 ? 0 : -1;
 
   useEffect(() => {
     if (
@@ -7993,7 +7993,14 @@ export default function TimerPage() {
     const nodeTop = node.offsetTop;
     const targetTop = nodeTop - (list.clientHeight - node.offsetHeight) / 2;
     const maxTop = Math.max(0, list.scrollHeight - list.clientHeight);
-    const nextScrollTop = Math.min(Math.max(0, targetTop), maxTop);
+    const boundedTop = Math.min(Math.max(0, targetTop), maxTop);
+    const paddingTop = Number.parseFloat(getComputedStyle(list).paddingTop) || 0;
+    const alignedTop = Array.from(list.children).reduce((top, row) => {
+      if (!(row instanceof HTMLElement)) return top;
+      const rowTop = Math.max(0, row.offsetTop - paddingTop);
+      return rowTop <= boundedTop ? Math.max(top, rowTop) : top;
+    }, 0);
+    const nextScrollTop = nodeTop + node.offsetHeight <= alignedTop + list.clientHeight ? alignedTop : boundedTop;
     if (Math.abs(list.scrollTop - nextScrollTop) < 4) return;
 
     list.scrollTo({

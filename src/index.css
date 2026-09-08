@@ -28555,26 +28555,22 @@ body {
   outline: 3px solid var(--apple-focus); outline-offset: 3px;
 }
 
-.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) {
+.timer-main-shell .schedule-panel-header:has(.teacher-save-warning),
+.timer-main-shell .schedule-panel-header:has(.teacher-reward-audit-trigger[data-warning="true"]) {
   align-items: flex-start;
   flex-wrap: wrap;
 }
 
 .timer-main-shell .schedule-panel-header:has(.teacher-save-warning) > time,
-.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) .schedule-panel-actions {
+.timer-main-shell .schedule-panel-header:has(.teacher-save-warning) .schedule-panel-actions,
+.timer-main-shell .schedule-panel-header:has(.teacher-reward-audit-trigger[data-warning="true"]) > time,
+.timer-main-shell .schedule-panel-header:has(.teacher-reward-audit-trigger[data-warning="true"]) .schedule-panel-actions {
   flex-basis: 100%;
 }
 
-@container (max-width: 28rem) {
-  .timer-main-shell .schedule-panel-header {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .timer-main-shell .schedule-panel-header > time,
-  .timer-main-shell .schedule-panel-header .schedule-panel-actions {
-    flex-basis: 100%;
-  }
+.timer-main-shell .schedule-scroll-stack {
+  margin-top: 0.5rem;
+  scroll-padding-top: 0.5rem;
 }
 
 .timer-main-shell .schedule-panel-actions > button,
