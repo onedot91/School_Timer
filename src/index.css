@@ -8897,25 +8897,9 @@ h3 {
 @keyframes studentCharacterWalkAcross {
   0% {
     transform: translate3d(var(--student-character-walk-start), 0, 0) translateX(-50%);
-    opacity: 0;
-    filter: blur(4px);
-  }
-  16.5% {
-    opacity: 0;
-    filter: blur(4px);
-  }
-  19.5%, 80.5% {
-    opacity: 1;
-    filter: blur(0);
-  }
-  83.5% {
-    opacity: 0;
-    filter: blur(4px);
   }
   100% {
     transform: translate3d(var(--student-character-walk-end), 0, 0) translateX(-50%);
-    opacity: 0;
-    filter: blur(4px);
   }
 }
 
@@ -16873,13 +16857,13 @@ a[href]:active {
   .timer-main-shell .student-character-showcase {
     --student-character-main-left: 0dvw;
     --student-character-main-right: 100dvw;
-    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
-    --student-character-walk-end: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size)) !important;
+    --student-character-walk-end: calc(var(--student-character-main-right) + var(--student-character-walk-size)) !important;
   }
 
   .timer-main-shell .student-character-walk-left {
-    --student-character-walk-start: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
-    --student-character-walk-end: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-start: calc(var(--student-character-main-right) + var(--student-character-walk-size)) !important;
+    --student-character-walk-end: calc(var(--student-character-main-left) - var(--student-character-walk-size)) !important;
   }
 
   .timer-main-shell .editorial-control-pane {
@@ -16921,14 +16905,14 @@ a[href]:active {
     --student-character-depth-end: 49000 !important;
     --student-character-main-left: 0dvw;
     --student-character-main-right: 100dvw;
-    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
-    --student-character-walk-end: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-start: calc(var(--student-character-main-left) - var(--student-character-walk-size)) !important;
+    --student-character-walk-end: calc(var(--student-character-main-right) + var(--student-character-walk-size)) !important;
     --student-character-ground-clearance: clamp(0.75rem, 2.5dvh, 1.5rem);
   }
 
   .timer-main-shell .student-character-walk-left {
-    --student-character-walk-start: calc(var(--student-character-main-right) + var(--student-character-walk-size) / 2) !important;
-    --student-character-walk-end: calc(var(--student-character-main-left) - var(--student-character-walk-size) / 2) !important;
+    --student-character-walk-start: calc(var(--student-character-main-right) + var(--student-character-walk-size)) !important;
+    --student-character-walk-end: calc(var(--student-character-main-left) - var(--student-character-walk-size)) !important;
   }
 
   .timer-main-shell .editorial-control-pane {

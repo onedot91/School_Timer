@@ -8,7 +8,7 @@ test('알림장 작성 중에는 이동하는 학생 캐릭터를 만들지 않�
 
   // When
   const visibilityCondition = source.match(
-    /const canShowStudentCharacter\s*=([\s\S]*?);\n\s*const studentCharacterElapsedSeconds/,
+    /const canShowStudentCharacter\s*=([\s\S]*?);/,
   )?.[1] ?? '';
 
   // Then
@@ -21,7 +21,7 @@ test('안내 화면이 떠 있는 동안에는 이동하는 학생 캐릭터를 
 
   // When
   const visibilityCondition = source.match(
-    /const canShowStudentCharacter\s*=([\s\S]*?);\n\s*const studentCharacterElapsedSeconds/,
+    /const canShowStudentCharacter\s*=([\s\S]*?);/,
   )?.[1] ?? '';
 
   // Then

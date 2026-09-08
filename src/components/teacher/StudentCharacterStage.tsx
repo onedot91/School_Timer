@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
-export default function StudentCharacterStage({ children, lookBackProbability = .1 }: { children: ReactNode; lookBackProbability?: number }) {
+export default function StudentCharacterStage({ children, lookBackProbability = .8 }: { children: ReactNode; lookBackProbability?: number }) {
   const stage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = stage.current;
@@ -46,7 +46,7 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
           const partners = encounters.get(a.node) ?? new WeakSet<HTMLElement>();
           partners.add(b.node);
           encounters.set(a.node, partners);
-          if (Math.random() >= .3) continue;
+          if (Math.random() >= .9) continue;
           for (const { node } of [left, right]) {
             greeted.add(node);
             node.dataset.greetingSpeaker = 'true';

@@ -61,3 +61,12 @@ test('동작 줄이기 PC에서도 캐릭터 걸음의 자연스러운 높낮이
       > reducedMotionPreferences.indexOf('animation-duration: 0.01ms !important'),
   );
 });
+
+test('캐릭터는 화면 안에서 페이드하지 않고 이동 완료 후 교체한다', () => {
+  const across = css.match(/@keyframes studentCharacterWalkAcross \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  assert.ok(across.includes('--student-character-walk-start'));
+  assert.ok(across.includes('--student-character-walk-end'));
+  assert.doesNotMatch(across, /opacity:|filter:/);
+  assert.match(timerPage, /event\.target === event\.currentTarget && event\.animationName === 'studentCharacterWalkAcross'/);
+  assert.doesNotMatch(timerPage, /animationDelaySeconds: -\(shiftedElapsedSeconds/);
+});

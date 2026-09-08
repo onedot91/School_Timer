@@ -3651,6 +3651,7 @@ const STUDENT_CHARACTER_WALK_PATHS = [
 
 interface StudentCharacterWalker {
   renderKey: string;
+  streamIndex: number;
   character: StudentCharacter;
   direction: 'left' | 'right';
   path: (typeof STUDENT_CHARACTER_WALK_PATHS)[number];
@@ -3708,6 +3709,7 @@ function StudentCharacterShowcase({
   spawnScale,
   shouldSpeak,
   onImageError,
+  onWalkComplete,
 }: {
   character: StudentCharacter;
   timerType: TimerType;
@@ -3717,6 +3719,7 @@ function StudentCharacterShowcase({
   spawnScale: number;
   shouldSpeak: boolean;
   onImageError: (characterId: string) => void;
+  onWalkComplete: () => void;
 }) {
   const [initialAnimationDelaySeconds] = useState(animationDelaySeconds);
   const modeLabel =
@@ -3763,6 +3766,9 @@ function StudentCharacterShowcase({
     <div
       key={character.id}
       className={`student-character-showcase student-character-walk-${direction}`}
+      onAnimationEnd={(event) => {
+        if (event.target === event.currentTarget && event.animationName === 'studentCharacterWalkAcross') onWalkComplete();
+      }}
       data-direction={direction}
       aria-label={`${modeLabel} 자캐`}
       style={frameStyle}
@@ -7904,40 +7910,22 @@ export default function TimerPage() {
     !isAnnouncementOpen &&
     !isCurrencyPanelOpen &&
     !showTimerNotification;
-  const studentCharacterElapsedSeconds =
-    activeScheduleSlot && activeScheduleSlot.type === timerType && canShowStudentCharacter
-      ? Math.max(0, currentScheduleSecondsOfDay - activeScheduleSlot.start * 60)
-      : currentScheduleSecondsOfDay;
+  const [studentCharacterWalkCycles, setStudentCharacterWalkCycles] = useState([0, 0]);
   const getStudentCharacterWalker = (
-    elapsedSeconds: number,
-    offsetSeconds: number,
     streamIndex: number,
-    excludedCharacterId?: string,
   ): StudentCharacterWalker | null => {
     if (!canShowStudentCharacter) return null;
     if (streamIndex > 0 && visibleStudentCharacters.length === 1) return null;
 
-    const shiftedElapsedSeconds = Math.max(0, elapsedSeconds + offsetSeconds);
-    const walkCycle = Math.floor(shiftedElapsedSeconds / STUDENT_CHARACTER_WALK_SECONDS);
+    const walkCycle = studentCharacterWalkCycles[streamIndex];
     const spawnOrder = walkCycle * 2 + streamIndex;
     const characterRoundIndex = Math.floor(spawnOrder / visibleStudentCharacters.length);
-    let characterIndex = spawnOrder % visibleStudentCharacters.length;
+    const characterIndex = spawnOrder % visibleStudentCharacters.length;
     const roundCharacters = getShuffledStudentCharacters(
       visibleStudentCharacters,
       `${studentCharacterOrderSeed}:round-${characterRoundIndex}`,
     );
-    let character = roundCharacters[characterIndex];
-    if (character?.id === excludedCharacterId) {
-      for (let candidateOffset = 1; candidateOffset < roundCharacters.length; candidateOffset += 1) {
-        const candidateIndex = (characterIndex + candidateOffset) % roundCharacters.length;
-        const candidate = roundCharacters[candidateIndex];
-        if (candidate && candidate.id !== excludedCharacterId) {
-          characterIndex = candidateIndex;
-          character = candidate;
-          break;
-        }
-      }
-    }
+    const character = roundCharacters[characterIndex];
     if (!character) return null;
     const pathIndex = (spawnOrder * 3 + characterIndex * 2) % STUDENT_CHARACTER_WALK_PATHS.length;
     const shouldSpeak =
@@ -7947,21 +7935,17 @@ export default function TimerPage() {
     const renderKey = `${streamIndex}-${walkCycle}-${characterIndex}-${character.id}`;
     return {
       renderKey,
+      streamIndex,
       character,
       direction: spawnOrder % 2 === 0 ? 'right' : 'left',
       path: STUDENT_CHARACTER_WALK_PATHS[pathIndex],
-      animationDelaySeconds: -(shiftedElapsedSeconds % STUDENT_CHARACTER_WALK_SECONDS),
+      animationDelaySeconds: streamIndex > 0 && walkCycle === 0 ? STUDENT_CHARACTER_WALK_SECONDS / 2 : 0,
       spawnScale: getStudentCharacterSpawnScale(renderKey),
       shouldSpeak,
     };
   };
-  const primaryStudentCharacterWalker = getStudentCharacterWalker(studentCharacterElapsedSeconds, 0, 0);
-  let secondaryStudentCharacterWalker = getStudentCharacterWalker(
-    studentCharacterElapsedSeconds,
-    STUDENT_CHARACTER_WALK_SECONDS / 2,
-    1,
-    primaryStudentCharacterWalker?.character.id,
-  );
+  const primaryStudentCharacterWalker = getStudentCharacterWalker(0);
+  let secondaryStudentCharacterWalker = getStudentCharacterWalker(1);
   if (primaryStudentCharacterWalker?.shouldSpeak && secondaryStudentCharacterWalker?.shouldSpeak) {
     secondaryStudentCharacterWalker = {
       ...secondaryStudentCharacterWalker,
@@ -10975,6 +10959,7 @@ export default function TimerPage() {
                     spawnScale={walker.spawnScale}
                     shouldSpeak={walker.shouldSpeak}
                     onImageError={markStudentCharacterFailed}
+                    onWalkComplete={() => setStudentCharacterWalkCycles((cycles) => cycles.map((cycle, index) => index === walker.streamIndex ? cycle + 1 : cycle))}
                   />
                 </React.Fragment>
               ))}

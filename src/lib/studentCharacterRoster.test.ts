@@ -38,7 +38,7 @@ test('교사 캐릭터 카드에는 자캐 이름을 표시하지 않는다', as
 
 test('추가 캐릭터는 기존 캐릭터와 함께 번호에 연결된다', () => {
   const roster = getStudentCharacterRoster();
-  for (const studentNumber of [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 15, 16, 18, 21, 22, 23]) {
+  for (const studentNumber of [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 15, 16, 18, 21, 22, 23]) {
     assert.equal(roster.find((slot) => slot.studentNumber === studentNumber)?.characters.length, 2);
   }
   assert.equal(roster.find((slot) => slot.studentNumber === 17)?.characters.length, 1);

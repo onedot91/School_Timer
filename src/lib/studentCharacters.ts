@@ -335,7 +335,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-17-additional.png',
     alt: '17번 학생이 만든 추가 캐릭터',
     speech: '안뇽하슈아!',
-    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+    walkTransform: { right: 'scaleX(-1)', left: 'none' },
   },
   {
     id: 'student-21-additional',
@@ -435,6 +435,15 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-3-additional.png',
     alt: '3번 학생이 만든 추가 캐릭터',
     speech: '야보~ 야오~ 야오~ 마오~',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
+    id: 'student-13-additional',
+    name: '13번 추가 자캐',
+    creatorName: '13번',
+    imageSrc: '/student-characters/character-13-additional.png',
+    alt: '13번 학생이 만든 고양이 캐릭터',
+    speech: '오예!',
     walkTransform: { right: 'none', left: 'scaleX(-1)' },
   },
   {
