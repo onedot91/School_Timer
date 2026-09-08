@@ -5,6 +5,7 @@ import { classifySaveFailure, parseSaveFailureAlert, parseSaveFailureDiagnostics
 import { collectSaveFailureDiagnostics } from './saveFailureDiagnostics.js';
 import { publishStorageAvailability } from './storageAvailability.js';
 import { captureStorageResponseContext } from './storageResponseOrder.js';
+import { beginSaveProgress } from './saveProgress.js';
 
 export const SAVE_FAILURE_STORAGE_KEY = 'school-timer-save-failures-v1';
 export const SAVE_FAILURE_CHANGE_EVENT = 'school-timer-save-failure-change';
@@ -96,6 +97,7 @@ export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, s
   const storageContext = captureStorageResponseContext();
   const context = captureSaveFailureContext();
   const actor = studentNumber ?? (typeof window === 'undefined' ? undefined : currentActor() ?? undefined);
+  const finishProgress = beginSaveProgress();
   try { return await save(); }
   catch (error) {
     if (publishStorageAvailability(error, storageContext)) throw error;
@@ -106,6 +108,8 @@ export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, s
       })); } catch { return Promise.reject(error); }
     }
     throw error;
+  } finally {
+    finishProgress();
   }
 };
 

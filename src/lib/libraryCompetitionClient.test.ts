@@ -45,3 +45,22 @@ test('uncertain teacher adjustment keeps one protocol v2 request identity until 
   assert.equal(typeof bodies[0].requestId, 'string');
   assert.equal(bodies[0].requestId, bodies[1].requestId);
 });
+
+test('부분 순위 응답은 DB 저장 시각 대신 서버 현재 시각으로 계산한다', async () => {
+  const { createLibraryCompetition, projectLibraryCompetition } = await import('./libraryCompetition.js');
+  const { splitStorageState } = await import('./storageV2Codec.js');
+  const state = createLibraryCompetition({ seasonId: '2026-09', seed: 'clock-regression', startedAt: '2026-09-08T00:00:00.000Z', bookIds: ['fixture-book'] });
+  const value = { libraryCompetition: state };
+  const encoded = splitStorageState(value);
+  const updatedAt = '2026-09-08T00:00:00.40954+00:00';
+  const serverAt = '2026-09-09T03:00:00.000Z';
+  const standings = projectLibraryCompetition(state, serverAt);
+  const client = createLibraryCompetitionClient(deps({ dataMode: 'readonly', fetcher: async () => Response.json({
+    competition: { state, standings, serverAt }, value, updatedAt, rolledOver: false,
+    storagePatch: { ...encoded, revisions: Object.fromEntries(encoded.resources.map(row => [row.resource_key, 1])), historyStudents: [], deletedKeys: [], complete: false },
+  }) }));
+  const result = await client.read('readonly');
+  assert.equal(result.updatedAt, updatedAt);
+  assert.equal(result.competition.serverAt, serverAt);
+  assert.deepEqual(result.competition.standings, standings);
+});

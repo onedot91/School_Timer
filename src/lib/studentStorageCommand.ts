@@ -1,3 +1,4 @@
+import { beginSaveProgress } from './saveProgress.js';
 import { loadStudentEconomyReceipt, retryStudentEconomyRequest, StudentEconomyRequestError, type StudentEconomyApiAction, type StudentEconomyUpdateResult } from './studentEconomyClient.js';
 import { executeStorageCommand, loadStorageCommandReceipt, StorageCommandError } from './storageCommandClient.js';
 import { createStudentSaveDraftStore, type StudentSaveDraftScope } from './studentSaveDraft.js';
@@ -48,41 +49,46 @@ export const clearStudentStorageFormDraft = (studentNumber: number, action: stri
 export const executeStudentStorageCommand = async (
   studentNumber: number, action: string, payload: unknown, entityId = action,
 ) => {
-  const scope = scopeFor(studentNumber, action, entityId), rejectedScope = rejectedScopeFor(scope);
-  const rejected = drafts.load(rejectedScope), prior = drafts.load(scope);
-  if (prior && isPaused(scope, prior.draft.requestId) && canonicalStorageJson(prior.draft.payload) !== canonicalStorageJson(payload)) {
-    drafts.remove(scope, prior.draft.requestId);
-    removeCurrent(pausedScopeFor(scope));
-  }
-  if (rejected && prior && rejected.draft.payload === prior.draft.requestId) {
-    drafts.remove(scope, prior.draft.requestId);
-    drafts.remove(rejectedScope, rejected.draft.requestId);
-  }
-  const saved = drafts.save(scope, payload);
-  if (saved.status === 'invalid') throw new Error('STUDENT_COMMAND_INVALID');
-  if ((saved.status === 'existing' || saved.status === 'payload_changed') && !isPaused(scope, saved.draft.requestId)) {
-    const confirmed = await loadStorageCommandReceipt(saved.draft.requestId);
-    if (confirmed) {
-      drafts.confirm(scope, saved.draft.requestId);
-      if (saved.status === 'payload_changed') return executeStudentStorageCommand(studentNumber, action, payload, entityId);
-      clearStudentStorageFormDraft(studentNumber, action, entityId);
-      return confirmed;
-    }
-  }
-  if (saved.status === 'payload_changed') throw new Error('SAVE_DRAFT_PENDING');
+  const finishProgress = beginSaveProgress();
   try {
-    removeCurrent(pausedScopeFor(scope));
-    const response = await executeStorageCommand({ requestId: saved.draft.requestId, action, payload: saved.draft.payload });
-    drafts.confirm(scope, saved.draft.requestId);
-    clearStudentStorageFormDraft(studentNumber, action, entityId);
-    return response;
-  } catch (error) {
-    if (getStorageAvailability(error)) {
-      drafts.save(pausedScopeFor(scope), saved.draft.requestId);
-    } else if (error instanceof StorageCommandError && !error.uncertainWrite && [400, 403, 404, 422].includes(error.status)) {
-      drafts.save(rejectedScope, saved.draft.requestId);
+    const scope = scopeFor(studentNumber, action, entityId), rejectedScope = rejectedScopeFor(scope);
+    const rejected = drafts.load(rejectedScope), prior = drafts.load(scope);
+    if (prior && isPaused(scope, prior.draft.requestId) && canonicalStorageJson(prior.draft.payload) !== canonicalStorageJson(payload)) {
+      drafts.remove(scope, prior.draft.requestId);
+      removeCurrent(pausedScopeFor(scope));
     }
-    throw error;
+    if (rejected && prior && rejected.draft.payload === prior.draft.requestId) {
+      drafts.remove(scope, prior.draft.requestId);
+      drafts.remove(rejectedScope, rejected.draft.requestId);
+    }
+    const saved = drafts.save(scope, payload);
+    if (saved.status === 'invalid') throw new Error('STUDENT_COMMAND_INVALID');
+    if ((saved.status === 'existing' || saved.status === 'payload_changed') && !isPaused(scope, saved.draft.requestId)) {
+      const confirmed = await loadStorageCommandReceipt(saved.draft.requestId);
+      if (confirmed) {
+        drafts.confirm(scope, saved.draft.requestId);
+        if (saved.status === 'payload_changed') return await executeStudentStorageCommand(studentNumber, action, payload, entityId);
+        clearStudentStorageFormDraft(studentNumber, action, entityId);
+        return confirmed;
+      }
+    }
+    if (saved.status === 'payload_changed') throw new Error('SAVE_DRAFT_PENDING');
+    try {
+      removeCurrent(pausedScopeFor(scope));
+      const response = await executeStorageCommand({ requestId: saved.draft.requestId, action, payload: saved.draft.payload });
+      drafts.confirm(scope, saved.draft.requestId);
+      clearStudentStorageFormDraft(studentNumber, action, entityId);
+      return response;
+    } catch (error) {
+      if (getStorageAvailability(error)) {
+        drafts.save(pausedScopeFor(scope), saved.draft.requestId);
+      } else if (error instanceof StorageCommandError && !error.uncertainWrite && [400, 403, 404, 422].includes(error.status)) {
+        drafts.save(rejectedScope, saved.draft.requestId);
+      }
+      throw error;
+    }
+  } finally {
+    finishProgress();
   }
 };
 

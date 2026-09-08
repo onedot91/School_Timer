@@ -4,7 +4,8 @@ import { CURRENCY_BALANCE_MAX } from '../lib/currency';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { createHousePurchaseLetter, HOUSE_CREATOR_REWARD } from '../lib/studentHouseReward';
 import { reportSaveFailure } from '../lib/saveFailureClient';
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { subscribeSaveProgress, getSaveProgress, getServerSaveProgress } from '../lib/saveProgress';
 import '../classword.css';
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
@@ -1899,7 +1900,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
+  const isSavePending = useSyncExternalStore(subscribeSaveProgress, getSaveProgress, getServerSaveProgress);
   const isStudentActionPending = isLoading
+    || isSavePending
     || isStudentLifeSaving
     || isPetSaving
     || isEconomySaving

@@ -55,6 +55,7 @@ test('학생 화면은 주요 비동기 저장 상태를 연결하고 랜덤 프
 
   assert.ok(pendingStart >= 0);
   assert.match(pendingSource, /isLoading/);
+  assert.match(pendingSource, /isSavePending/);
   assert.match(pendingSource, /isStudentLifeSaving/);
   assert.match(pendingSource, /isPetSaving/);
   assert.match(pendingSource, /isEconomySaving/);

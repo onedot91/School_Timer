@@ -1,0 +1,15 @@
+<div id="root"></div><script type="module">
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import '/src/index.css';
+import {LibraryCompetitionPanel} from '/src/components/student/library/LibraryCompetitionPanel.tsx';
+import {libraryCompetitionClient,createLibraryCompetitionClient} from '/src/lib/libraryCompetitionClient.ts';
+import {createLibraryCompetition,projectLibraryCompetition} from '/src/lib/libraryCompetition.ts';
+import {splitStorageState} from '/src/lib/storageV2Codec.ts';
+const state=createLibraryCompetition({seasonId:'2026-09',seed:'qa',startedAt:'2026-09-08T00:00:00.000Z',bookIds:['qa-book']});
+const value={libraryCompetition:state};const encoded=splitStorageState(value);const serverAt='2026-09-09T03:00:00.000Z';
+const body={competition:{state,standings:projectLibraryCompetition(state,serverAt),serverAt},value,updatedAt:'2026-09-08T00:00:00.40954+00:00',rolledOver:false,storagePatch:{...encoded,revisions:Object.fromEntries(encoded.resources.map(r=>[r.resource_key,1])),historyStudents:[],deletedKeys:[],complete:false}};
+const client=createLibraryCompetitionClient({dataMode:'readonly',isSharedConfigured:true,fetcher:async()=>Response.json(body),localRead:()=>{throw Error('unexpected')},localHistory:()=>({months:[],archive:null}),localSettings:()=>{throw Error('unexpected')},withLocalLock:async f=>f(),invalidate:()=>{}});
+libraryCompetitionClient.read=client.read;
+createRoot(document.getElementById('root')).render(React.createElement(LibraryCompetitionPanel,{onClose:()=>{},onSnapshot:()=>{}}));
+</script>

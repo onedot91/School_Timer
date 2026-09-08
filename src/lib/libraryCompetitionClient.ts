@@ -51,13 +51,16 @@ export const createLibraryCompetitionClient = (dependencies: LibraryCompetitionC
       if (!response.ok) throw new LibraryCompetitionClientError(isCompetitionRecord(value) && typeof value.error === 'string' ? value.error : 'LIBRARY_COMPETITION_NETWORK', response.status);
       let projected = value;
       if (isCompetitionRecord(value) && isCompetitionRecord(value.value) && typeof value.updatedAt === 'string' && 'storagePatch' in value) {
+        const response = parseCompetitionResponse(value);
+        if (!response) throw new LibraryCompetitionClientError('LIBRARY_COMPETITION_INVALID_RESPONSE');
         let storagePatch;
         try { storagePatch = parseStorageProjectionPatch(value.storagePatch); }
         catch { throw new LibraryCompetitionClientError('LIBRARY_COMPETITION_INVALID_RESPONSE'); }
         const accepted = acceptStorageProjection(context, { value: value.value, updatedAt: value.updatedAt, storagePatch });
         const state = parseLibraryCompetitionState(accepted.value.libraryCompetition);
+        const serverAt = new Date(Math.max(Date.parse(response.competition.serverAt), Date.parse(accepted.updatedAt))).toISOString();
         projected = { ...value, value: accepted.value, updatedAt: accepted.updatedAt,
-          competition: { state, standings: state ? projectLibraryCompetition(state, accepted.updatedAt) : [], serverAt: accepted.updatedAt } };
+          competition: { state, standings: state ? projectLibraryCompetition(state, serverAt) : [], serverAt } };
       }
       const parsed = parse(projected);
       if (!parsed) throw new LibraryCompetitionClientError('LIBRARY_COMPETITION_INVALID_RESPONSE');
