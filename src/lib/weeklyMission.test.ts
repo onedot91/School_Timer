@@ -36,6 +36,24 @@ import {
 import { createStudentEmotionEntry, getSchoolWeekDateKeys } from './studentEmotion';
 import { claimDailyWritingRewardInSettings, hasDailyWritingReward } from './dailyWriting';
 
+test('교사 설정 저장은 금액이 달라지는 낱말판 퀴즈 보상을 보존하고 중복 반영하지 않는다', () => {
+  for (let amount = 1; amount <= 10; amount += 1) {
+    const reward = {
+      id: 'weekly-mission-classword_quiz_correct-17-2026-09-08',
+      studentNumber: 17, before: 329, after: 329 + amount, delta: amount,
+      reason: 'weekly_mission', createdAt: '2026-09-08T00:34:16.867Z',
+    };
+    const remote = { currencyBalances: { '17': 329 + amount }, currencyHistory: { '17': [reward] } };
+    const stale = { currencyBalances: { '17': 329 }, currencyHistory: { '17': [] } };
+    const merged = mergeConcurrentCurrencyUpdatesIntoSettings(remote, stale, new Set());
+    assert.equal((merged.currencyBalances as Record<string, number>)['17'], 329 + amount);
+    assert.equal(normalizeCurrencyHistory(merged.currencyHistory)['17'][0]?.id, reward.id);
+    const repeated = mergeConcurrentCurrencyUpdatesIntoSettings(remote, merged, new Set());
+    assert.equal((repeated.currencyBalances as Record<string, number>)['17'], 329 + amount);
+    assert.equal(normalizeCurrencyHistory(repeated.currencyHistory)['17'].length, 1);
+  }
+});
+
 test('Korean ISO week key matches the question site contract', () => {
   assert.equal(getKoreanIsoWeekKey(new Date('2026-07-13T03:25:42.181Z')), '2026-29');
   assert.equal(getKoreanIsoWeekKey(new Date('2027-01-03T14:59:59.000Z')), '2026-53');

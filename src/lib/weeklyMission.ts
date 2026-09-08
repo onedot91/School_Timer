@@ -321,12 +321,7 @@ export const mergeConcurrentCurrencyUpdatesIntoSettings = (
     const existingIds = new Set(nextHistory[studentKey].map((entry) => entry.id));
     const missingRewards = remoteHistory[studentKey].filter((entry) => (
       entry.reason === 'weekly_mission' &&
-      (
-        entry.delta === PERSONAL_QUESTION_WEEKLY_REWARD
-        || entry.delta === FAILURE_EXHIBITION_WEEKLY_REWARD
-        || entry.delta === BOOK_STACK_WEEKLY_REWARD
-        || entry.delta === CLASSWORD_WEEKLY_REWARD
-      ) &&
+      entry.delta > 0 &&
       (knownRewardIds === null || !knownRewardIds.has(entry.id)) &&
       !existingIds.has(entry.id)
     ));
