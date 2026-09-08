@@ -2,6 +2,7 @@
 import { flushSync } from 'react-dom';
 import '../classword.css';
 import { reportSaveFailure } from '../lib/saveFailureClient';
+import { classifySaveFailure } from '../lib/saveFailure';
 import { isReadOnlyDataMode } from '../lib/dataMode';
 import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
@@ -2990,7 +2991,7 @@ function AnnouncementNotebookOverlay({
                       title={hasAwardableAuctionItems ? '해당 날짜 낙찰 발표' : '해당 날짜 낙찰 대기 물품 없음'}
                       aria-label={hasAwardableAuctionItems ? '해당 날짜 낙찰 발표' : '해당 날짜 낙찰 대기 물품 없음'}
                     >
-                      <Trophy size={20} aria-hidden="true" className={hasAwardableAuctionItems ? 'text-white' : 'text-[#8A7A6B]'} />
+                      <Trophy size={20} aria-hidden="true" />
                     </button>
                     <button
                       onMouseDown={(event) => event.preventDefault()}
@@ -3870,6 +3871,12 @@ export default function TimerPage() {
   const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(() => (
     isSupabaseSettingsEnabled ? normalizeAuctionItems(null) : loadStoredStudentPetSnapshot().auctionItems
   ));
+  const auctionItemsRef = useRef(auctionItems);
+  auctionItemsRef.current = auctionItems;
+  const hasUnsavedAuctionItemsRef = useRef(false);
+  const auctionItemsEditVersionRef = useRef(0);
+  const [auctionItemsSaveStatus, setAuctionItemsSaveStatus] = useState<'idle' | 'pending' | 'saved' | 'error'>('idle');
+  const [auctionItemsSaveErrorCode, setAuctionItemsSaveErrorCode] = useState('');
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => (
     isSupabaseSettingsEnabled
       ? normalizeAuctionBids(null, AUCTION_ITEM_IDS)
@@ -4397,6 +4404,7 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (isSettingsOpen && settingsPanel === 'auction') return;
+    isEditingAuctionItemRef.current = false;
     setTemporaryVisibleAuctionItemIds((previous) => (
       previous.size > 0 ? new Set() : previous
     ));
@@ -4585,7 +4593,7 @@ export default function TimerPage() {
     knownAuctionAwardKeysRef.current = getAuctionAwardKeys(remoteSettings.auctionAwards);
     setCurrencyBalances(remoteBalances);
     setCurrencyHistory(remoteHistory);
-    if (!isEditingAuctionItemRef.current) {
+    if (!isEditingAuctionItemRef.current && !hasUnsavedAuctionItemsRef.current) {
       setAuctionItems(normalizeAuctionItems(remoteSettings.auctionItems));
     }
     setAuctionBids(normalizeAuctionBids(remoteSettings.auctionBids, AUCTION_ITEM_IDS));
@@ -4658,7 +4666,7 @@ export default function TimerPage() {
       .finally(() => {
         if (!isCancelled) {
           sharedSettingsHydratedRef.current = true;
-          if (hasUnsavedWeeklySubjectsRef.current || hasUnsavedSubjectCatalogRef.current) {
+          if (hasUnsavedWeeklySubjectsRef.current || hasUnsavedSubjectCatalogRef.current || hasUnsavedAuctionItemsRef.current) {
             setSubjectCatalogEditCommitVersion((previous) => previous + 1);
           }
         }
@@ -4764,8 +4772,17 @@ export default function TimerPage() {
   useEffect(() => {
     if (isSupabaseSettingsEnabled) return;
     const snapshot = loadStoredStudentPetSnapshot();
-    storeStudentPetSnapshot({ ...snapshot, auctionItems });
-  }, [auctionItems]);
+    const stored = storeStudentPetSnapshot({ ...snapshot, auctionItems });
+    if (!hasUnsavedAuctionItemsRef.current) return;
+    if (stored) {
+      hasUnsavedAuctionItemsRef.current = false;
+      setAuctionItemsSaveStatus('saved');
+    } else {
+      reportSaveFailure('settings', 'storage');
+      setAuctionItemsSaveErrorCode('storage');
+      setAuctionItemsSaveStatus('error');
+    }
+  }, [auctionItems, auctionItemEditCommitVersion]);
 
   useEffect(() => {
     const hasBlankDraft = hasBlankAuctionMissionDraft(auctionMissions);
@@ -4840,7 +4857,8 @@ export default function TimerPage() {
     if (
       skipNextSharedSettingsSaveRef.current &&
       !hasUnsavedWeeklySubjectsRef.current &&
-      !hasUnsavedSubjectCatalogRef.current
+      !hasUnsavedSubjectCatalogRef.current &&
+      !hasUnsavedAuctionItemsRef.current
     ) {
       skipNextSharedSettingsSaveRef.current = false;
       return;
@@ -4849,7 +4867,6 @@ export default function TimerPage() {
 
     if (
       isEditingSubjectCatalogRef.current ||
-      isEditingAuctionItemRef.current ||
       isEditingAuctionMissionRef.current
     ) return;
 
@@ -4861,6 +4878,8 @@ export default function TimerPage() {
     sharedSettingsSaveTimeoutRef.current = window.setTimeout(() => {
       sharedSettingsSaveTimeoutRef.current = null;
       const snapshot = buildSharedSettingsSnapshot();
+      const auctionItemsEditVersionAtSave = auctionItemsEditVersionRef.current;
+      if (hasUnsavedAuctionItemsRef.current) setAuctionItemsSaveStatus('pending');
       const savedCurrencyInput = JSON.stringify({
         balances: normalizeCurrencyBalances(snapshot.currencyBalances),
         history: normalizeCurrencyHistory(snapshot.currencyHistory),
@@ -4879,6 +4898,12 @@ export default function TimerPage() {
       })
         .then((updatedAt) => {
           lastSharedSettingsUpdatedAtRef.current = updatedAt;
+          if (hasUnsavedAuctionItemsRef.current
+            && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current
+            && JSON.stringify(savedSnapshot.auctionItems) === JSON.stringify(auctionItemsRef.current)) {
+            hasUnsavedAuctionItemsRef.current = false;
+            setAuctionItemsSaveStatus('saved');
+          }
           const savedWeeklySubjects = normalizeWeeklySubjects(savedSnapshot.weeklySubjects);
           if (JSON.stringify(savedWeeklySubjects) === JSON.stringify(weeklySubjectsRef.current)) {
             hasUnsavedWeeklySubjectsRef.current = false;
@@ -4927,6 +4952,10 @@ export default function TimerPage() {
         })
         .catch((error) => {
           console.error('Failed to save shared settings to Supabase.', error);
+          if (hasUnsavedAuctionItemsRef.current && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current) {
+            setAuctionItemsSaveErrorCode(classifySaveFailure(error) ?? 'unknown');
+            setAuctionItemsSaveStatus('error');
+          }
         })
         .finally(() => {
           isSharedSettingsSavePendingRef.current = false;
@@ -4993,6 +5022,7 @@ export default function TimerPage() {
         isSharedSettingsSavePendingRef.current ||
         hasUnsavedWeeklySubjectsRef.current ||
         hasUnsavedSubjectCatalogRef.current ||
+        hasUnsavedAuctionItemsRef.current ||
         isEditingNoticeRef.current ||
         isEditingSubjectCatalogRef.current ||
         isEditingAuctionItemRef.current ||
@@ -6991,8 +7021,11 @@ export default function TimerPage() {
     const sameDayItemCount = normalizedItems.filter((item) => item.dayIndex === dayIndex).length;
     if (sameDayItemCount >= AUCTION_MAX_ITEMS_PER_DAY) return;
 
-    const nextTemplate = createAuctionItemTemplate(dayIndex, sameDayItemCount);
+    const nextTemplate = Array.from({ length: AUCTION_MAX_ITEMS_PER_DAY }, (_, slotIndex) => createAuctionItemTemplate(dayIndex, slotIndex))
+      .find((template) => !normalizedItems.some((item) => item.id === template.id));
+    if (!nextTemplate) return;
     const addedItemId = nextTemplate.id;
+    markAuctionItemsEdited();
     setAuctionItems(normalizeAuctionItems([...normalizedItems, nextTemplate]));
     setAuctionBids((previous) => ({
       ...previous,
@@ -7011,6 +7044,8 @@ export default function TimerPage() {
   };
 
   const removeAuctionItem = (itemId: string) => {
+    if (auctionItems.length <= 1 || !auctionItems.some((item) => item.id === itemId)) return;
+    markAuctionItemsEdited();
     setAuctionItems((previous) => {
       const normalizedPrevious = normalizeAuctionItems(previous);
       if (normalizedPrevious.length <= 1) return normalizedPrevious;
@@ -7375,12 +7410,14 @@ export default function TimerPage() {
     setPendingAuctionAction(null);
   };
 
+  const markAuctionItemsEdited = () => {
+    hasUnsavedAuctionItemsRef.current = true;
+    auctionItemsEditVersionRef.current += 1;
+    setAuctionItemsSaveStatus('pending');
+  };
+
   const beginAuctionItemEdit = () => {
     isEditingAuctionItemRef.current = true;
-    if (sharedSettingsSaveTimeoutRef.current !== null) {
-      window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
-      sharedSettingsSaveTimeoutRef.current = null;
-    }
   };
 
   const endAuctionItemEdit = () => {
@@ -7390,6 +7427,7 @@ export default function TimerPage() {
   };
 
   const updateAuctionItem = (itemId: string, patch: Pick<AuctionItem, 'name'>) => {
+    markAuctionItemsEdited();
     setAuctionItems((previous) => previous.map((item) => (
       item.id === itemId
         ? {
@@ -10285,6 +10323,13 @@ export default function TimerPage() {
       >
         <div className="mb-4">
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정 및 현황</h3>
+          {auctionItemsSaveStatus !== 'idle' && <div className="mt-2 flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">
+            <span>{auctionItemsSaveStatus === 'error' ? `물품 저장 확인 불가 (${auctionItemsSaveErrorCode}). 다시 저장해 주세요.` : auctionItemsSaveStatus === 'pending' ? '저장 중…' : '저장됨'}</span>
+            {auctionItemsSaveStatus === 'error' && <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => {
+              setAuctionItemsSaveStatus('pending');
+              setAuctionItemEditCommitVersion(previous => previous + 1);
+            }}>다시 저장</button>}
+          </div>}
         </div>
 
         {isAuctionScheduleClosed ? (

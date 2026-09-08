@@ -104,7 +104,12 @@ const fetchJsonOnce = async (input: string, init?: RequestInit) => {
   }
 };
 
-const fetchJson = async (input: string, init?: RequestInit, retryNetwork = false) => {
+const fetchJson = async (
+  input: string,
+  init?: RequestInit,
+  retryNetwork = false,
+  confirmUncertainWrite?: () => Promise<{ updatedAt: string } | undefined>,
+) => {
   const retryLimit = !init?.method || init.method === 'GET' ? 1 : 2;
   let uncertainWrite = false;
   for (let attempt = 0; ; attempt += 1) {
@@ -116,6 +121,10 @@ const fetchJson = async (input: string, init?: RequestInit, retryNetwork = false
         || [502, 503, 504].includes(Reflect.get(error, 'status'));
       uncertainWrite ||= init?.method === 'PUT' && (transient || error.name === 'SyntaxError');
       if (uncertainWrite) Reflect.set(error, 'uncertainWrite', true);
+      if (uncertainWrite && attempt === 0 && confirmUncertainWrite) {
+        const receipt = await confirmUncertainWrite().catch(() => undefined);
+        if (receipt) return receipt;
+      }
       if (!retryNetwork || attempt >= retryLimit || !transient || init?.signal?.aborted
         || Reflect.get(error, 'retryAfterMs') > 3000) throw error;
       const delay = Math.max(250 * 2 ** attempt + Math.random() * 250, Reflect.get(error, 'retryAfterMs') ?? 0);
@@ -293,12 +302,22 @@ export const updateSharedSettings = async (
         const studentUpdate = studentNumber === undefined
           ? null
           : createStudentSettingsUpdate(currentRow?.value, nextValue, studentNumber);
+        const confirmSavedUpdate = async () => {
+          invalidateSharedSettingsCache();
+          const savedRow = await loadWritableSharedSettingsRow();
+          if (typeof savedRow?.updated_at === 'string'
+            && savedRow.updated_at !== currentRow?.updated_at
+            && matchesSavedUpdate(savedRow.value, studentUpdate?.patch ?? nextValue, studentNumber)) {
+            return { updatedAt: savedRow.updated_at };
+          }
+          return undefined;
+        };
         try {
           const result = await fetchJson('/api/shared-settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ value: studentUpdate?.patch ?? nextValue, expectedUpdatedAt: currentRow?.updated_at ?? null }),
-          }, typeof currentRow?.updated_at === 'string') as { updatedAt: string };
+          }, typeof currentRow?.updated_at === 'string', confirmSavedUpdate) as { updatedAt: string };
           if (generation === settingsCacheGeneration) cachedWritableSharedSettingsRow = {
             id: SHARED_SETTINGS_ID,
             value: studentUpdate?.value ?? nextValue,
@@ -308,13 +327,8 @@ export const updateSharedSettings = async (
           return result.updatedAt;
         } catch (error) {
           if (error instanceof Error && Reflect.get(error, 'uncertainWrite')) {
-            invalidateSharedSettingsCache();
-            const savedRow = await loadWritableSharedSettingsRow();
-            if (typeof savedRow?.updated_at === 'string'
-              && savedRow.updated_at !== currentRow?.updated_at
-              && matchesSavedUpdate(savedRow.value, studentUpdate?.patch ?? nextValue, studentNumber)) {
-              return savedRow.updated_at;
-            }
+            const receipt = await confirmSavedUpdate();
+            if (receipt) return receipt.updatedAt;
             throw new Error('SHARED_SETTINGS_SAVE_UNCONFIRMED', { cause: error });
           }
           if (error instanceof Error && Reflect.get(error, 'status') === 409) {

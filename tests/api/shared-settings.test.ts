@@ -1338,7 +1338,7 @@ test('학생 저장 클라이언트는 실제 조회 범위, 연속 저장 캐�
         throw new TypeError('Failed to fetch');
       };
       await assert.rejects(client.updateStudentSharedSettings(7, (value) => value), /Failed to fetch/);
-      assert.equal(failedAttempts, 5, '조건부 저장 3회 후 결과 확인 조회는 2회로 제한한다');
+      assert.equal(failedAttempts, 7, '조건부 저장 3회와 최초·최종 결과 확인 조회 각 2회로 제한한다');
       assert.deepEqual(fake.state(), beforeFailure);
     } finally {
       globalThis.fetch = originalFetch;
@@ -1367,7 +1367,7 @@ test('공유 설정 전송은 불확실한 저장을 한 번만 적용하고 조
       delays.push(delay ?? 0);
       return originalSetTimeout(callback, delay === 45_000 || delay === 12_000 ? 20 : 0);
     });
-    for (const scenario of ['lost', 'mismatch', 'conflict', '502', '503', '504', 'long-retry', 'invalid-receipt', 'request-timeout', 'body-timeout']) {
+    for (const scenario of ['lost', 'mismatch', 'conflict', '502', '503', '504', 'uncommitted-503', 'long-retry', 'invalid-receipt', 'request-timeout', 'body-timeout']) {
       client.invalidateSharedSettingsCache();
       let row = { id: 'school-timer-main', value: { counter: 0, nested: { a: 1, b: 2 } }, updated_at: '2026-09-07T00:00:00.000Z', scope: 'full' };
       let puts = 0;
@@ -1377,6 +1377,9 @@ test('공유 설정 전송은 불확실한 저장을 한 번만 적용하고 조
         assert.equal(String(input), '/api/shared-settings');
         if (init?.method !== 'PUT') return Response.json(row);
         puts += 1;
+        if (puts === 1 && scenario === 'uncommitted-503') {
+          return Response.json({}, { status: 503, headers: { 'Retry-After': '1' } });
+        }
         if (puts === 1 && scenario === 'conflict') {
           row = { ...row, value: { ...row.value, counter: 10 }, updated_at: '2026-09-07T00:00:00.001Z' };
         }
@@ -1411,7 +1414,7 @@ test('공유 설정 전송은 불확실한 저장을 한 번만 적용하고 조
       }
       assert.equal(updaterCalls, scenario === 'conflict' ? 2 : 1, scenario);
       assert.equal(applied, 1, scenario);
-      assert.equal(puts, ['long-retry', 'invalid-receipt'].includes(scenario) ? 1 : 2, scenario);
+      assert.equal(puts, ['mismatch', 'conflict', 'uncommitted-503'].includes(scenario) ? 2 : 1, scenario);
     }
     assert.ok(delays.includes(1000), '짧은 Retry-After를 준수한다');
     assert.ok(delays.every((delay) => delay <= 3000 || delay === 45_000 || delay === 12_000), '긴 Retry-After는 재전송하지 않고 결과를 확인한다');

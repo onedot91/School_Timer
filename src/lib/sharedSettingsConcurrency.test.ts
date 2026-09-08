@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { createServer } from 'vite';
 import { STUDENT_MUTABLE_MAP_FIELDS } from './studentSettingsUpdate.js';
+import { AUCTION_ITEM_IDS, finalizeAuctionAwardInSettings } from './currency.js';
 
 const record = (value: unknown): Record<string, unknown> => {
   assert.ok(value && typeof value === 'object' && !Array.isArray(value));
@@ -239,5 +240,71 @@ test('저장 응답이 손상되면 커밋 전 시작된 배경 조회와 별도
       assert.equal(backend.writes.length, 1);
       assert.equal(record(backend.value.currencyBalances)['7'], 125);
     } finally { clearTimeout(unblock); oldRead.release(); await background; }
+  });
+});
+
+test('낙찰 저장 응답이 유실되면 재전송 전에 저장 결과를 확인한다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    const itemId = AUCTION_ITEM_IDS[0];
+    const award = { itemId, winner: 7, amount: 10, awardedAt: '2026-09-08T01:00:00.000Z' };
+    backend.value.auctionBids = { [itemId]: { bidder: 7, amount: 10 } };
+    backend.afterCommit = async () => {
+      backend.afterCommit = undefined;
+      throw new TypeError('Simulated lost receipt');
+    };
+    const started = performance.now();
+    await client.updateSharedSettings(current => finalizeAuctionAwardInSettings(current, award).value);
+    t.diagnostic(`lost receipt confirmation: ${(performance.now() - started).toFixed(1)}ms; PUT=${backend.writes.length}; GET=${backend.reads}`);
+    assert.equal(record(backend.value.currencyBalances)['7'], 90);
+    assert.equal(backend.version, 1, '낙찰 금액은 한 번만 차감한다');
+    assert.equal(backend.writes.length, 1, '저장이 확인되면 같은 요청을 다시 보내지 않는다');
+  });
+});
+
+test('저장 전에 연결이 끊기면 조회만으로 성공 처리하지 않고 기존 요청을 재시도한다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    backend.beforeCommit = async () => {
+      backend.beforeCommit = undefined;
+      throw new TypeError('Simulated connection failure');
+    };
+    await client.updateStudentSharedSettings(7, current => ({ ...record(current), currencyBalances: { 7: 125 } }));
+    assert.equal(backend.writes.length, 2);
+    assert.equal(backend.version, 1);
+    assert.equal(record(backend.value.currencyBalances)['7'], 125);
+    assert.equal(record(backend.value.currencyBalances)['8'], 237);
+  });
+});
+
+test('응답 유실 후 다른 값이 저장되어 있으면 저장 성공으로 오인하지 않는다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    backend.afterCommit = async () => {
+      backend.afterCommit = undefined;
+      backend.value.currencyBalances = { 7: 130, 8: 237 };
+      backend.version++;
+      throw new TypeError('Simulated lost receipt and concurrent change');
+    };
+    await assert.rejects(
+      client.updateStudentSharedSettings(7, current => ({ ...record(current), currencyBalances: { 7: 125 } })),
+      /SHARED_SETTINGS_SAVE_UNCONFIRMED/,
+    );
+    assert.equal(record(backend.value.currencyBalances)['7'], 130);
+    assert.equal(backend.version, 2);
+  });
+});
+
+test('첫 저장 확인 조회가 실패해도 재시도와 최종 저장 확인을 유지한다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    backend.afterCommit = async () => {
+      backend.afterCommit = undefined;
+      backend.afterRead = async () => {
+        backend.afterRead = undefined;
+        throw new Error('Simulated confirmation read failure');
+      };
+      throw new TypeError('Simulated lost receipt');
+    };
+    await client.updateStudentSharedSettings(7, current => ({ ...record(current), currencyBalances: { 7: 125 } }));
+    assert.equal(backend.version, 1);
+    assert.equal(backend.writes.length, 2);
+    assert.equal(record(backend.value.currencyBalances)['7'], 125);
   });
 });
