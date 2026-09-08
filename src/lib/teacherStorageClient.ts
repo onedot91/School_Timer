@@ -1,6 +1,7 @@
 import { createStudentSaveDraftStore } from './studentSaveDraft.js';
 import { executeStorageCommand, loadStorageCommandReceipt, StorageCommandError, type StorageCommand } from './storageCommandClient.js';
 import { isStorageRecord } from './teacherStorageCommand.js';
+import { getStorageAvailability } from './storageAvailability.js';
 
 export const teacherStorageDrafts = createStudentSaveDraftStore();
 export const teacherCommandScope = (command: Pick<StorageCommand, 'action' | 'payload'>) => {
@@ -9,15 +10,21 @@ export const teacherCommandScope = (command: Pick<StorageCommand, 'action' | 'pa
     payload.studentNumber ?? payload.studentNumbers ?? null, payload.itemId ?? null, payload.dateKey ?? null,
   ]) };
 };
+export const isTeacherStorageCommandPaused = (command: Pick<StorageCommand, 'action' | 'payload'>): boolean => {
+  const scope = teacherCommandScope(command), pending = teacherStorageDrafts.load(scope);
+  return !!pending && teacherStorageDrafts.load({ ...scope, feature: `${scope.feature}.paused` })?.draft.payload === pending.draft.requestId;
+};
 
 /** Only invoked by a teacher action; persisted requests are never replayed on reconnect. */
 export const executeTeacherStorageCommand = async (command: StorageCommand) => {
   const scope = teacherCommandScope(command);
+  const pausedScope = { ...scope, feature: `${scope.feature}.paused` };
   let saved = teacherStorageDrafts.save(scope, command.payload);
   if (saved.status === 'invalid') throw new StorageCommandError('INVALID_TEACHER_COMMAND', 400);
   if (saved.status === 'payload_changed') {
-    const confirmed = await loadStorageCommandReceipt(saved.draft.requestId);
-    if (!confirmed) throw new StorageCommandError('STORAGE_PREVIOUS_CONFIRMATION_REQUIRED', 409, true);
+    const paused = teacherStorageDrafts.load(pausedScope)?.draft.payload === saved.draft.requestId;
+    const confirmed = paused ? null : await loadStorageCommandReceipt(saved.draft.requestId);
+    if (!paused && !confirmed) throw new StorageCommandError('STORAGE_PREVIOUS_CONFIRMATION_REQUIRED', 409, true);
     teacherStorageDrafts.confirm(scope, saved.draft.requestId);
     saved = teacherStorageDrafts.save(scope, command.payload);
     if (saved.status === 'invalid' || saved.status === 'payload_changed') {
@@ -25,12 +32,16 @@ export const executeTeacherStorageCommand = async (command: StorageCommand) => {
     }
   }
   const request = { ...command, requestId: saved.draft.requestId, payload: saved.draft.payload };
+  const previousPause = teacherStorageDrafts.load(pausedScope);
+  if (previousPause) teacherStorageDrafts.remove(pausedScope, previousPause.draft.requestId);
   try {
     const result = await executeStorageCommand(request);
     teacherStorageDrafts.confirm(scope, request.requestId);
     return result;
   } catch (error) {
-    if (error instanceof StorageCommandError && error.status < 500 && !error.uncertainWrite) {
+    if (getStorageAvailability(error)) {
+      teacherStorageDrafts.save(pausedScope, request.requestId);
+    } else if (error instanceof StorageCommandError && error.status < 500 && !error.uncertainWrite) {
       teacherStorageDrafts.remove(scope, request.requestId);
     }
     throw error;

@@ -1,3 +1,5 @@
+import { getStorageAvailability } from './storageAvailability.js';
+
 export const SAVE_FAILURE_FEATURES = {
   settings: '학급 설정', numberBaseball: '숫자 야구', emotion: '감정 구슬', auction: '경매 입찰',
   sudoku: '스도쿠', pet: '펫', studentLife: '학생 기록', economy: '고마 거래',
@@ -82,6 +84,7 @@ export const parseSaveFailureAlert = (value: unknown): SaveFailureAlert | null =
 };
 
 export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
+  if (getStorageAvailability(error)) return null;
   if (!(error instanceof Error) && !(typeof DOMException !== 'undefined' && error instanceof DOMException)) return null;
   const errorCode = Reflect.get(error, 'code');
   if (errorCode === 'CLASSWORD_INITIAL_OCCUPIED' || errorCode === 'CLASSWORD_STUDENT_ALREADY_ENTERED' || errorCode === 'CLASSWORD_ENTRY_CHANGED') return null;
@@ -90,7 +93,7 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (status === 409 || error.message === 'SHARED_SETTINGS_CONFLICT') return 'conflict';
   if (status === 408 || status === 429 || status >= 500) return 'server';
   if (error.name === 'QuotaExceededError' || /LOCAL_SAVE_FAILED|STORAGE/.test(error.message)) return 'storage';
-  if (error.name === 'SyntaxError' || /INVALID_RESPONSE|SHARED_SETTINGS_SAVE_UNCONFIRMED/.test(error.message)) return 'response';
-  if (error.name === 'TypeError' || error.name === 'TimeoutError' || error.name === 'AbortError') return 'network';
+  if (error.name === 'SyntaxError' || /INVALID_RESPONSE|SHARED_SETTINGS_SAVE_UNCONFIRMED/.test(error.message) || (typeof errorCode === 'string' && errorCode.endsWith('_INVALID_RESPONSE'))) return 'response';
+  if (error.name === 'TypeError' || error.name === 'TimeoutError' || error.name === 'AbortError' || errorCode === 'LIBRARY_COMPETITION_NETWORK') return 'network';
   return null;
 };

@@ -1,11 +1,15 @@
 import { loadStudentEconomyReceipt, retryStudentEconomyRequest, StudentEconomyRequestError, type StudentEconomyApiAction, type StudentEconomyUpdateResult } from './studentEconomyClient.js';
 import { executeStorageCommand, loadStorageCommandReceipt, StorageCommandError } from './storageCommandClient.js';
 import { createStudentSaveDraftStore, type StudentSaveDraftScope } from './studentSaveDraft.js';
+import { getStorageAvailability } from './storageAvailability.js';
+import { canonicalStorageJson } from './storageV2Codec.js';
 
 const drafts = createStudentSaveDraftStore();
 const scopeFor = (studentNumber: number, action: string, entityId = action): StudentSaveDraftScope => ({ studentNumber, feature: action, entityId });
 const rejectedScopeFor = (scope: StudentSaveDraftScope) => ({ ...scope, feature: `${scope.feature}.rejected` });
 const formScopeFor = (scope: StudentSaveDraftScope) => ({ ...scope, feature: `${scope.feature}.form` });
+const pausedScopeFor = (scope: StudentSaveDraftScope) => ({ ...scope, feature: `${scope.feature}.paused` });
+const isPaused = (scope: StudentSaveDraftScope, requestId: string) => drafts.load(pausedScopeFor(scope))?.draft.payload === requestId;
 const removeCurrent = (scope: StudentSaveDraftScope) => {
   const current = drafts.load(scope);
   if (current) drafts.remove(scope, current.draft.requestId);
@@ -17,13 +21,13 @@ export const loadStudentStorageDraft = (studentNumber: number, action: string, e
 
 export const hasUnconfirmedStudentStorageDraft = (studentNumber: number, action: string, entityId = action): boolean => {
   const scope = scopeFor(studentNumber, action, entityId), pending = drafts.load(scope), rejected = drafts.load(rejectedScopeFor(scope));
-  return pending !== null && rejected?.draft.payload !== pending.draft.requestId;
+  return pending !== null && rejected?.draft.payload !== pending.draft.requestId && !isPaused(scope, pending.draft.requestId);
 };
 
 export const loadStudentStorageFormDraft = (studentNumber: number, action: string, entityId = action): Record<string, unknown> => {
   const scope = scopeFor(studentNumber, action, entityId);
   const pending = drafts.load(scope), form = drafts.load(formScopeFor(scope)), rejected = drafts.load(rejectedScopeFor(scope));
-  const payload = pending && rejected?.draft.payload !== pending.draft.requestId
+  const payload = pending && rejected?.draft.payload !== pending.draft.requestId && !isPaused(scope, pending.draft.requestId)
     ? pending.draft.payload
     : form?.draft.payload ?? pending?.draft.payload ?? null;
   return payload !== null && typeof payload === 'object' && !Array.isArray(payload) ? Object.fromEntries(Object.entries(payload)) : {};
@@ -46,13 +50,17 @@ export const executeStudentStorageCommand = async (
 ) => {
   const scope = scopeFor(studentNumber, action, entityId), rejectedScope = rejectedScopeFor(scope);
   const rejected = drafts.load(rejectedScope), prior = drafts.load(scope);
+  if (prior && isPaused(scope, prior.draft.requestId) && canonicalStorageJson(prior.draft.payload) !== canonicalStorageJson(payload)) {
+    drafts.remove(scope, prior.draft.requestId);
+    removeCurrent(pausedScopeFor(scope));
+  }
   if (rejected && prior && rejected.draft.payload === prior.draft.requestId) {
     drafts.remove(scope, prior.draft.requestId);
     drafts.remove(rejectedScope, rejected.draft.requestId);
   }
   const saved = drafts.save(scope, payload);
   if (saved.status === 'invalid') throw new Error('STUDENT_COMMAND_INVALID');
-  if (saved.status === 'existing' || saved.status === 'payload_changed') {
+  if ((saved.status === 'existing' || saved.status === 'payload_changed') && !isPaused(scope, saved.draft.requestId)) {
     const confirmed = await loadStorageCommandReceipt(saved.draft.requestId);
     if (confirmed) {
       drafts.confirm(scope, saved.draft.requestId);
@@ -63,12 +71,15 @@ export const executeStudentStorageCommand = async (
   }
   if (saved.status === 'payload_changed') throw new Error('SAVE_DRAFT_PENDING');
   try {
+    removeCurrent(pausedScopeFor(scope));
     const response = await executeStorageCommand({ requestId: saved.draft.requestId, action, payload: saved.draft.payload });
     drafts.confirm(scope, saved.draft.requestId);
     clearStudentStorageFormDraft(studentNumber, action, entityId);
     return response;
   } catch (error) {
-    if (error instanceof StorageCommandError && !error.uncertainWrite && [400, 403, 404, 422].includes(error.status)) {
+    if (getStorageAvailability(error)) {
+      drafts.save(pausedScopeFor(scope), saved.draft.requestId);
+    } else if (error instanceof StorageCommandError && !error.uncertainWrite && [400, 403, 404, 422].includes(error.status)) {
       drafts.save(rejectedScope, saved.draft.requestId);
     }
     throw error;
@@ -82,12 +93,16 @@ export const confirmStudentEconomyDraft = async (studentNumber: number): Promise
   const scope = scopeFor(studentNumber, ECONOMY_DRAFT_ACTION), pending = drafts.load(scope);
   if (!pending) return null;
   try {
-    const result = await loadStudentEconomyReceipt(studentNumber, pending.draft.requestId)
+    const paused = isPaused(scope, pending.draft.requestId);
+    removeCurrent(pausedScopeFor(scope));
+    const result = await (paused ? null : loadStudentEconomyReceipt(studentNumber, pending.draft.requestId))
       ?? await retryStudentEconomyRequest({ studentNumber, requestId: pending.draft.requestId, action: pending.draft.payload });
     drafts.confirm(scope, pending.draft.requestId);
     return result;
   } catch (error) {
-    if (error instanceof StudentEconomyRequestError && [400, 403, 404, 422, 426].includes(error.status)) {
+    if (getStorageAvailability(error)) {
+      drafts.save(pausedScopeFor(scope), pending.draft.requestId);
+    } else if (error instanceof StudentEconomyRequestError && [400, 403, 404, 422, 426].includes(error.status)) {
       drafts.save(rejectedScopeFor(scope), pending.draft.requestId);
     }
     throw error;
@@ -96,6 +111,10 @@ export const confirmStudentEconomyDraft = async (studentNumber: number): Promise
 
 export const executeStudentEconomyWithDraft = async (studentNumber: number, action: StudentEconomyApiAction): Promise<StudentEconomyUpdateResult> => {
   const scope = scopeFor(studentNumber, ECONOMY_DRAFT_ACTION), prior = drafts.load(scope), rejected = drafts.load(rejectedScopeFor(scope));
+  if (prior && isPaused(scope, prior.draft.requestId) && canonicalStorageJson(prior.draft.payload) !== canonicalStorageJson(action)) {
+    drafts.remove(scope, prior.draft.requestId);
+    removeCurrent(pausedScopeFor(scope));
+  }
   if (prior && rejected?.draft.payload === prior.draft.requestId) {
     drafts.remove(scope, prior.draft.requestId);
     removeCurrent(rejectedScopeFor(scope));

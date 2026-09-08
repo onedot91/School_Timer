@@ -47,3 +47,59 @@ test('storage v2 teacher setting retry after lost response uses original receipt
   assert.equal(Array.isArray(state.adjustments) ? state.adjustments.length : -1, 1);
   await assert.rejects(updateCompetitionSettings(configuration, { ...command, speed: 1 }), { code: 'STORAGE_REQUEST_REUSED' });
 }));
+
+test('library feature reads and receipt replays never load unrelated histories, letters, or settings', async () => {
+  const { loadCompetitionRow, commitCompetition } = await import('../../src/server/libraryCompetitionRepository.js');
+  const source = { studentLife: { books: [book], letters: Array.from({ length: 1200 }, (_, index) => ({ id: `private-${index}`, content: 'unread' })), extra: { preserved: true } },
+    currencyBalances: { 1: 123, 2: 987 }, currencyHistory: { 1: [], 2: [{ id: 'other', studentNumber: 2, delta: 7 }] }, studentPets: { 2: { untouched: true } } };
+  const fixture = createStorageV2Fixture(source);
+  const calls: { path: string; body: Record<string, unknown> }[] = [];
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    calls.push({ path: new URL(String(input)).pathname, body: record(JSON.parse(String(init?.body ?? '{}'))) });
+    return fixture.fetch(input, init);
+  };
+  try {
+    const row = await loadCompetitionRow(configuration);
+    assert.ok(row && row.kind === 'scoped');
+    assert.deepEqual(row.value, { studentLife: { books: [book] } });
+    assert.deepEqual(row.wallets, []);
+    assert.deepEqual(row.history, []);
+    assert.ok(await commitCompetition(configuration, { current: row, value: { ...row.value, studentLife: { books: [book], letters: [] }, studentPets: {} }, updatedAt: row.updated_at, action: 'library-noop', requestId: 'scope-noop', payload: {} }));
+    assert.deepEqual(fixture.read().value, source);
+    const commits = calls.filter(call => call.path.endsWith('/storage_commit_scoped_mutation'));
+    assert.equal(commits.length, 1);
+    assert.deepEqual(commits[0].body.p_resources, []);
+    await ensureCompetition(configuration, true);
+    const settings = { requestId: 'scope-settings', expectedRevision: 0, speed: 1, paused: false, counts: [] };
+    await updateCompetitionSettings(configuration, settings);
+    await updateCompetitionSettings(configuration, settings);
+    assert.equal(calls.some(call => call.path.endsWith('/storage_load_snapshot') || call.path.endsWith('/storage_commit_mutation')), false);
+    const scopeReads = calls.filter(call => call.path.endsWith('/storage_load_scope'));
+    assert.ok(scopeReads.length > 0);
+    assert.ok(scopeReads.every(call => JSON.stringify(record(call.body.p_scope).resources) === JSON.stringify([{ path: '/libraryCompetition' }, { path: '/studentLife/books' }])));
+    assert.deepEqual(record(fixture.read().value.studentLife).letters, source.studentLife.letters);
+  } finally { globalThis.fetch = previousFetch; }
+});
+
+test('scoped book placement includes only its own wallet and history and preserves other student money', async () => {
+  const { loadCompetitionRow, commitCompetition } = await import('../../src/server/libraryCompetitionRepository.js');
+  const { applyLibraryPlacementCommand } = await import('../../src/lib/canvasLibraryPlacement.js');
+  const otherHistory = [{ id: 'other-income', studentNumber: 2, delta: 7, before: 80, after: 87, reason: 'manual', createdAt: '2026-09-08T00:00:00.000Z' }];
+  await withFixture({ studentLife: { books: [], letters: [{ id: 'private', content: 'preserve' }] }, currencyBalances: { 1: 123, 2: 87 }, currencyHistory: { 1: [], 2: otherHistory } }, async fixture => {
+    const row = await loadCompetitionRow(configuration, 1);
+    assert.ok(row);
+    assert.deepEqual(row.wallets, [{ student_number: 1, balance: 123 }]);
+    assert.deepEqual(row.scope.history, [1]);
+    assert.deepEqual(row.value.currencyHistory, { 1: [] });
+    assert.equal(record(row.value.studentLife).letters, undefined);
+    const command = { protocolVersion: 2, action: 'placeLibraryBook', requestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', slotId: 1, book: { kind: 'new', title: 'scoped book', author: 'author', pageCount: 10 } };
+    const placed = applyLibraryPlacementCommand(row.value, 1, command, '2026-09-08T02:00:00.000Z');
+    assert.equal(placed.ok, true);
+    if (!placed.ok) assert.fail('placement should succeed');
+    assert.ok(await commitCompetition(configuration, { current: row, value: placed.value, updatedAt: '2026-09-08T02:00:00.000Z', actorKey: 'student:1', action: 'placeLibraryBook', requestId: command.requestId, payload: command }));
+    assert.deepEqual(fixture.read().value.currencyBalances, { 1: 133, 2: 87 });
+    assert.deepEqual(record(fixture.read().value.currencyHistory)['2'], otherHistory);
+    assert.deepEqual(record(fixture.read().value.studentLife).letters, [{ id: 'private', content: 'preserve' }]);
+  });
+});

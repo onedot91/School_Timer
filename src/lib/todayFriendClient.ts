@@ -1,4 +1,5 @@
 import { withSaveFailureReporting } from './saveFailureClient.js';
+import { captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError } from './storageResponseOrder.js';
 import { appendCurrencyHistoryEntry, normalizeCurrencyBalances } from './currency';
 import { appDataMode } from './dataMode';
 import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './studentPet';
@@ -56,6 +57,7 @@ const isNullableString = (value: unknown): value is string | null => value === n
 const getWeekKey = (dateKey: string): string => getKoreanIsoWeekKey(new Date(`${dateKey}T12:00:00+09:00`));
 
 const requestWithoutReporting = async (path: string, init?: RequestInit): Promise<unknown> => {
+  const context = captureStorageResponseContext();
   const response = await fetch(path, {
     ...init,
     ...(typeof init?.body === 'string' ? { body: JSON.stringify({ ...JSON.parse(init.body), protocolVersion: 2 }) } : {}),
@@ -66,6 +68,7 @@ const requestWithoutReporting = async (path: string, init?: RequestInit): Promis
     },
   });
   const value: unknown = await response.json();
+  if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
   if (!response.ok) {
     const code = isRecord(value) && typeof value.error === 'string' ? value.error : `TODAY_FRIEND_HTTP_${response.status}`;
     throw new TodayFriendClientError(code, response.status);
@@ -76,7 +79,22 @@ const requestWithoutReporting = async (path: string, init?: RequestInit): Promis
 
 const request = (path: string, init?: RequestInit): Promise<unknown> => (
   init?.method && init.method !== 'GET'
-    ? withSaveFailureReporting('todayFriend', () => requestWithoutReporting(path, init))
+    ? withSaveFailureReporting('todayFriend', async () => {
+      const value = await requestWithoutReporting(path, init);
+      const body: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : null;
+      if (isRecord(body) && (body.action === 'save_draft' || body.action === 'submit')) {
+        if (!parseTodayFriendSubmission(value)) throw new TodayFriendClientError('TODAY_FRIEND_INVALID_RESPONSE');
+      } else {
+        if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.weeks)
+          || !Array.isArray(value.partnerDays) || !Array.isArray(value.submissions)
+          || !Array.isArray(value.questions) || !isRecord(value.selectedQuestionIdByDate)) throw new TodayFriendClientError('TODAY_FRIEND_INVALID_RESPONSE');
+        const parsed = parseTodayFriendState(value);
+        if (parsed.weeks.length !== value.weeks.length || parsed.partnerDays.length !== value.partnerDays.length
+          || parsed.submissions.length !== value.submissions.length || parsed.questions.length !== value.questions.length
+          || Object.keys(parsed.selectedQuestionIdByDate).length !== Object.keys(value.selectedQuestionIdByDate).length) throw new TodayFriendClientError('TODAY_FRIEND_INVALID_RESPONSE');
+      }
+      return value;
+    })
     : requestWithoutReporting(path, init)
 );
 const prepareLocalState = (dateKey: string): TodayFriendState => {

@@ -64,3 +64,21 @@ npm run lint
 ```
 
 CLI 테스트는 가짜 fetch와 임시 파일만 사용한다. 실제 PostgreSQL 트랜잭션·락·마이그레이션 검증은 별도 `src/server/storageV2.integration.test.mjs`에서 수행한다.
+
+## 후속 배포의 필수 검증
+
+`npm run verify:release`를 배포 전 실행한다. `STORAGE_TEST_PG_MODULE`에는 설치된 pg 모듈 경로, `STORAGE_TEST_DATABASE_URL`에는 격리 PostgreSQL(`127.0.0.1:55439/postgres`, 합성 fixture 계정)을 지정한다. 운영 URL은 거절하며 필요한 DB/드라이버가 없으면 실패한다. 기존 DB를 비우는 대신 새 fixture DB를 만든다.
+
+게이트는 타입 검사, 전체 unit/API, 서버/dev, 실제 SQL/동시성/HTTP, 순정 Node emitted API, production build를 순서대로 검사한다. 검증 중 소스가 변경되면 모든 검사가 성공했어도 release를 승인하지 않는다. 새 임시 evidence 폴더의 `manifest.json`에서 `passed:true`, `unchanged:true`, source hash를 확인한다. 확장자·export가 깨진 emitted fixture가 실제로 실패하는 검사도 포함한다.
+
+배포 전 기존 활성 v2 데이터에 bootstrap을 다시 실행하지 않는다. 후속 additive SQL은 `storage_audit_v2.sql`, `storage_scoped_v2.sql` 순서로 적용하며 기존 v2 설치를 전제로 한다. 배포용 환경변수 `STORAGE_PROTOCOL_VERSION=2`와 `vercel.json`의 `icn1`을 유지한다. 검증한 소스로 immutable deployment를 만들고 실제 API 응답의 `x-vercel-id`에서 `icn1`을 확인한 뒤 production alias를 이동한다. 배포 후 원장 대조 및 API 읽기만 확인하고 실제 학생 거래를 시험하지 않는다.
+
+새 scoped 응답은 `X-Storage-Projection: 1`을 보내는 클라이언트에만 제공한다. 구형 protocol2 화면에는 `426 STORAGE_PROTOCOL_UPGRADE_REQUIRED`로 쓰기 전에 업데이트를 요구한다. SQL protocol은2로 유지한다. 활성 화면이 오래 열려 있었으면 새 화면으로 갱신한 뒤 보관된 입력과 영수증을 확인한다.
+
+## 운영 후 v2 백업과 격리 복원
+
+전환 전 백업(`dev/storageCutover.ts`)과 운영 후 백업(`dev/storageBackup.ts`)은 별도 형식이다. 운영 후 백업은 공용 테이블21개, 열/PK/schema/protocol/canonical version, 파일별 SHA-256, manifest hash, identity sequence 상태를 포함한다. `captureStorageBackup`에는 하나의 전용 DB 연결을 전달하며 `REPEATABLE READ READ ONLY` transaction에서 전체 행을 읽는다. sequence는 MVCC 대상이 아니므로 행 snapshot 뒤 관측값이라는 한계를 manifest에 명시한다. JSONB와 bigint를 PostgreSQL 문자열로 보관하여 JSON 숫자 정밀도와 SQL NULL/JSON null을 구분한다.
+
+`node --import tsx dev/storageRestoreDrill.ts --output <새 결과 파일>`은 합성 학급에서 같은 백업을 서로 다른 새 DB2개에 복원한다. 로컬 주소와 신규 DB 이름만 허용하고 기존 DB나 외부 주소는 거절한다. 잔액/opening balance, 원장 원문·순서, claims/receipts/scopes, 모든 table hash와 sequence를 비교한다. 같은 지급 요청 재실행으로 원장이 늘지 않으며 새 거래는 정상 반영되는지 검사한다. 변조·부분 백업은 복원 전에 거절하고 복원 실패에서는 success manifest가 생성되지 않는다. 백업 폴더는0700, 파일은0600이며 새 경로만 사용한다.
+
+이 복원 훈련은 `npm run verify:release`에 포함된다. 성공한 합성 복원은 실제 운영 자료 복원 성공을 뜻하지 않는다. 운영 복구는 별도 장애 분석과 forward recovery 절차로 수행하며, 이 도구에는 운영 DB 덮어쓰기·삭제·truncate 기능이 없다.

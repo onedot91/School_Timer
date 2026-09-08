@@ -1,4 +1,5 @@
 import { createBrowserRequestId } from './requestId.js';
+import { setDraftReloadCheck, removeDraftReloadCheck } from './draftReloadSafety.js';
 
 export interface StudentSaveDraftScope {
   readonly studentNumber: number;
@@ -95,6 +96,9 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
       return null;
     }
   };
+  const protectReload = (key: string, scope: StudentSaveDraftScope, text: string) => {
+    setDraftReloadCheck(key, scope.studentNumber, () => getStorage()?.getItem(key) === text);
+  };
 
   const load = (scope: StudentSaveDraftScope): LoadedStudentSaveDraft | null => {
     if (!validScope(scope)) return null;
@@ -108,15 +112,18 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
           if (draft) {
             memory.set(key, text);
             persistedKeys.add(key);
+            protectReload(key, scope, text);
             return { draft, durable: true };
           }
           memory.delete(key);
           persistedKeys.delete(key);
+          removeDraftReloadCheck(key);
           return null;
         }
         if (persistedKeys.has(key)) {
           memory.delete(key);
           persistedKeys.delete(key);
+          removeDraftReloadCheck(key);
         }
       } catch {
         // Retain this screen's request identity when browser storage is unavailable.
@@ -140,6 +147,7 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
     if (!draft) return { status: 'invalid' };
     const key = keyFor(scope);
     memory.set(key, text);
+    protectReload(key, scope, text);
     const storage = getStorage();
     try { // no-excuse-ok: catch
       storage?.setItem(key, text);
@@ -160,6 +168,7 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
       storage?.removeItem(key);
       memory.delete(key);
       persistedKeys.delete(key);
+      removeDraftReloadCheck(key);
       return true;
     } catch {
       return false;

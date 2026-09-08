@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
-import { loadStorageSnapshot } from '../src/server/storageV2Repository.js';
+import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
+import { loadScopedStorageSnapshot, loadStorageSnapshot } from '../src/server/storageV2Repository.js';
 
 import {
   applyLibraryPlacementCommand,
@@ -209,7 +210,9 @@ const supabaseHeaders = (key: string) => ({
 
 const loadRow = async (url: string, key: string) => {
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
-    return { id: 'school-timer-main' as const, ...await loadStorageSnapshot({ url, key }) };
+    const snapshot = await loadStorageSnapshot({ url, key });
+    return { id: 'school-timer-main' as const, value: snapshot.value, updated_at: snapshot.updated_at,
+      storagePatch: createStorageProjectionPatch(snapshot, snapshot.value, true) };
   }
   const result = await fetch(`${url}/rest/v1/app_settings?id=eq.${SETTINGS_ID}&select=id,value,updated_at`, {
     headers: supabaseHeaders(key),
@@ -299,6 +302,8 @@ const waitForRetry = async () => {
   const delayMs = 20 + Math.floor(Math.random() * 81);
   await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 };
+const hasLibraryProjectionCapability = (headers: RequestHeaders | undefined): boolean =>
+  Object.entries(headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-projection' && value === '1');
 
 const handleLibraryPlacement = async (
   command: LibraryPlacementCommand,
@@ -307,10 +312,9 @@ const handleLibraryPlacement = async (
   response: ApiResponse,
 ) => {
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const loaded = await loadCompetitionRow(configuration);
-    const current = loaded?.value.libraryCompetition
-      ? (await ensureCompetition(configuration, false)).row
-      : loaded;
+    const loaded = await loadCompetitionRow(configuration, studentNumber);
+    if (loaded?.value.libraryCompetition) await ensureCompetition(configuration, false);
+    const current = loaded?.value.libraryCompetition ? await loadCompetitionRow(configuration, studentNumber) : loaded;
     const createdAt = nextUpdatedAt(current?.updated_at ?? null);
     const placement = applyLibraryPlacementCommand(current?.value ?? {}, studentNumber, command, createdAt);
     if (placement.ok === false) {
@@ -324,6 +328,7 @@ const handleLibraryPlacement = async (
         book: placement.book,
         updatedAt: current.updated_at,
         value: projectStudentValue(current.value, studentNumber),
+        storagePatch: createStorageProjectionPatch(current, projectStudentValue(current.value, studentNumber)),
       });
       return;
     }
@@ -337,11 +342,15 @@ const handleLibraryPlacement = async (
         actorKey: `student:${studentNumber}`, requestId: command.requestId, action: 'placeLibraryBook', payload: command,
       }) ? 'saved' : 'conflict';
       if (saved === 'saved') {
-        cacheUpdatedAt(configuration.url, createdAt);
+        const confirmed = await loadCompetitionRow(configuration, studentNumber);
+        if (!confirmed) throw new Error('STORAGE_INVALID_RESPONSE');
+        const projected = projectStudentValue(confirmed.value, studentNumber);
+        cacheUpdatedAt(configuration.url, confirmed.updated_at);
         response.status(200).json({
           book: placement.book,
-          updatedAt: createdAt,
-          value: projectStudentValue(value, studentNumber),
+          updatedAt: confirmed.updated_at,
+          value: projected,
+          storagePatch: createStorageProjectionPatch(confirmed, projected),
         });
         return;
       }
@@ -358,7 +367,9 @@ const handleLibraryPlacement = async (
 const loadStudentRow = async (url: string, key: string, studentNumber: number) => {
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
     const row = await loadStorageSnapshot({ url, key });
-    return { id: SETTINGS_ID, value: projectStudentValue(row.value, studentNumber), updated_at: row.updated_at, scope: 'student' as const };
+    const value = projectStudentValue(row.value, studentNumber);
+    return { id: SETTINGS_ID, value, updated_at: row.updated_at, scope: 'student' as const,
+      storagePatch: createStorageProjectionPatch(row, value, true) };
   }
   const studentKey = String(studentNumber);
   const select = [
@@ -395,7 +406,9 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number) =
 };
 
 const loadUpdatedAt = async (url: string, key: string) => {
-  if (process.env.STORAGE_PROTOCOL_VERSION === '2') return (await loadStorageSnapshot({ url, key })).updated_at;
+  if (process.env.STORAGE_PROTOCOL_VERSION === '2') return (await loadScopedStorageSnapshot({ url, key }, {
+    resources: [], wallets: [], history: [], writeResources: [], writeWallets: [],
+  })).updated_at;
   if (updatedAtCache?.url === url && updatedAtCache.expiresAt > Date.now()) {
     return updatedAtCache.value;
   }
@@ -462,8 +475,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         return;
       }
       if (request.query?.libraryCompetition === '1') {
+        if (process.env.STORAGE_PROTOCOL_VERSION === '2' && !hasLibraryProjectionCapability(request.headers)) {
+          response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
+        }
         const row = await loadCompetitionRow(configuration);
-        response.status(200).json({ ok: true, competition: competitionView(row), value: session.role === 'teacher' ? row?.value ?? {} : projectStudentValue(row?.value, session.studentNumber), updatedAt: row?.updated_at ?? null, rolledOver: false });
+        const value = session.role === 'teacher' ? row?.value ?? {} : projectStudentValue(row?.value, session.studentNumber);
+        response.status(200).json({ ok: true, competition: competitionView(row), value, ...(row ? { storagePatch: createStorageProjectionPatch(row, value) } : {}), updatedAt: row?.updated_at ?? null, rolledOver: false });
         return;
       }
       const metadataOnly = request.query?.metadata === '1';
@@ -515,12 +532,16 @@ export default async function handler(request: ApiRequest, response: ApiResponse
           return;
         }
         if (command.action === 'libraryCompetition' && command.intent !== 'open' && command.intent !== 'enter') throw new LibraryCompetitionError('INVALID_LIBRARY_COMPETITION_COMMAND', 400);
+        if (process.env.STORAGE_PROTOCOL_VERSION === '2' && !hasLibraryProjectionCapability(request.headers)) {
+          response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
+        }
         const result = command.action === 'libraryCompetitionSettings'
           ? await updateCompetitionSettings(configuration, command)
           : await ensureCompetition(configuration, command.intent === 'open');
         const row = result.row;
         if (row) cacheUpdatedAt(configuration.url, row.updated_at);
-        response.status(200).json({ ok: true, competition: competitionView(row), value: session.role === 'teacher' ? row?.value ?? {} : projectStudentValue(row?.value, session.studentNumber), updatedAt: row?.updated_at ?? null, rolledOver: result.rolledOver });
+        const value = session.role === 'teacher' ? row?.value ?? {} : projectStudentValue(row?.value, session.studentNumber);
+        response.status(200).json({ ok: true, competition: competitionView(row), value, ...(row ? { storagePatch: createStorageProjectionPatch(row, value) } : {}), updatedAt: row?.updated_at ?? null, rolledOver: result.rolledOver });
       } catch (error) {
         if (error instanceof LibraryCompetitionError) response.status(error.status).json({ error: error.code });
         else response.status(502).json({ error: 'LIBRARY_COMPETITION_SAVE_FAILED' });
@@ -532,6 +553,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       if (session.role !== 'student') {
         response.status(403).json({ error: 'LIBRARY_BOOK_FORBIDDEN' });
         return;
+      }
+      if (process.env.STORAGE_PROTOCOL_VERSION === '2' && !hasLibraryProjectionCapability(request.headers)) {
+        response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
       }
       try {
         await handleLibraryPlacement(

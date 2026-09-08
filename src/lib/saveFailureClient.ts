@@ -3,6 +3,8 @@ import { isSupabaseSettingsEnabled } from './supabaseConfig.js';
 import { createBrowserRequestId } from './requestId.js';
 import { classifySaveFailure, parseSaveFailureAlert, parseSaveFailureDiagnostics, SAVE_FAILURE_POLL_MS, type SaveFailureAlert, type SaveFailureCode, type SaveFailureFeature, type SaveFailureDiagnostics } from './saveFailure.js';
 import { collectSaveFailureDiagnostics } from './saveFailureDiagnostics.js';
+import { publishStorageAvailability } from './storageAvailability.js';
+import { captureStorageResponseContext } from './storageResponseOrder.js';
 
 export const SAVE_FAILURE_STORAGE_KEY = 'school-timer-save-failures-v1';
 export const SAVE_FAILURE_CHANGE_EVENT = 'school-timer-save-failure-change';
@@ -91,10 +93,12 @@ const captureSaveFailureContext = (): SaveFailureDiagnostics => {
 };
 
 export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, save: () => Promise<T>, studentNumber?: number): Promise<T> => {
+  const storageContext = captureStorageResponseContext();
   const context = captureSaveFailureContext();
   const actor = studentNumber ?? (typeof window === 'undefined' ? undefined : currentActor() ?? undefined);
   try { return await save(); }
   catch (error) {
+    if (publishStorageAvailability(error, storageContext)) throw error;
     const code = classifySaveFailure(error);
     if (code) {
       try { reportSaveFailure(feature, code, actor, collectSaveFailureDiagnostics(error, {

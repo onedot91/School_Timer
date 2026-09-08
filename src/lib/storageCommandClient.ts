@@ -3,6 +3,8 @@ import { getSaveFailureFeature, withSaveFailureReporting } from './saveFailureCl
 import { invalidateSharedSettingsCache } from './supabaseSettings.js';
 import { acceptStorageProjection, captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError, type StorageResponseContext } from './storageResponseOrder.js';
 import { canonicalStorageJson } from './storageV2Codec.js';
+import { publishStorageAvailability } from './storageAvailability.js';
+import { parseStorageProjectionPatch, type StorageProjectionPatch } from './storageProjectionPatch.js';
 
 export interface StorageCommand {
   readonly requestId: string;
@@ -14,6 +16,7 @@ export interface StorageCommandResult {
   readonly value: Record<string, unknown>;
   readonly updatedAt: string;
   readonly result: unknown;
+  readonly storagePatch?: StorageProjectionPatch;
 }
 
 export class StorageCommandError extends Error {
@@ -39,7 +42,8 @@ const parseResult = (input: unknown): StorageCommandResult => {
     || !Number.isFinite(Date.parse(row.updatedAt))) {
     throw new StorageCommandError('STORAGE_INVALID_RESPONSE', 502, true);
   }
-  return { value, updatedAt: row.updatedAt, result: row.result };
+  return { value, updatedAt: row.updatedAt, result: row.result,
+    ...(row.storagePatch === undefined ? {} : { storagePatch: parseStorageProjectionPatch(row.storagePatch) }) };
 };
 
 const readResponse = async (response: Response): Promise<unknown> => {
@@ -55,6 +59,7 @@ const readResponse = async (response: Response): Promise<unknown> => {
 export const loadStorageCommandReceipt = async (requestId: string, command?: StorageCommand, context = captureStorageResponseContext()): Promise<StorageCommandResult | null> => {
   const response = await fetch(`/api/shared-settings?requestId=${encodeURIComponent(requestId)}`, {
     credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(12_000),
+    headers: { 'X-Storage-Projection': '1' },
   });
   const body = await readResponse(response);
   if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
@@ -68,8 +73,8 @@ export const loadStorageCommandReceipt = async (requestId: string, command?: Sto
 };
 
 const orderResult = (context: StorageResponseContext, saved: StorageCommandResult): StorageCommandResult => {
-  const projection = acceptStorageProjection(context, { value: saved.value, updatedAt: saved.updatedAt, ...(context.actor === null ? {} : { scope: context.actor === '0' ? 'full' : 'student' }) });
-  return { ...saved, value: projection.value, updatedAt: projection.updatedAt };
+  const projection = acceptStorageProjection(context, { value: saved.value, updatedAt: saved.updatedAt, storagePatch: saved.storagePatch, ...(context.actor === null ? {} : { scope: context.actor === '0' ? 'full' : 'student' }) });
+  return { result: saved.result, value: projection.value, updatedAt: projection.updatedAt };
 };
 
 export const executeStorageCommand = async (command: StorageCommand): Promise<StorageCommandResult> => {
@@ -80,17 +85,18 @@ export const executeStorageCommand = async (command: StorageCommand): Promise<St
     try {
       const response = await fetch('/api/shared-settings', {
         method: 'POST', credentials: 'same-origin', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(45_000),
+        headers: { 'Content-Type': 'application/json', 'X-Storage-Projection': '1' }, signal: AbortSignal.timeout(45_000),
         body: JSON.stringify({ protocolVersion: 2, ...command }),
       });
       return { saved: parseResult(await readResponse(response)) };
     } catch (error) {
       if (!isStorageResponseContextCurrent(context)) return { rejected: new StorageResponseActorChangedError() };
+      if (publishStorageAvailability(error, context)) return { rejected: error };
       if (error instanceof StorageCommandError && error.status < 500) return { rejected: error };
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           const confirmed = await loadStorageCommandReceipt(command.requestId, command, context);
-          if (confirmed) return { saved: confirmed };
+          if (confirmed) return { saved: confirmed, ordered: true };
         } catch (confirmationError) {
           if (confirmationError instanceof StorageResponseActorChangedError) return { rejected: confirmationError };
           if (!(confirmationError instanceof Error)) throw confirmationError;
@@ -102,7 +108,7 @@ export const executeStorageCommand = async (command: StorageCommand): Promise<St
   });
   if ('rejected' in outcome && outcome.rejected) throw outcome.rejected;
   if (!outcome.saved) throw new StorageCommandError('STORAGE_INVALID_RESPONSE', 502, true);
-  const saved = orderResult(context, outcome.saved);
+  const saved = 'ordered' in outcome && outcome.ordered ? outcome.saved : orderResult(context, outcome.saved);
   invalidateSharedSettingsCache();
   return saved;
 };

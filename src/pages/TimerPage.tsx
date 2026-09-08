@@ -1,4 +1,5 @@
-import { executeTeacherStorageCommand as executeStorageCommand, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor } from '../lib/teacherStorageClient';
+import { executeTeacherStorageCommand as executeStorageCommand, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused } from '../lib/teacherStorageClient';
+import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord } from '../lib/teacherStorageCommand';
 ﻿import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
@@ -8,6 +9,7 @@ import { classifySaveFailure } from '../lib/saveFailure';
 import { isReadOnlyDataMode } from '../lib/dataMode';
 import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
+import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
@@ -4674,7 +4676,8 @@ export default function TimerPage() {
             if (restored) applySharedSettingsSnapshot(restored, { applyManualTimer: true });
             teacherSettingsBaseRef.current = { ...remoteSettings };
           }
-          if (pending || editorChanges.length > 0) setTeacherSettingsSaveError('보관된 설정 변경이 있어요. 저장 결과를 확인해 주세요.');
+          if (pending || editorChanges.length > 0) setTeacherSettingsSaveError(isTeacherStorageCommandPaused({ action: 'teacher.settings.patch', payload: {} })
+            ? '중단된 설정 변경을 보관했습니다. 다시 저장해 주세요.' : '보관된 설정 변경이 있어요. 저장 결과를 확인해 주세요.');
           const letterDraft = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.mail.send', payload: {} }))?.draft.payload;
           if (isStorageRecord(letterDraft) && typeof letterDraft.title === 'string' && typeof letterDraft.content === 'string') {
             setMailTitle(letterDraft.title);
@@ -4683,7 +4686,8 @@ export default function TimerPage() {
               if (letterDraft.recipients.length === 23) setMailRecipient(ALL_STUDENTS_LETTER_RECIPIENT);
               else if (typeof letterDraft.recipients[0] === 'number') setMailRecipient(letterDraft.recipients[0]);
             }
-            setMailStatus('이전 편지의 저장 결과를 확인하지 못했어요. 내용이 보관되어 있습니다.');
+            setMailStatus(isTeacherStorageCommandPaused({ action: 'teacher.mail.send', payload: {} })
+              ? '중단된 편지를 보관했습니다. 다시 보내 주세요.' : '이전 편지의 저장 결과를 확인하지 못했어요. 내용이 보관되어 있습니다.');
           }
         } else {
           teacherSettingsBaseRef.current = {};
@@ -4933,7 +4937,7 @@ export default function TimerPage() {
           if (JSON.stringify(snapshot.subjectCatalog) === JSON.stringify(subjectCatalogRef.current)) hasUnsavedSubjectCatalogRef.current = false;
         })
         .catch((error) => {
-          setTeacherSettingsSaveError('설정 저장 결과를 확인하지 못했어요. 변경 내용은 보관했습니다.');
+          setTeacherSettingsSaveError(storageAvailabilityMessage(error) ?? '설정 저장 결과를 확인하지 못했어요. 변경 내용은 보관했습니다.');
           console.error('Failed to save shared settings to Supabase.', error);
           if (hasUnsavedAuctionItemsRef.current && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current) {
             setAuctionItemsSaveErrorCode(classifySaveFailure(error) ?? 'unknown');
@@ -10215,8 +10219,8 @@ export default function TimerPage() {
       setTeacherSettingsSaveError('');
       skipNextSharedSettingsSaveRef.current = false;
       setTeacherSettingsSaveVersion(previous => previous + 1);
-    } catch {
-      setTeacherSettingsSaveError('저장 결과를 아직 확인하지 못했어요. 다시 확인해 주세요.');
+    } catch (error) {
+      setTeacherSettingsSaveError(storageAvailabilityMessage(error) ?? '저장 결과를 아직 확인하지 못했어요. 다시 확인해 주세요.');
     }
   };
 
@@ -11531,6 +11535,7 @@ export default function TimerPage() {
                       </button>
                     ) : null}
                     <TeacherSaveFailureWarning returnFocusRef={settingsTriggerRef} />
+                    <TeacherRewardAudit />
                     <button
                       ref={settingsTriggerRef}
                       type="button"
@@ -12441,7 +12446,7 @@ export default function TimerPage() {
               className="settings-parent-content flex min-h-0 flex-1 flex-col"
               aria-hidden={hasSettingsChildModal ? 'true' : undefined}
             >
-            {teacherSettingsSaveError && <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-5 py-2" role="status">
+            {teacherSettingsSaveError && <div className="teacher-settings-save-status flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-5 py-2" role="status">
               <span>{teacherSettingsSaveError}</span>
               <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => void retryTeacherSettingsSave()}>저장 다시 확인</button>
             </div>}

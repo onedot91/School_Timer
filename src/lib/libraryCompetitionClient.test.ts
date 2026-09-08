@@ -15,6 +15,7 @@ test('mock open is local even when Supabase configuration exists', async () => {
 test('readonly open uses GET and never initializes local or remote state', async () => {
   const requests: { url: string; method: string | undefined }[] = [];
   const client = createLibraryCompetitionClient(deps({ dataMode: 'readonly', fetcher: async (url, init) => {
+    assert.equal(new Headers(init?.headers).get('X-Storage-Projection'), '1');
     requests.push({ url: String(url), method: init?.method }); return Response.json(empty);
   }, localRead: () => { throw new Error('must not use local'); } }));
   await client.read('open');
@@ -30,6 +31,7 @@ test('malformed shared response fails rather than showing fabricated empty stand
 test('uncertain teacher adjustment keeps one protocol v2 request identity until confirmed', async () => {
   const bodies: Record<string, unknown>[] = [];
   const client = createLibraryCompetitionClient(deps({ dataMode: 'production', fetcher: async (_url, init) => {
+    assert.equal(new Headers(init?.headers).get('X-Storage-Projection'), '1');
     const body: unknown = JSON.parse(String(init?.body));
     assert.ok(body !== null && typeof body === 'object' && !Array.isArray(body));
     bodies.push(Object.fromEntries(Object.entries(body)));

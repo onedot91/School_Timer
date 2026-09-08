@@ -6,6 +6,7 @@ import test from 'node:test';
 import handler from '../../api/student-economy.js';
 import { FAILURE_PROFILE_IMAGES } from '../../src/lib/failureExhibition.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
+import { parseStorageScope, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, type StorageScope } from '../../src/server/storageScope.js';
 import { parseStorageSnapshot } from '../../src/server/storageV2Repository.js';
 import { splitStorageState, assembleStorageState, isStorageRecord } from '../../src/lib/storageV2Codec.js';
 
@@ -44,6 +45,7 @@ const withEnvironment = async (run: () => Promise<void>) => {
 };
 
 const studentHeaders = (studentNumber: number) => ({
+  'x-storage-projection': '1',
   cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'student', studentNumber }, SESSION_SECRET)}`,
   'sec-fetch-site': 'same-origin',
   'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1',
@@ -64,11 +66,13 @@ const fixture = (initial: Record<string, unknown> = previousValue) => {
   const revisions: Record<string, number> = {};
   const receipts = new Map<string, { hash: unknown; result: unknown }>();
   const writes: Record<string, unknown>[] = [];
+  const scopes: StorageScope[] = [];
+  const rpcCalls: string[] = [];
   let beforeCommit: (() => void) | undefined;
   let paused = false;
   let loseCommitResponse = false;
   const fetcher: typeof fetch = async (input, init) => {
-    const url = String(input);
+    const url = String(input); rpcCalls.push(url);
     const body: unknown = JSON.parse(String(init?.body));
     assert.ok(isStorageRecord(body));
     if (url.endsWith('/storage_get_receipt')) {
@@ -77,8 +81,16 @@ const fixture = (initial: Record<string, unknown> = previousValue) => {
       return Response.json(receipt ? { found: true, result: receipt.result, payloadHash: receipt.hash, action: 'student-economy', committedAt: '2026-09-08T00:00:01Z' } : { found: false });
     }
     if (paused) return Response.json({ message: 'STORAGE_MAINTENANCE' }, { status: 503 });
-    if (url.endsWith('/storage_load_snapshot')) return Response.json({ ...state, revisions, updated_at: '2026-09-08T00:00:00Z' });
-    assert.ok(url.endsWith('/storage_commit_mutation'));
+    if (url.endsWith('/storage_load_scope')) {
+      const scope = parseStorageScope(body.p_scope); scopes.push(scope);
+      const selected = state.resources.filter(resource => storageResourceMatchesScope(resource, scope.resources));
+      const keys = [...selected.map(resource => resource.resource_key), ...scope.resources.map(selector => selector.path), ...storageScopeStructuralKeys(scope)];
+      const resources = state.resources.filter(resource => selected.includes(resource) || storageStructuralAncestor(resource, keys));
+      const wallets = state.wallets.filter(wallet => scope.wallets.includes(wallet.student_number));
+      const history = state.history.filter(entry => scope.history.includes(entry.student_number));
+      return Response.json({ kind: 'scoped', scope, resources, wallets, history, revisions, deletedKeys: [], orderingBounds: {}, updated_at: '2026-09-08T00:00:00Z' });
+    }
+    assert.ok(url.endsWith('/storage_commit_scoped_mutation'), `Unexpected full read or write: ${url}`);
     writes.push(body);
     const receiptKey = `${body.p_actor_key}/${body.p_request_id}`;
     const prior = receipts.get(receiptKey);
@@ -113,7 +125,7 @@ const fixture = (initial: Record<string, unknown> = previousValue) => {
     return Response.json({ saved: true, result: body.p_result, updatedAt: '2026-09-08T00:00:01Z' });
   };
   return {
-    fetcher, writes, value: () => assembleStorageState(state),
+    fetcher, writes, scopes, rpcCalls, value: () => assembleStorageState(state),
     pause: () => { paused = true; },
     loseResponse: () => { loseCommitResponse = true; },
     replaceReceiptResult: (actor: string, id: string, result: unknown) => { const receipt = receipts.get(`${actor}/${id}`); assert.ok(receipt); receipts.set(`${actor}/${id}`, { ...receipt, result }); },
@@ -300,4 +312,18 @@ test('학생 거래 POST와 영수증 GET은 타인 편지와 송금 수신자�
     assert.deepEqual(body.result.currencyBalanceEntries, { 1: 125 });
     assert.ok(!JSON.stringify(body).includes('다른 학생 비밀 편지'));
   }, { ...previousValue, studentLife: life });
+});
+
+test('부분 응답을 지원하지 않는 기존 v2 화면은 POST와 영수증 조회 모두 RPC 전에 차단된다', async () => {
+  await withFixture(async (db) => {
+    const headers = { ...studentHeaders(1), 'x-storage-projection': undefined };
+    const before = db.value();
+    for (const method of ['POST','GET']) {
+      const response = createResponse();
+      await handler({ method, headers, body: { protocolVersion: 2, studentNumber: 1, action: { type: 'deposit', amount: 30 }, requestId: 'old-partial-client' }, query: { protocolVersion: '2', studentNumber: '1', requestId: 'old-partial-client' } }, response.response);
+      assert.equal(response.result().statusCode,426);
+      assert.deepEqual(response.result().body,{error:'STORAGE_PROTOCOL_UPGRADE_REQUIRED'});
+    }
+    assert.equal(db.rpcCalls.length,0);assert.equal(db.scopes.length,0);assert.equal(db.writes.length,0);assert.deepEqual(db.value(),before);
+  });
 });

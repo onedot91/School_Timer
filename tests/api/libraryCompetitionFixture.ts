@@ -30,7 +30,7 @@ export async function fixture(run: (api: {
         let result: unknown;
         const response = { setHeader: () => undefined, status: (next: number) => { status = next; return response; }, json: (next: unknown) => { result = next; } };
         const identity = role === 'teacher' ? { role: 'teacher' as const } : { role: 'student' as const, studentNumber: typeof role === 'number' ? role : 1 };
-        await handler({ method, body: body && typeof body === 'object' ? { ...record(body), protocolVersion: 2, requestId: record(body).requestId ?? crypto.randomUUID() } : body, query: method === 'GET' ? { libraryCompetition: '1' } : {}, headers: { cookie: `__Host-school-timer-device=${createDeviceSessionToken(identity, secret)}`, 'sec-fetch-site': role === 'cross-site' ? 'cross-site' : 'same-origin' } }, response);
+        await handler({ method, body: body && typeof body === 'object' ? { ...record(body), protocolVersion: 2, requestId: record(body).requestId ?? crypto.randomUUID() } : body, query: method === 'GET' ? { libraryCompetition: '1' } : {}, headers: { cookie: `__Host-school-timer-device=${createDeviceSessionToken(identity, secret)}`, 'x-storage-projection': '1', 'sec-fetch-site': role === 'cross-site' ? 'cross-site' : 'same-origin' } }, response);
         return { status, body: record(result) };
       },
       read: storage.read, set: storage.set, setTimestamp: storage.setTimestamp, archives: storage.archives, fail: storage.failNextCommit, loseResponse: storage.loseNextCommitResponse,

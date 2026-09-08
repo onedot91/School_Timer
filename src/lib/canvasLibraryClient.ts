@@ -7,6 +7,10 @@ import { loadLibraryLocalSnapshot, storeLibraryLocalSnapshot } from './libraryCo
 import { libraryCompetitionClient, LibraryCompetitionClientError } from './libraryCompetitionClient.js';
 import { invalidateSharedSettingsCache, isSupabaseSettingsEnabled } from './supabaseSettings.js';
 import type { LibraryBookDraft, LibraryPlacedBook } from './canvasLibraryWorld.js';
+import { acceptStorageProjection, captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError } from './storageResponseOrder.js';
+import { parseStorageProjectionPatch } from './storageProjectionPatch.js';
+import { getStorageAvailability, publishStorageAvailability } from './storageAvailability.js';
+import { createStudentSaveDraftStore } from './studentSaveDraft.js';
 
 export type CanvasLibraryPlacementErrorCode =
   | 'INVALID_LIBRARY_COMMAND'
@@ -20,6 +24,8 @@ export type CanvasLibraryPlacementErrorCode =
   | 'READ_ONLY_DATA_MODE'
   | 'LIBRARY_NETWORK_FAILED'
   | 'INVALID_LIBRARY_RESPONSE'
+  | 'LIBRARY_STORAGE_MAINTENANCE'
+  | 'LIBRARY_STORAGE_UPDATE_REQUIRED'
   | 'LIBRARY_LOCAL_SAVE_FAILED';
 
 export type CanvasLibraryPlacementResult =
@@ -50,6 +56,8 @@ const ERROR_MESSAGES: Record<CanvasLibraryPlacementErrorCode, string> = {
   READ_ONLY_DATA_MODE: '읽기 전용 모드에서는 책을 꽂을 수 없어요.',
   LIBRARY_NETWORK_FAILED: '연결이 불안정해요. 같은 책으로 다시 시도해 주세요.',
   INVALID_LIBRARY_RESPONSE: '도서관 응답을 확인하지 못했어요. 새로고침해 주세요.',
+  LIBRARY_STORAGE_MAINTENANCE: '저장 점검 중이에요. 책은 보관했어요.',
+  LIBRARY_STORAGE_UPDATE_REQUIRED: '화면을 새로고침해 주세요. 책은 보관했어요.',
   LIBRARY_LOCAL_SAVE_FAILED: '이 기기에 책을 저장하지 못했어요. 저장 공간을 확인해 주세요.',
 };
 
@@ -187,16 +195,18 @@ const makeCommand = (
 });
 
 export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDependencies) => {
-  const pendingRequestIds = new Map<string, string>();
+  const pendingDrafts = createStudentSaveDraftStore({ createRequestId: dependencies.createRequestId });
 
   const placeBook = async (draft: LibraryBookDraft, slotId: number, seasonId?: string): Promise<CanvasLibraryPlacementResult> => {
     if (dependencies.dataMode === 'readonly') return failure('READ_ONLY_DATA_MODE');
     const key = `${seasonId ?? 'legacy'}:${draftKey(draft)}`;
-    const requestId = pendingRequestIds.get(key) ?? dependencies.createRequestId();
-    pendingRequestIds.set(key, requestId);
+    const scope = { studentNumber: draft.studentNumber, feature: 'library-placement', entityId: key };
+    const pending = pendingDrafts.save(scope, { book: makeCommand(draft, slotId, '').book, seasonId: seasonId ?? null });
+    const requestId = pending.status === 'invalid' ? dependencies.createRequestId() : pending.draft.requestId;
     const command = { ...makeCommand(draft, slotId, requestId), ...(seasonId ? { seasonId } : {}) };
 
     if (dependencies.dataMode !== 'mock' && dependencies.isSharedConfigured) {
+      const responseContext = captureStorageResponseContext();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), dependencies.requestTimeoutMs);
       try {
@@ -204,7 +214,7 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
           method: 'PUT',
           credentials: 'same-origin',
           cache: 'no-store',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Storage-Projection': '1' },
           body: JSON.stringify({ ...command, protocolVersion: 2 }),
           signal: controller.signal,
         });
@@ -212,15 +222,32 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
         try {
           body = await response.json();
         } catch {
+          if (!isStorageResponseContextCurrent(responseContext)) throw new StorageResponseActorChangedError();
           return failure('INVALID_LIBRARY_RESPONSE');
         }
-        if (!response.ok) return failure(parseServerError(body) ?? 'INVALID_LIBRARY_RESPONSE');
+        if (!isStorageResponseContextCurrent(responseContext)) throw new StorageResponseActorChangedError();
+        if (!response.ok) {
+          const error = { code: isRecord(body) ? body.error : undefined, status: response.status };
+          const availability = getStorageAvailability(error);
+          if (availability && publishStorageAvailability(error, responseContext)) return failure(availability === 'maintenance' ? 'LIBRARY_STORAGE_MAINTENANCE' : 'LIBRARY_STORAGE_UPDATE_REQUIRED');
+          return failure(parseServerError(body) ?? 'INVALID_LIBRARY_RESPONSE');
+        }
         const parsed = parseSuccess(body, command, draft.studentNumber);
         if (!parsed) return failure('INVALID_LIBRARY_RESPONSE');
-        pendingRequestIds.delete(key);
+        if (parsed.ok && isRecord(body) && 'storagePatch' in body) {
+          let storagePatch;
+          try { storagePatch = parseStorageProjectionPatch(body.storagePatch); }
+          catch { return failure('INVALID_LIBRARY_RESPONSE'); }
+          const accepted = acceptStorageProjection(responseContext, { value: parsed.value, updatedAt: parsed.updatedAt, scope: 'student', storagePatch });
+          pendingDrafts.confirm(scope, requestId);
+          dependencies.invalidateSharedCache();
+          return { ...parsed, value: accepted.value, updatedAt: accepted.updatedAt };
+        }
+        pendingDrafts.confirm(scope, requestId);
         dependencies.invalidateSharedCache();
         return parsed;
       } catch (error) {
+        if (!isStorageResponseContextCurrent(responseContext) || error instanceof StorageResponseActorChangedError) throw new StorageResponseActorChangedError();
         if (error instanceof Error) return failure('LIBRARY_NETWORK_FAILED');
         throw error;
       } finally {
@@ -235,7 +262,7 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
       if (!dependencies.storeLocalSnapshot(result.value)) return failure('LIBRARY_LOCAL_SAVE_FAILED');
       const placedBook = toPlacedBook(result.book);
       if (!placedBook) return failure('INVALID_LIBRARY_RESPONSE');
-      pendingRequestIds.delete(key);
+      pendingDrafts.confirm(scope, requestId);
       return {
         ok: true,
         book: result.book,

@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "test": "node --import tsx --test src/lib/*.test.ts tests/api/*.test.ts",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "verify:release": "node dev/verifyRelease.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

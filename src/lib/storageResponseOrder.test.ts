@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { StorageResponseOrder, StorageResponseActorChangedError, compareStorageTimestamps } from './storageResponseOrder.js';
+import { splitStorageState } from './storageV2Codec.js';
 
 const projection = (balance: number, updatedAt: string) => ({ value: { currencyBalances: { '17': balance } }, updatedAt });
 
@@ -80,6 +81,61 @@ test('command client and GET share response ordering and reject a completion aft
   } finally {
     globalThis.fetch = originalFetch;
     if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow); else Reflect.deleteProperty(globalThis, 'window');
+    await server.close();
+  }
+});
+
+test('실제 full GET와 command partial을 역순 응답해도 모든 기능을 보존하고 손상 patch는 저장 미확정으로 처리한다', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
+    define: { 'import.meta.env.PROD': 'true', 'import.meta.env.DEV': 'false', 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fixture.invalid'), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('fixture') } });
+  const originalFetch = globalThis.fetch;
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const storage = new Map<string, string>([['school-timer-entry-number-v1', '17']]);
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: Object.assign(new EventTarget(), {
+    localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) }, location: { hash: '#student-overview' },
+  }) });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } });
+  const pending: { method: string; resolve: (response: Response) => void }[] = [];
+  globalThis.fetch = async (_url, init) => {
+    assert.equal(new Headers(init?.headers).get('X-Storage-Projection'), '1');
+    return new Promise<Response>(resolve => pending.push({ method: init?.method ?? 'GET', resolve }));
+  };
+  const at = (second: number) => `2026-09-08T02:00:0${second}.000001Z`;
+  const patch = (value: Record<string, unknown>, revision: number, complete: boolean) => {
+    const encoded = splitStorageState(value);
+    return { ...encoded, complete, historyStudents: encoded.wallets.map(row => row.student_number), deletedKeys: [],
+      revisions: Object.fromEntries([...encoded.resources.map(row => [row.resource_key, revision]), ...encoded.wallets.map(row => [`wallet:${row.student_number}`, revision])]) };
+  };
+  try {
+    const client = await server.ssrLoadModule('/src/lib/storageCommandClient.ts') as typeof import('./storageCommandClient.js');
+    const settings = await server.ssrLoadModule('/src/lib/supabaseSettings.ts') as typeof import('./supabaseSettings.js');
+    const full = settings.loadSharedSettingsRow();
+    const letters = client.executeStorageCommand({ requestId: 'fixture-letter', action: 'student.letter', payload: {} });
+    const profile = client.executeStorageCommand({ requestId: 'fixture-profile', action: 'student.profile', payload: {} });
+    pending[2].resolve(Response.json({ value: {}, updatedAt: at(3), result: 'profile result', storagePatch: patch({ profile: 'new' }, 3, false) }));
+    assert.deepEqual((await profile).value, { profile: 'new' });
+    pending[1].resolve(Response.json({ value: {}, updatedAt: at(2), result: 'letter result', storagePatch: patch({ studentLife: { letters: [{ id: 'letter', content: 'new' }] } }, 2, false) }));
+    assert.deepEqual((await letters).value, { profile: 'new', studentLife: { letters: [{ id: 'letter', content: 'new' }] } });
+    const original = { profile: 'old', studentLife: { letters: [{ id: 'letter', content: 'old' }], books: [{ id: 'book' }] } };
+    pending[0].resolve(Response.json({ id: 'school-timer-main', value: original, updated_at: at(1), scope: 'student', storagePatch: patch(original, 1, true) }));
+    assert.deepEqual((await full)?.value, { profile: 'new', studentLife: { letters: [{ id: 'letter', content: 'new' }], books: [{ id: 'book' }] } });
+    let writes = 0;
+    let receipts = 0;
+    globalThis.fetch = async (_url, init) => {
+      assert.equal(new Headers(init?.headers).get('X-Storage-Projection'), '1');
+      if (init?.method === 'POST') { writes += 1; return Response.json({ value: {}, updatedAt: at(4), result: null, storagePatch: { resources: [] } }); }
+      receipts += 1; return Response.json({ status: 'unknown' });
+    };
+    await assert.rejects(client.executeStorageCommand({ requestId: 'fixture-invalid-patch', action: 'student.letter', payload: {} }), /STORAGE_CONFIRMATION_REQUIRED/);
+    assert.equal(writes, 1); assert.equal(receipts, 3);
+    const order = await server.ssrLoadModule('/src/lib/storageResponseOrder.ts') as typeof import('./storageResponseOrder.js');
+    assert.deepEqual(order.readLatestStorageProjection(order.captureStorageResponseContext())?.value, { profile: 'new', studentLife: { letters: [{ id: 'letter', content: 'new' }], books: [{ id: 'book' }] } });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow); else Reflect.deleteProperty(globalThis, 'window');
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
     await server.close();
   }
 });

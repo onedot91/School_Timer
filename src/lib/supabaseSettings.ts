@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { acceptStorageProjection, captureStorageResponseContext, compareStorageTimestamps, isStorageResponseContextCurrent, readLatestStorageProjection, StorageResponseActorChangedError, type StorageResponseContext } from './storageResponseOrder.js';
 import { isStorageRecord } from './storageV2Codec.js';
+import { parseStorageProjectionPatch, type StorageProjectionPatch } from './storageProjectionPatch.js';
 import { parseClassDonationResult } from './classDonation.js';
 import { isReadOnlyDataMode } from './dataMode.js';
 import { createStudentSettingsUpdate, STUDENT_MUTABLE_MAP_FIELDS } from './studentSettingsUpdate.js';
@@ -22,6 +23,7 @@ export type SettingsRow = {
   value: unknown;
   updated_at?: string;
   scope?: 'full' | 'student';
+  storagePatch?: StorageProjectionPatch;
 };
 
 let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
@@ -61,7 +63,7 @@ const orderSettingsRow = (context: StorageResponseContext, row: SettingsRow | nu
     return latest ? { id: SHARED_SETTINGS_ID, value: latest.value, updated_at: latest.updatedAt, scope: latest.scope } : null;
   }
   if (!isStorageRecord(row.value) || typeof row.updated_at !== 'string') throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
-  const projection = acceptStorageProjection(context, { value: row.value, updatedAt: row.updated_at, scope: row.scope });
+  const projection = acceptStorageProjection(context, { value: row.value, updatedAt: row.updated_at, scope: row.scope, storagePatch: row.storagePatch });
   return { id: row.id, value: projection.value, updated_at: projection.updatedAt, scope: projection.scope };
 };
 
@@ -165,10 +167,12 @@ const parseSettingsRow = (value: unknown): SettingsRow | null => {
   const settings: unknown = Reflect.get(value, 'value');
   const timestamp = Reflect.get(value, 'updated_at');
   const scope = Reflect.get(value, 'scope');
+  const storagePatch: unknown = Reflect.get(value, 'storagePatch');
   if (id !== SHARED_SETTINGS_ID || !settings || typeof settings !== 'object' || Array.isArray(settings)
     || typeof timestamp !== 'string' || !timestamp
     || (scope !== undefined && scope !== 'student' && scope !== 'full')) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
-  return { id, value: settings, updated_at: timestamp, ...(scope === 'student' || scope === 'full' ? { scope } : {}) };
+  return { id, value: settings, updated_at: timestamp, ...(scope === 'student' || scope === 'full' ? { scope } : {}),
+    ...(storagePatch === undefined ? {} : { storagePatch: parseStorageProjectionPatch(storagePatch) }) };
 };
 
 const equalJson = (left: unknown, right: unknown): boolean => {
@@ -205,7 +209,7 @@ const fetchSharedSettingsRow = async (context: StorageResponseContext) => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const generation = settingsCacheGeneration;
-    const row = orderSettingsRow(context, parseSettingsRow(await fetchJson('/api/shared-settings', undefined, true)));
+    const row = orderSettingsRow(context, parseSettingsRow(await fetchJson('/api/shared-settings', { headers: { 'X-Storage-Projection': '1' } }, true)));
     // Student projections contain every field the scoped writer needs. Keep newer receipts
     // when a background read that started before a save arrives afterwards.
     const currentTimestamp = cachedWritableSharedSettingsRow?.updated_at;

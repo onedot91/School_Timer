@@ -1,13 +1,16 @@
-import type { DeviceSession } from './deviceSession.js';
+import type { DeviceSession, RequestHeaders } from './deviceSession.js';
 import { applyStudentStorageCommand } from './studentStorageCommands.js';
 import { applyTeacherStorageCommand } from './teacherStorageCommands.js';
 import {
-  commitStorageMutation, getStorageReceipt, loadStorageSnapshot, StorageRepositoryError,
+  commitScopedStorageMutation, getStorageReceipt, loadScopedStorageSnapshot, StorageRepositoryError,
   type StorageConfiguration,
 } from './storageV2Repository.js';
-import { isStorageRecord, storageResourceKey } from '../lib/storageV2Codec.js';
+import { storageCommandScope } from './storageCommandScope.js';
+import { createStorageProjectionPatch, supportsStorageProjection } from './storageProjection.js';
+import { isStorageRecord } from '../lib/storageV2Codec.js';
 
 interface CommandRequest {
+  readonly headers?: RequestHeaders;
   readonly method?: string;
   readonly body?: unknown;
   readonly query?: Record<string, string | readonly string[] | undefined>;
@@ -29,45 +32,24 @@ const businessError = (error: Error): { code: string; status: number } | null =>
   return null;
 };
 
-export const storageCommandReadKeys = (action: string, payload: unknown, session: DeviceSession): string[] => {
-  const input = isStorageRecord(payload) ? payload : {};
-  const own = session.role === 'student' ? session.studentNumber : null;
-  const scope = (field: string, student: number | null = own) => `scope:${field}:${student ?? 'all'}`;
-  if (action === 'student.letter.send') return [];
-  if (action === 'student.letter.read' && typeof input.letterId === 'string') return [storageResourceKey('studentLife','letters',`@${input.letterId}`)];
-  if (action === 'student.failure.stamp' && typeof input.storyId === 'string') return [storageResourceKey('studentLife','failureStories',`@${input.storyId}`)];
-  if (action === 'student.failure.create') return [`wallet:${own}`,scope('currencyHistory'),scope('studentLife')];
-  if (action.startsWith('student.pet.')) return [scope('studentPets'), ...(action.endsWith('.feed') ? [`wallet:${own}`,'scope:auctionBids:all','scope:auctionAwards:all','scope:auctionItems:all'] : [])];
-  if (action === 'student.emotion.save') return [scope('studentEmotionHistory'),`wallet:${own}`,scope('currencyHistory')];
-  if (action.startsWith('student.sudoku.')) return [scope('studentSudoku'),`wallet:${own}`,scope('currencyHistory')];
-  if (action.startsWith('student.baseball.')) return [scope('studentNumberBaseball'),`wallet:${own}`,scope('currencyHistory')];
-  if (action === 'student.auction.bid') return [`wallet:${own}`,'scope:auctionBids:all','scope:auctionItems:all','scope:auctionAwards:all'];
-  if (action === 'teacher.settings.patch' && Array.isArray(input.changes)) return input.changes.flatMap(change => isStorageRecord(change) && typeof change.field === 'string'
-    ? [storageResourceKey(...change.field.split('.'))] : []);
-  if (action === 'teacher.mail.send') return [];
-  if (action === 'teacher.mail.read' && Array.isArray(input.letterIds)) return input.letterIds.flatMap(id => typeof id === 'string' ? [storageResourceKey('studentLife','letters',`@${id}`)] : []);
-  const keys = ['scope:auctionBids:all','scope:auctionItems:all','scope:auctionAwards:all'];
-  if (action.startsWith('teacher.currency.') || action.startsWith('teacher.auction.')) keys.push('scope:studentEconomy:all','scope:studentStockMarket:all','scope:teacherWeeklySettlements:all');
-  if (action.startsWith('teacher.role.')) keys.push('scope:classroomRoleMission:all');
-  if (action.startsWith('teacher.writing.')) keys.push('scope:dailyWriting:all');
-  if (action.startsWith('teacher.donation.')) keys.push('scope:classDonation:all');
-  return keys;
-};
-
 export const handleStorageCommand = async (
   request: CommandRequest, response: CommandResponse, configuration: StorageConfiguration,
   session: DeviceSession, projectStudentValue: ProjectValue,
 ): Promise<void> => {
   const project = (value: unknown): Record<string, unknown> => session.role === 'teacher'
     ? isStorageRecord(value) ? value : {} : projectStudentValue(value, session.studentNumber);
+  if (!supportsStorageProjection(request.headers)) {
+    response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
+  }
   try {
     if (request.method === 'GET') {
       const requestId = request.query?.requestId;
       if (!validId(requestId)) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
       const receipt = await getStorageReceipt(configuration, actorKey(session), requestId);
       if (!receipt.found) { response.status(200).json({ status: 'unknown' }); return; }
-      const snapshot = await loadStorageSnapshot(configuration);
-      response.status(200).json({ status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result,
+      const scope = receipt.scope ?? storageCommandScope(receipt.action ?? '', {}, session, true);
+      const snapshot = await loadScopedStorageSnapshot(configuration, scope);
+      response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result,
         ...('action' in receipt ? { action: receipt.action } : {}), ...('payloadHash' in receipt ? { payloadHash: receipt.payloadHash } : {}) });
       return;
     }
@@ -78,25 +60,27 @@ export const handleStorageCommand = async (
     const action = body.action, requestId = body.requestId, payload = body.payload;
     if (session.role === 'student' && !action.startsWith('student.')) { response.status(403).json({ error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' }); return; }
     if (session.role === 'teacher' && !action.startsWith('teacher.')) { response.status(403).json({ error: 'TEACHER_COMMAND_REQUIRED' }); return; }
+    const scope = storageCommandScope(action, payload, session);
     const createdAt = new Date().toISOString();
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const snapshot = await loadStorageSnapshot(configuration);
       const receipt = await getStorageReceipt(configuration, actorKey(session), requestId, { action, payload });
       if (receipt.found) {
-        response.status(200).json({ status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result });
+        const snapshot = await loadScopedStorageSnapshot(configuration, receipt.scope ?? scope);
+        response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result });
         return;
       }
+      const snapshot = await loadScopedStorageSnapshot(configuration, scope);
       const mutation = session.role === 'teacher'
         ? applyTeacherStorageCommand(snapshot.value, action, payload, { requestId, createdAt })
         : applyStudentStorageCommand(snapshot.value, session.studentNumber, action, payload, { requestId, createdAt });
       if (!mutation) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
-      const saved = await commitStorageMutation(configuration, { snapshot, value: mutation.value,
+      const saved = await commitScopedStorageMutation(configuration, { snapshot, value: mutation.value,
         actorKey: actorKey(session),requestId,action,payload,result: mutation.result,
-        readKeys: storageCommandReadKeys(action,payload,session),
+        readKeys: scope.revisionKeys,
       });
       if (saved.saved) {
-        const current = await loadStorageSnapshot(configuration);
-        response.status(200).json({ status: 'committed',value: project(current.value),updatedAt: current.updated_at,result: saved.result ?? mutation.result });
+        const current = await loadScopedStorageSnapshot(configuration, scope);
+        response.status(200).json({ storagePatch: createStorageProjectionPatch(current, project(current.value)), status: 'committed',value: project(current.value),updatedAt: current.updated_at,result: saved.result ?? mutation.result });
         return;
       }
       if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 40 * 2 ** attempt + Math.random() * 80));

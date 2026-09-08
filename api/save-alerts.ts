@@ -1,8 +1,9 @@
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import { parseSaveFailureAlert, parseSaveFailureReport, SAVE_FAILURE_ROW_PREFIX } from '../src/lib/saveFailure.js';
+import { loadRewardAudit } from '../src/server/rewardAuditRepository.js';
 
-interface ApiRequest { method?: string; body?: unknown; headers?: RequestHeaders }
+interface ApiRequest { method?: string; body?: unknown; headers?: RequestHeaders; query?: Record<string, string | readonly string[] | undefined> }
 interface ApiResponse {
   setHeader(name: string, value: string): void;
   status(code: number): ApiResponse;
@@ -31,6 +32,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   };
   try {
     if (request.method === 'GET') {
+      if (request.query?.audit === 'rewards') {
+        const limit = consumeRequestRateLimit('reward-audit', request.headers, 0);
+        if (!limit.allowed) { response.setHeader('Retry-After', String(limit.retryAfterSeconds)); response.status(429).json({ error: 'TOO_MANY_REQUESTS' }); return; }
+        response.status(200).json(await loadRewardAudit({ url, key })); return;
+      }
       const rows = await query(`?id=like.${SAVE_FAILURE_ROW_PREFIX}*&value->>acknowledgedAt=is.null&select=value&order=updated_at.desc&limit=101`);
       if (!Array.isArray(rows)) throw new Error('INVALID_RESPONSE');
       const alerts = rows.map((row: unknown) => parseSaveFailureAlert(row && typeof row === 'object' ? Reflect.get(row, 'value') : null));
@@ -69,6 +75,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     });
     response.status(200).json({ ok: true });
   } catch (error) {
+    if (request.method === 'GET' && request.query?.audit === 'rewards') { response.status(502).json({ error: 'REWARD_AUDIT_UNAVAILABLE' }); return; }
     response.status(error instanceof SyntaxError ? 400 : 502).json({ error: error instanceof SyntaxError ? 'INVALID_SAVE_ALERT' : 'SAVE_ALERTS_UNAVAILABLE' });
   }
 }

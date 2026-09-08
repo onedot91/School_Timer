@@ -1,12 +1,16 @@
 import { assembleStorageState, isStorageRecord, splitStorageState, storageScopeKey, type StorageResource, type StorageWallet, type StorageHistoryRecord } from '../../src/lib/storageV2Codec.js';
 import { parseStorageSnapshot } from '../../src/server/storageV2Repository.js';
+import { parseStorageScope, storageResourceMatchesScope, storageScopeRevisionKeys, storageScopeStructuralKeys, storageStructuralAncestor } from '../../src/server/storageScope.js';
 
 /** Disposable RPC adapter. Real PostgreSQL integration separately verifies the transaction implementation. */
 export const createStorageV2Fixture = (initialValue: Record<string, unknown>, initialTimestamp = '2026-01-01T00:00:00.000Z') => {
   let encoded = splitStorageState(structuredClone(initialValue));
   let updatedAt = initialTimestamp;
-  let revision = 0;
-  const revisions: Record<string, number> = {};
+  let revision = 1;
+  const revisions: Record<string, number> = Object.fromEntries([
+    ...encoded.resources.map(resource => [resource.resource_key, 1]),
+    ...encoded.wallets.map(wallet => [`wallet:${wallet.student_number}`, 1]),
+  ]);
   const archives = new Map<string, Record<string, unknown>>();
   const receipts = new Map<string, Record<string, unknown>>();
   let commitFailure = 0;
@@ -18,8 +22,37 @@ export const createStorageV2Fixture = (initialValue: Record<string, unknown>, in
     const body: unknown = init?.body ? JSON.parse(String(init.body)) : {};
     if (!isStorageRecord(body)) throw new Error('Invalid fixture command');
     if (url.pathname.endsWith('/storage_load_snapshot')) return Response.json(snapshot());
+    if (url.pathname.endsWith('/storage_load_scope')) {
+      const scope = parseStorageScope(body.p_scope);
+      const selected = encoded.resources.filter(resource => storageResourceMatchesScope(resource, scope.resources));
+      const selectedKeys = [...selected.map(resource => resource.resource_key), ...scope.resources.map(resource => resource.path), ...storageScopeStructuralKeys(scope)];
+      const resources = encoded.resources.filter(resource => selected.some(entry => entry.resource_key === resource.resource_key) || storageStructuralAncestor(resource, selectedKeys) || storageScopeStructuralKeys(scope).includes(resource.resource_key));
+      for (const key of storageScopeStructuralKeys(scope)) {
+        if (resources.some(resource => resource.resource_key === key)) continue;
+        const parts = key.split('/');
+        const member = parts.at(-1) ?? '';
+        const parentKey = key === '' ? null : key.slice(0, key.lastIndexOf('/'));
+        resources.push({ resource_key: key, category: parts[1] ?? 'root', owner_number: /^\d+$/.test(member) ? Number(member) : null,
+          value: { kind: key.startsWith('/currencyHistory/') ? 'array' : 'object', parentKey, member } });
+      }
+      const revisionKeys = new Set([...storageScopeRevisionKeys(scope), ...resources.map(resource => resource.resource_key)]);
+      const orderingBounds: Record<string, { minimum: number; maximum: number }> = {};
+      for (const resource of encoded.resources) {
+        if (resource.value.order === undefined || resource.value.parentKey === null) continue;
+        const parent = resource.value.parentKey;
+        if (!selectedKeys.some(key => key === parent || key.startsWith(`${parent}/`))) continue;
+        const previous = orderingBounds[parent];
+        orderingBounds[parent] = { minimum: Math.min(previous?.minimum ?? resource.value.order, resource.value.order), maximum: Math.max(previous?.maximum ?? resource.value.order, resource.value.order) };
+      }
+      return Response.json({ kind: 'scoped', scope, resources,
+        wallets: encoded.wallets.filter(wallet => scope.wallets.includes(wallet.student_number)),
+        history: encoded.history.filter(entry => scope.history.includes(entry.student_number)),
+        revisions: Object.fromEntries([...revisionKeys].map(key => [key, revisions[key] ?? 0])),
+        updated_at: updatedAt, deletedKeys: [], orderingBounds,
+      });
+    }
     if (url.pathname.endsWith('/storage_get_receipt')) return Response.json(receipts.get(`${body.p_actor_key}:${body.p_request_id}`) ?? { found: false });
-    if (url.pathname.endsWith('/storage_commit_mutation')) {
+    if (url.pathname.endsWith('/storage_commit_mutation') || url.pathname.endsWith('/storage_commit_scoped_mutation')) {
       if (commitFailure) return Response.json({ code: 'P0001' }, { status: commitFailure });
       const key = `${body.p_actor_key}:${body.p_request_id}`;
       const previous = receipts.get(key);
@@ -45,6 +78,7 @@ export const createStorageV2Fixture = (initialValue: Record<string, unknown>, in
         }
         dirty.add(change.resource_key);
         dirty.add(storageScopeKey(change.category, typeof change.owner_number === 'number' ? change.owner_number : null));
+        dirty.add(`scope:${change.category}:all`);
         const parent = isStorageRecord(change.value) ? change.value.parentKey : old?.value.parentKey;
         if (typeof parent === 'string') dirty.add(`collection:${parent}`);
       }
@@ -66,7 +100,7 @@ export const createStorageV2Fixture = (initialValue: Record<string, unknown>, in
       for (const resource of dirty) revisions[resource] = revision;
       updatedAt = new Date(Math.max(Date.now(), Date.parse(updatedAt) + 1)).toISOString();
       encoded = { resources: [...resources.values()], wallets: [...wallets.values()], history: [...history.values()] } satisfies { resources: StorageResource[]; wallets: StorageWallet[]; history: StorageHistoryRecord[] };
-      const receipt = { found: true, action: body.p_action, payloadHash: body.p_payload_hash, result: body.p_result, committedAt: updatedAt };
+      const receipt = { found: true, action: body.p_action, payloadHash: body.p_payload_hash, result: body.p_result, committedAt: updatedAt, ...(body.p_scope ? { scope: body.p_scope } : {}) };
       receipts.set(key, receipt);
       if (loseResponse) { loseResponse = false; throw new TypeError('Fixture response lost after commit'); }
       return Response.json({ saved: true, result: body.p_result, updatedAt });
@@ -75,7 +109,11 @@ export const createStorageV2Fixture = (initialValue: Record<string, unknown>, in
     throw new Error(`Unexpected fixture path: ${url.pathname}`);
   };
   return { fetch: fetcher, read, archives, receipts,
-    set: (value: Record<string, unknown>) => { encoded = splitStorageState(structuredClone(value)); },
+    set: (value: Record<string, unknown>) => {
+      encoded = splitStorageState(structuredClone(value));
+      for (const resource of encoded.resources) revisions[resource.resource_key] ??= 1;
+      for (const wallet of encoded.wallets) revisions[`wallet:${wallet.student_number}`] ??= 1;
+    },
     setTimestamp: (timestamp: string) => { updatedAt = timestamp; },
     failNextCommit: (status = 500) => { commitFailure = status; },
     loseNextCommitResponse: () => { loseResponse = true; },

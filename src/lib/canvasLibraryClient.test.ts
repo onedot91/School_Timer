@@ -304,3 +304,84 @@ test('existing unplaced book uses stable bookId and never serializes metadata as
   assert.equal((await client.placeBook(existing, 17)).ok, true);
   assert.deepEqual((bodies[0] as { book: unknown }).book, { kind: 'existing', bookId: 'legacy-book-3' });
 });
+
+test('exact maintenance and upgrade responses publish notices once and preserve manual retry identity', async () => {
+  const { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice } = await import('./storageAvailability.js');
+  for (const [code, status, kind, expected] of [
+    ['STORAGE_MAINTENANCE', 503, 'maintenance', 'LIBRARY_STORAGE_MAINTENANCE'],
+    ['STORAGE_NOT_ACTIVE', 503, 'maintenance', 'LIBRARY_STORAGE_MAINTENANCE'],
+    ['STORAGE_PROTOCOL_UPGRADE_REQUIRED', 426, 'update', 'LIBRARY_STORAGE_UPDATE_REQUIRED'],
+    ['STORAGE_PROTOCOL_REQUIRED', 409, 'update', 'LIBRARY_STORAGE_UPDATE_REQUIRED'],
+  ] as const) {
+    dismissStorageAvailabilityNotice();
+    const calls: Record<string, unknown>[] = [];
+    const client = createCanvasLibraryClient(dependencies({ fetcher: async (_input, init) => {
+      calls.push(JSON.parse(String(init?.body)));
+      return Response.json({ error: code }, { status });
+    } }));
+    const result = await client.placeBook(draft, 17);
+    assert.deepEqual(result, { ok: false, error: { code: expected, retryable: true } });
+    assert.equal(getStorageAvailabilityNotice()?.kind, kind);
+    assert.equal(calls.length, 1);
+    await client.placeBook(draft, 17);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].requestId, calls[1].requestId);
+    assert.deepEqual(calls[0].book, calls[1].book);
+  }
+  dismissStorageAvailabilityNotice();
+});
+
+test('arbitrary 503 malformed success and network failure remain uncertain without a maintenance notice', async () => {
+  const { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice } = await import('./storageAvailability.js');
+  for (const [fetcher, expected] of [
+    [async () => Response.json({ error: 'OTHER_FAILURE' }, { status: 503 }), 'INVALID_LIBRARY_RESPONSE'],
+    [async () => Response.json({ error: 'STORAGE_MAINTENANCE' }, { status: 502 }), 'INVALID_LIBRARY_RESPONSE'],
+    [async () => Response.json({ ok: true }), 'INVALID_LIBRARY_RESPONSE'],
+    [async () => { throw new TypeError('network'); }, 'LIBRARY_NETWORK_FAILED'],
+  ] as const) {
+    dismissStorageAvailabilityNotice();
+    let calls = 0;
+    const client = createCanvasLibraryClient(dependencies({ fetcher: async () => { calls += 1; return fetcher(); } }));
+    const result = await client.placeBook(draft, 17);
+    assert.deepEqual(result, { ok: false, error: { code: expected, retryable: true } });
+    assert.equal(calls, 1);
+    assert.equal(getStorageAvailabilityNotice(), null);
+  }
+});
+
+test('reload preserves a pending book request ID and changed actor receives no stale save alert', async () => {
+  const { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice } = await import('./storageAvailability.js');
+  const { captureStorageResponseContext } = await import('./storageResponseOrder.js');
+  const { classifySaveFailure } = await import('./saveFailure.js');
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const data = new Map<string, string>();
+  let actor = '3';
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { localStorage: {
+    getItem: (key: string) => key === 'school-timer-entry-number-v1' ? actor : data.get(key) ?? null,
+    setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key),
+  } } });
+  dismissStorageAvailabilityNotice();
+  try {
+    const bodies: Record<string, unknown>[] = [];
+    const fetcher: typeof fetch = async (_input, init) => { bodies.push(JSON.parse(String(init?.body))); return Response.json({ error: 'STORAGE_MAINTENANCE' }, { status: 503 }); };
+    await createCanvasLibraryClient(dependencies({ createRequestId: () => UUID_ONE, fetcher })).placeBook(draft, 17);
+    await createCanvasLibraryClient(dependencies({ createRequestId: () => UUID_TWO, fetcher })).placeBook(draft, 17);
+    assert.equal(bodies.length, 2);
+    assert.equal(bodies[0].requestId, UUID_ONE);
+    assert.equal(bodies[1].requestId, UUID_ONE);
+    dismissStorageAvailabilityNotice();
+    const changedActorClient = createCanvasLibraryClient(dependencies({ fetcher: async () => {
+      actor = '4'; return Response.json({ error: 'STORAGE_MAINTENANCE' }, { status: 503 });
+    } }));
+    await assert.rejects(changedActorClient.placeBook(draft, 17), error => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.name, 'StorageResponseActorChangedError');
+      assert.equal(classifySaveFailure(error), null);
+      return true;
+    });
+    assert.equal(getStorageAvailabilityNotice(), null);
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'window', original); else Reflect.deleteProperty(globalThis, 'window');
+    captureStorageResponseContext(); dismissStorageAvailabilityNotice();
+  }
+});

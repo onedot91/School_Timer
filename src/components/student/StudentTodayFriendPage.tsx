@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Clock3, RefreshCw } from 'lucide-react';
+import { storageAvailabilityMessage } from '../../lib/storageAvailabilityCopy';
 
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import {
@@ -135,7 +136,7 @@ export default function StudentTodayFriendPage({
         if (sequence !== loadSequence.current) return false;
         setSaveMessage('다른 기기의 변경과 겹쳤어요. 입력을 확인한 뒤 다시 제출해 주세요.');
       } else {
-        setSaveMessage('입력을 보존했어요. 저장 여부를 확인해 주세요.');
+        setSaveMessage(storageAvailabilityMessage(error) ?? '입력을 보존했어요. 저장 여부를 확인해 주세요.');
       }
       return false;
     } finally {

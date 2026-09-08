@@ -1,4 +1,5 @@
 import { createBrowserRequestId } from './requestId';
+import { setDraftReloadCheck, removeDraftReloadCheck } from './draftReloadSafety.js';
 
 type PendingRequest = { readonly fingerprint: string; readonly requestId: string; readonly expectedRevision?: string };
 const memory = new Map<string, PendingRequest>();
@@ -24,6 +25,8 @@ export const prepareClasswordRequest = (storage: Storage | null, actor: number, 
     fingerprint, requestId: createBrowserRequestId(), ...(typeof expectedRevision === 'string' ? { expectedRevision } : {}),
   };
   memory.set(key, pending);
+  const serialized = JSON.stringify(pending);
+  setDraftReloadCheck(key, actor, () => storage?.getItem(key) === serialized);
   try { storage?.setItem(key, JSON.stringify(pending)); } catch { return { ...payload, requestId: pending.requestId, ...(pending.expectedRevision ? { expectedRevision: pending.expectedRevision } : {}) }; }
   return { ...payload, requestId: pending.requestId, ...(pending.expectedRevision ? { expectedRevision: pending.expectedRevision } : {}) };
 };
@@ -32,5 +35,6 @@ export const finishClasswordRequest = (storage: Storage | null, actor: number, a
   const key = keyFor(actor, action);
   if (memory.get(key)?.requestId !== requestId) return;
   memory.delete(key);
+  removeDraftReloadCheck(key);
   try { storage?.removeItem(key); } catch { return; }
 };

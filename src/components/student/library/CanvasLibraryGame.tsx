@@ -14,6 +14,8 @@ import { createLibraryAudio } from '../../../lib/canvasLibraryAudio';
 import { CANVAS_LIBRARY_PALETTE } from './CanvasLibraryPalette';
 import { useModalFocus } from '../../../lib/useModalFocus';
 import { CanvasLibraryPlacementExpectedError } from '../../../lib/canvasLibraryClient';
+import { loadLibraryBookDraft, saveLibraryBookDraft } from '../../../lib/libraryBookDraft';
+import { StorageResponseActorChangedError } from '../../../lib/storageResponseOrder';
 import {
   createLibraryPlayer,
   createSmallLibraryRoom,
@@ -141,7 +143,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     ? props.initialCatState
     : createLibraryCatState(room, catNavigation, import.meta.env.DEV && props.catSeed !== undefined ? props.catSeed : Math.floor(Math.random() * 0x100000000), createLibraryPlayer(room, studentNumber)));
 
-  const [carriedDraft, setCarriedDraft] = useState<LibraryBookDraft | null>(null);
+  const [savedInput] = useState(() => loadLibraryBookDraft(studentNumber));
+  const draftStudentRef = useRef(studentNumber);
+  const [carriedDraft, setCarriedDraft] = useState<LibraryBookDraft | null>(savedInput?.carried ?? null);
   const [nearbyTarget, setNearbyTarget] = useState<LibraryTarget | null>(null);
   const [modal, setModal] = useState<GameModal>(() => (
     STUDENT_FEATURE_RELEASES.failureExhibition && props.initialFailureBoardOpen && props.renderFailureBoard
@@ -153,14 +157,22 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const [displayScale, setDisplayScale] = useState(1);
   const nameplates = useMemo(() => getLibraryNameplates(room), [room]);
   const nameplateElementsRef = useRef<Array<HTMLSpanElement | null>>([]);
-  const [title, setTitle] = useState('');
-  const [author, setAuthor] = useState('');
-  const [reflection, setReflection] = useState('');
+  const [title, setTitle] = useState(savedInput?.title ?? '');
+  const [author, setAuthor] = useState(savedInput?.author ?? '');
+  const [reflection, setReflection] = useState(savedInput?.reflection ?? '');
+  useEffect(() => {
+    if (draftStudentRef.current !== studentNumber) {
+      draftStudentRef.current = studentNumber;
+      const saved = loadLibraryBookDraft(studentNumber);
+      setTitle(saved?.title ?? ''); setAuthor(saved?.author ?? ''); setReflection(saved?.reflection ?? ''); setCarriedDraft(saved?.carried ?? null);
+      return;
+    }
+    saveLibraryBookDraft(studentNumber, { title, author, reflection, carried: carriedDraft });
+  }, [studentNumber, title, author, reflection, carriedDraft]);
   const [formError, setFormError] = useState<string | null>(null);
   const [slotError, setSlotError] = useState<string | null>(null);
   const [seasonNotice, setSeasonNotice] = useState<string | null>(null);
   const previousSeasonRef = useRef(props.seasonId);
-  const preserveRegistrationRef = useRef(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState(0);
   const [isPlacing, setIsPlacing] = useState(false);
   const [readingBookIndex, setReadingBookIndex] = useState(0);
@@ -354,7 +366,6 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     previousSeasonRef.current = props.seasonId;
     if (!previous || !props.seasonId || previous === props.seasonId) return;
     if (modalRef.current?.kind !== 'slots' && modalRef.current?.kind !== 'registration' && modalRef.current?.kind !== 'confirm-registration') return;
-    preserveRegistrationRef.current = modalRef.current.kind === 'registration' || modalRef.current.kind === 'confirm-registration';
     clearHeldInput();
     setModal(null);
     setSeasonNotice('새 달 책장이 열렸어요. 작성한 책은 그대로예요. 자리를 다시 골라 주세요.');
@@ -750,12 +761,6 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
         showAmbientNotice('들고 있는 책을 먼저 꽂아 주세요');
         return;
       }
-      if (!preserveRegistrationRef.current) {
-        setTitle('');
-        setAuthor('');
-        setReflection('');
-      }
-      preserveRegistrationRef.current = false;
       setSeasonNotice(null);
       setFormError(null);
       openModal({ kind: 'registration' });
@@ -863,6 +868,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const carryExistingBook = (book: LibraryBookDraft) => {
     if (carriedDraftRef.current || receiveApproachRef.current || sceneStateRef.current.action) return;
     clearHeldInput();
+    saveLibraryBookDraft(studentNumber, { title, author, reflection, carried: book });
     if (room.desk.clerk) {
       const current = sceneStateRef.current;
       const path = findLibraryPlayerPath(resolveLibraryCatRoom(room, current.catState, current.player), current.player, room.desk.clerk.receivePoint);
@@ -902,6 +908,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
         if (placedBook) setLocalBooks(result.placedBooks);
       }
     } catch (error) {
+      if (error instanceof StorageResponseActorChangedError) return;
       if (error instanceof CanvasLibraryPlacementExpectedError) {
         if (mountedRef.current) {
           if (error.code === 'LIBRARY_SEASON_CHANGED') {
@@ -929,6 +936,8 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     booksRef.current = nextBooks;
     carriedDraftRef.current = null;
     setCarriedDraft(null);
+    setTitle(''); setAuthor(''); setReflection('');
+    saveLibraryBookDraft(studentNumber, { title: '', author: '', reflection: '', carried: null });
     setBookActionBusy(true);
     sceneStateRef.current = {
       ...sceneStateRef.current,
@@ -1251,9 +1260,9 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
 
       <StudentConfirmDialog
         isOpen={modal?.kind === 'confirm-exit'}
-        title={carriedDraft || receiveApproachRef.current ? '들고 있는 책의 운반을 취소하고 나갈까요?' : '책방 밖으로 나갈까요?'}
-        description={carriedDraft || receiveApproachRef.current ? '새로 입력한 미배치 책 내용은 남지 않아요. 이미 등록된 책은 삭제되지 않아요.' : '읽던 책은 다음에 다시 살펴볼 수 있어요.'}
-        confirmLabel={carriedDraft || receiveApproachRef.current ? '운반 취소하고 나가기' : '나가기'}
+        title="책방 밖으로 나갈까요?"
+        description={carriedDraft || receiveApproachRef.current ? '들고 있는 책은 다음에 이어서 꽂을 수 있어요.' : '읽던 책은 다음에 다시 살펴볼 수 있어요.'}
+        confirmLabel="나가기"
         cancelLabel="책방에 머물기"
         isPending={false}
         returnFocusRef={canvasRef}

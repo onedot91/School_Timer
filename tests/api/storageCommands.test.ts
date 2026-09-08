@@ -15,16 +15,19 @@ const initial = () => ({
   ],books:[],failureStories:[],failureProfileAssignments:{} },
 });
 
-const environment = async (run: (call: (actor:number,method:string,body?:unknown,query?:Record<string,string>)=>Promise<{status:number;body:unknown}>,fixture:ReturnType<typeof createStorageV2Fixture>)=>Promise<void>) => {
+const environment = async (run: (call: (actor:number,method:string,body?:unknown,query?:Record<string,string>,projection?:boolean)=>Promise<{status:number;body:unknown}>,fixture:ReturnType<typeof createStorageV2Fixture>)=>Promise<void>) => {
   const saved = {...process.env}; const originalFetch=globalThis.fetch;
   process.env.SUPABASE_URL='https://storage-fixture.test';process.env.SUPABASE_SERVICE_ROLE_KEY='fixture';
   process.env.DEVICE_SESSION_SECRET=secret;process.env.STORAGE_PROTOCOL_VERSION='2';
-  const fixture=createStorageV2Fixture(initial()); globalThis.fetch=fixture.fetch;
-  const call=async(actor:number,method:string,body?:unknown,query?:Record<string,string>)=>{
+  const fixture=createStorageV2Fixture(initial()); globalThis.fetch=async (input, init) => {
+    assert.ok(!String(input).endsWith('/storage_load_snapshot'), 'Commands and receipts must not load the full class');
+    return fixture.fetch(input, init);
+  };
+  const call=async(actor:number,method:string,body?:unknown,query?:Record<string,string>,projection=true)=>{
     let status=0;let output:unknown;
     const token=createDeviceSessionToken(actor===0?{role:'teacher'}:{role:'student',studentNumber:actor},secret);
     const response={setHeader(){},status(code:number){status=code;return this;},json(value:unknown){output=value;}};
-    await handler({method,body,query,headers:{cookie:`__Host-school-timer-device=${token}`,'sec-fetch-site':'same-origin'}},response);
+    await handler({method,body,query,headers:{cookie:`__Host-school-timer-device=${token}`,'sec-fetch-site':'same-origin',...(projection ? {'x-storage-projection':'1'} : {})}},response);
     return {status,body:output};
   };
   try {await run(call,fixture);} finally {globalThis.fetch=originalFetch;process.env=saved;}
@@ -72,4 +75,27 @@ test('lost command response is recoverable by the same receipt without another c
   assert.equal(Reflect.get(Object(receipt.body),'status'),'committed');
   assert.equal((await call(0,'POST',body)).status,200);
   assert.equal(Reflect.get(Object(fixture.read().value.currencyBalances),'17'),106);
+}));
+
+
+test('partial mail response carries only visible resources while metadata uses an empty scope',()=>environment(async(call)=>{
+  const result = await call(2,'POST',command('partial-mail-0001','student.letter.send',{recipient:0,title:'hello',content:'test'}));
+  assert.equal(result.status,200);
+  const patch = Reflect.get(Object(result.body),'storagePatch');
+  assert.equal(Reflect.get(Object(patch),'complete'),false);
+  assert.ok(!JSON.stringify(patch).includes('private-letter'));
+  assert.ok(!JSON.stringify(patch).includes('currencyBalances'));
+  const receipt = await call(2,'GET',undefined,{requestId:'partial-mail-0001'});
+  assert.equal(receipt.status,200);
+  assert.deepEqual(Reflect.get(Object(receipt.body),'storagePatch'),patch);
+  assert.equal((await call(2,'GET',undefined,{metadata:'1'})).status,200);
+}));
+
+
+test('old v2 clients are rejected before a partial response or mutation',()=>environment(async(call,fixture)=>{
+  const body=command('old-browser-0001','teacher.currency.adjust',{studentNumbers:[17],amount:6});
+  assert.equal((await call(0,'POST',body,undefined,false)).status,426);
+  assert.equal((await call(0,'GET',undefined,{requestId:'old-browser-0001'},false)).status,426);
+  assert.equal(fixture.receipts.size,0);
+  assert.equal(Reflect.get(Object(fixture.read().value.currencyBalances),'17'),100);
 }));

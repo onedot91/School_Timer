@@ -2,15 +2,18 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 const require=createRequire(import.meta.url);
-const pg=require(process.env.PG_MODULE_PATH??'pg');
-const url=new URL(process.env.CLASSWORD_TEST_DATABASE_URL??'');
+const pg=require(process.env.STORAGE_TEST_PG_MODULE??process.env.PG_MODULE_PATH??'pg');
+const url=new URL(process.env.STORAGE_TEST_DATABASE_URL??process.env.CLASSWORD_TEST_DATABASE_URL??'');
 assert.ok(['127.0.0.1','localhost'].includes(url.hostname),'Only isolated localhost PostgreSQL is permitted');
-assert.equal(url.pathname,'/classword_v2_fixture');
+assert.equal(url.pathname,'/postgres');
+const databaseName=`storage_classword_${process.pid}_${Date.now()}`;
+const creator=new pg.Client({connectionString:url.toString()});await creator.connect();
+try { await creator.query(`create database ${databaseName}`); } finally { await creator.end(); }
+url.pathname=`/${databaseName}`;
 const config={connectionString:url.toString()};
 const admin=new pg.Client(config);await admin.connect();
 try {
- await admin.query(await readFile(new URL('../../supabase/storage_classword_v2.sql',import.meta.url),'utf8'));
- await admin.query('truncate public.classword_entries,public.classword_quiz_completions,public.storage_receipts,public.weekly_mission_rewards,public.wallet_ledger,public.wallet_accounts,public.storage_reward_claims');
+ for(const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','storage_classword_v2.sql']) await admin.query(await readFile(new URL(`../../supabase/${file}`,import.meta.url),'utf8'));
  await admin.query(await readFile(new URL('./classword-v2.sql',import.meta.url),'utf8'));
  await admin.query('update public.storage_control set active=true,maintenance=false where singleton');
  await admin.query('insert into public.wallet_accounts(student_number,balance,opening_balance) select n,100,100 from generate_series(1,23)n on conflict do nothing');

@@ -27,7 +27,9 @@ test('all student views refresh shared profiles and discard snapshots older than
   assert.match(source, /if \(!isStudentSettingsSnapshotFresh\(updatedAt, minimumSettingsUpdatedAtRef.current\)\) return false/);
   const purchase = source.slice(source.indexOf('const selectStudentFailureProfile = async'), source.indexOf('const feedStudentPet = async'));
   assert.match(purchase, /minimumSettingsUpdatedAtRef.current = result.updatedAt/);
-  assert.match(purchase, /storeStudentProfileSnapshot\(studentNumber, result.studentLife\)/);
+  assert.match(purchase, /const savedLife = mergeStudentEconomyLife\(studentLife, result.studentLife\)/);
+  assert.match(purchase, /setStudentLifeSnapshot\(savedLife\)/);
+  assert.match(purchase, /storeStudentProfileSnapshot\(studentNumber, savedLife\)/);
   assert.match(purchase, /refreshAuctionState\(\{ forceFull: true \}\)/);
 });
 

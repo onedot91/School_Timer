@@ -7,7 +7,7 @@ import { DEFAULT_AUCTION_ITEMS } from '../../src/lib/currency.js';
 test('real HTTP + PostgreSQL: 24 sessions, atomic wallet races, scoped receipts, loss recovery, stale teacher and privacy', async () => {
   const harness = await startHttpHarness({name:`storage_http_test_${process.pid}_${Date.now()}`,port:0});
   const request = async (student: number,path: string,body?: unknown) => {
-    const response = await fetch(`${harness.baseUrl}${path}`,{method:body===undefined?'GET':'POST',headers:{Cookie:fixtureCookie(student),'sec-fetch-site':'same-origin','Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
+    const response = await fetch(`${harness.baseUrl}${path}`,{method:body===undefined?'GET':'POST',headers:{Cookie:fixtureCookie(student),'sec-fetch-site':'same-origin','x-storage-projection':'1','Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
     const value: unknown = await response.json();
     return {status:response.status,body:value};
   };
@@ -68,7 +68,7 @@ test('real HTTP + PostgreSQL: 24 sessions, atomic wallet races, scoped receipts,
     const notice = await command(0,'teacher.settings.patch',{changes:[{field:'scheduleNotice',before:'24명 동시 저장 완료',after:'보상 후 교사 저장'}]},'stale-teacher-after-six');
     assert.equal(notice.status,200);assert.equal(await wallet(17),106);
     assert.ok(isStorageRecord(teacherBeforeReward.body));
-    const old = await fetch(`${harness.baseUrl}/api/shared-settings`,{method:'PUT',headers:{Cookie:fixtureCookie(0),'sec-fetch-site':'same-origin','Content-Type':'application/json'},body:JSON.stringify({value:teacherBeforeReward.body.value,expectedUpdatedAt:teacherBeforeReward.body.updated_at})});
+    const old = await fetch(`${harness.baseUrl}/api/shared-settings`,{method:'PUT',headers:{Cookie:fixtureCookie(0),'sec-fetch-site':'same-origin','x-storage-projection':'1','Content-Type':'application/json'},body:JSON.stringify({value:teacherBeforeReward.body.value,expectedUpdatedAt:teacherBeforeReward.body.updated_at})});
     assert.equal(old.status,409);assert.equal(await wallet(17),106);
 
     const scoped = await request(1,'/api/shared-settings');assert.equal(scoped.status,200);

@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {createRequire} from 'node:module';
+import {readFile} from 'node:fs/promises';
+import {splitStorageState} from '../lib/storageV2Codec.ts';
+import {buildScopedStorageMutation,parseScopedStorageSnapshot,parseStorageSnapshot} from './storageV2Repository.ts';
+
+const driver=process.env.STORAGE_TEST_PG_MODULE;
+test('real PostgreSQL scoped reads, private mail, independent inserts, atomic reward, tombstones and receipt coverage',{skip:!driver},async()=>{
+ const {Client}=createRequire(import.meta.url)(driver);
+ const server={host:'127.0.0.1',port:55439,user:'postgres',password:'local-fixture-only'};
+ const database=`storage_scope_fixture_${process.pid}_${Date.now()}`;
+ const admin=new Client({...server,database:'postgres'});await admin.connect();await admin.query(`create database ${database}`);
+ const clients=[];const connect=async()=>{const db=new Client({...server,database});await db.connect();clients.push(db);return db;};
+ try{
+  const db=await connect();
+  for(const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_scoped_v2.sql'])await db.query(await readFile(new URL(`../../supabase/${file}`,import.meta.url),'utf8'));
+  const letters=[{id:'private',recipient:4,senderStudentNumber:2,content:'private-4-2'},{id:'incoming',recipient:17,senderStudentNumber:4,content:'incoming-17'},{id:'outgoing',recipient:4,senderStudentNumber:17,content:'outgoing-17'},{id:'private-last',recipient:4,senderStudentNumber:2,content:'private-last'}];
+  const source={currencyBalances:Object.fromEntries(Array.from({length:23},(_,i)=>[i+1,100])),studentLife:{letters,books:[]},studentPets:{'17':{name:'own'},'4':{name:'private pet'}},opaque:{retain:[7,3]}};
+  await db.query("insert into app_settings(id,value,updated_at) values('school-timer-main',$1,'2026-09-08T00:00:00Z')",[source]);
+  await db.query('select storage_set_maintenance(true)');const raw=splitStorageState(source);
+  await db.query('select storage_bootstrap($1,$2,$3,$4,$5)',['2026-09-08T00:00:00Z',source,JSON.stringify(raw.resources),JSON.stringify(raw.wallets),JSON.stringify(raw.history)]);
+  await db.query('select storage_set_maintenance(false,true)');
+  const scope=(actor)=>({resources:[{path:'/studentLife/letters',mail:{actor,direction:'participant'}},{path:'/studentPets',students:[actor]}],wallets:[actor],history:[actor],writeResources:[{path:'/studentLife/letters',mail:{actor,direction:'participant'}},{path:'/studentPets',students:[actor]}],writeWallets:[actor]});
+  const load=async(s)=>parseScopedStorageSnapshot((await db.query('select storage_load_scope($1) value',[s])).rows[0].value);
+  const full=async()=>parseStorageSnapshot((await db.query('select storage_load_snapshot() value')).rows[0].value);
+  const commit=async(client,params)=>(await client.query('select storage_commit_scoped_mutation($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) value',Object.values(params).map(x=>Array.isArray(x)?JSON.stringify(x):x))).rows[0].value;
+  const mutation=(snapshot,value,id,readKeys)=>buildScopedStorageMutation({snapshot,value,actorKey:`student:${snapshot.scope.wallets[0]}`,requestId:id,action:'student.fixture',payload:{id},result:null,readKeys});
+  const initial=await load(scope(17));
+  assert.deepEqual(initial.value.studentLife.letters.map(row=>row.id),['incoming','outgoing']);
+  assert.deepEqual(initial.value.currencyHistory,{'17':[]});
+  assert.deepEqual(initial.value.currencyBalances,{'17':100});
+  assert.equal(JSON.stringify(initial).includes('private-4-2'),false);assert.equal(JSON.stringify(initial).includes('private pet'),false);
+  assert.deepEqual(initial.orderingBounds['/studentLife/letters'],{minimum:0,maximum:3});
+  await assert.rejects(()=>db.query('select storage_load_scope($1)',[{...scope(17),resources:[{path:'/studentLife/letters',mail:{}}]}]),/STORAGE_SCOPE_VIOLATION/);
+  const fresh=[];for(let actor=1;actor<=23;actor++)fresh.push(await load(scope(actor)));
+  const connections=await Promise.all(Array.from({length:23},connect));
+  const outcomes=await Promise.all(fresh.map((snapshot,index)=>{
+   const actor=index+1;const next={...snapshot.value,studentLife:{...snapshot.value.studentLife,letters:[...snapshot.value.studentLife.letters,{id:`new-${actor}`,recipient:0,senderStudentNumber:actor,content:`fixture-${actor}`}]}};
+   return commit(connections[index],mutation(snapshot,next,`insert-${actor}`));
+  }));
+  assert.equal(outcomes.filter(x=>x.saved).length,23);
+  const beforeReward=await load(scope(17));
+  const reward={...beforeReward.value,currencyBalances:{'17':106},currencyHistory:{'17':[{id:'six',studentNumber:17,before:100,after:106,delta:6,reason:'manual',createdAt:'2026-09-08T01:00:00Z'}]}};
+  const rewardParams=mutation(beforeReward,reward,'reward-six');
+  assert.equal((await commit(db,rewardParams)).saved,true);assert.equal((await commit(db,rewardParams)).replayed,true);
+  const receipt=(await db.query("select storage_get_receipt('student:17','reward-six') value")).rows[0].value;
+  assert.deepEqual(receipt.scope,scope(17));assert.equal(JSON.stringify(receipt.scope).includes('content'),false);
+  assert.deepEqual((await db.query('select storage_reconcile_wallets() value')).rows[0].value,[]);
+  const beforeDelete=await load(scope(17));
+  const removed={...beforeDelete.value,studentLife:{...beforeDelete.value.studentLife,letters:beforeDelete.value.studentLife.letters.filter(row=>row.id!=='incoming')}};
+  assert.equal((await commit(db,mutation(beforeDelete,removed,'delete-own'))).saved,true);
+  assert.ok((await load(scope(17))).deletedKeys.includes('/studentLife/letters/@incoming'));
+  assert.equal((await load(scope(1))).deletedKeys.includes('/studentLife/letters/@incoming'),false);
+  const forged={...mutation(await load(scope(17)),(await load(scope(17))).value,'forged'),p_resources:[{...raw.resources.find(row=>row.resource_key==='/studentPets/4'),value:null}],p_expected:{'/studentPets/4':1}};
+  await assert.rejects(()=>commit(db,forged),/STORAGE_SCOPE_VIOLATION/);
+  const guarded=await load({...scope(17),revisionKeys:['collection:/studentLife/letters']});
+  const another=await load(scope(2));
+  assert.equal((await commit(db,mutation(another,{...another.value,studentLife:{...another.value.studentLife,letters:[...another.value.studentLife.letters,{id:'phantom',recipient:0,senderStudentNumber:2}]}},'phantom'))).saved,true);
+  assert.equal((await commit(db,mutation(guarded,guarded.value,'predicate'))).saved,false);
+  const result=await full();assert.deepEqual(result.value.opaque,source.opaque);assert.deepEqual(result.value.studentPets,source.studentPets);
+  assert.equal(result.value.currencyBalances['17'],106);assert.equal(result.value.currencyBalances['4'],100);
+  assert.deepEqual(result.value.studentLife.letters.filter(row=>row.id.startsWith('private')),letters.filter(row=>row.id.startsWith('private')));
+  assert.equal(result.value.currencyHistory['17'].length,1);
+  await assert.rejects(()=>db.query('delete from wallet_ledger'),/STORAGE_LEDGER_IMMUTABLE/);
+ }finally{await Promise.all(clients.map(db=>db.end()));await admin.query(`drop database ${database}`);await admin.end();}
+});

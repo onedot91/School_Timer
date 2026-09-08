@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { StudentEconomyRequestError, updateStudentEconomy } from './studentEconomyClient.js';
+import { mergeStudentEconomyLife, StudentEconomyRequestError, updateStudentEconomy } from './studentEconomyClient.js';
 import { applyStudentEconomyAction, createStudentEconomyState } from './studentEconomy.js';
 import { normalizeStudentLifeState } from './studentLife.js';
 
@@ -20,6 +20,7 @@ test('학생 거래는 v2 요청을 한 번 보내고 업무 거절은 재전송
   const originalFetch = globalThis.fetch;
   const bodies: unknown[] = [];
   globalThis.fetch = async (_input, init) => {
+    assert.equal(new Headers(init?.headers).get('X-Storage-Projection'),'1');
     bodies.push(JSON.parse(String(init?.body)));
     return Response.json({ error: 'INSUFFICIENT_AVAILABLE_CURRENCY', businessRejected: true }, { status: 400 });
   };
@@ -34,6 +35,7 @@ test('거래 응답이 끊겨도 전송을 반복하지 않고 같은 요청의 
   const originalFetch = globalThis.fetch;
   const requests: { url: string; method: string }[] = [];
   globalThis.fetch = async (input, init) => {
+    assert.equal(new Headers(init?.headers).get('X-Storage-Projection'),'1');
     requests.push({ url: String(input), method: init?.method ?? 'GET' });
     if (init?.method === 'POST') throw new TypeError('Load failed');
     return Response.json({ status: 'committed', result: await successfulResponse().json() });
@@ -66,7 +68,7 @@ test('거래 응답이 잘못되면 저장 성공으로 반환하지 않는다',
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => Response.json(null);
   try {
-    await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'select_character', characterId: null }, requestId: 'invalid-response' }), /INVALID_RESPONSE/);
+    await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'select_character', characterId: null }, requestId: 'invalid-response' }), /CONFIRMATION_REQUIRED/);
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -78,7 +80,7 @@ test('잘못된 거래 map이나 누락된 상태를 기본값 성공으로 바�
       { studentEconomy: {} }, { studentLife: {} },
     ]) {
       globalThis.fetch = async () => Response.json({ ...await successfulResponse().json(), ...invalid });
-      await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'select_character', characterId: null }, requestId: 'invalid-map' }), /INVALID_RESPONSE/);
+      await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'select_character', characterId: null }, requestId: 'invalid-map' }), /CONFIRMATION_REQUIRED/);
     }
   } finally { globalThis.fetch = originalFetch; }
 });
@@ -118,4 +120,40 @@ test('본문 연결 실패와 상태 조회 실패가 계속되어도 성공으�
     await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'select_character', characterId: null }, requestId: 'body-failure' }), /CONFIRMATION_REQUIRED/);
     assert.equal(attempts, 2);
   } finally { globalThis.fetch = originalFetch; }
+});
+
+test('부분 경제 응답은 캐시의 도서·실패 이야기와 다른 지갑을 비우지 않는다', async () => {
+  const { acceptStorageProjection, captureStorageResponseContext } = await import('./storageResponseOrder.js');
+  const { splitStorageState } = await import('./storageV2Codec.js');
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const originalFetch = globalThis.fetch;
+  Object.defineProperty(globalThis,'window',{configurable:true,value:{localStorage:{getItem:()=> '1'}}});
+  try {
+    const life=normalizeStudentLifeState({books:[{id:'preserved-book',studentNumber:1,title:'책',author:'작가',pageCount:20,colorIndex:1,createdAt:'2026-09-08T00:00:00Z'}]});
+    assert.equal(life.books.length,1);
+    const context=captureStorageResponseContext();
+    acceptStorageProjection(context,{value:{currencyBalances:{1:145,2:777},currencyHistory:{1:[],2:[]},studentEconomy:{1:createStudentEconomyState()},studentLife:life},updatedAt:'2026-09-08T00:00:00Z',scope:'student'});
+    const partial={currencyBalances:{1:115},currencyHistory:{1:[]},studentEconomy:{1:createStudentEconomyState()},studentLife:{letters:[],failureProfileAssignments:{}}};
+    const encoded=splitStorageState(partial);
+    const revisions=Object.fromEntries([...encoded.resources.map(row=>[row.resource_key,2]),['wallet:1',2]]);
+    globalThis.fetch=async()=>Response.json({...await successfulResponse().json(),updatedAt:'2026-09-08T00:00:01Z',storagePatch:{...encoded,revisions,historyStudents:[1],deletedKeys:[],complete:false}});
+    const result=await updateStudentEconomy({studentNumber:1,action:{type:'deposit',amount:30},requestId:'partial-response-id'});
+    assert.deepEqual(result.studentLife.books,life.books);
+    assert.equal(result.balance,115);
+  } finally {globalThis.fetch=originalFetch;if(originalWindow)Object.defineProperty(globalThis,'window',originalWindow);else Reflect.deleteProperty(globalThis,'window');}
+});
+
+test('프로필 부분 결과를 저장할 때 기존 도서와 타인 프로필·편지 읽음 상태를 보존한다', async () => {
+  const { FAILURE_PROFILE_IMAGES } = await import('./failureExhibition.js');
+  const current=normalizeStudentLifeState({
+    books:[{id:'profile-keeps-book',studentNumber:1,title:'기존 책',author:'작가',pageCount:20,colorIndex:1,createdAt:'2026-09-08T00:00:00Z'}],
+    letters:[{id:'profile-keeps-read',recipient:1,senderLabel:'선생님',title:'기존 편지',content:'내용',createdAt:'2026-09-08T00:00:00Z',readAt:'2026-09-08T00:10:00Z'}],
+    failureProfileAssignments:{1:FAILURE_PROFILE_IMAGES[0],2:FAILURE_PROFILE_IMAGES[1]},
+  });
+  const incoming=normalizeStudentLifeState({letters:current.letters.map(letter=>({...letter,readAt:null})),failureProfileAssignments:{1:FAILURE_PROFILE_IMAGES[2]}});
+  const saved=mergeStudentEconomyLife(current,incoming);
+  assert.equal(saved.failureProfileAssignments['1'],FAILURE_PROFILE_IMAGES[2]);
+  assert.equal(saved.failureProfileAssignments['2'],FAILURE_PROFILE_IMAGES[1]);
+  assert.deepEqual(saved.books,current.books);
+  assert.equal(saved.letters[0]?.readAt,'2026-09-08T00:10:00Z');
 });

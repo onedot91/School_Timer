@@ -1,5 +1,7 @@
+import { mergeStudentEconomyLife } from '../lib/studentEconomyClient';
 import { executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft } from '../lib/studentStorageCommand';
 import { CURRENCY_BALANCE_MAX } from '../lib/currency';
+import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { createHousePurchaseLetter, HOUSE_CREATOR_REWARD } from '../lib/studentHouseReward';
 import { reportSaveFailure } from '../lib/saveFailureClient';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -425,6 +427,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     isSupabaseSettingsEnabled ? normalizeDailyWritingState(null) : loadStoredDailyWritingState()
   ));
   const [isStudentLifeSaving, setIsStudentLifeSaving] = useState(false);
+  const [studentLifeSaveMessage, setStudentLifeSaveMessage] = useState<string | null>(null);
   const studentLetterReadOverlayRef = useRef<Map<string, string>>(new Map());
   const [profilePurchaseType, setProfilePurchaseType] = useState<StudentProfilePurchase['type'] | null>(null);
   const [isPetSaving, setIsPetSaving] = useState(false);
@@ -731,6 +734,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const saveStudentLifeChange = async (change: (current: StudentLifeState) => StudentLifeState, action: string, payload: unknown, entityId?: string) => {
     if (isStudentLifeSaving) return false;
+    setStudentLifeSaveMessage(null);
     setIsStudentLifeSaving(true);
     try {
       let saved = studentLife;
@@ -745,6 +749,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       clearStudentStorageFormDraft(studentNumber, action, entityId);
       return true;
     } catch (error) {
+      setStudentLifeSaveMessage(storageAvailabilityMessage(error));
       if (error instanceof Error) return false;
       throw error;
     } finally {
@@ -872,8 +877,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           return result.applied && result.profileImage ? { ok: true, profileImage: result.profileImage, price: result.profilePrice ?? 0 } : { ok: false, message: result.message };
         }
         minimumSettingsUpdatedAtRef.current = result.updatedAt;
-        setStudentLifeSnapshot(result.studentLife);
-        storeStudentProfileSnapshot(studentNumber, result.studentLife);
+        const savedLife = mergeStudentEconomyLife(studentLife, result.studentLife);
+        setStudentLifeSnapshot(savedLife);
+        storeStudentProfileSnapshot(studentNumber, savedLife);
         setCurrencyBalances((current) => ({ ...current, ...result.currencyBalanceEntries }));
         setCurrencyHistory((current) => ({ ...current, ...result.currencyHistoryEntries }));
         setStudentEconomyStates((current) => ({ ...current, [studentKey]: result.studentEconomy }));
@@ -1729,7 +1735,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         setCurrencyBalances((previous) => ({ ...previous, ...result.currencyBalanceEntries }));
         setCurrencyHistory((previous) => ({ ...previous, ...result.currencyHistoryEntries }));
         setStudentEconomyStates((previous) => ({ ...previous, [studentKey]: result.studentEconomy }));
-        setStudentLifeSnapshot(result.studentLife);
+        setStudentLifeSnapshot(mergeStudentEconomyLife(studentLife, result.studentLife));
         minimumSettingsUpdatedAtRef.current = result.updatedAt;
         showStatusMessage(result.message || '저장 결과를 확인했습니다.');
         void refreshAuctionState({ forceFull: true });
@@ -1764,7 +1770,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         savedBalances = { ...currencyBalances, ...result.currencyBalanceEntries };
         savedHistory = { ...currencyHistory, ...result.currencyHistoryEntries };
         savedEconomyStates = { ...studentEconomyStates, [studentKey]: result.studentEconomy };
-        savedStudentLife = result.studentLife;
+        savedStudentLife = mergeStudentEconomyLife(studentLife, result.studentLife);
         resultMessage = result.message;
         sharedSettingsUpdatedAtRef.current = null;
         invalidateSharedSettingsCache();
@@ -1846,7 +1852,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      const userMessage = message === 'SAVE_DRAFT_PENDING'
+      const userMessage = storageAvailabilityMessage(error) ?? (message === 'SAVE_DRAFT_PENDING'
         ? '이전 고마 처리의 저장 결과를 먼저 확인해 주세요.'
         : message === 'HOUSE_CREATOR_BALANCE_LIMIT'
         ? '제작자의 고마 보유 한도로 구매할 수 없습니다. 선생님께 알려 주세요.'
@@ -1884,7 +1890,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     ? '모든 캐릭터를 모았습니다.'
                     : message === 'CUSTOM_HOUSE_COUPON_REQUIRED'
                       ? '집 만들기 쿠폰이 필요합니다.'
-              : '처리하지 못했습니다. 다시 시도해 주세요.';
+              : '처리하지 못했습니다. 다시 시도해 주세요.');
       showStatusMessage(userMessage);
       return false;
     } finally {
@@ -2073,6 +2079,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         {activeStudentView === 'mailbox' ? (
           <StudentMailboxPage
             draft={mailDraft}
+            saveErrorMessage={studentLifeSaveMessage}
             hasPendingSave={hasUnconfirmedStudentStorageDraft(studentNumber, 'student.letter.send')}
             onDraftChange={(draft) => saveStudentStorageFormDraft(studentNumber, 'student.letter.send', { recipient: TEACHER_LETTER_RECIPIENT, ...draft })}
             studentNumber={studentNumber}

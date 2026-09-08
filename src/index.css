@@ -28584,6 +28584,18 @@ body {
 .teacher-save-warning-list button { flex-shrink: 0; padding: .4rem .7rem; border: 1px solid var(--teacher-border); font-weight: 700; font-size: .8rem; }
 .teacher-save-warning-dialog small { margin-top: .8rem; }
 .teacher-save-warning-dialog button:disabled { opacity: .5; }
+.teacher-reward-audit-trigger[data-warning="false"] { border-color: var(--teacher-border); color: var(--teacher-text); }
+.teacher-reward-audit-dialog { overflow-y: auto; }
+.teacher-reward-audit-dialog h2 { color: var(--teacher-text); }
+.teacher-reward-audit-dialog > .teacher-save-warning-list { flex-shrink: 0; overflow: visible; }
+.teacher-reward-audit-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; margin-top: .7rem; }
+.teacher-reward-audit-toolbar label { display: flex; align-items: center; gap: .5rem; }
+.teacher-reward-audit-toolbar select, .teacher-reward-audit-toolbar button { min-height: 44px; padding: .4rem .7rem; border: 1px solid var(--teacher-border); border-radius: var(--apple-radius-control); background: var(--teacher-surface); }
+.teacher-reward-audit-toolbar button { display: inline-flex; align-items: center; gap: .4rem; }
+.teacher-reward-audit-coverage { margin-top: .8rem; font-size: .85rem; }
+.teacher-reward-audit-coverage summary { min-height: 44px; align-content: center; cursor: pointer; font-weight: 700; }
+.teacher-reward-audit-coverage li { margin: .5rem 0; overflow-wrap: anywhere; }
+.teacher-reward-audit-toolbar select:focus-visible, .teacher-reward-audit-coverage summary:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 2px; }
 .teacher-save-warning-error { color: var(--teacher-urgent); }
 
 @media (min-width: 64rem) and (max-height: 45rem) {
@@ -29042,3 +29054,12 @@ body {
 
 .student-mailbox-view .student-compose-body-field { grid-template-rows: auto minmax(6rem, 1fr); }
 .student-mailbox-view .student-compose-card textarea { min-height: 6rem; }
+
+.storage-availability-banner { position: fixed; z-index: 1300; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: min(640px, calc(100vw - 24px)); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 18px; border: 1px solid var(--teacher-border, #bec9c0); border-radius: 18px; background: var(--teacher-surface, #faf7ee); color: var(--teacher-text, #243c32); box-shadow: 0 8px 28px #203c3226; }
+.storage-availability-banner > div { flex: 1 1 260px; overflow-wrap: anywhere; }
+.storage-availability-banner strong { font-size: 1rem; }
+.storage-availability-banner p { margin: 4px 0 0; font-size: .9rem; }
+.storage-availability-banner button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 12px; border: 1px solid var(--teacher-border, #bec9c0); }
+.storage-availability-banner button:focus-visible { outline: 3px solid var(--apple-focus, #4f8068); outline-offset: 2px; }
+.storage-availability-banner[data-in-dialog="true"] { position: relative; inset: auto; transform: none; order: -1; flex-shrink: 0; width: auto; margin: 10px; }
+.settings-parent-content:has(> .storage-availability-banner) > .teacher-settings-save-status { display: none; }

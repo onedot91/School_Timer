@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import sharedSettings from '../../api/shared-settings.js';
 import studentEconomy from '../../api/student-economy.js';
 import deviceSession from '../../api/device-session.js';
+import saveAlerts from '../../api/save-alerts.js';
 import { createDeviceSessionToken, type RequestHeaders } from '../../src/server/deviceSession.js';
 import { splitStorageState, isStorageRecord } from '../../src/lib/storageV2Codec.js';
 import { DEFAULT_AUCTION_ITEMS } from '../../src/lib/currency.js';
@@ -15,7 +16,7 @@ import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const FIXTURE_SECRET = 'isolated-http-fixture-session-secret-2026';
 const KEY = 'isolated-fixture-service-key';
-const RPCS = new Set(['storage_load_snapshot', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2']);
+const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2']);
 interface Database { query(sql: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>; end(): Promise<void> }
 const database = (name: string): Database => {
   const driver: unknown = createRequire(import.meta.url)(process.env.STORAGE_TEST_PG_MODULE ?? '/tmp/school-storage-runtime/node_modules/pg/lib/index.js');
@@ -52,7 +53,7 @@ const listen = async (server: ReturnType<typeof createServer>, port: number): Pr
   await new Promise<void>((done, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', done); });
   const address = server.address(); if (!address || typeof address === 'string') throw new Error('FIXTURE_LISTEN_FAILED'); return address.port;
 };
-export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018, staticDirectory = process.env.STORAGE_HTTP_DIST ?? resolve(ROOT,'dist') }: { readonly name?: string; readonly port?: number; readonly staticDirectory?: string } = {}) => {
+export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018, staticDirectory = process.env.STORAGE_HTTP_DIST ?? resolve(ROOT,'dist'), writeRejection }: { readonly name?: string; readonly port?: number; readonly staticDirectory?: string; readonly writeRejection?: () => Promise<'maintenance' | 'update' | null> } = {}) => {
   if (!/^storage_http_test(?:_[a-z0-9_]+)?$/.test(name)) throw new Error('FIXTURE_DATABASE_NAME_REQUIRED');
   const admin = database('postgres');
   const exists = (await admin.query('select 1 from pg_database where datname=$1', [name])).rows.length > 0;
@@ -61,7 +62,7 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
   const db = database(name);
   const initialized = await db.query("select to_regclass('public.storage_backups') as table_name");
   const ready = initialized.rows[0]?.table_name != null && (await db.query('select 1 from storage_backups limit 1')).rows.length > 0;
-  for (const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','storage_classword_v2.sql']) await db.query(await readFile(resolve(ROOT, 'supabase', file), 'utf8'));
+  for (const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','storage_classword_v2.sql','storage_audit_v2.sql','storage_scoped_v2.sql']) await db.query(await readFile(resolve(ROOT, 'supabase', file), 'utf8'));
   if (!ready) {
     const source = fakeClassroom(), encoded = splitStorageState(source), timestamp = '2026-09-08T00:00:00Z';
     await db.query("insert into app_settings(id,value,updated_at) values('school-timer-main',$1,$2)", [source,timestamp]);
@@ -69,17 +70,23 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
     await db.query('select storage_bootstrap($1,$2,$3,$4,$5)', [timestamp,source,JSON.stringify(encoded.resources),JSON.stringify(encoded.wallets),JSON.stringify(encoded.history)]);
     await db.query('select storage_set_maintenance(false,true)');
   }
-  const metrics: { rpc: string; code?: string }[] = [];
+  const metrics: { rpc: string; code?: string; milliseconds?: number; requestBytes?: number; responseBytes?: number; rows?: number }[] = [];
   const gateway = createServer(async (request, response) => {
     try {
       const rpc = new URL(request.url ?? '/', 'http://localhost').pathname.split('/').at(-1) ?? '';
       if (request.method !== 'POST' || !RPCS.has(rpc) || request.headers.apikey !== KEY) { json(response,403,{ error:'FIXTURE_RPC_DENIED' });return; }
       const input = await readBody(request); if (!isStorageRecord(input)) { json(response,400,{ error:'FIXTURE_RPC_BODY' });return; }
       const keys = Object.keys(input); if (!keys.every(key => /^p_[a-z_]+$/.test(key))) throw new Error('FIXTURE_RPC_PARAMETER');
-      metrics.push({rpc});
+      const metric: typeof metrics[number] = { rpc, requestBytes: Buffer.byteLength(JSON.stringify(input)) };
+      metrics.push(metric);
+      const started = performance.now();
       try {
         const result = await db.query(`select public.${rpc}(${keys.map((key,index)=>`${key} => $${index+1}`).join(',')}) result`, keys.map(key => Array.isArray(input[key]) ? JSON.stringify(input[key]) : input[key]));
-        json(response,200,result.rows[0]?.result);
+        const body = result.rows[0]?.result;
+        metric.milliseconds = performance.now() - started;
+        metric.responseBytes = Buffer.byteLength(JSON.stringify(body));
+        metric.rows = isStorageRecord(body) ? ['resources', 'wallets', 'history'].reduce((total, key) => total + (Array.isArray(body[key]) ? body[key].length : 0), 0) : 0;
+        json(response,200,body);
       } catch (error) {
         const code = error instanceof Error ? Reflect.get(error,'code') : undefined;
         const message = error instanceof Error ? error.message : 'FIXTURE_DATABASE_ERROR';
@@ -91,6 +98,13 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
   const gatewayPort = await listen(gateway,0);
   const environment = { SUPABASE_URL:process.env.SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY:process.env.SUPABASE_SERVICE_ROLE_KEY, DEVICE_SESSION_SECRET:process.env.DEVICE_SESSION_SECRET, DEVICE_REGISTRATION_KEY:process.env.DEVICE_REGISTRATION_KEY, STORAGE_PROTOCOL_VERSION:process.env.STORAGE_PROTOCOL_VERSION };
   Object.assign(process.env,{SUPABASE_URL:`http://127.0.0.1:${gatewayPort}`,SUPABASE_SERVICE_ROLE_KEY:KEY,DEVICE_SESSION_SECRET:FIXTURE_SECRET,DEVICE_REGISTRATION_KEY:'fixture-only',STORAGE_PROTOCOL_VERSION:'2'});
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const destination = new URL(input instanceof Request ? input.url : String(input));
+    if (destination.origin === 'https://question-news.vercel.app' && destination.pathname === '/api/student') return Response.json({ history: [] });
+    if (destination.hostname !== '127.0.0.1' && destination.hostname !== 'localhost') throw new Error('FIXTURE_EXTERNAL_NETWORK_FORBIDDEN');
+    return realFetch(input, init);
+  };
   let loseRequestId: string | null = null;
   const api = createServer(async (request,response) => {
     try {
@@ -100,8 +114,8 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
         if (!Number.isInteger(student)||student<0||student>23) {json(response,400,{error:'FIXTURE_STUDENT'});return;}
         response.writeHead(302,{'Set-Cookie':`${fixtureCookie(student)}; Path=/; HttpOnly; Secure; SameSite=Strict`,Location:'/'});response.end();return;
       }
-      if (url.pathname === '/api/save-alerts' && request.method === 'GET') { json(response,200,{alerts:[],hasMore:false});return; }
-      const handler = url.pathname === '/api/shared-settings' ? sharedSettings : url.pathname === '/api/student-economy' ? studentEconomy : url.pathname === '/api/device-session' ? deviceSession : null;
+      if (url.pathname === '/api/save-alerts' && request.method === 'GET' && !url.searchParams.has('audit')) { json(response,200,{alerts:[],hasMore:false});return; }
+      const handler = url.pathname === '/api/shared-settings' ? sharedSettings : url.pathname === '/api/student-economy' ? studentEconomy : url.pathname === '/api/device-session' ? deviceSession : url.pathname === '/api/save-alerts' ? saveAlerts : null;
       if (!handler) {
         if (url.pathname.startsWith('/api/')) {json(response,503,{error:'FIXTURE_FEATURE_NOT_CONFIGURED'});return;}
         const requested = resolve(staticDirectory,url.pathname.slice(1) || 'index.html');
@@ -112,6 +126,10 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
         response.writeHead(200,{'Content-Type':type});response.end(content);return;
       }
       const body = await readBody(request);
+      if (writeRejection && request.method === 'POST' && ['/api/shared-settings', '/api/student-economy'].includes(url.pathname)) {
+        const rejection = await writeRejection();
+        if (rejection) { json(response, rejection === 'maintenance' ? 503 : 409, { error: rejection === 'maintenance' ? 'STORAGE_MAINTENANCE' : 'STORAGE_PROTOCOL_REQUIRED' }); return; }
+      }
       const headers: RequestHeaders = Object.fromEntries(Object.entries(request.headers));
       let status = 200;
       const apiResponse = { setHeader:(key:string,value:string)=>{response.setHeader(key,value);},status:(code:number)=>{status=code;return apiResponse;},json:(value:unknown)=>{
@@ -125,7 +143,7 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
   const apiPort = await listen(api,port);
   return { baseUrl:`http://127.0.0.1:${apiPort}`,gatewayPort,name,metrics,query:db.query,
     loseResponse:(id:string)=>{loseRequestId=id;},
-    stop:async()=>{await Promise.all([new Promise<void>(done=>api.close(()=>done())),new Promise<void>(done=>gateway.close(()=>done()))]);await db.end();for(const [key,value] of Object.entries(environment)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
+    stop:async()=>{await Promise.all([new Promise<void>(done=>api.close(()=>done())),new Promise<void>(done=>gateway.close(()=>done()))]);await db.end();globalThis.fetch=realFetch;for(const [key,value] of Object.entries(environment)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
   };
 };
 if (process.argv.includes('--serve')) {

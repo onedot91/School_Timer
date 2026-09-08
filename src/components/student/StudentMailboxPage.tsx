@@ -13,6 +13,7 @@ import {
 
 interface MailboxDraft { readonly title: string; readonly content: string; readonly replyToId?: string }
 interface StudentMailboxPageProps {
+  readonly saveErrorMessage?: string | null;
   readonly draft?: MailboxDraft;
   readonly hasPendingSave?: boolean;
   readonly onDraftChange?: (draft: MailboxDraft) => void;
@@ -95,6 +96,7 @@ export default function StudentMailboxPage({
   studentNumber,
   draft,
   hasPendingSave = false,
+  saveErrorMessage,
   onDraftChange,
   profileAssignments,
   letters,
@@ -337,7 +339,7 @@ export default function StudentMailboxPage({
                 <span>내용</span>
                 <textarea value={content} readOnly={hasPendingSave} maxLength={300} required onChange={(event) => { setContent(event.target.value); onDraftChange?.({ title, content: event.target.value, ...(replyToId ? { replyToId } : {}) }); }} placeholder="전하고 싶은 마음을 적어 주세요" />
               </label>
-              {hasPendingSave || saveError ? <p role="status">{hasPendingSave ? '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.' : saveError}</p> : null}
+              {hasPendingSave || saveError ? <p role="status">{hasPendingSave ? '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.' : saveErrorMessage ?? saveError}</p> : null}
               <div className="student-compose-actions">
                 <button type="button" className="student-secondary-action" onClick={cancelCompose} disabled={isSaving}>
                   <X size={20} aria-hidden="true" />취소

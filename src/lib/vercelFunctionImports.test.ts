@@ -21,6 +21,14 @@ test('all transitive API imports resolve as deployed Node ESM', async () => {
 });
 
 const SERVER_MODULES = [
+  'src/server/storageCommandScope.ts',
+  'src/server/storageCommandHandler.ts',
+  'src/server/storageScope.ts',
+  'src/server/storageProjection.ts',
+  'src/server/storageV2Repository.ts',
+  'src/server/economyStorageScope.ts',
+  'src/server/rewardAuditRepository.ts',
+  'src/server/rewardAuditActivities.ts',
   'api/announcement-notes.ts',
   'api/class-donation.ts',
   'api/classword.ts',

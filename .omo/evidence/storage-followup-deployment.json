@@ -1,0 +1,191 @@
+{
+  "status": "complete",
+  "sourceCommit": "87fb3f344d827d6ad9f0bf11af8486a15eb73639",
+  "sourceHash": "226ea0462cb0be5fe046508f6afcbbd8b14c26d5c05c7b2397f11e5bbd1002c6",
+  "releaseGate": {
+    "passed": true,
+    "node": "v24.16.0",
+    "sourceHash": "226ea0462cb0be5fe046508f6afcbbd8b14c26d5c05c7b2397f11e5bbd1002c6",
+    "unchanged": true,
+    "results": [
+      {
+        "name": "typecheck",
+        "passed": true,
+        "milliseconds": 5674
+      },
+      {
+        "name": "unit-api",
+        "passed": true,
+        "milliseconds": 18296
+      },
+      {
+        "name": "server-dev",
+        "passed": true,
+        "milliseconds": 521
+      },
+      {
+        "name": "storage-sql",
+        "passed": true,
+        "milliseconds": 826
+      },
+      {
+        "name": "reward-sql",
+        "passed": true,
+        "milliseconds": 220
+      },
+      {
+        "name": "classword-sql",
+        "passed": true,
+        "milliseconds": 226
+      },
+      {
+        "name": "http",
+        "passed": true,
+        "milliseconds": 1131
+      },
+      {
+        "name": "emitted-runtime",
+        "passed": true,
+        "milliseconds": 1207
+      },
+      {
+        "name": "restore-drill",
+        "passed": true,
+        "milliseconds": 1177
+      },
+      {
+        "name": "production-build",
+        "passed": true,
+        "milliseconds": 3336
+      }
+    ]
+  },
+  "releaseEvidence": "/var/folders/kp/rl6bb8813rzcdv9h2_qvck5m0000gn/T/school-release-OIpZsE",
+  "unitApi": {
+    "passed": 1047,
+    "failed": 0,
+    "skipped": 0
+  },
+  "restore": {
+    "synthetic": true,
+    "tableCount": 21,
+    "copies": [
+      {
+        "database": "storage_http_test_restore_copy1_6477_1788856520474",
+        "replayAdditionalEntries": 0,
+        "newEntries": 1,
+        "reconciliation": []
+      },
+      {
+        "database": "storage_http_test_restore_copy2_6477_1788856520474",
+        "replayAdditionalEntries": 0,
+        "newEntries": 1,
+        "reconciliation": []
+      }
+    ],
+    "evidencePath": "/var/folders/kp/rl6bb8813rzcdv9h2_qvck5m0000gn/T/school-private-restore-KpyI5I/success.json"
+  },
+  "productionPrecheck": {
+    "active": true,
+    "maintenance": false,
+    "wallets": 23,
+    "ledgerRows": 2761,
+    "receiptRows": 0,
+    "reconciliation": []
+  },
+  "deploymentAuthorization": {
+    "userRequest": "이제 저장구조 개편 및 배포 실시",
+    "projectId": "prj_dfZ8BXVJW1Ruz2f38sEN9hOHhwVR",
+    "verifiedRepository": "onedot91/School_Timer",
+    "verifiedDomain": "school-timer-five.vercel.app"
+  },
+  "manualQa": [
+    "teacher reward audit filters refresh keyboard focus",
+    "student and teacher maintenance and update drafts manual retry",
+    "scoped emotion reward and mailbox reload state retained",
+    "library form and carried book reload restored then confirmed placement clears draft"
+  ],
+  "limitations": [
+    "Reward audit polling runs while the teacher screen is active, not a 24-hour server scheduler.",
+    "Restore drill uses synthetic local data, not production student data."
+  ],
+  "stageVerification": {
+    "mode": "stage",
+    "id": "dpl_2qAzBSXykPxiWGiH7t4HqnPxJBAm",
+    "url": "https://school-timer-qjkaj4r1q-onedot9191s-projects.vercel.app",
+    "readyState": "READY",
+    "sourceHash": "226ea0462cb0be5fe046508f6afcbbd8b14c26d5c05c7b2397f11e5bbd1002c6",
+    "productionId": "dpl_4bkQoALYfMvX23bMrh9ZxQMR8pro",
+    "checks": [
+      {
+        "path": "/",
+        "status": 200,
+        "region": "icn1::5c6z4-1788856668810-62215ba278ad",
+        "contentType": "text/html; charset=utf-8"
+      },
+      {
+        "path": "/api/shared-settings",
+        "status": 401,
+        "region": "icn1::icn1::5c6z4-1788856669259-8e84d463205b",
+        "contentType": "application/json; charset=utf-8"
+      },
+      {
+        "path": "/api/save-alerts?audit=rewards",
+        "status": 401,
+        "region": "icn1::icn1::m629n-1788856669358-71a05b80b2d8",
+        "contentType": "application/json; charset=utf-8"
+      },
+      {
+        "path": "/api/student-economy",
+        "status": 401,
+        "region": "icn1::icn1::xrwfh-1788856669639-60fda9b34d6c",
+        "contentType": "application/json; charset=utf-8"
+      }
+    ],
+    "verifiedAt": "2026-09-08T08:37:49.598Z"
+  },
+  "productionVerification": {
+    "mode": "production",
+    "id": "dpl_2qAzBSXykPxiWGiH7t4HqnPxJBAm",
+    "url": "https://school-timer-five.vercel.app",
+    "readyState": "READY",
+    "sourceHash": "226ea0462cb0be5fe046508f6afcbbd8b14c26d5c05c7b2397f11e5bbd1002c6",
+    "productionId": "dpl_2qAzBSXykPxiWGiH7t4HqnPxJBAm",
+    "checks": [
+      {
+        "path": "/",
+        "status": 200,
+        "region": "icn1::4fmfs-1788856733670-d28368603964",
+        "contentType": "text/html; charset=utf-8"
+      },
+      {
+        "path": "/api/shared-settings",
+        "status": 401,
+        "region": "icn1::icn1::9hhzc-1788856733913-ef7d76c7178e",
+        "contentType": "application/json; charset=utf-8"
+      },
+      {
+        "path": "/api/save-alerts?audit=rewards",
+        "status": 401,
+        "region": "icn1::icn1::ns626-1788856734300-0861d3cb6c52",
+        "contentType": "application/json; charset=utf-8"
+      },
+      {
+        "path": "/api/student-economy",
+        "status": 401,
+        "region": "icn1::icn1::fdlpw-1788856734649-974f794ede41",
+        "contentType": "application/json; charset=utf-8"
+      }
+    ],
+    "verifiedAt": "2026-09-08T08:38:54.591Z"
+  },
+  "productionPostcheck": {
+    "active": true,
+    "maintenance": false,
+    "wallets": 23,
+    "ledgerRows": 2761,
+    "receiptRows": 0,
+    "reconciliation": []
+  },
+  "completedAt": "2026-09-08T08:39:20.287Z"
+}

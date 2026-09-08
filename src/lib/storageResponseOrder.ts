@@ -1,3 +1,5 @@
+import { StorageProjectionPatchCache, type StorageProjectionPatch } from './storageProjectionPatch.js';
+
 /** A projection belongs to the selected actor and the server snapshot that produced it. */
 export interface StorageResponseContext {
   readonly actor: string | null;
@@ -7,6 +9,7 @@ export interface StorageProjection {
   readonly value: Record<string, unknown>;
   readonly updatedAt: string;
   readonly scope?: 'full' | 'student';
+  readonly storagePatch?: StorageProjectionPatch;
 }
 export class StorageResponseActorChangedError extends Error {
   readonly name = 'StorageResponseActorChangedError';
@@ -29,12 +32,14 @@ export class StorageResponseOrder {
   private actor: string | null | undefined;
   private generation = 0;
   private latest: StorageProjection | null = null;
+  private patches: StorageProjectionPatchCache | null = null;
 
   capture(actor: string | null): StorageResponseContext {
     if (this.actor !== actor) {
       this.actor = actor;
       this.generation += 1;
       this.latest = null;
+      this.patches = null;
     }
     return { actor, generation: this.generation };
   }
@@ -52,9 +57,22 @@ export class StorageResponseOrder {
   accept(context: StorageResponseContext, projection: StorageProjection, actor: string | null): StorageProjection {
     if (!this.current(context, actor)) throw new StorageResponseActorChangedError();
     // Without an actor identifier, never reuse a previous person's projection.
-    if (actor === null) return projection;
+    if (actor === null) return projection.storagePatch
+      ? { value: new StorageProjectionPatchCache(compareStorageTimestamps).apply(projection.storagePatch, projection.updatedAt), updatedAt: projection.updatedAt, scope: projection.scope }
+      : projection;
+    if (projection.storagePatch) {
+      if (!this.patches) {
+        this.patches = new StorageProjectionPatchCache(compareStorageTimestamps);
+        if (this.latest) this.patches.seedLegacy(this.latest.value, this.latest.updatedAt);
+      }
+      const value = this.patches.apply(projection.storagePatch, projection.updatedAt);
+      const updatedAt = this.latest && compareStorageTimestamps(projection.updatedAt, this.latest.updatedAt) < 0 ? this.latest.updatedAt : projection.updatedAt;
+      this.latest = { value, updatedAt, scope: projection.scope ?? this.latest?.scope };
+      return this.latest;
+    }
     if (this.latest && compareStorageTimestamps(projection.updatedAt, this.latest.updatedAt) < 0) return this.latest;
     this.latest = projection;
+    this.patches = null;
     return projection;
   }
 }

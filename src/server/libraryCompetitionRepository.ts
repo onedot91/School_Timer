@@ -2,10 +2,11 @@ import { createHash } from 'node:crypto';
 import type { LibraryCompetitionStanding } from '../lib/libraryCompetition.js';
 import { parseCompetitionHistoryResponse } from '../lib/libraryCompetitionResponse.js';
 import { canonicalStorageJson } from '../lib/storageV2Codec.js';
-import { commitStorageMutation, loadStorageSnapshot, StorageRepositoryError, type StorageSnapshot } from './storageV2Repository.js';
+import { commitScopedStorageMutation, loadScopedStorageSnapshot, StorageRepositoryError, type ScopedStorageSnapshot } from './storageV2Repository.js';
+import { parseStorageScope, type StorageScope } from './storageScope.js';
 
 export type CompetitionConfiguration = { readonly url: string; readonly key: string };
-export type CompetitionRow = StorageSnapshot & { readonly id: 'school-timer-main'; readonly updated_at: string };
+export type CompetitionRow = ScopedStorageSnapshot & { readonly id: 'school-timer-main'; readonly updated_at: string };
 export type CompetitionArchive = { readonly seasonId: string; readonly archivedAt: string; readonly standings: readonly LibraryCompetitionStanding[]; readonly books: readonly unknown[] };
 export class LibraryCompetitionError extends Error {
   readonly name = 'LibraryCompetitionError';
@@ -14,8 +15,17 @@ export class LibraryCompetitionError extends Error {
 export const competitionRecord = (value: unknown): Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : {};
 const headers = (configuration: CompetitionConfiguration) => ({ apikey: configuration.key, Authorization: `Bearer ${configuration.key}`, 'Content-Type': 'application/json' });
 
-export async function loadCompetitionRow(configuration: CompetitionConfiguration): Promise<CompetitionRow | null> {
-  const snapshot = await loadStorageSnapshot(configuration);
+export const libraryCompetitionStorageScope = (studentNumber?: number): StorageScope => parseStorageScope({
+  resources: [{ path: '/libraryCompetition' }, { path: '/studentLife/books' }],
+  writeResources: [{ path: '/libraryCompetition' }, { path: '/studentLife/books' }],
+  wallets: studentNumber === undefined ? [] : [studentNumber],
+  history: studentNumber === undefined ? [] : [studentNumber],
+  writeWallets: studentNumber === undefined ? [] : [studentNumber],
+  revisionKeys: ['scope:libraryCompetition:shared', 'collection:/studentLife/books'],
+});
+
+export async function loadCompetitionRow(configuration: CompetitionConfiguration, studentNumber?: number): Promise<CompetitionRow | null> {
+  const snapshot = await loadScopedStorageSnapshot(configuration, libraryCompetitionStorageScope(studentNumber));
   return { ...snapshot, id: 'school-timer-main', updated_at: snapshot.updated_at };
 }
 
@@ -30,12 +40,12 @@ export async function commitCompetition(configuration: CompetitionConfiguration,
   readonly payload?: unknown;
 }): Promise<boolean> {
   if (Buffer.byteLength(JSON.stringify(mutation.value), 'utf8') > 1_048_576) throw new LibraryCompetitionError('LIBRARY_COMPETITION_TOO_LARGE', 400);
-  const snapshot = mutation.current ?? await loadStorageSnapshot(configuration);
+  const snapshot = mutation.current ?? await loadScopedStorageSnapshot(configuration, libraryCompetitionStorageScope());
   const action = mutation.action ?? (mutation.archive ? 'libraryCompetitionRollover' : 'libraryCompetitionInitialize');
   const payload = mutation.payload ?? { previousSeason: competitionRecord(snapshot.value.libraryCompetition).seasonId ?? null,
     seasonId: competitionRecord(mutation.value.libraryCompetition).seasonId ?? null };
   const requestId = mutation.requestId ?? createHash('sha256').update(canonicalStorageJson({ action, payload })).digest('hex');
-  const committed = await commitStorageMutation(configuration, {
+  const committed = await commitScopedStorageMutation(configuration, {
     snapshot, value: mutation.value,
     actorKey: mutation.actorKey ?? 'system:library', requestId, action, payload,
     result: { updatedAt: mutation.updatedAt },

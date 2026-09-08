@@ -6,7 +6,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import StudentActionProgress from '../components/student/StudentActionProgress.tsx';
 
-test('학생 비동기 작업 중에는 처리 상태와 중앙 로딩 모달을 함께 표시한다', () => {
+test('학생 비동기 작업 중에는 처리 상태와 중앙 로딩 모달을 함께 표시한다', (context) => {
+  context.mock.method(Math, 'random', () => 0);
   const inactiveMarkup = renderToStaticMarkup(createElement(StudentActionProgress, { isActive: false }));
   const activeMarkup = renderToStaticMarkup(createElement(StudentActionProgress, { isActive: true }));
 

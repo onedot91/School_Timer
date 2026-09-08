@@ -28,8 +28,9 @@ import {
 } from '../src/lib/studentProfilePurchase.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
-import { commitStorageMutation, getStorageReceipt, loadStorageSnapshot, StorageRepositoryError } from '../src/server/storageV2Repository.js';
-import { storageResourceKey, storageScopeKey } from '../src/lib/storageV2Codec.js';
+import { commitScopedStorageMutation, getStorageReceipt, loadScopedStorageSnapshot, StorageRepositoryError } from '../src/server/storageV2Repository.js';
+import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
+import { economyResultScope, economyStorageScope } from '../src/server/economyStorageScope.js';
 
 interface ApiRequest {
   readonly method?: string;
@@ -392,6 +393,23 @@ const scopeEconomyResult = (value: unknown, studentNumber: number, role: 'teache
   };
 };
 
+const currentEconomyResponse = async (
+  configuration: NonNullable<ReturnType<typeof getConfiguration>>, value: unknown, studentNumber: number,
+) => {
+  const snapshot = await loadScopedStorageSnapshot(configuration, economyResultScope(studentNumber));
+  const own = String(studentNumber), current = snapshot.value;
+  const balance = normalizeCurrencyBalances(current.currencyBalances)[own];
+  const history = normalizeCurrencyHistory(current.currencyHistory)[own] ?? [];
+  const economy = normalizeStudentEconomyState(asRecord(current.studentEconomy)[own]);
+  const life = normalizeStudentLifeState(current.studentLife);
+  const result = asRecord(scopeEconomyResult(value, studentNumber, 'student'));
+  return { ...result, balance, currencyBalanceEntries: { [own]: balance }, currencyHistoryEntries: { [own]: history },
+    studentEconomy: economy, studentLife: life, updatedAt: snapshot.updated_at,
+    ...('profileImage' in result ? { profileImage: life.failureProfileAssignments[own] ?? null } : {}),
+    storagePatch: createStorageProjectionPatch(snapshot, current),
+  };
+};
+
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader('Cache-Control', 'no-store');
   const configuration = getConfiguration();
@@ -414,9 +432,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     if (session.role === 'student' && session.studentNumber !== studentNumber) {
       response.status(403).json({ error: 'STUDENT_ECONOMY_SCOPE_VIOLATION' }); return;
     }
+    if (request.headers?.['x-storage-projection'] !== '1') {
+      response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
+    }
     try {
       const receipt = await getStorageReceipt(configuration, `${session.role}:${session.role === 'student' ? session.studentNumber : 0}:economy:${studentNumber}`, requestId);
-      response.status(200).json(receipt.found ? { status: 'committed', result: scopeEconomyResult(receipt.result, studentNumber, session.role) } : { status: 'unknown' });
+      response.status(200).json(receipt.found ? { status: 'committed', result: await currentEconomyResponse(configuration, receipt.result, studentNumber) } : { status: 'unknown' });
     } catch (error) {
       response.status(error instanceof StorageRepositoryError ? error.status : 502).json({ error: error instanceof StorageRepositoryError ? error.code : 'STUDENT_ECONOMY_STATUS_UNAVAILABLE' });
     }
@@ -446,40 +467,33 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return;
     }
 
+    if (request.headers?.['x-storage-projection'] !== '1') {
+      response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
+    }
     const actorKey = `${session.role}:${session.role === 'student' ? session.studentNumber : 0}:economy:${parsed.studentNumber}`;
     const receipt = await getStorageReceipt(configuration, actorKey, parsed.requestId, {
       action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
     });
-    if (receipt.found) { response.status(200).json(scopeEconomyResult(receipt.result, parsed.studentNumber, session.role)); return; }
+    if (receipt.found) { response.status(200).json(await currentEconomyResponse(configuration, receipt.result, parsed.studentNumber)); return; }
+    const scope = economyStorageScope(parsed.studentNumber, parsed.action, parsed.requestId);
     const createdAt = new Date().toISOString();
     const characterDrawRoll = parsed.action.type === 'draw_character' ? randomInt(10) : undefined;
     const profileDrawRoll = parsed.action.type === 'draw_profile' ? randomInt(1_000_000) / 1_000_000 : 0;
     for (let attempt = 0; attempt < UPDATE_RETRY_LIMIT; attempt += 1) {
       try {
-        const current = await loadStorageSnapshot(configuration);
+        const current = await loadScopedStorageSnapshot(configuration, scope);
         const confirmed = await getStorageReceipt(configuration, actorKey, parsed.requestId, {
           action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
         });
-        if (confirmed.found) { response.status(200).json(scopeEconomyResult(confirmed.result, parsed.studentNumber, session.role)); return; }
+        if (confirmed.found) { response.status(200).json(await currentEconomyResponse(configuration, confirmed.result, parsed.studentNumber)); return; }
         const mutation = createMutation(current.value, parsed.studentNumber, parsed.action, parsed.requestId, createdAt, characterDrawRoll, profileDrawRoll);
-        const readKeys = [
-          `wallet:${parsed.studentNumber}`,
-          storageResourceKey('studentEconomy', String(parsed.studentNumber)),
-          storageScopeKey('auctionBids', null), storageScopeKey('auctionAwards', null), storageScopeKey('auctionItems', null),
-        ];
-        if (parsed.action.type === 'buy_item') readKeys.push(storageScopeKey('studentShopCatalog', null));
-        if (['invest', 'withdraw_investment', 'settle_investments'].includes(parsed.action.type)) readKeys.push(storageScopeKey('studentStockMarket', null));
-        if (isStudentProfileAction(parsed.action)) {
-          for (let number = 1; number <= 23; number += 1) readKeys.push(storageResourceKey('studentLife', 'failureProfileAssignments', String(number)));
-        }
-        for (const key of Object.keys(mutation.response.currencyBalanceEntries)) readKeys.push(`wallet:${key}`);
-        const committed = await commitStorageMutation(configuration, {
+        const committed = await commitScopedStorageMutation(configuration, {
           snapshot: current, value: mutation.nextValue, actorKey, requestId: parsed.requestId,
           action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
-          result: scopeEconomyResult({ ...mutation.response, updatedAt: createdAt }, parsed.studentNumber, session.role), readKeys,
+          result: scopeEconomyResult({ ...mutation.response, updatedAt: createdAt }, parsed.studentNumber, session.role),
         });
         if (committed.saved) {
-          response.status(200).json(scopeEconomyResult(committed.result, parsed.studentNumber, session.role)); return;
+          response.status(200).json(await currentEconomyResponse(configuration, committed.result, parsed.studentNumber)); return;
         }
       } catch (error) {
         const retryable = error instanceof StorageRepositoryError && error.code === 'STORAGE_SERIALIZATION_RETRY';

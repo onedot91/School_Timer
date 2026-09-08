@@ -3,6 +3,7 @@ import { StudentRapidClickGuard } from './components/student/StudentRapidClickGu
 import { StudentProfanityGuard } from './components/student/StudentProfanityGuard';
 import { AppLoadingScreen, AppRecoveryScreen } from './components/AppRecovery';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
+import { StorageAvailabilityBanner } from './components/StorageAvailabilityBanner';
 import { startSaveFailureReporting } from './lib/saveFailureClient';
 import {
   clearDeviceSession,
@@ -265,6 +266,7 @@ export default function RootApp() {
       <Suspense fallback={<PageLoadFallback />}>
         {activePage}
       </Suspense>
+      <StorageAvailabilityBanner key={selectedEntryNumber} actor={selectedEntryNumber} />
     </>
   );
 }

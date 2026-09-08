@@ -42,7 +42,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
 
 export class LibraryCompetitionClientError extends Error {
   readonly name = 'LibraryCompetitionClientError';
-  constructor(readonly code: string) {
+  constructor(readonly code: string, readonly status?: number) {
     super(MESSAGES[code] ?? '순위판을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
   }
 }

@@ -3,7 +3,6 @@ import test from 'node:test';
 
 import handler from '../../api/shared-settings.js';
 import { createStorageV2Fixture } from './storageV2Fixture.js';
-import { splitStorageState } from '../../src/lib/storageV2Codec.js';
 import studentEconomyHandler from '../../api/student-economy.js';
 import { claimDailyEmotionRewardInSettings, claimNumberBaseballRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionAwards, AUCTION_ITEM_IDS } from '../../src/lib/currency.js';
 import { normalizeStudentPetStates } from '../../src/lib/studentPet.js';
@@ -49,11 +48,13 @@ const withEnvironment = async (run: () => Promise<void>) => {
 const studentHeaders = (studentNumber: number) => ({
   cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'student', studentNumber }, SESSION_SECRET)}`,
   'sec-fetch-site': 'same-origin',
+  'x-storage-projection': '1',
 });
 
 const teacherHeaders = () => ({
   cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'teacher' }, SESSION_SECRET)}`,
   'sec-fetch-site': 'same-origin',
+  'x-storage-projection': '1',
 });
 
 test('숫자 야구는 학생 범위 데이터로 완료와 보상을 저장하고 다른 학생 기록을 보존한다', async () => {
@@ -907,7 +908,7 @@ const createStatefulStorageV2 = (initial: FakeSettingsRow | null, options: { rea
   const fetcher: typeof fetch = async (input, init) => {
     requests.push({ url: String(input), method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : null });
     const response = await fixture.fetch(input, init);
-    if (String(input).endsWith('/storage_load_snapshot')) {
+    if ((String(input).endsWith('/storage_load_snapshot') || String(input).endsWith('/storage_load_scope'))) {
       reads += 1;
       if (options.readBarrier && reads === options.readBarrier) release?.();
       if (options.readBarrier && reads <= options.readBarrier) await barrier;
@@ -958,7 +959,8 @@ test('placement command is student-only and returns an authoritative student pro
       assert.equal(typeof payload.updatedAt, 'string');
       assert.equal(Reflect.has(payload.value, 'schedule'), false);
       assert.deepEqual(payload.value.currencyBalances, { 1: 10 });
-      assert.equal(((payload.value.studentLife as { letters: Array<{ id: string }> }).letters)[0]?.id, 'keep');
+      assert.equal(Reflect.has(payload.value.studentLife as object, 'letters'), false);
+      assert.equal(((fake.state().value.studentLife as { letters: Array<{ id: string }> }).letters)[0]?.id, 'keep');
       assert.equal((fake.state()?.value.studentLife as { books: unknown[] }).books.length, 1);
     } finally {
       globalThis.fetch = originalFetch;
@@ -1010,7 +1012,7 @@ test('simultaneous first book records preserve both commands without replacing t
       ]);
       assert.deepEqual(responses.map(({ result }) => result().statusCode), [200, 200]);
       assert.equal((fake.state()?.value.studentLife as { books: unknown[] }).books.length, 2);
-      const commits = fake.requests.filter(request => request.url.endsWith('/storage_commit_mutation'));
+      const commits = fake.requests.filter(request => request.url.endsWith('/storage_commit_scoped_mutation'));
       assert.ok(commits.length >= 2);
       assert.equal(fake.receipts.size, 2);
       assert.equal(fake.requests.some(request => new URL(request.url).pathname.endsWith('/app_settings')), false);
@@ -1153,7 +1155,7 @@ test('placement rejects malformed authoritative rows and upstream write failures
       const backing = createStorageV2Fixture({ studentLife: { books: [] } });
       globalThis.fetch = async (input, init) => {
         fetchCount += 1;
-        return String(input).endsWith('/storage_commit_mutation')
+        return String(input).endsWith('/storage_commit_scoped_mutation')
           ? Response.json({ error: 'synthetic' }, { status: 500 })
           : backing.fetch(input, init);
       };
@@ -1179,10 +1181,11 @@ test('placement stops after five fresh CAS conflicts and leaves authoritative st
     };
     let reads = 0;
     let patches = 0;
-    globalThis.fetch = async (input) => {
-      if (String(input).endsWith('/storage_load_snapshot')) {
+    const backing = createStorageV2Fixture(authoritative.value, authoritative.updated_at);
+    globalThis.fetch = async (input, init) => {
+      if ((String(input).endsWith('/storage_load_snapshot') || String(input).endsWith('/storage_load_scope'))) {
         reads += 1;
-        return Response.json({ ...splitStorageState(authoritative.value), updated_at: authoritative.updated_at, revisions: {} });
+        return backing.fetch(input, init);
       }
       patches += 1;
       return Response.json({ saved: false });

@@ -1,5 +1,7 @@
 import { prepareClasswordRequest, finishClasswordRequest } from './classwordRequestStore';
 import { withSaveFailureReporting } from './saveFailureClient.js';
+import { getStorageAvailability } from './storageAvailability.js';
+import { captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError } from './storageResponseOrder.js';
 import {
   getClasswordEntryRetentionCutoff,
   getKoreanDateKey,
@@ -87,6 +89,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
 );
 
 const requestWithoutReporting = async (path: string, init?: RequestInit): Promise<unknown> => {
+  const context = captureStorageResponseContext();
   const response = await fetch(path, {
     ...init,
     headers: {
@@ -96,6 +99,7 @@ const requestWithoutReporting = async (path: string, init?: RequestInit): Promis
     },
   });
   const value: unknown = await response.json();
+  if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
   if (!response.ok) {
     const code = isRecord(value) && typeof value.error === 'string'
       ? value.error
@@ -126,12 +130,25 @@ const request = async (path: string, init?: RequestInit): Promise<unknown> => {
   let actor = 0;
   try { storage = window.localStorage; actor = Number(storage.getItem('school-timer-entry-number-v1') ?? 0); } catch { storage = null; }
   const body = prepareClasswordRequest(storage, actor, raw);
+  const context = captureStorageResponseContext();
   try {
     const result = await withSaveFailureReporting('classword', async () => {
-      const status = await requestWithoutReporting(`${path}?requestId=${encodeURIComponent(String(body.requestId))}`);
-      if (!isRecord(status) || typeof status.committed !== 'boolean') throw new ClasswordClientError('CLASSWORD_INVALID_RESPONSE');
-      if (status.committed) return validateCommandResult(status.result, body);
-      return validateCommandResult(await requestWithoutReporting(path, { ...init, body: JSON.stringify(body) }), body);
+      try {
+        return validateCommandResult(await requestWithoutReporting(path, { ...init, body: JSON.stringify(body) }), body);
+      } catch (error) {
+        if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+        if (getStorageAvailability(error) || error instanceof StorageResponseActorChangedError
+          || (error instanceof ClasswordClientError && error.status !== undefined && error.status < 500 && error.status !== 408)) throw error;
+        try {
+          const status = await requestWithoutReporting(`${path}?requestId=${encodeURIComponent(String(body.requestId))}`);
+          if (isRecord(status) && status.committed === true) return validateCommandResult(status.result, body);
+        } catch (confirmationError) {
+          if (confirmationError instanceof StorageResponseActorChangedError) throw confirmationError;
+          if (!(confirmationError instanceof Error)) throw confirmationError;
+        }
+        if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+        throw new ClasswordClientError('CLASSWORD_CONFIRMATION_REQUIRED', 502);
+      }
     });
     finishClasswordRequest(storage, actor, String(body.action), body.requestId);
     return result;

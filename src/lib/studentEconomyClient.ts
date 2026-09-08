@@ -1,4 +1,7 @@
 import { withSaveFailureReporting } from './saveFailureClient.js';
+import { publishStorageAvailability } from './storageAvailability.js';
+import { parseStorageProjectionPatch } from './storageProjectionPatch.js';
+import { acceptStorageProjection, captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError, type StorageResponseContext } from './storageResponseOrder.js';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory, type CurrencyBalances, type CurrencyHistory } from './currency.js';
 import { normalizeStudentEconomyState, type StudentEconomyAction, type StudentEconomyState } from './studentEconomy.js';
 import { normalizeStudentLifeState, type StudentLifeState } from './studentLife.js';
@@ -31,17 +34,16 @@ export class StudentEconomyRequestError extends Error {
   }
 }
 
-const UNCERTAIN_STATUS_CODES = new Set([408, 502, 504]);
-
-export const loadStudentEconomyReceipt = async (studentNumber: number, requestId: string): Promise<StudentEconomyUpdateResult | null> => {
+export const loadStudentEconomyReceipt = async (studentNumber: number, requestId: string, context: StorageResponseContext = captureStorageResponseContext()): Promise<StudentEconomyUpdateResult | null> => {
   const query = new URLSearchParams({ protocolVersion: '2', studentNumber: String(studentNumber), requestId });
   const response = await fetch(`/api/student-economy?${query}`, {
-    credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(8000),
+    credentials: 'same-origin', cache: 'no-store', headers: { 'X-Storage-Projection': '1' }, signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) return null;
   const body: unknown = await response.json();
+  if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
   if (!isRecord(body) || body.status !== 'committed') return null;
-  return parseUpdateResult(body.result, studentNumber);
+  return parseUpdateResult(body.result, studentNumber, context);
 };
 
 const getErrorCode = (value: unknown) => {
@@ -62,7 +64,7 @@ const matchesNormalized = (raw: unknown, normalized: unknown): boolean => {
     && Object.entries(normalized).every(([key, value]) => Object.hasOwn(raw, key) && matchesNormalized(raw[key], value));
 };
 
-const parseUpdateResult = (body: unknown, studentNumber: number): StudentEconomyUpdateResult => {
+const parseUpdateResult = (body: unknown, studentNumber: number, context: StorageResponseContext): StudentEconomyUpdateResult => {
   if (!isRecord(body) || typeof body.balance !== 'number' || !Number.isFinite(body.balance)
     || !isRecord(body.currencyBalanceEntries) || !isRecord(body.currencyHistoryEntries)
     || !isRecord(body.studentEconomy) || !isRecord(body.studentLife)
@@ -99,7 +101,7 @@ const parseUpdateResult = (body: unknown, studentNumber: number): StudentEconomy
     || !matchesNormalized(economyToValidate, economy) || !matchesNormalized(body.studentLife, life)) {
     throw new Error('STUDENT_ECONOMY_INVALID_RESPONSE');
   }
-  return {
+  const parsed: StudentEconomyUpdateResult = {
     balance: body.balance,
     currencyBalanceEntries: balanceEntries,
     currencyHistoryEntries: historyEntries,
@@ -110,6 +112,23 @@ const parseUpdateResult = (body: unknown, studentNumber: number): StudentEconomy
     ...(typeof body.profilePrice === 'number' ? { profilePrice: body.profilePrice } : {}),
     ...(parsedReason === undefined ? {} : { profileReason: parsedReason }),
   };
+  if (body.storagePatch === undefined) return parsed;
+  const projection = acceptStorageProjection(context, {
+    value: { currencyBalances: balanceEntries, currencyHistory: historyEntries, studentEconomy: { [studentNumber]: economy }, studentLife: life },
+    updatedAt: body.updatedAt, scope: 'student', storagePatch: parseStorageProjectionPatch(body.storagePatch),
+  });
+  const merged = projection.value;
+  const mergedBalances = normalizeCurrencyBalances(merged.currencyBalances), mergedHistory = normalizeCurrencyHistory(merged.currencyHistory);
+  const mergedEconomy = isRecord(merged.studentEconomy) ? merged.studentEconomy[String(studentNumber)] : undefined;
+  return { ...parsed, balance: mergedBalances[String(studentNumber)], currencyBalanceEntries: { [studentNumber]: mergedBalances[String(studentNumber)] },
+    currencyHistoryEntries: { [studentNumber]: mergedHistory[String(studentNumber)] ?? [] },
+    studentEconomy: normalizeStudentEconomyState(mergedEconomy), studentLife: normalizeStudentLifeState(merged.studentLife), updatedAt: projection.updatedAt };
+};
+
+export const mergeStudentEconomyLife = (current: StudentLifeState, incoming: StudentLifeState): StudentLifeState => {
+  const letters = new Map(current.letters.map(letter => [letter.id, letter]));
+  for (const letter of incoming.letters) letters.set(letter.id, { ...letter, readAt: letters.get(letter.id)?.readAt ?? letter.readAt });
+  return { ...current, letters: [...letters.values()], failureProfileAssignments: { ...current.failureProfileAssignments, ...incoming.failureProfileAssignments } };
 };
 
 export const retryStudentEconomyRequest = async ({
@@ -121,37 +140,43 @@ export const retryStudentEconomyRequest = async ({
   readonly action: unknown;
   readonly requestId: string;
 }): Promise<StudentEconomyUpdateResult> => {
+  const context = captureStorageResponseContext();
   const outcome = await withSaveFailureReporting('economy', async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), 45_000);
     try {
       const response = await fetch('/api/student-economy', {
         method: 'POST', credentials: 'same-origin', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Storage-Projection': '1' },
         body: JSON.stringify({ protocolVersion: 2, studentNumber, action, requestId }),
         signal: controller.signal,
       });
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
         const error = new StudentEconomyRequestError(getErrorCode(body) || `STUDENT_ECONOMY_HTTP_${response.status}`, response.status);
-        // Domain denials and a paused/obsolete client are not failed persistence.
-        if ((isRecord(body) && body.businessRejected === true) || [401, 403, 426, 429].includes(response.status)
-          || ['STORAGE_MAINTENANCE', 'STORAGE_NOT_ACTIVE', 'STORAGE_REQUEST_REUSED'].includes(error.code)) return { error };
+        if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
+        if (publishStorageAvailability(error, context)) return { error };
+        if ((response.status < 500 && isRecord(body) && body.businessRejected === true) || [401, 403, 429].includes(response.status)
+          || (response.status === 409 && error.code === 'STORAGE_REQUEST_REUSED')) return { error };
         throw error;
       }
-      return { result: parseUpdateResult(await response.json(), studentNumber) };
+      const result = parseUpdateResult(await response.json(), studentNumber, context);
+      if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
+      return { result };
     } catch (error) {
+      if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
       const uncertain = error instanceof StudentEconomyRequestError
-        ? UNCERTAIN_STATUS_CODES.has(error.status)
-        : error instanceof Error && ['TypeError', 'TimeoutError', 'AbortError'].includes(error.name);
+        ? error.status === 408 || error.status >= 500
+        : error instanceof Error && (['TypeError', 'TimeoutError', 'AbortError', 'SyntaxError'].includes(error.name) || error.message === 'STUDENT_ECONOMY_INVALID_RESPONSE');
       if (!uncertain) throw error;
       try {
-        const committed = await loadStudentEconomyReceipt(studentNumber, requestId);
+        const committed = await loadStudentEconomyReceipt(studentNumber, requestId, context);
         if (committed) return { result: committed };
       } catch (confirmationError) {
+        if (confirmationError instanceof StorageResponseActorChangedError) return { error: confirmationError };
         if (!(confirmationError instanceof Error)) throw confirmationError;
       }
-      // Keep the caller's request ID: only an explicit retry may resubmit it.
+      if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
       throw new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504);
     } finally { clearTimeout(timeout); }
   }, studentNumber);
