@@ -1,3 +1,4 @@
+import { BookOpen, Film, Music, Utensils } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import {
@@ -23,10 +24,10 @@ interface TodayFriendMissionFormProps {
 }
 
 const recommendationCategories = [
-  { value: 'movie', label: '영화' },
-  { value: 'book', label: '책' },
-  { value: 'music', label: '음악' },
-  { value: 'food', label: '음식' },
+  { value: 'movie', label: '영화', icon: Film },
+  { value: 'book', label: '책', icon: BookOpen },
+  { value: 'music', label: '음악', icon: Music },
+  { value: 'food', label: '음식', icon: Utensils },
 ] as const;
 
 const declinedToExplainMessage = '말하고 싶지 않은 내용은 묻지 않아요.';
@@ -188,7 +189,7 @@ export default function TodayFriendMissionForm({
                         setHasEdited(true);
                       }}
                     >
-                      {option.label}
+                      <option.icon aria-hidden="true" />{option.label}
                     </button>
                   ))}
                 </div>

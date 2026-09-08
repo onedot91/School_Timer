@@ -251,16 +251,29 @@ export const createDailyTodayFriendPartnerAssignments = (
     throw new TodayFriendDomainError('INVALID_DATE_KEY');
   }
 
+  if (students.length !== TODAY_FRIEND_STUDENT_COUNT) {
+    return createTodayFriendPartnerAssignments(students, `${dateKey}-daily-pairs`);
+  }
   const weekdayIndex = (date.getUTCDay() + 6) % 7;
   const weekdayNumber = Math.floor((Math.floor(date.getTime() / DAY_IN_MILLISECONDS) - weekdayIndex) / 7) * 5 + Math.min(weekdayIndex, 4);
-  const offset = ((weekdayNumber % (students.length - 1)) + students.length - 1) % (students.length - 1) + 1;
-  const groupId = `${dateKey}-daily-offset-${offset}`;
-
-  return students.map((studentNumber, index) => {
-    const partnerNumber = students[(index + offset) % students.length];
-    if (partnerNumber === undefined) throw new TodayFriendDomainError('INVALID_STUDENT_ROSTER');
-    return { studentNumber, partnerNumber, groupId, relationKind: 'cycle' };
-  });
+  const offset = ((weekdayNumber % students.length) + students.length) % students.length;
+  const rotated = [...students.slice(offset), ...students.slice(0, offset)];
+  const assignments: TodayFriendPartnerAssignment[] = [];
+  const add = (from: number, to: number, groupId: string, relationKind: TodayFriendRelationKind) => {
+    const studentNumber = rotated[from];
+    const partnerNumber = rotated[to];
+    if (studentNumber === undefined || partnerNumber === undefined) throw new TodayFriendDomainError('INVALID_STUDENT_ROSTER');
+    assignments.push({ studentNumber, partnerNumber, groupId, relationKind });
+  };
+  for (let index = 2; index <= 11; index += 1) {
+    const groupId = `${dateKey}-pair-${index - 1}`;
+    add(index, 23 - index, groupId, 'pair');
+    add(23 - index, index, groupId, 'pair');
+  }
+  // Alternating the cycle direction avoids repeated partners as the roster rotates.
+  const cycle = weekdayNumber % 2 === 0 ? [0, 1, 22] : [0, 22, 1];
+  cycle.forEach((from, index) => add(from, cycle[(index + 1) % 3], `${dateKey}-cycle`, 'cycle'));
+  return assignments.sort((first, second) => first.studentNumber - second.studentNumber);
 };
 
 export const createTodayFriendSubmission = (input: {

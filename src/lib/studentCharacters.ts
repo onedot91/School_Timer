@@ -127,19 +127,6 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     },
   },
   {
-    id: 'student-10-magic-bear',
-    name: '마법 곰 자캐',
-    creatorName: '10번',
-    imageSrc: '/student-characters/character-10.png',
-    alt: '10번 학생이 만든 마법 곰 캐릭터',
-    themeColor: '#7ED957',
-    speech: '고마워!',
-    walkTransform: {
-      right: 'none',
-      left: 'none',
-    },
-  },
-  {
     id: 'student-11-monster',
     name: '몬스터 자캐',
     creatorName: '11번',

@@ -53,3 +53,15 @@ test('파트너 공개 완료 표시는 학생과 날짜와 배정 파트너별�
   assert.equal(hasSeenTodayFriendReveal(storage, { ...identity, studentNumber: 2 }), false);
   assert.equal(hasSeenTodayFriendReveal(storage, { ...identity, dateKey: '2026-09-02' }), false);
 });
+
+test('친구 재배정은 이전 공개 기록을 재사용하지 않는다', () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+  };
+  const identity = { dateKey: '2026-09-01', studentNumber: 1, partnerNumber: 8 };
+  assert.equal(hasSeenTodayFriendReveal(storage, identity), false);
+  markTodayFriendRevealSeen(storage, identity);
+  assert.equal(hasSeenTodayFriendReveal(storage, { ...identity, partnerNumber: 9 }), false);
+});

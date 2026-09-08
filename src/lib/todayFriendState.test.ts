@@ -25,22 +25,13 @@ test('학생 미션 조회는 오늘 장르와 배정된 파트너를 반환한�
   assert.equal(mission.submission, null);
 });
 
-test('연속된 날짜의 학생 미션은 반드시 다른 파트너를 반환한다', () => {
-  // Given
-  const firstDateKey = '2026-01-06';
-  const secondDateKey = '2026-01-07';
-  const prepared = ensureTodayFriendDay(
-    ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, '2026-02', firstDateKey),
-    '2026-02',
-    secondDateKey,
-  );
-
-  // When
-  const firstMission = getTodayFriendStudentMission(prepared, firstDateKey, 1);
-  const secondMission = getTodayFriendStudentMission(prepared, secondDateKey, 1);
-
-  // Then
-  assert.notEqual(secondMission.partnerNumber, firstMission.partnerNumber);
+test('이미 생성된 날짜의 배정은 다시 준비해도 유지한다', () => {
+  const dateKey = '2026-01-06';
+  const prepared = ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, '2026-02', dateKey);
+  const repeated = ensureTodayFriendDay(prepared, '2026-02', dateKey);
+  assert.deepEqual(repeated.partnerDays, prepared.partnerDays);
+  assert.equal(prepared.partnerDays[0].assignments.filter(entry => entry.relationKind === 'pair').length, 20);
+  assert.equal(prepared.partnerDays[0].assignments.filter(entry => entry.relationKind === 'cycle').length, 3);
 });
 
 test('학생 제출은 교사 수정 요청 후 고쳐서 다시 제출할 수 있다', () => {

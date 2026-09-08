@@ -1,16 +1,9 @@
-import { Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Sparkles, HeartHandshake } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from 'motion/react';
 
-import {
-  getFailureProfileImage,
-  type FailureProfileAssignments,
-} from '../../lib/failureExhibition';
-import {
-  createTodayFriendRevealSequence,
-  hasSeenTodayFriendReveal,
-  markTodayFriendRevealSeen,
-  shouldAnimateTodayFriendReveal,
-} from '../../lib/todayFriendReveal';
+import { FAILURE_EMPTY_PROFILE_IMAGE, getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
+import { hasSeenTodayFriendReveal, markTodayFriendRevealSeen } from '../../lib/todayFriendReveal';
 import type { TodayFriendStudentMission } from '../../lib/todayFriendState';
 
 interface TodayFriendPartnerCardProps {
@@ -18,88 +11,85 @@ interface TodayFriendPartnerCardProps {
   readonly profileAssignments: FailureProfileAssignments;
 }
 
-type RevealStage = 'rolling' | 'revealed' | 'settled';
+type RevealStage = 'waiting' | 'preparing' | 'turning' | 'revealing' | 'settled';
 
-const REVEAL_STEP_DELAYS_MS = [90, 100, 115, 135, 165, 210, 290] as const;
-const REVEAL_SETTLE_DURATION_MS = 520;
+const getStorage = (): Storage | null => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
 
 export default function TodayFriendPartnerCard({ mission, profileAssignments }: TodayFriendPartnerCardProps) {
-  const [shouldReveal] = useState(() => (
-    shouldAnimateTodayFriendReveal(
-      hasSeenTodayFriendReveal(window.localStorage, mission),
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    )
-  ));
-  const [sequence] = useState(() => (
-    shouldReveal ? createTodayFriendRevealSequence(mission) : [mission.partnerNumber]
-  ));
-  const [displayedPartnerNumber, setDisplayedPartnerNumber] = useState(sequence[0] ?? mission.partnerNumber);
-  const [stage, setStage] = useState<RevealStage>(shouldReveal ? 'rolling' : 'settled');
+  const reducedMotion = useReducedMotion();
+  const [stage, setStage] = useState<RevealStage>(() => {
+    const storage = getStorage();
+    return storage && hasSeenTodayFriendReveal(storage, mission) ? 'settled' : 'waiting';
+  });
+  const [started, setStarted] = useState(false);
+  const startedRef = useRef(false);
+  const resultRef = useRef<HTMLHeadingElement>(null);
+  const [imageFailed, setImageFailed] = useState(false);
+  const complete = stage === 'settled';
+  const visible = stage === 'revealing' || complete;
+  const running = started && !complete;
 
   useEffect(() => {
-    if (!shouldReveal) {
-      markTodayFriendRevealSeen(window.localStorage, mission);
-      return;
+    if (!started) return;
+    const timers: number[] = [];
+    const finish = () => {
+      setStage('settled');
+      const storage = getStorage();
+      if (storage) markTodayFriendRevealSeen(storage, mission);
+    };
+    if (reducedMotion) {
+      setStage('revealing');
+      timers.push(window.setTimeout(finish, 180));
+    } else {
+      timers.push(window.setTimeout(() => setStage('turning'), 1200));
+      timers.push(window.setTimeout(() => setStage('revealing'), 1650));
+      timers.push(window.setTimeout(finish, 3000));
     }
+    return () => timers.forEach(window.clearTimeout);
+  }, [started, reducedMotion, mission.dateKey, mission.studentNumber, mission.partnerNumber]);
 
-    const timerIds: number[] = [];
-    let elapsedMs = 0;
-    REVEAL_STEP_DELAYS_MS.forEach((delayMs, index) => {
-      elapsedMs += delayMs;
-      timerIds.push(window.setTimeout(() => {
-        const nextPartnerNumber = sequence[index + 1];
-        if (nextPartnerNumber === undefined) return;
-        setDisplayedPartnerNumber(nextPartnerNumber);
-        if (index === REVEAL_STEP_DELAYS_MS.length - 1) {
-          setStage('revealed');
-          markTodayFriendRevealSeen(window.localStorage, mission);
-          timerIds.push(window.setTimeout(() => setStage('settled'), REVEAL_SETTLE_DURATION_MS));
-        }
-      }, elapsedMs));
-    });
-    return () => timerIds.forEach((timerId) => window.clearTimeout(timerId));
-  }, [mission.dateKey, mission.partnerNumber, mission.studentNumber, sequence, shouldReveal]);
+  useEffect(() => {
+    if (complete && started) resultRef.current?.focus({ preventScroll: true });
+  }, [complete, started]);
 
-  const isRolling = stage === 'rolling';
-  const displayedProfile = getFailureProfileImage(displayedPartnerNumber, profileAssignments);
+  const reveal = () => {
+    if (startedRef.current || stage !== 'waiting') return;
+    startedRef.current = true;
+    setStage('preparing');
+    setStarted(true);
+  };
 
   return (
-    <section
-      className="student-today-friend-assignment"
-      data-reveal-state={stage}
-      aria-labelledby="student-today-friend-assignment-title"
-      aria-busy={isRolling}
-    >
-      <p className="student-today-friend-assignment-prompt">
-        {isRolling ? '오늘의 친구를 찾고 있어요' : '나의 오늘의 친구는?'}
-      </p>
-      <h2 id="student-today-friend-assignment-title" className="sr-only">
-        {mission.partnerNumber}번 친구
-      </h2>
-      <div
-        className="student-today-friend-profile"
-        aria-label={isRolling ? '오늘의 친구를 찾는 중' : `오늘의 친구 ${mission.partnerNumber}번`}
-      >
-        <figure
-          key={`${stage}-${displayedPartnerNumber}`}
-          className="student-today-friend-person"
-          data-reveal-stage={stage}
-          aria-hidden={isRolling || undefined}
-        >
-          <img
-            src={displayedProfile}
-            alt={isRolling ? '' : `${mission.partnerNumber}번 친구의 동물 프로필`}
-            width="192"
-            height="192"
-          />
-          <figcaption><strong>{displayedPartnerNumber}번 친구</strong></figcaption>
-        </figure>
-        {stage !== 'settled' ? (
-          <p className="today-friend-partner-reveal-status" aria-hidden={isRolling || undefined}>
-            <Sparkles aria-hidden="true" />
-            {isRolling ? '두근두근, 누구일까요?' : '오늘의 친구를 찾았어요!'}
-          </p>
-        ) : null}
+    <section className="student-today-friend-assignment today-friend-draw" data-draw-stage={stage} data-reduced-motion={reducedMotion ? 'true' : undefined} aria-label="오늘의 친구 카드" aria-busy={running}>
+      <p className="student-today-friend-assignment-prompt">나의 오늘의 친구는?</p>
+      <div className="today-friend-draw-stage">
+        <div className="today-friend-draw-halo" aria-hidden="true" />
+        <div className="today-friend-draw-card">
+          {!visible ? (
+            <div className="today-friend-draw-back" aria-hidden="true">
+              <div className="today-friend-draw-ornament"><Sparkles /></div>
+              <div className="today-friend-draw-seal"><HeartHandshake /></div>
+              <div className="today-friend-draw-ornament"><Sparkles /></div>
+            </div>
+          ) : (
+            <div className="today-friend-draw-front">
+              <span className="today-friend-draw-eyebrow" aria-hidden="true">오늘의 친구</span>
+              <img src={imageFailed ? FAILURE_EMPTY_PROFILE_IMAGE : getFailureProfileImage(mission.partnerNumber, profileAssignments)} alt={complete ? `${mission.partnerNumber}번 친구의 동물 프로필` : ''} width="192" height="192" onError={() => setImageFailed(true)} />
+              <h2 ref={resultRef} tabIndex={-1} className="today-friend-draw-result" aria-hidden={!complete || undefined}>{complete ? `${mission.partnerNumber}번 친구` : '\u00a0'}</h2>
+            </div>
+          )}
+          <div className="today-friend-draw-sheen" aria-hidden="true" />
+        </div>
+        {running && !reducedMotion ? <div className="today-friend-draw-sparks" aria-hidden="true">{Array.from({ length: 8 }, (_, index) => <i key={index} style={{ rotate: `${index * 45}deg` }}><Sparkles /></i>)}</div> : null}
+      </div>
+      <div className="today-friend-draw-footer">
+        {!complete ? <button type="button" onClick={reveal} disabled={running}>{running ? '친구를 만나고 있어요' : '친구 확인'}</button> : null}
       </div>
     </section>
   );

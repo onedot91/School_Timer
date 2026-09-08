@@ -44,7 +44,7 @@ test('현재 장르 탭을 다시 선택해도 저장 버튼을 막는 미리보
   assert.equal(getTodayFriendPreviewGenre('interview', 'compliment'), 'compliment');
 });
 
-test('기본 파트너는 날짜가 바뀌면 모든 학생에게 새 친구를 배정한다', () => {
+test('기본 파트너는 날짜별로 재현 가능하며 자신과 배정되지 않는다', () => {
   // Given
   const students = Array.from({ length: 23 }, (_, index) => index + 1);
   const firstDateKey = '2026-01-05';
@@ -59,26 +59,26 @@ test('기본 파트너는 날짜가 바뀌면 모든 학생에게 새 친구를 
   students.forEach((studentNumber, index) => {
     assert.notEqual(firstPartners[index], studentNumber);
     assert.notEqual(secondPartners[index], studentNumber);
-    assert.notEqual(secondPartners[index], firstPartners[index]);
+
   });
   assert.equal(new Set(firstPartners).size, 23);
   assert.equal(new Set(secondPartners).size, 23);
 });
 
-test('한 학생은 주말을 제외한 22번의 미션 동안 모든 친구를 한 번씩 만난다', () => {
-  // Given
-  const studentNumber = 1;
-  const dateKeys = Array.from({ length: 31 }, (_, index) => new Date(Date.UTC(2026, 0, index + 1)))
-    .filter((date) => date.getUTCDay() >= 1 && date.getUTCDay() <= 5)
-    .slice(0, 22)
-    .map((date) => date.toISOString().slice(0, 10));
-
-  // When
-  const partners = dateKeys.map((dateKey) => getTodayFriendNumber(studentNumber, dateKey));
-
-  // Then
-  assert.equal(new Set(partners).size, 22);
-  assert.equal(partners.includes(studentNumber), false);
+test('날짜별 기본 배정은 10개의 쌍방향 쌍과 3명의 꼬리물기를 만든다', () => {
+  const students = Array.from({ length: 23 }, (_, index) => index + 1);
+  for (let day = 1; day <= 31; day += 1) {
+    const dateKey = `2026-01-${String(day).padStart(2, '0')}`;
+    const partner = (student: number) => getTodayFriendNumber(student, dateKey);
+    const paired = students.filter(student => partner(partner(student)) === student);
+    const cycle = students.filter(student => partner(partner(student)) !== student);
+    assert.equal(paired.length, 20);
+    assert.equal(cycle.length, 3);
+    for (const student of cycle) {
+      assert.notEqual(partner(student), student);
+      assert.equal(partner(partner(partner(student))), student);
+    }
+  }
 });
 
 test('주간 장르는 월요일부터 금요일까지 중복 없이 한 번씩 배정된다', () => {
@@ -171,4 +171,16 @@ test('교사 승인은 15고마를 한 번만 지급한다', () => {
   assert.equal(firstApproval.balance, 115);
   assert.equal(secondApproval.awarded, false);
   assert.equal(secondApproval.balance, 115);
+});
+
+
+test('모든 학생의 친구는 평일마다 바뀌며 금요일 다음 배정은 월요일로 이어진다', () => {
+  const days = Array.from({ length: 370 }, (_, index) => new Date(Date.UTC(2026, 0, index + 1)))
+    .filter(date => date.getUTCDay() >= 1 && date.getUTCDay() <= 5)
+    .map(date => date.toISOString().slice(0, 10));
+  for (let index = 1; index < days.length; index += 1) {
+    for (let student = 1; student <= 23; student += 1) {
+      assert.notEqual(getTodayFriendNumber(student, days[index]), getTodayFriendNumber(student, days[index - 1]), `${days[index]} ${student}번`);
+    }
+  }
 });

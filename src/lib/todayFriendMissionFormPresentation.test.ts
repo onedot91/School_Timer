@@ -77,10 +77,10 @@ test('추천 종류는 기본 정보 카드 안에서 네 버튼으로 바로 �
   assert.match(markup, /today-friend-recommendation-basics/);
   assert.doesNotMatch(markup, /<select/);
   assert.equal(markup.match(/class="today-friend-recommendation-category-option"/g)?.length, 4);
-  assert.match(markup, /aria-pressed="false"[^>]*>영화<\/button>/);
-  assert.match(markup, /aria-pressed="true"[^>]*>책<\/button>/);
-  assert.match(markup, /aria-pressed="false"[^>]*>음악<\/button>/);
-  assert.match(markup, /aria-pressed="false"[^>]*>음식<\/button>.*<input/s);
+  assert.match(markup, /aria-pressed="false"[^>]*>.*?영화<\/button>/);
+  assert.match(markup, /aria-pressed="true"[^>]*>.*?책<\/button>/);
+  assert.match(markup, /aria-pressed="false"[^>]*>.*?음악<\/button>/);
+  assert.match(markup, /aria-pressed="false"[^>]*>.*?음식<\/button>.*<input/s);
 });
 
 test('감정 찾기의 이유 입력과 비공개 선택은 하나의 응답 카드에 있다', () => {

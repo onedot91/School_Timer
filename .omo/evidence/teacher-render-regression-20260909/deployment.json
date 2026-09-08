@@ -1,0 +1,24 @@
+{
+  "commit": "1a5f23ec7749d0a1f54db5991709ed8ede654313",
+  "state": "success",
+  "statuses": [
+    {
+      "context": "Vercel",
+      "state": "success",
+      "description": "Deployment has completed",
+      "target_url": "https://vercel.com/onedot9191s-projects/school-timer/BfTVYBgALWAdF5gMH24Z7GmYub8F"
+    }
+  ],
+  "rootStatus": 200,
+  "region": "icn1::qwvhd-1788900062886-7425631a97a8",
+  "rootAsset": "/assets/index-BIfy6Oq7.js",
+  "timerAsset": "/assets/TimerPage-BEgYA9wL.js",
+  "comparisonCode": [
+    "(const b of d)m[b]!==void 0&&(c[`${i}.${b}`]=m[b])}return c},Jm=n=>$p(JSON.parse(JSON.stringify(n??null))),Qr=(n,a)=>{const c=Xm(n),i=Xm(a);return Object.keys(i).filter(d=>Jm(c[d])!==Jm(i[d])).map"
+  ],
+  "unauthenticatedApi": {
+    "status": 401,
+    "body": "{\"error\":\"DEVICE_REGISTRATION_REQUIRED\"}",
+    "region": "icn1::icn1::mdv9b-1788900064447-63a703c2b3c6"
+  }
+}
