@@ -1,0 +1,32 @@
+{
+  "verifiedAt": "2026-09-08T19:44:41.340648+00:00",
+  "commit": "964f3591b8fc25cf62974bd6378b117991f0caf5",
+  "productionUrl": "https://school-timer-five.vercel.app",
+  "migration": {
+    "name": "classword_quiz_require_paid_completion",
+    "projectId": "dxibhawclfhoabfgwria",
+    "result": "success",
+    "completionGuardEnabled": true,
+    "completionGuardDeferred": true,
+    "rollbackGuard": true,
+    "quizCompletions": 107,
+    "unpaidCompletions": 0
+  },
+  "deployment": {
+    "state": "success",
+    "description": "Deployment has completed",
+    "statusUrl": "https://vercel.com/onedot9191s-projects/school-timer/4MvGnog93xDnBs9fxPao52nEcF5c",
+    "rootBundle": "/assets/index-CTW8vMau.js",
+    "quizBundle": "assets/StudentClasswordPage-DKn1coE_.js",
+    "rewardPendingCode": true,
+    "limitMessage": true,
+    "retryMessage": true,
+    "unauthenticatedApiStatus": 401,
+    "region": "icn1"
+  },
+  "limitations": [
+    "Production student session QA was rejected by automatic approval under AGENTS.md. No session was created. Replaced with public bundle, unauthenticated API, and DB metadata/integrity reads.",
+    "No real quiz submission or financial QA mutation."
+  ],
+  "authorization": "User approved Supabase migration and web/API deployment with 진행 after concrete approval request."
+}

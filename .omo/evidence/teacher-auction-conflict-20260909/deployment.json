@@ -1,0 +1,20 @@
+{
+  "sha": "8bf744948a3f0cdb65915843f8720bdb042d4664",
+  "state": "success",
+  "statuses": [
+    {
+      "context": "Vercel",
+      "state": "success",
+      "description": "Deployment has completed",
+      "target_url": "https://vercel.com/onedot9191s-projects/school-timer/BQLvAtRKKDSWRfe7fLqw37u1eGUD"
+    }
+  ],
+  "/": {
+    "status": 200,
+    "region": "icn1::sh944-1788897600656-4d4e90c5cfe0"
+  },
+  "/api/shared-settings": {
+    "status": 401,
+    "region": "icn1::icn1::xqq2q-1788897601306-2d5fead96747"
+  }
+}

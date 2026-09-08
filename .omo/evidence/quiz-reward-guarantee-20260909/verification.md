@@ -20,3 +20,9 @@
 - supabase_apply_migration(classword_quiz_require_paid_completion)는 자동 승인 검토에서 거절됐다. AGENTS.md의 마이그레이션 전 사용자 확인 요구가 사유. 운영 DB는 변경하지 않았다.
 - 수정 SQL: supabase/storage_classword_v2.sql. 적용 승인 필요. 웹/API 변경은 배포 전이다.
 - Git 커밋/푸시/배포 없음.
+
+## 운영 반영 완료
+
+사용자 진행 승인 후 classword_quiz_require_paid_completion 마이그레이션 적용 성공. 제약 트리거 활성화와 롤백 검사 확인. 완료 107건 중 지급 원장 불일치 0건. 원격 커밋 964f3591b8fc25cf62974bd6378b117991f0caf5의 Vercel 배포 success, 운영 퀴즈 번들 오류/재시도 처리 확인. 비인증 API 401, 서울 icn1 응답 확인. 상세 deployment.json 참조.
+
+실제 학생 세션 QA는 자동 승인 검토가 거절해 실행하지 않았다. 공개 번들·비인증 API·DB 제약 읽기로 대체했다. 학생 정답 제출·잔액 변경 테스트 없음.
