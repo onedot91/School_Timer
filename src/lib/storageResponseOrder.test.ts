@@ -139,3 +139,13 @@ test('실제 full GET와 command partial을 역순 응답해도 모든 기능을
     await server.close();
   }
 });
+
+test('short PostgreSQL timezone offsets preserve microseconds for late responses', () => {
+  assert.equal(compareStorageTimestamps('2026-09-08 02:00:00.123457+00', '2026-09-08 02:00:00.123456+00'), 1);
+  assert.equal(compareStorageTimestamps('2026-09-08 11:00:00.123456+09', '2026-09-08T02:00:00.123456Z'), 0);
+  const order = new StorageResponseOrder();
+  const context = order.capture('17');
+  const latest = projection(500, '2026-09-08 02:00:00.123457+00');
+  order.accept(context, latest, '17');
+  assert.deepEqual(order.accept(context, projection(400, '2026-09-08 02:00:00.123456+00'), '17'), latest);
+});

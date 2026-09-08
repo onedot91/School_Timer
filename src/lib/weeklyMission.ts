@@ -698,41 +698,6 @@ export const parseWeeklyMissionsResult = (value: unknown): WeeklyMissionsResult 
   return { missions };
 };
 
-export const syncPersonalQuestionWeeklyMission = async (studentNumber: number) => {
-  if (!canWriteSharedBackend(appDataMode)) throw new Error('BACKEND_WRITE_DISABLED');
-  const response = await fetch('/api/weekly-mission', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ protocolVersion: 2, studentNumber }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`WEEKLY_MISSION_HTTP_${response.status}`);
-  }
-
-  return parseWeeklyMissionResult(await response.json());
-};
-
-export const syncWeeklyMissions = async (studentNumber: number) => {
-  if (!canWriteSharedBackend(appDataMode)) throw new Error('BACKEND_WRITE_DISABLED');
-  const response = await fetch('/api/weekly-missions', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ protocolVersion: 2, studentNumber }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`WEEKLY_MISSIONS_HTTP_${response.status}`);
-  }
-
-  return parseWeeklyMissionsResult(await response.json());
-};
 import {
   AUCTION_ITEM_IDS,
   CURRENCY_BALANCE_MIN,
@@ -743,7 +708,6 @@ import {
   type CurrencyHistoryEntry,
 } from './currency.js';
 import { mergeClassDonationActivity } from './classDonation.js';
-import { appDataMode, canWriteSharedBackend } from './dataMode.js';
 import { mergeStudentEmotionHistories } from './studentEmotion.js';
 import { normalizeStudentEconomyStates } from './studentEconomy.js';
 import { mergeStudentLifeStates, normalizeStudentLifeState, replaceStudentLifeBooksWithAuthoritative } from './studentLife.js';

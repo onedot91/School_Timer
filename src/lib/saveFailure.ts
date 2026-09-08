@@ -41,14 +41,14 @@ export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnost
   const result: SaveFailureDiagnostics = {};
   for (const field of ['errorCode', 'causeCode'] as const) {
     const code = Reflect.get(value, field);
-    if (typeof code === 'string' && /^(?:SHARED_|STUDENT_|LIBRARY_|CLASSWORD_|TODAY_FRIEND_|DEVICE_|ANNOUNCEMENT_|CLASS_DONATION_|LOCAL_|AUCTION_|INVALID_|CROSS_SITE_|RATE_LIMIT_|STORAGE)[A-Z0-9_]{1,64}$/.test(code)) result[field] = code;
+    if (typeof code === 'string' && /^(?:SHARED_|STUDENT_|LIBRARY_|CLASSWORD_|TODAY_FRIEND_|WEEKLY_MISSIONS?_|DEVICE_|ANNOUNCEMENT_|CLASS_DONATION_|LOCAL_|AUCTION_|INVALID_|CROSS_SITE_|RATE_LIMIT_|STORAGE)[A-Z0-9_]{1,64}$/.test(code)) result[field] = code;
   }
   const status = Reflect.get(value, 'httpStatus');
   if (Number.isInteger(status) && status >= 400 && status <= 599) result.httpStatus = status;
   const errorName = Reflect.get(value, 'errorName');
   if (['Error', 'TypeError', 'TimeoutError', 'AbortError', 'QuotaExceededError', 'SyntaxError'].includes(errorName)) result.errorName = errorName;
   const endpoint = Reflect.get(value, 'endpoint');
-  if (['/api/shared-settings', '/api/student-economy', '/api/classword', '/api/today-friend', '/api/class-donation', '/api/announcement-notes'].includes(endpoint)) result.endpoint = endpoint;
+  if (['/api/shared-settings', '/api/student-economy', '/api/classword', '/api/today-friend', '/api/class-donation', '/api/announcement-notes', '/api/weekly-mission', '/api/weekly-missions'].includes(endpoint)) result.endpoint = endpoint;
   const view = Reflect.get(value, 'view');
   if (typeof view === 'string' && Object.hasOwn(SAVE_FAILURE_VIEWS, view)) result.view = view as keyof typeof SAVE_FAILURE_VIEWS;
   const online = Reflect.get(value, 'online');

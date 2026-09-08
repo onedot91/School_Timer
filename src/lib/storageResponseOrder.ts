@@ -22,7 +22,7 @@ export const compareStorageTimestamps = (left: string, right: string): number =>
   if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) throw new Error('STORAGE_INVALID_RESPONSE');
   if (leftTime !== rightTime) return leftTime < rightTime ? -1 : 1;
   // PostgreSQL keeps microseconds; Date.parse alone would collapse distinct commits in one millisecond.
-  const fraction = (value: string) => /\.(\d+)(?:Z|[+-]\d{2}:?\d{2})$/i.exec(value)?.[1].padEnd(9, '0') ?? '000000000';
+  const fraction = (value: string) => /\.(\d+)(?:Z|[+-]\d{2}(?::?\d{2})?)$/i.exec(value)?.[1].padEnd(9, '0') ?? '000000000';
   const leftFraction = fraction(left);
   const rightFraction = fraction(right);
   return leftFraction < rightFraction ? -1 : leftFraction > rightFraction ? 1 : 0;

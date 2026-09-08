@@ -138,10 +138,10 @@ import {
   getKoreanIsoWeekKey,
   getWeeklyMissionStatus,
   hasWeeklyMissionReward,
-  syncWeeklyMissions,
   WEEKLY_MISSION_TYPES,
   type WeeklyMissionStatuses,
 } from '../lib/weeklyMission';
+import { syncWeeklyMissions } from '../lib/weeklyMissionClient';
 import {
   isStudentSettingsSnapshotFresh,
   loadStudentSettingsSnapshot,
