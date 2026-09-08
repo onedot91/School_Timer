@@ -4,6 +4,7 @@ import { getKoreanDateKey } from '../lib/classword.js';
 import { parseStorageSnapshot, type StorageConfiguration } from './storageV2Repository.js';
 import { collectActivityRewardExpectations } from './rewardAuditActivities.js';
 import { getKoreanIsoWeekKey, parseQuestionStudentResponse } from '../lib/weeklyMission.js';
+import { historicalRewardResolution, isResolvedHistoricalReward } from './rewardAuditResolutions.js';
 
 const rows = (value: unknown): Record<string, unknown>[] => {
   if (!Array.isArray(value) || !value.every(isStorageRecord)) throw new RewardAuditError();
@@ -73,8 +74,9 @@ export const buildRewardAudit = (input: unknown, questions: QuestionAudit = { ex
     }
   }
   return parseRewardAuditReport({ checkedAt, checkedRewards: expected.size,
-    issues: compareRewardPayments({ expected: [...expected.values()], ledger }), walletMismatches: input.walletMismatches,
+    issues: compareRewardPayments({ expected: [...expected.values()], ledger }).filter(issue => !isResolvedHistoricalReward(issue)), walletMismatches: input.walletMismatches,
     unavailableSources: [...new Set([...activities.unavailableSources, ...questions.unavailableSources,
+      `${historicalRewardResolution.decidedOn} ${historicalRewardResolution.decision}`,
       '삭제되거나 보존 기간이 지난 활동은 완료 여부를 확인할 수 없습니다.',
       '별도 ID로 복구한 지급은 원래 보상과의 연결 확인이 필요할 수 있습니다.'])] });
 };

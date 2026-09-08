@@ -1,0 +1,35 @@
+{
+  "mode": "production",
+  "id": "dpl_EfanUaPFiwfqA9rFGHGooUPpHsz4",
+  "url": "https://school-timer-five.vercel.app",
+  "readyState": "READY",
+  "sourceHash": "f08a351f8e7f50182d63ed3640251083070a391c8a3bf284b8b32fba93468384",
+  "productionId": "dpl_EfanUaPFiwfqA9rFGHGooUPpHsz4",
+  "checks": [
+    {
+      "path": "/",
+      "status": 200,
+      "region": "icn1::rqx8c-1788862721602-2856a8ad4bfc",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 401,
+      "region": "icn1::icn1::xxfxp-1788862721630-db8bd15d6951",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "path": "/api/save-alerts?audit=rewards",
+      "status": 401,
+      "region": "icn1::icn1::5c6z4-1788862721720-c5c5e4e80256",
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "path": "/api/student-economy",
+      "status": 401,
+      "region": "icn1::icn1::9k2nr-1788862721772-1cfcee6b5879",
+      "contentType": "application/json; charset=utf-8"
+    }
+  ],
+  "verifiedAt": "2026-09-08T10:18:41.968Z"
+}

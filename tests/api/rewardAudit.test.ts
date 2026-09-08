@@ -4,6 +4,23 @@ import { buildRewardAudit } from '../../src/server/rewardAuditRepository.js';
 import { splitStorageState } from '../../src/lib/storageV2Codec.js';
 
 const source = () => ({ checkedAt: '2026-09-08T06:00:00Z', snapshot: { ...splitStorageState({ currencyBalances: { 17: 335 }, currencyHistory: {} }), revisions: {}, updated_at: '2026-09-08T06:00:00Z' }, walletMismatches: [], weeklyRewards: [], wordEntries: [], quizCompletions: [], friendSubmissions: [], friendRewards: [] });
+test('교사가 추가 정산 없이 종결한 7월 여섯 건만 경고에서 제외한다', () => {
+  const closed = [
+    { student_number: 21, week_key: '2026-29', mission_type: 'personal_question', reward_amount: 5 },
+    { student_number: 12, week_key: '2026-29', mission_type: 'personal_question', reward_amount: 5 },
+    { student_number: 12, week_key: '2026-29', mission_type: 'classword_quiz_correct', reward_amount: 5 },
+    { student_number: 16, week_key: '2026-29', mission_type: 'personal_question', reward_amount: 5 },
+    { student_number: 18, week_key: '2026-29', mission_type: 'personal_question', reward_amount: 5 },
+    { student_number: 13, week_key: '2026-30', mission_type: 'classword_word_entry', reward_amount: 5 },
+  ];
+  const input = { ...source(), weeklyRewards: [...closed, { ...closed[0], week_key: '2026-37' }, { ...closed[0], student_number: 22 }] };
+  const before = structuredClone(input);
+  const report = buildRewardAudit(input);
+  assert.deepEqual(report.issues.map(issue => issue.id), ['weekly-mission-21-2026-37', 'weekly-mission-22-2026-29']);
+  assert.ok(report.unavailableSources.some(message => message.includes('추가 정산 없이 종결')));
+  assert.deepEqual(input, before);
+  assert.equal(buildRewardAudit({ ...source(), weeklyRewards: [{ ...closed[0], reward_amount: 10 }] }).issues.length, 1);
+});
 test('개인 질문 기본 10과 동일 학생·주차의 추가 5 지급을 합산한다', () => {
   const history = [
     { id: 'weekly-mission-17-2026-36', studentNumber: 17, delta: 10 },
