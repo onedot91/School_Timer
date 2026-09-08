@@ -3,13 +3,26 @@ import test from 'node:test';
 import { applyTeacherStorageCommand } from '../../src/server/teacherStorageCommands.js';
 import { hasDailyWritingReward } from '../../src/lib/dailyWriting.js';
 import { createTeacherSettingsChanges } from '../../src/lib/teacherStorageCommand.js';
-import { normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
+import { normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
+import { assembleStorageState, splitStorageState } from '../../src/lib/storageV2Codec.js';
 const context = { requestId: 'request-1', createdAt: '2026-09-08T07:00:00.000Z' };
 const apply = (value: unknown, action: string, payload: unknown, id = context.requestId) => {
   const result = applyTeacherStorageCommand(value, action, payload, { ...context, requestId: id });
   assert.ok(result);
   return result;
 };
+test('added auction item survives settings patch, storage projection and reload without a name edit', () => {
+  const before = { auctionItems: normalizeAuctionItems(null), currencyBalances: { '17': 328 } };
+  const items = before.auctionItems.map((item, index) => index === 3 ? { ...item, isConfigured: true } : item);
+  const changes = createTeacherSettingsChanges(before, { ...before, auctionItems: items });
+  assert.equal(changes.length, 1);
+  const saved = apply(before, 'teacher.settings.patch', { changes }).value;
+  const reloaded = assembleStorageState(splitStorageState(saved));
+  assert.equal(normalizeAuctionItems(reloaded.auctionItems)[3].isConfigured, true);
+  assert.deepEqual(reloaded.currencyBalances, before.currencyBalances);
+  assert.deepEqual(normalizeAuctionItems(reloaded.auctionItems).filter(item => !item.isConfigured),
+    before.auctionItems.filter(item => item.dayIndex !== 3));
+});
 test('teacher settings diff never includes student money or records and preserves concurrent earnings', () => {
   const before = { scheduleNotice: 'old', currencyBalances: { '17': 328 }, studentLife: { letters: [] },
     classDonation: { enabled: true, totalAmount: 5, history: [] }, classroomRoleMission: { enabled: true, results: {} } };

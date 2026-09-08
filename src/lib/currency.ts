@@ -59,6 +59,7 @@ export interface AuctionItem {
   name: string;
   startPrice: number;
   dayIndex: number;
+  isConfigured?: true;
 }
 
 export type AuctionMissionRewardAmount = number | readonly [number, number];
@@ -997,6 +998,7 @@ export const normalizeAuctionItems = (value: unknown): AuctionItem[] => {
       name,
       startPrice: defaultItem.startPrice,
       dayIndex,
+      ...(item.isConfigured === true ? { isConfigured: true as const } : {}),
     });
   });
 

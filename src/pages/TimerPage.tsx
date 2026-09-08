@@ -7044,7 +7044,24 @@ export default function TimerPage() {
     setCurrencyStudentNumberInput('');
   };
 
+  const isUnusedAuctionItem = (item: AuctionItem) =>
+    !item.isConfigured &&
+    /^물품(?: \d+)?$/.test(getAuctionItemDisplayName(item.name, item.dayIndex).trim()) &&
+    !auctionBids[item.id]?.bidder &&
+    !(auctionBids[item.id]?.amount > 0) &&
+    !auctionAwards[item.id] &&
+    !(auctionBidHistory[item.id]?.length > 0);
+
   const addAuctionItem = (dayIndex: number) => {
+    const unusedItem = auctionItems.find((item) => item.dayIndex === dayIndex && isUnusedAuctionItem(item));
+    if (unusedItem) {
+      markAuctionItemsEdited();
+      setAuctionItems((previous) => previous.map((item) => (
+        item.id === unusedItem.id ? { ...item, isConfigured: true } : item
+      )));
+      setTemporaryVisibleAuctionItemIds((previous) => new Set(previous).add(unusedItem.id));
+      return;
+    }
     const normalizedItems = normalizeAuctionItems(auctionItems);
     if (normalizedItems.length >= AUCTION_MAX_ITEM_COUNT) return;
     const sameDayItemCount = normalizedItems.filter((item) => item.dayIndex === dayIndex).length;
@@ -7054,8 +7071,9 @@ export default function TimerPage() {
       .find((template) => !normalizedItems.some((item) => item.id === template.id));
     if (!nextTemplate) return;
     const addedItemId = nextTemplate.id;
+    setTemporaryVisibleAuctionItemIds((previous) => new Set(previous).add(addedItemId));
     markAuctionItemsEdited();
-    setAuctionItems(normalizeAuctionItems([...normalizedItems, nextTemplate]));
+    setAuctionItems(normalizeAuctionItems([...normalizedItems, { ...nextTemplate, isConfigured: true }]));
     setAuctionBids((previous) => ({
       ...previous,
       [addedItemId]: { amount: 0, bidder: null },
@@ -7423,6 +7441,7 @@ export default function TimerPage() {
         ? {
             ...item,
             name: patch.name.slice(0, 24),
+            isConfigured: true,
           }
         : item
     )));
@@ -10402,10 +10421,11 @@ export default function TimerPage() {
         <div id="auction-settings-day-list" className="auction-settings-day-list grid gap-3">
           {AUCTION_WEEKDAY_LABELS.map((weekdayLabel, dayIndex) => {
             const accent = AUCTION_DAY_ACCENTS[dayIndex] ?? AUCTION_DAY_ACCENTS[0];
-            const dayItems = auctionItems.filter((item) => item.dayIndex === dayIndex);
+            const dayItems = auctionItems.filter((item) => item.dayIndex === dayIndex && !isUnusedAuctionItem(item));
             const isDayPublic = dayIndex < auctionVisibleDayCount;
             const canAddDayItem =
-              auctionItems.length < AUCTION_MAX_ITEM_COUNT && dayItems.length < AUCTION_MAX_ITEMS_PER_DAY;
+              auctionItems.some((item) => item.dayIndex === dayIndex && isUnusedAuctionItem(item)) ||
+              (auctionItems.length < AUCTION_MAX_ITEM_COUNT && dayItems.length < AUCTION_MAX_ITEMS_PER_DAY);
 
             return (
               <div

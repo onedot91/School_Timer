@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges } from './teacherStorageCommand.js';
+import { normalizeAuctionItems } from './currency.js';
 
 const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
 const saveStart = source.indexOf('if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;');
@@ -41,4 +42,24 @@ test('물품 재등록은 현재 사용 중인 ID를 초기화하지 않는다',
   const add = source.slice(source.indexOf('const addAuctionItem ='), source.indexOf('const removeAuctionItem ='));
   assert.match(add, /find\(\(template\) => !normalizedItems\.some\(\(item\) => item\.id === template\.id\)\)/);
   assert.doesNotMatch(add, /createAuctionItemTemplate\(dayIndex, sameDayItemCount\)/);
+});
+
+test('이름을 바꾸지 않고 추가한 물품도 다시 읽으면 등록 상태를 유지한다', () => {
+  const defaults = normalizeAuctionItems(null);
+  assert.ok(defaults.every(item => !item.isConfigured));
+  const added = defaults.map((item, index) => index === 3 ? { ...item, isConfigured: true } : item);
+  const reloaded = normalizeAuctionItems(JSON.parse(JSON.stringify(added)));
+  assert.equal(reloaded[3].name, defaults[3].name);
+  assert.equal(reloaded[3].isConfigured, true);
+  assert.equal(reloaded[4].isConfigured, undefined);
+  assert.equal(normalizeAuctionItems([{ ...defaults[0], isConfigured: 'true' }])[0].isConfigured, undefined);
+});
+
+test('기본 물품 칸을 추가할 때도 저장 대상 데이터와 편집 상태를 갱신한다', () => {
+  const add = source.slice(source.indexOf('const addAuctionItem ='), source.indexOf('const removeAuctionItem ='));
+  const reuse = add.slice(add.indexOf('if (unusedItem)'), add.indexOf('const normalizedItems'));
+  assert.match(reuse, /markAuctionItemsEdited\(\)/);
+  assert.match(reuse, /setAuctionItems/);
+  assert.match(reuse, /isConfigured: true/);
+  assert.doesNotMatch(source, /editingNewAuctionItemIds/);
 });
