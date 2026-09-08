@@ -581,8 +581,9 @@ test('구매 집은 나무집의 보이는 중심과 바닥선에 맞춘 무대 
     && house.stagePosition.width <= 52
     && house.stagePosition.left >= 45
     && house.stagePosition.left <= 55
-    && house.stagePosition.bottom >= 18
-    && house.stagePosition.bottom <= 23
+    && (house.id === 'student-house-11' || house.id === 'student-house-20'
+      ? house.stagePosition.bottom === 11
+      : house.stagePosition.bottom >= 18 && house.stagePosition.bottom <= 23)
   )));
 });
 

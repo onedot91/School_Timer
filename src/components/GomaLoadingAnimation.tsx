@@ -15,17 +15,13 @@ export default function GomaLoadingAnimation({ variant = 'random' }: {
 }
 
 function GomaKineticScene({ variant }: { readonly variant: Exclude<GomaLoadingVariant, 'flight'> }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-  if (failed) return <GomaFlight />;
   const jumping = variant === 'jumping';
   const particlePositions = variant === 'train' ? [[24, 67], [33, 46], [18, 89], [128, 33], [141, 74]] : variant === 'carrot' ? [[26, 90], [38, 102], [21, 109], [130, 95], [144, 71]] : variant === 'sailing' ? [[32, 96], [127, 95], [20, 104], [140, 90], [114, 106]] : jumping ? [[35, 105], [120, 107], [24, 75], [134, 58], [52, 40]] : [[22, 22], [129, 67], [36, 105], [133, 12], [15, 70]];
   const starParticles = jumping || variant === 'skating' || variant === 'moon' || variant === 'rocket';
   const actorClass = { jumping: 'goma-jumper', parachute: 'goma-parachutist', skating: 'goma-skater', sailing: 'goma-sailor', bubble: 'goma-bubble-rider', train: 'goma-cloud-train', moon: 'goma-moon-swing', rocket: 'goma-star-rocket', carrot: 'goma-carrot-car' }[variant];
   const size = jumping ? 90 : variant === 'parachute' ? 112 : 128;
-  return <>
-    {!loaded && <GomaFlight />}
-    <div className={`goma-loading goma-kinetic${loaded ? '' : ' goma-loading-preload'}`} aria-hidden="true" data-variant={variant}>
+  return (
+    <div className="goma-loading goma-kinetic" aria-hidden="true" data-variant={variant}>
       <svg viewBox="0 0 160 128" focusable="false">
         {jumping && <g shapeRendering="crispEdges">
           <path className="goma-jump-shadow" fill="#d9d6bc" d="M48 117h64v3H48z" />
@@ -45,8 +41,7 @@ function GomaKineticScene({ variant }: { readonly variant: Exclude<GomaLoadingVa
         </g>}
         <g className={actorClass}>
           <image href={`/images/loading/goma-${variant === 'moon' ? 'moon-side' : variant === 'parachute' ? 'parachute-arms' : variant}.png`} x={(160 - size) / 2} y={jumping ? 25 : variant === 'parachute' ? 8 : 0}
-            width={size} height={size}
-            onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
+            width={size} height={size} />
         </g>
         <g shapeRendering="crispEdges" strokeWidth="1" strokeLinejoin="miter">
           {particlePositions.map(([x, y], index) => (
@@ -65,7 +60,7 @@ function GomaKineticScene({ variant }: { readonly variant: Exclude<GomaLoadingVa
         </g>
       </svg>
     </div>
-  </>;
+  );
 }
 
 function GomaFlight() {
