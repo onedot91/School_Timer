@@ -3651,6 +3651,7 @@ const STUDENT_CHARACTER_WALK_PATHS = [
 
 interface StudentCharacterWalker {
   renderKey: string;
+  lane: number;
   streamIndex: number;
   character: StudentCharacter;
   direction: 'left' | 'right';
@@ -3710,7 +3711,7 @@ function StudentCharacterShowcase({
   shouldSpeak,
   onImageError,
   onWalkComplete,
-  streamIndex,
+  lane,
 }: {
   character: StudentCharacter;
   timerType: TimerType;
@@ -3721,7 +3722,7 @@ function StudentCharacterShowcase({
   shouldSpeak: boolean;
   onImageError: (characterId: string) => void;
   onWalkComplete: () => void;
-  streamIndex: number;
+  lane: number;
 }) {
   const [initialAnimationDelaySeconds] = useState(animationDelaySeconds);
   const modeLabel =
@@ -3736,7 +3737,7 @@ function StudentCharacterShowcase({
     shouldUseSpeechImage && character.speechImageAlt ? character.speechImageAlt : character.alt;
   const imageTransform = character.walkTransform?.[direction] || (direction === 'left' ? 'scaleX(-1)' : 'none');
   const frameStyle = {
-    '--student-character-lane': streamIndex - 1,
+    '--student-character-lane': lane,
     '--student-character-accent': character.themeColor || '#7AA160',
     '--student-character-walk-start-top': `calc(${path.startTop} + var(--student-character-lane-offset))`,
     '--student-character-walk-mid-top-a': `calc(${path.midTopA} + var(--student-character-lane-offset))`,
@@ -7930,7 +7931,8 @@ export default function TimerPage() {
     );
     const character = roundCharacters[characterIndex];
     if (!character) return null;
-    const pathIndex = (spawnOrder * 3 + characterIndex * 2) % STUDENT_CHARACTER_WALK_PATHS.length;
+    const lane = streamIndex === 1 ? (walkCycle % 3) - 1 : streamIndex - 1;
+    const pathIndex = lane + 1;
     const shouldSpeak =
       Boolean(character.speech || character.speechImageSrc) &&
       shouldStudentCharacterSpeak(spawnOrder, characterIndex, streamIndex);
@@ -7938,9 +7940,10 @@ export default function TimerPage() {
     const renderKey = `${streamIndex}-${walkCycle}-${characterIndex}-${character.id}`;
     return {
       renderKey,
+      lane,
       streamIndex,
       character,
-      direction: spawnOrder % 2 === 0 ? 'right' : 'left',
+      direction: streamIndex === 1 ? 'left' : 'right',
       path: STUDENT_CHARACTER_WALK_PATHS[pathIndex],
       animationDelaySeconds: walkCycle === 0 ? streamIndex * STUDENT_CHARACTER_WALK_SECONDS / 3 : 0,
       spawnScale: getStudentCharacterSpawnScale(renderKey),
@@ -10950,7 +10953,7 @@ export default function TimerPage() {
                 <React.Fragment key={walker.renderKey}>
                   <StudentCharacterShowcase
                     character={walker.character}
-                    streamIndex={walker.streamIndex}
+                    lane={walker.lane}
                     timerType={timerType}
                     direction={walker.direction}
                     path={walker.path}
