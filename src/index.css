@@ -29249,3 +29249,16 @@ body {
 .student-today-friend-view .today-friend-revision,
 .student-today-friend-view .today-friend-status-card { flex-shrink: 0; }
 .student-today-friend-view .today-friend-private-choice { min-height: 44px; }
+
+.teacher-save-warning-timing {
+  display: inline-block;
+  border-radius: 8px;
+  padding: 4px 10px;
+  margin-bottom: 10px;
+  background: #f8e4df;
+  color: #98483c;
+}
+.teacher-save-warning-timing.is-past {
+  background: #eee6d4;
+  color: #715823;
+}

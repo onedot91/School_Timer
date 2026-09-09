@@ -30,3 +30,14 @@ test('known Classword business conflicts do not generate save alerts; unknown co
   assert.equal(classifySaveFailure(Object.assign(new Error('UNKNOWN_CONFLICT'), { status: 409 })), 'conflict');
   assert.equal(classifySaveFailure(Object.assign(new Error('CLASSWORD_DATABASE_HTTP_409'), { status: 502 })), 'server');
 });
+
+test('delayed receipt uses server receipt time and preserves legacy alerts', async () => {
+  const { isDelayedSaveFailure } = await import('./saveFailure.js');
+  const base = { id: 'timing-test-123', studentNumber: 1, feature: 'economy', code: 'network', occurredAt: '2026-09-09T00:00:00Z', acknowledgedAt: null };
+  const delayed = parseSaveFailureAlert({ ...base, receivedAt: '2026-09-09T00:05:00Z' });
+  assert.ok(delayed);
+  assert.equal(isDelayedSaveFailure(delayed), true);
+  assert.equal(isDelayedSaveFailure(parseSaveFailureAlert({ ...base, receivedAt: '2026-09-09T00:04:59Z' })!), false);
+  assert.equal(isDelayedSaveFailure(parseSaveFailureAlert(base)!), false);
+  assert.equal(parseSaveFailureAlert({ ...base, receivedAt: 'invalid' })?.receivedAt, undefined);
+});

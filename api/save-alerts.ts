@@ -37,9 +37,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         if (!limit.allowed) { response.setHeader('Retry-After', String(limit.retryAfterSeconds)); response.status(429).json({ error: 'TOO_MANY_REQUESTS' }); return; }
         response.status(200).json(await loadRewardAudit({ url, key })); return;
       }
-      const rows = await query(`?id=like.${SAVE_FAILURE_ROW_PREFIX}*&value->>acknowledgedAt=is.null&select=value&order=updated_at.desc&limit=101`);
+      const rows = await query(`?id=like.${SAVE_FAILURE_ROW_PREFIX}*&value->>acknowledgedAt=is.null&select=value,updated_at&order=updated_at.desc&limit=101`);
       if (!Array.isArray(rows)) throw new Error('INVALID_RESPONSE');
-      const alerts = rows.map((row: unknown) => parseSaveFailureAlert(row && typeof row === 'object' ? Reflect.get(row, 'value') : null));
+      const alerts = rows.map((row: unknown) => (() => {
+        if (!row || typeof row !== 'object') return null;
+        const alert = parseSaveFailureAlert(Reflect.get(row, 'value'));
+        return alert ? parseSaveFailureAlert({ ...alert, receivedAt: Reflect.get(row, 'updated_at') }) : null;
+      })());
       if (alerts.some((alert) => !alert)) throw new Error('INVALID_RESPONSE');
       response.status(200).json({ alerts: alerts.slice(0, 100), hasMore: alerts.length > 100 }); return;
     }

@@ -55,7 +55,7 @@ export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnost
   if (typeof online === 'boolean') result.online = online;
   return Object.keys(result).length > 0 ? result : undefined;
 };
-export type SaveFailureAlert = SaveFailureReport & { acknowledgedAt: string | null };
+export type SaveFailureAlert = SaveFailureReport & { acknowledgedAt: string | null; receivedAt?: string };
 export const SAVE_FAILURE_ROW_PREFIX = 'school-timer-save-alert-';
 export const SAVE_FAILURE_POLL_MS = 5000;
 
@@ -80,7 +80,8 @@ export const parseSaveFailureAlert = (value: unknown): SaveFailureAlert | null =
   if (!report) return null;
   const acknowledgedAt = Reflect.get(Object(value), 'acknowledgedAt');
   if (acknowledgedAt !== null && (typeof acknowledgedAt !== 'string' || !Number.isFinite(Date.parse(acknowledgedAt)))) return null;
-  return { ...report, acknowledgedAt };
+  const receivedAt = Reflect.get(Object(value), 'receivedAt');
+  return { ...report, acknowledgedAt, ...(typeof receivedAt === 'string' && Number.isFinite(Date.parse(receivedAt)) ? { receivedAt } : {}) };
 };
 
 export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
@@ -100,3 +101,6 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (error.name === 'TypeError' || error.name === 'TimeoutError' || error.name === 'AbortError' || errorCode === 'LIBRARY_COMPETITION_NETWORK') return 'network';
   return null;
 };
+
+export const isDelayedSaveFailure = (alert: SaveFailureAlert): boolean =>
+  Boolean(alert.receivedAt && Date.parse(alert.receivedAt) - Date.parse(alert.occurredAt) >= 5 * 60 * 1000);

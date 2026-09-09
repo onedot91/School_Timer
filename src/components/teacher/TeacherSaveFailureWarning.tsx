@@ -1,7 +1,7 @@
 import { AlertTriangle, X } from 'lucide-react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
+import { isDelayedSaveFailure, SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
 import { acknowledgeSaveFailure, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
 import { formatSaveFailureDiagnostic, getSaveFailureExplanation } from '../../lib/saveFailureDiagnostics';
 import { useModalFocus } from '../../lib/useModalFocus';
@@ -21,10 +21,16 @@ function SaveFailureItem({ alert, savingId, onAcknowledge }: { alert: SaveFailur
       setCopyStatus('자동 복사를 사용할 수 없습니다. 선택된 진단 정보를 직접 복사하세요.');
     }
   };
+  const delayed = isDelayedSaveFailure(alert);
+  const past = Date.now() - Date.parse(alert.occurredAt) >= 30 * 60 * 1000;
+  const timing = delayed ? '지연 접수' : past ? '이전 오류' : '최근 오류';
   return <li>
+    <b className={`teacher-save-warning-timing${delayed || past ? ' is-past' : ''}`}>{timing}</b>
     <div><strong>{target} · {SAVE_FAILURE_FEATURES[alert.feature]}</strong>
-      <span>{SAVE_FAILURE_CODE_LABELS[alert.code]} · <time dateTime={alert.occurredAt}>{new Date(alert.occurredAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></span>
+      <span>{SAVE_FAILURE_CODE_LABELS[alert.code]} · 발생 <time dateTime={alert.occurredAt}>{new Date(alert.occurredAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></span>
     </div>
+    {alert.receivedAt ? <small>접수 <time dateTime={alert.receivedAt}>{new Date(alert.receivedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></small> : null}
+    {delayed ? <p>발생 후 5분 이상 지나 접수된 알림입니다.</p> : null}
     <p>{explanation.problem}</p>
     <p className="teacher-save-warning-action"><b>다음 조치</b> {explanation.action}</p>
     {!alert.diagnostics ? <small>이전 알림에는 상세 오류가 저장되지 않았습니다.</small> : null}
