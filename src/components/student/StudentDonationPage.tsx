@@ -3,6 +3,7 @@ import { getDailyDonationCharacterSource } from '../../lib/dailyDonationCharacte
 import { getKoreanLocalDateKey } from '../../lib/studentEmotion';
 
 interface StudentDonationPageProps {
+  itemName?: string;
   totalAmount: number;
   targetAmount: number;
   canDonate: boolean;
@@ -11,7 +12,7 @@ interface StudentDonationPageProps {
   onDonate: () => void;
 }
 
-export default function StudentDonationPage({ totalAmount, targetAmount, canDonate, isCompleted, triggerRef, onDonate }: StudentDonationPageProps) {
+export default function StudentDonationPage({ itemName = '', totalAmount, targetAmount, canDonate, isCompleted, triggerRef, onDonate }: StudentDonationPageProps) {
   const progress = targetAmount > 0 ? Math.min(100, (totalAmount / targetAmount) * 100) : 0;
   const donationCharacterSource = getDailyDonationCharacterSource(getKoreanLocalDateKey());
   return (
@@ -23,7 +24,10 @@ export default function StudentDonationPage({ totalAmount, targetAmount, canDona
         />
       </picture>
       <div>
-        <h2 id="student-donation-title">학급 기부</h2>
+        <div className="student-donation-reward">
+          <p>목표 달성 보상</p>
+          <h2 id="student-donation-title">{itemName.trim() || '보상 미등록'}</h2>
+        </div>
         <strong>{totalAmount} / {targetAmount}</strong>
         <span
           className="student-donation-progress"

@@ -2120,6 +2120,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             stockMarket={studentStockMarket}
             isEconomySaving={isEconomySaving || isStudentLifeSaving}
             donation={{
+              itemName: classDonation.itemName,
               totalAmount: classDonation.totalAmount,
               targetAmount: classDonation.targetAmount,
               canDonate: shouldShowClassDonation && maximumDonation >= 1 && !isLoading,

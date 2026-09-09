@@ -14821,6 +14821,9 @@ a[href]:active {
   padding: 1rem;
   box-shadow: var(--apple-shadow-1);
 }
+.teacher-mail-new-recipient.teacher-mail-sender { display: flex; align-items: center; width: 100%; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.teacher-mail-sender > span { flex-shrink: 0; }
+.teacher-mail-sender select { min-width: 0; flex: 1; }
 .teacher-mail-new-recipient > span { color: var(--teacher-text); font-size: .92rem; font-weight: 950; }
 .teacher-mail-new-recipient select { min-height: 2.75rem; border: 1px solid var(--teacher-border); border-radius: .7rem; padding-inline: .75rem; color: var(--teacher-text); background: var(--teacher-surface); font-size: .84rem; font-weight: 850; }
 .teacher-mail-chat-message {
@@ -24083,7 +24086,9 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   max-height: inherit;
   object-fit: contain;
 }
-.student-donation-page > div { display: grid; gap: 0.9rem; }
+.student-donation-page > div { display: grid; gap: 0.9rem; min-width: 0; }
+.student-donation-reward p { margin: 0 0 0.4rem; font-size: 0.9rem; font-weight: 700; color: var(--apple-accent); }
+.student-donation-reward h2 { margin: 0; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800; overflow-wrap: anywhere; }
 .student-donation-page strong { font-family: var(--font-mono); font-size: clamp(1.4rem, 3vw, 2rem); }
 .student-donation-progress { height: 0.75rem; overflow: hidden; border-radius: 999px; background: var(--apple-separator-strong); }
 .student-donation-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--apple-accent); }

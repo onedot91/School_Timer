@@ -7,6 +7,7 @@ import { TEACHER_LETTER_RECIPIENT, type StudentLetter } from '../../lib/studentL
 import StudentHeader from './StudentHeader';
 import {
   DAILY_WRITING_STAMP_IMAGE_SOURCE,
+  DAILY_WRITING_SENDER_LABEL,
   isDailyWritingLetter,
   normalizeDailyWritingLetterForDisplay,
 } from '../../lib/dailyWriting';
@@ -42,7 +43,7 @@ const formatLetterDate = (createdAt: string): string => new Intl.DateTimeFormat(
 
 const getMailKind = (letter: StudentLetter): MailKind => {
   if (letter.senderLabel === HOUSE_MAIL_SENDER) return 'system';
-  if (isDailyWritingLetter(letter)) return 'teacher';
+  if (isDailyWritingLetter(letter) || letter.senderLabel === DAILY_WRITING_SENDER_LABEL) return 'teacher';
   if (letter.senderLabel.includes('은행') || letter.senderLabel.includes('시스템') || letter.senderLabel.includes('돝돝') || letter.senderLabel === CLASS_DONATION_MAIL_SENDER_LABEL) return 'system';
   if (letter.senderLabel.includes('선생님')) return 'teacher';
   return (letter.senderStudentNumber ?? letter.recipient) % 2 === 0 ? 'friend-blue' : 'friend-pink';
@@ -125,7 +126,7 @@ export default function StudentMailboxPage({
   const selectedIsHouseLetter = selectedLetter?.senderLabel === HOUSE_MAIL_SENDER;
   const selectedIsBankLetter = selectedLetter !== null && isBankLetter(selectedLetter);
   const selectedIsDonationLetter = selectedLetter !== null && isDonationLetter(selectedLetter);
-  const selectedIsDailyWritingLetter = selectedLetter !== null && isDailyWritingLetter(selectedLetter);
+  const selectedIsDailyWritingLetter = selectedLetter !== null && (isDailyWritingLetter(selectedLetter) || selectedLetter.senderLabel === DAILY_WRITING_SENDER_LABEL);
   const selectedProfileStudentNumber = selectedLetter === null
     ? null
     : getProfileStudentNumber(selectedLetter, folder);
@@ -251,7 +252,7 @@ export default function StudentMailboxPage({
               const isFromHouse = letter.senderLabel === HOUSE_MAIL_SENDER;
               const isFromBank = isBankLetter(letter);
               const isFromDonation = isDonationLetter(letter);
-              const isFromWriting = isDailyWritingLetter(letter);
+              const isFromWriting = isDailyWritingLetter(letter) || letter.senderLabel === DAILY_WRITING_SENDER_LABEL;
               const profileStudentNumber = getProfileStudentNumber(letter, folder);
               const profileImage = profileStudentNumber === null
                 ? null

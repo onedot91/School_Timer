@@ -21,7 +21,7 @@ export type ClassDonationSettings = {
   readonly history: readonly ClassDonationEntry[];
 };
 
-export type ClassDonationPublicState = Omit<ClassDonationSettings, 'itemName' | 'history'>;
+export type ClassDonationPublicState = Omit<ClassDonationSettings, 'history'>;
 
 export type ClassDonationResult = {
   readonly donatedAmount: number;
@@ -149,6 +149,7 @@ export const getClassDonationPublicState = (value: unknown): ClassDonationPublic
   const settings = normalizeClassDonationSettings(value);
   return {
     enabled: settings.enabled,
+    itemName: settings.itemName,
     targetAmount: settings.targetAmount,
     totalAmount: settings.totalAmount,
   };

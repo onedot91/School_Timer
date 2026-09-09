@@ -7,7 +7,7 @@ import {
 } from '../lib/currency.js';
 import { applyClassroomRoleMissionResultInSettings } from '../lib/classroomRoleMission.js';
 import { normalizeClassDonationSettings } from '../lib/classDonation.js';
-import { createStudentLetters, markTeacherLettersRead, normalizeStudentLifeState } from '../lib/studentLife.js';
+import { isTeacherMailSender, createStudentLetters, markTeacherLettersRead, normalizeStudentLifeState } from '../lib/studentLife.js';
 import {
   DAILY_WRITING_REWARD, markDailyWritingStudentRewarded,
   normalizeDailyWritingState, publishDailyWritingAssignment, unmarkDailyWritingStudentRewarded,
@@ -145,8 +145,10 @@ export const applyTeacherStorageCommand = (
   if (action === 'teacher.mail.send') {
     const recipients = students(payload.recipients); const content = text(payload.content, 10000); const title = text(payload.title, 200);
     if (!content.trim()) return invalid();
+    const senderLabel = payload.senderLabel === undefined ? '선생님' : payload.senderLabel;
+    if (!isTeacherMailSender(senderLabel)) return invalid();
     return finish({ ...current, studentLife: createStudentLetters(normalizeStudentLifeState(current.studentLife), recipients.map(recipient => ({
-      id: `${context.requestId}-${recipient}`, recipient, senderLabel: '선생님', senderStudentNumber: null, title, content, createdAt: context.createdAt,
+      id: `${senderLabel === '선생님' ? '' : 'teacher-character-'}${context.requestId}-${recipient}`, recipient, senderLabel, senderStudentNumber: null, title, content, createdAt: context.createdAt,
     }))) });
   }
   if (action === 'teacher.mail.read') {

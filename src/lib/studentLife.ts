@@ -8,6 +8,11 @@ import { normalizeBankMailboxCopy } from './bankMailbox.js';
 import { appDataMode } from './dataMode.js';
 import { getKoreanLocalDateKey } from './studentEmotion.js';
 
+export const TEACHER_MAIL_SENDERS = ['선생님', '아기고마', '은행원 돝돝', '목수 고키리', '밥집 아주머니 가히'] as const;
+export const isTeacherMailSender = (value: unknown): value is typeof TEACHER_MAIL_SENDERS[number] => (
+  typeof value === 'string' && TEACHER_MAIL_SENDERS.some(sender => sender === value)
+);
+
 export interface StudentLetter {
   readonly id: string;
   readonly recipient: number;
@@ -95,7 +100,7 @@ const parseLetter = (value: unknown): StudentLetter | null => {
   const senderLabel = letter.senderLabel.trim().slice(0, 20) || '보낸 사람';
   const title = typeof letter.title === 'string' ? letter.title.trim().slice(0, 40) : '';
   const content = letter.content.trim().slice(0, MAX_LETTER_CONTENT_LENGTH);
-  const copy = senderLabel === '은행원 돝돝'
+  const copy = senderLabel === '은행원 돝돝' && !letter.id.startsWith('teacher-character-')
     ? normalizeBankMailboxCopy(title, content)
     : { title, content };
   return {
@@ -339,7 +344,7 @@ export const getTeacherStudentConversation = (
       || (
         letter.recipient === studentNumber
         && letter.senderStudentNumber === null
-        && letter.senderLabel === '선생님'
+        && (letter.senderLabel === '선생님' || (letter.id.startsWith('teacher-character-') && isTeacherMailSender(letter.senderLabel)))
       )
     )).sort((left, right) => (Date.parse(left.createdAt) || 0) - (Date.parse(right.createdAt) || 0))
     : []

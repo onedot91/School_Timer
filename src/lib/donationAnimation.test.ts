@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import StudentDonationPage from '../components/student/StudentDonationPage.tsx';
 
 const renderDonationPage = (isCompleted: boolean) => renderToStaticMarkup(createElement(StudentDonationPage, {
+  itemName: '학급 보드게임',
   totalAmount: isCompleted ? 600 : 439,
   targetAmount: 600,
   canDonate: !isCompleted,
@@ -20,6 +21,9 @@ test('기부 미완료 상태에서는 감사 GIF를 불러오지 않는다', ()
   assert.doesNotMatch(incompleteDonationMarkup, /donation-thanks-075x\.gif/);
   assert.match(incompleteDonationMarkup, /donation-character-[1-4]\.png/);
   assert.doesNotMatch(incompleteDonationMarkup, /student-donation-animation is-completed/);
+  assert.match(incompleteDonationMarkup, /목표 달성 보상/);
+  assert.match(incompleteDonationMarkup, /<h2 id="student-donation-title">학급 보드게임<\/h2>/);
+  assert.doesNotMatch(incompleteDonationMarkup, /기부 물품:/);
   assert.match(incompleteDonationMarkup, /role="progressbar"/);
   assert.match(incompleteDonationMarkup, /aria-valuenow="439"/);
   assert.match(incompleteDonationMarkup, /aria-valuemax="600"/);

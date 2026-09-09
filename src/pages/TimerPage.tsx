@@ -1,3 +1,4 @@
+import { TEACHER_MAIL_SENDERS } from '../lib/studentLife';
 import { executeTeacherStorageCommand as executeStorageCommand, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord } from '../lib/teacherStorageCommand';
@@ -3979,6 +3980,7 @@ export default function TimerPage() {
   ));
   const isEditingBookstoreRef = useRef(false);
   const [mailRecipient, setMailRecipient] = useState(1);
+  const [mailSender, setMailSender] = useState('선생님');
   const [mailTitle, setMailTitle] = useState('');
   const [mailContent, setMailContent] = useState('');
   const [selectedMailStudentNumber, setSelectedMailStudentNumber] = useState(1);
@@ -9323,9 +9325,9 @@ export default function TimerPage() {
     const batchId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const letters = recipients.map((recipient) => ({
-      id: `${batchId}-${recipient}`,
+      id: `${mailSender === '선생님' ? '' : 'teacher-character-'}${batchId}-${recipient}`,
       recipient,
-      senderLabel: '선생님',
+      senderLabel: mailSender,
       senderStudentNumber: null,
       title: mailTitle.trim(),
       content,
@@ -9334,7 +9336,7 @@ export default function TimerPage() {
     try {
       let savedState = createStudentLetters(studentLife, letters);
       if (isSupabaseSettingsEnabled) {
-        const saved = await executeStorageCommand({ requestId: batchId, action: 'teacher.mail.send', payload: { recipients, title: mailTitle.trim(), content } });
+        const saved = await executeStorageCommand({ requestId: batchId, action: 'teacher.mail.send', payload: { recipients, senderLabel: mailSender, title: mailTitle.trim(), content } });
         savedState = normalizeStudentLifeState(saved.value.studentLife);
       } else {
         savedState = createStudentLetters(loadStoredStudentLifeState(), letters);
@@ -10060,6 +10062,7 @@ export default function TimerPage() {
             const isIncoming = letter.recipient === ALL_STUDENTS_LETTER_RECIPIENT;
             return (
               <article key={letter.id} className={`teacher-mail-chat-message ${isIncoming ? 'is-incoming' : 'is-outgoing'}`} aria-label={isIncoming ? '학생이 보낸 편지' : '내가 보낸 편지'}>
+                {!isIncoming && letter.senderLabel !== '선생님' ? <span>{letter.senderLabel}</span> : null}
                 {letter.title ? <h4>{letter.title}</h4> : null}
                 <p>{letter.content}</p>
                 <time dateTime={letter.createdAt}>{formatTeacherLetterDate(letter.createdAt)}</time>
@@ -10070,6 +10073,12 @@ export default function TimerPage() {
         </div>
 
         <div className="teacher-mail-composer">
+          <label className="teacher-mail-new-recipient teacher-mail-sender">
+            <span>보내는 사람</span>
+            <select aria-label="보내는 사람" value={mailSender} disabled={isMailSending} onChange={event => setMailSender(event.target.value)}>
+              {TEACHER_MAIL_SENDERS.map(sender => <option key={sender} value={sender}>{sender}</option>)}
+            </select>
+          </label>
           <label className="teacher-mail-compose-subject">
             <span className="sr-only">제목</span>
             <input value={mailTitle} maxLength={40} onChange={(event) => setMailTitle(event.target.value)} placeholder="제목 추가 (선택)" />

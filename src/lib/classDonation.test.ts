@@ -60,7 +60,7 @@ test('서로 다른 기부 요청에는 여러 감사 멘트가 안정적으로 
   assert.equal(retried.letters[0]?.content, messages[0]);
 });
 
-test('student donation state never exposes the private item or history', () => {
+test('student donation state exposes the item name but not donation history', () => {
   const publicState = getClassDonationPublicState({
     enabled: true,
     itemName: '비밀 보드게임',
@@ -68,8 +68,8 @@ test('student donation state never exposes the private item or history', () => {
     totalAmount: 320,
     history: [{ id: 'one', studentNumber: 8, amount: 20, createdAt: '2026-07-14T00:00:00.000Z' }],
   });
-  assert.deepEqual(publicState, { enabled: true, targetAmount: 500, totalAmount: 320 });
-  assert.equal('itemName' in publicState, false);
+  assert.deepEqual(publicState, { enabled: true, itemName: '비밀 보드게임', targetAmount: 500, totalAmount: 320 });
+  assert.equal(publicState.itemName, '비밀 보드게임');
   assert.equal('history' in publicState, false);
 });
 
@@ -111,13 +111,13 @@ test('teacher autosave cannot shrink the target below donated currency', () => {
 });
 
 test('donation maximum respects available balance and remaining target', () => {
-  assert.equal(getClassDonationMaximum({ enabled: true, targetAmount: 500, totalAmount: 493 }, 130), 7);
-  assert.equal(getClassDonationMaximum({ enabled: true, targetAmount: 500, totalAmount: 320 }, 12), 12);
+  assert.equal(getClassDonationMaximum({ enabled: true, itemName: '', targetAmount: 500, totalAmount: 493 }, 130), 7);
+  assert.equal(getClassDonationMaximum({ enabled: true, itemName: '비밀 보드게임', targetAmount: 500, totalAmount: 320 }, 12), 12);
 });
 
 test('completed donation goals remain identifiable after collection closes', () => {
-  assert.equal(isClassDonationCompleted({ enabled: false, targetAmount: 150, totalAmount: 149 }), false);
-  assert.equal(isClassDonationCompleted({ enabled: false, targetAmount: 150, totalAmount: 150 }), true);
+  assert.equal(isClassDonationCompleted({ enabled: false, itemName: '', targetAmount: 150, totalAmount: 149 }), false);
+  assert.equal(isClassDonationCompleted({ enabled: false, itemName: '', targetAmount: 150, totalAmount: 150 }), true);
 });
 
 test('donation settings normalize invalid persisted values', () => {

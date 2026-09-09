@@ -24,6 +24,7 @@ interface StudentStorePageProps {
   stockMarket: StudentStockMarket;
   isEconomySaving: boolean;
   donation: {
+    itemName: string;
     totalAmount: number;
     targetAmount: number;
     canDonate: boolean;
@@ -61,7 +62,7 @@ export default function StudentStorePage({
   const marketClosed = isSecurities && (marketDay === 0 || marketDay === 6);
   const [selectedStockId, setSelectedStockId] = useState<StudentStockId>('sunny');
   const titles: Record<StudentStoreSection, string> = {
-    plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '종목별 오늘의 변화', 'securities-trade': '종목별 오늘의 변화', donation: '기부',
+    plaza: '고마 쓰기', bank: '은행', shop: '상점', auction: '경매장', securities: '종목별 오늘의 변화', 'securities-trade': '종목별 오늘의 변화', donation: '학급 기부',
   };
   return (
     <div className="student-view student-store-view" data-store-section={section}>
