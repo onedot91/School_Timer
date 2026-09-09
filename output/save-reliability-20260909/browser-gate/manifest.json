@@ -1,0 +1,106 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "name": "native IndexedDB legacy migration preserves request identity",
+      "passed": true,
+      "milliseconds": 1140
+    },
+    {
+      "name": "old confirmation cannot erase a later edit across reload",
+      "passed": true,
+      "milliseconds": 760
+    },
+    {
+      "name": "two native IndexedDB tabs serialize compare-and-set and conditional delete",
+      "passed": true,
+      "milliseconds": 750
+    },
+    {
+      "name": "native IndexedDB write failure keeps latest text and blocks unsafe reload",
+      "passed": true,
+      "milliseconds": 527
+    },
+    {
+      "name": "committed receipt survives lost response and projection failure without resubmission",
+      "passed": true,
+      "milliseconds": 473
+    },
+    {
+      "name": "pending command reload retries original ID and preserves newer form",
+      "passed": true,
+      "milliseconds": 1365
+    },
+    {
+      "name": "actual Sudoku hook preserves latest queued input when older response arrives",
+      "passed": true,
+      "milliseconds": 476
+    },
+    {
+      "name": "actual Sudoku hook restores latest unsaved input after reload",
+      "passed": true,
+      "milliseconds": 1457
+    },
+    {
+      "name": "actual baseball page restores input and confirms same attempt after lost response",
+      "passed": true,
+      "milliseconds": 1667
+    },
+    {
+      "name": "actual mailbox restores late draft and retains newer edit after older success",
+      "passed": true,
+      "milliseconds": 545
+    },
+    {
+      "name": "actual emotion draft survives delayed hydration and older save success",
+      "passed": true,
+      "milliseconds": 570
+    },
+    {
+      "name": "actual failure composer preserves edit and reopened dialog after older success",
+      "passed": true,
+      "milliseconds": 785
+    },
+    {
+      "name": "actual quiz locks during native IDB restoration and preserves answer on quota failure",
+      "passed": true,
+      "milliseconds": 586
+    },
+    {
+      "name": "actual Today Friend keeps pending payload and enables confirmation after hydration",
+      "passed": true,
+      "milliseconds": 572
+    },
+    {
+      "name": "actual emotion conflict preserves new input and exposes safe revision-specific retry at Chromebook sizes",
+      "passed": true,
+      "milliseconds": 2743
+    },
+    {
+      "name": "actual Sudoku conflict adopts reviewed remote state without posting and archives local input",
+      "passed": true,
+      "milliseconds": 1239
+    },
+    {
+      "name": "actual baseball prefix conflict reviews and adopts remote attempts without replaying stale guess",
+      "passed": true,
+      "milliseconds": 1145
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to save Sudoku progress. StorageCommandError: STORAGE_CONFIRMATION_REQUIRED\n    at S2.requestId (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:81109)\n    at async S2 (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:31412)\n    at async zw (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:80301)\n    at async l1 (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:86711)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to save number baseball progress. StorageCommandError: STORAGE_CONFIRMATION_REQUIRED\n    at S2.requestId (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:81109)\n    at async S2 (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:31412)\n    at async zw (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:80301)\n    at async l1 (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:86711)",
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to save Sudoku progress. StorageCommandError: STUDENT_EDIT_CONFLICT\n    at eh (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:78298)\n    at async S2.requestId (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:80709)\n    at async S2 (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:31412)\n    at async zw (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:80301)\n    at async l1 (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:86711)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to save number baseball progress. StorageCommandError: GAME_PROGRESS_CONFLICT\n    at eh (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:78298)\n    at async S2.requestId (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:80709)\n    at async S2 (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:31412)\n    at async zw (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:80301)\n    at async l1 (http://127.0.0.1:59850/assets/saveReliabilityBrowser-BzZbncHR.js:52:86711)"
+  ]
+}

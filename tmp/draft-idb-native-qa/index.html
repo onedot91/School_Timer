@@ -1,0 +1,39 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Native draft IndexedDB verification</title></head><body><pre id="result">RUNNING</pre><script type="module">
+import { createStudentDraftDatabase } from '/src/lib/studentDraftDatabase.ts';
+import { createStudentSaveDraftStore } from '/src/lib/studentSaveDraft.ts';
+import { canReloadWithDrafts } from '/src/lib/draftReloadSafety.ts';
+const output = document.querySelector('#result');
+const assert = (value, label) => { if (!value) throw new Error(label); };
+const records = [];
+try {
+  const name = `synthetic-native-draft-${Date.now()}`;
+  const one = createStudentDraftDatabase(indexedDB, name);
+  const two = createStudentDraftDatabase(indexedDB, name);
+  const scope = { studentNumber: 18, feature: 'native-fixture', entityId: 'request' };
+  const first = createStudentSaveDraftStore({ database: one, storage: null, createRequestId: () => 'first-request' });
+  const second = createStudentSaveDraftStore({ database: two, storage: null, createRequestId: () => 'second-request' });
+  const results = await Promise.all([first.saveDurable(scope, { text: 'synthetic' }), second.saveDurable(scope, { text: 'synthetic' })]);
+  assert(results.every(result => result.durable && result.draft.requestId === results[0].draft.requestId), 'two connections adopted different request IDs');
+  records.push('native concurrent first-intent transaction: PASS');
+  const editScope = { ...scope, entityId: 'editor' }; let sequence = 0;
+  const edit = createStudentSaveDraftStore({ database: one, storage: null, createRequestId: () => `edit-${++sequence}` });
+  await edit.ready();
+  edit.replace(editScope, { text: 'A' }); edit.replace(editScope, { text: 'B' }); edit.replace(editScope, { text: 'C' });
+  assert(!canReloadWithDrafts(18), 'pending editor incorrectly reload-safe');
+  await edit.flush();
+  assert(edit.load(editScope)?.durable, 'latest edit not durable');
+  assert(!await edit.confirmDurable(editScope, 'edit-1'), 'old response removed new version');
+  const restored = createStudentSaveDraftStore({ database: two, storage: null }); await restored.ready();
+  assert(restored.load(editScope)?.draft.payload.text === 'C', 'reload did not restore C');
+  records.push('native A/B/C, conditional confirmation, fresh-store restore: PASS');
+  const key = (await one.readAll()).find(row => row.requestId === 'edit-3').key;
+  assert(!await two.replace({ key, requestId: 'stale-edit', value: '{}' }, 'edit-1'), 'stale revision overwrote current native row');
+  assert((await one.get(key)).requestId === 'edit-3', 'current native row changed');
+  records.push('native stale compare-and-set: PASS');
+  assert(!await two.remove(key, 'edit-1'), 'old delete removed native row');
+  assert(await one.remove(key, 'edit-3'), 'matching delete failed');
+  records.push('native conditional delete: PASS');
+  for (const store of [first, second, edit, restored]) store.dispose();
+  output.textContent = JSON.stringify({ status: 'PASS', records });
+} catch (error) { output.textContent = JSON.stringify({ status: 'FAIL', message: error instanceof Error ? error.message : 'unknown', records }); }
+</script></body></html>

@@ -1,4 +1,5 @@
 import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
+import { HOUSE_MAIL_STAMP } from '../lib/studentHouseReward';
 import { TEACHER_MAIL_SENDERS } from '../lib/studentLife';
 import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
@@ -63,6 +64,7 @@ import {
   normalizeClassDonationSettings,
   type ClassDonationSettings,
 } from '../lib/classDonation';
+import { CLASS_DONATION_MAIL_IMAGE_SOURCE } from '../lib/classDonation';
 import { useModalFocus } from '../lib/useModalFocus';
 import {
   STUDENT_EMOTION_ZONES,
@@ -162,6 +164,7 @@ import {
   type DailyWritingState,
   unmarkDailyWritingStudentRewarded,
 } from '../lib/dailyWriting';
+import { DAILY_WRITING_STAMP_IMAGE_SOURCE } from '../lib/dailyWriting';
 
 type StockMarketDraft = {
   returnPercent: number | '';
@@ -10032,6 +10035,12 @@ export default function TimerPage() {
     </section>
   );
 
+  const mailSenderStamp = mailSender === '목수 고키리' ? HOUSE_MAIL_STAMP
+    : mailSender === '은행원 돝돝' ? '/mail-bank-dol-dol.png'
+    : mailSender === '아기고마' ? CLASS_DONATION_MAIL_IMAGE_SOURCE
+    : mailSender === '밥집 아주머니 가히' ? DAILY_WRITING_STAMP_IMAGE_SOURCE
+    : '/(편지용) 선생님.png';
+
   const mailSettingsPanel = (
     <section className="settings-card teacher-mail-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-mail-title">
       <aside className="teacher-mail-inbox">
@@ -10078,6 +10087,15 @@ export default function TimerPage() {
       <div className="teacher-mail-chat">
         <header className="teacher-mail-chat-header">
           <div><h3>{isStartingTeacherConversation ? '새 편지' : `${selectedMailStudentNumber}번 학생`}</h3></div>
+          <label className="teacher-mail-new-recipient teacher-mail-sender">
+            <span className="teacher-mail-sender-stamp" data-teacher={mailSender === '선생님' ? 'true' : undefined} role="img" aria-label={`${mailSender} 우표`}>
+              <img src={mailSenderStamp} alt="" draggable={false} />
+            </span>
+            <span>보내는 사람</span>
+            <select aria-label="보내는 사람" value={mailSender} disabled={isMailSending} onChange={event => { mailEditVersionRef.current++; setMailSender(event.target.value); }}>
+              {TEACHER_MAIL_SENDERS.map(sender => <option key={sender} value={sender}>{sender}</option>)}
+            </select>
+          </label>
         </header>
         <div className={`teacher-mail-chat-log${isStartingTeacherConversation ? ' is-new' : ''}`} role="log" aria-label={isStartingTeacherConversation ? '새 편지 작성' : `${selectedMailStudentNumber}번 학생과 주고받은 편지`} aria-live="polite">
           {isStartingTeacherConversation ? (
@@ -10108,12 +10126,6 @@ export default function TimerPage() {
         </div>
 
         <div className="teacher-mail-composer">
-          <label className="teacher-mail-new-recipient teacher-mail-sender">
-            <span>보내는 사람</span>
-            <select aria-label="보내는 사람" value={mailSender} disabled={isMailSending} onChange={event => { mailEditVersionRef.current++; setMailSender(event.target.value); }}>
-              {TEACHER_MAIL_SENDERS.map(sender => <option key={sender} value={sender}>{sender}</option>)}
-            </select>
-          </label>
           <label className="teacher-mail-compose-subject">
             <span className="sr-only">제목</span>
             <input value={mailTitle} maxLength={40} onChange={(event) => { mailEditVersionRef.current++; setMailTitle(event.target.value); }} placeholder="제목 추가 (선택)" />

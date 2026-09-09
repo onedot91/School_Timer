@@ -1,0 +1,187 @@
+{
+  "directory": "/var/folders/kp/rl6bb8813rzcdv9h2_qvck5m0000gn/T/school-save-full-stack-leMYXe",
+  "database": "storage_http_test_browser_86785_1788964457557",
+  "results": [
+    {
+      "name": "production RootApp build without project environment files",
+      "passed": true,
+      "milliseconds": 4669
+    },
+    {
+      "name": "real cookie session and editable mailbox draft survive browser relaunch",
+      "passed": true,
+      "milliseconds": 5006
+    },
+    {
+      "name": "Root foreground event bursts share one weekly mission request and failure cooldown",
+      "passed": true,
+      "milliseconds": 6271
+    },
+    {
+      "name": "real API commits once despite lost response and pending browser restart",
+      "passed": true,
+      "milliseconds": 3252
+    },
+    {
+      "name": "real teacher screen reads the committed student letter and preserves other students",
+      "passed": true,
+      "milliseconds": 3008
+    }
+  ],
+  "pageErrors": [],
+  "blockedExternal": [
+    "https://fonts.googleapis.com/css2",
+    "https://fonts.googleapis.com/css2",
+    "https://fonts.googleapis.com/css2",
+    "https://fonts.googleapis.com/css2",
+    "https://fonts.googleapis.com/css2"
+  ],
+  "apiResponses": [
+    {
+      "path": "/api/device-session",
+      "status": 200
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    },
+    {
+      "path": "/api/weekly-missions",
+      "status": 503
+    },
+    {
+      "path": "/api/save-alerts",
+      "status": 502
+    },
+    {
+      "path": "/api/save-alerts",
+      "status": 502
+    },
+    {
+      "path": "/api/device-session",
+      "status": 200
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    },
+    {
+      "path": "/api/weekly-missions",
+      "status": 503
+    },
+    {
+      "path": "/api/save-alerts",
+      "status": 502
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    },
+    {
+      "path": "/api/weekly-missions",
+      "status": 503
+    },
+    {
+      "path": "/api/save-alerts",
+      "status": 502
+    },
+    {
+      "path": "/api/save-alerts",
+      "status": 502
+    },
+    {
+      "path": "/api/device-session",
+      "status": 200
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    },
+    {
+      "path": "/api/weekly-missions",
+      "status": 503
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    },
+    {
+      "path": "/api/device-session",
+      "status": 200
+    },
+    {
+      "path": "/api/save-alerts",
+      "status": 200
+    },
+    {
+      "path": "/api/save-alerts",
+      "status": 200
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    },
+    {
+      "path": "/api/shared-settings",
+      "status": 200,
+      "editRevisions": "required"
+    }
+  ],
+  "letterPosts": [
+    "502f2e36-6b4f-4aaa-8799-b0f669086995"
+  ],
+  "receiptQueries": [
+    "502f2e36-6b4f-4aaa-8799-b0f669086995",
+    "502f2e36-6b4f-4aaa-8799-b0f669086995",
+    "502f2e36-6b4f-4aaa-8799-b0f669086995"
+  ],
+  "confirmedReceipts": [
+    "502f2e36-6b4f-4aaa-8799-b0f669086995"
+  ],
+  "weeklyPosts": [
+    {
+      "time": 1788964460073,
+      "actor": 1
+    },
+    {
+      "time": 1788964462444,
+      "actor": 1
+    },
+    {
+      "time": 1788964468154,
+      "actor": 1
+    },
+    {
+      "time": 1788964471616,
+      "actor": 1
+    }
+  ],
+  "weeklyExpected503": 4,
+  "editRevisionsRequired": true,
+  "databaseChecks": {
+    "letterCount": 1,
+    "receiptCount": 1,
+    "confirmedNativeQueueCleared": true,
+    "otherStudentLetterUnchanged": true,
+    "unchangedWallets": 23,
+    "reconciliation": []
+  },
+  "scope": "Actual index.html/RootApp/AuctionPage/TimerPage production Vite build, device cookie auth, shared-settings handlers, storage repositories and PostgreSQL SQL/RPC. Same-origin local PostgREST adapter and synthetic classroom; no live services or credentials.",
+  "limitations": "This is local Chromium and PostgreSQL, not a deployed Vercel/Supabase network test. Unrelated API features are not configured by this harness."
+}

@@ -357,6 +357,8 @@
   transform: rotate(2deg);
 }
 
+.student-mail-envelope-stamp[data-teacher="true"] img,
+.student-mail-postmark[data-teacher="true"] img,
 .student-mail-envelope-stamp[data-house="true"] img,
 .student-mail-envelope-stamp[data-bank="true"] img,
 .student-mail-postmark[data-house="true"] img,
@@ -14776,6 +14778,8 @@ a[href]:active {
 
 .teacher-mail-chat-header {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
   min-height: 4rem;
   min-width: 0;
   align-items: center;
@@ -14784,6 +14788,7 @@ a[href]:active {
   padding: .7rem 1rem;
   background: var(--teacher-surface);
 }
+.teacher-mail-chat-header > div { flex-shrink: 0; }
 .teacher-mail-chat-header h3 { color: var(--teacher-text); font-size: 1rem; font-weight: 950; }
 .teacher-mail-chat-log {
   display: flex;
@@ -14821,7 +14826,10 @@ a[href]:active {
   padding: 1rem;
   box-shadow: var(--apple-shadow-1);
 }
-.teacher-mail-new-recipient.teacher-mail-sender { display: flex; align-items: center; width: 100%; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.teacher-mail-new-recipient.teacher-mail-sender { display: flex; flex: 0 1 23rem; align-items: center; width: auto; max-width: 100%; margin-left: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.teacher-mail-sender-stamp { display: grid; flex: 0 0 3rem; width: 3rem; height: 3.25rem; place-items: center; border: 2px dashed var(--teacher-accent); border-radius: .35rem; background: var(--teacher-surface-muted); }
+.teacher-mail-sender-stamp[data-teacher="true"] { color: #916916; border-color: #916916; background: #fff0ad; }
+.teacher-mail-sender-stamp img { display: block; width: 88%; height: 88%; object-fit: contain; }
 .teacher-mail-sender > span { flex-shrink: 0; }
 .teacher-mail-sender select { min-width: 0; flex: 1; }
 .teacher-mail-new-recipient > span { color: var(--teacher-text); font-size: .92rem; font-weight: 950; }
@@ -14884,7 +14892,7 @@ a[href]:active {
 }
 .teacher-mail-composer :is(input, select, textarea) { width: 100%; border: 1px solid #d7e3dc; border-radius: .7rem; background: #fbfdfb; color: #26352e; font-size: .82rem; }
 .teacher-mail-compose-subject input { min-height: 2.15rem; padding-inline: .7rem; }
-.teacher-mail-compose-message textarea { display: block; min-height: 3.6rem; max-height: 6rem; resize: vertical; padding: .58rem .7rem; line-height: 1.45; }
+.teacher-mail-compose-message textarea { display: block; height: clamp(7rem, 20dvh, 12rem); min-height: 7rem; max-height: max(7rem, 32dvh); resize: vertical; padding: .7rem; line-height: 1.6; }
 .teacher-mail-compose-actions { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: .75rem; }
 .teacher-mail-compose-actions > span { min-width: 0; color: #476152; font-size: .76rem; font-weight: 800; }
 .teacher-mail-compose-actions button { display: inline-flex; min-height: 2.35rem; align-items: center; gap: .4rem; border-radius: .7rem; background: var(--teacher-accent); padding: .45rem .8rem; color: var(--teacher-surface); font-size: .8rem; font-weight: 950; white-space: nowrap; }

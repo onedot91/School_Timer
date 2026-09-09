@@ -318,8 +318,10 @@ export default function StudentMailboxPage({
                   style={{ zIndex: activeLetters.length - index }}
                 >
                   <span className="student-mail-envelope-flap" aria-hidden="true" />
-                  <span className="student-mail-envelope-stamp" data-house={isFromHouse ? 'true' : undefined} data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} data-writing={isFromWriting ? 'true' : undefined} data-profile={profileImage !== null ? 'true' : undefined} aria-hidden="true">
-                    {isFromHouse ? (
+                  <span className="student-mail-envelope-stamp" data-teacher={letter.senderLabel === '선생님' ? 'true' : undefined} data-house={isFromHouse ? 'true' : undefined} data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} data-writing={isFromWriting ? 'true' : undefined} data-profile={profileImage !== null ? 'true' : undefined} aria-hidden="true">
+                    {letter.senderLabel === '선생님' ? (
+                      <img src="/(편지용) 선생님.png" alt="" draggable={false} />
+                    ) : isFromHouse ? (
                       <img src={HOUSE_MAIL_STAMP} alt="" draggable={false} />
                     ) : isFromBank ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
@@ -390,8 +392,10 @@ export default function StudentMailboxPage({
               <article className="student-letter-detail student-letter-paper" aria-labelledby="student-mail-letter-title">
                 <header className="student-letter-heading">
                   <h2 id="student-mail-letter-title">{getLetterDisplayTitle(selectedLetter.title)}</h2>
-                  <span className="student-mail-postmark" data-kind={getMailKind(selectedLetter)} data-house={selectedIsHouseLetter ? 'true' : undefined} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} data-writing={selectedIsDailyWritingLetter ? 'true' : undefined} data-profile={selectedProfileImage !== null ? 'true' : undefined} aria-label={selectedIsHouseLetter ? '목수 고키리 우표' : selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : selectedIsDailyWritingLetter ? '밥집 아주머니 가히 우표' : selectedProfileStudentNumber !== null ? `${selectedProfileStudentNumber}번 프로필 우표` : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
-                    {selectedIsHouseLetter ? (
+                  <span className="student-mail-postmark" data-teacher={selectedLetter.senderLabel === '선생님' ? 'true' : undefined} data-kind={getMailKind(selectedLetter)} data-house={selectedIsHouseLetter ? 'true' : undefined} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} data-writing={selectedIsDailyWritingLetter ? 'true' : undefined} data-profile={selectedProfileImage !== null ? 'true' : undefined} aria-label={selectedIsHouseLetter ? '목수 고키리 우표' : selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : selectedIsDailyWritingLetter ? '밥집 아주머니 가히 우표' : selectedProfileStudentNumber !== null ? `${selectedProfileStudentNumber}번 프로필 우표` : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
+                    {selectedLetter.senderLabel === '선생님' ? (
+                      <img src="/(편지용) 선생님.png" alt="" draggable={false} />
+                    ) : selectedIsHouseLetter ? (
                       <img src={HOUSE_MAIL_STAMP} alt="" draggable={false} />
                     ) : selectedIsBankLetter ? (
                       <img src="/mail-bank-dol-dol.png" alt="" draggable={false} />
