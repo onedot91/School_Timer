@@ -90,6 +90,32 @@ export const parseStorageSnapshot = (body: unknown): StorageSnapshot => {
     return parseStorageSnapshotFields(body);
 };
 export const loadStorageSnapshot = async (configuration: StorageConfiguration): Promise<StorageSnapshot> => parseStorageSnapshot(await request(configuration, 'storage_load_snapshot', {}));
+const snapshotReads = new Map<string, Promise<StorageSnapshot>>();
+// GET projections may share an in-flight snapshot; mutation and conflict checks always read afresh.
+export const loadStorageSnapshotForRead = (configuration: StorageConfiguration): Promise<StorageSnapshot> => {
+    const identity = JSON.stringify([configuration.url, configuration.key]);
+    const pending = snapshotReads.get(identity);
+    if (pending) return pending;
+    const read = loadStorageSnapshot(configuration).finally(() => {
+        if (snapshotReads.get(identity) === read) snapshotReads.delete(identity);
+    });
+    snapshotReads.set(identity, read);
+    return read;
+};
+const updatedAtReads = new Map<string, Promise<string>>();
+export const loadStorageUpdatedAt = (configuration: StorageConfiguration): Promise<string> => {
+    const identity = JSON.stringify([configuration.url, configuration.key]);
+    const pending = updatedAtReads.get(identity);
+    if (pending) return pending;
+    const read = request(configuration, 'storage_load_updated_at', {}).then((value) => {
+        if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) return invalid();
+        return value;
+    }).finally(() => {
+        if (updatedAtReads.get(identity) === read) updatedAtReads.delete(identity);
+    });
+    updatedAtReads.set(identity, read);
+    return read;
+};
 export interface StorageReceipt {
     readonly found: boolean;
     readonly scope?: StorageScope;

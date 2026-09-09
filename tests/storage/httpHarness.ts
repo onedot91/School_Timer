@@ -16,7 +16,7 @@ import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const FIXTURE_SECRET = 'isolated-http-fixture-session-secret-2026';
 const KEY = 'isolated-fixture-service-key';
-const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2']);
+const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_load_updated_at', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2']);
 interface Database { query(sql: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>; end(): Promise<void> }
 const database = (name: string): Database => {
   const driver: unknown = createRequire(import.meta.url)(process.env.STORAGE_TEST_PG_MODULE ?? '/tmp/school-storage-runtime/node_modules/pg/lib/index.js');
@@ -62,7 +62,7 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
   const db = database(name);
   const initialized = await db.query("select to_regclass('public.storage_backups') as table_name");
   const ready = initialized.rows[0]?.table_name != null && (await db.query('select 1 from storage_backups limit 1')).rows.length > 0;
-  for (const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','storage_classword_v2.sql','storage_audit_v2.sql','storage_scoped_v2.sql']) await db.query(await readFile(resolve(ROOT, 'supabase', file), 'utf8'));
+  for (const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','storage_classword_v2.sql','storage_audit_v2.sql','storage_scoped_v2.sql','storage_read_performance.sql']) await db.query(await readFile(resolve(ROOT, 'supabase', file), 'utf8'));
   if (!ready) {
     const source = fakeClassroom(), encoded = splitStorageState(source), timestamp = '2026-09-08T00:00:00Z';
     await db.query("insert into app_settings(id,value,updated_at) values('school-timer-main',$1,$2)", [source,timestamp]);

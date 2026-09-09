@@ -21,6 +21,7 @@ export const createStorageV2Fixture = (initialValue: Record<string, unknown>, in
     const url = new URL(String(input));
     const body: unknown = init?.body ? JSON.parse(String(init.body)) : {};
     if (!isStorageRecord(body)) throw new Error('Invalid fixture command');
+    if (url.pathname.endsWith('/storage_load_updated_at')) return Response.json(updatedAt);
     if (url.pathname.endsWith('/storage_load_snapshot')) return Response.json(snapshot());
     if (url.pathname.endsWith('/storage_load_scope')) {
       const scope = parseStorageScope(body.p_scope);

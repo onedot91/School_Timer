@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
-import { loadScopedStorageSnapshot, loadStorageSnapshot } from '../src/server/storageV2Repository.js';
+import { loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
 
 import {
   applyLibraryPlacementCommand,
@@ -208,9 +208,9 @@ const supabaseHeaders = (key: string) => ({
   Authorization: `Bearer ${key}`,
 });
 
-const loadRow = async (url: string, key: string) => {
+const loadRow = async (url: string, key: string, readOnly = false) => {
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
-    const snapshot = await loadStorageSnapshot({ url, key });
+    const snapshot = await (readOnly ? loadStorageSnapshotForRead : loadStorageSnapshot)({ url, key });
     return { id: 'school-timer-main' as const, value: snapshot.value, updated_at: snapshot.updated_at,
       storagePatch: createStorageProjectionPatch(snapshot, snapshot.value, true) };
   }
@@ -366,7 +366,7 @@ const handleLibraryPlacement = async (
 
 const loadStudentRow = async (url: string, key: string, studentNumber: number) => {
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
-    const row = await loadStorageSnapshot({ url, key });
+    const row = await loadStorageSnapshotForRead({ url, key });
     const value = projectStudentValue(row.value, studentNumber);
     return { id: SETTINGS_ID, value, updated_at: row.updated_at, scope: 'student' as const,
       storagePatch: createStorageProjectionPatch(row, value, true) };
@@ -406,9 +406,7 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number) =
 };
 
 const loadUpdatedAt = async (url: string, key: string) => {
-  if (process.env.STORAGE_PROTOCOL_VERSION === '2') return (await loadScopedStorageSnapshot({ url, key }, {
-    resources: [], wallets: [], history: [], writeResources: [], writeWallets: [],
-  })).updated_at;
+  if (process.env.STORAGE_PROTOCOL_VERSION === '2') return loadStorageUpdatedAt({ url, key });
   if (updatedAtCache?.url === url && updatedAtCache.expiresAt > Date.now()) {
     return updatedAtCache.value;
   }
@@ -490,7 +488,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       }
       const shouldLoadFullRow = session.role === 'teacher';
       const row = shouldLoadFullRow
-        ? await loadRow(configuration.url, configuration.key)
+        ? await loadRow(configuration.url, configuration.key, true)
         : await loadStudentRow(configuration.url, configuration.key, session.studentNumber);
       response.status(200).json(row && shouldLoadFullRow ? { ...row, scope: 'full' } : row);
     } catch (error) {
