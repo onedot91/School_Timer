@@ -3871,6 +3871,13 @@ export default function TimerPage() {
   const [isCurrencyDeductionSaving, setIsCurrencyDeductionSaving] = useState(false);
   const currencyDeductionSavingRef = useRef(false);
   const [currencyGroupStudentNumbers, setCurrencyGroupStudentNumbers] = useState<number[]>([]);
+  const [pendingGroupCurrencyAdjustments, setPendingGroupCurrencyAdjustments] = useState<{ requestId: string; groupKey: string; delta: number }[]>([]);
+  const currencyGroupKey = CURRENCY_STUDENT_NUMBERS.filter(number => currencyGroupStudentNumbers.includes(number)).join(',');
+  const currencyGroupKeyRef = useRef(currencyGroupKey);
+  currencyGroupKeyRef.current = currencyGroupKey;
+  const pendingCurrentGroupAdjustments = pendingGroupCurrencyAdjustments.filter(entry => entry.groupKey === currencyGroupKey);
+  const displayedGroupCurrencyDelta = (currencyAdjustmentSummary?.target === 'group' ? currencyAdjustmentSummary.delta : 0)
+    + pendingCurrentGroupAdjustments.reduce((total, entry) => total + entry.delta, 0);
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => (
     isSupabaseSettingsEnabled
       ? createDefaultCurrencyBalances()
@@ -6792,18 +6799,25 @@ export default function TimerPage() {
 
   const runTeacherCurrencyCommand = (action: string, payload: Record<string, unknown>, target?: CurrencyAdjustmentTarget, delta = 0) => {
     const requestId = crypto.randomUUID();
+    const groupKey = currencyGroupKey;
+    if (target === 'group') {
+      setPendingGroupCurrencyAdjustments(previous => [...previous, { requestId, groupKey, delta }]);
+    }
     const queued = teacherCommandQueueRef.current.catch(() => undefined).then(async () => {
       isSharedSettingsSavePendingRef.current = true;
       try {
         const saved = await executeStorageCommand({ requestId, action, payload });
         lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
         commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
-        if (target) recordCurrencyAdjustment(target, delta);
+        if (target && (target !== 'group' || currencyGroupKeyRef.current === groupKey)) recordCurrencyAdjustment(target, delta);
         setCurrencyDeductionError('');
       } catch (error) {
         setCurrencyDeductionError('저장 결과를 확인하지 못했어요. 최신 고마를 확인한 뒤 다시 시도해 주세요.');
         throw error;
       } finally {
+        if (target === 'group') {
+          setPendingGroupCurrencyAdjustments(previous => previous.filter(entry => entry.requestId !== requestId));
+        }
         isSharedSettingsSavePendingRef.current = false;
       }
     });
@@ -7114,6 +7128,28 @@ export default function TimerPage() {
           setAuctionItemsSaveErrorCode(classifySaveFailure(error) ?? 'unknown');
         });
       return;
+    }
+    const award = auctionAwardsRef.current[itemId];
+    if (award) {
+      const balances = normalizeCurrencyBalances(currencyBalancesRef.current);
+      const key = String(award.winner);
+      const before = balances[key];
+      if (before + award.amount > CURRENCY_BALANCE_MAX) {
+        setAuctionItemsSaveStatus('error');
+        setAuctionItemsSaveErrorCode('CURRENCY_BALANCE_LIMIT');
+        return;
+      }
+      balances[key] = before + award.amount;
+      const history = appendCurrencyHistoryEntry(currencyHistoryRef.current, {
+        id: `auction-cancel-${crypto.randomUUID()}`,
+        studentNumber: award.winner,
+        before,
+        after: balances[key],
+        reason: 'auction_award',
+        createdAt: new Date().toISOString(),
+      });
+      commitCurrencyState(balances, history);
+      auctionAwardsRef.current = { ...auctionAwardsRef.current, [itemId]: null };
     }
     markAuctionItemsEdited();
     setAuctionItems((previous) => {
@@ -8096,9 +8132,9 @@ export default function TimerPage() {
         </button>
         <label className="flex h-9 min-w-0 flex-1 items-center rounded-[0.7rem] border border-[#E2CFB3] bg-white px-2">
           <input
-            type="number"
-            min={1}
-            max={currencyDeductionLimit}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={currencyDeductionAmount}
             onChange={(event) => {
               setCurrencyDeductionAmount(event.target.value);
@@ -12068,7 +12104,8 @@ export default function TimerPage() {
                             aria-label="선택한 학생 1명당 누적 증감"
                             aria-live="polite"
                           >
-                            각 {currencyAdjustmentSummary?.target === 'group' ? formatCurrencyAdjustmentSummary(currencyAdjustmentSummary) : '0'}
+                            각 {formatCurrencyAdjustmentSummary({ target: 'group', delta: displayedGroupCurrencyDelta })}
+                            {pendingCurrentGroupAdjustments.length > 0 && <span className="block text-[0.65rem] font-bold" role="status">저장 중</span>}
                           </output>
                           <button
                             type="button"

@@ -131,3 +131,19 @@ test('teacher hydration with ordinary random draw history does not crash or inve
   assert.deepEqual(saved.value.randomDraw, persisted.randomDraw);
   assert.equal(saved.value.scheduleNotice, 'after');
 });
+
+test('removing an unawarded item releases its reservation without crediting money twice', async () => {
+  const { AUCTION_ITEM_IDS, normalizeAuctionBids, getReservedAuctionBidAmount } = await import('../../src/lib/currency.js');
+  const source = {
+    auctionItems: [{ id: 'item-a', dayIndex: 0, name: '공책' }, { id: 'item-b', dayIndex: 1, name: '연필' }],
+    currencyBalances: { '17': 100, '2': 75 },
+    auctionBids: { 'item-a': { bidder: 17, amount: 30 }, 'item-b': { bidder: 17, amount: 20 } },
+  };
+  assert.equal(getReservedAuctionBidAmount(normalizeAuctionBids(source.auctionBids, AUCTION_ITEM_IDS), 17), 50);
+  const saved = apply(source, 'teacher.auction.remove', { itemId: 'item-a' }).value;
+  assert.equal(getReservedAuctionBidAmount(normalizeAuctionBids(saved.auctionBids, AUCTION_ITEM_IDS), 17), 20);
+  assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['17'], 100);
+  assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['2'], 75);
+  assert.equal(normalizeCurrencyHistory(saved.currencyHistory)['17'].length, 0);
+  assert.throws(() => apply(saved, 'teacher.auction.remove', { itemId: 'item-a' }), /AUCTION_ITEM_NOT_REMOVABLE/);
+});

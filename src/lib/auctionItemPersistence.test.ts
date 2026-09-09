@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges } from './teacherStorageCommand.js';
-import { normalizeAuctionItems } from './currency.js';
+import { normalizeAuctionItems, normalizeCurrencyBalances, appendCurrencyHistoryEntry, CURRENCY_BALANCE_MAX } from './currency.js';
 
 const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
 const saveStart = source.indexOf('if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;');
@@ -62,4 +63,31 @@ test('기본 물품 칸을 추가할 때도 저장 대상 데이터와 편집 �
   assert.match(reuse, /setAuctionItems/);
   assert.match(reuse, /isConfigured: true/);
   assert.doesNotMatch(source, /editingNewAuctionItemIds/);
+});
+
+
+test('로컬 물품 삭제는 낙찰금을 한 번만 반환하고 보상 이력을 남긴다', () => {
+  const start = source.indexOf('const award = auctionAwardsRef.current[itemId];', source.indexOf('const removeAuctionItem ='));
+  assert.ok(start > 0);
+  const refund = source.slice(start, source.indexOf('markAuctionItemsEdited();', start));
+  const balances = { current: normalizeCurrencyBalances({ '17': 90, '2': 75 }) };
+  const history = { current: {} };
+  const awards = { current: { 'item-a': { winner: 17, amount: 10 } } };
+  const sandbox = {
+    itemId: 'item-a', auctionAwardsRef: awards, currencyBalancesRef: balances, currencyHistoryRef: history,
+    normalizeCurrencyBalances, appendCurrencyHistoryEntry, CURRENCY_BALANCE_MAX,
+    crypto: { randomUUID: () => 'local-refund' },
+    commitCurrencyState: (nextBalances: typeof balances.current, nextHistory: typeof history.current) => {
+      balances.current = nextBalances;
+      history.current = nextHistory;
+    },
+    setAuctionItemsSaveStatus: () => assert.fail('unexpected refund error'),
+    setAuctionItemsSaveErrorCode: () => assert.fail('unexpected refund error'),
+  };
+  runInNewContext(`(() => { ${refund} })()`, sandbox);
+  assert.equal(balances.current['17'], 100);
+  assert.equal(balances.current['2'], 75);
+  assert.match(JSON.stringify(history.current), /local-refund/);
+  runInNewContext(`(() => { ${refund} })()`, sandbox);
+  assert.equal(balances.current['17'], 100);
 });
