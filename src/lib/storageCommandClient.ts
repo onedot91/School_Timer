@@ -10,6 +10,7 @@ export interface StorageCommand {
   readonly requestId: string;
   readonly action: string;
   readonly payload: unknown;
+  readonly studentNumber?: number;
 }
 
 export interface StorageCommandResult {
@@ -56,8 +57,10 @@ const readResponse = async (response: Response): Promise<unknown> => {
 };
 
 /** Read-only confirmation. A missing receipt never proves an in-flight write failed. */
-export const loadStorageCommandReceipt = async (requestId: string, command?: StorageCommand, context = captureStorageResponseContext()): Promise<StorageCommandResult | null> => {
-  const response = await fetch(`/api/shared-settings?requestId=${encodeURIComponent(requestId)}`, {
+export const loadStorageCommandReceipt = async (requestId: string, command?: StorageCommand, context = captureStorageResponseContext(), studentNumber = command?.studentNumber): Promise<StorageCommandResult | null> => {
+  const query = new URLSearchParams({ requestId });
+  if (studentNumber !== undefined) query.set('studentNumber', String(studentNumber));
+  const response = await fetch(`/api/shared-settings?${query}`, {
     credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(12_000),
     headers: { 'X-Storage-Projection': '1' },
   });

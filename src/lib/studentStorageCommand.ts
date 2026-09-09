@@ -64,7 +64,7 @@ export const executeStudentStorageCommand = async (
     const saved = drafts.save(scope, payload);
     if (saved.status === 'invalid') throw new Error('STUDENT_COMMAND_INVALID');
     if ((saved.status === 'existing' || saved.status === 'payload_changed') && !isPaused(scope, saved.draft.requestId)) {
-      const confirmed = await loadStorageCommandReceipt(saved.draft.requestId);
+      const confirmed = await loadStorageCommandReceipt(saved.draft.requestId, undefined, undefined, action === 'student.auction.bid' ? studentNumber : undefined);
       if (confirmed) {
         drafts.confirm(scope, saved.draft.requestId);
         if (saved.status === 'payload_changed') return await executeStudentStorageCommand(studentNumber, action, payload, entityId);
@@ -75,7 +75,7 @@ export const executeStudentStorageCommand = async (
     if (saved.status === 'payload_changed') throw new Error('SAVE_DRAFT_PENDING');
     try {
       removeCurrent(pausedScopeFor(scope));
-      const response = await executeStorageCommand({ requestId: saved.draft.requestId, action, payload: saved.draft.payload });
+      const response = await executeStorageCommand({ requestId: saved.draft.requestId, action, payload: saved.draft.payload, ...(action === 'student.auction.bid' ? { studentNumber } : {}) });
       drafts.confirm(scope, saved.draft.requestId);
       clearStudentStorageFormDraft(studentNumber, action, entityId);
       return response;

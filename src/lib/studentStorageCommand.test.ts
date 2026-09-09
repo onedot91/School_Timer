@@ -72,3 +72,25 @@ test('거래 입력을 바꿔도 미확인 거래를 새 ID로 재결제하지 �
     assert.equal(hasUnconfirmedStudentEconomyDraft(23), false);
   } finally { globalThis.fetch = previousFetch; }
 });
+
+test('입찰 대상 학생 번호를 저장 요청과 미확인 영수증 조회에 유지한다', async () => {
+  const previousFetch = globalThis.fetch;
+  const requests: { url: string; body?: Record<string, unknown> }[] = [];
+  let committed = false;
+  globalThis.fetch = async (url, init) => {
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    requests.push({ url: String(url), body });
+    if (init?.method === 'POST') return committed ? success() : Response.json({ error: 'TEMPORARY' }, { status: 502 });
+    return Response.json({ status: 'unknown' });
+  };
+  try {
+    await assert.rejects(executeStudentStorageCommand(6, 'student.auction.bid', { itemId: 'item-c', amount: 14 }, 'target-test'), /CONFIRMATION_REQUIRED/);
+    committed = true;
+    await executeStudentStorageCommand(6, 'student.auction.bid', { itemId: 'item-c', amount: 14 }, 'target-test');
+    const posts = requests.filter(request => request.body);
+    assert.equal(posts.length, 2);
+    assert.equal(posts[0].body?.studentNumber, 6);
+    assert.equal(posts[0].body?.requestId, posts[1].body?.requestId);
+    assert.ok(requests.filter(request => !request.body).every(request => new URL(request.url, 'https://fixture.invalid').searchParams.get('studentNumber') === '6'));
+  } finally { globalThis.fetch = previousFetch; }
+});

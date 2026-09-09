@@ -1,3 +1,4 @@
+import { getAuctionBidErrorMessage } from '../lib/auctionBidError';
 import { mergeStudentEconomyLife } from '../lib/studentEconomyClient';
 import { executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft } from '../lib/studentStorageCommand';
 import { CURRENCY_BALANCE_MAX } from '../lib/currency';
@@ -1610,17 +1611,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     } catch (error) {
       if (!isSupabaseSettingsEnabled && error instanceof Error && error.message === 'AUCTION_BID_LOCAL_SAVE_FAILED') reportSaveFailure('auction', 'storage', studentNumber);
       console.error('Failed to submit auction bid.', error);
-      showStatusMessage(error instanceof Error && error.message === 'INSUFFICIENT_FUNDS'
-        ? '예약금을 제외한 사용 가능 고마가 부족합니다.'
-        : error instanceof Error && error.message === 'BID_TOO_LOW'
-          ? '현재 최고 입찰가보다 높게 입찰해야 합니다.'
-          : error instanceof Error && error.message === 'ALREADY_HIGHEST_BIDDER'
-            ? '다른 번호가 더 높게 입찰한 뒤 다시 입찰할 수 있습니다.'
-            : error instanceof Error && error.message === 'ALREADY_AWARDED'
-              ? '이미 낙찰된 물품입니다.'
-              : error instanceof Error && error.message === 'DUPLICATE_BID_AMOUNT'
-                ? '이미 입찰된 금액입니다. 다른 금액으로 입찰해 주세요.'
-                : '입찰을 처리하지 못했습니다. 다시 시도해 주세요.');
+      showStatusMessage(getAuctionBidErrorMessage(error));
       await refreshAuctionState();
     } finally {
       setIsSubmittingItemId(null);

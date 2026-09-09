@@ -99,3 +99,28 @@ test('old v2 clients are rejected before a partial response or mutation',()=>env
   assert.equal(fixture.receipts.size,0);
   assert.equal(Reflect.get(Object(fixture.read().value.currencyBalances),'17'),100);
 }));
+
+test('23 students can bid and teacher student-view bids retain actor-scoped receipts',()=>environment(async(call,fixture)=>{
+  // Default Monday item remains visible on the fixed weekday used by this test.
+  const date = new Date('2026-09-09T03:00:00Z');
+  const originalNow = globalThis.Date;
+  class FixedDate extends originalNow { constructor(value?: string | number) { super(value ?? date.getTime()); } }
+  globalThis.Date = FixedDate as DateConstructor;
+  try {
+    for (let student=1;student<=23;student++) {
+      const result=await call(student,'POST',command(`auction-student-${student}`, 'student.auction.bid',{itemId:'item-a',amount:student+10}));
+      assert.equal(result.status,200,JSON.stringify(result.body));
+    }
+    const request={...command('auction-teacher-view','student.auction.bid',{itemId:'item-a',amount:40}),studentNumber:6};
+    const saved=await call(0,'POST',request);
+    assert.equal(saved.status,200,JSON.stringify(saved.body));
+    assert.equal(Reflect.get(Object(Reflect.get(Object(fixture.read().value.auctionBids),'item-a')),'bidder'),6);
+    assert.equal(Reflect.get(Object((await call(0,'GET',undefined,{requestId:request.requestId,studentNumber:'6'})).body),'status'),'committed');
+    assert.equal(Reflect.get(Object((await call(0,'GET',undefined,{requestId:request.requestId,studentNumber:'7'})).body),'status'),'unknown');
+    assert.equal(Reflect.get(Object((await call(6,'GET',undefined,{requestId:request.requestId})).body),'status'),'unknown');
+    assert.equal((await call(7,'POST',request)).status,403);
+    assert.equal((await call(0,'POST',{...request,studentNumber:24})).status,400);
+    assert.equal((await call(0,'POST',{...request,action:'student.pet.feed'})).status,403);
+    assert.equal((await call(0,'POST',request)).status,200);
+  } finally {globalThis.Date=originalNow;}
+}));

@@ -36,46 +36,63 @@ export const handleStorageCommand = async (
   request: CommandRequest, response: CommandResponse, configuration: StorageConfiguration,
   session: DeviceSession, projectStudentValue: ProjectValue,
 ): Promise<void> => {
-  const project = (value: unknown): Record<string, unknown> => session.role === 'teacher'
-    ? isStorageRecord(value) ? value : {} : projectStudentValue(value, session.studentNumber);
   if (!supportsStorageProjection(request.headers)) {
     response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
   }
   try {
+    const body: unknown = request.method === 'GET' ? undefined
+      : typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+    const target: unknown = request.method === 'GET'
+      ? request.query?.studentNumber === undefined ? undefined : Number(request.query.studentNumber)
+      : isStorageRecord(body) ? body.studentNumber : undefined;
+    if (target !== undefined && (typeof target !== 'number' || !Number.isInteger(target) || target < 1 || target > 23)) {
+      response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return;
+    }
+    if (session.role === 'student' && target !== undefined && target !== session.studentNumber) {
+      response.status(403).json({ error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' }); return;
+    }
+    const teacherAuction = session.role === 'teacher' && typeof target === 'number';
+    if (teacherAuction && request.method !== 'GET' && (!isStorageRecord(body) || body.action !== 'student.auction.bid')) {
+      response.status(403).json({ error: 'TEACHER_COMMAND_REQUIRED' }); return;
+    }
+    const effectiveSession: DeviceSession = teacherAuction
+      ? { role: 'student', studentNumber: target, expiresAt: session.expiresAt } : session;
+    const commandActor = teacherAuction ? `teacher:0:student:${target}` : actorKey(session);
+    const project = (value: unknown): Record<string, unknown> => effectiveSession.role === 'teacher'
+      ? isStorageRecord(value) ? value : {} : projectStudentValue(value, effectiveSession.studentNumber);
     if (request.method === 'GET') {
       const requestId = request.query?.requestId;
       if (!validId(requestId)) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
-      const receipt = await getStorageReceipt(configuration, actorKey(session), requestId);
+      const receipt = await getStorageReceipt(configuration, commandActor, requestId);
       if (!receipt.found) { response.status(200).json({ status: 'unknown' }); return; }
-      const scope = receipt.scope ?? storageCommandScope(receipt.action ?? '', {}, session, true);
+      const scope = receipt.scope ?? storageCommandScope(receipt.action ?? '', {}, effectiveSession, true);
       const snapshot = await loadScopedStorageSnapshot(configuration, scope);
       response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result,
         ...('action' in receipt ? { action: receipt.action } : {}), ...('payloadHash' in receipt ? { payloadHash: receipt.payloadHash } : {}) });
       return;
     }
-    const body: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
     if (!isStorageRecord(body) || body.protocolVersion !== 2) { response.status(409).json({ error: 'STORAGE_PROTOCOL_REQUIRED' }); return; }
     if (!validId(body.requestId) || typeof body.action !== 'string' || !('payload' in body)
       || Buffer.byteLength(JSON.stringify(body), 'utf8') > 1_048_576) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
     const action = body.action, requestId = body.requestId, payload = body.payload;
-    if (session.role === 'student' && !action.startsWith('student.')) { response.status(403).json({ error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' }); return; }
-    if (session.role === 'teacher' && !action.startsWith('teacher.')) { response.status(403).json({ error: 'TEACHER_COMMAND_REQUIRED' }); return; }
-    const scope = storageCommandScope(action, payload, session);
+    if (effectiveSession.role === 'student' && !action.startsWith('student.')) { response.status(403).json({ error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' }); return; }
+    if (effectiveSession.role === 'teacher' && !action.startsWith('teacher.')) { response.status(403).json({ error: 'TEACHER_COMMAND_REQUIRED' }); return; }
+    const scope = storageCommandScope(action, payload, effectiveSession);
     const createdAt = new Date().toISOString();
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const receipt = await getStorageReceipt(configuration, actorKey(session), requestId, { action, payload });
+      const receipt = await getStorageReceipt(configuration, commandActor, requestId, { action, payload });
       if (receipt.found) {
         const snapshot = await loadScopedStorageSnapshot(configuration, receipt.scope ?? scope);
         response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result });
         return;
       }
       const snapshot = await loadScopedStorageSnapshot(configuration, scope);
-      const mutation = session.role === 'teacher'
+      const mutation = effectiveSession.role === 'teacher'
         ? applyTeacherStorageCommand(snapshot.value, action, payload, { requestId, createdAt })
-        : applyStudentStorageCommand(snapshot.value, session.studentNumber, action, payload, { requestId, createdAt });
+        : applyStudentStorageCommand(snapshot.value, effectiveSession.studentNumber, action, payload, { requestId, createdAt });
       if (!mutation) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
       const saved = await commitScopedStorageMutation(configuration, { snapshot, value: mutation.value,
-        actorKey: actorKey(session),requestId,action,payload,result: mutation.result,
+        actorKey: commandActor,requestId,action,payload,result: mutation.result,
         readKeys: scope.revisionKeys,
       });
       if (saved.saved) {
