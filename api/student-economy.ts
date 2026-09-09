@@ -437,6 +437,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
     try {
       const receipt = await getStorageReceipt(configuration, `${session.role}:${session.role === 'student' ? session.studentNumber : 0}:economy:${studentNumber}`, requestId);
+      if (request.query?.receiptOnly === '1') {
+        response.status(200).json(receipt.found ? { status: 'committed', action: receipt.action, payloadHash: receipt.payloadHash,
+          committedAt: receipt.committedAt, result: scopeEconomyResult(receipt.result, studentNumber, 'student') } : { status: 'unknown' });
+        return;
+      }
       response.status(200).json(receipt.found ? { status: 'committed', result: await currentEconomyResponse(configuration, receipt.result, studentNumber) } : { status: 'unknown' });
     } catch (error) {
       response.status(error instanceof StorageRepositoryError ? error.status : 502).json({ error: error instanceof StorageRepositoryError ? error.code : 'STUDENT_ECONOMY_STATUS_UNAVAILABLE' });
@@ -452,6 +457,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return;
   }
 
+  let confirmBeforeRejection: (() => Promise<boolean>) | undefined;
   try {
     const rawBody: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
     if (asRecord(rawBody).protocolVersion !== 2) {
@@ -471,6 +477,14 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
     }
     const actorKey = `${session.role}:${session.role === 'student' ? session.studentNumber : 0}:economy:${parsed.studentNumber}`;
+    confirmBeforeRejection = async () => {
+      const confirmed = await getStorageReceipt(configuration, actorKey, parsed.requestId, {
+        action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
+      });
+      if (!confirmed.found) return false;
+      response.status(200).json(await currentEconomyResponse(configuration, confirmed.result, parsed.studentNumber));
+      return true;
+    };
     const receipt = await getStorageReceipt(configuration, actorKey, parsed.requestId, {
       action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
     });
@@ -501,9 +515,18 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       }
       if (attempt + 1 < UPDATE_RETRY_LIMIT) await new Promise((resolve) => setTimeout(resolve, 25 * 2 ** attempt + randomInt(40)));
     }
-    response.status(409).json({ error: 'STORAGE_CONFLICT' });
+    throw new StorageRepositoryError(409, 'STORAGE_CONFLICT');
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
+    if (confirmBeforeRejection && (ACTION_ERRORS.has(message) || error instanceof StorageRepositoryError
+      && error.status === 409 && error.code !== 'STORAGE_REQUEST_REUSED')) {
+      try { if (await confirmBeforeRejection()) return; }
+      catch (confirmationError) {
+        const reused = confirmationError instanceof StorageRepositoryError && confirmationError.code === 'STORAGE_REQUEST_REUSED';
+        response.status(reused ? 409 : 502).json({ error: reused ? 'STORAGE_REQUEST_REUSED' : 'STORAGE_CONFIRMATION_UNAVAILABLE' });
+        return;
+      }
+    }
     if (ACTION_ERRORS.has(message)) {
       response.status(400).json({ error: message, businessRejected: true });
       return;

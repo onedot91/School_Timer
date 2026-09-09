@@ -7,6 +7,7 @@ const handler: typeof realHandler = (request, response) => withClasswordRpcFixtu
 import { getClasswordEntryRetentionCutoff, getKoreanDateKey } from '../../src/lib/classword.js';
 import { getDailyClasswordQuiz } from '../../src/lib/classwordQuiz.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
+import { storagePayloadHash } from '../../src/server/storageV2Repository.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 const TODAY = '2026-09-04';
@@ -69,6 +70,41 @@ const withEnvironment = async (run: () => Promise<void>) => {
   }
 };
 
+test('다른 탭에서 인증 학생이 바뀌면 낱말·퀴즈 저장과 영수증 조회를 DB 접근 전에 차단한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalRequirement = process.env.STORAGE_REQUIRE_EDIT_REVISIONS;
+    let accesses = 0;
+    globalThis.fetch = async () => { accesses += 1; return Response.json([]); };
+    try {
+      for (const strict of ['0', '1']) {
+        process.env.STORAGE_REQUIRE_EDIT_REVISIONS = strict;
+        for (const command of [
+          { action: 'save_entry', initial: 'ㄱ', word: '강아지' },
+          { action: 'answer_quiz', answer: '협동' },
+        ]) {
+          const result = createResponse();
+          await realHandler({ method: 'POST', headers: sessionHeaders('student', 2),
+            body: { protocolVersion: 2, requestId: 'actor-bound-classword', dateKey: TODAY, ...command, expectedStudentNumber: 1 } }, result.response);
+          assert.deepEqual(result.result(), { statusCode: 403, body: { error: 'STUDENT_FORBIDDEN' } });
+        }
+      }
+      const missing = createResponse();
+      await realHandler({ method: 'POST', headers: sessionHeaders('student', 2),
+        body: { protocolVersion: 2, requestId: 'actor-missing-classword', dateKey: TODAY, action: 'save_entry', initial: 'ㄱ', word: '강아지' } }, missing.response);
+      assert.deepEqual(missing.result(), { statusCode: 426, body: { error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' } });
+      const receipt = createResponse();
+      await realHandler({ method: 'GET', headers: sessionHeaders('student', 2), query: { requestId: 'actor-bound-classword', receiptOnly: '1', expectedStudentNumber: '1' } }, receipt.response);
+      assert.deepEqual(receipt.result(), { statusCode: 403, body: { error: 'STUDENT_FORBIDDEN' } });
+      assert.equal(accesses, 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalRequirement === undefined) delete process.env.STORAGE_REQUIRE_EDIT_REVISIONS;
+      else process.env.STORAGE_REQUIRE_EDIT_REVISIONS = originalRequirement;
+    }
+  });
+});
+
 test('old clients are rejected before any database writes', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
@@ -103,6 +139,107 @@ test('lost response lookup is limited to the signed actor and returns committed 
       const body = result().body;
       assert.ok(body && typeof body === 'object');
       assert.equal(Reflect.get(body, 'committed'), true);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test('receiptOnly exposes atomic transport identity and explicitly labels legacy receipts', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let legacy = false;
+    const hash = 'b'.repeat(64);
+    globalThis.fetch = async (url) => {
+      assert.match(String(url), /storage_receipts\?actor_key=eq.classword%3A3/);
+      assert.match(String(url), /select=action,payload_hash,committed_at,result/);
+      return Response.json([{ action: 'classword:save_entry', payload_hash: 'a'.repeat(32), committed_at: `${TODAY}T01:00:00Z`, result: {
+        ...(!legacy ? { transportHash: hash } : {}),
+        entry: { id: 'entry-1', round_date: TODAY, initial: 'ㄱ', word: '강아지', student_number: 3, created_at: `${TODAY}T01:00:00Z`, updated_at: `${TODAY}T01:00:00Z` },
+        reward: { missionType: 'classword_word_entry', weekKey: TODAY, completed: true, awarded: true, rewardAmount: 5, balance: 105 },
+      } }]);
+    };
+    try {
+      const result = createResponse();
+      await realHandler({ method: 'GET', headers: sessionHeaders('student', 3), query: { requestId: 'transport-receipt-001', receiptOnly: '1' } }, result.response);
+      const body = result.result().body;
+      assert.equal(result.result().statusCode, 200);
+      assert.equal(Reflect.get(Object(body), 'payloadHash'), hash);
+      assert.equal(Reflect.get(Object(body), 'hashAlgorithm'), 'sha256-transport-v1');
+      assert.equal(Reflect.get(Object(body), 'legacy'), undefined);
+      legacy = true;
+      const old = createResponse();
+      await realHandler({ method: 'GET', headers: sessionHeaders('student', 3), query: { requestId: 'transport-receipt-001', receiptOnly: '1' } }, old.response);
+      assert.equal(Reflect.get(Object(old.result().body), 'hashAlgorithm'), 'md5-postgres-jsonb');
+      assert.equal(Reflect.get(Object(old.result().body), 'legacy'), true);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test('new word submissions bind their HTTP payload to the receipt and replay before changed topic checks', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const body = { protocolVersion: 2, requestId: 'word-transport-0001', action: 'save_entry', dateKey: TODAY,
+      initial: 'ㄱ', word: '강아지', expectedTopic: '동물', expectedStudentNumber: 3 };
+    const hash = storagePayloadHash('save_entry', { dateKey: TODAY, initial: 'ㄱ', word: '강아지', expectedTopic: '동물', expectedStudentNumber: 3 });
+    const headers = { ...sessionHeaders('student', 3), 'x-storage-receipt': '1', 'x-forwarded-for': '192.0.2.21' };
+    let receipt: Record<string, unknown> | undefined;
+    let skipFirstReceipt = false;
+    let topic = '동물';
+    let writes = 0;
+    globalThis.fetch = async (url, init) => {
+      if (String(url).includes('storage_receipts?')) {
+        if (skipFirstReceipt) { skipFirstReceipt = false; return Response.json([]); }
+        return Response.json(receipt ? [receipt] : []);
+      }
+      if (String(url).includes('classword_rounds?')) return Response.json([{ topic }]);
+      if (String(url).endsWith('/rpc/classword_command_v2')) {
+        const rpc = JSON.parse(String(init?.body));
+        if (rpc.p_action === 'prune') return Response.json({ deleted: true });
+        assert.equal(rpc.p_payload.transportHash, hash);
+        writes++;
+        const result = { transportHash: rpc.p_payload.transportHash,
+          entry: { id: 'entry-1', round_date: TODAY, initial: 'ㄱ', word: '강아지', student_number: 3, created_at: `${TODAY}T01:00:00Z`, updated_at: `${TODAY}T01:00:00Z` },
+          reward: { missionType: 'classword_word_entry', weekKey: TODAY, completed: true, awarded: true, rewardAmount: 5, balance: 105 } };
+        receipt = { action: 'classword:save_entry', payload_hash: 'a'.repeat(32), committed_at: `${TODAY}T01:00:00Z`, result };
+        return Response.json(result);
+      }
+      throw new Error('Unexpected fixture read');
+    };
+    try {
+      const saved = createResponse();
+      await realHandler({ method: 'POST', headers, body }, saved.response);
+      assert.equal(saved.result().statusCode, 200, JSON.stringify(saved.result().body));
+      topic = '음식';
+      const replay = createResponse();
+      await realHandler({ method: 'POST', headers, body }, replay.response);
+      assert.equal(replay.result().statusCode, 200);
+      assert.deepEqual(replay.result().body, saved.result().body);
+      skipFirstReceipt = true;
+      const race = createResponse();
+      await realHandler({ method: 'POST', headers, body }, race.response);
+      assert.equal(race.result().statusCode, 200);
+      const changed = createResponse();
+      await realHandler({ method: 'POST', headers, body: { ...body, word: '고양이' } }, changed.response);
+      assert.equal(changed.result().statusCode, 409);
+      assert.deepEqual(changed.result().body, { error: 'STORAGE_REQUEST_REUSED' });
+      assert.equal(writes, 1);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test('a changed quiz question cannot consume an answer from an old draft', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      if (String(url).includes('storage_receipts?') || String(url).includes('classword_quizzes?')) return Response.json([]);
+      throw new Error('Changed question must not write or claim a reward');
+    };
+    try {
+      const result = createResponse();
+      await realHandler({ method: 'POST', headers: { ...sessionHeaders('student', 3), 'x-storage-receipt': '1', 'x-forwarded-for': '192.0.2.22' }, body: {
+        protocolVersion: 2, action: 'answer_quiz', requestId: 'question-changed-001', dateKey: TODAY, answer: '도움', expectedQuestionId: 'old-question',
+      } }, result.response);
+      assert.equal(result.result().statusCode, 409);
+      assert.deepEqual(result.result().body, { error: 'CLASSWORD_QUIZ_CHANGED' });
     } finally { globalThis.fetch = originalFetch; }
   });
 });

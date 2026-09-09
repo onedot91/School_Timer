@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { LibraryCompetitionStanding } from '../lib/libraryCompetition.js';
+import type { StudentBook } from '../lib/studentLife.js';
 import { parseCompetitionHistoryResponse } from '../lib/libraryCompetitionResponse.js';
 import { canonicalStorageJson } from '../lib/storageV2Codec.js';
 import { commitScopedStorageMutation, loadScopedStorageSnapshot, StorageRepositoryError, type ScopedStorageSnapshot } from './storageV2Repository.js';
@@ -38,6 +39,7 @@ export async function commitCompetition(configuration: CompetitionConfiguration,
   readonly requestId?: string;
   readonly action?: string;
   readonly payload?: unknown;
+  readonly result?: { readonly book: StudentBook };
 }): Promise<boolean> {
   if (Buffer.byteLength(JSON.stringify(mutation.value), 'utf8') > 1_048_576) throw new LibraryCompetitionError('LIBRARY_COMPETITION_TOO_LARGE', 400);
   const snapshot = mutation.current ?? await loadScopedStorageSnapshot(configuration, libraryCompetitionStorageScope());
@@ -48,7 +50,7 @@ export async function commitCompetition(configuration: CompetitionConfiguration,
   const committed = await commitScopedStorageMutation(configuration, {
     snapshot, value: mutation.value,
     actorKey: mutation.actorKey ?? 'system:library', requestId, action, payload,
-    result: { updatedAt: mutation.updatedAt },
+    result: { updatedAt: mutation.updatedAt, ...mutation.result },
     readKeys: ['scope:libraryCompetition:shared', 'collection:/studentLife/books'],
     ...(mutation.archive ? { archive: mutation.archive } : {}),
   }).catch((error: unknown) => {

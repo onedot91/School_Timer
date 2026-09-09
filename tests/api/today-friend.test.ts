@@ -14,6 +14,7 @@ import {
   TODAY_FRIEND_INITIAL_STATE,
 } from '../../src/lib/todayFriendState.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
+import { storagePayloadHash } from '../../src/server/storageV2Repository.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 const DATE_KEY = '2026-09-01';
@@ -78,6 +79,42 @@ const toSubmissionRow = (submission: TodayFriendSubmission) => ({
   submitted_at: submission.submittedAt,
   reviewed_at: submission.reviewedAt,
   reward_status: submission.rewardStatus,
+});
+
+test('다른 탭에서 인증 학생이 바뀌면 친구 제출·임시 저장·영수증 조회를 차단한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalRequirement = process.env.STORAGE_REQUIRE_EDIT_REVISIONS;
+    let accesses = 0;
+    globalThis.fetch = async () => { accesses += 1; return Response.json([]); };
+    try {
+      for (const strict of ['0', '1']) {
+        process.env.STORAGE_REQUIRE_EDIT_REVISIONS = strict;
+        for (const action of ['save_draft', 'submit']) {
+          const result = createResponse();
+          await handler({ method: 'POST', headers: sessionHeaders('student', 2), body: {
+            protocolVersion: 2, requestId: 'actor-bound-friend', expectedRevision: 0, expectedStudentNumber: 1,
+            action, dateKey: DATE_KEY, payload: { kind: 'interview', answer: '합성 내용' },
+          } }, result.response);
+          assert.deepEqual(result.result(), { statusCode: 403, body: { error: 'STUDENT_FORBIDDEN' } });
+        }
+      }
+      const missing = createResponse();
+      await handler({ method: 'POST', headers: sessionHeaders('student', 2), body: {
+        protocolVersion: 2, requestId: 'actor-missing-friend', expectedRevision: 0,
+        action: 'submit', dateKey: DATE_KEY, payload: { kind: 'interview', answer: '합성 내용' },
+      } }, missing.response);
+      assert.deepEqual(missing.result(), { statusCode: 426, body: { error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' } });
+      const receipt = createResponse();
+      await handler({ method: 'GET', headers: sessionHeaders('student', 2), query: { requestId: 'actor-bound-friend', receiptOnly: '1', expectedStudentNumber: '1' } }, receipt.response);
+      assert.deepEqual(receipt.result(), { statusCode: 403, body: { error: 'STUDENT_FORBIDDEN' } });
+      assert.equal(accesses, 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalRequirement === undefined) delete process.env.STORAGE_REQUIRE_EDIT_REVISIONS;
+      else process.env.STORAGE_REQUIRE_EDIT_REVISIONS = originalRequirement;
+    }
+  });
 });
 
 test('학생 조회는 자신의 오늘 파트너와 장르만 반환한다', async () => {
@@ -315,6 +352,67 @@ test('TodayFriend receipt queries are scoped to the signed student and return co
       await handler({ method: 'GET', headers: sessionHeaders('student', 3), query: { requestId: 'known-request' } }, result.response);
       assert.equal(result.result().statusCode, 200);
       assert.deepEqual(result.result().body, { found: true, submission: { ...saved, storageRevision: 1 } });
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test('receiptOnly returns the normalized submission and identity without a planning-state read', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const mission = getTodayFriendStudentMission(PREPARED_STATE, DATE_KEY, 3);
+    const saved = createTodayFriendSubmission({ dateKey: DATE_KEY, studentNumber: 3, partnerNumber: mission.partnerNumber,
+      genre: mission.genre, payload: createTodayFriendTextPayload(mission.genre, 'fixture saved') });
+    const hash = 'a'.repeat(64), committedAt = '2026-09-01T01:00:00Z';
+    globalThis.fetch = async (input, init) => {
+      assert.ok(String(input).endsWith('storage_get_receipt'));
+      assert.deepEqual(JSON.parse(String(init?.body)), { p_actor_key: 'student:3', p_request_id: 'receipt-only-0001' });
+      return Response.json({ found: true, action: 'today_friend_submission', payloadHash: hash, committedAt, result: [toSubmissionRow(saved)] });
+    };
+    try {
+      const result = createResponse();
+      await handler({ method: 'GET', headers: sessionHeaders('student', 3), query: { requestId: 'receipt-only-0001', receiptOnly: '1' } }, result.response);
+      assert.equal(result.result().statusCode, 200);
+      assert.deepEqual(result.result().body, { status: 'committed', action: 'today_friend_submission', payloadHash: hash, committedAt, result: saved });
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test('a submission committed between first lookup and mission validation is confirmed, not rejected', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const mission = getTodayFriendStudentMission(PREPARED_STATE, DATE_KEY, 3);
+    const payload = createTodayFriendTextPayload(mission.genre, 'fixture answer');
+    const expectedMission = { partnerNumber: mission.partnerNumber, genre: mission.genre, question: mission.question, planningRevision: 'old-plan' };
+    const body = { protocolVersion: 2, action: 'submit', dateKey: DATE_KEY, payload, requestId: 'race-submission-0001', expectedRevision: 0, expectedMission };
+    const requestPayload = { action: body.action, dateKey: DATE_KEY, payload, expectedRevision: 0,
+      expectedMission: { partnerNumber: expectedMission.partnerNumber, genre: expectedMission.genre, question: expectedMission.question } };
+    const saved = submitTodayFriendSubmission(createTodayFriendSubmission({ dateKey: DATE_KEY, studentNumber: 3,
+      partnerNumber: mission.partnerNumber, genre: mission.genre, payload }), '2026-09-01T01:00:00Z');
+    let lookups = 0;
+    let failConfirmation = false;
+    globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith('storage_get_receipt')) {
+        if (++lookups === 1) return Response.json({ found: false });
+        if (failConfirmation) throw new TypeError('Fixture confirmation unavailable');
+        return Response.json({ found: true, action: 'today_friend_submission', payloadHash: storagePayloadHash('today_friend_submission', requestPayload),
+          committedAt: '2026-09-01T01:00:00Z', result: [toSubmissionRow(saved)] });
+      }
+      if (url.includes('load_today_friend_context_v2')) return Response.json({ state: PREPARED_STATE, revision: 'new-plan' });
+      if (url.includes('today_friend_submissions?')) return Response.json([]);
+      throw new Error('No second mutation is allowed');
+    };
+    try {
+      const result = createResponse();
+      await handler({ method: 'POST', headers: sessionHeaders('student', 3), body }, result.response);
+      assert.equal(result.result().statusCode, 200);
+      assert.deepEqual(result.result().body, saved);
+      assert.equal(lookups, 2);
+      lookups = 0; failConfirmation = true;
+      const unknown = createResponse();
+      await handler({ method: 'POST', headers: sessionHeaders('student', 3), body }, unknown.response);
+      assert.equal(unknown.result().statusCode, 502);
+      assert.deepEqual(unknown.result().body, { error: 'TODAY_FRIEND_CONFIRMATION_UNAVAILABLE' });
     } finally { globalThis.fetch = originalFetch; }
   });
 });

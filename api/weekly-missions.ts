@@ -161,9 +161,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         studentNumber,
         weekKey,
       )),
-      loadClasswordEntries(configuration, dateKey),
-      loadFinalizedClasswordEntries(configuration, dateKey),
-      loadFinalizedClasswordRewardKeys(configuration, dateKey),
+      loadClasswordEntries(configuration, dateKey, studentNumber),
+      loadFinalizedClasswordEntries(configuration, dateKey, studentNumber),
+      loadFinalizedClasswordRewardKeys(configuration, dateKey, studentNumber),
     ]);
     if (questionResult.status === 'rejected') {
       console.warn('Failed to load personal-question mission evidence.', questionResult.reason);
@@ -187,6 +187,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       : new Set<string>();
     const seenStudentDates = new Set<string>();
     const classwordClaims: MissionClaimInput[] = finalizedEntries.flatMap((entry) => {
+      if (entry.studentNumber !== studentNumber) return [];
       const key = `${entry.dateKey}:${entry.studentNumber}`;
       if (seenStudentDates.has(key) || finalizedRewardKeys.has(key)) return [];
       seenStudentDates.add(key);

@@ -239,6 +239,28 @@ test('registered devices can poll only the shared settings timestamp', async () 
   });
 });
 
+test('authenticated metadata can verify the deployed legacy-write guard without reading student content', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalGuard = process.env.STORAGE_REQUIRE_EDIT_REVISIONS;
+    globalThis.fetch = async () => Response.json([{ updated_at: '2026-09-05T00:00:01.000Z' }]);
+    try {
+      for (const enabled of ['0', '1']) {
+        process.env.STORAGE_REQUIRE_EDIT_REVISIONS = enabled;
+        const capture = createResponse();
+        await handler({ method: 'GET', headers: studentHeaders(7), query: { metadata: '1', capabilities: '1' } }, capture.response);
+        assert.equal(capture.result().statusCode, 200);
+        assert.deepEqual(capture.result().body, { updatedAt: '2026-09-05T00:00:01.000Z',
+          storageCapabilities: { receiptOnly: true, editRevisionsRequired: enabled === '1' } });
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalGuard === undefined) delete process.env.STORAGE_REQUIRE_EDIT_REVISIONS;
+      else process.env.STORAGE_REQUIRE_EDIT_REVISIONS = originalGuard;
+    }
+  });
+});
+
 test('an older metadata request cannot replace the version cached by a completed write', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
@@ -930,6 +952,36 @@ const placementCommand = (
   book: { kind: 'new', title, author: '고마 작가', pageCount: 321 },
 });
 
+test('다른 탭의 학생 인증으로 바뀐 책장 저장은 서버 기록과 보상을 변경하지 않는다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalRequirement = process.env.STORAGE_REQUIRE_EDIT_REVISIONS;
+    let accesses = 0;
+    globalThis.fetch = async () => { accesses += 1; return Response.json([]); };
+    try {
+      for (const strict of ['0', '1']) {
+        process.env.STORAGE_REQUIRE_EDIT_REVISIONS = strict;
+        const result = createResponse();
+        await handler({ method: 'PUT', headers: studentHeaders(2), body: JSON.stringify({
+          ...placementCommand('11111111-1111-4111-8111-111111111111', 17), expectedStudentNumber: 1,
+        }) }, result.response);
+        assert.deepEqual(result.result(), { statusCode: 403, body: { error: 'STUDENT_FORBIDDEN' } });
+      }
+      const missing = createResponse();
+      await handler({ method: 'PUT', headers: studentHeaders(2), body: placementCommand('22222222-2222-4222-8222-222222222222', 18) }, missing.response);
+      assert.deepEqual(missing.result(), { statusCode: 426, body: { error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' } });
+      const receipt = createResponse();
+      await handler({ method: 'GET', headers: studentHeaders(2), query: { requestId: '11111111-1111-4111-8111-111111111111', receiptOnly: '1', studentNumber: '1' } }, receipt.response);
+      assert.deepEqual(receipt.result(), { statusCode: 403, body: { error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' } });
+      assert.equal(accesses, 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalRequirement === undefined) delete process.env.STORAGE_REQUIRE_EDIT_REVISIONS;
+      else process.env.STORAGE_REQUIRE_EDIT_REVISIONS = originalRequirement;
+    }
+  });
+});
+
 test('placement command is student-only and returns an authoritative student projection', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
@@ -946,13 +998,13 @@ test('placement command is student-only and returns an authoritative student pro
     });
     globalThis.fetch = fake.fetch;
     try {
-      const command = placementCommand('11111111-1111-4111-8111-111111111111', 17);
+      const command = { ...placementCommand('11111111-1111-4111-8111-111111111111', 17), expectedStudentNumber: 1 };
       const teacher = createResponse();
       await handler({ method: 'PUT', headers: teacherHeaders(), body: command }, teacher.response);
       assert.deepEqual(teacher.result(), { statusCode: 403, body: { error: 'LIBRARY_BOOK_FORBIDDEN' } });
 
       const student = createResponse();
-      await handler({ method: 'PUT', headers: studentHeaders(1), body: command }, student.response);
+      await handler({ method: 'PUT', headers: studentHeaders(1), body: JSON.stringify(command) }, student.response);
       assert.equal(student.result().statusCode, 200);
       const payload = student.result().body as { book: { librarySlot?: number }; updatedAt: string; value: Record<string, unknown> };
       assert.equal(payload.book.librarySlot, 17);
@@ -962,6 +1014,14 @@ test('placement command is student-only and returns an authoritative student pro
       assert.equal(Reflect.has(payload.value.studentLife as object, 'letters'), false);
       assert.equal(((fake.state().value.studentLife as { letters: Array<{ id: string }> }).letters)[0]?.id, 'keep');
       assert.equal((fake.state()?.value.studentLife as { books: unknown[] }).books.length, 1);
+      const receipt = fake.receipts.get(`student:1:${command.requestId}`);
+      assert.ok(receipt);
+      assert.deepEqual(Reflect.get(Object(receipt.result), 'book'), payload.book);
+      const repeated = createResponse();
+      await handler({ method: 'PUT', headers: studentHeaders(1), body: command }, repeated.response);
+      assert.equal(repeated.result().statusCode, 200);
+      assert.deepEqual(Reflect.get(Object(repeated.result().body), 'book'), payload.book);
+      assert.deepEqual(fake.state().value.currencyBalances, { 1: 10, 2: 999 });
     } finally {
       globalThis.fetch = originalFetch;
     }

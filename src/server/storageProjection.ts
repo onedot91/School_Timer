@@ -25,6 +25,13 @@ export const createStorageProjectionPatch = (
   const history = (snapshot.history ?? visible.history).filter(row => historyStudents.includes(row.student_number));
   const deletedKeys = snapshot.kind === 'scoped' ? snapshot.deletedKeys : [];
   const keys = [...resources.map(row => row.resource_key), ...wallets.map(row => `wallet:${row.student_number}`), ...deletedKeys];
+  for (const category of ['studentSudoku', 'studentEmotionHistory', 'studentPets']) {
+    if (!Object.hasOwn(projected, category)) continue;
+    const owners = new Set([...visibleWallets,
+      ...resources.flatMap(row => row.category !== category || row.owner_number === null ? [] : [row.owner_number]),
+      ...(snapshot.kind === 'scoped' ? snapshot.scope.resources.flatMap(selection => selection.path === `/${category}` ? selection.students ?? [] : []) : [])]);
+    for (const owner of owners) keys.push(`scope:${category}:${owner}`);
+  }
   const revisions = Object.fromEntries(keys.map(key => [key, snapshot.revisions[key] ?? 0]));
   return { resources, wallets, history, historyStudents, revisions, deletedKeys, complete };
 };

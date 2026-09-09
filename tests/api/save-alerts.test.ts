@@ -56,7 +56,7 @@ test('save alerts use independent rows, enforce roles, and retain acknowledgemen
     assert.equal((await invoke('POST', report)).status, 200);
     assert.deepEqual((await invoke('GET', undefined, true)).value, { alerts: [{ ...newer, acknowledgedAt: null }], hasMore: false });
     assert.equal(rows.size, 2);
-    const diagnosticReport = { ...report, id: 'failure-diagnostic-789', diagnostics: { errorCode: 'SHARED_SETTINGS_WRITE_FAILED', httpStatus: 502, endpoint: '/api/shared-settings', online: false } };
+    const diagnosticReport = { ...report, id: 'failure-diagnostic-789', diagnostics: { errorCode: 'SHARED_SETTINGS_WRITE_FAILED', httpStatus: 502, endpoint: '/api/shared-settings', online: false, requestId: 'original-save-request-123', buildVersion: '2026-09-09T01:00:00.000Z', stage: 'recovery', retryCount: 5 } };
     assert.equal((await invoke('POST', { ...diagnosticReport, diagnostics: { ...diagnosticReport.diagnostics, message: 'private content', requestBody: 'secret' } })).status, 200);
     assert.deepEqual((await invoke('GET', undefined, true)).value, { alerts: [{ ...newer, acknowledgedAt: null }, { ...diagnosticReport, acknowledgedAt: null }], hasMore: false });
     assert.equal((await invoke('POST', { action: 'acknowledge', alert: diagnosticReport }, true)).status, 200);

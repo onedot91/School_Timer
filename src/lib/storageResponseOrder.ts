@@ -33,6 +33,7 @@ export class StorageResponseOrder {
   private generation = 0;
   private latest: StorageProjection | null = null;
   private patches: StorageProjectionPatchCache | null = null;
+  private revisions: Record<string, number> = {};
 
   capture(actor: string | null): StorageResponseContext {
     if (this.actor !== actor) {
@@ -40,6 +41,7 @@ export class StorageResponseOrder {
       this.generation += 1;
       this.latest = null;
       this.patches = null;
+      this.revisions = {};
     }
     return { actor, generation: this.generation };
   }
@@ -54,6 +56,11 @@ export class StorageResponseOrder {
     return this.latest;
   }
 
+  readRevisions(context: StorageResponseContext, actor: string | null): Record<string, number> {
+    if (!this.current(context, actor)) throw new StorageResponseActorChangedError();
+    return { ...this.revisions };
+  }
+
   accept(context: StorageResponseContext, projection: StorageProjection, actor: string | null): StorageProjection {
     if (!this.current(context, actor)) throw new StorageResponseActorChangedError();
     // Without an actor identifier, never reuse a previous person's projection.
@@ -61,6 +68,9 @@ export class StorageResponseOrder {
       ? { value: new StorageProjectionPatchCache(compareStorageTimestamps).apply(projection.storagePatch, projection.updatedAt), updatedAt: projection.updatedAt, scope: projection.scope }
       : projection;
     if (projection.storagePatch) {
+      for (const [key, revision] of Object.entries(projection.storagePatch.revisions)) {
+        this.revisions[key] = Math.max(this.revisions[key] ?? 0, revision);
+      }
       if (!this.patches) {
         this.patches = new StorageProjectionPatchCache(compareStorageTimestamps);
         if (this.latest) this.patches.seedLegacy(this.latest.value, this.latest.updatedAt);
@@ -78,13 +88,18 @@ export class StorageResponseOrder {
 }
 
 const responses = new StorageResponseOrder();
+let memoryActor: string | null = null;
+export const retainStorageResponseActor = (actor: number | null): void => {
+  memoryActor = actor === null ? null : String(actor);
+};
 const readActor = (): string | null => {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem('school-timer-entry-number-v1');
-    return raw !== null && /^(?:[0-9]|1[0-9]|2[0-3])$/.test(raw) ? raw : null;
+    memoryActor = raw !== null && /^(?:[0-9]|1[0-9]|2[0-3])$/.test(raw) ? raw : null;
+    return memoryActor;
   } catch (error) {
-    if (error instanceof Error) return null;
+    if (error instanceof Error) return memoryActor;
     throw error;
   }
 };
@@ -92,3 +107,4 @@ export const captureStorageResponseContext = (): StorageResponseContext => respo
 export const isStorageResponseContextCurrent = (context: StorageResponseContext): boolean => responses.current(context, readActor());
 export const acceptStorageProjection = (context: StorageResponseContext, projection: StorageProjection): StorageProjection => responses.accept(context, projection, readActor());
 export const readLatestStorageProjection = (context: StorageResponseContext): StorageProjection | null => responses.read(context, readActor());
+export const readStorageRevisions = (context = captureStorageResponseContext()): Record<string, number> => responses.readRevisions(context, readActor());

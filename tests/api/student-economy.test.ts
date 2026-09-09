@@ -327,3 +327,46 @@ test('부분 응답을 지원하지 않는 기존 v2 화면은 POST와 영수증
     assert.equal(db.rpcCalls.length,0);assert.equal(db.scopes.length,0);assert.equal(db.writes.length,0);assert.deepEqual(db.value(),before);
   });
 });
+
+test('receiptOnly confirms an economy transaction while all current-state queries fail', () => withFixture(async (db) => {
+  assert.equal((await act(1, { type: 'deposit', amount: 30 }, 'economy-receipt-only')).statusCode, 200);
+  const writes = db.writes.length;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    assert.ok(String(input).endsWith('/storage_get_receipt'), 'Receipt confirmation must not need another state read');
+    return originalFetch(input, init);
+  };
+  const result = createResponse();
+  await handler({ method: 'GET', headers: studentHeaders(1), query: { protocolVersion: '2', studentNumber: '1', requestId: 'economy-receipt-only', receiptOnly: '1' } }, result.response);
+  assert.equal(result.result().statusCode, 200);
+  const body = result.result().body; assert.ok(isStorageRecord(body) && isStorageRecord(body.result));
+  assert.equal(body.status, 'committed'); assert.equal(body.action, 'student-economy');
+  assert.equal(typeof body.payloadHash, 'string'); assert.equal(typeof body.committedAt, 'string');
+  assert.deepEqual(body.result.currencyBalanceEntries, { 1: 115 });
+  assert.equal(db.writes.length, writes);
+}));
+
+test('final economy business validation rechecks the same request before rejecting', () => withFixture(async (db) => {
+  const action = { type: 'deposit', amount: 140 };
+  assert.equal((await act(1, action, 'economy-race-receipt')).statusCode, 200);
+  const originalFetch = globalThis.fetch;
+  let reads = 0;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).endsWith('/storage_get_receipt') && ++reads <= 2) return Response.json({ found: false });
+    if (String(input).endsWith('/storage_load_scope')) {
+      const response = await originalFetch(input, init);
+      const snapshot: unknown = await response.json();
+      assert.ok(isStorageRecord(snapshot) && Array.isArray(snapshot.resources));
+      // The bounded domain request list may have expired while the durable receipt still exists.
+      return Response.json({ ...snapshot, resources: snapshot.resources.map(row => {
+        if (!isStorageRecord(row) || row.resource_key !== '/studentEconomy/1' || !isStorageRecord(row.value) || !isStorageRecord(row.value.data)) return row;
+        return { ...row, value: { ...row.value, data: { ...row.value.data, processedRequestIds: [] } } };
+      }) });
+    }
+    return originalFetch(input, init);
+  };
+  const saved = await act(1, action, 'economy-race-receipt');
+  assert.equal(saved.statusCode, 200);
+  assert.equal(reads, 3);
+  assert.equal(db.writes.length, 1);
+}));

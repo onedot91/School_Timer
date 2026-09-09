@@ -42,7 +42,7 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
       add({ path }, true, true);
       revisions.add(`collection:${path}/stamps`);
     } else if (['student.pet.name', 'student.pet.select', 'student.pet.move', 'student.pet.feed'].includes(action)) {
-      add({ path: '/studentPets', students: [own] });
+      add({ path: '/studentPets', students: [own] }, true, true);
       if (action === 'student.pet.feed') { money([own]); auction.slice(0, 3).forEach(name => field(name, false)); }
     } else if (action === 'student.emotion.save') { add({ path: '/studentEmotionHistory', students: [own] }, true, true); money([own]); }
     else if (['student.sudoku.save', 'student.sudoku.complete', 'student.baseball.save', 'student.baseball.complete'].includes(action)) {
@@ -78,4 +78,11 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
   }
   return parseStorageScope({ resources, wallets: [...wallets], history: [...history], writeResources: writes,
     writeWallets: [...writeWallets], revisionKeys: [...revisions] });
+};
+
+export const studentEditRevisionKeys = (action: string, studentNumber: number): readonly string[] => {
+  const category = ['student.sudoku.save', 'student.sudoku.complete'].includes(action) ? 'studentSudoku'
+    : action === 'student.emotion.save' ? 'studentEmotionHistory'
+    : ['student.pet.name', 'student.pet.select', 'student.pet.move'].includes(action) ? 'studentPets' : null;
+  return category ? [`scope:${category}:${studentNumber}`] : [];
 };

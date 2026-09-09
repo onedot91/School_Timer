@@ -1,4 +1,4 @@
-
+import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
 import {
   getKoreanDateKey,
   getClasswordEntryRetentionCutoff,
@@ -28,7 +28,8 @@ import {
   loadClasswordBoard,
   loadClasswordRounds,
   loadClasswordRequestResult,
-  loadClasswordTopic,
+  loadClasswordRequestReceipt,
+  loadClasswordTopicContext,
   loadClasswordQuizCompletions,
   loadClasswordQuizDefinition,
   loadClasswordQuizRewardAmount,
@@ -42,6 +43,7 @@ import {
 } from '../src/server/classwordRepository.js';
 import { getDeviceSession, type DeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
+import { storagePayloadHash } from '../src/server/storageV2Repository.js';
 
 type QueryValue = string | readonly string[] | undefined;
 
@@ -63,12 +65,13 @@ type ClasswordAction = (
       readonly type: 'save_entry';
       readonly entryId?: string;
       readonly expectedRevision?: string;
+      readonly expectedTopic?: string;
       readonly dateKey: string;
       readonly initial: import('../src/lib/classword.js').ClasswordInitial;
       readonly word: string;
     }
   | { readonly type: 'delete_entry'; readonly entryId: string }
-  | { readonly type: 'answer_quiz'; readonly dateKey: string; readonly answer: string }
+  | { readonly type: 'answer_quiz'; readonly dateKey: string; readonly answer: string; readonly expectedQuestionId?: string }
   | { readonly type: 'save_quiz'; readonly input: ClasswordQuizTeacherInput }
   | { readonly type: 'delete_quiz'; readonly dateKey: string }
   | { readonly type: 'save_topic'; readonly dateKey: string; readonly topic: string }
@@ -120,12 +123,14 @@ const parseAction = (body: unknown): ClasswordAction => {
       || !isClasswordInitial(value.initial)
       || typeof value.word !== 'string'
       || value.word.length > 32
+      || (value.expectedTopic !== undefined && (typeof value.expectedTopic !== 'string' || value.expectedTopic.length > 200))
       || (value.entryId !== undefined && (typeof value.entryId !== 'string' || value.entryId.length > 160 || typeof value.expectedRevision !== 'string' || !Number.isFinite(Date.parse(value.expectedRevision))))
     ) throw new ClasswordApiError(400, 'INVALID_ENTRY');
     return {
       type: action,
       requestId: value.requestId,
       ...(typeof value.expectedRevision === 'string' ? { expectedRevision: value.expectedRevision } : {}),
+      ...(typeof value.expectedTopic === 'string' ? { expectedTopic: value.expectedTopic } : {}),
       ...(typeof value.entryId === 'string' ? { entryId: value.entryId } : {}),
       dateKey: value.dateKey,
       initial: value.initial,
@@ -143,8 +148,10 @@ const parseAction = (body: unknown): ClasswordAction => {
       !isClasswordDateKey(value.dateKey)
       || typeof value.answer !== 'string'
       || [...value.answer].length > 20
+      || (value.expectedQuestionId !== undefined && (typeof value.expectedQuestionId !== 'string' || value.expectedQuestionId.length < 1 || value.expectedQuestionId.length > 200))
     ) throw new ClasswordApiError(400, 'INVALID_QUIZ_ANSWER');
-    return { type: action, requestId: value.requestId, dateKey: value.dateKey, answer: value.answer };
+    return { type: action, requestId: value.requestId, dateKey: value.dateKey, answer: value.answer,
+      ...(typeof value.expectedQuestionId === 'string' ? { expectedQuestionId: value.expectedQuestionId } : {}) };
   }
   if (action === 'save_quiz') {
     if (
@@ -223,9 +230,15 @@ const handleGet = async (
   configuration: ClasswordRepositoryConfiguration,
   session: DeviceSession,
 ): Promise<void> => {
+  const expectedStudent = getQueryString(request.query?.expectedStudentNumber);
+  if (expectedStudent !== null && (session.role !== 'student' || expectedStudent !== String(session.studentNumber))) throw new ClasswordApiError(403, 'STUDENT_FORBIDDEN');
   const requestId = getQueryString(request.query?.requestId);
   if (requestId !== null) {
     if (requestId.length < 8 || requestId.length > 160) throw new ClasswordApiError(400, 'INVALID_REQUEST_ID');
+    if (getQueryString(request.query?.receiptOnly) === '1') {
+      response.status(200).json(await loadClasswordRequestReceipt(configuration, session.role === 'teacher' ? 0 : session.studentNumber, requestId) ?? { status: 'unknown' });
+      return;
+    }
     const result = await loadClasswordRequestResult(configuration, session.role === 'teacher' ? 0 : session.studentNumber, requestId);
     response.status(200).json({ committed: result !== null, result });
     return;
@@ -283,18 +296,44 @@ const handlePost = async (
   session: DeviceSession,
 ): Promise<void> => {
   const action = parseAction(request.body);
+  const raw = parseBody(request.body);
+  if ((action.type === 'save_entry' || action.type === 'answer_quiz') && session.role === 'student') {
+    if (raw.expectedStudentNumber === undefined && requiresStudentEditRevisions()) throw new ClasswordApiError(426, 'STORAGE_PROTOCOL_UPGRADE_REQUIRED');
+    if (raw.expectedStudentNumber !== undefined && raw.expectedStudentNumber !== session.studentNumber) throw new ClasswordApiError(403, 'STUDENT_FORBIDDEN');
+  }
+  const transportReceipt = Object.entries(request.headers ?? {}).some(([key, value]) => key.toLowerCase() === 'x-storage-receipt' && value === '1')
+    && (action.type === 'save_entry' || action.type === 'answer_quiz');
+  if (transportReceipt && session.role !== 'student') throw new ClasswordApiError(403, 'STUDENT_REQUIRED');
+  const transportHash = transportReceipt ? storagePayloadHash(action.type,
+    Object.fromEntries(Object.entries(raw).filter(([key]) => !['action', 'requestId', 'protocolVersion'].includes(key)))) : undefined;
+  const confirmTransportReceipt = async (): Promise<unknown | null> => {
+    if (!transportHash || session.role !== 'student') return null;
+    const receipt = await loadClasswordRequestReceipt(configuration, session.studentNumber, action.requestId);
+    if (!receipt) return null;
+    const expectedAction = action.type === 'answer_quiz' ? 'classword:complete_quiz' : 'classword:save_entry';
+    if (receipt.action !== expectedAction || receipt.hashAlgorithm !== 'sha256-transport-v1' || receipt.payloadHash !== transportHash)
+      throw new ClasswordApiError(409, 'STORAGE_REQUEST_REUSED');
+    return receipt.result;
+  };
+  const confirmed = await confirmTransportReceipt();
+  if (confirmed) { response.status(200).json(confirmed); return; }
+  try {
   switch (action.type) {
     case 'save_entry': {
       if (session.role !== 'student') throw new ClasswordApiError(403, 'STUDENT_REQUIRED');
       assertClasswordParticipation(action.dateKey);
       await pruneExpiredEntries(configuration);
-      const topic = await loadClasswordTopic(configuration, action.dateKey);
+      const topicContext = await loadClasswordTopicContext(configuration, action.dateKey);
+      const topic = topicContext.topic;
+      if (action.expectedTopic !== undefined && action.expectedTopic !== topic) throw new ClasswordApiError(409, 'CLASSWORD_TOPIC_CHANGED');
       if (!topic.trim()) throw new ClasswordApiError(400, 'CLASSWORD_TOPIC_REQUIRED');
       const validation = validateClasswordWord(action.word, action.initial, topic);
       if (validation.ok === false) throw new ClasswordApiError(400, validation.code);
       const { entry, reward } = await saveClasswordEntry(configuration, {
         requestId: action.requestId,
         expectedRevision: action.expectedRevision,
+        ...(transportHash ? { transportHash } : {}),
+        ...(transportHash && action.expectedTopic !== undefined ? { expectedStoredTopic: topicContext.storedTopic } : {}),
         ...(action.entryId ? { entryId: action.entryId } : {}),
         dateKey: action.dateKey,
         initial: action.initial,
@@ -321,6 +360,8 @@ const handlePost = async (
       assertClasswordParticipation(action.dateKey);
       const resolved = await loadResolvedQuiz(configuration, action.dateKey);
       const question = toClasswordQuizPrompt(resolved.question);
+      if (action.expectedQuestionId !== undefined && action.expectedQuestionId !== question.id)
+        throw new ClasswordApiError(409, 'CLASSWORD_QUIZ_CHANGED');
       const existingCompletions = await loadClasswordQuizCompletions(
         configuration,
         action.dateKey,
@@ -349,6 +390,8 @@ const handlePost = async (
         session.studentNumber,
         action.requestId,
         question,
+        transportHash,
+        transportHash && action.expectedQuestionId !== undefined ? resolved.source === 'teacher' ? question.id : null : undefined,
       );
       response.status(200).json({
         correct: true,
@@ -390,6 +433,20 @@ const handlePost = async (
       await deleteClasswordDateEntries(configuration, action.dateKey, action.requestId);
       response.status(200).json({ deleted: true });
       return;
+  }
+  } catch (error) {
+    if (transportHash && (error instanceof ClasswordScheduleError
+      || (error instanceof ClasswordApiError || error instanceof ClasswordRepositoryError)
+      && [400, 403, 409, 422].includes(error.status) && error.code !== 'STORAGE_REQUEST_REUSED')) {
+      let receiptResult;
+      try { receiptResult = await confirmTransportReceipt(); }
+      catch (confirmationError) {
+        if (confirmationError instanceof ClasswordApiError && confirmationError.code === 'STORAGE_REQUEST_REUSED') throw confirmationError;
+        throw new ClasswordRepositoryError(502, 'CLASSWORD_CONFIRMATION_UNAVAILABLE');
+      }
+      if (receiptResult) { response.status(200).json(receiptResult); return; }
+    }
+    throw error;
   }
 };
 

@@ -146,6 +146,13 @@ export interface TodayFriendSaveOptions {
 export const loadTodayFriendSaveReceipt = async (
   configuration: TodayFriendRepositoryConfiguration, actorKey: string, requestId: string, requestPayload?: unknown,
 ): Promise<TodayFriendSubmission | null> => {
+  const receipt = await loadTodayFriendRequestReceipt(configuration, actorKey, requestId, requestPayload);
+  return receipt?.result ?? null;
+};
+
+export const loadTodayFriendRequestReceipt = async (
+  configuration: TodayFriendRepositoryConfiguration, actorKey: string, requestId: string, requestPayload?: unknown,
+) => {
   try {
     const receipt = await getStorageReceipt(configuration, actorKey, requestId,
       requestPayload === undefined ? undefined : { action: 'today_friend_submission', payload: requestPayload });
@@ -153,7 +160,8 @@ export const loadTodayFriendSaveReceipt = async (
     if (receipt.action !== 'today_friend_submission') throw new TodayFriendRepositoryError(409, 'STORAGE_REQUEST_PAYLOAD_MISMATCH');
     const row = parseTodayFriendRows(receipt.result)[0];
     if (!row) throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_DATABASE_INVALID_RESPONSE');
-    return parseTodayFriendSubmissionRow(row);
+    return { status: 'committed' as const, action: receipt.action, payloadHash: receipt.payloadHash,
+      committedAt: receipt.committedAt, result: parseTodayFriendSubmissionRow(row) };
   } catch (error) {
     if (error instanceof StorageRepositoryError) throw new TodayFriendRepositoryError(error.status, error.code);
     throw error;

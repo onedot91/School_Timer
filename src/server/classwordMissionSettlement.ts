@@ -31,9 +31,11 @@ const parseStudentNumber = (row: object, errorCode: string) => {
 export const loadClasswordEntries = async (
   configuration: ClasswordMissionConfiguration,
   dateKey: string,
+  studentNumber: number,
 ): Promise<ClasswordMissionEntry[]> => {
   const url = new URL(`${configuration.url.replace(/\/$/, '')}/rest/v1/classword_entries`);
   url.searchParams.set('round_date', `eq.${dateKey}`);
+  url.searchParams.set('student_number', `eq.${studentNumber}`);
   url.searchParams.set('select', 'id,student_number');
   url.searchParams.set('order', 'created_at.asc');
   const response = await fetch(url, {
@@ -58,12 +60,14 @@ export const loadClasswordEntries = async (
 export const loadFinalizedClasswordEntries = async (
   configuration: ClasswordMissionConfiguration,
   beforeDateKey: string,
+  studentNumber: number,
 ): Promise<ClasswordMissionEntry[]> => {
   const pageSize = 1000;
   const entries: ClasswordMissionEntry[] = [];
   for (let offset = 0; ; offset += pageSize) {
     const url = new URL(`${configuration.url.replace(/\/$/, '')}/rest/v1/classword_entries`);
     url.searchParams.set('round_date', `lt.${beforeDateKey}`);
+    url.searchParams.set('student_number', `eq.${studentNumber}`);
     url.searchParams.set('select', 'id,student_number,round_date');
     url.searchParams.set('order', 'round_date.asc,created_at.asc');
     url.searchParams.set('limit', String(pageSize));
@@ -96,12 +100,14 @@ export const loadFinalizedClasswordEntries = async (
 export const loadFinalizedClasswordRewardKeys = async (
   configuration: ClasswordMissionConfiguration,
   beforeDateKey: string,
+  studentNumber: number,
 ): Promise<ReadonlySet<string>> => {
   const pageSize = 1000;
   const rewardKeys = new Set<string>();
   for (let offset = 0; ; offset += pageSize) {
     const url = new URL(`${configuration.url.replace(/\/$/, '')}/rest/v1/weekly_mission_rewards`);
     url.searchParams.set('mission_type', `eq.${CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE}`);
+    url.searchParams.set('student_number', `eq.${studentNumber}`);
     url.searchParams.set('week_key', `lt.${beforeDateKey}`);
     url.searchParams.set('select', 'student_number,week_key');
     url.searchParams.set('order', 'week_key.asc,student_number.asc');

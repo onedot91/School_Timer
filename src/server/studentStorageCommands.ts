@@ -7,6 +7,7 @@ import { STUDENT_EMOTIONS, createStudentEmotionEntry, normalizeStudentEmotionHis
 import { createSudokuPuzzle, isSudokuSolved, getSudokuWeeklyMissionId, SUDOKU_REWARDS, getStudentSudokuProgressFromSettings, getActiveSudokuDifficulty } from '../lib/sudoku.js';
 import { getNumberBaseballGameId, createNumberBaseballAnswer, createNumberBaseballProgressEntry, appendNumberBaseballAttempt, getStudentNumberBaseballProgressFromSettings, getNumberBaseballStatus, getNumberBaseballReward } from '../lib/numberBaseball.js';
 import { getKoreanIsoWeekKey } from '../lib/weeklyMission.js';
+import { getKoreanDateKey } from '../lib/classword.js';
 
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : {};
 const fail = (code = 'STUDENT_COMMAND_INVALID'): never => { throw Object.assign(new Error(code), { code, status: 400 }); };
@@ -95,6 +96,8 @@ export const applyStudentStorageCommand = (
     return finish({ ...value, studentPets: { ...record(current.studentPets), [studentKey]: next } });
   }
   if (action === 'student.emotion.save') {
+    if (input.dateKey !== undefined && input.dateKey !== getKoreanDateKey(date))
+      throw Object.assign(new Error('STUDENT_SAVE_CONTEXT_CHANGED'), { code: 'STUDENT_SAVE_CONTEXT_CHANGED', status: 409 });
     const emotion = STUDENT_EMOTIONS.find(({ id }) => id === input.emotionId);
     if (!emotion) return fail();
     const history = normalizeStudentEmotionHistory(current.studentEmotionHistory);

@@ -25,6 +25,8 @@ export type ClasswordEntryWrite = {
   readonly entryId?: string;
   readonly requestId: string;
   readonly expectedRevision?: string;
+  readonly transportHash?: string;
+  readonly expectedStoredTopic?: string | null;
   readonly dateKey: string;
   readonly initial: ClasswordInitial;
   readonly word: string;
@@ -88,7 +90,7 @@ const request = async (
     if (path === 'rpc/classword_command_v2') {
       const body: unknown = await result.json().catch(() => null);
       const message = isRecord(body) && typeof body.message === 'string' ? body.message : '';
-      const business = ['CLASSWORD_STUDENT_ALREADY_ENTERED', 'CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_ENTRY_CHANGED', 'STORAGE_REQUEST_REUSED', 'CLASSWORD_REWARD_LIMIT_EXCEEDED'];
+      const business = ['CLASSWORD_STUDENT_ALREADY_ENTERED', 'CLASSWORD_INITIAL_OCCUPIED', 'CLASSWORD_ENTRY_CHANGED', 'STORAGE_REQUEST_REUSED', 'CLASSWORD_REWARD_LIMIT_EXCEEDED', 'CLASSWORD_TOPIC_CHANGED', 'CLASSWORD_QUIZ_CHANGED'];
       if (business.includes(message)) throw new ClasswordRepositoryError(409, message);
       if (message === 'CLASSWORD_REWARD_EVIDENCE_MISMATCH') throw new ClasswordRepositoryError(409, message);
       if (message === 'CLASSWORD_ENTRY_FORBIDDEN') throw new ClasswordRepositoryError(403, message);
@@ -246,23 +248,22 @@ export const loadClasswordUsedTopics = async (
 export const loadClasswordTopic = async (
   configuration: ClasswordRepositoryConfiguration,
   dateKey: string,
-): Promise<string> => {
+): Promise<string> => (await loadClasswordTopicContext(configuration, dateKey)).topic;
+
+export const loadClasswordTopicContext = async (
+  configuration: ClasswordRepositoryConfiguration,
+  dateKey: string,
+): Promise<{ readonly topic: string; readonly storedTopic: string | null }> => {
   const value = await request(
     configuration,
     `classword_rounds?round_date=eq.${encodeURIComponent(dateKey)}&select=topic`,
   );
   const row = parseRows(value)[0];
-  return resolveClasswordTopic(dateKey, row && typeof row.topic === 'string' ? row.topic : '').topic;
+  const storedTopic = row && typeof row.topic === 'string' ? row.topic : null;
+  return { topic: resolveClasswordTopic(dateKey, storedTopic ?? '').topic, storedTopic };
 };
 
-export const loadClasswordRequestResult = async (
-  configuration: ClasswordRepositoryConfiguration, actor: number, requestId: string,
-): Promise<unknown | null> => {
-  const rows = parseRows(await request(configuration,
-    `storage_receipts?actor_key=eq.${encodeURIComponent(`classword:${actor}`)}&request_id=eq.${encodeURIComponent(requestId)}&select=action,result&limit=1`,
-  ));
-  const row = rows[0];
-  if (!row) return null;
+const parseClasswordReceiptResult = (row: Record<string, unknown>): unknown => {
   if (!isRecord(row.result)) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
   if (row.action === 'classword:save_entry') return { entry: mapEntryRow(row.result.entry), ...parseWeeklyMissionResult(row.result.reward) };
   if (row.action === 'classword:complete_quiz') {
@@ -274,6 +275,35 @@ export const loadClasswordRequestResult = async (
     } };
   }
   return row.result;
+};
+
+export const loadClasswordRequestReceipt = async (
+  configuration: ClasswordRepositoryConfiguration, actor: number, requestId: string,
+) => {
+  const rows = parseRows(await request(configuration,
+    `storage_receipts?actor_key=eq.${encodeURIComponent(`classword:${actor}`)}&request_id=eq.${encodeURIComponent(requestId)}&select=action,payload_hash,committed_at,result&limit=1`,
+  ));
+  const row = rows[0];
+  if (!row) return null;
+  if (typeof row.action !== 'string' || typeof row.payload_hash !== 'string' || typeof row.committed_at !== 'string')
+    throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+  const transportHash = isRecord(row.result) && typeof row.result.transportHash === 'string'
+    && /^[a-f0-9]{64}$/.test(row.result.transportHash) ? row.result.transportHash : null;
+  return { status: 'committed' as const, action: row.action, payloadHash: transportHash ?? row.payload_hash,
+    hashAlgorithm: transportHash ? 'sha256-transport-v1' as const : 'md5-postgres-jsonb' as const,
+    ...(!transportHash ? { legacy: true as const } : {}),
+    committedAt: row.committed_at, result: parseClasswordReceiptResult(row) };
+};
+
+export const loadClasswordRequestResult = async (
+  configuration: ClasswordRepositoryConfiguration, actor: number, requestId: string,
+): Promise<unknown | null> => {
+  const rows = parseRows(await request(configuration,
+    `storage_receipts?actor_key=eq.${encodeURIComponent(`classword:${actor}`)}&request_id=eq.${encodeURIComponent(requestId)}&select=action,result&limit=1`,
+  ));
+  const row = rows[0];
+  if (!row) return null;
+  return parseClasswordReceiptResult(row);
 };
 
 export const loadClasswordQuizCompletions = async (
@@ -351,9 +381,10 @@ export const loadClasswordQuizRewardAmount = async (
 };
 
 export const saveClasswordQuizCompletion = async (
-  configuration: ClasswordRepositoryConfiguration, dateKey: string, questionId: string, studentNumber: number, requestId: string, question: ClasswordQuizPrompt,
+  configuration: ClasswordRepositoryConfiguration, dateKey: string, questionId: string, studentNumber: number, requestId: string, question: ClasswordQuizPrompt, transportHash?: string, expectedStoredQuestionId?: string | null,
 ): Promise<{ readonly completion: ClasswordQuizCompletion; readonly reward: ClasswordQuizRewardResult }> => {
-  const value = await command(configuration, studentNumber, 'complete_quiz', { dateKey, questionId, question }, requestId);
+  const value = await command(configuration, studentNumber, 'complete_quiz', { dateKey, questionId, question,
+    ...(transportHash ? { transportHash } : {}), ...(expectedStoredQuestionId !== undefined ? { expectedStoredQuestionId } : {}) }, requestId);
   if (!isRecord(value)) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
   return { completion: mapQuizCompletionRow(value.completion), reward: parseClasswordQuizRewardResult(value.reward) };
 };
@@ -365,6 +396,8 @@ export const saveClasswordEntry = async (
   const value = await command(configuration, input.studentNumber, 'save_entry', {
     dateKey: input.dateKey, initial: input.initial, word: input.word,
     ...(input.entryId ? { entryId: input.entryId, expectedRevision: input.expectedRevision } : {}),
+    ...(input.transportHash ? { transportHash: input.transportHash } : {}),
+    ...(input.expectedStoredTopic !== undefined ? { expectedStoredTopic: input.expectedStoredTopic } : {}),
   }, input.requestId);
   if (!isRecord(value)) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
   return { entry: mapEntryRow(value.entry), reward: parseWeeklyMissionResult(value.reward) };

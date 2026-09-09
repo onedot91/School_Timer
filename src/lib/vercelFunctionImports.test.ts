@@ -21,6 +21,7 @@ test('all transitive API imports resolve as deployed Node ESM', async () => {
 });
 
 const SERVER_MODULES = [
+  'src/server/storageClientContract.ts',
   'src/server/storageCommandScope.ts',
   'src/server/storageCommandHandler.ts',
   'src/server/storageScope.ts',
@@ -124,5 +125,9 @@ test('active student and weekly mission paths do not call the legacy Classword h
 test('학생 화면에 접속하면 미션 탭을 열지 않아도 과거 보상 정산을 시작한다', async () => {
   const source = await readFile('src/pages/AuctionPage.tsx', 'utf8');
 
-  assert.match(source, /useEffect\(\(\) => \{\s+let isActive = true;\s+const syncWeeklyMission/);
+  const start = source.indexOf('const syncWeeklyMission = async');
+  assert.ok(start >= 0);
+  const effect = source.slice(source.lastIndexOf('useEffect(() => {', start), source.indexOf('}, [studentNumber]);', start));
+  assert.match(effect, /void syncWeeklyMission\(\);/);
+  assert.equal(effect.includes('activeStudentView'), false);
 });

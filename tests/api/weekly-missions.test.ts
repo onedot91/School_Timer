@@ -102,13 +102,6 @@ test('server checks the question source and internal classword entries independe
         p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
         p_source_event_id: 'final-entry-21',
       },
-      {
-        p_protocol_version: 2,
-      p_student_number: 8,
-        p_week_key: previousDateKey,
-        p_mission_type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-        p_source_event_id: 'final-entry-8',
-      },
     ]);
     const missions = (result().body as { missions: Array<{ missionType: string; pending: boolean }> }).missions;
     assert.equal(
@@ -348,5 +341,50 @@ test('cross-site browser requests are rejected before external mission checks', 
     assert.equal(fetchCalled, false);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test('23 simultaneous student checks settle only each requester while preserving historical rewards', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEnv = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY, secret: process.env.DEVICE_SESSION_SECRET };
+  process.env.SUPABASE_URL = 'https://school-timer.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'fixture';
+  process.env.DEVICE_SESSION_SECRET = SESSION_SECRET;
+  const yesterday = getPreviousKoreanDateKey();
+  const rpcStudents: number[] = [];
+  const selectors: (string | null)[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    if (url.hostname === 'question-news.vercel.app') return Response.json({ history: [] });
+    if (url.pathname.endsWith('/classword_entries')) {
+      const filter = url.searchParams.get('student_number');
+      selectors.push(filter);
+      if (url.searchParams.get('round_date')?.startsWith('eq.')) return Response.json([]);
+      return Response.json(Array.from({ length: 23 }, (_, index) => ({ id: `fixture-${index + 1}`, student_number: index + 1, round_date: yesterday }))
+        .filter(row => !filter || filter === `eq.${row.student_number}`));
+    }
+    if (url.pathname.endsWith('/weekly_mission_rewards')) { selectors.push(url.searchParams.get('student_number')); return Response.json([]); }
+    const body: unknown = JSON.parse(String(init?.body));
+    assert.ok(body && typeof body === 'object');
+    const student = Reflect.get(body, 'p_student_number');
+    assert.equal(typeof student, 'number');
+    rpcStudents.push(student);
+    return Response.json({ missionType: Reflect.get(body, 'p_mission_type'), weekKey: Reflect.get(body, 'p_week_key'), completed: true, awarded: false, rewardAmount: 5, balance: 100 });
+  };
+  try {
+    await Promise.all(Array.from({ length: 23 }, async (_, index) => {
+      const studentNumber = index + 1;
+      const { response, result } = createResponse();
+      await handler({ method: 'POST', body: { protocolVersion: 2, studentNumber }, headers: { ...deviceHeaders(studentNumber), 'x-forwarded-for': 'scope-concurrency-fixture' } }, response);
+      assert.equal(result().statusCode, 200);
+    }));
+    assert.equal(rpcStudents.length, 46, 'two own-student reward checks per request, not 23 whole-class settlements');
+    for (let student = 1; student <= 23; student += 1) assert.equal(rpcStudents.filter(value => value === student).length, 2);
+    assert.ok(selectors.every(value => /^eq\.\d+$/.test(value ?? '')), 'historical paging and ledger reads stay student-scoped');
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of Object.entries({ SUPABASE_URL: originalEnv.url, SUPABASE_SERVICE_ROLE_KEY: originalEnv.key, DEVICE_SESSION_SECRET: originalEnv.secret })) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
   }
 });

@@ -1,3 +1,4 @@
+import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
 import {
   TodayFriendDomainError,
   getTodayFriendDateKey,
@@ -28,6 +29,7 @@ import {
   saveTodayFriendDraft,
   storeTodayFriendPlanningState,
   loadTodayFriendSaveReceipt,
+  loadTodayFriendRequestReceipt,
   TodayFriendRepositoryError,
   type TodayFriendRepositoryConfiguration,
 } from '../src/server/todayFriendRepository.js';
@@ -66,9 +68,15 @@ const handleGet = async (
   configuration: TodayFriendRepositoryConfiguration,
   session: DeviceSession,
 ): Promise<void> => {
+  const expectedStudent = request.query?.expectedStudentNumber;
+  if (expectedStudent !== undefined && (session.role !== 'student' || expectedStudent !== String(session.studentNumber))) throw new TodayFriendApiError(403, 'STUDENT_FORBIDDEN');
   if (typeof request.query?.requestId === 'string') {
     if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
     if (!request.query.requestId.trim() || request.query.requestId.length > 200) throw new TodayFriendApiError(400, 'INVALID_REQUEST_ID');
+    if (request.query.receiptOnly === '1') {
+      response.status(200).json(await loadTodayFriendRequestReceipt(configuration, `student:${session.studentNumber}`, request.query.requestId) ?? { status: 'unknown' });
+      return;
+    }
     const submission = await loadTodayFriendSaveReceipt(configuration, `student:${session.studentNumber}`, request.query.requestId);
     response.status(200).json({ found: submission !== null, submission });
     return;
@@ -118,15 +126,30 @@ const handlePost = async (
   const action = parseTodayFriendAction(request.body);
   if (action.type === 'save_draft' || action.type === 'submit') {
     if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
+    const raw: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+    const expectedStudent = raw && typeof raw === 'object' ? Reflect.get(raw, 'expectedStudentNumber') : undefined;
+    if (expectedStudent === undefined && requiresStudentEditRevisions()) throw new TodayFriendApiError(426, 'STORAGE_PROTOCOL_UPGRADE_REQUIRED');
+    if (expectedStudent !== undefined && expectedStudent !== session.studentNumber) throw new TodayFriendApiError(403, 'STUDENT_FORBIDDEN');
     const requestPayload = { action: action.type, dateKey: action.dateKey, payload: action.payload, expectedRevision: action.expectedRevision, ...(action.expectedMission ? { expectedMission: { partnerNumber: action.expectedMission.partnerNumber, genre: action.expectedMission.genre, question: action.expectedMission.question } } : {}) };
     const actorKey = `student:${session.studentNumber}`;
     const prior = await loadTodayFriendSaveReceipt(configuration, actorKey, action.requestId, requestPayload);
     if (prior) { response.status(200).json(prior); return; }
-    const mission = await loadTodayFriendMission(configuration, action.dateKey, session.studentNumber);
-    if (action.expectedMission && (action.expectedMission.partnerNumber !== mission.partnerNumber || action.expectedMission.genre !== mission.genre || action.expectedMission.question !== mission.question || (action.expectedMission.planningRevision !== undefined && action.expectedMission.planningRevision !== mission.planningRevision))) throw new TodayFriendApiError(409, 'TODAY_FRIEND_SUBMISSION_CONFLICT');
-    response.status(200).json(await saveTodayFriendDraft(configuration, mission, action.payload, {
-      expectedRevision: action.expectedRevision, requestId: action.requestId, actorKey, requestPayload,
-    }, action.type === 'submit'));
+    try {
+      const mission = await loadTodayFriendMission(configuration, action.dateKey, session.studentNumber);
+      if (action.expectedMission && (action.expectedMission.partnerNumber !== mission.partnerNumber || action.expectedMission.genre !== mission.genre || action.expectedMission.question !== mission.question || (action.expectedMission.planningRevision !== undefined && action.expectedMission.planningRevision !== mission.planningRevision))) throw new TodayFriendApiError(409, 'TODAY_FRIEND_SUBMISSION_CONFLICT');
+      response.status(200).json(await saveTodayFriendDraft(configuration, mission, action.payload, {
+        expectedRevision: action.expectedRevision, requestId: action.requestId, actorKey, requestPayload,
+      }, action.type === 'submit'));
+    } catch (error) {
+      if (error instanceof TodayFriendDomainError || (error instanceof TodayFriendApiError || error instanceof TodayFriendRepositoryError)
+        && [400, 409, 422].includes(error.status) && !['STORAGE_REQUEST_REUSED', 'STORAGE_REQUEST_PAYLOAD_MISMATCH'].includes(error.code)) {
+        let confirmed;
+        try { confirmed = await loadTodayFriendSaveReceipt(configuration, actorKey, action.requestId, requestPayload); }
+        catch { throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_CONFIRMATION_UNAVAILABLE'); }
+        if (confirmed) { response.status(200).json(confirmed); return; }
+      }
+      throw error;
+    }
     return;
   }
   requireTeacher(session);

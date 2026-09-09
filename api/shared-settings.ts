@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
+import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
 import { loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
 
@@ -340,6 +341,7 @@ const handleLibraryPlacement = async (
       const value = placement.value;
       const saved = await commitCompetition(configuration, { current, value, updatedAt: createdAt,
         actorKey: `student:${studentNumber}`, requestId: command.requestId, action: 'placeLibraryBook', payload: command,
+        result: { book: placement.book },
       }) ? 'saved' : 'conflict';
       if (saved === 'saved') {
         const confirmed = await loadCompetitionRow(configuration, studentNumber);
@@ -444,6 +446,7 @@ const loadUpdatedAt = async (url: string, key: string) => {
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('X-Storage-Edit-Revisions', requiresStudentEditRevisions() ? 'required' : 'optional');
   const configuration = getConfiguration();
   if (!configuration) {
     response.status(503).json({ error: 'SHARED_SETTINGS_NOT_CONFIGURED' });
@@ -483,7 +486,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       }
       const metadataOnly = request.query?.metadata === '1';
       if (metadataOnly) {
-        response.status(200).json({ updatedAt: await loadUpdatedAt(configuration.url, configuration.key) });
+        response.status(200).json({ updatedAt: await loadUpdatedAt(configuration.url, configuration.key),
+          ...(request.query?.capabilities === '1' ? { storageCapabilities: {
+            receiptOnly: true, editRevisionsRequired: requiresStudentEditRevisions(),
+          } } : {}),
+        });
         return;
       }
       const shouldLoadFullRow = session.role === 'teacher';
@@ -546,12 +553,15 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       }
       return;
     }
-    const placement = parseLibraryPlacementCommand(request.body);
+    const { expectedStudentNumber: placementStudent, ...placementBody } = asRecord(commandBody);
+    const placement = parseLibraryPlacementCommand(placementBody);
     if (placement.ok) {
       if (session.role !== 'student') {
         response.status(403).json({ error: 'LIBRARY_BOOK_FORBIDDEN' });
         return;
       }
+      if (placementStudent === undefined && requiresStudentEditRevisions()) { response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return; }
+      if (placementStudent !== undefined && placementStudent !== session.studentNumber) { response.status(403).json({ error: 'STUDENT_FORBIDDEN' }); return; }
       if (process.env.STORAGE_PROTOCOL_VERSION === '2' && !hasLibraryProjectionCapability(request.headers)) {
         response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
       }

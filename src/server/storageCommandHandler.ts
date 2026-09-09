@@ -3,11 +3,12 @@ import { applyStudentStorageCommand } from './studentStorageCommands.js';
 import { applyTeacherStorageCommand } from './teacherStorageCommands.js';
 import {
   commitScopedStorageMutation, getStorageReceipt, loadScopedStorageSnapshot, StorageRepositoryError,
-  type StorageConfiguration,
+  type StorageConfiguration, type StorageReceipt,
 } from './storageV2Repository.js';
-import { storageCommandScope } from './storageCommandScope.js';
+import { storageCommandScope, studentEditRevisionKeys } from './storageCommandScope.js';
 import { createStorageProjectionPatch, supportsStorageProjection } from './storageProjection.js';
 import { isStorageRecord } from '../lib/storageV2Codec.js';
+import { requiresStudentEditRevisions } from './storageClientContract.js';
 
 interface CommandRequest {
   readonly headers?: RequestHeaders;
@@ -24,6 +25,20 @@ type ProjectValue = (value: unknown, student: number) => Record<string, unknown>
 
 const actorKey = (session: DeviceSession): string => session.role === 'teacher' ? 'teacher:0' : `student:${session.studentNumber}`;
 const validId = (id: unknown): id is string => typeof id === 'string' && /^[a-zA-Z0-9_-]{8,160}$/.test(id);
+const receiptStatus = (receipt: StorageReceipt) => ({ status: 'committed', action: receipt.action,
+  payloadHash: receipt.payloadHash, committedAt: receipt.committedAt, result: receipt.result });
+const validateEditRevisions = (action: string, payload: unknown, studentNumber: number, revisions: Readonly<Record<string, number>>) => {
+  const keys = studentEditRevisionKeys(action, studentNumber);
+  if (!keys.length) return;
+  const expected = isStorageRecord(payload) ? payload.expectedRevisions : undefined;
+  if (expected === undefined && !requiresStudentEditRevisions()) return;
+  if (expected === undefined) throw new StorageRepositoryError(426, 'STORAGE_PROTOCOL_UPGRADE_REQUIRED');
+  if (!isStorageRecord(expected) || Object.keys(expected).length !== keys.length
+    || Object.entries(expected).some(([key, value]) => !keys.includes(key) || typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0))
+    throw new StorageRepositoryError(400, 'INVALID_EDIT_REVISIONS');
+  if (keys.some(key => expected[key] !== (revisions[key] ?? 0)))
+    throw new StorageRepositoryError(409, 'STUDENT_EDIT_CONFLICT');
+};
 const businessError = (error: Error): { code: string; status: number } | null => {
   const code: unknown = Reflect.get(error, 'code');
   const status: unknown = Reflect.get(error, 'status');
@@ -39,6 +54,7 @@ export const handleStorageCommand = async (
   if (!supportsStorageProjection(request.headers)) {
     response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
   }
+  let confirmBeforeRejection: (() => Promise<boolean>) | undefined;
   try {
     const body: unknown = request.method === 'GET' ? undefined
       : typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
@@ -65,6 +81,7 @@ export const handleStorageCommand = async (
       if (!validId(requestId)) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
       const receipt = await getStorageReceipt(configuration, commandActor, requestId);
       if (!receipt.found) { response.status(200).json({ status: 'unknown' }); return; }
+      if (request.query?.receiptOnly === '1') { response.status(200).json(receiptStatus(receipt)); return; }
       const scope = receipt.scope ?? storageCommandScope(receipt.action ?? '', {}, effectiveSession, true);
       const snapshot = await loadScopedStorageSnapshot(configuration, scope);
       response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result,
@@ -78,6 +95,14 @@ export const handleStorageCommand = async (
     if (effectiveSession.role === 'student' && !action.startsWith('student.')) { response.status(403).json({ error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' }); return; }
     if (effectiveSession.role === 'teacher' && !action.startsWith('teacher.')) { response.status(403).json({ error: 'TEACHER_COMMAND_REQUIRED' }); return; }
     const scope = storageCommandScope(action, payload, effectiveSession);
+    confirmBeforeRejection = async () => {
+      const receipt = await getStorageReceipt(configuration, commandActor, requestId, { action, payload });
+      if (!receipt.found) return false;
+      const current = await loadScopedStorageSnapshot(configuration, receipt.scope ?? scope);
+      response.status(200).json({ ...receiptStatus(receipt), storagePatch: createStorageProjectionPatch(current, project(current.value)),
+        value: project(current.value), updatedAt: current.updated_at });
+      return true;
+    };
     const createdAt = new Date().toISOString();
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const receipt = await getStorageReceipt(configuration, commandActor, requestId, { action, payload });
@@ -87,6 +112,7 @@ export const handleStorageCommand = async (
         return;
       }
       const snapshot = await loadScopedStorageSnapshot(configuration, scope);
+      if (effectiveSession.role === 'student') validateEditRevisions(action, payload, effectiveSession.studentNumber, snapshot.revisions);
       const mutation = effectiveSession.role === 'teacher'
         ? applyTeacherStorageCommand(snapshot.value, action, payload, { requestId, createdAt })
         : applyStudentStorageCommand(snapshot.value, effectiveSession.studentNumber, action, payload, { requestId, createdAt });
@@ -102,8 +128,17 @@ export const handleStorageCommand = async (
       }
       if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 40 * 2 ** attempt + Math.random() * 80));
     }
-    response.status(409).json({ error: 'RESOURCE_REVISION_CONFLICT' });
+    throw new StorageRepositoryError(409, 'RESOURCE_REVISION_CONFLICT');
   } catch (error) {
+    if (confirmBeforeRejection && (error instanceof StorageRepositoryError && [400, 409, 426].includes(error.status)
+      && error.code !== 'STORAGE_REQUEST_REUSED' || error instanceof Error && businessError(error))) {
+      try { if (await confirmBeforeRejection()) return; }
+      catch (confirmationError) {
+        const reused = confirmationError instanceof StorageRepositoryError && confirmationError.code === 'STORAGE_REQUEST_REUSED';
+        response.status(reused ? 409 : 502).json({ error: reused ? 'STORAGE_REQUEST_REUSED' : 'STORAGE_CONFIRMATION_UNAVAILABLE' });
+        return;
+      }
+    }
     if (error instanceof SyntaxError) { response.status(400).json({ error: 'INVALID_BODY' }); return; }
     if (error instanceof StorageRepositoryError) {
       if (error.status === 503) response.setHeader('Retry-After','5');

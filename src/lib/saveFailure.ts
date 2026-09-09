@@ -35,6 +35,10 @@ export type SaveFailureDiagnostics = {
   endpoint?: string;
   view?: keyof typeof SAVE_FAILURE_VIEWS;
   online?: boolean;
+  requestId?: string;
+  buildVersion?: string;
+  stage?: 'draft' | 'write' | 'receipt' | 'refresh' | 'recovery';
+  retryCount?: number;
 };
 export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnostics | undefined => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -53,6 +57,15 @@ export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnost
   if (typeof view === 'string' && Object.hasOwn(SAVE_FAILURE_VIEWS, view)) result.view = view as keyof typeof SAVE_FAILURE_VIEWS;
   const online = Reflect.get(value, 'online');
   if (typeof online === 'boolean') result.online = online;
+  const requestId = Reflect.get(value, 'requestId');
+  if (typeof requestId === 'string' && /^[a-zA-Z0-9:_-]{8,160}$/.test(requestId)) result.requestId = requestId;
+  const buildVersion = Reflect.get(value, 'buildVersion');
+  if (typeof buildVersion === 'string' && (buildVersion === 'development'
+    || (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(buildVersion) && Number.isFinite(Date.parse(buildVersion))))) result.buildVersion = buildVersion;
+  const stage = Reflect.get(value, 'stage');
+  if (stage === 'draft' || stage === 'write' || stage === 'receipt' || stage === 'refresh' || stage === 'recovery') result.stage = stage;
+  const retryCount = Reflect.get(value, 'retryCount');
+  if (typeof retryCount === 'number' && Number.isInteger(retryCount) && retryCount >= 0 && retryCount <= 100) result.retryCount = retryCount;
   return Object.keys(result).length > 0 ? result : undefined;
 };
 export type SaveFailureAlert = SaveFailureReport & { acknowledgedAt: string | null; receivedAt?: string };

@@ -74,6 +74,43 @@ begin
  then raise exception 'unverified payment completed'; end if;
 end;
 $$;
+do $$
+declare first_result jsonb; replay jsonb; payload jsonb; before_balance integer;
+begin
+ perform public.classword_command_v2(0,'topic-context-start','save_topic','{"dateKey":"2099-11-01","topic":"동물"}',2);
+ payload:=jsonb_build_object('dateKey','2099-11-01','initial','ㄱ','word','강아지','expectedStoredTopic','동물','transportHash',repeat('a',64));
+ first_result:=public.classword_command_v2(7,'transport-word-001','save_entry',payload,2);
+ if first_result->>'transportHash'<>repeat('a',64) or
+   (select result->>'transportHash' from public.storage_receipts where actor_key='classword:7' and request_id='transport-word-001')<>repeat('a',64)
+ then raise exception 'transport identity not committed atomically'; end if;
+ perform public.classword_command_v2(0,'topic-context-change','save_topic','{"dateKey":"2099-11-01","topic":"음식"}',2);
+ replay:=public.classword_command_v2(7,'transport-word-001','save_entry',payload,2);
+ if replay<>first_result then raise exception 'context change blocked committed replay'; end if;
+ select balance into before_balance from public.wallet_accounts where student_number=8;
+ begin
+   perform public.classword_command_v2(8,'stale-topic-0001','save_entry',payload || '{"initial":"ㄴ","word":"나비"}',2);
+   raise exception 'stale topic accepted';
+ exception when others then if sqlerrm<>'CLASSWORD_TOPIC_CHANGED' then raise; end if; end;
+ if exists(select 1 from public.classword_entries where round_date='2099-11-01' and student_number=8)
+   or exists(select 1 from public.storage_receipts where request_id='stale-topic-0001')
+   or (select balance from public.wallet_accounts where student_number=8)<>before_balance then raise exception 'stale topic left partial records'; end if;
+ perform public.classword_command_v2(0,'quiz-context-change','save_quiz','{"quiz_date":"2099-11-01","question_id":"new-question","initial_hint":"ㄷㅇ","meaning":"도움을 주는 일","answer":"도움","written_prefix":"","written_suffix":"","spoken_prefix":"","spoken_suffix":""}',2);
+ begin
+   perform public.classword_command_v2(8,'stale-question-001','complete_quiz',jsonb_build_object('dateKey','2099-11-01','questionId','old-question','expectedStoredQuestionId',null,'transportHash',repeat('b',64)),2);
+   raise exception 'stale question accepted';
+ exception when others then if sqlerrm<>'CLASSWORD_QUIZ_CHANGED' then raise; end if; end;
+ if exists(select 1 from public.classword_quiz_completions where quiz_date='2099-11-01' and student_number=8)
+   or exists(select 1 from public.storage_receipts where request_id='stale-question-001') then raise exception 'changed quiz consumed the answer'; end if;
+ payload:=jsonb_build_object('dateKey','2099-11-01','questionId','new-question','expectedStoredQuestionId','new-question','transportHash',repeat('c',64));
+ first_result:=public.classword_command_v2(8,'transport-quiz-001','complete_quiz',payload,2);
+ replay:=public.classword_command_v2(8,'transport-quiz-001','complete_quiz',payload,2);
+ if first_result<>replay or first_result->>'transportHash'<>repeat('c',64) then raise exception 'quiz receipt metadata lost'; end if;
+ if (select count(*) from public.wallet_ledger where student_number=8 and entry_id like '%2099-11-01')<>1 then raise exception 'transport quiz paid twice'; end if;
+ begin
+   perform public.classword_command_v2(8,'invalid-transport-001','complete_quiz',payload || '{"transportHash":"invalid"}',2);
+   raise exception 'invalid transport hash accepted';
+ exception when others then if sqlerrm<>'CLASSWORD_INVALID_COMMAND' then raise; end if; end;
+end; $$;
 set constraints classword_quiz_reward_guard immediate;
 do $$ begin
  begin

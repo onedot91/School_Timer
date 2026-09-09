@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import handler from '../../api/shared-settings.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 import { createStorageV2Fixture } from './storageV2Fixture.js';
+import { createSudokuPuzzle } from '../../src/lib/sudoku.js';
+import { getKoreanIsoWeekKey } from '../../src/lib/weeklyMission.js';
 
 const secret = 'storage-test-only-secret-at-least-32-bytes';
 const initial = () => ({
@@ -123,4 +125,75 @@ test('23 students can bid and teacher student-view bids retain actor-scoped rece
     assert.equal((await call(0,'POST',{...request,action:'student.pet.feed'})).status,403);
     assert.equal((await call(0,'POST',request)).status,200);
   } finally {globalThis.Date=originalNow;}
+}));
+
+test('receiptOnly confirms a committed save even when the current projection cannot load', () => environment(async (call, fixture) => {
+  const request = command('projection-unavailable-0001', 'teacher.currency.adjust', { studentNumbers: [2], amount: 6 });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).endsWith('/storage_load_scope') && fixture.receipts.size) throw new TypeError('Fixture projection unavailable');
+    return originalFetch(input, init);
+  };
+  assert.equal((await call(0, 'POST', request)).status, 502);
+  const confirmed = await call(0, 'GET', undefined, { requestId: request.requestId, receiptOnly: '1' });
+  assert.equal(confirmed.status, 200);
+  assert.deepEqual(Object.keys(Object(confirmed.body)).sort(), ['action', 'committedAt', 'payloadHash', 'result', 'status']);
+  assert.equal(Reflect.get(Object(confirmed.body), 'status'), 'committed');
+  assert.equal(Reflect.get(Object(fixture.read().value.currencyBalances), '2'), 106);
+  assert.deepEqual((await call(3, 'GET', undefined, { requestId: request.requestId, receiptOnly: '1' })).body, { status: 'unknown' });
+}));
+
+test('same request committed between receipt lookup and validation returns committed instead of a stale conflict', () => environment(async (call) => {
+  const request = command('concurrent-settings-replay', 'teacher.settings.patch', { changes: [{ field: 'scheduleNotice', before: 'original', after: 'saved' }] });
+  assert.equal((await call(0, 'POST', request)).status, 200);
+  assert.equal((await call(0, 'POST', command('later-settings-edit-0001', 'teacher.settings.patch', { changes: [{ field: 'scheduleNotice', before: 'saved', after: 'later edit' }] }))).status, 200);
+  const originalFetch = globalThis.fetch;
+  let lookups = 0;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).endsWith('/storage_get_receipt') && ++lookups === 1) return Response.json({ found: false });
+    return originalFetch(input, init);
+  };
+  assert.equal((await call(0, 'POST', request)).status, 200);
+  assert.equal(lookups, 2);
+}));
+
+test('failed receipt recheck does not report a definitive business rejection', () => environment(async (call) => {
+  const originalFetch = globalThis.fetch;
+  let lookups = 0;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).endsWith('/storage_get_receipt') && ++lookups === 2) throw new TypeError('Fixture receipt unavailable');
+    return originalFetch(input, init);
+  };
+  const result = await call(0, 'POST', command('ambiguous-settings-0001', 'teacher.settings.patch', { changes: [{ field: 'scheduleNotice', before: 'outdated', after: 'new' }] }));
+  assert.equal(result.status, 502);
+  assert.deepEqual(result.body, { error: 'STORAGE_CONFIRMATION_UNAVAILABLE' });
+}));
+
+test('sudoku edit revisions reject reverse-order old input and replay the same committed request', () => environment(async (call, fixture) => {
+  process.env.STORAGE_REQUIRE_EDIT_REVISIONS = '1';
+  const week = getKoreanIsoWeekKey(new Date()), puzzle = createSudokuPuzzle(2, week, 'basic');
+  const key = `2:${week}:basic`, revisionKey = 'scope:studentSudoku:2';
+  const oldCells = [...puzzle.puzzle], newCells = [...oldCells];
+  const open = newCells.findIndex(cell => cell === 0); assert.ok(open >= 0); newCells[open] = 1;
+  const payload = { key, cells: newCells, expectedRevisions: { [revisionKey]: 0 } };
+  const newest = command('sudoku-new-input-0001', 'student.sudoku.save', payload);
+  const saved = await call(2, 'POST', newest);
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const patch = Reflect.get(Object(saved.body), 'storagePatch');
+  assert.ok(Reflect.get(Object(Reflect.get(Object(patch), 'revisions')), revisionKey) > 0);
+  assert.equal(Reflect.get(Object(Reflect.get(Object(patch), 'revisions')), 'scope:studentSudoku:3'), undefined);
+  const stale = await call(2, 'POST', command('sudoku-old-input-0001', 'student.sudoku.save', { ...payload, cells: oldCells }));
+  assert.equal(stale.status, 409);
+  assert.deepEqual(stale.body, { error: 'STUDENT_EDIT_CONFLICT' });
+  assert.deepEqual(Reflect.get(Object(Reflect.get(Object(fixture.read().value.studentSudoku), key)), 'cells'), newCells);
+  assert.equal((await call(2, 'POST', newest)).status, 200);
+  assert.equal((await call(2, 'POST', { ...newest, payload: { ...payload, cells: oldCells } })).status, 409);
+  assert.equal((await call(2, 'POST', command('revision-wrong-scope', 'student.sudoku.save', { ...payload, expectedRevisions: { 'scope:studentSudoku:3': 0 } }))).status, 400);
+  assert.equal((await call(2, 'POST', command('revision-missing-map', 'student.sudoku.save', { key, cells: oldCells }))).status, 426);
+}));
+
+test('emotion retry cannot move an old dated draft into today', () => environment(async (call) => {
+  const result = await call(2, 'POST', command('emotion-old-date-0001', 'student.emotion.save', { dateKey: '2000-01-01', emotionId: 'happy', comment: '', selfMessage: '' }));
+  assert.equal(result.status, 409);
+  assert.equal(Reflect.get(Object(result.body), 'error'), 'STUDENT_SAVE_CONTEXT_CHANGED');
 }));

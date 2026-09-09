@@ -65,10 +65,12 @@ declare
   result jsonb;
   constraint_name text;
   affected integer;
+  stored_context text;
 begin
   if p_protocol_version is distinct from 2 then raise exception 'STORAGE_PROTOCOL_REQUIRED'; end if;
   perform public.storage_require_writable();
   if p_actor is null or p_actor not between 0 and 23 or p_request_id is null or length(p_request_id) not between 8 and 160 or jsonb_typeof(p_payload) is distinct from 'object' then raise exception 'CLASSWORD_INVALID_COMMAND'; end if;
+  if p_payload ? 'transportHash' and (jsonb_typeof(p_payload->'transportHash') is distinct from 'string' or (p_payload->>'transportHash') !~ '^[a-f0-9]{64}$') then raise exception 'CLASSWORD_INVALID_COMMAND'; end if;
   perform pg_advisory_xact_lock(hashtextextended(v_actor_key||':'||p_request_id,0));
   select * into receipt from public.storage_receipts r where r.actor_key=v_actor_key and r.request_id=p_request_id;
   if found then
@@ -79,6 +81,17 @@ begin
     return receipt.result;
   end if;
   perform set_config('school_timer.storage_protocol','2',true);
+  if p_action in ('save_entry','complete_quiz','save_topic','save_quiz','delete_quiz') then
+    perform pg_advisory_xact_lock(hashtextextended('classword-context:'||coalesce(p_payload->>'dateKey',p_payload->>'quiz_date'),0));
+  end if;
+  if p_action='save_entry' and p_payload ? 'expectedStoredTopic' then
+    select topic into stored_context from public.classword_rounds where round_date=(p_payload->>'dateKey')::date;
+    if stored_context is distinct from p_payload->>'expectedStoredTopic' then raise exception 'CLASSWORD_TOPIC_CHANGED'; end if;
+  end if;
+  if p_action='complete_quiz' and p_payload ? 'expectedStoredQuestionId' then
+    select question_id into stored_context from public.classword_quizzes where quiz_date=(p_payload->>'dateKey')::date;
+    if stored_context is distinct from p_payload->>'expectedStoredQuestionId' then raise exception 'CLASSWORD_QUIZ_CHANGED'; end if;
+  end if;
   if p_action in ('save_entry','complete_quiz') then
     perform 1 from public.wallet_accounts where student_number=p_actor for update;
   end if;
@@ -148,6 +161,7 @@ begin
     result := jsonb_build_object('saved',true);
   else raise exception 'CLASSWORD_INVALID_COMMAND';
   end if;
+  if p_payload ? 'transportHash' then result := result || jsonb_build_object('transportHash',p_payload->>'transportHash'); end if;
   insert into public.storage_receipts(actor_key,request_id,action,payload_hash,result)
     values(v_actor_key,p_request_id,'classword:'||p_action,v_payload_hash,result);
   return result;
