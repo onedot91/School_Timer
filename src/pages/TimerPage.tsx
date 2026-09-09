@@ -12061,15 +12061,15 @@ export default function TimerPage() {
                             role="status"
                             aria-live="polite"
                           >
-                            {currencyAdjustmentSummary?.target === 'group' ? (
-                              <span className="whitespace-nowrap text-[0.72rem] font-black leading-none text-white">
-                                {formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}
-                              </span>
-                            ) : (
-                              <span className="whitespace-nowrap text-[0.78rem] font-black leading-none">{selectedCurrencyGroupCount}명</span>
-                            )}
+                            <span className="whitespace-nowrap text-[0.78rem] font-black leading-none">{selectedCurrencyGroupCount}명</span>
                           </div>
-                          <div className="min-w-0 flex-1" aria-hidden="true" />
+                          <output
+                            className="min-w-0 flex-1 text-center font-mono text-sm font-black text-[#006241]"
+                            aria-label="선택한 학생 1명당 누적 증감"
+                            aria-live="polite"
+                          >
+                            각 {currencyAdjustmentSummary?.target === 'group' ? formatCurrencyAdjustmentSummary(currencyAdjustmentSummary) : '0'}
+                          </output>
                           <button
                             type="button"
                             onClick={() => adjustGroupCurrencyBalances(-CURRENCY_BALANCE_STEP)}

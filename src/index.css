@@ -18027,6 +18027,10 @@ a[href]:active {
     display: none;
   }
 
+  .currency-all-action-row > output {
+    grid-column: 1 / -1;
+  }
+
   .currency-all-action-row > button {
     width: 100% !important;
   }
