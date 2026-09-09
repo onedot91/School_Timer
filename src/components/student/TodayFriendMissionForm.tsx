@@ -1,5 +1,5 @@
 import { BookOpen, Film, Music, Utensils } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
   createTodayFriendRecommendationDelivery,
@@ -9,6 +9,9 @@ import {
 import {
   clearTodayFriendDeviceDraft,
   loadTodayFriendDeviceDraft,
+  readyTodayFriendDeviceDraft,
+  settleTodayFriendDeviceDraft,
+  todayFriendDeviceDraftVersion,
   saveTodayFriendDeviceDraft,
 } from '../../lib/todayFriendLocalStore';
 import type { TodayFriendStudentMission } from '../../lib/todayFriendState';
@@ -63,7 +66,7 @@ export default function TodayFriendMissionForm({
   const savedPayload = pendingPayload ?? mission.submission?.payload;
   const [deviceDraft] = useState(() => {
     const storage = getDeviceStorage();
-    return isPreview || pendingPayload || !storage ? null : loadTodayFriendDeviceDraft(storage, mission);
+    return isPreview || pendingPayload ? null : loadTodayFriendDeviceDraft(storage, mission);
   });
   const [primaryText, setPrimaryText] = useState(() => deviceDraft?.primaryText ?? getPayloadText(savedPayload));
   const [secondaryText, setSecondaryText] = useState(() => (
@@ -84,19 +87,39 @@ export default function TodayFriendMissionForm({
   const [formMessage, setFormMessage] = useState(deviceDraft ? '이 기기에 자동 저장한 내용을 불러왔어요.' : '');
   const [hasEdited, setHasEdited] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const editedRef = useRef(false);
+  const [inputReady, setInputReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setInputReady(false);
+    void readyTodayFriendDeviceDraft(getDeviceStorage(), mission).then((draft) => {
+      if (!active) return;
+      if (draft && !editedRef.current && !isPreview && !pendingPayload) {
+        setPrimaryText(draft.primaryText); setSecondaryText(draft.secondaryText);
+        setTertiaryText(draft.tertiaryText); setCategory(draft.category); setDeclinedToExplain(draft.declinedToExplain);
+      }
+      setInputReady(true);
+    });
+    return () => { active = false; };
+  }, [mission.dateKey, mission.studentNumber, mission.partnerNumber, mission.genre, mission.question]);
 
   useEffect(() => {
-    if (!hasEdited || isPreview) return;
+    if (!hasEdited || isPreview || !inputReady) return;
+    editedRef.current = true;
     const storage = getDeviceStorage();
-    const saved = storage && saveTodayFriendDeviceDraft(storage, mission, {
+    saveTodayFriendDeviceDraft(storage, mission, {
       primaryText,
       secondaryText,
       tertiaryText,
       category,
       declinedToExplain,
     });
-    setFormMessage(saved ? '이 기기에 자동 저장했어요.' : '자동 저장하지 못했어요. 제출은 계속할 수 있어요.');
-  }, [category, declinedToExplain, hasEdited, isPreview, mission, primaryText, secondaryText, tertiaryText]);
+    let active = true;
+    void settleTodayFriendDeviceDraft(storage, mission).then(saved => {
+      if (active) setFormMessage(saved ? '' : '이 기기에 임시 보관하지 못했어요.');
+    });
+    return () => { active = false; };
+  }, [category, declinedToExplain, hasEdited, isPreview, inputReady, mission, primaryText, secondaryText, tertiaryText]);
 
   const buildPayload = (): TodayFriendPayload => {
     switch (mission.genre) {
@@ -119,13 +142,14 @@ export default function TodayFriendMissionForm({
   );
 
   const submit = async () => {
-    if (isPreview || isSubmitting) return;
+    if (!inputReady || isPreview || isSubmitting || isSaving) return;
     setFormMessage('');
     if (!isComplete) {
       setFormMessage('비어 있는 내용을 먼저 적어 주세요.');
       return;
     }
     setIsSubmitting(true);
+    const submittedVersion = todayFriendDeviceDraftVersion(getDeviceStorage(), mission);
     try {
       const payload = pendingPayload ?? buildPayload();
       let submittedPayload = payload;
@@ -149,7 +173,7 @@ export default function TodayFriendMissionForm({
       }
       const saved = await onSave(submittedPayload, true);
       const storage = getDeviceStorage();
-      if (saved && storage) clearTodayFriendDeviceDraft(storage, mission);
+      if (saved && submittedVersion) await clearTodayFriendDeviceDraft(storage, mission, submittedVersion);
       setFormMessage(saved
         ? payload.kind === 'recommendation' ? '친구에게 편지를 보내고 미션을 제출했어요.' : '제출했어요.'
         : '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.');
@@ -165,7 +189,7 @@ export default function TodayFriendMissionForm({
 
   return (
     <form className="today-friend-form" data-genre={mission.genre} onSubmit={handleSubmit}>
-      <fieldset className="today-friend-form-fields" disabled={isSaving || isSubmitting || Boolean(pendingPayload)} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+      <fieldset className="today-friend-form-fields" disabled={!inputReady || isSaving || isSubmitting || Boolean(pendingPayload)} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
         {mission.genre === 'interview' ? (
           <label className="today-friend-answer-card today-friend-field-card"><span>친구의 답</span><textarea value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구가 말한 내용을 적어요." maxLength={600} /></label>
         ) : null}
@@ -220,7 +244,7 @@ export default function TodayFriendMissionForm({
       </fieldset>
       {saveMessage || formMessage ? <p className="today-friend-form-message" role="status">{saveMessage || formMessage}</p> : null}
       <div className="today-friend-form-actions">
-        <button type="submit" disabled={isSaving || isSubmitting || isPreview}>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : mission.submission?.status === 'revision_requested' ? '고쳐서 다시 제출' : '선생님께 제출'}</button>
+        <button type="submit" disabled={!inputReady || isSaving || isSubmitting || isPreview}>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : mission.submission?.status === 'revision_requested' ? '고쳐서 다시 제출' : '선생님께 제출'}</button>
       </div>
     </form>
   );

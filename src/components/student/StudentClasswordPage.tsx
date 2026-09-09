@@ -3,8 +3,9 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getKoreanDateKey, type ClasswordBoard as ClasswordBoardData, type ClasswordInitial } from '../../lib/classword';
+import { browserDraftStorage } from '../../lib/featureInputDraft';
 import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
-import { EMPTY_CLASSWORD_DRAFT, loadClasswordDraft, storeClasswordDraft, type ClasswordDraft } from '../../lib/classwordDraft';
+import { EMPTY_CLASSWORD_DRAFT, readyClasswordDraft, classwordDraftVersion, confirmClasswordDraft, settleClasswordDraft, storeClasswordDraft, type ClasswordDraft } from '../../lib/classwordDraft';
 import { getClasswordDisplayDate, isClasswordWeekday } from '../../lib/classwordSchedule';
 import { playClasswordSound } from '../../lib/classwordAudio';
 import {
@@ -94,13 +95,25 @@ export default function StudentClasswordPage({
     ? board
     : { ...EMPTY_BOARD, dateKey: displayDateKey };
   const currentQuizState = quizState?.dateKey === displayDateKey ? quizState : null;
-  const loadDraft = (): ClasswordDraft => {
-    try { return loadClasswordDraft(window.localStorage, studentNumber, displayDateKey); }
-    catch { return EMPTY_CLASSWORD_DRAFT; }
-  };
+  const [initialDraft, setInitialDraft] = useState<ClasswordDraft>(EMPTY_CLASSWORD_DRAFT);
+  const [draftReady, setDraftReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setDraftReady(false);
+    void readyClasswordDraft(browserDraftStorage(), studentNumber, displayDateKey).then((draft) => {
+      if (active) { setInitialDraft(draft); setDraftReady(true); }
+    });
+    return () => { active = false; };
+  }, [studentNumber, displayDateKey]);
+  const draftCheckSequence = useRef(0);
   const saveDraft = (draft: ClasswordDraft): void => {
-    try { storeClasswordDraft(window.localStorage, studentNumber, displayDateKey, draft); }
-    catch { return; }
+    const sequence = ++draftCheckSequence.current;
+    storeClasswordDraft(browserDraftStorage(), studentNumber, displayDateKey, draft);
+    void settleClasswordDraft(browserDraftStorage(), studentNumber, displayDateKey).then((saved) => {
+      if (sequence !== draftCheckSequence.current) return;
+      if (!saved) setFeedback({ kind: 'error', message: '이 기기에 임시 보관하지 못했어요.' });
+      else setFeedback(current => current?.message === '이 기기에 임시 보관하지 못했어요.' ? null : current);
+    });
   };
 
   const refresh = useCallback(async (): Promise<void> => {
@@ -181,7 +194,7 @@ export default function StudentClasswordPage({
     readGenerationRef.current += 1;
     setQuizSaving(true);
     try {
-      const result = await submitClasswordQuizAnswer({ dateKey, studentNumber, answer });
+      const result = await submitClasswordQuizAnswer({ dateKey, studentNumber, answer, expectedQuestionId: currentQuizState?.question.id });
       readGenerationRef.current += 1;
       if (result.balance !== null) onRewardBalance(result.balance);
       if (getKoreanDateKey() !== dateKey) return result.correct;
@@ -218,6 +231,7 @@ export default function StudentClasswordPage({
     readGenerationRef.current += 1;
     setSaving(true);
     setFeedback(null);
+    const submittedDraftVersion = classwordDraftVersion(browserDraftStorage(), studentNumber, displayDateKey);
     try {
       const result = await saveClasswordEntry({
         ...input,
@@ -225,6 +239,7 @@ export default function StudentClasswordPage({
         studentNumber,
       }, currentBoard.topic);
       readGenerationRef.current += 1;
+      if (submittedDraftVersion) await confirmClasswordDraft(browserDraftStorage(), studentNumber, displayDateKey, submittedDraftVersion);
       if (result.balance !== null) onRewardBalance(result.balance);
       if (getKoreanDateKey() !== dateKey) return 'saved';
       setBoard((currentBoard) => ({
@@ -263,8 +278,10 @@ export default function StudentClasswordPage({
     readGenerationRef.current += 1;
     setSaving(true);
     setFeedback(null);
+    const submittedDraftVersion = classwordDraftVersion(browserDraftStorage(), studentNumber, displayDateKey);
     try {
       await removeClasswordEntry(entryId, studentNumber);
+      if (submittedDraftVersion) await confirmClasswordDraft(browserDraftStorage(), studentNumber, displayDateKey, submittedDraftVersion);
       readGenerationRef.current += 1;
       if (getKoreanDateKey() !== dateKey) return true;
       setBoard((currentBoard) => ({
@@ -322,10 +339,10 @@ export default function StudentClasswordPage({
             {reducedMotion ? null : <span className="classword-particles" aria-hidden="true" />}
           </motion.div>
         ) : null}
-        <ClasswordBoard
+        {draftReady ? <ClasswordBoard
           key={`${studentNumber}:${displayDateKey}`}
           board={currentBoard}
-          initialDraft={loadDraft()}
+          initialDraft={initialDraft}
           onDraftChange={saveDraft}
           studentNumber={studentNumber}
           profileAssignments={profileAssignments}
@@ -337,7 +354,7 @@ export default function StudentClasswordPage({
             setFeedback(null);
             void playClasswordSound('select');
           }}
-        />
+        /> : null}
         <ClasswordQuiz
           key={`${dateKey}:${studentNumber}:${currentQuizState?.question.id ?? 'loading'}`}
           studentNumber={studentNumber}

@@ -1,5 +1,5 @@
 import { HOUSE_MAIL_SENDER, HOUSE_MAIL_STAMP } from '../../lib/studentHouseReward';
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Inbox, Mail, MailOpen, PenLine, Reply, Send, SendHorizontal, Stamp, X } from 'lucide-react';
 import { CLASS_DONATION_MAIL_IMAGE_SOURCE, CLASS_DONATION_MAIL_SENDER_LABEL } from '../../lib/classDonation';
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
@@ -115,6 +115,47 @@ export default function StudentMailboxPage({
   const [content, setContent] = useState(draft?.content ?? '');
   const [replyToId, setReplyToId] = useState<string | undefined>(draft?.replyToId);
   const [saveError, setSaveError] = useState('');
+  const editGeneration = useRef(0);
+  const hasEdited = useRef(false);
+  const mounted = useRef(true);
+  const activeStudent = useRef(studentNumber);
+  const pendingSubmission = useRef<symbol | null>(null);
+  activeStudent.current = studentNumber;
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; editGeneration.current++; };
+  }, []);
+  useEffect(() => {
+    hasEdited.current = false;
+    editGeneration.current++;
+    setTitle(draft?.title ?? ''); setContent(draft?.content ?? ''); setReplyToId(draft?.replyToId);
+    setMode('inbox'); setSelectedId(''); setSaveError('');
+  }, [studentNumber]);
+  useEffect(() => {
+    if (hasEdited.current) return;
+    editGeneration.current++;
+    setTitle(draft?.title ?? ''); setContent(draft?.content ?? ''); setReplyToId(draft?.replyToId);
+  }, [draft?.title, draft?.content, draft?.replyToId]);
+  const markEdited = () => { hasEdited.current = true; editGeneration.current++; setSaveError(''); };
+  const sendLetter = async () => {
+    if (isSaving || pendingSubmission.current || !content.trim()) return;
+    const submission = Symbol();
+    hasEdited.current = true;
+    pendingSubmission.current = submission;
+    const generation = editGeneration.current;
+    const isCurrent = () => mounted.current && activeStudent.current === studentNumber && editGeneration.current === generation;
+    try {
+      const saved = await onSend(title, content, replyToId);
+      if (!isCurrent()) return;
+      if (!saved) { setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.'); return; }
+      markEdited();
+      setTitle(''); setContent(''); setReplyToId(undefined);
+      setFolder('inbox'); setMode('inbox'); setSelectedId('');
+    } catch {
+      if (isCurrent()) setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.');
+    } finally { if (pendingSubmission.current === submission) pendingSubmission.current = null; }
+  };
+
   const activeLetters = useMemo(
     () => (folder === 'inbox' ? letters : sentLetters).map(normalizeDailyWritingLetterForDisplay),
     [folder, letters, sentLetters],
@@ -184,6 +225,7 @@ export default function StudentMailboxPage({
   const startReply = (letter: StudentLetter) => {
     if (letter.senderLabel !== '선생님') return;
     if (hasPendingSave) { startCompose(); return; }
+    markEdited();
     const displayTitle = getLetterDisplayTitle(letter.title);
     setTitle(displayTitle.startsWith('답장:') ? displayTitle : `답장: ${displayTitle}`);
     setContent('');
@@ -311,15 +353,7 @@ export default function StudentMailboxPage({
           {mode === 'compose' ? (
             <form className="student-compose-card student-letter-paper student-letter-compose-paper" onSubmit={(event) => {
               event.preventDefault();
-              void onSend(title, content, replyToId).then((saved) => {
-                if (!saved) { setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.'); return; }
-                setTitle('');
-                setContent('');
-                setReplyToId(undefined);
-                setFolder('inbox');
-                setMode('inbox');
-                setSelectedId('');
-              });
+              void sendLetter();
             }}>
               <div className="student-compose-heading">
                 <div>
@@ -334,11 +368,11 @@ export default function StudentMailboxPage({
               </label>
               <label>
                 <span>제목</span>
-                <input value={title} readOnly={hasPendingSave} maxLength={40} onChange={(event) => { setTitle(event.target.value); onDraftChange?.({ title: event.target.value, content, ...(replyToId ? { replyToId } : {}) }); }} placeholder="제목을 적어 주세요" />
+                <input value={title} readOnly={hasPendingSave} maxLength={40} onChange={(event) => { markEdited(); setTitle(event.target.value); onDraftChange?.({ title: event.target.value, content, ...(replyToId ? { replyToId } : {}) }); }} placeholder="제목을 적어 주세요" />
               </label>
               <label className="student-compose-body-field">
                 <span>내용</span>
-                <textarea value={content} readOnly={hasPendingSave} maxLength={300} required onChange={(event) => { setContent(event.target.value); onDraftChange?.({ title, content: event.target.value, ...(replyToId ? { replyToId } : {}) }); }} placeholder="전하고 싶은 마음을 적어 주세요" />
+                <textarea value={content} readOnly={hasPendingSave} maxLength={300} required onChange={(event) => { markEdited(); setContent(event.target.value); onDraftChange?.({ title, content: event.target.value, ...(replyToId ? { replyToId } : {}) }); }} placeholder="전하고 싶은 마음을 적어 주세요" />
               </label>
               {hasPendingSave || saveError ? <p role="status">{hasPendingSave ? '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.' : saveErrorMessage ?? saveError}</p> : null}
               <div className="student-compose-actions">

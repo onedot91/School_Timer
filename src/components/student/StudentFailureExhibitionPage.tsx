@@ -70,6 +70,9 @@ export default function StudentFailureExhibitionPage({
 }: StudentFailureExhibitionPageProps) {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composerDraft, setComposerDraft] = useState(savedDraft);
+  const hasEditedComposer = useRef(false);
+  useEffect(() => { hasEditedComposer.current = false; setComposerDraft(savedDraft); setIsComposerOpen(false); }, [studentNumber]);
+  useEffect(() => { if (!hasEditedComposer.current) setComposerDraft(savedDraft); }, [savedDraft?.failure, savedDraft?.lesson]);
   const [cheerNotice, setCheerNotice] = useState<CheerNotice | null>(null);
   const [relayRevealRequest, setRelayRevealRequest] = useState(0);
   const composerTriggerRef = useRef<HTMLButtonElement>(null);
@@ -250,14 +253,16 @@ export default function StudentFailureExhibitionPage({
 
       {isComposerOpen ? (
         <FailureComposerDialog
+          key={studentNumber}
           savedDraft={composerDraft ?? savedDraft}
           hasPendingSave={hasPendingSave}
-          onDraftChange={(draft) => { setComposerDraft(draft); onDraftChange?.(draft); }}
+          onDraftChange={(draft) => { hasEditedComposer.current = true; setComposerDraft(draft); onDraftChange?.(draft); }}
           isSaving={isSaving}
           onCreate={onCreate}
           onClose={closeComposer}
           onSaved={() => {
-            setComposerDraft(undefined);
+            hasEditedComposer.current = true;
+            setComposerDraft({ failure: '', lesson: '' });
             setIsComposerOpen(false);
             setRelayRevealRequest((current) => current + 1);
           }}

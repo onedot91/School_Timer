@@ -1,8 +1,9 @@
 import { AlertCircle, CheckCircle2, Send, XCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { browserDraftStorage } from '../../lib/featureInputDraft';
 import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
-import { loadSavedClasswordQuizAnswer } from '../../lib/classwordQuizAnswerStore';
+import { loadSavedClasswordQuizAnswer, readyClasswordQuizInput, saveClasswordQuizInput, settleClasswordQuizInput } from '../../lib/classwordQuizAnswerStore';
 
 type ClasswordQuizProps = {
   readonly studentNumber: number;
@@ -28,27 +29,36 @@ export default function ClasswordQuiz({
   const [answer, setAnswer] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
 
+  const inputGeneration = useRef(0);
+  const draftCheckSequence = useRef(0);
+  const [inputReady, setInputReady] = useState(false);
+  const [inputStorageFailed, setInputStorageFailed] = useState(false);
   useEffect(() => {
+    const generation = ++inputGeneration.current;
     setSubmissionState('idle');
-    const savedAnswer = state?.completed ? loadSavedClasswordQuizAnswer(window.localStorage, {
-      dateKey: state.dateKey,
-      studentNumber,
-      questionId: state.question.id,
-    }) : '';
-    setAnswer(savedAnswer);
+    setInputReady(false);
+    if (!state) return;
+    const identity = { dateKey: state.dateKey, studentNumber, questionId: state.question.id };
+    void readyClasswordQuizInput(browserDraftStorage(), identity).then((draft) => {
+      if (generation !== inputGeneration.current) return;
+      setAnswer(state.completed ? loadSavedClasswordQuizAnswer(browserDraftStorage(), identity) || draft : draft);
+      setInputReady(true);
+    });
+    return () => { inputGeneration.current += 1; };
   }, [state?.completed, state?.dateKey, state?.question.id, studentNumber]);
 
   const submit = async (): Promise<void> => {
     const nextAnswer = answer.trim();
-    if (!nextAnswer || loading || readOnly || saving || state?.completed) return;
+    if (!inputReady || !nextAnswer || loading || readOnly || saving || state?.completed) return;
+    const generation = inputGeneration.current;
     setSubmissionState('idle');
     try {
       const correct = await onSubmit(nextAnswer);
-      if (!correct) {
+      if (!correct && generation === inputGeneration.current) {
         setSubmissionState('incorrect');
       }
     } catch {
-      setSubmissionState('error');
+      if (generation === inputGeneration.current) setSubmissionState('error');
     }
   };
 
@@ -95,13 +105,18 @@ export default function ClasswordQuiz({
                   id="classword-quiz-answer"
                   value={answer}
                   onChange={(event) => {
-                    setAnswer(event.target.value.replace(/[^\p{L}\s]/gu, ''));
+                    const next = event.target.value.replace(/[^\p{L}\s]/gu, '');
+                    setAnswer(next);
+                    const identity = { dateKey: state.dateKey, studentNumber, questionId: state.question.id };
+                    saveClasswordQuizInput(browserDraftStorage(), identity, next);
+                    const check = ++draftCheckSequence.current;
+                    void settleClasswordQuizInput(browserDraftStorage(), identity).then(saved => { if (check === draftCheckSequence.current) setInputStorageFailed(!saved); });
                     setSubmissionState('idle');
                   }}
                   maxLength={20}
                   autoComplete="off"
                   placeholder="정답 입력"
-                  disabled={loading || readOnly || saving || completed}
+                  disabled={!inputReady || loading || readOnly || saving || completed}
                 />
                 <button
                   type="submit"
@@ -112,7 +127,7 @@ export default function ClasswordQuiz({
                       : submissionState === 'error'
                         ? 'is-error'
                         : undefined}
-                  disabled={loading || readOnly || saving || completed || !answer.trim()}
+                  disabled={!inputReady || loading || readOnly || saving || completed || !answer.trim()}
                   data-reward-amount={completed && state.rewardAmount !== null ? state.rewardAmount : undefined}
                   aria-live="polite"
                   aria-atomic="true"
@@ -138,6 +153,7 @@ export default function ClasswordQuiz({
                 </button>
               </div>
               {loadError ? <p role="alert">{loadError}</p> : null}
+              {inputStorageFailed ? <p role="status">이 기기에 임시 보관하지 못했어요.</p> : null}
             </form>
           </div>
         </div>

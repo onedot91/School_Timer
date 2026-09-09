@@ -66,6 +66,10 @@ export const formatSaveFailureDiagnostic = (alert: SaveFailureAlert): string => 
   return [
     `저장 오류 ID: ${alert.id}`,
     `발생 시각: ${alert.occurredAt}`,
+    ...(details?.requestId ? [`저장 요청 ID: ${details.requestId}`] : []),
+    ...(details?.buildVersion ? [`배포 버전: ${details.buildVersion}`] : []),
+    ...(details?.stage ? [`실패 단계: ${details.stage}`] : []),
+    ...(details?.retryCount !== undefined ? [`재시도 횟수: ${details.retryCount}`] : []),
     `대상: ${alert.studentNumber === 0 ? '교사' : `${alert.studentNumber}번 학생`}`,
     `기능: ${SAVE_FAILURE_FEATURES[alert.feature]}`,
     ...(details?.view ? [`화면: ${SAVE_FAILURE_VIEWS[details.view]}`] : []),

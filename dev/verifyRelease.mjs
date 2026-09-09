@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { requireBrowserFixture } from '../tests/storage/saveReliabilityBrowser.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 export const releaseSourceHash = async () => {
@@ -24,7 +25,7 @@ export const releaseSourceHash = async () => {
 
 const main = async () => {
   if (process.argv.includes('--help')) {
-    console.log('Usage: npm run verify:release\nRequires STORAGE_TEST_PG_MODULE and STORAGE_TEST_DATABASE_URL pointing to the isolated PostgreSQL fixture at localhost:55439/postgres.\nRuns type checks, all tests, PostgreSQL/HTTP checks, emitted Node runtime and production build. Any missing prerequisite or failed check exits nonzero. Logs and source hash are written to a new private temporary directory.');
+    console.log('Usage: npm run verify:release\nRequires STORAGE_TEST_PG_MODULE and STORAGE_TEST_DATABASE_URL pointing to the isolated PostgreSQL fixture at localhost:55439/postgres.\nRequires STORAGE_TEST_BROWSER_MODULE pointing to an installed Playwright module and STORAGE_TEST_CHROMIUM_EXECUTABLE pointing to Chromium. No package is downloaded automatically.\nRuns type checks, all tests, PostgreSQL/HTTP checks, emitted Node runtime, production build and isolated production-built browser save scenarios. Any missing prerequisite or failed check exits nonzero. Logs and source hash are written to a new private temporary directory.');
     return;
   }
   const driverPath = process.env.STORAGE_TEST_PG_MODULE;
@@ -37,6 +38,7 @@ const main = async () => {
   let driver;
   try { driver = createRequire(import.meta.url)(driverPath); } catch { throw new Error('RELEASE_PG_DRIVER_UNAVAILABLE'); }
   if (typeof driver.Client !== 'function') throw new Error('RELEASE_PG_DRIVER_UNAVAILABLE');
+  await requireBrowserFixture();
   const client = new driver.Client({ connectionString: databaseUrl, connectionTimeoutMillis: 5000 });
   try { await client.connect(); await client.query('select 1'); }
   catch { throw new Error('RELEASE_LOCAL_DATABASE_UNAVAILABLE'); }
@@ -55,6 +57,8 @@ const main = async () => {
     ['emitted-runtime', process.execPath, ['--test', 'tests/storage/emittedRuntime.test.mjs']],
     ['restore-drill', process.execPath, ['--import', 'tsx', 'dev/storageRestoreDrill.ts']],
     ['production-build', 'npm', ['run', 'build']],
+    ['save-browser', process.execPath, ['tests/storage/saveReliabilityBrowser.mjs']],
+    ['save-full-stack', process.execPath, ['--import', 'tsx', 'tests/storage/saveReliabilityFullStack.ts']],
   ];
   const results = [];
   for (const [name, command, args] of steps) {

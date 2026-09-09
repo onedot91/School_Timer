@@ -111,3 +111,40 @@ test('저장 후 일시적인 조회 오류가 생겨도 이미 만든 요청 ID
   assert.equal(store.load(scope)?.draft.requestId, requestId);
   assert.equal(store.load(scope)?.durable, false);
 });
+
+test('편집 초안 교체는 삭제하지 않고 실패한 최신 쓰기를 오래된 저장값보다 우선한다', () => {
+  const storage = storageFixture();
+  let writingFails = false;
+  let removals = 0;
+  let sequence = 0;
+  const store = createStudentSaveDraftStore({
+    storage: {
+      ...storage,
+      setItem(key, value) { if (writingFails) throw new Error('quota'); storage.setItem(key, value); },
+      removeItem() { removals++; throw new Error('remove blocked'); },
+    },
+    createRequestId: () => `edit-${++sequence}`,
+  });
+  const first = store.replace(scope, { text: '첫 초안' });
+  assert.notEqual(first.status, 'invalid');
+  writingFails = true;
+  const latest = store.replace(scope, { text: '새로운 입력' });
+  assert.notEqual(latest.status, 'invalid');
+  assert.equal(store.load(scope)?.durable, false);
+  assert.deepEqual(store.load(scope)?.draft.payload, { text: '새로운 입력' });
+  assert.equal(removals, 0);
+  assert.equal(store.confirm(scope, 'edit-1'), false);
+  assert.deepEqual(store.load(scope)?.draft.payload, { text: '새로운 입력' });
+});
+
+test('늦은 A 확인으로 B와 C 편집을 삭제하지 않는다', () => {
+  let sequence = 0;
+  const store = createStudentSaveDraftStore({ storage: storageFixture(), createRequestId: () => `version-${++sequence}` });
+  const first = store.replace(scope, { body: 'A' });
+  assert.notEqual(first.status, 'invalid');
+  store.replace(scope, { body: 'B' });
+  store.replace(scope, { body: 'C' });
+  assert.equal(store.confirm(scope, 'version-1'), false);
+  assert.equal(store.load(scope)?.draft.requestId, 'version-3');
+  assert.deepEqual(store.load(scope)?.draft.payload, { body: 'C' });
+});

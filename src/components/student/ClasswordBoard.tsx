@@ -137,12 +137,13 @@ export default function ClasswordBoard({
 
   const confirmSave = async (): Promise<void> => {
     if (disabled || saving || !selectedInitial || !pendingWord) return;
+    const submittedDraft = draftRef.current;
     const result = await onSave({
       ...(ownEntry ? { entryId: ownEntry.id, expectedRevision: ownEntry.updatedAt } : {}),
       initial: selectedInitial,
       word: pendingWord,
     });
-    if (result === 'saved') closeEditor(true);
+    if (result === 'saved' && draftRef.current === submittedDraft) closeEditor();
     else if (result === 'conflict') setPendingWord('');
   };
 
@@ -154,19 +155,21 @@ export default function ClasswordBoard({
       return;
     }
     setMessage('');
+    const submittedDraft = draftRef.current;
     const result = await onSave({
       entryId: ownEntry.id,
       expectedRevision: ownEntry.updatedAt,
       initial: selectedInitial,
       word: validation.word,
     });
-    if (result === 'saved') closeEditor(true);
+    if (result === 'saved' && draftRef.current === submittedDraft) closeEditor();
   };
 
   const removeOwnEntry = async (): Promise<void> => {
     if (disabled || saving || !ownEntry) return;
+    const submittedDraft = draftRef.current;
     const deleted = await onDelete(ownEntry.id);
-    if (deleted) closeEditor(true);
+    if (deleted && draftRef.current === submittedDraft) closeEditor();
   };
 
   return (

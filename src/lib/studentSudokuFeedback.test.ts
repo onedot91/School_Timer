@@ -37,5 +37,7 @@ test('숫자 입력 안내는 틀린 위치를 알려 주지 않고 완성 판�
   assert.match(pageSource, /빈칸을 선택하고 숫자를 입력하세요/);
   assert.match(pageSource, /매주 월요일 새 문제로 바뀌어요/);
   assert.match(pageSource, /isSudokuSolved\(puzzle, nextCells\)/);
-  assert.match(pageSource, /입력을 저장하지 못했습니다/);
+  assert.match(pageSource, /저장을 확인하지 못했어요/);
+  assert.match(pageSource, /저장 다시 확인/);
+  assert.doesNotMatch(pageSource, /입력을 저장하지 못했습니다/);
 });

@@ -1,3 +1,4 @@
+import { createFeatureInputDraftStore, type FeatureDraftStorage } from './featureInputDraft.js';
 import { parseTodayFriendState } from './todayFriendCodec';
 import {
   TODAY_FRIEND_INITIAL_STATE,
@@ -54,44 +55,29 @@ const parseDeviceDraft = (value: unknown): TodayFriendDeviceDraft | null => {
   };
 };
 
-export const loadTodayFriendDeviceDraft = (
-  storage: Pick<Storage, 'getItem'>,
-  mission: TodayFriendDraftIdentity,
-): TodayFriendDeviceDraft | null => {
-  try {
-    const saved = storage.getItem(getDeviceDraftKey(mission));
-    if (saved === null) return null;
-    const parsed: unknown = JSON.parse(saved);
-    return parseDeviceDraft(parsed);
-  } catch {
-    return null;
-  }
-};
-
-export const saveTodayFriendDeviceDraft = (
-  storage: Pick<Storage, 'setItem'>,
-  mission: TodayFriendDraftIdentity,
-  draft: TodayFriendDeviceDraft,
-): boolean => {
-  try {
-    storage.setItem(getDeviceDraftKey(mission), JSON.stringify(draft));
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-export const clearTodayFriendDeviceDraft = (
-  storage: Pick<Storage, 'removeItem'>,
-  mission: TodayFriendDraftIdentity,
-): boolean => {
-  try {
-    storage.removeItem(getDeviceDraftKey(mission));
-    return true;
-  } catch {
-    return false;
-  }
-};
+const inputStore = createFeatureInputDraftStore<TodayFriendDeviceDraft>(parseDeviceDraft);
+const inputScope = (mission: TodayFriendDraftIdentity) => ({
+  studentNumber: mission.studentNumber, feature: 'today-friend-input',
+  entityId: JSON.stringify([mission.dateKey, mission.partnerNumber, mission.genre, mission.question]),
+});
+const legacyDraft = (storage: FeatureDraftStorage | null, mission: TodayFriendDraftIdentity) => () => (
+  JSON.parse(storage?.getItem(getDeviceDraftKey(mission)) ?? 'null')
+);
+export const loadTodayFriendDeviceDraft = (storage: FeatureDraftStorage | null, mission: TodayFriendDraftIdentity): TodayFriendDeviceDraft | null => (
+  inputStore.load(storage, inputScope(mission), legacyDraft(storage, mission))?.value ?? null
+);
+export const readyTodayFriendDeviceDraft = async (storage: FeatureDraftStorage | null, mission: TodayFriendDraftIdentity): Promise<TodayFriendDeviceDraft | null> => (
+  (await inputStore.ready(storage, inputScope(mission), legacyDraft(storage, mission)))?.value ?? null
+);
+export const todayFriendDeviceDraftVersion = (storage: FeatureDraftStorage | null, mission: TodayFriendDraftIdentity): string | null => (
+  inputStore.load(storage, inputScope(mission), legacyDraft(storage, mission))?.version ?? null
+);
+export const saveTodayFriendDeviceDraft = (storage: FeatureDraftStorage | null, mission: TodayFriendDraftIdentity, draft: TodayFriendDeviceDraft): boolean => (
+  inputStore.save(storage, inputScope(mission), draft)
+);
+export const clearTodayFriendDeviceDraft = async (storage: FeatureDraftStorage | null, mission: TodayFriendDraftIdentity, version: string): Promise<boolean> => (
+  inputStore.confirm(storage, inputScope(mission), version)
+);
 
 export const loadLocalTodayFriendState = (storage: TodayFriendStorage): TodayFriendState => {
   try {
@@ -120,3 +106,5 @@ export const updateLocalTodayFriendState = (
   window.dispatchEvent(new CustomEvent(TODAY_FRIEND_CHANGE_EVENT));
   return state;
 };
+
+export const settleTodayFriendDeviceDraft = (storage: FeatureDraftStorage | null, mission: TodayFriendDraftIdentity) => inputStore.settled(storage, inputScope(mission));

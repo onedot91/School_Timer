@@ -1,5 +1,7 @@
-import { reportSaveFailure, withSaveFailureReporting } from './saveFailureClient.js';
-import { applyLibraryPlacementCommand, type LibraryPlacementCommand } from './canvasLibraryPlacement.js';
+import { featurePayloadHash, featureRetryAfterMs } from './featureReceipt.js';
+import { deferSaveRecoveryUntil, getSaveRecoveryDelay, notifySaveRecovery, registerSaveRecoveryAdapter, serializeStudentSave, markSaveRefreshPending } from './saveRecovery.js';
+import { deferSaveFailure, reportSaveFailure, withSaveFailureReporting } from './saveFailureClient.js';
+import { applyLibraryPlacementCommand, parseLibraryPlacementCommand, type LibraryPlacementCommand } from './canvasLibraryPlacement.js';
 import { appDataMode, type AppDataMode } from './dataMode.js';
 import { createBrowserRequestId } from './requestId.js';
 import { normalizeBookReflection, normalizeStudentLifeState, type StudentBook } from './studentLife.js';
@@ -10,7 +12,7 @@ import type { LibraryBookDraft, LibraryPlacedBook } from './canvasLibraryWorld.j
 import { acceptStorageProjection, captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError } from './storageResponseOrder.js';
 import { parseStorageProjectionPatch } from './storageProjectionPatch.js';
 import { getStorageAvailability, publishStorageAvailability } from './storageAvailability.js';
-import { createStudentSaveDraftStore } from './studentSaveDraft.js';
+import { createStudentSaveDraftStore, type StudentSaveDraft } from './studentSaveDraft.js';
 
 export type CanvasLibraryPlacementErrorCode =
   | 'INVALID_LIBRARY_COMMAND'
@@ -26,7 +28,9 @@ export type CanvasLibraryPlacementErrorCode =
   | 'INVALID_LIBRARY_RESPONSE'
   | 'LIBRARY_STORAGE_MAINTENANCE'
   | 'LIBRARY_STORAGE_UPDATE_REQUIRED'
-  | 'LIBRARY_LOCAL_SAVE_FAILED';
+  | 'LIBRARY_LOCAL_SAVE_FAILED'
+  | 'LIBRARY_CONFIRMED_REFRESH_PENDING'
+  | 'LIBRARY_LEGACY_CONFIRMATION_REQUIRED';
 
 export type CanvasLibraryPlacementResult =
   | {
@@ -34,13 +38,16 @@ export type CanvasLibraryPlacementResult =
     readonly book: StudentBook;
     readonly placedBook: LibraryPlacedBook;
     readonly updatedAt: string;
-    readonly value: Record<string, unknown>;
+    readonly value: Record<string, unknown> | null;
+    readonly refreshPending?: boolean;
   }
   | {
     readonly ok: false;
     readonly error: {
       readonly code: CanvasLibraryPlacementErrorCode;
       readonly retryable: boolean;
+      readonly status?: number;
+      readonly retryAfterMs?: number;
     };
   };
 
@@ -59,17 +66,23 @@ const ERROR_MESSAGES: Record<CanvasLibraryPlacementErrorCode, string> = {
   LIBRARY_STORAGE_MAINTENANCE: '저장 점검 중이에요. 책은 보관했어요.',
   LIBRARY_STORAGE_UPDATE_REQUIRED: '화면을 새로고침해 주세요. 책은 보관했어요.',
   LIBRARY_LOCAL_SAVE_FAILED: '이 기기에 책을 저장하지 못했어요. 저장 공간을 확인해 주세요.',
+  LIBRARY_CONFIRMED_REFRESH_PENDING: '저장됨 · 화면 갱신 중',
+  LIBRARY_LEGACY_CONFIRMATION_REQUIRED: '이전 책의 저장 여부를 확인해야 해요. 작성한 내용은 보관했어요.',
 };
 
 export class CanvasLibraryPlacementExpectedError extends Error {
   readonly code: CanvasLibraryPlacementErrorCode;
   readonly retryable: boolean;
+  readonly status?: number;
+  readonly retryAfterMs?: number;
 
-  constructor(error: { readonly code: CanvasLibraryPlacementErrorCode; readonly retryable: boolean }) {
+  constructor(error: { readonly code: CanvasLibraryPlacementErrorCode; readonly retryable: boolean; readonly status?: number; readonly retryAfterMs?: number }) {
     super(ERROR_MESSAGES[error.code]);
     this.name = 'CanvasLibraryPlacementExpectedError';
     this.code = error.code;
     this.retryable = error.retryable;
+    this.retryAfterMs = error.retryAfterMs;
+    this.status = error.status ?? (['LIBRARY_SLOT_OCCUPIED', 'LIBRARY_FULL', 'LIBRARY_BOOK_FORBIDDEN', 'LIBRARY_SEASON_CHANGED', 'LIBRARY_BOOK_ALREADY_PLACED', 'SHARED_SETTINGS_CONFLICT', 'LIBRARY_CONFIRMED_REFRESH_PENDING', 'LIBRARY_LEGACY_CONFIRMATION_REQUIRED'].includes(error.code) ? 409 : undefined);
   }
 }
 
@@ -107,11 +120,12 @@ const nonRetryableCodes = new Set<CanvasLibraryPlacementErrorCode>([
   'LIBRARY_FULL',
   'LIBRARY_BOOK_ALREADY_PLACED',
   'READ_ONLY_DATA_MODE',
+  'LIBRARY_LEGACY_CONFIRMATION_REQUIRED',
 ]);
 
-const failure = (code: CanvasLibraryPlacementErrorCode): CanvasLibraryPlacementResult => ({
+const failure = (code: CanvasLibraryPlacementErrorCode, status?: number, retryAfterMs?: number): CanvasLibraryPlacementResult => ({
   ok: false,
-  error: { code, retryable: !nonRetryableCodes.has(code) },
+  error: { code, retryable: !nonRetryableCodes.has(code), ...(status === undefined ? {} : { status }), ...(retryAfterMs === undefined ? {} : { retryAfterMs }) },
 });
 
 const toPlacedBook = (book: StudentBook): LibraryPlacedBook | null => (
@@ -197,15 +211,118 @@ const makeCommand = (
 export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDependencies) => {
   const pendingDrafts = createStudentSaveDraftStore({ createRequestId: dependencies.createRequestId });
 
+  const readReceipt = async (command: LibraryPlacementCommand, actor: number): Promise<CanvasLibraryPlacementResult | null> => {
+    const context = captureStorageResponseContext();
+    const query = new URLSearchParams({ requestId: command.requestId, receiptOnly: '1', studentNumber: String(actor) });
+    const response = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
+    let receipt: unknown;
+    try { receipt = await response.json(); } catch (error) { if (response.ok) throw error; }
+    if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+    if (!response.ok) {
+      const retryAfterMs = featureRetryAfterMs(response);
+      if (retryAfterMs && (response.status === 429 || response.status >= 500)) deferSaveRecoveryUntil(actor, command.requestId, retryAfterMs);
+      throw new CanvasLibraryPlacementExpectedError({ code: 'LIBRARY_SAVE_FAILED', retryable: response.status >= 500 || response.status === 429, status: response.status, retryAfterMs });
+    }
+    if (!isRecord(receipt)) throw new Error('LIBRARY_CONFIRMATION_REQUIRED');
+    if (receipt.status === 'unknown') return null;
+    if (receipt.status !== 'committed' || receipt.action !== 'placeLibraryBook'
+      || receipt.payloadHash !== await featurePayloadHash('placeLibraryBook', command)
+      || typeof receipt.committedAt !== 'string' || !Number.isFinite(Date.parse(receipt.committedAt))) throw new CanvasLibraryPlacementExpectedError({ code: 'INVALID_LIBRARY_RESPONSE', retryable: false });
+    dependencies.invalidateSharedCache();
+    query.delete('receiptOnly');
+    try {
+      const refresh = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', headers: { 'X-Storage-Projection': '1' }, signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
+      const current: unknown = await refresh.json();
+      if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+      if (!refresh.ok || !isRecord(current) || !isRecord(current.value)) throw new Error('LIBRARY_REFRESH_PENDING');
+      const storedBook = normalizeStudentLifeState(current.value.studentLife).books.find(book => book.id === (command.book.kind === 'existing' ? command.book.bookId : `library:${actor}:${command.requestId}`));
+      const parsed = parseSuccess({ ...current, book: storedBook }, command, actor);
+      if (!parsed) throw new Error('LIBRARY_REFRESH_PENDING');
+      if (parsed.ok && parsed.value !== null && 'storagePatch' in current) {
+        const accepted = acceptStorageProjection(context, { value: parsed.value, updatedAt: parsed.updatedAt, scope: 'student', storagePatch: parseStorageProjectionPatch(current.storagePatch) });
+        return { ...parsed, value: accepted.value, updatedAt: accepted.updatedAt };
+      }
+      return parsed;
+    } catch (error) {
+      if (!isStorageResponseContextCurrent(context) || error instanceof StorageResponseActorChangedError) throw new StorageResponseActorChangedError();
+      const book = isRecord(receipt.result) ? receipt.result.book : null;
+      const confirmed = parseSuccess({ updatedAt: receipt.committedAt, book, value: { studentLife: { books: [book] } } }, command, actor);
+      if (!confirmed?.ok) { markSaveRefreshPending(actor); throw new CanvasLibraryPlacementExpectedError({ code: 'LIBRARY_CONFIRMED_REFRESH_PENDING', retryable: true }); }
+      markSaveRefreshPending(actor);
+      return { ...confirmed, value: null, refreshPending: true };
+    }
+  };
+  const readLegacyReceipt = async (draft: StudentSaveDraft): Promise<CanvasLibraryPlacementResult | null> => {
+    if (!isRecord(draft.payload)) return null;
+    const context = captureStorageResponseContext();
+    const query = new URLSearchParams({ requestId: draft.requestId, receiptOnly: '1', studentNumber: String(draft.scope.studentNumber) });
+    const response = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
+    let receipt: unknown;
+    try { receipt = await response.json(); } catch (error) { if (response.ok) throw error; }
+    if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+    if (!response.ok) {
+      const retryAfterMs = featureRetryAfterMs(response);
+      if (retryAfterMs && (response.status === 429 || response.status >= 500)) deferSaveRecoveryUntil(draft.scope.studentNumber, draft.requestId, retryAfterMs);
+      throw new CanvasLibraryPlacementExpectedError({ code: 'LIBRARY_SAVE_FAILED', retryable: response.status >= 500 || response.status === 429, status: response.status, retryAfterMs });
+    }
+    if (isRecord(receipt) && receipt.status === 'unknown') return null;
+    if (!isRecord(receipt) || receipt.status !== 'committed' || receipt.action !== 'placeLibraryBook') throw new CanvasLibraryPlacementExpectedError({ code: 'LIBRARY_LEGACY_CONFIRMATION_REQUIRED', retryable: false });
+    let book = normalizeStudentLifeState({ books: [isRecord(receipt.result) ? receipt.result.book : null] }).books[0];
+    if (!book) {
+      query.delete('receiptOnly');
+      const refresh = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
+      const current: unknown = await refresh.json();
+      if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+      const bookId = isRecord(draft.payload.book) && draft.payload.book.kind === 'existing' ? draft.payload.book.bookId : `library:${draft.scope.studentNumber}:${draft.requestId}`;
+      book = isRecord(current) && isRecord(current.value) ? normalizeStudentLifeState(current.value.studentLife).books.find(entry => entry.id === bookId) : undefined;
+    }
+    // Old requests omitted the selected slot. Recover it only from a matching committed book, never from a new selection.
+    const parsed = parseLibraryPlacementCommand({ action: 'placeLibraryBook', requestId: draft.requestId, slotId: book?.librarySlot, book: draft.payload.book,
+      ...(typeof draft.payload.seasonId === 'string' ? { seasonId: draft.payload.seasonId } : {}) });
+    if (!parsed.ok) throw new CanvasLibraryPlacementExpectedError({ code: 'LIBRARY_LEGACY_CONFIRMATION_REQUIRED', retryable: false });
+    return readReceipt(parsed.command, draft.scope.studentNumber);
+  };
   const placeBook = async (draft: LibraryBookDraft, slotId: number, seasonId?: string): Promise<CanvasLibraryPlacementResult> => {
     if (dependencies.dataMode === 'readonly') return failure('READ_ONLY_DATA_MODE');
+    const originalContext = captureStorageResponseContext();
     const key = `${seasonId ?? 'legacy'}:${draftKey(draft)}`;
     const scope = { studentNumber: draft.studentNumber, feature: 'library-placement', entityId: key };
-    const pending = pendingDrafts.save(scope, { book: makeCommand(draft, slotId, '').book, seasonId: seasonId ?? null });
-    const requestId = pending.status === 'invalid' ? dependencies.createRequestId() : pending.draft.requestId;
-    const command = { ...makeCommand(draft, slotId, requestId), ...(seasonId ? { seasonId } : {}) };
+    await pendingDrafts.ready();
+    const existing = pendingDrafts.load(scope);
+    const pending = await pendingDrafts.saveDurable(scope, { book: makeCommand(draft, slotId, '').book, slotId, seasonId: seasonId ?? null, expectedStudentNumber: draft.studentNumber });
+    if (pending.status === 'invalid' || !isRecord(pending.draft.payload)) return failure('INVALID_LIBRARY_COMMAND');
+    const requestId = pending.draft.requestId;
+    const payload = pending.draft.payload;
+    if (existing && (typeof payload.slotId !== 'number' || payload.expectedStudentNumber !== draft.studentNumber) && dependencies.dataMode !== 'mock' && dependencies.isSharedConfigured) {
+      try {
+        const confirmed = await readLegacyReceipt(pending.draft);
+        if (confirmed?.ok) { await pendingDrafts.confirmDurable(scope, requestId); dependencies.invalidateSharedCache(); return confirmed; }
+        return failure('LIBRARY_LEGACY_CONFIRMATION_REQUIRED');
+      } catch (error) {
+        if (error instanceof StorageResponseActorChangedError) throw error;
+        return failure('LIBRARY_LEGACY_CONFIRMATION_REQUIRED');
+      }
+    }
+    const parsedCommand = parseLibraryPlacementCommand({ action: 'placeLibraryBook', requestId, book: payload.book,
+      slotId: typeof payload.slotId === 'number' ? payload.slotId : slotId,
+      ...(typeof payload.seasonId === 'string' ? { seasonId: payload.seasonId } : {}) });
+    if (!parsedCommand.ok) return failure('INVALID_LIBRARY_COMMAND');
+    const command = parsedCommand.command;
+    if (!isStorageResponseContextCurrent(originalContext)) throw new StorageResponseActorChangedError();
+    if (existing && dependencies.dataMode !== 'mock' && dependencies.isSharedConfigured) {
+      try {
+        const confirmed = await readReceipt(command, draft.studentNumber);
+        if (confirmed?.ok) { await pendingDrafts.confirmDurable(scope, requestId); dependencies.invalidateSharedCache(); return confirmed; }
+      } catch (error) {
+        if (error instanceof StorageResponseActorChangedError) throw error;
+        if (error instanceof CanvasLibraryPlacementExpectedError) return failure(error.code, error.status, error.retryAfterMs);
+        // The original command remains intact; user retry may send only that same request.
+      }
+    }
 
     if (dependencies.dataMode !== 'mock' && dependencies.isSharedConfigured) {
+      const delay = getSaveRecoveryDelay(draft.studentNumber, requestId);
+      if (delay > 0) return failure('LIBRARY_SAVE_FAILED', 429, delay);
       const responseContext = captureStorageResponseContext();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), dependencies.requestTimeoutMs);
@@ -215,54 +332,67 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
           credentials: 'same-origin',
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json', 'X-Storage-Projection': '1' },
-          body: JSON.stringify({ ...command, protocolVersion: 2 }),
+          body: JSON.stringify({ ...command, expectedStudentNumber: payload.expectedStudentNumber, protocolVersion: 2 }),
           signal: controller.signal,
         });
+        if (!isStorageResponseContextCurrent(responseContext)) throw new StorageResponseActorChangedError();
+        const retryAfterMs = featureRetryAfterMs(response);
+        if (!response.ok && retryAfterMs && (response.status === 429 || response.status >= 500)) deferSaveRecoveryUntil(draft.studentNumber, requestId, retryAfterMs);
         let body: unknown;
         try {
           body = await response.json();
         } catch {
           if (!isStorageResponseContextCurrent(responseContext)) throw new StorageResponseActorChangedError();
-          return failure('INVALID_LIBRARY_RESPONSE');
+          return failure('INVALID_LIBRARY_RESPONSE', response.ok ? undefined : response.status, featureRetryAfterMs(response));
         }
         if (!isStorageResponseContextCurrent(responseContext)) throw new StorageResponseActorChangedError();
         if (!response.ok) {
           const error = { code: isRecord(body) ? body.error : undefined, status: response.status };
           const availability = getStorageAvailability(error);
           if (availability && publishStorageAvailability(error, responseContext)) return failure(availability === 'maintenance' ? 'LIBRARY_STORAGE_MAINTENANCE' : 'LIBRARY_STORAGE_UPDATE_REQUIRED');
-          return failure(parseServerError(body) ?? 'INVALID_LIBRARY_RESPONSE');
+          const code = parseServerError(body) ?? 'INVALID_LIBRARY_RESPONSE';
+          if (response.status < 500 && ['LIBRARY_SLOT_OCCUPIED', 'LIBRARY_FULL', 'LIBRARY_BOOK_FORBIDDEN', 'LIBRARY_SEASON_CHANGED', 'INVALID_LIBRARY_COMMAND'].includes(code)) await pendingDrafts.confirmDurable(scope, requestId);
+          return failure(code, response.status, featureRetryAfterMs(response));
         }
         const parsed = parseSuccess(body, command, draft.studentNumber);
         if (!parsed) return failure('INVALID_LIBRARY_RESPONSE');
-        if (parsed.ok && isRecord(body) && 'storagePatch' in body) {
+        if (parsed.ok && parsed.value !== null && isRecord(body) && 'storagePatch' in body) {
           let storagePatch;
           try { storagePatch = parseStorageProjectionPatch(body.storagePatch); }
           catch { return failure('INVALID_LIBRARY_RESPONSE'); }
           const accepted = acceptStorageProjection(responseContext, { value: parsed.value, updatedAt: parsed.updatedAt, scope: 'student', storagePatch });
-          pendingDrafts.confirm(scope, requestId);
+          await pendingDrafts.confirmDurable(scope, requestId);
           dependencies.invalidateSharedCache();
           return { ...parsed, value: accepted.value, updatedAt: accepted.updatedAt };
         }
-        pendingDrafts.confirm(scope, requestId);
+        await pendingDrafts.confirmDurable(scope, requestId);
         dependencies.invalidateSharedCache();
         return parsed;
       } catch (error) {
         if (!isStorageResponseContextCurrent(responseContext) || error instanceof StorageResponseActorChangedError) throw new StorageResponseActorChangedError();
-        if (error instanceof Error) return failure('LIBRARY_NETWORK_FAILED');
+        if (error instanceof Error) {
+          try { const confirmed = await readReceipt(command, draft.studentNumber);
+            if (confirmed?.ok) { await pendingDrafts.confirmDurable(scope, requestId); dependencies.invalidateSharedCache(); return confirmed; }
+          } catch (confirmationError) {
+            if (confirmationError instanceof StorageResponseActorChangedError) throw confirmationError;
+            if (confirmationError instanceof CanvasLibraryPlacementExpectedError) return failure(confirmationError.code, confirmationError.status, confirmationError.retryAfterMs);
+          }
+          return failure('LIBRARY_NETWORK_FAILED');
+        }
         throw error;
       } finally {
         clearTimeout(timeoutId);
       }
     }
 
-    return dependencies.withLocalLock(() => {
+    return dependencies.withLocalLock(async () => {
       const snapshot = dependencies.loadLocalSnapshot();
       const result = applyLibraryPlacementCommand(snapshot, draft.studentNumber, command, dependencies.now());
       if (result.ok === false) return failure(result.error.code);
       if (!dependencies.storeLocalSnapshot(result.value)) return failure('LIBRARY_LOCAL_SAVE_FAILED');
       const placedBook = toPlacedBook(result.book);
       if (!placedBook) return failure('INVALID_LIBRARY_RESPONSE');
-      pendingDrafts.confirm(scope, requestId);
+      await pendingDrafts.confirmDurable(scope, requestId);
       return {
         ok: true,
         book: result.book,
@@ -273,7 +403,30 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
     });
   };
 
-  return { placeBook };
+  return {
+    placeBook: (draft: LibraryBookDraft, slotId: number, seasonId?: string) => {
+      const context = captureStorageResponseContext();
+      if (dependencies.dataMode === 'production' && context.actor !== null && context.actor !== String(draft.studentNumber)) return Promise.reject(new StorageResponseActorChangedError());
+      return serializeStudentSave(draft.studentNumber, () => {
+        if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+        return placeBook(draft, slotId, seasonId);
+      }).finally(notifySaveRecovery);
+    },
+    list: async (actor: number) => {
+      await pendingDrafts.ready();
+      return pendingDrafts.list(actor).flatMap((entry) => {
+        if (entry.scope.feature !== 'library-placement' || !isRecord(entry.payload) || typeof entry.payload.slotId !== 'number' || entry.payload.expectedStudentNumber !== actor) return [];
+        const parsed = parseLibraryPlacementCommand({ action: 'placeLibraryBook', requestId: entry.requestId, slotId: entry.payload.slotId, book: entry.payload.book,
+          ...(typeof entry.payload.seasonId === 'string' ? { seasonId: entry.payload.seasonId } : {}) });
+        return parsed.ok ? [{ draft: entry, command: parsed.command }] : [];
+      });
+    },
+    readReceipt,
+    readLegacyReceipt,
+    listLegacy: async (actor: number) => { await pendingDrafts.ready(); return pendingDrafts.list(actor).filter(entry => entry.scope.feature === 'library-placement' && isRecord(entry.payload) && (typeof entry.payload.slotId !== 'number' || entry.payload.expectedStudentNumber !== actor)); },
+    pendingForDraft: (draft: LibraryBookDraft, seasonId?: string) => pendingDrafts.load({ studentNumber: draft.studentNumber, feature: 'library-placement', entityId: `${seasonId ?? 'legacy'}:${draftKey(draft)}` }),
+    confirm: pendingDrafts.confirmDurable,
+  };
 };
 
 const withBrowserLocalLock: CanvasLibraryClientDependencies['withLocalLock'] = async (action) => {
@@ -286,7 +439,7 @@ const defaultClient = createCanvasLibraryClient({
   isSharedConfigured: isSupabaseSettingsEnabled,
   createRequestId: createBrowserRequestId,
   now: () => new Date().toISOString(),
-  requestTimeoutMs: 10_000,
+  requestTimeoutMs: 45_000,
   fetcher: (input, init) => fetch(input, init),
   loadLocalSnapshot: loadLibraryLocalSnapshot,
   storeLocalSnapshot: storeLibraryLocalSnapshot,
@@ -311,6 +464,9 @@ export const placeCanvasLibraryBook = async (draft: LibraryBookDraft, slotId: nu
   const result = await withSaveFailureReporting('library', () => placeCanvasLibraryBookWithoutReporting(draft, slotId, seasonId), draft.studentNumber);
   if (result.ok === false) {
     const code = result.error.code;
+    const pending = defaultClient.pendingForDraft(draft, seasonId);
+    if (appDataMode === 'production' && seasonId && pending && ['LIBRARY_NETWORK_FAILED', 'LIBRARY_SAVE_FAILED', 'INVALID_LIBRARY_RESPONSE'].includes(code)
+      && deferSaveFailure('library', new CanvasLibraryPlacementExpectedError(result.error), draft.studentNumber, { requestId: pending.draft.requestId, stage: 'write', retryCount: 0 })) return result;
     if (code === 'LIBRARY_LOCAL_SAVE_FAILED') reportSaveFailure('library', 'storage', draft.studentNumber, { errorCode: code });
     else if (code === 'LIBRARY_SAVE_FAILED') reportSaveFailure('library', 'server', draft.studentNumber, { errorCode: code });
     else if (code === 'LIBRARY_NETWORK_FAILED') reportSaveFailure('library', 'network', draft.studentNumber, { errorCode: code });
@@ -319,3 +475,44 @@ export const placeCanvasLibraryBook = async (draft: LibraryBookDraft, slotId: nu
   }
   return result;
 };
+
+const pendingPlacementFor = async (actor: number, id: string) => {
+  const context = captureStorageResponseContext();
+  if (context.actor !== null && context.actor !== String(actor)) throw new StorageResponseActorChangedError();
+  const pending = (await defaultClient.list(actor)).find(entry => entry.draft.requestId === id);
+  const legacy = pending ? undefined : (await defaultClient.listLegacy(actor)).find(entry => entry.requestId === id);
+  if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+  return pending ?? (legacy ? { draft: legacy, command: null } : undefined);
+};
+registerSaveRecoveryAdapter({
+  id: 'library-placement',
+  list: async (actor) => appDataMode !== 'production' ? [] : [...(await defaultClient.list(actor)).map(({ draft, command }) => ({
+    id: draft.requestId, actor, feature: 'library', createdAt: draft.createdAt,
+    mode: command.seasonId ? 'automatic' as const : 'confirm-only' as const, contextKey: command.seasonId,
+  })), ...(await defaultClient.listLegacy(actor)).map(draft => ({ id: draft.requestId, actor, feature: 'library', createdAt: draft.createdAt, mode: 'confirm-only' as const }))],
+  eligible: entry => entry.actor > 0 && entry.contextKey === new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' }).slice(0, 7),
+  confirm: async (entry) => {
+    const stored = await pendingPlacementFor(entry.actor, entry.id);
+    if (!stored) return true;
+    const receipt = stored.command ? await defaultClient.readReceipt(stored.command, entry.actor) : await defaultClient.readLegacyReceipt(stored.draft);
+    if (!receipt?.ok) return false;
+    await defaultClient.confirm(stored.draft.scope, entry.id);
+    return true;
+  },
+  retry: async (entry) => {
+    const stored = await pendingPlacementFor(entry.actor, entry.id);
+    if (!stored) return;
+    const { command } = stored;
+    if (!command) throw new CanvasLibraryPlacementExpectedError({ code: 'LIBRARY_LEGACY_CONFIRMATION_REQUIRED', retryable: false });
+    let draft: LibraryBookDraft;
+    if (command.book.kind === 'new') draft = { studentNumber: entry.actor, ...command.book };
+    else {
+      const latest = await libraryCompetitionClient.read('enter');
+      const book = normalizeStudentLifeState(latest.value?.studentLife).books.find(book => book.id === (command.book.kind === 'existing' ? command.book.bookId : ''));
+      if (!book) throw new Error('LIBRARY_BOOK_FORBIDDEN');
+      draft = { studentNumber: entry.actor, bookId: book.id, title: book.title, author: book.author, pageCount: book.pageCount, ...(book.reflection ? { reflection: book.reflection } : {}) };
+    }
+    const result = await defaultClient.placeBook(draft, command.slotId, command.seasonId);
+    if (result.ok === false) throw new CanvasLibraryPlacementExpectedError(result.error);
+  },
+});

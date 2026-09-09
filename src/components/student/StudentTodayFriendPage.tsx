@@ -1,3 +1,4 @@
+import { captureStorageResponseContext, isStorageResponseContextCurrent } from '../../lib/storageResponseOrder';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Clock3, RefreshCw } from 'lucide-react';
 import { storageAvailabilityMessage } from '../../lib/storageAvailabilityCopy';
@@ -15,6 +16,7 @@ import {
 import {
   loadStudentTodayFriendMission,
   loadTodayFriendSubmissionReceipt,
+  todayFriendSubmissionCommand,
   saveStudentTodayFriendDraft,
   submitStudentTodayFriendMission,
   TodayFriendClientError,
@@ -76,6 +78,7 @@ export default function StudentTodayFriendPage({
     setMission(null);
     setPreviewGenre(null);
     try {
+      await draftStore.ready();
       const loaded = await loadStudentTodayFriendMission(studentNumber, dateKey);
       if (sequence !== loadSequence.current) return;
       const pending = loaded ? draftStore.load(loaded) : null;
@@ -97,27 +100,29 @@ export default function StudentTodayFriendPage({
 
   const saveMission = async (payload: TodayFriendPayload, submit: boolean) => {
     if (!mission || saving.current) return false;
-    const previous = draftStore.load(mission);
-    const pending = draftStore.prepare(mission, payload, submit);
-    if (!pending) return false;
+    const requestContext = captureStorageResponseContext();
     const sequence = loadSequence.current;
     saving.current = true;
+    const previous = draftStore.load(mission);
+    const pending = await draftStore.prepare(mission, payload, submit);
+    if (!pending) { saving.current = false; return false; }
+    if (!isStorageResponseContextCurrent(requestContext) || sequence !== loadSequence.current) { saving.current = false; return false; }
     setIsSaving(true);
     setPendingSubmission(pending);
     setSaveMessage('');
     try {
-      const latest = previous ? await loadStudentTodayFriendMission(studentNumber, dateKey) : mission;
+      const input = { mission: { ...mission, planningRevision: pending.planningRevision }, payload: pending.payload, requestId: pending.requestId, expectedRevision: pending.expectedRevision, expectedStudentNumber: pending.expectedStudentNumber };
+      const receipt = previous ? await loadTodayFriendSubmissionReceipt(pending.requestId, todayFriendSubmissionCommand(input, pending.submit)) : null;
+      const latest = previous && !receipt?.found ? await loadStudentTodayFriendMission(studentNumber, dateKey) : mission;
       if (!latest || sequence !== loadSequence.current) return false;
-      const receipt = previous ? await loadTodayFriendSubmissionReceipt(pending.requestId) : null;
       if (previous && !receipt?.found && draftStore.load(latest)?.requestId !== pending.requestId) {
         setSaveMessage('미션이 변경됐어요. 입력을 보존했으니 선생님에게 확인해 주세요.');
         return false;
       }
-      const input = { mission: { ...mission, planningRevision: pending.planningRevision }, payload: pending.payload, requestId: pending.requestId, expectedRevision: pending.expectedRevision };
       const submission = receipt?.found && receipt.submission ? receipt.submission : pending.submit
         ? await submitStudentTodayFriendMission(input)
         : await saveStudentTodayFriendDraft(input);
-      draftStore.confirm(mission, pending.requestId);
+      await draftStore.confirm(mission, pending.requestId);
       if (sequence !== loadSequence.current) return true;
       setPendingSubmission(null);
       setMission({ ...latest, submission: selectLatestTodayFriendSubmission(latest.submission, submission) });
@@ -126,7 +131,7 @@ export default function StudentTodayFriendPage({
       if (!(error instanceof Error)) throw error;
       if (sequence !== loadSequence.current) return false;
       if (error instanceof TodayFriendClientError && error.code === 'TODAY_FRIEND_SUBMISSION_CONFLICT') {
-        draftStore.confirm(mission, pending.requestId);
+        await draftStore.confirm(mission, pending.requestId);
         setPendingSubmission(null);
         try {
           const latest = await loadStudentTodayFriendMission(studentNumber, dateKey);

@@ -73,7 +73,7 @@ test('local confirmed placement advances competition with the same committed sna
   assert.equal(state?.placements.length, 1);
 });
 
-test('shared placement sends the exact command without browser student identity', async () => {
+test('shared placement sends its immutable command with the expected authenticated student', async () => {
   const bodies: unknown[] = [];
   let invalidations = 0;
   const client = createCanvasLibraryClient(dependencies({
@@ -93,6 +93,7 @@ test('shared placement sends the exact command without browser student identity'
   assert.deepEqual(bodies, [{
     action: 'placeLibraryBook',
     protocolVersion: 2,
+    expectedStudentNumber: 3,
     requestId: UUID_ONE,
     slotId: 17,
     book: { kind: 'new', title: '달빛 우체국', author: '고마', pageCount: 120 },
@@ -125,17 +126,20 @@ test('uncertain retry keeps one UUID for the same carried draft and slot', async
   assert.deepEqual(requestIds, [UUID_ONE, UUID_ONE]);
 });
 
-test('uncertain retry keeps the carried draft UUID when a different slot is selected', async () => {
+test('uncertain retry keeps the original UUID and original slot when another slot is selected', async () => {
   const requestIds: string[] = [];
+  const slots: number[] = [];
   const client = createCanvasLibraryClient(dependencies({
     fetcher: async (_input, init) => {
-      requestIds.push((JSON.parse(String(init?.body)) as { requestId: string }).requestId);
+      const sent = JSON.parse(String(init?.body)) as { requestId: string; slotId: number };
+      requestIds.push(sent.requestId); slots.push(sent.slotId);
       throw new TypeError('response dropped');
     },
   }));
   assert.equal((await client.placeBook(draft, 17)).ok, false);
   assert.equal((await client.placeBook(draft, 18)).ok, false);
   assert.deepEqual(requestIds, [UUID_ONE, UUID_ONE]);
+  assert.deepEqual(slots, [17, 17]);
 });
 
 test('success response must match the requested student, receipt, metadata, and slot', async () => {
@@ -205,7 +209,7 @@ test('configured shared failure never falls back to local persistence', async ()
   }));
   assert.deepEqual(await client.placeBook(draft, 17), {
     ok: false,
-    error: { code: 'LIBRARY_SAVE_FAILED', retryable: true },
+    error: { code: 'LIBRARY_SAVE_FAILED', retryable: true, status: 502 },
   });
   assert.equal(stored, false);
 });
@@ -333,18 +337,18 @@ test('exact maintenance and upgrade responses publish notices once and preserve 
 
 test('arbitrary 503 malformed success and network failure remain uncertain without a maintenance notice', async () => {
   const { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice } = await import('./storageAvailability.js');
-  for (const [fetcher, expected] of [
-    [async () => Response.json({ error: 'OTHER_FAILURE' }, { status: 503 }), 'INVALID_LIBRARY_RESPONSE'],
-    [async () => Response.json({ error: 'STORAGE_MAINTENANCE' }, { status: 502 }), 'INVALID_LIBRARY_RESPONSE'],
-    [async () => Response.json({ ok: true }), 'INVALID_LIBRARY_RESPONSE'],
-    [async () => { throw new TypeError('network'); }, 'LIBRARY_NETWORK_FAILED'],
+  for (const [fetcher, expected, status] of [
+    [async () => Response.json({ error: 'OTHER_FAILURE' }, { status: 503 }), 'INVALID_LIBRARY_RESPONSE', 503],
+    [async () => Response.json({ error: 'STORAGE_MAINTENANCE' }, { status: 502 }), 'INVALID_LIBRARY_RESPONSE', 502],
+    [async () => Response.json({ ok: true }), 'INVALID_LIBRARY_RESPONSE', undefined],
+    [async () => { throw new TypeError('network'); }, 'LIBRARY_NETWORK_FAILED', undefined],
   ] as const) {
     dismissStorageAvailabilityNotice();
-    let calls = 0;
-    const client = createCanvasLibraryClient(dependencies({ fetcher: async () => { calls += 1; return fetcher(); } }));
+    let writes = 0;
+    const client = createCanvasLibraryClient(dependencies({ fetcher: async (_url, init) => { if (init?.method === 'PUT') writes += 1; return fetcher(); } }));
     const result = await client.placeBook(draft, 17);
-    assert.deepEqual(result, { ok: false, error: { code: expected, retryable: true } });
-    assert.equal(calls, 1);
+    assert.deepEqual(result, { ok: false, error: { code: expected, retryable: true, ...(status === undefined ? {} : { status }) } });
+    assert.equal(writes, 1);
     assert.equal(getStorageAvailabilityNotice(), null);
   }
 });
@@ -383,5 +387,138 @@ test('reload preserves a pending book request ID and changed actor receives no s
   } finally {
     if (original) Object.defineProperty(globalThis, 'window', original); else Reflect.deleteProperty(globalThis, 'window');
     captureStorageResponseContext(); dismissStorageAvailabilityNotice();
+  }
+});
+
+test('receipt confirmation succeeds after committed placement when the display refresh is offline', async () => {
+  const { featurePayloadHash } = await import('./featureReceipt.js');
+  let writes = 0;
+  let invalidated = false;
+  let command: Record<string, unknown> | null = null;
+  const book = normalizeStudentLifeState(responseValue().studentLife).books[0];
+  const client = createCanvasLibraryClient(dependencies({ invalidateSharedCache: () => { invalidated = true; }, fetcher: async (url, init) => {
+    if (init?.method === 'PUT') {
+      writes += 1;
+      const body: unknown = JSON.parse(String(init.body));
+      assert.ok(body && typeof body === 'object');
+      const { protocolVersion: _version, expectedStudentNumber: _student, ...rest } = body as Record<string, unknown>;
+      command = rest;
+      throw new TypeError('response lost after commit');
+    }
+    if (String(url).includes('receiptOnly=1')) return Response.json({ status: 'committed', action: 'placeLibraryBook',
+      payloadHash: await featurePayloadHash('placeLibraryBook', command), committedAt: NOW, result: { book } });
+    assert.equal(invalidated, true, 'confirmed commits invalidate the old snapshot before attempting a view refresh');
+    throw new TypeError('display unavailable');
+  } }));
+  const result = await client.placeBook(draft, 17);
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error('receipt should confirm');
+  assert.equal(result.value, null);
+  assert.equal(result.refreshPending, true);
+  assert.equal(result.placedBook.slotId, 17);
+  assert.equal(writes, 1);
+});
+
+test('the first library Retry-After persists across client reloads and preserves the original request', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-09T03:00:00Z') });
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const values = new Map<string, string>([['school-timer-entry-number-v1', '3']]);
+  const storage: Storage = { get length() { return values.size; }, key: index => [...values.keys()][index] ?? null,
+    clear: () => values.clear(), getItem: key => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); }, removeItem: key => { values.delete(key); } };
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { localStorage: storage } });
+  try {
+    const bodies: Record<string, unknown>[] = [];
+    let reads = 0;
+    const inputs = dependencies({ createRequestId: () => '00000000-0000-4000-8000-000000000429', fetcher: async (_url, init) => {
+      if (init?.method === 'PUT') {
+        bodies.push(JSON.parse(String(init.body)));
+        return new Response('rate limited', { status: 429, headers: { 'Retry-After': '12' } });
+      }
+      reads += 1;
+      return Response.json({ status: 'unknown' });
+    } });
+    const first = await createCanvasLibraryClient(inputs).placeBook(draft, 17, '2026-09');
+    assert.equal(first.ok, false);
+    const reloaded = createCanvasLibraryClient(inputs);
+    const waiting = await reloaded.placeBook(draft, 18, '2026-09');
+    assert.equal(waiting.ok, false);
+    assert.equal(bodies.length, 1);
+    assert.equal(reads, 1, 'confirmation is allowed while the write delay is active');
+    context.mock.timers.tick(11_999);
+    await reloaded.placeBook(draft, 18, '2026-09');
+    assert.equal(bodies.length, 1);
+    context.mock.timers.tick(1);
+    await reloaded.placeBook(draft, 18, '2026-09');
+    assert.equal(bodies.length, 2);
+    assert.deepEqual(bodies[1], bodies[0]);
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow); else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
+test('a definitive occupied-slot rejection allows a new request ID for a newly selected slot', async () => {
+  const requests: Array<{ requestId: string; slotId: number }> = [];
+  const client = createCanvasLibraryClient(dependencies({ fetcher: async (_url, init) => {
+    if (init?.method !== 'PUT') return Response.json({ status: 'unknown' });
+    const body = JSON.parse(String(init.body)) as { requestId: string; slotId: number };
+    requests.push(body);
+    return Response.json({ error: 'LIBRARY_SLOT_OCCUPIED' }, { status: 409 });
+  } }));
+  await client.placeBook(draft, 17);
+  await client.placeBook(draft, 18);
+  assert.deepEqual(requests.map(({ requestId, slotId }) => [requestId, slotId]), [[UUID_ONE, 17], [UUID_TWO, 18]]);
+});
+
+test('library transport preserves authentication status and Retry-After for the recovery policy', async () => {
+  for (const status of [401, 429]) {
+    const client = createCanvasLibraryClient(dependencies({
+      fetcher: async () => new Response('<html>unavailable</html>', { status, headers: { 'Retry-After': '15' } }),
+    }));
+    const result = await client.placeBook(draft, 17, '2026-09');
+    assert.equal(result.ok, false);
+    if (result.ok === false) {
+      assert.equal(result.error.status, status);
+      assert.equal(result.error.retryAfterMs, 15_000);
+    }
+  }
+});
+
+for (const storedSlot of [undefined, 17]) test(`legacy placement with saved slot ${storedSlot ?? 'missing'} and no actor guard only confirms the original request`, async () => {
+  const { createStudentSaveDraftStore } = await import('./studentSaveDraft.js');
+  const { featurePayloadHash } = await import('./featureReceipt.js');
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const values = new Map<string, string>([['school-timer-entry-number-v1', '3']]);
+  const storage: Storage = { get length() { return values.size; }, key: index => [...values.keys()][index] ?? null,
+    clear: () => values.clear(), getItem: key => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); }, removeItem: key => { values.delete(key); } };
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { localStorage: storage } });
+  try {
+    const book = { kind: 'new', title: draft.title.trim(), author: draft.author.trim(), pageCount: draft.pageCount };
+    const pending = createStudentSaveDraftStore({ createRequestId: () => UUID_ONE });
+    await pending.saveDurable({ studentNumber: 3, feature: 'library-placement', entityId: `2026-09:${JSON.stringify([null, 3, book.title, book.author, book.pageCount, null])}` }, { book, seasonId: '2026-09', ...(storedSlot === undefined ? {} : { slotId: storedSlot }) });
+    const command = { action: 'placeLibraryBook', requestId: UUID_ONE, book, slotId: 17, seasonId: '2026-09' };
+    let committed = false;
+    const methods: string[] = [];
+    const client = createCanvasLibraryClient(dependencies({ fetcher: async (url, init) => {
+      methods.push(init?.method ?? 'GET');
+      assert.notEqual(init?.method, 'PUT');
+      assert.equal(new URL(String(url), 'https://fixture.invalid').searchParams.get('studentNumber'), '3');
+      if (!committed) return Response.json({ status: 'unknown' });
+      if (String(url).includes('receiptOnly')) return Response.json({ status: 'committed', action: 'placeLibraryBook',
+        payloadHash: await featurePayloadHash('placeLibraryBook', command), committedAt: NOW, result: { book: normalizeStudentLifeState(responseValue().studentLife).books[0] } });
+      return Response.json({ value: responseValue(), updatedAt: NOW });
+    } }));
+    assert.equal((await client.listLegacy(3)).length, 1);
+    const unknown = await client.placeBook(draft, 18, '2026-09');
+    assert.equal(unknown.ok, false);
+    if (unknown.ok === false) assert.equal(unknown.error.code, 'LIBRARY_LEGACY_CONFIRMATION_REQUIRED');
+    assert.equal((await client.listLegacy(3))[0]?.requestId, UUID_ONE);
+    committed = true;
+    const confirmed = await client.placeBook(draft, 18, '2026-09');
+    assert.equal(confirmed.ok, true);
+    if (confirmed.ok) assert.equal(confirmed.book.librarySlot, 17);
+    assert.equal((await client.listLegacy(3)).length, 0);
+    assert.equal(methods.every(method => method === 'GET'), true);
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow); else Reflect.deleteProperty(globalThis, 'window');
   }
 });

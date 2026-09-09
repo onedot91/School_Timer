@@ -1,9 +1,11 @@
-import { Component, useEffect, useState, type ReactNode } from 'react';
+import { Component, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { recordStartupFailure } from '../lib/appDiagnostics';
+import { canReloadAllDrafts, getUnsafeDraftRecoveryText, getDraftReloadSafetySnapshot, subscribeDraftReloadSafety } from '../lib/draftReloadSafety';
+import { captureStorageResponseContext } from '../lib/storageResponseOrder';
 import LoadingLabel from './LoadingLabel';
 import GomaLoadingAnimation from './GomaLoadingAnimation';
 
-const reloadPage = () => window.location.reload();
+const reloadPage = () => { if (canReloadAllDrafts()) window.location.reload(); };
 
 export function AppRecoveryScreen({
   title = '화면을 다시 불러와 주세요',
@@ -16,14 +18,19 @@ export function AppRecoveryScreen({
   actionLabel?: string;
   onRetry?: () => void;
 }) {
+  useSyncExternalStore(subscribeDraftReloadSafety, getDraftReloadSafetySnapshot, () => 0);
+  const unsafe = !canReloadAllDrafts();
+  const actor = captureStorageResponseContext().actor;
+  const recoveryText = unsafe && actor !== null ? getUnsafeDraftRecoveryText(Number(actor)) : '';
   return (
     <main className="runtime-fallback-page">
       <section className="runtime-fallback-surface">
         <div role="alert">
           <h1 className="runtime-fallback-title">{title}</h1>
-          <p className="runtime-fallback-description">{description}</p>
+          <p className="runtime-fallback-description">{unsafe ? '이 기기에 임시 보관하지 못했어요. 내용을 복사한 뒤 다시 확인해 주세요.' : description}</p>
         </div>
-        <button type="button" className="runtime-fallback-action" onClick={onRetry}>{actionLabel}</button>
+        {recoveryText ? <textarea aria-label="보관하지 못한 내용" readOnly value={recoveryText} onFocus={event => event.currentTarget.select()} className="w-full min-h-32 p-3" /> : null}
+        <button type="button" className="runtime-fallback-action" disabled={unsafe} onClick={onRetry}>{actionLabel}</button>
         <a href="/diagnostics.html" target="_blank" rel="noopener" className="inline-flex min-h-11 items-center justify-center p-3 underline">진단 기록</a>
       </section>
     </main>

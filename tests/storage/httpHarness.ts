@@ -53,7 +53,7 @@ const listen = async (server: ReturnType<typeof createServer>, port: number): Pr
   await new Promise<void>((done, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', done); });
   const address = server.address(); if (!address || typeof address === 'string') throw new Error('FIXTURE_LISTEN_FAILED'); return address.port;
 };
-export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018, staticDirectory = process.env.STORAGE_HTTP_DIST ?? resolve(ROOT,'dist'), writeRejection }: { readonly name?: string; readonly port?: number; readonly staticDirectory?: string; readonly writeRejection?: () => Promise<'maintenance' | 'update' | null> } = {}) => {
+export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018, staticDirectory = process.env.STORAGE_HTTP_DIST ?? resolve(ROOT,'dist'), publicDirectory, writeRejection }: { readonly name?: string; readonly port?: number; readonly staticDirectory?: string; readonly publicDirectory?: string; readonly writeRejection?: () => Promise<'maintenance' | 'update' | null> } = {}) => {
   if (!/^storage_http_test(?:_[a-z0-9_]+)?$/.test(name)) throw new Error('FIXTURE_DATABASE_NAME_REQUIRED');
   const admin = database('postgres');
   const exists = (await admin.query('select 1 from pg_database where datname=$1', [name])).rows.length > 0;
@@ -118,10 +118,17 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
       const handler = url.pathname === '/api/shared-settings' ? sharedSettings : url.pathname === '/api/student-economy' ? studentEconomy : url.pathname === '/api/device-session' ? deviceSession : url.pathname === '/api/save-alerts' ? saveAlerts : null;
       if (!handler) {
         if (url.pathname.startsWith('/api/')) {json(response,503,{error:'FIXTURE_FEATURE_NOT_CONFIGURED'});return;}
-        const requested = resolve(staticDirectory,url.pathname.slice(1) || 'index.html');
+        const requested = resolve(staticDirectory,decodeURIComponent(url.pathname).slice(1) || 'index.html');
         if (!requested.startsWith(resolve(staticDirectory)+'/')) {json(response,403,{error:'FIXTURE_PATH'});return;}
         const path = extname(requested) ? requested : resolve(staticDirectory,'index.html');
-        const content = await readFile(path);
+        let content: Buffer;
+        try { content = await readFile(path); }
+        catch (error) {
+          if (!publicDirectory || !(error instanceof Error) || Reflect.get(error, 'code') !== 'ENOENT') throw error;
+          const publicPath = resolve(publicDirectory, decodeURIComponent(url.pathname).slice(1));
+          if (!publicPath.startsWith(resolve(publicDirectory) + '/')) { json(response,403,{error:'FIXTURE_PATH'}); return; }
+          content = await readFile(publicPath);
+        }
         const type = ({'.html':'text/html','.js':'application/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.webp':'image/webp'} as Record<string,string>)[extname(path)] ?? 'application/octet-stream';
         response.writeHead(200,{'Content-Type':type});response.end(content);return;
       }

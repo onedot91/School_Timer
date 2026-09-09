@@ -204,11 +204,11 @@ test('보너스 문제 정답을 맞히면 입력값을 유지한 채 입력창�
   assert.doesNotMatch(studentQuiz, /setAnswer\(''\)/);
   assert.match(client, /saveClasswordQuizAnswer/);
   assert.match(studentQuiz, /loadSavedClasswordQuizAnswer/);
-  assert.match(studentQuiz, /setAnswer\(savedAnswer\)/);
+  assert.match(studentQuiz, /setAnswer\(state\.completed \? loadSavedClasswordQuizAnswer\(browserDraftStorage\(\), identity\) \|\| draft : draft\)/);
   assert.doesNotMatch(studentQuiz, /getDailyClasswordQuizAnswer/);
   assert.match(studentPage, /studentNumber=\{studentNumber\}/);
-  assert.match(studentQuiz, /disabled=\{loading \|\| readOnly \|\| saving \|\| completed\}/);
-  assert.match(studentQuiz, /disabled=\{loading \|\| readOnly \|\| saving \|\| completed \|\| !answer\.trim\(\)\}/);
+  assert.match(studentQuiz, /disabled=\{!inputReady \|\| loading \|\| readOnly \|\| saving \|\| completed\}/);
+  assert.match(studentQuiz, /disabled=\{!inputReady \|\| loading \|\| readOnly \|\| saving \|\| completed \|\| !answer\.trim\(\)\}/);
 });
 
 test('기본 낱말판은 7×2로 배치하고 모든 정답 낱말 글자 크기를 일관되게 유지한다', () => {
@@ -267,7 +267,8 @@ test('내 카드가 있을 때 빈 칸은 확인 모달을 거친 뒤에만 이�
 
 test('칸 선점 충돌과 일반 오류는 입력을 유지하고 저장 성공 때만 편집을 닫는다', () => {
   assert.match(studentBoard, /export type ClasswordSaveResult = 'saved' \| 'conflict' \| 'error';/);
-  assert.match(studentBoard, /const result = await onSave\([\s\S]*?if \(result === 'saved'\) closeEditor\(true\);/);
+  assert.match(studentBoard, /const submittedDraft = draftRef\.current;[\s\S]*?const result = await onSave\([\s\S]*?if \(result === 'saved' && draftRef\.current === submittedDraft\) closeEditor\(\);/);
+  assert.match(studentPage, /confirmClasswordDraft\([\s\S]*?submittedDraftVersion/);
   assert.match(studentPage, /error\.code === 'CLASSWORD_ENTRY_CONFLICT' \|\| error\.code === 'CLASSWORD_INITIAL_OCCUPIED'/);
   assert.match(studentPage, /void refresh\(\);[\s\S]*?return conflict \? 'conflict' : 'error';/);
 });

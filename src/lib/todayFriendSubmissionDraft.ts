@@ -9,6 +9,7 @@ export interface TodayFriendPendingSubmission {
   readonly payload: TodayFriendPayload;
   readonly submit: boolean;
   readonly planningRevision?: TodayFriendStudentMission['planningRevision'];
+  readonly expectedStudentNumber: number | null;
 }
 
 export const selectLatestTodayFriendSubmission = (
@@ -25,8 +26,10 @@ const scopeFor = (mission: TodayFriendStudentMission) => ({
   entityId: JSON.stringify([mission.dateKey, mission.partnerNumber, mission.genre, mission.question]),
 });
 
+const defaultStore = createStudentSaveDraftStore();
+
 export const createTodayFriendSubmissionDraftStore = (
-  store = createStudentSaveDraftStore(),
+  store = defaultStore,
 ) => {
   const load = (mission: TodayFriendStudentMission): TodayFriendPendingSubmission | null => {
     const saved = store.load(scopeFor(mission));
@@ -40,18 +43,21 @@ export const createTodayFriendSubmissionDraftStore = (
     if (!payload || payload.kind !== mission.genre) return null;
     return {
       requestId: saved.draft.requestId, expectedRevision: value.expectedRevision, payload, submit: value.submit,
+      expectedStudentNumber: 'expectedStudentNumber' in value && value.expectedStudentNumber === mission.studentNumber ? mission.studentNumber : null,
       ...('planningRevision' in value && typeof value.planningRevision === 'string' ? { planningRevision: value.planningRevision } : {}),
     };
   };
 
-  const prepare = (mission: TodayFriendStudentMission, payload: TodayFriendPayload, submit: boolean) => {
+  const prepare = async (mission: TodayFriendStudentMission, payload: TodayFriendPayload, submit: boolean) => {
+    await store.ready();
     const existing = load(mission);
     if (existing) return existing;
     const parsedPayload = parseTodayFriendPayload(payload);
     if (!parsedPayload || parsedPayload.kind !== mission.genre) return null;
-    store.save(scopeFor(mission), {
+    await store.saveDurable(scopeFor(mission), {
       payload: parsedPayload,
       submit,
+      expectedStudentNumber: mission.studentNumber,
       expectedRevision: mission.submission?.storageRevision ?? 0,
       ...(mission.planningRevision === undefined ? {} : { planningRevision: mission.planningRevision }),
     });
@@ -61,6 +67,22 @@ export const createTodayFriendSubmissionDraftStore = (
   return {
     load,
     prepare,
-    confirm: (mission: TodayFriendStudentMission, requestId: string) => store.confirm(scopeFor(mission), requestId),
+    ready: store.ready,
+    list: async (actor: number) => {
+      await store.ready();
+      return store.list(actor).flatMap((draft) => {
+        if (draft.scope.feature !== 'todayFriend') return [];
+        try {
+          const identity: unknown = JSON.parse(draft.scope.entityId);
+          if (!Array.isArray(identity) || identity.length !== 4 || typeof identity[0] !== 'string' || typeof identity[1] !== 'number'
+            || !['interview', 'commonality', 'compliment', 'emotion', 'recommendation'].includes(identity[2])
+            || (identity[3] !== null && typeof identity[3] !== 'string')) return [];
+          const mission: TodayFriendStudentMission = { dateKey: identity[0], studentNumber: actor, partnerNumber: identity[1], genre: identity[2], question: identity[3], submission: null };
+          const pending = load(mission);
+          return pending ? [{ draft, mission, pending }] : [];
+        } catch { return []; }
+      });
+    },
+    confirm: (mission: TodayFriendStudentMission, requestId: string) => store.confirmDurable(scopeFor(mission), requestId),
   };
 };

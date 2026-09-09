@@ -39,5 +39,6 @@ test('opening the registration desk preserves the restored form until placement 
   const registration = source.slice(start, end);
   assert.match(registration, /openModal\(\{ kind: 'registration' \}\)/);
   assert.doesNotMatch(registration, /setTitle\(|setAuthor\(|setReflection\(/);
-  assert.match(source, /saveLibraryBookDraft\(studentNumber, \{ title: '', author: '', reflection: '', carried: null \}\)/);
+  assert.match(source, /confirmLibraryBookDraft\(studentNumber, submittedDraftVersion\)/);
+  assert.match(source, /if \(inputConfirmed\)/);
 });

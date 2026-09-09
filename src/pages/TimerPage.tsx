@@ -1,5 +1,6 @@
+import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { TEACHER_MAIL_SENDERS } from '../lib/studentLife';
-import { executeTeacherStorageCommand as executeStorageCommand, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
+import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord } from '../lib/teacherStorageCommand';
 ﻿import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
@@ -3983,6 +3984,7 @@ export default function TimerPage() {
   const [mailSender, setMailSender] = useState('선생님');
   const [mailTitle, setMailTitle] = useState('');
   const [mailContent, setMailContent] = useState('');
+  const mailEditVersionRef = useRef(0);
   const [selectedMailStudentNumber, setSelectedMailStudentNumber] = useState(1);
   const [isStartingTeacherConversation, setIsStartingTeacherConversation] = useState(false);
   const teacherLetterReadInFlightRef = useRef<Set<string>>(new Set());
@@ -4540,6 +4542,13 @@ export default function TimerPage() {
   const teacherSettingsErrorRef = useRef(false);
   const [teacherSettingsSaveVersion, setTeacherSettingsSaveVersion] = useState(0);
   const [teacherSettingsSaveError, setTeacherSettingsSaveError] = useState('');
+  const [teacherRefreshPending, setTeacherRefreshPending] = useState(false);
+  const teacherRefreshPendingRef = useRef(false);
+  const executeStorageCommand = async (command: Parameters<typeof executeTeacherStorageCommand>[0]) => {
+    const saved = await executeTeacherStorageCommand(command);
+    if (saved.refreshPending) { teacherRefreshPendingRef.current = true; setTeacherRefreshPending(true); markSaveRefreshPending(0); }
+    return saved;
+  };
   const [isTeacherSettingsRetrying, setIsTeacherSettingsRetrying] = useState(false);
   teacherSettingsErrorRef.current = Boolean(teacherSettingsSaveError);
 
@@ -4671,7 +4680,7 @@ export default function TimerPage() {
 
     let isCancelled = false;
 
-    void loadSharedSettingsRow()
+    void teacherStorageDrafts.ready().then(() => loadSharedSettingsRow())
       .then((remoteRow) => {
         if (isCancelled) return;
 
@@ -4937,11 +4946,13 @@ export default function TimerPage() {
       }
       teacherSettingsSavingRef.current = true;
       let saveConfirmed = false;
+      const editorRequestId = getTeacherSettingsEditorRequestId();
       void executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.settings.patch', payload: { changes } })
-        .then(({ updatedAt }) => {
-          lastSharedSettingsUpdatedAtRef.current = updatedAt;
+        .then(({ updatedAt, value }) => {
+          if (value) lastSharedSettingsUpdatedAtRef.current = updatedAt;
           teacherSettingsBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsBaseRef.current, changes);
           saveConfirmed = true;
+          void confirmTeacherSettingsEditor(editorRequestId);
           if (hasUnsavedAuctionItemsRef.current && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current
             && JSON.stringify(snapshot.auctionItems) === JSON.stringify(auctionItemsRef.current)) {
             hasUnsavedAuctionItemsRef.current = false;
@@ -5037,19 +5048,21 @@ export default function TimerPage() {
         isEditingBookstoreRef.current
       ) return;
       isChecking = true;
+      const refreshVersion = getSaveRefreshVersion(0);
 
       try {
         const remoteUpdatedAt = await loadSharedSettingsUpdatedAt();
         if (
           isCancelled
+          || !isSaveRefreshVersionCurrent(0, refreshVersion)
           || awardPresentationRef.current !== null
           || isSharedSettingsSavePendingRef.current
           || !remoteUpdatedAt
-          || remoteUpdatedAt === lastSharedSettingsUpdatedAtRef.current
+          || (remoteUpdatedAt === lastSharedSettingsUpdatedAtRef.current && !teacherRefreshPendingRef.current)
         ) return;
 
         const remoteRow = await loadSharedSettingsRow();
-        if (isCancelled || awardPresentationRef.current !== null || isSharedSettingsSavePendingRef.current
+        if (isCancelled || !isSaveRefreshVersionCurrent(0, refreshVersion) || awardPresentationRef.current !== null || isSharedSettingsSavePendingRef.current
           || teacherSettingsSavingRef.current
           || createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current).length > 0
           || !remoteRow?.updated_at) return;
@@ -5059,6 +5072,9 @@ export default function TimerPage() {
 
         lastSharedSettingsUpdatedAtRef.current = remoteRow.updated_at;
         applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: false });
+        teacherRefreshPendingRef.current = false;
+        setTeacherRefreshPending(false);
+        markSaveRefreshComplete(0, refreshVersion);
       } catch (error) {
         console.error('Failed to refresh shared settings from Supabase.', error);
       } finally {
@@ -6809,8 +6825,8 @@ export default function TimerPage() {
       isSharedSettingsSavePendingRef.current = true;
       try {
         const saved = await executeStorageCommand({ requestId, action, payload });
-        lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
-        commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
+        if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+        if (saved.value) commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
         if (target && (target !== 'group' || currencyGroupKeyRef.current === groupKey)) recordCurrencyAdjustment(target, delta);
         setCurrencyDeductionError('');
       } catch (error) {
@@ -6969,8 +6985,9 @@ export default function TimerPage() {
       } else {
         isSharedSettingsSavePendingRef.current = true;
         const saved = await executeStorageCommand({ requestId, action: 'teacher.currency.deduct', payload: { studentNumbers, amount, teacherReason } });
+        if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+        if (!saved.value) return;
         savedValue = saved.value;
-        lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
       }
 
       const savedBalances = normalizeCurrencyBalances(savedValue.currencyBalances);
@@ -7119,11 +7136,13 @@ export default function TimerPage() {
           setAuctionItems(previous => previous.filter(item => item.id !== itemId));
           teacherSettingsBaseRef.current = { ...teacherSettingsBaseRef.current,
             auctionItems: normalizeAuctionItems(teacherSettingsBaseRef.current.auctionItems).filter(item => item.id !== itemId) };
+          setAuctionItemsSaveStatus('saved');
+          if (!saved.value) return;
           setAuctionBids(normalizeAuctionBids(saved.value.auctionBids, AUCTION_ITEM_IDS));
           setAuctionBidHistory(normalizeAuctionBidHistory(saved.value.auctionBidHistory, AUCTION_ITEM_IDS));
           setAuctionAwards(normalizeAuctionAwards(saved.value.auctionAwards, AUCTION_ITEM_IDS));
           commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
-          lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+          if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
           setAuctionItemsSaveStatus('saved');
         }).catch(error => {
           setAuctionItemsSaveStatus('error');
@@ -7187,6 +7206,7 @@ export default function TimerPage() {
       const cycleKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
       void executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.weekly-close', payload: { cycleKey } })
         .then(saved => {
+          if (!saved.value) return;
           commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
           setStudentEconomyStates(normalizeStudentEconomyStates(saved.value.studentEconomy));
           const items = normalizeAuctionItems(saved.value.auctionItems);
@@ -7198,7 +7218,7 @@ export default function TimerPage() {
           setTemporaryVisibleAuctionItemIds(new Set());
           setPendingAwardItemId(null);
           setAwardPresentation(null);
-          lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+          if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
         }).catch(() => setCurrencyDeductionError('주간 정산 결과를 확인하지 못했어요. 최신 기록을 확인해 주세요.'));
       return;
     }
@@ -7358,8 +7378,9 @@ export default function TimerPage() {
         const saved = await executeStorageCommand({ requestId, action: 'teacher.role.result', payload: {
           studentNumber, nextResult: nextResult ?? null, dateKey,
         } });
+        if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+        if (!saved.value) return;
         savedValue = saved.value;
-        lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
       }
       commitCurrencyState(
         normalizeCurrencyBalances(savedValue.currencyBalances),
@@ -7554,7 +7575,11 @@ export default function TimerPage() {
       itemId: award.itemId, expectedBidder: award.winner, expectedAmount: award.amount,
     } })
       .then(({ updatedAt, value }) => {
-        lastSharedSettingsUpdatedAtRef.current = updatedAt;
+        if (value) lastSharedSettingsUpdatedAtRef.current = updatedAt;
+        if (!value) {
+          setAwardPresentation(previous => previous?.award.awardedAt === award.awardedAt ? { ...previous, hasFinalized: true } : previous);
+          return;
+        }
         applyFinalizedState({ value, awarded: true, balances: normalizeCurrencyBalances(value.currencyBalances),
           history: normalizeCurrencyHistory(value.currencyHistory), awards: normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS) });
       })
@@ -9317,7 +9342,10 @@ export default function TimerPage() {
     : [];
 
   const sendTeacherLetter = async () => {
-    const content = mailContent.trim();
+    const submittedEditVersion = mailEditVersionRef.current;
+    const submittedTitle = mailTitle;
+    const submittedContent = mailContent;
+    const content = submittedContent.trim();
     if (!content || isMailSending) return;
     setIsMailSending(true);
     setMailStatus('');
@@ -9334,22 +9362,24 @@ export default function TimerPage() {
       createdAt,
     }));
     try {
-      let savedState = createStudentLetters(studentLife, letters);
+      let savedState = studentLife;
+      let refreshPending = false;
       if (isSupabaseSettingsEnabled) {
-        const saved = await executeStorageCommand({ requestId: batchId, action: 'teacher.mail.send', payload: { recipients, senderLabel: mailSender, title: mailTitle.trim(), content } });
-        savedState = normalizeStudentLifeState(saved.value.studentLife);
+        const saved = await executeStorageCommand({ requestId: batchId, action: 'teacher.mail.send', payload: { recipients, senderLabel: mailSender, title: submittedTitle.trim(), content } });
+        refreshPending = saved.refreshPending === true;
+        if (saved.value) savedState = normalizeStudentLifeState(saved.value.studentLife);
       } else {
         savedState = createStudentLetters(loadStoredStudentLifeState(), letters);
         storeStudentLifeState(savedState);
       }
-      setStudentLife(savedState);
-      setMailTitle('');
-      setMailContent('');
-      if (mailRecipient !== ALL_STUDENTS_LETTER_RECIPIENT) {
+      if (!refreshPending) setStudentLife(savedState);
+      const unchanged = mailEditVersionRef.current === submittedEditVersion;
+      if (unchanged) { setMailTitle(''); setMailContent(''); }
+      if (unchanged && mailRecipient !== ALL_STUDENTS_LETTER_RECIPIENT) {
         setSelectedMailStudentNumber(mailRecipient);
         setIsStartingTeacherConversation(false);
       }
-      setMailStatus(mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT
+      setMailStatus(refreshPending ? '저장됨 · 화면 갱신 중' : mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT
         ? '모든 학생에게 보냈습니다.'
         : `${mailRecipient}번에게 보냈습니다.`);
     } catch (error) {
@@ -9369,6 +9399,7 @@ export default function TimerPage() {
       let savedState = markTeacherLettersRead(studentLife, pendingLetterIds, readAt);
       if (isSupabaseSettingsEnabled) {
         const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.mail.read', payload: { letterIds: pendingLetterIds } });
+        if (!saved.value) return;
         savedState = normalizeStudentLifeState(saved.value.studentLife);
       } else {
         savedState = markTeacherLettersRead(loadStoredStudentLifeState(), pendingLetterIds, readAt);
@@ -9406,6 +9437,7 @@ export default function TimerPage() {
       let published = publishDailyWritingAssignment(dailyWriting, studentLife, draft);
       if (isSupabaseSettingsEnabled) {
         const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.writing.publish', payload: draft });
+        if (!saved.value) { setWritingStatus('저장됨 · 화면 갱신 중'); return true; }
         published = { ...published, state: normalizeDailyWritingState(saved.value.dailyWriting), studentLife: normalizeStudentLifeState(saved.value.studentLife) };
       } else {
         published = publishDailyWritingAssignment(loadStoredDailyWritingState(), loadStoredStudentLifeState(), draft);
@@ -9442,6 +9474,7 @@ export default function TimerPage() {
       let savedDailyWriting = dailyWriting;
       if (isSupabaseSettingsEnabled) {
         const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.writing.reward', payload: { studentNumber, dateKey: assignment.dateKey } });
+        if (!saved.value) { setWritingStatus('저장됨 · 화면 갱신 중'); return isStorageRecord(saved.result) && saved.result.awarded === true; }
         savedBalances = normalizeCurrencyBalances(saved.value.currencyBalances);
         savedHistory = normalizeCurrencyHistory(saved.value.currencyHistory);
         wasAwarded = isStorageRecord(saved.result) && saved.result.awarded === true;
@@ -9495,6 +9528,7 @@ export default function TimerPage() {
       let wasCancelled = false;
       if (isSupabaseSettingsEnabled) {
         const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.writing.cancel', payload: { studentNumber, dateKey: assignment.dateKey } });
+        if (!saved.value) { setWritingStatus('저장됨 · 화면 갱신 중'); return isStorageRecord(saved.result) && saved.result.cancelled === true; }
         savedBalances = normalizeCurrencyBalances(saved.value.currencyBalances);
         savedHistory = normalizeCurrencyHistory(saved.value.currencyHistory);
         wasCancelled = isStorageRecord(saved.result) && saved.result.cancelled === true;
@@ -10022,6 +10056,7 @@ export default function TimerPage() {
               aria-label={`${studentNumber}번과의 대화${unreadCount > 0 ? `, 새 편지 ${unreadCount}개` : ''}`}
               onClick={() => {
                 setSelectedMailStudentNumber(studentNumber);
+                mailEditVersionRef.current++;
                 setMailRecipient(studentNumber);
                 setIsStartingTeacherConversation(false);
                 setMailStatus('');
@@ -10048,7 +10083,7 @@ export default function TimerPage() {
           {isStartingTeacherConversation ? (
             <label className="teacher-mail-new-recipient">
               <span>누구에게 보낼까요?</span>
-              <select value={mailRecipient} onChange={(event) => setMailRecipient(Number(event.target.value))}>
+              <select value={mailRecipient} onChange={(event) => { mailEditVersionRef.current++; setMailRecipient(Number(event.target.value)); }}>
                 <option value={ALL_STUDENTS_LETTER_RECIPIENT}>모든 학생</option>
                 {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}번 학생</option>)}
               </select>
@@ -10075,17 +10110,17 @@ export default function TimerPage() {
         <div className="teacher-mail-composer">
           <label className="teacher-mail-new-recipient teacher-mail-sender">
             <span>보내는 사람</span>
-            <select aria-label="보내는 사람" value={mailSender} disabled={isMailSending} onChange={event => setMailSender(event.target.value)}>
+            <select aria-label="보내는 사람" value={mailSender} disabled={isMailSending} onChange={event => { mailEditVersionRef.current++; setMailSender(event.target.value); }}>
               {TEACHER_MAIL_SENDERS.map(sender => <option key={sender} value={sender}>{sender}</option>)}
             </select>
           </label>
           <label className="teacher-mail-compose-subject">
             <span className="sr-only">제목</span>
-            <input value={mailTitle} maxLength={40} onChange={(event) => setMailTitle(event.target.value)} placeholder="제목 추가 (선택)" />
+            <input value={mailTitle} maxLength={40} onChange={(event) => { mailEditVersionRef.current++; setMailTitle(event.target.value); }} placeholder="제목 추가 (선택)" />
           </label>
           <label className="teacher-mail-compose-message">
             <span className="sr-only">편지 내용</span>
-            <textarea value={mailContent} maxLength={300} onChange={(event) => setMailContent(event.target.value)} placeholder={`${mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT ? '모든 학생' : `${mailRecipient}번 학생`}에게 전할 내용을 적어 주세요`} />
+            <textarea value={mailContent} maxLength={300} onChange={(event) => { mailEditVersionRef.current++; setMailContent(event.target.value); }} placeholder={`${mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT ? '모든 학생' : `${mailRecipient}번 학생`}에게 전할 내용을 적어 주세요`} />
           </label>
           <div className="teacher-mail-compose-actions">
             <span role="status">{mailStatus}</span>
@@ -10283,7 +10318,7 @@ export default function TimerPage() {
       if (pending) {
         const saved = await executeStorageCommand({ requestId: pending.draft.requestId, action: 'teacher.settings.patch', payload: pending.draft.payload });
         if (isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
-          const remote = normalizeSharedSchoolTimerSettings(saved.value);
+          const remote = saved.value ? normalizeSharedSchoolTimerSettings(saved.value) : null;
           if (remote) {
             const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
             teacherSettingsBaseRef.current = { ...remote };
@@ -10292,9 +10327,15 @@ export default function TimerPage() {
             teacherSettingsBaseRef.current = { ...remote };
           }
         }
-        lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+        if (!saved.value && isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
+          const changes = pending.draft.payload.changes.flatMap(change => isStorageRecord(change) && typeof change.field === 'string' && 'after' in change && 'before' in change ? [{ field: change.field, before: change.before, after: change.after }] : []);
+          teacherSettingsBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsBaseRef.current, changes);
+        }
+        if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
       } else {
+        const refreshVersion = getSaveRefreshVersion(0);
         const latest = await loadSharedSettingsRow();
+        if (!isSaveRefreshVersionCurrent(0, refreshVersion)) return;
         if (latest && isStorageRecord(latest.value)) {
           const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
           const remote = normalizeSharedSchoolTimerSettings(latest.value);
@@ -10314,6 +10355,34 @@ export default function TimerPage() {
     }
   };
 
+  const refreshTeacherSavedState = async () => {
+    const refreshVersion = getSaveRefreshVersion(0);
+    try {
+      const latest = await loadSharedSettingsRow();
+      if (!isSaveRefreshVersionCurrent(0, refreshVersion)) return;
+      const remote = normalizeSharedSchoolTimerSettings(latest?.value);
+      if (!remote) return;
+      const changes = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
+      const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, changes));
+      if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
+      teacherSettingsBaseRef.current = { ...remote };
+      lastSharedSettingsUpdatedAtRef.current = latest?.updated_at ?? null;
+      teacherRefreshPendingRef.current = false;
+      setTeacherRefreshPending(false);
+      markSaveRefreshComplete(0, refreshVersion);
+    } catch { /* The receipt remains confirmed while a later display refresh is unavailable. */ }
+  };
+
+  const teacherRecoveryRefreshRef = useRef(refreshTeacherSavedState);
+  teacherRecoveryRefreshRef.current = refreshTeacherSavedState;
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      if (event instanceof CustomEvent && event.detail?.actor === 0) void teacherRecoveryRefreshRef.current();
+    };
+    window.addEventListener(SAVE_RECOVERED_EVENT, refresh);
+    return () => window.removeEventListener(SAVE_RECOVERED_EVENT, refresh);
+  }, []);
+
   const resetClassDonation = async () => {
     if (!isSupabaseSettingsEnabled) {
       setClassDonation(previous => ({ ...previous, totalAmount: 0, history: [] }));
@@ -10321,7 +10390,7 @@ export default function TimerPage() {
     }
     try {
       const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.donation.reset', payload: {} });
-      setClassDonation(normalizeClassDonationSettings(saved.value.classDonation));
+      if (saved.value) setClassDonation(normalizeClassDonationSettings(saved.value.classDonation));
     } catch (error) {
       if (error instanceof Error) console.error('Failed to reset class donation.', error);
     }
@@ -10941,6 +11010,10 @@ export default function TimerPage() {
 
   return (
     <div className="mascot-app h-[100dvh] w-full overflow-hidden">
+      {teacherRefreshPending && !isSettingsOpen && <div className="fixed left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl border bg-[#FDFBF7] px-4 py-2 shadow" role="status">
+        <span>저장됨 · 화면 갱신 중</span>
+        <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => void refreshTeacherSavedState()}>다시 불러오기</button>
+      </div>}
       <div className={`mascot-shell editorial-main-shell timer-main-shell relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none shadow-none transition-colors duration-1000 ${bgClass} ${isScheduleIdle ? 'timer-idle-state' : ''} ${isQuestionSubmissionPanelOpen ? 'question-submission-panel-open' : ''}`}>
         <style>{`
           @keyframes noticeFadeIn {
@@ -12538,6 +12611,10 @@ export default function TimerPage() {
               className="settings-parent-content flex min-h-0 flex-1 flex-col"
               aria-hidden={hasSettingsChildModal ? 'true' : undefined}
             >
+            {teacherRefreshPending && <div className="teacher-settings-save-status flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-5 py-2" role="status">
+              <span>저장됨 · 화면 갱신 중</span>
+              <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => void refreshTeacherSavedState()}>다시 불러오기</button>
+            </div>}
             {teacherSettingsSaveError && <div className="teacher-settings-save-status flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-5 py-2" role="status">
               <span>{teacherSettingsSaveError}</span>
               <button type="button" className="min-h-11 rounded-full border px-4 font-bold disabled:cursor-wait disabled:opacity-60" disabled={isTeacherSettingsRetrying} onClick={() => void retryTeacherSettingsSave()}>{isTeacherSettingsRetrying ? '확인 중…' : '저장 다시 확인'}</button>

@@ -31,3 +31,13 @@ test('teacher guidance distinguishes unconfirmed saves, offline devices, and mis
   assert.match(formatSaveFailureDiagnostic(alert), /이전 알림에는 상세 진단이 저장되지 않았습니다/);
   assert.match(formatSaveFailureDiagnostic({ ...alert, diagnostics: { errorCode: 'SHARED_SETTINGS_WRITE_FAILED', httpStatus: 502, view: 'store-auction' } }), /화면: 경매장/);
 });
+
+test('복구 진단은 제한된 요청 식별자·배포 시각·단계·횟수만 통과한다', () => {
+  const diagnostics = { requestId: 'submitted-request-123', buildVersion: '2026-09-09T01:02:03.000Z', stage: 'recovery', retryCount: 5 };
+  const parsed = parseSaveFailureReport({ ...alert, diagnostics: { ...diagnostics, answer: '학생 내용', error: '원문 오류', requestBody: { content: '비공개' } } });
+  assert.deepEqual(parsed?.diagnostics, diagnostics);
+  assert.doesNotMatch(JSON.stringify(parsed), /학생 내용|원문 오류|비공개/);
+  assert.equal(parseSaveFailureReport({ ...alert, diagnostics: { requestId: '비공개 내용', buildVersion: 'private token', stage: '/api?answer=private', retryCount: 10000 } })?.diagnostics, undefined);
+  assert.match(formatSaveFailureDiagnostic({ ...alert, diagnostics: parsed?.diagnostics }), /저장 요청 ID: submitted-request-123/);
+  assert.match(formatSaveFailureDiagnostic({ ...alert, diagnostics: parsed?.diagnostics }), /재시도 횟수: 5/);
+});

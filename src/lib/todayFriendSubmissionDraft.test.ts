@@ -10,7 +10,7 @@ const mission: TodayFriendStudentMission = {
   genre: 'interview', question: '질문', submission: null, planningRevision: 'planning-original',
 };
 
-test('Today Friend 새로고침 후 수동 재시도는 원 요청과 revision을 유지한다', () => {
+test('Today Friend 새로고침 후 수동 재시도는 원 요청과 revision을 유지한다', async () => {
   const values = new Map<string, string>();
   const storage = {
     getItem: (key: string) => values.get(key) ?? null,
@@ -18,26 +18,40 @@ test('Today Friend 새로고침 후 수동 재시도는 원 요청과 revision�
     removeItem: (key: string) => { values.delete(key); },
   };
   const before = createTodayFriendSubmissionDraftStore(createStudentSaveDraftStore({ storage }));
-  const pending = before.prepare(mission, { kind: 'interview', answer: '보존할 답변' }, true);
+  const pending = await before.prepare(mission, { kind: 'interview', answer: '보존할 답변' }, true);
   assert.ok(pending);
   const after = createTodayFriendSubmissionDraftStore(createStudentSaveDraftStore({ storage }));
-  const retry = after.prepare({ ...mission, planningRevision: 'planning-new' }, { kind: 'interview', answer: '다른 답변' }, false);
+  const retry = await after.prepare({ ...mission, planningRevision: 'planning-new' }, { kind: 'interview', answer: '다른 답변' }, false);
   assert.deepEqual(retry, pending);
   assert.equal(retry?.expectedRevision, 0);
   assert.equal(retry?.planningRevision, 'planning-original');
-  assert.equal(after.confirm(mission, 'older-response'), false);
-  assert.equal(after.confirm(mission, pending.requestId), true);
+  assert.equal(retry?.expectedStudentNumber, 17);
+  assert.equal(await after.confirm(mission, 'older-response'), false);
+  assert.equal(await after.confirm(mission, pending.requestId), true);
   assert.equal(after.load(mission), null);
 });
 
-test('다른 학생·날짜·친구·질문의 요청 초안을 복원하지 않는다', () => {
+test('기존 미확인 요청은 대상 학생 필드를 소급 추가하지 않고 원본 ID를 유지한다', async () => {
+  const common = createStudentSaveDraftStore({ storage: null, createRequestId: () => 'legacy-friend-identity' });
+  await common.saveDurable({ studentNumber: mission.studentNumber, feature: 'todayFriend',
+    entityId: JSON.stringify([mission.dateKey, mission.partnerNumber, mission.genre, mission.question]) }, {
+    payload: { kind: 'interview', answer: '이전 제출' }, submit: true, expectedRevision: 0,
+  });
+  const store = createTodayFriendSubmissionDraftStore(common);
+  const pending = await store.prepare(mission, { kind: 'interview', answer: '다른 내용' }, true);
+  assert.equal(pending?.requestId, 'legacy-friend-identity');
+  assert.equal(pending?.expectedStudentNumber, null);
+  assert.deepEqual(pending?.payload, { kind: 'interview', answer: '이전 제출' });
+});
+
+test('다른 학생·날짜·친구·질문의 요청 초안을 복원하지 않는다', async () => {
   const store = createTodayFriendSubmissionDraftStore(createStudentSaveDraftStore({ storage: null }));
-  store.prepare(mission, { kind: 'interview', answer: '내용' }, true);
+  await store.prepare(mission, { kind: 'interview', answer: '내용' }, true);
   for (const other of [
     { ...mission, studentNumber: 2 }, { ...mission, dateKey: '2026-09-09' },
     { ...mission, partnerNumber: 3 }, { ...mission, question: '새 질문' },
   ]) assert.equal(store.load(other), null);
-  assert.equal(store.prepare(mission, { kind: 'emotion', emotion: '기쁨', reason: '', declinedToExplain: true }, true)?.payload.kind, 'interview');
+  assert.equal((await store.prepare(mission, { kind: 'emotion', emotion: '기쁨', reason: '', declinedToExplain: true }, true))?.payload.kind, 'interview');
 });
 
 test('이전 요청의 확인 영수증이 나중에 도착해도 최신 승인 상태를 되돌리지 않는다', () => {

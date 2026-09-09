@@ -12,9 +12,12 @@ import {
   type SudokuProgressEntry,
 } from '../../lib/sudoku';
 import { getKoreanIsoWeekKey } from '../../lib/weeklyMission';
+import { loadStudentStorageFormDraft } from '../../lib/studentStorageCommand';
 import StudentHeader from './StudentHeader';
 import StudentSudokuBoard from './StudentSudokuBoard';
 import StudentSudokuCelebration from './StudentSudokuCelebration';
+import StudentGameConflictNotice from './StudentGameConflictNotice';
+import type { StudentGameConflictReview } from '../../lib/useStudentGameConflict';
 
 interface StudentSudokuPageProps {
   studentNumber: number;
@@ -24,6 +27,9 @@ interface StudentSudokuPageProps {
   onSave: (key: string, entry: SudokuProgressEntry) => Promise<boolean>;
   onComplete: (key: string, entry: SudokuProgressEntry, difficulty: SudokuDifficulty) => Promise<boolean>;
   onBack: () => void;
+  conflict?: StudentGameConflictReview | null;
+  onConflictRefresh?: (key: string) => void;
+  onContinueFromLatest?: () => Promise<boolean>;
 }
 
 const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
@@ -42,6 +48,9 @@ export default function StudentSudokuPage({
   onSave,
   onComplete,
   onBack,
+  conflict,
+  onConflictRefresh,
+  onContinueFromLatest,
 }: StudentSudokuPageProps) {
   const weekKey = getKoreanIsoWeekKey();
   const puzzle = useMemo(
@@ -49,18 +58,25 @@ export default function StudentSudokuPage({
     [difficulty, studentNumber, weekKey],
   );
   const progressKey = getSudokuProgressKey(studentNumber, weekKey, difficulty);
+  const currentConflict = conflict?.key === progressKey ? conflict : null;
+  const hasConflict = !!currentConflict && currentConflict.state !== 'archived';
   const savedEntry = progress[progressKey]?.puzzleId === puzzle.id ? progress[progressKey] : undefined;
   const [cells, setCells] = useState<readonly number[]>(savedEntry?.cells ?? puzzle.puzzle);
   const [selectedIndex, setSelectedIndex] = useState(() => puzzle.puzzle.findIndex((value) => value === 0));
   const [feedback, setFeedback] = useState('빈칸을 선택하고 숫자를 입력하세요.');
-  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [saveState, setSaveState] = useState<SaveState>(() => (
+    Object.keys(loadStudentStorageFormDraft(studentNumber, 'student.sudoku.save', progressKey)).length
+      || Object.keys(loadStudentStorageFormDraft(studentNumber, 'student.sudoku.complete', progressKey)).length ? 'error' : 'idle'
+  ));
   const [interactionMode, setInteractionMode] = useState<InteractionMode>('pointer');
   const [lastEditedIndex, setLastEditedIndex] = useState<number | null>(null);
   const [feedbackSequence, setFeedbackSequence] = useState(0);
   const [isCelebrating, setIsCelebrating] = useState(false);
   const completionInFlightRef = useRef(false);
-  const loadedPuzzleIdRef = useRef<string | null>(null);
+  const loadedPuzzleIdRef = useRef<string | null>(puzzle.id);
   const saveSequenceRef = useRef(0);
+  const puzzleIdRef = useRef(puzzle.id);
+  puzzleIdRef.current = puzzle.id;
   const savedStateTimeoutRef = useRef<number | null>(null);
   const celebrationTimeoutRef = useRef<number | null>(null);
   const matchingIndices = useMemo(
@@ -92,7 +108,16 @@ export default function StudentSudokuPage({
       setCells(nextCells);
       setSelectedIndex(puzzle.puzzle.findIndex((value) => value === 0));
       setFeedback(isCompleted ? '이번 주 보상을 받았습니다.' : '빈칸을 선택하고 숫자를 입력하세요.');
-      setSaveState('idle');
+      if (isNewPuzzle) {
+        saveSequenceRef.current += 1;
+        setSaveState('idle');
+      } else if (saveState === 'idle' && (
+        Object.keys(loadStudentStorageFormDraft(studentNumber, 'student.sudoku.save', progressKey)).length
+        || Object.keys(loadStudentStorageFormDraft(studentNumber, 'student.sudoku.complete', progressKey)).length
+      )) {
+        setSaveState('error');
+        setFeedback('저장 확인이 필요해요. 입력은 보관했어요.');
+      }
       setLastEditedIndex(null);
       setIsCelebrating(false);
       completionInFlightRef.current = false;
@@ -103,14 +128,8 @@ export default function StudentSudokuPage({
     loadedPuzzleIdRef.current = puzzle.id;
   }, [isCompleted, progressKey, puzzle, savedEntry?.cells]);
 
-  const commitCells = (nextCells: readonly number[], mode: InteractionMode) => {
-    if (isCompleted || selectedIndex < 0 || puzzle.puzzle[selectedIndex] !== 0) return;
-    setCells(nextCells);
-    setInteractionMode(mode);
-    setLastEditedIndex(selectedIndex);
-    setFeedbackSequence((current) => current + 1);
-    setFeedback('빈칸을 선택하고 숫자를 입력하세요.');
-
+  const persistCells = (nextCells: readonly number[]) => {
+    if (hasConflict || isCompleted || completionInFlightRef.current) return;
     const entry: SudokuProgressEntry = { puzzleId: puzzle.id, cells: nextCells, completedAt: null };
     const sequence = saveSequenceRef.current + 1;
     saveSequenceRef.current = sequence;
@@ -118,6 +137,7 @@ export default function StudentSudokuPage({
     if (isSudokuSolved(puzzle, nextCells) && !completionInFlightRef.current) {
       completionInFlightRef.current = true;
       void onComplete(progressKey, entry, difficulty).then((saved) => {
+        if (puzzleIdRef.current !== puzzle.id || saveSequenceRef.current !== sequence) return;
         if (saved) {
           setFeedback(`${DIFFICULTY_LABELS[difficulty]} 미션 완료! ${SUDOKU_REWARDS[difficulty]} 고마를 받았어요.`);
           setIsCelebrating(true);
@@ -125,19 +145,30 @@ export default function StudentSudokuPage({
         }
         else {
           completionInFlightRef.current = false;
-          setFeedback('보상을 저장하지 못했습니다. 잠시 후 다시 시도하세요.');
+          setFeedback('저장을 확인하지 못했어요. 입력은 보관했어요.');
         }
         if (saveSequenceRef.current === sequence) setSaveState(saved ? 'saved' : 'error');
       });
       return;
     }
     void onSave(progressKey, entry).then((saved) => {
+      if (puzzleIdRef.current !== puzzle.id || saveSequenceRef.current !== sequence) return;
       if (saveSequenceRef.current === sequence) {
         if (saved) showSavedState();
         else setSaveState('error');
       }
-      if (!saved) setFeedback('입력을 저장하지 못했습니다. 연결을 확인하세요.');
+      if (!saved) setFeedback('저장을 확인하지 못했어요. 입력은 보관했어요.');
     });
+  };
+
+  const commitCells = (nextCells: readonly number[], mode: InteractionMode) => {
+    if (hasConflict || isCompleted || completionInFlightRef.current || selectedIndex < 0 || puzzle.puzzle[selectedIndex] !== 0) return;
+    setCells(nextCells);
+    setInteractionMode(mode);
+    setLastEditedIndex(selectedIndex);
+    setFeedbackSequence((current) => current + 1);
+    setFeedback('빈칸을 선택하고 숫자를 입력하세요.');
+    persistCells(nextCells);
   };
 
   const enterDigit = (digit: number, mode: InteractionMode) => {
@@ -192,7 +223,7 @@ export default function StudentSudokuPage({
                 {isCompleted ? <CheckCircle2 size={18} aria-hidden="true" /> : null}
                 {saveState === 'saving' ? <LoaderCircle className="student-spin" size={18} aria-hidden="true" /> : null}
                 {!isCompleted && saveState === 'error' ? <CloudAlert size={18} aria-hidden="true" /> : null}
-                {isCompleted ? '완료' : saveState === 'saving' ? '저장 중' : '저장 오류'}
+                {isCompleted ? '완료' : saveState === 'saving' ? '저장 중' : '저장 확인 필요'}
               </span>
             ) : null}
           </div>
@@ -223,15 +254,27 @@ export default function StudentSudokuPage({
             </div>
 
             <div className="student-sudoku-controls">
-              <p className={saveState === 'error' ? 'is-error' : isCompleted ? 'is-complete' : ''} aria-live="polite">
+              {currentConflict && onConflictRefresh && onContinueFromLatest ? <StudentGameConflictNotice
+                review={currentConflict}
+                onRefresh={() => onConflictRefresh(progressKey)}
+                onAdopt={async () => {
+                  const continued = await onContinueFromLatest();
+                  if (continued) { saveSequenceRef.current += 1; setSaveState('idle'); setFeedback('최신 기록으로 이어갑니다.'); }
+                  return continued;
+                }}
+              /> : null}
+              {!hasConflict ? <p className={saveState === 'error' ? 'is-error' : isCompleted ? 'is-complete' : ''} aria-live="polite">
                 {saveState === 'error'
                   ? <TriangleAlert size={20} aria-hidden="true" />
                   : isCompleted
                     ? <CheckCircle2 size={20} aria-hidden="true" />
                     : <PencilLine size={20} aria-hidden="true" />}
                 <span>{feedback}</span>
-              </p>
-              <div className="student-sudoku-keypad" aria-label="숫자 입력">
+              </p> : null}
+              {saveState === 'error' && !isCompleted && !hasConflict ? (
+                <button type="button" className="student-secondary-action mb-3" onClick={() => persistCells(cells)}>저장 다시 확인</button>
+              ) : null}
+              {!hasConflict ? <div className="student-sudoku-keypad" aria-label="숫자 입력">
                 {Array.from({ length: puzzle.gridSize }, (_, index) => index + 1).map((digit) => (
                   <button
                     type="button"
@@ -241,7 +284,7 @@ export default function StudentSudokuPage({
                     aria-hidden={completedDigits.has(digit)}
                     tabIndex={completedDigits.has(digit) ? -1 : undefined}
                     onClick={(event) => enterDigit(digit, event.detail === 0 ? 'keyboard' : 'pointer')}
-                    disabled={isCompleted || completedDigits.has(digit)}
+                    disabled={hasConflict || isCompleted || completedDigits.has(digit)}
                   >
                     {digit}
                   </button>
@@ -250,12 +293,12 @@ export default function StudentSudokuPage({
                   type="button"
                   className="student-sudoku-erase"
                   onClick={(event) => enterDigit(0, event.detail === 0 ? 'keyboard' : 'pointer')}
-                  disabled={isCompleted}
+                  disabled={hasConflict || isCompleted}
                 >
                   <Delete size={20} aria-hidden="true" />
                   지우기
                 </button>
-              </div>
+              </div> : null}
             </div>
           </div>
         </section>

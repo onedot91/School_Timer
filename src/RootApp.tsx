@@ -15,6 +15,9 @@ import { appDataMode } from './lib/dataMode';
 import { detectEntryResetPlatform, isEntryResetShortcut } from './lib/entryResetShortcut';
 import { isSupabaseSettingsEnabled } from './lib/supabaseConfig';
 import { captureStorageResponseContext } from './lib/storageResponseOrder';
+import { startSaveRecovery } from './lib/saveRecovery';
+import { retainStorageResponseActor } from './lib/storageResponseOrder';
+import { canReloadWithDrafts } from './lib/draftReloadSafety';
 import EntrySelectPage from './pages/EntrySelectPage';
 
 const AuctionPage = lazy(() => import('./pages/AuctionPage'));
@@ -114,10 +117,21 @@ export default function RootApp() {
   const [deviceSession, setDeviceSession] = useState<BrowserDeviceSession | null>(null);
   const [isDeviceSessionReady, setIsDeviceSessionReady] = useState(!requiresDeviceRegistration);
   const [teacherEntryVisible, setTeacherEntryVisible] = useState(() => getStoredTeacherEntryVisible());
+  useEffect(() => { retainStorageResponseActor(selectedEntryNumber); }, [selectedEntryNumber]);
 
   useEffect(() => startSaveFailureReporting(), [selectedEntryNumber]);
+  useEffect(() => {
+    if (!isDeviceSessionReady || selectedEntryNumber === null) return;
+    if (requiresDeviceRegistration && !(deviceSession?.role === 'student' && deviceSession.studentNumber === selectedEntryNumber)
+      && !(deviceSession?.role === 'teacher' && selectedEntryNumber === 0)) return;
+    if (selectedEntryNumber > 0) {
+      void Promise.allSettled([import('./lib/classwordClient'), import('./lib/todayFriendClient'), import('./lib/canvasLibraryClient')]);
+    }
+    return startSaveRecovery(selectedEntryNumber);
+  }, [isDeviceSessionReady, selectedEntryNumber, deviceSession]);
 
   const selectEntryNumber = async (studentNumber: number, registrationKey?: string) => {
+    if (selectedEntryNumber !== null && selectedEntryNumber !== studentNumber && !canReloadWithDrafts(selectedEntryNumber)) return;
     void preloadEntryPage(studentNumber)?.catch(() => undefined);
     if (requiresDeviceRegistration) {
       const canUseExistingSession = deviceSession?.role === 'teacher'
@@ -145,6 +159,7 @@ export default function RootApp() {
   };
 
   const changeEntryNumber = async () => {
+    if (selectedEntryNumber !== null && !canReloadWithDrafts(selectedEntryNumber)) return;
     if (requiresDeviceRegistration && deviceSession?.role === 'student') {
       await clearDeviceSession();
       setDeviceSession(null);
@@ -206,7 +221,7 @@ export default function RootApp() {
 
     window.addEventListener('keydown', handleEntryResetShortcut);
     return () => window.removeEventListener('keydown', handleEntryResetShortcut);
-  }, [deviceSession]);
+  }, [deviceSession, selectedEntryNumber]);
 
   if (!isDeviceSessionReady) {
     return (
@@ -244,7 +259,7 @@ export default function RootApp() {
     activePage = (
       <StudentProfanityGuard>
         <StudentRapidClickGuard>
-          <AuctionPage studentNumber={selectedEntryNumber} />
+          <AuctionPage key={selectedEntryNumber} studentNumber={selectedEntryNumber} />
         </StudentRapidClickGuard>
       </StudentProfanityGuard>
     );

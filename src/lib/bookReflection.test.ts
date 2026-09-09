@@ -13,6 +13,12 @@ const draft = { studentNumber: 1, title: '달빛 우체국', author: '고마', p
 const command = { action: 'placeLibraryBook', requestId: REQUEST_ID, slotId: 0, book: { kind: 'new', title: draft.title, author: draft.author, pageCount: 0, reflection: draft.reflection } };
 const legacy = { id: 'legacy-1', studentNumber: 1, title: '기존 책', author: '작가', pageCount: 120, createdAt: NOW, colorIndex: 0 };
 
+const placementBodyForStudent = (value: unknown) => {
+  assert.ok(value !== null && typeof value === 'object' && !Array.isArray(value));
+  assert.equal(Reflect.get(value, 'expectedStudentNumber'), 1);
+  return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'expectedStudentNumber'));
+};
+
 const dependencies = (overrides: Partial<CanvasLibraryClientDependencies>): CanvasLibraryClientDependencies => ({
   dataMode: 'mock', isSharedConfigured: false, createRequestId: () => REQUEST_ID, now: () => NOW,
   requestTimeoutMs: 100, fetcher: async () => { throw new TypeError('Unexpected network access'); },
@@ -118,8 +124,9 @@ for (const mismatch of ['none', 'receipt', 'snapshot'] as const) {
     // Given
     const client = createCanvasLibraryClient(dependencies({ dataMode: 'production', isSharedConfigured: true,
       fetcher: async (_url, init) => {
+        assert.equal(init?.method, 'PUT');
         const raw: unknown = JSON.parse(String(init?.body));
-        const placed = applyLibraryPlacementCommand({}, 1, raw, NOW);
+        const placed = applyLibraryPlacementCommand({}, 1, placementBodyForStudent(raw), NOW);
         if (placed.ok === false) return Response.json({ error: placed.error.code }, { status: 400 });
         const book = mismatch === 'receipt' ? { ...placed.book, reflection: '다른 감상' } : placed.book;
         const value = mismatch === 'snapshot' ? { ...placed.value, studentLife: { ...placed.studentLife, books: [{ ...placed.book, reflection: '다른 감상' }] } } : placed.value;
@@ -144,8 +151,14 @@ test('retry request identity changes when reflection changes but preserves trimm
   const ids = [REQUEST_ID, NEXT_ID];
   const client = createCanvasLibraryClient(dependencies({ dataMode: 'production', isSharedConfigured: true,
     createRequestId: () => ids.shift() ?? NEXT_ID,
-    fetcher: async (_url, init) => {
-      const parsed = parseLibraryPlacementCommand(JSON.parse(String(init?.body)));
+    fetcher: async (url, init) => {
+      if (init?.method !== 'PUT') {
+        const query = new URL(String(url), 'https://fixture.invalid').searchParams;
+        assert.equal(query.get('receiptOnly'), '1');
+        assert.equal(query.get('studentNumber'), '1');
+        return Response.json({ status: 'unknown' });
+      }
+      const parsed = parseLibraryPlacementCommand(placementBodyForStudent(JSON.parse(String(init.body))));
       if (parsed.ok) requestIds.push(parsed.command.requestId);
       throw new TypeError('isolated simulated dropped response');
     },

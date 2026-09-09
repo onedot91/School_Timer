@@ -22,7 +22,7 @@ test('점검 거절은 미확인이 아니며 같은 내용 수동 재시도는 
   assert.equal(typeof requestId, 'string');
   assert.equal(reads, 0); assert.equal(bodies.length, 1);
   await executeStudentStorageCommand(12, 'student.letter.send', input);
-  assert.equal(reads, 0); assert.equal(bodies.length, 2);
+  assert.equal(reads, 1); assert.equal(bodies.length, 2);
   assert.equal(bodies[1].requestId, requestId);
   assert.equal(loadStudentStorageDraft(12, 'student.letter.send'), null);
 });
@@ -30,7 +30,8 @@ test('점검 거절은 미확인이 아니며 같은 내용 수동 재시도는 
 test('확실히 중단된 초안은 편집할 수 있고 바뀐 내용은 새 요청으로 저장한다', async context => {
   const bodies: Record<string, unknown>[] = [];
   context.mock.method(globalThis, 'fetch', async (_url: unknown, init?: RequestInit) => {
-    assert.equal(init?.method, 'POST'); bodies.push(JSON.parse(String(init.body)));
+    if (init?.method !== 'POST') return Response.json({ status: 'unknown' });
+    bodies.push(JSON.parse(String(init.body)));
     return bodies.length === 1 ? Response.json({ error: 'STORAGE_PROTOCOL_REQUIRED' }, { status: 409 }) : success();
   });
   await assert.rejects(executeStudentStorageCommand(13, 'student.failure.create', { failure: '초안' }), /PROTOCOL/);

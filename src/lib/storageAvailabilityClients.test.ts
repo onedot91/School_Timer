@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createServer } from 'vite';
 
-test('전용 저장 클라이언트는 운영 거절과 저장 미확인을 구분하고 자동 재전송하지 않는다', async () => {
+test('전용 저장 클라이언트는 운영 거절과 저장 미확인을 구분하고 자동 재전송하지 않는다', async (context) => {
   const server = await createServer({
     configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
     define: { 'import.meta.env.PROD': 'true', 'import.meta.env.DEV': 'false', 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fixture.invalid'), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('fixture') },
@@ -98,6 +98,51 @@ test('전용 저장 클라이언트는 운영 거절과 저장 미확인을 구�
       await assert.rejects(save, /SESSION_CHANGED/);
       assert.equal(availability.getStorageAvailabilityNotice(), null);
     }
+    context.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-09T00:00:00Z') });
+    values.set('school-timer-entry-number-v1', '3');
+    const retrySaves = [
+      { send: () => classword.saveClasswordEntry({ studentNumber: 3, dateKey: '2026-09-09', initial: 'ㄱ', word: '가방' }, '물건'),
+        receipt: (body: Record<string, unknown>) => classword.loadClasswordCommandReceipt(body, true) },
+      { send: () => friend.submitStudentTodayFriendMission({ mission: { studentNumber: 3, dateKey: '2026-09-09', partnerNumber: 4, genre: 'interview', question: '시험 질문', submission: null },
+          requestId: 'friend-first-retry-after-fixture', expectedRevision: 0, payload: { kind: 'interview', answer: '합성 답변' } }),
+        receipt: (body: Record<string, unknown>) => friend.loadTodayFriendSubmissionReceipt(String(body.requestId), body) },
+    ];
+    for (const save of retrySaves) {
+      const bodies: Record<string, unknown>[] = [];
+      let reads = 0;
+      globalThis.fetch = async (_url, init) => {
+        if (init?.method === 'POST') {
+          bodies.push(JSON.parse(String(init.body)));
+          return Response.json({ error: 'RATE_LIMITED' }, { status: 429, headers: { 'Retry-After': '12' } });
+        }
+        reads += 1;
+        return Response.json({ status: 'unknown' });
+      };
+      const limited = (error: unknown) => error instanceof Error && Reflect.get(error, 'status') === 429;
+      await assert.rejects(save.send, limited);
+      assert.equal(bodies.length, 1);
+      assert.equal(bodies[0].expectedStudentNumber, 3, 'new submissions bind the original student even when another tab changes the cookie');
+      await assert.rejects(save.send, limited);
+      assert.equal(bodies.length, 1, 'the first foreground Retry-After blocks immediate retransmission');
+      await save.receipt(bodies[0]);
+      assert.equal(reads, 1, 'receipt reads remain available during the POST delay');
+      context.mock.timers.tick(11_999);
+      await assert.rejects(save.send, limited);
+      assert.equal(bodies.length, 1);
+      context.mock.timers.tick(1);
+      await assert.rejects(save.send, limited);
+      assert.equal(bodies.length, 2, 'the same request becomes eligible only after Retry-After');
+      assert.deepEqual(bodies[1], bodies[0]);
+    }
+    const legacyWord = { protocolVersion: 2, action: 'save_entry', dateKey: '2026-09-09', initial: 'ㄴ', word: '나무' };
+    storage.setItem('school-timer-classword-request-v2:3:save_entry', JSON.stringify({ requestId: 'legacy-word-no-target', fingerprint: JSON.stringify(legacyWord) }));
+    const legacyCalls: { method: string; url: string }[] = [];
+    globalThis.fetch = async (url, init) => { legacyCalls.push({ method: init?.method ?? 'GET', url: String(url) }); return Response.json({ status: 'unknown' }); };
+    await assert.rejects(() => classword.saveClasswordEntry({ studentNumber: 3, dateKey: '2026-09-09', initial: 'ㄴ', word: '나무' }, '자연'), /LEGACY_CONFIRMATION_REQUIRED/);
+    await assert.rejects(() => friend.submitStudentTodayFriendMission({ mission: { studentNumber: 3, dateKey: '2026-09-09', partnerNumber: 4, genre: 'interview', question: '시험 질문', submission: null },
+      requestId: 'legacy-friend-no-target', expectedStudentNumber: null, expectedRevision: 0, payload: { kind: 'interview', answer: '이전 답변' } }), /LEGACY_CONFIRMATION_REQUIRED/);
+    assert.equal(legacyCalls.length, 2);
+    assert.ok(legacyCalls.every(call => call.method === 'GET' && new URL(call.url, 'https://fixture.invalid').searchParams.get('expectedStudentNumber') === '3'), 'legacy requests only inspect receipts for the original student');
   } finally {
     globalThis.fetch = originalFetch;
     if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow); else Reflect.deleteProperty(globalThis, 'window');

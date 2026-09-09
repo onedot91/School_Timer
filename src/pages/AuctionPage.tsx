@@ -1,10 +1,14 @@
 import { getAuctionBidErrorMessage } from '../lib/auctionBidError';
 import { mergeStudentEconomyLife } from '../lib/studentEconomyClient';
-import { executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft } from '../lib/studentStorageCommand';
+import { executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, rebaseStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, subscribeStudentStorageDrafts, readyStudentStorageDrafts } from '../lib/studentStorageCommand';
+import { StorageCommandError } from '../lib/storageCommandClient';
+import { captureStorageResponseContext, isStorageResponseContextCurrent, readLatestStorageProjection, readStorageRevisions } from '../lib/storageResponseOrder';
+import { createStudentEmotionConflictSnapshot, type StudentEmotionConflictSnapshot, type StudentEmotionSaveConflict } from '../lib/studentEmotionConflict';
 import { CURRENCY_BALANCE_MAX } from '../lib/currency';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { createHousePurchaseLetter, HOUSE_CREATOR_REWARD } from '../lib/studentHouseReward';
 import { reportSaveFailure } from '../lib/saveFailureClient';
+import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { subscribeSaveProgress, getSaveProgress, getServerSaveProgress } from '../lib/saveProgress';
 import '../classword.css';
@@ -333,6 +337,14 @@ const getInitialSelectedAuctionItemId = () => {
 };
 
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
+  const [, setDraftRevision] = useState(0);
+  useEffect(() => {
+    let active = true;
+    const update = () => { if (active) setDraftRevision(revision => revision + 1); };
+    const unsubscribe = subscribeStudentStorageDrafts(update);
+    void readyStudentStorageDrafts().then(update);
+    return () => { active = false; unsubscribe(); };
+  }, [studentNumber]);
   const shouldReduceMotion = useReducedMotion();
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => (
     isSupabaseSettingsEnabled
@@ -354,6 +366,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     completeSudoku,
     applySharedStudentSudoku,
     refreshLocalStudentSudoku,
+    sudokuConflict,
+    inspectSudokuConflict,
+    continueSudokuFromLatest,
   } = useStudentSudokuState({
     studentNumber,
     currencyHistory,
@@ -372,6 +387,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     completeGame: completeNumberBaseball,
     applySharedProgress: applySharedNumberBaseball,
     refreshLocalProgress: refreshLocalNumberBaseball,
+    baseballConflict,
+    inspectBaseballConflict,
+    continueBaseballFromLatest,
   } = useStudentNumberBaseballState({
     studentNumber,
     currencyHistory,
@@ -438,6 +456,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const studentPetStatesRef = useRef(studentPetStates);
   const petPositionSaveQueueRef = useRef(Promise.resolve());
   const [isEmotionSaving, setIsEmotionSaving] = useState(false);
+  const [emotionSaveConflict, setEmotionSaveConflict] = useState<StudentEmotionSaveConflict | null>(null);
+  const emotionSaveConflictRef = useRef<StudentEmotionSaveConflict | null>(null);
+  const emotionConflictDateRef = useRef<string | null>(null);
+  const emotionSaveOperationRef = useRef<symbol | null>(null);
+  const emotionActorRef = useRef(studentNumber);
+  const emotionMountedRef = useRef(true);
+  emotionActorRef.current = studentNumber;
+  useEffect(() => {
+    emotionMountedRef.current = true;
+    return () => { emotionMountedRef.current = false; };
+  }, []);
   const [weeklyMissionStatuses, setWeeklyMissionStatuses] = useState<WeeklyMissionStatuses>(() => (
     createWeeklyMissionStatuses('loading')
   ));
@@ -733,6 +762,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const draftEmotionDefinition = STUDENT_EMOTIONS.find(({ id }) => id === emotionDraftValue.emotionId);
   const emotionDraft = typeof emotionDraftValue.comment === 'string' && typeof emotionDraftValue.selfMessage === 'string'
     ? { emotionId: draftEmotionDefinition?.id ?? null, comment: emotionDraftValue.comment, selfMessage: emotionDraftValue.selfMessage } : undefined;
+  useEffect(() => {
+    emotionSaveConflictRef.current = null;
+    emotionConflictDateRef.current = null;
+    emotionSaveOperationRef.current = null;
+    setEmotionSaveConflict(null);
+    setIsEmotionSaving(false);
+  }, [studentNumber, currentDateKey]);
 
   const saveStudentLifeChange = async (change: (current: StudentLifeState) => StudentLifeState, action: string, payload: unknown, entityId?: string) => {
     if (isStudentLifeSaving) return false;
@@ -874,6 +910,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           ? { type: 'draw_profile' as const }
           : { type: 'select_profile' as const, profileImage: purchase.profileImage };
         const result = await executeStudentEconomyWithDraft(studentNumber, action);
+        if (result.refreshPending) {
+          applySharedSettingsValue(null, result.updatedAt);
+          void refreshAuctionState({ forceFull: true });
+          return result.applied && result.profileImage
+            ? { ok: true, profileImage: result.profileImage, price: result.profilePrice ?? 0 }
+            : { ok: false, message: '저장됨 · 화면 갱신 중' };
+        }
         if (!isStudentSettingsSnapshotFresh(result.updatedAt, minimumSettingsUpdatedAtRef.current)) {
           void refreshAuctionState({ forceFull: true });
           return result.applied && result.profileImage ? { ok: true, profileImage: result.profileImage, price: result.profilePrice ?? 0 } : { ok: false, message: result.message };
@@ -1073,55 +1116,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     saveStudentPetPosition('goma', position)
   );
 
-  const saveStudentEmotion = useCallback(async (emotionId: StudentEmotionId, comment: string, selfMessage: string) => {
-    if (isEmotionSaving) return false;
-    setIsEmotionSaving(true);
-    try {
-      const entry = createStudentEmotionEntry(studentNumber, emotionId, comment, new Date(), todayEmotionEntry, selfMessage);
-      let savedHistory: StudentEmotionHistory = {};
-      let savedCurrencyHistory: CurrencyHistory = currencyHistory;
-      let savedBalances = currencyBalances;
-      if (isSupabaseSettingsEnabled) {
-        const response = await executeStudentStorageCommand(studentNumber, 'student.emotion.save', { emotionId, comment, selfMessage }, entry.dateKey);
-        applySharedSettingsValue(response.value, response.updatedAt);
-        return true;
-      } else {
-        savedHistory = upsertStudentEmotionEntry(studentEmotionHistory, entry);
-        if (!storeStudentEmotionHistory(savedHistory)) { reportSaveFailure('emotion', 'storage', studentNumber); return false; }
-        const snapshot = loadStoredStudentPetSnapshot();
-        const dailyReward = claimDailyEmotionRewardInSettings(
-          { ...snapshot, studentEmotionHistory: savedHistory },
-          studentNumber,
-          entry.dateKey,
-          entry.updatedAt,
-        );
-        const weeklyReward = claimWeeklyEmotionRewardInSettings(
-          dailyReward.value,
-          studentNumber,
-          getSchoolWeekDateKeys(),
-          entry.updatedAt,
-        );
-        savedBalances = normalizeCurrencyBalances(weeklyReward.value.currencyBalances);
-        savedCurrencyHistory = weeklyReward.history;
-        if ((dailyReward.awarded || weeklyReward.awarded) && !storeStudentPetSnapshot({
-          ...snapshot,
-          currencyBalances: savedBalances,
-          currencyHistory: savedCurrencyHistory,
-        })) { reportSaveFailure('emotion', 'storage', studentNumber); return false; }
-      }
-      setStudentEmotionHistory(savedHistory);
-      setCurrencyBalances(savedBalances);
-      setCurrencyHistory(savedCurrencyHistory);
-      clearStudentStorageFormDraft(studentNumber, 'student.emotion.save', entry.dateKey);
-      return true;
-    } catch (error) {
-      console.error('Failed to save student emotion.', error);
-      return false;
-    } finally {
-      setIsEmotionSaving(false);
-    }
-  }, [currencyBalances, currencyHistory, isEmotionSaving, studentEmotionHistory, studentNumber, todayEmotionEntry]);
-
   const selectedItem = useMemo(
     () => {
       const selectedIndex = auctionItems.findIndex((item) => item.id === selectedItemId);
@@ -1132,7 +1126,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     [auctionItems, firstVisibleItem, selectedItemId, visibleDayCount],
   );
 
-  const applySharedSettingsValue = useCallback((value: SharedSettingsValue, updatedAt?: string) => {
+  const applySharedSettingsValue = useCallback((value: SharedSettingsValue | null, updatedAt?: string) => {
+    if (value === null) {
+      markSaveRefreshPending(studentNumber);
+      return false;
+    }
     if (!isStudentSettingsSnapshotFresh(updatedAt, minimumSettingsUpdatedAtRef.current)) return false;
     if (updatedAt) minimumSettingsUpdatedAtRef.current = updatedAt;
     setCompetitionSeasonId(parseLibraryCompetitionState(value.libraryCompetition)?.seasonId ?? null);
@@ -1176,6 +1174,108 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     return true;
   }, [applySharedNumberBaseball, applySharedStudentSudoku, setStudentLifeSnapshot, studentNumber]);
 
+  const reloadStudentEmotionConflict = useCallback(async (conflictDate?: string) => {
+    const context = captureStorageResponseContext();
+    if (context.actor !== String(studentNumber)) return;
+    const current = () => emotionMountedRef.current && emotionActorRef.current === studentNumber && isStorageResponseContextCurrent(context);
+    const dateKey = conflictDate ?? emotionConflictDateRef.current ?? getKoreanLocalDateKey();
+    emotionConflictDateRef.current = dateKey;
+    const expireIfDateChanged = () => {
+      if (dateKey === getKoreanLocalDateKey()) return false;
+      const expired: StudentEmotionSaveConflict = { status: 'expired' };
+      emotionSaveConflictRef.current = expired;
+      setEmotionSaveConflict(expired);
+      return true;
+    };
+    if (expireIfDateChanged()) return;
+    const checking: StudentEmotionSaveConflict = { status: 'checking' };
+    emotionSaveConflictRef.current = checking;
+    setEmotionSaveConflict(checking);
+    try {
+      invalidateSharedSettingsCache();
+      await loadSharedSettingsRow();
+      if (!current() || emotionSaveConflictRef.current !== checking) return;
+      if (expireIfDateChanged()) return;
+      const projection = readLatestStorageProjection(context);
+      const snapshot = projection ? createStudentEmotionConflictSnapshot(studentNumber, dateKey,
+        projection.value.studentEmotionHistory, readStorageRevisions(context)) : null;
+      if (!projection || !snapshot) throw new Error('STUDENT_EMOTION_REVISION_UNAVAILABLE');
+      applySharedSettingsValue(projection.value, projection.updatedAt);
+      const ready: StudentEmotionSaveConflict = { status: 'ready', snapshot };
+      emotionSaveConflictRef.current = ready;
+      setEmotionSaveConflict(ready);
+    } catch {
+      if (!current() || emotionSaveConflictRef.current !== checking) return;
+      const unavailable: StudentEmotionSaveConflict = { status: 'unavailable' };
+      emotionSaveConflictRef.current = unavailable;
+      setEmotionSaveConflict(unavailable);
+    }
+  }, [applySharedSettingsValue, studentNumber]);
+
+  const saveStudentEmotion = useCallback(async (emotionId: StudentEmotionId, comment: string, selfMessage: string, resolution?: StudentEmotionConflictSnapshot) => {
+    if (emotionSaveOperationRef.current) return false;
+    const dateKey = getKoreanLocalDateKey();
+    const context = captureStorageResponseContext();
+    const current = () => emotionMountedRef.current && emotionActorRef.current === studentNumber
+      && (!isSupabaseSettingsEnabled || (context.actor === String(studentNumber) && isStorageResponseContextCurrent(context)));
+    if (!current()) return false;
+    if (resolution) {
+      const conflict = emotionSaveConflictRef.current;
+      if (conflict?.status !== 'ready' || conflict.snapshot !== resolution || resolution.studentNumber !== studentNumber) return false;
+      if (resolution.dateKey !== dateKey) { await reloadStudentEmotionConflict(resolution.dateKey); return false; }
+      rebaseStudentStorageFormDraft(studentNumber, 'student.emotion.save', { emotionId, comment, selfMessage, dateKey }, { ...resolution.expectedRevisions }, dateKey);
+    } else if (emotionSaveConflictRef.current) return false;
+    const operation = Symbol();
+    emotionSaveOperationRef.current = operation;
+    const currentResponse = () => current() && emotionSaveOperationRef.current === operation && dateKey === getKoreanLocalDateKey();
+    setIsEmotionSaving(true);
+    try {
+      const entry = createStudentEmotionEntry(studentNumber, emotionId, comment, new Date(), todayEmotionEntry, selfMessage);
+      let savedHistory: StudentEmotionHistory = {};
+      let savedCurrencyHistory: CurrencyHistory = currencyHistory;
+      let savedBalances = currencyBalances;
+      if (isSupabaseSettingsEnabled) {
+        const response = await executeStudentStorageCommand(studentNumber, 'student.emotion.save', { emotionId, comment, selfMessage }, entry.dateKey);
+        if (!currentResponse()) return false;
+        applySharedSettingsValue(response.value, response.updatedAt);
+        emotionSaveConflictRef.current = null;
+        emotionConflictDateRef.current = null;
+        setEmotionSaveConflict(null);
+        return true;
+      } else {
+        savedHistory = upsertStudentEmotionEntry(studentEmotionHistory, entry);
+        if (!storeStudentEmotionHistory(savedHistory)) { reportSaveFailure('emotion', 'storage', studentNumber); return false; }
+        const snapshot = loadStoredStudentPetSnapshot();
+        const dailyReward = claimDailyEmotionRewardInSettings(
+          { ...snapshot, studentEmotionHistory: savedHistory }, studentNumber, entry.dateKey, entry.updatedAt,
+        );
+        const weeklyReward = claimWeeklyEmotionRewardInSettings(
+          dailyReward.value, studentNumber, getSchoolWeekDateKeys(), entry.updatedAt,
+        );
+        savedBalances = normalizeCurrencyBalances(weeklyReward.value.currencyBalances);
+        savedCurrencyHistory = weeklyReward.history;
+        if ((dailyReward.awarded || weeklyReward.awarded) && !storeStudentPetSnapshot({
+          ...snapshot, currencyBalances: savedBalances, currencyHistory: savedCurrencyHistory,
+        })) { reportSaveFailure('emotion', 'storage', studentNumber); return false; }
+      }
+      setStudentEmotionHistory(savedHistory);
+      setCurrencyBalances(savedBalances);
+      setCurrencyHistory(savedCurrencyHistory);
+      clearStudentStorageFormDraft(studentNumber, 'student.emotion.save', entry.dateKey);
+      return true;
+    } catch (error) {
+      if (currentResponse() && error instanceof StorageCommandError && error.serverCode === 'STUDENT_EDIT_CONFLICT') {
+        await reloadStudentEmotionConflict(dateKey);
+      }
+      return false;
+    } finally {
+      if (emotionSaveOperationRef.current === operation) {
+        emotionSaveOperationRef.current = null;
+        if (current()) setIsEmotionSaving(false);
+      }
+    }
+  }, [applySharedSettingsValue, currencyBalances, currencyHistory, reloadStudentEmotionConflict, studentEmotionHistory, studentNumber, todayEmotionEntry]);
+
   const refreshAuctionState = useCallback(async ({ forceFull = false }: { forceFull?: boolean } = {}) => {
     if (!isSupabaseSettingsEnabled) {
       const localPetSnapshot = loadStoredStudentPetSnapshot();
@@ -1218,11 +1318,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           }
 
           if (shouldLoadFull) {
+            const refreshVersion = getSaveRefreshVersion(studentNumber);
             const row = await loadSharedSettingsRow();
+            if (!isSaveRefreshVersionCurrent(studentNumber, refreshVersion)) {
+              pendingFullSettingsRefreshRef.current = true;
+              shouldForceFull = true;
+              continue;
+            }
             const value = row?.value && typeof row.value === 'object'
               ? row.value as SharedSettingsValue
               : {};
             if (applySharedSettingsValue(value, row?.updated_at)) {
+              markSaveRefreshComplete(studentNumber, refreshVersion);
               sharedSettingsUpdatedAtRef.current = row?.updated_at ?? null;
               if (row?.updated_at && row.value && typeof row.value === 'object') {
                 storeStudentSettingsSnapshot({ studentNumber, updatedAt: row.updated_at, value });
@@ -1288,6 +1395,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
       throw new CanvasLibraryPlacementExpectedError(result.error);
     }
+    if (result.value === null) {
+      applySharedSettingsValue(null, result.updatedAt);
+      void refreshAuctionState({ forceFull: true });
+      return result.placedBook;
+    }
     setCompetitionSeasonId(parseLibraryCompetitionState(result.value.libraryCompetition)?.seasonId ?? null);
     if (isSupabaseSettingsEnabled) {
       if (applySharedSettingsValue(result.value, result.updatedAt)) {
@@ -1313,6 +1425,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   useEffect(() => {
     let lastForegroundRefreshAt = 0;
+    const recovered = (event: Event) => {
+      if (event instanceof CustomEvent && event.detail?.actor === studentNumber) void refreshAuctionState({ forceFull: true });
+    };
+    window.addEventListener(SAVE_RECOVERED_EVENT, recovered);
     const refreshWhenVisible = (forceFull = false) => {
       if (document.visibilityState === 'visible') void refreshAuctionState({ forceFull });
     };
@@ -1341,6 +1457,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     document.addEventListener('visibilitychange', refreshOnReturn);
 
     return () => {
+      window.removeEventListener(SAVE_RECOVERED_EVENT, recovered);
       if (intervalId !== undefined) window.clearInterval(intervalId);
       window.removeEventListener('focus', refreshOnReturn);
       document.removeEventListener('visibilitychange', refreshOnReturn);
@@ -1349,8 +1466,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   useEffect(() => {
     let isActive = true;
+    let isSyncing = false;
+    let nextSyncAt = 0;
+    let scheduledSync: number | undefined;
 
     const syncWeeklyMission = async () => {
+      if (isSyncing || Date.now() < nextSyncAt) return;
+      isSyncing = true;
       try {
         const result = await syncWeeklyMissions(studentNumber);
         if (!isActive) return;
@@ -1365,9 +1487,19 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         await refreshAuctionState({ forceFull: true });
       } catch (error) {
         if (!isActive) return;
+        const retryAfterMs: unknown = error instanceof Error ? Reflect.get(error, 'retryAfterMs') : undefined;
+        if (typeof retryAfterMs === 'number' && Number.isFinite(retryAfterMs)) nextSyncAt = Date.now() + retryAfterMs;
         const isExpectedLocalFallback = error instanceof Error
           && (error.message === 'BACKEND_WRITE_DISABLED' || error.message === 'WEEKLY_MISSIONS_HTTP_404');
         if (!isExpectedLocalFallback) console.warn('Failed to sync weekly mission.', error);
+        if (!isExpectedLocalFallback && isSupabaseSettingsEnabled) {
+          setHasWeeklyMissionSyncError(true);
+          setWeeklyMissionStatuses((previous) => WEEKLY_MISSION_TYPES.reduce<WeeklyMissionStatuses>(
+            (statuses, missionType) => ({ ...statuses, [missionType]: previous[missionType] === 'completed' || previous[missionType] === 'inProgress'
+              ? previous[missionType] : 'unavailable' }), previous,
+          ));
+          return;
+        }
 
         try {
           const submissionStatuses = await loadQuestionSubmissionStatuses();
@@ -1438,6 +1570,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             previous,
           ));
         }
+      } finally {
+        isSyncing = false;
+        nextSyncAt = Math.max(nextSyncAt, Date.now() + 5_000);
       }
     };
 
@@ -1452,14 +1587,25 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     ));
     void syncWeeklyMission();
     const syncOnReturn = () => {
-      if (document.visibilityState === 'visible') void syncWeeklyMission();
+      if (document.visibilityState !== 'visible' || isSyncing) return;
+      if (Date.now() < nextSyncAt) {
+        if (scheduledSync === undefined) scheduledSync = window.setTimeout(() => {
+          scheduledSync = undefined;
+          if (isActive && document.visibilityState === 'visible') void syncWeeklyMission();
+        }, nextSyncAt - Date.now());
+        return;
+      }
+      void syncWeeklyMission();
     };
     window.addEventListener('focus', syncOnReturn);
+    window.addEventListener('online', syncOnReturn);
     document.addEventListener('visibilitychange', syncOnReturn);
 
     return () => {
       isActive = false;
+      if (scheduledSync !== undefined) window.clearTimeout(scheduledSync);
       window.removeEventListener('focus', syncOnReturn);
+      window.removeEventListener('online', syncOnReturn);
       document.removeEventListener('visibilitychange', syncOnReturn);
     };
   }, [studentNumber]);
@@ -1544,9 +1690,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       if (isSupabaseSettingsEnabled) {
         const response = await executeStudentStorageCommand(studentNumber, 'student.auction.bid', { itemId: item.id, amount: bidAmount }, item.id);
         const updatedAt = response.updatedAt;
-        const savedBids = normalizeAuctionBids(response.value.auctionBids, AUCTION_ITEM_IDS);
-        const savedBidHistory = normalizeAuctionBidHistory(response.value.auctionBidHistory, AUCTION_ITEM_IDS);
-        if (isStudentSettingsSnapshotFresh(updatedAt ?? undefined, minimumSettingsUpdatedAtRef.current)) {
+        if (response.value === null) applySharedSettingsValue(null, updatedAt);
+        const savedBids = response.value ? normalizeAuctionBids(response.value.auctionBids, AUCTION_ITEM_IDS) : auctionBids;
+        const savedBidHistory = response.value ? normalizeAuctionBidHistory(response.value.auctionBidHistory, AUCTION_ITEM_IDS) : auctionBidHistory;
+        if (response.value && isStudentSettingsSnapshotFresh(updatedAt ?? undefined, minimumSettingsUpdatedAtRef.current)) {
           if (updatedAt) minimumSettingsUpdatedAtRef.current = updatedAt;
           setAuctionBids(savedBids);
           setAuctionBidHistory(savedBidHistory);
@@ -1723,6 +1870,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setIsEconomySaving(true);
     try {
       const result = await confirmStudentEconomyDraft(studentNumber);
+      if (result?.refreshPending) {
+        applySharedSettingsValue(null, result.updatedAt);
+        void refreshAuctionState({ forceFull: true });
+        return;
+      }
       if (result && isStudentSettingsSnapshotFresh(result.updatedAt, minimumSettingsUpdatedAtRef.current)) {
         setCurrencyBalances((previous) => ({ ...previous, ...result.currencyBalanceEntries }));
         setCurrencyHistory((previous) => ({ ...previous, ...result.currencyHistoryEntries }));
@@ -1754,6 +1906,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
       if (isSupabaseSettingsEnabled) {
         const result = await executeStudentEconomyWithDraft(studentNumber, action);
+        if (result.refreshPending) {
+          applySharedSettingsValue(null, result.updatedAt);
+          void refreshAuctionState({ forceFull: true });
+          return true;
+        }
         if (!isStudentSettingsSnapshotFresh(result.updatedAt, minimumSettingsUpdatedAtRef.current)) {
           void refreshAuctionState({ forceFull: true });
           return true;
@@ -1954,12 +2111,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         ) : null}
         {activeStudentView === 'emotions' ? (
           <StudentEmotionPage
+            key={`${studentNumber}:${currentDateKey}`}
+            studentNumber={studentNumber}
             draft={emotionDraft}
             hasPendingSave={hasUnconfirmedStudentStorageDraft(studentNumber, 'student.emotion.save', currentDateKey)}
             onDraftChange={(draft) => saveStudentStorageFormDraft(studentNumber, 'student.emotion.save', draft, currentDateKey)}
             todayEntry={todayEmotionEntry}
             history={studentEmotionEntries}
             isSaving={isEmotionSaving}
+            saveConflict={emotionSaveConflict}
+            onReloadConflict={() => reloadStudentEmotionConflict()}
+            onResolveConflict={(snapshot, emotionId, comment, selfMessage) => saveStudentEmotion(emotionId, comment, selfMessage, snapshot)}
             onSave={saveStudentEmotion}
             onBack={() => navigateStudentView('overview')}
           />
@@ -2056,6 +2218,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             hasReward={hasCompletedWeeklySudokuMission}
             onSave={saveSudokuProgress}
             onComplete={completeSudoku}
+            conflict={sudokuConflict}
+            onConflictRefresh={inspectSudokuConflict}
+            onContinueFromLatest={continueSudokuFromLatest}
             onBack={() => navigateStudentView('missions')}
           />
         ) : null}
@@ -2067,6 +2232,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             hasReward={hasNumberBaseballReward}
             onSave={saveNumberBaseballProgress}
             onComplete={completeNumberBaseball}
+            conflict={baseballConflict}
+            onConflictRefresh={inspectBaseballConflict}
+            onContinueFromLatest={continueBaseballFromLatest}
             onBack={() => navigateStudentView('missions')}
           />
         ) : null}

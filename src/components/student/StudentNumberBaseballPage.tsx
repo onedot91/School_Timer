@@ -15,6 +15,10 @@ import {
 } from '../../lib/numberBaseball';
 import StudentHeader from './StudentHeader';
 import { StudentNumberBaseballHistory } from './StudentNumberBaseballHistory';
+import { loadStudentStorageFormDraft, readyStudentStorageDrafts, saveStudentStorageFormDraft, subscribeStudentStorageDrafts } from '../../lib/studentStorageCommand';
+import { normalizeNumberBaseballInput, restoreNumberBaseballProgressDraft } from '../../lib/studentGameProgressDraft';
+import StudentGameConflictNotice from './StudentGameConflictNotice';
+import { loadLatestStudentGameForm, type StudentGameConflictReview } from '../../lib/useStudentGameConflict';
 
 type StudentNumberBaseballPageProps = {
   readonly studentNumber: number;
@@ -24,6 +28,9 @@ type StudentNumberBaseballPageProps = {
   readonly onSave: (entry: NumberBaseballProgressEntry) => Promise<boolean>;
   readonly onComplete: (entry: NumberBaseballProgressEntry, rewardAmount: number) => Promise<boolean>;
   readonly onBack: () => void;
+  readonly conflict?: StudentGameConflictReview | null;
+  readonly onConflictRefresh?: () => void;
+  readonly onContinueFromLatest?: () => Promise<boolean>;
 };
 
 const NUMBER_BASEBALL_DEFAULT_FEEDBACK = '서로 다른 숫자 3개를 골라 보세요.';
@@ -35,16 +42,35 @@ export default function StudentNumberBaseballPage({
   studentNumber,
   weekKey,
   entry,
+  hasReward,
   onSave,
   onComplete,
   onBack,
+  conflict,
+  onConflictRefresh,
+  onContinueFromLatest,
 }: StudentNumberBaseballPageProps) {
   const shouldReduceMotion = useReducedMotion() ?? false;
   const answer = useMemo(() => createNumberBaseballAnswer(studentNumber, weekKey), [studentNumber, weekKey]);
   const status = getNumberBaseballStatus(entry, answer);
-  const [selectedDigits, setSelectedDigits] = useState<readonly number[]>([]);
+  const progressKey = `${studentNumber}:${weekKey}`;
+  const currentConflict = conflict?.key === progressKey ? conflict : null;
+  const hasConflict = !!currentConflict && currentConflict.state !== 'archived';
+  const gameIdRef = useRef(entry.gameId);
+  gameIdRef.current = entry.gameId;
+  const inputEditedRef = useRef(false);
+  const [selectedDigits, setSelectedDigits] = useState<readonly number[]>(() => normalizeNumberBaseballInput(
+    loadStudentStorageFormDraft(studentNumber, 'student.baseball.input', progressKey), entry.gameId,
+  ));
+  const [pendingEntry, setPendingEntry] = useState<NumberBaseballProgressEntry | null>(() => (
+    restoreNumberBaseballProgressDraft(studentNumber, weekKey, loadLatestStudentGameForm(studentNumber, 'baseball', progressKey)?.draft.payload)
+  ));
+  const pendingEntryRef = useRef(pendingEntry);
+  pendingEntryRef.current = pendingEntry;
   const [feedback, setFeedback] = useState(NUMBER_BASEBALL_DEFAULT_FEEDBACK);
   const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [confirmedCompletion, setConfirmedCompletion] = useState(false);
   const [isCelebrating, setIsCelebrating] = useState(false);
   const celebrationTimeoutRef = useRef<number | null>(null);
   const isTerminal = status === 'completed' || status === 'exhausted';
@@ -55,7 +81,7 @@ export default function StudentNumberBaseballPage({
   const latestAttempt = entry.attempts.at(-1);
   const latestResult = latestAttempt ? evaluateNumberBaseballGuess(answer, latestAttempt.guess) : null;
   const restoredFeedback = status === 'completed'
-    ? '보상 지급을 완료했어요.'
+    ? hasReward || confirmedCompletion ? '보상 지급을 완료했어요.' : '저장 확인이 필요해요.'
     : status === 'exhausted'
       ? '기록을 다시 확인해 보세요.'
       : latestResult
@@ -71,48 +97,94 @@ export default function StudentNumberBaseballPage({
     if (celebrationTimeoutRef.current !== null) window.clearTimeout(celebrationTimeoutRef.current);
   }, []);
 
-  const toggleDigit = (digit: number) => {
-    if (isTerminal || isSaving) return;
-    setSelectedDigits((current) => (
-      current.includes(digit)
-        ? current.filter((value) => value !== digit)
-        : current.length < 3 ? [...current, digit] : current
-    ));
+  useEffect(() => {
+    let active = true;
+    inputEditedRef.current = false;
+    savingRef.current = false;
+    setIsSaving(false);
+    setConfirmedCompletion(false);
+    const restore = () => {
+      if (!active) return;
+      if (!inputEditedRef.current) setSelectedDigits(normalizeNumberBaseballInput(
+        loadStudentStorageFormDraft(studentNumber, 'student.baseball.input', progressKey), entry.gameId,
+      ));
+      const pending = restoreNumberBaseballProgressDraft(studentNumber, weekKey, loadLatestStudentGameForm(studentNumber, 'baseball', progressKey)?.draft.payload);
+      if (!savingRef.current) {
+        const previous = pendingEntryRef.current;
+        pendingEntryRef.current = pending;
+        setPendingEntry(pending);
+        if (previous && !pending) {
+          const input = normalizeNumberBaseballInput(loadStudentStorageFormDraft(studentNumber, 'student.baseball.input', progressKey), entry.gameId);
+          const guess = previous.attempts.at(-1)?.guess;
+          if (guess && input.length === 3 && input.every((digit, index) => digit === guess[index])) {
+            inputEditedRef.current = true;
+            setSelectedDigits([]);
+            saveStudentStorageFormDraft(studentNumber, 'student.baseball.input', { gameId: entry.gameId, digits: [] }, progressKey);
+          }
+        }
+      }
+    };
+    restore();
+    void readyStudentStorageDrafts().then(restore);
+    const unsubscribe = subscribeStudentStorageDrafts(restore);
+    return () => { active = false; unsubscribe(); };
+  }, [entry.gameId, progressKey, studentNumber, weekKey]);
+
+  const changeDigits = (digits: readonly number[]) => {
+    inputEditedRef.current = true;
+    saveStudentStorageFormDraft(studentNumber, 'student.baseball.input', { gameId: entry.gameId, digits }, progressKey);
+    setSelectedDigits(digits);
   };
 
-  const submitGuess = async () => {
-    if (selectedDigits.length !== 3 || isTerminal || isSaving) {
-      if (selectedDigits.length !== 3) setFeedback('서로 다른 숫자 3개를 모두 골라 주세요.');
-      return;
-    }
-    const guess: NumberBaseballGuess = [
-      selectedDigits[0] ?? 1,
-      selectedDigits[1] ?? 2,
-      selectedDigits[2] ?? 3,
-    ];
-    const nextEntry = appendNumberBaseballAttempt(entry, answer, guess);
-    if (!nextEntry) return;
-    const result = evaluateNumberBaseballGuess(answer, guess);
-    const rewardAmount = result.strikes === 3 ? getNumberBaseballReward(nextEntry.attempts.length) : null;
+  const toggleDigit = (digit: number) => {
+    if (hasConflict || isTerminal || savingRef.current || pendingEntry) return;
+    changeDigits(selectedDigits.includes(digit)
+      ? selectedDigits.filter((value) => value !== digit)
+      : selectedDigits.length < 3 ? [...selectedDigits, digit] : selectedDigits);
+  };
+
+  const saveAttempt = async (nextEntry: NumberBaseballProgressEntry) => {
+    if (hasConflict || savingRef.current) return;
+    const latest = nextEntry.attempts.at(-1);
+    const result = latest ? evaluateNumberBaseballGuess(answer, latest.guess) : null;
+    const rewardAmount = result?.strikes === 3 ? getNumberBaseballReward(nextEntry.attempts.length) : null;
+    savingRef.current = true;
+    setPendingEntry(nextEntry);
     setIsSaving(true);
     const saved = rewardAmount === null
       ? await onSave(nextEntry)
       : await onComplete(nextEntry, rewardAmount);
+    if (gameIdRef.current !== nextEntry.gameId) return;
+    savingRef.current = false;
     setIsSaving(false);
     if (!saved) {
-      setFeedback('기록을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setFeedback('저장을 확인하지 못했어요. 입력은 보관했어요.');
       return;
     }
-    setSelectedDigits([]);
+    setPendingEntry(null);
+    changeDigits([]);
     if (rewardAmount !== null) {
+      setConfirmedCompletion(true);
       setIsCelebrating(true);
       if (celebrationTimeoutRef.current !== null) window.clearTimeout(celebrationTimeoutRef.current);
       celebrationTimeoutRef.current = window.setTimeout(() => setIsCelebrating(false), 760);
     } else if (nextEntry.attempts.length >= NUMBER_BASEBALL_MAX_ATTEMPTS) {
       setFeedback('이번 주 기회를 모두 사용했어요. 다음 주에 다시 도전해요.');
     } else {
-      setFeedback(formatNumberBaseballResult(result));
+      setFeedback(result ? formatNumberBaseballResult(result) : NUMBER_BASEBALL_DEFAULT_FEEDBACK);
     }
+  };
+
+  const submitGuess = async () => {
+    if (hasConflict) return;
+    if (pendingEntry) { await saveAttempt(pendingEntry); return; }
+    if (selectedDigits.length !== 3 || isTerminal || savingRef.current) {
+      if (selectedDigits.length !== 3) setFeedback('서로 다른 숫자 3개를 모두 골라 주세요.');
+      return;
+    }
+    const guess: NumberBaseballGuess = [selectedDigits[0] ?? 1, selectedDigits[1] ?? 2, selectedDigits[2] ?? 3];
+    const nextEntry = appendNumberBaseballAttempt(entry, answer, guess);
+    if (nextEntry) await saveAttempt(nextEntry);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -123,7 +195,7 @@ export default function StudentNumberBaseballPage({
     }
     if (event.key === 'Backspace' || event.key === 'Delete') {
       event.preventDefault();
-      setSelectedDigits((current) => current.slice(0, -1));
+      if (!hasConflict && !savingRef.current && !pendingEntry) changeDigits(selectedDigits.slice(0, -1));
       return;
     }
     if (event.key === 'Enter') {
@@ -146,15 +218,26 @@ export default function StudentNumberBaseballPage({
       />
       <main className="student-baseball-main" onKeyDown={handleKeyDown}>
         <section className="student-baseball-panel" aria-label="숫자 야구 미션">
-          <div className={`student-baseball-play${isTerminal ? ` is-${status}` : ''}`}>
-            {isTerminal ? (
+          <div className={`student-baseball-play${isTerminal ? ` is-${status}` : ''}`} style={currentConflict ? { overflowY: 'auto', gridTemplateRows: 'auto', alignContent: 'start' } : undefined}>
+            {currentConflict && onConflictRefresh && onContinueFromLatest ? <StudentGameConflictNotice
+              review={currentConflict}
+              onRefresh={onConflictRefresh}
+              onAdopt={async () => {
+                const continued = await onContinueFromLatest();
+                if (continued) { pendingEntryRef.current = null; setPendingEntry(null); setFeedback(NUMBER_BASEBALL_DEFAULT_FEEDBACK); setConfirmedCompletion(false); }
+                return continued;
+              }}
+            /> : null}
+            {hasConflict ? null : isTerminal ? (
               <div className={`student-baseball-finish is-${status}${isCelebrating ? ' is-celebrating' : ''}`} role="status">
                 {status === 'completed' ? <Sparkles aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
                 <div>
                   <strong>{status === 'completed' ? '정답을 맞혔어요!' : '이번 주 기회를 모두 썼어요'}</strong>
                   <span className="student-baseball-finish-details">
-                    {status === 'completed' && solvedReward ? (
+                    {status === 'completed' && solvedReward && (hasReward || confirmedCompletion) ? (
                       <><b>{answer.join('')}</b><em>+{solvedReward} 고마</em></>
+                    ) : status === 'completed' ? (
+                      <span>{isSaving ? '저장 중' : '보상 저장 확인 필요'}</span>
                     ) : (
                       <>정답은 <b>{answer.join('')}</b> · 다음 주에 다시 도전해요</>
                     )}
@@ -203,8 +286,8 @@ export default function StudentNumberBaseballPage({
                     type="button"
                     className="student-baseball-delete"
                     aria-label="마지막 숫자 지우기"
-                    disabled={selectedDigits.length === 0}
-                    onClick={() => setSelectedDigits((current) => current.slice(0, -1))}
+                    disabled={selectedDigits.length === 0 || isSaving || pendingEntry !== null}
+                    onClick={() => changeDigits(selectedDigits.slice(0, -1))}
                   >
                     <Delete aria-hidden="true" />
                     <span>한 칸 지우기</span>
@@ -212,15 +295,20 @@ export default function StudentNumberBaseballPage({
                   <button
                     type="button"
                     className="student-baseball-submit"
-                    disabled={selectedDigits.length !== 3 || isSaving}
+                    disabled={(!pendingEntry && selectedDigits.length !== 3) || isSaving}
                     onClick={() => void submitGuess()}
                   >
-                    {isSaving ? '저장 중' : '확인하기'}
+                    {isSaving ? '저장 중' : pendingEntry ? '저장 다시 확인' : '확인하기'}
                   </button>
                 </div>
               </>
             )}
-            {!isTerminal && shouldShowFeedback ? (
+            {!hasConflict && isTerminal && pendingEntry ? (
+              <button type="button" className="student-baseball-submit" disabled={isSaving} onClick={() => void saveAttempt(pendingEntry)}>
+                {isSaving ? '저장 중' : '저장 다시 확인'}
+              </button>
+            ) : null}
+            {!hasConflict && !isTerminal && shouldShowFeedback ? (
               <p className="student-baseball-feedback" aria-live="polite">
                 {displayedFeedback}
               </p>

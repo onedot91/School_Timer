@@ -18,6 +18,7 @@ import {
 import StudentEmotionOrb, { StudentEmotionOrbVisual } from './StudentEmotionOrb';
 import StudentHeader from './StudentHeader';
 import { useModalFocus } from '../../lib/useModalFocus';
+import type { StudentEmotionConflictSnapshot, StudentEmotionSaveConflict } from '../../lib/studentEmotionConflict';
 
 interface EmotionZonePanelProps {
   key?: string;
@@ -58,13 +59,17 @@ function EmotionZonePanel({
 
 interface EmotionDraft { readonly emotionId: StudentEmotionId | null; readonly comment: string; readonly selfMessage: string }
 interface StudentEmotionPageProps {
+  readonly studentNumber?: number;
   draft?: EmotionDraft;
   hasPendingSave?: boolean;
   onDraftChange?: (draft: EmotionDraft) => void;
   todayEntry: StudentEmotionEntry | null;
   history: StudentEmotionEntry[];
   isSaving: boolean;
+  saveConflict?: StudentEmotionSaveConflict | null;
   onSave: (emotionId: StudentEmotionId, comment: string, selfMessage: string) => Promise<boolean>;
+  onResolveConflict?: (snapshot: StudentEmotionConflictSnapshot, emotionId: StudentEmotionId, comment: string, selfMessage: string) => Promise<boolean>;
+  onReloadConflict?: () => Promise<void>;
   onBack: () => void;
 }
 
@@ -152,13 +157,17 @@ const getCalendarDays = (visibleMonth: Date): EmotionCalendarDay[] => {
 };
 
 export default function StudentEmotionPage({
+  studentNumber,
   draft,
   hasPendingSave = false,
   onDraftChange,
   todayEntry,
   history,
   isSaving,
+  saveConflict,
   onSave,
+  onResolveConflict,
+  onReloadConflict,
   onBack,
 }: StudentEmotionPageProps) {
   const [activeSection, setActiveSection] = useState<'pick' | 'history'>('pick');
@@ -168,6 +177,27 @@ export default function StudentEmotionPage({
   const [isEmotionDialogOpen, setIsEmotionDialogOpen] = useState(false);
   const [isEmotionConfirmed, setIsEmotionConfirmed] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const editGeneration = useRef(0);
+  const hasEdited = useRef(false);
+  const mounted = useRef(true);
+  const activeStudent = useRef(studentNumber);
+  const pendingSubmission = useRef<symbol | null>(null);
+  const latestConflict = useRef(saveConflict);
+  latestConflict.current = saveConflict;
+  activeStudent.current = studentNumber;
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; editGeneration.current++; };
+  }, []);
+  useEffect(() => {
+    hasEdited.current = false; editGeneration.current++;
+    setDraftEmotionId(draft?.emotionId ?? todayEntry?.emotionId ?? null);
+    setComment(draft?.comment ?? todayEntry?.comment ?? '');
+    setSelfMessage(draft?.selfMessage ?? todayEntry?.selfMessage ?? '');
+    setIsEmotionDialogOpen(false); setIsEmotionConfirmed(false); setSaveError('');
+  }, [studentNumber]);
+  const markEdited = () => { hasEdited.current = true; editGeneration.current++; setSaveError(''); };
+
   const emotionDialogRef = useRef<HTMLElement>(null);
   const emotionCommentRef = useRef<HTMLTextAreaElement>(null);
   const emotionConfirmedButtonRef = useRef<HTMLButtonElement>(null);
@@ -180,6 +210,7 @@ export default function StudentEmotionPage({
   const [selectedHistoryDateKey, setSelectedHistoryDateKey] = useState(initialHistoryDateKey);
   const draftEmotion = useMemo(() => getStudentEmotion(draftEmotionId), [draftEmotionId]);
   const closeEmotionDialog = () => {
+    if (isSaving || pendingSubmission.current) return;
     setIsEmotionDialogOpen(false);
     setIsEmotionConfirmed(false);
   };
@@ -223,15 +254,17 @@ export default function StudentEmotionPage({
   const selectedHistoryEmotion = getStudentEmotion(selectedHistoryEntry?.emotionId);
 
   useEffect(() => {
-    if (draft) return;
-    setDraftEmotionId(todayEntry?.emotionId ?? null);
-    setComment(todayEntry?.comment ?? '');
-    setSelfMessage(todayEntry?.selfMessage ?? '');
-  }, [todayEntry?.emotionId, todayEntry?.comment, todayEntry?.selfMessage, todayEntry?.updatedAt]);
+    if (hasEdited.current) return;
+    editGeneration.current++;
+    setDraftEmotionId(draft?.emotionId ?? todayEntry?.emotionId ?? null);
+    setComment(draft?.comment ?? todayEntry?.comment ?? '');
+    setSelfMessage(draft?.selfMessage ?? todayEntry?.selfMessage ?? '');
+  }, [draft?.emotionId, draft?.comment, draft?.selfMessage, todayEntry?.emotionId, todayEntry?.comment, todayEntry?.selfMessage, todayEntry?.updatedAt]);
 
   const selectEmotion = (emotion: StudentEmotionDefinition, trigger: HTMLButtonElement) => {
     emotionTriggerRef.current = trigger;
     if (!hasPendingSave) {
+      markEdited();
       setDraftEmotionId(emotion.id as StudentEmotionId);
       onDraftChange?.({ emotionId: emotion.id as StudentEmotionId, comment, selfMessage });
     }
@@ -246,12 +279,24 @@ export default function StudentEmotionPage({
   }, [isEmotionDialogOpen, isEmotionConfirmed]);
 
   const confirmEmotion = async () => {
-    if (!draftEmotionId || comment.trim().length === 0 || selfMessage.trim().length === 0 || isSaving) return false;
-    if (!await onSave(draftEmotionId, comment, selfMessage)) {
-      setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.');
-      return false;
-    }
-    return true;
+    if (!draftEmotionId || !comment.trim() || !selfMessage.trim() || isSaving || pendingSubmission.current) return;
+    if (saveConflict && (saveConflict.status !== 'ready' || !onResolveConflict)) return;
+    const submission = Symbol();
+    hasEdited.current = true;
+    pendingSubmission.current = submission;
+    const generation = editGeneration.current;
+    const isCurrent = () => mounted.current && activeStudent.current === studentNumber && editGeneration.current === generation;
+    try {
+      const saved = saveConflict?.status === 'ready' && onResolveConflict
+        ? await onResolveConflict(saveConflict.snapshot, draftEmotionId, comment, selfMessage)
+        : await onSave(draftEmotionId, comment, selfMessage);
+      if (!isCurrent()) return;
+      if (!saved) { if (!latestConflict.current) setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.'); return; }
+      markEdited();
+      setIsEmotionConfirmed(true);
+    } catch {
+      if (isCurrent()) setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.');
+    } finally { if (pendingSubmission.current === submission) pendingSubmission.current = null; }
   };
 
   const firstDesktopEmotionId = STUDENT_EMOTIONS[0].id;
@@ -485,6 +530,7 @@ export default function StudentEmotionPage({
           className="student-emotion-dialog"
           role="dialog"
           aria-modal="true"
+          aria-busy={isSaving || saveConflict?.status === 'checking'}
           aria-labelledby="emotion-dialog-title"
           aria-describedby={isEmotionConfirmed ? 'emotion-confirmation-status' : 'emotion-event-label emotion-self-message-label'}
         >
@@ -492,6 +538,7 @@ export default function StudentEmotionPage({
             type="button"
             className="student-emotion-dialog-close"
             aria-label="감정 기록 닫기"
+            disabled={isSaving}
             onClick={closeEmotionDialog}
           >
             ×
@@ -524,6 +571,17 @@ export default function StudentEmotionPage({
             </button>
           </div> : <>
             {hasPendingSave ? <p role="status">이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.</p> : null}
+            {saveConflict ? <section className="student-emotion-confirmed-note" aria-labelledby="emotion-conflict-title" role="status">
+              <h3 id="emotion-conflict-title">다른 기기에서 감정 기록이 바뀌었어요</h3>
+              {saveConflict.status === 'ready' ? <>
+                <p><strong>현재 저장된 기록 · {getStudentEmotion(saveConflict.snapshot.latestEntry?.emotionId)?.label ?? '기록 없음'}</strong></p>
+                {saveConflict.snapshot.latestEntry ? <>
+                  <p>{saveConflict.snapshot.latestEntry.comment}</p>
+                  <p>{saveConflict.snapshot.latestEntry.selfMessage}</p>
+                </> : null}
+                <p>아래 내 입력을 확인한 뒤 다시 저장해 주세요.</p>
+              </> : <p>{saveConflict.status === 'checking' ? '현재 저장된 기록을 확인하고 있어요.' : saveConflict.status === 'expired' ? '날짜가 바뀌어 저장을 멈췄어요. 이전 입력은 보관했어요.' : '현재 기록을 불러오지 못했어요. 내 입력은 보관했어요.'}</p>}
+            </section> : null}
             <label className="student-emotion-comment-field">
               <span id="emotion-event-label"><MessageCircle size={20} aria-hidden="true" />어떤 일이 있었나요?</span>
               <textarea
@@ -534,6 +592,7 @@ export default function StudentEmotionPage({
                 rows={2}
                 placeholder="있었던 일을 구체적으로 적어주세요."
                 onChange={(event) => {
+                  markEdited();
                   setComment(event.target.value);
                   onDraftChange?.({ emotionId: draftEmotionId, comment: event.target.value, selfMessage });
                   setSaveError('');
@@ -549,6 +608,7 @@ export default function StudentEmotionPage({
                 maxLength={STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH}
                 placeholder="오늘의 나에게 한마디를 적어 주세요"
                 onChange={(event) => {
+                  markEdited();
                   setSelfMessage(event.target.value);
                   onDraftChange?.({ emotionId: draftEmotionId, comment, selfMessage: event.target.value });
                   setSaveError('');
@@ -556,20 +616,21 @@ export default function StudentEmotionPage({
               />
               <small>{selfMessage.length}/{STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH}</small>
             </label>
-            <button
+            {saveConflict?.status === 'unavailable' ? <button
               type="button"
               className="student-emotion-dialog-save"
-              disabled={comment.trim().length === 0 || selfMessage.trim().length === 0 || isSaving}
-              onClick={() => {
-                void confirmEmotion().then((saved) => {
-                  if (saved) setIsEmotionConfirmed(true);
-                });
-              }}
+              disabled={isSaving || !onReloadConflict}
+              onClick={() => { void onReloadConflict?.(); }}
+            >현재 기록 다시 확인</button> : <button
+              type="button"
+              className="student-emotion-dialog-save"
+              disabled={comment.trim().length === 0 || selfMessage.trim().length === 0 || isSaving || saveConflict?.status === 'checking' || saveConflict?.status === 'expired' || (saveConflict?.status === 'ready' && !onResolveConflict)}
+              onClick={() => { void confirmEmotion(); }}
             >
               <Check size={20} aria-hidden="true" />
-              {isSaving ? '저장 중' : hasPendingSave ? '저장 다시 확인' : '기록하기'}
-            </button>
-            {saveError ? <p role="alert">{saveError}</p> : null}
+              {isSaving ? '저장 중' : saveConflict?.status === 'ready' ? '이 내용으로 다시 저장' : saveConflict?.status === 'checking' ? '현재 기록 확인 중' : saveConflict?.status === 'expired' ? '이전 날짜 입력 보관됨' : hasPendingSave ? '저장 다시 확인' : '기록하기'}
+            </button>}
+            {saveError && !saveConflict ? <p role="alert">{saveError}</p> : null}
           </>}
         </section>
       </div> : null}

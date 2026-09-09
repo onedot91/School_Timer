@@ -178,3 +178,44 @@ test('연습 퀴즈 잔액 저장 실패는 재시도 가능한 오류와 공통
     else Reflect.deleteProperty(globalThis, 'window');
   }
 });
+
+test('a command receipt confirms the exact payload without loading the board; mismatched receipt is rejected', async () => {
+  const { loadClasswordCommandReceipt } = await import('./classwordClient');
+  const { featurePayloadHash } = await import('./featureReceipt');
+  const previous = globalThis.fetch;
+  const body = { protocolVersion: 2, action: 'save_entry', requestId: 'receipt-fixture', dateKey: '2026-09-09', initial: 'ㄱ', word: '가방', expectedTopic: '물건' };
+  const { protocolVersion: _version, action, requestId: _id, ...payload } = body;
+  const result = { entry: { id: 'entry-fixture', dateKey: body.dateKey, initial: body.initial, word: body.word, studentNumber: 3,
+    createdAt: '2026-09-09T00:00:00Z', updatedAt: '2026-09-09T00:00:00Z' }, awarded: true, balance: 105 };
+  let corrupt = false;
+  const calls: string[] = [];
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    return Response.json({ status: 'committed', action: 'classword:save_entry', hashAlgorithm: 'sha256-transport-v1',
+      payloadHash: corrupt ? 'wrong' : await featurePayloadHash(action, payload), committedAt: '2026-09-09T00:00:00Z', result });
+  };
+  try {
+    assert.deepEqual(await loadClasswordCommandReceipt(body, true), result);
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0].includes('receiptOnly=1'));
+    corrupt = true;
+    await assert.rejects(loadClasswordCommandReceipt(body, true), (error: unknown) => error instanceof ClasswordClientError && error.code === 'CLASSWORD_REQUEST_REUSED');
+  } finally { globalThis.fetch = previous; }
+});
+
+test('receipt failures retain HTTP authentication status and Retry-After even for non-JSON responses', async () => {
+  const { loadClasswordCommandReceipt } = await import('./classwordClient');
+  const previous = globalThis.fetch;
+  const body = { action: 'save_entry', requestId: 'receipt-failure-fixture', dateKey: '2026-09-09', initial: 'ㄱ', word: '가방' };
+  try {
+    for (const status of [401, 429]) {
+      globalThis.fetch = async (_url, init) => {
+        assert.ok(init?.signal);
+        return new Response('<html>unavailable</html>', { status, headers: { 'Retry-After': '12' } });
+      };
+      await assert.rejects(loadClasswordCommandReceipt(body, true), (error: unknown) => (
+        error instanceof ClasswordClientError && error.status === status && error.retryAfterMs === 12_000
+      ));
+    }
+  } finally { globalThis.fetch = previous; }
+});

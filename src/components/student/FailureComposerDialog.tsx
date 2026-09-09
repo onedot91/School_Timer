@@ -1,5 +1,5 @@
 import { HeartHandshake, Send, X } from 'lucide-react';
-import { useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useModalFocus } from '../../lib/useModalFocus';
 import { FailureAutosizeTextarea } from './FailureAutosizeTextarea';
 
@@ -33,6 +33,38 @@ export function FailureComposerDialog({
 }: FailureComposerDialogProps) {
   const [draft, setDraft] = useState<StoryDraft>(savedDraft ?? EMPTY_DRAFT);
   const [saveError, setSaveError] = useState('');
+  const editGeneration = useRef(0);
+  const hasEdited = useRef(false);
+  const mounted = useRef(true);
+  const pendingSubmission = useRef<symbol | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; editGeneration.current++; };
+  }, []);
+  useEffect(() => {
+    if (hasEdited.current) return;
+    editGeneration.current++;
+    setDraft(savedDraft ?? EMPTY_DRAFT);
+  }, [savedDraft?.failure, savedDraft?.lesson]);
+  const submitDraft = async () => {
+    if (isSaving || pendingSubmission.current || !draft.failure.trim() || !draft.lesson.trim()) return;
+    const submission = Symbol();
+    hasEdited.current = true;
+    pendingSubmission.current = submission;
+    const generation = editGeneration.current;
+    const isCurrent = () => mounted.current && editGeneration.current === generation;
+    try {
+      const saved = await onCreate(draft.failure, draft.lesson);
+      if (!isCurrent()) return;
+      if (!saved) { setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.'); return; }
+      hasEdited.current = true; editGeneration.current++;
+      setDraft(EMPTY_DRAFT);
+      onSaved();
+    } catch {
+      if (isCurrent()) setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.');
+    } finally { if (pendingSubmission.current === submission) pendingSubmission.current = null; }
+  };
+
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstFieldRef = useRef<HTMLTextAreaElement>(null);
   const canSubmit = draft.failure.trim().length > 0 && draft.lesson.trim().length > 0;
@@ -47,6 +79,7 @@ export function FailureComposerDialog({
   });
 
   const updateDraft = (key: keyof StoryDraft, value: string) => {
+    hasEdited.current = true; editGeneration.current++; setSaveError('');
     const next = { ...draft, [key]: value };
     setDraft(next);
     onDraftChange?.(next);
@@ -86,11 +119,7 @@ export function FailureComposerDialog({
           className="student-failure-form"
           onSubmit={(event) => {
             event.preventDefault();
-            void onCreate(draft.failure, draft.lesson).then((saved) => {
-              if (!saved) { setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.'); return; }
-              setDraft(EMPTY_DRAFT);
-              onSaved();
-            });
+            void submitDraft();
           }}
         >
           <label className="student-failure-form-question">

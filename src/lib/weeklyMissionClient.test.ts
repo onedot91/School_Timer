@@ -61,3 +61,36 @@ test('mock and readonly weekly settlement never sends a write or starts progress
     }
   } finally { globalThis.fetch = previousFetch; }
 });
+
+test('foreground bursts share one request and respect successful cooldown and Retry-After', async () => {
+  const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null }, define: { 'import.meta.env.PROD': 'true' } });
+  const originalFetch = globalThis.fetch;
+  const originalNow = Date.now;
+  let now = originalNow();
+  Date.now = () => now;
+  let calls = 0;
+  let release: ((value: Response) => void) | undefined;
+  globalThis.fetch = async () => { calls += 1; return new Promise<Response>(resolve => { release = resolve; }); };
+  try {
+    const client = await server.ssrLoadModule('/src/lib/weeklyMissionClient.ts');
+    const first = client.syncWeeklyMissions(8);
+    const duplicate = client.syncWeeklyMissions(8);
+    assert.equal(calls, 1, 'focus and visibilitychange must share the in-flight request');
+    assert.ok(release);
+    release(Response.json({ missions: WEEKLY_MISSION_TYPES.map(missionType => ({ missionType, weekKey: '2026-37', completed: false, awarded: false, rewardAmount: 5, balance: 100 })) }));
+    const [firstResult, duplicateResult] = await Promise.all([first, duplicate]);
+    assert.deepEqual(duplicateResult, firstResult, 'shared parsed results retain the same mission state');
+    await client.syncWeeklyMissions(8);
+    assert.equal(calls, 1, 'immediate foreground events must not repeat a successful request');
+    now += 60_000;
+    globalThis.fetch = async () => { calls += 1; return Response.json({ error: 'TOO_MANY_REQUESTS' }, { status: 429, headers: { 'Retry-After': '30' } }); };
+    await assert.rejects(client.syncWeeklyMissions(8));
+    assert.equal(calls, 2);
+    now += 10_000;
+    await assert.rejects(client.syncWeeklyMissions(8));
+    assert.equal(calls, 2, 'Retry-After blocks a new POST, not merely another alert');
+    now += 20_001;
+    await assert.rejects(client.syncWeeklyMissions(8));
+    assert.equal(calls, 3);
+  } finally { Date.now = originalNow; globalThis.fetch = originalFetch; await server.close(); }
+});

@@ -14,7 +14,7 @@ import { createLibraryAudio } from '../../../lib/canvasLibraryAudio';
 import { CANVAS_LIBRARY_PALETTE } from './CanvasLibraryPalette';
 import { useModalFocus } from '../../../lib/useModalFocus';
 import { CanvasLibraryPlacementExpectedError } from '../../../lib/canvasLibraryClient';
-import { loadLibraryBookDraft, saveLibraryBookDraft } from '../../../lib/libraryBookDraft';
+import { loadLibraryBookDraft, readyLibraryBookDraft, libraryBookDraftVersion, confirmLibraryBookDraft, settleLibraryBookDraft, saveLibraryBookDraft } from '../../../lib/libraryBookDraft';
 import { StorageResponseActorChangedError } from '../../../lib/storageResponseOrder';
 import {
   createLibraryPlayer,
@@ -145,6 +145,8 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
 
   const [savedInput] = useState(() => loadLibraryBookDraft(studentNumber));
   const draftStudentRef = useRef(studentNumber);
+  const [inputReady, setInputReady] = useState(false);
+  const [inputStorageFailed, setInputStorageFailed] = useState(false);
   const [carriedDraft, setCarriedDraft] = useState<LibraryBookDraft | null>(savedInput?.carried ?? null);
   const [nearbyTarget, setNearbyTarget] = useState<LibraryTarget | null>(null);
   const [modal, setModal] = useState<GameModal>(() => (
@@ -161,14 +163,23 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   const [author, setAuthor] = useState(savedInput?.author ?? '');
   const [reflection, setReflection] = useState(savedInput?.reflection ?? '');
   useEffect(() => {
-    if (draftStudentRef.current !== studentNumber) {
-      draftStudentRef.current = studentNumber;
-      const saved = loadLibraryBookDraft(studentNumber);
+    let active = true;
+    setInputReady(false);
+    draftStudentRef.current = studentNumber;
+    void readyLibraryBookDraft(studentNumber).then((saved) => {
+      if (!active) return;
       setTitle(saved?.title ?? ''); setAuthor(saved?.author ?? ''); setReflection(saved?.reflection ?? ''); setCarriedDraft(saved?.carried ?? null);
-      return;
-    }
+      setInputReady(true);
+    });
+    return () => { active = false; };
+  }, [studentNumber]);
+  useEffect(() => {
+    if (!inputReady || draftStudentRef.current !== studentNumber) return;
     saveLibraryBookDraft(studentNumber, { title, author, reflection, carried: carriedDraft });
-  }, [studentNumber, title, author, reflection, carriedDraft]);
+    let active = true;
+    void settleLibraryBookDraft(studentNumber).then(saved => { if (active) setInputStorageFailed(!saved); });
+    return () => { active = false; };
+  }, [studentNumber, inputReady, title, author, reflection, carriedDraft]);
   const [formError, setFormError] = useState<string | null>(null);
   const [slotError, setSlotError] = useState<string | null>(null);
   const [seasonNotice, setSeasonNotice] = useState<string | null>(null);
@@ -849,6 +860,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   };
 
   const registerBook = () => {
+    if (!inputReady) return;
     const error = validateRegistration(title, author, reflection);
     if (error) {
       setFormError(error);
@@ -866,7 +878,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
   };
 
   const carryExistingBook = (book: LibraryBookDraft) => {
-    if (carriedDraftRef.current || receiveApproachRef.current || sceneStateRef.current.action) return;
+    if (!inputReady || carriedDraftRef.current || receiveApproachRef.current || sceneStateRef.current.action) return;
     clearHeldInput();
     saveLibraryBookDraft(studentNumber, { title, author, reflection, carried: book });
     if (room.desk.clerk) {
@@ -895,6 +907,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       setSlotError('먼저 등록대에서 책을 받아 주세요.');
       return;
     }
+    const submittedDraftVersion = libraryBookDraftVersion(studentNumber);
     placementPendingRef.current = true;
     setIsPlacing(true);
     setSlotError(null);
@@ -934,15 +947,18 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
       ? booksRef.current
       : [...booksRef.current, placedBook];
     booksRef.current = nextBooks;
-    carriedDraftRef.current = null;
-    setCarriedDraft(null);
-    setTitle(''); setAuthor(''); setReflection('');
-    saveLibraryBookDraft(studentNumber, { title: '', author: '', reflection: '', carried: null });
+    const inputConfirmed = submittedDraftVersion ? await confirmLibraryBookDraft(studentNumber, submittedDraftVersion) : true;
+    if (!mountedRef.current || draftStudentRef.current !== studentNumber) return;
+    if (inputConfirmed) {
+      carriedDraftRef.current = null;
+      setCarriedDraft(null);
+      setTitle(''); setAuthor(''); setReflection('');
+    }
     setBookActionBusy(true);
     sceneStateRef.current = {
       ...sceneStateRef.current,
       placedBooks: nextBooks,
-      carriedDraft: null,
+      carriedDraft: inputConfirmed ? null : carriedDraftRef.current,
       selectedSlotId: placedBook.slotId,
       action: { kind: 'place', startedAt: performance.now(), slotId: placedBook.slotId },
     };
@@ -1152,20 +1168,21 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
             <form onSubmit={(event) => { event.preventDefault(); registerBook(); }}>
               <label>
                 <span>책 제목</span>
-                <input ref={registrationTitleRef} value={title} maxLength={50} onChange={(event) => setTitle(event.target.value)} />
+                <input ref={registrationTitleRef} disabled={!inputReady} value={title} maxLength={50} onChange={(event) => setTitle(event.target.value)} />
               </label>
               <label>
                 <span>글쓴이</span>
-                <input value={author} maxLength={30} onChange={(event) => setAuthor(event.target.value)} />
+                <input disabled={!inputReady} value={author} maxLength={30} onChange={(event) => setAuthor(event.target.value)} />
               </label>
               <label>
                 <span>한 줄 감상</span>
-                <input value={reflection} maxLength={MAX_BOOK_REFLECTION_LENGTH} placeholder="이 책을 읽고 어떤 생각이 들었나요?" onChange={(event) => setReflection(event.target.value)} />
+                <input disabled={!inputReady} value={reflection} maxLength={MAX_BOOK_REFLECTION_LENGTH} placeholder="이 책을 읽고 어떤 생각이 들었나요?" onChange={(event) => setReflection(event.target.value)} />
               </label>
+              {inputStorageFailed ? <p role="status">이 기기에 임시 보관하지 못했어요.</p> : null}
               {formError ? <p className="student-canvas-library-error" role="alert">{formError}</p> : null}
               <div className="student-canvas-library-actions">
                 <button type="button" onClick={closeModal}>취소</button>
-                <button type="submit">책 받기</button>
+                <button type="submit" disabled={!inputReady}>책 받기</button>
               </div>
             </form>
             )}
@@ -1174,7 +1191,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
                 <strong>전에 등록한 책 가져가기</strong>
                 <div>
                   {unplacedBooks.map((book) => (
-                    <button key={book.bookId} type="button" onClick={() => carryExistingBook(book)}>
+                    <button key={book.bookId} type="button" disabled={!inputReady} onClick={() => carryExistingBook(book)}>
                       <span>{book.title}</span>
                       <small>{book.author || '글쓴이 없음'}</small>
                     </button>

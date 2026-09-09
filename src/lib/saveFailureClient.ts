@@ -8,6 +8,10 @@ import { captureStorageResponseContext } from './storageResponseOrder.js';
 import { beginSaveProgress } from './saveProgress.js';
 
 export const SAVE_FAILURE_STORAGE_KEY = 'school-timer-save-failures-v1';
+export const DEFERRED_SAVE_FAILURE_STORAGE_KEY = 'school-timer-save-failure-deferred-v1';
+let deferredMemory: SaveFailureAlert[] = [];
+let deferredDirty = false;
+const deferredErrors = new WeakSet<object>();
 export const SAVE_FAILURE_CHANGE_EVENT = 'school-timer-save-failure-change';
 let memory: SaveFailureAlert[] = [];
 let flushing = false;
@@ -60,7 +64,8 @@ export const reportSaveFailure = (feature: SaveFailureFeature, code: SaveFailure
     if (alerts.some((item) => item.studentNumber === actor && item.feature === feature && item.code === code && item.acknowledgedAt === null
       && item.diagnostics?.errorCode === diagnostics?.errorCode && item.diagnostics?.causeCode === diagnostics?.causeCode
       && item.diagnostics?.httpStatus === diagnostics?.httpStatus && item.diagnostics?.view === diagnostics?.view
-      && item.diagnostics?.endpoint === diagnostics?.endpoint && item.diagnostics?.online === diagnostics?.online)) return;
+      && item.diagnostics?.endpoint === diagnostics?.endpoint && item.diagnostics?.online === diagnostics?.online
+      && item.diagnostics?.requestId === diagnostics?.requestId)) return;
     writeLocal([...alerts, { id: createBrowserRequestId(), studentNumber: actor, feature, code, occurredAt: new Date().toISOString(), acknowledgedAt: null, ...(diagnostics ? { diagnostics } : {}) }]);
     void flushSaveFailureReports();
   } catch { /* Error reporting must never interrupt the original save result. */ }
@@ -89,23 +94,97 @@ const captureSaveFailureContext = (): SaveFailureDiagnostics => {
     return parseSaveFailureDiagnostics({
       view: hash.startsWith('#student-') ? hash.slice('#student-'.length) : 'teacher',
       online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
+      buildVersion: typeof document === 'undefined' ? undefined : document.querySelector('meta[name="app-build"]')?.getAttribute('content'),
     }) ?? {};
   } catch { return {}; }
 };
 
-export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, save: () => Promise<T>, studentNumber?: number): Promise<T> => {
+export interface SaveFailureReportingOptions {
+  readonly requestId: string;
+  readonly deferUntilRecovery?: boolean;
+  readonly stage?: SaveFailureDiagnostics['stage'];
+  readonly retryCount?: number;
+}
+
+const readDeferred = (): SaveFailureAlert[] => {
+  if (deferredDirty || typeof window === 'undefined') return deferredMemory;
+  try {
+    const raw: unknown = JSON.parse(window.localStorage.getItem(DEFERRED_SAVE_FAILURE_STORAGE_KEY) ?? '[]');
+    deferredMemory = Array.isArray(raw) ? raw.flatMap(value => {
+      const alert = parseSaveFailureAlert(value);
+      return alert?.diagnostics?.requestId ? [alert] : [];
+    }) : [];
+  } catch { /* Keep safe diagnostic metadata in memory if device storage is unavailable. */ }
+  return deferredMemory;
+};
+const writeDeferred = (alerts: SaveFailureAlert[]) => {
+  deferredMemory = alerts;
+  try { window.localStorage.setItem(DEFERRED_SAVE_FAILURE_STORAGE_KEY, JSON.stringify(alerts)); deferredDirty = false; }
+  catch { deferredDirty = true; }
+};
+
+/** Store only sanitized metadata while a submitted request is eligible for recovery. */
+export const deferSaveFailure = (feature: SaveFailureFeature, error: unknown, studentNumber: number,
+  details: SaveFailureDiagnostics & { requestId: string }): boolean => {
+  const code = classifySaveFailure(error);
+  const diagnostics = collectSaveFailureDiagnostics(error, { ...captureSaveFailureContext(), ...details });
+  if (typeof window === 'undefined' || isReadOnlyDataMode || !diagnostics?.requestId
+    || !Number.isInteger(studentNumber) || studentNumber < 0 || studentNumber > 23
+    || (code !== 'network' && code !== 'server' && code !== 'response')) return false;
+  const pending = readDeferred();
+  const previous = pending.find(alert => alert.studentNumber === studentNumber && alert.diagnostics?.requestId === diagnostics.requestId);
+  const alert: SaveFailureAlert = { id: previous?.id ?? createBrowserRequestId(), studentNumber, feature, code,
+    occurredAt: previous?.occurredAt ?? new Date().toISOString(), acknowledgedAt: null,
+    diagnostics: { ...previous?.diagnostics, ...diagnostics } };
+  writeDeferred([...pending.filter(item => item.id !== previous?.id), alert]);
+  if (error instanceof Error) deferredErrors.add(error);
+  return true;
+};
+
+/** Success removes pending diagnostics only; an already reported warning remains for teacher review. */
+export const resolveDeferredSaveFailure = (studentNumber: number, requestId: string) => {
+  writeDeferred(readDeferred().filter(alert => alert.studentNumber !== studentNumber || alert.diagnostics?.requestId !== requestId));
+};
+
+/** Called when recovery stops; preserve the original occurrence and report ID across delivery retries. */
+export const reportDeferredSaveFailure = (studentNumber: number, requestId: string,
+  details: Pick<SaveFailureDiagnostics, 'retryCount' | 'stage'> = {}): boolean => {
+  if (typeof window === 'undefined' || isReadOnlyDataMode) return false;
+  const deferred = readDeferred().find(alert => alert.studentNumber === studentNumber && alert.diagnostics?.requestId === requestId);
+  if (!deferred) return false;
+  const alert = { ...deferred, diagnostics: parseSaveFailureDiagnostics({ ...deferred.diagnostics, ...details }) };
+  const alerts = readLocal();
+  if (!alerts.some(existing => existing.id === alert.id)) writeLocal([...alerts, alert]);
+  resolveDeferredSaveFailure(studentNumber, requestId);
+  void flushSaveFailureReports();
+  return true;
+};
+
+export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, save: () => Promise<T>, studentNumber?: number, options?: SaveFailureReportingOptions): Promise<T> => {
   const storageContext = captureStorageResponseContext();
   const context = captureSaveFailureContext();
   const actor = studentNumber ?? (typeof window === 'undefined' ? undefined : currentActor() ?? undefined);
   const finishProgress = beginSaveProgress();
-  try { return await save(); }
+  try {
+    const result = await save();
+    if (actor !== undefined && options?.requestId) resolveDeferredSaveFailure(actor, options.requestId);
+    return result;
+  }
   catch (error) {
     if (publishStorageAvailability(error, storageContext)) throw error;
+    if (error instanceof Error && deferredErrors.has(error)) throw error;
     const code = classifySaveFailure(error);
     if (code) {
-      try { reportSaveFailure(feature, code, actor, collectSaveFailureDiagnostics(error, {
-        ...context, online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
-      })); } catch { return Promise.reject(error); }
+      const details = collectSaveFailureDiagnostics(error, { ...context,
+        requestId: options?.requestId, stage: options?.stage, retryCount: options?.retryCount,
+        online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
+      });
+      if (actor !== undefined && options?.deferUntilRecovery && options.requestId
+        && deferSaveFailure(feature, error, actor, { ...details, requestId: options.requestId })) throw error;
+      try {
+        reportSaveFailure(feature, code, actor, details);
+        if (actor !== undefined && options?.requestId) resolveDeferredSaveFailure(actor, options.requestId);
+      } catch { return Promise.reject(error); }
     }
     throw error;
   } finally {

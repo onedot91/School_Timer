@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { mergeStudentEconomyLife, StudentEconomyRequestError, updateStudentEconomy } from './studentEconomyClient.js';
+import { canonicalStorageJson } from './storageV2Codec.js';
+import { loadStudentEconomyReceipt, mergeStudentEconomyLife, StudentEconomyRequestError, updateStudentEconomy } from './studentEconomyClient.js';
 import { applyStudentEconomyAction, createStudentEconomyState } from './studentEconomy.js';
 import { normalizeStudentLifeState } from './studentLife.js';
 
@@ -15,6 +16,12 @@ const successfulResponse = () => Response.json({
   applied: true,
   updatedAt: 'v2',
 });
+
+const committedReceipt = async (action: unknown) => {
+  const bytes = new TextEncoder().encode(canonicalStorageJson({ action: 'student-economy', payload: { studentNumber: 1, action } }));
+  const payloadHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  return { status: 'committed', action: 'student-economy', payloadHash, committedAt: '2026-09-09T00:00:00Z', result: await successfulResponse().json() };
+};
 
 test('학생 거래는 v2 요청을 한 번 보내고 업무 거절은 재전송하지 않는다', async () => {
   const originalFetch = globalThis.fetch;
@@ -38,12 +45,12 @@ test('거래 응답이 끊겨도 전송을 반복하지 않고 같은 요청의 
     assert.equal(new Headers(init?.headers).get('X-Storage-Projection'),'1');
     requests.push({ url: String(input), method: init?.method ?? 'GET' });
     if (init?.method === 'POST') throw new TypeError('Load failed');
-    return Response.json({ status: 'committed', result: await successfulResponse().json() });
+    return Response.json(String(input).includes('receiptOnly=1') ? await committedReceipt({ type: 'deposit', amount: 30 }) : { status: 'committed', result: await successfulResponse().json() });
   };
   try {
     const result = await updateStudentEconomy({ studentNumber: 1, action: { type: 'deposit', amount: 30 }, requestId: 'lost-response-id' });
     assert.equal(result.balance, 115);
-    assert.deepEqual(requests.map(({ method }) => method), ['POST', 'GET']);
+    assert.deepEqual(requests.map(({ method }) => method), ['POST', 'GET', 'GET']);
     const query = new URL(requests[1].url, 'https://school.example').searchParams;
     assert.equal(query.get('requestId'), 'lost-response-id');
     assert.equal(query.get('studentNumber'), '1');
@@ -93,6 +100,8 @@ test('서버 거래 로직의 기존 입금 응답은 저장 성공으로 수신
   try {
     const result = await updateStudentEconomy({ studentNumber: 1, action, requestId: 'legacy-deposit' });
     assert.equal(result.balance, 80);
+    assert.equal(result.refreshPending, undefined);
+    assert.ok(result.studentEconomy);
     assert.equal(result.studentEconomy.deposit, 20);
   } finally { globalThis.fetch = originalFetch; }
 });
@@ -138,6 +147,7 @@ test('부분 경제 응답은 캐시의 도서·실패 이야기와 다른 지�
     const revisions=Object.fromEntries([...encoded.resources.map(row=>[row.resource_key,2]),['wallet:1',2]]);
     globalThis.fetch=async()=>Response.json({...await successfulResponse().json(),updatedAt:'2026-09-08T00:00:01Z',storagePatch:{...encoded,revisions,historyStudents:[1],deletedKeys:[],complete:false}});
     const result=await updateStudentEconomy({studentNumber:1,action:{type:'deposit',amount:30},requestId:'partial-response-id'});
+    assert.ok(result.studentLife);
     assert.deepEqual(result.studentLife.books,life.books);
     assert.equal(result.balance,115);
   } finally {globalThis.fetch=originalFetch;if(originalWindow)Object.defineProperty(globalThis,'window',originalWindow);else Reflect.deleteProperty(globalThis,'window');}
@@ -156,4 +166,35 @@ test('프로필 부분 결과를 저장할 때 기존 도서와 타인 프로필
   assert.equal(saved.failureProfileAssignments['2'],FAILURE_PROFILE_IMAGES[1]);
   assert.deepEqual(saved.books,current.books);
   assert.equal(saved.letters[0]?.readAt,'2026-09-08T00:10:00Z');
+});
+
+
+test('경제 저장 영수증 확인 뒤 화면 조회만 실패하면 잔액 기본값 없이 저장 완료를 반환한다', async context => {
+  const action = { type: 'deposit', amount: 30 };
+  const requests: string[] = [];
+  context.mock.method(globalThis, 'fetch', async (url: unknown, init?: RequestInit) => {
+    requests.push(init?.method ?? 'GET');
+    if (init?.method === 'POST') throw new TypeError('response lost');
+    if (String(url).includes('receiptOnly=1')) return Response.json(await committedReceipt(action));
+    return Response.json({ error: 'DISPLAY_UNAVAILABLE' }, { status: 503 });
+  });
+  const result = await updateStudentEconomy({ studentNumber: 1, action: { type: 'deposit', amount: 30 }, requestId: 'committed-display-lost' });
+  assert.equal(result.refreshPending, true);
+  assert.equal(result.applied, true);
+  assert.equal(result.balance, null);
+  assert.equal(result.currencyBalanceEntries, null);
+  assert.equal(result.studentLife, null);
+  assert.deepEqual(requests, ['POST', 'GET', 'GET']);
+});
+
+test('경제 영수증의 요청 내용 해시가 다르면 확정하거나 화면에 적용하지 않는다', async context => {
+  let reads = 0;
+  context.mock.method(globalThis, 'fetch', async () => { reads++; return Response.json(await committedReceipt({ type: 'deposit', amount: 40 })); });
+  await assert.rejects(loadStudentEconomyReceipt(1, 'mismatched-receipt', { type: 'deposit', amount: 30 }), /STORAGE_REQUEST_REUSED/);
+  assert.equal(reads, 1);
+});
+
+test('경제 영수증 조회 장애를 미저장으로 반환하지 않는다', async context => {
+  context.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'STATUS_UNAVAILABLE' }, { status: 503 }));
+  await assert.rejects(loadStudentEconomyReceipt(1, 'receipt-unavailable', { type: 'deposit', amount: 30 }), /STUDENT_ECONOMY_STATUS_UNAVAILABLE/);
 });
