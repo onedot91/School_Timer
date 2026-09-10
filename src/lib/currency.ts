@@ -98,6 +98,8 @@ export interface AuctionAwardedItem {
 
 export const CURRENCY_STUDENT_NUMBERS = Array.from({ length: 23 }, (_, index) => index + 1);
 export const DEFAULT_CURRENCY_BALANCE = 100;
+export const TEST_STUDENT_NUMBER = 24;
+export const TEST_STUDENT_INITIAL_BALANCE = 1000;
 export const WEEKLY_CURRENCY_ALLOWANCE = 100;
 export const CURRENCY_BALANCE_MIN = 0;
 export const CURRENCY_BALANCE_MAX = 999999;
@@ -222,6 +224,10 @@ export const clampCurrencyBalance = (value: unknown) => {
   return Math.max(CURRENCY_BALANCE_MIN, Math.min(CURRENCY_BALANCE_MAX, Math.floor(numericValue)));
 };
 
+export const getDefaultCurrencyBalance = (studentNumber: number) => (
+  studentNumber === TEST_STUDENT_NUMBER ? TEST_STUDENT_INITIAL_BALANCE : DEFAULT_CURRENCY_BALANCE
+);
+
 export const clampAuctionBidAmount = (value: unknown) => {
   const numericValue = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numericValue)) return 0;
@@ -258,11 +264,14 @@ export const createDefaultCurrencyHistory = (): CurrencyHistory =>
 
 export const normalizeCurrencyBalances = (value: unknown): CurrencyBalances => {
   const parsed = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-  return CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((balances, studentNumber) => {
+  const balances = CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((nextBalances, studentNumber) => {
     const key = String(studentNumber);
-    balances[key] = key in parsed ? clampCurrencyBalance(parsed[key]) : DEFAULT_CURRENCY_BALANCE;
-    return balances;
+    nextBalances[key] = key in parsed ? clampCurrencyBalance(parsed[key]) : DEFAULT_CURRENCY_BALANCE;
+    return nextBalances;
   }, {});
+  const testStudentKey = String(TEST_STUDENT_NUMBER);
+  if (testStudentKey in parsed) balances[testStudentKey] = clampCurrencyBalance(parsed[testStudentKey]);
+  return balances;
 };
 
 export const adjustCurrencyBalancesForStudents = (

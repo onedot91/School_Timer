@@ -25,6 +25,7 @@ import {
   AUCTION_ITEM_IDS,
   AUCTION_MISSIONS_STORAGE_KEY,
   DEFAULT_CURRENCY_BALANCE,
+  getDefaultCurrencyBalance,
   DEFAULT_AUCTION_ITEMS,
   clampAuctionBidAmount,
   formatCurrency,
@@ -727,7 +728,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     || hasDailyWritingLetterForDate(studentLetters, currentDateKey);
   const hasCompletedDailyWritingMission = hasCurrentDailyWritingMission
     && hasDailyWritingReward(currencyHistory, studentNumber, currentDateKey);
-  const balance = currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+  const balance = currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
   const activeAuctionItemIds = auctionItems.map((item) => item.id);
   const reservedAmount = getReservedAuctionBidAmount(
     auctionBids,
@@ -940,7 +941,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
 
       const snapshot = loadStoredStudentPetSnapshot();
-      const currentWallet = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+      const currentWallet = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
       const result = purchaseStudentProfile(
         snapshot,
         studentNumber,
@@ -1008,7 +1009,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         const currentPet = getStudentPetState(snapshot.studentPets, studentNumber);
-        const latestBalance = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+        const latestBalance = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
         if (latestBalance - reservedAmount < STUDENT_PET_FEED_AMOUNT) return false;
         const nextBalance = latestBalance - STUDENT_PET_FEED_AMOUNT;
         savedPet = feedStudentPetEgg(currentPet);
@@ -1705,7 +1706,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         const currentHistory = snapshot.auctionBidHistory;
         const currentAwards = snapshot.auctionAwards;
         if (currentAwards[item.id]) throw new Error('ALREADY_AWARDED');
-        const latestBalance = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+        const latestBalance = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
         const latestBid = currentBids[item.id] ?? { amount: 0, bidder: null };
         const latestMinimumBid = getMinimumAuctionBid(item, latestBid.amount);
         const latestReservedExcludingItem = getReservedAuctionBidAmount(
@@ -1926,7 +1927,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       } else {
         const bankMailCreatedAt = new Date().toISOString();
         const snapshot = loadStoredStudentPetSnapshot();
-        const currentWallet = snapshot.currencyBalances[studentKey] ?? DEFAULT_CURRENCY_BALANCE;
+        const currentWallet = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
         const result = applyStudentEconomyAction({
           state: snapshot.studentEconomy[studentKey],
           action,

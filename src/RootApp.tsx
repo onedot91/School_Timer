@@ -281,7 +281,7 @@ export default function RootApp() {
       <Suspense fallback={<PageLoadFallback />}>
         {activePage}
       </Suspense>
-      <StorageAvailabilityBanner key={selectedEntryNumber} actor={selectedEntryNumber} />
+      {selectedEntryNumber !== 0 ? <StorageAvailabilityBanner key={selectedEntryNumber} actor={selectedEntryNumber} /> : null}
     </>
   );
 }

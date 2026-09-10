@@ -29191,6 +29191,14 @@ body {
 .storage-availability-banner button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 12px; border: 1px solid var(--teacher-border, #bec9c0); }
 .storage-availability-banner button:focus-visible { outline: 3px solid var(--apple-focus, #4f8068); outline-offset: 2px; }
 .storage-availability-banner[data-in-dialog="true"] { position: relative; inset: auto; transform: none; order: -1; flex-shrink: 0; width: auto; margin: 10px; }
+.teacher-storage-indicator { position: relative; flex-shrink: 0; color: var(--teacher-warning, #805525); font-size: 12px; }
+.teacher-storage-indicator summary { display: flex; align-items: center; min-height: 44px; padding: 0 6px; cursor: pointer; font-weight: 700; list-style: none; }
+.teacher-storage-indicator summary::-webkit-details-marker { display: none; }
+.teacher-storage-indicator summary:focus-visible, .teacher-storage-indicator button:focus-visible { outline: 3px solid var(--apple-focus, #0066cc); outline-offset: 2px; }
+.teacher-storage-indicator-content { position: absolute; right: 0; top: 100%; z-index: 20; width: min(240px, calc(100vw - 48px)); padding: 12px; border: 1px solid var(--teacher-border, #bec9c0); border-radius: 12px; background: var(--teacher-surface, #faf7ee); color: var(--teacher-text, #243c32); box-shadow: 0 4px 16px #203c3220; }
+.teacher-storage-indicator-content p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.teacher-storage-indicator-content button { min-height: 44px; padding: 6px 10px; border: 1px solid var(--teacher-border, #bec9c0); border-radius: 8px; }
+.teacher-storage-indicator-content textarea { width: 100%; }
 .settings-parent-content:has(> .storage-availability-banner) > .teacher-settings-save-status { display: none; }
 
 /* Today Friend: one deliberate card reveal within the assignment panel. */

@@ -21,9 +21,18 @@ import {
   hasWeeklyEmotionReward,
   pickAvailableAuctionMissionIllustrationIndex,
   normalizeAuctionMissions,
+  getDefaultCurrencyBalance,
+  normalizeCurrencyBalances,
 } from './currency.ts';
 import { normalizeStudentEconomyState } from './studentEconomy.ts';
 import { createStudentEmotionEntry, getSchoolWeekDateKeys } from './studentEmotion.ts';
+
+test('24번 테스트 학생의 잔액 기본값은 1000고마이고 기존 잔액은 보존한다', () => {
+  assert.equal(getDefaultCurrencyBalance(24), 1000);
+  assert.equal(getDefaultCurrencyBalance(23), 100);
+  assert.equal(normalizeCurrencyBalances({ 24: 750 })['24'], 750);
+  assert.equal(normalizeCurrencyBalances(null)['24'], undefined);
+});
 
 test('선택한 번호에만 화폐를 일괄 조정하고 중복 번호는 한 번만 반영한다', () => {
   // Given
