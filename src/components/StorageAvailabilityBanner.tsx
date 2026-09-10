@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'reac
 import { createPortal } from 'react-dom';
 import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscribeStorageAvailability } from '../lib/storageAvailability';
 import { canReloadWithDrafts, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
-import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, notifySaveRecovery, announceSaveRecovered } from '../lib/saveRecovery';
+import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, notifySaveRecovery } from '../lib/saveRecovery';
 
 export function StorageAvailabilityBanner({ actor }: { readonly actor: number | null }) {
   const notice = useSyncExternalStore(subscribeStorageAvailability, getStorageAvailabilityNotice, () => null);
@@ -51,13 +51,13 @@ export function StorageAvailabilityBanner({ actor }: { readonly actor: number | 
       <div><strong>{unsafe ? '이 기기에 임시 보관하지 못했어요' : recovery?.refreshPending ? '저장됨 · 화면 갱신 중' : recovery?.recovering ? '저장 확인 중' : '저장 확인이 필요해요'}</strong>
         {unsafe ? <p>화면을 닫기 전에 내용을 복사해 주세요.</p> : null}</div>
       {unsafe ? copyButton
-        : <button type="button" onClick={() => { notifySaveRecovery(true); if (actor !== null) announceSaveRecovered(actor); }}>다시 확인</button>}
+        : <button type="button" onClick={() => { notifySaveRecovery(true); }}>다시 확인</button>}
       {fallback}
     </aside>;
     return dialog ? createPortal(banner, dialog) : banner;
   }
   const banner = <aside className="storage-availability-banner" data-in-dialog={dialog !== null} role="alert">
-    <div><strong>{notice.kind === 'maintenance' ? '저장 서비스 점검 중' : '업데이트가 필요합니다'}</strong>
+    <div><strong>{notice.kind === 'maintenance' ? '저장 서비스 점검 중' : '저장 확인이 필요해요'}</strong>
       <p>{reloadBlocked ? '작성 내용을 기기에 보관하지 못했습니다. 새로고침하지 말고 내용을 따로 복사해 주세요.'
         : notice.kind === 'maintenance' ? '잠시 후 다시 저장해 주세요.' : '보관된 입력은 새로고침 후 다시 저장해 주세요.'}</p>
     </div>
