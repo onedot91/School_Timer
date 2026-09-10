@@ -5,6 +5,7 @@ import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 import { createStorageV2Fixture } from './storageV2Fixture.js';
 import { createSudokuPuzzle } from '../../src/lib/sudoku.js';
 import { getKoreanIsoWeekKey } from '../../src/lib/weeklyMission.js';
+import { createStudentEmotionEntry } from '../../src/lib/studentEmotion.js';
 
 const secret = 'storage-test-only-secret-at-least-32-bytes';
 const initial = () => ({
@@ -17,19 +18,23 @@ const initial = () => ({
   ],books:[],failureStories:[],failureProfileAssignments:{} },
 });
 
-const environment = async (run: (call: (actor:number,method:string,body?:unknown,query?:Record<string,string>,projection?:boolean)=>Promise<{status:number;body:unknown}>,fixture:ReturnType<typeof createStorageV2Fixture>)=>Promise<void>) => {
+const environment = async (run: (call: (actor:number,method:string,body?:unknown,query?:Record<string,string>,projection?:boolean)=>Promise<{status:number;body:unknown}>,fixture:ReturnType<typeof createStorageV2Fixture>)=>Promise<void>, seed: Record<string, unknown> = initial()) => {
   const saved = {...process.env}; const originalFetch=globalThis.fetch;
   process.env.SUPABASE_URL='https://storage-fixture.test';process.env.SUPABASE_SERVICE_ROLE_KEY='fixture';
   process.env.DEVICE_SESSION_SECRET=secret;process.env.STORAGE_PROTOCOL_VERSION='2';
-  const fixture=createStorageV2Fixture(initial()); globalThis.fetch=async (input, init) => {
-    assert.ok(!String(input).endsWith('/storage_load_snapshot'), 'Commands and receipts must not load the full class');
+  let loadingStudentProjection = false;
+  const fixture=createStorageV2Fixture(seed); globalThis.fetch=async (input, init) => {
+    assert.ok(loadingStudentProjection || !String(input).endsWith('/storage_load_snapshot'), 'Commands and receipts must not load the full class');
     return fixture.fetch(input, init);
   };
   const call=async(actor:number,method:string,body?:unknown,query?:Record<string,string>,projection=true)=>{
     let status=0;let output:unknown;
     const token=createDeviceSessionToken(actor===0?{role:'teacher'}:{role:'student',studentNumber:actor},secret);
     const response={setHeader(){},status(code:number){status=code;return this;},json(value:unknown){output=value;}};
-    await handler({method,body,query,headers:{cookie:`__Host-school-timer-device=${token}`,'sec-fetch-site':'same-origin',...(projection ? {'x-storage-projection':'1'} : {})}},response);
+    loadingStudentProjection = method === 'GET' && !query?.requestId;
+    try {
+      await handler({method,body,query,headers:{cookie:`__Host-school-timer-device=${token}`,'sec-fetch-site':'same-origin',...(projection ? {'x-storage-projection':'1'} : {})}},response);
+    } finally { loadingStudentProjection = false; }
     return {status,body:output};
   };
   try {await run(call,fixture);} finally {globalThis.fetch=originalFetch;process.env=saved;}
@@ -197,3 +202,36 @@ test('emotion retry cannot move an old dated draft into today', () => environmen
   assert.equal(result.status, 409);
   assert.equal(Reflect.get(Object(result.body), 'error'), 'STUDENT_SAVE_CONTEXT_CHANGED');
 }));
+
+test('학생 범위 조회 후 감정 저장은 휴업일을 인정하고 재시도·충돌에서도 다른 학생 기록을 보존한다', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-11T02:00:00Z') });
+  const other = [createStudentEmotionEntry(4, 'calm', '별도 학생 기록', new Date('2026-09-09T02:00:00Z'), undefined, '좋았어')];
+  const seed = { ...initial(), studentEmotionHistory: {
+    2: ['07', '08', '09'].map(day => createStudentEmotionEntry(2, 'happy', '연습 기록', new Date(`2026-09-${day}T02:00:00Z`), undefined, '잘했어')),
+    4: other,
+  } };
+  seed.currencyBalances['4'] = 333;
+  await environment(async (call, fixture) => {
+    process.env.STORAGE_REQUIRE_EDIT_REVISIONS = '1';
+    const read = await call(2, 'GET');
+    assert.equal(read.status, 200);
+    const revisionKey = 'scope:studentEmotionHistory:2';
+    const revisions = Reflect.get(Object(Reflect.get(Object(read.body), 'storagePatch')), 'revisions');
+    assert.equal(Reflect.get(Object(Reflect.get(Object(Reflect.get(Object(read.body), 'value')), 'studentEmotionHistory')), '4'), undefined);
+    const payload = { dateKey: '2026-09-11', emotionId: 'happy', comment: '금요일 연습', selfMessage: '잘했어', expectedRevisions: { [revisionKey]: Reflect.get(Object(revisions), revisionKey) ?? 0 } };
+    const body = command('emotion-holiday-once-0001', 'student.emotion.save', payload);
+    const saved = await call(2, 'POST', body);
+    assert.equal(saved.status, 200);
+    assert.equal((await call(2, 'POST', body)).status, 200);
+    assert.equal((await call(2, 'POST', command('emotion-holiday-stale-0001', 'student.emotion.save', { ...payload, comment: '옛 입력' }))).status, 409);
+    const latest = await call(2, 'GET');
+    const latestRevisions = Reflect.get(Object(Reflect.get(Object(latest.body), 'storagePatch')), 'revisions');
+    assert.equal((await call(2, 'POST', command('emotion-holiday-updated-0001', 'student.emotion.save', { ...payload, comment: '다시 확인', expectedRevisions: { [revisionKey]: Reflect.get(Object(latestRevisions), revisionKey) } }))).status, 200);
+    const value = fixture.read().value;
+    assert.equal(Reflect.get(Object(value.currencyBalances), '2'), 130);
+    assert.equal(Reflect.get(Object(value.currencyBalances), '4'), 333);
+    assert.deepEqual(Reflect.get(Object(value.studentEmotionHistory), '4'), other);
+    assert.equal(Reflect.get(Object(value.studentEmotionHistory), '2').length, 4);
+    assert.equal(Reflect.get(Object(value.currencyHistory), '2').length, 2);
+  }, seed);
+});

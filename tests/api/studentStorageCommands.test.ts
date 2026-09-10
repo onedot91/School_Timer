@@ -5,8 +5,32 @@ import { createSudokuPuzzle, getSudokuProgressKey } from '../../src/lib/sudoku.j
 import { createNumberBaseballAnswer } from '../../src/lib/numberBaseball.js';
 import { getKoreanIsoWeekKey } from '../../src/lib/weeklyMission.js';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionItems } from '../../src/lib/currency.js';
+import { createStudentEmotionEntry, getSchoolWeekDateKeys } from '../../src/lib/studentEmotion.js';
+import { getStudentEmotionExcusedDay } from '../../src/lib/studentEmotionCalendar.js';
 
 const context = { requestId: 'isolated-request-1', createdAt: '2026-09-08T02:00:00.000Z' };
+
+for (const date of ['2026-09-11', '2026-09-23', '2026-10-08']) {
+  test(`감정 저장 ${date}: 휴일을 인정하고 주간 보상은 한 번만 지급한다`, () => {
+    const at = `${date}T02:00:00.000Z`;
+    const dates = getSchoolWeekDateKeys(new Date(at)).filter(day => !getStudentEmotionExcusedDay(day) && day !== date);
+    const entries = dates.map(day => createStudentEmotionEntry(1, 'happy', '연습 기록', new Date(`${day}T02:00:00.000Z`), undefined, '잘했어'));
+    const other = [{ preserve: null }];
+    const before = { currencyBalances: { 1: 100, 2: 333 }, currencyHistory: { 1: [], 2: other }, studentEmotionHistory: { 1: entries, 2: other } };
+    const payload = { emotionId: 'happy', comment: '연습 기록', selfMessage: '잘했어' };
+    const first = applyStudentStorageCommand(before, 1, 'student.emotion.save', payload, { requestId: 'holiday-first', createdAt: at });
+    assert.ok(first);
+    assert.equal(normalizeCurrencyBalances(first.value.currencyBalances)['1'], 130);
+    const second = applyStudentStorageCommand(first.value, 1, 'student.emotion.save', payload, { requestId: 'holiday-retry', createdAt: at });
+    assert.ok(second);
+    assert.equal(normalizeCurrencyBalances(second.value.currencyBalances)['1'], 130);
+    assert.equal(normalizeCurrencyHistory(second.value.currencyHistory)['1'].length, 2);
+    assert.deepEqual(Reflect.get(Object(second.value.studentEmotionHistory), '2'), other);
+    assert.deepEqual(Reflect.get(Object(second.value.currencyHistory), '2'), other);
+    assert.equal(normalizeCurrencyBalances(second.value.currencyBalances)['2'], 333);
+    assert.equal(Reflect.get(Object(second.value.studentEmotionHistory), '1').length, dates.length + 1);
+  });
+}
 const week = getKoreanIsoWeekKey(new Date(context.createdAt));
 const fixture = () => ({ currencyBalances: { '1': 100, '2': 333 }, currencyHistory: { '1': [{ legacy: 'preserve-original' }], '2': [{ raw: null }] }, studentPets: { '2': { preserve: true } }, studentLife: { letters: [], books: [{ preserve: null }], failureStories: [] } });
 const apply = (value: unknown, action: string, payload: unknown) => {

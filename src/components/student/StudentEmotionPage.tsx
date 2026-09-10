@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Coins, Heart, MessageCircle, PencilLine } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Coins, Heart, MessageCircle, PencilLine, TreePalm } from 'lucide-react';
+import { getStudentEmotionExcusedDay, isStudentEmotionWeekComplete } from '../../lib/studentEmotionCalendar';
 import {
   STUDENT_EMOTION_COMMENT_MAX_LENGTH,
   STUDENT_EMOTION_SELF_MESSAGE_MAX_LENGTH,
@@ -75,10 +76,10 @@ interface StudentEmotionPageProps {
 
 const SCHOOL_WEEKDAY_LABELS = ['월', '화', '수', '목', '금'];
 
-function StudentEmotionParticipation({ weekEntries }: { weekEntries: Array<StudentEmotionEntry | null> }) {
-  const isComplete = weekEntries.every((entry) => entry !== null);
+function StudentEmotionParticipation({ weekEntries, weekDateKeys }: { weekEntries: Array<StudentEmotionEntry | null>; weekDateKeys: string[] }) {
+  const isComplete = isStudentEmotionWeekComplete(weekDateKeys, new Set(weekEntries.flatMap((entry) => entry ? [entry.dateKey] : [])));
   const summary = weekEntries
-    .map((entry, index) => `${SCHOOL_WEEKDAY_LABELS[index]}요일 ${getStudentEmotion(entry?.emotionId)?.label ?? '기록 없음'}`)
+    .map((entry, index) => `${SCHOOL_WEEKDAY_LABELS[index]}요일 ${getStudentEmotionExcusedDay(weekDateKeys[index]) ? `${getStudentEmotionExcusedDay(weekDateKeys[index])}, 참여 인정` : getStudentEmotion(entry?.emotionId)?.label ?? '기록 없음'}`)
     .join(', ');
 
   return (
@@ -90,14 +91,16 @@ function StudentEmotionParticipation({ weekEntries }: { weekEntries: Array<Stude
       <div className="student-emotion-participation-week" aria-hidden="true">
         {weekEntries.map((entry, weekdayIndex) => {
           const emotion = getStudentEmotion(entry?.emotionId);
+          const excusedDay = getStudentEmotionExcusedDay(weekDateKeys[weekdayIndex]);
           return (
             <div
               key={SCHOOL_WEEKDAY_LABELS[weekdayIndex]}
-              className={`student-emotion-participation-day${emotion ? ' is-filled' : ''}`}
+              className={`student-emotion-participation-day${emotion || excusedDay ? ' is-filled' : ''}`}
               data-zone={emotion?.zone}
+              title={excusedDay ? `${excusedDay} · 참여 인정` : undefined}
             >
               <span className="student-emotion-participation-day-label">{SCHOOL_WEEKDAY_LABELS[weekdayIndex]}</span>
-              {emotion
+              {excusedDay ? <span className="student-emotion-participation-holiday"><TreePalm size={20} /></span> : emotion
                 ? <StudentEmotionOrbVisual emotion={emotion} compact />
                 : <span className="student-emotion-participation-empty" />}
             </div>
@@ -226,7 +229,8 @@ export default function StudentEmotionPage({
     () => new Map(history.map((entry) => [entry.dateKey, entry])),
     [history],
   );
-  const schoolWeekEntries = getSchoolWeekDateKeys().map((dateKey) => historyByDate.get(dateKey) ?? null);
+  const schoolWeekDateKeys = getSchoolWeekDateKeys();
+  const schoolWeekEntries = schoolWeekDateKeys.map((dateKey) => historyByDate.get(dateKey) ?? null);
   const calendarDays = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
   const monthlyZoneCounts = useMemo(() => {
     const counts: Record<StudentEmotionZoneId, number> = {
@@ -339,7 +343,7 @@ export default function StudentEmotionPage({
       <StudentHeader
         title="감정 구슬"
         onBack={onBack}
-        status={<StudentEmotionParticipation weekEntries={schoolWeekEntries} />}
+        status={<StudentEmotionParticipation weekEntries={schoolWeekEntries} weekDateKeys={schoolWeekDateKeys} />}
         actions={<div className="student-emotion-section-tabs" role="tablist" aria-label="감정 구슬 메뉴">
         <button
           type="button"

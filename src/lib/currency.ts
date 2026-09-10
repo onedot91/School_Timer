@@ -6,6 +6,7 @@ import {
   type StudentEconomyStates,
 } from './studentEconomy.js';
 import { normalizeStudentEmotionHistory } from './studentEmotion.js';
+import { isStudentEmotionWeekComplete } from './studentEmotionCalendar.js';
 import { createStudentLetter, normalizeStudentLifeState } from './studentLife.js';
 
 export type CurrencyBalances = Record<string, number>;
@@ -623,8 +624,7 @@ export const claimWeeklyEmotionRewardInSettings = (
     (normalizeStudentEmotionHistory(current.studentEmotionHistory)[studentKey] ?? [])
       .map((entry) => entry.dateKey),
   );
-  const isWeekComplete = weekdayDateKeys.length === 5
-    && weekdayDateKeys.every((dateKey) => emotionDateKeys.has(dateKey));
+  const isWeekComplete = isStudentEmotionWeekComplete(weekdayDateKeys, emotionDateKeys);
 
   if (
     !isWeekComplete

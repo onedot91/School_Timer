@@ -1,6 +1,7 @@
 import type { ExpectedReward, RewardAuditFeature } from '../lib/rewardAudit.js';
 import { DAILY_EMOTION_MISSION_REWARD, WEEKLY_EMOTION_MISSION_REWARD } from '../lib/currency.js';
 import { normalizeStudentEmotionHistory, getSchoolWeekDateKeys } from '../lib/studentEmotion.js';
+import { isStudentEmotionWeekComplete } from '../lib/studentEmotionCalendar.js';
 import { createSudokuPuzzle, isSudokuSolved, normalizeStudentSudokuProgress, getSudokuWeeklyMissionId, SUDOKU_REWARDS } from '../lib/sudoku.js';
 import { createNumberBaseballAnswer, getNumberBaseballStatus, getNumberBaseballReward, normalizeStudentNumberBaseballProgress } from '../lib/numberBaseball.js';
 import { normalizeFailureStories } from '../lib/failureExhibition.js';
@@ -44,7 +45,7 @@ export const collectActivityRewardExpectations = (settings: Record<string, unkno
       const [year, month, day] = dateKey.split('-').map(Number);
       const weekdays = getSchoolWeekDateKeys(new Date(year, month - 1, day, 12));
       const monday = weekdays[0];
-      if (!checkedMondays.has(monday) && weekdays.every(date => dates.has(date))) {
+      if (!checkedMondays.has(monday) && isStudentEmotionWeekComplete(weekdays, dates)) {
         add('weeklyEmotion', studentNumber, monday, WEEKLY_EMOTION_MISSION_REWARD, `weekly-emotion-${studentNumber}-${monday}`);
       }
       checkedMondays.add(monday);

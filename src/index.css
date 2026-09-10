@@ -25229,6 +25229,17 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   padding: .16rem;
 }
 
+.student-emotion-participation-holiday {
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  background: var(--emotion-green-soft);
+  color: var(--emotion-green);
+  border: 1px solid currentColor;
+}
+
 .student-emotion-participation-empty {
   width: 1.45rem;
   height: 1.45rem;

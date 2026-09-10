@@ -35,6 +35,14 @@ test('emotion expectations require valid records and all five school weekdays, o
   assert.deepEqual(expected.filter(row => row.feature === 'weeklyEmotion').map(({ studentNumber, dateKey, amount }) => ({ studentNumber, dateKey, amount })), [{ studentNumber: 3, dateKey: '2026-09-07', amount: 25 }]);
 });
 
+test('감정 보상 점검은 휴업일을 인정하고 가짜 일일 보상을 요구하지 않는다', () => {
+  const entries = ['07', '08', '09', '11'].map(day => ({ id: day, studentNumber: 3, dateKey: `2026-09-${day}`, emotionId: 'happy', comment: '연습 기록', createdAt: at, updatedAt: at }));
+  const { expected } = collectActivityRewardExpectations({ studentEmotionHistory: { 3: entries } });
+  assert.equal(expected.filter(row => row.feature === 'emotion').length, 4);
+  assert.equal(expected.filter(row => row.feature === 'weeklyEmotion').length, 1);
+  assert.equal(expected.some(row => row.id === 'daily-emotion-3-2026-09-10'), false);
+});
+
 test('sudoku checks actual solved cells and deduplicates weekly difficulty completions', () => {
   const basic = createSudokuPuzzle(3, '2026-37', 'basic');
   const challenge = createSudokuPuzzle(3, '2026-37', 'challenge');
