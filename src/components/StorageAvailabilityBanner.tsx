@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'reac
 import { createPortal } from 'react-dom';
 import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscribeStorageAvailability } from '../lib/storageAvailability';
 import { canReloadWithDrafts, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
-import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, notifySaveRecovery } from '../lib/saveRecovery';
+import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, requestSaveRecovery } from '../lib/saveRecovery';
 
 export function StorageAvailabilityBanner({ actor }: { readonly actor: number | null }) {
   const notice = useSyncExternalStore(subscribeStorageAvailability, getStorageAvailabilityNotice, () => null);
@@ -20,6 +20,7 @@ export function StorageAvailabilityBanner({ actor }: { readonly actor: number | 
   const recovery = actor === null ? null : getSaveRecoveryStatus(actor);
   const needsRecovery = !!recovery && (recovery.pending > 0 || recovery.refreshPending || recovery.recovering);
   const [copied, setCopied] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [reloadBlocked, setReloadBlocked] = useState(false);
   const [dialog, setDialog] = useState<Element | null>(null);
   useLayoutEffect(() => {
@@ -45,13 +46,18 @@ export function StorageAvailabilityBanner({ actor }: { readonly actor: number | 
       catch { setCopyFallback(getUnsafeDraftRecoveryText(actor)); }
   };
   const copyButton = <button type="button" onClick={() => void copy()}>{copied ? '복사됨' : '내용 복사'}</button>;
+  const retry = () => {
+    if (actor === null || isRetrying) return;
+    setIsRetrying(true);
+    void requestSaveRecovery(actor).then(() => setIsRetrying(false), () => setIsRetrying(false));
+  };
   const fallback = copyFallback ? <textarea aria-label="보관하지 못한 내용" readOnly value={copyFallback} onFocus={event => event.currentTarget.select()} className="max-h-28 min-w-0 p-2" /> : null;
   if (!notice || notice.actor !== actor) {
     const banner = <aside className="storage-availability-banner" data-in-dialog={dialog !== null} role={unsafe ? 'alert' : 'status'}>
       <div><strong>{unsafe ? '이 기기에 임시 보관하지 못했어요' : recovery?.refreshPending ? '저장됨 · 화면 갱신 중' : recovery?.recovering ? '저장 확인 중' : '저장 확인이 필요해요'}</strong>
         {unsafe ? <p>화면을 닫기 전에 내용을 복사해 주세요.</p> : null}</div>
       {unsafe ? copyButton
-        : <button type="button" onClick={() => { notifySaveRecovery(true); }}>다시 확인</button>}
+        : <button type="button" disabled={isRetrying} onClick={retry}>{isRetrying ? '확인 중…' : '다시 확인'}</button>}
       {fallback}
     </aside>;
     return dialog ? createPortal(banner, dialog) : banner;

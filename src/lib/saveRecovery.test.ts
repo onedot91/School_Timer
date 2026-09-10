@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deferSaveRecoveryUntil, getSaveRecoveryDelay, notifySaveRecovery, SAVE_RECOVERY_DELAY_PREFIX, canRetrySaveError, getSaveRecoveryStatus, recoveryRetryDelay, registerSaveRecoveryAdapter, runSaveRecoveryPass, serializeStudentSave, type RecoveryRequest } from './saveRecovery.js';
+import { deferSaveRecoveryUntil, getSaveRecoveryDelay, notifySaveRecovery, SAVE_RECOVERY_DELAY_PREFIX, canRetrySaveError, getSaveRecoveryStatus, recoveryRetryDelay, registerSaveRecoveryAdapter, requestSaveRecovery, runSaveRecoveryPass, serializeStudentSave, type RecoveryRequest } from './saveRecovery.js';
 
 const request = (id: string, mode: RecoveryRequest['mode'] = 'automatic'): RecoveryRequest => ({
   id, actor: 3, feature: 'student.letter.send', createdAt: '2026-09-09T01:00:00Z', mode,
@@ -111,6 +111,21 @@ test('requests for one student serialize while another student remains independe
   release?.();
   await Promise.all([first, second]);
   assert.deepEqual(calls, ['A-start', 'other', 'A-end', 'B']);
+});
+
+test('다시 확인은 백그라운드 복구 러너가 없어도 저장 확인을 직접 실행한다', async () => {
+  const pending = request('manual-recovery');
+  let confirmations = 0;
+  const remove = registerSaveRecoveryAdapter({
+    id: 'test-manual-recovery', list: async () => [pending], eligible: () => false,
+    confirm: async value => { confirmations += 1; assert.equal(value.id, pending.id); return true; },
+    retry: async () => undefined,
+  });
+  try {
+    const result = await requestSaveRecovery(3);
+    assert.equal(result.pending, 0);
+    assert.equal(confirmations, 1);
+  } finally { remove(); }
 });
 
 

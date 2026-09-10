@@ -18,7 +18,7 @@
 
 | Task | Location | Notes |
 |------|----------|-------|
-| Entry routing or registration | `../RootApp.tsx`, `EntrySelectPage.tsx` | `0` is teacher; `1..23` are students; RootApp persists selection |
+| Entry routing or registration | `../RootApp.tsx`, `EntrySelectPage.tsx` | `0` is teacher; `1..24` are students; RootApp persists selection |
 | Teacher settings navigation | `TimerPage.tsx` `SETTINGS_NAVIGATION_GROUPS` | Ordering has source-inspection tests in `src/lib` |
 | Shared classroom snapshot | `TimerPage.tsx` `buildSharedSettingsSnapshot`, `applySharedSettingsSnapshot` | Hydration, debounced save, polling, pending-save guards are coupled |
 | Student refresh | `AuctionPage.tsx` `applySharedSettingsValue`, `refreshAuctionState` | Uses `updated_at`, per-student cached snapshot, view-dependent polling |

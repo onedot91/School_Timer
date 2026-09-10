@@ -43,7 +43,7 @@ const parseSessionPayload = (value: unknown, nowSeconds: number): DeviceSession 
     role !== 'student'
     || !Number.isInteger(studentNumber)
     || studentNumber < 1
-    || studentNumber > 23
+    || studentNumber > 24
   ) return null;
   return { role, studentNumber, expiresAt };
 };

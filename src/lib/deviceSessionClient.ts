@@ -11,7 +11,7 @@ const parseSession = (value: unknown): BrowserDeviceSession | null => {
     role === 'student'
     && Number.isInteger(studentNumber)
     && studentNumber >= 1
-    && studentNumber <= 23
+    && studentNumber <= 24
   ) {
     return { role, studentNumber };
   }

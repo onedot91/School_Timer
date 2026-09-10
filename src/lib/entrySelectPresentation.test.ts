@@ -34,3 +34,9 @@ test('교사 입장 이력이 없으면 0번 숨김 해제 버튼을 유지한�
   assert.doesNotMatch(markup, /aria-label="0번 학급 시계 선택"/);
   assert.match(markup, /aria-label="0번 표시 잠금 해제"/);
 });
+
+test('운영 모드에서도 테스트용 24번 입장 버튼을 표시한다', () => {
+  const markup = renderEntrySelect(true);
+
+  assert.match(markup, /aria-label="24번 경매장 선택"/);
+});

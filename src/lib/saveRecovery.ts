@@ -23,12 +23,21 @@ export interface SaveRecoveryStatus {
   readonly paused: boolean;
   readonly refreshPending: boolean;
 }
+export interface SaveRecoveryPassResult {
+  readonly pending: number;
+  readonly failed: boolean;
+  readonly retryAfterMs: number;
+  readonly failedRequests: readonly RecoveryRequest[];
+  readonly waitingMs: number;
+  readonly attempted: boolean;
+}
 const adapters = new Map<string, SaveRecoveryAdapter>();
 const statuses = new Map<number, SaveRecoveryStatus>();
 const refreshVersions = new Map<number, number>();
 const listeners = new Set<() => void>();
 const wakeListeners = new Set<(resume: boolean) => void>();
 const queues = new Map<number, Promise<unknown>>();
+const activeRecoveryPasses = new Map<number, Promise<SaveRecoveryPassResult>>();
 let revision = 0;
 const emptyStatus: SaveRecoveryStatus = { pending: 0, recovering: false, paused: false, refreshPending: false };
 export const SAVE_RECOVERED_EVENT = 'school-timer-save-recovered';
@@ -113,7 +122,7 @@ export const canRetrySaveError = (error: unknown): boolean => {
   const status: unknown = Reflect.get(error, 'status');
   return status === undefined || status === 408 || status === 429 || (typeof status === 'number' && status >= 500);
 };
-export const runSaveRecoveryPass = async (actor: number, isCurrent: () => boolean = () => true) => {
+const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boolean): Promise<SaveRecoveryPassResult> => {
   let pending = 0, retryAfterMs = 0, waitingMs = 0, failed = false, attempted = false;
   const failedRequests: RecoveryRequest[] = [];
   publish(actor, { recovering: true });
@@ -165,6 +174,21 @@ export const runSaveRecoveryPass = async (actor: number, isCurrent: () => boolea
   finally { publish(actor, { pending, recovering: false }); }
   return { pending, failed, retryAfterMs, failedRequests, waitingMs, attempted };
 };
+
+export const runSaveRecoveryPass = (actor: number, isCurrent: () => boolean = () => true): Promise<SaveRecoveryPassResult> => {
+  const active = activeRecoveryPasses.get(actor);
+  if (active) return active;
+  const pass = runSaveRecoveryPassInternal(actor, isCurrent);
+  activeRecoveryPasses.set(actor, pass);
+  void pass.then(() => {
+    if (activeRecoveryPasses.get(actor) === pass) activeRecoveryPasses.delete(actor);
+  }, () => {
+    if (activeRecoveryPasses.get(actor) === pass) activeRecoveryPasses.delete(actor);
+  });
+  return pass;
+};
+
+export const requestSaveRecovery = (actor: number): Promise<SaveRecoveryPassResult> => runSaveRecoveryPass(actor);
 
 export const startSaveRecovery = (actor: number): (() => void) => {
   if (typeof window === 'undefined' || appDataMode !== 'production') return () => undefined;

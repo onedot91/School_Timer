@@ -48,5 +48,5 @@ Node/Vercel Function 전용 코드. `api/*.ts`가 HTTP 경계를 맡고, 이 폴
 - service-role key, 세션 secret, 서명 token을 로그·오류 본문·클라이언트 번들에 노출하지 않는다.
 - PostgREST 성공 응답을 shape 검증 없이 type assertion으로 신뢰하지 않는다.
 - 저장소 함수에 브라우저 fallback, localStorage, React 상태를 추가하지 않는다.
-- API 권한 검사를 repository 내부로 숨기거나, 학생 번호 범위 `1..23` 검증을 우회하지 않는다.
+- API 권한 검사를 repository 내부로 숨기거나, 학생 번호 범위 `1..24` 검증을 우회하지 않는다.
 - rate-limit Map을 요청마다 새로 만들거나 무제한으로 성장시키지 않는다.

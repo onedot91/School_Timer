@@ -66,7 +66,7 @@ const getStoredEntryNumber = () => {
   }
   if (savedValue === null) return null;
   const parsedValue = Number.parseInt(savedValue, 10);
-  return Number.isInteger(parsedValue) && parsedValue >= 0 && parsedValue <= (appDataMode === 'mock' ? 24 : 23)
+  return Number.isInteger(parsedValue) && parsedValue >= 0 && parsedValue <= 24
     ? parsedValue
     : null;
 };

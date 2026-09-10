@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Clock, Store } from 'lucide-react';
 import type { BrowserDeviceSession } from '../lib/deviceSessionClient';
-import { appDataMode } from '../lib/dataMode';
 
 interface EntrySelectPageProps {
   readonly onSelectNumber: (studentNumber: number, registrationKey?: string) => Promise<void>;
@@ -10,7 +9,7 @@ interface EntrySelectPageProps {
   readonly teacherEntryVisible: boolean;
 }
 
-const ENTRY_NUMBERS = Array.from({ length: appDataMode === 'mock' ? 25 : 24 }, (_, index) => index);
+const ENTRY_NUMBERS = Array.from({ length: 25 }, (_, index) => index);
 
 export default function EntrySelectPage({
   onSelectNumber,
@@ -129,7 +128,7 @@ export default function EntrySelectPage({
   };
 
   return (
-    <div className={`entry-select-page${appDataMode === 'mock' ? ' entry-select-page-mock' : ''}`}>
+    <div className="entry-select-page entry-select-page-with-24">
       {!isZeroVisible ? (
         <button
           ref={revealButtonRef}

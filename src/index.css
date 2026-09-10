@@ -14383,25 +14383,25 @@ a[href]:active {
 }
 
 @media (min-width: 64rem) {
-  .entry-select-page-mock .entry-number-grid {
+  .entry-select-page-with-24 .entry-number-grid {
     grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 64rem) and (max-height: 720px) {
-  .entry-select-page-mock {
+  .entry-select-page-with-24 {
     padding: 3.5rem 1.5rem 1rem;
   }
 
-  .entry-select-page-mock .entry-select-main {
+  .entry-select-page-with-24 .entry-select-main {
     min-height: calc(100dvh - 4.5rem);
   }
 
-  .entry-select-page-mock .entry-select-surface {
+  .entry-select-page-with-24 .entry-select-surface {
     padding: 1.25rem;
   }
 
-  .entry-select-page-mock .entry-number-button {
+  .entry-select-page-with-24 .entry-number-button {
     min-height: 5rem;
     padding-block: 0.5rem;
     gap: 0.25rem;

@@ -33,7 +33,7 @@ const parseRegistration = (body: unknown): { readonly registration: DeviceSessio
   if (!parsedBody || typeof parsedBody !== 'object') return null;
   const entryNumber = Reflect.get(parsedBody, 'entryNumber');
   const key = Reflect.get(parsedBody, 'registrationKey');
-  if (!Number.isInteger(entryNumber) || entryNumber < 0 || entryNumber > 23) return null;
+  if (!Number.isInteger(entryNumber) || entryNumber < 0 || entryNumber > 24) return null;
   if (entryNumber === 0 && typeof key !== 'string') return null;
   return {
     registration: entryNumber === 0

@@ -55,6 +55,21 @@ test('a student number receives a protected device cookie without a teacher key'
   });
 });
 
+test('the test student 24 receives a protected device cookie without a teacher key', () => {
+  withDeviceEnvironment(() => {
+    const { response, result } = createResponse();
+
+    handler({
+      method: 'POST',
+      body: { entryNumber: 24 },
+      headers: { 'sec-fetch-site': 'same-origin' },
+    }, response);
+
+    assert.equal(result().statusCode, 200);
+    assert.deepEqual(result().body, { role: 'student', studentNumber: 24 });
+  });
+});
+
 test('an incorrect teacher registration key cannot register the teacher entry', () => {
   withDeviceEnvironment(() => {
     // Given
