@@ -321,13 +321,16 @@ const createCurrencyHistoryId = (studentNumber: number, createdAt: string, reaso
 
 export const normalizeCurrencyHistory = (value: unknown): CurrencyHistory => {
   const parsed = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-  return CURRENCY_STUDENT_NUMBERS.reduce<CurrencyHistory>((history, studentNumber) => {
+  const studentNumbers = String(TEST_STUDENT_NUMBER) in parsed
+    ? [...CURRENCY_STUDENT_NUMBERS, TEST_STUDENT_NUMBER]
+    : CURRENCY_STUDENT_NUMBERS;
+  return studentNumbers.reduce<CurrencyHistory>((history, studentNumber) => {
     const key = String(studentNumber);
     const rawEntries = Array.isArray(parsed[key]) ? parsed[key] : [];
     history[key] = rawEntries
       .map((rawEntry): CurrencyHistoryEntry | null => {
         const entry = rawEntry && typeof rawEntry === 'object' ? (rawEntry as Record<string, unknown>) : {};
-        const entryStudentNumber = typeof entry.studentNumber === 'number' && CURRENCY_STUDENT_NUMBERS.includes(entry.studentNumber)
+        const entryStudentNumber = entry.studentNumber === studentNumber
           ? entry.studentNumber
           : studentNumber;
         const before = clampCurrencyBalance(entry.before);
@@ -868,7 +871,7 @@ export const collectCurrencyTax = (balances: CurrencyBalances, economy: StudentE
     next.balances[key] = clampCurrencyBalance(result.wallet);
     next.economy[key] = result.state;
     return next;
-  }, { balances: {}, economy: { ...normalizedEconomy } });
+  }, { balances: { ...balances }, economy: { ...normalizedEconomy } });
 };
 
 export const grantWeeklyCurrencyAllowance = (balances: CurrencyBalances): CurrencyBalances =>
@@ -876,7 +879,7 @@ export const grantWeeklyCurrencyAllowance = (balances: CurrencyBalances): Curren
     const key = String(studentNumber);
     nextBalances[key] = clampCurrencyBalance((balances[key] ?? DEFAULT_CURRENCY_BALANCE) + WEEKLY_CURRENCY_ALLOWANCE);
     return nextBalances;
-  }, {});
+  }, { ...balances });
 
 const settleWeeklyDeposits = (
   balances: CurrencyBalances,
@@ -900,7 +903,7 @@ const settleWeeklyDeposits = (
       deposits: [],
     };
     return next;
-  }, { balances: {}, economy: { ...normalizedEconomy } });
+  }, { balances: { ...balances }, economy: { ...normalizedEconomy } });
 };
 
 export const createWeeklyCurrencyCycle = (
@@ -952,7 +955,6 @@ export const createWeeklyCurrencyCycle = (
     'tax',
     taxCreatedAt,
   );
-
   return {
     balances,
     economy: taxResult.economy,

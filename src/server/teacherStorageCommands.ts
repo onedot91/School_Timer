@@ -7,7 +7,7 @@ import {
 } from '../lib/currency.js';
 import { applyClassroomRoleMissionResultInSettings } from '../lib/classroomRoleMission.js';
 import { normalizeClassDonationSettings } from '../lib/classDonation.js';
-import { isTeacherMailSender, createStudentLetters, markTeacherLettersRead, normalizeStudentLifeState } from '../lib/studentLife.js';
+import { isStudentLetterRetained, isTeacherMailSender, createStudentLetters, markTeacherLettersRead, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../lib/studentLife.js';
 import {
   DAILY_WRITING_REWARD, markDailyWritingStudentRewarded,
   normalizeDailyWritingState, publishDailyWritingAssignment, unmarkDailyWritingStudentRewarded,
@@ -26,14 +26,17 @@ const student = (value: unknown): number => typeof value === 'number' && CURRENC
 const integer = (value: unknown, min: number, max: number): number => typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max ? value : invalid();
 const date = (value: unknown): string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : invalid();
 const students = (value: unknown): number[] => Array.isArray(value) && value.length > 0 && value.length <= 23 ? [...new Set(value.map(student))] : invalid();
-const preserveLife = (before: unknown, after: unknown): unknown => {
+const preserveLife = (before: unknown, after: unknown, referenceAt: string): unknown => {
   if (before === after || !isStorageRecord(before) || !isStorageRecord(after)) return after;
   const next = { ...before, ...after };
   for (const field of ['letters', 'books', 'failureStories']) {
     const oldItems = before[field]; const newItems = after[field];
     if (!Array.isArray(oldItems) || !Array.isArray(newItems)) continue;
     const ids = new Set(newItems.filter(isStorageRecord).map(item => item.id));
-    next[field] = [...newItems, ...oldItems.filter(item => !isStorageRecord(item) || !ids.has(item.id))];
+    next[field] = [...newItems, ...oldItems.filter(item => (
+      (!isStorageRecord(item) || !ids.has(item.id))
+      && (field !== 'letters' || !isStorageRecord(item) || isStudentLetterRetained(item.createdAt, referenceAt))
+    ))];
   }
   return next;
 };
@@ -46,7 +49,7 @@ export const applyTeacherStorageCommand = (
   if (!isStorageRecord(payload)) return invalid();
   const current = isStorageRecord(currentValue) ? currentValue : {};
   const finish = (value: Record<string, unknown>, result: unknown = null) => ({
-    value: { ...value, ...(value.studentLife !== undefined ? { studentLife: preserveLife(current.studentLife, value.studentLife) } : {}) }, result,
+    value: { ...value, ...(value.studentLife !== undefined ? { studentLife: preserveLife(current.studentLife, value.studentLife, context.createdAt) } : {}) }, result,
   });
   if (action === 'teacher.settings.patch') {
     if (!Array.isArray(payload.changes) || payload.changes.length > 40) return invalid();
@@ -147,13 +150,13 @@ export const applyTeacherStorageCommand = (
     if (!content.trim()) return invalid();
     const senderLabel = payload.senderLabel === undefined ? '선생님' : payload.senderLabel;
     if (!isTeacherMailSender(senderLabel)) return invalid();
-    return finish({ ...current, studentLife: createStudentLetters(normalizeStudentLifeState(current.studentLife), recipients.map(recipient => ({
+    return finish({ ...current, studentLife: createStudentLetters(pruneExpiredStudentLetters(normalizeStudentLifeState(current.studentLife), context.createdAt), recipients.map(recipient => ({
       id: `${senderLabel === '선생님' ? '' : 'teacher-character-'}${context.requestId}-${recipient}`, recipient, senderLabel, senderStudentNumber: null, title, content, createdAt: context.createdAt,
     }))) });
   }
   if (action === 'teacher.mail.read') {
     if (!Array.isArray(payload.letterIds) || payload.letterIds.length > 600) return invalid();
-    return finish({ ...current, studentLife: markTeacherLettersRead(normalizeStudentLifeState(current.studentLife),
+    return finish({ ...current, studentLife: markTeacherLettersRead(pruneExpiredStudentLetters(normalizeStudentLifeState(current.studentLife), context.createdAt),
       payload.letterIds.map(id => text(id, 150)), context.createdAt) });
   }
   if (action === 'teacher.writing.publish') {

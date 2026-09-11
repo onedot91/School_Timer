@@ -226,7 +226,7 @@ test('저장 충돌 때 스킨 추첨 결과와 비용은 동일하다', async (
       return write.p_resources.find((row) => isStorageRecord(row) && row.resource_key === '/studentEconomy/1');
     });
     assert.deepEqual(economies[0], economies[1]);
-    assert.equal(Reflect.get(db.value().currencyBalances as object, '1'), 50);
+    assert.equal(Reflect.get(db.value().currencyBalances as object, '1'), 150);
   });
 });
 

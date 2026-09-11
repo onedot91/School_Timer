@@ -25,6 +25,7 @@ import {
   markTeacherLettersRead,
   markStudentLetterRead,
   normalizeStudentLifeState,
+  pruneExpiredStudentLetters,
 } from './studentLife.ts';
 
 test('교사는 모든 학생을 선택하면 1번부터 23번까지 편지를 한 통씩 만든다', () => {
@@ -477,6 +478,23 @@ test('기존 편지와 실패 이야기의 보존 한도는 책 기록 확장과
 
   assert.equal(state.letters.length, 600);
   assert.equal(state.letters[0]?.id, 'letter-1');
+});
+
+test('우편함은 작성 후 7일이 지난 편지만 삭제한다', () => {
+  // Given
+  const state = normalizeStudentLifeState({
+    letters: [
+      { id: 'expired', recipient: 1, senderLabel: '선생님', title: '', content: '지난 편지', createdAt: '2026-09-04T00:59:59.999Z', readAt: null },
+      { id: 'boundary', recipient: 1, senderLabel: '선생님', title: '', content: '경계 편지', createdAt: '2026-09-04T01:00:00.000Z', readAt: null },
+      { id: 'recent', recipient: 1, senderLabel: '선생님', title: '', content: '최근 편지', createdAt: '2026-09-10T01:00:00.000Z', readAt: null },
+    ],
+  });
+
+  // When
+  const retained = pruneExpiredStudentLetters(state, '2026-09-11T01:00:00.000Z');
+
+  // Then
+  assert.deepEqual(retained.letters.map((letter) => letter.id), ['boundary', 'recent']);
 });
 
 test('학생 생활 상태는 유효한 실패 이야기와 익명 응원 도장을 복구한다', () => {

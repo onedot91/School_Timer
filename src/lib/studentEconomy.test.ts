@@ -465,17 +465,26 @@ test('교사가 등록한 물품을 정가로 구매할 수 있다', () => {
   assert.equal(result.state.inventory['teacher-notebook'], 1);
 });
 
-test('고마 스킨 뽑기는 100고마를 차감하고 고마에 적용한다', () => {
-  const result = applyStudentEconomyAction({
+test('고마 스킨 뽑기는 첫 1회 무료이고 다음 뽑기부터 100고마를 차감한다', () => {
+  const first = applyStudentEconomyAction({
     state: null,
     action: { type: 'draw_character' },
     wallet: 145,
     availableWallet: 145,
     requestId: 'character-draw-1',
   });
-  assert.equal(result.wallet, 45);
-  assert.equal(result.state.ownedCharacterIds.length, 1);
-  assert.equal(result.state.activeCharacterId, result.state.ownedCharacterIds[0]);
+  const second = applyStudentEconomyAction({
+    state: first.state,
+    action: { type: 'draw_character' },
+    wallet: first.wallet,
+    availableWallet: first.wallet,
+    requestId: 'character-draw-2',
+  });
+  assert.equal(first.wallet, 145);
+  assert.equal(first.state.characterFreeDrawAvailable, false);
+  assert.equal(first.state.ownedCharacterIds.length, 1);
+  assert.equal(first.state.activeCharacterId, first.state.ownedCharacterIds[0]);
+  assert.equal(second.wallet, 45);
 });
 
 test('기본 고마는 보유 스킨과 관계없이 다시 선택할 수 있다', () => {
@@ -521,15 +530,15 @@ test('고마 스킨 뽑기는 미보유 스킨을 순서대로 지급하고 요�
   });
 
   assert.equal(repeated.applied, false);
-  assert.equal(repeated.wallet, 200);
-  assert.equal(second.wallet, 100);
+  assert.equal(repeated.wallet, 300);
+  assert.equal(second.wallet, 200);
   assert.equal(second.state.ownedCharacterIds.length, 2);
   assert.notEqual(first.state.activeCharacterId, second.state.activeCharacterId);
 });
 
 test('사용 가능한 고마가 부족하면 고마 스킨을 뽑을 수 없다', () => {
   assert.throws(() => applyStudentEconomyAction({
-    state: null,
+    state: { characterFreeDrawAvailable: false },
     action: { type: 'draw_character' },
     wallet: 100,
     availableWallet: 99,
@@ -635,7 +644,7 @@ test('10개 확률 구간 중 정확히 한 구간은 같은 100고마로 미보
   let doubles = 0;
   for (let roll = 0; roll < 10; roll += 1) {
     const result = applyStudentEconomyAction({
-      state: null, action: { type: 'draw_character' }, wallet: 145, availableWallet: 145,
+      state: { characterFreeDrawAvailable: false }, action: { type: 'draw_character' }, wallet: 145, availableWallet: 145,
       requestId: 'double-probability-boundary', characterDrawRoll: roll,
     });
     const count = result.state.ownedCharacterIds.length;
@@ -649,7 +658,7 @@ test('10개 확률 구간 중 정확히 한 구간은 같은 100고마로 미보
 });
 
 test('더블 캡슐도 중복 스킨을 제외하고 같은 요청을 다시 차감하거나 지급하지 않는다', () => {
-  const before = { ownedCharacterIds: STUDENT_CHARACTER_PRIZES.slice(0, 12).map((prize) => prize.id) };
+  const before = { characterFreeDrawAvailable: false, ownedCharacterIds: STUDENT_CHARACTER_PRIZES.slice(0, 12).map((prize) => prize.id) };
   const result = applyStudentEconomyAction({ state: before, action: { type: 'draw_character' }, wallet: 200, availableWallet: 200, requestId: 'double-idempotent-request', characterDrawRoll: 0 });
   const newIds = result.state.ownedCharacterIds.filter((id) => !before.ownedCharacterIds.includes(id));
   assert.equal(newIds.length, 2);
@@ -662,7 +671,7 @@ test('더블 캡슐도 중복 스킨을 제외하고 같은 요청을 다시 차
 test('미보유 스킨이 하나뿐이면 특별 구간에서도 한 개만 지급하고 모두 보유하면 차감을 막는다', () => {
   const remaining = STUDENT_CHARACTER_PRIZES.at(-1);
   const result = applyStudentEconomyAction({
-    state: { ownedCharacterIds: STUDENT_CHARACTER_PRIZES.slice(0, -1).map((prize) => prize.id) },
+    state: { characterFreeDrawAvailable: false, ownedCharacterIds: STUDENT_CHARACTER_PRIZES.slice(0, -1).map((prize) => prize.id) },
     action: { type: 'draw_character' }, wallet: 200, availableWallet: 200, requestId: 'double-last-skin', characterDrawRoll: 0,
   });
   assert.equal(result.wallet, 100);

@@ -213,6 +213,7 @@ export interface StudentEconomyState {
   investments: Partial<Record<StudentStockId, StudentInvestmentPosition>>;
   ownedCharacterIds: StudentCharacterPrizeId[];
   activeCharacterId: StudentCharacterPrizeId | null;
+  characterFreeDrawAvailable: boolean;
   ownedHouseIds: StudentHouseDesignId[];
   activeHouseId: StudentHouseDesignId | 'custom' | null;
   hasCustomHouseCoupon: boolean;
@@ -598,6 +599,7 @@ export const createStudentEconomyState = (): StudentEconomyState => ({
   investments: {},
   ownedCharacterIds: [],
   activeCharacterId: null,
+  characterFreeDrawAvailable: true,
   ownedHouseIds: [],
   activeHouseId: null,
   hasCustomHouseCoupon: false,
@@ -641,6 +643,7 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
     activeCharacterId: typeof source.activeCharacterId === 'string' && CHARACTER_IDS.has(source.activeCharacterId)
       ? source.activeCharacterId as StudentCharacterPrizeId
       : null,
+    characterFreeDrawAvailable: source.characterFreeDrawAvailable !== false,
     ownedHouseIds: normalizeIdList<StudentHouseDesignId>(source.ownedHouseIds, HOUSE_IDS),
     activeHouseId: source.activeHouseId === 'custom' || (typeof source.activeHouseId === 'string' && HOUSE_IDS.has(source.activeHouseId))
       ? source.activeHouseId as StudentHouseDesignId | 'custom'
@@ -989,7 +992,7 @@ export const applyStudentEconomyAction = ({
   } else if (action.type === 'draw_character') {
     const remaining = STUDENT_CHARACTER_PRIZES.filter((character) => !state.ownedCharacterIds.includes(character.id));
     if (remaining.length < 1) throw new Error('ALL_CHARACTERS_OWNED');
-    spend(STUDENT_CHARACTER_DRAW_PRICE);
+    spend(state.characterFreeDrawAvailable ? 0 : STUDENT_CHARACTER_DRAW_PRICE);
     const firstIndex = hashText(requestId) % remaining.length;
     const character = remaining[firstIndex];
     const roll = characterDrawRoll ?? hashText(requestId + '-double') % 10;
@@ -1003,6 +1006,7 @@ export const applyStudentEconomyAction = ({
       ...state,
       ownedCharacterIds: [...state.ownedCharacterIds, ...prizes.map((prize) => prize.id)],
       activeCharacterId: character.id,
+      characterFreeDrawAvailable: false,
     };
     message = isDouble
       ? `더블 캡슐! ${prizes.map((prize) => prize.name).join(', ')} 스킨을 뽑았습니다.`

@@ -11,7 +11,7 @@ test('local library placement updates only the atomic book and reward state', as
   const placementSource = source.slice(start, end);
 
   assert.match(placementSource, /if \(isSupabaseSettingsEnabled\) \{\s*if \(applySharedSettingsValue\(result\.value, result\.updatedAt\)\) \{\s*sharedSettingsUpdatedAtRef.current = result.updatedAt/);
-  assert.match(placementSource, /\} else \{\s*setStudentLifeSnapshot\(normalizeStudentLifeState\(result\.value\.studentLife\)\);\s*setCurrencyBalances\(normalizeCurrencyBalances\(result\.value\.currencyBalances\)\);\s*setCurrencyHistory\(normalizeCurrencyHistory\(result\.value\.currencyHistory\)\);/);
+  assert.match(placementSource, /\} else \{\s*setStudentLifeSnapshot\(normalizeCurrentStudentLifeState\(result\.value\.studentLife\)\);\s*setCurrencyBalances\(normalizeCurrencyBalances\(result\.value\.currencyBalances\)\);\s*setCurrencyHistory\(normalizeCurrencyHistory\(result\.value\.currencyHistory\)\);/);
   assert.doesNotMatch(placementSource, /setStudentMissionVisibility|setStudentStockMarket/);
 });
 

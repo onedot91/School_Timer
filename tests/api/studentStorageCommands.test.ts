@@ -65,6 +65,27 @@ test('학생은 타인의 우편을 읽음 처리할 수 없고 본인 읽음은
   assert.deepEqual((sent.studentLife as Record<string, unknown>).books, fixture().studentLife.books);
 });
 
+test('학생 우편 저장은 7일이 지난 편지를 함께 삭제한다', () => {
+  // Given
+  const before = {
+    ...fixture(),
+    studentLife: {
+      ...fixture().studentLife,
+      letters: [
+        { id: 'expired', recipient: 1, senderLabel: '선생님', senderStudentNumber: null, title: '', content: '지난 편지', createdAt: '2026-09-01T00:00:00.000Z', readAt: null },
+        { id: 'recent', recipient: 1, senderLabel: '선생님', senderStudentNumber: null, title: '', content: '최근 편지', createdAt: '2026-09-07T00:00:00.000Z', readAt: null },
+      ],
+    },
+  };
+
+  // When
+  const after = apply(before, 'student.letter.send', { recipient: 2, title: '새 편지', content: '내용' });
+
+  // Then
+  const letters = (after.studentLife as { letters: readonly { id: string }[] }).letters;
+  assert.deepEqual(letters.map((letter) => letter.id), ['recent', context.requestId]);
+});
+
 test('스도쿠는 서버에서 정답·학생·주차를 검증하고 보상을 한 번 지급한다', () => {
   const puzzle = createSudokuPuzzle(1, week, 'basic');
   const key = getSudokuProgressKey(1, week, 'basic');

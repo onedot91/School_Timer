@@ -20,7 +20,7 @@ import {
   type StudentEconomyAction,
 } from '../src/lib/studentEconomy.js';
 import { patchStudentEconomySettings } from '../src/lib/studentEconomySettings.js';
-import { createStudentLetter, normalizeStudentLifeState } from '../src/lib/studentLife.js';
+import { createStudentLetter, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../src/lib/studentLife.js';
 import {
   purchaseStudentProfile,
   type StudentProfileEconomyAction,
@@ -170,7 +170,7 @@ const createDomainMutation = (
   const balances = normalizeCurrencyBalances(current.currencyBalances);
   const history = normalizeCurrencyHistory(current.currencyHistory);
   const economyStates = normalizeStudentEconomyStates(current.studentEconomy);
-  const studentLife = normalizeStudentLifeState(current.studentLife);
+  const studentLife = pruneExpiredStudentLetters(normalizeStudentLifeState(current.studentLife), createdAt);
   const bids = normalizeAuctionBids(current.auctionBids, AUCTION_ITEM_IDS);
   const awards = normalizeAuctionAwards(current.auctionAwards, AUCTION_ITEM_IDS);
   const activeAuctionItemIds = normalizeAuctionItems(current.auctionItems).map((item) => item.id);

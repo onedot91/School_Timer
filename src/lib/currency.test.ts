@@ -12,6 +12,7 @@ import {
   applyAuctionAwardToCurrencyState,
   createDefaultCurrencyBalances,
   createDefaultCurrencyHistory,
+  createWeeklyCurrencyCycle,
   claimDailyEmotionRewardInSettings,
   claimWeeklyEmotionRewardInSettings,
   collectCurrencyTax,
@@ -32,6 +33,28 @@ test('24번 테스트 학생의 잔액 기본값은 1000고마이고 기존 잔�
   assert.equal(getDefaultCurrencyBalance(23), 100);
   assert.equal(normalizeCurrencyBalances({ 24: 750 })['24'], 750);
   assert.equal(normalizeCurrencyBalances(null)['24'], undefined);
+});
+
+test('주간 정산은 24번 테스트 학생의 잔액을 유지하고 세금과 주급을 기록하지 않는다', () => {
+  // Given
+  const value = {
+    currencyBalances: { 1: 100, 24: 777 },
+    currencyHistory: {
+      24: [{ id: 'test-student-history', studentNumber: 24, before: 700, after: 777, delta: 77, reason: 'manual', createdAt: '2026-09-10T01:00:00.000Z' }],
+    },
+  };
+
+  // When
+  const result = createWeeklyCurrencyCycle(
+    value,
+    '2026-09-11T01:00:00.000Z',
+    '2026-09-11T01:00:00.000Z',
+    '2026-09-11T01:00:00.000Z',
+  );
+
+  // Then
+  assert.equal(result.balances['24'], 777);
+  assert.deepEqual(result.history['24'], value.currencyHistory[24]);
 });
 
 test('선택한 번호에만 화폐를 일괄 조정하고 중복 번호는 한 번만 반영한다', () => {

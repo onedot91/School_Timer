@@ -122,6 +122,7 @@ import {
   getUnreadTeacherLetterCount,
   loadStoredStudentLifeState,
   markTeacherLettersRead,
+  normalizeCurrentStudentLifeState,
   normalizeStudentLifeState,
   storeStudentLifeState,
   type StudentLifeState,
@@ -4652,7 +4653,7 @@ export default function TimerPage() {
     setClassDonation(normalizeClassDonationSettings(remoteSettings.classDonation));
     setStudentEmotionHistory(normalizeStudentEmotionHistory(remoteSettings.studentEmotionHistory));
     setStudentPetStates(normalizeStudentPetStates(remoteSettings.studentPets));
-    setStudentLife(normalizeStudentLifeState(remoteSettings.studentLife));
+    setStudentLife(normalizeCurrentStudentLifeState(remoteSettings.studentLife));
     setDailyWriting(normalizeDailyWritingState(remoteSettings.dailyWriting));
     if (!isEditingBookstoreRef.current) {
       setBookstoreSettings(normalizeBookstoreSettings(remoteSettings.bookstoreSettings));
@@ -6980,7 +6981,7 @@ export default function TimerPage() {
           currencyBalances: normalizeCurrencyBalances(savedValue.currencyBalances),
           currencyHistory: normalizeCurrencyHistory(savedValue.currencyHistory),
           studentEconomy: normalizeStudentEconomyStates(savedValue.studentEconomy),
-          studentLife: normalizeStudentLifeState(savedValue.studentLife),
+          studentLife: normalizeCurrentStudentLifeState(savedValue.studentLife),
         });
         if (!stored) {
           reportSaveFailure('settings', 'storage');
@@ -6998,7 +6999,7 @@ export default function TimerPage() {
       const savedHistory = normalizeCurrencyHistory(savedValue.currencyHistory);
       commitCurrencyState(savedBalances, savedHistory);
       setStudentEconomyStates(normalizeStudentEconomyStates(savedValue.studentEconomy));
-      setStudentLife(normalizeStudentLifeState(savedValue.studentLife));
+      setStudentLife(normalizeCurrentStudentLifeState(savedValue.studentLife));
       if (target === 'student') setCurrencyBalanceInput(String(savedBalances[String(studentNumbers[0])] ?? 0));
       setCurrencyAdjustmentSummary({ target, delta: -amount });
       setCurrencyDeductionReason('');
@@ -7372,7 +7373,7 @@ export default function TimerPage() {
           classroomRoleMission: normalizeClassroomRoleMissionSettings(savedValue.classroomRoleMission),
           currencyBalances: normalizeCurrencyBalances(savedValue.currencyBalances),
           currencyHistory: normalizeCurrencyHistory(savedValue.currencyHistory),
-          studentLife: normalizeStudentLifeState(savedValue.studentLife),
+          studentLife: normalizeCurrentStudentLifeState(savedValue.studentLife),
         });
         if (!stored) {
           reportSaveFailure('settings', 'storage');
@@ -7390,7 +7391,7 @@ export default function TimerPage() {
         normalizeCurrencyBalances(savedValue.currencyBalances),
         normalizeCurrencyHistory(savedValue.currencyHistory),
       );
-      setStudentLife(normalizeStudentLifeState(savedValue.studentLife));
+      setStudentLife(normalizeCurrentStudentLifeState(savedValue.studentLife));
       setClassroomRoleMission(normalizeClassroomRoleMissionSettings(savedValue.classroomRoleMission));
     } catch {
       setClassroomRoleError('저장하지 못했어요. 다시 시도해 주세요.');
@@ -9371,7 +9372,7 @@ export default function TimerPage() {
       if (isSupabaseSettingsEnabled) {
         const saved = await executeStorageCommand({ requestId: batchId, action: 'teacher.mail.send', payload: { recipients, senderLabel: mailSender, title: submittedTitle.trim(), content } });
         refreshPending = saved.refreshPending === true;
-        if (saved.value) savedState = normalizeStudentLifeState(saved.value.studentLife);
+        if (saved.value) savedState = normalizeCurrentStudentLifeState(saved.value.studentLife);
       } else {
         savedState = createStudentLetters(loadStoredStudentLifeState(), letters);
         storeStudentLifeState(savedState);
@@ -9404,7 +9405,7 @@ export default function TimerPage() {
       if (isSupabaseSettingsEnabled) {
         const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.mail.read', payload: { letterIds: pendingLetterIds } });
         if (!saved.value) return;
-        savedState = normalizeStudentLifeState(saved.value.studentLife);
+        savedState = normalizeCurrentStudentLifeState(saved.value.studentLife);
       } else {
         savedState = markTeacherLettersRead(loadStoredStudentLifeState(), pendingLetterIds, readAt);
         storeStudentLifeState(savedState);
@@ -9442,7 +9443,7 @@ export default function TimerPage() {
       if (isSupabaseSettingsEnabled) {
         const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.writing.publish', payload: draft });
         if (!saved.value) { setWritingStatus('저장됨 · 화면 갱신 중'); return true; }
-        published = { ...published, state: normalizeDailyWritingState(saved.value.dailyWriting), studentLife: normalizeStudentLifeState(saved.value.studentLife) };
+        published = { ...published, state: normalizeDailyWritingState(saved.value.dailyWriting), studentLife: normalizeCurrentStudentLifeState(saved.value.studentLife) };
       } else {
         published = publishDailyWritingAssignment(loadStoredDailyWritingState(), loadStoredStudentLifeState(), draft);
         storeStudentLifeState(published.studentLife);

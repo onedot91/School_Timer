@@ -52,7 +52,9 @@ const PUBLIC_HOLIDAYS: Readonly<Record<string, string>> = {
 };
 
 export const getStudentEmotionExcusedDay = (dateKey: string): string | null => (
-  dateKey === '2026-09-10' ? '학교 쉬는 날' : Object.hasOwn(PUBLIC_HOLIDAYS, dateKey) ? PUBLIC_HOLIDAYS[dateKey] : null
+  dateKey === '2026-09-10' || dateKey === '2026-09-11'
+    ? '학교 쉬는 날'
+    : Object.hasOwn(PUBLIC_HOLIDAYS, dateKey) ? PUBLIC_HOLIDAYS[dateKey] : null
 );
 
 export const isStudentEmotionWeekComplete = (

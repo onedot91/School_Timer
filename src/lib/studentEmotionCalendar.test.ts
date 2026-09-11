@@ -3,14 +3,15 @@ import test from 'node:test';
 import { getStudentEmotionExcusedDay, isStudentEmotionWeekComplete } from './studentEmotionCalendar';
 import { getSchoolWeekDateKeys } from './studentEmotion';
 
-test('학교 휴업 예외는 2026년 9월 10일에만 적용한다', () => {
+test('학교 휴업 예외는 2026년 9월 10일과 11일에 적용한다', () => {
   assert.equal(getStudentEmotionExcusedDay('2026-09-10'), '학교 쉬는 날');
-  for (const date of ['2026-09-09', '2026-09-11', '2026-09-17', '2027-09-10', '__proto__']) {
+  assert.equal(getStudentEmotionExcusedDay('2026-09-11'), '학교 쉬는 날');
+  for (const date of ['2026-09-09', '2026-09-17', '2027-09-10', '__proto__']) {
     assert.equal(getStudentEmotionExcusedDay(date), null);
   }
   const week = getSchoolWeekDateKeys(new Date(2026, 8, 11));
-  assert.equal(isStudentEmotionWeekComplete(week, new Set(week.filter(day => day !== '2026-09-10'))), true);
-  assert.equal(isStudentEmotionWeekComplete(week, new Set(['2026-09-07', '2026-09-08', '2026-09-09'])), false);
+  assert.equal(isStudentEmotionWeekComplete(week, new Set(['2026-09-07', '2026-09-08', '2026-09-09'])), true);
+  assert.equal(isStudentEmotionWeekComplete(week, new Set(['2026-09-07', '2026-09-08'])), false);
   assert.equal(isStudentEmotionWeekComplete([], new Set()), false);
 });
 

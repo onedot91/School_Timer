@@ -167,6 +167,7 @@ import {
   getUnreadStudentLetterCount,
   loadStoredStudentLifeState,
   markStudentLetterRead,
+  normalizeCurrentStudentLifeState,
   normalizeStudentLifeState,
   storeStudentLifeState,
   updateStoredStudentLifeState,
@@ -1152,7 +1153,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setStudentEconomyStates(normalizeStudentEconomyStates(value.studentEconomy));
     setStudentShopCatalog(normalizeStudentShopCatalog(value.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(value.studentStockMarket));
-    const normalizedStudentLife = normalizeStudentLifeState(value.studentLife);
+    const normalizedStudentLife = normalizeCurrentStudentLifeState(value.studentLife);
     studentLetterReadOverlayRef.current.forEach((_readAt, letterId) => {
       if (normalizedStudentLife.letters.some((letter) => (
         letter.id === letterId && letter.recipient === studentNumber && letter.readAt !== null
@@ -1358,7 +1359,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         storeStudentSettingsSnapshot({ studentNumber, updatedAt: response.updatedAt, value: response.value });
       }
     } else {
-      setStudentLifeSnapshot(normalizeStudentLifeState(response.value.studentLife));
+      setStudentLifeSnapshot(normalizeCurrentStudentLifeState(response.value.studentLife));
       if (response.value.currencyBalances !== undefined) setCurrencyBalances(normalizeCurrencyBalances(response.value.currencyBalances));
       if (response.value.currencyHistory !== undefined) setCurrencyHistory(normalizeCurrencyHistory(response.value.currencyHistory));
     }
@@ -1408,7 +1409,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         storeStudentSettingsSnapshot({ studentNumber, updatedAt: result.updatedAt, value: result.value });
       }
     } else {
-      setStudentLifeSnapshot(normalizeStudentLifeState(result.value.studentLife));
+      setStudentLifeSnapshot(normalizeCurrentStudentLifeState(result.value.studentLife));
       setCurrencyBalances(normalizeCurrencyBalances(result.value.currencyBalances));
       setCurrencyHistory(normalizeCurrencyHistory(result.value.currencyHistory));
     }

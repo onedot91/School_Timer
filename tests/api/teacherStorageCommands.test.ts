@@ -79,6 +79,21 @@ test('sending a teacher letter preserves records outside presentation normalizer
   assert.ok(Array.isArray(life.letters));
   assert.equal(life.letters.length, 701);
 });
+
+test('교사 우편 저장은 7일이 지난 편지를 함께 삭제한다', () => {
+  // Given
+  const before = { studentLife: { letters: [
+    { id: 'expired', recipient: 1, senderLabel: '선생님', senderStudentNumber: null, title: '', content: '지난 편지', createdAt: '2026-08-31T00:00:00.000Z', readAt: null },
+    { id: 'recent', recipient: 1, senderLabel: '선생님', senderStudentNumber: null, title: '', content: '최근 편지', createdAt: '2026-09-07T00:00:00.000Z', readAt: null },
+  ] } };
+
+  // When
+  const saved = apply(before, 'teacher.mail.send', { recipients: [2], title: '새 편지', content: '내용' }).value;
+
+  // Then
+  const life = saved.studentLife as { letters: readonly { id: string }[] };
+  assert.deepEqual(life.letters.map((letter) => letter.id), ['recent', 'request-1-2']);
+});
 test('removing a awarded auction item refunds it with a compensating entry and preserves the auction archive', () => {
   const source = { auctionItems: [{ id: 'item-a', dayIndex: 0, name: '공책' }, { id: 'item-b', dayIndex: 1, name: '연필' }],
     currencyBalances: { '17': 90 }, currencyHistory: { '17': [{ id: 'original-award', studentNumber: 17, before: 100, after: 90,

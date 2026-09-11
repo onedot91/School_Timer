@@ -52,11 +52,20 @@ test('소유 목록이 갱신될 때 확정된 활성 스킨을 우선하고 이
 
 test('스킨 뽑기는 사용 가능 잔액이 부족하면 구매 진입을 막고 이유를 표시한다', () => {
   const markup = renderToStaticMarkup(createElement(StudentCharacterGacha, {
-    state: createStudentEconomyState(), availableBalance: 99, isSaving: false, onAction: async () => true,
+    state: { ...createStudentEconomyState(), characterFreeDrawAvailable: false }, availableBalance: 99, isSaving: false, onAction: async () => true,
   }));
   assert.match(markup, /class="student-character-draw-button" disabled=""/);
   assert.match(markup, /사용 가능한 고마가 100 고마보다 적어요/);
   assert.doesNotMatch(markup, /aria-modal="true"/);
+});
+
+test('무료 뽑기 권한이 있으면 잔액이 없어도 뽑기를 시작할 수 있다', () => {
+  const markup = renderToStaticMarkup(createElement(StudentCharacterGacha, {
+    state: createStudentEconomyState(), availableBalance: 0, isSaving: false, onAction: async () => true,
+  }));
+  assert.doesNotMatch(markup, /class="student-character-draw-button" disabled=""/);
+  assert.match(markup, />무료<\/strong>/);
+  assert.doesNotMatch(markup, /사용 가능한 고마가 100 고마보다 적어요/);
 });
 
 test('전체 스킨을 모았거나 다른 저장이 진행 중이면 새 뽑기를 시작하지 않는다', () => {

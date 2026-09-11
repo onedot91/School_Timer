@@ -64,7 +64,8 @@ export default function StudentCharacterGacha({
   const caughtCapsuleRef = useRef<HTMLSpanElement>(null);
   const selectedCapsuleRef = useRef<HTMLDivElement>(null);
   const ownsAll = state.ownedCharacterIds.length >= STUDENT_CHARACTER_PRIZES.length;
-  const canDraw = availableBalance >= STUDENT_CHARACTER_DRAW_PRICE && !ownsAll;
+  const drawPrice = state.characterFreeDrawAvailable ? 0 : STUDENT_CHARACTER_DRAW_PRICE;
+  const canDraw = availableBalance >= drawPrice && !ownsAll;
   const drawnCharacters = drawnCharacterIds.flatMap((id) => {
     const character = STUDENT_CHARACTER_PRIZES.find((prize) => prize.id === id);
     return character ? [character] : [];
@@ -222,7 +223,7 @@ export default function StudentCharacterGacha({
         <aside ref={controlPanelRef} className="student-claw-control-panel" aria-label="인형 뽑기 조작" tabIndex={stage === 'aiming' ? 0 : -1} onKeyDown={handleControlsKeyDown}>
           <div className="student-claw-control-heading">
             <span>{stage === 'ready' ? '뽑기 시작' : stage === 'aiming' ? '집게 조작' : '뽑는 중'}</span>
-            <strong>{STUDENT_CHARACTER_DRAW_PRICE} 고마</strong>
+            <strong>{drawPrice === 0 ? '무료' : `${drawPrice} 고마`}</strong>
             {STUDENT_CHARACTER_PRIZES.length - state.ownedCharacterIds.length === 1
               ? <small>마지막 스킨이 기다리고 있어요</small> : null}
           </div>
@@ -243,14 +244,14 @@ export default function StudentCharacterGacha({
               <p>{stage === 'aiming' ? '버튼이나 방향키로 움직여요.' : rollMessage}</p>
             </div>
           )}
-          <p id="student-character-gacha-help" className={'student-character-gacha-help' + (availableBalance < STUDENT_CHARACTER_DRAW_PRICE && stage !== 'rolling' && stage !== 'reveal' ? '' : ' sr-only')}>
-            {availableBalance < STUDENT_CHARACTER_DRAW_PRICE ? '사용 가능한 고마가 100 고마보다 적어요.' : '뽑기 전에는 어떤 스킨인지 알 수 없어요.'}
+          <p id="student-character-gacha-help" className={'student-character-gacha-help' + (availableBalance < drawPrice && stage !== 'rolling' && stage !== 'reveal' ? '' : ' sr-only')}>
+            {availableBalance < drawPrice ? `사용 가능한 고마가 ${drawPrice} 고마보다 적어요.` : '뽑기 전에는 어떤 스킨인지 알 수 없어요.'}
           </p>
           {errorMessage ? <p className="student-character-gacha-help" role="alert">{errorMessage}</p> : null}
         </aside>
       </div>
       <p className="sr-only" role="status">{stage === 'rolling' ? rollMessage : ''}</p>
-      <StudentConfirmDialog isOpen={isConfirmOpen} kicker="고마 스킨 가챠" title="100 고마로 뽑을까요?" description="확인 후 집게를 직접 움직여 뽑을 수 있어요."
+      <StudentConfirmDialog isOpen={isConfirmOpen} kicker="고마 스킨 가챠" title={drawPrice === 0 ? '무료로 뽑을까요?' : `${drawPrice} 고마로 뽑을까요?`} description="확인 후 집게를 직접 움직여 뽑을 수 있어요."
         confirmLabel="조작 시작" isPending={isSaving} returnFocusRef={controlPanelRef} onCancel={() => setIsConfirmOpen(false)} onConfirm={beginAiming} />
       {stage === 'reveal' && origin && drawnCharacters[0] ? (
         <StudentCharacterGachaReveal capsuleSrc={selectedCapsule} character={drawnCharacters[0]} bonusCharacter={drawnCharacters[1]} origin={origin} returnFocusRef={controlPanelRef} onClose={resetMachine} />

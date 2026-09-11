@@ -1,5 +1,5 @@
 import { appendCurrencyHistoryEntry, claimDailyEmotionRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, claimNumberBaseballRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionBids, normalizeAuctionBidHistory, normalizeAuctionAwards, normalizeAuctionItems, getReservedAuctionBidAmount, getMinimumAuctionBid, hasAuctionBidAmount, getAuctionVisibleDayCount } from '../lib/currency.js';
-import { createStudentLetter, markStudentLetterRead, normalizeStudentLifeState } from '../lib/studentLife.js';
+import { createStudentLetter, isStudentLetterRetained, markStudentLetterRead, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../lib/studentLife.js';
 import { FAILURE_STAMP_OPTIONS, toggleFailureStamp } from '../lib/failureExhibition.js';
 import { createFailureExhibitionMissionEntry } from '../lib/failureExhibitionMission.js';
 import { getStudentPetState, feedStudentPetEgg, nameStudentPet, selectStudentPet, moveStudentPet, moveGomaCharacter, STUDENT_PET_FEED_AMOUNT } from '../lib/studentPet.js';
@@ -23,7 +23,12 @@ export const applyStudentStorageCommand = (
   if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) return fail();
   const current = record(currentValue), input = record(payload), studentKey = String(studentNumber);
   const date = new Date(context.createdAt), weekKey = getKoreanIsoWeekKey(date);
-  const life = normalizeStudentLifeState(current.studentLife), rawLife = record(current.studentLife);
+  const life = pruneExpiredStudentLetters(normalizeStudentLifeState(current.studentLife), context.createdAt);
+  const storedLife = record(current.studentLife);
+  const rawLife: Record<string, unknown> = {
+    ...storedLife,
+    letters: rawList(storedLife.letters).filter((letter) => isStudentLetterRetained(record(letter).createdAt, context.createdAt)),
+  };
   const finish = (value: Record<string, unknown>, result: unknown = { applied: true }) => {
     if (value.currencyHistory !== current.currencyHistory) {
       const knownIds = new Set((normalizeCurrencyHistory(current.currencyHistory)[studentKey] ?? []).map(({ id }) => id));

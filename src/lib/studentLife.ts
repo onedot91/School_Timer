@@ -62,6 +62,7 @@ const MAX_STUDENT_NUMBER = 23;
 export const TEACHER_LETTER_RECIPIENT = 0;
 export const ALL_STUDENTS_LETTER_RECIPIENT = 0;
 const MAX_LETTERS = 600;
+const LETTER_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_LETTER_CONTENT_LENGTH = 800;
 const BOOK_PAPER_THICKNESS_PER_PAGE_CM = 0.005;
 const BOOK_SPINE_MIN_HEIGHT_PX = 27;
@@ -196,6 +197,26 @@ export const normalizeStudentLifeState = (value: unknown): StudentLifeState => {
     failureProfileAssignments: normalizeFailureProfileAssignments(parsed.failureProfileAssignments),
   };
 };
+
+export const isStudentLetterRetained = (createdAt: unknown, referenceAt: string): boolean => {
+  if (typeof createdAt !== 'string') return true;
+  const createdTime = Date.parse(createdAt);
+  const referenceTime = Date.parse(referenceAt);
+  if (!Number.isFinite(createdTime) || !Number.isFinite(referenceTime)) return true;
+  return referenceTime - createdTime <= LETTER_RETENTION_MS;
+};
+
+export const pruneExpiredStudentLetters = (
+  state: StudentLifeState,
+  referenceAt: string,
+): StudentLifeState => {
+  const letters = state.letters.filter((letter) => isStudentLetterRetained(letter.createdAt, referenceAt));
+  return letters.length === state.letters.length ? state : { ...state, letters };
+};
+
+export const normalizeCurrentStudentLifeState = (value: unknown): StudentLifeState => (
+  pruneExpiredStudentLetters(normalizeStudentLifeState(value), new Date().toISOString())
+);
 
 export const mergeStudentLifeStates = (remoteValue: unknown, nextValue: unknown): StudentLifeState => {
   const remote = normalizeStudentLifeState(remoteValue);
@@ -438,7 +459,9 @@ export const loadStoredStudentLifeState = (): StudentLifeState => {
     const stored = combined && 'studentLife' in combined
       ? JSON.stringify(combined.studentLife)
       : window.localStorage.getItem(STUDENT_LIFE_STORAGE_KEY);
-    const saved = normalizeStudentLifeState(stored ? JSON.parse(stored) : null);
+    const normalized = normalizeStudentLifeState(stored ? JSON.parse(stored) : null);
+    const saved = pruneExpiredStudentLetters(normalized, new Date().toISOString());
+    if (saved !== normalized) storeStudentLifeState(saved);
     if (appDataMode !== 'mock' || window.localStorage.getItem(PRACTICE_FAILURE_STORIES_RESET_KEY) === '1') {
       return saved;
     }
