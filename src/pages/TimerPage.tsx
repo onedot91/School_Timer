@@ -7772,7 +7772,7 @@ export default function TimerPage() {
   const isScheduleBreak = timerType === 'break';
   const isScheduleLunch = timerType === 'lunch';
   const shouldShowMorningReading = timerType === 'morning' && !isScheduleIdle;
-  const shouldShowTimedMessage = isScheduleBreak || isScheduleLunch;
+  const shouldShowTimedMessage = isScheduleBreak;
   const scheduleTypeLabel =
     timerType === 'class'
       ? currentSlotName || "\uC218\uC5C5\uC2DC\uAC04"
@@ -7838,7 +7838,7 @@ export default function TimerPage() {
     characterMessage = getCharacterMessage('warning');
   }
 
-  const showTimerNotification = showCharacter || showClassEndImage;
+  const showTimerNotification = !isScheduleLunch && (showCharacter || showClassEndImage);
   const timerNotificationMessage = activeClassEndImage?.message ?? characterMessage;
   const timerNotificationTextColorClass = showClassEndImage ? 'teacher-tone-text-accent' : colorClass;
   const timerNotificationImageSrc = showClassEndImage
