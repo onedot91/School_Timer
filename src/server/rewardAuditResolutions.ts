@@ -13,6 +13,21 @@ export const historicalRewardResolution = {
   ],
 } as const;
 
-export const isResolvedHistoricalReward = (issue: RewardAuditIssue): boolean => issue.kind === 'missing'
-  && issue.expectedAmount === 5 && issue.paidAmount === 0
-  && historicalRewardResolution.items.some(item => item.studentNumber === issue.studentNumber && item.id === issue.id);
+const teacherConfirmedRewardResolution = {
+  decidedOn: '2026-09-11',
+  decision: '교사 확인: 목·금 휴일 예외로 완료된 이번 주 주간 감정 보상 5건은 별도 수동 지급하여 종결했습니다.',
+  items: [
+    { studentNumber: 1, id: 'weekly-emotion-1-2026-09-07' },
+    { studentNumber: 4, id: 'weekly-emotion-4-2026-09-07' },
+    { studentNumber: 6, id: 'weekly-emotion-6-2026-09-07' },
+    { studentNumber: 8, id: 'weekly-emotion-8-2026-09-07' },
+    { studentNumber: 17, id: 'weekly-emotion-17-2026-09-07' },
+  ],
+} as const;
+
+export const isResolvedHistoricalReward = (issue: RewardAuditIssue): boolean => (
+  (issue.kind === 'missing' && issue.expectedAmount === 5 && issue.paidAmount === 0
+    && historicalRewardResolution.items.some(item => item.studentNumber === issue.studentNumber && item.id === issue.id))
+  || (issue.kind === 'missing' && issue.expectedAmount === 25 && issue.paidAmount === 0
+    && teacherConfirmedRewardResolution.items.some(item => item.studentNumber === issue.studentNumber && item.id === issue.id))
+);

@@ -62,3 +62,51 @@ test('서버 시간대와 무관하게 한국 자정에 전날 낱말을 대조�
   assert.equal(report.issues.length, 1);
   assert.equal(report.issues[0].dateKey, '2026-09-07');
 });
+
+test('교사가 수동 지급한 이번 주 주간 감정 보상은 보상 점검 경고에서 제외한다', () => {
+  const dates = ['2026-09-07', '2026-09-08', '2026-09-09'];
+  const emotionHistory = Object.fromEntries(dates.map((dateKey) => [dateKey, {
+    id: `student-emotion-1-${dateKey}`,
+    studentNumber: 1,
+    dateKey,
+    emotionId: 'happy',
+    comment: '기록',
+    createdAt: `${dateKey}T01:00:00Z`,
+    updatedAt: `${dateKey}T01:00:00Z`,
+  }]));
+  const dailyHistory = dates.map((dateKey, index) => ({
+    id: `daily-emotion-1-${dateKey}`,
+    studentNumber: 1,
+    delta: 5,
+    before: 100 + index * 5,
+    after: 105 + index * 5,
+    reason: 'daily_emotion',
+    createdAt: `${dateKey}T01:00:00Z`,
+  }));
+  const input = {
+    ...source(),
+    snapshot: {
+      ...splitStorageState({
+        currencyBalances: { 1: 140 },
+        currencyHistory: {
+          1: [...dailyHistory, {
+            id: 'teacher-manual-weekly-emotion-1-2026-09-07',
+            studentNumber: 1,
+            delta: 25,
+            before: 115,
+            after: 140,
+            reason: 'bulk_adjust',
+            createdAt: '2026-09-11T09:00:00Z',
+          }],
+        },
+        studentEmotionHistory: { 1: Object.values(emotionHistory) },
+      }),
+      revisions: {},
+      updated_at: '2026-09-11T09:00:00Z',
+    },
+  };
+
+  const report = buildRewardAudit(input);
+
+  assert.deepEqual(report.issues, []);
+});
