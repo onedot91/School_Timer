@@ -5,6 +5,7 @@ import { Inbox, Mail, MailOpen, PenLine, Reply, Send, SendHorizontal, Stamp, X }
 import { CLASS_DONATION_MAIL_IMAGE_SOURCE, CLASS_DONATION_MAIL_SENDER_LABEL } from '../../lib/classDonation';
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
 import { TEACHER_LETTER_RECIPIENT, type StudentLetter } from '../../lib/studentLife';
+import { isTodayFriendStudentNumber } from '../../lib/todayFriend';
 import StudentHeader from './StudentHeader';
 import {
   DAILY_WRITING_STAMP_IMAGE_SOURCE,
@@ -13,20 +14,21 @@ import {
   normalizeDailyWritingLetterForDisplay,
 } from '../../lib/dailyWriting';
 
-interface MailboxDraft { readonly title: string; readonly content: string; readonly replyToId?: string }
+interface MailboxDraft { readonly recipient?: number; readonly title: string; readonly content: string; readonly replyToId?: string }
 interface StudentMailboxPageProps {
   readonly saveErrorMessage?: string | null;
   readonly draft?: MailboxDraft;
   readonly hasPendingSave?: boolean;
   readonly onDraftChange?: (draft: MailboxDraft) => void;
   readonly studentNumber: number;
+  readonly todayFriendNumber?: number | null;
   readonly profileAssignments: FailureProfileAssignments;
   readonly letters: readonly StudentLetter[];
   readonly sentLetters: readonly StudentLetter[];
   readonly unreadCount: number;
   readonly isSaving: boolean;
   readonly onRead: (letterId: string) => Promise<void>;
-  readonly onSend: (title: string, content: string, replyToId?: string) => Promise<boolean>;
+  readonly onSend: (recipient: number, title: string, content: string, replyToId?: string) => Promise<boolean>;
   readonly onBack: () => void;
 }
 
@@ -35,6 +37,13 @@ type MailboxMode = MailboxFolder | 'compose';
 type MailKind = 'system' | 'teacher' | 'friend-pink' | 'friend-blue';
 
 const MAILBOX_MODES: readonly MailboxMode[] = ['inbox', 'sent', 'compose'];
+
+export const getStudentMailboxRecipientOptions = (todayFriendNumber: number | null | undefined) => [
+  { value: TEACHER_LETTER_RECIPIENT, label: '선생님' },
+  ...(isTodayFriendStudentNumber(todayFriendNumber)
+    ? [{ value: todayFriendNumber, label: `오늘의 친구(${todayFriendNumber}번)` }]
+    : []),
+] as const;
 
 const formatLetterDate = (createdAt: string): string => new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
@@ -96,6 +105,7 @@ const preserveKoreanPhraseSpacing = (content: string): string => content
 
 export default function StudentMailboxPage({
   studentNumber,
+  todayFriendNumber = null,
   draft,
   hasPendingSave = false,
   saveErrorMessage,
@@ -112,6 +122,7 @@ export default function StudentMailboxPage({
   const [mode, setMode] = useState<MailboxMode>('inbox');
   const [folder, setFolder] = useState<MailboxFolder>('inbox');
   const [selectedId, setSelectedId] = useState('');
+  const [recipient, setRecipient] = useState(draft?.recipient ?? TEACHER_LETTER_RECIPIENT);
   const [title, setTitle] = useState(draft?.title ?? '');
   const [content, setContent] = useState(draft?.content ?? '');
   const [replyToId, setReplyToId] = useState<string | undefined>(draft?.replyToId);
@@ -129,14 +140,24 @@ export default function StudentMailboxPage({
   useEffect(() => {
     hasEdited.current = false;
     editGeneration.current++;
-    setTitle(draft?.title ?? ''); setContent(draft?.content ?? ''); setReplyToId(draft?.replyToId);
+    setRecipient(TEACHER_LETTER_RECIPIENT); setTitle(draft?.title ?? ''); setContent(draft?.content ?? ''); setReplyToId(draft?.replyToId);
     setMode('inbox'); setSelectedId(''); setSaveError('');
   }, [studentNumber]);
+  const recipientOptions = useMemo(
+    () => getStudentMailboxRecipientOptions(todayFriendNumber),
+    [todayFriendNumber],
+  );
   useEffect(() => {
     if (hasEdited.current) return;
     editGeneration.current++;
+    setRecipient(recipientOptions.some((option) => option.value === draft?.recipient)
+      ? draft?.recipient ?? TEACHER_LETTER_RECIPIENT
+      : TEACHER_LETTER_RECIPIENT);
     setTitle(draft?.title ?? ''); setContent(draft?.content ?? ''); setReplyToId(draft?.replyToId);
-  }, [draft?.title, draft?.content, draft?.replyToId]);
+  }, [draft?.content, draft?.recipient, draft?.replyToId, draft?.title, recipientOptions]);
+  const selectedRecipient = recipientOptions.some((option) => option.value === recipient)
+    ? recipient
+    : TEACHER_LETTER_RECIPIENT;
   const markEdited = () => { hasEdited.current = true; editGeneration.current++; setSaveError(''); };
   const sendLetter = async () => {
     if (isSaving || pendingSubmission.current || !content.trim()) return;
@@ -146,11 +167,11 @@ export default function StudentMailboxPage({
     const generation = editGeneration.current;
     const isCurrent = () => mounted.current && activeStudent.current === studentNumber && editGeneration.current === generation;
     try {
-      const saved = await onSend(title, content, replyToId);
+      const saved = await onSend(selectedRecipient, title, content, replyToId);
       if (!isCurrent()) return;
       if (!saved) { setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.'); return; }
       markEdited();
-      setTitle(''); setContent(''); setReplyToId(undefined);
+      setRecipient(TEACHER_LETTER_RECIPIENT); setTitle(''); setContent(''); setReplyToId(undefined);
       setFolder('inbox'); setMode('inbox'); setSelectedId('');
     } catch {
       if (isCurrent()) setSaveError('저장을 확인하지 못했어요. 다시 확인해 주세요.');
@@ -230,8 +251,9 @@ export default function StudentMailboxPage({
     const displayTitle = getLetterDisplayTitle(letter.title);
     setTitle(displayTitle.startsWith('답장:') ? displayTitle : `답장: ${displayTitle}`);
     setContent('');
+    setRecipient(TEACHER_LETTER_RECIPIENT);
     setReplyToId(letter.id);
-    onDraftChange?.({ title: displayTitle.startsWith('답장:') ? displayTitle : `답장: ${displayTitle}`, content: '', replyToId: letter.id });
+    onDraftChange?.({ recipient: TEACHER_LETTER_RECIPIENT, title: displayTitle.startsWith('답장:') ? displayTitle : `답장: ${displayTitle}`, content: '', replyToId: letter.id });
     setMode('compose');
   };
 
@@ -367,15 +389,28 @@ export default function StudentMailboxPage({
               </div>
               <label>
                 <span>받는 사람</span>
-                <input value="선생님" readOnly aria-readonly="true" />
+                <select
+                  value={selectedRecipient}
+                  disabled={hasPendingSave || replyToId !== undefined}
+                  onChange={(event) => {
+                    const nextRecipient = Number(event.target.value);
+                    markEdited();
+                    setRecipient(nextRecipient);
+                    onDraftChange?.({ recipient: nextRecipient, title, content, ...(replyToId ? { replyToId } : {}) });
+                  }}
+                >
+                  {recipientOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </label>
               <label>
                 <span>제목</span>
-                <input value={title} readOnly={hasPendingSave} maxLength={40} onChange={(event) => { markEdited(); setTitle(event.target.value); onDraftChange?.({ title: event.target.value, content, ...(replyToId ? { replyToId } : {}) }); }} placeholder="제목을 적어 주세요" />
+                <input value={title} readOnly={hasPendingSave} maxLength={40} onChange={(event) => { markEdited(); setTitle(event.target.value); onDraftChange?.({ recipient: selectedRecipient, title: event.target.value, content, ...(replyToId ? { replyToId } : {}) }); }} placeholder="제목을 적어 주세요" />
               </label>
               <label className="student-compose-body-field">
                 <span>내용</span>
-                <textarea value={content} readOnly={hasPendingSave} maxLength={300} required onChange={(event) => { markEdited(); setContent(event.target.value); onDraftChange?.({ title, content: event.target.value, ...(replyToId ? { replyToId } : {}) }); }} placeholder="전하고 싶은 마음을 적어 주세요" />
+                <textarea value={content} readOnly={hasPendingSave} maxLength={300} required onChange={(event) => { markEdited(); setContent(event.target.value); onDraftChange?.({ recipient: selectedRecipient, title, content: event.target.value, ...(replyToId ? { replyToId } : {}) }); }} placeholder="전하고 싶은 마음을 적어 주세요" />
               </label>
               {hasPendingSave || saveError ? <p role="status">{hasPendingSave ? '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.' : saveErrorMessage ?? saveError}</p> : null}
               <div className="student-compose-actions">

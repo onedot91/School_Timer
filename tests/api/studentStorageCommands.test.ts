@@ -7,6 +7,7 @@ import { getKoreanIsoWeekKey } from '../../src/lib/weeklyMission.js';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionItems } from '../../src/lib/currency.js';
 import { createStudentEmotionEntry, getSchoolWeekDateKeys } from '../../src/lib/studentEmotion.js';
 import { getStudentEmotionExcusedDay } from '../../src/lib/studentEmotionCalendar.js';
+import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 
 const context = { requestId: 'isolated-request-1', createdAt: '2026-09-08T02:00:00.000Z' };
 
@@ -122,6 +123,13 @@ test('오늘의 친구 편지는 기존 결정적 ID를 유지하고 다른 요�
   const second = applyStudentStorageCommand(first, 1, 'student.letter.send', payload, { ...context, requestId: 'different-request' });
   assert.deepEqual(second?.value, first);
   assert.throws(() => apply(first, 'student.letter.send', { ...payload, letterId: 'today-friend-recommendation-2026-09-08-2-r2' }), /STUDENT_COMMAND_INVALID/);
+
+  const complimentPayload = { letterId: 'today-friend-compliment-2026-09-08-1-r2', recipient: 2, title: '[오늘의 친구] 칭찬 편지', content: '칭찬 편지 내용' };
+  const withCompliment = apply(first, 'student.letter.send', complimentPayload);
+  const complimentLetter = normalizeStudentLifeState(withCompliment.studentLife).letters.at(-1);
+  assert.equal(complimentLetter?.id, complimentPayload.letterId);
+  assert.equal(complimentLetter?.recipient, 2);
+  assert.equal(complimentLetter?.senderStudentNumber, 1);
 });
 
 test('감정 입력과 하루 보상을 함께 저장하며 같은 날 수정은 추가 지급하지 않는다', () => {

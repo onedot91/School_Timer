@@ -67,6 +67,7 @@ import {
   isClassDonationCompleted,
   type ClassDonationPublicState,
 } from '../lib/classDonation';
+import { loadStoredClassDonationSettings } from '../lib/classDonationLocalStore';
 import { playAuctionSound, prepareAuctionAudio } from '../lib/auctionAudio';
 import {
   STUDENT_EMOTIONS,
@@ -424,7 +425,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [studentMissionVisibility, setStudentMissionVisibility] = useState<StudentMissionVisibility>(
     loadStoredStudentMissionVisibility,
   );
-  const [classDonation, setClassDonation] = useState<ClassDonationPublicState>(() => getClassDonationPublicState(null));
+  const [classDonation, setClassDonation] = useState<ClassDonationPublicState>(() => getClassDonationPublicState(
+    isSupabaseSettingsEnabled ? null : loadStoredClassDonationSettings(window.localStorage),
+  ));
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
     loadStoredStudentEmotionHistory,
   );
@@ -718,6 +721,21 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const studentKey = String(studentNumber);
   const currentDateKey = getKoreanLocalDateKey();
+  const [todayFriendMailboxRecipient, setTodayFriendMailboxRecipient] = useState<number | null>(null);
+  useEffect(() => {
+    if (activeStudentView !== 'mailbox') return;
+    let isCancelled = false;
+    setTodayFriendMailboxRecipient(null);
+    void import('../lib/todayFriendClient').then(({ loadStudentTodayFriendMission }) => (
+      loadStudentTodayFriendMission(studentNumber, currentDateKey)
+    )).then((mission) => {
+      if (!isCancelled) setTodayFriendMailboxRecipient(mission?.partnerNumber ?? null);
+    }).catch((error: unknown) => {
+      if (!(error instanceof Error)) throw error;
+      if (!isCancelled) setTodayFriendMailboxRecipient(null);
+    });
+    return () => { isCancelled = true; };
+  }, [activeStudentView, currentDateKey, studentNumber]);
   const studentLetters = getStudentLetters(studentLife, studentNumber, currentDateKey);
   const studentPet = getStudentPetState(studentPetStates, studentNumber);
   const todayEmotionEntry = getTodayStudentEmotionEntry(studentEmotionHistory, studentNumber);
@@ -756,7 +774,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const unreadLetterCount = getUnreadStudentLetterCount(studentLife, studentNumber, currentDateKey);
   const mailDraftValue = loadStudentStorageFormDraft(studentNumber, 'student.letter.send');
   const mailDraft = typeof mailDraftValue.title === 'string' && typeof mailDraftValue.content === 'string'
-    ? { title: mailDraftValue.title, content: mailDraftValue.content, ...(typeof mailDraftValue.replyToId === 'string' ? { replyToId: mailDraftValue.replyToId } : {}) } : undefined;
+    ? { recipient: typeof mailDraftValue.recipient === 'number' ? mailDraftValue.recipient : TEACHER_LETTER_RECIPIENT, title: mailDraftValue.title, content: mailDraftValue.content, ...(typeof mailDraftValue.replyToId === 'string' ? { replyToId: mailDraftValue.replyToId } : {}) } : undefined;
   const failureDraftValue = loadStudentStorageFormDraft(studentNumber, 'student.failure.create');
   const failureDraft = typeof failureDraftValue.failure === 'string' && typeof failureDraftValue.lesson === 'string'
     ? { failure: failureDraftValue.failure, lesson: failureDraftValue.lesson } : undefined;
@@ -797,11 +815,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   };
 
-  const sendStudentLetter = (title: string, content: string, replyToId?: string) => saveStudentLifeChange((current) => createStudentLetter(current, {
-    id: createBrowserRequestId(), recipient: TEACHER_LETTER_RECIPIENT, senderLabel: formatStudentNumberLabel(studentNumber), senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
-  }), 'student.letter.send', { recipient: TEACHER_LETTER_RECIPIENT, title, content, ...(replyToId ? { replyToId } : {}) });
+  const sendStudentLetter = (recipient: number, title: string, content: string, replyToId?: string) => saveStudentLifeChange((current) => createStudentLetter(current, {
+    id: createBrowserRequestId(), recipient, senderLabel: formatStudentNumberLabel(studentNumber), senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
+  }), 'student.letter.send', { recipient, title, content, ...(replyToId ? { replyToId } : {}) });
 
-  const sendTodayFriendRecommendation = (letter: {
+  const sendTodayFriendLetter = (letter: {
     readonly id: string;
     readonly recipient: number;
     readonly title: string;
@@ -2190,7 +2208,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           <StudentTodayFriendPage
             studentNumber={studentNumber}
             profileAssignments={profileAssignments}
-            onSendRecommendation={sendTodayFriendRecommendation}
+            onSendLetter={sendTodayFriendLetter}
             onBack={() => navigateStudentView('missions')}
           />
         ) : null}
@@ -2243,9 +2261,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         {activeStudentView === 'mailbox' ? (
           <StudentMailboxPage
             draft={mailDraft}
+            todayFriendNumber={todayFriendMailboxRecipient}
             saveErrorMessage={studentLifeSaveMessage}
             hasPendingSave={hasUnconfirmedStudentStorageDraft(studentNumber, 'student.letter.send')}
-            onDraftChange={(draft) => saveStudentStorageFormDraft(studentNumber, 'student.letter.send', { recipient: TEACHER_LETTER_RECIPIENT, ...draft })}
+            onDraftChange={(draft) => saveStudentStorageFormDraft(studentNumber, 'student.letter.send', draft)}
             studentNumber={studentNumber}
             profileAssignments={profileAssignments}
             letters={studentLetters}

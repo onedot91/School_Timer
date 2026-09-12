@@ -3,6 +3,8 @@ import { test } from 'node:test';
 
 import {
   approveTodayFriendSubmission,
+  createTodayFriendComplimentDelivery,
+  getTodayFriendHeaderTitle,
   createTodayFriendPartnerAssignments,
   createTodayFriendRecommendationDelivery,
   createTodayFriendSubmission,
@@ -16,6 +18,15 @@ import {
   TODAY_FRIEND_GENRES,
   TODAY_FRIEND_REWARD,
 } from './todayFriend';
+
+test('오늘의 친구 헤더는 실제 미션 카테고리를 함께 표시한다', () => {
+  assert.equal(getTodayFriendHeaderTitle(null), '오늘의 친구');
+  assert.equal(getTodayFriendHeaderTitle('interview'), '오늘의 친구 · 인터뷰하기');
+  assert.equal(getTodayFriendHeaderTitle('commonality'), '오늘의 친구 · 공통점 찾기');
+  assert.equal(getTodayFriendHeaderTitle('recommendation'), '오늘의 친구 · 추천하기');
+  assert.equal(getTodayFriendHeaderTitle('compliment'), '오늘의 친구 · 칭찬하기');
+  assert.equal(getTodayFriendHeaderTitle('emotion'), '오늘의 친구 · 감정 찾기');
+});
 
 test('추천하기 미션은 수신 친구의 우편함에 저장할 고유 편지를 만든다', () => {
   const delivery = createTodayFriendRecommendationDelivery({
@@ -36,9 +47,45 @@ test('추천하기 미션은 수신 친구의 우편함에 저장할 고유 편�
     id: 'today-friend-recommendation-2026-09-01-3-r1',
     recipient: 14,
     title: '[오늘의 친구] 책 추천',
-    content: '추천할 것\n긴긴밤\n\n추천하는 이유\n서로를 지켜 주는 마음이 따뜻해서 추천해요.',
+    content: '오늘의 친구인 너에게 책을 추천하고 싶어.\n내가 추천할 것은 바로 이것이야.\n「긴긴밤」\n추천하는 이유는 이거야.\n“서로를 지켜 주는 마음이 따뜻해서 추천해요.”',
   });
   assert.equal(delivery.payload.letterId, delivery.letter.id);
+});
+
+test('칭찬하기 미션은 세 답을 문장틀에 담아 오늘의 친구에게 보낼 편지를 만든다', () => {
+  const delivery = createTodayFriendComplimentDelivery({
+    dateKey: '2026-09-01',
+    studentNumber: 3,
+    partnerNumber: 14,
+    revision: 2,
+    payload: {
+      kind: 'compliment',
+      compliment: '어려운 문제를 끝까지 같이 풀어 주었어',
+      reason: '차근차근 설명해 줘서 든든했어',
+      message: '오늘 정말 고마웠어',
+    },
+  });
+
+  assert.deepEqual(delivery.letter, {
+    id: 'today-friend-compliment-2026-09-01-3-r2',
+    recipient: 14,
+    title: '[오늘의 친구] 칭찬 편지',
+    content: '나는 오늘의 친구인 너를 칭찬하고 싶어.\n네가 보여 준 멋진 행동은 이거야.\n“어려운 문제를 끝까지 같이 풀어 주었어”\n그 행동이 좋았던 이유는 이거야.\n“차근차근 설명해 줘서 든든했어”\n그리고 너에게 이렇게 말하고 싶어.\n“오늘 정말 고마웠어”',
+  });
+  assert.equal(delivery.payload.letterId, delivery.letter.id);
+});
+
+test('추천 편지 문장틀은 추천 종류에 맞는 조사를 사용한다', () => {
+  const delivery = createTodayFriendRecommendationDelivery({
+    dateKey: '2026-09-01',
+    studentNumber: 3,
+    partnerNumber: 14,
+    revision: 1,
+    payload: { kind: 'recommendation', category: 'movie', title: '코코', reason: '가족을 생각하게 해 줘', letterId: null },
+  });
+
+  assert.match(delivery.letter.content, /영화를 추천하고 싶어/);
+  assert.doesNotMatch(delivery.letter.content, /영화을/);
 });
 
 test('공통점 세 가지는 번호 목록으로 저장하고 예전 한 줄 답도 읽는다', () => {

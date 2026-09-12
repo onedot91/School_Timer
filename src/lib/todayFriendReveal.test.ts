@@ -3,10 +3,27 @@ import { test } from 'node:test';
 
 import {
   createTodayFriendRevealSequence,
+  hasSeenTodayFriendIllustration,
   hasSeenTodayFriendReveal,
+  markTodayFriendIllustrationSeen,
   markTodayFriendRevealSeen,
   shouldAnimateTodayFriendReveal,
 } from './todayFriendReveal';
+
+test('미션 일러스트 확인은 학생과 날짜별로 하루 한 번 기록한다', () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+  };
+  const identity = { dateKey: '2026-09-01', studentNumber: 1 };
+
+  assert.equal(hasSeenTodayFriendIllustration(storage, identity), false);
+  assert.equal(markTodayFriendIllustrationSeen(storage, identity), true);
+  assert.equal(hasSeenTodayFriendIllustration(storage, identity), true);
+  assert.equal(hasSeenTodayFriendIllustration(storage, { ...identity, studentNumber: 2 }), false);
+  assert.equal(hasSeenTodayFriendIllustration(storage, { ...identity, dateKey: '2026-09-02' }), false);
+});
 
 test('파트너 공개 애니메이션은 미방문이며 감소 모션을 사용하지 않을 때만 실행한다', () => {
   // Given

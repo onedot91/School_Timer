@@ -2,7 +2,10 @@ import { CalendarCheck2, ClipboardList, RefreshCw, Settings2 } from 'lucide-reac
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getTodayFriendDateKey } from '../../lib/todayFriend';
-import { createTodayFriendReviewQueue } from '../../lib/teacherTodayFriendReviewPresentation';
+import {
+  createTodayFriendReviewQueue,
+  getTodayFriendPendingReviewCount,
+} from '../../lib/teacherTodayFriendReviewPresentation';
 import {
   loadTeacherTodayFriendState,
   reviewStudentTodayFriendSubmission,
@@ -22,7 +25,11 @@ const reviewDrafts = createStudentSaveDraftStore();
 type PendingReview = { readonly submissionId: string; readonly expectedRevision: number; readonly requestId: string };
 const reviewScope = (submissionId: string) => ({ studentNumber: 0, feature: 'teacher.todayFriend.review', entityId: submissionId });
 
-export default function TeacherTodayFriendPanel() {
+type TeacherTodayFriendPanelProps = {
+  readonly onPendingReviewCountChange?: (dateKey: string, count: number) => void;
+};
+
+export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: TeacherTodayFriendPanelProps) {
   const [dateKey, setDateKey] = useState(getTodayFriendDateKey);
   const [state, setState] = useState<TodayFriendState | null>(null);
   const [tab, setTab] = useState<TeacherTodayFriendTab>('review');
@@ -143,6 +150,11 @@ export default function TeacherTodayFriendPanel() {
 
   const dateSubmissions = state?.submissions.filter((submission) => submission.dateKey === dateKey) ?? [];
   const reviewQueue = createTodayFriendReviewQueue(dateSubmissions);
+  const pendingReviewCount = getTodayFriendPendingReviewCount(dateSubmissions, dateKey);
+
+  useEffect(() => {
+    if (state) onPendingReviewCountChange?.(dateKey, pendingReviewCount);
+  }, [dateKey, onPendingReviewCountChange, pendingReviewCount, state]);
 
   return (
     <section className="teacher-today-friend-panel" aria-labelledby="teacher-today-friend-title">
@@ -151,7 +163,7 @@ export default function TeacherTodayFriendPanel() {
         <label><span className="sr-only">날짜</span><input type="date" disabled={isSaving} value={dateKey} onChange={(event) => setDateKey(event.target.value)} /></label>
       </header>
       <div className="teacher-today-friend-summary">
-        <span><strong>{reviewQueue.filter((entry) => entry.status === 'submitted').length}</strong>대기</span>
+        <span><strong>{pendingReviewCount}</strong>대기</span>
         <span><strong>{reviewQueue.filter((entry) => entry.status === 'approved').length}</strong>완료</span>
         <span><strong>{reviewQueue.filter((entry) => entry.status === 'missing').length}</strong>미제출</span>
       </div>

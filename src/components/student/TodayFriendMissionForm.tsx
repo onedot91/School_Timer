@@ -2,11 +2,12 @@ import { BookOpen, Film, Music, Utensils } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
+  createTodayFriendComplimentDelivery,
   createTodayFriendRecommendationDelivery,
   formatTodayFriendCommonalities,
   parseTodayFriendCommonalities,
   type TodayFriendPayload,
-  type TodayFriendRecommendationLetter,
+  type TodayFriendMateLetter,
 } from '../../lib/todayFriend';
 import {
   clearTodayFriendDeviceDraft,
@@ -25,7 +26,7 @@ interface TodayFriendMissionFormProps {
   readonly pendingPayload?: TodayFriendPayload;
   readonly saveMessage?: string;
   readonly onSave: (payload: TodayFriendPayload, submit: boolean) => Promise<boolean>;
-  readonly onSendRecommendation: (letter: TodayFriendRecommendationLetter) => Promise<boolean>;
+  readonly onSendLetter: (letter: TodayFriendMateLetter) => Promise<boolean>;
 }
 
 const recommendationCategories = [
@@ -63,7 +64,7 @@ export default function TodayFriendMissionForm({
   pendingPayload,
   saveMessage = '',
   onSave,
-  onSendRecommendation,
+  onSendLetter,
 }: TodayFriendMissionFormProps) {
   const savedPayload = pendingPayload ?? mission.submission?.payload;
   const [deviceDraft] = useState(() => {
@@ -164,18 +165,26 @@ export default function TodayFriendMissionForm({
     try {
       const payload = pendingPayload ?? buildPayload();
       let submittedPayload = payload;
-      if (payload.kind === 'recommendation' && !pendingPayload) {
+      if ((payload.kind === 'recommendation' || payload.kind === 'compliment') && !pendingPayload) {
         const revision = mission.submission?.status === 'submitted'
           ? mission.submission.revision + 1
           : mission.submission?.revision ?? 1;
-        const delivery = createTodayFriendRecommendationDelivery({
-          dateKey: mission.dateKey,
-          studentNumber: mission.studentNumber,
-          partnerNumber: mission.partnerNumber,
-          revision,
-          payload,
-        });
-        const sent = await onSendRecommendation(delivery.letter);
+        const delivery = payload.kind === 'recommendation'
+          ? createTodayFriendRecommendationDelivery({
+            dateKey: mission.dateKey,
+            studentNumber: mission.studentNumber,
+            partnerNumber: mission.partnerNumber,
+            revision,
+            payload,
+          })
+          : createTodayFriendComplimentDelivery({
+            dateKey: mission.dateKey,
+            studentNumber: mission.studentNumber,
+            partnerNumber: mission.partnerNumber,
+            revision,
+            payload,
+          });
+        const sent = await onSendLetter(delivery.letter);
         if (!sent) {
           setFormMessage('편지를 보내지 못했어요. 잠시 후 다시 눌러 주세요.');
           return;
@@ -186,7 +195,7 @@ export default function TodayFriendMissionForm({
       const storage = getDeviceStorage();
       if (saved && submittedVersion) await clearTodayFriendDeviceDraft(storage, mission, submittedVersion);
       setFormMessage(saved
-        ? payload.kind === 'recommendation' ? '친구에게 편지를 보내고 미션을 제출했어요.' : '제출했어요.'
+        ? payload.kind === 'recommendation' || payload.kind === 'compliment' ? '친구에게 편지를 보내고 미션을 제출했어요.' : '제출했어요.'
         : '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.');
     } finally {
       setIsSubmitting(false);
@@ -202,7 +211,7 @@ export default function TodayFriendMissionForm({
     <form className="today-friend-form" data-genre={mission.genre} onSubmit={handleSubmit}>
       <fieldset className="today-friend-form-fields" disabled={!inputReady || isSaving || isSubmitting || Boolean(pendingPayload)} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
         {mission.genre === 'interview' ? (
-          <label className="today-friend-answer-card today-friend-field-card"><span>친구의 답</span><textarea value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구가 말한 내용을 적어요." maxLength={600} /></label>
+          <label className="today-friend-answer-card today-friend-field-card"><span>친구의 답</span><textarea value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구의 말을 적어요." maxLength={600} /></label>
         ) : null}
         {mission.genre === 'commonality' ? (
           <>
@@ -214,9 +223,9 @@ export default function TodayFriendMissionForm({
               </ul>
             </div>
             <div className="today-friend-field-card today-friend-commonality-list" role="group" aria-label="대화로 찾은 공통점">
-              <label className="today-friend-commonality-item"><span aria-hidden="true">1</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 1" placeholder="대화로 알게 된 첫 번째 공통점" maxLength={120} /></label>
-              <label className="today-friend-commonality-item"><span aria-hidden="true">2</span><input value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 2" placeholder="대화로 알게 된 두 번째 공통점" maxLength={120} /></label>
-              <label className="today-friend-commonality-item"><span aria-hidden="true">3</span><input value={tertiaryText} onChange={(event) => { setTertiaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 3" placeholder="대화로 알게 된 세 번째 공통점" maxLength={120} /></label>
+              <label className="today-friend-commonality-item"><span aria-hidden="true">1</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 1" placeholder="첫 번째 공통점" maxLength={120} /></label>
+              <label className="today-friend-commonality-item"><span aria-hidden="true">2</span><input value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 2" placeholder="두 번째 공통점" maxLength={120} /></label>
+              <label className="today-friend-commonality-item"><span aria-hidden="true">3</span><input value={tertiaryText} onChange={(event) => { setTertiaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 3" placeholder="세 번째 공통점" maxLength={120} /></label>
             </div>
           </>
         ) : null}
@@ -243,22 +252,22 @@ export default function TodayFriendMissionForm({
                 </div>
               </div>
               <div className="today-friend-recommendation-texts">
-                <label><span>추천할 것</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구에게 추천하고 싶은 것을 적어요." maxLength={80} /></label>
-                <label><span>추천하는 이유</span><textarea value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} placeholder="친구에게 추천하고 싶은 이유를 적어요." maxLength={600} /></label>
+                <label><span>추천할 것</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="추천할 것을 적어요." maxLength={80} /></label>
+                <label><span>추천하는 이유</span><textarea value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} placeholder="추천하는 이유를 적어요." maxLength={600} /></label>
               </div>
             </div>
           </>
         ) : null}
         {mission.genre === 'compliment' ? (
           <>
-            <label className="today-friend-field-card"><span>어떤 행동을 칭찬하고 싶나요?</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구가 한 멋진 행동을 적어요." maxLength={120} /></label>
-            <label className="today-friend-field-card"><span>그 행동이 왜 좋았나요?</span><input value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} placeholder="내가 좋다고 느낀 이유를 적어요." maxLength={160} /></label>
-            <label className="today-friend-field-card today-friend-compliment-message"><span>친구에게 전하고 싶은 한마디</span><span className="today-friend-compliment-quote-control"><span aria-hidden="true">“</span><input value={tertiaryText} onChange={(event) => { setTertiaryText(event.target.value); setHasEdited(true); }} placeholder="친구에게 직접 말하듯 적어요." maxLength={120} /><span aria-hidden="true">”</span></span></label>
+            <label className="today-friend-field-card"><span>어떤 행동을 칭찬하고 싶나요?</span><textarea value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="멋진 행동을 적어요." maxLength={120} rows={3} /></label>
+            <label className="today-friend-field-card"><span>그 행동이 왜 좋았나요?</span><textarea value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} placeholder="좋은 이유를 적어요." maxLength={160} rows={3} /></label>
+            <label className="today-friend-field-card today-friend-compliment-message"><span>친구에게 전하고 싶은 한마디</span><span className="today-friend-compliment-quote-control"><span aria-hidden="true">“</span><input value={tertiaryText} onChange={(event) => { setTertiaryText(event.target.value); setHasEdited(true); }} placeholder="친구에게 할 말을 적어요." maxLength={120} /><span aria-hidden="true">”</span></span></label>
           </>
         ) : null}
         {mission.genre === 'emotion' ? (
           <>
-            <label className="today-friend-field-card"><span>친구의 오늘 감정</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구가 말한 감정을 적어요." maxLength={60} /></label>
+            <label className="today-friend-field-card"><span>친구의 오늘 감정</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="감정을 적어요." maxLength={60} /></label>
             <div className="today-friend-field-card today-friend-emotion-reason-card">
               <label className="today-friend-emotion-reason-field"><span>그렇게 느낀 이유</span><textarea value={declinedToExplain ? declinedToExplainMessage : secondaryText} disabled={declinedToExplain} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} placeholder="왜 그렇게 느꼈는지 적어요." maxLength={600} /></label>
               <div className="today-friend-privacy-card">

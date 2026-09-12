@@ -62,6 +62,6 @@ export function SaveReliabilityBrowserForms({ form }: { form: string }) {
         question: { id: quizIdentity.questionId, initialHint: 'ㅂㄱ', meaning: '합성 검증 문제',
           examples: [{ register: 'written', prefix: '기록을 ', suffix: '하다.' }, { register: 'spoken', prefix: '답을 ', suffix: '하자.' }] } }} /> : null}
     {form === 'today-friend' ? <TodayFriendMissionForm mission={friendMission} isSaving={false}
-      pendingPayload={{ kind: 'interview', answer: '저장 확인 중인 친구 답' }} onSave={save} onSendRecommendation={save} /> : null}
+      pendingPayload={{ kind: 'interview', answer: '저장 확인 중인 친구 답' }} onSave={save} onSendLetter={save} /> : null}
   </>;
 }

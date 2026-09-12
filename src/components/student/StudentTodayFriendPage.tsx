@@ -7,15 +7,17 @@ import { TEST_STUDENT_NUMBER } from '../../lib/studentIdentity';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import {
   getTodayFriendDateKey,
+  getTodayFriendHeaderTitle,
   getTodayFriendLayoutPreview,
   getTodayFriendPreviewGenre,
   isTodayFriendStudentNumber,
   TODAY_FRIEND_GENRES,
+  TODAY_FRIEND_GENRE_LABELS,
   TODAY_FRIEND_PREVIEW_INTERVIEW_QUESTION,
   TODAY_FRIEND_REWARD,
   type TodayFriendGenre,
   type TodayFriendPayload,
-  type TodayFriendRecommendationLetter,
+  type TodayFriendMateLetter,
 } from '../../lib/todayFriend';
 import {
   loadStudentTodayFriendMission,
@@ -28,6 +30,7 @@ import {
 import { createTodayFriendSubmissionDraftStore, selectLatestTodayFriendSubmission, type TodayFriendPendingSubmission } from '../../lib/todayFriendSubmissionDraft';
 import type { TodayFriendStudentMission } from '../../lib/todayFriendState';
 import StudentHeader from './StudentHeader';
+import TodayFriendIllustrationIntro from './TodayFriendIllustrationIntro';
 import TodayFriendMissionForm from './TodayFriendMissionForm';
 import TodayFriendPartnerCard from './TodayFriendPartnerCard';
 import TodayFriendSubmittedAnswer from './TodayFriendSubmittedAnswer';
@@ -36,16 +39,8 @@ interface StudentTodayFriendPageProps {
   readonly studentNumber: number;
   readonly profileAssignments: FailureProfileAssignments;
   readonly onBack: () => void;
-  readonly onSendRecommendation: (letter: TodayFriendRecommendationLetter) => Promise<boolean>;
+  readonly onSendLetter: (letter: TodayFriendMateLetter) => Promise<boolean>;
 }
-
-const GENRE_COPY = {
-  interview: '인터뷰',
-  commonality: '공통점 찾기',
-  recommendation: '추천하기',
-  compliment: '칭찬하기',
-  emotion: '감정 찾기',
-} as const;
 
 const TODAY_FRIEND_ILLUSTRATION_BY_GENRE = {
   interview: '/today-friend/interview.png',
@@ -59,7 +54,7 @@ export default function StudentTodayFriendPage({
   studentNumber,
   profileAssignments,
   onBack,
-  onSendRecommendation,
+  onSendLetter,
 }: StudentTodayFriendPageProps) {
   const dateKey = getTodayFriendDateKey();
   const [mission, setMission] = useState<TodayFriendStudentMission | null>(null);
@@ -72,6 +67,7 @@ export default function StudentTodayFriendPage({
   const [saveMessage, setSaveMessage] = useState('');
   const loadSequence = useRef(0);
   const saving = useRef(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   const loadMission = useCallback(async () => {
     const sequence = ++loadSequence.current;
@@ -171,7 +167,7 @@ export default function StudentTodayFriendPage({
   return (
     <div className="student-view student-today-friend-view" data-genre={displayedGenre}>
       <StudentHeader
-        title="오늘의 친구"
+        title={getTodayFriendHeaderTitle(sourceMission ? displayedGenre : null)}
         onBack={onBack}
         backLabel="미션으로 돌아가기"
         backText="미션"
@@ -185,14 +181,14 @@ export default function StudentTodayFriendPage({
                 aria-pressed={displayedGenre === genre}
                 onClick={() => setPreviewGenre(getTodayFriendPreviewGenre(sourceMission.genre, genre))}
               >
-                {GENRE_COPY[genre]}
+                {TODAY_FRIEND_GENRE_LABELS[genre]}
               </button>
             ))}
           </div>
         ) : null}
       />
 
-      <main className="student-today-friend-main">
+      <main ref={mainRef} className="student-today-friend-main" tabIndex={-1}>
         {isLoading ? <section className="student-today-friend-loading" aria-label="오늘의 친구 불러오는 중"><Clock3 aria-hidden="true" /><p>오늘의 친구를 준비하고 있어요.</p></section> : null}
         {loadError ? <section className="student-today-friend-loading" role="alert"><p>{loadError}</p><button type="button" onClick={() => { void loadMission(); }}><RefreshCw aria-hidden="true" />다시 불러오기</button></section> : null}
         {!isLoading && !loadError && !displayedMission ? (
@@ -211,21 +207,22 @@ export default function StudentTodayFriendPage({
         ) : null}
         {displayedMission ? (
           <>
+        <TodayFriendIllustrationIntro
+          key={`${displayedMission.dateKey}-${displayedMission.studentNumber}`}
+          dateKey={displayedMission.dateKey}
+          studentNumber={displayedMission.studentNumber}
+          genre={displayedMission.genre}
+          genreLabel={TODAY_FRIEND_GENRE_LABELS[displayedMission.genre]}
+          illustrationSrc={TODAY_FRIEND_ILLUSTRATION_BY_GENRE[displayedMission.genre]}
+          returnFocusRef={mainRef}
+        />
         <TodayFriendPartnerCard
           key={`${displayedMission.dateKey}-${displayedMission.studentNumber}-${displayedMission.partnerNumber}`}
           mission={displayedMission}
           profileAssignments={profileAssignments}
         />
 
-        <section className="student-today-friend-guide" data-genre={displayedMission.genre} aria-label={`${GENRE_COPY[displayedMission.genre]} 미션`}>
-          <img
-            className="today-friend-illustration"
-            src={TODAY_FRIEND_ILLUSTRATION_BY_GENRE[displayedMission.genre]}
-            alt={`${GENRE_COPY[displayedMission.genre]} 장르 일러스트`}
-            width={1774}
-            height={887}
-            decoding="async"
-          />
+        <section className="student-today-friend-guide" data-genre={displayedMission.genre} aria-label={`${TODAY_FRIEND_GENRE_LABELS[displayedMission.genre]} 미션`}>
           {displayedMission.question ? <aside className="today-friend-question"><span>질문</span><strong>{displayedMission.question}</strong></aside> : null}
           {status === 'submitted' ? <aside className="today-friend-status-card" data-status="submitted"><Clock3 aria-hidden="true" /><strong>선생님 확인 대기</strong></aside> : null}
           {status === 'approved' ? <aside className="today-friend-status-card" data-status="approved"><CheckCircle2 aria-hidden="true" /><span><strong>오늘의 친구 미션 완료!</strong><small>{TODAY_FRIEND_REWARD}고마 지급 완료</small></span></aside> : null}
@@ -233,7 +230,7 @@ export default function StudentTodayFriendPage({
             <TodayFriendSubmittedAnswer payload={displayedMission.submission.payload} />
           ) : null}
           {status !== 'approved' || (!isPreview && pendingSubmission) ? (
-            <TodayFriendMissionForm key={JSON.stringify([displayedMission.dateKey, displayedMission.studentNumber, displayedMission.partnerNumber, displayedMission.genre, displayedMission.question])} mission={displayedMission} isSaving={isSaving} isPreview={isPreview} pendingPayload={isPreview ? undefined : pendingSubmission?.payload} saveMessage={isPreview ? '' : saveMessage} onSave={saveMission} onSendRecommendation={studentNumber === TEST_STUDENT_NUMBER ? async () => false : onSendRecommendation} />
+            <TodayFriendMissionForm key={JSON.stringify([displayedMission.dateKey, displayedMission.studentNumber, displayedMission.partnerNumber, displayedMission.genre, displayedMission.question])} mission={displayedMission} isSaving={isSaving} isPreview={isPreview} pendingPayload={isPreview ? undefined : pendingSubmission?.payload} saveMessage={isPreview ? '' : saveMessage} onSave={saveMission} onSendLetter={studentNumber === TEST_STUDENT_NUMBER ? async () => false : onSendLetter} />
           ) : null}
         </section>
           </>

@@ -20623,6 +20623,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
   gap: var(--apple-pane-gap);
   margin-inline: auto;
+  padding-block: var(--student-today-friend-page-inset-block, .375rem);
   overflow-y: auto;
 }
 
@@ -20642,14 +20643,17 @@ body:has(.student-mailbox-view) .data-mode-banner span {
     0 .7rem 1.45rem color-mix(in srgb, var(--today-friend-theme-ink) 18%, transparent);
   --student-today-friend-tab-size: 1.0625rem;
   --student-today-friend-field-label-size: 1.125rem;
-  --student-today-friend-input-size: 1.1rem;
+  --student-today-friend-input-size: 1.5rem;
   --student-today-friend-supporting-size: .95rem;
   --student-today-friend-action-size: 1.125rem;
   --student-today-friend-quote-size: 2rem;
   --student-today-friend-field-gap: .625rem;
+  --student-today-friend-page-inset-block: .375rem;
+  --student-today-friend-compliment-answer-height: clamp(6.25rem, 17dvh, 7rem);
   --student-today-friend-compact-card-padding-block: .375rem;
   --student-today-friend-status-gap: .25rem;
-  --student-today-friend-illustration-ratio: 9 / 4;
+  --student-today-friend-writing-height: clamp(9rem, 24dvh, 10rem);
+  --student-today-friend-discovery-height: clamp(3.75rem, 10dvh, 4rem);
   --today-friend-theme-pattern:
     radial-gradient(circle, color-mix(in srgb, var(--today-friend-theme-ink) 16%, transparent) 1px, transparent 1.2px);
   --today-friend-theme-pattern-size: 12px 12px;
@@ -21040,6 +21044,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   min-height: 0;
   flex-direction: column;
   justify-content: flex-start;
+  justify-content: safe center;
   gap: .85rem;
   overflow-y: auto;
   padding-right: .25rem;
@@ -21163,21 +21168,97 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   gap: calc(var(--student-today-friend-field-gap) - .125rem);
 }
 
-.today-friend-illustration {
-  display: block;
-  width: var(--student-today-friend-illustration-width, 100%);
-  aspect-ratio: var(--student-today-friend-illustration-ratio, 9 / 4);
-  flex: 0 0 auto;
-  align-self: center;
+.today-friend-intro-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--apple-scrim);
+  backdrop-filter: blur(12px);
+  animation: today-friend-intro-backdrop-in var(--student-motion-state) var(--student-ease-out) both;
+}
+
+.today-friend-intro-dialog {
+  position: relative;
+  display: grid;
+  width: var(--student-today-friend-intro-width, min(46rem, calc(100vw - 2rem)));
+  max-height: calc(100dvh - 2rem);
+  gap: .75rem;
   overflow: hidden;
+  padding: 1rem;
   border: 1px solid color-mix(in srgb, var(--today-friend-theme-accent) 42%, var(--apple-separator));
-  border-radius: calc(var(--apple-radius-card) - .2rem);
-  background: var(--apple-surface-muted);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, white 82%, transparent),
-    var(--today-friend-theme-art-shadow);
-  filter: saturate(1.025) contrast(1.015);
+  border-radius: var(--apple-radius-panel);
+  background: var(--today-friend-theme-paper);
+  box-shadow: var(--apple-shadow-3);
+  outline: 0;
+  animation: today-friend-intro-dialog-in var(--student-motion-state) var(--student-ease-out) both;
+}
+
+.today-friend-intro-dialog > img {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 2 / 1;
+  border: 1px solid color-mix(in srgb, var(--today-friend-theme-accent) 42%, var(--apple-separator));
+  border-radius: var(--student-card-radius);
   object-fit: cover;
+}
+
+.today-friend-intro-close {
+  position: absolute;
+  z-index: 1;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: grid;
+  width: var(--apple-control-min);
+  height: var(--apple-control-min);
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--today-friend-theme-ink) 24%, var(--apple-separator));
+  border-radius: var(--apple-radius-pill);
+  color: var(--today-friend-theme-ink);
+  background: color-mix(in srgb, var(--today-friend-theme-paper) 88%, transparent);
+  box-shadow: var(--apple-shadow-1);
+  backdrop-filter: blur(12px);
+}
+
+.today-friend-intro-close svg { width: 1.25rem; height: 1.25rem; }
+
+.today-friend-intro-start {
+  min-height: var(--apple-control-min);
+  border: 2px solid var(--today-friend-theme-border);
+  border-radius: var(--apple-radius-control);
+  color: var(--today-friend-theme-action-text);
+  background: var(--today-friend-theme-accent);
+  font-family: var(--font-display);
+  font-size: var(--student-today-friend-action-size);
+  font-weight: 900;
+}
+
+.today-friend-intro-dialog :is(button):focus-visible {
+  outline: 3px solid var(--apple-focus);
+  outline-offset: 2px;
+}
+
+@keyframes today-friend-intro-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes today-friend-intro-dialog-in {
+  from { opacity: 0; transform: scale(.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-friend-intro-dialog { animation-name: today-friend-intro-backdrop-in; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .today-friend-intro-backdrop { backdrop-filter: none; }
+  .today-friend-intro-dialog,
+  .today-friend-intro-close { background: var(--today-friend-theme-paper); backdrop-filter: none; }
 }
 
 .today-friend-form-fields > label:not(.today-friend-private-choice) {
@@ -21398,6 +21479,14 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   padding-block: .5rem;
 }
 
+.today-friend-form[data-genre='compliment'] .today-friend-field-card > textarea {
+  min-height: var(--student-today-friend-compliment-answer-height);
+  height: var(--student-today-friend-compliment-answer-height);
+  max-height: var(--student-today-friend-compliment-answer-height);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .today-friend-compliment-quote-control {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -21441,6 +21530,10 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   gap: .55rem;
   font-size: 1.05rem;
   font-weight: 800;
+}
+
+.today-friend-private-choice > span {
+  word-break: keep-all;
 }
 
 .today-friend-privacy-card {
@@ -29535,6 +29628,130 @@ body {
 .student-today-friend-view .today-friend-question,
 .student-today-friend-view .today-friend-status-card { flex-shrink: 0; }
 .student-today-friend-view .today-friend-private-choice { min-height: 44px; }
+
+@media (min-width: 900px) and (min-height: 560px) {
+  .student-today-friend-view .today-friend-form-fields {
+    display: grid;
+    align-content: stretch;
+    justify-content: stretch;
+  }
+
+  .student-today-friend-view .today-friend-form-fields > * {
+    min-height: 0;
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='interview'] .today-friend-form-fields,
+  .student-today-friend-view .today-friend-form[data-genre='recommendation'] .today-friend-form-fields {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='interview'] .today-friend-answer-card {
+    height: 100%;
+    grid-template-rows: auto auto;
+    align-content: center;
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='interview'] .today-friend-answer-card textarea {
+    min-height: var(--student-today-friend-writing-height);
+    height: var(--student-today-friend-writing-height);
+    max-height: var(--student-today-friend-writing-height);
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='commonality'] .today-friend-form-fields {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: .65rem;
+  }
+
+  .student-today-friend-view .today-friend-commonality-warning {
+    align-content: center;
+  }
+
+  .student-today-friend-view .today-friend-commonality-list {
+    height: 100%;
+    grid-template-rows: repeat(3, minmax(44px, 1fr));
+    align-content: stretch;
+  }
+
+  .student-today-friend-view .today-friend-commonality-item {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .student-today-friend-view .today-friend-commonality-item input {
+    min-height: var(--student-today-friend-discovery-height);
+    height: var(--student-today-friend-discovery-height);
+  }
+
+  .student-today-friend-view .today-friend-recommendation-basics {
+    height: 100%;
+    padding: .8rem;
+  }
+
+  .student-today-friend-view .today-friend-recommendation-texts {
+    display: grid;
+    min-height: 0;
+    grid-template-rows: auto auto;
+    align-content: center;
+    gap: .5rem;
+  }
+
+  .student-today-friend-view .today-friend-recommendation-texts > label:last-child {
+    min-height: 0;
+    grid-template-rows: auto auto;
+  }
+
+  .student-today-friend-view .today-friend-recommendation-texts input {
+    min-height: 44px;
+    height: 44px;
+    padding-block: 0;
+  }
+
+  .student-today-friend-view .today-friend-recommendation-texts textarea {
+    min-height: var(--student-today-friend-writing-height);
+    height: var(--student-today-friend-writing-height);
+    max-height: var(--student-today-friend-writing-height);
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='compliment'] .today-friend-form-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='compliment'] .today-friend-field-card {
+    align-content: center;
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='compliment'] .today-friend-compliment-message {
+    grid-column: 1 / -1;
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='emotion'] .today-friend-form-fields {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='emotion'] .today-friend-form-fields > .today-friend-field-card:first-child {
+    align-content: center;
+  }
+
+  .student-today-friend-view .today-friend-emotion-reason-card {
+    height: 100%;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .student-today-friend-view .today-friend-emotion-reason-field {
+    min-height: 0;
+    grid-template-rows: auto auto;
+    align-content: center;
+  }
+
+  .student-today-friend-view .today-friend-form[data-genre='emotion'] textarea {
+    min-height: var(--student-today-friend-writing-height);
+    height: var(--student-today-friend-writing-height);
+    max-height: var(--student-today-friend-writing-height);
+  }
+}
 
 .teacher-save-warning-timing {
   display: inline-block;

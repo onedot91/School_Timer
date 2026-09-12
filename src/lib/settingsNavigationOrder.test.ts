@@ -46,6 +46,14 @@ test('읽지 않은 학생 편지가 있으면 편지 메뉴에 붉은 New 배�
   assert.match(styles, /\.settings-navigation-new-badge \{[^}]*background: var\(--teacher-urgent\);/s);
 });
 
+test('오늘의 친구 승인 대기 제출이 있으면 메뉴에 승인 배지를 표시한다', async () => {
+  const source = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
+
+  assert.match(source, /item\.panel === 'today-friend' && todayFriendPendingReviewCount > 0/);
+  assert.match(source, /오늘의 친구 승인 대기 \$\{todayFriendPendingReviewCount\}건/);
+  assert.match(source, />\s*승인\s*<\/span>/);
+});
+
 test('교사 편지 설정은 여유 있는 최근 대화 목록과 구분된 메시지 제목을 제공한다', async () => {
   const styles = await readFile(new URL('../index.css', import.meta.url), 'utf8');
   const panelStylesStart = styles.indexOf('.teacher-mail-settings {');

@@ -9,7 +9,23 @@ import {
   normalizeClassDonationSettings,
   parseClassDonationResult,
 } from './classDonation';
+import {
+  CLASS_DONATION_SETTINGS_STORAGE_KEY,
+  loadStoredClassDonationSettings,
+  storeClassDonationSettings,
+} from './classDonationLocalStore';
 import { getStudentLetters, normalizeStudentLifeState } from './studentLife';
+
+const createStorage = () => {
+  const values = new Map<string, string>();
+  return {
+    values,
+    storage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    },
+  };
+};
 
 test('기부 요청마다 아기고마 감사 편지를 정확히 한 장 만든다', () => {
   // Given
@@ -135,4 +151,34 @@ test('donation settings normalize invalid persisted values', () => {
     targetAmount: 500,
     completed: true,
   }).completed, true);
+});
+
+test('연습 모드 기부 설정은 저장한 뒤 다시 열어도 유지된다', () => {
+  // Given
+  const { storage } = createStorage();
+  const settings = normalizeClassDonationSettings({
+    enabled: true,
+    itemName: '우리 반 보드게임',
+    targetAmount: 800,
+  });
+
+  // When
+  const saved = storeClassDonationSettings(storage, settings);
+  const reopened = loadStoredClassDonationSettings(storage);
+
+  // Then
+  assert.equal(saved, true);
+  assert.deepEqual(reopened, settings);
+});
+
+test('연습 모드 기부 설정은 손상된 저장값을 안전한 기본값으로 연다', () => {
+  // Given
+  const { storage, values } = createStorage();
+  values.set(CLASS_DONATION_SETTINGS_STORAGE_KEY, '{broken');
+
+  // When
+  const reopened = loadStoredClassDonationSettings(storage);
+
+  // Then
+  assert.deepEqual(reopened, normalizeClassDonationSettings(null));
 });

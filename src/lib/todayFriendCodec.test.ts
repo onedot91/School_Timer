@@ -57,10 +57,12 @@ test('칭찬 답변은 기존 한 항목과 새 세 항목 형식을 모두 복�
     compliment: '친구를 도왔어요.',
     reason: '먼저 살펴봐 줘서 좋았어요.',
     message: '네가 있어서 든든해!',
+    letterId: 'today-friend-compliment-2026-09-01-3-r1',
   }), {
     kind: 'compliment',
     compliment: '친구를 도왔어요.',
     reason: '먼저 살펴봐 줘서 좋았어요.',
     message: '네가 있어서 든든해!',
+    letterId: 'today-friend-compliment-2026-09-01-3-r1',
   });
 });

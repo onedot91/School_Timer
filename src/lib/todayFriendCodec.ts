@@ -63,16 +63,20 @@ export const parseTodayFriendPayload = (value: unknown): TodayFriendPayload | nu
       const compliment = Reflect.get(value, 'compliment');
       const reason = Reflect.get(value, 'reason');
       const message = Reflect.get(value, 'message');
+      const letterId = Reflect.get(value, 'letterId');
       if (
         typeof compliment !== 'string'
         || (reason !== undefined && typeof reason !== 'string')
         || (message !== undefined && typeof message !== 'string')
+        || (letterId !== undefined && !isNullableString(letterId))
       ) return null;
+      const parsedLetterId: string | null | undefined = isNullableString(letterId) ? letterId : undefined;
       return {
         kind,
         compliment,
         ...(typeof reason === 'string' ? { reason } : {}),
         ...(typeof message === 'string' ? { message } : {}),
+        ...(parsedLetterId === undefined ? {} : { letterId: parsedLetterId }),
       };
     }
     case 'emotion': {

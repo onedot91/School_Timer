@@ -4,6 +4,9 @@ import { TEACHER_MAIL_SENDERS } from '../lib/studentLife';
 import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord } from '../lib/teacherStorageCommand';
+import { getTodayFriendDateKey } from '../lib/todayFriend';
+import { loadTeacherTodayFriendState } from '../lib/todayFriendClient';
+import { getTodayFriendPendingReviewCount } from '../lib/teacherTodayFriendReviewPresentation';
 ﻿import React, { lazy, Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import '../classword.css';
@@ -66,6 +69,7 @@ import {
   type ClassDonationSettings,
 } from '../lib/classDonation';
 import { CLASS_DONATION_MAIL_IMAGE_SOURCE } from '../lib/classDonation';
+import { loadStoredClassDonationSettings, storeClassDonationSettings } from '../lib/classDonationLocalStore';
 import { useModalFocus } from '../lib/useModalFocus';
 import {
   STUDENT_EMOTION_ZONES,
@@ -3938,7 +3942,11 @@ export default function TimerPage() {
   const [studentMissionVisibility, setStudentMissionVisibility] = useState<StudentMissionVisibility>(
     loadStoredStudentMissionVisibility,
   );
-  const [classDonation, setClassDonation] = useState<ClassDonationSettings>(() => normalizeClassDonationSettings(null));
+  const [classDonation, setClassDonation] = useState<ClassDonationSettings>(() => (
+    isSupabaseSettingsEnabled
+      ? normalizeClassDonationSettings(null)
+      : loadStoredClassDonationSettings(window.localStorage)
+  ));
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
     loadStoredStudentEmotionHistory,
   );
@@ -4206,6 +4214,7 @@ export default function TimerPage() {
   );
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [todayFriendPendingReviewCount, setTodayFriendPendingReviewCount] = useState(0);
   const [isSettingsMaterialMounted, setIsSettingsMaterialMounted] = useState(false);
   const isSettingsOpenRef = useRef(isSettingsOpen);
   const settingsMaterialProgress = useMotionValue(0);
@@ -4218,6 +4227,24 @@ export default function TimerPage() {
   useEffect(() => {
     if (isSettingsOpen) setIsSettingsMaterialMounted(true);
   }, [isSettingsOpen]);
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    let isCancelled = false;
+    const dateKey = getTodayFriendDateKey();
+
+    void loadTeacherTodayFriendState(dateKey).then((state) => {
+      if (!isCancelled) {
+        setTodayFriendPendingReviewCount(getTodayFriendPendingReviewCount(state.submissions, dateKey));
+      }
+    }).catch((error: unknown) => {
+      if (!(error instanceof Error)) throw error;
+    });
+
+    return () => { isCancelled = true; };
+  }, [isSettingsOpen]);
+  const handleTodayFriendPendingReviewCountChange = useCallback((dateKey: string, count: number) => {
+    if (dateKey === getTodayFriendDateKey()) setTodayFriendPendingReviewCount(count);
+  }, []);
   useEffect(() => {
     if (!isSettingsMaterialMounted) return;
     const target = isSettingsOpen ? 1 : 0;
@@ -4836,6 +4863,13 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) storeDailyWritingState(dailyWriting);
   }, [dailyWriting]);
+
+  useEffect(() => {
+    if (isSupabaseSettingsEnabled) return;
+    if (!storeClassDonationSettings(window.localStorage, classDonation)) {
+      reportSaveFailure('donation', 'storage');
+    }
+  }, [classDonation]);
 
   useEffect(() => {
     if (isSupabaseSettingsEnabled) return;
@@ -12715,6 +12749,14 @@ export default function TimerPage() {
                                 New
                               </span>
                             ) : null}
+                            {item.panel === 'today-friend' && todayFriendPendingReviewCount > 0 ? (
+                              <span
+                                className="settings-navigation-new-badge"
+                                aria-label={`오늘의 친구 승인 대기 ${todayFriendPendingReviewCount}건`}
+                              >
+                                승인
+                              </span>
+                            ) : null}
                           </button>
                         );
                       })}
@@ -12748,7 +12790,7 @@ export default function TimerPage() {
                                 : settingsPanel === 'classword'
                                 ? <TeacherClasswordPanel profileAssignments={studentLife.failureProfileAssignments} />
                                 : settingsPanel === 'today-friend'
-                                  ? <TeacherTodayFriendPanel />
+                                  ? <TeacherTodayFriendPanel onPendingReviewCountChange={handleTodayFriendPendingReviewCountChange} />
                                 : settingsPanel === 'library-competition'
                                   ? <TeacherLibraryCompetitionPanel />
                                 : settingsPanel === 'bookstore'

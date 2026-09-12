@@ -21,7 +21,7 @@ const renderForm = (genre: TodayFriendGenre): string => renderToStaticMarkup(cre
   isSaving: false,
   isPreview: true,
   onSave: async () => true,
-  onSendRecommendation: async () => true,
+  onSendLetter: async () => true,
 }));
 
 const renderEmotionWithDeclinedReason = (): string => {
@@ -52,7 +52,7 @@ const renderEmotionWithDeclinedReason = (): string => {
     isSaving: false,
     isPreview: true,
     onSave: async () => true,
-    onSendRecommendation: async () => true,
+    onSendLetter: async () => true,
   }));
 };
 
@@ -100,9 +100,9 @@ test('추천하기와 감정 찾기의 모든 텍스트 입력칸은 안내 문�
   const recommendationMarkup = renderForm('recommendation');
   const emotionMarkup = renderForm('emotion');
 
-  assert.match(recommendationMarkup, /placeholder="친구에게 추천하고 싶은 것을 적어요\."/);
-  assert.match(recommendationMarkup, /placeholder="친구에게 추천하고 싶은 이유를 적어요\."/);
-  assert.match(emotionMarkup, /placeholder="친구가 말한 감정을 적어요\."/);
+  assert.match(recommendationMarkup, /placeholder="추천할 것을 적어요\."/);
+  assert.match(recommendationMarkup, /placeholder="추천하는 이유를 적어요\."/);
+  assert.match(emotionMarkup, /placeholder="감정을 적어요\."/);
   assert.match(emotionMarkup, /placeholder="왜 그렇게 느꼈는지 적어요\."/);
 });
 
@@ -117,9 +117,9 @@ test('공통점 찾기는 세 가지를 나누어 묻고 눈에 보이는 특징
   assert.match(markup, /aria-label="공통점 1"/);
   assert.match(markup, /aria-label="공통점 2"/);
   assert.match(markup, /aria-label="공통점 3"/);
-  assert.match(markup, /placeholder="대화로 알게 된 첫 번째 공통점"/);
-  assert.match(markup, /placeholder="대화로 알게 된 두 번째 공통점"/);
-  assert.match(markup, /placeholder="대화로 알게 된 세 번째 공통점"/);
+  assert.match(markup, /placeholder="첫 번째 공통점"/);
+  assert.match(markup, /placeholder="두 번째 공통점"/);
+  assert.match(markup, /placeholder="세 번째 공통점"/);
 });
 
 test('칭찬하기는 행동과 이유와 직접 전할 한마디를 나누어 묻는다', () => {
@@ -127,9 +127,12 @@ test('칭찬하기는 행동과 이유와 직접 전할 한마디를 나누어 �
 
   assert.match(markup, /어떤 행동을 칭찬하고 싶나요\?/);
   assert.match(markup, /그 행동이 왜 좋았나요\?/);
+  assert.equal(markup.match(/<textarea/g)?.length, 2);
+  assert.match(markup, /<textarea[^>]*placeholder="멋진 행동을 적어요\."[^>]*rows="3"/);
+  assert.match(markup, /<textarea[^>]*placeholder="좋은 이유를 적어요\."[^>]*rows="3"/);
   assert.match(markup, /친구에게 전하고 싶은 한마디/);
   assert.match(markup, /today-friend-compliment-quote-control/);
-  assert.match(markup, /“.*placeholder="친구에게 직접 말하듯 적어요\.".*”/s);
+  assert.match(markup, /“.*placeholder="친구에게 할 말을 적어요\.".*”/s);
 });
 
 test('미확인 제출은 원래 답변을 보여주고 기기 초안 복원 전 입력과 확인 버튼을 잠근다', () => {
@@ -139,7 +142,7 @@ test('미확인 제출은 원래 답변을 보여주고 기기 초안 복원 전
     pendingPayload: { kind: 'interview', answer: '확인할 원래 답변' },
     saveMessage: '입력을 보존했어요. 저장 여부를 확인해 주세요.',
     onSave: async () => false,
-    onSendRecommendation: async () => true,
+    onSendLetter: async () => true,
   }));
   assert.match(markup, /<fieldset[^>]*disabled=""/);
   assert.match(markup, /확인할 원래 답변/);

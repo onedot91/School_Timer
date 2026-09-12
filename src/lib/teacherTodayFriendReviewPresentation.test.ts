@@ -7,6 +7,7 @@ import TeacherTodayFriendReview from '../components/teacher/TeacherTodayFriendRe
 import type { TodayFriendSubmission } from './todayFriend';
 import {
   createTodayFriendReviewQueue,
+  getTodayFriendPendingReviewCount,
   getTodayFriendReviewQueueStatus,
 } from './teacherTodayFriendReviewPresentation';
 
@@ -44,6 +45,35 @@ test('제출 칸 상태는 초안을 미제출로, 제출·완료를 구분한�
     payload: { kind: 'interview', answer: '완료' },
     status: 'approved',
   })), 'approved');
+});
+
+test('선택한 날짜의 승인 대기 제출만 센다', () => {
+  const submittedToday = submission({
+    studentNumber: 3,
+    partnerNumber: 22,
+    genre: 'commonality',
+    payload: { kind: 'commonality', commonality: '공통점' },
+  });
+  const approvedToday = submission({
+    studentNumber: 11,
+    partnerNumber: 14,
+    genre: 'interview',
+    payload: { kind: 'interview', answer: '완료' },
+    status: 'approved',
+  });
+  const submittedOtherDay = submission({
+    studentNumber: 15,
+    partnerNumber: 16,
+    genre: 'interview',
+    payload: { kind: 'interview', answer: '다른 날짜' },
+    dateKey: '2026-09-11',
+  });
+
+  assert.equal(getTodayFriendPendingReviewCount(
+    [submittedToday, approvedToday, submittedOtherDay],
+    '2026-09-12',
+  ), 1);
+  assert.equal(getTodayFriendPendingReviewCount([approvedToday], '2026-09-12'), 0);
 });
 
 test('제출 목록은 1번부터 23번까지 번호 칸을 두고 상태로 색을 구분한다', () => {

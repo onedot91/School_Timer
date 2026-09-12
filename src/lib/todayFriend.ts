@@ -31,6 +31,18 @@ export type TodayFriendRelationKind = 'pair' | 'cycle';
 export type TodayFriendSubmissionStatus = 'draft' | 'submitted' | 'approved';
 export type TodayFriendRewardStatus = 'pending' | 'paid';
 
+export const TODAY_FRIEND_GENRE_LABELS = {
+  interview: '인터뷰하기',
+  commonality: '공통점 찾기',
+  recommendation: '추천하기',
+  compliment: '칭찬하기',
+  emotion: '감정 찾기',
+} as const satisfies Readonly<Record<TodayFriendGenre, string>>;
+
+export const getTodayFriendHeaderTitle = (genre: TodayFriendGenre | null): string => (
+  genre ? `오늘의 친구 · ${TODAY_FRIEND_GENRE_LABELS[genre]}` : '오늘의 친구'
+);
+
 export const getTodayFriendPreviewGenre = (
   missionGenre: TodayFriendGenre,
   selectedGenre: TodayFriendGenre,
@@ -40,7 +52,7 @@ export type TodayFriendPayload =
   | { readonly kind: 'interview'; readonly answer: string }
   | { readonly kind: 'commonality'; readonly commonality: string }
   | { readonly kind: 'recommendation'; readonly category: 'movie' | 'book' | 'music' | 'food'; readonly title: string; readonly reason: string; readonly letterId: string | null }
-  | { readonly kind: 'compliment'; readonly compliment: string; readonly reason?: string; readonly message?: string }
+  | { readonly kind: 'compliment'; readonly compliment: string; readonly reason?: string; readonly message?: string; readonly letterId?: string | null }
   | { readonly kind: 'emotion'; readonly emotion: string; readonly reason: string; readonly declinedToExplain: boolean };
 
 export const TODAY_FRIEND_COMMONALITY_COUNT = 3;
@@ -65,7 +77,7 @@ export const formatTodayFriendCommonalities = (items: readonly string[]): string
     .join('\n')
 );
 
-export type TodayFriendRecommendationLetter = {
+export type TodayFriendMateLetter = {
   readonly id: string;
   readonly recipient: number;
   readonly title: string;
@@ -73,11 +85,14 @@ export type TodayFriendRecommendationLetter = {
 };
 
 const TODAY_FRIEND_RECOMMENDATION_CATEGORY_LABELS = {
-  movie: '영화',
-  book: '책',
-  music: '음악',
-  food: '음식',
-} as const satisfies Readonly<Record<Extract<TodayFriendPayload, { kind: 'recommendation' }>['category'], string>>;
+  movie: { title: '영화', object: '영화를' },
+  book: { title: '책', object: '책을' },
+  music: { title: '음악', object: '음악을' },
+  food: { title: '음식', object: '음식을' },
+} as const satisfies Readonly<Record<
+  Extract<TodayFriendPayload, { kind: 'recommendation' }>['category'],
+  { readonly title: string; readonly object: string }
+>>;
 
 export const createTodayFriendRecommendationLetter = (input: {
   readonly dateKey: string;
@@ -85,18 +100,39 @@ export const createTodayFriendRecommendationLetter = (input: {
   readonly partnerNumber: number;
   readonly revision: number;
   readonly payload: Extract<TodayFriendPayload, { kind: 'recommendation' }>;
-}): TodayFriendRecommendationLetter => {
-  const categoryLabel = TODAY_FRIEND_RECOMMENDATION_CATEGORY_LABELS[input.payload.category];
+}): TodayFriendMateLetter => {
+  const categoryCopy = TODAY_FRIEND_RECOMMENDATION_CATEGORY_LABELS[input.payload.category];
   return {
     id: `today-friend-recommendation-${input.dateKey}-${input.studentNumber}-r${input.revision}`,
     recipient: input.partnerNumber,
-    title: `[오늘의 친구] ${categoryLabel} 추천`,
-    content: `추천할 것\n${input.payload.title}\n\n추천하는 이유\n${input.payload.reason}`,
+    title: `[오늘의 친구] ${categoryCopy.title} 추천`,
+    content: `오늘의 친구인 너에게 ${categoryCopy.object} 추천하고 싶어.\n내가 추천할 것은 바로 이것이야.\n「${input.payload.title}」\n추천하는 이유는 이거야.\n“${input.payload.reason}”`,
   };
 };
 
 export const createTodayFriendRecommendationDelivery = (input: Parameters<typeof createTodayFriendRecommendationLetter>[0]) => {
   const letter = createTodayFriendRecommendationLetter(input);
+  return {
+    letter,
+    payload: { ...input.payload, letterId: letter.id },
+  } as const;
+};
+
+export const createTodayFriendComplimentLetter = (input: {
+  readonly dateKey: string;
+  readonly studentNumber: number;
+  readonly partnerNumber: number;
+  readonly revision: number;
+  readonly payload: Extract<TodayFriendPayload, { kind: 'compliment' }>;
+}): TodayFriendMateLetter => ({
+  id: `today-friend-compliment-${input.dateKey}-${input.studentNumber}-r${input.revision}`,
+  recipient: input.partnerNumber,
+  title: '[오늘의 친구] 칭찬 편지',
+  content: `나는 오늘의 친구인 너를 칭찬하고 싶어.\n네가 보여 준 멋진 행동은 이거야.\n“${input.payload.compliment}”\n그 행동이 좋았던 이유는 이거야.\n“${input.payload.reason ?? ''}”\n그리고 너에게 이렇게 말하고 싶어.\n“${input.payload.message ?? ''}”`,
+});
+
+export const createTodayFriendComplimentDelivery = (input: Parameters<typeof createTodayFriendComplimentLetter>[0]) => {
+  const letter = createTodayFriendComplimentLetter(input);
   return {
     letter,
     payload: { ...input.payload, letterId: letter.id },

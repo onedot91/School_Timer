@@ -419,10 +419,10 @@ export const runSaveReliabilityBrowser = async () => {
       const page = await open(context, '?form=today-friend', false);
       const confirm = page.getByRole('button', { name: '저장 확인 후 다시 제출', exact: true });
       assert.equal(await confirm.isDisabled(), true);
-      assert.equal(await page.getByPlaceholder('친구가 말한 내용을 적어요.').inputValue(), '저장 확인 중인 친구 답');
+      assert.equal(await page.getByPlaceholder('친구의 말을 적어요.').inputValue(), '저장 확인 중인 친구 답');
       await page.evaluate(() => window.releaseDraftOpen());
       await page.waitForFunction(() => !document.querySelector('.today-friend-form-actions button')?.disabled);
-      assert.equal(await page.getByPlaceholder('친구가 말한 내용을 적어요.').isDisabled(), true);
+      assert.equal(await page.getByPlaceholder('친구의 말을 적어요.').isDisabled(), true);
       await confirm.click();
       assert.deepEqual(await page.evaluate(() => window.saveReliabilityForms.lastSubmission()), [{ kind: 'interview', answer: '저장 확인 중인 친구 답' }, true]);
       await page.evaluate(() => window.saveReliabilityForms.complete());

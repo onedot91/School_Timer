@@ -48,7 +48,7 @@ export const applyStudentStorageCommand = (
     const recipient = input.recipient;
     if (!Number.isInteger(recipient) || typeof recipient !== 'number' || recipient < 0 || recipient > 23 || recipient === studentNumber) return fail();
     const letterId = input.letterId === undefined ? context.requestId : text(input.letterId, 200);
-    if (input.letterId !== undefined && !new RegExp(`^today-friend-recommendation-\\d{4}-\\d{2}-\\d{2}-${studentNumber}-r\\d+$`).test(letterId)) return fail();
+    if (input.letterId !== undefined && !new RegExp(`^today-friend-(?:recommendation|compliment)-\\d{4}-\\d{2}-\\d{2}-${studentNumber}-r\\d+$`).test(letterId)) return fail();
     const existing = rawList(rawLife.letters).find((item) => record(item).id === letterId);
     if (existing) {
       const prior = record(existing);
