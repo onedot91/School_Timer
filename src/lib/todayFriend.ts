@@ -10,6 +10,9 @@ export const isTodayFriendStudentNumber = (value: unknown): value is number => (
   && value <= TODAY_FRIEND_STUDENT_COUNT
   && value !== TEST_STUDENT_NUMBER
 );
+export const canViewTodayFriendMissionPage = (value: unknown): value is number => (
+  isTodayFriendStudentNumber(value) || value === TEST_STUDENT_NUMBER
+);
 export const TODAY_FRIEND_STUDENT_NUMBERS = Array.from(
   { length: TODAY_FRIEND_STUDENT_COUNT },
   (_, index) => index + 1,
@@ -379,8 +382,11 @@ export const getTodayFriendNumber = (
 export const TODAY_FRIEND_PREVIEW_INTERVIEW_QUESTION = '요즘 가장 재미있게 한 일은 무엇인가요?';
 
 export const getTodayFriendLayoutPreview = (studentNumber: number, dateKey: string) => {
-  if (!isTodayFriendStudentNumber(studentNumber)) return null;
-  const partnerNumber = getTodayFriendNumber(studentNumber, dateKey);
+  if (!canViewTodayFriendMissionPage(studentNumber)) return null;
+  const rosterNumber = isTodayFriendStudentNumber(studentNumber)
+    ? studentNumber
+    : TODAY_FRIEND_STUDENT_NUMBERS[Number(dateKey.replaceAll('-', '')) % TODAY_FRIEND_STUDENT_NUMBERS.length] ?? 1;
+  const partnerNumber = getTodayFriendNumber(rosterNumber, dateKey);
   if (!isTodayFriendStudentNumber(partnerNumber) || partnerNumber === studentNumber) return null;
   return {
     dateKey,

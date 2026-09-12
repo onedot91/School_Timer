@@ -21,7 +21,8 @@ test('오늘의 친구 다섯 섹션은 각각 전용 일러스트를 표시한�
     assert.match(pageSource, new RegExp(illustrationPath.replaceAll('/', '\\/')));
   }
 
-  assert.match(pageSource, /<img/);
+  assert.match(pageSource, /sourceMission && studentNumber === TEST_STUDENT_NUMBER/);
+  assert.match(pageSource, /today-friend-preview-tabs/);
   assert.doesNotMatch(pageSource, /today-friend-illustration-placeholder/);
 });
 

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Clock3, RefreshCw } from 'lucide-react';
 import { storageAvailabilityMessage } from '../../lib/storageAvailabilityCopy';
 
+import { TEST_STUDENT_NUMBER } from '../../lib/studentIdentity';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import {
   getTodayFriendDateKey,
@@ -100,7 +101,7 @@ export default function StudentTodayFriendPage({
   }, [loadMission]);
 
   const saveMission = async (payload: TodayFriendPayload, submit: boolean) => {
-    if (!mission || saving.current) return false;
+    if (studentNumber === TEST_STUDENT_NUMBER || !mission || saving.current) return false;
     const requestContext = captureStorageResponseContext();
     const sequence = loadSequence.current;
     saving.current = true;
@@ -152,7 +153,8 @@ export default function StudentTodayFriendPage({
     }
   };
 
-  const layoutPreview = !isLoading && !loadError && !mission && import.meta.env.DEV
+  const layoutPreview = !isLoading && !loadError && !mission
+    && (studentNumber === TEST_STUDENT_NUMBER || import.meta.env.DEV)
     ? getTodayFriendLayoutPreview(studentNumber, dateKey)
     : null;
   const sourceMission = mission ?? (layoutPreview ? { ...layoutPreview, submission: null } : null);
@@ -173,7 +175,7 @@ export default function StudentTodayFriendPage({
         onBack={onBack}
         backLabel="미션으로 돌아가기"
         backText="미션"
-        actions={sourceMission ? (
+        actions={sourceMission && studentNumber === TEST_STUDENT_NUMBER ? (
           <div className="student-header-segmented today-friend-preview-tabs" role="group" aria-label="미션 카테고리 미리보기">
             {TODAY_FRIEND_GENRES.map((genre) => (
               <button
@@ -231,7 +233,7 @@ export default function StudentTodayFriendPage({
             <TodayFriendSubmittedAnswer payload={displayedMission.submission.payload} />
           ) : null}
           {status !== 'approved' || (!isPreview && pendingSubmission) ? (
-            <TodayFriendMissionForm key={JSON.stringify([displayedMission.dateKey, displayedMission.studentNumber, displayedMission.partnerNumber, displayedMission.genre, displayedMission.question])} mission={displayedMission} isSaving={isSaving} isPreview={isPreview} pendingPayload={isPreview ? undefined : pendingSubmission?.payload} saveMessage={isPreview ? '' : saveMessage} onSave={saveMission} onSendRecommendation={onSendRecommendation} />
+            <TodayFriendMissionForm key={JSON.stringify([displayedMission.dateKey, displayedMission.studentNumber, displayedMission.partnerNumber, displayedMission.genre, displayedMission.question])} mission={displayedMission} isSaving={isSaving} isPreview={isPreview} pendingPayload={isPreview ? undefined : pendingSubmission?.payload} saveMessage={isPreview ? '' : saveMessage} onSave={saveMission} onSendRecommendation={studentNumber === TEST_STUDENT_NUMBER ? async () => false : onSendRecommendation} />
           ) : null}
         </section>
           </>
