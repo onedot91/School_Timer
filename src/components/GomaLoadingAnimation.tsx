@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 
-const artwork = '/images/loading/goma-pencil.png';
+const artwork = '/images/loading/goma-pencil.webp';
 const scarfOutline = 'M38 41H55L61 47V54L56 56L49 59H38Z';
 
 export const gomaLoadingVariants = ['flight', 'jumping', 'parachute', 'skating', 'sailing', 'bubble', 'train', 'moon', 'rocket', 'carrot'] as const;
@@ -40,7 +40,7 @@ function GomaKineticScene({ variant }: { readonly variant: Exclude<GomaLoadingVa
           <path className="goma-water-wave goma-water-wave-near" stroke="#7eb9b5" d="M-20 115h12v-3H4v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12" />
         </g>}
         <g className={actorClass}>
-          <image href={`/images/loading/goma-${variant === 'moon' ? 'moon-side' : variant === 'parachute' ? 'parachute-arms' : variant}.png`} x={(160 - size) / 2} y={jumping ? 25 : variant === 'parachute' ? 8 : 0}
+          <image href={`/images/loading/goma-${variant === 'moon' ? 'moon-side' : variant === 'parachute' ? 'parachute-arms' : variant}.webp`} x={(160 - size) / 2} y={jumping ? 25 : variant === 'parachute' ? 8 : 0}
             width={size} height={size} />
         </g>
         <g shapeRendering="crispEdges" strokeWidth="1" strokeLinejoin="miter">

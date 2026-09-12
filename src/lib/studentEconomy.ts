@@ -28,7 +28,7 @@ export const STUDENT_SHOP_ITEMS = [
   { id: 'pencil', name: '연필', emoji: '✏️', price: 10 },
   { id: 'snack', name: '간식 쿠폰', emoji: '🍪', price: 25 },
   { id: 'seat', name: '자리 선택권', emoji: '🪑', price: 50 },
-  { id: 'house_repair', name: '집 고치기', imageSrc: '/student-house-after.png', price: 100 },
+  { id: 'house_repair', name: '집 고치기', imageSrc: '/student-house-after.webp', price: 100 },
 ] as const;
 
 export const STUDENT_CHARACTER_PRIZES = [
@@ -147,7 +147,7 @@ export const STUDENT_CHARACTER_PRIZES = [
 export const DEFAULT_STUDENT_CHARACTER = {
   id: null,
   name: '기본 고마',
-  imageSrc: '/goma-canvas-character.png',
+  imageSrc: '/goma-canvas-character.webp',
 } as const;
 
 export const STUDENT_HOUSE_DESIGNS = [

@@ -315,7 +315,7 @@ export default function StudentOverviewPage({
                 disabled={isHouseSaving || activeHouseId === null}
                 onClick={() => selectHouse(null)}
               >
-                <img src="/student-house-after.png" alt="" />
+                <img src="/student-house-after.webp" alt="" />
                 <span><strong>나무집</strong><small>{activeHouseId === null ? '사용 중' : '선택하기'}</small></span>
                 {activeHouseId === null ? <Check size={20} aria-hidden="true" /> : null}
               </button>
@@ -342,7 +342,7 @@ export default function StudentOverviewPage({
                   disabled={isHouseSaving || activeHouseId === 'custom'}
                   onClick={() => selectHouse('custom')}
                 >
-                  <img className={`student-home-house-${customHouseDesign.theme}`} src="/student-house-after.png" alt="" />
+                  <img className={`student-home-house-${customHouseDesign.theme}`} src="/student-house-after.webp" alt="" />
                   <span><strong>{customHouseDesign.name}</strong><small>{activeHouseId === 'custom' ? '사용 중' : '선택하기'}</small></span>
                   {activeHouseId === 'custom' ? <Check size={20} aria-hidden="true" /> : null}
                 </button>

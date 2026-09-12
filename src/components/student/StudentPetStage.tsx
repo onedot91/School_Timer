@@ -137,7 +137,7 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
       <img
         className={`student-home-house${activeHouseId === 'custom' && customHouseTheme ? ` student-home-house-${customHouseTheme}` : ''}`}
         style={activeHouseStageStyle}
-        src={activeHouse?.imageSrc ?? (isHouseRepaired ? '/student-house-after.png' : '/student-house-before.png')}
+        src={activeHouse?.imageSrc ?? (isHouseRepaired ? '/student-house-after.webp' : '/student-house-before.webp')}
         alt=""
         aria-hidden="true"
         draggable={false}
@@ -243,7 +243,7 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
         {activeCharacter ? (
           <img className="student-goma-selected-character" src={activeCharacter.imageSrc} alt={activeCharacter.name} draggable={false} />
         ) : (
-          <img src="/goma-canvas-character.png" alt="" draggable={false} />
+          <img src="/goma-canvas-character.webp" alt="" draggable={false} />
         )}
       </button>
       {hasActivePet ? (

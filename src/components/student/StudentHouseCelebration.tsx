@@ -13,7 +13,7 @@ export type StudentHouseCelebrationResult = {
 
 export function getStudentHouseCelebration(action: StudentEconomyAction): StudentHouseCelebrationResult | null {
   if (action.type === 'buy_item' && action.itemId === 'house_repair') {
-    return { kind: 'repair', name: '우리 집', imageSrc: '/student-house-after.png' };
+    return { kind: 'repair', name: '우리 집', imageSrc: '/student-house-after.webp' };
   }
   if (action.type === 'buy_house') {
     const house = STUDENT_HOUSE_DESIGNS.find(item => item.id === action.houseId);
@@ -50,7 +50,7 @@ export default function StudentHouseCelebration({ result, onClose, returnFocusRe
 
   useEffect(() => {
     let active = true;
-    const sources = repair ? [result.imageSrc, '/student-house-before.png'] : [result.imageSrc];
+    const sources = repair ? [result.imageSrc, '/student-house-before.webp'] : [result.imageSrc];
     void Promise.all(sources.map(src => {
       const image = new Image();
       image.src = src;
@@ -78,7 +78,7 @@ export default function StudentHouseCelebration({ result, onClose, returnFocusRe
           <div className="student-house-celebration-ring" />
           <div className="student-house-celebration-art">
             {imageFailed ? <House className="student-house-celebration-fallback" /> : <>
-              {repair && <img className="student-house-celebration-before" src="/student-house-before.png" alt="" />}
+              {repair && <img className="student-house-celebration-before" src="/student-house-before.webp" alt="" />}
               <img className="student-house-celebration-house" src={result.imageSrc} alt="" />
             </>}
           </div>
