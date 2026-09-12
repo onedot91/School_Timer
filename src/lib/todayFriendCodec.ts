@@ -1,5 +1,6 @@
 import {
   TODAY_FRIEND_GENRES,
+  isTodayFriendStudentNumber,
   type TodayFriendGenre,
   type TodayFriendPartnerAssignment,
   type TodayFriendPayload,
@@ -23,9 +24,7 @@ const isGenre = (value: unknown): value is TodayFriendGenre => (
   typeof value === 'string' && TODAY_FRIEND_GENRES.some((genre) => genre === value)
 );
 
-const isStudentNumber = (value: unknown): value is number => (
-  typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 23
-);
+const isStudentNumber = isTodayFriendStudentNumber;
 
 const isSubmissionStatus = (value: unknown): value is TodayFriendSubmissionStatus => (
   value === 'draft' || value === 'submitted' || value === 'revision_requested' || value === 'approved'

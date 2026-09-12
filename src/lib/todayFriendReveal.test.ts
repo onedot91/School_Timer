@@ -33,6 +33,7 @@ test('파트너 공개 순서는 학생과 최종 파트너를 후보에서 제�
   assert.equal(sequence.at(-1), identity.partnerNumber);
   assert.equal(new Set(sequence).size, sequence.length);
   assert.equal(sequence.slice(0, -1).includes(identity.studentNumber), false);
+  assert.equal(sequence.includes(24), false);
 });
 
 test('파트너 공개 완료 표시는 학생과 날짜와 배정 파트너별로 해당 기기에 남는다', () => {

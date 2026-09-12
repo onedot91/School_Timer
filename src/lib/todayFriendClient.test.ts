@@ -7,6 +7,10 @@ test('주말에는 저장소나 서버를 조회하지 않고 미션 없음으�
   assert.equal(await loadStudentTodayFriendMission(1, '2026-09-06'), null);
 });
 
+test('테스트 학생은 평일에도 오늘의 친구 미션을 받지 않는다', async () => {
+  assert.equal(await loadStudentTodayFriendMission(24, '2026-09-04'), null);
+});
+
 test('금요일과 다음 월요일에는 해당 날짜의 미션을 정상적으로 준비한다', async () => {
   const memory = new Map<string, string>();
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');

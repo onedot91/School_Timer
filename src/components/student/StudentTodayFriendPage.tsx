@@ -7,6 +7,7 @@ import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import {
   getTodayFriendDateKey,
   getTodayFriendPreviewGenre,
+  isTodayFriendStudentNumber,
   TODAY_FRIEND_GENRES,
   TODAY_FRIEND_REWARD,
   type TodayFriendGenre,
@@ -191,8 +192,14 @@ export default function StudentTodayFriendPage({
         {!isLoading && !loadError && !mission ? (
           <section className="student-today-friend-loading" role="status">
             <Clock3 aria-hidden="true" />
-            <h2>주말에는 오늘의 친구도 쉬어요</h2>
-            <p>오늘의 친구 미션은 월요일부터 금요일까지 만날 수 있어요.</p>
+            {isTodayFriendStudentNumber(studentNumber) ? (
+              <>
+                <h2>주말에는 오늘의 친구도 쉬어요</h2>
+                <p>오늘의 친구 미션은 월요일부터 금요일까지 만날 수 있어요.</p>
+              </>
+            ) : (
+              <h2>오늘의 친구 대상이 아니에요</h2>
+            )}
             <button type="button" onClick={onBack}>미션으로 돌아가기</button>
           </section>
         ) : null}

@@ -1,4 +1,4 @@
-import type { TodayFriendPayload } from '../lib/todayFriend.js';
+import { isTodayFriendStudentNumber, type TodayFriendPayload } from '../lib/todayFriend.js';
 import { parseTodayFriendPayload } from '../lib/todayFriendCodec.js';
 import type { TodayFriendQuestion } from '../lib/todayFriendState.js';
 
@@ -39,9 +39,7 @@ export const isTodayFriendDateKey = (value: unknown): value is string => {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
 
-const isStudentNumber = (value: unknown): value is number => (
-  typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 23
-);
+const isStudentNumber = isTodayFriendStudentNumber;
 
 const parseQuestions = (value: unknown): readonly TodayFriendQuestion[] | null => {
   if (!Array.isArray(value) || value.length > 40) return null;

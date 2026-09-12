@@ -268,6 +268,42 @@ test('교사가 비공개로 정한 기본 미션만 학생 미션 화면에서 
   assert.doesNotMatch(markup, /스도쿠/);
 });
 
+test('테스트 학생 미션 화면은 오늘의 친구를 숨긴다', () => {
+  const markup = renderToStaticMarkup(createElement(StudentMissionsPage, {
+    studentNumber: 24,
+    profileAssignments: {},
+    balance: 1000,
+    availableBalance: 1000,
+    reservedAmount: 0,
+    isLoading: false,
+    auctionMissions: [],
+    classroomRoleMission: normalizeClassroomRoleMissionSettings({ enabled: true }),
+    weeklyMissionStatuses: createWeeklyMissionStatuses('incomplete'),
+    hasSyncError: false,
+    isDailyEmotionMissionCompleted: false,
+    hasDailyWritingMission: false,
+    isDailyWritingMissionCompleted: false,
+    isWeeklySudokuMissionCompleted: false,
+    isFailureExhibitionMissionCompleted: false,
+    isBookStackMissionCompleted: false,
+    activeSudokuDifficulty: null,
+    completedSudokuDifficulty: null,
+    numberBaseballStatus: 'incomplete',
+    onOpenEmotions: () => undefined,
+    onOpenMailbox: () => undefined,
+    onOpenFailureExhibition: () => undefined,
+    onOpenBookStack: () => undefined,
+    onOpenSudoku: () => undefined,
+    onOpenNumberBaseball: () => undefined,
+    onOpenClassword: () => undefined,
+    onOpenTodayFriend: () => undefined,
+    onBack: () => undefined,
+  }));
+
+  assert.doesNotMatch(markup, /오늘의 친구/);
+  assert.match(markup, /글밥짓기/);
+});
+
 test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시한다', () => {
   const baseProps = {
     profileAssignments: {},

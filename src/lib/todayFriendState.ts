@@ -4,8 +4,10 @@ import {
   createTodayFriendPartnerAssignments,
   createTodayFriendSubmission,
   createTodayFriendWeek,
+  isTodayFriendStudentNumber,
   requestTodayFriendRevision,
   submitTodayFriendSubmission,
+  TODAY_FRIEND_STUDENT_NUMBERS,
   TodayFriendDomainError,
   type TodayFriendGenre,
   type TodayFriendPartnerAssignment,
@@ -66,8 +68,6 @@ export const TODAY_FRIEND_INITIAL_STATE: TodayFriendState = {
   selectedQuestionIdByDate: {},
 };
 
-const STUDENT_NUMBERS = Array.from({ length: 23 }, (_, index) => index + 1);
-
 export const ensureTodayFriendDay = (
   state: TodayFriendState,
   weekKey: string,
@@ -81,7 +81,7 @@ export const ensureTodayFriendDay = (
     : [...state.partnerDays, {
         dateKey,
         revision: 1,
-        assignments: createDailyTodayFriendPartnerAssignments(STUDENT_NUMBERS, dateKey),
+        assignments: createDailyTodayFriendPartnerAssignments(TODAY_FRIEND_STUDENT_NUMBERS, dateKey),
       }];
   return { ...state, weeks, partnerDays };
 };
@@ -118,7 +118,8 @@ export const getTodayFriendStudentMission = (
   const day = state.weeks.flatMap((week) => week.days).find((entry) => entry.dateKey === dateKey);
   const partner = state.partnerDays.find((entry) => entry.dateKey === dateKey)?.assignments
     .find((assignment) => assignment.studentNumber === studentNumber);
-  if (!day || !partner) throw new TodayFriendDomainError('TODAY_FRIEND_DAY_NOT_READY');
+  if (!isTodayFriendStudentNumber(studentNumber)) throw new TodayFriendDomainError('TODAY_FRIEND_STUDENT_EXCLUDED');
+  if (!day || !partner || !isTodayFriendStudentNumber(partner.partnerNumber)) throw new TodayFriendDomainError('TODAY_FRIEND_DAY_NOT_READY');
   return {
     dateKey,
     studentNumber,
@@ -198,7 +199,7 @@ export const reassignTodayFriendPartners = (state: TodayFriendState, dateKey: st
   const day = {
     dateKey,
     revision,
-    assignments: createTodayFriendPartnerAssignments(STUDENT_NUMBERS, `${dateKey}-revision-${revision}`),
+    assignments: createTodayFriendPartnerAssignments(TODAY_FRIEND_STUDENT_NUMBERS, `${dateKey}-revision-${revision}`),
   };
   return { ...state, partnerDays: [...state.partnerDays.filter((entry) => entry.dateKey !== dateKey), day] };
 };
@@ -207,10 +208,14 @@ export const assignTodayFriendPair = (
   state: TodayFriendState,
   input: { readonly dateKey: string; readonly firstStudentNumber: number; readonly secondStudentNumber: number },
 ): TodayFriendState => {
-  if (input.firstStudentNumber === input.secondStudentNumber) throw new TodayFriendDomainError('INVALID_PARTNER_PAIR');
+  if (
+    input.firstStudentNumber === input.secondStudentNumber
+    || !isTodayFriendStudentNumber(input.firstStudentNumber)
+    || !isTodayFriendStudentNumber(input.secondStudentNumber)
+  ) throw new TodayFriendDomainError('INVALID_PARTNER_PAIR');
   const current = state.partnerDays.find((day) => day.dateKey === input.dateKey);
   const revision = (current?.revision ?? 0) + 1;
-  const remainingStudents = STUDENT_NUMBERS.filter((studentNumber) => (
+  const remainingStudents = TODAY_FRIEND_STUDENT_NUMBERS.filter((studentNumber) => (
     studentNumber !== input.firstStudentNumber && studentNumber !== input.secondStudentNumber
   ));
   const assignments = [

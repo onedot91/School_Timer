@@ -33,7 +33,7 @@ import {
   getTodayClassroomRoleDateKey,
   type ClassroomRoleMissionSettings,
 } from '../../lib/classroomRoleMission';
-import { TODAY_FRIEND_REWARD } from '../../lib/todayFriend';
+import { TODAY_FRIEND_REWARD, isTodayFriendStudentNumber } from '../../lib/todayFriend';
 import {
   normalizeStudentMissionVisibility,
   type StudentMissionVisibility,
@@ -253,7 +253,7 @@ export default function StudentMissionsPage({
                   : '오늘 역할 없음'}
               />
             </motion.div> : null}
-            {studentMissionVisibility.todayFriend ? <motion.div {...missionEntrance(auctionMissions.length + 1)}>
+            {studentMissionVisibility.todayFriend && isTodayFriendStudentNumber(studentNumber) ? <motion.div {...missionEntrance(auctionMissions.length + 1)}>
               <StudentMissionCard
                 title="오늘의 친구"
                 illustrationSrc="/mission-illustrations/today-friend.png"

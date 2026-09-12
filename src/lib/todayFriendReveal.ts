@@ -1,4 +1,4 @@
-import { TODAY_FRIEND_STUDENT_COUNT } from './todayFriend';
+import { TODAY_FRIEND_STUDENT_NUMBERS } from './todayFriend';
 
 export type TodayFriendRevealIdentity = {
   readonly dateKey: string;
@@ -22,7 +22,7 @@ export const createTodayFriendRevealSequence = (
   identity: TodayFriendRevealIdentity,
   random: () => number = Math.random,
 ): readonly number[] => {
-  const candidates = Array.from({ length: TODAY_FRIEND_STUDENT_COUNT }, (_, index) => index + 1)
+  const candidates = TODAY_FRIEND_STUDENT_NUMBERS
     .filter((number) => number !== identity.studentNumber && number !== identity.partnerNumber);
   const sequence: number[] = [];
   while (sequence.length < TODAY_FRIEND_REVEAL_CANDIDATE_COUNT) {

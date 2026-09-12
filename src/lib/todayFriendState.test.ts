@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { createTodayFriendTextPayload } from './todayFriend';
 
 import {
+  assignTodayFriendPair,
   ensureTodayFriendDay,
   getTodayFriendStudentMission,
   reviewTodayFriendSubmission,
@@ -32,6 +33,17 @@ test('이미 생성된 날짜의 배정은 다시 준비해도 유지한다', ()
   assert.deepEqual(repeated.partnerDays, prepared.partnerDays);
   assert.equal(prepared.partnerDays[0].assignments.filter(entry => entry.relationKind === 'pair').length, 20);
   assert.equal(prepared.partnerDays[0].assignments.filter(entry => entry.relationKind === 'cycle').length, 3);
+  assert.equal(prepared.partnerDays[0].assignments.some((entry) => entry.studentNumber === 24 || entry.partnerNumber === 24), false);
+});
+
+test('테스트 학생은 오늘의 친구 미션과 수동 짝 지정에서 제외된다', () => {
+  const prepared = ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, '2026-36', '2026-09-01');
+  assert.throws(() => getTodayFriendStudentMission(prepared, '2026-09-01', 24), /TODAY_FRIEND_STUDENT_EXCLUDED/);
+  assert.throws(() => assignTodayFriendPair(prepared, {
+    dateKey: '2026-09-01',
+    firstStudentNumber: 24,
+    secondStudentNumber: 3,
+  }), /INVALID_PARTNER_PAIR/);
 });
 
 test('학생 제출은 교사 수정 요청 후 고쳐서 다시 제출할 수 있다', () => {

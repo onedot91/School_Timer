@@ -25912,8 +25912,8 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   box-shadow: var(--apple-shadow-1);
 }
 
-.student-shop-tabs[data-has-profile="false"] {
-  grid-template-columns: minmax(0, 1fr);
+.student-shop-tabs[data-tab-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .student-shop-tabs > button {
@@ -25940,8 +25940,8 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   color: var(--apple-text-primary);
 }
 .student-shop-tabs > button.is-active { color: #fff; background: #087b57; box-shadow: 0 .35rem .8rem rgba(8, 123, 87, .2); }
-.student-shop-tabs > button:nth-child(2).is-active { background: #6946a6; box-shadow: 0 .35rem .8rem rgba(105, 70, 166, .2); }
-.student-shop-tabs > button:nth-child(3).is-active { background: #9a622b; box-shadow: 0 .35rem .8rem rgba(154, 98, 43, .24); }
+.student-shop-tabs > #student-shop-tab-characters.is-active { background: #6946a6; box-shadow: 0 .35rem .8rem rgba(105, 70, 166, .2); }
+.student-shop-tabs > #student-shop-tab-houses.is-active { background: #9a622b; box-shadow: 0 .35rem .8rem rgba(154, 98, 43, .24); }
 
 .student-shop-goods-grid {
   display: grid;
@@ -27472,7 +27472,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
     grid-template-rows: 4rem minmax(0, 1fr);
   }
 
-  .student-shop-hub[data-has-profile="false"] {
+  .student-shop-hub[data-shop-unlocked="false"] {
     grid-template-rows: minmax(0, 1fr);
   }
 

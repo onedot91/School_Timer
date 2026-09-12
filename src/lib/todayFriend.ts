@@ -1,7 +1,19 @@
+import { TEST_STUDENT_NUMBER } from './studentIdentity.js';
 import { getKoreanLocalDateKey } from './studentEmotion.js';
 
 export const TODAY_FRIEND_REWARD = 15;
 export const TODAY_FRIEND_STUDENT_COUNT = 23;
+export const isTodayFriendStudentNumber = (value: unknown): value is number => (
+  typeof value === 'number'
+  && Number.isInteger(value)
+  && value >= 1
+  && value <= TODAY_FRIEND_STUDENT_COUNT
+  && value !== TEST_STUDENT_NUMBER
+);
+export const TODAY_FRIEND_STUDENT_NUMBERS = Array.from(
+  { length: TODAY_FRIEND_STUDENT_COUNT },
+  (_, index) => index + 1,
+).filter((studentNumber) => studentNumber !== TEST_STUDENT_NUMBER);
 export const TODAY_FRIEND_GENRES = [
   'interview',
   'commonality',
@@ -203,9 +215,7 @@ export const createTodayFriendPartnerAssignments = (
   studentNumbers: readonly number[],
   seedValue: string,
 ): readonly TodayFriendPartnerAssignment[] => {
-  const uniqueStudents = [...new Set(studentNumbers)].filter((number) => (
-    Number.isInteger(number) && number >= 1 && number <= TODAY_FRIEND_STUDENT_COUNT
-  ));
+  const uniqueStudents = [...new Set(studentNumbers)].filter(isTodayFriendStudentNumber);
   if (uniqueStudents.length !== studentNumbers.length || uniqueStudents.length < 2) {
     throw new TodayFriendDomainError('INVALID_STUDENT_ROSTER');
   }
@@ -240,7 +250,7 @@ export const createDailyTodayFriendPartnerAssignments = (
   dateKey: string,
 ): readonly TodayFriendPartnerAssignment[] => {
   const students = [...new Set(studentNumbers)]
-    .filter((number) => Number.isInteger(number) && number >= 1 && number <= TODAY_FRIEND_STUDENT_COUNT)
+    .filter(isTodayFriendStudentNumber)
     .sort((first, second) => first - second);
   if (students.length !== studentNumbers.length || students.length < 2) {
     throw new TodayFriendDomainError('INVALID_STUDENT_ROSTER');
@@ -283,7 +293,12 @@ export const createTodayFriendSubmission = (input: {
   readonly genre: TodayFriendGenre;
   readonly payload: TodayFriendPayload;
 }): TodayFriendSubmission => {
-  if (input.genre !== input.payload.kind || input.studentNumber === input.partnerNumber) {
+  if (
+    input.genre !== input.payload.kind
+    || input.studentNumber === input.partnerNumber
+    || !isTodayFriendStudentNumber(input.studentNumber)
+    || !isTodayFriendStudentNumber(input.partnerNumber)
+  ) {
     throw new TodayFriendDomainError('INVALID_SUBMISSION');
   }
   return {
@@ -345,7 +360,7 @@ export const getTodayFriendNumber = (
   dateKey: string = getTodayFriendDateKey(),
 ): number => {
   return createDailyTodayFriendPartnerAssignments(
-    Array.from({ length: TODAY_FRIEND_STUDENT_COUNT }, (_, index) => index + 1),
+    TODAY_FRIEND_STUDENT_NUMBERS,
     dateKey,
   ).find((assignment) => assignment.studentNumber === studentNumber)?.partnerNumber ?? studentNumber;
 };

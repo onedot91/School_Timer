@@ -63,6 +63,33 @@ test('기본 파트너는 날짜별로 재현 가능하며 자신과 배정되�
   });
   assert.equal(new Set(firstPartners).size, 23);
   assert.equal(new Set(secondPartners).size, 23);
+  assert.equal(firstPartners.includes(24), false);
+  assert.equal(secondPartners.includes(24), false);
+  assert.equal(getTodayFriendNumber(24, firstDateKey), 24);
+});
+
+test('테스트 학생은 오늘의 친구 배정과 제출 대상에서 빠진다', () => {
+  const students = Array.from({ length: 23 }, (_, index) => index + 1);
+  const assignments = createTodayFriendPartnerAssignments(students, '2026-09-01');
+  assert.equal(assignments.some((assignment) => assignment.studentNumber === 24 || assignment.partnerNumber === 24), false);
+  assert.throws(
+    () => createTodayFriendPartnerAssignments([...students, 24], '2026-09-01'),
+    /INVALID_STUDENT_ROSTER/,
+  );
+  assert.throws(() => createTodayFriendSubmission({
+    dateKey: '2026-09-01',
+    studentNumber: 24,
+    partnerNumber: 3,
+    genre: 'interview',
+    payload: { kind: 'interview', answer: '테스트' },
+  }), /INVALID_SUBMISSION/);
+  assert.throws(() => createTodayFriendSubmission({
+    dateKey: '2026-09-01',
+    studentNumber: 3,
+    partnerNumber: 24,
+    genre: 'interview',
+    payload: { kind: 'interview', answer: '테스트' },
+  }), /INVALID_SUBMISSION/);
 });
 
 test('날짜별 기본 배정은 10개의 쌍방향 쌍과 3명의 꼬리물기를 만든다', () => {

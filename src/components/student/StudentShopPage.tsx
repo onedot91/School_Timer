@@ -130,17 +130,15 @@ export default function StudentShopPage({
   }, [tab, visibleTabs]);
 
   return (
-    <section className="student-shop-hub" data-shop-tab={tab} data-has-profile={hasProfile ? 'true' : 'false'} aria-labelledby="student-shop-title">
+    <section className="student-shop-hub" data-shop-tab={tab} data-has-profile={hasProfile ? 'true' : 'false'} data-shop-unlocked={shopUnlocked ? 'true' : 'false'} aria-labelledby="student-shop-title">
       <h2 id="student-shop-title" className="sr-only">상점</h2>
       {shopUnlocked ? (
-        <nav className="student-shop-tabs" aria-label="상점 종류" role="tablist">
+        <nav className="student-shop-tabs" aria-label="상점 종류" role="tablist" data-tab-count={visibleTabs.length}>
           {hasProfile ? (
             <button id="student-shop-tab-items" type="button" role="tab" aria-controls="student-shop-panel-items" aria-selected={tab === 'items'} tabIndex={tab === 'items' ? 0 : -1} className={tab === 'items' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'items')} onClick={() => setTab('items')}><Users aria-hidden="true" />프로필</button>
           ) : null}
-          <>
-            <button id="student-shop-tab-characters" type="button" role="tab" aria-controls="student-shop-panel-characters" aria-selected={tab === 'characters'} tabIndex={tab === 'characters' ? 0 : -1} className={tab === 'characters' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'characters')} onClick={() => setTab('characters')}><Gamepad2 aria-hidden="true" />고마 스킨 뽑기</button>
-            <button ref={houseTabRef} id="student-shop-tab-houses" type="button" role="tab" aria-controls="student-shop-panel-houses" aria-selected={tab === 'houses'} tabIndex={tab === 'houses' ? 0 : -1} className={tab === 'houses' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'houses')} onClick={() => setTab('houses')}><Hammer aria-hidden="true" />집</button>
-          </>
+          <button id="student-shop-tab-characters" type="button" role="tab" aria-controls="student-shop-panel-characters" aria-selected={tab === 'characters'} tabIndex={tab === 'characters' ? 0 : -1} className={tab === 'characters' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'characters')} onClick={() => setTab('characters')}><Gamepad2 aria-hidden="true" />고마 스킨 뽑기</button>
+          <button ref={houseTabRef} id="student-shop-tab-houses" type="button" role="tab" aria-controls="student-shop-panel-houses" aria-selected={tab === 'houses'} tabIndex={tab === 'houses' ? 0 : -1} className={tab === 'houses' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 'houses')} onClick={() => setTab('houses')}><Hammer aria-hidden="true" />집</button>
         </nav>
       ) : null}
 

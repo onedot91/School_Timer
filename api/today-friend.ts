@@ -2,6 +2,7 @@ import { requiresStudentEditRevisions } from '../src/server/storageClientContrac
 import {
   TodayFriendDomainError,
   getTodayFriendDateKey,
+  isTodayFriendStudentNumber,
 } from '../src/lib/todayFriend.js';
 import {
   assignTodayFriendPair,
@@ -89,6 +90,10 @@ const handleGet = async (
     return;
   }
   if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
+  if (!isTodayFriendStudentNumber(session.studentNumber)) {
+    response.status(200).json(null);
+    return;
+  }
   response.status(200).json(await loadTodayFriendMission(configuration, dateKey, session.studentNumber));
 };
 
@@ -126,6 +131,7 @@ const handlePost = async (
   const action = parseTodayFriendAction(request.body);
   if (action.type === 'save_draft' || action.type === 'submit') {
     if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
+    if (!isTodayFriendStudentNumber(session.studentNumber)) throw new TodayFriendApiError(403, 'STUDENT_FORBIDDEN');
     const raw: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
     const expectedStudent = raw && typeof raw === 'object' ? Reflect.get(raw, 'expectedStudentNumber') : undefined;
     if (expectedStudent === undefined && requiresStudentEditRevisions()) throw new TodayFriendApiError(426, 'STORAGE_PROTOCOL_UPGRADE_REQUIRED');

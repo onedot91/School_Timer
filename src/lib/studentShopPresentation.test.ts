@@ -27,6 +27,7 @@ test('프로필이 없는 학생 상점은 무료 랜덤 프로필만 표시한�
 
   assert.doesNotMatch(markup, /role="tablist"/);
   assert.doesNotMatch(markup, /id="student-shop-tab-items"/);
+  assert.match(markup, /data-shop-unlocked="false"/);
   assert.match(markup, /class="student-profile-onboarding"/);
   assert.match(markup, />무료로 뽑기<\/button>/);
   assert.match(markup, /어떤 동물이 나올지는 뽑은 뒤 확인할 수 있어요/);
@@ -63,6 +64,8 @@ test('프로필을 받은 학생 상점은 랜덤 30고마와 직접 교체 50�
   assert.match(markup, /<h3 id="student-profile-shop-title" class="sr-only">프로필 선택<\/h3>/);
   assert.match(markup, /<p>랜덤 교체는 30고마, 원하는 프로필 교체는 50고마예요.<\/p>/);
   assert.match(markup, /role="tablist"/);
+  assert.match(markup, /data-shop-unlocked="true"/);
+  assert.match(markup, /data-tab-count="3"/);
   assert.equal((markup.match(/role="tab"/g) ?? []).length, 3);
 });
 
@@ -83,6 +86,8 @@ test('24번 테스트 학생은 프로필 없이 스킨과 집 상점을 연다'
   assert.doesNotMatch(markup, />무료로 뽑기</);
   assert.doesNotMatch(markup, /id="student-shop-tab-items"/);
   assert.match(markup, /role="tablist"/);
+  assert.match(markup, /data-shop-unlocked="true"/);
+  assert.match(markup, /data-tab-count="2"/);
   assert.match(markup, /id="student-shop-tab-characters"/);
   assert.match(markup, /id="student-shop-tab-houses"/);
   assert.match(markup, /고마 스킨 뽑기/);

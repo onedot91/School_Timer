@@ -10,6 +10,7 @@ import { loadStoredStudentPetSnapshot, storeStudentPetSnapshot } from './student
 import {
   approveTodayFriendSubmission,
   getTodayFriendDateKey,
+  isTodayFriendStudentNumber,
   type TodayFriendGenre,
   type TodayFriendPayload,
   type TodayFriendSubmission,
@@ -168,6 +169,7 @@ export const loadStudentTodayFriendMission = async (
 ): Promise<TodayFriendStudentMission | null> => {
   const weekday = new Date(`${dateKey}T12:00:00+09:00`).getUTCDay();
   if (weekday === 0 || weekday === 6) return null;
+  if (!isTodayFriendStudentNumber(studentNumber)) return null;
   if (appDataMode === 'mock') return getTodayFriendStudentMission(prepareLocalState(dateKey), dateKey, studentNumber);
   return parseMission(await request(`/api/today-friend?dateKey=${encodeURIComponent(dateKey)}&expectedStudentNumber=${studentNumber}`));
 };

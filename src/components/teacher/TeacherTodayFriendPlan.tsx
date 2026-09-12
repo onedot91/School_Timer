@@ -2,6 +2,7 @@ import { CalendarDays, RefreshCw, Shuffle, UserRoundCog } from 'lucide-react';
 import { useState } from 'react';
 
 import type { TeacherTodayFriendPlanAction } from '../../lib/todayFriendClient';
+import { TODAY_FRIEND_STUDENT_NUMBERS } from '../../lib/todayFriend';
 import type { TodayFriendQuestion, TodayFriendState } from '../../lib/todayFriendState';
 
 interface TeacherTodayFriendPlanProps {
@@ -45,8 +46,8 @@ export default function TeacherTodayFriendPlan({ state, dateKey, isSaving, onPla
           {partnerDay?.assignments.map((assignment) => <span key={assignment.studentNumber} data-kind={assignment.relationKind}><strong>{assignment.studentNumber}</strong><i>→</i><b>{assignment.partnerNumber}</b></span>)}
         </div>
         <div className="teacher-today-friend-pair-editor">
-          <label><span>학생</span><select value={firstStudentNumber} onChange={(event) => setFirstStudentNumber(Number(event.target.value))}>{Array.from({ length: 23 }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
-          <label><span>짝</span><select value={secondStudentNumber} onChange={(event) => setSecondStudentNumber(Number(event.target.value))}>{Array.from({ length: 23 }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
+          <label><span>학생</span><select value={firstStudentNumber} onChange={(event) => setFirstStudentNumber(Number(event.target.value))}>{TODAY_FRIEND_STUDENT_NUMBERS.map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
+          <label><span>짝</span><select value={secondStudentNumber} onChange={(event) => setSecondStudentNumber(Number(event.target.value))}>{TODAY_FRIEND_STUDENT_NUMBERS.map((number) => <option key={number} value={number}>{number}번</option>)}</select></label>
           <button type="button" disabled={isSaving || firstStudentNumber === secondStudentNumber} onClick={() => { void onPlanAction({ action: 'assign_pair', dateKey, firstStudentNumber, secondStudentNumber }); }}>짝 지정</button>
         </div>
       </section>
