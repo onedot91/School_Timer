@@ -7,6 +7,7 @@ import {
   createTodayFriendRecommendationDelivery,
   createTodayFriendSubmission,
   createTodayFriendWeek,
+  getTodayFriendLayoutPreview,
   getTodayFriendNumber,
   getTodayFriendPreviewGenre,
   requestTodayFriendRevision,
@@ -42,6 +43,15 @@ test('추천하기 미션은 수신 친구의 우편함에 저장할 고유 편�
 test('현재 장르 탭을 다시 선택해도 저장 버튼을 막는 미리보기 상태가 되지 않는다', () => {
   assert.equal(getTodayFriendPreviewGenre('interview', 'interview'), null);
   assert.equal(getTodayFriendPreviewGenre('interview', 'compliment'), 'compliment');
+});
+
+test('주말에도 화면용 미리보기 파트너와 장르를 만든다', () => {
+  const preview = getTodayFriendLayoutPreview(1, '2026-09-12');
+  assert.ok(preview);
+  assert.equal(preview.studentNumber, 1);
+  assert.notEqual(preview.partnerNumber, 1);
+  assert.equal(preview.genre, 'interview');
+  assert.equal(getTodayFriendLayoutPreview(24, '2026-09-12'), null);
 });
 
 test('기본 파트너는 날짜별로 재현 가능하며 자신과 배정되지 않는다', () => {

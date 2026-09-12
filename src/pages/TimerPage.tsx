@@ -125,6 +125,7 @@ import {
   normalizeCurrentStudentLifeState,
   normalizeStudentLifeState,
   storeStudentLifeState,
+  TEACHER_MAIL_STUDENT_NUMBERS,
   type StudentLifeState,
 } from '../lib/studentLife';
 import {
@@ -197,6 +198,7 @@ import {
   createDefaultCurrencyHistory,
   formatCurrencyAmount,
   formatCurrency,
+  formatStudentNumberLabel,
   getAuctionAwardsForDay,
   getAuctionItemDisplayName,
   getAuctionVisibleDayCount,
@@ -9389,7 +9391,7 @@ export default function TimerPage() {
       }
       setMailStatus(refreshPending ? '저장됨 · 화면 갱신 중' : mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT
         ? '모든 학생에게 보냈습니다.'
-        : `${mailRecipient}번에게 보냈습니다.`);
+        : `${formatStudentNumberLabel(mailRecipient)}에게 보냈습니다.`);
     } catch (error) {
       console.error('Failed to send teacher letter.', error);
       setMailStatus('편지를 보내지 못했습니다.');
@@ -9592,8 +9594,7 @@ export default function TimerPage() {
   ])].sort();
 
   const unreadTeacherLetterCount = getUnreadTeacherLetterCount(studentLife);
-  const teacherMailConversations = Array.from({ length: 23 }, (_, index) => {
-    const studentNumber = index + 1;
+  const teacherMailConversations = TEACHER_MAIL_STUDENT_NUMBERS.map((studentNumber) => {
     const letters = getTeacherStudentConversation(studentLife, studentNumber);
     return {
       studentNumber,
@@ -9604,9 +9605,15 @@ export default function TimerPage() {
       )).length,
     };
   });
+  const teacherMailConversationsByNumber = new Map(
+    teacherMailConversations.map((conversation) => [conversation.studentNumber, conversation]),
+  );
   const sortedTeacherMailConversations = getTeacherConversationOrder(studentLife)
-    .map((studentNumber) => teacherMailConversations[studentNumber - 1]);
-  const selectedTeacherConversation = teacherMailConversations[selectedMailStudentNumber - 1]?.letters ?? [];
+    .flatMap((studentNumber) => {
+      const conversation = teacherMailConversationsByNumber.get(studentNumber);
+      return conversation ? [conversation] : [];
+    });
+  const selectedTeacherConversation = teacherMailConversationsByNumber.get(selectedMailStudentNumber)?.letters ?? [];
   const selectedConversationUnreadIds = selectedTeacherConversation
     .filter((letter) => letter.recipient === ALL_STUDENTS_LETTER_RECIPIENT && letter.readAt === null)
     .map((letter) => letter.id);
@@ -10067,7 +10074,7 @@ export default function TimerPage() {
               type="button"
               className={`${!isStartingTeacherConversation && studentNumber === selectedMailStudentNumber ? 'is-selected' : ''}${unreadCount > 0 ? ' is-unread' : ''}`}
               aria-pressed={!isStartingTeacherConversation && studentNumber === selectedMailStudentNumber}
-              aria-label={`${studentNumber}번과의 대화${unreadCount > 0 ? `, 새 편지 ${unreadCount}개` : ''}`}
+              aria-label={`${formatStudentNumberLabel(studentNumber)}와의 대화${unreadCount > 0 ? `, 새 편지 ${unreadCount}개` : ''}`}
               onClick={() => {
                 setSelectedMailStudentNumber(studentNumber);
                 mailEditVersionRef.current++;
@@ -10077,7 +10084,7 @@ export default function TimerPage() {
               }}
             >
               <span className="teacher-mail-thread-copy">
-                <strong>{studentNumber}번 학생</strong>
+                <strong>{`${formatStudentNumberLabel(studentNumber)} 학생`}</strong>
                 {latestLetter ? <span>{`${latestLetter.recipient === ALL_STUDENTS_LETTER_RECIPIENT ? '' : '나: '}${latestLetter.content}`}</span> : null}
               </span>
               <span className="teacher-mail-thread-tail">
@@ -10091,7 +10098,7 @@ export default function TimerPage() {
 
       <div className="teacher-mail-chat">
         <header className="teacher-mail-chat-header">
-          <div><h3>{isStartingTeacherConversation ? '새 편지' : `${selectedMailStudentNumber}번 학생`}</h3></div>
+          <div><h3>{isStartingTeacherConversation ? '새 편지' : `${formatStudentNumberLabel(selectedMailStudentNumber)} 학생`}</h3></div>
           <label className="teacher-mail-new-recipient teacher-mail-sender">
             <span className="teacher-mail-sender-stamp" data-teacher={mailSender === '선생님' ? 'true' : undefined} role="img" aria-label={`${mailSender} 우표`}>
               <img src={mailSenderStamp} alt="" draggable={false} />
@@ -10102,13 +10109,15 @@ export default function TimerPage() {
             </select>
           </label>
         </header>
-        <div className={`teacher-mail-chat-log${isStartingTeacherConversation ? ' is-new' : ''}`} role="log" aria-label={isStartingTeacherConversation ? '새 편지 작성' : `${selectedMailStudentNumber}번 학생과 주고받은 편지`} aria-live="polite">
+        <div className={`teacher-mail-chat-log${isStartingTeacherConversation ? ' is-new' : ''}`} role="log" aria-label={isStartingTeacherConversation ? '새 편지 작성' : `${formatStudentNumberLabel(selectedMailStudentNumber)} 학생과 주고받은 편지`} aria-live="polite">
           {isStartingTeacherConversation ? (
             <label className="teacher-mail-new-recipient">
               <span>누구에게 보낼까요?</span>
               <select value={mailRecipient} onChange={(event) => { mailEditVersionRef.current++; setMailRecipient(Number(event.target.value)); }}>
                 <option value={ALL_STUDENTS_LETTER_RECIPIENT}>모든 학생</option>
-                {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}번 학생</option>)}
+                {TEACHER_MAIL_STUDENT_NUMBERS.map((number) => (
+                  <option key={number} value={number}>{`${formatStudentNumberLabel(number)} 학생`}</option>
+                ))}
               </select>
             </label>
           ) : selectedTeacherConversation.length === 0 ? (
@@ -10137,7 +10146,7 @@ export default function TimerPage() {
           </label>
           <label className="teacher-mail-compose-message">
             <span className="sr-only">편지 내용</span>
-            <textarea value={mailContent} maxLength={300} onChange={(event) => { mailEditVersionRef.current++; setMailContent(event.target.value); }} placeholder={`${mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT ? '모든 학생' : `${mailRecipient}번 학생`}에게 전할 내용을 적어 주세요`} />
+            <textarea value={mailContent} maxLength={300} onChange={(event) => { mailEditVersionRef.current++; setMailContent(event.target.value); }} placeholder={`${mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT ? '모든 학생' : `${formatStudentNumberLabel(mailRecipient)} 학생`}에게 전할 내용을 적어 주세요`} />
           </label>
           <div className="teacher-mail-compose-actions">
             <span role="status">{mailStatus}</span>

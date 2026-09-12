@@ -1,3 +1,4 @@
+import { isMailStudentNumber } from '../lib/studentIdentity.js';
 import { TEACHER_SETTING_FIELDS } from '../lib/teacherStorageCommand.js';
 import { isStorageRecord, storageResourceKey } from '../lib/storageV2Codec.js';
 import type { DeviceSession } from './deviceSession.js';
@@ -9,6 +10,8 @@ const settings = [...TEACHER_SETTING_FIELDS, 'classroomRoleMission.enabled', 'cl
   'classroomRoleMission.anchorStartStudentNumber', 'classDonation.enabled', 'classDonation.itemName', 'classDonation.targetAmount'];
 const validStudents = (input: unknown): number[] => Array.isArray(input) ? [...new Set(input.filter((value): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 23))] : [];
+const validMailStudents = (input: unknown): number[] => Array.isArray(input)
+  ? [...new Set(input.filter(isMailStudentNumber))] : [];
 
 /** Server-selected dependencies; neither resource paths nor owner scopes come from the request. */
 export const storageCommandScope = (action: string, payload: unknown, session: DeviceSession, legacyReceipt = false): StorageScope => {
@@ -69,7 +72,7 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
     } else if (action === 'teacher.auction.weekly-close') {
       [...auction, 'auctionArchives', 'studentEconomy', 'studentStockMarket', 'teacherWeeklySettlements'].forEach(name => field(name)); money(allStudents);
     } else if (action === 'teacher.mail.send') {
-      (legacyReceipt ? allStudents : validStudents(input.recipients)).forEach(number => mail(number));
+      (legacyReceipt ? allStudents : validMailStudents(input.recipients)).forEach(number => mail(number));
     } else if (action === 'teacher.mail.read') mail(0);
     else if (action === 'teacher.writing.publish') { field('dailyWriting'); allStudents.forEach(number => mail(number)); }
     else if (action === 'teacher.writing.reward' || action === 'teacher.writing.cancel') { field('dailyWriting'); money(target); }

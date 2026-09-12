@@ -1,5 +1,5 @@
 import { appendCurrencyHistoryEntry, claimDailyEmotionRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, claimNumberBaseballRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionBids, normalizeAuctionBidHistory, normalizeAuctionAwards, normalizeAuctionItems, getReservedAuctionBidAmount, getMinimumAuctionBid, hasAuctionBidAmount, getAuctionVisibleDayCount } from '../lib/currency.js';
-import { formatStudentNumberLabel } from '../lib/studentIdentity.js';
+import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from '../lib/studentIdentity.js';
 import { createStudentLetter, isStudentLetterRetained, markStudentLetterRead, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../lib/studentLife.js';
 import { FAILURE_STAMP_OPTIONS, toggleFailureStamp } from '../lib/failureExhibition.js';
 import { createFailureExhibitionMissionEntry } from '../lib/failureExhibitionMission.js';
@@ -21,7 +21,9 @@ export const applyStudentStorageCommand = (
   context: { requestId: string; createdAt: string },
 ): { value: Record<string, unknown>; result: unknown } | null => {
   if (!action.startsWith('student.')) return null;
-  if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) return fail();
+  if (!Number.isInteger(studentNumber) || studentNumber < 1
+    || (studentNumber > 23 && !(studentNumber === TEST_STUDENT_NUMBER
+      && (action === 'student.letter.send' || action === 'student.letter.read')))) return fail();
   const current = record(currentValue), input = record(payload), studentKey = String(studentNumber);
   const date = new Date(context.createdAt), weekKey = getKoreanIsoWeekKey(date);
   const life = pruneExpiredStudentLetters(normalizeStudentLifeState(current.studentLife), context.createdAt);

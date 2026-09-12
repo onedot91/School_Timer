@@ -364,3 +364,18 @@ export const getTodayFriendNumber = (
     dateKey,
   ).find((assignment) => assignment.studentNumber === studentNumber)?.partnerNumber ?? studentNumber;
 };
+
+export const TODAY_FRIEND_PREVIEW_INTERVIEW_QUESTION = '요즘 가장 재미있게 한 일은 무엇인가요?';
+
+export const getTodayFriendLayoutPreview = (studentNumber: number, dateKey: string) => {
+  if (!isTodayFriendStudentNumber(studentNumber)) return null;
+  const partnerNumber = getTodayFriendNumber(studentNumber, dateKey);
+  if (!isTodayFriendStudentNumber(partnerNumber) || partnerNumber === studentNumber) return null;
+  return {
+    dateKey,
+    studentNumber,
+    partnerNumber,
+    genre: TODAY_FRIEND_GENRES[0],
+    question: TODAY_FRIEND_PREVIEW_INTERVIEW_QUESTION,
+  } as const;
+};

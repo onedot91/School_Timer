@@ -6,9 +6,11 @@ import { storageAvailabilityMessage } from '../../lib/storageAvailabilityCopy';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import {
   getTodayFriendDateKey,
+  getTodayFriendLayoutPreview,
   getTodayFriendPreviewGenre,
   isTodayFriendStudentNumber,
   TODAY_FRIEND_GENRES,
+  TODAY_FRIEND_PREVIEW_INTERVIEW_QUESTION,
   TODAY_FRIEND_REWARD,
   type TodayFriendGenre,
   type TodayFriendPayload,
@@ -51,8 +53,6 @@ const TODAY_FRIEND_ILLUSTRATION_BY_GENRE = {
   compliment: '/today-friend/compliment.png',
   emotion: '/today-friend/emotion.png',
 } as const satisfies Readonly<Record<TodayFriendGenre, string>>;
-
-const PREVIEW_INTERVIEW_QUESTION = '요즘 가장 재미있게 한 일은 무엇인가요?';
 
 export default function StudentTodayFriendPage({
   studentNumber,
@@ -152,13 +152,17 @@ export default function StudentTodayFriendPage({
     }
   };
 
-  const displayedGenre = previewGenre ?? mission?.genre ?? 'interview';
-  const isPreview = previewGenre !== null;
-  const displayedMission = mission ? {
-    ...mission,
+  const layoutPreview = !isLoading && !loadError && !mission && import.meta.env.DEV
+    ? getTodayFriendLayoutPreview(studentNumber, dateKey)
+    : null;
+  const sourceMission = mission ?? (layoutPreview ? { ...layoutPreview, submission: null } : null);
+  const displayedGenre = previewGenre ?? sourceMission?.genre ?? 'interview';
+  const isPreview = previewGenre !== null || layoutPreview !== null;
+  const displayedMission = sourceMission ? {
+    ...sourceMission,
     genre: displayedGenre,
-    question: displayedGenre === 'interview' ? mission.question ?? PREVIEW_INTERVIEW_QUESTION : null,
-    submission: isPreview ? null : mission.submission,
+    question: displayedGenre === 'interview' ? sourceMission.question ?? TODAY_FRIEND_PREVIEW_INTERVIEW_QUESTION : null,
+    submission: isPreview ? null : sourceMission.submission,
   } : null;
   const status = displayedMission?.submission?.status;
 
@@ -169,7 +173,7 @@ export default function StudentTodayFriendPage({
         onBack={onBack}
         backLabel="미션으로 돌아가기"
         backText="미션"
-        actions={mission ? (
+        actions={sourceMission ? (
           <div className="student-header-segmented today-friend-preview-tabs" role="group" aria-label="미션 카테고리 미리보기">
             {TODAY_FRIEND_GENRES.map((genre) => (
               <button
@@ -177,7 +181,7 @@ export default function StudentTodayFriendPage({
                 type="button"
                 disabled={isSaving}
                 aria-pressed={displayedGenre === genre}
-                onClick={() => setPreviewGenre(getTodayFriendPreviewGenre(mission.genre, genre))}
+                onClick={() => setPreviewGenre(getTodayFriendPreviewGenre(sourceMission.genre, genre))}
               >
                 {GENRE_COPY[genre]}
               </button>
@@ -189,7 +193,7 @@ export default function StudentTodayFriendPage({
       <main className="student-today-friend-main">
         {isLoading ? <section className="student-today-friend-loading" aria-label="오늘의 친구 불러오는 중"><Clock3 aria-hidden="true" /><p>오늘의 친구를 준비하고 있어요.</p></section> : null}
         {loadError ? <section className="student-today-friend-loading" role="alert"><p>{loadError}</p><button type="button" onClick={() => { void loadMission(); }}><RefreshCw aria-hidden="true" />다시 불러오기</button></section> : null}
-        {!isLoading && !loadError && !mission ? (
+        {!isLoading && !loadError && !displayedMission ? (
           <section className="student-today-friend-loading" role="status">
             <Clock3 aria-hidden="true" />
             {isTodayFriendStudentNumber(studentNumber) ? (

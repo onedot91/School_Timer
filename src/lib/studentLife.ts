@@ -6,6 +6,7 @@ import {
 } from './failureExhibition.js';
 import { normalizeBankMailboxCopy } from './bankMailbox.js';
 import { appDataMode } from './dataMode.js';
+import { TEST_STUDENT_NUMBER, isMailStudentNumber } from './studentIdentity.js';
 import { getKoreanLocalDateKey } from './studentEmotion.js';
 
 export const TEACHER_MAIL_SENDERS = ['선생님', '아기고마', '은행원 돝돝', '목수 고키리', '밥집 아주머니 가히'] as const;
@@ -61,6 +62,10 @@ const PRACTICE_FAILURE_STORIES_RESET_KEY = 'school-timer-practice-failure-storie
 const MAX_STUDENT_NUMBER = 23;
 export const TEACHER_LETTER_RECIPIENT = 0;
 export const ALL_STUDENTS_LETTER_RECIPIENT = 0;
+export const TEACHER_MAIL_STUDENT_NUMBERS = [
+  ...Array.from({ length: MAX_STUDENT_NUMBER }, (_, index) => index + 1),
+  TEST_STUDENT_NUMBER,
+] as const;
 const MAX_LETTERS = 600;
 const LETTER_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_LETTER_CONTENT_LENGTH = 800;
@@ -89,7 +94,7 @@ const isStudentNumber = (value: unknown): value is number => (
 );
 
 const isLetterRecipient = (value: unknown): value is number => (
-  value === TEACHER_LETTER_RECIPIENT || isStudentNumber(value)
+  value === TEACHER_LETTER_RECIPIENT || isMailStudentNumber(value)
 );
 
 const parseLetter = (value: unknown): StudentLetter | null => {
@@ -108,7 +113,7 @@ const parseLetter = (value: unknown): StudentLetter | null => {
     id: letter.id.slice(0, 80),
     recipient: letter.recipient,
     senderLabel,
-    senderStudentNumber: isStudentNumber(letter.senderStudentNumber) ? letter.senderStudentNumber : null,
+    senderStudentNumber: isMailStudentNumber(letter.senderStudentNumber) ? letter.senderStudentNumber : null,
     replyToId: typeof letter.replyToId === 'string' && letter.replyToId.length > 0
       ? letter.replyToId.slice(0, 80)
       : null,
@@ -290,7 +295,7 @@ export const createStudentLetters = (
 export const getTeacherLetterRecipients = (recipient: number): readonly number[] => (
   recipient === ALL_STUDENTS_LETTER_RECIPIENT
     ? Array.from({ length: MAX_STUDENT_NUMBER }, (_, index) => index + 1)
-    : isStudentNumber(recipient) ? [recipient] : []
+    : isMailStudentNumber(recipient) ? [recipient] : []
 );
 
 export const markStudentLetterRead = (
@@ -359,7 +364,7 @@ export const getTeacherStudentConversation = (
   state: StudentLifeState,
   studentNumber: number,
 ): readonly StudentLetter[] => (
-  isStudentNumber(studentNumber)
+  isMailStudentNumber(studentNumber)
     ? state.letters.filter((letter) => (
       (letter.recipient === TEACHER_LETTER_RECIPIENT && letter.senderStudentNumber === studentNumber)
       || (
@@ -372,7 +377,7 @@ export const getTeacherStudentConversation = (
 );
 
 export const getTeacherConversationOrder = (state: StudentLifeState): readonly number[] => (
-  Array.from({ length: MAX_STUDENT_NUMBER }, (_, index) => index + 1).sort((left, right) => {
+  [...TEACHER_MAIL_STUDENT_NUMBERS].sort((left, right) => {
     const leftCreatedAt = Date.parse(getTeacherStudentConversation(state, left).at(-1)?.createdAt ?? '') || 0;
     const rightCreatedAt = Date.parse(getTeacherStudentConversation(state, right).at(-1)?.createdAt ?? '') || 0;
     return rightCreatedAt - leftCreatedAt || left - right;

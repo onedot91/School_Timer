@@ -1,6 +1,6 @@
 import { canonicalStorageJson } from '../lib/storageV2Codec.js';
 import {
-  AUCTION_ITEM_IDS, CURRENCY_BALANCE_MAX, CURRENCY_STUDENT_NUMBERS, DEFAULT_CURRENCY_BALANCE,
+  AUCTION_ITEM_IDS, CURRENCY_BALANCE_MAX, CURRENCY_STUDENT_NUMBERS, DEFAULT_CURRENCY_BALANCE, TEST_STUDENT_NUMBER,
   appendCurrencyHistoryEntry, applyTeacherCurrencyDeductionsInSettings, clampCurrencyBalance,
   createWeeklyCurrencyCycle, finalizeAuctionAwardInSettings, normalizeAuctionAwards,
   normalizeAuctionBids, normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory,
@@ -23,9 +23,13 @@ export class TeacherStorageCommandError extends Error {
 const invalid = (): never => { throw new TeacherStorageCommandError('INVALID_TEACHER_COMMAND'); };
 const text = (value: unknown, max = 5000): string => typeof value === 'string' && value.length <= max ? value : invalid();
 const student = (value: unknown): number => typeof value === 'number' && CURRENCY_STUDENT_NUMBERS.includes(value) ? value : invalid();
+const mailStudent = (value: unknown): number => typeof value === 'number'
+  && (CURRENCY_STUDENT_NUMBERS.includes(value) || value === TEST_STUDENT_NUMBER) ? value : invalid();
 const integer = (value: unknown, min: number, max: number): number => typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max ? value : invalid();
 const date = (value: unknown): string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : invalid();
 const students = (value: unknown): number[] => Array.isArray(value) && value.length > 0 && value.length <= 23 ? [...new Set(value.map(student))] : invalid();
+const mailRecipients = (value: unknown): number[] => Array.isArray(value) && value.length > 0 && value.length <= 24
+  ? [...new Set(value.map(mailStudent))] : invalid();
 const preserveLife = (before: unknown, after: unknown, referenceAt: string): unknown => {
   if (before === after || !isStorageRecord(before) || !isStorageRecord(after)) return after;
   const next = { ...before, ...after };
@@ -146,7 +150,7 @@ export const applyTeacherStorageCommand = (
       teacherWeeklySettlements: { ...settled, [cycleKey]: context.requestId } }, { settled: true });
   }
   if (action === 'teacher.mail.send') {
-    const recipients = students(payload.recipients); const content = text(payload.content, 10000); const title = text(payload.title, 200);
+    const recipients = mailRecipients(payload.recipients); const content = text(payload.content, 10000); const title = text(payload.title, 200);
     if (!content.trim()) return invalid();
     const senderLabel = payload.senderLabel === undefined ? '선생님' : payload.senderLabel;
     if (!isTeacherMailSender(senderLabel)) return invalid();

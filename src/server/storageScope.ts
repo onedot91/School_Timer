@@ -1,3 +1,4 @@
+import { TEST_STUDENT_NUMBER } from '../lib/studentIdentity.js';
 import { isStorageRecord, storageResourceKey, type StorageResource } from '../lib/storageV2Codec.js';
 
 export interface StorageResourceSelector {
@@ -38,7 +39,7 @@ const selector = (value: unknown): StorageResourceSelector => {
   let mail: StorageResourceSelector['mail'];
   if (value.mail !== undefined) {
     const input = value.mail;
-    if (!isStorageRecord(input) || !Number.isInteger(input.actor) || typeof input.actor !== 'number' || input.actor < 0 || input.actor > 23
+    if (!isStorageRecord(input) || !Number.isInteger(input.actor) || typeof input.actor !== 'number' || input.actor < 0 || input.actor > TEST_STUDENT_NUMBER
       || (input.direction !== 'participant' && input.direction !== 'recipient')
       || Object.keys(input).some(key => !['actor', 'direction'].includes(key))
       || !storagePathWithin(value.path, '/studentLife/letters') || students !== undefined) return invalid();
