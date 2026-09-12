@@ -7,6 +7,7 @@ import StudentFailureExhibitionPage from '../components/student/StudentFailureEx
 import StudentFailureMessage from '../components/student/StudentFailureMessage.tsx';
 import StudentFailureRelay from '../components/student/StudentFailureRelay.tsx';
 import {
+  canAssignFailureProfile,
   createFailureStory,
   deleteFailureStory,
   FAILURE_PROFILE_IMAGES,
@@ -457,4 +458,12 @@ test('저장된 응원 도장은 학생마다 첫 선택 하나만 복구한다'
 
   assert.equal(stories[0]?.stamps.length, 1);
   assert.equal(stories[0]?.stamps[0]?.stampId, 'cheer');
+});
+
+test('24번 테스트 학생은 동물 프로필을 받지 않는다', () => {
+  assert.equal(canAssignFailureProfile(24), false);
+  assert.equal(canAssignFailureProfile(23), true);
+  assert.equal(getRandomAvailableFailureProfile({}, 24), null);
+  assert.equal(selectFailureProfile({}, 24, FAILURE_PROFILE_IMAGES[0]).applied, false);
+  assert.equal(normalizeFailureProfileAssignments({ 24: FAILURE_PROFILE_IMAGES[0] })['24'], undefined);
 });

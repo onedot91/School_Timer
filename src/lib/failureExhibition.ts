@@ -123,6 +123,12 @@ export const FAILURE_PROFILE_OPTIONS = FAILURE_PROFILE_IMAGES.map((imageSrc, ind
   label: FAILURE_PROFILE_NAMES[index] ?? `동물 ${index + 1}`,
 }));
 
+export const FAILURE_PROFILE_STUDENT_MAX = 23;
+
+export const canAssignFailureProfile = (studentNumber: number) => (
+  Number.isInteger(studentNumber) && studentNumber >= 1 && studentNumber <= FAILURE_PROFILE_STUDENT_MAX
+);
+
 const isFailureProfileImage = (value: unknown): value is string => (
   typeof value === 'string' && FAILURE_PROFILE_IMAGES.some((image) => image === value)
 );
@@ -131,7 +137,7 @@ export const normalizeFailureProfileAssignments = (value: unknown): FailureProfi
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const assignments: Record<string, string> = {};
   const used = new Set<string>();
-  for (let studentNumber = 1; studentNumber <= 23; studentNumber += 1) {
+  for (let studentNumber = 1; studentNumber <= FAILURE_PROFILE_STUDENT_MAX; studentNumber += 1) {
     const studentKey = String(studentNumber);
     const requested = source[studentKey];
     if (!isFailureProfileImage(requested) || used.has(requested)) continue;
@@ -145,7 +151,7 @@ export const getAssignedFailureProfileImage = (
   studentNumber: number,
   assignments?: FailureProfileAssignments,
 ): string | null => {
-  if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) return null;
+  if (!canAssignFailureProfile(studentNumber)) return null;
   const assigned = assignments?.[String(studentNumber)];
   return isFailureProfileImage(assigned) ? assigned : null;
 };
@@ -160,7 +166,7 @@ export const getRandomAvailableFailureProfile = (
   studentNumber: number,
   random: () => number = Math.random,
 ): string | null => {
-  if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) return null;
+  if (!canAssignFailureProfile(studentNumber)) return null;
   const assignments = normalizeFailureProfileAssignments(current);
   const usedProfiles = new Set(Object.values(assignments));
   const availableProfiles = FAILURE_PROFILE_IMAGES.filter((image) => !usedProfiles.has(image));
@@ -184,7 +190,7 @@ export const selectFailureProfile = (
   profileImage: string,
 ): SelectFailureProfileResult => {
   const assignments = normalizeFailureProfileAssignments(current);
-  if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23 || !isFailureProfileImage(profileImage)) {
+  if (!canAssignFailureProfile(studentNumber) || !isFailureProfileImage(profileImage)) {
     return { assignments, applied: false, reason: 'invalid_profile' };
   }
   const studentKey = String(studentNumber);
