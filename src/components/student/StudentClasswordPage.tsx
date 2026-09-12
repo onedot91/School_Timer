@@ -1,3 +1,4 @@
+import '../../classword.css';
 import { CheckCircle2 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState } from 'react';

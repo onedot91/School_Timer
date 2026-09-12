@@ -30,9 +30,11 @@ test('학생 첫 화면에 필요 없는 기능 UI는 기능을 열 때 불러�
 });
 
 test('낱말판 전용 스타일은 번호 선택 화면에서 미리 내려받지 않는다', () => {
+  const classwordPageSource = readFileSync(new URL('../components/student/StudentClasswordPage.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(mainSource, /import '\.\/classword\.css'/);
+  assert.doesNotMatch(auctionPageSource, /import '\.\.\/classword\.css'/);
   assert.match(timerPageSource, /import '\.\.\/classword\.css'/);
-  assert.match(auctionPageSource, /import '\.\.\/classword\.css'/);
+  assert.match(classwordPageSource, /import '\.\.\/\.\.\/classword\.css'/);
 });
 
 test('학생 홈 배경은 페이지 청크보다 먼저 받고 다른 홈 그림보다 우선한다', () => {

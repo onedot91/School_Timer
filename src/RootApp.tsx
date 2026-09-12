@@ -144,9 +144,6 @@ export default function RootApp() {
     if (!isDeviceSessionReady || selectedEntryNumber === null) return;
     if (requiresDeviceRegistration && !(deviceSession?.role === 'student' && deviceSession.studentNumber === selectedEntryNumber)
       && !(deviceSession?.role === 'teacher' && selectedEntryNumber === 0)) return;
-    if (selectedEntryNumber > 0) {
-      void Promise.allSettled([import('./lib/classwordClient'), import('./lib/todayFriendClient'), import('./lib/canvasLibraryClient')]);
-    }
     return startSaveRecovery(selectedEntryNumber);
   }, [isDeviceSessionReady, selectedEntryNumber, deviceSession]);
 

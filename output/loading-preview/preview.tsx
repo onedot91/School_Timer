@@ -41,7 +41,7 @@ function Preview() {
       <button onClick={() => {setPaused(!paused);}}>{paused ? '재생' : '일시정지'}</button>
     </div>
     <p>{descriptions[variant]}</p>
-    {variant !== 'flight' && variant !== 'random' && <details><summary>구현 보기</summary><p>{descriptions[variant]} — 캐릭터와 주변 파티클의 속도·방향을 따로 조절합니다. 동작 줄이기 설정에서는 움직임을 멈춥니다.</p><img src={`/images/loading/goma-${variant === 'moon' ? 'moon-side' : variant === 'parachute' ? 'parachute-arms' : variant}.webp`} alt={`${names[variant]} 원화`} /></details>}
+    {variant !== 'flight' && variant !== 'random' && <details><summary>구현 보기</summary><p>{descriptions[variant]} — 캐릭터와 주변 파티클의 속도·방향을 따로 조절합니다. 동작 줄이기 설정에서는 움직임을 멈춥니다.</p><img src={`/images/loading/goma-${variant === 'moon' ? 'moon-side' : variant === 'parachute' ? 'parachute-arms' : variant}.png`} alt={`${names[variant]} 원화`} /></details>}
     <StudentActionProgress isActive={active} />
   </main>;
 }

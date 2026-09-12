@@ -17,7 +17,7 @@ test('학생 비동기 작업 중에는 처리 상태와 중앙 로딩 모달을
   assert.match(activeMarkup, /class="goma-loading" aria-hidden="true"/);
   assert.match(activeMarkup, /class="goma-flight goma-artwork"/);
   assert.match(activeMarkup, /focusable="false"/);
-  assert.match(activeMarkup, /href="\/images\/loading\/goma-pencil.webp"/);
+  assert.match(activeMarkup, /href="\/images\/loading\/goma-pencil.png"/);
   assert.match(activeMarkup, />처리 중</);
   assert.match(activeMarkup, /aria-label="요청 처리 중"/);
   assert.doesNotMatch(activeMarkup, /role="progressbar"/);
