@@ -8,6 +8,9 @@ import {
 import { normalizeStudentEmotionHistory } from './studentEmotion.js';
 import { isStudentEmotionWeekComplete } from './studentEmotionCalendar.js';
 import { createStudentLetter, normalizeStudentLifeState } from './studentLife.js';
+import { TEST_STUDENT_NUMBER } from './studentIdentity.js';
+
+export { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from './studentIdentity.js';
 
 export type CurrencyBalances = Record<string, number>;
 
@@ -99,7 +102,6 @@ export interface AuctionAwardedItem {
 
 export const CURRENCY_STUDENT_NUMBERS = Array.from({ length: 23 }, (_, index) => index + 1);
 export const DEFAULT_CURRENCY_BALANCE = 100;
-export const TEST_STUDENT_NUMBER = 24;
 export const TEST_STUDENT_INITIAL_BALANCE = 1000;
 export const WEEKLY_CURRENCY_ALLOWANCE = 100;
 export const CURRENCY_BALANCE_MIN = 0;

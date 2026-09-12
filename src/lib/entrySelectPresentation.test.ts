@@ -11,7 +11,7 @@ const renderEntrySelect = (teacherEntryVisible: boolean) => renderToStaticMarkup
   teacherEntryVisible,
 }));
 
-test('교사 입장 이력이 있으면 번호 선택 화면에 0번을 바로 표시한다', () => {
+test('교사 입장 이력이 있으면 번호 선택 화면에 0번과 테스트 입장을 바로 표시한다', () => {
   // Given
   const teacherEntryVisible = true;
 
@@ -20,10 +20,13 @@ test('교사 입장 이력이 있으면 번호 선택 화면에 0번을 바로 �
 
   // Then
   assert.match(markup, /aria-label="0번 학급 시계 선택"/);
+  assert.match(markup, /aria-label="테스트 입장 선택"/);
+  assert.match(markup, />테스트</);
+  assert.doesNotMatch(markup, /aria-label="24번 경매장 선택"/);
   assert.doesNotMatch(markup, /aria-label="0번 표시 잠금 해제"/);
 });
 
-test('교사 입장 이력이 없으면 0번 숨김 해제 버튼을 유지한다', () => {
+test('교사 입장 이력이 없으면 0번과 테스트 입장을 숨기고 잠금 해제 버튼을 유지한다', () => {
   // Given
   const teacherEntryVisible = false;
 
@@ -32,11 +35,9 @@ test('교사 입장 이력이 없으면 0번 숨김 해제 버튼을 유지한�
 
   // Then
   assert.doesNotMatch(markup, /aria-label="0번 학급 시계 선택"/);
+  assert.doesNotMatch(markup, /aria-label="테스트 입장 선택"/);
+  assert.doesNotMatch(markup, />테스트</);
+  assert.match(markup, /aria-label="1번 경매장 선택"/);
+  assert.match(markup, /aria-label="23번 경매장 선택"/);
   assert.match(markup, /aria-label="0번 표시 잠금 해제"/);
-});
-
-test('운영 모드에서도 테스트용 24번 입장 버튼을 표시한다', () => {
-  const markup = renderEntrySelect(true);
-
-  assert.match(markup, /aria-label="24번 경매장 선택"/);
 });

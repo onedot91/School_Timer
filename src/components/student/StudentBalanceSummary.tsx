@@ -1,5 +1,5 @@
 import { Coins } from 'lucide-react';
-import { formatCurrency } from '../../lib/currency';
+import { formatCurrency, formatStudentNumberLabel } from '../../lib/currency';
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
 
 interface StudentBalanceSummaryProps {
@@ -30,7 +30,7 @@ export default function StudentBalanceSummary({
   return (
     <section className="student-balance-summary" aria-label="고마 잔액">
       {studentNumber !== undefined ? (
-        <div className="student-balance-student-identity" aria-label={`${studentNumber}번 학생`}>
+        <div className="student-balance-student-identity" aria-label={`${formatStudentNumberLabel(studentNumber)} 학생`}>
           {onProfileClick ? (
             <button type="button" className="student-balance-profile-action" aria-label="상점 프로필로 이동" onClick={onProfileClick}>
               <img
@@ -51,7 +51,7 @@ export default function StudentBalanceSummary({
             />
           )}
           <strong className="student-balance-student-number" aria-hidden="true">
-            {studentNumber}번
+            {formatStudentNumberLabel(studentNumber)}
           </strong>
         </div>
       ) : null}

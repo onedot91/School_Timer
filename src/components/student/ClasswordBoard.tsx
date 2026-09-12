@@ -13,6 +13,7 @@ import {
   getFailureProfileImage,
   type FailureProfileAssignments,
 } from '../../lib/failureExhibition';
+import { formatStudentNumberLabel } from '../../lib/studentIdentity';
 import StudentConfirmDialog from './StudentConfirmDialog';
 import type { ClasswordDraft } from '../../lib/classwordDraft';
 
@@ -292,7 +293,7 @@ export default function ClasswordBoard({
                 onClick={(event) => selectInitial(initial, event.currentTarget)}
                 disabled={!canSelect || disabled || saving}
                 aria-label={entry
-                  ? `${getClasswordInitialLabel(initial)}, ${entry.word}, ${entry.studentNumber}번${isOwn ? ', 내 낱말 수정' : ''}`
+                  ? `${getClasswordInitialLabel(initial)}, ${entry.word}, ${formatStudentNumberLabel(entry.studentNumber)}${isOwn ? ', 내 낱말 수정' : ''}`
                   : `${getClasswordInitialLabel(initial)}${ownEntry ? '으로 내 낱말 옮기기' : ' 낱말 입력'}`}
               >
                 {isOwn ? (

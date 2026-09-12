@@ -1,4 +1,5 @@
 import type { StudentEconomyAction } from './studentEconomy.js';
+import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from './studentIdentity.js';
 
 export type BankMailboxLetter = {
   readonly id: string;
@@ -90,15 +91,17 @@ export const createBankMailboxLetters = ({
     )];
   }
   if (action.type === 'transfer') {
+    const senderLabel = formatStudentNumberLabel(studentNumber);
+    const senderSubject = studentNumber === TEST_STUDENT_NUMBER ? '테스트가' : `${studentNumber}번이`;
     return [
       bankerLetter(
         `bank-${requestKey}-transfer-in`,
         action.recipientNumber,
         '고마가 도착했꿀!',
         selectBankerMessage(requestKey, [
-          `꿀꿀, ${studentNumber}번이 송금한 ${action.amount} 고마가 도착했어요. 이제 이 고마를 사용할 수 있꿀!`,
-          `${studentNumber}번에게서 ${action.amount} 고마를 받았꿀. 다른 사람이 보낸 고마가 도착하는 것도 송금이에요. 제가 안전하게 넣어 두었어요.`,
-          `꿀꿀, 반가운 송금이 도착했어요! ${studentNumber}번이 보낸 ${action.amount} 고마를 지금부터 사용할 수 있꿀.`,
+          `꿀꿀, ${senderSubject} 송금한 ${action.amount} 고마가 도착했어요. 이제 이 고마를 사용할 수 있꿀!`,
+          `${senderLabel}에게서 ${action.amount} 고마를 받았꿀. 다른 사람이 보낸 고마가 도착하는 것도 송금이에요. 제가 안전하게 넣어 두었어요.`,
+          `꿀꿀, 반가운 송금이 도착했어요! ${senderSubject} 보낸 ${action.amount} 고마를 지금부터 사용할 수 있꿀.`,
         ]),
         createdAt,
       ),

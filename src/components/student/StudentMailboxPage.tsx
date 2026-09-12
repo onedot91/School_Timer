@@ -1,4 +1,5 @@
 import { HOUSE_MAIL_SENDER, HOUSE_MAIL_STAMP } from '../../lib/studentHouseReward';
+import { formatStudentNumberLabel } from '../../lib/studentIdentity';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Inbox, Mail, MailOpen, PenLine, Reply, Send, SendHorizontal, Stamp, X } from 'lucide-react';
 import { CLASS_DONATION_MAIL_IMAGE_SOURCE, CLASS_DONATION_MAIL_SENDER_LABEL } from '../../lib/classDonation';
@@ -412,7 +413,7 @@ export default function StudentMailboxPage({
                 </header>
                 <p>{preserveKoreanPhraseSpacing(selectedLetter.content)}</p>
                 <footer className="student-letter-footer">
-                  <strong>{mode === 'sent' ? `${studentNumber}번 드림` : `${selectedLetter.senderLabel} 드림`}</strong>
+                  <strong>{mode === 'sent' ? `${formatStudentNumberLabel(studentNumber)} 드림` : `${selectedLetter.senderLabel} 드림`}</strong>
                 </footer>
                 {mode === 'inbox' && selectedLetter.senderLabel === '선생님' ? (
                   <button type="button" className="student-letter-reply" onClick={() => startReply(selectedLetter)}>

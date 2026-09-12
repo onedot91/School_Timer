@@ -17,6 +17,7 @@ import {
   claimWeeklyEmotionRewardInSettings,
   collectCurrencyTax,
   finalizeAuctionAwardInSettings,
+  formatStudentNumberLabel,
   getAuctionAwardsForDay,
   hasDailyEmotionReward,
   hasWeeklyEmotionReward,
@@ -33,6 +34,12 @@ test('24번 테스트 학생의 잔액 기본값은 1000고마이고 기존 잔�
   assert.equal(getDefaultCurrencyBalance(23), 100);
   assert.equal(normalizeCurrencyBalances({ 24: 750 })['24'], 750);
   assert.equal(normalizeCurrencyBalances(null)['24'], undefined);
+});
+
+test('테스트 학생 번호는 24번이 아니라 테스트로 표기한다', () => {
+  assert.equal(formatStudentNumberLabel(24), '테스트');
+  assert.equal(formatStudentNumberLabel(1), '1번');
+  assert.equal(formatStudentNumberLabel(23), '23번');
 });
 
 test('주간 정산은 24번 테스트 학생의 잔액을 유지하고 세금과 주급을 기록하지 않는다', () => {

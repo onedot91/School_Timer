@@ -14292,6 +14292,12 @@ a[href]:active {
   background: var(--apple-surface);
 }
 
+.entry-number-button-test .entry-number-value {
+  font-size: clamp(1.05rem, 3vw, 1.35rem);
+  letter-spacing: -0.05em;
+  font-variant-numeric: normal;
+}
+
 .entry-number-value {
   font-family: var(--font-display);
   font-size: clamp(1.375rem, 4vw, 1.75rem);

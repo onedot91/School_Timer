@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Clock, Store } from 'lucide-react';
 import type { BrowserDeviceSession } from '../lib/deviceSessionClient';
+import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from '../lib/studentIdentity';
 
 interface EntrySelectPageProps {
   readonly onSelectNumber: (studentNumber: number, registrationKey?: string) => Promise<void>;
@@ -28,7 +29,9 @@ export default function EntrySelectPage({
   const dialogRef = useRef<HTMLElement>(null);
   const registrationInputRef = useRef<HTMLInputElement>(null);
   const entryTriggerRef = useRef<HTMLButtonElement>(null);
-  const visibleEntryNumbers = isZeroVisible ? ENTRY_NUMBERS : ENTRY_NUMBERS.filter((studentNumber) => studentNumber !== 0);
+  const visibleEntryNumbers = isZeroVisible
+    ? ENTRY_NUMBERS
+    : ENTRY_NUMBERS.filter((studentNumber) => studentNumber !== 0 && studentNumber !== TEST_STUDENT_NUMBER);
 
   const dismissRegistration = useCallback(() => {
     if (isRegistering) return;
@@ -147,6 +150,7 @@ export default function EntrySelectPage({
           <div className="entry-number-grid" aria-busy={isRegistering}>
             {visibleEntryNumbers.map((studentNumber) => {
               const isClockEntry = studentNumber === 0;
+              const isTestEntry = studentNumber === TEST_STUDENT_NUMBER;
               return (
                 <button
                   key={studentNumber}
@@ -155,14 +159,14 @@ export default function EntrySelectPage({
                     entryTriggerRef.current = event.currentTarget;
                     selectNumber(studentNumber);
                   }}
-                  className={`entry-number-button${isClockEntry ? ' entry-number-button-admin' : ''}`}
-                  aria-label={isClockEntry ? '0번 학급 시계 선택' : `${studentNumber}번 경매장 선택`}
+                  className={`entry-number-button${isClockEntry ? ' entry-number-button-admin' : ''}${isTestEntry ? ' entry-number-button-test' : ''}`}
+                  aria-label={isClockEntry ? '0번 학급 시계 선택' : isTestEntry ? '테스트 입장 선택' : `${studentNumber}번 경매장 선택`}
                   disabled={isRegistering}
                 >
                   <span className="entry-number-icon" aria-hidden="true">
                     {isClockEntry ? <Clock size={20} /> : <Store size={20} />}
                   </span>
-                  <span className="entry-number-value">{studentNumber}</span>
+                  <span className="entry-number-value">{isTestEntry ? '테스트' : studentNumber}</span>
                 </button>
               );
             })}
@@ -185,7 +189,7 @@ export default function EntrySelectPage({
           >
             <form onSubmit={registerNumber}>
               <h2 id="entry-registration-title" className="entry-registration-title">
-                {pendingEntryNumber}번 기기 등록
+                {formatStudentNumberLabel(pendingEntryNumber)} 기기 등록
               </h2>
               <p id="entry-registration-description" className="entry-registration-description">
                 교사가 이 기기를 확인한 뒤 승인 키를 입력해 주세요.

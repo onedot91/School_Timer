@@ -44,6 +44,7 @@ import {
   claimDailyEmotionRewardInSettings,
   claimWeeklyEmotionRewardInSettings,
   hasDailyEmotionReward,
+  formatStudentNumberLabel,
   type AuctionAwards,
   type AuctionBidHistory,
   type AuctionItem,
@@ -797,7 +798,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   const sendStudentLetter = (title: string, content: string, replyToId?: string) => saveStudentLifeChange((current) => createStudentLetter(current, {
-    id: createBrowserRequestId(), recipient: TEACHER_LETTER_RECIPIENT, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
+    id: createBrowserRequestId(), recipient: TEACHER_LETTER_RECIPIENT, senderLabel: formatStudentNumberLabel(studentNumber), senderStudentNumber: studentNumber, replyToId, title, content, createdAt: new Date().toISOString(),
   }), 'student.letter.send', { recipient: TEACHER_LETTER_RECIPIENT, title, content, ...(replyToId ? { replyToId } : {}) });
 
   const sendTodayFriendRecommendation = (letter: {
@@ -807,7 +808,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     readonly content: string;
   }) => saveStudentLifeChange((current) => createStudentLetter(current, {
     ...letter,
-    senderLabel: `${studentNumber}번`,
+    senderLabel: formatStudentNumberLabel(studentNumber),
     senderStudentNumber: studentNumber,
     createdAt: new Date().toISOString(),
   }), 'student.letter.send', { letterId: letter.id, recipient: letter.recipient, title: letter.title, content: letter.content }, letter.id);
@@ -2312,7 +2313,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           reservedAmount={reservedAmount}
           visibleDayCount={visibleDayCount}
           selectedItemId={selectedItem?.id ?? null}
-          studentLabel={`${studentNumber}번`}
+          studentLabel={formatStudentNumberLabel(studentNumber)}
           profileAssignments={profileAssignments}
           isLoading={isLoading}
           showStudentSummary={false}

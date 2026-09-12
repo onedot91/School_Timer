@@ -19,6 +19,7 @@ import { startSaveRecovery } from './lib/saveRecovery';
 import { retainStorageResponseActor } from './lib/storageResponseOrder';
 import { canReloadWithDrafts } from './lib/draftReloadSafety';
 import { GOMA_LOADING_PRELOAD_SRCS } from './lib/gomaLoadingArt';
+import { TEST_STUDENT_NUMBER } from './lib/studentIdentity';
 import EntrySelectPage from './pages/EntrySelectPage';
 
 const AuctionPage = lazy(() => import('./pages/AuctionPage'));
@@ -181,7 +182,7 @@ export default function RootApp() {
         setDeviceSession(nextSession);
       }
     }
-    if (studentNumber === 0) {
+    if (studentNumber === 0 || studentNumber === TEST_STUDENT_NUMBER) {
       storeTeacherEntryVisible();
       setTeacherEntryVisible(true);
     }

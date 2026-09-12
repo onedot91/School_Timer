@@ -1,4 +1,5 @@
 import { appendCurrencyHistoryEntry, claimDailyEmotionRewardInSettings, claimWeeklyEmotionRewardInSettings, claimSudokuRewardInSettings, claimNumberBaseballRewardInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionBids, normalizeAuctionBidHistory, normalizeAuctionAwards, normalizeAuctionItems, getReservedAuctionBidAmount, getMinimumAuctionBid, hasAuctionBidAmount, getAuctionVisibleDayCount } from '../lib/currency.js';
+import { formatStudentNumberLabel } from '../lib/studentIdentity.js';
 import { createStudentLetter, isStudentLetterRetained, markStudentLetterRead, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../lib/studentLife.js';
 import { FAILURE_STAMP_OPTIONS, toggleFailureStamp } from '../lib/failureExhibition.js';
 import { createFailureExhibitionMissionEntry } from '../lib/failureExhibitionMission.js';
@@ -52,7 +53,7 @@ export const applyStudentStorageCommand = (
       if (prior.senderStudentNumber !== studentNumber || prior.recipient !== recipient || prior.title !== input.title || prior.content !== input.content) return fail('LETTER_ID_CONFLICT');
       return finish(current);
     }
-    const next = createStudentLetter(life, { id: letterId, recipient, senderLabel: `${studentNumber}번`, senderStudentNumber: studentNumber, title: text(input.title, 200), content: text(input.content), ...(input.replyToId === undefined ? {} : { replyToId: text(input.replyToId, 200) }), createdAt: context.createdAt });
+    const next = createStudentLetter(life, { id: letterId, recipient, senderLabel: formatStudentNumberLabel(studentNumber), senderStudentNumber: studentNumber, title: text(input.title, 200), content: text(input.content), ...(input.replyToId === undefined ? {} : { replyToId: text(input.replyToId, 200) }), createdAt: context.createdAt });
     const letter = next.letters.find(({ id }) => id === letterId);
     if (!letter) return fail();
     return finish({ ...current, studentLife: { ...rawLife, letters: [...rawList(rawLife.letters).filter((item) => record(item).id !== letterId), letter] } });
