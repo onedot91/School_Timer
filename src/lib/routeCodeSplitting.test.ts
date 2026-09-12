@@ -35,6 +35,19 @@ test('낱말판 전용 스타일은 번호 선택 화면에서 미리 내려받�
   assert.match(auctionPageSource, /import '\.\.\/classword\.css'/);
 });
 
+test('학생 홈 배경은 페이지 청크보다 먼저 받고 다른 홈 그림보다 우선한다', () => {
+  const petStageSource = readFileSync(new URL('../components/student/StudentPetStage.tsx', import.meta.url), 'utf8');
+  assert.match(rootAppSource, /if \(selectedEntryNumber !== null && selectedEntryNumber > 0\) preloadStudentHomeScene\(\)/);
+  assert.match(rootAppSource, /preloadStudentHomeScene\(\)/);
+  assert.match(rootAppSource, /link\.href = STUDENT_HOME_SCENE_SRC/);
+  assert.match(rootAppSource, /\/student-home-mail\.webp/);
+  assert.match(petStageSource, /className="student-home-scene"/);
+  assert.match(petStageSource, /fetchPriority="high"/);
+  assert.match(petStageSource, /fetchPriority="low"/);
+  assert.doesNotMatch(stylesheetSource, /student-overview-home/);
+  assert.doesNotMatch(stylesheetSource, /background-image:\s*url\('\/student-home-mail/);
+});
+
 test('웹 폰트 연결은 앱 스타일 파싱 전에 시작한다', () => {
   assert.match(indexHtmlSource, /rel="preconnect" href="https:\/\/fonts\.googleapis\.com"/);
   assert.match(indexHtmlSource, /rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin/);

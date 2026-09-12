@@ -23,9 +23,26 @@ import EntrySelectPage from './pages/EntrySelectPage';
 const AuctionPage = lazy(() => import('./pages/AuctionPage'));
 const TimerPage = lazy(() => import('./pages/TimerPage'));
 
+const STUDENT_HOME_SCENE_SRC = '/student-home-mail.webp';
+
+const preloadStudentHomeScene = () => {
+  if (typeof document === 'undefined') return;
+  if (document.head.querySelector('link[data-preload="student-home-scene"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'preload';
+  link.as = 'image';
+  link.href = STUDENT_HOME_SCENE_SRC;
+  link.fetchPriority = 'high';
+  link.dataset.preload = 'student-home-scene';
+  document.head.appendChild(link);
+};
+
 const preloadEntryPage = (entryNumber: number | null) => {
   if (entryNumber === 0) return import('./pages/TimerPage');
-  if (entryNumber !== null) return import('./pages/AuctionPage');
+  if (entryNumber !== null) {
+    preloadStudentHomeScene();
+    return import('./pages/AuctionPage');
+  }
   return null;
 };
 
@@ -118,6 +135,9 @@ export default function RootApp() {
   const [isDeviceSessionReady, setIsDeviceSessionReady] = useState(!requiresDeviceRegistration);
   const [teacherEntryVisible, setTeacherEntryVisible] = useState(() => getStoredTeacherEntryVisible());
   useEffect(() => { retainStorageResponseActor(selectedEntryNumber); }, [selectedEntryNumber]);
+  useEffect(() => {
+    if (selectedEntryNumber !== null && selectedEntryNumber > 0) preloadStudentHomeScene();
+  }, [selectedEntryNumber]);
 
   useEffect(() => startSaveFailureReporting(), [selectedEntryNumber]);
   useEffect(() => {

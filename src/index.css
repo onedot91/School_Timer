@@ -14499,10 +14499,6 @@ a[href]:active {
   --student-home-emotion-sun-top: 3%;
   --student-home-emotion-sun-right: 2.5%;
   --student-home-emotion-sun-size: clamp(5.5rem, 11vw, 8rem);
-  background-image: url('/student-home-mail.webp');
-}
-.student-character-stage-card[data-unread-mail="true"] {
-  background-image: url('/student-home-mail-unread.webp');
 }
 .student-home-hotspot {
   position: absolute;
@@ -19592,7 +19588,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   overflow: hidden;
   padding: 1rem 1.5rem;
   border-color: color-mix(in srgb, var(--apple-accent) 20%, var(--apple-separator));
-  background: url('/student-overview-home.webp') center / cover no-repeat;
+  background-color: #7ec8ea;
 }
 
 .student-character-stage-placeholder {
@@ -25831,11 +25827,16 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-emotion-orb { forced-color-adjust: none; border: 1px solid CanvasText; }
 }
 
-.student-character-stage-card {
-  background-image: url('/student-home-mail.webp');
-}
-.student-character-stage-card[data-unread-mail="true"] {
-  background-image: url('/student-home-mail-unread.webp');
+.student-home-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
 }
 
 .student-home-house {

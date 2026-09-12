@@ -135,12 +135,23 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
     >
       <div className="student-character-stage-placeholder" aria-hidden="true" />
       <img
+        className="student-home-scene"
+        src={hasUnreadMail ? '/student-home-mail-unread.webp' : '/student-home-mail.webp'}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        decoding="async"
+        fetchPriority="high"
+      />
+      <img
         className={`student-home-house${activeHouseId === 'custom' && customHouseTheme ? ` student-home-house-${customHouseTheme}` : ''}`}
         style={activeHouseStageStyle}
         src={activeHouse?.imageSrc ?? (isHouseRepaired ? '/student-house-after.webp' : '/student-house-before.webp')}
         alt=""
         aria-hidden="true"
         draggable={false}
+        decoding="async"
+        fetchPriority="low"
       />
       {isHouseRepaired && onOpenHousePicker ? (
         <button
@@ -241,9 +252,9 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
         onKeyDown={handleGomaKeyDown}
       >
         {activeCharacter ? (
-          <img className="student-goma-selected-character" src={activeCharacter.imageSrc} alt={activeCharacter.name} draggable={false} />
+          <img className="student-goma-selected-character" src={activeCharacter.imageSrc} alt={activeCharacter.name} draggable={false} decoding="async" fetchPriority="low" />
         ) : (
-          <img src="/goma-canvas-character.webp" alt="" draggable={false} />
+          <img src="/goma-canvas-character.webp" alt="" draggable={false} decoding="async" fetchPriority="low" />
         )}
       </button>
       {hasActivePet ? (
