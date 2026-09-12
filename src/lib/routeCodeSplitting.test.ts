@@ -39,7 +39,7 @@ test('낱말판 전용 스타일은 번호 선택 화면에서 미리 내려받�
 
 test('학생 홈 배경은 페이지 청크보다 먼저 받고 다른 홈 그림보다 우선한다', () => {
   const petStageSource = readFileSync(new URL('../components/student/StudentPetStage.tsx', import.meta.url), 'utf8');
-  assert.match(rootAppSource, /if \(selectedEntryNumber !== null && selectedEntryNumber > 0\) preloadStudentHomeScene\(\)/);
+  assert.match(rootAppSource, /if \(selectedEntryNumber > 0\) preloadStudentHomeScene\(\)/);
   assert.match(rootAppSource, /preloadStudentHomeScene\(\)/);
   assert.match(rootAppSource, /link\.href = STUDENT_HOME_SCENE_SRC/);
   assert.match(rootAppSource, /\/student-home-mail\.webp/);
@@ -48,6 +48,13 @@ test('학생 홈 배경은 페이지 청크보다 먼저 받고 다른 홈 그�
   assert.match(petStageSource, /fetchPriority="low"/);
   assert.doesNotMatch(stylesheetSource, /student-overview-home/);
   assert.doesNotMatch(stylesheetSource, /background-image:\s*url\('\/student-home-mail/);
+});
+
+test('처리 중 고마 그림은 홈 배경보다 낮은 우선순위로 미리 받는다', () => {
+  assert.match(rootAppSource, /from '\.\/lib\/gomaLoadingArt'/);
+  assert.match(rootAppSource, /link\.dataset\.preload = 'goma-loading'/);
+  assert.match(rootAppSource, /link\.fetchPriority = 'low'/);
+  assert.match(rootAppSource, /preloadStudentHomeScene\(\);\s*preloadGomaLoadingArt\(\);/);
 });
 
 test('웹 폰트 연결은 앱 스타일 파싱 전에 시작한다', () => {

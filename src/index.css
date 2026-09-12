@@ -29015,7 +29015,9 @@ body {
 .goma-loading-sprite[data-variant="watering"] { --goma-frame-2-x: -47.5279%; --goma-frame-3-x: .0797%; --goma-frame-4-x: -47.3684%; --goma-frame-y: -46.252%; }
 
 .goma-kinetic { mix-blend-mode: multiply; }
-.goma-kinetic image { image-rendering: pixelated; }
+.goma-kinetic image, .goma-kinetic-actor { image-rendering: pixelated; }
+.goma-kinetic foreignObject { overflow: visible; pointer-events: none; }
+.goma-kinetic-actor { display: block; width: 100%; height: 100%; object-fit: contain; }
 .goma-jumper { animation: goma-book-jump 1.8s infinite; }
 @keyframes goma-book-jump {
   0%, 12%, 100% { transform: translateY(0); animation-timing-function: ease-out; }

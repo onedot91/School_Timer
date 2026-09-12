@@ -23,6 +23,25 @@ test('마우스로 누른 뒤에는 hover를 벗어나면 숨고 키보드 포�
   assert.match(timerPage, /onPointerUp=\{\(event\) => event\.currentTarget\.blur\(\)\}/);
 });
 
+test('교사 타이머는 배경 음악을 켤 때까지 음원 파일을 받지 않는다', async () => {
+  const timerPage = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
+  const indexHtml = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
+  const helperStart = timerPage.indexOf('const getSharedBackgroundMusicAudio');
+  const helperEnd = timerPage.indexOf('const hasBackgroundMusicSource');
+  const toggleStart = timerPage.indexOf('const toggleBackgroundMusic');
+  const helper = timerPage.slice(helperStart, helperEnd);
+  const toggle = timerPage.slice(toggleStart, toggleStart + 1600);
+
+  assert.match(helper, /sharedBackgroundMusicAudio = new Audio\(\);/);
+  assert.match(helper, /preload = 'none'/);
+  assert.doesNotMatch(helper, /new Audio\(BACKGROUND_MUSIC_SRC\)/);
+  assert.doesNotMatch(helper, /preload = 'auto'/);
+  assert.doesNotMatch(helper, /\.src = BACKGROUND_MUSIC_SRC/);
+  assert.match(toggle, /attachBackgroundMusicSource\(audio\)/);
+  assert.doesNotMatch(toggle, /preload = 'auto'/);
+  assert.doesNotMatch(indexHtml, /background_music\.mp3/);
+});
+
 test('배경 음악이 켜지면 기본 버튼 면보다 뒤에 선언된 활성 배경을 사용한다', async () => {
   // Given
   const css = await readFile(new URL('../index.css', import.meta.url), 'utf8');

@@ -23,6 +23,15 @@ test('학생 비동기 작업 중에는 처리 상태와 중앙 로딩 모달을
   assert.doesNotMatch(activeMarkup, /role="progressbar"/);
 });
 
+test('처리 중 모달의 움직임 그림은 SVG 대신 작은 이미지를 바로 그린다', (context) => {
+  context.mock.method(Math, 'random', () => 0.15);
+  const activeMarkup = renderToStaticMarkup(createElement(StudentActionProgress, { isActive: true }));
+
+  assert.match(activeMarkup, /class="goma-kinetic-actor"/);
+  assert.match(activeMarkup, /src="\/images\/loading\/goma-jumping.webp"/);
+  assert.doesNotMatch(activeMarkup, /<image /);
+});
+
 test('학생 버튼은 pointer-down 동안 즉시 눌림 피드백을 준다', async () => {
   const css = await readFile(new URL('../index.css', import.meta.url), 'utf8');
   const activeRuleStart = css.indexOf('.student-mode-page button:not(:disabled):active');

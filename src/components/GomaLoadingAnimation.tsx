@@ -1,10 +1,14 @@
 import { useId, useState } from 'react';
+import {
+  GOMA_FLIGHT_ARTWORK_SRC,
+  gomaKineticArtworkSrc,
+  gomaLoadingVariants,
+  type GomaLoadingVariant,
+} from '../lib/gomaLoadingArt';
 
-const artwork = '/images/loading/goma-pencil.png';
+export { gomaLoadingVariants, type GomaLoadingVariant };
+
 const scarfOutline = 'M38 41H55L61 47V54L56 56L49 59H38Z';
-
-export const gomaLoadingVariants = ['flight', 'jumping', 'parachute', 'skating', 'sailing', 'bubble', 'train', 'moon', 'rocket', 'carrot'] as const;
-export type GomaLoadingVariant = typeof gomaLoadingVariants[number];
 
 export default function GomaLoadingAnimation({ variant = 'random' }: {
   readonly variant?: GomaLoadingVariant | 'random';
@@ -20,6 +24,8 @@ function GomaKineticScene({ variant }: { readonly variant: Exclude<GomaLoadingVa
   const starParticles = jumping || variant === 'skating' || variant === 'moon' || variant === 'rocket';
   const actorClass = { jumping: 'goma-jumper', parachute: 'goma-parachutist', skating: 'goma-skater', sailing: 'goma-sailor', bubble: 'goma-bubble-rider', train: 'goma-cloud-train', moon: 'goma-moon-swing', rocket: 'goma-star-rocket', carrot: 'goma-carrot-car' }[variant];
   const size = jumping ? 90 : variant === 'parachute' ? 112 : 128;
+  const x = (160 - size) / 2;
+  const y = jumping ? 25 : variant === 'parachute' ? 8 : 0;
   return (
     <div className="goma-loading goma-kinetic" aria-hidden="true" data-variant={variant}>
       <svg viewBox="0 0 160 128" focusable="false">
@@ -40,8 +46,18 @@ function GomaKineticScene({ variant }: { readonly variant: Exclude<GomaLoadingVa
           <path className="goma-water-wave goma-water-wave-near" stroke="#7eb9b5" d="M-20 115h12v-3H4v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12v3h12v-3h12v-3h12v3h12" />
         </g>}
         <g className={actorClass}>
-          <image href={`/images/loading/goma-${variant === 'moon' ? 'moon-side' : variant === 'parachute' ? 'parachute-arms' : variant}.png`} x={(160 - size) / 2} y={jumping ? 25 : variant === 'parachute' ? 8 : 0}
-            width={size} height={size} />
+          <foreignObject x={x} y={y} width={size} height={size}>
+            <img
+              className="goma-kinetic-actor"
+              src={gomaKineticArtworkSrc(variant)}
+              alt=""
+              width={size}
+              height={size}
+              decoding="async"
+              fetchPriority="high"
+              draggable={false}
+            />
+          </foreignObject>
         </g>
         <g shapeRendering="crispEdges" strokeWidth="1" strokeLinejoin="miter">
           {particlePositions.map(([x, y], index) => (
@@ -79,10 +95,10 @@ function GomaFlight() {
           <clipPath id={`${id}-scarf`}><path d={scarfOutline} /></clipPath>
         </defs>
         <g className="goma-flight goma-artwork">
-          <image href={artwork} y="5" width="160" height="106.667" clipPath={`url(#${id}-eyes)`} />
-          <image href={artwork} width="160" height="106.667" mask={`url(#${id}-body)`} />
-          <g className="goma-eyes"><image href={artwork} width="160" height="106.667" clipPath={`url(#${id}-eyes)`} /></g>
-          <g className="goma-scarf-tail"><image href={artwork} width="160" height="106.667" clipPath={`url(#${id}-scarf)`} /></g>
+          <image href={GOMA_FLIGHT_ARTWORK_SRC} y="5" width="160" height="106.667" clipPath={`url(#${id}-eyes)`} />
+          <image href={GOMA_FLIGHT_ARTWORK_SRC} width="160" height="106.667" mask={`url(#${id}-body)`} />
+          <g className="goma-eyes"><image href={GOMA_FLIGHT_ARTWORK_SRC} width="160" height="106.667" clipPath={`url(#${id}-eyes)`} /></g>
+          <g className="goma-scarf-tail"><image href={GOMA_FLIGHT_ARTWORK_SRC} width="160" height="106.667" clipPath={`url(#${id}-scarf)`} /></g>
         </g>
         <g fill="#f4ce68" stroke="#cba043" strokeWidth="1" strokeLinejoin="miter" shapeRendering="crispEdges">
           {['one', 'two', 'three'].map((star) => (

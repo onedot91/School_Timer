@@ -18,6 +18,7 @@ import { captureStorageResponseContext } from './lib/storageResponseOrder';
 import { startSaveRecovery } from './lib/saveRecovery';
 import { retainStorageResponseActor } from './lib/storageResponseOrder';
 import { canReloadWithDrafts } from './lib/draftReloadSafety';
+import { GOMA_LOADING_PRELOAD_SRCS } from './lib/gomaLoadingArt';
 import EntrySelectPage from './pages/EntrySelectPage';
 
 const AuctionPage = lazy(() => import('./pages/AuctionPage'));
@@ -37,10 +38,28 @@ const preloadStudentHomeScene = () => {
   document.head.appendChild(link);
 };
 
+const preloadGomaLoadingArt = () => {
+  if (typeof document === 'undefined') return;
+  for (const href of GOMA_LOADING_PRELOAD_SRCS) {
+    if (document.head.querySelector(`link[data-preload="goma-loading"][href="${href}"]`)) continue;
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = href;
+    link.fetchPriority = 'low';
+    link.dataset.preload = 'goma-loading';
+    document.head.appendChild(link);
+  }
+};
+
 const preloadEntryPage = (entryNumber: number | null) => {
-  if (entryNumber === 0) return import('./pages/TimerPage');
+  if (entryNumber === 0) {
+    preloadGomaLoadingArt();
+    return import('./pages/TimerPage');
+  }
   if (entryNumber !== null) {
     preloadStudentHomeScene();
+    preloadGomaLoadingArt();
     return import('./pages/AuctionPage');
   }
   return null;
@@ -136,7 +155,9 @@ export default function RootApp() {
   const [teacherEntryVisible, setTeacherEntryVisible] = useState(() => getStoredTeacherEntryVisible());
   useEffect(() => { retainStorageResponseActor(selectedEntryNumber); }, [selectedEntryNumber]);
   useEffect(() => {
-    if (selectedEntryNumber !== null && selectedEntryNumber > 0) preloadStudentHomeScene();
+    if (selectedEntryNumber === null) return;
+    if (selectedEntryNumber > 0) preloadStudentHomeScene();
+    preloadGomaLoadingArt();
   }, [selectedEntryNumber]);
 
   useEffect(() => startSaveFailureReporting(), [selectedEntryNumber]);

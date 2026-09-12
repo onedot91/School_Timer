@@ -587,9 +587,9 @@ const getSharedBackgroundMusicAudio = () => {
   if (typeof window === 'undefined') return null;
 
   if (!sharedBackgroundMusicAudio) {
-    sharedBackgroundMusicAudio = new Audio(BACKGROUND_MUSIC_SRC);
+    sharedBackgroundMusicAudio = new Audio();
+    sharedBackgroundMusicAudio.preload = 'none';
     sharedBackgroundMusicAudio.loop = true;
-    sharedBackgroundMusicAudio.preload = 'auto';
   }
 
   sharedBackgroundMusicAudio.volume = BACKGROUND_MUSIC_VOLUME;
@@ -597,6 +597,14 @@ const getSharedBackgroundMusicAudio = () => {
 
   return sharedBackgroundMusicAudio;
 };
+
+const hasBackgroundMusicSource = (audio: HTMLAudioElement) => audio.getAttribute('src') === BACKGROUND_MUSIC_SRC;
+
+const attachBackgroundMusicSource = (audio: HTMLAudioElement) => {
+  audio.preload = 'none';
+  audio.src = BACKGROUND_MUSIC_SRC;
+};
+
 const SCHEDULE_YOUTUBE_LEGACY_URL_STORAGE_KEY = 'scheduleYoutubeUrl-v1';
 const SCHEDULE_YOUTUBE_VISIBLE_STORAGE_KEY = 'scheduleYoutubeVisible-v1';
 const SCHEDULE_YOUTUBE_FAVORITES_STORAGE_KEY = 'scheduleYoutubeFavorites-v1';
@@ -7680,13 +7688,8 @@ export default function TimerPage() {
       setIsMusicAvailable(true);
       audio.volume = BACKGROUND_MUSIC_VOLUME;
       audio.loop = true;
-      audio.preload = 'auto';
-
-      if (audio.error) {
-        audio.src = BACKGROUND_MUSIC_SRC;
-        audio.load();
-      } else if (audio.readyState === HTMLMediaElement.HAVE_NOTHING) {
-        audio.load();
+      if (!hasBackgroundMusicSource(audio) || audio.error) {
+        attachBackgroundMusicSource(audio);
       }
 
       await audio.play();
