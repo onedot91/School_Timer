@@ -6,12 +6,25 @@ import { createTodayFriendTextPayload } from './todayFriend';
 import {
   assignTodayFriendPair,
   ensureTodayFriendDay,
+  ensureTodayFriendPracticeSubmissions,
   getTodayFriendStudentMission,
-  reviewTodayFriendSubmission,
   saveTodayFriendSubmission,
   submitSavedTodayFriendSubmission,
   TODAY_FRIEND_INITIAL_STATE,
 } from './todayFriendState';
+
+test('연습 예시 제출은 그날 제출이 없을 때만 장르별 대기·완료를 채운다', () => {
+  const dateKey = '2026-09-12';
+  const prepared = ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, '2026-37', dateKey);
+  const seeded = ensureTodayFriendPracticeSubmissions(prepared, dateKey);
+  const dateSubmissions = seeded.submissions.filter((entry) => entry.dateKey === dateKey);
+
+  assert.equal(dateSubmissions.length, 8);
+  assert.equal(dateSubmissions.filter((entry) => entry.status === 'submitted').length, 7);
+  assert.equal(dateSubmissions.filter((entry) => entry.status === 'approved').length, 1);
+  assert.equal(new Set(dateSubmissions.map((entry) => entry.payload.kind)).size, 5);
+  assert.deepEqual(ensureTodayFriendPracticeSubmissions(seeded, dateKey), seeded);
+});
 
 test('학생 미션 조회는 오늘 장르와 배정된 파트너를 반환한다', () => {
   // Given
@@ -46,7 +59,7 @@ test('테스트 학생은 오늘의 친구 미션과 수동 짝 지정에서 제
   }), /INVALID_PARTNER_PAIR/);
 });
 
-test('학생 제출은 교사 수정 요청 후 고쳐서 다시 제출할 수 있다', () => {
+test('학생 제출은 승인 전에 답을 고쳐서 다시 제출할 수 있다', () => {
   // Given
   const prepared = ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, '2026-36', '2026-09-01');
   const mission = getTodayFriendStudentMission(prepared, '2026-09-01', 1);
@@ -55,16 +68,17 @@ test('학생 제출은 교사 수정 요청 후 고쳐서 다시 제출할 수 �
     payload: createTodayFriendTextPayload(mission.genre, '친구와 이야기한 내용을 적었습니다.'),
   });
   const submitted = submitSavedTodayFriendSubmission(drafted, mission.dateKey, 1, '2026-09-01T01:00:00.000Z');
+  const submittedMission = getTodayFriendStudentMission(submitted, mission.dateKey, 1);
 
   // When
-  const revisionRequested = reviewTodayFriendSubmission(submitted, {
-    submissionId: `today-friend-${mission.dateKey}-1`,
-    decision: 'revision_requested',
-    feedback: '조금 더 자세히 적어 주세요.',
-    reviewedAt: '2026-09-01T01:05:00.000Z',
+  const rewritten = saveTodayFriendSubmission(submitted, {
+    mission: submittedMission,
+    payload: createTodayFriendTextPayload(mission.genre, '대화로 알게 된 내용을 다시 적었습니다.'),
   });
+  const resubmitted = submitSavedTodayFriendSubmission(rewritten, mission.dateKey, 1, '2026-09-01T01:10:00.000Z');
 
   // Then
-  assert.equal(revisionRequested.submissions[0]?.status, 'revision_requested');
-  assert.equal(revisionRequested.submissions[0]?.teacherFeedback, '조금 더 자세히 적어 주세요.');
+  assert.equal(resubmitted.submissions[0]?.status, 'submitted');
+  assert.equal(resubmitted.submissions[0]?.revision, 2);
+  assert.match(JSON.stringify(resubmitted.submissions[0]?.payload), /대화로 알게 된 내용을 다시 적었습니다/);
 });

@@ -227,11 +227,10 @@ export default function StudentTodayFriendPage({
           {displayedMission.question ? <aside className="today-friend-question"><span>질문</span><strong>{displayedMission.question}</strong></aside> : null}
           {status === 'submitted' ? <aside className="today-friend-status-card" data-status="submitted"><Clock3 aria-hidden="true" /><strong>선생님 확인 대기</strong></aside> : null}
           {status === 'approved' ? <aside className="today-friend-status-card" data-status="approved"><CheckCircle2 aria-hidden="true" /><span><strong>오늘의 친구 미션 완료!</strong><small>{TODAY_FRIEND_REWARD}고마 지급 완료</small></span></aside> : null}
-          {status === 'revision_requested' && displayedMission.submission?.teacherFeedback ? <aside className="today-friend-revision"><strong>선생님이 수정을 부탁했어요</strong><p>{displayedMission.submission.teacherFeedback}</p></aside> : null}
-          {(status === 'submitted' || status === 'approved') && displayedMission.submission ? (
+          {status === 'approved' && displayedMission.submission ? (
             <TodayFriendSubmittedAnswer payload={displayedMission.submission.payload} />
           ) : null}
-          {(status !== 'submitted' && status !== 'approved') || (!isPreview && pendingSubmission) ? (
+          {status !== 'approved' || (!isPreview && pendingSubmission) ? (
             <TodayFriendMissionForm key={JSON.stringify([displayedMission.dateKey, displayedMission.studentNumber, displayedMission.partnerNumber, displayedMission.genre, displayedMission.question])} mission={displayedMission} isSaving={isSaving} isPreview={isPreview} pendingPayload={isPreview ? undefined : pendingSubmission?.payload} saveMessage={isPreview ? '' : saveMessage} onSave={saveMission} onSendRecommendation={onSendRecommendation} />
           ) : null}
         </section>

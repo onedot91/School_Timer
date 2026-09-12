@@ -20370,8 +20370,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 .teacher-today-friend-tabs,
 .teacher-today-friend-plan-card > header,
 .teacher-today-friend-plan-card > header > div,
-.teacher-today-friend-detail > header,
-.teacher-today-friend-review-actions > div {
+.teacher-today-friend-detail > header {
   display: flex;
   align-items: center;
 }
@@ -20491,33 +20490,90 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 }
 
 .teacher-today-friend-queue { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
-.teacher-today-friend-queue > header { display: flex; align-items: baseline; justify-content: space-between; padding: .85rem 1rem; border-bottom: 1px solid var(--apple-separator); }
+.teacher-today-friend-queue > header { display: flex; align-items: baseline; justify-content: space-between; gap: .65rem; padding: .85rem 1rem; border-bottom: 1px solid var(--apple-separator); }
 .teacher-today-friend-queue h3 { margin: 0; font-size: 1rem; }
-.teacher-today-friend-queue > header span { color: var(--apple-text-secondary); font-size: .75rem; font-weight: 800; }
-.teacher-today-friend-queue-list { display: grid; min-height: 0; align-content: start; gap: .4rem; max-height: 27rem; overflow-y: auto; padding: .55rem; }
+.teacher-today-friend-queue-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .45rem .7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--apple-text-secondary);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.teacher-today-friend-queue-legend > li,
+.teacher-today-friend-detail > header small {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+.teacher-today-friend-queue-legend > li::before {
+  width: .7rem;
+  height: .7rem;
+  border-radius: .2rem;
+  content: '';
+}
+.teacher-today-friend-queue-legend > li[data-status='missing']::before { background: #e4e4e0; }
+.teacher-today-friend-queue-legend > li[data-status='submitted']::before { background: #e8c07a; }
+.teacher-today-friend-queue-legend > li[data-status='approved']::before { background: #7dae8d; }
+.teacher-today-friend-queue-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: start;
+  gap: .35rem;
+  padding: .55rem;
+}
 
 .teacher-today-friend-queue-list > button {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: .2rem .5rem;
-  padding: .7rem;
-  border: 1px solid transparent;
-  border-radius: var(--apple-radius-control);
-  color: var(--apple-text-primary);
-  background: var(--apple-surface-muted);
-  text-align: left;
+  min-height: var(--apple-control-min);
+  place-items: center;
+  padding: .2rem;
+  border: 2px solid transparent;
+  border-radius: .85rem !important;
+  font: inherit;
+  box-shadow: none !important;
+}
+.teacher-settings-theme .settings-dialog .teacher-today-friend-queue-list > button[data-status='missing'],
+.teacher-today-friend-queue-list > button[data-status='missing'] {
+  color: #5d6360 !important;
+  border-color: #cfd3cf !important;
+  background: #eceeea !important;
+}
+.teacher-settings-theme .settings-dialog .teacher-today-friend-queue-list > button[data-status='submitted'],
+.teacher-today-friend-queue-list > button[data-status='submitted'] {
+  color: #6b4a18 !important;
+  border-color: #d4b27a !important;
+  background: #f4dfb8 !important;
+}
+.teacher-settings-theme .settings-dialog .teacher-today-friend-queue-list > button[data-status='approved'],
+.teacher-today-friend-queue-list > button[data-status='approved'] {
+  color: #215544 !important;
+  border-color: #8fbfa3 !important;
+  background: #d4eadc !important;
+}
+.teacher-settings-theme .settings-dialog .teacher-today-friend-queue-list > button.is-active,
+.teacher-today-friend-queue-list > button.is-active {
+  box-shadow: 0 0 0 2px var(--apple-surface), 0 0 0 4px var(--teacher-accent) !important;
+}
+.teacher-today-friend-queue-list > button > strong {
+  font-size: .95rem;
+  font-weight: 900;
+  letter-spacing: -.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
-.teacher-today-friend-queue-list > button.is-active { border-color: var(--apple-accent); background: var(--apple-accent-soft); }
-.teacher-today-friend-queue-list > button > strong { font-size: .88rem; }
-.teacher-today-friend-queue-list > button > span { min-width: 0; overflow: hidden; color: var(--apple-text-secondary); font-size: .76rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.teacher-today-friend-queue-list > button > small { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--apple-accent-pressed); font-weight: 850; }
-
 .teacher-today-friend-detail { display: grid; align-content: start; gap: .85rem; padding: 1rem; }
-.teacher-today-friend-detail > header { justify-content: space-between; gap: .75rem; }
+.teacher-today-friend-detail > header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.teacher-today-friend-detail > header > div { display: grid; gap: .15rem; }
 .teacher-today-friend-detail > header span,
 .teacher-today-friend-detail > header small { color: var(--apple-accent-pressed); font-size: .78rem; font-weight: 850; }
-.teacher-today-friend-detail h3 { margin: .15rem 0 0; font-size: 1.15rem; }
+.teacher-today-friend-detail h3 { margin: 0; font-size: 1.35rem; letter-spacing: -.03em; }
 .teacher-today-friend-detail article,
 .teacher-today-friend-detail aside { padding: 1rem; border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); }
 .teacher-today-friend-detail article[data-private='true'] { border: 1px solid color-mix(in srgb, var(--student-emotion) 38%, var(--apple-separator)); }
@@ -20525,10 +20581,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 .teacher-today-friend-detail aside p { margin: 0; line-height: 1.55; white-space: pre-wrap; }
 .teacher-today-friend-private-label { margin-bottom: .55rem !important; color: var(--student-emotion); font-size: .78rem; font-weight: 900; }
 .teacher-today-friend-detail aside strong { display: block; margin-bottom: .35rem; color: var(--apple-text-secondary); font-size: .78rem; }
-.teacher-today-friend-review-actions { display: grid; gap: .65rem; }
-.teacher-today-friend-review-actions label { display: grid; gap: .35rem; font-size: .82rem; font-weight: 850; }
-.teacher-today-friend-review-actions textarea { min-height: 5.25rem; padding: .7rem; resize: vertical; }
-.teacher-today-friend-review-actions > div { justify-content: flex-end; gap: .5rem; }
+.teacher-today-friend-review-actions { display: flex; justify-content: flex-end; }
 .teacher-today-friend-review-actions button { padding-inline: .85rem; }
 .teacher-today-friend-complete,
 .teacher-today-friend-wait { display: flex; align-items: center; gap: .5rem; margin: 0; padding: .8rem; border-radius: var(--apple-radius-control); color: var(--apple-accent-pressed); background: var(--apple-accent-soft); font-weight: 850; }
@@ -20561,7 +20614,6 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 
 @media (max-width: 68rem) {
   .teacher-today-friend-review { grid-template-columns: minmax(0, 1fr); }
-  .teacher-today-friend-queue-list { max-height: 15rem; }
 }
 
 .student-today-friend-main {
@@ -20899,7 +20951,6 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 
 .today-friend-question,
 .today-friend-field-card,
-.today-friend-revision,
 .today-friend-status-card {
   display: grid;
   gap: .35rem;
@@ -20945,9 +20996,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 }
 
 .today-friend-question span,
-.today-friend-question strong,
-.today-friend-revision strong,
-.today-friend-revision p {
+.today-friend-question strong {
   margin: 0;
 }
 
@@ -20996,16 +21045,43 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   padding-right: .25rem;
 }
 
+.today-friend-form[data-genre='commonality'] .today-friend-form-fields {
+  gap: .4rem;
+}
+
+.today-friend-form[data-genre='commonality'] .today-friend-commonality-list {
+  display: grid;
+  gap: .3rem;
+  padding: .4rem .65rem .45rem;
+}
+
 .today-friend-form[data-genre='recommendation'] .today-friend-form-fields {
   gap: .5rem;
 }
 
 .today-friend-recommendation-basics {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: .5rem;
+  display: grid;
+  grid-template-columns: minmax(10.75rem, .82fr) minmax(0, 1.18fr);
+  align-items: stretch;
+  gap: .45rem .7rem;
+}
+
+.today-friend-recommendation-basics > label {
+  grid-template-rows: auto 1fr;
+}
+
+.today-friend-recommendation-texts > label:last-child {
+  grid-template-rows: auto minmax(44px, 1fr);
+}
+
+.today-friend-recommendation-texts textarea {
+  min-height: 44px;
+  height: 100%;
+  max-height: none;
 }
 
 .today-friend-recommendation-basics > label,
+.today-friend-recommendation-texts > label,
 .today-friend-recommendation-category {
   display: grid;
   min-width: 0;
@@ -21015,6 +21091,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   font-weight: 900;
 }
 
+.today-friend-recommendation-texts > label > span,
 .today-friend-recommendation-basics > label > span,
 .today-friend-recommendation-category > span {
   padding-inline-start: .25rem;
@@ -21026,7 +21103,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 
 .today-friend-recommendation-category-options {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   overflow: hidden;
   border: 1px solid var(--apple-separator-strong);
   border-radius: var(--apple-radius-control);
@@ -21052,6 +21129,7 @@ body:has(.student-mailbox-view) .data-mode-banner span {
     transform var(--student-motion-press, 120ms) var(--student-ease-out);
 }
 
+.today-friend-recommendation-category-option:nth-child(2n),
 .today-friend-recommendation-category-option:last-child {
   border-inline-end: 0;
 }
@@ -21167,6 +21245,85 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 .today-friend-form[data-genre='compliment'] .today-friend-field-card {
   gap: .25rem;
   padding-block: var(--student-today-friend-compact-card-padding-block);
+}
+
+.today-friend-commonality-item {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: .45rem;
+  min-height: 44px;
+  color: var(--today-friend-theme-ink);
+  font-family: var(--font-display);
+  font-size: var(--student-today-friend-field-label-size);
+  font-weight: 900;
+}
+
+.today-friend-commonality-item > span {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--today-friend-theme-accent) 55%, var(--apple-separator));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--today-friend-theme-soft) 72%, white);
+  font-size: .95rem;
+}
+
+.today-friend-commonality-item input {
+  min-height: 44px;
+  height: 44px;
+  padding-block: 0;
+}
+
+.today-friend-commonality-warning {
+  display: grid;
+  gap: .4rem;
+  margin: 0;
+  padding: .55rem .75rem .6rem;
+  border: 1px solid #c45c1a;
+  border-radius: calc(var(--apple-radius-card) - .2rem);
+  background: #fff1d4;
+  color: #7a2400;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.35;
+  box-shadow: inset .35rem 0 0 #e06b00;
+}
+
+.today-friend-commonality-warning > p {
+  margin: 0;
+}
+
+.today-friend-commonality-examples {
+  display: grid;
+  gap: .3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: .92rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.today-friend-commonality-examples li {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+  gap: .4rem;
+  align-items: start;
+}
+
+.today-friend-commonality-examples [data-kind='avoid'] span {
+  color: #7a2400;
+}
+
+.today-friend-commonality-examples [data-kind='ok'] {
+  color: #215534;
+}
+
+.today-friend-commonality-examples [data-kind='ok'] span {
+  color: #215534;
 }
 
 .today-friend-emotion-reason-card {
@@ -21325,9 +21482,26 @@ body:has(.student-mailbox-view) .data-mode-banner span {
 }
 
 .today-friend-form-actions button[type='submit'] {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: .1rem .55rem;
+  min-height: 44px;
+  padding: .3rem .85rem;
   color: var(--today-friend-theme-action-text);
   background: var(--today-friend-theme-accent);
-  box-shadow: 0 .45rem 1rem color-mix(in srgb, var(--today-friend-theme-accent) 24%, transparent);
+  box-shadow: 0 .3rem .7rem color-mix(in srgb, var(--today-friend-theme-accent) 22%, transparent);
+  line-height: 1.15;
+}
+
+.today-friend-form-actions button[type='submit'] small {
+  color: inherit;
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1.2;
+  opacity: .9;
 }
 
 .student-today-friend-view .today-friend-form-actions button[type='submit']:disabled {
@@ -29292,11 +29466,52 @@ body {
 .student-today-friend-view[data-genre='commonality'] .student-today-friend-assignment { background: radial-gradient(circle at 35% 48%, #a975df22 0 28%, transparent 28.5%), radial-gradient(circle at 65% 48%, #a975df22 0 28%, transparent 28.5%), var(--today-friend-theme-paper); }
 .student-today-friend-view[data-genre='commonality'] .today-friend-field-card { background: #fffdff; border-color: #b49ad4; box-shadow: 0 3px 0 #dfd0ef; }
 .student-today-friend-view[data-genre='commonality'] .today-friend-field-card::before { width: 10px; height: 10px; border: 1px solid #8755c1; border-radius: 50%; background: #eadcff; left: -5px; }
+.student-today-friend-view[data-genre='commonality'] .today-friend-commonality-warning {
+  border-color: #c45c1a;
+  background: #fff1d4;
+  color: #7a2400;
+  box-shadow: inset .35rem 0 0 #e06b00;
+}
 .student-today-friend-view[data-genre='recommendation'] .today-friend-field-card { border-top: 3px solid var(--today-friend-theme-accent); background: #fffcf3; box-shadow: 3px 4px 0 #efb5ca66; }
 .student-today-friend-view[data-genre='recommendation'] .today-friend-draw-card { border: 3px double var(--today-friend-theme-accent); }
-.student-today-friend-view .today-friend-recommendation-basics { grid-template-columns: 1fr; }
-.student-today-friend-view .today-friend-recommendation-category-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; }
-.student-today-friend-view .today-friend-recommendation-category-option { display: flex; align-items: center; justify-content: center; gap: .3rem; min-height: 44px; border: 1px dashed var(--today-friend-theme-accent); border-radius: 6px; background: #fffaf2; color: var(--today-friend-theme-ink); }
+.student-today-friend-view .today-friend-recommendation-basics {
+  display: grid;
+  grid-template-columns: minmax(10.5rem, .8fr) minmax(0, 1.2fr);
+  align-items: stretch;
+  gap: .35rem .65rem;
+  padding: .55rem .8rem .6rem;
+  overflow: visible;
+}
+.student-today-friend-view .today-friend-recommendation-category {
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.student-today-friend-view .today-friend-recommendation-category-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 1fr 1fr;
+  min-height: 0;
+  height: 100%;
+  gap: .3rem;
+}
+.student-today-friend-view .today-friend-recommendation-category-option,
+.student-today-friend-view .today-friend-recommendation-category-option:nth-child(2n),
+.student-today-friend-view .today-friend-recommendation-category-option:last-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  min-height: 44px;
+  border: 1px dashed var(--today-friend-theme-accent);
+  border-radius: 6px;
+  background: #fffaf2;
+  color: var(--today-friend-theme-ink);
+}
+.student-today-friend-view .today-friend-recommendation-texts textarea {
+  min-height: 44px;
+  height: 100%;
+  max-height: none;
+}
 .student-today-friend-view .today-friend-recommendation-category-option svg { width: 16px; height: 16px; flex-shrink: 0; }
 .student-today-friend-view .today-friend-recommendation-category-option[aria-pressed='true'] { border: 2px solid var(--today-friend-theme-accent); background: var(--today-friend-theme-soft); box-shadow: inset 0 -3px 0 var(--today-friend-theme-accent); }
 .student-today-friend-view[data-genre='compliment'] .today-friend-field-card { background: linear-gradient(120deg, #fffaf0, #fff0ed); border-color: #dc91ad; box-shadow: 0 4px 0 #f4ccd666; }
@@ -29309,11 +29524,15 @@ body {
 .student-today-friend-view[data-genre='emotion'] .today-friend-field-card { border-left: 5px solid #17624e; background: #fffbed; box-shadow: 2px 3px 0 #d9c79877; }
 .student-today-friend-view[data-genre='emotion'] .today-friend-field-card::before { display: none; }
 .student-today-friend-view[data-genre='emotion'] .today-friend-privacy-card { border: 1px solid #b6c6ae; background: #eef1e3; }
-.student-today-friend-view .student-today-friend-guide { overflow-y: auto; }
-.student-today-friend-view .today-friend-form { min-height: 180px; flex-shrink: 0; }
+.student-today-friend-view[data-genre='commonality'] .student-today-friend-guide {
+  gap: .45rem;
+  padding: .7rem .85rem;
+}
+.student-today-friend-view[data-genre='commonality'] .today-friend-form { gap: .45rem; }
+.student-today-friend-view .student-today-friend-guide { overflow: hidden; }
+.student-today-friend-view .today-friend-form { min-height: 0; flex: 1 1 auto; }
 .student-today-friend-view .today-friend-submitted-answer { min-height: 110px; }
 .student-today-friend-view .today-friend-question,
-.student-today-friend-view .today-friend-revision,
 .student-today-friend-view .today-friend-status-card { flex-shrink: 0; }
 .student-today-friend-view .today-friend-private-choice { min-height: 44px; }
 

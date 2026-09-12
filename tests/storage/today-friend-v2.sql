@@ -32,6 +32,8 @@ begin
   exception when others then if sqlerrm<>'TODAY_FRIEND_SUBMISSION_CONFLICT' then raise;end if;end;
   v_result:=public.persist_today_friend_submission_v2(v_submission||'{"status":"submitted","submitted_at":"2099-01-01T00:00:00Z"}',1,'submit1','student:1',repeat('c',64),2);
   if v_result#>>'{0,status}'<>'submitted' or v_result#>>'{0,storage_revision}'<>'2' then raise exception 'SUBMIT_NOT_ATOMIC';end if;
+  v_result:=public.persist_today_friend_submission_v2(v_submission||'{"status":"submitted","submitted_at":"2099-01-01T00:10:00Z","payload":{"kind":"interview","answer":"two"}}',2,'resubmit1','student:1',repeat('f',64),2);
+  if v_result#>>'{0,payload,answer}'<>'two' or v_result#>>'{0,storage_revision}'<>'3' then raise exception 'RESUBMIT_PAYLOAD_NOT_UPDATED';end if;
   perform public.approve_today_friend_submission_v2('fixture-cas',2);
   begin
     perform public.persist_today_friend_submission_v2(v_submission,2,'after-approval','student:1',repeat('d',64),2);

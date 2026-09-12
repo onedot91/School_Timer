@@ -1,7 +1,6 @@
 import { parseTodayFriendState } from '../lib/todayFriendCodec.js';
 import { getStorageReceipt, storagePayloadHash, StorageRepositoryError } from './storageV2Repository.js';
 import {
-  requestTodayFriendRevision,
   submitTodayFriendSubmission,
   type TodayFriendPayload,
   type TodayFriendSubmission,
@@ -208,15 +207,6 @@ export const loadTodayFriendSubmission = async (
   if (!submission) throw new TodayFriendRepositoryError(404, 'SUBMISSION_NOT_FOUND');
   return submission;
 };
-
-export const requestTodayFriendSubmissionRevision = async (
-  configuration: TodayFriendRepositoryConfiguration,
-  submission: TodayFriendSubmission,
-  feedback: string,
-  options: TodayFriendSaveOptions,
-): Promise<TodayFriendSubmission> => (
-  persistSubmission(configuration, requestTodayFriendRevision(submission, feedback, new Date().toISOString()), options)
-);
 
 export const approveTodayFriendSubmissionReward = async (
   configuration: TodayFriendRepositoryConfiguration,

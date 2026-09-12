@@ -25,7 +25,7 @@ const TODAY_FRIEND_WEEKDAYS = [1, 2, 3, 4, 5] as const;
 
 export type TodayFriendGenre = typeof TODAY_FRIEND_GENRES[number];
 export type TodayFriendRelationKind = 'pair' | 'cycle';
-export type TodayFriendSubmissionStatus = 'draft' | 'submitted' | 'revision_requested' | 'approved';
+export type TodayFriendSubmissionStatus = 'draft' | 'submitted' | 'approved';
 export type TodayFriendRewardStatus = 'pending' | 'paid';
 
 export const getTodayFriendPreviewGenre = (
@@ -39,6 +39,28 @@ export type TodayFriendPayload =
   | { readonly kind: 'recommendation'; readonly category: 'movie' | 'book' | 'music' | 'food'; readonly title: string; readonly reason: string; readonly letterId: string | null }
   | { readonly kind: 'compliment'; readonly compliment: string; readonly reason?: string; readonly message?: string }
   | { readonly kind: 'emotion'; readonly emotion: string; readonly reason: string; readonly declinedToExplain: boolean };
+
+export const TODAY_FRIEND_COMMONALITY_COUNT = 3;
+export type TodayFriendCommonalities = readonly [string, string, string];
+
+const COMMONALITY_ITEM_SPLIT = /\n(?=\d+\.\s)/;
+
+export const parseTodayFriendCommonalities = (value: string): TodayFriendCommonalities => {
+  const trimmed = value.trim();
+  if (!trimmed) return ['', '', ''];
+  const parts = trimmed.split(COMMONALITY_ITEM_SPLIT).map((part) => part.replace(/^\d+\.\s+/, '').trim());
+  if (parts.length >= 2) {
+    return [parts[0] ?? '', parts[1] ?? '', parts[2] ?? ''];
+  }
+  return [trimmed, '', ''];
+};
+
+export const formatTodayFriendCommonalities = (items: readonly string[]): string => (
+  items
+    .slice(0, TODAY_FRIEND_COMMONALITY_COUNT)
+    .map((item, index) => `${index + 1}. ${item.trim()}`)
+    .join('\n')
+);
 
 export type TodayFriendRecommendationLetter = {
   readonly id: string;
@@ -317,28 +339,17 @@ export const submitTodayFriendSubmission = (
   submission: TodayFriendSubmission,
   submittedAt: string,
 ): TodayFriendSubmission => {
-  if (submission.status !== 'draft' && submission.status !== 'revision_requested') {
+  if (submission.status !== 'draft' && submission.status !== 'submitted') {
     throw new TodayFriendDomainError('SUBMISSION_NOT_EDITABLE');
   }
   return {
     ...submission,
     status: 'submitted',
-    revision: submission.status === 'revision_requested' ? submission.revision + 1 : submission.revision,
+    revision: submission.status === 'submitted' ? submission.revision + 1 : submission.revision,
     teacherFeedback: null,
     submittedAt,
     reviewedAt: null,
   };
-};
-
-export const requestTodayFriendRevision = (
-  submission: TodayFriendSubmission,
-  teacherFeedback: string,
-  reviewedAt: string,
-): TodayFriendSubmission => {
-  if (submission.status !== 'submitted' || teacherFeedback.trim().length === 0) {
-    throw new TodayFriendDomainError('INVALID_REVISION_REQUEST');
-  }
-  return { ...submission, status: 'revision_requested', teacherFeedback: teacherFeedback.trim(), reviewedAt };
 };
 
 export const approveTodayFriendSubmission = (

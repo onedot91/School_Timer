@@ -2,6 +2,7 @@ import { CalendarCheck2, ClipboardList, RefreshCw, Settings2 } from 'lucide-reac
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getTodayFriendDateKey } from '../../lib/todayFriend';
+import { createTodayFriendReviewQueue } from '../../lib/teacherTodayFriendReviewPresentation';
 import {
   loadTeacherTodayFriendState,
   reviewStudentTodayFriendSubmission,
@@ -18,7 +19,7 @@ import TeacherTodayFriendReview from './TeacherTodayFriendReview';
 
 type TeacherTodayFriendTab = 'review' | 'plan';
 const reviewDrafts = createStudentSaveDraftStore();
-type PendingReview = { readonly submissionId: string; readonly decision: 'revision_requested' | 'approved'; readonly feedback: string; readonly expectedRevision: number; readonly requestId: string };
+type PendingReview = { readonly submissionId: string; readonly expectedRevision: number; readonly requestId: string };
 const reviewScope = (submissionId: string) => ({ studentNumber: 0, feature: 'teacher.todayFriend.review', entityId: submissionId });
 
 export default function TeacherTodayFriendPanel() {
@@ -63,7 +64,7 @@ export default function TeacherTodayFriendPanel() {
       reviewDrafts.confirm(reviewScope(input.submissionId), input.requestId);
       setPendingReview(null);
       if (currentDateRef.current === requestedDate) setState(saved);
-      setMessage(input.decision === 'approved' ? '승인 · 15고마 지급 완료' : '수정 요청 전송 완료');
+      setMessage('승인 · 15고마 지급 완료');
     } catch (error) {
       if (!(error instanceof Error)) throw error;
       const conflict = error instanceof TodayFriendClientError && error.status === 409
@@ -82,7 +83,7 @@ export default function TeacherTodayFriendPanel() {
       }
       setMessage(conflict
         ? '제출 내용이 변경되었습니다. 최신 내용을 확인한 뒤 다시 처리해 주세요.'
-        : '처리 결과를 확인하지 못했습니다. 수정 요청 문구는 보관했습니다.');
+        : '처리 결과를 확인하지 못했습니다.');
     } finally {
       savingRef.current = false;
       setIsSaving(false);
@@ -90,25 +91,24 @@ export default function TeacherTodayFriendPanel() {
     }
   };
 
-  const review = async (submissionId: string, decision: 'revision_requested' | 'approved', feedback: string) => {
+  const review = async (submissionId: string) => {
     if (savingRef.current) return;
     const submission = state?.submissions.find(entry => entry.id === submissionId);
     if (!submission || submission.status !== 'submitted') {
       setMessage('최신 제출 내용을 확인한 뒤 처리해 주세요.');
       return;
     }
-    const payload = { submissionId, decision, feedback, expectedRevision: submission.storageRevision ?? 0 };
+    const payload = { submissionId, expectedRevision: submission.storageRevision ?? 0 };
     const saved = reviewDrafts.save(reviewScope(submissionId), payload);
     if (saved.status === 'invalid') return;
     if (saved.status === 'payload_changed') {
       const prior = saved.draft.payload;
       if (isStorageRecord(prior) && typeof prior.submissionId === 'string'
-        && (prior.decision === 'approved' || prior.decision === 'revision_requested')
-        && typeof prior.feedback === 'string' && typeof prior.expectedRevision === 'number') {
-        setPendingReview({ submissionId: prior.submissionId, decision: prior.decision,
-          feedback: prior.feedback, expectedRevision: prior.expectedRevision, requestId: saved.draft.requestId });
+        && typeof prior.expectedRevision === 'number') {
+        setPendingReview({ submissionId: prior.submissionId,
+          expectedRevision: prior.expectedRevision, requestId: saved.draft.requestId });
       }
-      setMessage('이전 처리 결과를 먼저 확인해 주세요. 새 수정 요청 문구는 유지됩니다.');
+      setMessage('이전 처리 결과를 먼저 확인해 주세요.');
       return;
     }
     await performReview({ ...payload, requestId: saved.draft.requestId });
@@ -142,6 +142,7 @@ export default function TeacherTodayFriendPanel() {
   };
 
   const dateSubmissions = state?.submissions.filter((submission) => submission.dateKey === dateKey) ?? [];
+  const reviewQueue = createTodayFriendReviewQueue(dateSubmissions);
 
   return (
     <section className="teacher-today-friend-panel" aria-labelledby="teacher-today-friend-title">
@@ -150,9 +151,9 @@ export default function TeacherTodayFriendPanel() {
         <label><span className="sr-only">날짜</span><input type="date" disabled={isSaving} value={dateKey} onChange={(event) => setDateKey(event.target.value)} /></label>
       </header>
       <div className="teacher-today-friend-summary">
-        <span><strong>{dateSubmissions.filter((entry) => entry.status === 'submitted').length}</strong>대기</span>
-        <span><strong>{dateSubmissions.filter((entry) => entry.status === 'approved').length}</strong>완료</span>
-        <span><strong>{23 - dateSubmissions.length}</strong>미제출</span>
+        <span><strong>{reviewQueue.filter((entry) => entry.status === 'submitted').length}</strong>대기</span>
+        <span><strong>{reviewQueue.filter((entry) => entry.status === 'approved').length}</strong>완료</span>
+        <span><strong>{reviewQueue.filter((entry) => entry.status === 'missing').length}</strong>미제출</span>
       </div>
       <nav className="teacher-today-friend-tabs" aria-label="오늘의 친구 관리 메뉴">
         <button type="button" className={tab === 'review' ? 'is-active' : ''} onClick={() => setTab('review')}><ClipboardList aria-hidden="true" />제출</button>

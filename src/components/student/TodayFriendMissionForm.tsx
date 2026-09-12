@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
   createTodayFriendRecommendationDelivery,
+  formatTodayFriendCommonalities,
+  parseTodayFriendCommonalities,
   type TodayFriendPayload,
   type TodayFriendRecommendationLetter,
 } from '../../lib/todayFriend';
@@ -68,15 +70,21 @@ export default function TodayFriendMissionForm({
     const storage = getDeviceStorage();
     return isPreview || pendingPayload ? null : loadTodayFriendDeviceDraft(storage, mission);
   });
-  const [primaryText, setPrimaryText] = useState(() => deviceDraft?.primaryText ?? getPayloadText(savedPayload));
+  const savedCommonalities = savedPayload?.kind === 'commonality'
+    ? parseTodayFriendCommonalities(savedPayload.commonality)
+    : null;
+  const [primaryText, setPrimaryText] = useState(() => deviceDraft?.primaryText ?? savedCommonalities?.[0] ?? getPayloadText(savedPayload));
   const [secondaryText, setSecondaryText] = useState(() => (
     deviceDraft?.secondaryText
+      ?? savedCommonalities?.[1]
       ?? (savedPayload?.kind === 'recommendation' || savedPayload?.kind === 'emotion' || savedPayload?.kind === 'compliment'
         ? savedPayload.reason ?? ''
         : '')
   ));
   const [tertiaryText, setTertiaryText] = useState(() => (
-    deviceDraft?.tertiaryText ?? (savedPayload?.kind === 'compliment' ? savedPayload.message ?? '' : '')
+    deviceDraft?.tertiaryText
+      ?? savedCommonalities?.[2]
+      ?? (savedPayload?.kind === 'compliment' ? savedPayload.message ?? '' : '')
   ));
   const [category, setCategory] = useState<'movie' | 'book' | 'music' | 'food'>(() => (
     deviceDraft?.category ?? (savedPayload?.kind === 'recommendation' ? savedPayload.category : 'book')
@@ -124,7 +132,10 @@ export default function TodayFriendMissionForm({
   const buildPayload = (): TodayFriendPayload => {
     switch (mission.genre) {
       case 'interview': return { kind: 'interview', answer: primaryText.trim() };
-      case 'commonality': return { kind: 'commonality', commonality: primaryText.trim() };
+      case 'commonality': return {
+        kind: 'commonality',
+        commonality: formatTodayFriendCommonalities([primaryText, secondaryText, tertiaryText]),
+      };
       case 'recommendation': return { kind: 'recommendation', category, title: primaryText.trim(), reason: secondaryText.trim(), letterId: null };
       case 'compliment': return { kind: 'compliment', compliment: primaryText.trim(), reason: secondaryText.trim(), message: tertiaryText.trim() };
       case 'emotion': return { kind: 'emotion', emotion: primaryText.trim(), reason: secondaryText.trim(), declinedToExplain };
@@ -132,7 +143,7 @@ export default function TodayFriendMissionForm({
   };
 
   const isComplete = primaryText.trim().length > 0 && (
-    mission.genre === 'compliment'
+    mission.genre === 'commonality' || mission.genre === 'compliment'
       ? secondaryText.trim().length > 0 && tertiaryText.trim().length > 0
       : mission.genre !== 'recommendation' && mission.genre !== 'emotion'
         ? true
@@ -154,7 +165,7 @@ export default function TodayFriendMissionForm({
       const payload = pendingPayload ?? buildPayload();
       let submittedPayload = payload;
       if (payload.kind === 'recommendation' && !pendingPayload) {
-        const revision = mission.submission?.status === 'revision_requested'
+        const revision = mission.submission?.status === 'submitted'
           ? mission.submission.revision + 1
           : mission.submission?.revision ?? 1;
         const delivery = createTodayFriendRecommendationDelivery({
@@ -194,7 +205,20 @@ export default function TodayFriendMissionForm({
           <label className="today-friend-answer-card today-friend-field-card"><span>친구의 답</span><textarea value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구가 말한 내용을 적어요." maxLength={600} /></label>
         ) : null}
         {mission.genre === 'commonality' ? (
-          <label className="today-friend-field-card"><span>대화로 찾은 공통점</span><textarea value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="대화하며 알게 된 공통점을 적어요." maxLength={600} /><small>눈으로 바로 보이는 특징은 제외해요.</small></label>
+          <>
+            <div className="today-friend-commonality-warning" role="note">
+              <p>눈으로 바로 보이는 특징은 제외해요.</p>
+              <ul className="today-friend-commonality-examples">
+                <li data-kind="avoid"><span>안 돼요</span> 키가 비슷하다, 안경을 쓴다, 옷 색깔이 같다</li>
+                <li data-kind="ok"><span>좋아요</span> 좋아하는 음식, 주말에 하는 일, 키우는 동물</li>
+              </ul>
+            </div>
+            <div className="today-friend-field-card today-friend-commonality-list" role="group" aria-label="대화로 찾은 공통점">
+              <label className="today-friend-commonality-item"><span aria-hidden="true">1</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 1" placeholder="대화로 알게 된 첫 번째 공통점" maxLength={120} /></label>
+              <label className="today-friend-commonality-item"><span aria-hidden="true">2</span><input value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 2" placeholder="대화로 알게 된 두 번째 공통점" maxLength={120} /></label>
+              <label className="today-friend-commonality-item"><span aria-hidden="true">3</span><input value={tertiaryText} onChange={(event) => { setTertiaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 3" placeholder="대화로 알게 된 세 번째 공통점" maxLength={120} /></label>
+            </div>
+          </>
         ) : null}
         {mission.genre === 'recommendation' ? (
           <>
@@ -218,9 +242,11 @@ export default function TodayFriendMissionForm({
                   ))}
                 </div>
               </div>
-              <label><span>추천할 것</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구에게 추천할 이름을 적어요." maxLength={80} /></label>
+              <div className="today-friend-recommendation-texts">
+                <label><span>추천할 것</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} placeholder="친구에게 추천하고 싶은 것을 적어요." maxLength={80} /></label>
+                <label><span>추천하는 이유</span><textarea value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} placeholder="친구에게 추천하고 싶은 이유를 적어요." maxLength={600} /></label>
+              </div>
             </div>
-            <label className="today-friend-field-card"><span>추천하는 이유</span><textarea value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} placeholder="친구에게 추천하고 싶은 이유를 적어요." maxLength={600} /></label>
           </>
         ) : null}
         {mission.genre === 'compliment' ? (
@@ -244,7 +270,10 @@ export default function TodayFriendMissionForm({
       </fieldset>
       {saveMessage || formMessage ? <p className="today-friend-form-message" role="status">{saveMessage || formMessage}</p> : null}
       <div className="today-friend-form-actions">
-        <button type="submit" disabled={!inputReady || isSaving || isSubmitting || isPreview}>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : mission.submission?.status === 'revision_requested' ? '고쳐서 다시 제출' : '선생님께 제출'}</button>
+        <button type="submit" disabled={!inputReady || isSaving || isSubmitting || isPreview}>
+          <span>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : mission.submission?.status === 'submitted' ? '다시 제출' : '선생님께 제출'}</span>
+          {isSubmitting || isSaving ? null : <small>성의 없이 적으면 고마가 차감될 수 있어요</small>}
+        </button>
       </div>
     </form>
   );

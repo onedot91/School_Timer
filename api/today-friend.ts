@@ -26,7 +26,6 @@ import {
   loadTodayFriendPlanningState,
   loadTodayFriendState,
   loadTodayFriendSubmission,
-  requestTodayFriendSubmissionRevision,
   saveTodayFriendDraft,
   storeTodayFriendPlanningState,
   loadTodayFriendSaveReceipt,
@@ -165,11 +164,7 @@ const handlePost = async (
     if (prior) { response.status(200).json(await loadTodayFriendState(configuration, prior.dateKey)); return; }
     const submission = await loadTodayFriendSubmission(configuration, action.submissionId);
     if ((submission.storageRevision ?? 0) !== action.expectedRevision && submission.status !== 'approved') throw new TodayFriendApiError(409, 'TODAY_FRIEND_SUBMISSION_CONFLICT');
-    if (action.decision === 'revision_requested') {
-      await requestTodayFriendSubmissionRevision(configuration, submission, action.feedback, { expectedRevision: action.expectedRevision, requestId: action.requestId, actorKey: 'teacher:0', requestPayload: reviewPayload });
-    } else {
-      await approveTodayFriendSubmissionReward(configuration, submission.id, action.expectedRevision);
-    }
+    await approveTodayFriendSubmissionReward(configuration, submission.id, action.expectedRevision);
     response.status(200).json(await loadTodayFriendState(configuration, submission.dateKey));
     return;
   }

@@ -1,16 +1,16 @@
-import { Check, Clock3, RotateCcw } from 'lucide-react';
+import { Check, Clock3 } from 'lucide-react';
 import { useState } from 'react';
 
-import { createStudentSaveDraftStore } from '../../lib/studentSaveDraft';
 import type { TodayFriendSubmission } from '../../lib/todayFriend';
-
-const feedbackDrafts = createStudentSaveDraftStore();
-const feedbackScope = (submissionId: string) => ({ studentNumber: 0, feature: 'teacher.todayFriend.feedback', entityId: submissionId });
+import {
+  createTodayFriendReviewQueue,
+  TODAY_FRIEND_REVIEW_QUEUE_STATUS_LABELS,
+} from '../../lib/teacherTodayFriendReviewPresentation';
 
 interface TeacherTodayFriendReviewProps {
   readonly submissions: readonly TodayFriendSubmission[];
   readonly isSaving: boolean;
-  readonly onReview: (submissionId: string, decision: 'revision_requested' | 'approved', feedback: string) => Promise<void>;
+  readonly onReview: (submissionId: string) => Promise<void>;
 }
 
 const getPreview = (submission: TodayFriendSubmission): string => {
@@ -27,66 +27,80 @@ const getPreview = (submission: TodayFriendSubmission): string => {
   }
 };
 
-const STATUS_LABELS = {
-  draft: '작성 중',
-  submitted: '승인 대기',
-  revision_requested: '수정 요청',
-  approved: '완료',
+const GENRE_LABELS = {
+  interview: '인터뷰',
+  commonality: '공통점 찾기',
+  recommendation: '추천하기',
+  compliment: '칭찬하기',
+  emotion: '감정 찾기',
 } as const;
 
+const firstSelectedNumber = (queue: ReturnType<typeof createTodayFriendReviewQueue>): number => (
+  queue.find((entry) => entry.status === 'submitted')?.studentNumber
+  ?? queue.find((entry) => entry.status === 'approved')?.studentNumber
+  ?? 1
+);
+
 export default function TeacherTodayFriendReview({ submissions, isSaving, onReview }: TeacherTodayFriendReviewProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(() => submissions.find((entry) => entry.status === 'submitted')?.id ?? submissions[0]?.id ?? null);
-  const [feedbackBySubmission, setFeedbackBySubmission] = useState<Record<string, string>>({});
-  const selected = submissions.find((entry) => entry.id === selectedId) ?? submissions[0] ?? null;
-  const storedFeedback = selected ? feedbackDrafts.load(feedbackScope(selected.id))?.draft.payload : null;
-  const feedback = selected ? feedbackBySubmission[selected.id] ?? (typeof storedFeedback === 'string' ? storedFeedback : '조금 더 구체적으로 적어 주세요.') : '';
-  const sorted = [...submissions].sort((first, second) => {
-    const firstRank = first.status === 'submitted' ? 0 : first.status === 'revision_requested' ? 1 : first.status === 'draft' ? 2 : 3;
-    const secondRank = second.status === 'submitted' ? 0 : second.status === 'revision_requested' ? 1 : second.status === 'draft' ? 2 : 3;
-    return firstRank - secondRank || first.studentNumber - second.studentNumber;
-  });
+  const queue = createTodayFriendReviewQueue(submissions);
+  const [selectedNumber, setSelectedNumber] = useState(() => firstSelectedNumber(queue));
+  const selected = queue.find((entry) => entry.studentNumber === selectedNumber) ?? queue[0];
+  const selectedSubmission = selected?.submission;
 
   return (
     <div className="teacher-today-friend-review">
       <section className="teacher-today-friend-queue" aria-label="오늘의 친구 제출 목록">
-        <header><h3>제출 목록</h3></header>
+        <header>
+          <h3>제출 목록</h3>
+          <ul className="teacher-today-friend-queue-legend">
+            {(['missing', 'submitted', 'approved'] as const).map((status) => (
+              <li key={status} data-status={status}>{TODAY_FRIEND_REVIEW_QUEUE_STATUS_LABELS[status]}</li>
+            ))}
+          </ul>
+        </header>
         <div className="teacher-today-friend-queue-list">
-          {sorted.length === 0 ? <p className="teacher-today-friend-empty">아직 제출한 학생이 없습니다.</p> : sorted.map((submission) => (
-            <button key={submission.id} type="button" className={submission.id === selected?.id ? 'is-active' : ''} onClick={() => setSelectedId(submission.id)}>
-              <strong>{submission.studentNumber}번 → {submission.partnerNumber}번</strong>
-              <span>{getPreview(submission)}</span>
-              <small data-status={submission.status}>{STATUS_LABELS[submission.status]}</small>
+          {queue.map((entry) => (
+            <button
+              key={entry.studentNumber}
+              type="button"
+              className={entry.studentNumber === selected?.studentNumber ? 'is-active' : ''}
+              data-status={entry.status}
+              aria-current={entry.studentNumber === selected?.studentNumber ? 'true' : undefined}
+              aria-label={`${entry.studentNumber}번 ${TODAY_FRIEND_REVIEW_QUEUE_STATUS_LABELS[entry.status]}`}
+              onClick={() => setSelectedNumber(entry.studentNumber)}
+            >
+              <strong>{entry.studentNumber}</strong>
             </button>
           ))}
         </div>
       </section>
       <section className="teacher-today-friend-detail" aria-label="오늘의 친구 제출 상세">
-        {selected ? (
+        {selectedSubmission && selected.status !== 'missing' ? (
           <>
-            <header><h3>{selected.studentNumber}번 → {selected.partnerNumber}번</h3><small>{STATUS_LABELS[selected.status]}</small></header>
-            <article data-private={selected.genre === 'emotion' ? 'true' : undefined}>
-              {selected.genre === 'emotion' ? <p className="teacher-today-friend-private-label">참여 학생과 교사만 보는 감정 기록</p> : null}
-              <p>{getPreview(selected)}</p>
+            <header>
+              <div>
+                <h3>{selectedSubmission.studentNumber}번 제출</h3>
+                <span>{GENRE_LABELS[selectedSubmission.genre]} · 친구 {selectedSubmission.partnerNumber}번</span>
+              </div>
+              <small data-status={selected.status}>{TODAY_FRIEND_REVIEW_QUEUE_STATUS_LABELS[selected.status]}</small>
+            </header>
+            <article data-private={selectedSubmission.genre === 'emotion' ? 'true' : undefined}>
+              {selectedSubmission.genre === 'emotion' ? <p className="teacher-today-friend-private-label">참여 학생과 교사만 보는 감정 기록</p> : null}
+              <p>{getPreview(selectedSubmission)}</p>
             </article>
-            {selected.teacherFeedback ? <aside><strong>수정 요청 내용</strong><p>{selected.teacherFeedback}</p></aside> : null}
             {selected.status === 'submitted' ? (
               <div className="teacher-today-friend-review-actions">
-                <label><span>수정 요청 문구</span><textarea value={feedback} onChange={(event) => {
-                  const value = event.target.value;
-                  setFeedbackBySubmission(previous => ({ ...previous, [selected.id]: value }));
-                  const scope = feedbackScope(selected.id);
-                  const existing = feedbackDrafts.load(scope);
-                  if (existing) feedbackDrafts.remove(scope, existing.draft.requestId);
-                  feedbackDrafts.save(scope, value);
-                }} maxLength={300} /></label>
-                <div>
-                  <button type="button" disabled={isSaving || feedback.trim().length === 0} onClick={() => { void onReview(selected.id, 'revision_requested', feedback); }}><RotateCcw aria-hidden="true" />수정 요청</button>
-                  <button type="button" disabled={isSaving} onClick={() => { void onReview(selected.id, 'approved', ''); }}><Check aria-hidden="true" />승인 · 15고마</button>
-                </div>
+                <button type="button" disabled={isSaving} onClick={() => { void onReview(selectedSubmission.id); }}>
+                  <Check aria-hidden="true" />승인 · 15고마
+                </button>
               </div>
-            ) : selected.status === 'approved' ? <p className="teacher-today-friend-complete"><Check aria-hidden="true" />15고마 지급 완료</p> : <p className="teacher-today-friend-wait"><Clock3 aria-hidden="true" />학생 제출 대기</p>}
+            ) : (
+              <p className="teacher-today-friend-complete"><Check aria-hidden="true" />15고마 지급 완료</p>
+            )}
           </>
-        ) : <p className="teacher-today-friend-empty">제출물을 선택하세요.</p>}
+        ) : (
+          <p className="teacher-today-friend-wait"><Clock3 aria-hidden="true" />{selected ? `${selected.studentNumber}번 미제출` : '학생 제출 대기'}</p>
+        )}
       </section>
     </div>
   );

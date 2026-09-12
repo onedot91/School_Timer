@@ -4,8 +4,8 @@ import {
   createTodayFriendPartnerAssignments,
   createTodayFriendSubmission,
   createTodayFriendWeek,
+  formatTodayFriendCommonalities,
   isTodayFriendStudentNumber,
-  requestTodayFriendRevision,
   submitTodayFriendSubmission,
   TODAY_FRIEND_STUDENT_NUMBERS,
   TodayFriendDomainError,
@@ -66,6 +66,109 @@ export const TODAY_FRIEND_INITIAL_STATE: TodayFriendState = {
   submissions: [],
   questions: INITIAL_QUESTIONS,
   selectedQuestionIdByDate: {},
+};
+
+const PRACTICE_SUBMISSION_SPECS = [
+  {
+    studentNumber: 1,
+    status: 'submitted',
+    payload: { kind: 'interview', answer: '주말에 가족과 한강에서 자전거를 탔다고 했어요.' },
+  },
+  {
+    studentNumber: 3,
+    status: 'submitted',
+    payload: {
+      kind: 'commonality',
+      commonality: formatTodayFriendCommonalities([
+        '둘 다 떡볶이를 좋아한다',
+        '주말에 자전거를 탄다',
+        '강아지를 키운다',
+      ]),
+    },
+  },
+  {
+    studentNumber: 5,
+    status: 'submitted',
+    payload: {
+      kind: 'recommendation',
+      category: 'book',
+      title: '긴긴밤',
+      reason: '서로를 지켜 주는 마음이 따뜻해서 추천한다고 했어요.',
+      letterId: 'practice-today-friend-letter-5',
+    },
+  },
+  {
+    studentNumber: 7,
+    status: 'submitted',
+    payload: {
+      kind: 'compliment',
+      compliment: '어려운 문제를 끝까지 같이 풀어 주었어요.',
+      reason: '포기하지 않고 차근차근 설명해 주어서 든든했어요.',
+      message: '오늘 정말 고마웠어.',
+    },
+  },
+  {
+    studentNumber: 9,
+    status: 'submitted',
+    payload: {
+      kind: 'emotion',
+      emotion: '설렘',
+      reason: '다음 시간에 발표를 앞두고 있어서요.',
+      declinedToExplain: false,
+    },
+  },
+  {
+    studentNumber: 11,
+    status: 'approved',
+    payload: { kind: 'interview', answer: '새로 배운 리코더 곡을 연습 중이라고 했어요.' },
+  },
+  {
+    studentNumber: 13,
+    status: 'submitted',
+    payload: {
+      kind: 'commonality',
+      commonality: formatTodayFriendCommonalities(['키가 비슷하다', '안경을 쓴다', '운동화를 신는다']),
+    },
+  },
+  {
+    studentNumber: 15,
+    status: 'submitted',
+    payload: {
+      kind: 'emotion',
+      emotion: '차분함',
+      reason: '',
+      declinedToExplain: true,
+    },
+  },
+] as const;
+
+export const ensureTodayFriendPracticeSubmissions = (
+  state: TodayFriendState,
+  dateKey: string,
+): TodayFriendState => {
+  if (state.submissions.some((entry) => entry.dateKey === dateKey)) return state;
+  const assignments = state.partnerDays.find((day) => day.dateKey === dateKey)?.assignments;
+  if (!assignments?.length) return state;
+  const submissions = PRACTICE_SUBMISSION_SPECS.flatMap((spec) => {
+    const partnerNumber = assignments.find((entry) => entry.studentNumber === spec.studentNumber)?.partnerNumber;
+    if (!partnerNumber || !isTodayFriendStudentNumber(partnerNumber)) return [];
+    const submittedAt = `${dateKey}T01:${String(10 + spec.studentNumber).padStart(2, '0')}:00.000Z`;
+    const submitted = submitTodayFriendSubmission(
+      createTodayFriendSubmission({
+        dateKey,
+        studentNumber: spec.studentNumber,
+        partnerNumber,
+        genre: spec.payload.kind,
+        payload: spec.payload,
+      }),
+      submittedAt,
+    );
+    if (spec.status === 'approved') {
+      return [approveTodayFriendSubmission(submitted, 0, `${dateKey}T02:00:00.000Z`).submission];
+    }
+    return [submitted];
+  });
+  return submissions.length === 0 ? state : { ...state, submissions: [...state.submissions, ...submissions] };
 };
 
 export const ensureTodayFriendDay = (
@@ -137,7 +240,7 @@ export const saveTodayFriendSubmission = (
   input: { readonly mission: TodayFriendStudentMission; readonly payload: TodayFriendPayload },
 ): TodayFriendState => {
   const existing = input.mission.submission;
-  if (existing && existing.status !== 'draft' && existing.status !== 'revision_requested') {
+  if (existing && existing.status !== 'draft' && existing.status !== 'submitted') {
     throw new TodayFriendDomainError('SUBMISSION_NOT_EDITABLE');
   }
   const submission = existing
@@ -173,16 +276,12 @@ export const reviewTodayFriendSubmission = (
   state: TodayFriendState,
   input: {
     readonly submissionId: string;
-    readonly decision: 'revision_requested' | 'approved';
-    readonly feedback: string;
     readonly reviewedAt: string;
   },
 ): TodayFriendState => {
   const submission = state.submissions.find((entry) => entry.id === input.submissionId);
   if (!submission) throw new TodayFriendDomainError('SUBMISSION_NOT_FOUND');
-  const reviewed = input.decision === 'revision_requested'
-    ? requestTodayFriendRevision(submission, input.feedback, input.reviewedAt)
-    : approveTodayFriendSubmission(submission, 0, input.reviewedAt).submission;
+  const reviewed = approveTodayFriendSubmission(submission, 0, input.reviewedAt).submission;
   return { ...state, submissions: state.submissions.map((entry) => entry.id === reviewed.id ? reviewed : entry) };
 };
 

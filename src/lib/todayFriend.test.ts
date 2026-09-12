@@ -7,10 +7,11 @@ import {
   createTodayFriendRecommendationDelivery,
   createTodayFriendSubmission,
   createTodayFriendWeek,
+  formatTodayFriendCommonalities,
   getTodayFriendLayoutPreview,
   getTodayFriendNumber,
   getTodayFriendPreviewGenre,
-  requestTodayFriendRevision,
+  parseTodayFriendCommonalities,
   submitTodayFriendSubmission,
   TODAY_FRIEND_GENRES,
   TODAY_FRIEND_REWARD,
@@ -38,6 +39,21 @@ test('추천하기 미션은 수신 친구의 우편함에 저장할 고유 편�
     content: '추천할 것\n긴긴밤\n\n추천하는 이유\n서로를 지켜 주는 마음이 따뜻해서 추천해요.',
   });
   assert.equal(delivery.payload.letterId, delivery.letter.id);
+});
+
+test('공통점 세 가지는 번호 목록으로 저장하고 예전 한 줄 답도 읽는다', () => {
+  assert.equal(
+    formatTodayFriendCommonalities(['주말에 자전거를 탄다', '떡볶이를 좋아한다', '강아지가 있다']),
+    '1. 주말에 자전거를 탄다\n2. 떡볶이를 좋아한다\n3. 강아지가 있다',
+  );
+  assert.deepEqual(
+    parseTodayFriendCommonalities('1. 주말에 자전거를 탄다\n2. 떡볶이를 좋아한다\n3. 강아지가 있다'),
+    ['주말에 자전거를 탄다', '떡볶이를 좋아한다', '강아지가 있다'],
+  );
+  assert.deepEqual(
+    parseTodayFriendCommonalities('둘 다 주말에 가족과 자전거를 탄다.'),
+    ['둘 다 주말에 가족과 자전거를 탄다.', '', ''],
+  );
 });
 
 test('현재 장르 탭을 다시 선택해도 저장 버튼을 막는 미리보기 상태가 되지 않는다', () => {
@@ -156,7 +172,7 @@ test('23명 파트너는 10개 쌍과 3인 단방향 순환으로 배정된다',
   assert.equal(partnerByStudent.get(thirdNumber), first.studentNumber);
 });
 
-test('수정 요청된 제출은 수정 후 다시 제출할 수 있다', () => {
+test('제출한 답은 승인 전에 다시 내면 최신 내용으로 바뀐다', () => {
   // Given
   const draft = createTodayFriendSubmission({
     dateKey: '2026-09-01',
@@ -168,21 +184,19 @@ test('수정 요청된 제출은 수정 후 다시 제출할 수 있다', () => 
   const submitted = submitTodayFriendSubmission(draft, '2026-09-01T01:00:00.000Z');
 
   // When
-  const revisionRequested = requestTodayFriendRevision(
-    submitted,
-    '언제 알게 되었는지 더 자세히 적어 주세요.',
-    '2026-09-01T01:05:00.000Z',
-  );
   const resubmitted = submitTodayFriendSubmission({
-    ...revisionRequested,
+    ...submitted,
     payload: { kind: 'commonality', commonality: '오늘 대화하며 둘 다 주말에 가족과 자전거를 탄다는 것을 알았다.' },
   }, '2026-09-01T01:10:00.000Z');
 
   // Then
-  assert.equal(revisionRequested.status, 'revision_requested');
   assert.equal(resubmitted.status, 'submitted');
   assert.equal(resubmitted.revision, 2);
-  assert.equal(resubmitted.teacherFeedback, null);
+  assert.equal(resubmitted.payload.kind === 'commonality' ? resubmitted.payload.commonality : '', '오늘 대화하며 둘 다 주말에 가족과 자전거를 탄다는 것을 알았다.');
+  assert.throws(
+    () => submitTodayFriendSubmission({ ...resubmitted, status: 'approved' }, '2026-09-01T01:20:00.000Z'),
+    /SUBMISSION_NOT_EDITABLE/,
+  );
 });
 
 test('교사 승인은 15고마를 한 번만 지급한다', () => {

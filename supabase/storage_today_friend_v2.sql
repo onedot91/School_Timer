@@ -103,7 +103,9 @@ begin
   perform pg_advisory_xact_lock(hashtextextended('today-friend-submission:'||(p_submission->>'submission_date')||':'||(p_submission->>'student_number'),0));
   select * into current_row from public.today_friend_submissions where submission_date=(p_submission->>'submission_date')::date and student_number=(p_submission->>'student_number')::integer for update;
   if coalesce(current_row.storage_revision,0)<>p_expected_revision then raise exception 'TODAY_FRIEND_SUBMISSION_CONFLICT'; end if;
-  if current_row.status='approved' or (current_row.status='submitted' and p_submission->>'status' not in ('revision_requested')) then raise exception 'SUBMISSION_NOT_EDITABLE'; end if;
+  if current_row.status='approved' then raise exception 'SUBMISSION_NOT_EDITABLE'; end if;
+  if p_submission->>'status' not in ('draft','submitted') then raise exception 'SUBMISSION_NOT_EDITABLE'; end if;
+  if current_row.status in ('submitted','revision_requested') and p_submission->>'status' is distinct from 'submitted' then raise exception 'SUBMISSION_NOT_EDITABLE'; end if;
   if current_row.id is not null and current_row.id<>p_submission->>'id' then raise exception 'TODAY_FRIEND_SUBMISSION_CONFLICT'; end if;
   perform set_config('school_timer.today_friend_v2','2',true);
   insert into public.today_friend_submissions(id,submission_date,student_number,partner_number,genre,payload,status,revision,teacher_feedback,submitted_at,reviewed_at,reward_status,storage_revision,updated_at)

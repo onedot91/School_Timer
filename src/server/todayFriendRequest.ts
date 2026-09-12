@@ -5,7 +5,7 @@ import type { TodayFriendQuestion } from '../lib/todayFriendState.js';
 export type TodayFriendAction =
   | { readonly type: 'save_draft'; readonly dateKey: string; readonly payload: TodayFriendPayload; readonly requestId: string; readonly expectedRevision: number; readonly expectedMission?: { readonly partnerNumber: number; readonly genre: string; readonly question: string | null; readonly planningRevision?: string } }
   | { readonly type: 'submit'; readonly dateKey: string; readonly payload: TodayFriendPayload; readonly requestId: string; readonly expectedRevision: number; readonly expectedMission?: { readonly partnerNumber: number; readonly genre: string; readonly question: string | null; readonly planningRevision?: string } }
-  | { readonly type: 'review'; readonly submissionId: string; readonly decision: 'revision_requested' | 'approved'; readonly feedback: string; readonly expectedRevision: number; readonly requestId: string }
+  | { readonly type: 'review'; readonly submissionId: string; readonly decision: 'approved'; readonly feedback: string; readonly expectedRevision: number; readonly requestId: string }
   | { readonly type: 'reassign_week'; readonly dateKey: string }
   | { readonly type: 'reassign_partners'; readonly dateKey: string }
   | { readonly type: 'assign_pair'; readonly dateKey: string; readonly firstStudentNumber: number; readonly secondStudentNumber: number }
@@ -92,13 +92,13 @@ export const parseTodayFriendAction = (body: unknown): TodayFriendAction => {
     if (
       typeof value.submissionId !== 'string'
       || value.submissionId.length > 160
-      || (value.decision !== 'revision_requested' && value.decision !== 'approved')
-      || typeof value.feedback !== 'string'
-      || [...value.feedback].length > 300
+      || value.decision !== 'approved'
+      || (value.feedback !== undefined && typeof value.feedback !== 'string')
+      || (typeof value.feedback === 'string' && [...value.feedback].length > 300)
     ) throw new TodayFriendApiError(400, 'INVALID_REVIEW');
     if (typeof value.expectedRevision !== 'number' || !Number.isSafeInteger(value.expectedRevision) || value.expectedRevision < 0) throw new TodayFriendApiError(400, 'INVALID_REVIEW');
     if (typeof value.requestId !== 'string' || !value.requestId.trim() || value.requestId.length > 200) throw new TodayFriendApiError(400, 'INVALID_REVIEW');
-    return { type: action, submissionId: value.submissionId, decision: value.decision, feedback: value.feedback, expectedRevision: value.expectedRevision, requestId: value.requestId };
+    return { type: action, submissionId: value.submissionId, decision: 'approved', feedback: typeof value.feedback === 'string' ? value.feedback : '', expectedRevision: value.expectedRevision, requestId: value.requestId };
   }
   if (action === 'reassign_week' || action === 'reassign_partners') {
     if (!isTodayFriendDateKey(value.dateKey)) throw new TodayFriendApiError(400, 'INVALID_DATE');

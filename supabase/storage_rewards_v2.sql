@@ -96,7 +96,7 @@ begin
   if not found then raise exception 'STORAGE_WALLET_NOT_FOUND'; end if;
   select status into v_status from public.today_friend_submissions where id=p_submission_id and student_number=v_student for update;
   if not found then raise exception 'SUBMISSION_NOT_FOUND'; end if;
-  if v_status not in ('submitted','approved') then raise exception 'SUBMISSION_NOT_REVIEWABLE'; end if;
+  if v_status not in ('submitted','revision_requested','approved') then raise exception 'SUBMISSION_NOT_REVIEWABLE'; end if;
   if p_expected_revision is not null and v_status<>'approved' and (select storage_revision from public.today_friend_submissions where id=p_submission_id)<>p_expected_revision then raise exception 'TODAY_FRIEND_SUBMISSION_CONFLICT'; end if;
   if not exists(select 1 from public.today_friend_rewards where submission_id=p_submission_id) then
     if v_status = 'approved' then raise exception 'STORAGE_REWARD_EVIDENCE_MISMATCH'; end if;

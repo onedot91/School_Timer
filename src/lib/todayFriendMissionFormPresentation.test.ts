@@ -60,7 +60,7 @@ test('오늘의 친구 다섯 섹션은 인터뷰와 같은 응답 카드 위계
   const expectedCardCounts: Readonly<Record<TodayFriendGenre, number>> = {
     interview: 1,
     commonality: 1,
-    recommendation: 2,
+    recommendation: 1,
     compliment: 3,
     emotion: 2,
   };
@@ -80,7 +80,8 @@ test('추천 종류는 기본 정보 카드 안에서 네 버튼으로 바로 �
   assert.match(markup, /aria-pressed="false"[^>]*>.*?영화<\/button>/);
   assert.match(markup, /aria-pressed="true"[^>]*>.*?책<\/button>/);
   assert.match(markup, /aria-pressed="false"[^>]*>.*?음악<\/button>/);
-  assert.match(markup, /aria-pressed="false"[^>]*>.*?음식<\/button>.*<input/s);
+  assert.match(markup, /aria-pressed="false"[^>]*>.*?음식<\/button>.*today-friend-recommendation-texts.*<input/s);
+  assert.match(markup, /today-friend-recommendation-category/);
 });
 
 test('감정 찾기의 이유 입력과 비공개 선택은 하나의 응답 카드에 있다', () => {
@@ -99,10 +100,26 @@ test('추천하기와 감정 찾기의 모든 텍스트 입력칸은 안내 문�
   const recommendationMarkup = renderForm('recommendation');
   const emotionMarkup = renderForm('emotion');
 
-  assert.match(recommendationMarkup, /placeholder="친구에게 추천할 이름을 적어요\."/);
+  assert.match(recommendationMarkup, /placeholder="친구에게 추천하고 싶은 것을 적어요\."/);
   assert.match(recommendationMarkup, /placeholder="친구에게 추천하고 싶은 이유를 적어요\."/);
   assert.match(emotionMarkup, /placeholder="친구가 말한 감정을 적어요\."/);
   assert.match(emotionMarkup, /placeholder="왜 그렇게 느꼈는지 적어요\."/);
+});
+
+test('공통점 찾기는 세 가지를 나누어 묻고 눈에 보이는 특징을 경고한다', () => {
+  const markup = renderForm('commonality');
+
+  assert.match(markup, /today-friend-commonality-warning[\s\S]*눈으로 바로 보이는 특징은 제외해요\./);
+  assert.match(markup, /today-friend-commonality-examples/);
+  assert.match(markup, /안 돼요<\/span> 키가 비슷하다, 안경을 쓴다, 옷 색깔이 같다/);
+  assert.match(markup, /좋아요<\/span> 좋아하는 음식, 주말에 하는 일, 키우는 동물/);
+  assert.match(markup, /today-friend-commonality-list/);
+  assert.match(markup, /aria-label="공통점 1"/);
+  assert.match(markup, /aria-label="공통점 2"/);
+  assert.match(markup, /aria-label="공통점 3"/);
+  assert.match(markup, /placeholder="대화로 알게 된 첫 번째 공통점"/);
+  assert.match(markup, /placeholder="대화로 알게 된 두 번째 공통점"/);
+  assert.match(markup, /placeholder="대화로 알게 된 세 번째 공통점"/);
 });
 
 test('칭찬하기는 행동과 이유와 직접 전할 한마디를 나누어 묻는다', () => {
@@ -127,6 +144,14 @@ test('미확인 제출은 원래 답변을 보여주고 기기 초안 복원 전
   assert.match(markup, /<fieldset[^>]*disabled=""/);
   assert.match(markup, /확인할 원래 답변/);
   assert.match(markup, /저장 확인 후 다시 제출/);
+  assert.match(markup, /성의 없이 적으면 고마가 차감될 수 있어요/);
   assert.match(markup, /role="status"[^>]*>입력을 보존했어요/);
   assert.match(markup, /type="submit" disabled/);
+});
+
+test('제출 버튼은 성의 없는 작성에 고마 차감 가능성을 함께 알린다', () => {
+  const markup = renderForm('interview');
+  const submit = markup.match(/<button type="submit"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? '';
+  assert.match(submit, /선생님께 제출/);
+  assert.match(submit, /<small>성의 없이 적으면 고마가 차감될 수 있어요<\/small>/);
 });

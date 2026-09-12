@@ -26,9 +26,11 @@ const isGenre = (value: unknown): value is TodayFriendGenre => (
 
 const isStudentNumber = isTodayFriendStudentNumber;
 
-const isSubmissionStatus = (value: unknown): value is TodayFriendSubmissionStatus => (
-  value === 'draft' || value === 'submitted' || value === 'revision_requested' || value === 'approved'
-);
+const parseSubmissionStatus = (value: unknown): TodayFriendSubmissionStatus | null => {
+  if (value === 'revision_requested') return 'submitted';
+  if (value === 'draft' || value === 'submitted' || value === 'approved') return value;
+  return null;
+};
 
 const isNullableString = (value: unknown): value is string | null => value === null || typeof value === 'string';
 
@@ -100,6 +102,7 @@ export const parseTodayFriendSubmission = (value: unknown): TodayFriendSubmissio
   const submittedAt = Reflect.get(value, 'submittedAt');
   const reviewedAt = Reflect.get(value, 'reviewedAt');
   const rewardStatus = Reflect.get(value, 'rewardStatus');
+  const parsedStatus = parseSubmissionStatus(status);
   if (
     typeof id !== 'string'
     || typeof dateKey !== 'string'
@@ -108,7 +111,7 @@ export const parseTodayFriendSubmission = (value: unknown): TodayFriendSubmissio
     || !isGenre(genre)
     || payload === null
     || payload.kind !== genre
-    || !isSubmissionStatus(status)
+    || parsedStatus === null
     || typeof revision !== 'number'
     || !Number.isInteger(revision)
     || !isNullableString(teacherFeedback)
@@ -124,11 +127,11 @@ export const parseTodayFriendSubmission = (value: unknown): TodayFriendSubmissio
     partnerNumber,
     genre,
     payload,
-    status,
+    status: parsedStatus,
     revision,
-    teacherFeedback,
+    teacherFeedback: status === 'revision_requested' ? null : teacherFeedback,
     submittedAt,
-    reviewedAt,
+    reviewedAt: status === 'revision_requested' ? null : reviewedAt,
     rewardStatus,
   };
 };

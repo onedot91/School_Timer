@@ -24,6 +24,7 @@ import {
 import {
   assignTodayFriendPair,
   ensureTodayFriendDay,
+  ensureTodayFriendPracticeSubmissions,
   getTodayFriendStudentMission,
   reassignTodayFriendPartners,
   reassignTodayFriendWeek,
@@ -138,7 +139,10 @@ const request = async (path: string, init?: RequestInit): Promise<unknown> => {
     : requestWithoutReporting(path, init);
 };
 const prepareLocalState = (dateKey: string): TodayFriendState => {
-  const prepared = ensureTodayFriendDay(loadLocalTodayFriendState(window.localStorage), getWeekKey(dateKey), dateKey);
+  const prepared = ensureTodayFriendPracticeSubmissions(
+    ensureTodayFriendDay(loadLocalTodayFriendState(window.localStorage), getWeekKey(dateKey), dateKey),
+    dateKey,
+  );
   saveLocalTodayFriendState(window.localStorage, prepared);
   return prepared;
 };
@@ -249,19 +253,17 @@ export const loadTeacherTodayFriendState = async (dateKey: string): Promise<Toda
 
 export const reviewStudentTodayFriendSubmission = async (input: {
   readonly submissionId: string;
-  readonly decision: 'revision_requested' | 'approved';
-  readonly feedback: string;
   readonly expectedRevision?: number;
   readonly requestId?: string;
 }): Promise<TodayFriendState> => {
   if (appDataMode === 'readonly') throw new TodayFriendClientError('BACKEND_WRITE_DISABLED');
   if (appDataMode !== 'mock') {
-    return parseTodayFriendState(await request('/api/today-friend', { method: 'POST', body: JSON.stringify({ action: 'review', ...input, expectedRevision: input.expectedRevision ?? 0, requestId: input.requestId ?? crypto.randomUUID() }) }));
+    return parseTodayFriendState(await request('/api/today-friend', { method: 'POST', body: JSON.stringify({ action: 'review', decision: 'approved', feedback: '', expectedRevision: input.expectedRevision ?? 0, requestId: input.requestId ?? crypto.randomUUID(), submissionId: input.submissionId }) }));
   }
   const current = loadLocalTodayFriendState(window.localStorage);
   const submission = current.submissions.find((entry) => entry.id === input.submissionId);
   if (!submission) throw new TodayFriendClientError('SUBMISSION_NOT_FOUND');
-  if (input.decision === 'approved' && submission.status !== 'approved') {
+  if (submission.status !== 'approved') {
     const snapshot = loadStoredStudentPetSnapshot();
     const studentKey = String(submission.studentNumber);
     const before = snapshot.currencyBalances[studentKey] ?? 0;
@@ -279,7 +281,7 @@ export const reviewStudentTodayFriendSubmission = async (input: {
     if (!saved) throw new TodayFriendClientError('REWARD_SAVE_FAILED');
   }
   return updateLocalTodayFriendState((state) => reviewTodayFriendSubmission(state, {
-    ...input,
+    submissionId: input.submissionId,
     reviewedAt: new Date().toISOString(),
   }));
 };
