@@ -2,9 +2,11 @@
 
 `dist` 폴더만 업로드하면 서버 API가 배포되지 않습니다. 저장소 루트에서 `netlify.toml`과 `netlify/functions/api.mts`를 포함해 빌드해야 합니다.
 
+로컬에서 Functions까지 확인할 때는 Netlify Dev를 8888 포트로 실행합니다. Vite의 `/api` 프록시는 기본적으로 `http://localhost:8888`을 사용하며, 필요한 경우에만 `NETLIFY_DEV_API_URL`로 바꿉니다.
+
 ## 기존 데이터 연결
 
-Netlify 환경변수에 기존 Vercel Production과 **동일한 Supabase 프로젝트**의 값을 설정합니다. 새 데이터베이스 생성, SQL 초기화, 기본값 저장은 하지 않습니다.
+Netlify 환경변수에 현재 운영 중인 **동일한 Supabase 프로젝트**의 값을 설정합니다. 새 데이터베이스 생성, SQL 초기화, 기본값 저장은 하지 않습니다.
 
 | 이름 | 용도 / 범위 |
 | --- | --- |
@@ -14,8 +16,8 @@ Netlify 환경변수에 기존 Vercel Production과 **동일한 Supabase 프로�
 | `SUPABASE_SERVICE_ROLE_KEY` | 기존 서버 전용 key / Functions |
 | `DEVICE_SESSION_SECRET` | 서버 세션 서명 secret / Functions |
 | `DEVICE_REGISTRATION_KEY` | 기존 교사 기기 등록 key / Functions |
-| `STORAGE_PROTOCOL_VERSION` | Vercel Production과 동일한 값 / Functions |
-| `STORAGE_REQUIRE_EDIT_REVISIONS` | 기존 설정을 보존하되, Vercel production 기본 동작은 `1` / Functions |
+| `STORAGE_PROTOCOL_VERSION` | 현재 운영값 / Functions |
+| `STORAGE_REQUIRE_EDIT_REVISIONS` | 기존 설정을 보존하되 기본값은 `1` / Functions |
 
 서버 비밀값에 `VITE_` 접두사를 붙이거나 채팅·소스·로그에 복사하지 않습니다. 환경변수 설정 후 다시 빌드·배포합니다. Functions 지역은 가능한 경우 서울 데이터베이스와 가까운 지역을 선택하고 실제 응답 시간을 확인합니다.
 

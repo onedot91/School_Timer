@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Node/Vercel Function 전용 코드. `api/*.ts`가 HTTP 경계를 맡고, 이 폴더는 세션·요청 제한·입력 파싱·PostgREST 저장소 로직을 제공한다.
+Node/Netlify Function 전용 코드. `api/*.ts`가 HTTP 경계를 맡고, 이 폴더는 세션·요청 제한·입력 파싱·PostgREST 저장소 로직을 제공한다.
 
 ## WHERE TO LOOK
 
@@ -20,7 +20,7 @@ Node/Vercel Function 전용 코드. `api/*.ts`가 HTTP 경계를 맡고, 이 폴
 
 - `node:crypto`, `Buffer`, service-role key를 사용하는 Node 전용 모듈이다. React 페이지나 브라우저용 `src/lib`에서 import하지 않는다.
 - HTTP method, response status, env 구성, 세션 역할 권한은 `api/*.ts`에서 결정한다.
-- 이 폴더는 검증된 요청 action과 저장소 연산을 제공하며 Vercel response 객체를 직접 다루지 않는다.
+- 이 폴더는 검증된 요청 action과 저장소 연산을 제공하며 Netlify adapter 객체를 직접 다루지 않는다.
 - `deviceSession.ts`의 서명 비교는 `timingSafeEqual`을 유지하고, 쿠키의 `Secure; HttpOnly; SameSite=Strict; Path=/` 속성을 약화하지 않는다.
 - rate limit은 serverless 인스턴스 로컬 메모리 기반 방어선이다. 영구적·전역적으로 정확한 카운터로 간주하지 않는다.
 

@@ -3,7 +3,7 @@ import { getStorageAvailability } from './storageAvailability.js';
 export const SAVE_FAILURE_FEATURES = {
   settings: '학급 설정', numberBaseball: '숫자 야구', emotion: '감정 구슬', auction: '경매 입찰',
   sudoku: '스도쿠', pet: '펫', studentLife: '학생 기록', economy: '고마 거래',
-  donation: '기부', announcement: '알림장', classword: 'ㄱㄴㄷ 게임', todayFriend: '오늘의 친구', library: '책장',
+  donation: '기부', announcement: '알림장', classword: 'ㄱㄴㄷ 게임', todayFriend: '오늘의 친구', library: '책장', newspaper: '신문 질문',
 } as const;
 export type SaveFailureFeature = keyof typeof SAVE_FAILURE_FEATURES;
 export const SAVE_FAILURE_CODES = ['network', 'permission', 'conflict', 'server', 'storage', 'response'] as const;
@@ -24,7 +24,7 @@ export const SAVE_FAILURE_VIEWS = {
   teacher: '교사 화면', overview: '광장', store: '상점', 'store-auction': '경매장',
   'store-bank': '은행', 'store-shop': '고마 상점', 'store-donation': '기부',
   missions: '미션', emotions: '감정 구슬', 'number-baseball': '숫자 야구', sudoku: '스도쿠',
-  classword: 'ㄱㄴㄷ 게임', 'today-friend': '오늘의 친구', mailbox: '우체통',
+  classword: 'ㄱㄴㄷ 게임', 'today-friend': '오늘의 친구', mailbox: '우체통', newspaper: '신문 질문',
   library: '도서관', 'library-bookstore': '책방', 'library-bookshelf': '책장', 'library-failure-board': '실패 게시판',
 } as const;
 export type SaveFailureDiagnostics = {
@@ -45,14 +45,14 @@ export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnost
   const result: SaveFailureDiagnostics = {};
   for (const field of ['errorCode', 'causeCode'] as const) {
     const code = Reflect.get(value, field);
-    if (typeof code === 'string' && /^(?:SHARED_|STUDENT_|LIBRARY_|CLASSWORD_|TODAY_FRIEND_|WEEKLY_MISSIONS?_|DEVICE_|ANNOUNCEMENT_|CLASS_DONATION_|LOCAL_|AUCTION_|INVALID_|CROSS_SITE_|RATE_LIMIT_|STORAGE)[A-Z0-9_]{1,64}$/.test(code)) result[field] = code;
+    if (typeof code === 'string' && /^(?:SHARED_|STUDENT_|QUESTION_|LIBRARY_|CLASSWORD_|TODAY_FRIEND_|WEEKLY_MISSIONS?_|DEVICE_|ANNOUNCEMENT_|CLASS_DONATION_|LOCAL_|AUCTION_|INVALID_|CROSS_SITE_|RATE_LIMIT_|STORAGE)[A-Z0-9_]{1,64}$/.test(code)) result[field] = code;
   }
   const status = Reflect.get(value, 'httpStatus');
   if (Number.isInteger(status) && status >= 400 && status <= 599) result.httpStatus = status;
   const errorName = Reflect.get(value, 'errorName');
   if (['Error', 'TypeError', 'TimeoutError', 'AbortError', 'QuotaExceededError', 'SyntaxError'].includes(errorName)) result.errorName = errorName;
   const endpoint = Reflect.get(value, 'endpoint');
-  if (['/api/shared-settings', '/api/student-economy', '/api/classword', '/api/today-friend', '/api/class-donation', '/api/announcement-notes', '/api/weekly-mission', '/api/weekly-missions'].includes(endpoint)) result.endpoint = endpoint;
+  if (['/api/shared-settings', '/api/student-economy', '/api/classword', '/api/today-friend', '/api/newspaper', '/api/class-donation', '/api/announcement-notes', '/api/weekly-mission', '/api/weekly-missions'].includes(endpoint)) result.endpoint = endpoint;
   const view = Reflect.get(value, 'view');
   if (typeof view === 'string' && Object.hasOwn(SAVE_FAILURE_VIEWS, view)) result.view = view as keyof typeof SAVE_FAILURE_VIEWS;
   const online = Reflect.get(value, 'online');
@@ -101,6 +101,7 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (getStorageAvailability(error)) return null;
   if (!(error instanceof Error) && !(typeof DOMException !== 'undefined' && error instanceof DOMException)) return null;
   const errorCode = Reflect.get(error, 'code');
+  if (typeof errorCode === 'string' && ['QUESTION_CONFLICT', 'QUESTION_WEEK_CHANGED', 'QUESTION_NOT_FOUND', 'QUESTION_REQUEST_REUSED'].includes(errorCode)) return null;
   if (errorCode === 'CLASSWORD_INITIAL_OCCUPIED' || errorCode === 'CLASSWORD_STUDENT_ALREADY_ENTERED' || errorCode === 'CLASSWORD_ENTRY_CHANGED') return null;
   if (errorCode === 'CLASSWORD_REWARD_LIMIT_EXCEEDED' || errorCode === 'CLASSWORD_REWARD_PENDING') return null;
   if (errorCode === 'CLASSWORD_REWARD_SAVE_FAILED') return 'storage';

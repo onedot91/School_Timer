@@ -58,8 +58,13 @@ test('처리 중 고마 그림은 홈 배경보다 낮은 우선순위로 미리
 });
 
 test('웹 폰트 연결은 앱 스타일 파싱 전에 시작한다', () => {
-  assert.match(indexHtmlSource, /rel="preconnect" href="https:\/\/fonts\.googleapis\.com"/);
+  assert.match(indexHtmlSource, /rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net" crossorigin/);
+  assert.match(indexHtmlSource, /rel="stylesheet" href="https:\/\/cdn\.jsdelivr\.net\/gh\/sun-typeface\/SUIT@2\/fonts\/variable\/woff2\/SUIT-Variable\.css"/);
   assert.match(indexHtmlSource, /rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin/);
-  assert.match(indexHtmlSource, /rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/css2/);
-  assert.doesNotMatch(stylesheetSource, /@import url\("https:\/\/fonts\.googleapis\.com/);
+  assert.match(indexHtmlSource, /family=Noto\+Serif\+KR:wght@400;500;600;700;900&display=swap/);
+  assert.doesNotMatch(stylesheetSource, /@import url\("https:\/\//);
+  assert.match(stylesheetSource, /--font-writing: "Noto Serif KR", serif;/);
+  assert.match(stylesheetSource, /\.student-mailbox-view \.student-letter-paper \{[\s\S]*?font-family: var\(--font-writing\);/);
+  assert.match(stylesheetSource, /\.student-mailbox-view \.student-letter-paper :is\(h2, p, \.student-letter-footer, input, select, textarea\),[\s\S]*?font-family: var\(--font-writing\);/);
+  assert.match(stylesheetSource, /\.today-friend-form input:not\(\[type='checkbox'\]\),\s*\.today-friend-form textarea \{\s*font-family: var\(--font-writing\);/);
 });

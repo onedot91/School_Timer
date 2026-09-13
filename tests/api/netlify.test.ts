@@ -10,6 +10,9 @@ test('Netlify adapter preserves registration, secure cookies, auth and cross-sit
     const missing = await handler(new Request(endpoint));
     assert.equal(missing.status, 401);
     assert.equal(missing.headers.get('cache-control'), 'no-store');
+    const newspaper = await handler(new Request('https://local-test.invalid/api/newspaper'));
+    assert.equal(newspaper.status, 401);
+    assert.equal((await newspaper.json()).error, 'DEVICE_REGISTRATION_REQUIRED');
     const rejected = await handler(new Request(endpoint, {
       method: 'POST', headers: { 'sec-fetch-site': 'cross-site' }, body: '{"entryNumber":7}',
     }));

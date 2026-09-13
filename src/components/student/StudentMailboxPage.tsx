@@ -1,7 +1,7 @@
 import { HOUSE_MAIL_SENDER, HOUSE_MAIL_STAMP } from '../../lib/studentHouseReward';
 import { formatStudentNumberLabel } from '../../lib/studentIdentity';
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { Inbox, Mail, MailOpen, PenLine, Reply, Send, SendHorizontal, Stamp, X } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { Check, ChevronDown, Inbox, Mail, MailOpen, PenLine, Reply, Send, SendHorizontal, Stamp, X } from 'lucide-react';
 import { CLASS_DONATION_MAIL_IMAGE_SOURCE, CLASS_DONATION_MAIL_SENDER_LABEL } from '../../lib/classDonation';
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
 import { TEACHER_LETTER_RECIPIENT, type StudentLetter } from '../../lib/studentLife';
@@ -127,6 +127,11 @@ export default function StudentMailboxPage({
   const [content, setContent] = useState(draft?.content ?? '');
   const [replyToId, setReplyToId] = useState<string | undefined>(draft?.replyToId);
   const [saveError, setSaveError] = useState('');
+  const [isRecipientMenuOpen, setIsRecipientMenuOpen] = useState(false);
+  const recipientLabelId = useId();
+  const recipientListId = useId();
+  const recipientPickerRef = useRef<HTMLDivElement>(null);
+  const recipientTriggerRef = useRef<HTMLButtonElement>(null);
   const editGeneration = useRef(0);
   const hasEdited = useRef(false);
   const mounted = useRef(true);
@@ -137,6 +142,14 @@ export default function StudentMailboxPage({
     mounted.current = true;
     return () => { mounted.current = false; editGeneration.current++; };
   }, []);
+  useEffect(() => {
+    if (!isRecipientMenuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!recipientPickerRef.current?.contains(event.target as Node)) setIsRecipientMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => window.removeEventListener('pointerdown', closeOnOutsidePointer);
+  }, [isRecipientMenuOpen]);
   useEffect(() => {
     hasEdited.current = false;
     editGeneration.current++;
@@ -158,6 +171,46 @@ export default function StudentMailboxPage({
   const selectedRecipient = recipientOptions.some((option) => option.value === recipient)
     ? recipient
     : TEACHER_LETTER_RECIPIENT;
+  const selectedRecipientLabel = recipientOptions.find((option) => option.value === selectedRecipient)?.label ?? '선생님';
+  const focusRecipientOption = (index: number) => {
+    window.requestAnimationFrame(() => {
+      recipientPickerRef.current
+        ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
+        .item(index)
+        .focus();
+    });
+  };
+  const selectRecipient = (nextRecipient: number) => {
+    markEdited();
+    setRecipient(nextRecipient);
+    setIsRecipientMenuOpen(false);
+    onDraftChange?.({ recipient: nextRecipient, title, content, ...(replyToId ? { replyToId } : {}) });
+    recipientTriggerRef.current?.focus();
+  };
+  const handleRecipientKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape' && isRecipientMenuOpen) {
+      event.preventDefault();
+      setIsRecipientMenuOpen(false);
+      recipientTriggerRef.current?.focus();
+      return;
+    }
+    if (event.key === 'Tab') {
+      setIsRecipientMenuOpen(false);
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const optionButtons = Array.from(recipientPickerRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []);
+    const activeIndex = optionButtons.findIndex((option) => option === document.activeElement);
+    const selectedIndex = Math.max(0, recipientOptions.findIndex((option) => option.value === selectedRecipient));
+    let nextIndex = selectedIndex;
+    if (event.key === 'ArrowDown') nextIndex = activeIndex < 0 ? selectedIndex : (activeIndex + 1) % recipientOptions.length;
+    if (event.key === 'ArrowUp') nextIndex = activeIndex < 0 ? selectedIndex : (activeIndex - 1 + recipientOptions.length) % recipientOptions.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = recipientOptions.length - 1;
+    setIsRecipientMenuOpen(true);
+    focusRecipientOption(nextIndex);
+  };
   const markEdited = () => { hasEdited.current = true; editGeneration.current++; setSaveError(''); };
   const sendLetter = async () => {
     if (isSaving || pendingSubmission.current || !content.trim()) return;
@@ -380,30 +433,46 @@ export default function StudentMailboxPage({
               event.preventDefault();
               void sendLetter();
             }}>
-              <div className="student-compose-heading">
-                <div>
-                  <span>{replyToId ? '답장' : '새 편지'}</span>
-                  <h2>{replyToId ? '마음을 이어 써요' : '마음을 담아 보내요'}</h2>
-                </div>
-                <Stamp size={36} aria-hidden="true" />
-              </div>
-              <label>
-                <span>받는 사람</span>
-                <select
-                  value={selectedRecipient}
+              <div
+                ref={recipientPickerRef}
+                className="student-compose-recipient-field"
+                onKeyDown={handleRecipientKeyDown}
+              >
+                <span id={recipientLabelId}>받는 사람</span>
+                <button
+                  ref={recipientTriggerRef}
+                  type="button"
+                  className="student-compose-recipient-trigger"
+                  aria-labelledby={`${recipientLabelId} ${recipientLabelId}-value`}
+                  aria-haspopup="listbox"
+                  aria-expanded={isRecipientMenuOpen}
+                  aria-controls={recipientListId}
                   disabled={hasPendingSave || replyToId !== undefined}
-                  onChange={(event) => {
-                    const nextRecipient = Number(event.target.value);
-                    markEdited();
-                    setRecipient(nextRecipient);
-                    onDraftChange?.({ recipient: nextRecipient, title, content, ...(replyToId ? { replyToId } : {}) });
-                  }}
+                  onClick={() => setIsRecipientMenuOpen((open) => !open)}
                 >
-                  {recipientOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
+                  <span id={`${recipientLabelId}-value`}>{selectedRecipientLabel}</span>
+                  <ChevronDown size={22} aria-hidden="true" />
+                </button>
+                {isRecipientMenuOpen ? (
+                  <div id={recipientListId} className="student-compose-recipient-list" role="listbox" aria-labelledby={recipientLabelId}>
+                    {recipientOptions.map((option) => {
+                      const isSelected = option.value === selectedRecipient;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => selectRecipient(option.value)}
+                        >
+                          <span>{option.label}</span>
+                          {isSelected ? <Check size={20} aria-hidden="true" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
               <label>
                 <span>제목</span>
                 <input value={title} readOnly={hasPendingSave} maxLength={40} onChange={(event) => { markEdited(); setTitle(event.target.value); onDraftChange?.({ recipient: selectedRecipient, title: event.target.value, content, ...(replyToId ? { replyToId } : {}) }); }} placeholder="제목을 적어 주세요" />

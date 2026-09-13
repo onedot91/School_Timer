@@ -2,14 +2,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('deployment headers deny unused browser capabilities', async () => {
-  const config = JSON.parse(await readFile(new URL('../../vercel.json', import.meta.url), 'utf8')) as {
-    headers: Array<{ headers: Array<{ key: string; value: string }> }>;
-  };
-  const headers = config.headers.flatMap((entry) => entry.headers);
-  const permissionsPolicy = headers.find((header) => header.key === 'Permissions-Policy');
-  const contentSecurityPolicy = headers.find((header) => header.key === 'Content-Security-Policy');
+test('Netlify deployment headers deny unused browser capabilities', async () => {
+  const config = await readFile(new URL('../../netlify.toml', import.meta.url), 'utf8');
+  const permissionsPolicy = /"Permissions-Policy"\s*=\s*"([^"]+)"/.exec(config)?.[1];
+  const contentSecurityPolicy = /"Content-Security-Policy"\s*=\s*"([^"]+)"/.exec(config)?.[1];
 
-  assert.equal(permissionsPolicy?.value, 'camera=(), microphone=(), geolocation=()');
-  assert.doesNotMatch(contentSecurityPolicy?.value ?? '', /supabase\.co/);
+  assert.equal(permissionsPolicy, 'camera=(), microphone=(), geolocation=()');
+  assert.doesNotMatch(contentSecurityPolicy ?? '', /supabase\.co/);
+  assert.match(contentSecurityPolicy ?? '', /style-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
+  assert.match(contentSecurityPolicy ?? '', /style-src[^;]*https:\/\/fonts\.googleapis\.com/);
+  assert.match(contentSecurityPolicy ?? '', /font-src[^;]*https:\/\/cdn\.jsdelivr\.net/);
+  assert.match(contentSecurityPolicy ?? '', /font-src[^;]*https:\/\/fonts\.gstatic\.com/);
 });

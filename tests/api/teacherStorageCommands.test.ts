@@ -162,3 +162,22 @@ test('removing an unawarded item releases its reservation without crediting mone
   assert.equal(normalizeCurrencyHistory(saved.currencyHistory)['17'].length, 0);
   assert.throws(() => apply(saved, 'teacher.auction.remove', { itemId: 'item-a' }), /AUCTION_ITEM_NOT_REMOVABLE/);
 });
+
+test('normalized teacher defaults use the original server value for conflict checks', () => {
+  const persisted = { scheduleNotice: '기존', studentShopCatalog: { legacy: true }, currencyBalances: { '17': 334 } };
+  const displayed = { ...persisted, studentShopCatalog: [], manualTimer: { totalTime: 300, isVisible: false } };
+  assert.deepEqual(createTeacherSettingsChanges(displayed, displayed, persisted), []);
+  const edited = { ...displayed, studentShopCatalog: [{ id: 'new-item' }], manualTimer: { totalTime: 600, isVisible: false } };
+  assert.throws(() => apply(persisted, 'teacher.settings.patch', {
+    changes: createTeacherSettingsChanges(displayed, edited),
+  }), /TEACHER_SETTING_CONFLICT/);
+  const changes = createTeacherSettingsChanges(displayed, edited, persisted);
+  assert.deepEqual(changes.find(change => change.field === 'manualTimer')?.before, null);
+  assert.deepEqual(changes.find(change => change.field === 'studentShopCatalog')?.before, persisted.studentShopCatalog);
+  const saved = apply(persisted, 'teacher.settings.patch', { changes }).value;
+  assert.deepEqual(saved.manualTimer, edited.manualTimer);
+  assert.deepEqual(saved.studentShopCatalog, edited.studentShopCatalog);
+  assert.deepEqual(saved.currencyBalances, persisted.currencyBalances);
+  assert.throws(() => apply({ ...persisted, manualTimer: { totalTime: 900, isVisible: true } },
+    'teacher.settings.patch', { changes }), /TEACHER_SETTING_CONFLICT/);
+});

@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Vercel Node serverless boundary. Nine direct TypeScript handlers authenticate device sessions, enforce student/teacher scope, and call Supabase or the question service with server credentials.
+Node serverless boundary routed through `netlify/functions/api.mts`. TypeScript handlers authenticate device sessions, enforce student/teacher scope, and call Supabase with server credentials.
 
 ## HANDLER MAP
 
@@ -12,6 +12,7 @@ Vercel Node serverless boundary. Nine direct TypeScript handlers authenticate de
 | `class-donation.ts` | Student/teacher class-donation RPC POST |
 | `classword.ts` | Classword board, quiz, topic, round, and entry GET/POST router |
 | `device-session.ts` | Device registration/session GET/POST/DELETE |
+| `newspaper.ts` | Session-scoped newspaper GET; student submit and teacher edit/topic/download/reset POST |
 | `shared-settings.ts` | Scoped settings GET and optimistic-concurrency PUT |
 | `student-economy.ts` | Idempotent student economy action POST |
 | `today-friend.ts` | Today-friend student/teacher GET/POST router |
@@ -36,7 +37,7 @@ Vercel Node serverless boundary. Nine direct TypeScript handlers authenticate de
 - `SUPABASE_SERVICE_ROLE_KEY`, `DEVICE_SESSION_SECRET`, and `DEVICE_REGISTRATION_KEY` are server-only. Never expose them through `VITE_*`, JSON, logs, or client imports.
 - `SUPABASE_URL` may fall back to `VITE_SUPABASE_URL`; the service-role key has no client fallback.
 - Supabase REST/RPC calls use `Authorization: Bearer <service role>` and `apikey`; retain explicit timeouts.
-- Only weekly mission handlers call `https://question-news.vercel.app/api/student`; deployment rewrites and CSP/CORS live outside this directory.
+- Newspaper questions and weekly mission evidence use the internal Supabase newspaper tables/RPCs. Do not restore the retired external question-site dependency. Deployment rewrites and CSP/CORS live outside this directory.
 
 ## RESPONSE CONTRACTS
 
@@ -53,7 +54,7 @@ Vercel Node serverless boundary. Nine direct TypeScript handlers authenticate de
 - Relative ESM imports in this server graph must end in `.js`, even when the source file is `.ts`.
 - Keep request/response structural types local; reusable auth, rate-limit, repository, and domain logic belongs in `src/server` or `src/lib`.
 - Preserve input caps: shared settings value `1 MiB`; student economy request `8 KiB`.
-- Adding a direct handler consumes the Vercel Hobby cap. `src/lib/vercelFunctionImports.test.ts` requires at most 12 `.ts` handlers and validates every one as deployable; add new server dependencies to `SERVER_MODULES` there.
+- Every added handler must be registered in `netlify/functions/api.mts`. `src/lib/vercelFunctionImports.test.ts` validates handler exports and ESM imports; add new server dependencies to `SERVER_MODULES` there.
 
 ## TESTS
 
@@ -68,4 +69,4 @@ Vercel Node serverless boundary. Nine direct TypeScript handlers authenticate de
 ## ANTI-PATTERNS
 
 - No service-role access from browser code, student mutation outside signed-session scope, or balance/state mutation before authorization.
-- No extensionless relative imports, permissive cross-site write fallback, swallowed optimistic conflicts, or new handler without the direct-function-cap test.
+- No extensionless relative imports, permissive cross-site write fallback, swallowed optimistic conflicts, or unregistered Netlify handler.

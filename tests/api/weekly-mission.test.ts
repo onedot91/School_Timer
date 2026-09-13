@@ -46,13 +46,11 @@ test('server verifies a personal question and forwards only its id to the atomic
 
   globalThis.fetch = async (input, init) => {
     const url = String(input);
-    if (url.startsWith('https://question-news.vercel.app/api/student')) {
-      return Response.json({
-        history: [
+    if (url.includes('/rest/v1/newspaper_questions?')) {
+      return Response.json([
           { id: 'topic-1', student_number: 6, question_type: 'topic', week_key: currentWeekKey },
           { id: 'personal-1', student_number: 6, question_type: 'personal', week_key: currentWeekKey },
-        ],
-      });
+        ]);
     }
 
     rpcBodies.push(JSON.parse(String(init?.body)));
@@ -146,7 +144,7 @@ test('repeated requests from the same client are rate limited before external ca
   globalThis.fetch = async () => {
     fetchCount += 1;
     return Response.json(fetchCount % 2 === 1
-      ? { history: [] }
+      ? []
       : {
           missionType: 'personal_question',
           weekKey: getKoreanIsoWeekKey(),

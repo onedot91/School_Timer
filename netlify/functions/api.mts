@@ -2,6 +2,7 @@ import announcementNotes from '../../api/announcement-notes.js';
 import classDonation from '../../api/class-donation.js';
 import classword from '../../api/classword.js';
 import deviceSession from '../../api/device-session.js';
+import newspaper from '../../api/newspaper.js';
 import saveAlerts from '../../api/save-alerts.js';
 import sharedSettings from '../../api/shared-settings.js';
 import studentEconomy from '../../api/student-economy.js';
@@ -14,6 +15,7 @@ const handlers = new Map([
   ['/api/class-donation', classDonation],
   ['/api/classword', classword],
   ['/api/device-session', deviceSession],
+  ['/api/newspaper', newspaper],
   ['/api/save-alerts', saveAlerts],
   ['/api/shared-settings', sharedSettings],
   ['/api/student-economy', studentEconomy],
@@ -56,5 +58,4 @@ export default async function handler(request: Request): Promise<Response> {
 
 export const config = {
   path: '/api/*',
-  excludedPath: '/api/question-submission-status',
 };

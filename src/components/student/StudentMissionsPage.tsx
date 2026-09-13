@@ -68,6 +68,7 @@ interface StudentMissionsPageProps {
   onOpenNumberBaseball: () => void;
   onOpenClassword: () => void;
   onOpenTodayFriend: () => void;
+  onOpenNewspaper?: () => void;
   onBack: () => void;
 }
 
@@ -145,6 +146,7 @@ export default function StudentMissionsPage({
   onOpenNumberBaseball,
   onOpenClassword,
   onOpenTodayFriend,
+  onOpenNewspaper,
   onBack,
 }: StudentMissionsPageProps) {
   const studentMissionVisibility = normalizeStudentMissionVisibility(studentMissionVisibilityInput);
@@ -322,7 +324,7 @@ export default function StudentMissionsPage({
                     rewardAmount={mission.rewardAmount}
                     verificationMode="automatic"
                     status={getPresentedStatus(weeklyMissionStatuses[mission.type])}
-                    destinationUrl={'destinationUrl' in mission ? mission.destinationUrl : undefined}
+                    onAction={onOpenNewspaper}
                     actionLabel={weeklyMissionStatuses[mission.type] === 'completed' ? '다시 방문하기' : '미션 수행하기'}
                   />
                 </motion.div>

@@ -29,11 +29,14 @@ const SERVER_MODULES = [
   'src/server/storageV2Repository.ts',
   'src/server/economyStorageScope.ts',
   'src/server/rewardAuditRepository.ts',
+  'src/server/newspaperRepository.ts',
+  'src/lib/newspaperQuestion.ts',
   'src/server/rewardAuditActivities.ts',
   'api/announcement-notes.ts',
   'api/class-donation.ts',
   'api/classword.ts',
   'api/device-session.ts',
+  'api/newspaper.ts',
   'api/shared-settings.ts',
   'api/save-alerts.ts',
   'api/student-economy.ts',
@@ -88,7 +91,7 @@ const SERVER_MODULES = [
   'src/server/todayFriendRows.ts',
 ] as const;
 
-test('Vercel ESM server dependencies use explicit JavaScript extensions', async () => {
+test('serverless ESM dependencies use explicit JavaScript extensions', async () => {
   const modules = await Promise.all(SERVER_MODULES.map((path) => readFile(path, 'utf8')));
   const extensionlessRelativeImport = /from\s+['"]\.\.?\/[^'"]+(?<!\.js)['"]/;
 
@@ -97,16 +100,12 @@ test('Vercel ESM server dependencies use explicit JavaScript extensions', async 
   }
 });
 
-test('Vercel api directory contains at most twelve deployable handlers', async () => {
+test('API directory exposes handlers compatible with the Netlify adapter', async () => {
   const functionFiles = (await readdir('api')).filter((fileName) => fileName.endsWith('.ts'));
 
-  assert.ok(
-    functionFiles.length <= 12,
-    `Vercel Hobby allows at most 12 direct functions, but api/ contains ${functionFiles.length}`,
-  );
   for (const fileName of functionFiles) {
     const source = await readFile(`api/${fileName}`, 'utf8');
-    assert.match(source, /export default (?:async )?function handler/, `${fileName} is not a deployable handler`);
+    assert.match(source, /export default (?:async )?function handler/, `${fileName} is not a serverless handler`);
   }
 });
 

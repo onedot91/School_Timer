@@ -53,10 +53,8 @@ test('server checks the question source and internal classword entries independe
 
   globalThis.fetch = async (input, init) => {
     const url = String(input);
-    if (url.startsWith('https://question-news.vercel.app/api/student')) {
-      return Response.json({
-        history: [{ id: 'personal-21', student_number: 21, question_type: 'personal', week_key: weekKey }],
-      });
+    if (url.includes('/rest/v1/newspaper_questions?')) {
+      return Response.json([{ id: 'personal-21', student_number: 21, question_type: 'personal', week_key: weekKey }]);
     }
     if (url.includes('/rest/v1/classword_entries?')) {
       const roundDate = new URL(url).searchParams.get('round_date');
@@ -133,7 +131,7 @@ test('a malformed question response does not block a valid internal classword re
 
   globalThis.fetch = async (input, init) => {
     const url = String(input);
-    if (url.startsWith('https://question-news.vercel.app/api/student')) {
+    if (url.includes('/rest/v1/newspaper_questions?')) {
       return Response.json({ malformed: true });
     }
     if (url.includes('/rest/v1/classword_entries?')) {
@@ -198,8 +196,8 @@ test('월요일 접속 시 주말 동안 미처리된 날짜를 오래된 순서
 
   globalThis.fetch = async (input, init) => {
     const url = String(input);
-    if (url.startsWith('https://question-news.vercel.app/api/student')) {
-      return Response.json({ history: [] });
+    if (url.includes('/rest/v1/newspaper_questions?')) {
+      return Response.json([]);
     }
     if (url.includes('/rest/v1/classword_entries?')) {
       const roundDate = new URL(url).searchParams.get('round_date');
@@ -261,8 +259,8 @@ test('마감 전에 삭제된 전날 낱말은 보상하지 않고 오늘 제출
 
   globalThis.fetch = async (input, init) => {
     const url = String(input);
-    if (url.startsWith('https://question-news.vercel.app/api/student')) {
-      return Response.json({ history: [] });
+    if (url.includes('/rest/v1/newspaper_questions?')) {
+      return Response.json([]);
     }
     if (url.includes('/rest/v1/classword_entries?')) {
       const roundDate = new URL(url).searchParams.get('round_date');
@@ -355,7 +353,7 @@ test('23 simultaneous student checks settle only each requester while preserving
   const selectors: (string | null)[] = [];
   globalThis.fetch = async (input, init) => {
     const url = new URL(String(input));
-    if (url.hostname === 'question-news.vercel.app') return Response.json({ history: [] });
+    if (url.pathname === '/rest/v1/newspaper_questions') return Response.json([]);
     if (url.pathname.endsWith('/classword_entries')) {
       const filter = url.searchParams.get('student_number');
       selectors.push(filter);

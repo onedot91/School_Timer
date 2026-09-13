@@ -3,7 +3,7 @@
 ## OVERVIEW
 
 Shared domain rules, persistence codecs, browser clients, and small React hooks.
-Several modules are imported by both the Vite client and Node/Vercel code; browser access is not safe by default here.
+Several modules are imported by both the Vite client and Node serverless code; browser access is not safe by default here.
 
 ## WHERE TO LOOK
 
@@ -47,7 +47,7 @@ Several modules are imported by both the Vite client and Node/Vercel code; brows
 
 ## CLIENT / SERVER BOUNDARY
 
-- `classword.ts`, `classwordQuiz.ts`, `todayFriend.ts`, `todayFriendState.ts`, `todayFriendCodec.ts`, `weeklyMission.ts`, `currency.ts`, and economy domain modules have Node/Vercel consumers.
+- `classword.ts`, `classwordQuiz.ts`, `todayFriend.ts`, `todayFriendState.ts`, `todayFriendCodec.ts`, `weeklyMission.ts`, `currency.ts`, and economy domain modules have Node serverless consumers.
 - Shared domain modules must not read `window`, `document`, `localStorage`, audio APIs, or React state during module initialization.
 - Browser-only effects belong in `*Client.ts`, `*LocalStore.ts`, audio modules, hooks, or explicitly guarded store helpers.
 - `.js` relative specifiers in server-shared TypeScript are intentional for ESM execution. Do not mass-normalize `.js`, `.ts`, and extensionless imports.

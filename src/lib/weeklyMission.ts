@@ -37,7 +37,6 @@ export const WEEKLY_MISSION_DEFINITIONS = [
     label: '신문에 개인 질문하기',
     description: '이번 주 신문을 읽고 나만의 질문을 남겨 보세요.',
     rewardAmount: PERSONAL_QUESTION_WEEKLY_REWARD,
-    destinationUrl: 'https://question-news.vercel.app/',
   },
   {
     type: CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,

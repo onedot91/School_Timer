@@ -41,11 +41,12 @@ const persistedSettingJson = (value: unknown): string => (
   canonicalStorageJson(JSON.parse(JSON.stringify(value ?? null)))
 );
 
-export const createTeacherSettingsChanges = (base: unknown, value: unknown): TeacherSettingChange[] => {
+export const createTeacherSettingsChanges = (base: unknown, value: unknown, persistedBase: unknown = base): TeacherSettingChange[] => {
   const previous = selectTeacherSettings(base);
   const next = selectTeacherSettings(value);
+  const persisted = selectTeacherSettings(persistedBase);
   return Object.keys(next).filter(field => persistedSettingJson(previous[field]) !== persistedSettingJson(next[field]))
-    .map(field => ({ field, before: previous[field] ?? null, after: next[field] }));
+    .map(field => ({ field, before: persisted[field] ?? null, after: next[field] }));
 };
 
 export const applyAcknowledgedTeacherChanges = (

@@ -2,16 +2,15 @@ import { getKoreanDateKey } from '../src/lib/classword.js';
 import { getPreviousKoreanDateKey } from '../src/lib/classwordWeeklyMission.js';
 import {
   CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE,
-  findPersonalQuestionForWeek,
   getWeeklyMissionRewardAmount,
   getKoreanIsoWeekKey,
-  parseQuestionStudentResponse,
   parseWeeklyMissionResult,
   PERSONAL_QUESTION_WEEKLY_MISSION_TYPE,
   type WeeklyMissionResult,
   type WeeklyMissionType,
 } from '../src/lib/weeklyMission.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
+import { loadPersonalQuestionEvidence } from '../src/server/newspaperRepository.js';
 import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import {
   loadClasswordEntries,
@@ -39,7 +38,6 @@ interface MissionClaimInput {
   readonly rewardKey: string;
 }
 
-const QUESTION_STUDENT_ENDPOINT = 'https://question-news.vercel.app/api/student';
 const getStudentNumber = (body: unknown) => {
   const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
   if (!parsedBody || typeof parsedBody !== 'object' || !('studentNumber' in parsedBody)) return null;
@@ -47,17 +45,6 @@ const getStudentNumber = (body: unknown) => {
   return typeof studentNumber === 'number' && Number.isInteger(studentNumber) && studentNumber >= 1 && studentNumber <= 23
     ? studentNumber
     : null;
-};
-
-const fetchJson = async (url: URL) => {
-  const externalResponse = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!externalResponse.ok) {
-    throw new Error(`WEEKLY_MISSION_SOURCE_HTTP_${externalResponse.status}`);
-  }
-  return externalResponse.json();
 };
 
 const claimMission = async (
@@ -152,15 +139,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const dateKey = getKoreanDateKey(now);
     const previousDateKey = getPreviousKoreanDateKey(now);
     const configuration = { url: supabaseUrl, serviceRoleKey } satisfies ClasswordMissionConfiguration;
-    const questionUrl = new URL(QUESTION_STUDENT_ENDPOINT);
-    questionUrl.searchParams.set('studentNumber', String(studentNumber));
-    questionUrl.searchParams.set('weekKey', weekKey);
     const [questionResult, todayEntriesResult, finalizedEntriesResult, finalizedRewardKeysResult] = await Promise.allSettled([
-      fetchJson(questionUrl).then((value) => findPersonalQuestionForWeek(
-        parseQuestionStudentResponse(value),
-        studentNumber,
-        weekKey,
-      )),
+      loadPersonalQuestionEvidence({ url: supabaseUrl, key: serviceRoleKey }, studentNumber, weekKey),
       loadClasswordEntries(configuration, dateKey, studentNumber),
       loadFinalizedClasswordEntries(configuration, dateKey, studentNumber),
       loadFinalizedClasswordRewardKeys(configuration, dateKey, studentNumber),

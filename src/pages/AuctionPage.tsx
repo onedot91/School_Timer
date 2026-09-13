@@ -215,12 +215,13 @@ const StudentSudokuPage = lazy(() => import('../components/student/StudentSudoku
 const StudentNumberBaseballPage = lazy(() => import('../components/student/StudentNumberBaseballPage'));
 const StudentClasswordPage = lazy(() => import('../components/student/StudentClasswordPage'));
 const StudentTodayFriendPage = lazy(() => import('../components/student/StudentTodayFriendPage'));
+const StudentNewspaperPage = lazy(() => import('../components/student/StudentNewspaperPage'));
 
 interface AuctionPageProps {
   studentNumber: number;
 }
 
-type StudentView = 'overview' | 'emotions' | 'missions' | 'today-friend' | 'classword' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'library-failure-board' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
+type StudentView = 'overview' | 'emotions' | 'missions' | 'newspaper' | 'today-friend' | 'classword' | 'sudoku' | 'number-baseball' | 'mailbox' | 'library' | 'library-bookstore' | 'library-bookshelf' | 'library-failure-board' | 'store' | 'store-bank' | 'store-shop' | 'store-auction' | 'store-securities' | 'store-securities-trade' | 'store-donation';
 
 type SharedSettingsValue = {
   currencyBalances?: unknown;
@@ -249,6 +250,7 @@ const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   overview: '#student-overview',
   emotions: '#student-emotions',
   missions: '#student-missions',
+  newspaper: '#student-newspaper',
   'today-friend': '#student-today-friend',
   classword: '#student-classword',
   sudoku: '#student-sudoku',
@@ -1454,6 +1456,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     };
     const isEntryRefreshView = activeStudentView === 'emotions'
       || activeStudentView === 'missions'
+      || activeStudentView === 'newspaper'
       || activeStudentView === 'sudoku'
       || activeStudentView === 'number-baseball'
       || activeStudentView === 'mailbox'
@@ -1619,6 +1622,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     };
     window.addEventListener('focus', syncOnReturn);
     window.addEventListener('online', syncOnReturn);
+    window.addEventListener('school-timer-newspaper-change', syncOnReturn);
     document.addEventListener('visibilitychange', syncOnReturn);
 
     return () => {
@@ -1626,6 +1630,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       if (scheduledSync !== undefined) window.clearTimeout(scheduledSync);
       window.removeEventListener('focus', syncOnReturn);
       window.removeEventListener('online', syncOnReturn);
+      window.removeEventListener('school-timer-newspaper-change', syncOnReturn);
       document.removeEventListener('visibilitychange', syncOnReturn);
     };
   }, [studentNumber]);
@@ -2201,8 +2206,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             }}
             onOpenClassword={() => navigateStudentView('classword')}
             onOpenTodayFriend={() => navigateStudentView('today-friend')}
+            onOpenNewspaper={() => navigateStudentView('newspaper')}
             onBack={() => navigateStudentView('overview')}
           />
+        ) : null}
+        {activeStudentView === 'newspaper' ? (
+          <StudentNewspaperPage studentNumber={studentNumber} onBack={() => navigateStudentView('missions')}
+            onReward={() => refreshAuctionState({ forceFull: true })} />
         ) : null}
         {activeStudentView === 'today-friend' ? (
           <StudentTodayFriendPage

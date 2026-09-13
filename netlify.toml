@@ -9,17 +9,11 @@
 [functions]
   node_bundler = "esbuild"
 
-[[redirects]]
-  from = "/api/question-submission-status"
-  to = "https://question-news.vercel.app/api/submission-status"
-  status = 200
-  force = true
-
 [[headers]]
   for = "/*"
   [headers.values]
     "X-Frame-Options" = "DENY"
     "X-Content-Type-Options" = "nosniff"
     "Referrer-Policy" = "strict-origin-when-cross-origin"
-    "Content-Security-Policy" = "default-src 'self'; script-src 'self' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://i.ytimg.com https://img.youtube.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.googleapis.com; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://librarylibrary.vercel.app; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+    "Content-Security-Policy" = "default-src 'self'; script-src 'self' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; img-src 'self' data: blob: https://i.ytimg.com https://img.youtube.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; connect-src 'self' https://www.googleapis.com; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://librarylibrary.vercel.app; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
     "Permissions-Policy" = "camera=(), microphone=(), geolocation=()"

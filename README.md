@@ -32,4 +32,4 @@ VITE_SUPABASE_ANON_KEY=Supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=Supabase_service_role_key
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY`는 Vercel의 서버 환경변수에만 저장하며 `VITE_` 접두사를 붙이지 않습니다.
+`SUPABASE_SERVICE_ROLE_KEY`는 Netlify Functions 환경변수에만 저장하며 `VITE_` 접두사를 붙이지 않습니다. 자세한 설정은 `docs/netlify-deployment.md`를 따릅니다.

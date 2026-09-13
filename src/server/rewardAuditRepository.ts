@@ -3,7 +3,8 @@ import { isStorageRecord } from '../lib/storageV2Codec.js';
 import { getKoreanDateKey } from '../lib/classword.js';
 import { parseStorageSnapshot, type StorageConfiguration } from './storageV2Repository.js';
 import { collectActivityRewardExpectations } from './rewardAuditActivities.js';
-import { getKoreanIsoWeekKey, parseQuestionStudentResponse } from '../lib/weeklyMission.js';
+import { getKoreanIsoWeekKey } from '../lib/weeklyMission.js';
+import { loadNewspaperData } from './newspaperRepository.js';
 import { historicalRewardResolution, isResolvedHistoricalReward } from './rewardAuditResolutions.js';
 
 const rows = (value: unknown): Record<string, unknown>[] => {
@@ -81,25 +82,20 @@ export const buildRewardAudit = (input: unknown, questions: QuestionAudit = { ex
       '별도 ID로 복구한 지급은 원래 보상과의 연결 확인이 필요할 수 있습니다.'])] });
 };
 
-const loadQuestionAudit = async (): Promise<QuestionAudit> => {
+const loadQuestionAudit = async (configuration: StorageConfiguration): Promise<QuestionAudit> => {
   const weekKey = getKoreanIsoWeekKey();
-  const signal = AbortSignal.timeout(6000);
-  const results = await Promise.allSettled(Array.from({ length: 23 }, async (_, index): Promise<ExpectedReward[]> => {
-    const studentNumber = index + 1;
-    const url = new URL('https://question-news.vercel.app/api/student');
-    url.searchParams.set('studentNumber', String(studentNumber)); url.searchParams.set('weekKey', weekKey);
-    const response = await fetch(url, { headers: { Accept: 'application/json' }, signal });
-    if (!response.ok) throw new RewardAuditError('REWARD_AUDIT_QUESTION_UNAVAILABLE');
-    return parseQuestionStudentResponse(await response.json()).history.filter(row => row.student_number === studentNumber && row.question_type === 'personal' && row.week_key === weekKey).map(() => {
+  try {
+    const data = await loadNewspaperData(configuration, 0, weekKey);
+    const expected: ExpectedReward[] = data.questions.filter(row => row.question_type === 'personal' && row.week_key === weekKey).map(row => {
+      const studentNumber = row.student_number;
       const id = weeklyId(studentNumber, weekKey, 'personal_question');
       return { id, studentNumber, feature: 'question', dateKey: weekKey, amount: 15, ledgerIds: [id] };
     });
-  }));
-  return { expected: results.flatMap(result => result.status === 'fulfilled' ? result.value : []),
-    unavailableSources: ['개인 질문 완료 원본은 이번 주만 조회합니다.', ...results.flatMap((result, index) => result.status === 'rejected' ? [`${index + 1}번 개인 질문 원본 조회 실패`] : [])] };
+    return { expected, unavailableSources: ['개인 질문 완료 원본은 이번 주만 조회합니다.'] };
+  } catch { return { expected: [], unavailableSources: ['신문 개인 질문 원본 조회 실패'] }; }
 };
 export const loadRewardAudit = async (configuration: StorageConfiguration): Promise<RewardAuditReport> => {
-  const questions = await loadQuestionAudit();
+  const questions = await loadQuestionAudit(configuration);
   const response = await fetch(`${configuration.url.replace(/\/$/, '')}/rest/v1/rpc/storage_reward_audit_source`, {
     method: 'POST', headers: { apikey: configuration.key, Authorization: `Bearer ${configuration.key}`, 'Content-Type': 'application/json' },
     body: '{}', signal: AbortSignal.timeout(8000),

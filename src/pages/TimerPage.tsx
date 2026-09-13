@@ -250,6 +250,7 @@ import {
 const TeacherWritingSettings = lazy(() => import('../components/teacher/TeacherWritingSettings'));
 const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherClasswordPanel'));
 const TeacherTodayFriendPanel = lazy(() => import('../components/teacher/TeacherTodayFriendPanel'));
+const TeacherNewspaperPanel = lazy(() => import('../components/teacher/TeacherNewspaperPanel'));
 const TeacherLibraryCompetitionPanel = lazy(() => import('../components/teacher/TeacherLibraryCompetitionPanel').then((module) => ({ default: module.TeacherLibraryCompetitionPanel })));
 
 const TeacherPanelLoadFallback = () => (
@@ -257,7 +258,7 @@ const TeacherPanelLoadFallback = () => (
 );
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'newspaper' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
 type TeacherShopTab = 'items' | 'skins' | 'houses' | 'characters';
 type SettingsNavigationGroup = {
   readonly label: string;
@@ -296,6 +297,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
       { panel: 'emotion', label: '감정', icon: HeartPulse },
       { panel: 'mail', label: '편지', icon: Mail },
       { panel: 'writing', label: '글쓰기', icon: NotebookText },
+      { panel: 'newspaper', label: '신문 질문', icon: NotebookText },
       { panel: 'classword', label: '낱말판', icon: StickyNote },
       { panel: 'today-friend', label: '오늘의 친구', icon: HeartHandshake },
       { panel: 'library-competition', label: '책방 챌린지', icon: Trophy },
@@ -4092,13 +4094,13 @@ export default function TimerPage() {
       if (error instanceof Error) {
         setQuestionSubmissionError(
           error.message.startsWith('QUESTION_SUBMISSION_STATUS')
-            ? 'question-news 제출 현황을 불러오지 못했습니다.'
+            ? '신문 질문 제출 현황을 불러오지 못했습니다.'
             : error.message,
         );
         return;
       }
 
-      setQuestionSubmissionError('question-news 제출 현황을 불러오지 못했습니다.');
+      setQuestionSubmissionError('신문 질문 제출 현황을 불러오지 못했습니다.');
     } finally {
       isQuestionSubmissionRefreshInFlightRef.current = false;
       setIsQuestionSubmissionLoading(false);
@@ -4579,6 +4581,7 @@ export default function TimerPage() {
     ));
 
   const teacherSettingsBaseRef = useRef<Record<string, unknown>>({});
+  const teacherSettingsPersistedBaseRef = useRef<Record<string, unknown>>({});
   const teacherCommandQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const teacherSettingsSavingRef = useRef(false);
   const teacherSettingsErrorRef = useRef(false);
@@ -4727,6 +4730,7 @@ export default function TimerPage() {
         if (isCancelled) return;
 
         lastSharedSettingsUpdatedAtRef.current = remoteRow?.updated_at ?? null;
+        teacherSettingsPersistedBaseRef.current = isStorageRecord(remoteRow?.value) ? remoteRow.value : {};
         const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow?.value);
         if (remoteSettings) {
           applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: true });
@@ -4955,7 +4959,7 @@ export default function TimerPage() {
 
   useEffect(() => {
     if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
-    saveTeacherSettingsEditor(createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot()));
+    saveTeacherSettingsEditor(createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot(), teacherSettingsPersistedBaseRef.current));
     if (teacherSettingsSavingRef.current || teacherSettingsSaveError) return;
 
     if (
@@ -4984,7 +4988,7 @@ export default function TimerPage() {
       const snapshot = buildSharedSettingsSnapshot();
       const auctionItemsEditVersionAtSave = auctionItemsEditVersionRef.current;
       if (hasUnsavedAuctionItemsRef.current) setAuctionItemsSaveStatus('pending');
-      const changes = createTeacherSettingsChanges(teacherSettingsBaseRef.current, snapshot);
+      const changes = createTeacherSettingsChanges(teacherSettingsBaseRef.current, snapshot, teacherSettingsPersistedBaseRef.current);
       if (changes.length === 0) {
         isSharedSettingsSavePendingRef.current = false;
         if (hasUnsavedAuctionItemsRef.current) {
@@ -5000,6 +5004,7 @@ export default function TimerPage() {
         .then(({ updatedAt, value }) => {
           if (value) lastSharedSettingsUpdatedAtRef.current = updatedAt;
           teacherSettingsBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsBaseRef.current, changes);
+          teacherSettingsPersistedBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsPersistedBaseRef.current, changes);
           saveConfirmed = true;
           void confirmTeacherSettingsEditor(editorRequestId);
           if (hasUnsavedAuctionItemsRef.current && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current
@@ -5120,6 +5125,7 @@ export default function TimerPage() {
         if (!remoteSettings) return;
 
         lastSharedSettingsUpdatedAtRef.current = remoteRow.updated_at;
+        teacherSettingsPersistedBaseRef.current = isStorageRecord(remoteRow.value) ? remoteRow.value : {};
         applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: false });
         teacherRefreshPendingRef.current = false;
         setTeacherRefreshPending(false);
@@ -7185,6 +7191,7 @@ export default function TimerPage() {
           setAuctionItems(previous => previous.filter(item => item.id !== itemId));
           teacherSettingsBaseRef.current = { ...teacherSettingsBaseRef.current,
             auctionItems: normalizeAuctionItems(teacherSettingsBaseRef.current.auctionItems).filter(item => item.id !== itemId) };
+          teacherSettingsPersistedBaseRef.current = { ...teacherSettingsPersistedBaseRef.current, auctionItems: saved.value?.auctionItems ?? teacherSettingsBaseRef.current.auctionItems };
           setAuctionItemsSaveStatus('saved');
           if (!saved.value) return;
           setAuctionBids(normalizeAuctionBids(saved.value.auctionBids, AUCTION_ITEM_IDS));
@@ -7261,6 +7268,7 @@ export default function TimerPage() {
           const items = normalizeAuctionItems(saved.value.auctionItems);
           setAuctionItems(items);
           teacherSettingsBaseRef.current = { ...teacherSettingsBaseRef.current, auctionItems: items };
+          teacherSettingsPersistedBaseRef.current = { ...teacherSettingsPersistedBaseRef.current, auctionItems: saved.value.auctionItems };
           setAuctionBids(normalizeAuctionBids(saved.value.auctionBids, AUCTION_ITEM_IDS));
           setAuctionBidHistory(normalizeAuctionBidHistory(saved.value.auctionBidHistory, AUCTION_ITEM_IDS));
           setAuctionAwards(normalizeAuctionAwards(saved.value.auctionAwards, AUCTION_ITEM_IDS));
@@ -10380,6 +10388,7 @@ export default function TimerPage() {
         if (isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
           const remote = saved.value ? normalizeSharedSchoolTimerSettings(saved.value) : null;
           if (remote) {
+            teacherSettingsPersistedBaseRef.current = saved.value ?? {};
             const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
             teacherSettingsBaseRef.current = { ...remote };
             const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, localChanges));
@@ -10390,6 +10399,7 @@ export default function TimerPage() {
         if (!saved.value && isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
           const changes = pending.draft.payload.changes.flatMap(change => isStorageRecord(change) && typeof change.field === 'string' && 'after' in change && 'before' in change ? [{ field: change.field, before: change.before, after: change.after }] : []);
           teacherSettingsBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsBaseRef.current, changes);
+          teacherSettingsPersistedBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsPersistedBaseRef.current, changes);
         }
         if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
       } else {
@@ -10397,6 +10407,7 @@ export default function TimerPage() {
         const latest = await loadSharedSettingsRow();
         if (!isSaveRefreshVersionCurrent(0, refreshVersion)) return;
         if (latest && isStorageRecord(latest.value)) {
+          teacherSettingsPersistedBaseRef.current = latest.value;
           const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
           const remote = normalizeSharedSchoolTimerSettings(latest.value);
           const preserved = remote && normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, localChanges));
@@ -10422,6 +10433,7 @@ export default function TimerPage() {
       if (!isSaveRefreshVersionCurrent(0, refreshVersion)) return;
       const remote = normalizeSharedSchoolTimerSettings(latest?.value);
       if (!remote) return;
+      teacherSettingsPersistedBaseRef.current = isStorageRecord(latest?.value) ? latest.value : {};
       const changes = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
       const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, changes));
       if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
@@ -12787,6 +12799,8 @@ export default function TimerPage() {
                                 ? mailSettingsPanel
                                 : settingsPanel === 'writing'
                                   ? writingSettingsPanel
+                                : settingsPanel === 'newspaper'
+                                  ? <TeacherNewspaperPanel />
                                 : settingsPanel === 'classword'
                                 ? <TeacherClasswordPanel profileAssignments={studentLife.failureProfileAssignments} />
                                 : settingsPanel === 'today-friend'

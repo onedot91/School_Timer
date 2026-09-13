@@ -1,10 +1,9 @@
 import {
-  findPersonalQuestionForWeek,
   getKoreanIsoWeekKey,
-  parseQuestionStudentResponse,
   parseWeeklyMissionResult,
 } from '../src/lib/weeklyMission.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
+import { loadPersonalQuestionEvidence } from '../src/server/newspaperRepository.js';
 import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 
 interface ApiRequest {
@@ -19,7 +18,6 @@ interface ApiResponse {
   json: (body: unknown) => void;
 }
 
-const QUESTION_STUDENT_ENDPOINT = 'https://question-news.vercel.app/api/student';
 
 const getStudentNumber = (body: unknown) => {
   const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
@@ -93,20 +91,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   try {
     const weekKey = getKoreanIsoWeekKey();
-    const questionUrl = new URL(QUESTION_STUDENT_ENDPOINT);
-    questionUrl.searchParams.set('studentNumber', String(studentNumber));
-    questionUrl.searchParams.set('weekKey', weekKey);
-
-    const questionResponse = await fetch(questionUrl, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!questionResponse.ok) {
-      throw new Error(`QUESTION_STUDENT_HTTP_${questionResponse.status}`);
-    }
-
-    const questionData = parseQuestionStudentResponse(await questionResponse.json());
-    const personalQuestion = findPersonalQuestionForWeek(questionData, studentNumber, weekKey);
+    const personalQuestion = await loadPersonalQuestionEvidence({ url: supabaseUrl, key: serviceRoleKey }, studentNumber, weekKey);
     const rpcResponse = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/rpc/claim_personal_question_weekly_reward_v2`, {
       method: 'POST',
       headers: {
