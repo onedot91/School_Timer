@@ -3,8 +3,9 @@ import { ArrowRight, Gamepad2, Hammer, LockKeyhole, Users } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   STUDENT_CUSTOM_HOUSE_COUPON_PRICE,
-  STUDENT_HOUSE_DESIGNS,
   STUDENT_SHOP_ITEMS,
+  getKoreanDateKey,
+  orderStudentHouseShopCatalog,
   type StudentCustomHouseTheme,
   type StudentEconomyAction,
   type StudentEconomyState,
@@ -272,7 +273,7 @@ export default function StudentShopPage({
                   </div>
                 ) : null}
               </article>
-              {[...STUDENT_HOUSE_DESIGNS].sort((a, b) => Number(state.ownedHouseIds.includes(a.id)) - Number(state.ownedHouseIds.includes(b.id))).map((house) => {
+              {orderStudentHouseShopCatalog(getKoreanDateKey(), state.ownedHouseIds).map((house) => {
                 const owned = state.ownedHouseIds.includes(house.id);
                 const active = state.activeHouseId === house.id;
                 return <article key={house.id}><img src={house.imageSrc} alt="" /><h3>{house.name}</h3><button type="button" data-owned={owned} aria-label={`${house.name}, ${active ? '사용 중' : owned ? '사용하기' : `${house.price} 고마로 구매`}`} disabled={isSaving || active} onClick={() => owned ? void onAction({ type: 'select_house', houseId: house.id }) : setPendingPurchase({ kind: 'economy', action: { type: 'buy_house', houseId: house.id }, name: house.name, price: house.price })}>{active ? '사용 중' : owned ? '사용하기' : `${house.price} 고마`}</button></article>;

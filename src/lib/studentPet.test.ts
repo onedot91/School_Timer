@@ -186,6 +186,34 @@ test('a newly hatched pet needs a name before the name request is cleared', () =
   assert.deepEqual(normalizeStudentPetStates({ 2: named })['2'], named);
 });
 
+test('테스트 학생의 집 고치기는 로컬 저장 후에도 유지된다', () => {
+  const data = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => { data.set(key, value); },
+  };
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { localStorage: storage } });
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+  try {
+    const snapshot = loadStoredStudentPetSnapshot();
+    assert.equal(storeStudentPetSnapshot({
+      ...snapshot,
+      currencyBalances: { ...snapshot.currencyBalances, 24: 800 },
+      studentEconomy: { 24: { inventory: { house_repair: 1 } } },
+    }), true);
+    const reloaded = loadStoredStudentPetSnapshot();
+    assert.equal(reloaded.currencyBalances['24'], 800);
+    assert.equal(reloaded.studentEconomy['24']?.inventory.house_repair, 1);
+  } finally {
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+    if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  }
+});
+
 
 test('역할 차감의 잔액·결과·우편은 저장 실패와 재진입에서도 함께 유지된다', () => {
   const data = new Map<string, string>();

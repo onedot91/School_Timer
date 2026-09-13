@@ -1,3 +1,5 @@
+import { isPersistedStudentNumber } from './studentIdentity.js';
+
 /** Lossless storage projection. Containers carry no child list, so adding a record never rewrites its siblings. */
 export interface StorageResource {
     readonly resource_key: string;
@@ -42,7 +44,10 @@ export const canonicalStorageJson = (value: unknown): string => {
         throw new Error('STORAGE_INVALID_JSON');
     return encoded;
 };
-const studentNumber = (value: string): number | null => /^([1-9]|1[0-9]|2[0-3])$/.test(value) ? Number(value) : null;
+const studentNumber = (value: string): number | null => {
+  const parsed = Number(value);
+  return value === String(parsed) && isPersistedStudentNumber(parsed) ? parsed : null;
+};
 const recordMaps = new Set(['auctionBids', 'auctionAwards']);
 const studentMaps = new Set(['studentEconomy', 'studentPets', 'studentSudoku', 'studentNumberBaseball', 'studentEmotionHistory', 'currencyHistory']);
 export const splitStorageState = (input: Record<string, unknown>): StorageEncodedState => {

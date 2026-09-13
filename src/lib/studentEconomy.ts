@@ -1,4 +1,5 @@
 import type { CurrencyHistoryReason } from './currency.js';
+import { isPersistedStudentNumber } from './studentIdentity.js';
 
 export const STUDENT_ECONOMY_AMOUNT_STEP = 5;
 export const STUDENT_ECONOMY_AMOUNT_MAX = 500;
@@ -163,6 +164,8 @@ export const STUDENT_HOUSE_DESIGNS = [
   { id: 'student-house-20', name: '성', creatorStudentNumber: 20, imageSrc: '/student-house-designs/성(20번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 11 } },
   { id: 'student-house-15', name: '알록달록 집', creatorStudentNumber: 15, imageSrc: '/student-house-designs/알록달록 집(15번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
   { id: 'student-house-7', name: '좋은 집', creatorStudentNumber: 7, imageSrc: '/student-house-designs/좋은 집(7번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
+  { id: 'student-house-21', name: '가나다 집', creatorStudentNumber: 21, imageSrc: '/student-house-designs/가나다 집(21번).png', price: 100, stagePosition: { width: 38, height: 64, left: 50, bottom: 26 } },
+  { id: 'student-house-23', name: '거북이 집', creatorStudentNumber: 23, imageSrc: '/student-house-designs/거북이 집(23번).png', price: 100, stagePosition: { width: 38, height: 64, left: 50, bottom: 26 } },
   { id: 'pink-cottage', name: '달콤한 분홍집', imageSrc: '/student-house-designs/pink-cottage.png', price: 100, stagePosition: { width: 40.47, left: 49.43, bottom: 21.67 } },
   { id: 'orange-roof-cottage', name: '꽃창가 주황집', imageSrc: '/student-house-designs/orange-roof-cottage.png', price: 100, stagePosition: { width: 36.59, left: 49.62, bottom: 22.55 } },
   { id: 'pink-heart-house', name: '분홍 하트집', imageSrc: '/student-house-designs/pink-heart-house.png', price: 100, stagePosition: { width: 42.36, left: 49, bottom: 21.96 } },
@@ -668,7 +671,9 @@ export const normalizeStudentEconomyStates = (value: unknown): StudentEconomySta
     ? value as Record<string, unknown>
     : {};
   return Object.entries(source).reduce<StudentEconomyStates>((states, [studentKey, state]) => {
-    if (/^(?:[1-9]|1\d|2[0-3])$/.test(studentKey)) states[studentKey] = normalizeStudentEconomyState(state);
+    if (studentKey === String(Number(studentKey)) && isPersistedStudentNumber(Number(studentKey))) {
+      states[studentKey] = normalizeStudentEconomyState(state);
+    }
     return states;
   }, {});
 };
@@ -714,6 +719,46 @@ export const applyStudentEconomyTax = ({ state: rawState, wallet: rawWallet }: S
 const hashText = (value: string) => Array.from(value).reduce((hash, character) => (
   (hash * 31 + character.charCodeAt(0)) >>> 0
 ), 7);
+
+const shuffleWithSeed = <T,>(items: readonly T[], seedSource: string) => {
+  let seed = hashText(seedSource);
+  const next = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(next() * (index + 1));
+    const current = shuffled[index];
+    const swap = shuffled[swapIndex];
+    if (current === undefined || swap === undefined) continue;
+    shuffled[index] = swap;
+    shuffled[swapIndex] = current;
+  }
+  return shuffled;
+};
+
+export const orderStudentHouseShopCatalog = (
+  dateKey: string,
+  ownedHouseIds: readonly string[] = [],
+) => {
+  const studentHouses = STUDENT_HOUSE_DESIGNS.filter((house) => 'creatorStudentNumber' in house);
+  const catalogHouses = STUDENT_HOUSE_DESIGNS.filter((house) => !('creatorStudentNumber' in house));
+  const ordered = [...shuffleWithSeed(studentHouses, `student-house-shop:${dateKey}`), ...catalogHouses];
+  if (ownedHouseIds.length === 0) return ordered;
+  return [...ordered].sort((left, right) => (
+    Number(ownedHouseIds.includes(left.id)) - Number(ownedHouseIds.includes(right.id))
+  ));
+};
+
+export const orderTeacherHouseShopCatalog = () => {
+  const studentHouses = STUDENT_HOUSE_DESIGNS
+    .filter((house) => 'creatorStudentNumber' in house)
+    .slice()
+    .sort((left, right) => left.creatorStudentNumber - right.creatorStudentNumber);
+  const catalogHouses = STUDENT_HOUSE_DESIGNS.filter((house) => !('creatorStudentNumber' in house));
+  return [...studentHouses, ...catalogHouses];
+};
 
 export const getDailyStockQuotes = (dateKey: string, marketValue?: unknown) => {
   const market = normalizeStudentStockMarket(marketValue);

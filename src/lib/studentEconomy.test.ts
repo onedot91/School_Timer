@@ -12,11 +12,15 @@ import {
   getStudentShopPurchaseLabels,
   getDailyStockQuotes,
   normalizeStudentEconomyState,
+  normalizeStudentEconomyStates,
+  getStudentEconomyState,
   normalizeStudentStockMarket,
   normalizeStudentShopCatalog,
   STUDENT_CHARACTER_PRIZES,
   STUDENT_HOUSE_DESIGNS,
   STUDENT_STOCKS,
+  orderStudentHouseShopCatalog,
+  orderTeacherHouseShopCatalog,
   getDepositMaturityDate,
   getRelativeKoreanWeekdayLabel,
   upsertStudentStockMarketEntry,
@@ -72,6 +76,20 @@ test('멸종위기 동물 8종 고마 스킨은 선택 가능한 카탈로그에
     STUDENT_CHARACTER_PRIZES.slice(102).map(({ id, name, imageSrc }) => ({ id, name, imageSrc })),
     addedSkins,
   );
+});
+
+test('고마 스킨 원본은 모서리 배경이 투명하다', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const opaque: string[] = [];
+  for (const character of STUDENT_CHARACTER_PRIZES) {
+    const bytes = await readFile(`public${character.imageSrc}`);
+    assert.equal(bytes[0], 0x89);
+    assert.equal(bytes[1], 0x50);
+    const ihdr = bytes.indexOf(Buffer.from('IHDR'));
+    const colorType = bytes[ihdr + 13];
+    if (colorType !== 4 && colorType !== 6) opaque.push(character.name);
+  }
+  assert.deepEqual(opaque, []);
 });
 
 test('학생 증권은 4개 종목과 날짜별 등락 단계를 유지한다', () => {
@@ -266,6 +284,24 @@ test('집 고치기는 학생별로 한 번만 구매할 수 있다', () => {
     availableWallet: repaired.wallet,
     requestId: 'house-repair-2',
   }), /HOUSE_ALREADY_REPAIRED/);
+});
+
+test('테스트 학생의 집 고치기는 정규화와 저장 조회 후에도 유지된다', () => {
+  const repaired = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'buy_item', itemId: 'house_repair' },
+    wallet: 1000,
+    availableWallet: 1000,
+    requestId: 'test-house-repair',
+  });
+  const states = normalizeStudentEconomyStates({
+    1: { inventory: { house_repair: 1 } },
+    24: repaired.state,
+    25: { inventory: { house_repair: 1 } },
+  });
+  assert.equal(states['24']?.inventory.house_repair, 1);
+  assert.equal(getStudentEconomyState(states, 24).inventory.house_repair, 1);
+  assert.equal(states['25'], undefined);
 });
 
 test('투자금을 찾으면 현재 투자 금액이 지갑으로 돌아온다', () => {
@@ -579,20 +615,67 @@ test('집 상점은 집 고치기 전에는 잠기고 수리 후 집과 만들�
   assert.equal(coupon.state.hasCustomHouseCoupon, true);
 });
 
+test('학생 작품 집 상점 순서는 한국 날짜 키로 매일 같은 셔플을 쓴다', () => {
+  const studentHouseIds = STUDENT_HOUSE_DESIGNS
+    .filter((house) => 'creatorStudentNumber' in house)
+    .map((house) => house.id);
+  const catalogHouseIds = STUDENT_HOUSE_DESIGNS
+    .filter((house) => !('creatorStudentNumber' in house))
+    .map((house) => house.id);
+  const first = orderStudentHouseShopCatalog('2026-09-13');
+  const second = orderStudentHouseShopCatalog('2026-09-13');
+  const otherDay = orderStudentHouseShopCatalog('2026-09-14');
+  const firstStudentIds = first.filter((house) => 'creatorStudentNumber' in house).map((house) => house.id);
+  const otherStudentIds = otherDay.filter((house) => 'creatorStudentNumber' in house).map((house) => house.id);
+
+  assert.deepEqual(first.map((house) => house.id), second.map((house) => house.id));
+  assert.deepEqual(first.slice(studentHouseIds.length).map((house) => house.id), catalogHouseIds);
+  assert.deepEqual([...firstStudentIds].sort(), [...studentHouseIds].sort());
+  assert.notDeepEqual(firstStudentIds, studentHouseIds);
+  assert.notDeepEqual(firstStudentIds, otherStudentIds);
+
+  const ownedLast = orderStudentHouseShopCatalog('2026-09-13', ['student-house-18', 'pink-cottage']);
+  const ownedIds = ownedLast.slice(-2).map((house) => house.id);
+  assert.equal(ownedIds.includes('student-house-18'), true);
+  assert.equal(ownedIds.includes('pink-cottage'), true);
+  assert.equal(ownedLast.slice(0, -2).some((house) => house.id === 'student-house-18' || house.id === 'pink-cottage'), false);
+});
+
+test('교사 집 상점은 학생 작품을 번호 순으로 보여 준다', () => {
+  const teacherCatalog = orderTeacherHouseShopCatalog();
+  const studentNumbers = teacherCatalog
+    .filter((house) => 'creatorStudentNumber' in house)
+    .map((house) => house.creatorStudentNumber);
+  const catalogHouseIds = STUDENT_HOUSE_DESIGNS
+    .filter((house) => !('creatorStudentNumber' in house))
+    .map((house) => house.id);
+
+  assert.deepEqual(studentNumbers, [...studentNumbers].sort((left, right) => left - right));
+  assert.deepEqual(
+    teacherCatalog.slice(studentNumbers.length).map((house) => house.id),
+    catalogHouseIds,
+  );
+});
+
 test('구매 집은 나무집의 보이는 중심과 바닥선에 맞춘 무대 위치를 가진다', () => {
-  assert.equal(STUDENT_HOUSE_DESIGNS.length, 25);
+  assert.equal(STUDENT_HOUSE_DESIGNS.length, 27);
   assert.deepEqual(STUDENT_HOUSE_DESIGNS.find(house => house.id === 'pink-cottage')?.stagePosition, { width: 40.47, left: 49.43, bottom: 21.67 });
   assert.ok(STUDENT_HOUSE_DESIGNS.every((house) => (
     Number.isFinite(house.stagePosition.width)
     && Number.isFinite(house.stagePosition.left)
     && Number.isFinite(house.stagePosition.bottom)
-    && (house.id === 'student-house-4' ? house.stagePosition.width === 30 : house.stagePosition.width >= 35)
+    && (house.id === 'student-house-4' ? house.stagePosition.width === 30
+      : house.id === 'student-house-21' || house.id === 'student-house-23'
+        ? house.stagePosition.width === 38 && 'height' in house.stagePosition && house.stagePosition.height === 64
+        : house.stagePosition.width >= 35)
     && house.stagePosition.width <= 52
     && house.stagePosition.left >= 45
     && house.stagePosition.left <= 55
     && (house.id === 'student-house-11' || house.id === 'student-house-20'
       ? house.stagePosition.bottom === 11
-      : house.stagePosition.bottom >= 18 && house.stagePosition.bottom <= 23)
+      : house.id === 'student-house-21' || house.id === 'student-house-23'
+        ? house.stagePosition.bottom === 26
+        : house.stagePosition.bottom >= 18 && house.stagePosition.bottom <= 23)
   )));
 });
 

@@ -23,6 +23,7 @@ import {
   type StudentLifeState,
 } from './studentLife.js';
 import { preserveLibraryLocalFields } from './libraryCompetitionLocalSnapshot.js';
+import { isPersistedStudentNumber } from './studentIdentity.js';
 import { normalizeClassroomRoleMissionSettings, type ClassroomRoleMissionSettings } from './classroomRoleMission.js';
 
 export const STUDENT_PET_STORAGE_KEY = 'school-timer-student-pets-v1';
@@ -166,7 +167,7 @@ export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
 
   return Object.entries(input).reduce<StudentPetStates>((states, [studentKey, rawState]) => {
     const studentNumber = Number(studentKey);
-    if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) return states;
+    if (!isPersistedStudentNumber(studentNumber) || studentKey !== String(studentNumber)) return states;
     if (!rawState || typeof rawState !== 'object' || Array.isArray(rawState)) return states;
 
     const state = rawState as Record<string, unknown>;

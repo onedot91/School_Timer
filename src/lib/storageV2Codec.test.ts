@@ -10,6 +10,11 @@ test('storage projection preserves unknown fields, nulls, array order and raw hi
     assert.equal(encoded.resources.find(r => r.resource_key === '/auctionBids/first')?.value.kind, 'value');
     assert.equal(encoded.resources.find(r => r.resource_key === '/studentEconomy/1')?.owner_number, 1);
 });
+test('테스트 학생 잔액과 경제 상태는 학생 기록으로 분리한다', () => {
+    const encoded = splitStorageState({ currencyBalances: { '24': 800 }, studentEconomy: { '24': { inventory: { house_repair: 1 } } } });
+    assert.deepEqual(encoded.wallets, [{ student_number: 24, balance: 800 }]);
+    assert.equal(encoded.resources.find(r => r.resource_key === '/studentEconomy/24')?.owner_number, 24);
+});
 test('letter insertion changes only the new record with fractional order', () => {
     const old = splitStorageState({ studentLife: { letters: [{ id: 'a' }, { id: 'b' }] } }).resources;
     const next = splitStorageState({ studentLife: { letters: [{ id: 'new' }, { id: 'a' }, { id: 'b' }] } }).resources;

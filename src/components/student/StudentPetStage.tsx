@@ -54,6 +54,9 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
     width: `${activeHouse.stagePosition.width}%`,
     left: `${activeHouse.stagePosition.left}%`,
     bottom: `${activeHouse.stagePosition.bottom}%`,
+    ...('height' in activeHouse.stagePosition && typeof activeHouse.stagePosition.height === 'number'
+      ? { height: `${activeHouse.stagePosition.height}%` }
+      : {}),
   } : undefined;
 
   useEffect(() => setPosition(pet.position), [pet.position]);

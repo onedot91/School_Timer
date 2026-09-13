@@ -96,7 +96,7 @@ const readActor = (): string | null => {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem('school-timer-entry-number-v1');
-    memoryActor = raw !== null && /^(?:[0-9]|1[0-9]|2[0-3])$/.test(raw) ? raw : null;
+    memoryActor = raw !== null && /^(?:[0-9]|1[0-9]|2[0-4])$/.test(raw) ? raw : null;
     return memoryActor;
   } catch (error) {
     if (error instanceof Error) return memoryActor;

@@ -94,6 +94,7 @@ import {
   STUDENT_CHARACTER_PRIZES,
   STUDENT_HOUSE_DESIGNS,
   STUDENT_STOCKS,
+  orderTeacherHouseShopCatalog,
   loadStoredStudentShopCatalog,
   loadStoredStudentStockMarket,
   normalizeStudentEconomyStates,
@@ -9909,9 +9910,9 @@ export default function TimerPage() {
 
       {teacherShopTab === 'houses' ? (
         <section id="teacher-shop-panel-houses" role="tabpanel" aria-labelledby="teacher-shop-tab-houses" className="settings-card teacher-shop-collection teacher-shop-houses rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
-          <header><div><h3>구매 가능한 집</h3><p>학생 집 상점에 표시되는 목록</p></div><span>{STUDENT_HOUSE_DESIGNS.length}채</span></header>
+          <header><div><h3>구매 가능한 집</h3></div><span>{STUDENT_HOUSE_DESIGNS.length}채</span></header>
           <div className="teacher-shop-house-list">
-            {STUDENT_HOUSE_DESIGNS.map((house) => (
+            {orderTeacherHouseShopCatalog().map((house) => (
               <article key={house.id}>
                 {'creatorStudentNumber' in house ? <span className="teacher-house-creator-badge" aria-label={`제작자 ${house.creatorStudentNumber}번`}>{house.creatorStudentNumber}번</span> : null}
                 <img src={house.imageSrc} alt="" />

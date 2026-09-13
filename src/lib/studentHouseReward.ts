@@ -6,6 +6,13 @@ export const HOUSE_CREATOR_REWARD = 10;
 export const HOUSE_MAIL_SENDER = '목수 고키리';
 export const HOUSE_MAIL_STAMP = '/(편지용) 고키리.png';
 
+const houseSaleSubject = (name: string) => {
+  const last = [...name].at(-1) ?? '';
+  const code = last.charCodeAt(0);
+  const particle = code >= 0xac00 && code <= 0xd7a3 && (code - 0xac00) % 28 !== 0 ? '이' : '가';
+  return `${name}${particle} 팔렸어요!`;
+};
+
 export const createHousePurchaseLetter = ({ action, studentNumber, applied, createdAt }: {
   action: StudentEconomyAction;
   studentNumber: number;
@@ -20,7 +27,7 @@ export const createHousePurchaseLetter = ({ action, studentNumber, applied, crea
     recipient: house.creatorStudentNumber,
     senderLabel: HOUSE_MAIL_SENDER,
     senderStudentNumber: null,
-    title: '멋진 집이 팔렸어요!',
+    title: houseSaleSubject(house.name),
     content: `${formatStudentNumberLabel(studentNumber)} 친구가 네가 만든 ‘${house.name}’을 샀어! 멋진 집을 만들어 준 보답으로 ${HOUSE_CREATOR_REWARD}고마를 넣어 두었단다. 앞으로도 멋진 집을 만들어 줘!`,
     createdAt,
   };

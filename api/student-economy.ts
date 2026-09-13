@@ -3,6 +3,7 @@ import {
   AUCTION_ITEM_IDS,
   CURRENCY_BALANCE_MAX,
   DEFAULT_CURRENCY_BALANCE,
+  TEST_STUDENT_NUMBER,
   appendCurrencyHistoryEntry,
   getReservedAuctionBidAmount,
   normalizeAuctionAwards,
@@ -137,7 +138,7 @@ const parseBody = (body: unknown) => {
   if (
     !Number.isInteger(studentNumber)
     || studentNumber < 1
-    || studentNumber > 23
+    || studentNumber > TEST_STUDENT_NUMBER
     || typeof requestId !== 'string'
     || requestId.length < 8
     || requestId.length > 160
@@ -426,7 +427,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const requestId = request.query?.requestId;
     const studentNumber = Number(request.query?.studentNumber);
     if (request.query?.protocolVersion !== '2' || typeof requestId !== 'string' || !/^[a-zA-Z0-9-]{8,160}$/.test(requestId)
-      || !Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 23) {
+      || !Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > TEST_STUDENT_NUMBER) {
       response.status(400).json({ error: 'INVALID_STUDENT_ECONOMY_REQUEST' }); return;
     }
     if (session.role === 'student' && session.studentNumber !== studentNumber) {
