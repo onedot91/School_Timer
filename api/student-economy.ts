@@ -497,10 +497,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     for (let attempt = 0; attempt < UPDATE_RETRY_LIMIT; attempt += 1) {
       try {
         const current = await loadScopedStorageSnapshot(configuration, scope);
-        const confirmed = await getStorageReceipt(configuration, actorKey, parsed.requestId, {
-          action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
-        });
-        if (confirmed.found) { response.status(200).json(await currentEconomyResponse(configuration, confirmed.result, parsed.studentNumber)); return; }
+        // The commit checks the same receipt under its lock; business rejection also confirms before responding.
         const mutation = createMutation(current.value, parsed.studentNumber, parsed.action, parsed.requestId, createdAt, characterDrawRoll, profileDrawRoll);
         const committed = await commitScopedStorageMutation(configuration, {
           snapshot: current, value: mutation.nextValue, actorKey, requestId: parsed.requestId,

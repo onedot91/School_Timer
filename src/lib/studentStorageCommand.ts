@@ -195,13 +195,24 @@ export const hasUnconfirmedStudentEconomyDraft = (studentNumber: number) => hasU
 const assertActor = (studentNumber: number, context: StorageResponseContext) => {
   if (!isStorageResponseContextCurrent(context) || (context.actor !== null && context.actor !== String(studentNumber))) throw new StorageResponseActorChangedError();
 };
-const confirmEconomyDraft = async (studentNumber: number, context: StorageResponseContext): Promise<StudentEconomyUpdateResult | null> => {
+const confirmEconomyDraft = async (studentNumber: number, context: StorageResponseContext, checkReceipt = true): Promise<StudentEconomyUpdateResult | null> => {
   await drafts.ready();
   assertActor(studentNumber, context);
   const scope = scopeFor(studentNumber, ECONOMY_DRAFT_ACTION), pending = drafts.load(scope);
   if (!pending) return null;
   try {
-    const confirmed = await loadStudentEconomyReceipt(studentNumber, pending.draft.requestId, pending.draft.payload, context);
+    let confirmed: StudentEconomyUpdateResult | null = null;
+    if (checkReceipt) {
+      try { confirmed = await loadStudentEconomyReceipt(studentNumber, pending.draft.requestId, pending.draft.payload, context); }
+      catch (error) {
+        assertActor(studentNumber, context);
+        const unavailable = error instanceof StudentEconomyRequestError
+          ? error.status === 408 || error.status >= 500
+          : error instanceof Error && ['TypeError', 'TimeoutError', 'AbortError', 'SyntaxError'].includes(error.name);
+        if (!unavailable) throw error;
+        // An explicit retry keeps the original ID and payload; the server checks its receipt atomically.
+      }
+    }
     assertActor(studentNumber, context);
     // This path runs only after a student's explicit confirm/retry action.
     const result = confirmed ?? await retryStudentEconomyRequest({ studentNumber, requestId: pending.draft.requestId, action: pending.draft.payload });
@@ -239,7 +250,7 @@ const executeEconomyWithDraft = async (studentNumber: number, action: StudentEco
     if (confirmed.refreshPending) markSaveRefreshPending(studentNumber);
     return executeEconomyWithDraft(studentNumber, action, context);
   }
-  const result = await confirmEconomyDraft(studentNumber, context);
+  const result = await confirmEconomyDraft(studentNumber, context, saved.status !== 'saved');
   if (!result) throw new Error('STUDENT_ECONOMY_CONFIRMATION_REQUIRED');
   return result;
 };

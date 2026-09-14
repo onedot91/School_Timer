@@ -9,6 +9,7 @@ import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 import { parseStorageScope, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, type StorageScope } from '../../src/server/storageScope.js';
 import { parseStorageSnapshot } from '../../src/server/storageV2Repository.js';
 import { splitStorageState, assembleStorageState, isStorageRecord } from '../../src/lib/storageV2Codec.js';
+import { executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft } from '../../src/lib/studentStorageCommand.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 
@@ -352,7 +353,7 @@ test('final economy business validation rechecks the same request before rejecti
   const originalFetch = globalThis.fetch;
   let reads = 0;
   globalThis.fetch = async (input, init) => {
-    if (String(input).endsWith('/storage_get_receipt') && ++reads <= 2) return Response.json({ found: false });
+    if (String(input).endsWith('/storage_get_receipt') && ++reads === 1) return Response.json({ found: false });
     if (String(input).endsWith('/storage_load_scope')) {
       const response = await originalFetch(input, init);
       const snapshot: unknown = await response.json();
@@ -367,6 +368,38 @@ test('final economy business validation rechecks the same request before rejecti
   };
   const saved = await act(1, action, 'economy-race-receipt');
   assert.equal(saved.statusCode, 200);
-  assert.equal(reads, 3);
+  assert.equal(reads, 2);
   assert.equal(db.writes.length, 1);
+}));
+
+test('새 거래는 사전 GET 없이 저장하고 확인 GET 장애 중 수동 재시도는 원래 거래를 중복 차감하지 않는다', () => withFixture(async db => {
+  const rpcFetch = globalThis.fetch;
+  const posts: Record<string, unknown>[] = [];
+  let loseResponse = true;
+  globalThis.fetch = async (input, init) => {
+    if (!String(input).startsWith('/api/student-economy')) return rpcFetch(input, init);
+    if (init?.method !== 'POST') return Response.json({ error: 'STUDENT_ECONOMY_STATUS_UNAVAILABLE' }, { status: 502 });
+    const body: unknown = JSON.parse(String(init.body));
+    assert.ok(isStorageRecord(body));
+    posts.push(body);
+    const result = createResponse();
+    await handler({ method: 'POST', headers: studentHeaders(1), body }, result.response);
+    if (loseResponse) { loseResponse = false; throw new TypeError('synthetic lost response'); }
+    return Response.json(result.result().body, { status: result.result().statusCode });
+  };
+  await assert.rejects(executeStudentEconomyWithDraft(1, { type: 'deposit', amount: 30 }), /STUDENT_ECONOMY_CONFIRMATION_REQUIRED/);
+  assert.equal(posts.length, 1);
+  assert.equal(db.writes.length, 1);
+  assert.deepEqual(db.rpcCalls.map(url => url.split('/').at(-1)), [
+    'storage_get_receipt', 'storage_load_scope', 'storage_commit_scoped_mutation', 'storage_load_scope',
+  ]);
+  assert.deepEqual(db.value().currencyBalances, { 1: 115, 2: 222 });
+  assert.equal(hasUnconfirmedStudentEconomyDraft(1), true);
+  const confirmed = await confirmStudentEconomyDraft(1);
+  assert.equal(confirmed?.balance, 115);
+  assert.equal(posts.length, 2);
+  assert.deepEqual(posts[1], posts[0]);
+  assert.equal(db.writes.length, 1);
+  assert.equal(hasUnconfirmedStudentEconomyDraft(1), false);
+  assert.deepEqual(db.value().currencyBalances, { 1: 115, 2: 222 });
 }));

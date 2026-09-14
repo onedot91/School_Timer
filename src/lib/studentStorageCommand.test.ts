@@ -137,6 +137,24 @@ const commandBody = (init?: RequestInit): Record<string, unknown> => {
   return value;
 };
 
+test('고마 수동 재확인은 권한·요청 충돌·호출 제한 오류에서 POST하지 않는다', async () => {
+  for (const [actor, status] of [[11, 401], [12, 409], [13, 429]]) {
+    await withCommandBrowser(actor, async storage => {
+      const store = createStudentSaveDraftStore({ storage, createRequestId: () => `confirmation-blocked-${status}` });
+      store.save({ studentNumber: actor, feature: 'student.economy', entityId: 'student.economy' }, { type: 'deposit', amount: 30 });
+      store.dispose();
+      const calls: string[] = [];
+      globalThis.fetch = async (_url, init) => {
+        calls.push(init?.method ?? 'GET');
+        return Response.json({ error: 'SYNTHETIC_REJECTION' }, { status });
+      };
+      await assert.rejects(confirmStudentEconomyDraft(actor));
+      assert.deepEqual(calls, ['GET']);
+      assert.equal(hasUnconfirmedStudentEconomyDraft(actor), true);
+    });
+  }
+});
+
 const letter = (content: string) => ({ recipient: 0, title: '합성 테스트', content });
 
 test('A 저장 응답을 기다리는 동안 편집한 B는 A 성공 후에도 남는다', async () => {

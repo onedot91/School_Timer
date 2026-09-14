@@ -1474,7 +1474,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       || activeStudentView === 'library-failure-board';
     refreshWhenVisible(isStudentStoreView(activeStudentView) || isEntryRefreshView);
 
-    const syncView = isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
+    const syncView = activeStudentView === 'store-auction' ? 'store-auction'
+      : isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
     const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView] ?? STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS;
     const intervalId = window.setInterval(() => refreshWhenVisible(), intervalMs);
     const refreshOnReturn = () => {
