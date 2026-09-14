@@ -41,6 +41,7 @@ export const parseStudentSettingsSnapshot = (
       !isRecord(parsed)
       || parsed.studentNumber !== studentNumber
       || typeof parsed.updatedAt !== 'string'
+      || !Number.isFinite(Date.parse(parsed.updatedAt))
       || !isRecord(parsed.value)
     ) return null;
     return { studentNumber, updatedAt: parsed.updatedAt, value: parsed.value };
@@ -50,8 +51,12 @@ export const parseStudentSettingsSnapshot = (
 };
 
 export const loadStudentSettingsSnapshot = (studentNumber: number): StudentSettingsSnapshot | null => {
-  const stored = window.localStorage.getItem(STUDENT_SETTINGS_CACHE_KEY);
-  return stored ? parseStudentSettingsSnapshot(stored, studentNumber) : null;
+  try {
+    const stored = window.localStorage.getItem(STUDENT_SETTINGS_CACHE_KEY);
+    return stored ? parseStudentSettingsSnapshot(stored, studentNumber) : null;
+  } catch {
+    return null;
+  }
 };
 
 export const storeStudentSettingsSnapshot = (snapshot: StudentSettingsSnapshot) => {

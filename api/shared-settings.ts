@@ -2,7 +2,8 @@ import { isDeepStrictEqual } from 'node:util';
 import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
 import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
-import { loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
+import { loadScopedStorageSnapshot, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
+import { TEST_STUDENT_NUMBER } from '../src/lib/studentIdentity.js';
 
 import {
   applyLibraryPlacementCommand,
@@ -368,7 +369,23 @@ const handleLibraryPlacement = async (
 
 const loadStudentRow = async (url: string, key: string, studentNumber: number) => {
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
-    const row = await loadStorageSnapshotForRead({ url, key });
+    // The existing scoped RPC supports classroom students 1..23; keep the test entry compatible.
+    const row = studentNumber === TEST_STUDENT_NUMBER
+      ? await loadStorageSnapshotForRead({ url, key })
+      : await loadScopedStorageSnapshot({ url, key }, {
+        resources: [
+          ...STUDENT_SHARED_FIELDS.map(field => ({
+            path: `/${field}`,
+            ...(STUDENT_MUTABLE_PROGRESS_FIELDS.some(progress => progress === field) ? { students: [studentNumber] } : {}),
+          })),
+          ...STUDENT_SCOPED_MAP_FIELDS.filter(field => field !== 'currencyBalances' && field !== 'currencyHistory')
+            .map(field => ({ path: `/${field}`, students: [studentNumber] })),
+        ],
+        wallets: [studentNumber],
+        history: [studentNumber],
+        writeResources: [],
+        writeWallets: [],
+      });
     const value = projectStudentValue(row.value, studentNumber);
     return { id: SETTINGS_ID, value, updated_at: row.updated_at, scope: 'student' as const,
       storagePatch: createStorageProjectionPatch(row, value, true) };

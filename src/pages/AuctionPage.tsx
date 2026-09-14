@@ -13,7 +13,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { subscribeSaveProgress, getSaveProgress, getServerSaveProgress } from '../lib/saveProgress';
 import { ArrowRight, X } from 'lucide-react';
 import { animate as animateMotion, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
-import { AppLoadingScreen } from '../components/AppRecovery';
+import { AppLoadingScreen, AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
@@ -505,6 +505,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [bidAmountDrafts, setBidAmountDrafts] = useState<Record<string, string>>({});
   const [selectedItemId, setSelectedItemId] = useState(getInitialSelectedAuctionItemId);
   const [isLoading, setIsLoading] = useState(isSupabaseSettingsEnabled);
+  const [hasSettingsLoadError, setHasSettingsLoadError] = useState(false);
   const [isSubmittingItemId, setIsSubmittingItemId] = useState<string | null>(null);
   const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
@@ -546,6 +547,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const pageScrollRef = useRef<HTMLDivElement>(null);
   const unavailableFeatureTriggerRef = useRef<HTMLElement>(null);
   const sharedSettingsUpdatedAtRef = useRef<string | null>(null);
+  const hasLoadedSharedSettingsRef = useRef(!isSupabaseSettingsEnabled);
   const minimumSettingsUpdatedAtRef = useRef<string | null>(null);
   const isSharedSettingsRefreshInFlightRef = useRef(false);
   const pendingFullSettingsRefreshRef = useRef(false);
@@ -1327,16 +1329,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       return;
     }
     isSharedSettingsRefreshInFlightRef.current = true;
+    if (!hasLoadedSharedSettingsRef.current && forceFull) setIsLoading(true);
 
     try {
       let shouldForceFull = forceFull;
       do {
         pendingFullSettingsRefreshRef.current = false;
         try {
-          let shouldLoadFull = shouldForceFull || sharedSettingsUpdatedAtRef.current === null;
+          let shouldLoadFull = shouldForceFull || !hasLoadedSharedSettingsRef.current || sharedSettingsUpdatedAtRef.current === null;
           if (!shouldLoadFull) {
             const updatedAt = await loadSharedSettingsUpdatedAt();
             shouldLoadFull = shouldLoadFullStudentSettings(sharedSettingsUpdatedAtRef.current, updatedAt);
+            if (!shouldLoadFull) setHasSettingsLoadError(false);
           }
 
           if (shouldLoadFull) {
@@ -1347,18 +1351,24 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               shouldForceFull = true;
               continue;
             }
-            const value = row?.value && typeof row.value === 'object'
-              ? row.value as SharedSettingsValue
-              : {};
+            if (!row || !row.value || typeof row.value !== 'object' || Array.isArray(row.value)) {
+              throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
+            }
+            const value = row.value as SharedSettingsValue;
             if (applySharedSettingsValue(value, row?.updated_at)) {
+              hasLoadedSharedSettingsRef.current = true;
+              setHasSettingsLoadError(false);
               markSaveRefreshComplete(studentNumber, refreshVersion);
               sharedSettingsUpdatedAtRef.current = row?.updated_at ?? null;
               if (row?.updated_at && row.value && typeof row.value === 'object') {
                 storeStudentSettingsSnapshot({ studentNumber, updatedAt: row.updated_at, value });
               }
+            } else if (!hasLoadedSharedSettingsRef.current) {
+              throw new Error('SHARED_SETTINGS_STALE_RESPONSE');
             }
           }
         } catch (error) {
+          setHasSettingsLoadError(true);
           console.error('Failed to load auction state from Supabase.', error);
         }
         shouldForceFull = pendingFullSettingsRefreshRef.current;
@@ -1441,8 +1451,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const snapshot = loadStudentSettingsSnapshot(studentNumber);
     if (!snapshot) return;
     if (!applySharedSettingsValue(snapshot.value, snapshot.updatedAt)) return;
-    sharedSettingsUpdatedAtRef.current = snapshot.updatedAt;
-    setIsLoading(false);
   }, [applySharedSettingsValue, studentNumber]);
 
   useEffect(() => {
@@ -2085,6 +2093,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const isProfileGachaSaving = activeStudentView === 'store-shop'
     && profilePurchaseType === 'random'
     && isStudentLifeSaving;
+
+  if (!hasLoadedSharedSettingsRef.current) {
+    return isLoading || !hasSettingsLoadError ? <AppLoadingScreen label="학생 기록 불러오는 중" /> : (
+      <AppRecoveryScreen
+        title="학생 기록을 불러오지 못했어요"
+        description="연결을 확인하고 다시 시도해 주세요."
+        actionLabel="다시 시도"
+        onRetry={() => void refreshAuctionState({ forceFull: true })}
+      />
+    );
+  }
 
   return (
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>

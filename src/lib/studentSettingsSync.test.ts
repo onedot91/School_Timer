@@ -79,3 +79,17 @@ test('학생 설정 스냅샷은 같은 학생 번호에서만 재사용한다',
     value: { currencyBalances: { 7: 145 } },
   });
 });
+
+test('잘못된 캐시 날짜와 브라우저 저장소 접근 실패는 서버 조회를 막지 않는다', () => {
+  assert.equal(parseStudentSettingsSnapshot(JSON.stringify({ studentNumber: 24, updatedAt: 'invalid', value: {} }), 24), null);
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: {
+    localStorage: { getItem: () => { throw new Error('Storage unavailable'); } },
+  } });
+  try {
+    assert.equal(loadStudentSettingsSnapshot(24), null);
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'window', original);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
