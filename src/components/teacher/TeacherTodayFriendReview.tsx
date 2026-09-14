@@ -13,17 +13,23 @@ interface TeacherTodayFriendReviewProps {
   readonly onReview: (submissionId: string) => Promise<void>;
 }
 
-const getPreview = (submission: TodayFriendSubmission): string => {
+const getReviewSections = (submission: TodayFriendSubmission): ReadonlyArray<{ label: string; content: string }> => {
   switch (submission.payload.kind) {
-    case 'interview': return submission.payload.answer;
-    case 'commonality': return submission.payload.commonality;
-    case 'recommendation': return `${submission.payload.title} · ${submission.payload.reason}`;
+    case 'interview': return [{ label: '인터뷰 답변', content: submission.payload.answer }];
+    case 'commonality': return [{ label: '찾은 공통점', content: submission.payload.commonality }];
+    case 'recommendation': return [
+      { label: '추천 대상', content: submission.payload.title },
+      { label: '추천 이유', content: submission.payload.reason },
+    ];
     case 'compliment': return [
-      `칭찬할 행동: ${submission.payload.compliment}`,
-      submission.payload.reason ? `좋았던 이유: ${submission.payload.reason}` : null,
-      submission.payload.message ? `“${submission.payload.message}”` : null,
-    ].filter((line): line is string => line !== null).join('\n');
-    case 'emotion': return `${submission.payload.emotion} · ${submission.payload.declinedToExplain ? '이유는 말하지 않음' : submission.payload.reason}`;
+      { label: '칭찬할 행동', content: submission.payload.compliment },
+      ...(submission.payload.reason ? [{ label: '좋았던 이유', content: submission.payload.reason }] : []),
+      ...(submission.payload.message ? [{ label: '친구에게 전할 말', content: submission.payload.message }] : []),
+    ];
+    case 'emotion': return [
+      { label: '선택한 감정', content: submission.payload.emotion },
+      { label: '그렇게 느낀 이유', content: submission.payload.declinedToExplain ? '이유는 말하지 않음' : submission.payload.reason },
+    ];
   }
 };
 
@@ -80,18 +86,28 @@ export default function TeacherTodayFriendReview({ submissions, isSaving, onRevi
             <header>
               <div>
                 <h3>{selectedSubmission.studentNumber}번 제출</h3>
-                <span>{GENRE_LABELS[selectedSubmission.genre]} · 친구 {selectedSubmission.partnerNumber}번</span>
+                <div className="teacher-today-friend-detail-meta">
+                  <span>{GENRE_LABELS[selectedSubmission.genre]}</span>
+                  <span>친구 {selectedSubmission.partnerNumber}번</span>
+                </div>
               </div>
               <small data-status={selected.status}>{TODAY_FRIEND_REVIEW_QUEUE_STATUS_LABELS[selected.status]}</small>
             </header>
             <article data-private={selectedSubmission.genre === 'emotion' ? 'true' : undefined}>
               {selectedSubmission.genre === 'emotion' ? <p className="teacher-today-friend-private-label">참여 학생과 교사만 보는 감정 기록</p> : null}
-              <p>{getPreview(selectedSubmission)}</p>
+              <dl className="teacher-today-friend-response-list">
+                {getReviewSections(selectedSubmission).map((section) => (
+                  <div key={section.label}>
+                    <dt>{section.label}</dt>
+                    <dd>{section.content}</dd>
+                  </div>
+                ))}
+              </dl>
             </article>
             {selected.status === 'submitted' ? (
               <div className="teacher-today-friend-review-actions">
                 <button type="button" disabled={isSaving} onClick={() => { void onReview(selectedSubmission.id); }}>
-                  <Check aria-hidden="true" />승인 · 15고마
+                  <Check aria-hidden="true" />승인하고 15고마 지급
                 </button>
               </div>
             ) : (

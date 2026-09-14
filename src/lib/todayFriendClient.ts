@@ -36,6 +36,10 @@ import {
   type TodayFriendStudentMission,
 } from './todayFriendState';
 import { getKoreanIsoWeekKey } from './weeklyMission';
+import { TodayFriendTeacherCache } from './todayFriendTeacherCache';
+
+const teacherCache = new TodayFriendTeacherCache();
+export const getCachedTeacherTodayFriendState = (dateKey: string): TodayFriendState | null => teacherCache.peek(dateKey);
 
 export class TodayFriendClientError extends Error {
   readonly code: string;
@@ -246,10 +250,10 @@ export const submitStudentTodayFriendMission = async (input: {
   return submission;
 };
 
-export const loadTeacherTodayFriendState = async (dateKey: string): Promise<TodayFriendState> => {
+export const loadTeacherTodayFriendState = (dateKey: string): Promise<TodayFriendState> => teacherCache.load(dateKey, async () => {
   if (appDataMode === 'mock') return prepareLocalState(dateKey);
   return parseTodayFriendState(await request(`/api/today-friend?teacher=1&dateKey=${encodeURIComponent(dateKey)}`));
-};
+});
 
 export const reviewStudentTodayFriendSubmission = async (input: {
   readonly submissionId: string;
@@ -257,8 +261,9 @@ export const reviewStudentTodayFriendSubmission = async (input: {
   readonly requestId?: string;
 }): Promise<TodayFriendState> => {
   if (appDataMode === 'readonly') throw new TodayFriendClientError('BACKEND_WRITE_DISABLED');
+  teacherCache.invalidate();
   if (appDataMode !== 'mock') {
-    return parseTodayFriendState(await request('/api/today-friend', { method: 'POST', body: JSON.stringify({ action: 'review', decision: 'approved', feedback: '', expectedRevision: input.expectedRevision ?? 0, requestId: input.requestId ?? crypto.randomUUID(), submissionId: input.submissionId }) }));
+    return parseTodayFriendState(await request('/api/today-friend', { method: 'POST', body: JSON.stringify({ action: 'review', decision: 'approved', feedback: '', expectedRevision: input.expectedRevision ?? 0, requestId: input.requestId ?? crypto.randomUUID(), submissionId: input.submissionId }) }).finally(() => teacherCache.invalidate()));
   }
   const current = loadLocalTodayFriendState(window.localStorage);
   const submission = current.submissions.find((entry) => entry.id === input.submissionId);
@@ -295,7 +300,8 @@ export type TeacherTodayFriendPlanAction = {
 };
 
 export const updateTeacherTodayFriendPlan = (input: TeacherTodayFriendPlanAction): Promise<TodayFriendState> => {
-  if (appDataMode !== 'mock') return request('/api/today-friend', { method: 'POST', body: JSON.stringify(input) }).then(parseTodayFriendState);
+  teacherCache.invalidate();
+  if (appDataMode !== 'mock') return request('/api/today-friend', { method: 'POST', body: JSON.stringify(input) }).then(parseTodayFriendState).finally(() => teacherCache.invalidate());
   return Promise.resolve(updateLocalTodayFriendState((state) => {
     switch (input.action) {
       case 'reassign_week':
@@ -316,11 +322,12 @@ export const updateTeacherTodayFriendQuestions = (
   dateKey: string,
   questions: TodayFriendState['questions'],
 ): Promise<TodayFriendState> => {
+  teacherCache.invalidate();
   if (appDataMode !== 'mock') {
     return request('/api/today-friend', {
       method: 'POST',
       body: JSON.stringify({ action: 'replace_questions', dateKey, questions }),
-    }).then(parseTodayFriendState);
+    }).then(parseTodayFriendState).finally(() => teacherCache.invalidate());
   }
   return Promise.resolve(updateLocalTodayFriendState((state) => ({ ...state, questions })));
 };

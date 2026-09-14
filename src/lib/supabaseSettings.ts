@@ -35,6 +35,12 @@ let sharedSettingsRead: {
   cachedRow: SettingsRow | null | undefined;
   promise: Promise<SettingsRow | null>;
 } | undefined;
+let sharedSettingsMetadataRead: {
+  actorGeneration: number;
+  generation: number;
+  cachedRow: SettingsRow | null | undefined;
+  promise: Promise<string | null>;
+} | undefined;
 let sharedSettingsUpdateQueue: Promise<unknown> = Promise.resolve();
 
 const enqueueSharedSettingsUpdate = <T>(update: () => Promise<T>) => {
@@ -259,10 +265,9 @@ const loadWritableSharedSettingsRow = async () => {
   return loadSharedSettingsRow();
 };
 
-export const loadSharedSettingsUpdatedAt = async () => {
+const fetchSharedSettingsUpdatedAt = async (context: StorageResponseContext): Promise<string | null> => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
-    const context = synchronizeSettingsActor();
     const result = await fetchJson('/api/shared-settings?metadata=1', undefined, true) as { updatedAt: string | null };
     if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
     return result.updatedAt;
@@ -280,6 +285,22 @@ export const loadSharedSettingsUpdatedAt = async () => {
   }
 
   return data?.updated_at ?? null;
+};
+
+export const loadSharedSettingsUpdatedAt = (): Promise<string | null> => {
+  const context = synchronizeSettingsActor();
+  if (sharedSettingsMetadataRead?.actorGeneration === context.generation && sharedSettingsMetadataRead.generation === settingsCacheGeneration
+    && sharedSettingsMetadataRead.cachedRow === cachedWritableSharedSettingsRow) return sharedSettingsMetadataRead.promise;
+  const request = {
+    actorGeneration: context.generation,
+    generation: settingsCacheGeneration,
+    cachedRow: cachedWritableSharedSettingsRow,
+    promise: fetchSharedSettingsUpdatedAt(context),
+  };
+  sharedSettingsMetadataRead = request;
+  const clear = () => { if (sharedSettingsMetadataRead === request) sharedSettingsMetadataRead = undefined; };
+  void request.promise.then(clear, clear);
+  return request.promise;
 };
 
 export const saveSharedSettings = async (value: unknown) => {

@@ -21,6 +21,8 @@ const withClient = async (t: TestContext, run: (
     value: Record<string, unknown>;
     version: number;
     reads: number;
+    metadataReads: number;
+    metadataFailures: number;
     writes: Record<string, unknown>[];
     conflicts: number;
     scope: 'full' | 'student';
@@ -29,6 +31,7 @@ const withClient = async (t: TestContext, run: (
     beforeCommit?: () => Promise<void>;
     invalidNextReceipt?: boolean;
     afterRead?: () => Promise<void>;
+    afterMetadataRead?: () => Promise<void>;
   },
 ) => Promise<void>) => {
   const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null }, define: {
@@ -37,10 +40,20 @@ const withClient = async (t: TestContext, run: (
   const backend: Parameters<typeof run>[1] = {
     value: { currencyBalances: { 7: 100, 8: 237 }, currencyHistory: { 7: [], 8: [{ legacy: true }] }, auctionAwards: null,
       studentNumberBaseball: { '8:week': { legacy: true } } },
-    version: 0, reads: 0, writes: [], conflicts: 0, scope: 'full', rejectNext: false,
+    version: 0, reads: 0, metadataReads: 0, metadataFailures: 0, writes: [], conflicts: 0, scope: 'full', rejectNext: false,
   };
   const timestamp = () => new Date(Date.UTC(2026, 8, 7, 0, 0, backend.version)).toISOString();
   t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {
+    if (String(input) === '/api/shared-settings?metadata=1') {
+      backend.metadataReads++;
+      const updatedAt = timestamp();
+      await backend.afterMetadataRead?.();
+      if (backend.metadataFailures > 0) {
+        backend.metadataFailures--;
+        return Response.json({}, { status: 503 });
+      }
+      return Response.json({ updatedAt });
+    }
     assert.equal(String(input), '/api/shared-settings');
     if (init?.method !== 'PUT') {
       backend.reads++;
@@ -185,6 +198,70 @@ test('동시에 필요한 설정 조회는 한 요청으로 합치고 완료 뒤
     backend.version++;
     await client.loadSharedSettingsRow();
     assert.equal(backend.reads, 2);
+  });
+});
+
+test('동시에 필요한 수정 시각 조회는 한 요청으로 합치고 완료 뒤에는 다시 조회한다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    const started = performance.now();
+    backend.afterMetadataRead = () => new Promise(resolve => setTimeout(resolve, 60));
+    const timestamps = await Promise.all(Array.from({ length: 8 }, () => client.loadSharedSettingsUpdatedAt()));
+    t.diagnostic(`concurrent metadata reads: ${backend.metadataReads}; elapsed: ${(performance.now() - started).toFixed(1)}ms`);
+    assert.equal(backend.metadataReads, 1);
+    assert.ok(timestamps.every(value => value === timestamps[0]));
+    backend.version++;
+    assert.notEqual(await client.loadSharedSettingsUpdatedAt(), timestamps[0]);
+    assert.equal(backend.metadataReads, 2);
+  });
+});
+
+test('캐시 무효화와 저장 완료 뒤 수정 시각 조회는 이전 요청에 합쳐지지 않는다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    for (const invalidate of [() => client.invalidateSharedSettingsCache(), () => client.updateStudentSharedSettings(7, current => ({ ...record(current), currencyBalances: { 7: 125 } }))]) {
+      const held = gate();
+      backend.afterMetadataRead = async () => { backend.afterMetadataRead = undefined; await held.promise; };
+      const previousReads = backend.metadataReads;
+      const stale = client.loadSharedSettingsUpdatedAt();
+      await invalidate();
+      backend.version++;
+      const fresh = await client.loadSharedSettingsUpdatedAt();
+      held.release();
+      assert.notEqual(await stale, fresh);
+      assert.equal(backend.metadataReads - previousReads, 2);
+    }
+  });
+});
+
+test('학생 전환 뒤 수정 시각 조회는 이전 학생 요청과 분리하고 늦은 응답을 거절한다', async (t) => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  let actor = '7';
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { localStorage: { getItem: () => actor } } });
+  try {
+    await withClient(t, async (client, backend) => {
+      const held = gate();
+      backend.afterMetadataRead = async () => { backend.afterMetadataRead = undefined; await held.promise; };
+      const stale = client.loadSharedSettingsUpdatedAt();
+      const rejected = assert.rejects(stale, /SESSION_CHANGED/);
+      actor = '8';
+      assert.ok(await client.loadSharedSettingsUpdatedAt());
+      assert.equal(backend.metadataReads, 2);
+      held.release();
+      await rejected;
+    });
+  } finally {
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
+test('수정 시각 조회의 재시도도 공유하고 최종 실패 이후 새 요청은 복구한다', async (t) => {
+  await withClient(t, async (client, backend) => {
+    backend.metadataFailures = 2;
+    const results = await Promise.allSettled(Array.from({ length: 8 }, () => client.loadSharedSettingsUpdatedAt()));
+    assert.ok(results.every(result => result.status === 'rejected'));
+    assert.equal(backend.metadataReads, 2);
+    assert.ok(await client.loadSharedSettingsUpdatedAt());
+    assert.equal(backend.metadataReads, 3);
   });
 });
 

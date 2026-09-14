@@ -118,3 +118,16 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
 
 export const isDelayedSaveFailure = (alert: SaveFailureAlert): boolean =>
   Boolean(alert.receivedAt && Date.parse(alert.receivedAt) - Date.parse(alert.occurredAt) >= 5 * 60 * 1000);
+
+export const groupSaveFailureAlerts = (alerts: readonly SaveFailureAlert[]): SaveFailureAlert[][] => {
+  const groups = new Map<string, SaveFailureAlert[]>();
+  for (const alert of alerts) {
+    const details = alert.diagnostics;
+    const key = JSON.stringify([alert.studentNumber, alert.feature, alert.code, details?.errorCode,
+      details?.causeCode, details?.httpStatus, details?.endpoint, details?.view, details?.stage,
+      details?.online, details?.buildVersion]);
+    const group = groups.get(key);
+    if (group) group.push(alert); else groups.set(key, [alert]);
+  }
+  return [...groups.values()];
+};

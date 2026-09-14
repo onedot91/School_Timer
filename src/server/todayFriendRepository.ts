@@ -114,8 +114,11 @@ export const loadTodayFriendState = async (
   configuration: TodayFriendRepositoryConfiguration,
   dateKey: string,
 ): Promise<TodayFriendState> => {
-  const planning = ensureTodayFriendDay(await loadTodayFriendPlanningState(configuration, dateKey), getWeekKey(dateKey), dateKey);
-  const submissions = await loadSubmissionRows(configuration, `submission_date=eq.${encodeURIComponent(dateKey)}`);
+  const [planningState, submissions] = await Promise.all([
+    loadTodayFriendPlanningState(configuration, dateKey),
+    loadSubmissionRows(configuration, `submission_date=eq.${encodeURIComponent(dateKey)}`),
+  ]);
+  const planning = ensureTodayFriendDay(planningState, getWeekKey(dateKey), dateKey);
   return { ...planning, submissions };
 };
 
@@ -124,13 +127,15 @@ export const loadTodayFriendMission = async (
   dateKey: string,
   studentNumber: number,
 ): Promise<TodayFriendStudentMission> => {
-  const context = await request(configuration, 'rpc/load_today_friend_context_v2', { method: 'POST', body: JSON.stringify({ p_date_key: dateKey, p_week_key: getWeekKey(dateKey) }) });
+  const [context, submissions] = await Promise.all([
+    request(configuration, 'rpc/load_today_friend_context_v2', { method: 'POST', body: JSON.stringify({ p_date_key: dateKey, p_week_key: getWeekKey(dateKey) }) }),
+    loadSubmissionRows(configuration, `submission_date=eq.${encodeURIComponent(dateKey)}&student_number=eq.${studentNumber}`),
+  ]);
   if (!context || typeof context !== 'object') throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_DATABASE_INVALID_RESPONSE');
   const state: unknown = Reflect.get(context, 'state');
   const revision: unknown = Reflect.get(context, 'revision');
   if (typeof revision !== 'string') throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_DATABASE_INVALID_RESPONSE');
   const planning = ensureTodayFriendDay(state === null ? TODAY_FRIEND_INITIAL_STATE : parseTodayFriendState(state), getWeekKey(dateKey), dateKey);
-  const submissions = await loadSubmissionRows(configuration, `submission_date=eq.${encodeURIComponent(dateKey)}&student_number=eq.${studentNumber}`);
   return { ...getTodayFriendStudentMission({ ...planning, submissions }, dateKey, studentNumber), planningRevision: revision };
 };
 

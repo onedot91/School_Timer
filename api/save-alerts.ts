@@ -2,6 +2,7 @@ import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSessi
 import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import { parseSaveFailureAlert, parseSaveFailureReport, SAVE_FAILURE_ROW_PREFIX } from '../src/lib/saveFailure.js';
 import { loadRewardAudit } from '../src/server/rewardAuditRepository.js';
+import { createHash } from 'node:crypto';
 
 interface ApiRequest { method?: string; body?: unknown; headers?: RequestHeaders; query?: Record<string, string | readonly string[] | undefined> }
 interface ApiResponse {
@@ -53,6 +54,30 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const body: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
     if (!body || typeof body !== 'object' || Array.isArray(body)) { response.status(400).json({ error: 'INVALID_SAVE_ALERT' }); return; }
     const actor = session.role === 'teacher' ? 0 : session.studentNumber;
+    if (Reflect.get(body, 'action') === 'acknowledgeAll') {
+      if (session.role !== 'teacher') { response.status(403).json({ error: 'TEACHER_REQUIRED' }); return; }
+      const before = Reflect.get(body, 'before') ?? new Date().toISOString();
+      if (typeof before !== 'string' || before.length > 32 || !Number.isFinite(Date.parse(before))) {
+        response.status(400).json({ error: 'INVALID_SAVE_ALERT' }); return;
+      }
+      // Keep a fixed receipt-time boundary across batches so new alerts stay unread.
+      const rows = await query(`?id=like.${SAVE_FAILURE_ROW_PREFIX}*&value->>acknowledgedAt=is.null&updated_at=lte.${encodeURIComponent(before)}&select=id,value,updated_at&order=updated_at.desc&limit=101`);
+      if (!Array.isArray(rows)) throw new Error('INVALID_RESPONSE');
+      const acknowledgedAt = new Date().toISOString();
+      const updates = rows.slice(0, 100).map((row: unknown) => {
+        if (!row || typeof row !== 'object') throw new Error('INVALID_RESPONSE');
+        const alert = parseSaveFailureAlert(Reflect.get(row, 'value'));
+        const id = Reflect.get(row, 'id');
+        const updatedAt = Reflect.get(row, 'updated_at');
+        if (!alert || id !== `${SAVE_FAILURE_ROW_PREFIX}${alert.studentNumber}-${alert.id}`
+          || typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt))) throw new Error('INVALID_RESPONSE');
+        return { id, value: { ...alert, acknowledgedAt: alert.acknowledgedAt ?? acknowledgedAt }, updated_at: updatedAt };
+      });
+      if (updates.length > 0) await query('?on_conflict=id', {
+        method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(updates),
+      });
+      response.status(200).json({ ok: true, acknowledged: updates.length, hasMore: rows.length > 100, before }); return;
+    }
     if (Reflect.get(body, 'action') === 'acknowledge') {
       if (session.role !== 'teacher') { response.status(403).json({ error: 'TEACHER_REQUIRED' }); return; }
       const report = parseSaveFailureReport(Reflect.get(body, 'alert'));
@@ -73,9 +98,14 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     if (report.studentNumber !== actor) { response.status(403).json({ error: 'STUDENT_SCOPE_VIOLATION' }); return; }
     const limit = consumeRequestRateLimit('save-alerts', request.headers, actor);
     if (!limit.allowed) { response.setHeader('Retry-After', String(limit.retryAfterSeconds)); response.status(429).json({ error: 'TOO_MANY_REQUESTS' }); return; }
+    // Delivery and recovery retries for one mutation must address the same alert,
+    // including after the teacher has acknowledged it.
+    const storedReport = report.diagnostics?.requestId ? { ...report,
+      id: `request-${createHash('sha256').update(JSON.stringify([actor, report.feature, report.diagnostics.requestId])).digest('hex')}`,
+    } : report;
     await query('?on_conflict=id', {
       method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
-      body: JSON.stringify({ id: `${SAVE_FAILURE_ROW_PREFIX}${actor}-${report.id}`, value: { ...report, acknowledgedAt: null }, updated_at: new Date().toISOString() }),
+      body: JSON.stringify({ id: `${SAVE_FAILURE_ROW_PREFIX}${actor}-${storedReport.id}`, value: { ...storedReport, acknowledgedAt: null }, updated_at: new Date().toISOString() }),
     });
     response.status(200).json({ ok: true });
   } catch (error) {

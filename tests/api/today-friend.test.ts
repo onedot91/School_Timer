@@ -15,10 +15,37 @@ import {
 } from '../../src/lib/todayFriendState.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 import { storagePayloadHash } from '../../src/server/storageV2Repository.js';
+import { loadTodayFriendState, loadTodayFriendMission } from '../../src/server/todayFriendRepository.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 const DATE_KEY = '2026-09-01';
 const WEEK_KEY = '2026-36';
+
+test('independent planning and submission reads overlap and failures never become empty successful results', async () => {
+  const originalFetch = globalThis.fetch;
+  const configuration = { url: 'https://fake.invalid', key: 'fake' };
+  try {
+    for (const teacher of [true, false]) {
+      const releases: (() => void)[] = [];
+      globalThis.fetch = async (url) => {
+        await new Promise<void>(resolve => { releases.push(resolve); });
+        return Response.json(String(url).includes('submissions?') ? [] : teacher ? null : { state: null, revision: '1' });
+      };
+      const read = teacher ? loadTodayFriendState(configuration, DATE_KEY) : loadTodayFriendMission(configuration, DATE_KEY, 1);
+      try { assert.equal(releases.length, 2); }
+      finally { releases.forEach(release => release()); }
+      await read;
+    }
+    for (const failure of ['planning', 'submissions']) {
+      globalThis.fetch = async (url) => {
+        const submissionRead = String(url).includes('submissions?');
+        if (submissionRead === (failure === 'submissions')) return Response.json({}, { status: 503 });
+        return Response.json(submissionRead ? [] : null);
+      };
+      await assert.rejects(loadTodayFriendState(configuration, DATE_KEY), /TODAY_FRIEND_DATABASE_HTTP_503/);
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
 const PREPARED_STATE = ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, WEEK_KEY, DATE_KEY);
 
 const createResponse = () => {

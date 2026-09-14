@@ -78,6 +78,24 @@ test('actual save client reports final failures, preserves offline reports, and 
     assert.equal(pending().at(-1)?.diagnostics?.view, 'number-baseball', 'navigation does not relabel the failing screen');
     assert.ok(!JSON.stringify(pending()).includes('private answer'));
     storage.set('school-timer-entry-number-v1', '3');
+    const before = '2026-09-14T03:00:00.000Z';
+    const batches: unknown[] = [];
+    const progress: number[] = [];
+    let batchIndex = 0;
+    t.mock.method(globalThis, 'fetch', async (_input: string | URL | Request, init?: RequestInit) => {
+      batches.push(JSON.parse(String(init?.body)));
+      const acknowledged = [100, 100, 5][batchIndex++];
+      return Response.json({ ok: true, acknowledged, hasMore: batchIndex < 3, before });
+    });
+    assert.equal(await client.acknowledgeAllSaveFailures(count => progress.push(count)), 205);
+    assert.deepEqual(progress, [100, 200, 205]);
+    assert.deepEqual(batches, [{ action: 'acknowledgeAll' }, { action: 'acknowledgeAll', before }, { action: 'acknowledgeAll', before }]);
+    let failedBatch = 0;
+    t.mock.method(globalThis, 'fetch', async () => ++failedBatch === 1
+      ? Response.json({ ok: true, acknowledged: 100, hasMore: true, before })
+      : Response.json({ error: 'SAVE_ALERTS_UNAVAILABLE' }, { status: 502 }));
+    await assert.rejects(client.acknowledgeAllSaveFailures(count => assert.equal(count, 100)), /SAVE_ALERT_ACKNOWLEDGE_FAILED/);
+    assert.equal(failedBatch, 2, 'a failed batch stops instead of hiding remaining alerts');
     t.mock.method(localStorage, 'setItem', () => { throw new DOMException('full', 'QuotaExceededError'); });
     const original = new TypeError('original save failed');
     await assert.rejects(client.withSaveFailureReporting('emotion', async () => { throw original; }, 3), (error) => error === original);

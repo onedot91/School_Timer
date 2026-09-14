@@ -1485,17 +1485,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const refreshWhenVisible = (forceFull = false) => {
       if (document.visibilityState === 'visible' && navigator.onLine) void refreshAuctionState({ forceFull });
     };
-    const isEntryRefreshView = activeStudentView === 'emotions'
-      || activeStudentView === 'missions'
-      || activeStudentView === 'newspaper'
-      || activeStudentView === 'sudoku'
-      || activeStudentView === 'number-baseball'
-      || activeStudentView === 'mailbox'
-      || activeStudentView === 'library'
-      || activeStudentView === 'library-bookstore'
-      || activeStudentView === 'library-bookshelf'
-      || activeStudentView === 'library-failure-board';
-    refreshWhenVisible(isStudentStoreView(activeStudentView) || isEntryRefreshView);
+    refreshWhenVisible();
 
     const syncView = activeStudentView === 'store-auction' ? 'store-auction'
       : isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { classifySaveFailure, parseSaveFailureAlert, parseSaveFailureReport } from './saveFailure.js';
+import { classifySaveFailure, groupSaveFailureAlerts, parseSaveFailureAlert, parseSaveFailureReport } from './saveFailure.js';
 
 const report = { id: 'test-alert-123', studentNumber: 3, feature: 'emotion', code: 'network', occurredAt: '2026-09-07T01:00:00.000Z' };
 
@@ -11,6 +11,15 @@ test('save alerts retain only safe metadata and validate persisted input', () =>
   }
   assert.deepEqual(parseSaveFailureAlert({ ...report, acknowledgedAt: null }), { ...report, acknowledgedAt: null });
   assert.equal(parseSaveFailureAlert(report), null);
+});
+
+test('repeated symptoms are grouped without losing distinct requests or mixing students and causes', () => {
+  const alert = parseSaveFailureAlert({ ...report, acknowledgedAt: null, diagnostics: { httpStatus: 502, requestId: 'original-request-123' } });
+  assert.ok(alert);
+  const retry = { ...alert, id: 'other-report-456', diagnostics: { httpStatus: 502, requestId: 'different-request-456' } };
+  const student = { ...alert, studentNumber: 4 };
+  const cause = { ...alert, diagnostics: { httpStatus: 403 } };
+  assert.deepEqual(groupSaveFailureAlerts([alert, retry, student, cause]), [[alert, retry], [student], [cause]]);
 });
 
 test('storage failures are distinguished from ordinary business validation', () => {

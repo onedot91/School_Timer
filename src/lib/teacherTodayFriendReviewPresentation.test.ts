@@ -108,7 +108,26 @@ test('제출 목록은 1번부터 23번까지 번호 칸을 두고 상태로 색
   assert.match(markup, /data-status="submitted"/);
   assert.match(markup, /data-status="approved"/);
   assert.match(markup, /<h3>3번 제출<\/h3>/);
-  assert.match(markup, /공통점 찾기 · 친구 22번/);
+  assert.match(markup, /<span>공통점 찾기<\/span><span>친구 22번<\/span>/);
   assert.doesNotMatch(markup, /수정 요청/);
   assert.doesNotMatch(markup, /3번 → 22번/);
+});
+
+test('추천 제출은 추천 대상과 이유를 구분하고 가운데 점 없이 표시한다', () => {
+  const markup = renderToStaticMarkup(createElement(TeacherTodayFriendReview, {
+    submissions: [submission({
+      studentNumber: 2,
+      partnerNumber: 3,
+      genre: 'recommendation',
+      payload: { kind: 'recommendation', category: 'book', title: '아기돼지 삼형제', reason: '돼지 이야기가 특히 재미있습니다.', letterId: null },
+    })],
+    isSaving: false,
+    onReview: async () => {},
+  }));
+
+  assert.match(markup, /<dt>추천 대상<\/dt><dd>아기돼지 삼형제<\/dd>/);
+  assert.match(markup, /<dt>추천 이유<\/dt><dd>돼지 이야기가 특히 재미있습니다.<\/dd>/);
+  assert.match(markup, /<span>추천하기<\/span><span>친구 3번<\/span>/);
+  assert.match(markup, /승인하고 15고마 지급/);
+  assert.doesNotMatch(markup, /아기돼지 삼형제 · 돼지 이야기/);
 });

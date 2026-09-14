@@ -224,3 +224,38 @@ export const acknowledgeSaveFailure = async (alert: SaveFailureAlert) => {
   });
   if (!response.ok) throw new Error('SAVE_ALERT_ACKNOWLEDGE_FAILED');
 };
+
+export const acknowledgeAllSaveFailures = async (onProgress: (count: number) => void): Promise<number> => {
+  if (isReadOnlyDataMode) throw new Error('READ_ONLY_DATA_MODE');
+  if (!isSupabaseSettingsEnabled) {
+    const alerts = readLocal();
+    const count = alerts.filter(alert => alert.acknowledgedAt === null).length;
+    const acknowledgedAt = new Date().toISOString();
+    writeLocal(alerts.map(alert => ({ ...alert, acknowledgedAt: alert.acknowledgedAt ?? acknowledgedAt })));
+    onProgress(count);
+    return count;
+  }
+  let before: string | undefined;
+  let count = 0;
+  do {
+    const response = await fetch('/api/save-alerts', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'acknowledgeAll', before }), signal: AbortSignal.timeout(20000),
+    });
+    if (!response.ok) throw new Error('SAVE_ALERT_ACKNOWLEDGE_FAILED');
+    const value: unknown = await response.json();
+    if (!value || typeof value !== 'object') throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
+    const acknowledged = Reflect.get(value, 'acknowledged');
+    const hasMore = Reflect.get(value, 'hasMore');
+    const boundary = Reflect.get(value, 'before');
+    if (Reflect.get(value, 'ok') !== true || typeof acknowledged !== 'number' || !Number.isInteger(acknowledged)
+      || acknowledged < 0 || acknowledged > 100 || typeof hasMore !== 'boolean' || (hasMore && acknowledged === 0)
+      || typeof boundary !== 'string' || !Number.isFinite(Date.parse(boundary)) || (before && boundary !== before)) {
+      throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
+    }
+    before = boundary;
+    count += acknowledged;
+    onProgress(count);
+    if (!hasMore) return count;
+  } while (true);
+};

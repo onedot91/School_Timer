@@ -106,7 +106,7 @@ test('서버 프록시 모드에서는 Supabase 브라우저 클라이언트 없
   const source = await readFile(new URL('./supabaseSettings.ts', import.meta.url), 'utf8');
   const functionNames = [
     'fetchSharedSettingsRow',
-    'loadSharedSettingsUpdatedAt',
+    'fetchSharedSettingsUpdatedAt',
     'saveSharedSettings',
     'updateSharedSettings',
     'donateToClassGoal',

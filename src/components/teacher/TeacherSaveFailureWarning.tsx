@@ -1,8 +1,8 @@
 import { AlertTriangle, X } from 'lucide-react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { isDelayedSaveFailure, SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
-import { acknowledgeSaveFailure, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
+import { groupSaveFailureAlerts, isDelayedSaveFailure, SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
+import { acknowledgeAllSaveFailures, acknowledgeSaveFailure, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
 import { formatSaveFailureDiagnostic, getSaveFailureExplanation } from '../../lib/saveFailureDiagnostics';
 import { useModalFocus } from '../../lib/useModalFocus';
 
@@ -50,22 +50,32 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
   const [isOpen, setIsOpen] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [confirmedCount, setConfirmedCount] = useState<number | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const refreshRef = useRef<() => Promise<void>>(async () => undefined);
+  const refreshRef = useRef<(afterMutation?: boolean) => Promise<void>>(async () => undefined);
+  const mutationVersion = useRef(0);
   useModalFocus({ dialogRef, isOpen, onDismiss: () => setIsOpen(false), returnFocusRef, isDismissible: savingId === null });
 
   useEffect(() => {
     let disposed = false;
-    let loading = false;
-    const refresh = async () => {
-      if (loading) return;
-      loading = true;
-      try {
-        const result = await loadSaveFailureAlerts();
-        if (!disposed) { setAlerts(result.alerts); setHasMore(result.hasMore); setUnavailable(false); }
-      } catch { if (!disposed) setUnavailable(true); }
-      finally { loading = false; }
+    let loading: Promise<void> | null = null;
+    const refresh = (afterMutation = false): Promise<void> => {
+      if (afterMutation) {
+        mutationVersion.current++;
+        return (loading ?? Promise.resolve()).then(() => refresh());
+      }
+      if (loading) return loading;
+      const version = mutationVersion.current;
+      loading = (async () => {
+        try {
+          const result = await loadSaveFailureAlerts();
+          if (!disposed && version === mutationVersion.current) { setAlerts(result.alerts); setHasMore(result.hasMore); setUnavailable(false); }
+        } catch { if (!disposed && version === mutationVersion.current) setUnavailable(true); }
+        finally { loading = null; }
+      })();
+      return loading;
     };
     refreshRef.current = refresh;
     const onChange = () => void refresh();
@@ -85,30 +95,50 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
   }, []);
 
   const acknowledge = async (alert: SaveFailureAlert) => {
-    setSavingId(alert.id); setError('');
+    setSavingId(alert.id); setError(''); setConfirmedCount(null); setConfirmAll(false);
+    mutationVersion.current++;
     try {
       await acknowledgeSaveFailure(alert);
-      setAlerts((current) => current.filter((item) => item.id !== alert.id));
-      await refreshRef.current();
+      setAlerts((current) => current.filter((item) => item.id !== alert.id || item.studentNumber !== alert.studentNumber));
     } catch { setError('확인 처리를 저장하지 못했습니다. 다시 시도해 주세요.'); }
-    finally { setSavingId(null); dialogRef.current?.focus({ preventScroll: true }); }
+    finally { await refreshRef.current(true); setSavingId(null); dialogRef.current?.focus({ preventScroll: true }); }
   };
+  const acknowledgeAll = async () => {
+    setSavingId('all'); setError(''); setConfirmedCount(0); setConfirmAll(false);
+    mutationVersion.current++;
+    try { await acknowledgeAllSaveFailures(setConfirmedCount); }
+    catch { setError('일괄 확인이 중단되었습니다. 남은 알림을 다시 확인 처리해 주세요.'); }
+    finally { await refreshRef.current(true); setSavingId(null); dialogRef.current?.focus({ preventScroll: true }); }
+  };
+  const groups = groupSaveFailureAlerts(alerts);
   const warning = alerts.length > 0 || unavailable;
   const label = alerts.length > 0 ? `저장 오류 ${alerts.length}${hasMore ? '+' : ''}건` : '저장 오류 확인 불가';
   return <>
     {warning ? <span className="teacher-save-warning" role="alert">
-      <button type="button" ref={triggerRef} className="teacher-save-warning-trigger" onClick={() => setIsOpen(true)} aria-label={label} title={label} aria-haspopup="dialog">
-        <AlertTriangle size={19} aria-hidden="true" /><span>저장 오류</span>{alerts.length > 0 ? <b>{alerts.length}{hasMore ? '+' : ''}</b> : null}
+      <button type="button" ref={triggerRef} className="teacher-save-warning-trigger" onClick={() => { setConfirmedCount(null); setError(''); setConfirmAll(false); setIsOpen(true); }} aria-label={label} title={label} aria-haspopup="dialog">
+        <AlertTriangle size={19} aria-hidden="true" /><span>저장 오류</span>{alerts.length > 0 ? <b>{groups.length}{hasMore ? '+' : ''}</b> : null}
       </button>
     </span> : null}
     {isOpen && createPortal(<div className="teacher-save-warning-backdrop teacher-settings-theme" onClick={() => { if (!savingId) setIsOpen(false); }}>
       <div ref={dialogRef} tabIndex={-1} className="teacher-save-warning-dialog" role="dialog" aria-modal="true" aria-labelledby="save-warning-title" onClick={(event) => event.stopPropagation()}>
         <header><h2 id="save-warning-title"><AlertTriangle size={22} aria-hidden="true" /> 저장 오류</h2><button type="button" aria-label="저장 오류 닫기" disabled={savingId !== null} onClick={() => setIsOpen(false)}><X size={22} /></button></header>
-        {alerts.length > 0 ? <p>저장 완료를 확인하지 못한 기록이 있습니다.</p> : null}
+        {alerts.length > 0 ? <div className="teacher-save-warning-bulk">
+          <p>{alerts.length}{hasMore ? '+' : ''}건 · 반복 오류는 묶어 표시합니다.</p>
+          <button type="button" disabled={savingId !== null} onClick={() => setConfirmAll(true)}>모두 확인 처리</button>
+        </div> : null}
+        {confirmAll ? <div className="teacher-save-warning-bulk">
+          <p>모든 알림을 확인 처리합니다. 기록을 복구하거나 다시 저장하지 않습니다.</p>
+          <div><button type="button" onClick={() => void acknowledgeAll()}>일괄 확인</button><button type="button" onClick={() => setConfirmAll(false)}>취소</button></div>
+        </div> : null}
+        {confirmedCount !== null ? <p role="status">{confirmedCount}건 확인 처리{savingId === 'all' ? ' 중…' : '됨'}</p> : null}
         {unavailable ? <p className="teacher-save-warning-error" role="alert">오류 알림을 조회하지 못했습니다. 연결 상태를 확인해 주세요. <button type="button" onClick={() => void refreshRef.current()}>다시 조회</button></p> : null}
         {error ? <p className="teacher-save-warning-error" role="alert">{error}</p> : null}
         <ul className="teacher-save-warning-list">
-          {alerts.map((alert) => <SaveFailureItem key={alert.id} alert={alert} savingId={savingId} onAcknowledge={acknowledge} />)}
+          {groups.map((group) => group.length === 1
+            ? <SaveFailureItem key={`${group[0].studentNumber}-${group[0].id}`} alert={group[0]} savingId={savingId} onAcknowledge={acknowledge} />
+            : <li key={`${group[0].studentNumber}-${group[0].id}`}><details><summary>
+              {group[0].studentNumber === 0 ? '교사' : `${group[0].studentNumber}번 학생`} · {SAVE_FAILURE_FEATURES[group[0].feature]} · 같은 오류 {group.length}건
+            </summary><ul>{group.map(alert => <SaveFailureItem key={alert.id} alert={alert} savingId={savingId} onAcknowledge={acknowledge} />)}</ul></details></li>)}
         </ul>
         {!warning ? <p role="status">미확인 저장 오류가 없습니다.</p> : null}
         {alerts.length > 0 ? <small>확인 처리는 기록 복구가 아닙니다.</small> : null}

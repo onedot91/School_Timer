@@ -8,6 +8,7 @@ import {
 } from '../../lib/teacherTodayFriendReviewPresentation';
 import {
   loadTeacherTodayFriendState,
+  getCachedTeacherTodayFriendState,
   reviewStudentTodayFriendSubmission,
   updateTeacherTodayFriendPlan,
   updateTeacherTodayFriendQuestions,
@@ -31,9 +32,10 @@ type TeacherTodayFriendPanelProps = {
 
 export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: TeacherTodayFriendPanelProps) {
   const [dateKey, setDateKey] = useState(getTodayFriendDateKey);
-  const [state, setState] = useState<TodayFriendState | null>(null);
+  const [state, setState] = useState<TodayFriendState | null>(() => getCachedTeacherTodayFriendState(dateKey));
   const [tab, setTab] = useState<TeacherTodayFriendTab>('review');
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
@@ -44,20 +46,30 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
 
   const loadState = useCallback(async () => {
     const generation = ++loadGenerationRef.current;
+    setState(getCachedTeacherTodayFriendState(dateKey));
     setIsLoading(true);
+    setHasLoadError(false);
     setMessage('');
     try {
       const loaded = await loadTeacherTodayFriendState(dateKey);
       if (generation === loadGenerationRef.current) setState(loaded);
     } catch (error) {
-      if (error instanceof Error) setMessage('오늘의 친구 현황을 불러오지 못했습니다.');
+      if (error instanceof Error) {
+        if (generation === loadGenerationRef.current) {
+          setHasLoadError(true);
+          setMessage('최신 현황을 불러오지 못했습니다. 새로고침해 주세요.');
+        }
+      }
       else throw error;
     } finally {
       if (generation === loadGenerationRef.current) setIsLoading(false);
     }
   }, [dateKey]);
 
-  useEffect(() => { void loadState(); }, [loadState]);
+  useEffect(() => {
+    void loadState();
+    return () => { ++loadGenerationRef.current; };
+  }, [loadState]);
 
   const performReview = async (input: PendingReview) => {
     if (savingRef.current) return;
@@ -71,6 +83,7 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
       reviewDrafts.confirm(reviewScope(input.submissionId), input.requestId);
       setPendingReview(null);
       if (currentDateRef.current === requestedDate) setState(saved);
+      setHasLoadError(false);
       setMessage('승인 · 15고마 지급 완료');
     } catch (error) {
       if (!(error instanceof Error)) throw error;
@@ -85,8 +98,10 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
       try {
         const latest = await loadTeacherTodayFriendState(requestedDate);
         if (currentDateRef.current === requestedDate) setState(latest);
+        setHasLoadError(false);
       } catch (refreshError) {
         if (!(refreshError instanceof Error)) throw refreshError;
+        setHasLoadError(true);
       }
       setMessage(conflict
         ? '제출 내용이 변경되었습니다. 최신 내용을 확인한 뒤 다시 처리해 주세요.'
@@ -99,7 +114,7 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
   };
 
   const review = async (submissionId: string) => {
-    if (savingRef.current) return;
+    if (savingRef.current || isLoading || hasLoadError) return;
     const submission = state?.submissions.find(entry => entry.id === submissionId);
     if (!submission || submission.status !== 'submitted') {
       setMessage('최신 제출 내용을 확인한 뒤 처리해 주세요.');
@@ -122,6 +137,9 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
   };
 
   const updatePlan = async (action: TeacherTodayFriendPlanAction) => {
+    if (savingRef.current || isLoading || hasLoadError) return;
+    savingRef.current = true;
+    ++loadGenerationRef.current;
     setIsSaving(true);
     try {
       setState(await updateTeacherTodayFriendPlan(action));
@@ -130,12 +148,15 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
       if (error instanceof Error) setMessage('배정 저장 실패');
       else throw error;
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
 
   const updateQuestions = async (change: (questions: readonly TodayFriendQuestion[]) => readonly TodayFriendQuestion[]) => {
-    if (!state) return;
+    if (!state || savingRef.current || isLoading || hasLoadError) return;
+    savingRef.current = true;
+    ++loadGenerationRef.current;
     setIsSaving(true);
     try {
       setState(await updateTeacherTodayFriendQuestions(dateKey, change(state.questions)));
@@ -144,6 +165,7 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
       if (error instanceof Error) setMessage('질문 저장 실패');
       else throw error;
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
@@ -153,8 +175,8 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
   const pendingReviewCount = getTodayFriendPendingReviewCount(dateSubmissions, dateKey);
 
   useEffect(() => {
-    if (state) onPendingReviewCountChange?.(dateKey, pendingReviewCount);
-  }, [dateKey, onPendingReviewCountChange, pendingReviewCount, state]);
+    if (state && !isLoading && !hasLoadError) onPendingReviewCountChange?.(dateKey, pendingReviewCount);
+  }, [dateKey, onPendingReviewCountChange, pendingReviewCount, state, isLoading, hasLoadError]);
 
   return (
     <section className="teacher-today-friend-panel" aria-labelledby="teacher-today-friend-title">
@@ -170,14 +192,15 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
       <nav className="teacher-today-friend-tabs" aria-label="오늘의 친구 관리 메뉴">
         <button type="button" className={tab === 'review' ? 'is-active' : ''} onClick={() => setTab('review')}><ClipboardList aria-hidden="true" />제출</button>
         <button type="button" className={tab === 'plan' ? 'is-active' : ''} onClick={() => setTab('plan')}><Settings2 aria-hidden="true" />설정</button>
-        <button type="button" aria-label="현황 새로고침" title="새로고침" disabled={isSaving} onClick={() => { void loadState(); }}><RefreshCw aria-hidden="true" /></button>
+        <button type="button" aria-label="현황 새로고침" title="새로고침" disabled={isSaving || isLoading} onClick={() => { void loadState(); }}><RefreshCw aria-hidden="true" /></button>
       </nav>
       {message ? <p className="teacher-today-friend-message" role="status">{message}</p> : null}
+      {isLoading && state ? <p className="teacher-today-friend-message" role="status">최신 현황 확인 중…</p> : null}
       {pendingReview && <button type="button" disabled={isSaving} className="min-h-11 rounded-full border px-4" onClick={() => { void performReview(pendingReview); }}>이전 처리 다시 확인</button>}
       {isLoading && !state ? <div className="teacher-today-friend-loading">불러오는 중…</div> : !state ? null : tab === 'review' ? (
-        <TeacherTodayFriendReview submissions={dateSubmissions} isSaving={isSaving} onReview={review} />
+        <TeacherTodayFriendReview submissions={dateSubmissions} isSaving={isSaving || isLoading || hasLoadError} onReview={review} />
       ) : (
-        <TeacherTodayFriendPlan state={state} dateKey={dateKey} isSaving={isSaving} onPlanAction={updatePlan} onQuestionsChange={updateQuestions} />
+        <TeacherTodayFriendPlan state={state} dateKey={dateKey} isSaving={isSaving || isLoading || hasLoadError} onPlanAction={updatePlan} onQuestionsChange={updateQuestions} />
       )}
     </section>
   );
