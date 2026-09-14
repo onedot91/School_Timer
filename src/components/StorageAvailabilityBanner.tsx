@@ -4,6 +4,14 @@ import { createPortal } from 'react-dom';
 import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscribeStorageAvailability } from '../lib/storageAvailability';
 import { canReloadWithDrafts, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
 import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, requestSaveRecovery } from '../lib/saveRecovery';
+import { SAVE_FAILURE_FEATURES } from '../lib/saveFailure';
+
+const recoveryReasons = {
+  confirmation: '저장 결과가 아직 확인되지 않았어요. 해당 기능에서 기록을 확인해 주세요.',
+  context: '저장 당시 조건을 확인해야 해요. 선생님과 기록을 확인해 주세요.',
+  error: '확인 요청에 실패했어요. 잠시 후 다시 확인해 주세요.',
+  waiting: '서버가 요청한 재시도 대기 시간이에요. 잠시 후 다시 확인해 주세요.',
+};
 
 export function StorageAvailabilityBanner({ actor, compact = false }: { readonly actor: number | null; readonly compact?: boolean }) {
   const notice = useSyncExternalStore(subscribeStorageAvailability, getStorageAvailabilityNotice, () => null);
@@ -53,6 +61,17 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
     void requestSaveRecovery(actor).then(() => setIsRetrying(false), () => setIsRetrying(false));
   };
   const fallback = copyFallback ? <textarea aria-label="보관하지 못한 내용" readOnly value={copyFallback} onFocus={event => event.currentTarget.select()} className="max-h-28 min-w-0 p-2" /> : null;
+  const recoveryDetails = recovery && recovery.pending > 0 && recovery.issues.length > 0 ? (
+    <details className="mt-1 text-sm">
+      <summary className="min-h-11 cursor-pointer content-center py-2">미확인 {recovery.pending}건 · 상세 보기</summary>
+      <ul className="max-h-32 overflow-y-auto overscroll-contain space-y-2 py-1" aria-label="저장 확인이 필요한 항목">
+        {recovery.issues.map((issue, index) => <li key={index}>
+          <b>{SAVE_FAILURE_FEATURES[issue.feature]}</b>{issue.httpStatus ? ` · HTTP ${issue.httpStatus}` : ''}
+          <p>{recoveryReasons[issue.reason]}</p>
+        </li>)}
+      </ul>
+    </details>
+  ) : null;
   if (compact) {
     const activeNotice = notice?.actor === actor ? notice : null;
     const label = unsafe ? '보관 오류' : activeNotice?.kind === 'maintenance' ? '저장 점검'
@@ -66,6 +85,7 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
         {unsafe ? copyButton : activeNotice?.kind === 'update'
           ? <button type="button" onClick={reload}>새로고침</button>
           : <button type="button" disabled={isRetrying || recovery?.recovering} onClick={retry}>{isRetrying ? '확인 중…' : '다시 확인'}</button>}
+        {!unsafe && !activeNotice ? recoveryDetails : null}
         {reloadBlocked ? <p>내용을 복사한 뒤 새로고침해 주세요.</p> : null}
         {fallback}
       </div>
@@ -74,9 +94,9 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
   if (!notice || notice.actor !== actor) {
     const banner = <aside className="storage-availability-banner" data-in-dialog={dialog !== null} role={unsafe ? 'alert' : 'status'}>
       <div><strong>{unsafe ? '이 기기에 임시 보관하지 못했어요' : recovery?.refreshPending ? '저장됨 · 화면 갱신 중' : recovery?.recovering ? '저장 확인 중' : '저장 확인이 필요해요'}</strong>
-        {unsafe ? <p>화면을 닫기 전에 내용을 복사해 주세요.</p> : null}</div>
+        {unsafe ? <p>화면을 닫기 전에 내용을 복사해 주세요.</p> : recoveryDetails}</div>
       {unsafe ? copyButton
-        : <button type="button" disabled={isRetrying} onClick={retry}>{isRetrying ? '확인 중…' : '다시 확인'}</button>}
+        : <button type="button" disabled={isRetrying || recovery?.recovering} onClick={retry}>{isRetrying || recovery?.recovering ? '확인 중…' : '다시 확인'}</button>}
       {fallback}
     </aside>;
     return dialog ? createPortal(banner, dialog) : banner;

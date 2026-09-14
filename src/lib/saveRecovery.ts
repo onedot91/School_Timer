@@ -1,6 +1,7 @@
 import { deferSaveFailure, getSaveFailureFeature, reportDeferredSaveFailure, resolveDeferredSaveFailure } from './saveFailureClient.js';
 import { appDataMode } from './dataMode.js';
 import { captureStorageResponseContext, isStorageResponseContextCurrent } from './storageResponseOrder.js';
+import { type SaveFailureFeature } from './saveFailure.js';
 
 export interface RecoveryRequest {
   readonly id: string;
@@ -22,6 +23,12 @@ export interface SaveRecoveryStatus {
   readonly recovering: boolean;
   readonly paused: boolean;
   readonly refreshPending: boolean;
+  readonly issues: readonly SaveRecoveryIssue[];
+}
+export interface SaveRecoveryIssue {
+  readonly feature: SaveFailureFeature;
+  readonly reason: 'confirmation' | 'context' | 'error' | 'waiting';
+  readonly httpStatus?: number;
 }
 export interface SaveRecoveryPassResult {
   readonly pending: number;
@@ -39,7 +46,18 @@ const wakeListeners = new Set<(resume: boolean) => void>();
 const queues = new Map<number, Promise<unknown>>();
 const activeRecoveryPasses = new Map<number, Promise<SaveRecoveryPassResult>>();
 let revision = 0;
-const emptyStatus: SaveRecoveryStatus = { pending: 0, recovering: false, paused: false, refreshPending: false };
+const emptyStatus: SaveRecoveryStatus = { pending: 0, recovering: false, paused: false, refreshPending: false, issues: [] };
+const recoveryFeature = (feature: string): SaveFailureFeature => {
+  if (feature === 'student.economy') return 'economy';
+  if (feature === 'student.auction.bid') return 'auction';
+  if (feature.startsWith('student.letter.') || feature.startsWith('student.failure.')) return 'studentLife';
+  if (feature.startsWith('student.emotion.')) return 'emotion';
+  if (feature.startsWith('student.sudoku.')) return 'sudoku';
+  if (feature.startsWith('student.baseball.')) return 'numberBaseball';
+  if (feature.startsWith('student.pet.')) return 'pet';
+  if (feature === 'classword' || feature === 'todayFriend' || feature === 'library') return feature;
+  return 'settings';
+};
 export const SAVE_RECOVERED_EVENT = 'school-timer-save-recovered';
 export const subscribeSaveRecovery = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 export const getSaveRecoverySnapshot = () => revision;
@@ -125,6 +143,7 @@ export const canRetrySaveError = (error: unknown): boolean => {
 const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boolean): Promise<SaveRecoveryPassResult> => {
   let pending = 0, retryAfterMs = 0, waitingMs = 0, failed = false, attempted = false;
   const failedRequests: RecoveryRequest[] = [];
+  const issues: SaveRecoveryIssue[] = [];
   publish(actor, { recovering: true });
   try {
     for (const adapter of adapters.values()) {
@@ -135,6 +154,7 @@ const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boole
         const remainingDelay = getSaveRecoveryDelay(actor, request.id);
         if (remainingDelay > 0) {
           pending += 1;
+          issues.push({ feature: recoveryFeature(request.feature), reason: 'waiting' });
           waitingMs = waitingMs === 0 ? remainingDelay : Math.min(waitingMs, remainingDelay);
           continue;
         }
@@ -147,6 +167,7 @@ const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boole
             const delayAfterReceipt = getSaveRecoveryDelay(actor, request.id);
             if (delayAfterReceipt > 0) {
               pending += 1;
+              issues.push({ feature: recoveryFeature(request.feature), reason: 'waiting' });
               waitingMs = waitingMs === 0 ? delayAfterReceipt : Math.min(waitingMs, delayAfterReceipt);
               continue;
             }
@@ -154,9 +175,15 @@ const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boole
             clearSaveRecoveryDelay(actor, request.id);
             resolveDeferredSaveFailure(actor, request.id);
             announceSaveRecovered(actor);
-          } else pending += 1;
+          } else {
+            pending += 1;
+            issues.push({ feature: recoveryFeature(request.feature), reason: request.mode === 'confirm-only' ? 'confirmation' : 'context' });
+          }
         } catch (error) {
           pending += 1;
+          const status: unknown = error instanceof Error ? Reflect.get(error, 'status') : undefined;
+          issues.push({ feature: recoveryFeature(request.feature), reason: 'error',
+            ...(typeof status === 'number' && Number.isInteger(status) && status >= 400 && status <= 599 ? { httpStatus: status } : {}) });
           if (request.mode === 'automatic' && adapter.eligible(request) && canRetrySaveError(error)) {
             failed = true;
             failedRequests.push(request);
@@ -170,8 +197,8 @@ const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boole
         }
       }
     }
-  } catch { failed = true; attempted = true; pending += 1; }
-  finally { publish(actor, { pending, recovering: false }); }
+  } catch { failed = true; attempted = true; pending += 1; issues.push({ feature: 'studentLife', reason: 'error' }); }
+  finally { publish(actor, { pending, recovering: false, issues }); }
   return { pending, failed, retryAfterMs, failedRequests, waitingMs, attempted };
 };
 

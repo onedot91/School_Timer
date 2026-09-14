@@ -22,6 +22,7 @@ test('recovery confirms first and retries only the same original unconfirmed req
     assert.deepEqual(result.failedRequests, []);
     assert.deepEqual(calls, ['confirm:already-committed', 'confirm:response-lost', 'retry:response-lost']);
     assert.equal(getSaveRecoveryStatus(3).recovering, false);
+    assert.deepEqual(getSaveRecoveryStatus(3).issues, []);
   } finally { remove(); }
 });
 
@@ -41,6 +42,10 @@ test('financial confirmation and expired context never automatically repeat a mu
     assert.equal(result.retryAfterMs, 0);
     assert.deepEqual(result.failedRequests, []);
     assert.deepEqual(calls, ['confirm:purchase-unchanged', 'confirm:yesterday-answer']);
+    assert.deepEqual(getSaveRecoveryStatus(3).issues, [
+      { feature: 'economy', reason: 'confirmation' },
+      { feature: 'studentLife', reason: 'context' },
+    ]);
   } finally { remove(); }
 });
 
@@ -83,6 +88,30 @@ test('a failed receipt read stays unconfirmed and retains Retry-After without im
     assert.equal(result.retryAfterMs, 45_000);
     assert.deepEqual(result.failedRequests.map(value => value.id), ['throttled-receipt']);
     assert.equal(retries, 0);
+    assert.deepEqual(getSaveRecoveryStatus(3).issues, [{ feature: 'studentLife', reason: 'error', httpStatus: 429 }]);
+  } finally { remove(); }
+});
+
+test('manual confirmation preserves pending reasons without exposing raw errors and clears them only after confirmation', async () => {
+  let committed = false;
+  const remove = registerSaveRecoveryAdapter({
+    id: 'test-visible-recovery-result',
+    list: async () => [{ ...request('private-request-id', 'confirm-only'), feature: 'unexpected-private-feature' }],
+    eligible: () => false,
+    confirm: async () => {
+      if (committed) return true;
+      throw Object.assign(new Error('private payload must not reach the banner'), { status: 502 });
+    },
+    retry: async () => assert.fail('confirmation-only request must not be sent again'),
+  });
+  try {
+    await requestSaveRecovery(3);
+    assert.equal(getSaveRecoveryStatus(3).pending, 1);
+    assert.deepEqual(getSaveRecoveryStatus(3).issues, [{ feature: 'settings', reason: 'error', httpStatus: 502 }]);
+    committed = true;
+    await requestSaveRecovery(3);
+    assert.equal(getSaveRecoveryStatus(3).pending, 0);
+    assert.deepEqual(getSaveRecoveryStatus(3).issues, []);
   } finally { remove(); }
 });
 
@@ -146,6 +175,7 @@ test('첫 429 Retry-After는 알림·수동 재개로 단축되지 않으며 대
     assert.equal(result.attempted, false);
     assert.equal(result.failed, false);
     assert.deepEqual(result.failedRequests, []);
+    assert.deepEqual(getSaveRecoveryStatus(3).issues, [{ feature: 'studentLife', reason: 'waiting' }]);
     now += 1000;
     deferSaveRecoveryUntil(3, pending.id, 1000);
     notifySaveRecovery(true);
