@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { executeStudentStorageCommand, loadStudentStorageFormDraft, saveStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, discardRejectedStudentStorageDraft, isRejectedStudentStorageDraft, saveStudentStorageFormDraftDurably } from './studentStorageCommand.js';
+import { confirmStudentAuctionBidDraft, loadStudentStorageDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, saveStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, discardRejectedStudentStorageDraft, isRejectedStudentStorageDraft, saveStudentStorageFormDraftDurably } from './studentStorageCommand.js';
 import { createStudentEconomyState } from './studentEconomy.js';
 import { normalizeStudentLifeState } from './studentLife.js';
 import { createStudentSaveDraftStore } from './studentSaveDraft.js';
@@ -344,4 +344,64 @@ test('결과가 미확인인 요청은 최신 기록 선택용 정리 함수로 
     assert.equal(hasUnconfirmedStudentStorageDraft(5, action, key), true);
     assert.deepEqual(loadStudentStorageFormDraft(5, action, key), payload);
   });
+});
+
+
+test('입찰 금액 변경 후에도 원래 요청을 직접 확인하며 영수증 장애에서 중복 입찰하지 않는다', async () => {
+  const previousFetch = globalThis.fetch;
+  const posts: Record<string, unknown>[] = [];
+  const committed = new Set<string>();
+  let receiptStatus = 200;
+  globalThis.fetch = async (_url, init) => {
+    if (init?.method !== 'POST') return receiptStatus === 200 ? Response.json({ status: 'unknown' })
+      : Response.json({ error: 'RECEIPT_UNAVAILABLE' }, { status: receiptStatus });
+    const body = JSON.parse(String(init.body));
+    posts.push(body);
+    if (committed.has(body.requestId)) return success();
+    committed.add(body.requestId);
+    return Response.json({ error: 'RESPONSE_LOST' }, { status: 502 });
+  };
+  try {
+    await assert.rejects(executeStudentStorageCommand(6, 'student.auction.bid', { itemId: 'recovery-item', amount: 101 }, 'recovery-item'));
+    const pending = loadStudentStorageDraft(6, 'student.auction.bid', 'recovery-item');
+    assert.ok(pending);
+    await assert.rejects(executeStudentStorageCommand(6, 'student.auction.bid', { itemId: 'recovery-item', amount: 103 }, 'recovery-item'), /SAVE_DRAFT_PENDING/);
+    assert.equal(posts.length, 1);
+    receiptStatus = 429;
+    await assert.rejects(confirmStudentAuctionBidDraft(6, 'recovery-item', pending.requestId));
+    assert.equal(posts.length, 1, 'rate limits must not be bypassed by POST');
+    receiptStatus = 502;
+    const result = await confirmStudentAuctionBidDraft(6, 'recovery-item', pending.requestId);
+    assert.ok(result);
+    assert.equal(posts.length, 2);
+    assert.deepEqual(posts[1], posts[0], 'explicit confirmation keeps the original amount and request ID');
+    assert.equal(committed.size, 1);
+    assert.equal(hasUnconfirmedStudentStorageDraft(6, 'student.auction.bid', 'recovery-item'), false);
+    assert.equal(await confirmStudentAuctionBidDraft(6, 'recovery-item', pending.requestId), null);
+    assert.equal(posts.length, 2);
+  } finally { globalThis.fetch = previousFetch; }
+});
+
+test('이전 입찰이 서버에서 확실히 거절되면 현재 금액으로 새 입찰할 수 있다', async () => {
+  const previousFetch = globalThis.fetch;
+  const posts: Record<string, unknown>[] = [];
+  let rejectOld = false;
+  globalThis.fetch = async (_url, init) => {
+    if (init?.method !== 'POST') return Response.json({ status: 'unknown' });
+    const body = JSON.parse(String(init.body));
+    posts.push(body);
+    if (!rejectOld) return Response.json({ error: 'UNAVAILABLE' }, { status: 502 });
+    return body.payload.amount === 101 ? Response.json({ error: 'BID_TOO_LOW' }, { status: 422 }) : success();
+  };
+  try {
+    await assert.rejects(executeStudentStorageCommand(6, 'student.auction.bid', { itemId: 'rejected-item', amount: 101 }, 'rejected-item'));
+    const pending = loadStudentStorageDraft(6, 'student.auction.bid', 'rejected-item');
+    assert.ok(pending);
+    rejectOld = true;
+    await assert.rejects(confirmStudentAuctionBidDraft(6, 'rejected-item', pending.requestId), /BID_TOO_LOW/);
+    assert.equal(hasUnconfirmedStudentStorageDraft(6, 'student.auction.bid', 'rejected-item'), false);
+    await executeStudentStorageCommand(6, 'student.auction.bid', { itemId: 'rejected-item', amount: 103 }, 'rejected-item');
+    assert.equal(posts[0].requestId, posts[1].requestId);
+    assert.notEqual(posts[2].requestId, posts[0].requestId);
+  } finally { globalThis.fetch = previousFetch; }
 });

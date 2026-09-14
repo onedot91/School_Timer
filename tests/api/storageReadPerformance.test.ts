@@ -2,6 +2,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../../src/server/storageV2Repository.js';
 import { createStorageV2Fixture } from './storageV2Fixture.js';
+import { measureStorageRequest, withStorageRequestTiming } from '../../src/server/storageRequestTiming.js';
+
+test('RPC timing stays isolated between simultaneous requests and includes failed calls', async () => {
+  const results = await Promise.all([1, 3].map(count => withStorageRequestTiming(async timing => {
+    await Promise.all(Array.from({ length: count }, () => measureStorageRequest(async () => {
+      await new Promise(resolve => setTimeout(resolve, 5));
+      throw new Error('synthetic failure');
+    }).catch(() => undefined)));
+    return timing;
+  })));
+  assert.deepEqual(results.map(result => result.calls), [1, 3]);
+  assert.ok(results.every(result => result.duration > 0));
+});
 
 test('overlapping GET snapshots share reads but mutations and later GETs read afresh', async (t) => {
   const configuration = { url: 'https://snapshot-fixture.invalid', key: 'fixture' };

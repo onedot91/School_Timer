@@ -13,7 +13,7 @@ export const getAuctionBidErrorMessage = (error: unknown): string => {
     TEACHER_COMMAND_REQUIRED: '교사 로그인 상태에서는 학생 입찰을 처리할 수 없습니다. 학생으로 로그인한 화면에서 입찰해 주세요.',
     DEVICE_REGISTRATION_REQUIRED: '로그인 정보를 확인할 수 없습니다. 학생 로그인을 다시 확인해 주세요.',
     STUDENT_SETTINGS_SCOPE_VIOLATION: '로그인한 학생과 요청 권한이 맞지 않습니다. 학생 로그인을 확인해 주세요.',
-    SAVE_DRAFT_PENDING: '이전 입찰의 저장 여부를 확인 중입니다. 이전 입찰 금액으로 다시 확인해 주세요.',
+    SAVE_DRAFT_PENDING: '이전 입찰 결과를 먼저 확인해 주세요.',
   };
   if (Object.hasOwn(messages, code)) return messages[code];
   const status = error instanceof Error ? Reflect.get(error, 'status') : undefined;

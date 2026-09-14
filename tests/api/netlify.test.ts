@@ -10,6 +10,7 @@ test('Netlify adapter preserves registration, secure cookies, auth and cross-sit
     const missing = await handler(new Request(endpoint));
     assert.equal(missing.status, 401);
     assert.equal(missing.headers.get('cache-control'), 'no-store');
+    assert.match(missing.headers.get('server-timing') ?? '', /^app;dur=\d+\.\d, storage;dur=0\.0;desc="0 RPC"$/);
     const newspaper = await handler(new Request('https://local-test.invalid/api/newspaper'));
     assert.equal(newspaper.status, 401);
     assert.equal((await newspaper.json()).error, 'DEVICE_REGISTRATION_REQUIRED');

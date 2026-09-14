@@ -1,6 +1,6 @@
 import { getAuctionBidErrorMessage } from '../lib/auctionBidError';
 import { mergeStudentEconomyLife } from '../lib/studentEconomyClient';
-import { executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, rebaseStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, subscribeStudentStorageDrafts, readyStudentStorageDrafts } from '../lib/studentStorageCommand';
+import { confirmStudentAuctionBidDraft, loadStudentStorageDraft, isRejectedStudentStorageDraft, executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, rebaseStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, subscribeStudentStorageDrafts, readyStudentStorageDrafts } from '../lib/studentStorageCommand';
 import { StorageCommandError } from '../lib/storageCommandClient';
 import { captureStorageResponseContext, isStorageResponseContextCurrent, readLatestStorageProjection, readStorageRevisions } from '../lib/storageResponseOrder';
 import { createStudentEmotionConflictSnapshot, type StudentEmotionConflictSnapshot, type StudentEmotionSaveConflict } from '../lib/studentEmotionConflict';
@@ -509,6 +509,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [isLoading, setIsLoading] = useState(isSupabaseSettingsEnabled);
   const [hasSettingsLoadError, setHasSettingsLoadError] = useState(false);
   const [isSubmittingItemId, setIsSubmittingItemId] = useState<string | null>(null);
+  const [bidRecovery, setBidRecovery] = useState<{ itemId: string; requestId: string; amount: number } | null>(null);
+  const [isConfirmingBid, setIsConfirmingBid] = useState(false);
+  const confirmingBidRef = useRef(false);
   const [pendingBid, setPendingBid] = useState<{ itemId: string; amount: number } | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [isDonationOpen, setIsDonationOpen] = useState(false);
@@ -679,6 +682,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   }, [activeModal, focusAuctionReturnTarget, renderedStatusMessage, shouldReduceMotion, statusMaterialProgress, statusMessage]);
 
   const showStatusMessage = (message: string) => {
+    setBidRecovery(null);
     const activeElement = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
@@ -696,6 +700,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   const dismissStatusMessage = () => {
+    if (confirmingBidRef.current) return;
+    setBidRecovery(null);
     shouldReturnStatusFocusRef.current = true;
     setStatusMessage('');
   };
@@ -724,6 +730,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     dialogRef: statusDialogRef,
     isOpen: activeModal === 'status' && statusDialogElement !== null,
     onDismiss: dismissStatusMessage,
+    isDismissible: !isConfirmingBid,
     returnFocusRef: statusReturnFocusRef,
   });
 
@@ -1521,6 +1528,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     let scheduledSync: number | undefined;
 
     const syncWeeklyMission = async () => {
+      if (!isActive || document.visibilityState !== 'visible' || !navigator.onLine) return;
+      if (isSupabaseSettingsEnabled && !hasLoadedSharedSettingsRef.current) {
+        if (scheduledSync === undefined) scheduledSync = window.setTimeout(() => {
+          scheduledSync = undefined;
+          if (isActive) void syncOnReturn();
+        }, 2_000 + Math.random() * 2_000);
+        return;
+      }
       if (isSyncing || Date.now() < nextSyncAt) return;
       isSyncing = true;
       try {
@@ -1534,7 +1549,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           createWeeklyMissionStatuses('incomplete'),
         ));
         setHasWeeklyMissionSyncError(false);
-        await refreshAuctionState({ forceFull: true });
+        await refreshAuctionState();
       } catch (error) {
         if (!isActive) return;
         const retryAfterMs: unknown = error instanceof Error ? Reflect.get(error, 'retryAfterMs') : undefined;
@@ -1635,9 +1650,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }),
       previous,
     ));
-    void syncWeeklyMission();
+    nextSyncAt = Date.now() + 1_500 + Math.random() * 2_500;
     const syncOnReturn = () => {
-      if (document.visibilityState !== 'visible' || isSyncing) return;
+      if (document.visibilityState !== 'visible' || !navigator.onLine || isSyncing) return;
       if (Date.now() < nextSyncAt) {
         if (scheduledSync === undefined) scheduledSync = window.setTimeout(() => {
           scheduledSync = undefined;
@@ -1647,6 +1662,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
       void syncWeeklyMission();
     };
+    syncOnReturn();
     window.addEventListener('focus', syncOnReturn);
     window.addEventListener('online', syncOnReturn);
     window.addEventListener('school-timer-newspaper-change', syncOnReturn);
@@ -1695,6 +1711,43 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       : minimumBid;
     setBidAmountDrafts((previous) => ({ ...previous, [itemId]: String(nextAmount) }));
     setBidAmounts((previous) => ({ ...previous, [itemId]: nextAmount }));
+  };
+
+  const offerPendingBidRecovery = (itemId: string) => {
+    if (!hasUnconfirmedStudentStorageDraft(studentNumber, 'student.auction.bid', itemId)) return false;
+    const draft = loadStudentStorageDraft(studentNumber, 'student.auction.bid', itemId);
+    const payload = draft?.payload;
+    const amount: unknown = payload && typeof payload === 'object' ? Reflect.get(payload, 'amount') : undefined;
+    if (!draft || typeof amount !== 'number' || !Number.isFinite(amount)) return false;
+    showStatusMessage(`${formatCurrency(amount)} 입찰 결과가 미확인 상태입니다. 같은 입찰로 다시 확인해 주세요.`);
+    setBidRecovery({ itemId, requestId: draft.requestId, amount });
+    return true;
+  };
+
+  const confirmPreviousBid = async () => {
+    if (!bidRecovery || confirmingBidRef.current) return;
+    const pending = bidRecovery;
+    confirmingBidRef.current = true;
+    setIsConfirmingBid(true);
+    try {
+      const response = await confirmStudentAuctionBidDraft(studentNumber, pending.itemId, pending.requestId);
+      if (response?.value && isStudentSettingsSnapshotFresh(response.updatedAt, minimumSettingsUpdatedAtRef.current)) {
+        minimumSettingsUpdatedAtRef.current = response.updatedAt;
+        setAuctionBids(normalizeAuctionBids(response.value.auctionBids, AUCTION_ITEM_IDS));
+        setAuctionBidHistory(normalizeAuctionBidHistory(response.value.auctionBidHistory, AUCTION_ITEM_IDS));
+      }
+      setBidRecovery(null);
+      shouldReturnStatusFocusRef.current = true;
+      setStatusMessage('');
+      void refreshAuctionState({ forceFull: true, manualRetry: true });
+    } catch (error) {
+      showStatusMessage(getAuctionBidErrorMessage(error));
+      if (!isRejectedStudentStorageDraft(studentNumber, 'student.auction.bid', pending.itemId)) setBidRecovery(pending);
+      void refreshAuctionState({ forceFull: true, manualRetry: true });
+    } finally {
+      confirmingBidRef.current = false;
+      setIsConfirmingBid(false);
+    }
   };
 
   const submitBid = async (item: AuctionItem, confirmedBidAmount: number) => {
@@ -1810,7 +1863,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     } catch (error) {
       if (!isSupabaseSettingsEnabled && error instanceof Error && error.message === 'AUCTION_BID_LOCAL_SAVE_FAILED') reportSaveFailure('auction', 'storage', studentNumber);
       console.error('Failed to submit auction bid.', error);
-      showStatusMessage(getAuctionBidErrorMessage(error));
+      if (!offerPendingBidRecovery(item.id)) showStatusMessage(getAuctionBidErrorMessage(error));
       await refreshAuctionState();
     } finally {
       setIsSubmittingItemId(null);
@@ -1818,6 +1871,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   const openBidConfirm = (item: AuctionItem, bidAmount: number) => {
+    if (offerPendingBidRecovery(item.id)) return;
     void prepareAuctionAudio();
 
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
@@ -2389,6 +2443,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
           footer={selectedItem ? (() => {
             const currentBid = auctionBids[selectedItem.id] ?? { amount: 0, bidder: null };
             const award = auctionAwards[selectedItem.id] ?? null;
+            const hasPendingBid = hasUnconfirmedStudentStorageDraft(studentNumber, 'student.auction.bid', selectedItem.id);
             const selectedItemDisplayName = getAuctionItemDisplayName(selectedItem.name, selectedItem.dayIndex);
             if (award) {
               return (
@@ -2398,6 +2453,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     <div className="mt-1 font-mono text-[1.35rem] font-black text-[#007A57]">
                       {award.winner}번 ({formatCurrency(award.amount)})
                     </div>
+                    {hasPendingBid ? <button type="button" onClick={() => offerPendingBidRecovery(selectedItem.id)}
+                      className="mt-2 min-h-12 rounded-xl bg-[#007A57] px-4 font-bold text-white">이전 입찰 확인</button> : null}
                   </div>
                 </div>
               );
@@ -2418,8 +2475,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             const canSubmit =
               !isLoading &&
               isSubmittingItemId === null &&
-              selectedBidAmount >= minimumBid &&
-              selectedBidAmount <= maxBid;
+              (hasPendingBid || (selectedBidAmount >= minimumBid && selectedBidAmount <= maxBid));
 
             return (
               <div className="auction-bid-panel rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
@@ -2468,7 +2524,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     disabled={!canSubmit}
                     className="inline-flex h-12 w-full items-center justify-center rounded-[0.9rem] bg-[#007A57] text-[1rem] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.14)] transition-colors hover:bg-[#006B4D] disabled:cursor-not-allowed disabled:bg-[#C9D4CD] disabled:text-white/82"
                   >
-                    {isSubmittingItemId === selectedItem.id ? '...' : '입찰'}
+                    {isSubmittingItemId === selectedItem.id ? '...' : hasPendingBid ? '이전 입찰 확인' : '입찰'}
                   </button>
                 </div>
               </div>
@@ -2695,11 +2751,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             <p id="auction-status-message" aria-live="polite" className="font-mono text-[1.35rem] font-black text-[#006241]">{renderedStatusMessage}</p>
             <button
               type="button"
-              onClick={dismissStatusMessage}
+              onClick={bidRecovery ? () => void confirmPreviousBid() : dismissStatusMessage}
+              disabled={isConfirmingBid}
               className="mt-4 inline-flex min-h-[2.875rem] min-w-[6.5rem] items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
             >
-              확인
+              {isConfirmingBid ? '확인 중…' : bidRecovery ? `${formatCurrency(bidRecovery.amount)} 입찰 확인` : '확인'}
             </button>
+            {bidRecovery ? <button type="button" disabled={isConfirmingBid} onClick={dismissStatusMessage}
+              className="mt-2 inline-flex min-h-[2.875rem] w-full items-center justify-center rounded-xl text-sm font-bold text-[#006241]">닫기</button> : null}
           </motion.div>
         </motion.div>
       ) : null}

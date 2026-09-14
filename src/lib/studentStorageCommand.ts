@@ -147,7 +147,14 @@ const executeStudentCommand = async (studentNumber: number, action: string, inpu
     }
     if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
     if (saved.status === 'existing' || saved.status === 'payload_changed') {
-      const confirmed = await loadStorageCommandReceipt(saved.draft.requestId, commandFor(saved.draft), context);
+      let confirmed: import('./storageCommandClient.js').StorageCommandResult | null = null;
+      try { confirmed = await loadStorageCommandReceipt(saved.draft.requestId, commandFor(saved.draft), context); }
+      catch (error) {
+        const unavailable = error instanceof StorageCommandError ? error.status === 408 || error.status >= 500
+          : error instanceof Error && ['TypeError', 'TimeoutError', 'AbortError', 'SyntaxError'].includes(error.name);
+        if (action !== 'student.auction.bid' || saved.status !== 'existing' || !unavailable || getStorageAvailability(error)) throw error;
+        if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+      }
       if (confirmed) {
         const cleared = await acknowledge(saved.draft, confirmed);
         if (saved.status === 'payload_changed') {
@@ -186,6 +193,19 @@ export const executeStudentStorageCommand = (studentNumber: number, action: stri
   return serializeStudentSave(studentNumber, () => {
     if (!isStorageResponseContextCurrent(context) || (context.actor !== null && context.actor !== String(studentNumber))) throw new StorageResponseActorChangedError();
     return executeStudentCommand(studentNumber, action, payload, entityId, context);
+  });
+};
+
+export const confirmStudentAuctionBidDraft = (studentNumber: number, itemId: string, requestId: string) => {
+  const context = captureStorageResponseContext();
+  return serializeStudentSave(studentNumber, async () => {
+    await drafts.ready();
+    assertActor(studentNumber, context);
+    const pending = drafts.load(scopeFor(studentNumber, 'student.auction.bid', itemId));
+    if (!pending) return null;
+    if (pending.draft.requestId !== requestId) throw new Error('SAVE_DRAFT_PENDING');
+    if (isRejectedStudentStorageDraft(studentNumber, 'student.auction.bid', itemId)) return null;
+    return executeStudentCommand(studentNumber, 'student.auction.bid', pending.draft.payload, itemId, context);
   });
 };
 

@@ -1,33 +1,26 @@
-import announcementNotes from '../../api/announcement-notes.js';
-import classDonation from '../../api/class-donation.js';
-import classword from '../../api/classword.js';
-import deviceSession from '../../api/device-session.js';
-import newspaper from '../../api/newspaper.js';
-import saveAlerts from '../../api/save-alerts.js';
-import sharedSettings from '../../api/shared-settings.js';
-import studentEconomy from '../../api/student-economy.js';
-import todayFriend from '../../api/today-friend.js';
-import weeklyMission from '../../api/weekly-mission.js';
-import weeklyMissions from '../../api/weekly-missions.js';
+import { withStorageRequestTiming } from '../../src/server/storageRequestTiming.js';
 
 const handlers = new Map([
-  ['/api/announcement-notes', announcementNotes],
-  ['/api/class-donation', classDonation],
-  ['/api/classword', classword],
-  ['/api/device-session', deviceSession],
-  ['/api/newspaper', newspaper],
-  ['/api/save-alerts', saveAlerts],
-  ['/api/shared-settings', sharedSettings],
-  ['/api/student-economy', studentEconomy],
-  ['/api/today-friend', todayFriend],
-  ['/api/weekly-mission', weeklyMission],
-  ['/api/weekly-missions', weeklyMissions],
+  ['/api/announcement-notes', () => import('../../api/announcement-notes.js')],
+  ['/api/class-donation', () => import('../../api/class-donation.js')],
+  ['/api/classword', () => import('../../api/classword.js')],
+  ['/api/device-session', () => import('../../api/device-session.js')],
+  ['/api/newspaper', () => import('../../api/newspaper.js')],
+  ['/api/save-alerts', () => import('../../api/save-alerts.js')],
+  ['/api/shared-settings', () => import('../../api/shared-settings.js')],
+  ['/api/student-economy', () => import('../../api/student-economy.js')],
+  ['/api/today-friend', () => import('../../api/today-friend.js')],
+  ['/api/weekly-mission', () => import('../../api/weekly-mission.js')],
+  ['/api/weekly-missions', () => import('../../api/weekly-missions.js')],
 ]);
 
 export default async function handler(request: Request): Promise<Response> {
+  const started = performance.now();
   const url = new URL(request.url);
   const route = handlers.get(url.pathname);
   const headers = new Headers({ 'Cache-Control': 'no-store', 'Content-Type': 'application/json' });
+  const region = process.env.AWS_REGION;
+  if (region && /^[a-z]{2}(?:-gov)?-[a-z]+-\d+$/.test(region)) headers.set('X-School-Function-Region', region);
   if (!route) return new Response(JSON.stringify({ error: 'NOT_FOUND' }), { status: 404, headers });
 
   const query: Record<string, string | readonly string[]> = Object.create(null);
@@ -49,7 +42,11 @@ export default async function handler(request: Request): Promise<Response> {
       query,
       body: request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.text(),
     };
-    await route(apiRequest, response);
+    const { default: execute } = await route();
+    await withStorageRequestTiming(async timing => {
+      try { await execute(apiRequest, response); }
+      finally { headers.set('Server-Timing', `app;dur=${(performance.now() - started).toFixed(1)}, storage;dur=${timing.duration.toFixed(1)};desc="${timing.calls} RPC"`); }
+    });
   } catch {
     return new Response(JSON.stringify({ error: 'INTERNAL_SERVER_ERROR' }), { status: 500, headers });
   }

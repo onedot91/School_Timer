@@ -1,3 +1,4 @@
+import { measureStorageRequest } from './storageRequestTiming.js';
 import { createHash } from 'node:crypto';
 import { parseStorageScope, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, storageScopeRevisionKeys, StorageScopeError, type StorageScope, type StorageOrderingBounds } from './storageScope.js';
 import { assembleStorageState, canonicalStorageJson, isStorageRecord, reconcileStorageResourceOrder, splitStorageState, type StorageHistoryRecord, type StorageResource, type StorageResourceValue, type StorageWallet, } from '../lib/storageV2Codec.js';
@@ -35,7 +36,7 @@ export class StorageRepositoryError extends Error {
     constructor(readonly status: number, readonly code: string) { super(code); this.name = 'StorageRepositoryError'; }
 }
 const invalid = (): never => { throw new StorageRepositoryError(502, 'STORAGE_INVALID_RESPONSE'); };
-const request = async (configuration: StorageConfiguration, path: string, payload: unknown): Promise<unknown> => {
+const request = (configuration: StorageConfiguration, path: string, payload: unknown): Promise<unknown> => measureStorageRequest(async () => {
     const response = await fetch(`${configuration.url}/rest/v1/rpc/${path}`, {
         method: 'POST', headers: { apikey: configuration.key, Authorization: `Bearer ${configuration.key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload), signal: AbortSignal.timeout(8000),
@@ -50,7 +51,7 @@ const request = async (configuration: StorageConfiguration, path: string, payloa
         throw new StorageRepositoryError(code === 'STORAGE_MAINTENANCE' || code === 'STORAGE_NOT_ACTIVE' ? 503 : code === 'STORAGE_REQUEST_REUSED' ? 409 : code === 'STORAGE_SCOPE_VIOLATION' ? 400 : 502, code ?? `STORAGE_DATABASE_HTTP_${response.status}`);
     }
     return body;
-};
+});
 const parseValue = (value: unknown): StorageResourceValue => {
     if (!isStorageRecord(value) || !['value', 'object', 'array'].includes(String(value.kind)) || (value.parentKey !== null && typeof value.parentKey !== 'string') || typeof value.member !== 'string' || (value.order !== undefined && typeof value.order !== 'number'))
         return invalid();
