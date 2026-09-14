@@ -158,6 +158,8 @@ import {
   STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS,
   STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
+  studentSettingsRetryDelay,
+  studentSettingsPollInterval,
 } from '../lib/studentSettingsSync';
 import {
   TEACHER_LETTER_RECIPIENT,
@@ -551,6 +553,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const minimumSettingsUpdatedAtRef = useRef<string | null>(null);
   const isSharedSettingsRefreshInFlightRef = useRef(false);
   const pendingFullSettingsRefreshRef = useRef(false);
+  const settingsReadFailuresRef = useRef(0);
+  const nextSettingsReadAtRef = useRef(0);
 
   const openUnavailableStudentFeature = useCallback((feature: StudentUnavailableNoticeFeature) => {
     unavailableFeatureTriggerRef.current = document.activeElement instanceof HTMLElement
@@ -1300,7 +1304,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     }
   }, [applySharedSettingsValue, currencyBalances, currencyHistory, reloadStudentEmotionConflict, studentEmotionHistory, studentNumber, todayEmotionEntry]);
 
-  const refreshAuctionState = useCallback(async ({ forceFull = false }: { forceFull?: boolean } = {}) => {
+  const refreshAuctionState = useCallback(async ({ forceFull = false, manualRetry = false }: { forceFull?: boolean; manualRetry?: boolean } = {}) => {
     if (!isSupabaseSettingsEnabled) {
       const localPetSnapshot = loadStoredStudentPetSnapshot();
       setCurrencyBalances(localPetSnapshot.currencyBalances);
@@ -1324,6 +1328,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       return;
     }
 
+    if (!manualRetry && Date.now() < nextSettingsReadAtRef.current) {
+      if (forceFull) pendingFullSettingsRefreshRef.current = true;
+      return;
+    }
     if (isSharedSettingsRefreshInFlightRef.current) {
       if (forceFull) pendingFullSettingsRefreshRef.current = true;
       return;
@@ -1332,8 +1340,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     if (!hasLoadedSharedSettingsRef.current && forceFull) setIsLoading(true);
 
     try {
-      let shouldForceFull = forceFull;
+      let shouldForceFull = forceFull || pendingFullSettingsRefreshRef.current;
+      let passes = 0;
       do {
+        passes += 1;
         pendingFullSettingsRefreshRef.current = false;
         try {
           let shouldLoadFull = shouldForceFull || !hasLoadedSharedSettingsRef.current || sharedSettingsUpdatedAtRef.current === null;
@@ -1367,12 +1377,18 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               throw new Error('SHARED_SETTINGS_STALE_RESPONSE');
             }
           }
+          settingsReadFailuresRef.current = 0;
+          nextSettingsReadAtRef.current = 0;
         } catch (error) {
+          settingsReadFailuresRef.current += 1;
+          nextSettingsReadAtRef.current = Date.now() + studentSettingsRetryDelay(settingsReadFailuresRef.current, error);
+          pendingFullSettingsRefreshRef.current = true;
           setHasSettingsLoadError(true);
           console.error('Failed to load auction state from Supabase.', error);
+          break;
         }
         shouldForceFull = pendingFullSettingsRefreshRef.current;
-      } while (shouldForceFull);
+      } while (shouldForceFull && passes < 2);
     } finally {
       isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
@@ -1460,7 +1476,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     };
     window.addEventListener(SAVE_RECOVERED_EVENT, recovered);
     const refreshWhenVisible = (forceFull = false) => {
-      if (document.visibilityState === 'visible') void refreshAuctionState({ forceFull });
+      if (document.visibilityState === 'visible' && navigator.onLine) void refreshAuctionState({ forceFull });
     };
     const isEntryRefreshView = activeStudentView === 'emotions'
       || activeStudentView === 'missions'
@@ -1477,7 +1493,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     const syncView = activeStudentView === 'store-auction' ? 'store-auction'
       : isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
     const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView] ?? STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS;
-    const intervalId = window.setInterval(() => refreshWhenVisible(), intervalMs);
+    const intervalId = window.setInterval(() => refreshWhenVisible(), studentSettingsPollInterval(intervalMs));
     const refreshOnReturn = () => {
       if (document.visibilityState !== 'visible') return;
       const now = Date.now();
@@ -1486,12 +1502,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       refreshWhenVisible();
     };
     window.addEventListener('focus', refreshOnReturn);
+    window.addEventListener('online', refreshOnReturn);
     document.addEventListener('visibilitychange', refreshOnReturn);
 
     return () => {
       window.removeEventListener(SAVE_RECOVERED_EVENT, recovered);
       if (intervalId !== undefined) window.clearInterval(intervalId);
       window.removeEventListener('focus', refreshOnReturn);
+      window.removeEventListener('online', refreshOnReturn);
       document.removeEventListener('visibilitychange', refreshOnReturn);
     };
   }, [activeStudentView, refreshAuctionState]);
@@ -2101,7 +2119,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         title="학생 기록을 불러오지 못했어요"
         description="연결을 확인하고 다시 시도해 주세요."
         actionLabel="다시 시도"
-        onRetry={() => void refreshAuctionState({ forceFull: true })}
+        onRetry={() => void refreshAuctionState({ forceFull: true, manualRetry: true })}
       />
     );
   }

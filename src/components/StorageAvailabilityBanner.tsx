@@ -26,7 +26,7 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
     return () => window.clearTimeout(timer);
   }, [unsafe, actor]);
   const recovery = actor === null ? null : getSaveRecoveryStatus(actor);
-  const needsRecovery = !!recovery && (recovery.pending > 0 || recovery.refreshPending || recovery.recovering);
+  const needsRecovery = compact && !!recovery && (recovery.pending > 0 || recovery.refreshPending || recovery.recovering);
   const [copied, setCopied] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [reloadBlocked, setReloadBlocked] = useState(false);
@@ -92,11 +92,10 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
     </details>;
   }
   if (!notice || notice.actor !== actor) {
-    const banner = <aside className="storage-availability-banner" data-in-dialog={dialog !== null} role={unsafe ? 'alert' : 'status'}>
-      <div><strong>{unsafe ? '이 기기에 임시 보관하지 못했어요' : recovery?.refreshPending ? '저장됨 · 화면 갱신 중' : recovery?.recovering ? '저장 확인 중' : '저장 확인이 필요해요'}</strong>
-        {unsafe ? <p>화면을 닫기 전에 내용을 복사해 주세요.</p> : recoveryDetails}</div>
-      {unsafe ? copyButton
-        : <button type="button" disabled={isRetrying || recovery?.recovering} onClick={retry}>{isRetrying || recovery?.recovering ? '확인 중…' : '다시 확인'}</button>}
+    const banner = <aside className="storage-availability-banner" data-in-dialog={dialog !== null} role="alert">
+      <div><strong>이 기기에 임시 보관하지 못했어요</strong>
+        <p>화면을 닫기 전에 내용을 복사해 주세요.</p></div>
+      {copyButton}
       {fallback}
     </aside>;
     return dialog ? createPortal(banner, dialog) : banner;

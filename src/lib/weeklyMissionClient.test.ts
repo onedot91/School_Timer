@@ -94,3 +94,41 @@ test('foreground bursts share one request and respect successful cooldown and Re
     assert.equal(calls, 3);
   } finally { Date.now = originalNow; globalThis.fetch = originalFetch; await server.close(); }
 });
+
+test('연속 장애에서 두 보상 경로 모두 재시도를 늦추고 성공 후 대기 간격을 초기화한다', async () => {
+  const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null }, define: { 'import.meta.env.PROD': 'true' } });
+  const originalFetch = globalThis.fetch;
+  const originalNow = Date.now;
+  const originalRandom = Math.random;
+  let now = originalNow();
+  Date.now = () => now;
+  Math.random = () => 0;
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return Response.json({ error: 'UNAVAILABLE' }, { status: 502 }); };
+  try {
+    const client = await server.ssrLoadModule('/src/lib/weeklyMissionClient.ts');
+    for (const delay of [5_000, 10_000, 20_000, 40_000, 60_000]) {
+      await assert.rejects(client.syncWeeklyMissions(8));
+      await assert.rejects(client.syncPersonalQuestionWeeklyMission(8));
+      const before = calls;
+      now += delay - 1;
+      await assert.rejects(client.syncWeeklyMissions(8));
+      await assert.rejects(client.syncPersonalQuestionWeeklyMission(8));
+      assert.equal(calls, before, 'foreground events must retain both endpoints’ failure backoff');
+      now += 1;
+    }
+    assert.equal(calls, 10);
+    globalThis.fetch = async () => {
+      calls += 1;
+      return Response.json({ missions: WEEKLY_MISSION_TYPES.map(missionType => ({ missionType, weekKey: '2026-37', completed: false, awarded: false, rewardAmount: 5, balance: 100 })) });
+    };
+    await client.syncWeeklyMissions(8);
+    assert.equal(calls, 11);
+    now += 5_000;
+    globalThis.fetch = async () => { calls += 1; return Response.json({ error: 'UNAVAILABLE' }, { status: 502 }); };
+    await assert.rejects(client.syncWeeklyMissions(8));
+    now += 5_000;
+    await assert.rejects(client.syncWeeklyMissions(8));
+    assert.equal(calls, 13, 'a new outage after success starts at five seconds again');
+  } finally { Date.now = originalNow; Math.random = originalRandom; globalThis.fetch = originalFetch; await server.close(); }
+});

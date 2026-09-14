@@ -2,8 +2,9 @@ import { appDataMode, canWriteSharedBackend } from './dataMode.js';
 import { withSaveFailureReporting } from './saveFailureClient.js';
 import { getKoreanDateKey } from './classword.js';
 import { getKoreanIsoWeekKey, parseWeeklyMissionResult, parseWeeklyMissionsResult } from './weeklyMission.js';
+import { studentSettingsRetryDelay } from './studentSettingsSync.js';
 
-interface PendingMissionCheck { promise: Promise<unknown>; expiresAt: number }
+interface PendingMissionCheck { promise: Promise<unknown>; expiresAt: number; failures: number }
 const missionChecks = new Map<string, PendingMissionCheck>();
 const FOREGROUND_COOLDOWN_MS = 5_000;
 const getRetryAfterMs = (response: Response) => {
@@ -19,7 +20,7 @@ const settleWeeklyMission = async <T>(studentNumber: number, endpoint: '/api/wee
   const key = `${endpoint}:${studentNumber}:${getKoreanDateKey()}:${getKoreanIsoWeekKey()}`;
   const previous = missionChecks.get(key);
   if (previous && previous.expiresAt > Date.now()) return previous.promise.then(parse);
-  for (const [oldKey, check] of missionChecks) if (check.expiresAt <= Date.now()) missionChecks.delete(oldKey);
+  for (const [oldKey, check] of missionChecks) if (check.expiresAt <= Date.now() - 300_000) missionChecks.delete(oldKey);
   const prefix = endpoint === '/api/weekly-mission' ? 'WEEKLY_MISSION' : 'WEEKLY_MISSIONS';
   const promise = withSaveFailureReporting('economy', async () => {
     try {
@@ -39,11 +40,11 @@ const settleWeeklyMission = async <T>(studentNumber: number, endpoint: '/api/wee
       throw error;
     }
   }, studentNumber);
-  const check: PendingMissionCheck = { promise, expiresAt: Infinity };
+  const check: PendingMissionCheck = { promise, expiresAt: Infinity, failures: previous?.failures ?? 0 };
   missionChecks.set(key, check);
-  void promise.then(() => { check.expiresAt = Date.now() + FOREGROUND_COOLDOWN_MS; }, error => {
-    const delay: unknown = error instanceof Error ? Reflect.get(error, 'retryAfterMs') : undefined;
-    check.expiresAt = Date.now() + (typeof delay === 'number' && Number.isFinite(delay) ? delay : FOREGROUND_COOLDOWN_MS);
+  void promise.then(() => { check.failures = 0; check.expiresAt = Date.now() + FOREGROUND_COOLDOWN_MS; }, error => {
+    check.failures += 1;
+    check.expiresAt = Date.now() + studentSettingsRetryDelay(check.failures, error);
   });
   return promise;
 };

@@ -10,7 +10,19 @@ import {
   STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS,
   STUDENT_SETTINGS_CACHE_KEY,
   storeStudentProfileSnapshot,
+  studentSettingsRetryDelay,
+  studentSettingsPollInterval,
 } from './studentSettingsSync';
+
+test('조회 실패는 간격을 늘리고 서버 대기 시간과 기기별 분산을 유지한다', () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 20].map(count => studentSettingsRetryDelay(count, new Error('busy'), () => 0)),
+    [5_000, 10_000, 20_000, 40_000, 60_000, 60_000]);
+  assert.equal(studentSettingsRetryDelay(5, null, () => 0.5), 66_000);
+  assert.equal(studentSettingsRetryDelay(2, Object.assign(new Error('busy'), { retryAfterMs: 120_000 }), () => 0.5), 120_000);
+  assert.equal(studentSettingsPollInterval(10_000, () => 0), 10_000);
+  assert.equal(studentSettingsPollInterval(10_000, () => 0.5), 11_000);
+  assert.equal(studentSettingsPollInterval(2_000, () => 0.5), 2_200);
+});
 
 test('student settings only reload fully when the shared timestamp changes', () => {
   assert.equal(shouldLoadFullStudentSettings(null, '2026-08-10T00:00:00.000Z'), true);

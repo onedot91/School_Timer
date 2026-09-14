@@ -53,7 +53,7 @@ test('a forced full refresh is queued when a metadata refresh is already running
   assert.match(refreshSource, /if \(forceFull\) pendingFullSettingsRefreshRef\.current = true/);
   assert.match(refreshSource, /do \{/);
   assert.match(refreshSource, /shouldForceFull = pendingFullSettingsRefreshRef\.current/);
-  assert.match(refreshSource, /while \(shouldForceFull\)/);
+  assert.match(refreshSource, /while \(shouldForceFull && passes < 2\)/);
 });
 
 test('student economy actions take an immediate ref lock before React rerenders', async () => {
