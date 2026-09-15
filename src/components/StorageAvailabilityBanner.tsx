@@ -97,7 +97,7 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
   if (compact) {
     const activeNotice = notice?.actor === actor ? notice : null;
     const label = unsafe ? '보관 오류' : activeNotice?.kind === 'maintenance' ? '저장 점검'
-      : recovery?.refreshPending ? '화면 갱신 중' : recovery?.recovering || isRetrying ? '확인 중…' : '저장 확인';
+      : recovery?.refreshPending ? '화면 갱신 중' : recovery?.recovering || isRetrying ? '확인 중…' : '저장 상태';
     return <details className="teacher-storage-indicator">
       <summary><span role="status">{label}</span></summary>
       <div className="teacher-storage-indicator-content">

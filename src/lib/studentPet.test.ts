@@ -1,6 +1,7 @@
 import { applyClassroomRoleMissionResultInSettings, loadStoredClassroomRoleMissionSettings, normalizeClassroomRoleMissionSettings, storeClassroomRoleMissionSettings, CLASSROOM_ROLE_MISSION_STORAGE_KEY } from './classroomRoleMission.js';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory } from './currency.js';
 import { normalizeStudentLifeState } from './studentLife.js';
+import { normalizeStudentEconomyState } from './studentEconomy.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -201,7 +202,7 @@ test('테스트 학생의 집 고치기는 로컬 저장 후에도 유지된다'
     assert.equal(storeStudentPetSnapshot({
       ...snapshot,
       currencyBalances: { ...snapshot.currencyBalances, 24: 800 },
-      studentEconomy: { 24: { inventory: { house_repair: 1 } } },
+      studentEconomy: { 24: normalizeStudentEconomyState({ inventory: { house_repair: 1 } }) },
     }), true);
     const reloaded = loadStoredStudentPetSnapshot();
     assert.equal(reloaded.currencyBalances['24'], 800);

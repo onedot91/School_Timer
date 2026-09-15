@@ -11907,10 +11907,7 @@ export default function TimerPage() {
                     ) : null}
                     <TeacherSaveFailureWarning returnFocusRef={settingsTriggerRef} />
                     <TeacherRewardAudit />
-                    <StorageAvailabilityBanner actor={0} compact onSettingsConflict={error => {
-                      setTeacherSettingsConflict(true);
-                      setTeacherSettingsSaveError(teacherSettingsSaveErrorMessage(error));
-                    }} />
+                    <StorageAvailabilityBanner actor={0} />
                     <button
                       ref={settingsTriggerRef}
                       type="button"
@@ -12836,6 +12833,10 @@ export default function TimerPage() {
                 설정
               </h2>
               <div className="flex items-center">
+                <StorageAvailabilityBanner actor={0} compact onSettingsConflict={error => {
+                  setTeacherSettingsConflict(true);
+                  setTeacherSettingsSaveError(teacherSettingsSaveErrorMessage(error));
+                }} />
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(false)}

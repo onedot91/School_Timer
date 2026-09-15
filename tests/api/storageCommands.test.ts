@@ -8,13 +8,14 @@ import { getKoreanIsoWeekKey } from '../../src/lib/weeklyMission.js';
 import { createStudentEmotionEntry } from '../../src/lib/studentEmotion.js';
 
 const secret = 'storage-test-only-secret-at-least-32-bytes';
+const retainedLetterCreatedAt = new Date().toISOString();
 const initial = () => ({
   version: 1, scheduleNotice: 'original',
   currencyBalances: Object.fromEntries(Array.from({length:23},(_,i)=>[String(i+1),100])),
   currencyHistory: Object.fromEntries(Array.from({length:23},(_,i)=>[String(i+1),[]])),
   studentLife: { letters: [
-    {id:'private-letter',recipient:4,senderStudentNumber:0,senderLabel:'teacher',title:'private',content:'private',createdAt:'2026-09-08T00:00:00.000Z',readAt:null},
-    {id:'own-letter',recipient:2,senderStudentNumber:0,senderLabel:'teacher',title:'own',content:'own',createdAt:'2026-09-08T00:00:00.000Z',readAt:null},
+    {id:'private-letter',recipient:4,senderStudentNumber:0,senderLabel:'teacher',title:'private',content:'private',createdAt:retainedLetterCreatedAt,readAt:null},
+    {id:'own-letter',recipient:2,senderStudentNumber:0,senderLabel:'teacher',title:'own',content:'own',createdAt:retainedLetterCreatedAt,readAt:null},
   ],books:[],failureStories:[],failureProfileAssignments:{} },
 });
 
