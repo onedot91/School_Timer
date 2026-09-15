@@ -2,7 +2,7 @@ import { canonicalStorageJson } from '../lib/storageV2Codec.js';
 import {
   AUCTION_ITEM_IDS, CURRENCY_BALANCE_MAX, CURRENCY_STUDENT_NUMBERS, DEFAULT_CURRENCY_BALANCE, TEST_STUDENT_NUMBER,
   appendCurrencyHistoryEntry, applyTeacherCurrencyDeductionsInSettings, clampCurrencyBalance,
-  createWeeklyCurrencyCycle, finalizeAuctionAwardInSettings, normalizeAuctionAwards,
+  createWeeklyCurrencyCycle, finalizeAuctionAwardInSettings, getAuctionItemDisplayName, normalizeAuctionAwards,
   normalizeAuctionBids, normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory,
 } from '../lib/currency.js';
 import { applyClassroomRoleMissionResultInSettings } from '../lib/classroomRoleMission.js';
@@ -71,6 +71,19 @@ export const applyTeacherStorageCommand = (
         && expectedValues.includes(canonicalStorageJson(normalizeAuctionItems(currentField)));
       if (!matchesCurrent && !matchesAuctionDefaults) {
         throw new TeacherStorageCommandError('TEACHER_SETTING_CONFLICT', 409);
+      }
+      if (change.field === 'auctionItems' && Array.isArray(currentField) && currentField.length > 0) {
+        const nextItems = new Map(normalizeAuctionItems(change.after).map(item => [item.id, item]));
+        if (normalizeAuctionItems(currentField).some(item => {
+          const nextItem = nextItems.get(item.id);
+          return !nextItem
+            || (item.isConfigured === true && nextItem.isConfigured !== true)
+            || (!/^물품(?: \d+)?$/.test(getAuctionItemDisplayName(item.name, item.dayIndex).trim())
+              && !nextItem.isConfigured
+              && /^물품(?: \d+)?$/.test(getAuctionItemDisplayName(nextItem.name, nextItem.dayIndex).trim()));
+        })) {
+          throw new TeacherStorageCommandError('TEACHER_SETTING_CONFLICT', 409);
+        }
       }
       return { field: change.field, before: change.before, after: change.after };
     });

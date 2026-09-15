@@ -4,7 +4,7 @@ import { TEACHER_MAIL_SENDERS } from '../lib/studentLife';
 import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { StorageCommandError } from '../lib/storageCommandClient';
-import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord } from '../lib/teacherStorageCommand';
+import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord, type TeacherSettingChange } from '../lib/teacherStorageCommand';
 import { getTodayFriendDateKey } from '../lib/todayFriend';
 import { loadTeacherTodayFriendState } from '../lib/todayFriendClient';
 import { getTodayFriendPendingReviewCount } from '../lib/teacherTodayFriendReviewPresentation';
@@ -1647,6 +1647,36 @@ const defaultWeeklySchedule: WeeklySchedule = normalizeWeeklySchedule({
   4: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
   5: defaultDailySchedule.map((slot) => ({ ...slot, id: createSlotId() })),
 });
+
+const initialTeacherSettingsEditorScope = { studentNumber: 0, feature: 'teacher.settings.initial.editor', entityId: 'classroom' };
+
+const loadInitialTeacherSettingsChanges = (): TeacherSettingChange[] => {
+  const saved = teacherStorageDrafts.load(initialTeacherSettingsEditorScope)?.draft.payload;
+  if (!isStorageRecord(saved) || !Array.isArray(saved.changes)) return [];
+  return saved.changes.flatMap(change => isStorageRecord(change) && typeof change.field === 'string'
+    && 'before' in change && 'after' in change
+    ? [{ field: change.field, before: change.before, after: change.after }] : []);
+};
+
+const mergeInitialTeacherSettingsChanges = (
+  previous: readonly TeacherSettingChange[], next: readonly TeacherSettingChange[],
+): TeacherSettingChange[] => {
+  const merged = new Map(previous.map(change => [change.field, change]));
+  for (const change of next) {
+    const before = merged.get(change.field);
+    let after = change.after;
+    if (before && change.field === 'auctionItems') {
+      const initialItems = normalizeAuctionItems(change.before);
+      const editedItems = normalizeAuctionItems(change.after).filter(item => (
+        JSON.stringify(item) !== JSON.stringify(initialItems.find(initial => initial.id === item.id))
+      ));
+      const items = normalizeAuctionItems(before.after).map(item => editedItems.find(edited => edited.id === item.id) ?? item);
+      after = [...items, ...editedItems.filter(item => !items.some(existing => existing.id === item.id))];
+    }
+    merged.set(change.field, { ...change, before: before ? before.before : change.before, after });
+  }
+  return [...merged.values()];
+};
 
 const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSettings | null => {
   if (!value || typeof value !== 'object') return null;
@@ -4643,6 +4673,8 @@ export default function TimerPage() {
 
   const latestTeacherSnapshotRef = useRef<Record<string, unknown>>({});
   latestTeacherSnapshotRef.current = { ...buildSharedSettingsSnapshot() };
+  const initialTeacherSnapshotRef = useRef(latestTeacherSnapshotRef.current);
+  const initialTeacherStoredChangesRef = useRef<TeacherSettingChange[] | null>(null);
 
   const applySharedSettingsSnapshot = (
     remoteSettings: SharedSchoolTimerSettings,
@@ -4723,6 +4755,87 @@ export default function TimerPage() {
     }
   };
 
+  const initializeTeacherSettings = (remoteRow: Awaited<ReturnType<typeof loadSharedSettingsRow>>) => {
+    if (sharedSettingsHydratedRef.current) return;
+    const initialDraft = teacherStorageDrafts.load(initialTeacherSettingsEditorScope);
+    let earlyChanges = mergeInitialTeacherSettingsChanges(
+      initialTeacherStoredChangesRef.current ?? loadInitialTeacherSettingsChanges(),
+      createTeacherSettingsChanges(initialTeacherSnapshotRef.current, latestTeacherSnapshotRef.current),
+    );
+    const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow?.value);
+    if (!remoteSettings) throw new Error('SETTINGS_REFRESH_UNAVAILABLE');
+    lastSharedSettingsUpdatedAtRef.current = remoteRow?.updated_at ?? null;
+    teacherSettingsPersistedBaseRef.current = isStorageRecord(remoteRow?.value) ? remoteRow.value : {};
+    setTeacherSettingsConflict(false);
+    setTeacherSettingsSaveError('');
+    applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: true });
+    const pending = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.settings.patch', payload: {} }));
+    const editorChanges = loadTeacherSettingsEditor();
+    let editorNeedsSave = false;
+    if (editorChanges.length > 0) {
+      const restored = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remoteSettings }, editorChanges));
+      if (restored) {
+        const pendingEditorFields = new Set(createTeacherSettingsChanges(remoteSettings, restored).map(change => change.field));
+        editorNeedsSave = pendingEditorFields.size > 0;
+        if (editorNeedsSave) {
+          applySharedSettingsSnapshot(restored, { applyManualTimer: true });
+          teacherSettingsBaseRef.current = { ...remoteSettings };
+          teacherSettingsPersistedBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsPersistedBaseRef.current,
+            editorChanges.filter(change => pendingEditorFields.has(change.field)).map(change => ({ ...change, after: change.before })));
+        } else {
+          void confirmTeacherSettingsEditor(getTeacherSettingsEditorRequestId());
+        }
+      }
+    }
+    if (pending || editorNeedsSave) setTeacherSettingsSaveError(isTeacherStorageCommandPaused({ action: 'teacher.settings.patch', payload: {} })
+      ? '중단된 설정 변경을 보관했습니다. 다시 저장해 주세요.' : '보관된 설정 변경이 있어요. 저장 결과를 확인해 주세요.');
+    const restoredSettings = applyAcknowledgedTeacherChanges({ ...remoteSettings }, editorChanges);
+    const earlyAuctionChange = earlyChanges.find(change => change.field === 'auctionItems');
+    if (earlyAuctionChange) {
+      const initialItems = normalizeAuctionItems(earlyAuctionChange.before);
+      const editedItems = normalizeAuctionItems(earlyAuctionChange.after).filter(item => (
+        JSON.stringify(item) !== JSON.stringify(initialItems.find(initial => initial.id === item.id))
+      ));
+      const mergedItems = normalizeAuctionItems(restoredSettings.auctionItems).map(item => (
+        editedItems.find(edited => edited.id === item.id) ?? item
+      ));
+      earlyChanges = earlyChanges.map(change => change.field === 'auctionItems' ? {
+        ...change,
+        after: [...mergedItems, ...editedItems.filter(item => !mergedItems.some(merged => merged.id === item.id))],
+      } : change);
+    }
+    const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges(restoredSettings, earlyChanges));
+    if (preserved) {
+      applySharedSettingsSnapshot(preserved, { applyManualTimer: true });
+      if (hasUnsavedWeeklySubjectsRef.current) {
+        weeklySubjectsRef.current = preserved.weeklySubjects;
+        setWeeklySubjects(preserved.weeklySubjects);
+      }
+      if (hasUnsavedSubjectCatalogRef.current) setSubjectCatalog(preserved.subjectCatalog);
+      auctionItemsRef.current = preserved.auctionItems;
+      setAuctionItems(preserved.auctionItems);
+      latestTeacherSnapshotRef.current = { ...preserved };
+    }
+    teacherSettingsBaseRef.current = { ...remoteSettings };
+    if (initialDraft && preserved) {
+      const migrated = saveTeacherSettingsEditor(createTeacherSettingsChanges(remoteSettings, preserved, teacherSettingsPersistedBaseRef.current));
+      void teacherStorageDrafts.flush().then(async () => {
+        const editor = teacherStorageDrafts.load({ studentNumber: 0, feature: 'teacher.settings.editor', entityId: 'classroom' });
+        if (migrated.status !== 'invalid' && (migrated.durable || editor?.durable)) {
+          const confirmed = await teacherStorageDrafts.confirmDurable(initialTeacherSettingsEditorScope, initialDraft.draft.requestId);
+          if (!confirmed && teacherStorageDrafts.load(initialTeacherSettingsEditorScope)?.draft.requestId === initialDraft.draft.requestId) {
+            teacherStorageDrafts.replace(initialTeacherSettingsEditorScope, { changes: [] });
+          }
+        }
+      });
+    }
+    sharedSettingsHydratedRef.current = true;
+    if (earlyChanges.length > 0) skipNextSharedSettingsSaveRef.current = false;
+    setTeacherSettingsSaveVersion(previous => previous + 1);
+  };
+  const initializeTeacherSettingsRef = useRef(initializeTeacherSettings);
+  initializeTeacherSettingsRef.current = initializeTeacherSettings;
+
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) return;
 
@@ -4732,56 +4845,23 @@ export default function TimerPage() {
       .then((remoteRow) => {
         if (isCancelled) return;
 
-        lastSharedSettingsUpdatedAtRef.current = remoteRow?.updated_at ?? null;
-        teacherSettingsPersistedBaseRef.current = isStorageRecord(remoteRow?.value) ? remoteRow.value : {};
-        const remoteSettings = normalizeSharedSchoolTimerSettings(remoteRow?.value);
-        if (remoteSettings) {
-          applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: true });
-          const pending = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.settings.patch', payload: {} }));
-          const editorChanges = loadTeacherSettingsEditor();
-          let editorNeedsSave = false;
-          if (editorChanges.length > 0) {
-            const restored = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remoteSettings }, editorChanges));
-            if (restored) {
-              const pendingEditorFields = new Set(createTeacherSettingsChanges(remoteSettings, restored).map(change => change.field));
-              editorNeedsSave = pendingEditorFields.size > 0;
-              if (editorNeedsSave) {
-                applySharedSettingsSnapshot(restored, { applyManualTimer: true });
-                teacherSettingsBaseRef.current = { ...remoteSettings };
-                teacherSettingsPersistedBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsPersistedBaseRef.current,
-                  editorChanges.filter(change => pendingEditorFields.has(change.field)).map(change => ({ ...change, after: change.before })));
-              } else {
-                void confirmTeacherSettingsEditor(getTeacherSettingsEditorRequestId());
-              }
-            }
+        initializeTeacherSettingsRef.current(remoteRow);
+        const letterDraft = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.mail.send', payload: {} }))?.draft.payload;
+        if (isStorageRecord(letterDraft) && typeof letterDraft.title === 'string' && typeof letterDraft.content === 'string') {
+          setMailTitle(letterDraft.title);
+          setMailContent(letterDraft.content);
+          if (Array.isArray(letterDraft.recipients)) {
+            if (letterDraft.recipients.length === 23) setMailRecipient(ALL_STUDENTS_LETTER_RECIPIENT);
+            else if (typeof letterDraft.recipients[0] === 'number') setMailRecipient(letterDraft.recipients[0]);
           }
-          if (pending || editorNeedsSave) setTeacherSettingsSaveError(isTeacherStorageCommandPaused({ action: 'teacher.settings.patch', payload: {} })
-            ? '중단된 설정 변경을 보관했습니다. 다시 저장해 주세요.' : '보관된 설정 변경이 있어요. 저장 결과를 확인해 주세요.');
-          const letterDraft = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.mail.send', payload: {} }))?.draft.payload;
-          if (isStorageRecord(letterDraft) && typeof letterDraft.title === 'string' && typeof letterDraft.content === 'string') {
-            setMailTitle(letterDraft.title);
-            setMailContent(letterDraft.content);
-            if (Array.isArray(letterDraft.recipients)) {
-              if (letterDraft.recipients.length === 23) setMailRecipient(ALL_STUDENTS_LETTER_RECIPIENT);
-              else if (typeof letterDraft.recipients[0] === 'number') setMailRecipient(letterDraft.recipients[0]);
-            }
-            setMailStatus(isTeacherStorageCommandPaused({ action: 'teacher.mail.send', payload: {} })
-              ? '중단된 편지를 보관했습니다. 다시 보내 주세요.' : '이전 편지의 저장 결과를 확인하지 못했어요. 내용이 보관되어 있습니다.');
-          }
-        } else {
-          teacherSettingsBaseRef.current = {};
-          setTeacherSettingsSaveVersion(previous => previous + 1);
+          setMailStatus(isTeacherStorageCommandPaused({ action: 'teacher.mail.send', payload: {} })
+            ? '중단된 편지를 보관했습니다. 다시 보내 주세요.' : '이전 편지의 저장 결과를 확인하지 못했어요. 내용이 보관되어 있습니다.');
         }
       })
       .catch((error) => {
         console.error('Failed to load shared settings from Supabase.', error);
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          sharedSettingsHydratedRef.current = true;
-          if (hasUnsavedWeeklySubjectsRef.current || hasUnsavedSubjectCatalogRef.current || hasUnsavedAuctionItemsRef.current) {
-            setSubjectCatalogEditCommitVersion((previous) => previous + 1);
-          }
+        if (!isCancelled && !sharedSettingsHydratedRef.current) {
+          setTeacherSettingsSaveError('설정을 불러오지 못했어요. 저장 다시 확인을 눌러 주세요.');
         }
       });
 
@@ -4972,7 +5052,19 @@ export default function TimerPage() {
   }, [drawCases, repeatPickEnabled, resolvedActiveDrawCaseId]);
 
   useEffect(() => {
-    if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;
+    if (!isSupabaseSettingsEnabled) return;
+    if (!sharedSettingsHydratedRef.current) {
+      void teacherStorageDrafts.ready().then(() => {
+        if (sharedSettingsHydratedRef.current) return;
+        initialTeacherStoredChangesRef.current ??= loadInitialTeacherSettingsChanges();
+        const changes = mergeInitialTeacherSettingsChanges(initialTeacherStoredChangesRef.current,
+          createTeacherSettingsChanges(initialTeacherSnapshotRef.current, latestTeacherSnapshotRef.current));
+        if (changes.length > 0 || teacherStorageDrafts.load(initialTeacherSettingsEditorScope)) {
+          teacherStorageDrafts.replace(initialTeacherSettingsEditorScope, JSON.parse(JSON.stringify({ changes })));
+        }
+      });
+      return;
+    }
     saveTeacherSettingsEditor(createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot(), teacherSettingsPersistedBaseRef.current));
     if (teacherSettingsSavingRef.current || teacherSettingsSaveError) return;
 
@@ -10398,6 +10490,11 @@ export default function TimerPage() {
     const scope = teacherCommandScope({ action: 'teacher.settings.patch', payload: {} });
     const pending = teacherStorageDrafts.load(scope);
     try {
+      if (!sharedSettingsHydratedRef.current) {
+        await teacherStorageDrafts.ready();
+        initializeTeacherSettingsRef.current(await loadSharedSettingsRow());
+        return;
+      }
       if (pending) {
         try {
           const saved = await executeStorageCommand({ requestId: pending.draft.requestId, action: 'teacher.settings.patch', payload: pending.draft.payload });
@@ -10454,8 +10551,16 @@ export default function TimerPage() {
     if (teacherSettingsSavingRef.current) return;
     const refreshVersion = getSaveRefreshVersion(0);
     try {
+      if (!sharedSettingsHydratedRef.current) await teacherStorageDrafts.ready();
       const latest = await loadSharedSettingsRow();
       if (teacherSettingsSavingRef.current || !isSaveRefreshVersionCurrent(0, refreshVersion)) return;
+      if (!sharedSettingsHydratedRef.current) {
+        initializeTeacherSettingsRef.current(latest);
+        teacherRefreshPendingRef.current = false;
+        setTeacherRefreshPending(false);
+        markSaveRefreshComplete(0, refreshVersion);
+        return;
+      }
       const remote = normalizeSharedSchoolTimerSettings(latest?.value);
       if (!remote) return;
       teacherSettingsPersistedBaseRef.current = isStorageRecord(latest?.value) ? latest.value : {};

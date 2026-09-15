@@ -13,6 +13,7 @@ const retryFixture = (conflict: boolean, execute: (command: { requestId: string;
   assert.ok(start >= 0 && end > start);
   const screen = {
     teacherSettingsSavingRef: { current: false },
+    sharedSettingsHydratedRef: { current: true },
     teacherSettingsBaseRef: { current: { scheduleNotice: 'old', isNoticeEnabled: true } },
     teacherSettingsPersistedBaseRef: { current: { scheduleNotice: 'old', isNoticeEnabled: true } },
     latestTeacherSnapshotRef: { current: { scheduleNotice: 'mine', isNoticeEnabled: true } },
@@ -42,8 +43,8 @@ const retryFixture = (conflict: boolean, execute: (command: { requestId: string;
 
 test('재접속 시 초안의 원래 충돌 기준을 보존하고 이미 저장된 초안만 정리한다', () => {
   const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
-  const start = source.indexOf('          const editorChanges = loadTeacherSettingsEditor();');
-  const end = source.indexOf('          if (pending || editorNeedsSave)', start);
+  const start = source.indexOf('const editorChanges = loadTeacherSettingsEditor();');
+  const end = source.indexOf('if (pending || editorNeedsSave)', start);
   assert.ok(start >= 0 && end > start);
   for (const savedNotice of ['other', 'mine']) {
     const remoteSettings = { scheduleNotice: savedNotice, isNoticeEnabled: false };

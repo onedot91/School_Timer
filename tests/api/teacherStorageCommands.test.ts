@@ -12,6 +12,38 @@ const apply = (value: unknown, action: string, payload: unknown, id = context.re
   assert.ok(result);
   return result;
 };
+test('general settings cannot erase registered auction items even with a matching saved base', () => {
+  const items = [...normalizeAuctionItems(null), { id: 'item-2-2', dayIndex: 1, name: '검증 물품', startPrice: 10, isConfigured: true }];
+  const current = { auctionItems: items };
+  assert.throws(() => apply(current, 'teacher.settings.patch', { changes: [
+    { field: 'auctionItems', before: items, after: normalizeAuctionItems(null) },
+  ] }), { code: 'TEACHER_SETTING_CONFLICT', status: 409 });
+  assert.deepEqual(current.auctionItems, items);
+  const reordered = [...items].reverse().map(item => item.id === 'item-2-2' ? { ...item, name: '새 검증 물품' } : item);
+  assert.deepEqual(apply(current, 'teacher.settings.patch', { changes: [
+    { field: 'auctionItems', before: items, after: reordered },
+  ] }).value.auctionItems, reordered);
+  const removed = apply(current, 'teacher.auction.remove', { itemId: 'item-2-2' }).value;
+  assert.ok(Array.isArray(removed.auctionItems));
+  assert.equal(removed.auctionItems.length, items.length - 1);
+});
+
+test('general settings cannot turn configured auction items back into invisible placeholders', () => {
+  const items = normalizeAuctionItems(null).map(item => ({ ...item, isConfigured: true }));
+  assert.throws(() => apply({ auctionItems: items }, 'teacher.settings.patch', { changes: [
+    { field: 'auctionItems', before: items, after: normalizeAuctionItems(null) },
+  ] }), { code: 'TEACHER_SETTING_CONFLICT', status: 409 });
+});
+test('general settings preserve legacy named auction items without configuration flags', () => {
+  const items = normalizeAuctionItems(null).map(item => item.id === 'item-a' ? { ...item, name: '기존 등록 도서' } : item);
+  assert.throws(() => apply({ auctionItems: items }, 'teacher.settings.patch', { changes: [
+    { field: 'auctionItems', before: items, after: normalizeAuctionItems(null) },
+  ] }), { code: 'TEACHER_SETTING_CONFLICT', status: 409 });
+  const renamed = items.map(item => item.id === 'item-a' ? { ...item, name: '변경한 도서' } : item);
+  assert.deepEqual(apply({ auctionItems: items }, 'teacher.settings.patch', { changes: [
+    { field: 'auctionItems', before: items, after: renamed },
+  ] }).value.auctionItems, renamed);
+});
 test('added auction item survives settings patch, storage projection and reload without a name edit', () => {
   const before = { auctionItems: normalizeAuctionItems(null), currencyBalances: { '17': 328 } };
   const items = before.auctionItems.map((item, index) => index === 3 ? { ...item, isConfigured: true } : item);

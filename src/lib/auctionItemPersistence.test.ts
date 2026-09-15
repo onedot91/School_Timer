@@ -6,7 +6,7 @@ import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges } from '.
 import { normalizeAuctionItems, normalizeCurrencyBalances, appendCurrencyHistoryEntry, CURRENCY_BALANCE_MAX } from './currency.js';
 
 const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
-const saveStart = source.indexOf('if (!isSupabaseSettingsEnabled || !sharedSettingsHydratedRef.current) return;');
+const saveStart = source.indexOf('if (!isSupabaseSettingsEnabled) return;\n    if (!sharedSettingsHydratedRef.current)');
 const save = source.slice(saveStart, source.indexOf('const syncSharedSettingsFromRemote', saveStart));
 
 test('물품 이름 자동 저장은 입력창 포커스를 옮길 때까지 대기하지 않는다', () => {
@@ -36,7 +36,7 @@ test('미저장 물품은 원격 초기 조회와 새로고침으로 덮어쓰�
   assert.match(source, /if \(!isEditingAuctionItemRef\.current && !hasUnsavedAuctionItemsRef\.current\)/);
   const sync = source.slice(source.indexOf('const syncSharedSettingsFromRemote'), source.indexOf('const syncSharedSettingsFromRemote') + 1000);
   assert.match(sync, /hasUnsavedAuctionItemsRef\.current/);
-  assert.match(source, /hasUnsavedSubjectCatalogRef\.current \|\| hasUnsavedAuctionItemsRef\.current/);
+  assert.match(source, /if \(earlyChanges\.length > 0\) skipNextSharedSettingsSaveRef\.current = false/);
 });
 
 test('물품 재등록은 현재 사용 중인 ID를 초기화하지 않는다', () => {
