@@ -3,7 +3,13 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges } from './teacherStorageCommand.js';
-import { normalizeAuctionItems, normalizeCurrencyBalances, appendCurrencyHistoryEntry, CURRENCY_BALANCE_MAX } from './currency.js';
+import {
+  appendCurrencyHistoryEntry,
+  CURRENCY_BALANCE_MAX,
+  getStudentVisibleAuctionItems,
+  normalizeAuctionItems,
+  normalizeCurrencyBalances,
+} from './currency.js';
 
 const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
 const saveStart = source.indexOf('if (!isSupabaseSettingsEnabled) return;\n    if (!sharedSettingsHydratedRef.current)');
@@ -54,6 +60,29 @@ test('이름을 바꾸지 않고 추가한 물품도 다시 읽으면 등록 상
   assert.equal(reloaded[3].isConfigured, true);
   assert.equal(reloaded[4].isConfigured, undefined);
   assert.equal(normalizeAuctionItems([{ ...defaults[0], isConfigured: 'true' }])[0].isConfigured, undefined);
+});
+
+test('교사 설정에서 숨긴 기본 물품은 학생 경매에 남지 않는다', () => {
+  const [unusedItem, legacyNamedItem, configuredItem, bidItem, historyItem] = normalizeAuctionItems(null);
+  const visibleItems = getStudentVisibleAuctionItems(
+    [
+      unusedItem,
+      { ...legacyNamedItem, name: '축구공' },
+      { ...configuredItem, isConfigured: true as const },
+      bidItem,
+      historyItem,
+    ],
+    { [bidItem.id]: { bidder: 2, amount: 11 } },
+    { [historyItem.id]: [{ itemId: historyItem.id, bidder: 3, amount: 12, createdAt: '2026-09-15T00:00:00.000Z' }] },
+    {},
+  );
+
+  assert.deepEqual(visibleItems.map((item) => item.id), [
+    legacyNamedItem.id,
+    configuredItem.id,
+    bidItem.id,
+    historyItem.id,
+  ]);
 });
 
 test('기본 물품 칸을 추가할 때도 저장 대상 데이터와 편집 상태를 갱신한다', () => {

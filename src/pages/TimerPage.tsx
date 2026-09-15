@@ -209,6 +209,7 @@ import {
   getAuctionItemDisplayName,
   getAuctionVisibleDayCount,
   getStudentLabelStyle,
+  isUnusedAuctionItem as isUnusedAuctionItemValue,
   normalizeAuctionAwards,
   normalizeAuctionBidHistory,
   normalizeAuctionBids,
@@ -7244,13 +7245,12 @@ export default function TimerPage() {
     setCurrencyStudentNumberInput('');
   };
 
-  const isUnusedAuctionItem = (item: AuctionItem) =>
-    !item.isConfigured &&
-    /^물품(?: \d+)?$/.test(getAuctionItemDisplayName(item.name, item.dayIndex).trim()) &&
-    !auctionBids[item.id]?.bidder &&
-    !(auctionBids[item.id]?.amount > 0) &&
-    !auctionAwards[item.id] &&
-    !(auctionBidHistory[item.id]?.length > 0);
+  const isUnusedAuctionItem = (item: AuctionItem) => isUnusedAuctionItemValue(
+    item,
+    auctionBids,
+    auctionBidHistory,
+    auctionAwards,
+  );
 
   const addAuctionItem = (dayIndex: number) => {
     const unusedItem = auctionItems.find((item) => item.dayIndex === dayIndex && isUnusedAuctionItem(item));

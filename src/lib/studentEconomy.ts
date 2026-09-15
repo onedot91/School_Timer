@@ -113,7 +113,7 @@ export const STUDENT_CHARACTER_PRIZES = [
   { id: 'character-78', name: '불 마법사 고마', imageSrc: '/goma-skins/fire-wizard-goma.png' },
   { id: 'character-79', name: '비눗방울 고마', imageSrc: '/goma-skins/bubble-goma.png' },
   { id: 'character-80', name: '사또 고마', imageSrc: '/goma-skins/hatto-goma.png' },
-  { id: 'character-81', name: '후녀 고마', imageSrc: '/goma-skins/nun-goma.png' },
+  { id: 'character-81', name: '수녀 고마', imageSrc: '/goma-skins/nun-goma.png' },
   { id: 'character-82', name: '수묵 고마', imageSrc: '/goma-skins/ink-goma.png' },
   { id: 'character-83', name: '수염 고마', imageSrc: '/goma-skins/bearded-goma.png' },
   { id: 'character-84', name: '스님 고마', imageSrc: '/goma-skins/monk-goma.png' },

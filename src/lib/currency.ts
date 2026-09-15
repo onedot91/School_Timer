@@ -210,6 +210,32 @@ export const getAuctionItemDisplayName = (itemName: string, dayIndex: number) =>
   return displayName.length > 0 ? displayName : itemName;
 };
 
+export const isUnusedAuctionItem = (
+  item: AuctionItem,
+  auctionBids: AuctionBids,
+  auctionBidHistory: AuctionBidHistory,
+  auctionAwards: AuctionAwards,
+) => (
+  !item.isConfigured &&
+  /^물품(?: \d+)?$/.test(getAuctionItemDisplayName(item.name, item.dayIndex).trim()) &&
+  !auctionBids[item.id]?.bidder &&
+  !(auctionBids[item.id]?.amount > 0) &&
+  !auctionAwards[item.id] &&
+  !(auctionBidHistory[item.id]?.length > 0)
+);
+
+export const getStudentVisibleAuctionItems = (
+  auctionItems: readonly AuctionItem[],
+  auctionBids: AuctionBids,
+  auctionBidHistory: AuctionBidHistory,
+  auctionAwards: AuctionAwards,
+) => auctionItems.filter((item) => !isUnusedAuctionItem(
+  item,
+  auctionBids,
+  auctionBidHistory,
+  auctionAwards,
+));
+
 export const getAuctionAwardsForDay = (
   auctionItems: readonly AuctionItem[],
   auctionAwards: AuctionAwards,

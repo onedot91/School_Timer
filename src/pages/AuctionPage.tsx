@@ -32,6 +32,7 @@ import {
   getAuctionVisibleDayCount,
   getMinimumAuctionBid,
   getReservedAuctionBidAmount,
+  getStudentVisibleAuctionItems,
   hasAuctionBidAmount,
   normalizeAuctionAwards,
   normalizeAuctionBidHistory,
@@ -763,7 +764,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const hasCompletedDailyWritingMission = hasCurrentDailyWritingMission
     && hasDailyWritingReward(currencyHistory, studentNumber, currentDateKey);
   const balance = currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
-  const activeAuctionItemIds = auctionItems.map((item) => item.id);
+  const studentVisibleAuctionItems = useMemo(() => getStudentVisibleAuctionItems(
+    auctionItems,
+    auctionBids,
+    auctionBidHistory,
+    auctionAwards,
+  ), [auctionAwards, auctionBidHistory, auctionBids, auctionItems]);
+  const activeAuctionItemIds = studentVisibleAuctionItems.map((item) => item.id);
   const reservedAmount = getReservedAuctionBidAmount(
     auctionBids,
     studentNumber,
@@ -782,7 +789,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && donationAmount >= 1
     && donationAmount <= maximumDonation;
   const visibleDayCount = getAuctionVisibleDayCount();
-  const firstVisibleItem = auctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
+  const firstVisibleItem = studentVisibleAuctionItems.find((item) => item.dayIndex < visibleDayCount) ?? null;
   const studentSentLetters = getStudentSentLetters(studentLife, studentNumber);
   const failureStories = getFailureStoriesNewestFirst(studentLife.failureStories);
   const profileAssignments = studentLife.failureProfileAssignments;
@@ -1153,12 +1160,12 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const selectedItem = useMemo(
     () => {
-      const selectedIndex = auctionItems.findIndex((item) => item.id === selectedItemId);
-      const selectedAuctionItem = selectedIndex >= 0 ? auctionItems[selectedIndex] : null;
+      const selectedIndex = studentVisibleAuctionItems.findIndex((item) => item.id === selectedItemId);
+      const selectedAuctionItem = selectedIndex >= 0 ? studentVisibleAuctionItems[selectedIndex] : null;
       if (selectedAuctionItem && selectedAuctionItem.dayIndex < visibleDayCount) return selectedAuctionItem;
       return firstVisibleItem;
     },
-    [auctionItems, firstVisibleItem, selectedItemId, visibleDayCount],
+    [firstVisibleItem, selectedItemId, studentVisibleAuctionItems, visibleDayCount],
   );
 
   const applySharedSettingsValue = useCallback((value: SharedSettingsValue | null, updatedAt?: string) => {
@@ -2428,7 +2435,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             onBack={() => navigateStudentView(activeStoreSection === 'plaza' ? 'overview' : activeStoreSection === 'securities-trade' ? 'store-securities' : 'store')}
           >
           <AuctionRoom
-          auctionItems={auctionItems}
+          auctionItems={studentVisibleAuctionItems}
           auctionBids={auctionBids}
           auctionAwards={auctionAwards}
           auctionMissions={auctionMissions}
