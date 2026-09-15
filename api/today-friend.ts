@@ -70,6 +70,14 @@ const handleGet = async (
 ): Promise<void> => {
   const expectedStudent = request.query?.expectedStudentNumber;
   if (expectedStudent !== undefined && (session.role !== 'student' || expectedStudent !== String(session.studentNumber))) throw new TodayFriendApiError(403, 'STUDENT_FORBIDDEN');
+  if (request.query?.reviewSubmissionId !== undefined) {
+    requireTeacher(session);
+    const id = request.query.reviewSubmissionId;
+    if (typeof id !== 'string' || !id.trim() || id.length > 200) throw new TodayFriendApiError(400, 'INVALID_SUBMISSION_ID');
+    const submission = await loadTodayFriendSubmission(configuration, id);
+    response.status(200).json({ submissionId: submission.id, approved: submission.status === 'approved' && submission.rewardStatus === 'paid' });
+    return;
+  }
   if (typeof request.query?.requestId === 'string') {
     if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
     if (!request.query.requestId.trim() || request.query.requestId.length > 200) throw new TodayFriendApiError(400, 'INVALID_REQUEST_ID');

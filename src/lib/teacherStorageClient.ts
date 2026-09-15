@@ -1,4 +1,4 @@
-import { markSaveRefreshPending, registerSaveRecoveryAdapter, serializeStudentSave } from './saveRecovery.js';
+import { announceSaveRecovered, markSaveRefreshPending, notifySaveRecovery, registerSaveRecoveryAdapter, requestSaveRecovery, serializeStudentSave } from './saveRecovery.js';
 import { createStudentSaveDraftStore } from './studentSaveDraft.js';
 import { executeStorageCommand, loadStorageCommandReceipt, StorageCommandError, type StorageCommand } from './storageCommandClient.js';
 import { captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError } from './storageResponseOrder.js';
@@ -15,6 +15,7 @@ export const teacherSettingsSaveErrorMessage = (error: unknown): string => {
   const code = error instanceof StorageCommandError && error.serverCode === 'TEACHER_SETTING_CONFLICT'
     ? error.serverCode : diagnostics?.causeCode ?? diagnostics?.errorCode ?? classifySaveFailure(error) ?? 'unknown';
   const details = [code, ...(diagnostics?.httpStatus ? [`HTTP ${diagnostics.httpStatus}`] : [])].join(' · ');
+  if (code === 'TEACHER_SETTING_CONFLICT') return `다른 저장 내용과 겹칩니다 (${details}). 내 변경 저장을 누르면 수정한 항목을 덮어씁니다.`;
   return `설정 저장 확인 불가 (${details}). 변경 내용은 보관했습니다. 저장 다시 확인을 눌러 주세요.`;
 };
 
@@ -71,7 +72,22 @@ const executeTeacherCommand = async (command: StorageCommand) => {
   }
 };
 
-export const executeTeacherStorageCommand = (command: StorageCommand) => serializeStudentSave(0, () => executeTeacherCommand(command));
+export const executeTeacherStorageCommand = (command: StorageCommand) => serializeStudentSave(0, () => executeTeacherCommand(command)).finally(() => notifySaveRecovery());
+
+export const recheckTeacherSaveResults = async (): Promise<void> => {
+  await requestSaveRecovery(0);
+  try {
+    await serializeStudentSave(0, async () => {
+      const scope = teacherCommandScope({ action: 'teacher.settings.patch', payload: {} });
+      const pending = teacherStorageDrafts.load(scope);
+      if (!pending) return;
+      const result = await executeStorageCommand({ requestId: pending.draft.requestId, action: 'teacher.settings.patch', payload: pending.draft.payload });
+      await teacherStorageDrafts.confirmDurable(scope, pending.draft.requestId);
+      if (result.refreshPending) markSaveRefreshPending(0);
+      announceSaveRecovered(0);
+    });
+  } finally { await requestSaveRecovery(0); }
+};
 
 registerSaveRecoveryAdapter({
   id: 'teacher-storage',
@@ -87,6 +103,18 @@ registerSaveRecoveryAdapter({
   confirm: request => serializeStudentSave(0, async () => {
     const draft = teacherStorageDrafts.list(0).find(candidate => candidate.requestId === request.id);
     if (!draft) return true;
+    if (draft.scope.feature === 'teacher.todayFriend.review') {
+      if (!isStorageRecord(draft.payload) || typeof draft.payload.submissionId !== 'string') return false;
+      const context = captureStorageResponseContext();
+      const query = new URLSearchParams({ reviewSubmissionId: draft.payload.submissionId });
+      const response = await fetch(`/api/today-friend?${query}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(12_000) });
+      if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+      if (!response.ok) throw new StorageCommandError('TODAY_FRIEND_CONFIRMATION_UNAVAILABLE', response.status);
+      const value: unknown = await response.json();
+      if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+      if (!isStorageRecord(value) || value.submissionId !== draft.payload.submissionId || value.approved !== true) return false;
+      return teacherStorageDrafts.confirmDurable(draft.scope, draft.requestId);
+    }
     const command = { requestId: draft.requestId, action: draft.scope.feature, payload: draft.payload };
     const confirmed = await loadStorageCommandReceipt(draft.requestId, command);
     if (!confirmed) return false;

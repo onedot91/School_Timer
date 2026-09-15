@@ -19,6 +19,11 @@ const fixture = () => {
   const pending = { current: true };
   const callback: unknown = runInNewContext(callbackSource, {
     getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete,
+    teacherSettingsSavingRef: { current: false },
+    confirmTeacherSettingsEditor: async () => undefined,
+    getTeacherSettingsEditorRequestId: () => undefined,
+    setTeacherSettingsConflict: () => undefined,
+    setTeacherSettingsSaveError: () => undefined,
     loadSharedSettingsRow: () => read,
     normalizeSharedSchoolTimerSettings: (value: unknown) => isStorageRecord(value) ? value : null,
     createTeacherSettingsChanges, applyAcknowledgedTeacherChanges, isStorageRecord,

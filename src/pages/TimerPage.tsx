@@ -3,6 +3,7 @@ import { HOUSE_MAIL_STAMP } from '../lib/studentHouseReward';
 import { TEACHER_MAIL_SENDERS } from '../lib/studentLife';
 import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
+import { StorageCommandError } from '../lib/storageCommandClient';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord } from '../lib/teacherStorageCommand';
 import { getTodayFriendDateKey } from '../lib/todayFriend';
 import { loadTeacherTodayFriendState } from '../lib/todayFriendClient';
@@ -4596,6 +4597,7 @@ export default function TimerPage() {
     return saved;
   };
   const [isTeacherSettingsRetrying, setIsTeacherSettingsRetrying] = useState(false);
+  const [teacherSettingsConflict, setTeacherSettingsConflict] = useState(false);
   teacherSettingsErrorRef.current = Boolean(teacherSettingsSaveError);
 
   const buildSharedSettingsSnapshot = (): SharedSchoolTimerSettings => ({
@@ -4737,12 +4739,23 @@ export default function TimerPage() {
           applySharedSettingsSnapshot(remoteSettings, { applyManualTimer: true });
           const pending = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.settings.patch', payload: {} }));
           const editorChanges = loadTeacherSettingsEditor();
+          let editorNeedsSave = false;
           if (editorChanges.length > 0) {
             const restored = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remoteSettings }, editorChanges));
-            if (restored) applySharedSettingsSnapshot(restored, { applyManualTimer: true });
-            teacherSettingsBaseRef.current = { ...remoteSettings };
+            if (restored) {
+              const pendingEditorFields = new Set(createTeacherSettingsChanges(remoteSettings, restored).map(change => change.field));
+              editorNeedsSave = pendingEditorFields.size > 0;
+              if (editorNeedsSave) {
+                applySharedSettingsSnapshot(restored, { applyManualTimer: true });
+                teacherSettingsBaseRef.current = { ...remoteSettings };
+                teacherSettingsPersistedBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsPersistedBaseRef.current,
+                  editorChanges.filter(change => pendingEditorFields.has(change.field)).map(change => ({ ...change, after: change.before })));
+              } else {
+                void confirmTeacherSettingsEditor(getTeacherSettingsEditorRequestId());
+              }
+            }
           }
-          if (pending || editorChanges.length > 0) setTeacherSettingsSaveError(isTeacherStorageCommandPaused({ action: 'teacher.settings.patch', payload: {} })
+          if (pending || editorNeedsSave) setTeacherSettingsSaveError(isTeacherStorageCommandPaused({ action: 'teacher.settings.patch', payload: {} })
             ? '중단된 설정 변경을 보관했습니다. 다시 저장해 주세요.' : '보관된 설정 변경이 있어요. 저장 결과를 확인해 주세요.');
           const letterDraft = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.mail.send', payload: {} }))?.draft.payload;
           if (isStorageRecord(letterDraft) && typeof letterDraft.title === 'string' && typeof letterDraft.content === 'string') {
@@ -5017,6 +5030,7 @@ export default function TimerPage() {
           if (JSON.stringify(snapshot.subjectCatalog) === JSON.stringify(subjectCatalogRef.current)) hasUnsavedSubjectCatalogRef.current = false;
         })
         .catch((error) => {
+          setTeacherSettingsConflict(error instanceof StorageCommandError && error.serverCode === 'TEACHER_SETTING_CONFLICT' && !error.uncertainWrite);
           setTeacherSettingsSaveError(teacherSettingsSaveErrorMessage(error));
           console.error('Failed to save shared settings to Supabase.', error);
           if (hasUnsavedAuctionItemsRef.current && auctionItemsEditVersionAtSave === auctionItemsEditVersionRef.current) {
@@ -10385,41 +10399,50 @@ export default function TimerPage() {
     const pending = teacherStorageDrafts.load(scope);
     try {
       if (pending) {
-        const saved = await executeStorageCommand({ requestId: pending.draft.requestId, action: 'teacher.settings.patch', payload: pending.draft.payload });
-        if (isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
-          const remote = saved.value ? normalizeSharedSchoolTimerSettings(saved.value) : null;
-          if (remote) {
-            teacherSettingsPersistedBaseRef.current = saved.value ?? {};
-            const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
-            teacherSettingsBaseRef.current = { ...remote };
-            const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, localChanges));
-            if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
-            teacherSettingsBaseRef.current = { ...remote };
+        try {
+          const saved = await executeStorageCommand({ requestId: pending.draft.requestId, action: 'teacher.settings.patch', payload: pending.draft.payload });
+          if (isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
+            const changes = pending.draft.payload.changes.flatMap(change => isStorageRecord(change) && typeof change.field === 'string' && 'after' in change && 'before' in change ? [{ field: change.field, before: change.before, after: change.after }] : []);
+            teacherSettingsBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsBaseRef.current, changes);
+            teacherSettingsPersistedBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsPersistedBaseRef.current, changes);
           }
-        }
-        if (!saved.value && isStorageRecord(pending.draft.payload) && Array.isArray(pending.draft.payload.changes)) {
-          const changes = pending.draft.payload.changes.flatMap(change => isStorageRecord(change) && typeof change.field === 'string' && 'after' in change && 'before' in change ? [{ field: change.field, before: change.before, after: change.after }] : []);
-          teacherSettingsBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsBaseRef.current, changes);
-          teacherSettingsPersistedBaseRef.current = applyAcknowledgedTeacherChanges(teacherSettingsPersistedBaseRef.current, changes);
-        }
-        if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
-      } else {
-        const refreshVersion = getSaveRefreshVersion(0);
-        const latest = await loadSharedSettingsRow();
-        if (!isSaveRefreshVersionCurrent(0, refreshVersion)) return;
-        if (latest && isStorageRecord(latest.value)) {
-          teacherSettingsPersistedBaseRef.current = latest.value;
-          const localChanges = createTeacherSettingsChanges(teacherSettingsBaseRef.current, latestTeacherSnapshotRef.current);
-          const remote = normalizeSharedSchoolTimerSettings(latest.value);
-          const preserved = remote && normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, localChanges));
-          if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
-          teacherSettingsBaseRef.current = remote ? { ...remote } : latest.value;
+          if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+        } catch (error) {
+          if (!teacherSettingsConflict || !(error instanceof StorageCommandError)
+            || error.serverCode !== 'TEACHER_SETTING_CONFLICT' || error.uncertainWrite) throw error;
         }
       }
+      const latest = await loadSharedSettingsRow();
+      if (!latest || !isStorageRecord(latest.value)) throw new Error('SETTINGS_REFRESH_UNAVAILABLE');
+      const submittedSnapshot = latestTeacherSnapshotRef.current;
+      const changes = createTeacherSettingsChanges(teacherSettingsBaseRef.current, submittedSnapshot,
+        teacherSettingsConflict ? latest.value : teacherSettingsPersistedBaseRef.current);
+      const editorRequestId = getTeacherSettingsEditorRequestId();
+      const saved = changes.length > 0
+        ? await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.settings.patch', payload: { changes } })
+        : null;
+      const persisted = saved?.value ?? applyAcknowledgedTeacherChanges(latest.value, changes);
+      const remote = normalizeSharedSchoolTimerSettings(persisted);
+      if (!remote) throw new Error('SETTINGS_REFRESH_UNAVAILABLE');
+      const newerChanges = createTeacherSettingsChanges(submittedSnapshot, latestTeacherSnapshotRef.current);
+      const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, newerChanges));
+      if (!newerChanges.some(change => change.field === 'weeklySubjects')) hasUnsavedWeeklySubjectsRef.current = false;
+      if (!newerChanges.some(change => change.field === 'subjectCatalog')) hasUnsavedSubjectCatalogRef.current = false;
+      if (!newerChanges.some(change => change.field === 'auctionItems') && hasUnsavedAuctionItemsRef.current) {
+        hasUnsavedAuctionItemsRef.current = false;
+        setAuctionItemsSaveStatus('saved');
+      }
+      if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
+      teacherSettingsBaseRef.current = { ...remote };
+      teacherSettingsPersistedBaseRef.current = persisted;
+      lastSharedSettingsUpdatedAtRef.current = saved?.value ? saved.updatedAt : latest.updated_at;
+      await confirmTeacherSettingsEditor(editorRequestId);
+      setTeacherSettingsConflict(false);
       setTeacherSettingsSaveError('');
       skipNextSharedSettingsSaveRef.current = false;
       setTeacherSettingsSaveVersion(previous => previous + 1);
     } catch (error) {
+      setTeacherSettingsConflict(error instanceof StorageCommandError && error.serverCode === 'TEACHER_SETTING_CONFLICT' && !error.uncertainWrite);
       setTeacherSettingsSaveError(teacherSettingsSaveErrorMessage(error));
     } finally {
       teacherSettingsSavingRef.current = false;
@@ -10428,10 +10451,11 @@ export default function TimerPage() {
   };
 
   const refreshTeacherSavedState = async () => {
+    if (teacherSettingsSavingRef.current) return;
     const refreshVersion = getSaveRefreshVersion(0);
     try {
       const latest = await loadSharedSettingsRow();
-      if (!isSaveRefreshVersionCurrent(0, refreshVersion)) return;
+      if (teacherSettingsSavingRef.current || !isSaveRefreshVersionCurrent(0, refreshVersion)) return;
       const remote = normalizeSharedSchoolTimerSettings(latest?.value);
       if (!remote) return;
       teacherSettingsPersistedBaseRef.current = isStorageRecord(latest?.value) ? latest.value : {};
@@ -10439,6 +10463,11 @@ export default function TimerPage() {
       const preserved = normalizeSharedSchoolTimerSettings(applyAcknowledgedTeacherChanges({ ...remote }, changes));
       if (preserved) applySharedSettingsSnapshot(preserved, { applyManualTimer: false });
       teacherSettingsBaseRef.current = { ...remote };
+      if (preserved && createTeacherSettingsChanges(remote, preserved).length === 0) {
+        void confirmTeacherSettingsEditor(getTeacherSettingsEditorRequestId());
+        setTeacherSettingsConflict(false);
+        setTeacherSettingsSaveError('');
+      }
       lastSharedSettingsUpdatedAtRef.current = latest?.updated_at ?? null;
       teacherRefreshPendingRef.current = false;
       setTeacherRefreshPending(false);
@@ -12691,7 +12720,7 @@ export default function TimerPage() {
             </div>}
             {teacherSettingsSaveError && <div className="teacher-settings-save-status flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-5 py-2" role="status">
               <span>{teacherSettingsSaveError}</span>
-              <button type="button" className="min-h-11 rounded-full border px-4 font-bold disabled:cursor-wait disabled:opacity-60" disabled={isTeacherSettingsRetrying} onClick={() => void retryTeacherSettingsSave()}>{isTeacherSettingsRetrying ? '확인 중…' : '저장 다시 확인'}</button>
+              <button type="button" className="min-h-11 rounded-full border px-4 font-bold disabled:cursor-wait disabled:opacity-60" disabled={isTeacherSettingsRetrying} onClick={() => void retryTeacherSettingsSave()}>{isTeacherSettingsRetrying ? '저장 확인 중…' : teacherSettingsConflict ? '내 변경 저장' : '저장 다시 확인'}</button>
             </div>}
             <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
               <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">

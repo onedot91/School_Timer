@@ -29,6 +29,7 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
   const needsRecovery = compact && !!recovery && (recovery.pending > 0 || recovery.refreshPending || recovery.recovering);
   const [copied, setCopied] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [retryError, setRetryError] = useState('');
   const [reloadBlocked, setReloadBlocked] = useState(false);
   const [dialog, setDialog] = useState<Element | null>(null);
   useLayoutEffect(() => {
@@ -58,7 +59,12 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
   const retry = () => {
     if (actor === null || isRetrying) return;
     setIsRetrying(true);
-    void requestSaveRecovery(actor).then(() => setIsRetrying(false), () => setIsRetrying(false));
+    setRetryError('');
+    const check = actor === 0
+      ? import('../lib/teacherStorageClient').then(client => client.recheckTeacherSaveResults())
+      : requestSaveRecovery(actor);
+    void check.catch(() => setRetryError('확인을 완료하지 못했습니다. 설정에서 보관된 변경 내용을 확인해 주세요.'))
+      .finally(() => setIsRetrying(false));
   };
   const fallback = copyFallback ? <textarea aria-label="보관하지 못한 내용" readOnly value={copyFallback} onFocus={event => event.currentTarget.select()} className="max-h-28 min-w-0 p-2" /> : null;
   const recoveryDetails = recovery && recovery.pending > 0 && recovery.issues.length > 0 ? (
@@ -86,6 +92,7 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
           ? <button type="button" onClick={reload}>새로고침</button>
           : <button type="button" disabled={isRetrying || recovery?.recovering} onClick={retry}>{isRetrying ? '확인 중…' : '다시 확인'}</button>}
         {!unsafe && !activeNotice ? recoveryDetails : null}
+        {retryError ? <p role="status">{retryError}</p> : null}
         {reloadBlocked ? <p>내용을 복사한 뒤 새로고침해 주세요.</p> : null}
         {fallback}
       </div>

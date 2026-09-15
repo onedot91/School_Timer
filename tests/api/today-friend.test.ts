@@ -48,6 +48,32 @@ test('independent planning and submission reads overlap and failures never becom
 });
 const PREPARED_STATE = ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, WEEK_KEY, DATE_KEY);
 
+test('교사 승인 확인은 읽기 전용이며 학생에게 노출하지 않고 지급까지 확인한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let reads = 0;
+    const mission = getTodayFriendStudentMission(PREPARED_STATE, DATE_KEY, 1);
+    const draft = createTodayFriendSubmission({ dateKey: DATE_KEY, studentNumber: 1, partnerNumber: mission.partnerNumber, genre: mission.genre,
+      payload: createTodayFriendTextPayload(mission.genre, '합성 답변') });
+    try {
+      for (const rewardStatus of ['pending', 'paid'] as const) {
+        globalThis.fetch = async (_url, init) => {
+          reads++;
+          assert.equal(init?.method ?? 'GET', 'GET');
+          return Response.json([toSubmissionRow({ ...draft, status: 'approved', rewardStatus })]);
+        };
+        const output = createResponse();
+        await handler({ method: 'GET', headers: sessionHeaders('teacher'), query: { reviewSubmissionId: draft.id } }, output.response);
+        assert.deepEqual(output.result(), { statusCode: 200, body: { submissionId: draft.id, approved: rewardStatus === 'paid' } });
+      }
+      const output = createResponse();
+      await handler({ method: 'GET', headers: sessionHeaders('student'), query: { reviewSubmissionId: draft.id } }, output.response);
+      assert.equal(output.result().statusCode, 403);
+      assert.equal(reads, 2);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
 const createResponse = () => {
   let statusCode = 200;
   let body: unknown;
