@@ -48,6 +48,80 @@ test('independent planning and submission reads overlap and failures never becom
 });
 const PREPARED_STATE = ensureTodayFriendDay(TODAY_FRIEND_INITIAL_STATE, WEEK_KEY, DATE_KEY);
 
+test('23 simultaneous student GETs share pending planning only and read each student submission separately', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let plans = 0;
+    const students: number[] = [];
+    let release = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    try {
+      globalThis.fetch = async (input) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('load_today_friend_context_v2')) {
+          plans++;
+          await gate;
+          return Response.json({ state: PREPARED_STATE, revision: 'fixture-plan' });
+        }
+        students.push(Number(url.searchParams.get('student_number')?.slice(3)));
+        return Response.json([]);
+      };
+      const outputs = Array.from({ length: 23 }, createResponse);
+      const pending = outputs.map((output, index) => handler({ method: 'GET', headers: sessionHeaders('student', index + 1), query: { dateKey: DATE_KEY } }, output.response));
+      assert.equal(plans, 1);
+      assert.deepEqual(students, Array.from({ length: 23 }, (_, index) => index + 1));
+      release();
+      await Promise.all(pending);
+      outputs.forEach((output, index) => {
+        assert.equal(output.result().statusCode, 200);
+        assert.deepEqual(output.result().body, { ...getTodayFriendStudentMission(PREPARED_STATE, DATE_KEY, index + 1), planningRevision: 'fixture-plan' });
+      });
+      await handler({ method: 'GET', headers: sessionHeaders('student', 1), query: { dateKey: DATE_KEY } }, createResponse().response);
+      assert.equal(plans, 2);
+    } finally { release(); globalThis.fetch = originalFetch; }
+  });
+});
+
+test('planning coalescing isolates dates and credentials while mutation reads remain fresh', async () => {
+  const originalFetch = globalThis.fetch;
+  const configuration = { url: 'https://fake.invalid', key: 'fake' };
+  let plans = 0;
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  try {
+    globalThis.fetch = async (input) => {
+      if (String(input).includes('submissions?')) return Response.json([]);
+      plans++;
+      await gate;
+      return Response.json({ state: null, revision: 'fixture-plan' });
+    };
+    const reads = [
+      loadTodayFriendMission(configuration, DATE_KEY, 1, { sharePlanningRead: true }),
+      loadTodayFriendMission(configuration, DATE_KEY, 2, { sharePlanningRead: true }),
+      loadTodayFriendMission(configuration, DATE_KEY, 1),
+      loadTodayFriendMission(configuration, '2026-09-02', 1, { sharePlanningRead: true }),
+      loadTodayFriendMission({ ...configuration, key: 'other' }, DATE_KEY, 1, { sharePlanningRead: true }),
+      loadTodayFriendMission({ ...configuration, url: 'https://other.invalid' }, DATE_KEY, 1, { sharePlanningRead: true }),
+    ];
+    assert.equal(plans, 5);
+    release();
+    await Promise.all(reads);
+  } finally { release(); globalThis.fetch = originalFetch; }
+});
+
+test('failed coalesced planning reads reject every caller and allow a fresh retry', async () => {
+  const originalFetch = globalThis.fetch;
+  const configuration = { url: 'https://fake.invalid', key: 'fake' };
+  try {
+    globalThis.fetch = async input => String(input).includes('submissions?') ? Response.json([]) : Response.json({}, { status: 503 });
+    const results = await Promise.allSettled([1, 2].map(student => loadTodayFriendMission(configuration, DATE_KEY, student, { sharePlanningRead: true })));
+    assert.ok(results.every(result => result.status === 'rejected' && result.reason instanceof Error && result.reason.message === 'TODAY_FRIEND_DATABASE_HTTP_503'));
+    globalThis.fetch = async input => Response.json(String(input).includes('submissions?') ? [] : { state: null, revision: 'recovered' });
+    const recovered = await loadTodayFriendMission(configuration, DATE_KEY, 1, { sharePlanningRead: true });
+    assert.equal(recovered.planningRevision, 'recovered');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('교사 승인 확인은 읽기 전용이며 학생에게 노출하지 않고 지급까지 확인한다', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;

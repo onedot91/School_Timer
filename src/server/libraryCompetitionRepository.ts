@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 import type { LibraryCompetitionStanding } from '../lib/libraryCompetition.js';
-import type { StudentBook } from '../lib/studentLife.js';
+import { normalizeStudentLifeState, type StudentBook } from '../lib/studentLife.js';
+import type { LibraryPlacementCommand } from '../lib/canvasLibraryPlacement.js';
 import { parseCompetitionHistoryResponse } from '../lib/libraryCompetitionResponse.js';
 import { canonicalStorageJson } from '../lib/storageV2Codec.js';
-import { commitScopedStorageMutation, loadScopedStorageSnapshot, StorageRepositoryError, type ScopedStorageSnapshot } from './storageV2Repository.js';
+import { commitScopedStorageMutation, loadScopedStorageSnapshot, parseScopedStorageSnapshot, storagePayloadHash, StorageRepositoryError, type ScopedStorageSnapshot } from './storageV2Repository.js';
+import { measureStorageRequest } from './storageRequestTiming.js';
 import { parseStorageScope, type StorageScope } from './storageScope.js';
 
 export type CompetitionConfiguration = { readonly url: string; readonly key: string };
@@ -28,6 +30,35 @@ export const libraryCompetitionStorageScope = (studentNumber?: number): StorageS
 export async function loadCompetitionRow(configuration: CompetitionConfiguration, studentNumber?: number): Promise<CompetitionRow | null> {
   const snapshot = await loadScopedStorageSnapshot(configuration, libraryCompetitionStorageScope(studentNumber));
   return { ...snapshot, id: 'school-timer-main', updated_at: snapshot.updated_at };
+}
+
+export async function placeCompetitionBook(configuration: CompetitionConfiguration, studentNumber: number, command: LibraryPlacementCommand) {
+  const body: unknown = await measureStorageRequest(async () => {
+    const response = await fetch(`${configuration.url}/rest/v1/rpc/storage_place_library_book`, {
+      method: 'POST', headers: headers(configuration), signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({ p_student_number: studentNumber, p_command: command,
+        p_payload_hash: storagePayloadHash(command.action, command), p_protocol_version: 2 }),
+    });
+    const payload: unknown = await response.json();
+    if (!response.ok) {
+      const message = competitionRecord(payload).message;
+      const statuses: Record<string, number> = { INVALID_LIBRARY_COMMAND: 400, STORAGE_REQUEST_REUSED: 409,
+        LIBRARY_COMPETITION_INVALID_STATE: 502, STORAGE_MAINTENANCE: 503, STORAGE_NOT_ACTIVE: 503 };
+      const code = typeof message === 'string' && Object.hasOwn(statuses, message) ? message : response.status === 404 ? 'LIBRARY_COMPETITION_UNAVAILABLE' : 'LIBRARY_SAVE_FAILED';
+      throw new LibraryCompetitionError(code, statuses[code] ?? (response.status === 404 ? 503 : 502));
+    }
+    return payload;
+  });
+  const payload = competitionRecord(body);
+  const rejected: Record<string, number> = { LIBRARY_SEASON_ROLLOVER_REQUIRED: 409, LIBRARY_SEASON_CHANGED: 409,
+    LIBRARY_BOOK_FORBIDDEN: 403, LIBRARY_BOOK_ALREADY_PLACED: 409, LIBRARY_FULL: 409, LIBRARY_SLOT_OCCUPIED: 409 };
+  if (typeof payload.error === 'string' && Object.hasOwn(rejected, payload.error)) throw new LibraryCompetitionError(payload.error, rejected[payload.error]);
+  const result = competitionRecord(payload.result);
+  const book = normalizeStudentLifeState({ books: [result.book] }).books[0];
+  if (payload.saved !== true || !book || book.studentNumber !== studentNumber || book.librarySlot !== command.slotId) throw new LibraryCompetitionError('LIBRARY_COMPETITION_INVALID_RESPONSE');
+  const snapshot = parseScopedStorageSnapshot(payload.snapshot);
+  if (canonicalStorageJson(snapshot.scope) !== canonicalStorageJson(libraryCompetitionStorageScope(studentNumber))) throw new LibraryCompetitionError('LIBRARY_COMPETITION_INVALID_RESPONSE');
+  return { book, row: { ...snapshot, id: 'school-timer-main', updated_at: snapshot.updated_at } satisfies CompetitionRow };
 }
 
 export async function commitCompetition(configuration: CompetitionConfiguration, mutation: {

@@ -6,7 +6,6 @@ import { loadScopedStorageSnapshot, loadStorageSnapshot, loadStorageSnapshotForR
 import { TEST_STUDENT_NUMBER } from '../src/lib/studentIdentity.js';
 
 import {
-  applyLibraryPlacementCommand,
   parseLibraryPlacementCommand,
   replaceSnapshotBooksWithAuthoritative,
   type LibraryPlacementCommand,
@@ -14,9 +13,8 @@ import {
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import { STUDENT_MUTABLE_MAP_FIELDS, STUDENT_MUTABLE_PROGRESS_FIELDS, STUDENT_MUTABLE_SHARED_FIELDS } from '../src/lib/studentSettingsUpdate.js';
-import { parseLibraryCompetitionState } from '../src/lib/libraryCompetition.js';
 import { competitionView, ensureCompetition, isCompetitionCommand, updateCompetitionSettings } from '../src/server/libraryCompetitionService.js';
-import { commitCompetition, competitionRecord, LibraryCompetitionError, loadCompetitionHistory, loadCompetitionRow } from '../src/server/libraryCompetitionRepository.js';
+import { placeCompetitionBook, competitionRecord, LibraryCompetitionError, loadCompetitionHistory, loadCompetitionRow } from '../src/server/libraryCompetitionRepository.js';
 
 interface ApiRequest {
   readonly method?: string;
@@ -313,58 +311,24 @@ const handleLibraryPlacement = async (
   configuration: { readonly url: string; readonly key: string },
   response: ApiResponse,
 ) => {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const loaded = await loadCompetitionRow(configuration, studentNumber);
-    if (loaded?.value.libraryCompetition) await ensureCompetition(configuration, false);
-    const current = loaded?.value.libraryCompetition ? await loadCompetitionRow(configuration, studentNumber) : loaded;
-    const createdAt = nextUpdatedAt(current?.updated_at ?? null);
-    const placement = applyLibraryPlacementCommand(current?.value ?? {}, studentNumber, command, createdAt);
-    if (placement.ok === false) {
-      response.status(placement.error.status).json({ error: placement.error.code });
-      return;
-    }
-    if (placement.replayed) {
-      if (!current) throw new Error('SHARED_SETTINGS_DATABASE_INVALID_RESPONSE');
-      cacheUpdatedAt(configuration.url, current.updated_at);
-      response.status(200).json({
-        book: placement.book,
-        updatedAt: current.updated_at,
-        value: projectStudentValue(current.value, studentNumber),
-        storagePatch: createStorageProjectionPatch(current, projectStudentValue(current.value, studentNumber)),
-      });
-      return;
-    }
-    if (Buffer.byteLength(JSON.stringify(placement.value), 'utf8') > MAX_SETTINGS_BYTES) {
-      response.status(400).json({ error: 'INVALID_LIBRARY_COMMAND' });
-      return;
-    }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const value = placement.value;
-      const saved = await commitCompetition(configuration, { current, value, updatedAt: createdAt,
-        actorKey: `student:${studentNumber}`, requestId: command.requestId, action: 'placeLibraryBook', payload: command,
-        result: { book: placement.book },
-      }) ? 'saved' : 'conflict';
-      if (saved === 'saved') {
-        const confirmed = await loadCompetitionRow(configuration, studentNumber);
-        if (!confirmed) throw new Error('STORAGE_INVALID_RESPONSE');
-        const projected = projectStudentValue(confirmed.value, studentNumber);
-        cacheUpdatedAt(configuration.url, confirmed.updated_at);
-        response.status(200).json({
-          book: placement.book,
-          updatedAt: confirmed.updated_at,
-          value: projected,
-          storagePatch: createStorageProjectionPatch(confirmed, projected),
-        });
-        return;
-      }
+      const { book, row } = await placeCompetitionBook(configuration, studentNumber, command);
+      const value = projectStudentValue(row.value, studentNumber);
+      cacheUpdatedAt(configuration.url, row.updated_at);
+      response.status(200).json({ book, updatedAt: row.updated_at, value,
+        storagePatch: createStorageProjectionPatch(row, value) });
+      return;
     } catch (error) {
-      const isAmbiguousTimeout = error instanceof TypeError
-        || (error instanceof DOMException && error.name === 'TimeoutError');
-      if (!isAmbiguousTimeout) throw error;
+      if (attempt === 0 && error instanceof LibraryCompetitionError && error.code === 'LIBRARY_SEASON_ROLLOVER_REQUIRED') {
+        await ensureCompetition(configuration, false);
+        continue;
+      }
+      const ambiguous = error instanceof TypeError || (error instanceof DOMException && error.name === 'TimeoutError');
+      if (attempt === 0 && ambiguous) continue;
+      throw error;
     }
-    if (attempt < 4) await waitForRetry();
   }
-  response.status(409).json({ error: 'SHARED_SETTINGS_CONFLICT' });
 };
 
 const loadStudentRow = async (url: string, key: string, studentNumber: number) => {

@@ -9,6 +9,7 @@ import { normalizeStudentPetStates } from '../../src/lib/studentPet.js';
 import { appendNumberBaseballAttempt, createNumberBaseballAnswer, createNumberBaseballProgressEntry, getNumberBaseballGameId } from '../../src/lib/numberBaseball.js';
 import { createStudentEmotionEntry, upsertStudentEmotionEntry } from '../../src/lib/studentEmotion.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
+import { createLibraryCompetition } from '../../src/lib/libraryCompetition.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
 let environmentSequence = 0;
@@ -930,7 +931,7 @@ const createStatefulStorageV2 = (initial: FakeSettingsRow | null, options: { rea
   const fetcher: typeof fetch = async (input, init) => {
     requests.push({ url: String(input), method: init?.method ?? 'GET', body: init?.body ? JSON.parse(String(init.body)) : null });
     const response = await fixture.fetch(input, init);
-    if ((String(input).endsWith('/storage_load_snapshot') || String(input).endsWith('/storage_load_scope'))) {
+    if ((String(input).endsWith('/storage_load_snapshot') || String(input).endsWith('/storage_load_scope') || String(input).endsWith('/storage_place_library_book'))) {
       reads += 1;
       if (options.readBarrier && reads === options.readBarrier) release?.();
       if (options.readBarrier && reads <= options.readBarrier) await barrier;
@@ -950,6 +951,105 @@ const placementCommand = (
   requestId,
   slotId,
   book: { kind: 'new', title, author: '고마 작가', pageCount: 321 },
+});
+
+test('current-season placement commits and returns its authoritative projection in one RPC', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalNow = Date.now;
+    const at = '2026-09-15T00:00:00.000Z';
+    const fake = createStatefulStorageV2({
+      id: 'school-timer-main', updated_at: at,
+      value: {
+        currencyBalances: { 1: 145, 2: 999 }, currencyHistory: { 1: [], 2: [] },
+        studentLife: { books: [] },
+        libraryCompetition: createLibraryCompetition({ seasonId: '2026-09', seed: 'placement-current', startedAt: at, bookIds: [] }),
+      },
+    });
+    Date.now = () => Date.parse(at);
+    globalThis.fetch = fake.fetch;
+    try {
+      const result = createResponse();
+      await handler({ method: 'PUT', headers: studentHeaders(1), body: { ...placementCommand('11111111-1111-4111-8111-111111111111', 17), seasonId: '2026-09' } }, result.response);
+      assert.equal(result.result().statusCode, 200);
+      assert.deepEqual(fake.requests.map(request => new URL(request.url).pathname), [
+        '/rest/v1/rpc/storage_place_library_book',
+      ]);
+      assert.deepEqual(fake.state().value.currencyBalances, { 1: 155, 2: 999 });
+      const payload = result.result().body as { value: Record<string, unknown>; updatedAt: string };
+      assert.deepEqual(payload.value.currencyBalances, { 1: 155 });
+      assert.equal(payload.updatedAt, fake.state().updated_at);
+    } finally {
+      globalThis.fetch = originalFetch;
+      Date.now = originalNow;
+    }
+  });
+});
+
+test('placement rolls over the season and reloads the student wallet and history before rewarding', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const originalNow = Date.now;
+    const at = '2026-09-15T00:00:00.000Z';
+    const previousAt = '2026-08-15T00:00:00.000Z';
+    const history = [{ id: 'previous-reward', studentNumber: 1, before: 100, after: 145, delta: 45, reason: 'manual', createdAt: previousAt }];
+    const otherHistory = [{ ...history[0], id: 'other-reward', studentNumber: 2, after: 999, delta: 899 }];
+    const oldBook = { id: 'previous-book', studentNumber: 2, title: '지난달 책', author: '작가', pageCount: 100, createdAt: previousAt, colorIndex: 0, librarySlot: 17 };
+    const fake = createStatefulStorageV2({
+      id: 'school-timer-main', updated_at: previousAt,
+      value: {
+        currencyBalances: { 1: 145, 2: 999 }, currencyHistory: { 1: history, 2: otherHistory },
+        studentLife: { books: [oldBook] },
+        libraryCompetition: createLibraryCompetition({ seasonId: '2026-08', seed: 'placement-rollover', startedAt: previousAt, bookIds: [oldBook.id] }),
+      },
+    });
+    Date.now = () => Date.parse(at);
+    globalThis.fetch = fake.fetch;
+    try {
+      const result = createResponse();
+      await handler({ method: 'PUT', headers: studentHeaders(1), body: { ...placementCommand('22222222-2222-4222-8222-222222222222', 17), seasonId: '2026-09' } }, result.response);
+      assert.equal(result.result().statusCode, 200);
+      assert.equal(fake.requests.length, 5);
+      const commits = fake.requests.filter(request => request.url.endsWith('/storage_commit_scoped_mutation'));
+      assert.equal(commits.length, 1);
+      assert.deepEqual(Reflect.get(Object(commits[0].body), 'p_archive').books, [oldBook]);
+      const reads = fake.requests.filter(request => request.url.endsWith('/storage_load_scope'));
+      assert.deepEqual(reads.map(request => Reflect.get(Object(request.body), 'p_scope').wallets), [[], []]);
+      const state = fake.state().value;
+      assert.deepEqual(state.currencyBalances, { 1: 155, 2: 999 });
+      assert.deepEqual(Reflect.get(Object(state.currencyHistory), '2'), otherHistory);
+      const savedHistory = Reflect.get(Object(state.currencyHistory), '1') as Array<{ id: string }>;
+      assert.equal(savedHistory.length, 2);
+      assert.deepEqual(savedHistory.find(entry => entry.id === history[0].id), history[0]);
+      assert.equal(Reflect.get(Object(state.libraryCompetition), 'seasonId'), '2026-09');
+      const books = Reflect.get(Object(state.studentLife), 'books') as Array<{ id: string }>;
+      assert.equal(books.length, 1);
+      assert.notEqual(books[0].id, oldBook.id);
+    } finally {
+      globalThis.fetch = originalFetch;
+      Date.now = originalNow;
+    }
+  });
+});
+
+test('placement rejects invalid competition state without writing', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    const fake = createStatefulStorageV2({
+      id: 'school-timer-main', updated_at: '2026-09-15T00:00:00.000Z',
+      value: { currencyBalances: { 1: 145 }, studentLife: { books: [] }, libraryCompetition: { seasonId: '2026-09' } },
+    });
+    globalThis.fetch = fake.fetch;
+    try {
+      const result = createResponse();
+      await handler({ method: 'PUT', headers: studentHeaders(1), body: placementCommand('33333333-3333-4333-8333-333333333333', 17) }, result.response);
+      assert.deepEqual(result.result(), { statusCode: 502, body: { error: 'LIBRARY_COMPETITION_INVALID_STATE' } });
+      assert.ok(fake.requests.every(request => request.url.endsWith('/storage_place_library_book')));
+      assert.deepEqual(fake.state().value.currencyBalances, { 1: 145 });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 
 test('다른 탭의 학생 인증으로 바뀐 책장 저장은 서버 기록과 보상을 변경하지 않는다', async () => {
@@ -1072,8 +1172,8 @@ test('simultaneous first book records preserve both commands without replacing t
       ]);
       assert.deepEqual(responses.map(({ result }) => result().statusCode), [200, 200]);
       assert.equal((fake.state()?.value.studentLife as { books: unknown[] }).books.length, 2);
-      const commits = fake.requests.filter(request => request.url.endsWith('/storage_commit_scoped_mutation'));
-      assert.ok(commits.length >= 2);
+      const commits = fake.requests.filter(request => request.url.endsWith('/storage_place_library_book'));
+      assert.equal(commits.length, 2);
       assert.equal(fake.receipts.size, 2);
       assert.equal(fake.requests.some(request => new URL(request.url).pathname.endsWith('/app_settings')), false);
     } finally {
@@ -1209,13 +1309,13 @@ test('placement rejects malformed authoritative rows and upstream write failures
         method: 'PUT', headers: studentHeaders(1),
         body: placementCommand('99999999-9999-4999-8999-999999999999', 50),
       }, malformed.response);
-      assert.deepEqual(malformed.result(), { statusCode: 502, body: { error: 'LIBRARY_SAVE_FAILED' } });
+      assert.deepEqual(malformed.result(), { statusCode: 502, body: { error: 'LIBRARY_COMPETITION_INVALID_RESPONSE' } });
 
       let fetchCount = 0;
       const backing = createStorageV2Fixture({ studentLife: { books: [] } });
       globalThis.fetch = async (input, init) => {
         fetchCount += 1;
-        return String(input).endsWith('/storage_commit_scoped_mutation')
+        return String(input).endsWith('/storage_place_library_book')
           ? Response.json({ error: 'synthetic' }, { status: 500 })
           : backing.fetch(input, init);
       };
@@ -1225,14 +1325,14 @@ test('placement rejects malformed authoritative rows and upstream write failures
         body: placementCommand('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab', 51),
       }, failedWrite.response);
       assert.deepEqual(failedWrite.result(), { statusCode: 502, body: { error: 'LIBRARY_SAVE_FAILED' } });
-      assert.equal(fetchCount, 2);
+      assert.equal(fetchCount, 1);
     } finally {
       globalThis.fetch = originalFetch;
     }
   });
 });
 
-test('placement stops after five fresh CAS conflicts and leaves authoritative state unchanged', async () => {
+test('placement rejects an unconfirmed transaction without reporting success or retrying a false result', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;
     const authoritative = {
@@ -1256,9 +1356,9 @@ test('placement stops after five fresh CAS conflicts and leaves authoritative st
         method: 'PUT', headers: studentHeaders(1),
         body: placementCommand('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 60),
       }, response.response);
-      assert.deepEqual(response.result(), { statusCode: 409, body: { error: 'SHARED_SETTINGS_CONFLICT' } });
-      assert.equal(reads, 5);
-      assert.equal(patches, 5);
+      assert.deepEqual(response.result(), { statusCode: 502, body: { error: 'LIBRARY_COMPETITION_INVALID_RESPONSE' } });
+      assert.equal(reads, 0);
+      assert.equal(patches, 1);
       assert.deepEqual(authoritative.value, { marker: 'keep', studentLife: { books: [] } });
     } finally {
       globalThis.fetch = originalFetch;

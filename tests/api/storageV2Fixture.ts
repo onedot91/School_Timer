@@ -1,5 +1,8 @@
 import { assembleStorageState, isStorageRecord, splitStorageState, storageScopeKey, type StorageResource, type StorageWallet, type StorageHistoryRecord } from '../../src/lib/storageV2Codec.js';
-import { parseStorageSnapshot } from '../../src/server/storageV2Repository.js';
+import { buildScopedStorageMutation, parseScopedStorageSnapshot, parseStorageSnapshot } from '../../src/server/storageV2Repository.js';
+import { applyLibraryPlacementCommand } from '../../src/lib/canvasLibraryPlacement.js';
+import { getLibraryCompetitionMonth, parseLibraryCompetitionState } from '../../src/lib/libraryCompetition.js';
+import { libraryCompetitionStorageScope } from '../../src/server/libraryCompetitionRepository.js';
 import { parseStorageScope, storageResourceMatchesScope, storageScopeRevisionKeys, storageScopeStructuralKeys, storageStructuralAncestor } from '../../src/server/storageScope.js';
 
 /** Disposable RPC adapter. Real PostgreSQL integration separately verifies the transaction implementation. */
@@ -15,12 +18,44 @@ export const createStorageV2Fixture = (initialValue: Record<string, unknown>, in
   const receipts = new Map<string, Record<string, unknown>>();
   let commitFailure = 0;
   let loseResponse = false;
+  let placementQueue: Promise<unknown> = Promise.resolve();
   const snapshot = () => ({ ...encoded, updated_at: updatedAt, revisions: { ...revisions } });
   const read = () => ({ id: 'school-timer-main', value: assembleStorageState(encoded), updated_at: updatedAt, revisions: { ...revisions } });
   const fetcher: typeof fetch = async (input, init) => {
     const url = new URL(String(input));
     const body: unknown = init?.body ? JSON.parse(String(init.body)) : {};
     if (!isStorageRecord(body)) throw new Error('Invalid fixture command');
+    if (url.pathname.endsWith('/storage_place_library_book')) {
+      const transaction = placementQueue.then(async () => {
+        if (commitFailure) return Response.json({ code: 'P0001' }, { status: commitFailure });
+        if (typeof body.p_student_number !== 'number' || !isStorageRecord(body.p_command) || typeof body.p_command.requestId !== 'string') throw new Error('Invalid fixture placement');
+        const command = body.p_command;
+        const studentNumber = body.p_student_number;
+        const requestId = body.p_command.requestId;
+        const actor = `student:${body.p_student_number}`;
+        const previous = receipts.get(`${actor}:${command.requestId}`);
+        const scopedRead = async () => (await fetcher(`${url.origin}/rest/v1/rpc/storage_load_scope`, { body: JSON.stringify({ p_scope: libraryCompetitionStorageScope(studentNumber) }) })).json();
+        if (previous) {
+          if (previous.payloadHash !== body.p_payload_hash) return Response.json({ message: 'STORAGE_REQUEST_REUSED' }, { status: 409 });
+          return Response.json({ saved: true, result: previous.result, snapshot: await scopedRead() });
+        }
+        const current = read().value;
+        const competition = parseLibraryCompetitionState(current.libraryCompetition);
+        if (current.libraryCompetition && !competition) return Response.json({ message: 'LIBRARY_COMPETITION_INVALID_STATE' }, { status: 502 });
+        if (competition && competition.seasonId !== getLibraryCompetitionMonth(new Date(Date.now()).toISOString())) return Response.json({ error: 'LIBRARY_SEASON_ROLLOVER_REQUIRED', status: 409 });
+        const at = new Date(Math.max(Date.now(), Date.parse(updatedAt) + 1)).toISOString();
+        const placement = applyLibraryPlacementCommand(current, body.p_student_number, command, at);
+        if (placement.ok === false) return Response.json({ error: placement.error.code, status: placement.error.status });
+        const mutation = buildScopedStorageMutation({ snapshot: parseScopedStorageSnapshot(await scopedRead()), value: placement.value,
+          actorKey: actor, requestId, action: 'placeLibraryBook', payload: command, result: { book: placement.book, updatedAt: at } });
+        const committed = await fetcher(`${url.origin}/rest/v1/rpc/storage_commit_scoped_mutation`, { body: JSON.stringify(mutation) });
+        const result: unknown = await committed.json();
+        if (!committed.ok) return Response.json(result, { status: committed.status });
+        return Response.json({ ...isStorageRecord(result) ? result : {}, snapshot: await scopedRead() });
+      });
+      placementQueue = transaction.catch(() => undefined);
+      return transaction;
+    }
     if (url.pathname.endsWith('/storage_load_updated_at')) return Response.json(updatedAt);
     if (url.pathname.endsWith('/storage_load_snapshot')) return Response.json(snapshot());
     if (url.pathname.endsWith('/storage_load_scope')) {

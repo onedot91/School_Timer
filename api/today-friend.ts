@@ -101,7 +101,7 @@ const handleGet = async (
     response.status(200).json(null);
     return;
   }
-  response.status(200).json(await loadTodayFriendMission(configuration, dateKey, session.studentNumber));
+  response.status(200).json(await loadTodayFriendMission(configuration, dateKey, session.studentNumber, { sharePlanningRead: true }));
 };
 
 const updatePlan = async (

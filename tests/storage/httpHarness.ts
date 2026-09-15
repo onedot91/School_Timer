@@ -16,7 +16,7 @@ import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const FIXTURE_SECRET = 'isolated-http-fixture-session-secret-2026';
 const KEY = 'isolated-fixture-service-key';
-const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_load_updated_at', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2']);
+const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_load_updated_at', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2', 'storage_place_library_book']);
 interface Database { query(sql: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>; end(): Promise<void> }
 const database = (name: string): Database => {
   const driver: unknown = createRequire(import.meta.url)(process.env.STORAGE_TEST_PG_MODULE ?? '/tmp/school-storage-runtime/node_modules/pg/lib/index.js');
@@ -53,7 +53,7 @@ const listen = async (server: ReturnType<typeof createServer>, port: number): Pr
   await new Promise<void>((done, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', done); });
   const address = server.address(); if (!address || typeof address === 'string') throw new Error('FIXTURE_LISTEN_FAILED'); return address.port;
 };
-export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018, staticDirectory = process.env.STORAGE_HTTP_DIST ?? resolve(ROOT,'dist'), publicDirectory, writeRejection }: { readonly name?: string; readonly port?: number; readonly staticDirectory?: string; readonly publicDirectory?: string; readonly writeRejection?: () => Promise<'maintenance' | 'update' | null> } = {}) => {
+export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018, staticDirectory = process.env.STORAGE_HTTP_DIST ?? resolve(ROOT,'dist'), publicDirectory, writeRejection, initialValue, rpcDelayMs = 0 }: { readonly name?: string; readonly port?: number; readonly staticDirectory?: string; readonly publicDirectory?: string; readonly writeRejection?: () => Promise<'maintenance' | 'update' | null>; readonly initialValue?: Record<string, unknown>; readonly rpcDelayMs?: number } = {}) => {
   if (!/^storage_http_test(?:_[a-z0-9_]+)?$/.test(name)) throw new Error('FIXTURE_DATABASE_NAME_REQUIRED');
   const admin = database('postgres');
   const exists = (await admin.query('select 1 from pg_database where datname=$1', [name])).rows.length > 0;
@@ -62,10 +62,10 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
   const db = database(name);
   const initialized = await db.query("select to_regclass('public.storage_backups') as table_name");
   const ready = initialized.rows[0]?.table_name != null && (await db.query('select 1 from storage_backups limit 1')).rows.length > 0;
-  for (const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','storage_classword_v2.sql','storage_audit_v2.sql','storage_scoped_v2.sql','storage_read_performance.sql']) await db.query(await readFile(resolve(ROOT, 'supabase', file), 'utf8'));
+  for (const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','storage_classword_v2.sql','storage_audit_v2.sql','storage_scoped_v2.sql','storage_read_performance.sql','storage_library_placement_v2.sql']) await db.query(await readFile(resolve(ROOT, 'supabase', file), 'utf8'));
   if (!ready) {
-    const source = fakeClassroom(), encoded = splitStorageState(source), timestamp = '2026-09-08T00:00:00Z';
-    await db.query("insert into app_settings(id,value,updated_at) values('school-timer-main',$1,$2)", [source,timestamp]);
+    const source = initialValue ?? fakeClassroom(), encoded = splitStorageState(source), timestamp = '2026-09-08T00:00:00Z';
+    await db.query("with config as materialized (select set_config('school_timer.library_competition_commit','on',true)) insert into app_settings(id,value,updated_at) select 'school-timer-main',$1,$2 from config", [source,timestamp]);
     await db.query('select storage_set_maintenance(true)');
     await db.query('select storage_bootstrap($1,$2,$3,$4,$5)', [timestamp,source,JSON.stringify(encoded.resources),JSON.stringify(encoded.wallets),JSON.stringify(encoded.history)]);
     await db.query('select storage_set_maintenance(false,true)');
@@ -81,11 +81,13 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
       metrics.push(metric);
       const started = performance.now();
       try {
+        if (rpcDelayMs) await new Promise(resolve => setTimeout(resolve, rpcDelayMs));
         const result = await db.query(`select public.${rpc}(${keys.map((key,index)=>`${key} => $${index+1}`).join(',')}) result`, keys.map(key => Array.isArray(input[key]) ? JSON.stringify(input[key]) : input[key]));
         const body = result.rows[0]?.result;
         metric.milliseconds = performance.now() - started;
         metric.responseBytes = Buffer.byteLength(JSON.stringify(body));
         metric.rows = isStorageRecord(body) ? ['resources', 'wallets', 'history'].reduce((total, key) => total + (Array.isArray(body[key]) ? body[key].length : 0), 0) : 0;
+        if (rpcDelayMs) await new Promise(resolve => setTimeout(resolve, rpcDelayMs));
         json(response,200,body);
       } catch (error) {
         const code = error instanceof Error ? Reflect.get(error,'code') : undefined;

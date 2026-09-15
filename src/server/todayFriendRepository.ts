@@ -73,6 +73,23 @@ const getWeekKey = (dateKey: string): string => (
   getKoreanIsoWeekKey(new Date(`${dateKey}T12:00:00+09:00`))
 );
 
+const planningContextReads = new Map<string, Promise<unknown>>();
+const loadPlanningContext = (configuration: TodayFriendRepositoryConfiguration, dateKey: string, shareRead: boolean): Promise<unknown> => {
+  const read = () => request(configuration, 'rpc/load_today_friend_context_v2', {
+    method: 'POST', body: JSON.stringify({ p_date_key: dateKey, p_week_key: getWeekKey(dateKey) }),
+  });
+  if (!shareRead) return read();
+  const identity = JSON.stringify([configuration.url, configuration.key, dateKey]);
+  const existing = planningContextReads.get(identity);
+  if (existing) return existing;
+  // Share only pending GET planning reads. Submissions and mutation checks remain independent.
+  const pending = read().finally(() => {
+    if (planningContextReads.get(identity) === pending) planningContextReads.delete(identity);
+  });
+  planningContextReads.set(identity, pending);
+  return pending;
+};
+
 const savePlanningState = async (
   configuration: TodayFriendRepositoryConfiguration,
   state: TodayFriendState,
@@ -126,9 +143,10 @@ export const loadTodayFriendMission = async (
   configuration: TodayFriendRepositoryConfiguration,
   dateKey: string,
   studentNumber: number,
+  options: { readonly sharePlanningRead?: boolean } = {},
 ): Promise<TodayFriendStudentMission> => {
   const [context, submissions] = await Promise.all([
-    request(configuration, 'rpc/load_today_friend_context_v2', { method: 'POST', body: JSON.stringify({ p_date_key: dateKey, p_week_key: getWeekKey(dateKey) }) }),
+    loadPlanningContext(configuration, dateKey, options.sharePlanningRead === true),
     loadSubmissionRows(configuration, `submission_date=eq.${encodeURIComponent(dateKey)}&student_number=eq.${studentNumber}`),
   ]);
   if (!context || typeof context !== 'object') throw new TodayFriendRepositoryError(502, 'TODAY_FRIEND_DATABASE_INVALID_RESPONSE');

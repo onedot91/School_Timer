@@ -54,6 +54,7 @@ const main = async () => {
     ['reward-sql', process.execPath, ['tests/storage/run-rewards-v2.mjs']],
     ['classword-sql', process.execPath, ['tests/storage/classword-concurrency.mjs']],
     ['http', process.execPath, ['--import', 'tsx', '--test', 'tests/storage/httpHarness.test.ts', 'tests/storage/rewardAudit.test.ts', 'tests/storage/economyScope.integration.test.ts']],
+    ['library-concurrency', process.execPath, ['--import', 'tsx', 'tests/storage/libraryPlacementConcurrency.ts']],
     ['emitted-runtime', process.execPath, ['--test', 'tests/storage/emittedRuntime.test.mjs']],
     ['restore-drill', process.execPath, ['--import', 'tsx', 'dev/storageRestoreDrill.ts']],
     ['production-build', 'npm', ['run', 'build']],
