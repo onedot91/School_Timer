@@ -74,19 +74,29 @@ const executeTeacherCommand = async (command: StorageCommand) => {
 
 export const executeTeacherStorageCommand = (command: StorageCommand) => serializeStudentSave(0, () => executeTeacherCommand(command)).finally(() => notifySaveRecovery());
 
-export const recheckTeacherSaveResults = async (): Promise<void> => {
-  await requestSaveRecovery(0);
+export const recheckTeacherSaveResults = async () => {
+  const context = captureStorageResponseContext();
+  await teacherStorageDrafts.refresh();
+  if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+  const checked = await requestSaveRecovery(0);
+  const scope = teacherCommandScope({ action: 'teacher.settings.patch', payload: {} });
+  if (!teacherStorageDrafts.load(scope)) return checked;
   try {
     await serializeStudentSave(0, async () => {
-      const scope = teacherCommandScope({ action: 'teacher.settings.patch', payload: {} });
+      if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
       const pending = teacherStorageDrafts.load(scope);
       if (!pending) return;
-      const result = await executeStorageCommand({ requestId: pending.draft.requestId, action: 'teacher.settings.patch', payload: pending.draft.payload });
+      const result = await executeStorageCommand({ requestId: pending.draft.requestId, action: 'teacher.settings.patch', payload: pending.draft.payload }, context);
       await teacherStorageDrafts.confirmDurable(scope, pending.draft.requestId);
       if (result.refreshPending) markSaveRefreshPending(0);
       announceSaveRecovered(0);
     });
-  } finally { await requestSaveRecovery(0); }
+  } catch (error) {
+    if (isStorageResponseContextCurrent(context)) await requestSaveRecovery(0);
+    throw error;
+  }
+  if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+  return requestSaveRecovery(0);
 };
 
 registerSaveRecoveryAdapter({

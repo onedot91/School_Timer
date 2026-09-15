@@ -48,9 +48,9 @@ const activeRecoveryPasses = new Map<number, Promise<SaveRecoveryPassResult>>();
 let revision = 0;
 const emptyStatus: SaveRecoveryStatus = { pending: 0, recovering: false, paused: false, refreshPending: false, issues: [] };
 const recoveryFeature = (feature: string): SaveFailureFeature => {
-  if (feature === 'student.economy') return 'economy';
+  if (feature === 'student.economy' || feature.startsWith('teacher.currency.')) return 'economy';
   if (feature === 'teacher.todayFriend.review') return 'todayFriend';
-  if (feature === 'student.auction.bid') return 'auction';
+  if (feature === 'student.auction.bid' || feature.startsWith('teacher.auction.')) return 'auction';
   if (feature.startsWith('student.letter.') || feature.startsWith('student.failure.')) return 'studentLife';
   if (feature.startsWith('student.emotion.')) return 'emotion';
   if (feature.startsWith('student.sudoku.')) return 'sudoku';

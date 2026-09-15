@@ -63,6 +63,37 @@ test('두 탭의 같은 제출은 먼저 보관된 요청 ID와 내용으로 수
   assert.equal(entries.size, 1);
 });
 
+test('다른 탭에서 확인한 초안은 알림을 놓쳐도 다시 조회하면 사라진다', async () => {
+  const { database } = fixture();
+  const first = createStudentSaveDraftStore({ database, storage: null, createRequestId: () => 'confirmed-in-other-tab' });
+  await first.saveDurable(scope, { text: 'synthetic' });
+  const stale = createStudentSaveDraftStore({ database, storage: null });
+  await stale.ready();
+  await first.confirmDurable(scope, 'confirmed-in-other-tab');
+  assert.equal(stale.list(18).length, 1);
+  await stale.refresh();
+  assert.equal(stale.list(18).length, 0);
+});
+
+test('초안 재조회는 새 요청을 가져오고 아직 보관하지 못한 편집은 유지한다', async () => {
+  const { database, block } = fixture();
+  let version = 0;
+  const first = createStudentSaveDraftStore({ database, storage: null, createRequestId: () => `refresh-${++version}` });
+  await first.saveDurable(scope, { text: 'original' });
+  const stale = createStudentSaveDraftStore({ database, storage: null });
+  await stale.ready();
+  first.replace(scope, { text: 'new request' }); await first.flush();
+  await stale.refresh();
+  assert.deepEqual(stale.load(scope)?.draft.payload, { text: 'new request' });
+  block(true);
+  stale.replace(scope, { text: 'unsaved edit' }); await stale.flush();
+  await assert.rejects(stale.refresh());
+  block(false);
+  await stale.refresh();
+  assert.deepEqual(stale.load(scope)?.draft.payload, { text: 'unsaved edit' });
+  assert.equal(stale.load(scope)?.durable, false);
+});
+
 test('두 탭의 서로 다른 제출은 기존 의도를 수정하거나 새 요청을 전송하지 않는다', async () => {
   const { database } = fixture();
   const first = createStudentSaveDraftStore({ database, storage: null, createRequestId: () => 'first-intent' });

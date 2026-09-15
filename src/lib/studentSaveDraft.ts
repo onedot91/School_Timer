@@ -228,6 +228,17 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
     do { pending = queue; await pending; } while (pending !== queue);
   };
 
+  const refresh = async (): Promise<void> => {
+    await flush();
+    if (!database) return;
+    // A suspended tab can miss BroadcastChannel messages about confirmed requests.
+    const before = new Map(memory);
+    const entries = new Map((await database.readAll()).map(entry => [entry.key, entry]));
+    for (const key of new Set([...before.keys(), ...entries.keys()])) {
+      if (memory.get(key) === before.get(key)) adoptRemote(key, entries.get(key) ?? null);
+    }
+  };
+
   const load = (scope: StudentSaveDraftScope): LoadedStudentSaveDraft | null => {
     if (!validScope(scope)) return null;
     const key = keyFor(scope);
@@ -399,7 +410,7 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
     } catch { return false; }
   };
   const list = (studentNumber: number): StudentSaveDraft[] => {
-    for (const key of localKeys()) {
+    for (const key of new Set([...localKeys(), ...memory.keys()])) {
       const scope = scopeFromKey(key);
       if (scope?.studentNumber === studentNumber) load(scope);
     }
@@ -411,7 +422,7 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
   };
   void ready();
   return {
-    load, save, replace, remove, confirm: remove, ready, flush, saveDurable, importDurable, confirmDurable, list,
+    load, save, replace, remove, confirm: remove, ready, flush, refresh, saveDurable, importDurable, confirmDurable, list,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     getSnapshot: () => revision,
     dispose: () => { channel?.close(); listeners.clear(); for (const key of memory.keys()) removeDraftReloadCheck(checkKey(key)); },

@@ -258,3 +258,25 @@ test('교사 거래 자동 복구는 같은 요청 영수증만 조회하고 재
   assert.equal(teacherStorageDrafts.load(scope), null);
   assert.deepEqual(methods, ['GET', 'GET', 'GET']);
 });
+
+test('수동 재확인은 고마 거래 미확인을 정확히 반환하고 거래를 재전송하지 않는다', async context => {
+  const { teacherStorageDrafts, teacherCommandScope, recheckTeacherSaveResults } = await import('./teacherStorageClient.js');
+  const scope = teacherCommandScope({ action: 'teacher.currency.adjust', payload: { studentNumbers: [7], amount: 3 } });
+  const saved = await teacherStorageDrafts.saveDurable(scope, { studentNumbers: [7], amount: 3 });
+  assert.notEqual(saved.status, 'invalid');
+  if (saved.status === 'invalid') return;
+  let reads = 0;
+  context.mock.method(globalThis, 'fetch', async (_url: unknown, init?: RequestInit) => {
+    assert.equal(init?.method ?? 'GET', 'GET');
+    reads++;
+    return Response.json({ status: 'unknown' });
+  });
+  try {
+    const result = await recheckTeacherSaveResults();
+    assert.equal(result.pending, 1);
+    assert.equal(reads, 1);
+    const { getSaveRecoveryStatus } = await import('./saveRecovery.js');
+    assert.deepEqual(getSaveRecoveryStatus(0).issues, [{ feature: 'economy', reason: 'confirmation' }]);
+    assert.equal(teacherStorageDrafts.load(scope)?.draft.requestId, saved.draft.requestId);
+  } finally { await teacherStorageDrafts.confirmDurable(scope, saved.draft.requestId); }
+});

@@ -11802,7 +11802,10 @@ export default function TimerPage() {
                     ) : null}
                     <TeacherSaveFailureWarning returnFocusRef={settingsTriggerRef} />
                     <TeacherRewardAudit />
-                    <StorageAvailabilityBanner actor={0} compact />
+                    <StorageAvailabilityBanner actor={0} compact onSettingsConflict={error => {
+                      setTeacherSettingsConflict(true);
+                      setTeacherSettingsSaveError(teacherSettingsSaveErrorMessage(error));
+                    }} />
                     <button
                       ref={settingsTriggerRef}
                       type="button"

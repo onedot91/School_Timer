@@ -1,5 +1,5 @@
 import { RefreshCw, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscribeStorageAvailability } from '../lib/storageAvailability';
 import { canReloadWithDrafts, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
@@ -13,7 +13,11 @@ const recoveryReasons = {
   waiting: '서버가 요청한 재시도 대기 시간이에요. 잠시 후 다시 확인해 주세요.',
 };
 
-export function StorageAvailabilityBanner({ actor, compact = false }: { readonly actor: number | null; readonly compact?: boolean }) {
+export function StorageAvailabilityBanner({ actor, compact = false, onSettingsConflict }: {
+  readonly actor: number | null;
+  readonly compact?: boolean;
+  readonly onSettingsConflict?: (error: unknown) => void;
+}) {
   const notice = useSyncExternalStore(subscribeStorageAvailability, getStorageAvailabilityNotice, () => null);
   useSyncExternalStore(subscribeDraftReloadSafety, getDraftReloadSafetySnapshot, () => 0);
   useSyncExternalStore(subscribeSaveRecovery, getSaveRecoverySnapshot, () => 0);
@@ -30,6 +34,7 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
   const [copied, setCopied] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryError, setRetryError] = useState('');
+  const recoveryDetailsRef = useRef<HTMLDetailsElement>(null);
   const [reloadBlocked, setReloadBlocked] = useState(false);
   const [dialog, setDialog] = useState<Element | null>(null);
   useLayoutEffect(() => {
@@ -56,19 +61,30 @@ export function StorageAvailabilityBanner({ actor, compact = false }: { readonly
       catch { setCopyFallback(getUnsafeDraftRecoveryText(actor)); }
   };
   const copyButton = <button type="button" onClick={() => void copy()}>{copied ? '복사됨' : '내용 복사'}</button>;
-  const retry = () => {
+  const retry = async () => {
     if (actor === null || isRetrying) return;
     setIsRetrying(true);
     setRetryError('');
-    const check = actor === 0
-      ? import('../lib/teacherStorageClient').then(client => client.recheckTeacherSaveResults())
-      : requestSaveRecovery(actor);
-    void check.catch(() => setRetryError('확인을 완료하지 못했습니다. 설정에서 보관된 변경 내용을 확인해 주세요.'))
-      .finally(() => setIsRetrying(false));
+    let describeError = (_error: unknown) => '확인을 완료하지 못했습니다. 잠시 후 다시 확인해 주세요.';
+    try {
+      const client = actor === 0 ? await import('../lib/teacherStorageClient') : null;
+      if (client) describeError = client.teacherSettingsSaveErrorMessage;
+      const result = client ? await client.recheckTeacherSaveResults() : await requestSaveRecovery(actor);
+      if (result.pending > 0) setRetryError(`아직 확인되지 않은 ${result.pending}건이 있습니다. 아래 항목을 확인해 주세요.`);
+    } catch (error) {
+      if (actor === 0 && error instanceof Error && Reflect.get(error, 'serverCode') === 'TEACHER_SETTING_CONFLICT'
+        && Reflect.get(error, 'status') === 409 && Reflect.get(error, 'uncertainWrite') !== true) {
+        onSettingsConflict?.(error);
+        setRetryError('다른 설정과 충돌했습니다. 설정창에서 보관된 변경 내용을 확인해 주세요.');
+      } else setRetryError(describeError(error));
+    } finally {
+      if (recoveryDetailsRef.current) recoveryDetailsRef.current.open = true;
+      setIsRetrying(false);
+    }
   };
   const fallback = copyFallback ? <textarea aria-label="보관하지 못한 내용" readOnly value={copyFallback} onFocus={event => event.currentTarget.select()} className="max-h-28 min-w-0 p-2" /> : null;
   const recoveryDetails = recovery && recovery.pending > 0 && recovery.issues.length > 0 ? (
-    <details className="mt-1 text-sm">
+    <details ref={recoveryDetailsRef} className="mt-1 text-sm">
       <summary className="min-h-11 cursor-pointer content-center py-2">미확인 {recovery.pending}건 · 상세 보기</summary>
       <ul className="max-h-32 overflow-y-auto overscroll-contain space-y-2 py-1" aria-label="저장 확인이 필요한 항목">
         {recovery.issues.map((issue, index) => <li key={index}>
