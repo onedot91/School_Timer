@@ -1478,33 +1478,46 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   useEffect(() => {
     let lastForegroundRefreshAt = 0;
+    let isActive = true;
+    let isRefreshing = false;
+    let scheduledRefresh: number | undefined;
+    const syncView = activeStudentView === 'store-auction' ? 'store-auction'
+      : isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
+    const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView] ?? STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS;
     const recovered = (event: Event) => {
       if (event instanceof CustomEvent && event.detail?.actor === studentNumber) void refreshAuctionState({ forceFull: true });
     };
     window.addEventListener(SAVE_RECOVERED_EVENT, recovered);
-    const refreshWhenVisible = (forceFull = false) => {
-      if (document.visibilityState === 'visible' && navigator.onLine) void refreshAuctionState({ forceFull });
+    const refreshWhenVisible = async () => {
+      if (!isActive || isRefreshing) return;
+      if (scheduledRefresh !== undefined) window.clearTimeout(scheduledRefresh);
+      scheduledRefresh = undefined;
+      isRefreshing = true;
+      try {
+        if (document.visibilityState === 'visible' && navigator.onLine) await refreshAuctionState();
+      } finally {
+        isRefreshing = false;
+        if (isActive) scheduledRefresh = window.setTimeout(() => {
+          void refreshWhenVisible();
+        }, studentSettingsPollInterval(intervalMs));
+      }
     };
-    refreshWhenVisible();
-
-    const syncView = activeStudentView === 'store-auction' ? 'store-auction'
-      : isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
-    const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView] ?? STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS;
-    const intervalId = window.setInterval(() => refreshWhenVisible(), studentSettingsPollInterval(intervalMs));
+    void refreshWhenVisible();
     const refreshOnReturn = () => {
       if (document.visibilityState !== 'visible') return;
       const now = Date.now();
       if (now - lastForegroundRefreshAt < STUDENT_FOREGROUND_SYNC_COOLDOWN_MS) return;
       lastForegroundRefreshAt = now;
-      refreshWhenVisible();
+      void refreshWhenVisible();
     };
     window.addEventListener('focus', refreshOnReturn);
     window.addEventListener('online', refreshOnReturn);
     document.addEventListener('visibilitychange', refreshOnReturn);
 
     return () => {
+      isActive = false;
       window.removeEventListener(SAVE_RECOVERED_EVENT, recovered);
-      if (intervalId !== undefined) window.clearInterval(intervalId);
+      if (scheduledRefresh !== undefined) window.clearTimeout(scheduledRefresh);
       window.removeEventListener('focus', refreshOnReturn);
       window.removeEventListener('online', refreshOnReturn);
       document.removeEventListener('visibilitychange', refreshOnReturn);

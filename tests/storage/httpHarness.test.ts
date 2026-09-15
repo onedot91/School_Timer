@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 import { startHttpHarness, fixtureCookie } from './httpHarness.js';
 import { isStorageRecord } from '../../src/lib/storageV2Codec.js';
 import { DEFAULT_AUCTION_ITEMS } from '../../src/lib/currency.js';
 
-test('real HTTP + PostgreSQL: 24 sessions, atomic wallet races, scoped receipts, loss recovery, stale teacher and privacy', async () => {
+test('real HTTP + PostgreSQL: 25 sessions, atomic wallet races, scoped receipts, loss recovery, stale teacher and privacy', async () => {
   const harness = await startHttpHarness({name:`storage_http_test_${process.pid}_${Date.now()}`,port:0});
   const request = async (student: number,path: string,body?: unknown) => {
     const response = await fetch(`${harness.baseUrl}${path}`,{method:body===undefined?'GET':'POST',headers:{Cookie:fixtureCookie(student),'sec-fetch-site':'same-origin','x-storage-projection':'1','Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
@@ -15,17 +16,23 @@ test('real HTTP + PostgreSQL: 24 sessions, atomic wallet races, scoped receipts,
   const economy = (student:number,action:unknown,id:string) => request(student,'/api/student-economy',{protocolVersion:2,studentNumber:student,action,requestId:id});
   const wallet = async (student:number) => (await harness.query('select balance from wallet_accounts where student_number=$1',[student])).rows[0]?.balance;
   try {
+    await harness.query(await readFile(new URL('../../supabase/storage_scope_read_performance.sql', import.meta.url), 'utf8'));
     const initial = await request(0,'/api/shared-settings');
     assert.equal(initial.status,200);
     const started = Date.now();
     const parallel = await Promise.all([
       ...Array.from({length:23},(_,index)=>command(index+1,'student.letter.send',{recipient:0,title:`fixture${index+1}`,content:`parallel student${index+1}`},`parallel-letter-${index+1}`)),
-      command(0,'teacher.settings.patch',{changes:[{field:'scheduleNotice',before:'격리 검증 학급',after:'24명 동시 저장 완료'}]},'parallel-teacher-settings'),
+      command(0,'teacher.settings.patch',{changes:[{field:'scheduleNotice',before:'격리 검증 학급',after:'25대 동시 저장 완료'}]},'parallel-teacher-settings'),
+      command(0,'teacher.settings.patch',{changes:[{field:'manualTimer',before:{totalTime:180,isVisible:false},after:{totalTime:240,isVisible:false}}]},'parallel-second-teacher-settings'),
     ]);
-    assert.deepEqual(parallel.map(result=>result.status),Array(24).fill(200),JSON.stringify({failures:parallel.filter(result=>result.status!==200),metrics:harness.metrics.filter(metric=>metric.code)}));
+    assert.deepEqual(parallel.map(result=>result.status),Array(25).fill(200),JSON.stringify({failures:parallel.filter(result=>result.status!==200),metrics:harness.metrics.filter(metric=>metric.code)}));
     const letters = await harness.query("select count(*)::integer total from storage_resources where resource_key like '/studentLife/letters/@parallel-letter-%' and not deleted");
     assert.equal(letters.rows[0]?.total,23);
-    console.log(JSON.stringify({case:'24 independent HTTP writers',milliseconds:Date.now()-started,sessions:24,statuses:parallel.map(result=>result.status)}));
+    const saved = await request(0,'/api/shared-settings');
+    assert.ok(isStorageRecord(saved.body) && isStorageRecord(saved.body.value));
+    assert.equal(saved.body.value.scheduleNotice,'25대 동시 저장 완료');
+    assert.deepEqual(saved.body.value.manualTimer,{totalTime:240,isVisible:false});
+    console.log(JSON.stringify({case:'25 independent HTTP writers',milliseconds:Date.now()-started,sessions:25,statuses:parallel.map(result=>result.status)}));
 
     const debits = await Promise.all([economy(1,{type:'deposit',amount:80},'race-debit-first'),economy(1,{type:'deposit',amount:80},'race-debit-second')]);
     assert.deepEqual(debits.map(result=>result.status).sort(),[200,400]);
@@ -65,7 +72,7 @@ test('real HTTP + PostgreSQL: 24 sessions, atomic wallet races, scoped receipts,
     const teacherBeforeReward = await request(0,'/api/shared-settings');
     assert.equal(teacherBeforeReward.status,200);
     await harness.query("select storage_apply_wallet_delta(17,'http-quiz-six',6,'weekly_mission',now(),'http-quiz-six')");
-    const notice = await command(0,'teacher.settings.patch',{changes:[{field:'scheduleNotice',before:'24명 동시 저장 완료',after:'보상 후 교사 저장'}]},'stale-teacher-after-six');
+    const notice = await command(0,'teacher.settings.patch',{changes:[{field:'scheduleNotice',before:'25대 동시 저장 완료',after:'보상 후 교사 저장'}]},'stale-teacher-after-six');
     assert.equal(notice.status,200);assert.equal(await wallet(17),106);
     assert.ok(isStorageRecord(teacherBeforeReward.body));
     const old = await fetch(`${harness.baseUrl}/api/shared-settings`,{method:'PUT',headers:{Cookie:fixtureCookie(0),'sec-fetch-site':'same-origin','x-storage-projection':'1','Content-Type':'application/json'},body:JSON.stringify({value:teacherBeforeReward.body.value,expectedUpdatedAt:teacherBeforeReward.body.updated_at})});
