@@ -73,7 +73,7 @@ test('local confirmed placement advances competition with the same committed sna
   assert.equal(state?.placements.length, 1);
 });
 
-test('shared placement sends its immutable command with the expected authenticated student', async () => {
+test('shared placement sends its immutable command with the expected authenticated student and Korean current season', async () => {
   const bodies: unknown[] = [];
   let invalidations = 0;
   const client = createCanvasLibraryClient(dependencies({
@@ -96,6 +96,7 @@ test('shared placement sends its immutable command with the expected authenticat
     expectedStudentNumber: 3,
     requestId: UUID_ONE,
     slotId: 17,
+    seasonId: '2026-09',
     book: { kind: 'new', title: '달빛 우체국', author: '고마', pageCount: 120 },
   }]);
   assert.equal('studentNumber' in (bodies[0] as Record<string, unknown>), false);

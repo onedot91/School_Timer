@@ -210,6 +210,13 @@ const makeCommand = (
 
 export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDependencies) => {
   const pendingDrafts = createStudentSaveDraftStore({ createRequestId: dependencies.createRequestId });
+  const effectiveSeasonId = (seasonId?: string): string | undefined => {
+    if (seasonId || dependencies.dataMode !== 'production') return seasonId;
+    const now = new Date(dependencies.now());
+    return Number.isFinite(now.getTime())
+      ? now.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' }).slice(0, 7)
+      : undefined;
+  };
 
   const readReceipt = async (command: LibraryPlacementCommand, actor: number): Promise<CanvasLibraryPlacementResult | null> => {
     const context = captureStorageResponseContext();
@@ -284,6 +291,7 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
   };
   const placeBook = async (draft: LibraryBookDraft, slotId: number, seasonId?: string): Promise<CanvasLibraryPlacementResult> => {
     if (dependencies.dataMode === 'readonly') return failure('READ_ONLY_DATA_MODE');
+    seasonId = effectiveSeasonId(seasonId);
     const originalContext = captureStorageResponseContext();
     const key = `${seasonId ?? 'legacy'}:${draftKey(draft)}`;
     const scope = { studentNumber: draft.studentNumber, feature: 'library-placement', entityId: key };
@@ -424,7 +432,7 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
     readReceipt,
     readLegacyReceipt,
     listLegacy: async (actor: number) => { await pendingDrafts.ready(); return pendingDrafts.list(actor).filter(entry => entry.scope.feature === 'library-placement' && isRecord(entry.payload) && (typeof entry.payload.slotId !== 'number' || entry.payload.expectedStudentNumber !== actor)); },
-    pendingForDraft: (draft: LibraryBookDraft, seasonId?: string) => pendingDrafts.load({ studentNumber: draft.studentNumber, feature: 'library-placement', entityId: `${seasonId ?? 'legacy'}:${draftKey(draft)}` }),
+    pendingForDraft: (draft: LibraryBookDraft, seasonId?: string) => pendingDrafts.load({ studentNumber: draft.studentNumber, feature: 'library-placement', entityId: `${effectiveSeasonId(seasonId) ?? 'legacy'}:${draftKey(draft)}` }),
     confirm: pendingDrafts.confirmDurable,
   };
 };
@@ -465,7 +473,7 @@ export const placeCanvasLibraryBook = async (draft: LibraryBookDraft, slotId: nu
   if (result.ok === false) {
     const code = result.error.code;
     const pending = defaultClient.pendingForDraft(draft, seasonId);
-    if (appDataMode === 'production' && seasonId && pending && ['LIBRARY_NETWORK_FAILED', 'LIBRARY_SAVE_FAILED', 'INVALID_LIBRARY_RESPONSE'].includes(code)
+    if (appDataMode === 'production' && pending && ['LIBRARY_NETWORK_FAILED', 'LIBRARY_SAVE_FAILED', 'INVALID_LIBRARY_RESPONSE'].includes(code)
       && deferSaveFailure('library', new CanvasLibraryPlacementExpectedError(result.error), draft.studentNumber, { requestId: pending.draft.requestId, stage: 'write', retryCount: 0 })) return result;
     if (code === 'LIBRARY_LOCAL_SAVE_FAILED') reportSaveFailure('library', 'storage', draft.studentNumber, { errorCode: code });
     else if (code === 'LIBRARY_SAVE_FAILED') reportSaveFailure('library', 'server', draft.studentNumber, { errorCode: code });
