@@ -174,6 +174,75 @@ export const getClassDonationMaximum = (
   state.targetAmount - state.totalAmount,
 ));
 
+export const applyClassDonation = (
+  value: unknown,
+  {
+    studentNumber,
+    amount,
+    balance,
+    availableBalance,
+    requestId,
+    createdAt,
+  }: {
+    readonly studentNumber: number;
+    readonly amount: number;
+    readonly balance: number;
+    readonly availableBalance: number;
+    readonly requestId: string;
+    readonly createdAt: string;
+  },
+): { readonly settings: ClassDonationSettings; readonly result: ClassDonationResult } => {
+  const settings = normalizeClassDonationSettings(value);
+  const normalizedRequestId = requestId.trim();
+  const currentBalance = clampCurrencyBalance(balance);
+  const existing = settings.history.find((entry) => entry.id === normalizedRequestId);
+  if (existing) {
+    if (existing.studentNumber !== studentNumber || existing.amount !== amount) {
+      throw new Error('CLASS_DONATION_REQUEST_CONFLICT');
+    }
+    return {
+      settings,
+      result: {
+        donatedAmount: existing.amount,
+        balance: currentBalance,
+        totalAmount: settings.totalAmount,
+        targetAmount: settings.targetAmount,
+        completed: settings.totalAmount >= settings.targetAmount,
+      },
+    };
+  }
+  if (!settings.enabled) throw new Error('CLASS_DONATION_DISABLED');
+  if (!Number.isInteger(studentNumber) || studentNumber < 1 || studentNumber > 24) {
+    throw new Error('CLASS_DONATION_INVALID_STUDENT');
+  }
+  if (!normalizedRequestId || !createdAt.trim()) throw new Error('CLASS_DONATION_INVALID_REQUEST');
+  if (!Number.isInteger(amount) || amount < 1 || amount > getClassDonationMaximum(settings, availableBalance)) {
+    throw new Error('CLASS_DONATION_INVALID_AMOUNT');
+  }
+
+  const totalAmount = settings.totalAmount + amount;
+  const nextSettings = normalizeClassDonationSettings({
+    ...settings,
+    totalAmount,
+    history: [{
+      id: normalizedRequestId,
+      studentNumber,
+      amount,
+      createdAt,
+    }, ...settings.history],
+  });
+  return {
+    settings: nextSettings,
+    result: {
+      donatedAmount: amount,
+      balance: currentBalance - amount,
+      totalAmount,
+      targetAmount: settings.targetAmount,
+      completed: totalAmount >= settings.targetAmount,
+    },
+  };
+};
+
 export const isClassDonationCompleted = (state: ClassDonationPublicState) => (
   state.totalAmount >= state.targetAmount
 );

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  applyClassDonation,
   createClassDonationThankYouLetter,
   getClassDonationMaximum,
   isClassDonationCompleted,
@@ -129,6 +130,36 @@ test('teacher autosave cannot shrink the target below donated currency', () => {
 test('donation maximum respects available balance and remaining target', () => {
   assert.equal(getClassDonationMaximum({ enabled: true, itemName: '', targetAmount: 500, totalAmount: 493 }, 130), 7);
   assert.equal(getClassDonationMaximum({ enabled: true, itemName: '비밀 보드게임', targetAmount: 500, totalAmount: 320 }, 12), 12);
+});
+
+test('연습 모드 기부는 잔액과 목표를 함께 갱신하고 같은 요청을 중복 차감하지 않는다', () => {
+  const initial = normalizeClassDonationSettings({
+    enabled: true,
+    itemName: '우리 반 보드게임',
+    targetAmount: 500,
+    totalAmount: 20,
+  });
+  const input = {
+    studentNumber: 7,
+    amount: 30,
+    balance: 100,
+    availableBalance: 80,
+    requestId: 'class-donation-7-local-1',
+    createdAt: '2026-09-16T00:00:00.000Z',
+  };
+
+  const first = applyClassDonation(initial, input);
+  const replay = applyClassDonation(first.settings, { ...input, balance: first.result.balance });
+
+  assert.equal(first.result.balance, 70);
+  assert.equal(first.result.totalAmount, 50);
+  assert.deepEqual(first.settings.history, [{
+    id: input.requestId,
+    studentNumber: 7,
+    amount: 30,
+    createdAt: input.createdAt,
+  }]);
+  assert.deepEqual(replay, { settings: first.settings, result: first.result });
 });
 
 test('completed donation goals remain identifiable after collection closes', () => {

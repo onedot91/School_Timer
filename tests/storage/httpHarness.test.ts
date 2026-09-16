@@ -17,6 +17,7 @@ test('real HTTP + PostgreSQL: 25 sessions, atomic wallet races, scoped receipts,
   const wallet = async (student:number) => (await harness.query('select balance from wallet_accounts where student_number=$1',[student])).rows[0]?.balance;
   try {
     await harness.query(await readFile(new URL('../../supabase/storage_scope_read_performance.sql', import.meta.url), 'utf8'));
+    await harness.query(await readFile(new URL('../../supabase/storage_scoped_polling.sql', import.meta.url), 'utf8'));
     const initial = await request(0,'/api/shared-settings');
     assert.equal(initial.status,200);
     const started = Date.now();

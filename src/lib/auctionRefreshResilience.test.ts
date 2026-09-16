@@ -13,6 +13,16 @@ test('a failed background auction refresh keeps the current student screen usabl
   assert.doesNotMatch(failureHandler, /showStatusMessage\(/);
 });
 
+test('연습 모드 새로고침은 저장된 기부 설정을 유지한다', async () => {
+  const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
+  const refreshStart = source.indexOf('const refreshAuctionState = useCallback');
+  const sharedStart = source.indexOf('    let refreshSucceeded = false;', refreshStart);
+  const localRefresh = source.slice(refreshStart, sharedStart);
+
+  assert.match(localRefresh, /loadStoredClassDonationSettings\(window\.localStorage\)/);
+  assert.doesNotMatch(localRefresh, /setClassDonation\(getClassDonationPublicState\(null\)\)/);
+});
+
 test('student sync checks settings metadata before requesting the full settings value', async () => {
   const source = await readFile(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
 

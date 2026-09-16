@@ -24,11 +24,13 @@ export type SettingsRow = {
   updated_at?: string;
   scope?: 'full' | 'student';
   storagePatch?: StorageProjectionPatch;
+  readVersion?: string;
 };
 
 let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
 let settingsCacheGeneration = 0;
 let settingsActorContext: StorageResponseContext | undefined;
+let studentReadState: { version: string; updatedAt: string } | undefined;
 let sharedSettingsRead: {
   actorGeneration: number;
   generation: number;
@@ -52,6 +54,7 @@ const enqueueSharedSettingsUpdate = <T>(update: () => Promise<T>) => {
 export const invalidateSharedSettingsCache = () => {
   settingsCacheGeneration += 1;
   cachedWritableSharedSettingsRow = undefined;
+  studentReadState = undefined;
 };
 
 const synchronizeSettingsActor = (): StorageResponseContext => {
@@ -174,10 +177,12 @@ const parseSettingsRow = (value: unknown): SettingsRow | null => {
   const timestamp = Reflect.get(value, 'updated_at');
   const scope = Reflect.get(value, 'scope');
   const storagePatch: unknown = Reflect.get(value, 'storagePatch');
+  const readVersion: unknown = Reflect.get(value, 'readVersion');
   if (id !== SHARED_SETTINGS_ID || !settings || typeof settings !== 'object' || Array.isArray(settings)
     || typeof timestamp !== 'string' || !timestamp
     || (scope !== undefined && scope !== 'student' && scope !== 'full')) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
   return { id, value: settings, updated_at: timestamp, ...(scope === 'student' || scope === 'full' ? { scope } : {}),
+    ...(typeof readVersion === 'string' && /^[a-f0-9]{32}$/.test(readVersion) ? { readVersion } : {}),
     ...(storagePatch === undefined ? {} : { storagePatch: parseStorageProjectionPatch(storagePatch) }) };
 };
 
@@ -215,13 +220,16 @@ const fetchSharedSettingsRow = async (context: StorageResponseContext) => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const generation = settingsCacheGeneration;
-    const row = orderSettingsRow(context, parseSettingsRow(await fetchJson('/api/shared-settings', { headers: { 'X-Storage-Projection': '1' } }, true)));
+    const received = parseSettingsRow(await fetchJson('/api/shared-settings', { headers: { 'X-Storage-Projection': '1' } }, true));
+    const row = orderSettingsRow(context, received);
     // Student projections contain every field the scoped writer needs. Keep newer receipts
     // when a background read that started before a save arrives afterwards.
     const currentTimestamp = cachedWritableSharedSettingsRow?.updated_at;
     const isFresh = !currentTimestamp || (row?.updated_at && compareStorageTimestamps(row.updated_at, currentTimestamp) >= 0);
     if (generation === settingsCacheGeneration && isFresh && (row?.scope === 'full' || row?.scope === 'student')) {
       cachedWritableSharedSettingsRow = row;
+      studentReadState = received?.scope === 'student' && received.readVersion && received.updated_at === row.updated_at
+        ? { version: received.readVersion, updatedAt: received.updated_at } : undefined;
     } else if (generation === settingsCacheGeneration && isFresh && row?.updated_at !== currentTimestamp) {
       cachedWritableSharedSettingsRow = undefined;
     }
@@ -268,9 +276,14 @@ const loadWritableSharedSettingsRow = async () => {
 const fetchSharedSettingsUpdatedAt = async (context: StorageResponseContext): Promise<string | null> => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
-    const result = await fetchJson('/api/shared-settings?metadata=1', undefined, true) as { updatedAt: string | null };
+    const readState = studentReadState;
+    const result: unknown = await fetchJson(`/api/shared-settings?metadata=1${readState ? '&scoped=1' : ''}`, undefined, true);
     if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
-    return result.updatedAt;
+    if (!isStorageRecord(result) || (result.updatedAt !== null && typeof result.updatedAt !== 'string')) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
+    if (readState && typeof result.readVersion === 'string') {
+      return studentReadState === readState && result.readVersion === readState.version ? readState.updatedAt : null;
+    }
+    return typeof result.updatedAt === 'string' ? result.updatedAt : null;
   }
   if (!supabase) return null;
 

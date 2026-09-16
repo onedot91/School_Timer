@@ -16,7 +16,7 @@ import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const FIXTURE_SECRET = 'isolated-http-fixture-session-secret-2026';
 const KEY = 'isolated-fixture-service-key';
-const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_load_updated_at', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2', 'storage_place_library_book']);
+const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_load_scope_metadata', 'storage_load_updated_at', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2', 'storage_place_library_book']);
 interface Database { query(sql: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>; end(): Promise<void> }
 const database = (name: string): Database => {
   const driver: unknown = createRequire(import.meta.url)(process.env.STORAGE_TEST_PG_MODULE ?? '/tmp/school-storage-runtime/node_modules/pg/lib/index.js');

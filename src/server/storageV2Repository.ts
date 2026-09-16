@@ -203,6 +203,7 @@ export const commitStorageMutation = async (configuration: StorageConfiguration,
 
 export interface ScopedStorageSnapshot {
     readonly kind: 'scoped';
+    readonly readVersion?: string;
     readonly scope: StorageScope;
     readonly value: Record<string, unknown>;
     readonly updated_at: string;
@@ -233,11 +234,19 @@ export const parseScopedStorageSnapshot = (body: unknown): ScopedStorageSnapshot
     if (parsed.resources.some(resource => !storageResourceMatchesScope(resource, scope.resources) && !storageStructuralAncestor(resource, selectedKeys))
         || parsed.wallets.some(wallet => !scope.wallets.includes(wallet.student_number))
         || parsed.history.some(entry => !scope.history.includes(entry.student_number))) return invalid();
-    return { ...parsed, kind: 'scoped', scope, resources: parsed.resources, wallets: parsed.wallets, history: parsed.history,
+    if (body.readVersion !== undefined && (typeof body.readVersion !== 'string' || !/^[a-f0-9]{32}$/.test(body.readVersion))) return invalid();
+    return { ...parsed, kind: 'scoped', scope, ...(typeof body.readVersion === 'string' ? { readVersion: body.readVersion } : {}), resources: parsed.resources, wallets: parsed.wallets, history: parsed.history,
         deletedKeys: body.deletedKeys.filter((key): key is string => typeof key === 'string'), orderingBounds };
 };
 export const loadScopedStorageSnapshot = async (configuration: StorageConfiguration, scope: StorageScope): Promise<ScopedStorageSnapshot> =>
     parseScopedStorageSnapshot(await request(configuration, 'storage_load_scope', { p_scope: parseStorageScope(scope) }));
+
+export const loadScopedStorageMetadata = async (configuration: StorageConfiguration, scope: StorageScope): Promise<{ updatedAt: string; readVersion: string }> => {
+    const body = await request(configuration, 'storage_load_scope_metadata', { p_scope: parseStorageScope(scope) });
+    if (!isStorageRecord(body) || typeof body.updatedAt !== 'string' || !Number.isFinite(Date.parse(body.updatedAt))
+        || typeof body.readVersion !== 'string' || !/^[a-f0-9]{32}$/.test(body.readVersion)) return invalid();
+    return { updatedAt: body.updatedAt, readVersion: body.readVersion };
+};
 
 const applyScopedOrderingBounds = (snapshot: ScopedStorageSnapshot, resources: readonly StorageResource[]): readonly StorageResource[] => {
     const existing = new Set(snapshot.resources.map(resource => resource.resource_key));

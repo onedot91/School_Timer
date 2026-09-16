@@ -58,6 +58,50 @@ const teacherHeaders = () => ({
   'x-storage-projection': '1',
 });
 
+test('scoped polling derives its scope from the session and preserves the teacher and disabled fallback', async () => {
+  await withEnvironment(async () => {
+    const previousProtocol = process.env.STORAGE_PROTOCOL_VERSION;
+    const previousPolling = process.env.STORAGE_SCOPED_POLLING;
+    const originalFetch = globalThis.fetch;
+    process.env.STORAGE_PROTOCOL_VERSION = '2';
+    process.env.STORAGE_SCOPED_POLLING = '1';
+    const requests: string[] = [];
+    globalThis.fetch = async (input, init) => {
+      requests.push(String(input));
+      if (String(input).endsWith('/storage_load_updated_at')) return Response.json('2026-09-16T00:00:00Z');
+      assert.ok(String(input).endsWith('/storage_load_scope_metadata'));
+      const body = JSON.parse(String(init?.body));
+      assert.deepEqual(body.p_scope.wallets, [7]);
+      assert.deepEqual(body.p_scope.writeResources, []);
+      assert.ok(body.p_scope.resources.some((selector: { path: string; mail?: { actor: number } }) => selector.path === '/studentLife/letters' && selector.mail?.actor === 7));
+      assert.ok(!body.p_scope.resources.some((selector: { path: string }) => selector.path === '/studentLife'));
+      return Response.json({ updatedAt: '2026-09-16T00:00:00Z', readVersion: 'a'.repeat(32) });
+    };
+    try {
+      const student = createResponse();
+      await handler({ method: 'GET', headers: studentHeaders(7), query: { metadata: '1', scoped: '1', studentNumber: '8' } }, student.response);
+      assert.equal(student.result().statusCode, 200);
+      assert.equal(Reflect.get(student.result().body as object, 'readVersion'), 'a'.repeat(32));
+      const teacher = createResponse();
+      await handler({ method: 'GET', headers: teacherHeaders(), query: { metadata: '1', scoped: '1' } }, teacher.response);
+      assert.equal(teacher.result().statusCode, 200);
+      assert.ok(requests.at(-1)?.endsWith('/storage_load_updated_at'));
+      delete process.env.STORAGE_SCOPED_POLLING;
+      await handler({ method: 'GET', headers: studentHeaders(7), query: { metadata: '1', scoped: '1' } }, createResponse().response);
+      assert.ok(requests.at(-1)?.endsWith('/storage_load_updated_at'));
+      const count = requests.length;
+      const anonymous = createResponse();
+      await handler({ method: 'GET', query: { metadata: '1', scoped: '1' } }, anonymous.response);
+      assert.equal(anonymous.result().statusCode, 401);
+      assert.equal(requests.length, count);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousProtocol === undefined) delete process.env.STORAGE_PROTOCOL_VERSION; else process.env.STORAGE_PROTOCOL_VERSION = previousProtocol;
+      if (previousPolling === undefined) delete process.env.STORAGE_SCOPED_POLLING; else process.env.STORAGE_SCOPED_POLLING = previousPolling;
+    }
+  });
+});
+
 test('숫자 야구는 학생 범위 데이터로 완료와 보상을 저장하고 다른 학생 기록을 보존한다', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;

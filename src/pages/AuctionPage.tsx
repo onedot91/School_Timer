@@ -62,13 +62,14 @@ import {
   loadSharedSettingsUpdatedAt,
 } from '../lib/supabaseSettings';
 import {
+  applyClassDonation,
   createClassDonationThankYouLetter,
   getClassDonationMaximum,
   getClassDonationPublicState,
   isClassDonationCompleted,
   type ClassDonationPublicState,
 } from '../lib/classDonation';
-import { loadStoredClassDonationSettings } from '../lib/classDonationLocalStore';
+import { loadStoredClassDonationSettings, storeClassDonationSettings } from '../lib/classDonationLocalStore';
 import { playAuctionSound, prepareAuctionAudio } from '../lib/auctionAudio';
 import {
   STUDENT_EMOTIONS,
@@ -1329,7 +1330,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setAuctionAwards(localPetSnapshot.auctionAwards);
       setAuctionMissions(getStoredAuctionMissions());
       setClassroomRoleMission(loadStoredClassroomRoleMissionSettings());
-      setClassDonation(getClassDonationPublicState(null));
+      setClassDonation(getClassDonationPublicState(loadStoredClassDonationSettings(window.localStorage)));
       setStudentEmotionHistory(loadStoredStudentEmotionHistory());
       setStudentPetStates(localPetSnapshot.studentPets);
       setStudentEconomyStates(localPetSnapshot.studentEconomy);
@@ -1956,15 +1957,52 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     setIsDonating(true);
     try {
       const requestId = donationRequestIdRef.current;
-      const result = await donateToClassGoal(studentNumber, donationAmount, requestId);
-      if (!isSupabaseSettingsEnabled) {
-        const savedLife = await updateStoredStudentLifeState((current) => createClassDonationThankYouLetter(current, {
-          studentNumber, donatedAmount: result.donatedAmount, requestId, createdAt: new Date().toISOString(),
-        }));
+      let result;
+      if (isSupabaseSettingsEnabled) {
+        result = await donateToClassGoal(studentNumber, donationAmount, requestId);
+      } else {
+        const createdAt = new Date().toISOString();
+        const storedDonation = loadStoredClassDonationSettings(window.localStorage);
+        const isReplay = storedDonation.history.some((entry) => entry.id === requestId);
+        const snapshot = loadStoredStudentPetSnapshot();
+        const currentBalance = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
+        const localDonation = applyClassDonation(storedDonation, {
+          studentNumber,
+          amount: donationAmount,
+          balance: currentBalance,
+          availableBalance: Math.max(0, currentBalance - reservedAmount),
+          requestId,
+          createdAt,
+        });
+        const savedLife = isReplay ? snapshot.studentLife : createClassDonationThankYouLetter(snapshot.studentLife, {
+          studentNumber, donatedAmount: localDonation.result.donatedAmount, requestId, createdAt,
+        });
+        const savedHistory = isReplay ? snapshot.currencyHistory : appendCurrencyHistoryEntry(snapshot.currencyHistory, {
+          id: `currency-${requestId}`,
+          studentNumber,
+          before: currentBalance,
+          after: localDonation.result.balance,
+          reason: 'class_donation',
+          createdAt,
+        });
+        if (!storeClassDonationSettings(window.localStorage, localDonation.settings)) {
+          reportSaveFailure('donation', 'storage', studentNumber);
+          throw new Error('CLASS_DONATION_LOCAL_SAVE_FAILED');
+        }
+        if (!storeStudentPetSnapshot({
+          ...snapshot,
+          currencyBalances: { ...snapshot.currencyBalances, [studentKey]: localDonation.result.balance },
+          currencyHistory: savedHistory,
+          studentLife: savedLife,
+        })) {
+          storeClassDonationSettings(window.localStorage, storedDonation);
+          reportSaveFailure('donation', 'storage', studentNumber);
+          throw new Error('CLASS_DONATION_LOCAL_SAVE_FAILED');
+        }
+        result = localDonation.result;
         setStudentLifeSnapshot(savedLife);
-      }
-      if (!isSupabaseSettingsEnabled) {
-        setCurrencyBalances((previous) => ({ ...previous, [studentKey]: result.balance }));
+        setCurrencyBalances((previous) => ({ ...previous, [studentKey]: localDonation.result.balance }));
+        setCurrencyHistory(savedHistory);
         setClassDonation((previous) => ({ ...previous, targetAmount: result.targetAmount, totalAmount: result.totalAmount }));
       }
       setIsDonationOpen(false);
