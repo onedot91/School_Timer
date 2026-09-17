@@ -2,6 +2,14 @@ export type BrowserDeviceSession =
   | { readonly role: 'teacher' }
   | { readonly role: 'student'; readonly studentNumber: number };
 
+export const deviceSessionMatchesEntry = (
+  session: BrowserDeviceSession | null,
+  entryNumber: number,
+) => (
+  session?.role === 'teacher'
+  || (session?.role === 'student' && session.studentNumber === entryNumber)
+);
+
 const parseSession = (value: unknown): BrowserDeviceSession | null => {
   if (!value || typeof value !== 'object') return null;
   const role = Reflect.get(value, 'role');

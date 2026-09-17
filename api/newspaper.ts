@@ -45,7 +45,12 @@ export default async function handler(request: Request, response: Response) {
     const command = body.command;
     if (typeof command.action !== 'string' || !['submit', 'update', 'delete', 'topic', 'download', 'reset'].includes(command.action)) throw new NewspaperError('QUESTION_INVALID_ACTION');
     if (session.role !== 'teacher' && command.action !== 'submit') throw new NewspaperError('QUESTION_FORBIDDEN', 403);
-    if (command.action === 'submit' && (session.role !== 'student' || !isQuestionStudent(command.studentNumber) || command.studentNumber !== actor)) throw new NewspaperError('STUDENT_NUMBER_MISMATCH', 403);
+    let commandActor = actor;
+    if (command.action === 'submit') {
+      if (!isQuestionStudent(command.studentNumber)) throw new NewspaperError('STUDENT_NUMBER_MISMATCH', 403);
+      if (session.role === 'student' && command.studentNumber !== actor) throw new NewspaperError('STUDENT_NUMBER_MISMATCH', 403);
+      commandActor = command.studentNumber;
+    }
     if (['submit', 'topic', 'download'].includes(command.action)) {
       if (typeof command.weekKey !== 'string') throw new NewspaperError('QUESTION_INVALID_WEEK');
       weekMonday(command.weekKey);
@@ -68,7 +73,7 @@ export default async function handler(request: Request, response: Response) {
     }
     if (command.action === 'download' && (!isQuestionMode(command.mode) || typeof command.cumulative !== 'boolean')) throw new NewspaperError('QUESTION_INVALID_ACTION');
     if (command.action === 'reset' && command.confirmation !== '모든 기록 초기화') throw new NewspaperError('QUESTION_FORBIDDEN', 403);
-    response.status(200).json(await newspaperRpc({ url, key }, 'newspaper_command', { p_actor: actor, p_request_id: body.requestId, p_command: command }));
+    response.status(200).json(await newspaperRpc({ url, key }, 'newspaper_command', { p_actor: commandActor, p_request_id: body.requestId, p_command: command }));
   } catch (error) {
     const known = error instanceof NewspaperError;
     response.status(known ? error.status : 502).json({ error: known ? error.code : 'QUESTION_DATABASE_FAILED' });

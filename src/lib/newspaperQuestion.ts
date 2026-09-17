@@ -26,7 +26,7 @@ export const QUESTION_ERRORS: Record<string, string> = {
   QUESTION_INVALID_ACTION: '이 요청은 처리할 수 없어요.', QUESTION_INVALID_RESPONSE: '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.',
   QUESTION_SAVE_FAILED: '저장하지 못했어요. 다시 눌러 주세요.', QUESTION_DATABASE_FAILED: '저장하지 못했어요. 다시 눌러 주세요.',
   QUESTION_LOAD_FAILED: '질문을 불러오지 못했어요. 새로고침해 주세요.', QUESTION_FORBIDDEN: '이 기기에서는 저장할 수 없어요.',
-  STUDENT_NUMBER_MISMATCH: '번호가 달라요. 처음부터 다시 들어와 주세요.', DEVICE_REGISTRATION_REQUIRED: '기기 등록이 필요해요. 선생님께 알려 주세요.',
+  STUDENT_NUMBER_MISMATCH: '이 기기에 등록된 번호와 달라요. 번호 선택으로 돌아가 다시 들어와 주세요.', DEVICE_REGISTRATION_REQUIRED: '기기 등록이 필요해요. 선생님께 알려 주세요.',
   CROSS_SITE_REQUEST_BLOCKED: '이 창에서는 저장할 수 없어요. 학급 사이트에서 다시 열어 주세요.',
   TOO_MANY_REQUESTS: '너무 많이 눌렀어요. 잠시 후 다시 눌러 주세요.',
 };

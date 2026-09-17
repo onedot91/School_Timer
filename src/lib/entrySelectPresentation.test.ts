@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
 import EntrySelectPage from '../pages/EntrySelectPage';
 
 const renderEntrySelect = (teacherEntryVisible: boolean) => renderToStaticMarkup(createElement(EntrySelectPage, {
@@ -40,4 +41,12 @@ test('교사 입장 이력이 없으면 0번과 테스트 입장을 숨기고 �
   assert.match(markup, /aria-label="1번 경매장 선택"/);
   assert.match(markup, /aria-label="23번 경매장 선택"/);
   assert.match(markup, /aria-label="0번 표시 잠금 해제"/);
+});
+
+test('교사 기기 세션은 학생 번호 선택에도 재사용한다', () => {
+  const rootApp = readFileSync(new URL('../RootApp.tsx', import.meta.url), 'utf8');
+  const entrySelect = readFileSync(new URL('../pages/EntrySelectPage.tsx', import.meta.url), 'utf8');
+  assert.match(rootApp, /deviceSessionMatchesEntry\(deviceSession, studentNumber\)/);
+  assert.match(rootApp, /deviceSessionMatchesEntry\(session, storedNumber\)/);
+  assert.match(entrySelect, /deviceSessionMatchesEntry\(deviceSession, studentNumber\)/);
 });

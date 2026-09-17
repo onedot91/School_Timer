@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Clock, Store } from 'lucide-react';
-import type { BrowserDeviceSession } from '../lib/deviceSessionClient';
+import { deviceSessionMatchesEntry, type BrowserDeviceSession } from '../lib/deviceSessionClient';
 import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from '../lib/studentIdentity';
 
 interface EntrySelectPageProps {
@@ -100,8 +100,7 @@ export default function EntrySelectPage({
   };
 
   const selectNumber = (studentNumber: number) => {
-    const canUseExistingSession = deviceSession?.role === 'teacher'
-      || (deviceSession?.role === 'student' && deviceSession.studentNumber === studentNumber);
+    const canUseExistingSession = deviceSessionMatchesEntry(deviceSession, studentNumber);
     if (!requiresRegistration || canUseExistingSession || studentNumber > 0) {
       if (isRegistering) return;
       setIsRegistering(true);

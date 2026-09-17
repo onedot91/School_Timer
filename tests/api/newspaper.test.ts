@@ -32,6 +32,11 @@ test('신문 API는 권한·학생 범위·주차·본문 검증 후에만 데�
     assert.equal((await post(2, submit)).status, 200);
     assert.equal(calls.length, 1);
     assert.equal(Reflect.get(Object(calls[0]), 'p_actor'), 2);
+    assert.equal((await post(0, submit)).status, 200);
+    assert.equal(calls.length, 2);
+    assert.equal(Reflect.get(Object(calls[1]), 'p_actor'), 2);
+    assert.equal((await post(0, { ...submit, studentNumber: 9 })).status, 200);
+    assert.equal(Reflect.get(Object(calls[2]), 'p_actor'), 9);
     assert.equal((await post(0, { action: 'reset', confirmation: '아니오' })).status, 403);
     assert.equal((await post(0, { action: 'reset', confirmation: '모든 기록 초기화' })).status, 200);
     const stamp = new Date().toISOString();

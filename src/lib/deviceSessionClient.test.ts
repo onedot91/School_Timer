@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clearDeviceSession, DEVICE_SESSION_READ_TIMEOUT_MS, loadDeviceSession, registerDeviceSession } from './deviceSessionClient.js';
+import { clearDeviceSession, DEVICE_SESSION_READ_TIMEOUT_MS, deviceSessionMatchesEntry, loadDeviceSession, registerDeviceSession } from './deviceSessionClient.js';
+
+test('교사 기기 세션은 모든 번호 입장에 사용할 수 있다', () => {
+  assert.equal(deviceSessionMatchesEntry({ role: 'teacher' }, 0), true);
+  assert.equal(deviceSessionMatchesEntry({ role: 'teacher' }, 9), true);
+  assert.equal(deviceSessionMatchesEntry({ role: 'student', studentNumber: 9 }, 9), true);
+  assert.equal(deviceSessionMatchesEntry({ role: 'student', studentNumber: 9 }, 8), false);
+  assert.equal(deviceSessionMatchesEntry(null, 9), false);
+});
 
 test('기기 인증 GET은 응답 본문까지 시간 제한을 적용한다', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });

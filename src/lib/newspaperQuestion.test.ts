@@ -85,6 +85,7 @@ test('로컬 질문은 주차별 upsert, 주제 선행 조건, 수정본 다운�
 });
 
 test('개인 질문 저장 실패 문구는 알 수 없는 서버 코드도 안내한다', () => {
+  assert.equal(newspaperErrorMessage(new NewspaperError('STUDENT_NUMBER_MISMATCH', 403)), '이 기기에 등록된 번호와 달라요. 번호 선택으로 돌아가 다시 들어와 주세요.');
   assert.equal(newspaperErrorMessage(new NewspaperError('TOO_MANY_REQUESTS', 429)), '너무 많이 눌렀어요. 잠시 후 다시 눌러 주세요.');
   assert.equal(newspaperErrorMessage(new NewspaperError('QUESTION_SAVE_FAILED', 404)), '저장하지 못했어요. 다시 눌러 주세요.');
   assert.equal(newspaperErrorMessage(new Error('WEEKLY_MISSION_INVALID_RESPONSE')), '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.');

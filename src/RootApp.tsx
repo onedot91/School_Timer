@@ -7,6 +7,7 @@ import { StorageAvailabilityBanner } from './components/StorageAvailabilityBanne
 import { startSaveFailureReporting } from './lib/saveFailureClient';
 import {
   clearDeviceSession,
+  deviceSessionMatchesEntry,
   loadDeviceSession,
   registerDeviceSession,
   type BrowserDeviceSession,
@@ -164,8 +165,7 @@ export default function RootApp() {
   useEffect(() => startSaveFailureReporting(), [selectedEntryNumber]);
   useEffect(() => {
     if (!isDeviceSessionReady || selectedEntryNumber === null) return;
-    if (requiresDeviceRegistration && !(deviceSession?.role === 'student' && deviceSession.studentNumber === selectedEntryNumber)
-      && !(deviceSession?.role === 'teacher' && selectedEntryNumber === 0)) return;
+    if (requiresDeviceRegistration && !deviceSessionMatchesEntry(deviceSession, selectedEntryNumber)) return;
     return startSaveRecovery(selectedEntryNumber);
   }, [isDeviceSessionReady, selectedEntryNumber, deviceSession]);
 
@@ -173,8 +173,7 @@ export default function RootApp() {
     if (selectedEntryNumber !== null && selectedEntryNumber !== studentNumber && !canReloadWithDrafts(selectedEntryNumber)) return;
     void preloadEntryPage(studentNumber)?.catch(() => undefined);
     if (requiresDeviceRegistration) {
-      const canUseExistingSession = deviceSession?.role === 'teacher'
-        || (deviceSession?.role === 'student' && deviceSession.studentNumber === studentNumber);
+      const canUseExistingSession = deviceSessionMatchesEntry(deviceSession, studentNumber);
       if (!canUseExistingSession) {
         if (studentNumber === 0 && !registrationKey) throw new Error('DEVICE_REGISTRATION_KEY_REQUIRED');
         const nextSession = await registerDeviceSession(studentNumber, registrationKey);
@@ -219,8 +218,7 @@ export default function RootApp() {
         setDeviceSession(session);
         setIsDeviceSessionReady(true);
         const storedNumber = getStoredEntryNumber();
-        const canUseStoredNumber = session?.role === 'teacher'
-          || (session?.role === 'student' && session.studentNumber === storedNumber);
+        const canUseStoredNumber = storedNumber !== null && deviceSessionMatchesEntry(session, storedNumber);
         if (!canUseStoredNumber) {
           clearStoredEntryNumber();
           setSelectedEntryNumber(null);
