@@ -207,18 +207,18 @@ export default function StudentFailureExhibitionPage({
           aria-modal={isChildDialogOpen ? undefined : 'true'}
           aria-hidden={isChildDialogOpen ? 'true' : undefined}
           inert={isChildDialogOpen}
-          aria-label="실패 자랑소 게시판"
+          aria-label="실패 전시관 게시판"
           data-child-dialog-open={isChildDialogOpen}
         >
           <header className="student-canvas-library-failure-board-header">
             <div className="student-canvas-library-failure-board-title">
-              <span>실패 자랑소</span>
-              <small>실패의 의미는 한 판 더!</small>
+              <span>실패 전시관</span>
+              <small>실패의 의미는 한 번 더!</small>
             </div>
             <button
               type="button"
               className="student-canvas-library-failure-board-close"
-              aria-label="실패 자랑소 닫기"
+              aria-label="실패 전시관 닫기"
               disabled={isSaving || isChildDialogOpen}
               onClick={requestBoardClose}
             >
@@ -231,9 +231,9 @@ export default function StudentFailureExhibitionPage({
         <div className="student-view student-failure-view">
           <StudentHeader
             title={(
-              <span className="student-failure-header-title" aria-label="실패 자랑소. 실패의 의미는 한 판 더!">
-                <span>실패 자랑소</span>
-                <span className="student-failure-header-catchphrase">실패의 의미는 한 판 더!</span>
+              <span className="student-failure-header-title" aria-label="실패 전시관. 실패의 의미는 한 번 더!">
+                <span>실패 전시관</span>
+                <span className="student-failure-header-catchphrase">실패의 의미는 한 번 더!</span>
               </span>
             )}
             onBack={onBack}

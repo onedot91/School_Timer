@@ -139,7 +139,7 @@ test('보낸 응원 배지는 선택한 마음의 아이콘과 상태 문구로 
   }
 });
 
-test('빈 실패 자랑소는 전시 카드 구조와 하나의 작성 행동을 제공한다', () => {
+test('빈 실패 전시관은 전시 카드 구조와 하나의 작성 행동을 제공한다', () => {
   const markup = renderToStaticMarkup(createElement(StudentFailureExhibitionPage, {
     studentNumber: 7,
     profileAssignments: normalizeFailureProfileAssignments(null),
@@ -175,7 +175,7 @@ test('도서관 게시판 모드는 기존 실패 전시 기능만 포함하고 
   assert.match(markup, /student-canvas-library-failure-board/);
   assert.match(markup, /role="dialog"/);
   assert.match(markup, /aria-modal="true"/);
-  assert.match(markup, /실패 자랑소 닫기/);
+  assert.match(markup, /실패 전시관 닫기/);
   assert.match(markup, /student-failure-empty-card/);
   assert.doesNotMatch(markup, /student-header/);
   assert.doesNotMatch(markup, /책장으로 가기/);

@@ -1038,7 +1038,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
     : nearbyTarget?.kind === 'registration-desk'
     ? room.desk.clerk ? '직원에게 말 걸기' : '가까운 곳 살펴보기: 책 등록'
     : nearbyTarget?.kind === 'failure-board'
-      ? `가까운 곳 살펴보기: ${STUDENT_FEATURE_RELEASES.failureExhibition ? '실패 자랑소' : STUDENT_FAILURE_EXHIBITION_HIDDEN_LABEL}`
+      ? `가까운 곳 살펴보기: ${STUDENT_FEATURE_RELEASES.failureExhibition ? '실패 전시관' : STUDENT_FAILURE_EXHIBITION_HIDDEN_LABEL}`
       : nearbyTarget?.kind === 'competition-board'
         ? '가까운 곳 살펴보기: 전국 책방 챌린지'
       : nearbyTarget?.kind === 'reading-nook'

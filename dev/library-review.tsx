@@ -30,7 +30,7 @@ const startPoints = [
   { label: '등록대', point: room.desk.interactionPoint },
   ...room.shelves.map((shelf, index) => ({ label: `책장 ${index + 1}`, point: shelf.interactionPoint })),
   ...(room.readingArea.interactionPoint ? [{ label: '독서 공간', point: room.readingArea.interactionPoint }] : []),
-  ...(room.failureBoard ? [{ label: '실패 자랑소', point: room.failureBoard.interactionPoint }] : []),
+  ...(room.failureBoard ? [{ label: '실패 전시관', point: room.failureBoard.interactionPoint }] : []),
   ...(room.competitionBoard ? [{ label: '챌린지', point: room.competitionBoard.interactionPoint }] : []),
   ...(room.ambientObjects ?? []).map(object => ({ label: `${ambientLabels[object.id] ?? object.kind} · ${object.id}`, point: object.interactionPoint })),
   ...(room.competitionBoard ? [{ label: '트로피 뒤', point: { x: room.competitionBoard.visualRect.x + room.competitionBoard.visualRect.width / 2, y: room.competitionBoard.footCollider.y - 5 } }] : []),

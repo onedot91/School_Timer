@@ -410,7 +410,7 @@ test('잠긴 게시판 상호작용은 실제 이름과 전시 화면 대신 가
   assert.match(source, /STUDENT_FEATURE_RELEASES\.failureExhibition/);
   assert.match(source, /getStudentFailureExhibitionHint\(\)/);
   assert.match(source, /STUDENT_FAILURE_EXHIBITION_HIDDEN_LABEL/);
-  assert.doesNotMatch(source, /가까운 곳 살펴보기: 실패 자랑소/);
+  assert.doesNotMatch(source, /가까운 곳 살펴보기: 실패 전시관/);
 });
 
 test('전체 도서관의 독서 코너는 러그·테이블·벤치·조명을 하나의 영역으로 묶고 발판을 추적한다', () => {

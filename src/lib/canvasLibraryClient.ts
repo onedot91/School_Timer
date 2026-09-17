@@ -221,7 +221,7 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
   const readReceipt = async (command: LibraryPlacementCommand, actor: number): Promise<CanvasLibraryPlacementResult | null> => {
     const context = captureStorageResponseContext();
     const query = new URLSearchParams({ requestId: command.requestId, receiptOnly: '1', studentNumber: String(actor) });
-    const response = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
+    const response = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', headers: { 'X-Storage-Projection': '1' }, signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
     let receipt: unknown;
     try { receipt = await response.json(); } catch (error) { if (response.ok) throw error; }
     if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
@@ -263,7 +263,7 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
     if (!isRecord(draft.payload)) return null;
     const context = captureStorageResponseContext();
     const query = new URLSearchParams({ requestId: draft.requestId, receiptOnly: '1', studentNumber: String(draft.scope.studentNumber) });
-    const response = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
+    const response = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', headers: { 'X-Storage-Projection': '1' }, signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
     let receipt: unknown;
     try { receipt = await response.json(); } catch (error) { if (response.ok) throw error; }
     if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
@@ -277,7 +277,7 @@ export const createCanvasLibraryClient = (dependencies: CanvasLibraryClientDepen
     let book = normalizeStudentLifeState({ books: [isRecord(receipt.result) ? receipt.result.book : null] }).books[0];
     if (!book) {
       query.delete('receiptOnly');
-      const refresh = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
+      const refresh = await dependencies.fetcher(`/api/shared-settings?${query}`, { credentials: 'same-origin', cache: 'no-store', headers: { 'X-Storage-Projection': '1' }, signal: AbortSignal.timeout(Math.min(12_000, dependencies.requestTimeoutMs)) });
       const current: unknown = await refresh.json();
       if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
       const bookId = isRecord(draft.payload.book) && draft.payload.book.kind === 'existing' ? draft.payload.book.bookId : `library:${draft.scope.studentNumber}:${draft.requestId}`;

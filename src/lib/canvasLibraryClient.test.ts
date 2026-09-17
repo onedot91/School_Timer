@@ -51,6 +51,37 @@ const dependencies = (
   ...overrides,
 });
 
+test('pending book retries pass the real receipt endpoint guard and resume the original write', async () => {
+  const { handleStorageCommand } = await import('../server/storageCommandHandler.js');
+  const originalFetch = globalThis.fetch;
+  const writes: string[] = [];
+  const statuses: number[] = [];
+  globalThis.fetch = async () => Response.json({ found: false });
+  try {
+    const client = createCanvasLibraryClient(dependencies({ fetcher: async (url, init) => {
+      if (init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        writes.push(body.requestId);
+        if (writes.length === 1) return Response.json({ error: 'LIBRARY_SAVE_FAILED' }, { status: 502 });
+        return Response.json({ book: normalizeStudentLifeState(responseValue().studentLife).books[0], updatedAt: NOW, value: responseValue() });
+      }
+      let status = 200;
+      let payload: unknown;
+      const response = { setHeader: () => undefined, status: (code: number) => { status = code; return response; }, json: (value: unknown) => { payload = value; } };
+      await handleStorageCommand({ method: 'GET', headers: Object.fromEntries(new Headers(init?.headers)),
+        query: Object.fromEntries(new URL(String(url), 'https://fixture.invalid').searchParams) }, response,
+      { url: 'https://fixture.invalid', key: 'fixture-key' }, { role: 'student', studentNumber: 3, expiresAt: 9999999999 }, () => ({}));
+      statuses.push(status);
+      return Response.json(payload, { status });
+    } }));
+    assert.equal((await client.placeBook(draft, 17, '2026-09')).ok, false);
+    const retried = await client.placeBook(draft, 17, '2026-09');
+    assert.deepEqual(statuses, [200]);
+    assert.equal(retried.ok, true);
+    assert.deepEqual(writes, [UUID_ONE, UUID_ONE]);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('active season placement preserves the supplied season identity across the wire', async () => {
   const bodies: unknown[] = [];
   const client = createCanvasLibraryClient(dependencies({ fetcher: async (_input, init) => {
@@ -406,6 +437,7 @@ test('receipt confirmation succeeds after committed placement when the display r
       command = rest;
       throw new TypeError('response lost after commit');
     }
+    assert.equal(new Headers(init?.headers).get('X-Storage-Projection'), '1');
     if (String(url).includes('receiptOnly=1')) return Response.json({ status: 'committed', action: 'placeLibraryBook',
       payloadHash: await featurePayloadHash('placeLibraryBook', command), committedAt: NOW, result: { book } });
     assert.equal(invalidated, true, 'confirmed commits invalidate the old snapshot before attempting a view refresh');
@@ -502,6 +534,7 @@ for (const storedSlot of [undefined, 17]) test(`legacy placement with saved slot
     const client = createCanvasLibraryClient(dependencies({ fetcher: async (url, init) => {
       methods.push(init?.method ?? 'GET');
       assert.notEqual(init?.method, 'PUT');
+      assert.equal(new Headers(init?.headers).get('X-Storage-Projection'), '1');
       assert.equal(new URL(String(url), 'https://fixture.invalid').searchParams.get('studentNumber'), '3');
       if (!committed) return Response.json({ status: 'unknown' });
       if (String(url).includes('receiptOnly')) return Response.json({ status: 'committed', action: 'placeLibraryBook',

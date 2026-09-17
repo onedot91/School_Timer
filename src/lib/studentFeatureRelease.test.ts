@@ -44,5 +44,5 @@ test('잠긴 실패 전시 공간은 이름을 숨기고 무작위 힌트만 제
   assert.equal(STUDENT_FAILURE_EXHIBITION_HINTS.length >= 4, true);
   assert.equal(getStudentFailureExhibitionHint(() => 0), STUDENT_FAILURE_EXHIBITION_HINTS[0]);
   assert.equal(getStudentFailureExhibitionHint(() => 0.999), STUDENT_FAILURE_EXHIBITION_HINTS.at(-1));
-  assert.equal(STUDENT_FAILURE_EXHIBITION_HINTS.every(hint => hint.length > 0 && !hint.includes('실패 자랑소')), true);
+  assert.equal(STUDENT_FAILURE_EXHIBITION_HINTS.every(hint => hint.length > 0 && !hint.includes('실패 전시관')), true);
 });
