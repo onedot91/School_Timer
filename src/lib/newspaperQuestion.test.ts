@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { getKoreanIsoWeekKey } from './weeklyMission.js';
-import { applyQuestionGlasses, detectQuestionGlasses, questionValidationCode, normalizeQuestionText, questionWeekLabel, weekMonday, buildQuestionTxt, questionTxtFilename, selectQuestionDownload, segmentQuestionGlasses, type NewspaperData } from './newspaperQuestion.js';
+import { applyQuestionGlasses, detectQuestionGlasses, newspaperErrorMessage, NewspaperError, questionValidationCode, normalizeQuestionText, questionWeekLabel, weekMonday, buildQuestionTxt, questionTxtFilename, selectQuestionDownload, segmentQuestionGlasses, type NewspaperData } from './newspaperQuestion.js';
 import { applyLocalNewspaperCommand, projectLocalNewspaper } from './newspaperLocalStore.js';
 
 test('신문 미션은 내부 화면을 lazy load하며 차단된 외부 사이트를 호출하지 않는다', () => {
@@ -34,6 +34,7 @@ test('질문 검증의 순서, Unicode, 특수문자, 물음표를 검사한다'
     ['하늘은 왜 파란가요', 'QUESTION_MARK_REQUIRED'], ['하늘은 왜 파란색일까요?', null],
     ['만약 달에 간다면 무엇을 볼 수 있을까요？', null], ['How are 물고기 2마리?', null],
     ['<script> 왜 안 돼요?', 'QUESTION_CHARACTER'], ['하늘은\n왜 파란가요?', null],
+    ['어떻게 사람들은 AI나 로봇을 만들까?', null],
   ] as const;
   for (const [text, expected] of checks) assert.equal(questionValidationCode(text), expected, text);
   assert.equal(questionValidationCode('테스트금칙 가상친구 왜?', { blockedWords: ['테스트금칙'], privateWords: ['가상친구'] }), 'QUESTION_PRIVATE_WORD');
@@ -81,4 +82,16 @@ test('로컬 질문은 주차별 upsert, 주제 선행 조건, 수정본 다운�
   const txt = buildQuestionTxt(data.questions.filter(row => row.week_key === weekKey), 'all', '신문');
   assert.equal(txt, '신문\n\n[개인 질문]\n3. 바다는 왜 파란가요?\n[주제 질문]\n1. 하늘은 왜 파란가요?\n');
   assert.equal(questionTxtFilename(weekKey, 'topic', true), `주제질문-누적-${weekKey}.txt`);
+});
+
+test('개인 질문 저장 실패 문구는 알 수 없는 서버 코드도 안내한다', () => {
+  assert.equal(newspaperErrorMessage(new NewspaperError('TOO_MANY_REQUESTS', 429)), '너무 많이 눌렀어요. 잠시 후 다시 눌러 주세요.');
+  assert.equal(newspaperErrorMessage(new NewspaperError('QUESTION_SAVE_FAILED', 404)), '저장하지 못했어요. 다시 눌러 주세요.');
+  assert.equal(newspaperErrorMessage(new Error('WEEKLY_MISSION_INVALID_RESPONSE')), '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.');
+  const sql = readFileSync('supabase/newspaper_questions.sql', 'utf8');
+  assert.match(sql, /if v_type='personal' then\s+begin\s+v_reward := public\.claim_weekly_mission_reward_v2/);
+  assert.match(sql, /exception when others then\s+-- Keep the submitted question/);
+  const rewards = readFileSync('supabase/storage_rewards_v2.sql', 'utf8');
+  assert.match(rewards, /Ledger-only historical payments must complete the mission/);
+  assert.doesNotMatch(rewards.slice(rewards.indexOf('create or replace function public.claim_weekly_mission_reward_v2'), rewards.indexOf('create or replace function public.claim_personal_question_weekly_reward_v2')), /raise exception 'STORAGE_REWARD_EVIDENCE_MISMATCH'/);
 });

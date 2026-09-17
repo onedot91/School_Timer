@@ -21,11 +21,21 @@ export const QUESTION_ERRORS: Record<string, string> = {
   QUESTION_NOT_FOUND: '질문이 삭제됐어요. 새로고침해 주세요.', QUESTION_READ_ONLY: '읽기 전용에서는 저장할 수 없어요.',
   QUESTION_CONFIRMATION_REQUIRED: '저장 결과를 확인하지 못했어요. 입력을 유지하고 다시 눌러 확인해 주세요.',
   QUESTION_TOPIC_INVALID: '주제는 1~40자로 써 주세요.', QUESTION_REQUEST_REUSED: '이전 요청과 내용이 달라요. 새로고침해 주세요.',
+  QUESTION_INVALID_WEEK: '주가 바뀌었어요. 새로고침해 주세요.', QUESTION_INVALID_REVISION: '다른 곳에서 수정됐어요. 새로고침 후 다시 확인해 주세요.',
+  QUESTION_INVALID_BODY: '질문을 다시 제출해 주세요.', QUESTION_INVALID_TYPE: '질문 종류를 확인해 주세요.',
+  QUESTION_INVALID_ACTION: '이 요청은 처리할 수 없어요.', QUESTION_INVALID_RESPONSE: '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.',
+  QUESTION_SAVE_FAILED: '저장하지 못했어요. 다시 눌러 주세요.', QUESTION_DATABASE_FAILED: '저장하지 못했어요. 다시 눌러 주세요.',
+  QUESTION_LOAD_FAILED: '질문을 불러오지 못했어요. 새로고침해 주세요.', QUESTION_FORBIDDEN: '이 기기에서는 저장할 수 없어요.',
+  STUDENT_NUMBER_MISMATCH: '번호가 달라요. 처음부터 다시 들어와 주세요.', DEVICE_REGISTRATION_REQUIRED: '기기 등록이 필요해요. 선생님께 알려 주세요.',
+  CROSS_SITE_REQUEST_BLOCKED: '이 창에서는 저장할 수 없어요. 학급 사이트에서 다시 열어 주세요.',
+  TOO_MANY_REQUESTS: '너무 많이 눌렀어요. 잠시 후 다시 눌러 주세요.',
 };
 export class NewspaperError extends Error {
   readonly endpoint = '/api/newspaper';
   constructor(readonly code: string, readonly status = 400) { super(code); this.name = 'NewspaperError'; }
 }
+export const newspaperErrorMessage = (error: unknown, failed = '저장하지 못했어요. 다시 눌러 주세요.', unconfirmed = '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.') =>
+  error instanceof NewspaperError ? QUESTION_ERRORS[error.code] ?? failed : unconfirmed;
 export interface NewspaperQuestion {
   id: string; student_number: number; question_type: QuestionType; question_text: string; week_key: string;
   created_at: string; updated_at: string; downloaded_at: string | null;

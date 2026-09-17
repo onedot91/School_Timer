@@ -35,6 +35,14 @@ test('응답 미확인 다운로드는 다른 저장 후에도 같은 요청 ID�
     await client.newspaperCommand(0, download);
     assert.equal(requests[3].requestId, requests[0].requestId);
     assert.equal(client.readPendingNewspaperRequests(0).length, 0);
+    const stamp = '2026-09-17T07:00:00.000Z';
+    globalThis.fetch = async () => Response.json({
+      question: { id: '11111111-1111-4111-8111-111111111111', student_number: 9, question_type: 'personal', question_text: '어떻게 사람들은 AI나 로봇을 만들까?', week_key: '2026-38', created_at: stamp, updated_at: stamp, downloaded_at: null },
+      reward: { missionType: 'personal_question', weekKey: '2026-38' },
+    });
+    const saved = await client.newspaperCommand(9, { action: 'submit', studentNumber: 9, questionType: 'personal', questionText: '어떻게 사람들은 AI나 로봇을 만들까?', weekKey: '2026-38', expectedUpdatedAt: null });
+    assert.equal(Reflect.get(Object(saved.question), 'student_number'), 9);
+    assert.equal(saved.reward, null);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow); else Reflect.deleteProperty(globalThis, 'window');

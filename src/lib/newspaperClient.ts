@@ -24,7 +24,10 @@ const parseCommandResult = (value: unknown): Record<string, unknown> => {
     if (!Array.isArray(value.questions)) throw new NewspaperError('QUESTION_INVALID_RESPONSE', 502);
     value.questions.forEach(parseNewspaperQuestion);
   }
-  if (value.reward !== null && value.reward !== undefined) parseWeeklyMissionResult(value.reward);
+  if (value.reward !== null && value.reward !== undefined) {
+    try { parseWeeklyMissionResult(value.reward); }
+    catch { value.reward = null; }
+  }
   return value;
 };
 const pendingKey = (actor: number) => `school-timer-newspaper-pending-v1:${actor}`;

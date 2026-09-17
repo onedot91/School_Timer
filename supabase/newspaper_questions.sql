@@ -93,7 +93,14 @@ begin
         updated_at=case when newspaper_questions.question_text=excluded.question_text then newspaper_questions.updated_at else excluded.updated_at end,
         downloaded_at=case when newspaper_questions.question_text=excluded.question_text then newspaper_questions.downloaded_at else null end
       returning * into v_row;
-    if v_type='personal' then v_reward := public.claim_weekly_mission_reward_v2(p_actor,v_week,'personal_question',v_row.id::text,2); end if;
+    if v_type='personal' then
+      begin
+        v_reward := public.claim_weekly_mission_reward_v2(p_actor,v_week,'personal_question',v_row.id::text,2);
+      exception when others then
+        -- Keep the submitted question even when this student's weekly reward cannot be settled.
+        v_reward := null;
+      end;
+    end if;
     v_result := jsonb_build_object('question',to_jsonb(v_row)||jsonb_build_object('downloaded_at',null),'reward',v_reward);
   elsif v_action in ('update','delete') then
     select * into v_row from public.newspaper_questions where id=(p_command->>'id')::uuid;

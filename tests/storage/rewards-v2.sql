@@ -31,6 +31,10 @@ begin
   perform public.storage_apply_wallet_delta(2,'fixture-six',6,'weekly_mission',now(),'fixture-six');
   v_first:=public.claim_weekly_mission_reward_v2(2,'2099-01-01','classword_word_entry','word-one',2);
   if v_first->>'balance'<>'111' then raise exception 'SIX_REWARD_LOST'; end if;
+  perform public.storage_apply_wallet_delta(1,'weekly-mission-1-2099-01',15,'weekly_mission',now(),'weekly-mission-1-2099-01');
+  v_first:=public.claim_weekly_mission_reward_v2(1,'2099-01','personal_question','fixture-question',2);
+  if v_first->>'awarded'<>'false' or v_first->>'completed'<>'true' then raise exception 'LEDGER_ONLY_REWARD_ABORTED'; end if;
+  if (select balance from public.wallet_accounts where student_number=1)<>100+v_amount+15 then raise exception 'LEDGER_ONLY_REWARD_REPAID'; end if;
   begin
     perform public.claim_weekly_mission_reward(1,'2099-01-02','classword_word_entry','old');
     raise exception 'OLD_CLIENT_ACCEPTED';

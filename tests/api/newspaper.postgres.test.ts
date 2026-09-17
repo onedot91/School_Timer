@@ -52,6 +52,11 @@ test('실제 PostgreSQL: 질문·보상 트랜잭션, upsert, 원자적 다운�
     const full = await command(0, { action: 'download', weekKey, mode: 'all', cumulative: false });
     assert.ok(Array.isArray(full.questions)); assert.equal(full.questions.length, 3);
     assert.deepEqual((await read(0, weekKey)).questions.map(row => row.downloaded_at), downloaded.questions.map(row => row.downloaded_at));
+    await db.exec('delete from public.wallet_accounts where student_number=9');
+    const isolated = await command(9, submit);
+    assert.equal(parseNewspaperQuestion(isolated.question).student_number, 9);
+    assert.equal(isolated.reward, null);
+    assert.ok((await read(0, weekKey)).questions.some(item => item.student_number === 9 && item.question_type === 'personal'));
     const edited = await command(3, { ...submit, questionText: '바다는 왜 파란가요?', expectedUpdatedAt: row.updated_at });
     const changed = parseNewspaperQuestion(edited.question);
     assert.equal(changed.id, row.id); assert.equal(changed.created_at, row.created_at); assert.equal(changed.downloaded_at, null);
@@ -67,7 +72,7 @@ test('실제 PostgreSQL: 질문·보상 트랜잭션, upsert, 원자적 다운�
     const claimed = await command(0, downloadCommand, retryDownloadId);
     assert.deepEqual(await command(0, downloadCommand, retryDownloadId), claimed);
     await command(0, { action: 'delete', id: row.id, expectedUpdatedAt: changed.updated_at });
-    assert.equal((await read(0, weekKey)).questions.length, 2);
+    assert.equal((await read(0, weekKey)).questions.length, 3);
     await assert.rejects(command(3, submit, requestId), /QUESTION_REQUEST_REUSED/);
     await assert.rejects(command(0, downloadCommand, retryDownloadId), /QUESTION_REQUEST_REUSED/);
     await assert.rejects(command(0, { action: 'reset', confirmation: '취소' }), /QUESTION_FORBIDDEN/);

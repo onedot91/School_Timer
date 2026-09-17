@@ -48,19 +48,23 @@ begin
       v_entry_id := case when p_mission_type = 'personal_question'
         then concat('weekly-mission-',p_student_number,'-',p_week_key)
         else concat('weekly-mission-',p_mission_type,'-',p_student_number,'-',p_week_key) end;
-      -- Existing claim evidence survives migration, including recovered historical payments.
+      -- Ledger-only historical payments must complete the mission without paying twice or aborting the caller.
       if exists (select 1 from public.wallet_ledger where entry_id = v_entry_id and student_number = p_student_number) then
-        raise exception 'STORAGE_REWARD_EVIDENCE_MISMATCH';
+        insert into public.weekly_mission_rewards(student_number,week_key,mission_type,reward_amount,source_event_id,completed_at)
+          values(p_student_number,p_week_key,p_mission_type,v_reward,p_source_event_id,v_now)
+          on conflict (student_number, week_key, mission_type) do nothing;
+        v_completed := true;
+      else
+        insert into public.weekly_mission_rewards(student_number,week_key,mission_type,reward_amount,source_event_id,completed_at)
+          values(p_student_number,p_week_key,p_mission_type,v_reward,p_source_event_id,v_now);
+        v_wallet := public.storage_apply_wallet_delta(p_student_number,v_entry_id,v_reward,'weekly_mission',v_now,v_entry_id);
+        v_balance := (v_wallet->>'balance')::integer;
+        v_awarded := (v_wallet->>'awarded')::boolean;
+        v_completed := true;
+        insert into public.storage_reward_claims(claim_id,student_number,value)
+          values(v_entry_id,p_student_number,jsonb_build_object('missionType',p_mission_type,'weekKey',p_week_key,'rewardAmount',v_reward,'sourceEventId',p_source_event_id,'completedAt',v_now))
+          on conflict (claim_id) do nothing;
       end if;
-      insert into public.weekly_mission_rewards(student_number,week_key,mission_type,reward_amount,source_event_id,completed_at)
-        values(p_student_number,p_week_key,p_mission_type,v_reward,p_source_event_id,v_now);
-      v_wallet := public.storage_apply_wallet_delta(p_student_number,v_entry_id,v_reward,'weekly_mission',v_now,v_entry_id);
-      v_balance := (v_wallet->>'balance')::integer;
-      v_awarded := (v_wallet->>'awarded')::boolean;
-      v_completed := true;
-      insert into public.storage_reward_claims(claim_id,student_number,value)
-        values(v_entry_id,p_student_number,jsonb_build_object('missionType',p_mission_type,'weekKey',p_week_key,'rewardAmount',v_reward,'sourceEventId',p_source_event_id,'completedAt',v_now))
-        on conflict (claim_id) do nothing;
     end if;
   end if;
   return jsonb_build_object('missionType',p_mission_type,'weekKey',p_week_key,'completed',v_completed,

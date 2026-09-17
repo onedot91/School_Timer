@@ -5,7 +5,7 @@ import { useNewspaper } from '../../lib/useNewspaper';
 import { newspaperCommand, readPendingNewspaperRequests } from '../../lib/newspaperClient';
 import { isReadOnlyDataMode } from '../../lib/dataMode';
 import { getKoreanIsoWeekKey } from '../../lib/weeklyMission';
-import { NEWSPAPER_CONFIG, QUESTION_LABELS, QUESTION_ERRORS, NewspaperError, isQuestionMode, isQuestionWeek, questionValidationCode, normalizeQuestionText, questionWeekLabel, questionWeekOptions, selectQuestionDownload, buildQuestionTxt, questionTxtFilename, parseNewspaperQuestion, type NewspaperQuestion, type QuestionMode } from '../../lib/newspaperQuestion';
+import { NEWSPAPER_CONFIG, QUESTION_LABELS, QUESTION_ERRORS, NewspaperError, newspaperErrorMessage, isQuestionMode, isQuestionWeek, questionValidationCode, normalizeQuestionText, questionWeekLabel, questionWeekOptions, selectQuestionDownload, buildQuestionTxt, questionTxtFilename, parseNewspaperQuestion, type NewspaperQuestion, type QuestionMode } from '../../lib/newspaperQuestion';
 
 function QuestionEditor({ row, busy, onSave, onDelete }: { row: NewspaperQuestion; busy: boolean; onSave: (text: string) => void; onDelete: () => void }) {
   const [text, setText] = useState(row.question_text);
@@ -38,7 +38,7 @@ export default function TeacherNewspaperPanel() {
     if (busyRef.current) return;
     busyRef.current = true; setBusy(true); setNotice('');
     try { const result = await newspaperCommand(0, command); onResult?.(result); setNotice(typeof success === 'string' ? success : success(result)); setFailed(false); setConfirm(null); setConfirmation(''); await refresh(); }
-    catch (error) { setFailed(true); setNotice(error instanceof NewspaperError ? QUESTION_ERRORS[error.code] ?? '처리하지 못했습니다. 다시 시도해 주세요.' : '처리 결과를 확인하지 못했습니다. 다시 눌러 확인해 주세요.'); }
+    catch (error) { setFailed(true); setNotice(newspaperErrorMessage(error, '처리하지 못했습니다. 다시 시도해 주세요.', '처리 결과를 확인하지 못했습니다. 다시 눌러 확인해 주세요.')); }
     finally { busyRef.current = false; setBusy(false); }
   };
   const saveFile = (file: { text: string; filename: string }) => {

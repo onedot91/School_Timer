@@ -5,7 +5,7 @@ import NewspaperDialog from '../NewspaperDialog';
 import { useNewspaper } from '../../lib/useNewspaper';
 import { newspaperCommand } from '../../lib/newspaperClient';
 import { isReadOnlyDataMode } from '../../lib/dataMode';
-import { QUESTION_ERRORS, QUESTION_GLASSES, QUESTION_LABELS, NewspaperError, applyQuestionGlasses, detectQuestionGlasses, normalizeQuestionText, questionValidationCode, questionWeekLabel, parseNewspaperQuestion, segmentQuestionGlasses, type NewspaperQuestion, type NewspaperTopic, type QuestionGlasses, type QuestionType } from '../../lib/newspaperQuestion';
+import { QUESTION_ERRORS, QUESTION_GLASSES, QUESTION_LABELS, applyQuestionGlasses, detectQuestionGlasses, newspaperErrorMessage, normalizeQuestionText, questionValidationCode, questionWeekLabel, parseNewspaperQuestion, segmentQuestionGlasses, type NewspaperQuestion, type NewspaperTopic, type QuestionGlasses, type QuestionType } from '../../lib/newspaperQuestion';
 
 const QUESTION_GLASSES_ASSETS: Record<QuestionGlasses, { icon: string; character: string }> = {
   왜: { icon: '/newspaper/glasses-why.png', character: '/newspaper/character-why.png' },
@@ -48,8 +48,9 @@ function QuestionComposer({ actor, week, type, question, topic, hasPersonal, onS
         questionText: text, expectedUpdatedAt: saved?.updated_at ?? null, ...(type === 'topic' ? { topicRevision: topic?.updated_at } : {}) });
       const row = parseNewspaperQuestion(result.question);
       setSaved(row); setText(row.question_text); clearDraft();
-      setFailed(false); setMessage('제출 완료'); await onSaved();
-    } catch (error) { setFailed(true); setMessage(error instanceof NewspaperError ? QUESTION_ERRORS[error.code] ?? '저장하지 못했어요. 다시 눌러 주세요.' : '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.'); }
+      setFailed(false); setMessage('제출 완료');
+      try { await onSaved(); } catch { /* Confirmed submit must not look like a save failure if refresh lags. */ }
+    } catch (error) { setFailed(true); setMessage(newspaperErrorMessage(error)); }
     finally { locked.current = false; setBusy(false); }
   };
   return <section className="newspaper-compose" data-save-state={saveState} onFocus={onFocus} onClick={onFocus}>
