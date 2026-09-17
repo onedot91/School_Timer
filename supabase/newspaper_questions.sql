@@ -59,8 +59,14 @@ begin
   if p_actor is null or p_actor not between 0 and 23 or p_request_id is null or jsonb_typeof(p_command) is distinct from 'object' then raise exception 'QUESTION_FORBIDDEN'; end if;
   if v_action is null or v_action not in ('submit','update','delete','topic','download','reset') then raise exception 'QUESTION_INVALID_ACTION'; end if;
   if p_actor <> 0 and v_action <> 'submit' then raise exception 'QUESTION_FORBIDDEN'; end if;
-  -- All mutations share this feature lock: edit, reset and download cannot race each other.
-  perform pg_advisory_xact_lock(hashtextextended('newspaper-questions',0));
+  -- Student submissions may proceed in parallel, while teacher-wide mutations
+  -- (download/reset/edit/topic) remain exclusive against every submission.
+  if v_action='submit' then
+    perform pg_advisory_xact_lock_shared(hashtextextended('newspaper-questions',0));
+    perform pg_advisory_xact_lock(hashtextextended('newspaper-student:'||p_actor||':'||coalesce(v_week,''),0));
+  else
+    perform pg_advisory_xact_lock(hashtextextended('newspaper-questions',0));
+  end if;
   select * into v_receipt from public.newspaper_receipts where actor=p_actor and request_id=p_request_id;
   if found then
     if v_receipt.command is distinct from p_command then raise exception 'QUESTION_REQUEST_REUSED'; end if;

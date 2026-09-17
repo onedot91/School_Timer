@@ -7,6 +7,7 @@ import sharedSettings from '../../api/shared-settings.js';
 import studentEconomy from '../../api/student-economy.js';
 import deviceSession from '../../api/device-session.js';
 import saveAlerts from '../../api/save-alerts.js';
+import newspaper from '../../api/newspaper.js';
 import { createDeviceSessionToken, type RequestHeaders } from '../../src/server/deviceSession.js';
 import { splitStorageState, isStorageRecord } from '../../src/lib/storageV2Codec.js';
 import { DEFAULT_AUCTION_ITEMS } from '../../src/lib/currency.js';
@@ -16,12 +17,14 @@ import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const FIXTURE_SECRET = 'isolated-http-fixture-session-secret-2026';
 const KEY = 'isolated-fixture-service-key';
-const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_load_scope_metadata', 'storage_load_updated_at', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2', 'storage_place_library_book']);
+const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_load_scope_metadata', 'storage_load_updated_at', 'storage_commit_scoped_mutation', 'storage_get_receipt', 'storage_commit_mutation', 'storage_reconcile_wallets', 'storage_reward_audit_source', 'claim_weekly_mission_reward_v2', 'donate_to_class_goal_v2', 'storage_place_library_book', 'newspaper_read', 'newspaper_command']);
 interface Database { query(sql: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>; end(): Promise<void> }
 const database = (name: string): Database => {
   const driver: unknown = createRequire(import.meta.url)(process.env.STORAGE_TEST_PG_MODULE ?? '/tmp/school-storage-runtime/node_modules/pg/lib/index.js');
   if (!isStorageRecord(driver) || typeof driver.Pool !== 'function') throw new Error('FIXTURE_PG_DRIVER_REQUIRED');
-  const pool: unknown = Reflect.construct(driver.Pool, [{ host: '127.0.0.1', port: 55439, user: 'postgres', password: 'local-fixture-only', database: name, max: 32 }]);
+  const port = Number(process.env.STORAGE_TEST_PG_PORT ?? '55439');
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('FIXTURE_PG_PORT_INVALID');
+  const pool: unknown = Reflect.construct(driver.Pool, [{ host: '127.0.0.1', port, user: 'postgres', password: 'local-fixture-only', database: name, max: 32 }]);
   if (!isStorageRecord(pool) || typeof pool.query !== 'function' || typeof pool.end !== 'function') throw new Error('FIXTURE_PG_POOL_INVALID');
   const query = pool.query.bind(pool), end = pool.end.bind(pool);
   return { query: async (sql, values) => {
@@ -62,7 +65,7 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
   const db = database(name);
   const initialized = await db.query("select to_regclass('public.storage_backups') as table_name");
   const ready = initialized.rows[0]?.table_name != null && (await db.query('select 1 from storage_backups limit 1')).rows.length > 0;
-  for (const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','storage_classword_v2.sql','storage_audit_v2.sql','storage_scoped_v2.sql','storage_read_performance.sql','storage_library_placement_v2.sql']) await db.query(await readFile(resolve(ROOT, 'supabase', file), 'utf8'));
+  for (const file of ['app_settings.sql','classword.sql','library_competition.sql','storage_v2.sql','storage_today_friend_v2.sql','storage_rewards_v2.sql','newspaper_questions.sql','storage_classword_v2.sql','storage_audit_v2.sql','storage_scoped_v2.sql','storage_read_performance.sql','storage_library_placement_v2.sql']) await db.query(await readFile(resolve(ROOT, 'supabase', file), 'utf8'));
   if (!ready) {
     const source = initialValue ?? fakeClassroom(), encoded = splitStorageState(source), timestamp = '2026-09-08T00:00:00Z';
     await db.query("with config as materialized (select set_config('school_timer.library_competition_commit','on',true)) insert into app_settings(id,value,updated_at) select 'school-timer-main',$1,$2 from config", [source,timestamp]);
@@ -117,7 +120,7 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
         response.writeHead(302,{'Set-Cookie':`${fixtureCookie(student)}; Path=/; HttpOnly; Secure; SameSite=Strict`,Location:'/'});response.end();return;
       }
       if (url.pathname === '/api/save-alerts' && request.method === 'GET' && !url.searchParams.has('audit')) { json(response,200,{alerts:[],hasMore:false});return; }
-      const handler = url.pathname === '/api/shared-settings' ? sharedSettings : url.pathname === '/api/student-economy' ? studentEconomy : url.pathname === '/api/device-session' ? deviceSession : url.pathname === '/api/save-alerts' ? saveAlerts : null;
+      const handler = url.pathname === '/api/shared-settings' ? sharedSettings : url.pathname === '/api/student-economy' ? studentEconomy : url.pathname === '/api/device-session' ? deviceSession : url.pathname === '/api/save-alerts' ? saveAlerts : url.pathname === '/api/newspaper' ? newspaper : null;
       if (!handler) {
         if (url.pathname.startsWith('/api/')) {json(response,503,{error:'FIXTURE_FEATURE_NOT_CONFIGURED'});return;}
         const requested = resolve(staticDirectory,decodeURIComponent(url.pathname).slice(1) || 'index.html');
