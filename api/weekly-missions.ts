@@ -133,6 +133,15 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return;
   }
 
+  const startedAt = Date.now();
+  const reportFailure = (stage: string, error: unknown) => {
+    const errorName = error instanceof Error && ['TimeoutError', 'AbortError', 'TypeError', 'SyntaxError'].includes(error.name)
+      ? error.name : 'Error';
+    const message = error instanceof Error ? error.message : '';
+    const code = /^(?:WEEKLY_MISSION_RPC_HTTP_[45][0-9]{2}|WEEKLY_MISSION_RPC_ALL_FAILED|CLASSWORD_ENTRY_HTTP_[45][0-9]{2}|WEEKLY_MISSION_REWARDS_HTTP_[45][0-9]{2})$/.test(message)
+      ? message : 'WEEKLY_MISSIONS_UPSTREAM_FAILED';
+    console.warn('Weekly mission failure', { stage, errorName, code, elapsedMs: Date.now() - startedAt });
+  };
   try {
     const now = new Date();
     const weekKey = getKoreanIsoWeekKey(now);
@@ -146,16 +155,16 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       loadFinalizedClasswordRewardKeys(configuration, dateKey, studentNumber),
     ]);
     if (questionResult.status === 'rejected') {
-      console.warn('Failed to load personal-question mission evidence.', questionResult.reason);
+      reportFailure('personal-question-evidence', questionResult.reason);
     }
     if (todayEntriesResult.status === 'rejected') {
-      console.warn('Failed to load today classword mission evidence.', todayEntriesResult.reason);
+      reportFailure('today-classword-evidence', todayEntriesResult.reason);
     }
     if (finalizedEntriesResult.status === 'rejected') {
-      console.warn('Failed to load finalized classword mission evidence.', finalizedEntriesResult.reason);
+      reportFailure('finalized-classword-evidence', finalizedEntriesResult.reason);
     }
     if (finalizedRewardKeysResult.status === 'rejected') {
-      console.warn('Failed to load finalized classword reward ledger.', finalizedRewardKeysResult.reason);
+      reportFailure('classword-reward-ledger', finalizedRewardKeysResult.reason);
     }
     const personalQuestion = questionResult.status === 'fulfilled'
       ? questionResult.value
@@ -212,16 +221,16 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const successfulRequesterClaims = requesterClaimResults.flatMap((result) => (
       result?.status === 'fulfilled' ? [result.value] : []
     ));
-    if (successfulRequesterClaims.length === 0) {
-      throw new Error('WEEKLY_MISSION_RPC_ALL_FAILED');
-    }
     const claims = [personalClaim, ...classwordClaims];
     const claimResults = [personalClaimResult, ...classwordClaimResults];
     claimResults.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.warn('Failed to claim one weekly mission reward.', claims[index], result.reason);
+        reportFailure(claims[index].missionType, result.reason);
       }
     });
+    if (successfulRequesterClaims.length === 0) {
+      throw new Error('WEEKLY_MISSION_RPC_ALL_FAILED');
+    }
     const fallbackBalance = Math.max(...successfulRequesterClaims.map((mission) => mission.balance));
     const createMissionResult = (
       claim: MissionClaimInput,
@@ -250,7 +259,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
     response.status(200).json({ missions });
   } catch (error) {
-    console.error('Failed to sync weekly missions.', error);
+    reportFailure('settlement', error);
     response.status(502).json({ error: 'WEEKLY_MISSIONS_SYNC_FAILED' });
   }
 }

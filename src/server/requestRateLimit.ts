@@ -8,7 +8,8 @@ interface RateLimitEntry {
 }
 
 const MAX_REQUESTS_PER_WINDOW = 10;
-const MAX_REQUESTS_PER_CLIENT = 120;
+const MAX_REQUESTS_PER_CLIENT = 25 * MAX_REQUESTS_PER_WINDOW;
+const MAX_REGISTRATION_REQUESTS_PER_CLIENT = 120;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_TRACKED_CLIENTS = 512;
 const rateLimits = new Map<string, RateLimitEntry>();
@@ -74,7 +75,9 @@ export const consumeRequestRateLimit = (
 ) => {
   removeExpiredEntries(now);
   const routeAndClient = `${route}:${getClientAddress(headers)}`;
-  const clientResult = consumeRateLimitKey(`${routeAndClient}:all`, MAX_REQUESTS_PER_CLIENT, now);
-  if (!clientResult.allowed) return clientResult;
-  return consumeRateLimitKey(`${routeAndClient}:student:${studentNumber}`, MAX_REQUESTS_PER_WINDOW, now);
+  const studentResult = consumeRateLimitKey(`${routeAndClient}:student:${studentNumber}`, MAX_REQUESTS_PER_WINDOW, now);
+  if (!studentResult.allowed) return studentResult;
+  // Classroom devices share a public IP; rejected repeats must not exhaust peers' budget.
+  return consumeRateLimitKey(`${routeAndClient}:all`, route === 'device-registration'
+    ? MAX_REGISTRATION_REQUESTS_PER_CLIENT : MAX_REQUESTS_PER_CLIENT, now);
 };

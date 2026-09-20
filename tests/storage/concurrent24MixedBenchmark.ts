@@ -18,6 +18,7 @@ initialValue.studentLife.letters = Array.from({ length: 1300 }, (_, index) => ({
 }));
 const rounds = Number(process.env.MIXED_ROUNDS ?? 5);
 const rpcDelayMs = Number(process.env.MIXED_RPC_DELAY_MS ?? 100);
+const actors = [...students, 0, ...(process.argv.includes('--25-sessions') ? [0] : [])];
 const harness = await startHttpHarness({ name: `storage_http_test_mixed24_${process.pid}_${Date.now()}`, port: 0, initialValue, rpcDelayMs });
 const latencies: Record<string, number[]> = { read: [], write: [] };
 const errors: { actor: number; status: number; code: unknown }[] = [];
@@ -40,25 +41,27 @@ try {
     process.env.STORAGE_SCOPED_POLLING = '1';
   }
   const started = performance.now();
-  await Promise.all([...students, 0].map(async actor => {
+  await Promise.all(actors.map(async (actor, sessionIndex) => {
     for (let round = 0; round < rounds; round++) {
       await request(actor);
       if (actor) await request(actor, { protocolVersion: 2, studentNumber: actor, action: { type: 'deposit', amount: 10 }, requestId: `mixed-${actor}-${round}` });
-      else if (process.argv.includes('--teacher-writes')) await request(0, { protocolVersion: 2, requestId: `mixed-teacher-${round}`, action: 'teacher.settings.patch',
-        payload: { changes: [{ field: 'scheduleNotice', before: round ? `격리 ${round - 1}` : '격리 검증 학급', after: `격리 ${round}` }] } });
+      else if (process.argv.includes('--teacher-writes')) await request(0, { protocolVersion: 2, requestId: `mixed-teacher-${sessionIndex}-${round}`, action: 'teacher.settings.patch',
+        payload: { changes: sessionIndex === 23
+          ? [{ field: 'scheduleNotice', before: round ? `격리 ${round - 1}` : '격리 검증 학급', after: `격리 ${round}` }]
+          : [{ field: 'manualTimer', before: { totalTime: 180 + round, isVisible: false }, after: { totalTime: 181 + round, isVisible: false } }] } });
       else await new Promise(resolve => setTimeout(resolve, 500));
     }
   }));
   const reconciliation = (await harness.query('select storage_reconcile_wallets() result')).rows[0]?.result;
   const wallets = (await harness.query('select balance from wallet_accounts order by student_number')).rows;
   const receipts = (await harness.query('select count(*)::integer count from storage_receipts')).rows[0]?.count;
-  const report = { sessions: 24, rounds, simulatedRpcRoundTripMs: rpcDelayMs * 2, elapsedMs: Math.round(performance.now() - started),
+  const report = { sessions: actors.length, rounds, simulatedRpcRoundTripMs: rpcDelayMs * 2, elapsedMs: Math.round(performance.now() - started),
     latency: Object.fromEntries(Object.entries(latencies).map(([key, values]) => [key, { count: values.length, p50: percentile(values, .5), p95: percentile(values, .95), max: Math.round(Math.max(...values)) }])), errors,
     rpcs: Object.fromEntries([...new Set(harness.metrics.map(row => row.rpc))].map(rpc => [rpc, { count: harness.metrics.filter(row => row.rpc === rpc && !row.code).length,
       bytes: harness.metrics.filter(row => row.rpc === rpc).reduce((sum, row) => sum + (row.responseBytes ?? 0), 0) }])), receipts, reconciliation };
   console.log(JSON.stringify(report));
   assert.deepEqual(errors, []);
-  assert.equal(receipts, (process.argv.includes('--teacher-writes') ? 24 : 23) * rounds);
+  assert.equal(receipts, (process.argv.includes('--teacher-writes') ? actors.length : 23) * rounds);
   assert.deepEqual(wallets.map(row => row.balance), Array(23).fill(1000 - 10 * rounds));
   assert.deepEqual(reconciliation, []);
   if (process.argv.includes('--scoped-polling')) {

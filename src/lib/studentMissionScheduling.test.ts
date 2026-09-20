@@ -22,7 +22,7 @@ test('보상 확인은 첫 기록 조회 뒤 실행하며 성공해도 전체 �
     useEffect: (run: () => () => void) => { cleanup = run(); },
     window: { ...events, setTimeout: (run: () => void, ms: number) => { timers.set(++id, { at: now + ms, run }); return id; }, clearTimeout: (key: number) => timers.delete(key) },
     document: { ...events, visibilityState: 'visible' }, navigator,
-    Date: { now: () => now }, Math: { random: () => 0, max: Math.max },
+    Date: { now: () => now }, Math: { random: () => 0, max: Math.max, min: Math.min },
     isSupabaseSettingsEnabled: true, hasLoadedSharedSettingsRef: loaded, studentNumber: 1,
     syncWeeklyMissions: async () => { calls++; return { missions: [] }; },
     setWeeklyMissionStatuses: () => {}, setHasWeeklyMissionSyncError: () => {},
@@ -43,12 +43,18 @@ test('보상 확인은 첫 기록 조회 뒤 실행하며 성공해도 전체 �
   assert.deepEqual(refreshes, [undefined], 'normal metadata refresh detects actual changes without forcing a full row');
   listeners.get('focus')?.();
   navigator.onLine = false;
-  await advance(5_000);
+  await advance(30_000);
   assert.equal(calls, 1, 'going offline while a retry is scheduled must prevent the request');
   navigator.onLine = true;
   listeners.get('online')?.();
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(calls, 2);
+  listeners.get('focus')?.();
+  await advance(5_000);
+  assert.equal(calls, 2, 'focus must not repeat settlement after only five seconds');
+  listeners.get('school-timer-newspaper-change')?.();
+  await advance(5_000);
+  assert.equal(calls, 3, 'new evidence must shorten a previously scheduled foreground wait');
   cleanup();
   assert.equal(timers.size, 0);
   assert.equal(listeners.size, 0);

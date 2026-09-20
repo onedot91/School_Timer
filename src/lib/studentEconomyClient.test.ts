@@ -127,8 +127,35 @@ test('본문 연결 실패와 상태 조회 실패가 계속되어도 성공으�
   };
   try {
     await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'select_character', characterId: null }, requestId: 'body-failure' }), /CONFIRMATION_REQUIRED/);
-    assert.equal(attempts, 2);
+    assert.equal(attempts, 4);
   } finally { globalThis.fetch = originalFetch; }
+});
+
+test('25개 거래의 응답 유실 뒤 늦게 확정된 영수증은 재저장 없이 확인한다', async context => {
+  const writes: string[] = [];
+  const reads = new Map<string, number>();
+  const action = { type: 'deposit' as const, amount: 30 };
+  context.mock.method(globalThis, 'fetch', async (input: unknown, init?: RequestInit) => {
+    if (init?.method === 'POST') {
+      writes.push(String(init.body));
+      throw new TypeError('Load failed');
+    }
+    const url = new URL(String(input), 'https://school.example');
+    const id = url.searchParams.get('requestId') ?? '';
+    if (url.searchParams.has('receiptOnly')) {
+      const count = (reads.get(id) ?? 0) + 1;
+      reads.set(id, count);
+      return Response.json(count < 3 ? { status: 'unknown' } : await committedReceipt(action));
+    }
+    return Response.json({ status: 'committed', result: await successfulResponse().json() });
+  });
+  const results = await Promise.all(Array.from({ length: 25 }, (_, index) => updateStudentEconomy({
+    studentNumber: 1, action, requestId: `delayed-receipt-${index}`,
+  })));
+  assert.equal(writes.length, 25);
+  assert.equal(new Set(writes).size, 25);
+  assert.deepEqual([...reads.values()], Array(25).fill(3));
+  assert.ok(results.every(result => result.balance === 115));
 });
 
 test('부분 경제 응답은 캐시의 도서·실패 이야기와 다른 지갑을 비우지 않는다', async () => {

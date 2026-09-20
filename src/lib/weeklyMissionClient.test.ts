@@ -3,6 +3,20 @@ import test from 'node:test';
 import { createServer } from 'vite';
 import { WEEKLY_MISSION_TYPES } from './weeklyMission.js';
 
+test('weekly failure keeps only allow-listed server codes for diagnosis', async context => {
+  const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null }, define: { 'import.meta.env.PROD': 'true' } });
+  let code = 'WEEKLY_MISSIONS_SYNC_FAILED';
+  context.mock.method(globalThis, 'fetch', async () => Response.json({ error: code }, { status: 502 }));
+  try {
+    const client = await server.ssrLoadModule('/src/lib/weeklyMissionClient.ts');
+    await assert.rejects(client.syncWeeklyMissions(1), (error: unknown) => error instanceof Error
+      && Reflect.get(error, 'serverCode') === 'WEEKLY_MISSIONS_SYNC_FAILED' && Reflect.get(error, 'status') === 502);
+    code = 'private student content';
+    await assert.rejects(client.syncWeeklyMissions(2), (error: unknown) => error instanceof Error
+      && Reflect.get(error, 'serverCode') === undefined && !error.message.includes(code));
+  } finally { await server.close(); }
+});
+
 test('weekly settlement tracks pending work, reports failure and leaves incomplete missions quiet', async () => {
   const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
     define: { 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fixture.invalid'), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('fixture') } });

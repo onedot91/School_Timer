@@ -30,7 +30,14 @@ const settleWeeklyMission = async <T>(studentNumber: number, endpoint: '/api/wee
         signal: AbortSignal.timeout(45_000),
         body: JSON.stringify({ protocolVersion: 2, studentNumber }),
       });
-      if (!response.ok) throw Object.assign(new Error(`${prefix}_HTTP_${response.status}`), { retryAfterMs: getRetryAfterMs(response) });
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        const serverCode = body && typeof body === 'object' ? Reflect.get(body, 'error') : undefined;
+        throw Object.assign(new Error(`${prefix}_HTTP_${response.status}`), {
+          status: response.status, retryAfterMs: getRetryAfterMs(response),
+          ...(typeof serverCode === 'string' && /^WEEKLY_MISSIONS?_[A-Z0-9_]{1,64}$/.test(serverCode) ? { serverCode } : {}),
+        });
+      }
       return parse(await response.json());
     } catch (error) {
       if (error instanceof Error) Object.assign(error, { endpoint,

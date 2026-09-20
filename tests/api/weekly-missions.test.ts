@@ -12,6 +12,30 @@ import { getKoreanWeekDateRange, getPreviousKoreanDateKey } from '../../src/lib/
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 
 const SESSION_SECRET = 'test-device-session-secret-that-is-at-least-32-characters';
+
+test('failed settlement logs safe stages and timings even when every claim fails', async context => {
+  const names = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'DEVICE_SESSION_SECRET'] as const;
+  const saved = names.map(name => process.env[name]);
+  process.env.SUPABASE_URL = 'https://fixture.invalid';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'private-fixture-key';
+  process.env.DEVICE_SESSION_SECRET = SESSION_SECRET;
+  const logs: unknown[][] = [];
+  context.mock.method(console, 'warn', (...args: unknown[]) => logs.push(args));
+  context.mock.method(globalThis, 'fetch', async () => { throw new DOMException('private fixture content', 'TimeoutError'); });
+  try {
+    const response = createResponse();
+    await handler({ method: 'POST', headers: deviceHeaders(18), body: { protocolVersion: 2, studentNumber: 18 } }, response.response);
+    assert.equal(response.result().statusCode, 502);
+    const serialized = JSON.stringify(logs);
+    assert.match(serialized, /personal_question/);
+    assert.match(serialized, /classword_word_entry/);
+    assert.match(serialized, /TimeoutError/);
+    assert.match(serialized, /elapsedMs/);
+    assert.doesNotMatch(serialized, /private fixture content|private-fixture-key|sourceEventId|studentNumber/);
+  } finally {
+    names.forEach((name, index) => { if (saved[index] === undefined) delete process.env[name]; else process.env[name] = saved[index]; });
+  }
+});
 const deviceHeaders = (studentNumber: number) => ({
   cookie: `__Host-school-timer-device=${createDeviceSessionToken({ role: 'student', studentNumber }, SESSION_SECRET)}`,
 });

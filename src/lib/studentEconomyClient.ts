@@ -213,13 +213,18 @@ export const retryStudentEconomyRequest = async ({
         ? error.status === 408 || error.status >= 500
         : error instanceof Error && (['TypeError', 'TimeoutError', 'AbortError', 'SyntaxError'].includes(error.name) || error.message === 'STUDENT_ECONOMY_INVALID_RESPONSE');
       if (!uncertain) throw error;
-      try {
-        const committed = await loadStudentEconomyReceipt(studentNumber, requestId, action, context);
-        if (committed) return { result: committed };
-      } catch (confirmationError) {
-        if (confirmationError instanceof StorageResponseActorChangedError
-          || (confirmationError instanceof StudentEconomyRequestError && confirmationError.code === 'STORAGE_REQUEST_REUSED')) return { error: confirmationError };
-        if (!(confirmationError instanceof Error)) throw confirmationError;
+      for (let confirmationAttempt = 0; confirmationAttempt < 3; confirmationAttempt += 1) {
+        if (confirmationAttempt) await new Promise(resolve => setTimeout(resolve, 250 * 2 ** (confirmationAttempt - 1) + Math.random() * 250));
+        if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
+        try {
+          const committed = await loadStudentEconomyReceipt(studentNumber, requestId, action, context);
+          if (committed) return { result: committed };
+        } catch (confirmationError) {
+          if (confirmationError instanceof StorageResponseActorChangedError
+            || (confirmationError instanceof StudentEconomyRequestError && (confirmationError.code === 'STORAGE_REQUEST_REUSED'
+              || [401, 403, 429].includes(confirmationError.status)))) return { error: confirmationError };
+          if (!(confirmationError instanceof Error)) throw confirmationError;
+        }
       }
       if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
       throw new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504);

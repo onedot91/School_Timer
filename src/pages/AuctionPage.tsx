@@ -1648,7 +1648,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         }
       } finally {
         isSyncing = false;
-        nextSyncAt = Math.max(nextSyncAt, Date.now() + 5_000);
+        nextSyncAt = Math.max(nextSyncAt, Date.now() + 30_000 + Math.random() * 5_000);
       }
     };
 
@@ -1676,7 +1676,15 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     syncOnReturn();
     window.addEventListener('focus', syncOnReturn);
     window.addEventListener('online', syncOnReturn);
-    window.addEventListener('school-timer-newspaper-change', syncOnReturn);
+    const syncAfterNewspaperChange = () => {
+      if (scheduledSync !== undefined) {
+        window.clearTimeout(scheduledSync);
+        scheduledSync = undefined;
+      }
+      nextSyncAt = Math.min(nextSyncAt, Date.now() + 5_000);
+      syncOnReturn();
+    };
+    window.addEventListener('school-timer-newspaper-change', syncAfterNewspaperChange);
     document.addEventListener('visibilitychange', syncOnReturn);
 
     return () => {
@@ -1684,7 +1692,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       if (scheduledSync !== undefined) window.clearTimeout(scheduledSync);
       window.removeEventListener('focus', syncOnReturn);
       window.removeEventListener('online', syncOnReturn);
-      window.removeEventListener('school-timer-newspaper-change', syncOnReturn);
+      window.removeEventListener('school-timer-newspaper-change', syncAfterNewspaperChange);
       document.removeEventListener('visibilitychange', syncOnReturn);
     };
   }, [studentNumber]);
