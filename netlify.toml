@@ -10,6 +10,21 @@
   node_bundler = "esbuild"
 
 [[headers]]
+  for = "/"
+  [headers.values]
+    "Cache-Control" = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    "Cache-Control" = "no-cache"
+
+[[headers]]
+  for = "/app-startup.js"
+  [headers.values]
+    "Cache-Control" = "no-cache"
+
+[[headers]]
   for = "/*"
   [headers.values]
     "X-Frame-Options" = "DENY"

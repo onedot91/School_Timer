@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
+import { deploymentAssets } from './dev/deploymentAssets';
 
 export default defineConfig(({ command }) => {
   const buildId = command === 'build' ? new Date().toISOString() : 'development';
@@ -19,7 +20,7 @@ export default defineConfig(({ command }) => {
           { tag: 'meta', attrs: { property: 'og:image:alt', content: 'School 미리보기' }, injectTo: 'head' as const },
         ] : []),
       ],
-    }],
+    }, deploymentAssets(process.env.VERCEL_DEPLOYMENT_ID)],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

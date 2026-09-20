@@ -5,6 +5,17 @@ import { captureStorageResponseContext } from '../lib/storageResponseOrder';
 import LoadingLabel from './LoadingLabel';
 import GomaLoadingAnimation from './GomaLoadingAnimation';
 
+declare global {
+  interface Window {
+    schoolChunkRecovery?: { stop: () => void; canReload: () => boolean; tryReload: () => boolean };
+  }
+}
+
+export function AppReady({ children }: { children: ReactNode }) {
+  useEffect(() => { window.schoolChunkRecovery?.stop(); }, []);
+  return children;
+}
+
 const reloadPage = () => { if (canReloadAllDrafts()) window.location.reload(); };
 
 export function AppRecoveryScreen({
@@ -78,6 +89,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, { failu
   };
 
   private handleChunkError = () => {
+    if (window.schoolChunkRecovery?.tryReload()) return;
     document.documentElement.dataset.appChunkFailed = 'true';
     this.setState({ failure: 'chunk' });
   };

@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import { createPortal } from 'react-dom';
 import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscribeStorageAvailability } from '../lib/storageAvailability';
 import { canReloadWithDrafts, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
-import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, requestSaveRecovery } from '../lib/saveRecovery';
+import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, requestSaveRecovery, isReviewedRecoveryIssue, type SaveRecoveryIssue } from '../lib/saveRecovery';
 import { SAVE_FAILURE_FEATURES } from '../lib/saveFailure';
 
 const recoveryReasons = {
@@ -34,7 +34,14 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
   const [copied, setCopied] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryError, setRetryError] = useState('');
+  const [reviewTarget, setReviewTarget] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const activeIssues = recovery?.issues.filter(issue => !isReviewedRecoveryIssue(issue)) ?? [];
+  const reviewedIssues = recovery?.issues.filter(isReviewedRecoveryIssue) ?? [];
+  useEffect(() => { setRetryError(''); setReviewTarget(null); }, [actor]);
+  useEffect(() => { if (recovery?.pending === 0) setRetryError(''); }, [recovery?.pending]);
   const recoveryDetailsRef = useRef<HTMLDetailsElement>(null);
+  const indicatorRef = useRef<HTMLDetailsElement>(null);
   const [reloadBlocked, setReloadBlocked] = useState(false);
   const [dialog, setDialog] = useState<Element | null>(null);
   useLayoutEffect(() => {
@@ -70,7 +77,9 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
       const client = actor === 0 ? await import('../lib/teacherStorageClient') : null;
       if (client) describeError = client.teacherSettingsSaveErrorMessage;
       const result = client ? await client.recheckTeacherSaveResults() : await requestSaveRecovery(actor);
-      if (result.pending > 0) setRetryError(`아직 확인되지 않은 ${result.pending}건이 있습니다. 아래 항목을 확인해 주세요.`);
+      if (result.pending > 0 && getSaveRecoveryStatus(actor).issues.some(issue => !isReviewedRecoveryIssue(issue))) {
+        setRetryError('서버 확인 결과는 아래 항목에 표시됩니다.');
+      }
     } catch (error) {
       if (actor === 0 && error instanceof Error && Reflect.get(error, 'serverCode') === 'TEACHER_SETTING_CONFLICT'
         && Reflect.get(error, 'status') === 409 && Reflect.get(error, 'uncertainWrite') !== true) {
@@ -82,31 +91,68 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
       setIsRetrying(false);
     }
   };
+  const review = async (requestId: string) => {
+    if (actor !== 0 || reviewing || isRetrying) return;
+    setReviewing(true);
+    setRetryError('');
+    try {
+      const { reviewTeacherTransaction } = await import('../lib/teacherStorageClient');
+      await reviewTeacherTransaction(requestId);
+      setReviewTarget(null);
+      indicatorRef.current?.querySelector('summary')?.focus();
+    } catch {
+      setRetryError('알림 확인 처리를 완료하지 못했습니다. 다시 시도해 주세요.');
+    } finally { setReviewing(false); }
+  };
+  const issueDetails = (issue: SaveRecoveryIssue, index: number) => {
+    const transaction = actor === 0 ? issue.transaction : undefined;
+    const labels = { adjust: '고마 지급·차감', deduct: '고마 차감', set: '잔액 설정', reset: '잔액 초기화' };
+    return <li key={transaction?.requestId ?? index}>
+      <b>{transaction ? labels[transaction.kind] : SAVE_FAILURE_FEATURES[issue.feature]}</b>{issue.httpStatus ? ` · HTTP ${issue.httpStatus}` : ''}
+      {transaction ? <>
+        <p>{new Date(transaction.createdAt).toLocaleString('ko-KR')}</p>
+        <p>{transaction.kind === 'reset' || transaction.studentNumbers.length === 23 ? '전체 학생'
+          : transaction.studentNumbers.length ? `${transaction.studentNumbers.join(', ')}번` : '대상 확인 필요'}
+          {transaction.amount !== undefined ? ` · ${transaction.kind === 'set' ? '설정 잔액 ' : '1인당 '}${transaction.amount.toLocaleString('ko-KR')} 고마` : ''}</p>
+        <details><summary>요청 번호</summary><code className="break-all">{transaction.requestId}</code></details>
+      </> : null}
+      <p>{isReviewedRecoveryIssue(issue) ? '교사 확인 · 서버 결과 미확인' : recoveryReasons[issue.reason]}</p>
+      {transaction && issue.reason === 'confirmation' && !transaction.reviewedAt ? reviewTarget === transaction.requestId ? <div>
+        <p>거래 내역을 직접 확인했나요? 알림만 확인 처리하며 저장 성공으로 처리하지 않습니다.</p>
+        <button type="button" disabled={reviewing || isRetrying} onClick={() => void review(transaction.requestId)}>{reviewing ? '처리 중…' : '내역 확인했음'}</button>
+        <button type="button" disabled={reviewing} onClick={() => setReviewTarget(null)}>취소</button>
+      </div> : <button type="button" disabled={reviewing || isRetrying} onClick={() => setReviewTarget(transaction.requestId)}>알림 확인 처리</button> : null}
+    </li>;
+  };
   const fallback = copyFallback ? <textarea aria-label="보관하지 못한 내용" readOnly value={copyFallback} onFocus={event => event.currentTarget.select()} className="max-h-28 min-w-0 p-2" /> : null;
-  const recoveryDetails = recovery && recovery.pending > 0 && recovery.issues.length > 0 ? (
+  const recoveryDetails = recovery && recovery.pending > 0 && recovery.issues.length > 0 ? <>
+    {activeIssues.length > 0 ? (
     <details ref={recoveryDetailsRef} className="mt-1 text-sm">
-      <summary className="min-h-11 cursor-pointer content-center py-2">미확인 {recovery.pending}건 · 상세 보기</summary>
-      <ul className="max-h-32 overflow-y-auto overscroll-contain space-y-2 py-1" aria-label="저장 확인이 필요한 항목">
-        {recovery.issues.map((issue, index) => <li key={index}>
-          <b>{SAVE_FAILURE_FEATURES[issue.feature]}</b>{issue.httpStatus ? ` · HTTP ${issue.httpStatus}` : ''}
-          <p>{recoveryReasons[issue.reason]}</p>
-        </li>)}
+      <summary className="min-h-11 cursor-pointer content-center py-2">미확인 {activeIssues.length}건 · 상세 보기</summary>
+      <ul className="space-y-3 py-1" aria-label="저장 확인이 필요한 항목">
+        {activeIssues.map(issueDetails)}
       </ul>
     </details>
-  ) : null;
+    ) : null}
+    {reviewedIssues.length > 0 ? <details className="mt-1 text-sm">
+      <summary>확인 처리한 알림 {reviewedIssues.length}건</summary>
+      <ul className="space-y-3 py-1" aria-label="교사가 확인 처리한 알림">{reviewedIssues.map(issueDetails)}</ul>
+    </details> : null}
+  </> : null;
   if (compact) {
     const activeNotice = notice?.actor === actor ? notice : null;
+    const onlyReviewed = !unsafe && !activeNotice && !recovery?.refreshPending && activeIssues.length === 0 && reviewedIssues.length > 0;
     const label = unsafe ? '보관 오류' : activeNotice?.kind === 'maintenance' ? '저장 점검'
-      : recovery?.refreshPending ? '화면 갱신 중' : recovery?.recovering || isRetrying ? '확인 중…' : '저장 상태';
-    return <details className="teacher-storage-indicator">
+      : recovery?.refreshPending ? '화면 갱신 중' : onlyReviewed ? '확인한 알림' : recovery?.recovering || isRetrying ? '확인 중…' : '저장 상태';
+    return <details ref={indicatorRef} className="teacher-storage-indicator" data-reviewed={onlyReviewed}>
       <summary><span role="status">{label}</span></summary>
       <div className="teacher-storage-indicator-content">
-        <p>{unsafe ? '화면을 닫기 전에 내용을 복사해 주세요.' : activeNotice?.kind === 'maintenance'
+        {!onlyReviewed ? <p>{unsafe ? '화면을 닫기 전에 내용을 복사해 주세요.' : activeNotice?.kind === 'maintenance'
           ? '잠시 후 다시 저장해 주세요.' : activeNotice?.kind === 'update'
-            ? '보관된 입력은 새로고침 후 다시 저장해 주세요.' : '이 기기의 저장 결과를 아직 확인하지 못했어요.'}</p>
+            ? '보관된 입력은 새로고침 후 다시 저장해 주세요.' : '이 기기의 저장 결과를 아직 확인하지 못했어요.'}</p> : null}
         {unsafe ? copyButton : activeNotice?.kind === 'update'
           ? <button type="button" onClick={reload}>새로고침</button>
-          : <button type="button" disabled={isRetrying || recovery?.recovering} onClick={retry}>{isRetrying ? '확인 중…' : '다시 확인'}</button>}
+          : <button type="button" disabled={isRetrying || reviewing || recovery?.recovering} onClick={retry}>{isRetrying ? '확인 중…' : '다시 확인'}</button>}
         {!unsafe && !activeNotice ? recoveryDetails : null}
         {retryError ? <p role="status">{retryError}</p> : null}
         {reloadBlocked ? <p>내용을 복사한 뒤 새로고침해 주세요.</p> : null}

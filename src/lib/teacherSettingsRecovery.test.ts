@@ -277,7 +277,9 @@ test('수동 재확인은 고마 거래 미확인을 정확히 반환하고 거�
     assert.equal(result.pending, 1);
     assert.equal(reads, 1);
     const { getSaveRecoveryStatus } = await import('./saveRecovery.js');
-    assert.deepEqual(getSaveRecoveryStatus(0).issues, [{ feature: 'economy', reason: 'confirmation' }]);
+    assert.deepEqual(getSaveRecoveryStatus(0).issues, [{ feature: 'economy', reason: 'confirmation', transaction: {
+      requestId: saved.draft.requestId, createdAt: saved.draft.createdAt, kind: 'adjust', studentNumbers: [7], amount: 3,
+    } }]);
     assert.equal(teacherStorageDrafts.load(scope)?.draft.requestId, saved.draft.requestId);
   } finally { await teacherStorageDrafts.confirmDurable(scope, saved.draft.requestId); }
 });

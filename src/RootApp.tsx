@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { StudentRapidClickGuard } from './components/student/StudentRapidClickGuard';
 import { StudentProfanityGuard } from './components/student/StudentProfanityGuard';
-import { AppLoadingScreen, AppRecoveryScreen } from './components/AppRecovery';
+import { AppLoadingScreen, AppRecoveryScreen, AppReady } from './components/AppRecovery';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { StorageAvailabilityBanner } from './components/StorageAvailabilityBanner';
 import { startSaveFailureReporting } from './lib/saveFailureClient';
@@ -316,7 +316,7 @@ export default function RootApp() {
       ) : null}
       <NetworkStatusBanner />
       <Suspense fallback={<PageLoadFallback />}>
-        {activePage}
+        <AppReady>{activePage}</AppReady>
       </Suspense>
       {selectedEntryNumber !== 0 ? <StorageAvailabilityBanner key={selectedEntryNumber} actor={selectedEntryNumber} /> : null}
     </>

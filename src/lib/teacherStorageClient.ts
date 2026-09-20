@@ -1,5 +1,5 @@
-import { announceSaveRecovered, markSaveRefreshPending, notifySaveRecovery, registerSaveRecoveryAdapter, requestSaveRecovery, serializeStudentSave } from './saveRecovery.js';
-import { createStudentSaveDraftStore } from './studentSaveDraft.js';
+import { announceSaveRecovered, markSaveRefreshPending, markTeacherTransactionReviewed, notifySaveRecovery, registerSaveRecoveryAdapter, requestSaveRecovery, serializeStudentSave, type RecoveryTransaction } from './saveRecovery.js';
+import { createStudentSaveDraftStore, type StudentSaveDraft } from './studentSaveDraft.js';
 import { executeStorageCommand, loadStorageCommandReceipt, StorageCommandError, type StorageCommand } from './storageCommandClient.js';
 import { captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError } from './storageResponseOrder.js';
 import { isStorageRecord } from './teacherStorageCommand.js';
@@ -22,6 +22,41 @@ export const teacherSettingsSaveErrorMessage = (error: unknown): string => {
 const teacherWirePayload = (value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
 
 export const teacherStorageDrafts = createStudentSaveDraftStore();
+const transactionReviewKey = (requestId: string) => `school-timer-teacher-transaction-review-v1:${encodeURIComponent(requestId)}`;
+const readTransactionReview = (requestId: string): string | undefined => {
+  try {
+    const value = window.localStorage.getItem(transactionReviewKey(requestId));
+    return value && Number.isFinite(Date.parse(value)) ? value : undefined;
+  } catch { return undefined; }
+};
+export const describeTeacherTransaction = (draft: StudentSaveDraft): RecoveryTransaction | undefined => {
+  const kind = draft.scope.feature.replace('teacher.currency.', '');
+  if (!draft.scope.feature.startsWith('teacher.currency.')) return undefined;
+  if (kind !== 'adjust' && kind !== 'set' && kind !== 'deduct' && kind !== 'reset') return undefined;
+  const payload = isStorageRecord(draft.payload) ? draft.payload : {};
+  const students = Array.isArray(payload.studentNumbers) ? payload.studentNumbers : [];
+  const reviewedAt = readTransactionReview(draft.requestId);
+  return {
+    requestId: draft.requestId, createdAt: draft.createdAt, kind,
+    studentNumbers: [...new Set(students.filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 23))],
+    ...(typeof payload.amount === 'number' && Number.isSafeInteger(payload.amount) ? { amount: payload.amount } : {}),
+    ...(reviewedAt ? { reviewedAt } : {}),
+  };
+};
+export const reviewTeacherTransaction = async (requestId: string): Promise<void> => {
+  const context = captureStorageResponseContext();
+  if (context.actor !== '0') throw new StorageResponseActorChangedError();
+  await teacherStorageDrafts.ready();
+  if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+  const draft = teacherStorageDrafts.list(0).find(item => item.requestId === requestId);
+  if (!draft || !describeTeacherTransaction(draft)) throw new Error('TRANSACTION_REVIEW_NOT_FOUND');
+  const reviewedAt = new Date().toISOString();
+  window.localStorage.setItem(transactionReviewKey(requestId), reviewedAt);
+  if (readTransactionReview(requestId) !== reviewedAt) throw new Error('TRANSACTION_REVIEW_NOT_SAVED');
+  await requestSaveRecovery(0);
+  if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+  markTeacherTransactionReviewed(requestId, reviewedAt);
+};
 export const teacherCommandScope = (command: Pick<StorageCommand, 'action' | 'payload'>) => {
   const payload = isStorageRecord(command.payload) ? command.payload : {};
   return { studentNumber: 0, feature: command.action, entityId: JSON.stringify([
@@ -106,7 +141,10 @@ registerSaveRecoveryAdapter({
     await teacherStorageDrafts.ready();
     return teacherStorageDrafts.list(0)
       .filter(draft => draft.scope.feature.startsWith('teacher.') && !/\.(editor|paused|context|rejected)$/.test(draft.scope.feature))
-      .map(draft => ({ id: draft.requestId, actor: 0, feature: draft.scope.feature, createdAt: draft.createdAt, mode: 'confirm-only' }));
+      .map(draft => {
+        const transaction = describeTeacherTransaction(draft);
+        return { id: draft.requestId, actor: 0, feature: draft.scope.feature, createdAt: draft.createdAt, mode: 'confirm-only', ...(transaction ? { transaction } : {}) };
+      });
   },
   eligible: () => false,
   retry: async () => undefined,

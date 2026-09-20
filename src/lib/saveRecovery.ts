@@ -10,6 +10,15 @@ export interface RecoveryRequest {
   readonly createdAt: string;
   readonly mode: 'automatic' | 'confirm-only';
   readonly contextKey?: string;
+  readonly transaction?: RecoveryTransaction;
+}
+export interface RecoveryTransaction {
+  readonly requestId: string;
+  readonly createdAt: string;
+  readonly kind: 'adjust' | 'set' | 'deduct' | 'reset';
+  readonly studentNumbers: readonly number[];
+  readonly amount?: number;
+  readonly reviewedAt?: string;
 }
 export interface SaveRecoveryAdapter {
   readonly id: string;
@@ -29,7 +38,9 @@ export interface SaveRecoveryIssue {
   readonly feature: SaveFailureFeature;
   readonly reason: 'confirmation' | 'context' | 'error' | 'waiting';
   readonly httpStatus?: number;
+  readonly transaction?: RecoveryTransaction;
 }
+export const isReviewedRecoveryIssue = (issue: SaveRecoveryIssue): boolean => issue.reason === 'confirmation' && !!issue.transaction?.reviewedAt;
 export interface SaveRecoveryPassResult {
   readonly pending: number;
   readonly failed: boolean;
@@ -67,6 +78,10 @@ const publish = (actor: number, patch: Partial<SaveRecoveryStatus>) => {
   statuses.set(actor, { ...getSaveRecoveryStatus(actor), ...patch });
   revision += 1;
   listeners.forEach(listener => listener());
+};
+export const markTeacherTransactionReviewed = (requestId: string, reviewedAt: string) => {
+  publish(0, { issues: getSaveRecoveryStatus(0).issues.map(issue => issue.transaction?.requestId === requestId
+    ? { ...issue, transaction: { ...issue.transaction, reviewedAt } } : issue) });
 };
 export const notifySaveRecovery = (resume = false) => { wakeListeners.forEach(listener => listener(resume)); };
 export const registerSaveRecoveryAdapter = (adapter: SaveRecoveryAdapter) => {
@@ -152,10 +167,11 @@ const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boole
       for (const request of requests) {
         if (!isCurrent()) return { pending, failed: false, retryAfterMs, failedRequests, waitingMs, attempted };
         if (request.actor !== actor) continue;
+        const transaction = actor === 0 && request.transaction ? { transaction: request.transaction } : {};
         const remainingDelay = getSaveRecoveryDelay(actor, request.id);
         if (remainingDelay > 0) {
           pending += 1;
-          issues.push({ feature: recoveryFeature(request.feature), reason: 'waiting' });
+          issues.push({ feature: recoveryFeature(request.feature), reason: 'waiting', ...transaction });
           waitingMs = waitingMs === 0 ? remainingDelay : Math.min(waitingMs, remainingDelay);
           continue;
         }
@@ -168,7 +184,7 @@ const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boole
             const delayAfterReceipt = getSaveRecoveryDelay(actor, request.id);
             if (delayAfterReceipt > 0) {
               pending += 1;
-              issues.push({ feature: recoveryFeature(request.feature), reason: 'waiting' });
+              issues.push({ feature: recoveryFeature(request.feature), reason: 'waiting', ...transaction });
               waitingMs = waitingMs === 0 ? delayAfterReceipt : Math.min(waitingMs, delayAfterReceipt);
               continue;
             }
@@ -178,12 +194,12 @@ const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boole
             announceSaveRecovered(actor);
           } else {
             pending += 1;
-            issues.push({ feature: recoveryFeature(request.feature), reason: request.mode === 'confirm-only' ? 'confirmation' : 'context' });
+            issues.push({ feature: recoveryFeature(request.feature), reason: request.mode === 'confirm-only' ? 'confirmation' : 'context', ...transaction });
           }
         } catch (error) {
           pending += 1;
           const status: unknown = error instanceof Error ? Reflect.get(error, 'status') : undefined;
-          issues.push({ feature: recoveryFeature(request.feature), reason: 'error',
+          issues.push({ feature: recoveryFeature(request.feature), reason: 'error', ...transaction,
             ...(typeof status === 'number' && Number.isInteger(status) && status >= 400 && status <= 599 ? { httpStatus: status } : {}) });
           if (request.mode === 'automatic' && adapter.eligible(request) && canRetrySaveError(error)) {
             failed = true;

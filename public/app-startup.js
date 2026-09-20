@@ -4,6 +4,32 @@
   const reload = document.getElementById('app-startup-reload');
   reload?.addEventListener('click', () => window.location.reload());
 
+  let interacted = false;
+  let reloading = false;
+  const stop = () => { interacted = true; };
+  for (const name of ['pointerdown', 'keydown', 'input', 'submit']) {
+    window.addEventListener(name, stop, { capture: true, once: true });
+  }
+  window.schoolChunkRecovery = {
+    stop,
+    canReload: () => Boolean(startup?.isConnected),
+    tryReload: () => {
+      if (reloading) return true;
+      if (interacted || navigator.onLine === false || !window.schoolChunkRecovery.canReload()) return false;
+      try {
+        const key = 'school-timer-chunk-reload-v1';
+        if (sessionStorage.getItem(key)) return false;
+        sessionStorage.setItem(key, '1');
+        reloading = true;
+        window.location.reload();
+        return true;
+      } catch {
+        reloading = false;
+        return false;
+      }
+    },
+  };
+
   const showRecovery = (text) => {
     if (!startup?.isConnected) return;
     if (message) message.textContent = text;
@@ -19,7 +45,11 @@
   const handleFailure = () => showRecovery('화면을 불러오지 못했어요. 연결을 확인하고 새로고침해 주세요.');
   window.addEventListener('error', handleFailure);
   window.addEventListener('unhandledrejection', handleFailure);
-  window.addEventListener('vite:preloadError', () => {
+  window.addEventListener('vite:preloadError', (event) => {
+    if (window.schoolChunkRecovery.tryReload()) {
+      event.preventDefault();
+      return;
+    }
     document.documentElement.dataset.appChunkFailed = 'true';
     showRecovery('새 버전의 화면 파일을 불러오지 못했어요. 새로고침해 주세요.');
   });
