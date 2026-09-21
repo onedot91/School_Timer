@@ -5,6 +5,8 @@
 !api/**
 !public
 !public/**
+!dev
+!dev/deploymentAssets.ts
 !package.json
 !package-lock.json
 !index.html
