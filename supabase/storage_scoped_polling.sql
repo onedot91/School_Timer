@@ -69,7 +69,7 @@ begin
     union
     select r.resource_key,r.value->>'parentKey' from public.storage_resources r join closure child on child.parent_key=r.resource_key
   ), nodes as materialized (
-    select r.* from public.storage_resources r join closure c using(resource_key)
+    select r.* from public.storage_resources r where r.resource_key in(select resource_key from closure)
   ), synthetic as (
     select key resource_key,split_part(key,'/',2) category,
       case when key ~ '^/currencyHistory/[0-9]+$' then split_part(key,'/',3)::integer else null end owner_number,
@@ -88,7 +88,9 @@ begin
     union select key from roots
     union select 'wallet:'||student_number from wallet_students
     union select 'wallet:'||student_number from history_students
-    union select public.storage_scope_keys(category,owner_number,value) from nodes
+    union select 'scope:'||category||':all' from nodes
+    union select 'scope:'||category||':'||coalesce(owner_number::text,'shared') from nodes
+    union select 'collection:'||(value->>'parentKey') from nodes where value->>'parentKey' is not null
     union select 'collection:'||(value->>'path') from jsonb_array_elements(p_scope->'resources')
     union select 'scope:'||split_part(value->>'path','/',2)||':all' from jsonb_array_elements(p_scope->'resources')
     union select 'scope:'||split_part(s.value->>'path','/',2)||':'||(n.value#>>'{}') from jsonb_array_elements(p_scope->'resources') s cross join lateral jsonb_array_elements(coalesce(s.value->'students','[]'::jsonb)) n

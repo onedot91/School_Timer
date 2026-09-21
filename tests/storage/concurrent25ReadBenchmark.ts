@@ -4,11 +4,15 @@ import { performance } from 'node:perf_hooks';
 import { fakeClassroom, fixtureCookie, startHttpHarness } from './httpHarness.js';
 import { isStorageRecord, splitStorageState } from '../../src/lib/storageV2Codec.js';
 
-const reuseReadVersion = process.argv.includes('--reuse-read-version');
+const boundedScopePlan = process.argv.includes('--bounded-scope-plan');
+const reuseReadVersion = boundedScopePlan || process.argv.includes('--reuse-read-version');
 const pollingSql = await readFile(new URL('../../supabase/storage_scoped_polling.sql', import.meta.url), 'utf8');
 const optimizedReadVersionStart = pollingSql.indexOf("'readVersion',md5(");
 const optimizedReadVersionEnd = pollingSql.indexOf("    'resources',", optimizedReadVersionStart);
-const baselinePollingSql = pollingSql.slice(0, optimizedReadVersionStart)
+const baselinePollingSql = boundedScopePlan ? pollingSql
+  .replace('select r.* from public.storage_resources r where r.resource_key in(select resource_key from closure)', 'select r.* from public.storage_resources r join closure c using(resource_key)')
+  .replace("union select 'scope:'||category||':all' from nodes\n    union select 'scope:'||category||':'||coalesce(owner_number::text,'shared') from nodes\n    union select 'collection:'||(value->>'parentKey') from nodes where value->>'parentKey' is not null", 'union select public.storage_scope_keys(category,owner_number,value) from nodes')
+  : pollingSql.slice(0, optimizedReadVersionStart)
   + "'readVersion',public.storage_scope_read_version(p_scope),\n"
   + pollingSql.slice(optimizedReadVersionEnd);
 
