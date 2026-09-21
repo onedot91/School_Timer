@@ -4,6 +4,14 @@ import { performance } from 'node:perf_hooks';
 import { fakeClassroom, fixtureCookie, startHttpHarness } from './httpHarness.js';
 import { isStorageRecord, splitStorageState } from '../../src/lib/storageV2Codec.js';
 
+const reuseReadVersion = process.argv.includes('--reuse-read-version');
+const pollingSql = await readFile(new URL('../../supabase/storage_scoped_polling.sql', import.meta.url), 'utf8');
+const optimizedReadVersionStart = pollingSql.indexOf("'readVersion',md5(");
+const optimizedReadVersionEnd = pollingSql.indexOf("    'resources',", optimizedReadVersionStart);
+const baselinePollingSql = pollingSql.slice(0, optimizedReadVersionStart)
+  + "'readVersion',public.storage_scope_read_version(p_scope),\n"
+  + pollingSql.slice(optimizedReadVersionEnd);
+
 const students = Array.from({ length: 23 }, (_, index) => index + 1);
 const actors = [...students, 0, 0];
 const source = fakeClassroom();
@@ -106,27 +114,28 @@ try {
   await harness.query('analyze wallet_accounts');
   const counts = (await harness.query('select (select count(*) from storage_resources) resources, (select count(*) from wallet_ledger) history')).rows[0];
   console.log(JSON.stringify({ database: harness.name, node: process.version, counts }));
+  if (reuseReadVersion) await harness.query(baselinePollingSql);
   const baseline = await measure('baseline');
   assert.equal(scopes.size, 23);
   const before = await snapshots();
   const edgeBefore = await edgeSnapshots();
-  const baselineSql = await readFile(new URL('../../supabase/storage_scoped_v2.sql', import.meta.url), 'utf8');
+  const baselineSql = reuseReadVersion ? baselinePollingSql : await readFile(new URL('../../supabase/storage_scoped_v2.sql', import.meta.url), 'utf8');
   const query = baselineSql.slice(baselineSql.indexOf('  with recursive selected'), baselineSql.indexOf('  return output;')).replace(' into output;', ';').replaceAll('p_scope', '$1::jsonb');
   const explain = async (sql: string, label: string) => {
     const result = await harness.query(`explain (analyze, buffers, format json) ${sql}`, [scopes.get(1)]);
     await writeFile(`/private/tmp/concurrent25-${label}-plan.json`, JSON.stringify(result.rows, null, 2));
   };
   await harness.query('set jit=off');
-  await explain(query, 'baseline');
+  if (!reuseReadVersion) await explain(query, 'baseline');
   if (!process.argv.includes('--baseline-only')) {
-    const optimizedSql = await readFile(new URL('../../supabase/storage_scope_read_performance.sql', import.meta.url), 'utf8');
+    const optimizedSql = reuseReadVersion ? pollingSql : await readFile(new URL('../../supabase/storage_scope_read_performance.sql', import.meta.url), 'utf8');
     await harness.query(optimizedSql);
     const after = await snapshots();
     assert.deepEqual(after, before, 'scope resources, history, wallet, revisions, ordering bounds and timestamp must match for all 23 students');
     assert.deepEqual(await edgeSnapshots(), edgeBefore, 'overlapping selectors, mailbox directions, multi-student scope and empty scope must match');
     await assert.rejects(harness.query('select storage_load_scope($1)', [{ ...edgeScopes[0], wallets: [24] }]), /STORAGE_SCOPE_VIOLATION/);
     const optimizedQuery = optimizedSql.slice(optimizedSql.indexOf('  with recursive selected'), optimizedSql.indexOf('  return output;')).replace(' into output;', ';').replaceAll('p_scope', '$1::jsonb');
-    await explain(optimizedQuery, 'optimized');
+    if (!reuseReadVersion) await explain(optimizedQuery, 'optimized');
     const optimized = await measure('optimized');
     await harness.query(baselineSql);
     await harness.query('alter function public.storage_load_scope(jsonb) set jit=off');

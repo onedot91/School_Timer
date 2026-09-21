@@ -40,24 +40,29 @@ const requestSession = async (init?: RequestInit) => {
 
 export const DEVICE_SESSION_READ_TIMEOUT_MS = 15_000;
 
-export const loadDeviceSession = async (signal?: AbortSignal) => {
+export const DEVICE_SESSION_MUTATION_TIMEOUT_MS = 15_000;
+
+const requestSessionWithTimeout = async (init: RequestInit = {}, timeoutMs = DEVICE_SESSION_READ_TIMEOUT_MS) => {
+  const signal = init.signal;
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
   if (signal?.aborted) controller.abort();
-  const timeout = setTimeout(abort, DEVICE_SESSION_READ_TIMEOUT_MS);
+  const timeout = setTimeout(abort, timeoutMs);
   try {
-    return await requestSession({ signal: controller.signal });
+    return await requestSession({ ...init, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', abort);
   }
 };
 
-export const registerDeviceSession = (entryNumber: number, registrationKey?: string) => requestSession({
+export const loadDeviceSession = (signal?: AbortSignal) => requestSessionWithTimeout({ signal });
+
+export const registerDeviceSession = (entryNumber: number, registrationKey?: string) => requestSessionWithTimeout({
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ entryNumber, registrationKey }),
-});
+}, DEVICE_SESSION_MUTATION_TIMEOUT_MS);
 
-export const clearDeviceSession = () => requestSession({ method: 'DELETE' });
+export const clearDeviceSession = () => requestSessionWithTimeout({ method: 'DELETE' }, DEVICE_SESSION_MUTATION_TIMEOUT_MS);

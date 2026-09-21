@@ -104,7 +104,14 @@ begin
     from array_parents p left join public.storage_resources r on r.value->>'parentKey'=p.key and not r.deleted group by p.key
   )
   select jsonb_build_object(
-    'kind','scoped','scope',p_scope,'readVersion',public.storage_scope_read_version(p_scope),
+    'kind','scoped','scope',p_scope,'readVersion',md5(jsonb_build_array(p_scope,
+      (select updated_at from public.storage_control where singleton),
+      coalesce((select jsonb_agg(jsonb_build_array(key,revision,deleted) order by key) from (
+        select resource_key key,revision,deleted from nodes
+        union all
+        select 'wallet:'||student_number,revision,false from public.wallet_accounts
+        where student_number in(select student_number from wallet_students union select student_number from history_students)
+      ) read_versions),'[]'::jsonb))::text),
     'resources',coalesce((select jsonb_agg(to_jsonb(r)) from nodes r where not deleted),'[]'::jsonb)||coalesce((select jsonb_agg(to_jsonb(r)) from synthetic r),'[]'::jsonb),
     'wallets',coalesce((select jsonb_agg(to_jsonb(w)) from public.wallet_accounts w where student_number in(select student_number from wallet_students)),'[]'::jsonb),
     'history',coalesce((select jsonb_agg(to_jsonb(h)) from public.wallet_ledger h where student_number in(select student_number from history_students)),'[]'::jsonb),

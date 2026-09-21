@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clearDeviceSession, DEVICE_SESSION_READ_TIMEOUT_MS, deviceSessionMatchesEntry, loadDeviceSession, registerDeviceSession } from './deviceSessionClient.js';
+import { clearDeviceSession, DEVICE_SESSION_MUTATION_TIMEOUT_MS, DEVICE_SESSION_READ_TIMEOUT_MS, deviceSessionMatchesEntry, loadDeviceSession, registerDeviceSession } from './deviceSessionClient.js';
 
 test('교사 기기 세션은 모든 번호 입장에 사용할 수 있다', () => {
   assert.equal(deviceSessionMatchesEntry({ role: 'teacher' }, 0), true);
@@ -46,15 +46,21 @@ test('인증 조회 해제는 진행 중 요청을 중단한다', async (t) => {
   await rejected;
 });
 
-test('등록과 삭제 요청에는 GET 시간 제한을 적용하지 않는다', async (t) => {
+test('등록과 삭제 요청도 응답이 없으면 중단하고 다시 시도할 수 있다', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const calls: RequestInit[] = [];
-  t.mock.method(globalThis, 'fetch', async (_url: unknown, init?: RequestInit) => {
+  t.mock.method(globalThis, 'fetch', (_url: unknown, init?: RequestInit) => {
     calls.push(init ?? {});
-    return new Response(null, { status: 204 });
+    return new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new Error('ABORTED')), { once: true });
+    });
   });
-  await registerDeviceSession(2);
-  await clearDeviceSession();
-  assert.deepEqual(calls.map(({ method, signal }) => ({ method, signal })), [
-    { method: 'POST', signal: undefined }, { method: 'DELETE', signal: undefined },
+  const registered = assert.rejects(registerDeviceSession(2), /ABORTED/);
+  const cleared = assert.rejects(clearDeviceSession(), /ABORTED/);
+  t.mock.timers.tick(DEVICE_SESSION_MUTATION_TIMEOUT_MS);
+  await Promise.all([registered, cleared]);
+  assert.deepEqual(calls.map(({ method, signal }) => ({ method, aborted: signal?.aborted })), [
+    { method: 'POST', aborted: true }, { method: 'DELETE', aborted: true },
   ]);
+  assert.equal(calls.length, 2, 'unconfirmed session changes must not be replayed automatically');
 });
