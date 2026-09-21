@@ -6,6 +6,7 @@ import test from 'node:test';
 import { build } from 'vite';
 import { deploymentAssets } from '../../dev/deploymentAssets';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 test('Vite 설정이 불러오는 로컬 빌드 파일은 Vercel 배포에서 제외되지 않는다', async () => {
   const root = path.resolve(import.meta.dirname, '../..');
@@ -18,6 +19,53 @@ test('Vite 설정이 불러오는 로컬 빌드 파일은 Vercel 배포에서 �
       'check-ignore', '--no-index', file], { cwd: root, encoding: 'utf8' });
     assert.ifError(result.error);
     assert.equal(result.status, 1, `${file} is excluded from the Vercel build: ${result.stdout}${result.stderr}`);
+  }
+});
+
+test('배포 ID가 붙은 지연 CSS는 stylesheet로 적용하고 로드가 끝난 뒤 화면을 연다', async () => {
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'school-css-preload-')));
+  await writeFile(path.join(root, 'package.json'), '{"type":"module"}');
+  await writeFile(path.join(root, 'index.html'), '<script type="module" src="/main.js"></script>');
+  await writeFile(path.join(root, 'main.js'), 'window.openPage = () => import("./page.js");');
+  await writeFile(path.join(root, 'page.js'), 'import "./page.css"; export const ready = true;');
+  await writeFile(path.join(root, 'page.css'), '.classword-grid { display: grid; }');
+  const result = await build({ root, configFile: false, logLevel: 'silent', plugins: [deploymentAssets('dpl_CssTest')],
+    build: { modulePreload: { polyfill: false }, minify: true } });
+  assert.ok(!Array.isArray(result) && 'output' in result);
+  const entry = result.output.find(output => output.type === 'chunk' && output.isEntry);
+  assert.ok(entry);
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  const links: { rel: string; href: string; events: Map<string, () => void> }[] = [];
+  const browser: { openPage?: () => Promise<unknown> } = {};
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: browser });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+    getElementsByTagName: () => links,
+    querySelector: () => null,
+    createElement: () => ({ rel: '', href: '', events: new Map<string, () => void>(),
+      addEventListener(this: { events: Map<string, () => void> }, name: string, listener: () => void) { this.events.set(name, listener); } }),
+    head: { appendChild: (link: typeof links[number]) => { links.push(link); } },
+  } });
+  try {
+    await import(pathToFileURL(path.join(root, 'dist', entry.fileName)).href);
+    assert.ok(browser.openPage);
+    let completed = false;
+    const loading = browser.openPage().then(() => { completed = true; });
+    const css = links.find(link => link.href.includes('.css'));
+    assert.ok(css);
+    assert.match(css.href, /\.css\?dpl=dpl_CssTest$/);
+    assert.equal(css.rel, 'stylesheet');
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(completed, false);
+    assert.ok(css.events.has('load'));
+    css.events.get('load')?.();
+    await loading;
+    assert.equal(completed, true);
+  } finally {
+    for (const [name, descriptor] of [['window', previousWindow], ['document', previousDocument]] as const) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else Reflect.deleteProperty(globalThis, name);
+    }
   }
 });
 

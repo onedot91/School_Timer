@@ -18,7 +18,14 @@ export function deploymentAssets(deploymentId: string | undefined): Plugin {
           return files.has(target) ? `${quote}${url}?dpl=${deploymentId}${quote}` : original;
         });
         for (const output of Object.values(bundle)) {
-          if (output.type === 'chunk') output.code = pin(output.code, output.fileName);
+          if (output.type === 'chunk') {
+            output.code = pin(output.code, output.fileName);
+            // Vite's preload helper must recognize CSS after the deployment query is appended.
+            if (output.code.includes('vite:preloadError')) {
+              output.code = output.code.replace(/\.endsWith\((["'])\.css\1\)/g,
+                '.split(/[?#]/, 1)[0].endsWith(".css")');
+            }
+          }
           else if (output.fileName.endsWith('.html') && typeof output.source === 'string') {
             output.source = pin(output.source, output.fileName);
           }
