@@ -1,9 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseSaveFailureReport, type SaveFailureAlert } from './saveFailure.js';
-import { collectSaveFailureDiagnostics, formatSaveFailureDiagnostic, getSaveFailureExplanation } from './saveFailureDiagnostics.js';
+import { collectSaveFailureDiagnostics, formatSaveFailureDiagnostic, getSaveFailureExplanation, getSaveFailureLabel } from './saveFailureDiagnostics.js';
 
 const alert: SaveFailureAlert = { id: 'diagnostic-test-123', studentNumber: 4, feature: 'auction', code: 'response', occurredAt: '2026-09-07T01:00:00.000Z', acknowledgedAt: null };
+
+test('기존 물품 삭제 거절 알림도 다른 기기의 저장 충돌로 설명하지 않는다', () => {
+  const explanation = getSaveFailureExplanation({ ...alert, code: 'conflict', diagnostics: { causeCode: 'AUCTION_ITEM_NOT_REMOVABLE', httpStatus: 409 } });
+  assert.match(explanation.problem, /물품.*삭제/);
+  assert.doesNotMatch(explanation.problem, /다른 기기/);
+  assert.match(explanation.action, /물품 목록/);
+  const previousAlert: SaveFailureAlert = { ...alert, code: 'conflict', diagnostics: { errorCode: 'AUCTION_ITEM_NOT_REMOVABLE' } };
+  assert.equal(getSaveFailureLabel(previousAlert), '경매 물품 삭제 불가');
+  assert.match(formatSaveFailureDiagnostic(previousAlert), /분류: 경매 물품 삭제 불가/);
+  assert.equal(getSaveFailureLabel({ ...alert, code: 'conflict' }), '동시 저장 충돌');
+});
 
 test('diagnostics preserve the original failure through an uncertain-write wrapper without saving raw error text', () => {
   const cause = Object.assign(new Error('SHARED_API_HTTP_502'), { status: 502, serverCode: 'SHARED_SETTINGS_WRITE_FAILED', endpoint: '/api/shared-settings' });

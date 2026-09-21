@@ -164,7 +164,7 @@ export const STUDENT_HOUSE_DESIGNS = [
   { id: 'student-house-20', name: '성', creatorStudentNumber: 20, imageSrc: '/student-house-designs/성(20번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 11 } },
   { id: 'student-house-15', name: '알록달록 집', creatorStudentNumber: 15, imageSrc: '/student-house-designs/알록달록 집(15번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
   { id: 'student-house-7', name: '좋은 집', creatorStudentNumber: 7, imageSrc: '/student-house-designs/좋은 집(7번).png', price: 100, stagePosition: { width: 43, left: 50, bottom: 20 } },
-  { id: 'student-house-21', name: '가나다 집', creatorStudentNumber: 21, imageSrc: '/student-house-designs/가나다 집(21번).png', price: 100, stagePosition: { width: 38, height: 64, left: 50, bottom: 26 } },
+  { id: 'student-house-21', name: '가나디 집', creatorStudentNumber: 21, imageSrc: '/student-house-designs/가나디 집(21번).png', price: 100, stagePosition: { width: 38, height: 64, left: 50, bottom: 26 } },
   { id: 'student-house-23', name: '거북이 집', creatorStudentNumber: 23, imageSrc: '/student-house-designs/거북이 집(23번).png', price: 100, stagePosition: { width: 38, height: 64, left: 50, bottom: 26 } },
   { id: 'pink-cottage', name: '달콤한 분홍집', imageSrc: '/student-house-designs/pink-cottage.png', price: 100, stagePosition: { width: 40.47, left: 49.43, bottom: 21.67 } },
   { id: 'orange-roof-cottage', name: '꽃창가 주황집', imageSrc: '/student-house-designs/orange-roof-cottage.png', price: 100, stagePosition: { width: 36.59, left: 49.62, bottom: 22.55 } },

@@ -1,5 +1,10 @@
 import { parseSaveFailureDiagnostics, SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEATURES, SAVE_FAILURE_VIEWS, type SaveFailureAlert, type SaveFailureDiagnostics } from './saveFailure.js';
 
+export const getSaveFailureLabel = (alert: SaveFailureAlert): string => (
+  [alert.diagnostics?.errorCode, alert.diagnostics?.causeCode].includes('AUCTION_ITEM_NOT_REMOVABLE')
+    ? '경매 물품 삭제 불가' : SAVE_FAILURE_CODE_LABELS[alert.code]
+);
+
 export const collectSaveFailureDiagnostics = (error: unknown, context: SaveFailureDiagnostics = {}): SaveFailureDiagnostics | undefined => {
   let details = parseSaveFailureDiagnostics(context) ?? {};
   let current = error;
@@ -24,6 +29,10 @@ export const collectSaveFailureDiagnostics = (error: unknown, context: SaveFailu
 
 export const getSaveFailureExplanation = (alert: SaveFailureAlert): { problem: string; action: string } => {
   const details = alert.diagnostics;
+  if ([details?.errorCode, details?.causeCode].includes('AUCTION_ITEM_NOT_REMOVABLE')) return {
+    problem: '삭제할 경매 물품이 서버에 없거나 마지막 물품이라 삭제 요청이 거절됐습니다.',
+    action: '설정창의 경매 물품 목록을 확인하세요. 물품 저장·삭제가 끝날 때까지 기다린 뒤 조작하세요.',
+  };
   if ([details?.errorCode, details?.causeCode].includes('SHARED_SETTINGS_NOT_CONFIGURED')) return {
     problem: '서버에 학급 기록 저장 연결 설정이 없어 요청이 거절됐습니다.',
     action: '진단 정보를 전달해 서버 연결 설정을 수정해야 합니다. 설정 복구 후 기록 반영 여부를 확인하세요.',
@@ -73,7 +82,7 @@ export const formatSaveFailureDiagnostic = (alert: SaveFailureAlert): string => 
     `대상: ${alert.studentNumber === 0 ? '교사' : `${alert.studentNumber}번 학생`}`,
     `기능: ${SAVE_FAILURE_FEATURES[alert.feature]}`,
     ...(details?.view ? [`화면: ${SAVE_FAILURE_VIEWS[details.view]}`] : []),
-    `분류: ${SAVE_FAILURE_CODE_LABELS[alert.code]}`,
+    `분류: ${getSaveFailureLabel(alert)}`,
     ...(details?.errorCode ? [`오류 코드: ${details.errorCode}`] : []),
     ...(details?.causeCode ? [`원인 코드: ${details.causeCode}`] : []),
     ...(details?.httpStatus ? [`HTTP 상태: ${details.httpStatus}`] : []),

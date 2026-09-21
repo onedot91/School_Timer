@@ -3953,6 +3953,7 @@ export default function TimerPage() {
   const auctionItemsEditVersionRef = useRef(0);
   const [auctionItemsSaveStatus, setAuctionItemsSaveStatus] = useState<'idle' | 'pending' | 'saved' | 'error'>('idle');
   const [auctionItemsSaveErrorCode, setAuctionItemsSaveErrorCode] = useState('');
+  const [isRemovingAuctionItem, setIsRemovingAuctionItem] = useState(false);
   const [auctionBids, setAuctionBids] = useState<AuctionBids>(() => (
     isSupabaseSettingsEnabled
       ? normalizeAuctionBids(null, AUCTION_ITEM_IDS)
@@ -7291,25 +7292,39 @@ export default function TimerPage() {
   };
 
   const removeAuctionItem = (itemId: string) => {
-    if (auctionItems.length <= 1 || !auctionItems.some((item) => item.id === itemId)) return;
+    if (auctionItemsRef.current.length <= 1 || !auctionItemsRef.current.some((item) => item.id === itemId)) return;
     if (isSupabaseSettingsEnabled) {
+      if (!sharedSettingsHydratedRef.current || teacherSettingsSavingRef.current || hasUnsavedAuctionItemsRef.current) return;
+      teacherSettingsSavingRef.current = true;
+      setIsRemovingAuctionItem(true);
+      setAuctionItemsSaveStatus('pending');
+      if (sharedSettingsSaveTimeoutRef.current !== null) {
+        window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
+        sharedSettingsSaveTimeoutRef.current = null;
+      }
       void executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.remove', payload: { itemId } })
         .then(saved => {
+          auctionItemsRef.current = auctionItemsRef.current.filter(item => item.id !== itemId);
           setAuctionItems(previous => previous.filter(item => item.id !== itemId));
           teacherSettingsBaseRef.current = { ...teacherSettingsBaseRef.current,
             auctionItems: normalizeAuctionItems(teacherSettingsBaseRef.current.auctionItems).filter(item => item.id !== itemId) };
           teacherSettingsPersistedBaseRef.current = { ...teacherSettingsPersistedBaseRef.current, auctionItems: saved.value?.auctionItems ?? teacherSettingsBaseRef.current.auctionItems };
-          setAuctionItemsSaveStatus('saved');
+          setAuctionItemsSaveStatus(hasUnsavedAuctionItemsRef.current ? 'pending' : 'saved');
           if (!saved.value) return;
           setAuctionBids(normalizeAuctionBids(saved.value.auctionBids, AUCTION_ITEM_IDS));
           setAuctionBidHistory(normalizeAuctionBidHistory(saved.value.auctionBidHistory, AUCTION_ITEM_IDS));
           setAuctionAwards(normalizeAuctionAwards(saved.value.auctionAwards, AUCTION_ITEM_IDS));
           commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
           if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
-          setAuctionItemsSaveStatus('saved');
         }).catch(error => {
           setAuctionItemsSaveStatus('error');
-          setAuctionItemsSaveErrorCode(classifySaveFailure(error) ?? 'unknown');
+          setAuctionItemsSaveErrorCode(error instanceof StorageCommandError && error.serverCode === 'AUCTION_ITEM_NOT_REMOVABLE'
+            ? error.serverCode : classifySaveFailure(error) ?? 'unknown');
+        }).finally(() => {
+          teacherSettingsSavingRef.current = false;
+          isSharedSettingsSavePendingRef.current = false;
+          setIsRemovingAuctionItem(false);
+          setTeacherSettingsSaveVersion(previous => previous + 1);
         });
       return;
     }
@@ -10715,11 +10730,19 @@ export default function TimerPage() {
         <div className="mb-4">
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정 및 현황</h3>
           {auctionItemsSaveStatus !== 'idle' && <div className="mt-2 flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">
-            <span>{auctionItemsSaveStatus === 'error' ? `물품 저장 확인 불가 (${auctionItemsSaveErrorCode}). 다시 저장해 주세요.` : auctionItemsSaveStatus === 'pending' ? '저장 중…' : '저장됨'}</span>
+            <span>{auctionItemsSaveStatus === 'error'
+              ? auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE'
+                ? '서버에 없는 물품이거나 마지막 물품이라 삭제할 수 없습니다. 물품 목록을 확인해 주세요.'
+                : `물품 저장 확인 불가 (${auctionItemsSaveErrorCode}). 다시 저장해 주세요.`
+              : isRemovingAuctionItem ? '삭제 중…' : auctionItemsSaveStatus === 'pending' ? '저장 중…' : '저장됨'}</span>
             {auctionItemsSaveStatus === 'error' && <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => {
+              if (auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE') {
+                void refreshTeacherSavedState();
+                return;
+              }
               setAuctionItemsSaveStatus('pending');
               setAuctionItemEditCommitVersion(previous => previous + 1);
-            }}>다시 저장</button>}
+            }}>{auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE' ? '목록 확인' : '다시 저장'}</button>}
           </div>}
         </div>
 
@@ -10812,7 +10835,9 @@ export default function TimerPage() {
                     const isTemporarilyVisible = !isPublic && temporaryVisibleAuctionItemIds.has(item.id);
                     const isVisibleInSettings = isPublic || isTemporarilyVisible;
                     const canAward = isPublic && !award && currentBid.bidder !== null && currentBid.amount > 0;
-                    const canRemoveItem = auctionItems.length > 1;
+                    const removalPending = isSupabaseSettingsEnabled && (!sharedSettingsHydratedRef.current
+                      || teacherSettingsSavingRef.current || hasUnsavedAuctionItemsRef.current || isRemovingAuctionItem);
+                    const canRemoveItem = auctionItems.length > 1 && !removalPending;
                     const itemDisplayName = getAuctionItemDisplayName(item.name, item.dayIndex);
 
                     return (
@@ -10856,7 +10881,7 @@ export default function TimerPage() {
                                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-[#6E5139] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B5A89C]"
                                 style={{ borderColor: accent.border, color: canRemoveItem ? accent.chip : '#B5A89C' }}
                                 aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
-                                title={canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
+                                title={removalPending ? '저장 완료 후 삭제할 수 있습니다' : canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -10948,7 +10973,7 @@ export default function TimerPage() {
                               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-[#6E5139] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B5A89C]"
                               style={{ borderColor: accent.border, color: canRemoveItem ? accent.chip : '#B5A89C' }}
                               aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
-                              title={canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
+                              title={removalPending ? '저장 완료 후 삭제할 수 있습니다' : canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
                             >
                               <Trash2 size={14} />
                             </button>

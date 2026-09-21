@@ -1,9 +1,9 @@
 import { AlertTriangle, X } from 'lucide-react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { groupSaveFailureAlerts, isDelayedSaveFailure, SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
+import { groupSaveFailureAlerts, isDelayedSaveFailure, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
 import { acknowledgeAllSaveFailures, acknowledgeSaveFailure, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
-import { formatSaveFailureDiagnostic, getSaveFailureExplanation } from '../../lib/saveFailureDiagnostics';
+import { formatSaveFailureDiagnostic, getSaveFailureExplanation, getSaveFailureLabel } from '../../lib/saveFailureDiagnostics';
 import { useModalFocus } from '../../lib/useModalFocus';
 
 function SaveFailureItem({ alert, savingId, onAcknowledge }: { alert: SaveFailureAlert; savingId: string | null; onAcknowledge: (alert: SaveFailureAlert) => Promise<void> }) {
@@ -27,7 +27,7 @@ function SaveFailureItem({ alert, savingId, onAcknowledge }: { alert: SaveFailur
   return <li>
     <b className={`teacher-save-warning-timing${delayed || past ? ' is-past' : ''}`}>{timing}</b>
     <div><strong>{target} · {SAVE_FAILURE_FEATURES[alert.feature]}</strong>
-      <span>{SAVE_FAILURE_CODE_LABELS[alert.code]} · 발생 <time dateTime={alert.occurredAt}>{new Date(alert.occurredAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></span>
+      <span>{getSaveFailureLabel(alert)} · 발생 <time dateTime={alert.occurredAt}>{new Date(alert.occurredAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></span>
     </div>
     {alert.receivedAt ? <small>접수 <time dateTime={alert.receivedAt}>{new Date(alert.receivedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></small> : null}
     {delayed ? <p>발생 후 5분 이상 지나 접수된 알림입니다.</p> : null}
