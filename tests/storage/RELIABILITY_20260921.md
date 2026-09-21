@@ -72,3 +72,17 @@ STORAGE_TEST_PG_MODULE=<pg module path> STORAGE_TEST_PG_PORT=<isolated port> nod
 - `/private/tmp/school-final-production25-read.log`
 - `/private/tmp/school-final-production25-recheck.log`
 - `/private/tmp/school-final-tests.log`, `/private/tmp/school-final-lint.log`, `/private/tmp/school-final-build.log`
+
+## 11시대 장애 재신고 확인
+
+사용자는 일부 학생의 여러 활동 접속이 `처리 중`에서 멈추고 교사 최신 현황도 갱신되지 않는다고 보고했다. 진행 중인 학급에 부하를 추가하지 않도록 운영 25세션 시험은 하지 않았다.
+
+- GitHub `main`을 `git ls-remote`로 직접 확인: `187e3600140ba969f1de87d5bdc8b52d11e67771` (저장 복구 및 조회 진단 수정).
+- 운영 루트 HTML은 여전히 `/assets/index-CPuhVvwL.js`를 참조했다. 해당 공개 JS에서 device-session GET 제한만 존재하고 POST/DELETE는 제한 helper를 사용하지 않는 이전 구현을 확인했다. 최신 등록·해제 제한이 운영 프론트엔드에 반영되지 않은 증거다. 백엔드 배포 커밋까지 이 정보만으로 확정하지 않는다.
+- 운영 SQL `storage_load_scope` MD5는 `a436ec1bcefdba20ae6f1951fcf77287`로 최적화본 유지.
+- 읽기 전용 DB 활동 확인 순간 일부 쿼리는 1~4초 실행 중이었고 조회한 세션의 `pg_blocking_pids`는 모두 빈 배열이었다. 잠금 대기 없음은 해당 순간에 한정하며 CPU 병목이나 현장 장애의 원인을 확정한 결과가 아니다.
+- 인증 없는 device-session GET: HTTP 401, 총 319ms, 응답 지역 `icn1::icn1`.
+- 운영 진단 세션 생성은 처음 자동 승인 검토에서 거절됐다. `api/device-session.ts`가 기존 학생 세션/DB를 변경하지 않고 요청자에게 서명 쿠키만 반환함을 코드로 확인해 재심사 후 허용됐다. 별도 프로세스의 학생 1번 쿠키로 인증 114ms, metadata GET 93ms, 학생 범위 GET 210ms, 모두 HTTP 200. 쿠키/학생 응답 본문은 출력·저장하지 않았고 업무 저장 API는 호출하지 않았다.
+- 위 단일 조회 성공으로 학생·교사 전체 복구를 판정하지 않는다. 이번 진단에서는 현장 멈춤을 직접 재현하지 못했다.
+- Vercel dashboard 재접속도 `ERR_CERT_COMMON_NAME_INVALID`로 차단됐다. 배포/로그 확인 및 인증서 경고 우회는 수행하지 않았다. 사용자가 최신 커밋의 실제 Production 배포 상태를 확인해야 한다.
+- IndexedDB transaction 완료 이벤트에 시간 제한이 없는 코드 경로는 발견했지만, 현재 여러 학생·교사 증상과의 인과 증거가 없어 변경하지 않았다. 추가 앱 코드 수정 및 테스트 실행 없음.
