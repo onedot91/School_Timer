@@ -435,6 +435,7 @@ const loadUpdatedAt = async (url: string, key: string) => {
 };
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
+  const startedAt = Date.now();
   response.setHeader('Cache-Control', 'no-store');
   response.setHeader('X-Storage-Edit-Revisions', requiresStudentEditRevisions() ? 'required' : 'optional');
   const configuration = getConfiguration();
@@ -498,7 +499,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         response.status(error.status).json({ error: error.code });
         return;
       }
-      console.error('Failed to load shared settings.', error);
+      const message = error instanceof Error ? error.message : '';
+      console.error('Shared settings read failure.', {
+        stage: request.query?.libraryCompetition === '1' || request.query?.libraryCompetitionHistory === '1' ? 'library' : request.query?.metadata === '1' ? 'metadata' : 'snapshot',
+        errorName: error instanceof Error && ['Error', 'TypeError', 'TimeoutError', 'AbortError', 'SyntaxError', 'StorageRepositoryError'].includes(error.name) ? error.name : 'UnknownError',
+        code: /^(STORAGE_[A-Z0-9_]{1,64}|SHARED_SETTINGS_READ_HTTP_[0-9]{3})$/.test(message) ? message : 'SHARED_SETTINGS_READ_FAILED',
+        elapsedMs: Date.now() - startedAt,
+      });
       response.status(502).json({ error: 'SHARED_SETTINGS_READ_FAILED' });
     }
     return;

@@ -1676,3 +1676,29 @@ test('공유 설정 전송은 불확실한 저장을 한 번만 적용하고 조
     await server.close();
   }
 });
+
+
+test('조회 실패 진단은 단계와 시간만 남기고 원문·학생 내용·인증 정보를 기록하지 않는다', async (t) => {
+  await withEnvironment(async () => {
+    const log = t.mock.method(console, 'error', () => {});
+    const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
+      throw new DOMException('private-student-answer cookie=secret-token', 'TimeoutError');
+    });
+    const response = createResponse();
+    await handler({ method: 'GET', headers: studentHeaders(1) }, response.response);
+    assert.equal(response.result().statusCode, 502);
+    assert.equal(log.mock.callCount(), 1);
+    const fields: unknown = log.mock.calls[0].arguments[1];
+    assert.ok(fields && typeof fields === 'object');
+    assert.equal(Reflect.get(fields, 'stage'), 'snapshot');
+    assert.equal(Reflect.get(fields, 'errorName'), 'TimeoutError');
+    assert.equal(Reflect.get(fields, 'code'), 'SHARED_SETTINGS_READ_FAILED');
+    assert.ok(Number.isFinite(Reflect.get(fields, 'elapsedMs')));
+    assert.ok(!JSON.stringify(log.mock.calls).includes('secret-token'));
+    assert.ok(!JSON.stringify(log.mock.calls).includes('private-student-answer'));
+    fetchMock.mock.mockImplementation(async () => { throw new Error('STORAGE_DATABASE_HTTP_503'); });
+    await handler({ method: 'GET', query: { metadata: '1' }, headers: studentHeaders(1) }, createResponse().response);
+    assert.equal(Reflect.get(log.mock.calls[1].arguments[1], 'stage'), 'metadata');
+    assert.equal(Reflect.get(log.mock.calls[1].arguments[1], 'code'), 'STORAGE_DATABASE_HTTP_503');
+  });
+});

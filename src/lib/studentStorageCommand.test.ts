@@ -6,7 +6,7 @@ import { normalizeStudentLifeState } from './studentLife.js';
 import { createStudentSaveDraftStore } from './studentSaveDraft.js';
 import { canonicalStorageJson, isStorageRecord } from './storageV2Codec.js';
 import { getKoreanLocalDateKey } from './studentEmotion.js';
-import { runSaveRecoveryPass, serializeStudentSave } from './saveRecovery.js';
+import { runSaveRecoveryPass, serializeStudentSave, SAVE_RECOVERED_EVENT } from './saveRecovery.js';
 
 const success = () => Response.json({ value: { studentLife: { letters: [] } }, updatedAt: '2026-09-08T05:00:00Z', result: { applied: true } });
 
@@ -156,6 +156,89 @@ test('고마 수동 재확인은 권한·요청 충돌·호출 제한 오류에�
 });
 
 const letter = (content: string) => ({ recipient: 0, title: '합성 테스트', content });
+
+test('점검으로 거절된 편지는 자동 전송하지 않고 수동 재시도에서 같은 ID를 유지한다', async () => {
+  await withCommandBrowser(16, async () => {
+    const payload = letter('점검 후 수동 재시도'), bodies: Record<string, unknown>[] = [];
+    let maintenance = true;
+    globalThis.fetch = async (_url, init) => {
+      if (init?.method !== 'POST') return Response.json({ status: 'unknown' });
+      bodies.push(commandBody(init));
+      return maintenance ? Response.json({ error: 'STORAGE_MAINTENANCE' }, { status: 503 }) : success();
+    };
+    saveStudentStorageFormDraft(16, 'student.letter.send', payload);
+    await assert.rejects(executeStudentStorageCommand(16, 'student.letter.send', payload), /STORAGE_MAINTENANCE/);
+    maintenance = false;
+    await runSaveRecoveryPass(16);
+    assert.equal(bodies.length, 1);
+    assert.deepEqual(loadStudentStorageFormDraft(16, 'student.letter.send'), payload);
+    await executeStudentStorageCommand(16, 'student.letter.send', payload);
+    await runSaveRecoveryPass(16);
+    assert.equal(bodies.length, 2);
+    assert.equal(bodies[0].requestId, bodies[1].requestId);
+    assert.deepEqual(loadStudentStorageFormDraft(16, 'student.letter.send'), {});
+  });
+});
+
+test('수동 저장 뒤 대기열에 있던 자동 복구는 새 요청을 만들지 않는다', async () => {
+  await withCommandBrowser(15, async storage => {
+    const id = 'recovery-queued-after-manual';
+    seedRecoveryDraft(storage, 15, 'student.letter.send', id, new Date());
+    let releasePost: () => void = () => undefined;
+    const postGate = new Promise<void>(resolve => { releasePost = resolve; });
+    let posted: () => void = () => undefined;
+    const postStarted = new Promise<void>(resolve => { posted = resolve; });
+    let receiptRead: () => void = () => undefined;
+    const recoveryRead = new Promise<void>(resolve => { receiptRead = resolve; });
+    let receiptReads = 0;
+    const bodies: Record<string, unknown>[] = [];
+    globalThis.fetch = async (_url, init) => {
+      if (init?.method !== 'POST') { if (++receiptReads === 2) receiptRead(); return Response.json({ status: 'unknown' }); }
+      bodies.push(commandBody(init)); posted(); await postGate; return success();
+    };
+    const manual = executeStudentStorageCommand(15, 'student.letter.send', letter('보관한 원래 입력'), id);
+    await postStarted;
+    const recovery = runSaveRecoveryPass(15);
+    await recoveryRead;
+    await new Promise<void>(resolve => setImmediate(resolve));
+    releasePost();
+    await Promise.all([manual, recovery]);
+    assert.equal(bodies.length, 1);
+    assert.equal(bodies[0].requestId, id);
+  });
+});
+
+test('수동 저장이 점검으로 거절되면 대기 중인 자동 복구는 완료를 알리지 않는다', async () => {
+  await withCommandBrowser(14, async storage => {
+    const id = 'recovery-queued-after-maintenance';
+    seedRecoveryDraft(storage, 14, 'student.letter.send', id, new Date());
+    let releasePost: () => void = () => undefined;
+    const postGate = new Promise<void>(resolve => { releasePost = resolve; });
+    let posted: () => void = () => undefined;
+    const postStarted = new Promise<void>(resolve => { posted = resolve; });
+    let receiptRead: () => void = () => undefined;
+    const recoveryRead = new Promise<void>(resolve => { receiptRead = resolve; });
+    let receiptReads = 0;
+    let recovered = 0, posts = 0;
+    window.addEventListener(SAVE_RECOVERED_EVENT, () => { recovered++; });
+    globalThis.fetch = async (_url, init) => {
+      if (init?.method !== 'POST') { if (++receiptReads === 2) receiptRead(); return Response.json({ status: 'unknown' }); }
+      posts++; posted(); await postGate;
+      return Response.json({ error: 'STORAGE_MAINTENANCE' }, { status: 503 });
+    };
+    const manual = assert.rejects(executeStudentStorageCommand(14, 'student.letter.send', letter('보관한 원래 입력'), id), /STORAGE_MAINTENANCE/);
+    await postStarted;
+    const recovery = runSaveRecoveryPass(14);
+    await recoveryRead;
+    await new Promise<void>(resolve => setImmediate(resolve));
+    releasePost();
+    const [, result] = await Promise.all([manual, recovery]);
+    assert.equal(posts, 1);
+    assert.equal(result.pending, 1);
+    assert.equal(recovered, 0);
+    assert.equal(loadStudentStorageDraft(14, 'student.letter.send', id)?.requestId, id);
+  });
+});
 
 test('A 저장 응답을 기다리는 동안 편집한 B는 A 성공 후에도 남는다', async () => {
   await withCommandBrowser(11, async () => {

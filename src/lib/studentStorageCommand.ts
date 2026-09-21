@@ -284,6 +284,7 @@ const automaticActions = new Set(['student.letter.send', 'student.letter.read', 
   'student.pet.name', 'student.pet.select', 'student.pet.move']);
 const findRecoveryDraft = (request: RecoveryRequest) => drafts.list(request.actor).find(draft => draft.requestId === request.id);
 const eligibleDraft = (draft: StudentSaveDraft): boolean => {
+  if (isPaused(draft.scope, draft.requestId)) return false;
   const metadata = drafts.load(contextScope(draft.scope))?.draft.payload;
   if (!isStorageRecord(metadata) || metadata.requestId !== draft.requestId || metadata.dateKey !== getKoreanLocalDateKey()) return false;
   if (metadata.actor !== captureStorageResponseContext().actor) return false;
@@ -315,8 +316,13 @@ registerSaveRecoveryAdapter({
     return true;
   },
   retry: async request => {
-    const draft = findRecoveryDraft(request);
-    if (!draft || !eligibleDraft(draft)) return;
-    await executeStudentStorageCommand(request.actor, draft.scope.feature, draft.payload, draft.scope.entityId);
+    const context = captureStorageResponseContext();
+    await serializeStudentSave(request.actor, async () => {
+      assertActor(request.actor, context);
+      const draft = findRecoveryDraft(request);
+      if (!draft) return;
+      if (!eligibleDraft(draft)) throw new Error('SAVE_DRAFT_PENDING');
+      await executeStudentCommand(request.actor, draft.scope.feature, draft.payload, draft.scope.entityId, context);
+    });
   },
 });

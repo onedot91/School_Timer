@@ -8,6 +8,7 @@ import studentEconomy from '../../api/student-economy.js';
 import deviceSession from '../../api/device-session.js';
 import saveAlerts from '../../api/save-alerts.js';
 import newspaper from '../../api/newspaper.js';
+import weeklyMissionsHandler from '../../api/weekly-missions.js';
 import { createDeviceSessionToken, type RequestHeaders } from '../../src/server/deviceSession.js';
 import { splitStorageState, isStorageRecord } from '../../src/lib/storageV2Codec.js';
 import { DEFAULT_AUCTION_ITEMS } from '../../src/lib/currency.js';
@@ -56,7 +57,7 @@ const listen = async (server: ReturnType<typeof createServer>, port: number): Pr
   await new Promise<void>((done, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', done); });
   const address = server.address(); if (!address || typeof address === 'string') throw new Error('FIXTURE_LISTEN_FAILED'); return address.port;
 };
-export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018, staticDirectory = process.env.STORAGE_HTTP_DIST ?? resolve(ROOT,'dist'), publicDirectory, writeRejection, initialValue, rpcDelayMs = 0 }: { readonly name?: string; readonly port?: number; readonly staticDirectory?: string; readonly publicDirectory?: string; readonly writeRejection?: () => Promise<'maintenance' | 'update' | null>; readonly initialValue?: Record<string, unknown>; readonly rpcDelayMs?: number } = {}) => {
+export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018, staticDirectory = process.env.STORAGE_HTTP_DIST ?? resolve(ROOT,'dist'), publicDirectory, writeRejection, initialValue, rpcDelayMs = 0, weeklyMissions = false }: { readonly name?: string; readonly port?: number; readonly staticDirectory?: string; readonly publicDirectory?: string; readonly writeRejection?: () => Promise<'maintenance' | 'update' | null>; readonly initialValue?: Record<string, unknown>; readonly rpcDelayMs?: number; readonly weeklyMissions?: boolean } = {}) => {
   if (!/^storage_http_test(?:_[a-z0-9_]+)?$/.test(name)) throw new Error('FIXTURE_DATABASE_NAME_REQUIRED');
   const admin = database('postgres');
   const exists = (await admin.query('select 1 from pg_database where datname=$1', [name])).rows.length > 0;
@@ -76,7 +77,33 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
   const metrics: { rpc: string; code?: string; milliseconds?: number; requestBytes?: number; responseBytes?: number; rows?: number }[] = [];
   const gateway = createServer(async (request, response) => {
     try {
-      const rpc = new URL(request.url ?? '/', 'http://localhost').pathname.split('/').at(-1) ?? '';
+      const endpoint = new URL(request.url ?? '/', 'http://localhost');
+      if (weeklyMissions && request.method === 'GET' && request.headers.apikey === KEY) {
+        const student = endpoint.searchParams.get('student_number');
+        const date = endpoint.searchParams.get('round_date');
+        const week = endpoint.searchParams.get('week_key');
+        const offset = Number(endpoint.searchParams.get('offset') ?? '0');
+        if (!student || !/^eq\.(?:[1-9]|1[0-9]|2[0-3])$/.test(student) || !Number.isSafeInteger(offset) || offset < 0) {
+          json(response,400,{error:'FIXTURE_EVIDENCE_FILTER'});return;
+        }
+        const actor = Number(student.slice(3));
+        const start = performance.now();
+        if (rpcDelayMs) await new Promise(resolve => setTimeout(resolve, rpcDelayMs));
+        let rows: Record<string, unknown>[];
+        if (endpoint.pathname === '/rest/v1/classword_entries' && date && /^(eq|lt)\.\d{4}-\d{2}-\d{2}$/.test(date)) {
+          rows = (await db.query(`select id,student_number,round_date::text from classword_entries where student_number=$1 and round_date ${date.startsWith('eq.') ? '=' : '<'} $2::date order by round_date,created_at limit 1000 offset $3`,[actor,date.slice(3),offset])).rows;
+        } else if (endpoint.pathname === '/rest/v1/weekly_mission_rewards' && week && /^lt\.\d{4}-\d{2}-\d{2}$/.test(week)
+          && endpoint.searchParams.get('mission_type') === 'eq.classword_word_entry') {
+          rows = (await db.query("select student_number,week_key from weekly_mission_rewards where student_number=$1 and week_key<$2 and mission_type='classword_word_entry' order by week_key,student_number limit 1000 offset $3",[actor,week.slice(3),offset])).rows;
+        } else if (endpoint.pathname === '/rest/v1/newspaper_questions' && week && /^eq\.\d{4}-\d{2}$/.test(week)
+          && endpoint.searchParams.get('question_type') === 'eq.personal') {
+          rows = (await db.query("select id,student_number,question_type,week_key from newspaper_questions where student_number=$1 and week_key=$2 and question_type='personal'",[actor,week.slice(3)])).rows;
+        } else { json(response,400,{error:'FIXTURE_EVIDENCE_FILTER'});return; }
+        if (rpcDelayMs) await new Promise(resolve => setTimeout(resolve, rpcDelayMs));
+        metrics.push({rpc:endpoint.pathname.split('/').at(-1)+'_read',milliseconds:performance.now()-start,rows:rows.length});
+        json(response,200,rows);return;
+      }
+      const rpc = endpoint.pathname.split('/').at(-1) ?? '';
       if (request.method !== 'POST' || !RPCS.has(rpc) || request.headers.apikey !== KEY) { json(response,403,{ error:'FIXTURE_RPC_DENIED' });return; }
       const input = await readBody(request); if (!isStorageRecord(input)) { json(response,400,{ error:'FIXTURE_RPC_BODY' });return; }
       const keys = Object.keys(input); if (!keys.every(key => /^p_[a-z_]+$/.test(key))) throw new Error('FIXTURE_RPC_PARAMETER');
@@ -120,7 +147,7 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
         response.writeHead(302,{'Set-Cookie':`${fixtureCookie(student)}; Path=/; HttpOnly; Secure; SameSite=Strict`,Location:'/'});response.end();return;
       }
       if (url.pathname === '/api/save-alerts' && request.method === 'GET' && !url.searchParams.has('audit')) { json(response,200,{alerts:[],hasMore:false});return; }
-      const handler = url.pathname === '/api/shared-settings' ? sharedSettings : url.pathname === '/api/student-economy' ? studentEconomy : url.pathname === '/api/device-session' ? deviceSession : url.pathname === '/api/save-alerts' ? saveAlerts : url.pathname === '/api/newspaper' ? newspaper : null;
+      const handler = url.pathname === '/api/shared-settings' ? sharedSettings : url.pathname === '/api/student-economy' ? studentEconomy : url.pathname === '/api/device-session' ? deviceSession : url.pathname === '/api/save-alerts' ? saveAlerts : url.pathname === '/api/newspaper' ? newspaper : weeklyMissions && url.pathname === '/api/weekly-missions' ? weeklyMissionsHandler : null;
       if (!handler) {
         if (url.pathname.startsWith('/api/')) {json(response,503,{error:'FIXTURE_FEATURE_NOT_CONFIGURED'});return;}
         const requested = resolve(staticDirectory,decodeURIComponent(url.pathname).slice(1) || 'index.html');
