@@ -27,6 +27,7 @@ const SERVER_MODULES = [
   'src/server/storageScope.ts',
   'src/server/storageProjection.ts',
   'src/server/storageV2Repository.ts',
+  'src/server/storageFailureDiagnostics.ts',
   'src/server/economyStorageScope.ts',
   'src/server/rewardAuditRepository.ts',
   'src/server/newspaperRepository.ts',

@@ -41,7 +41,7 @@ const request = (configuration: StorageConfiguration, path: string, payload: unk
         method: 'POST', headers: { apikey: configuration.key, Authorization: `Bearer ${configuration.key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload), signal: AbortSignal.timeout(8000),
     });
-    const body: unknown = await response.json();
+    const body: unknown = response.ok ? await response.json() : await response.json().catch(() => null);
     if (!response.ok) {
         const message = isStorageRecord(body) && typeof body.message === 'string' ? body.message : '';
         if (isStorageRecord(body) && ['40001', '40P01', '55P03'].includes(String(body.code)))
@@ -51,6 +51,13 @@ const request = (configuration: StorageConfiguration, path: string, payload: unk
         throw new StorageRepositoryError(code === 'STORAGE_MAINTENANCE' || code === 'STORAGE_NOT_ACTIVE' ? 503 : code === 'STORAGE_REQUEST_REUSED' ? 409 : code === 'STORAGE_SCOPE_VIOLATION' ? 400 : 502, code ?? `STORAGE_DATABASE_HTTP_${response.status}`);
     }
     return body;
+}).catch((error: unknown) => {
+    if (error instanceof StorageRepositoryError) throw error;
+    if (error instanceof SyntaxError) throw new StorageRepositoryError(502, 'STORAGE_INVALID_RESPONSE');
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError'))
+        throw new StorageRepositoryError(502, 'STORAGE_DATABASE_TIMEOUT');
+    if (error instanceof TypeError) throw new StorageRepositoryError(502, 'STORAGE_DATABASE_NETWORK');
+    throw error;
 });
 const parseValue = (value: unknown): StorageResourceValue => {
     if (!isStorageRecord(value) || !['value', 'object', 'array'].includes(String(value.kind)) || (value.parentKey !== null && typeof value.parentKey !== 'string') || typeof value.member !== 'string' || (value.order !== undefined && typeof value.order !== 'number'))

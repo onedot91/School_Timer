@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import { logStorageFailure } from '../src/server/storageFailureDiagnostics.js';
 import {
   AUCTION_ITEM_IDS,
   CURRENCY_BALANCE_MAX,
@@ -412,6 +413,7 @@ const currentEconomyResponse = async (
 };
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
+  const startedAt = Date.now();
   response.setHeader('Cache-Control', 'no-store');
   const configuration = getConfiguration();
   if (!configuration) {
@@ -445,6 +447,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       }
       response.status(200).json(receipt.found ? { status: 'committed', result: await currentEconomyResponse(configuration, receipt.result, studentNumber) } : { status: 'unknown' });
     } catch (error) {
+      logStorageFailure(error, { route: '/api/student-economy', stage: 'receipt', startedAt });
       response.status(error instanceof StorageRepositoryError ? error.status : 502).json({ error: error instanceof StorageRepositoryError ? error.code : 'STUDENT_ECONOMY_STATUS_UNAVAILABLE' });
     }
     return;
@@ -520,6 +523,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       && error.status === 409 && error.code !== 'STORAGE_REQUEST_REUSED')) {
       try { if (await confirmBeforeRejection()) return; }
       catch (confirmationError) {
+        logStorageFailure(confirmationError, { route: '/api/student-economy', stage: 'confirmation', startedAt });
         const reused = confirmationError instanceof StorageRepositoryError && confirmationError.code === 'STORAGE_REQUEST_REUSED';
         response.status(reused ? 409 : 502).json({ error: reused ? 'STORAGE_REQUEST_REUSED' : 'STORAGE_CONFIRMATION_UNAVAILABLE' });
         return;
@@ -534,9 +538,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return;
     }
     if (error instanceof StorageRepositoryError) {
+      logStorageFailure(error, { route: '/api/student-economy', stage: 'command', startedAt });
       response.status(error.status).json({ error: error.code }); return;
     }
-    console.error('Failed to apply student economy action.');
+    logStorageFailure(error, { route: '/api/student-economy', stage: 'command', startedAt });
     response.status(502).json({ error: 'STUDENT_ECONOMY_UPDATE_FAILED' });
   }
 }

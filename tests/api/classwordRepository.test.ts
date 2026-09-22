@@ -1,8 +1,48 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ClasswordRepositoryError, saveClasswordEntry, loadClasswordQuizRewardAmount } from '../../src/server/classwordRepository.js';
+import { ClasswordRepositoryError, saveClasswordEntry, loadClasswordQuizRewardAmount, deleteClasswordQuizDefinition } from '../../src/server/classwordRepository.js';
 const configuration = { url: 'https://example.invalid', key: 'test-only' };
 const input = { requestId: 'fixture-request-1', dateKey: '2026-09-08', studentNumber: 3, initial: 'ㄱ', word: '강아지' } as const;
+
+for (const failure of [
+  { name: 'network rejection', code: 'CLASSWORD_DATABASE_UNAVAILABLE', response: async (): Promise<Response> => { throw new TypeError('private transport details'); } },
+  { name: 'timeout', code: 'CLASSWORD_DATABASE_TIMEOUT', response: async (): Promise<Response> => { throw new DOMException('private timeout details', 'TimeoutError'); } },
+  { name: 'abort', code: 'CLASSWORD_DATABASE_TIMEOUT', response: async (): Promise<Response> => { throw new DOMException('private abort details', 'AbortError'); } },
+  { name: 'malformed JSON', code: 'CLASSWORD_DATABASE_INVALID_RESPONSE', response: async () => new Response('<private upstream html>', { status: 200 }) },
+  { name: 'response stream failure', code: 'CLASSWORD_DATABASE_UNAVAILABLE', response: async () => new Response(new ReadableStream({ start(controller) { controller.error(new TypeError('private stream details')); } })) },
+]) {
+  test(`mutation returns a typed 502 without replay when upstream has ${failure.name}`, async () => {
+    // Given: one upstream failure after dispatching a mutation.
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => { calls += 1; return failure.response(); };
+    try {
+      // When / Then: the uncertainty remains a failure and never triggers another mutation.
+      await assert.rejects(saveClasswordEntry(configuration, input), (error: unknown) => {
+        assert.ok(error instanceof ClasswordRepositoryError);
+        assert.equal(error.status, 502);
+        assert.equal(error.code, failure.code);
+        assert.equal(error.message, failure.code);
+        return true;
+      });
+      assert.equal(calls, 1);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+}
+
+for (const status of [200, 204]) {
+  test(`void mutation keeps successful empty ${status} response semantics`, async () => {
+    // Given: an upstream command that has no response payload.
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => { calls += 1; return new Response(null, { status }); };
+    try {
+      // When / Then: the command resolves after exactly one request.
+      await deleteClasswordQuizDefinition(configuration, input.dateKey, input.requestId);
+      assert.equal(calls, 1);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+}
 
 test('entry and reward use exactly one versioned atomic command', async () => {
  const originalFetch=globalThis.fetch;let calls=0;

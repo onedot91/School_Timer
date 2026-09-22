@@ -1,6 +1,7 @@
 import { createBrowserRequestId } from './requestId.js';
 import { setDraftReloadCheck, removeDraftReloadCheck } from './draftReloadSafety.js';
 import { createStudentDraftDatabase, type StudentDraftDatabase, type StudentDraftDatabaseEntry } from './studentDraftDatabase.js';
+import { createDraftStorageReporter, type DraftStorageAttempt } from './draftStorageDiagnostics.js';
 
 export interface StudentSaveDraftScope {
   readonly studentNumber: number;
@@ -107,16 +108,26 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
   const memory = new Map<string, { text: string; durable: boolean; dirty: boolean }>();
   const listeners = new Set<() => void>();
   const persistedVersions = new Map<string, string>();
+  const pendingRemoteReads = new Map<string, object>();
   const createRequestId = options.createRequestId ?? createBrowserRequestId;
   const now = options.now ?? (() => new Date());
   let revision = 0;
   let queue = Promise.resolve();
   let readyPromise: Promise<void> | null = null;
   let databaseHydrated = false;
+  let storageAccessError: unknown;
+  const reportStorageFailure = createDraftStorageReporter();
+  const reportUnstored = (draft: StudentSaveDraft, attempt: DraftStorageAttempt, error: unknown) => {
+    void queue.then(() => {
+      const current = memory.get(keyFor(draft.scope));
+      if (current?.dirty && current.text === JSON.stringify(draft)) reportStorageFailure(draft, attempt, error);
+    });
+  };
   const getStorage = (): DraftStorage | null => {
     try {
+      storageAccessError = undefined;
       return options.storage !== undefined ? options.storage : (typeof window === 'undefined' ? null : window.localStorage);
-    } catch { return null; }
+    } catch (error) { storageAccessError = error; return null; }
   };
   const database = (() => {
     if (options.database !== undefined) return options.database;
@@ -138,12 +149,13 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
     });
   };
   const remember = (key: string, draft: StudentSaveDraft, durable: boolean, dirty = false) => {
+    pendingRemoteReads.delete(key);
     memory.set(key, { text: JSON.stringify(draft), durable, dirty });
     if (durable) persistedVersions.set(key, draft.requestId);
     protectReload(key, draft.scope);
     notify();
   };
-  const forget = (key: string) => { memory.delete(key); persistedVersions.delete(key); removeDraftReloadCheck(checkKey(key)); notify(); };
+  const forget = (key: string) => { pendingRemoteReads.delete(key); memory.delete(key); persistedVersions.delete(key); removeDraftReloadCheck(checkKey(key)); notify(); };
   const publish = (key: string) => { channel?.postMessage(key); };
   const localKeys = (): string[] => {
     const storage = getStorage();
@@ -198,7 +210,13 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
           channel.onmessage = event => {
             if (typeof event.data !== 'string' || !scopeFromKey(event.data)) return;
             const key: string = event.data;
-            void database.get(key).then(entry => adoptRemote(key, entry)).catch(() => {});
+            const token = {};
+            pendingRemoteReads.set(key, token);
+            void database.get(key).then(entry => {
+              if (pendingRemoteReads.get(key) === token) adoptRemote(key, entry);
+            }).catch(() => {}).finally(() => {
+              if (pendingRemoteReads.get(key) === token) pendingRemoteReads.delete(key);
+            });
           };
         }
         for (const entry of await database.readAll()) {
@@ -282,17 +300,20 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
   const persistLocal = (draft: StudentSaveDraft): boolean => {
     const key = keyFor(draft.scope);
     const text = JSON.stringify(draft);
+    const attempt: DraftStorageAttempt = { storageBackend: 'localStorage', storageOperation: 'write', startedAt: Date.now() };
     try {
       const storage = getStorage();
       storage?.setItem(key, text);
       const durable = !!storage && storage.getItem(key) === text;
       remember(key, draft, durable, !durable);
+      if (!durable) reportUnstored(draft, attempt, storageAccessError);
       return durable;
-    } catch { return false; }
+    } catch (error) { reportUnstored(draft, attempt, error); return false; }
   };
   const persist = (draft: StudentSaveDraft, replace: boolean) => {
     if (!database) return persistLocal(draft);
     const key = keyFor(draft.scope);
+    const attempt: DraftStorageAttempt = { storageBackend: 'indexedDB', storageOperation: replace ? 'replace' : 'write', startedAt: Date.now() };
     enqueue(async () => {
       try {
         const entry = entryFor(draft);
@@ -300,13 +321,14 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
           ? (await database.replace(entry, persistedVersions.get(key) ?? null) ? entry : null)
           : await database.insert(entry);
         const current = memory.get(key);
-        if (!selected) return;
+        if (!selected) { reportUnstored(draft, attempt, 'cas-conflict'); return; }
         const saved = parseEntry(selected);
         if (saved) persistedVersions.set(key, saved.requestId);
         if (saved && current?.text === JSON.stringify(draft)) remember(key, saved, true);
         publish(key);
-      } catch {
+      } catch (error) {
         if (memory.get(key)?.text === JSON.stringify(draft)) remember(key, draft, false, true);
+        reportUnstored(draft, attempt, error);
       }
     });
     return false;
@@ -384,6 +406,7 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
     if (!database) return remove(scope, requestId);
     await flush();
     const key = keyFor(scope);
+    const attempt: DraftStorageAttempt = { storageBackend: 'indexedDB', storageOperation: 'confirm', startedAt: Date.now() };
     try {
       const removed = await database.remove(key, requestId)
         || await database.get(key) === null;
@@ -392,7 +415,11 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
         publish(key);
       }
       return removed;
-    } catch { return false; }
+    } catch (error) {
+      const current = load(scope);
+      if (current?.draft.requestId === requestId) reportStorageFailure(current.draft, attempt, error);
+      return false;
+    }
   };
   const remove = (scope: StudentSaveDraftScope, requestId: string): boolean => {
     const existing = load(scope);
@@ -433,6 +460,6 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
     load, save, replace, remove, confirm: remove, ready, flush, refresh, saveDurable, importDurable, confirmDurable, list,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     getSnapshot: () => revision,
-    dispose: () => { channel?.close(); listeners.clear(); for (const key of memory.keys()) removeDraftReloadCheck(checkKey(key)); },
+    dispose: () => { channel?.close(); pendingRemoteReads.clear(); listeners.clear(); for (const key of memory.keys()) removeDraftReloadCheck(checkKey(key)); },
   };
 };

@@ -29122,7 +29122,7 @@ body {
 .teacher-save-warning-dialog header, .teacher-save-warning-dialog h2 { display: flex; align-items: center; gap: .5rem; }
 .teacher-save-warning-dialog header { justify-content: space-between; flex-shrink: 0; }
 .teacher-save-warning-dialog h2 { font-size: 1.2rem; font-weight: 800; color: var(--teacher-urgent); }
-.teacher-save-warning-dialog p { margin-top: .75rem; font-size: .9rem; overflow-wrap: anywhere; }
+.teacher-save-warning-dialog p { margin-top: .75rem; font-size: .9rem; word-break: keep-all; overflow-wrap: anywhere; }
 .teacher-save-warning-dialog button { min-height: 44px; min-width: 44px; border-radius: var(--apple-radius-control); }
 .teacher-save-warning-dialog header button { display: grid; place-items: center; }
 .teacher-save-warning-list { overflow-y: auto; min-height: 0; margin-top: .75rem; }

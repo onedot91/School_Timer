@@ -56,7 +56,7 @@ test('save alerts use independent rows, enforce roles, and retain acknowledgemen
     assert.equal((await invoke('POST', report)).status, 200);
     assert.deepEqual((await invoke('GET', undefined, true)).value, { alerts: [{ ...newer, acknowledgedAt: null }], hasMore: false });
     assert.equal(rows.size, 2);
-    const diagnosticReport = { ...report, id: 'failure-diagnostic-789', diagnostics: { errorCode: 'SHARED_SETTINGS_WRITE_FAILED', httpStatus: 502, endpoint: '/api/shared-settings', online: false, requestId: 'original-save-request-123', buildVersion: '2026-09-09T01:00:00.000Z', stage: 'recovery', retryCount: 5 } };
+    const diagnosticReport = { ...report, id: 'failure-diagnostic-789', diagnostics: { errorCode: 'LOCAL_DRAFT_SAVE_FAILED', causeCode: 'LOCAL_DRAFT_QUOTA_EXCEEDED', online: false, requestId: 'original-save-request-123', buildVersion: '2026-09-09T01:00:00.000Z', stage: 'draft', retryCount: 5, storageBackend: 'indexedDB', storageOperation: 'write', elapsedMs: 42 } };
     assert.equal((await invoke('POST', { ...diagnosticReport, diagnostics: { ...diagnosticReport.diagnostics, message: 'private content', requestBody: 'secret' } })).status, 200);
     const stored = [...rows.values()].find(value => value.diagnostics !== undefined);
     assert.ok(stored && typeof stored.id === 'string');

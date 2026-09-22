@@ -39,6 +39,9 @@ export type SaveFailureDiagnostics = {
   buildVersion?: string;
   stage?: 'draft' | 'write' | 'receipt' | 'refresh' | 'recovery';
   retryCount?: number;
+  storageBackend?: 'indexedDB' | 'localStorage';
+  storageOperation?: 'write' | 'replace' | 'confirm';
+  elapsedMs?: number;
 };
 export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnostics | undefined => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -50,7 +53,7 @@ export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnost
   const status = Reflect.get(value, 'httpStatus');
   if (Number.isInteger(status) && status >= 400 && status <= 599) result.httpStatus = status;
   const errorName = Reflect.get(value, 'errorName');
-  if (['Error', 'TypeError', 'TimeoutError', 'AbortError', 'QuotaExceededError', 'SyntaxError'].includes(errorName)) result.errorName = errorName;
+  if (['Error', 'TypeError', 'TimeoutError', 'AbortError', 'QuotaExceededError', 'SyntaxError', 'SecurityError', 'InvalidStateError', 'UnknownError', 'VersionError', 'NotFoundError', 'DataCloneError', 'ConstraintError', 'TransactionInactiveError'].includes(errorName)) result.errorName = errorName;
   const endpoint = Reflect.get(value, 'endpoint');
   if (['/api/shared-settings', '/api/student-economy', '/api/classword', '/api/today-friend', '/api/newspaper', '/api/class-donation', '/api/announcement-notes', '/api/weekly-mission', '/api/weekly-missions'].includes(endpoint)) result.endpoint = endpoint;
   const view = Reflect.get(value, 'view');
@@ -66,6 +69,12 @@ export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnost
   if (stage === 'draft' || stage === 'write' || stage === 'receipt' || stage === 'refresh' || stage === 'recovery') result.stage = stage;
   const retryCount = Reflect.get(value, 'retryCount');
   if (typeof retryCount === 'number' && Number.isInteger(retryCount) && retryCount >= 0 && retryCount <= 100) result.retryCount = retryCount;
+  const storageBackend = Reflect.get(value, 'storageBackend');
+  if (storageBackend === 'indexedDB' || storageBackend === 'localStorage') result.storageBackend = storageBackend;
+  const storageOperation = Reflect.get(value, 'storageOperation');
+  if (storageOperation === 'write' || storageOperation === 'replace' || storageOperation === 'confirm') result.storageOperation = storageOperation;
+  const elapsedMs = Reflect.get(value, 'elapsedMs');
+  if (typeof elapsedMs === 'number' && Number.isInteger(elapsedMs) && elapsedMs >= 0 && elapsedMs <= 600_000) result.elapsedMs = elapsedMs;
   return Object.keys(result).length > 0 ? result : undefined;
 };
 export type SaveFailureAlert = SaveFailureReport & { acknowledgedAt: string | null; receivedAt?: string };
@@ -122,13 +131,28 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
 export const isDelayedSaveFailure = (alert: SaveFailureAlert): boolean =>
   Boolean(alert.receivedAt && Date.parse(alert.receivedAt) - Date.parse(alert.occurredAt) >= 5 * 60 * 1000);
 
+export const getSaveFailureScopeFeature = (feature: string): SaveFailureFeature => {
+  if (feature === 'student.economy' || feature.startsWith('teacher.currency.')) return 'economy';
+  if (feature === 'teacher.todayFriend.review') return 'todayFriend';
+  if (feature === 'student.auction.bid' || feature.startsWith('teacher.auction.')) return 'auction';
+  if (feature.startsWith('student.letter.') || feature.startsWith('student.failure.')) return 'studentLife';
+  if (feature.startsWith('student.emotion.')) return 'emotion';
+  if (feature.startsWith('student.sudoku.')) return 'sudoku';
+  if (feature.startsWith('student.baseball.')) return 'numberBaseball';
+  if (feature.startsWith('student.pet.')) return 'pet';
+  if (feature === 'classword' || feature === 'classword-input' || feature === 'classword-request') return 'classword';
+  if (feature === 'todayFriend' || feature === 'today-friend-input') return 'todayFriend';
+  if (feature === 'library' || feature === 'library-input' || feature === 'library-placement') return 'library';
+  return 'settings';
+};
+
 export const groupSaveFailureAlerts = (alerts: readonly SaveFailureAlert[]): SaveFailureAlert[][] => {
   const groups = new Map<string, SaveFailureAlert[]>();
   for (const alert of alerts) {
     const details = alert.diagnostics;
     const key = JSON.stringify([alert.studentNumber, alert.feature, alert.code, details?.errorCode,
       details?.causeCode, details?.httpStatus, details?.endpoint, details?.view, details?.stage,
-      details?.online, details?.buildVersion]);
+      details?.online, details?.buildVersion, details?.storageBackend, details?.storageOperation]);
     const group = groups.get(key);
     if (group) group.push(alert); else groups.set(key, [alert]);
   }

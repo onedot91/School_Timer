@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { adjustLibraryCompetition, createLibraryCompetition, getLibraryCompetitionMonth, parseLibraryCompetitionState, projectLibraryCompetition, parseLibraryCompetitionCounts } from '../lib/libraryCompetition.js';
 import { commitCompetition, competitionRecord, LibraryCompetitionError, loadCompetitionRow, type CompetitionConfiguration, type CompetitionRow, type CompetitionArchive } from './libraryCompetitionRepository.js';
-import { getStorageReceipt } from './storageV2Repository.js';
+import { getStorageReceipt, StorageRepositoryError } from './storageV2Repository.js';
 
 export const competitionTimestamp = (row: CompetitionRow | null): string => new Date(Math.max(Date.now(), row ? Date.parse(row.updated_at) + 1 : 0)).toISOString();
 
@@ -39,7 +39,9 @@ export async function ensureCompetition(configuration: CompetitionConfiguration,
         return { row: await loadCompetitionRow(configuration), rolledOver: Boolean(state) };
       }
     } catch (error) {
-      if (!(error instanceof TypeError) && !(error instanceof DOMException && error.name === 'TimeoutError')) throw error;
+      const unconfirmed = error instanceof StorageRepositoryError
+        && ['STORAGE_DATABASE_NETWORK', 'STORAGE_DATABASE_TIMEOUT', 'STORAGE_INVALID_RESPONSE'].includes(error.code);
+      if (!unconfirmed && !(error instanceof TypeError) && !(error instanceof DOMException && error.name === 'TimeoutError')) throw error;
       // A lost response can follow a committed transaction; re-read instead of replaying its archive.
       rolledOver = Boolean(state);
     }

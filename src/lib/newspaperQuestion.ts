@@ -3,6 +3,7 @@ import { getKoreanIsoWeekKey } from './weeklyMission.js';
 export const NEWSPAPER_CONFIG = {
   studentCount: 23, teacherNumber: 0, questionMaxLength: 60, topicMaxLength: 40,
   timeZone: 'Asia/Seoul', weekStartsOn: 1, exportHeader: '신문 질문 모음',
+  skillInvocation: '[$goma-newspaper](/Users/ibyeonghyeon/.codex/skills/goma-newspaper/SKILL.md)',
   adminAccess: 'device-session', blockedWords: [] as readonly string[], privateWords: [] as readonly string[],
 } as const;
 export const QUESTION_TYPES = ['personal', 'topic'] as const;
@@ -128,6 +129,6 @@ export const selectQuestionDownload = (questions: readonly NewspaperQuestion[], 
   .sort((a, b) => a.student_number - b.student_number || a.question_type.localeCompare(b.question_type));
 export const buildQuestionTxt = (questions: readonly NewspaperQuestion[], mode: QuestionMode, header: string = NEWSPAPER_CONFIG.exportHeader) => {
   const lines = (type: QuestionType) => selectQuestionDownload(questions, type, false).map((row, index) => `${type === 'personal' ? row.student_number : index + 1}. ${row.question_text}`).join('\n');
-  return `${header}\n\n${mode === 'all' ? `[개인 질문]\n${lines('personal')}\n[주제 질문]\n${lines('topic')}` : lines(mode)}\n`;
+  return `${NEWSPAPER_CONFIG.skillInvocation}\n\n${header}\n\n${mode === 'all' ? `[개인 질문]\n${lines('personal')}\n[주제 질문]\n${lines('topic')}` : lines(mode)}\n`;
 };
 export const questionTxtFilename = (weekKey: string, mode: QuestionMode, cumulative: boolean) => `${QUESTION_LABELS[mode].replaceAll(' ', '')}-${cumulative ? '누적-' : ''}${weekKey}.txt`;

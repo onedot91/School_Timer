@@ -5,6 +5,7 @@ import { canonicalStorageJson } from './storageV2Codec.js';
 import { loadStudentEconomyReceipt, mergeStudentEconomyLife, StudentEconomyRequestError, updateStudentEconomy } from './studentEconomyClient.js';
 import { applyStudentEconomyAction, createStudentEconomyState } from './studentEconomy.js';
 import { normalizeStudentLifeState } from './studentLife.js';
+import { collectSaveFailureDiagnostics } from './saveFailureDiagnostics.js';
 
 const successfulResponse = () => Response.json({
   balance: 115,
@@ -66,7 +67,16 @@ test('조회로 저장을 확정하지 못하면 수동 재시도 필요 상태�
   };
   try {
     await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'deposit', amount: 30 }, requestId: 'uncertain-request' }),
-      (error: unknown) => error instanceof StudentEconomyRequestError && error.code === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED');
+      (error: unknown) => {
+        assert.ok(error instanceof StudentEconomyRequestError);
+        assert.equal(error.code, 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED');
+        const diagnostics = collectSaveFailureDiagnostics(error);
+        assert.equal(diagnostics?.errorName, 'TimeoutError');
+        assert.equal(diagnostics?.stage, 'receipt');
+        assert.equal(diagnostics?.retryCount, 3);
+        assert.equal(diagnostics?.httpStatus, undefined);
+        return true;
+      });
     assert.equal(writes, 1);
   } finally { globalThis.fetch = originalFetch; }
 });

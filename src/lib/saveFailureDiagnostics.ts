@@ -16,6 +16,7 @@ export const collectSaveFailureDiagnostics = (error: unknown, context: SaveFailu
       causeCode: Reflect.get(current, 'serverCode'),
       httpStatus: isSyntheticConfirmation ? undefined : Reflect.get(current, 'status') ?? Number(/(?:HTTP_|HTTP )([0-9]{3})/.exec(current.message)?.[1]),
       errorName: current.name, endpoint: Reflect.get(current, 'endpoint'),
+      stage: Reflect.get(current, 'stage'), retryCount: Reflect.get(current, 'retryCount'),
     }) ?? {};
     details = {
       ...candidate, ...details,
@@ -30,6 +31,14 @@ export const collectSaveFailureDiagnostics = (error: unknown, context: SaveFailu
 
 export const getSaveFailureExplanation = (alert: SaveFailureAlert): { problem: string; action: string } => {
   const details = alert.diagnostics;
+  if (details?.errorCode === 'LOCAL_DRAFT_CONFIRM_FAILED') return {
+    problem: '서버 처리와 별개로 기기의 임시 기록 정리를 완료하지 못했습니다.',
+    action: '같은 기록을 다시 보내지 말고 서버 반영 여부와 진단 정보를 확인하세요. 사이트 데이터는 삭제하지 마세요.',
+  };
+  if (details?.causeCode === 'LOCAL_DRAFT_CAS_CONFLICT') return {
+    problem: '다른 탭의 임시 기록과 충돌해 현재 입력을 기기에 보관하지 못했습니다.',
+    action: '현재 내용을 복사한 뒤 다른 탭의 기록을 확인하세요. 내용을 보존하기 전에는 새로고침하지 마세요.',
+  };
   if ([details?.errorCode, details?.causeCode].includes('AUCTION_ITEM_NOT_REMOVABLE')) return {
     problem: '삭제할 경매 물품이 서버에 없거나 마지막 물품이라 삭제 요청이 거절됐습니다.',
     action: '설정창의 경매 물품 목록을 확인하세요. 물품 저장·삭제가 끝날 때까지 기다린 뒤 조작하세요.',
@@ -47,7 +56,7 @@ export const getSaveFailureExplanation = (alert: SaveFailureAlert): { problem: s
     action: '해당 학생의 기록·잔액을 먼저 확인하세요. 중복 지급·차감을 피하도록 저장 여부가 확인되기 전에는 반복 실행하지 마세요.',
   };
   if (alert.code === 'network') return {
-    problem: details?.online === false ? '오류 발생 당시 기기가 오프라인 상태였습니다.'
+    problem: details?.online === false ? '오류 처리 시 브라우저가 오프라인으로 감지했습니다. 이 정보만으로 연결 장애 지점은 확정할 수 없습니다.'
       : details?.errorName === 'TimeoutError' || details?.errorName === 'AbortError' ? '제한 시간 안에 응답을 받지 못했거나 요청이 중단됐습니다.'
         : '저장 요청 중 연결 오류가 발생했습니다. 이 알림만으로 기기·학교 Wi-Fi·서버 중 원인을 확정할 수 없습니다.',
     action: '학생의 작성 중 화면을 유지하고 연결을 확인하세요. 기록 반영 여부를 확인한 뒤, 저장되지 않은 경우에만 다시 시도하세요.',
@@ -79,6 +88,9 @@ export const formatSaveFailureDiagnostic = (alert: SaveFailureAlert): string => 
     ...(details?.requestId ? [`저장 요청 ID: ${details.requestId}`] : []),
     ...(details?.buildVersion ? [`배포 버전: ${details.buildVersion}`] : []),
     ...(details?.stage ? [`실패 단계: ${details.stage}`] : []),
+    ...(details?.storageBackend ? [`기기 저장소: ${details.storageBackend}`] : []),
+    ...(details?.storageOperation ? [`기기 저장 작업: ${details.storageOperation}`] : []),
+    ...(details?.elapsedMs !== undefined ? [`소요 시간: ${details.elapsedMs}ms`] : []),
     ...(details?.retryCount !== undefined ? [`재시도 횟수: ${details.retryCount}`] : []),
     `대상: ${alert.studentNumber === 0 ? '교사' : `${alert.studentNumber}번 학생`}`,
     `기능: ${SAVE_FAILURE_FEATURES[alert.feature]}`,

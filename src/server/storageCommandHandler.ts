@@ -9,6 +9,7 @@ import { storageCommandScope, studentEditRevisionKeys } from './storageCommandSc
 import { createStorageProjectionPatch, supportsStorageProjection } from './storageProjection.js';
 import { isStorageRecord } from '../lib/storageV2Codec.js';
 import { requiresStudentEditRevisions } from './storageClientContract.js';
+import { logStorageFailure } from './storageFailureDiagnostics.js';
 
 interface CommandRequest {
   readonly headers?: RequestHeaders;
@@ -51,6 +52,7 @@ export const handleStorageCommand = async (
   request: CommandRequest, response: CommandResponse, configuration: StorageConfiguration,
   session: DeviceSession, projectStudentValue: ProjectValue,
 ): Promise<void> => {
+  const startedAt = Date.now();
   if (!supportsStorageProjection(request.headers)) {
     response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
   }
@@ -134,6 +136,7 @@ export const handleStorageCommand = async (
       && error.code !== 'STORAGE_REQUEST_REUSED' || error instanceof Error && businessError(error))) {
       try { if (await confirmBeforeRejection()) return; }
       catch (confirmationError) {
+        logStorageFailure(confirmationError, { route: '/api/shared-settings', stage: 'confirmation', startedAt });
         const reused = confirmationError instanceof StorageRepositoryError && confirmationError.code === 'STORAGE_REQUEST_REUSED';
         response.status(reused ? 409 : 502).json({ error: reused ? 'STORAGE_REQUEST_REUSED' : 'STORAGE_CONFIRMATION_UNAVAILABLE' });
         return;
@@ -141,11 +144,13 @@ export const handleStorageCommand = async (
     }
     if (error instanceof SyntaxError) { response.status(400).json({ error: 'INVALID_BODY' }); return; }
     if (error instanceof StorageRepositoryError) {
+      logStorageFailure(error, { route: '/api/shared-settings', stage: request.method === 'GET' ? 'receipt' : 'command', startedAt });
       if (error.status === 503) response.setHeader('Retry-After','5');
       response.status(error.status).json({ error: error.code }); return;
     }
     const business = error instanceof Error ? businessError(error) : null;
     if (business) { response.status(business.status).json({ error: business.code, businessRejected: true }); return; }
+    logStorageFailure(error, { route: '/api/shared-settings', stage: request.method === 'GET' ? 'receipt' : 'command', startedAt });
     response.status(502).json({ error: 'STORAGE_COMMAND_FAILED' });
   }
 };

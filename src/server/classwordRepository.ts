@@ -64,6 +64,11 @@ const headers = (key: string, content = false): Record<string, string> => ({
   ...(content ? { 'Content-Type': 'application/json' } : {}),
 });
 
+const rejectUpstreamRequest = (error: unknown): never => {
+  const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+  throw new ClasswordRepositoryError(502, timedOut ? 'CLASSWORD_DATABASE_TIMEOUT' : 'CLASSWORD_DATABASE_UNAVAILABLE');
+};
+
 const request = async (
   configuration: ClasswordRepositoryConfiguration,
   path: string,
@@ -73,7 +78,7 @@ const request = async (
     ...init,
     headers: { ...headers(configuration.key, init?.body !== undefined), ...init?.headers },
     signal: AbortSignal.timeout(8000),
-  });
+  }).catch(rejectUpstreamRequest);
   if (result.status === 409 && path.startsWith('classword_entries?')) {
     const body: unknown = await result.json().catch(() => null);
     if (isRecord(body) && body.code === '23505' && typeof body.message === 'string') {
@@ -99,8 +104,14 @@ const request = async (
     throw new ClasswordRepositoryError(502, `CLASSWORD_DATABASE_HTTP_${result.status}`);
   }
   if (result.status === 204) return null;
-  const body = await result.text();
-  return body.length === 0 ? null : JSON.parse(body);
+  const body = await result.text().catch(rejectUpstreamRequest);
+  if (body.length === 0) return null;
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
+    throw error;
+  }
 };
 
 

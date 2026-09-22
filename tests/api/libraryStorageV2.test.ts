@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createStorageV2Fixture } from './storageV2Fixture.js';
 import { createLibraryCompetition } from '../../src/lib/libraryCompetition.js';
 import { ensureCompetition, updateCompetitionSettings } from '../../src/server/libraryCompetitionService.js';
+import { StorageRepositoryError } from '../../src/server/storageV2Repository.js';
 
 const configuration = { url: 'https://library-storage-test.invalid', key: 'test-only' };
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : {};
@@ -40,7 +41,8 @@ test('storage v2 teacher setting retry after lost response uses original receipt
   await ensureCompetition(configuration, true);
   const command = { requestId: 'setting-retry', expectedRevision: 0, speed: 0.5, paused: true, counts: [] };
   fixture.loseNextCommitResponse();
-  await assert.rejects(updateCompetitionSettings(configuration, command), TypeError);
+  await assert.rejects(updateCompetitionSettings(configuration, command), (error: unknown) =>
+    error instanceof StorageRepositoryError && error.status === 502 && error.code === 'STORAGE_DATABASE_NETWORK');
   await updateCompetitionSettings(configuration, command);
   const state = record(fixture.read().value.libraryCompetition);
   assert.equal(state.revision, 1);

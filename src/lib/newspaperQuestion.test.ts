@@ -80,7 +80,7 @@ test('로컬 질문은 주차별 upsert, 주제 선행 조건, 수정본 다운�
   assert.equal(projectLocalNewspaper(data, 3, getKoreanIsoWeekKey(nextWeek)).questions.length, 1);
   assert.equal(projectLocalNewspaper(data, 4, getKoreanIsoWeekKey(nextWeek)).history.length, 0);
   const txt = buildQuestionTxt(data.questions.filter(row => row.week_key === weekKey), 'all', '신문');
-  assert.equal(txt, '신문\n\n[개인 질문]\n3. 바다는 왜 파란가요?\n[주제 질문]\n1. 하늘은 왜 파란가요?\n');
+  assert.equal(txt, '[$goma-newspaper](/Users/ibyeonghyeon/.codex/skills/goma-newspaper/SKILL.md)\n\n신문\n\n[개인 질문]\n3. 바다는 왜 파란가요?\n[주제 질문]\n1. 하늘은 왜 파란가요?\n');
   assert.equal(questionTxtFilename(weekKey, 'topic', true), `주제질문-누적-${weekKey}.txt`);
 });
 

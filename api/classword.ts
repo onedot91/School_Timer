@@ -490,10 +490,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return;
     }
     if (error instanceof ClasswordApiError || error instanceof ClasswordRepositoryError) {
+      if (error.status >= 500) {
+        console.error('Failed to handle classword request.', { route: '/api/classword', status: error.status, code: error.code });
+      }
       response.status(error.status).json({ error: error.code });
       return;
     }
-    console.error('Failed to handle classword request.', error);
+    console.error('Failed to handle classword request.', { route: '/api/classword', status: 500, code: 'CLASSWORD_REQUEST_FAILED' });
     response.status(500).json({ error: 'CLASSWORD_REQUEST_FAILED' });
   }
 }

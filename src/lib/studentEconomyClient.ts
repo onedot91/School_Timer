@@ -41,8 +41,9 @@ export class StudentEconomyRequestError extends Error {
   constructor(
     readonly code: string,
     readonly status: number,
+    options?: ErrorOptions,
   ) {
-    super(code);
+    super(code, options);
   }
 }
 
@@ -227,9 +228,11 @@ export const retryStudentEconomyRequest = async ({
         }
       }
       if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
-      throw new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504);
+      throw Object.assign(new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504, { cause: error }), {
+        stage: 'receipt', retryCount: 3,
+      });
     } finally { clearTimeout(timeout); }
-  }, studentNumber);
+  }, studentNumber, { requestId });
   if ('error' in outcome) throw outcome.error;
   return outcome.result;
 };

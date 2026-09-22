@@ -1,7 +1,7 @@
 import { deferSaveFailure, getSaveFailureFeature, reportDeferredSaveFailure, resolveDeferredSaveFailure } from './saveFailureClient.js';
 import { appDataMode } from './dataMode.js';
 import { captureStorageResponseContext, isStorageResponseContextCurrent } from './storageResponseOrder.js';
-import { type SaveFailureFeature } from './saveFailure.js';
+import { getSaveFailureScopeFeature as recoveryFeature, type SaveFailureFeature } from './saveFailure.js';
 
 export interface RecoveryRequest {
   readonly id: string;
@@ -58,18 +58,6 @@ const queues = new Map<number, Promise<unknown>>();
 const activeRecoveryPasses = new Map<number, Promise<SaveRecoveryPassResult>>();
 let revision = 0;
 const emptyStatus: SaveRecoveryStatus = { pending: 0, recovering: false, paused: false, refreshPending: false, issues: [] };
-const recoveryFeature = (feature: string): SaveFailureFeature => {
-  if (feature === 'student.economy' || feature.startsWith('teacher.currency.')) return 'economy';
-  if (feature === 'teacher.todayFriend.review') return 'todayFriend';
-  if (feature === 'student.auction.bid' || feature.startsWith('teacher.auction.')) return 'auction';
-  if (feature.startsWith('student.letter.') || feature.startsWith('student.failure.')) return 'studentLife';
-  if (feature.startsWith('student.emotion.')) return 'emotion';
-  if (feature.startsWith('student.sudoku.')) return 'sudoku';
-  if (feature.startsWith('student.baseball.')) return 'numberBaseball';
-  if (feature.startsWith('student.pet.')) return 'pet';
-  if (feature === 'classword' || feature === 'todayFriend' || feature === 'library') return feature;
-  return 'settings';
-};
 export const SAVE_RECOVERED_EVENT = 'school-timer-save-recovered';
 export const subscribeSaveRecovery = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 export const getSaveRecoverySnapshot = () => revision;
