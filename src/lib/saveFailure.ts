@@ -102,6 +102,7 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (!(error instanceof Error) && !(typeof DOMException !== 'undefined' && error instanceof DOMException)) return null;
   const errorCode = Reflect.get(error, 'code');
   if (typeof errorCode === 'string' && ['QUESTION_CONFLICT', 'QUESTION_WEEK_CHANGED', 'QUESTION_NOT_FOUND', 'QUESTION_REQUEST_REUSED'].includes(errorCode)) return null;
+  if (errorCode === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED') return 'response';
   if (errorCode === 'CLASSWORD_INITIAL_OCCUPIED' || errorCode === 'CLASSWORD_STUDENT_ALREADY_ENTERED' || errorCode === 'CLASSWORD_ENTRY_CHANGED') return null;
   if (errorCode === 'CLASSWORD_REWARD_LIMIT_EXCEEDED' || errorCode === 'CLASSWORD_REWARD_PENDING') return null;
   if (errorCode === 'CLASSWORD_REWARD_SAVE_FAILED') return 'storage';

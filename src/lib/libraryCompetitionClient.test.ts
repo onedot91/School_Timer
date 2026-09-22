@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createLibraryCompetitionClient, type LibraryCompetitionClientDependencies } from './libraryCompetitionClient.js';
+import { SAVE_FAILURE_STORAGE_KEY } from './saveFailureClient.js';
 
 const empty = { competition: { state: null, standings: [], serverAt: '2026-09-05T00:00:00.000Z' }, value: {}, updatedAt: null, rolledOver: false };
 const deps = (overrides: Partial<LibraryCompetitionClientDependencies> = {}): LibraryCompetitionClientDependencies => ({
@@ -26,6 +27,28 @@ test('readonly settings reject before any write', async () => {
 });
 test('malformed shared response fails rather than showing fabricated empty standings', async () => {
   await assert.rejects(createLibraryCompetitionClient(deps({ dataMode: 'production', fetcher: async () => Response.json({ competition: {} }) })).read('open'), { code: 'LIBRARY_COMPETITION_INVALID_RESPONSE' });
+});
+
+test('학생의 자동 순위판 조회 실패는 책장 저장 오류로 보고하지 않는다', async () => {
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const storage = new Map<string, string>([['school-timer-entry-number-v1', '12']]);
+  const localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => { storage.set(key, value); },
+  };
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: Object.assign(new EventTarget(), { localStorage, location: { hash: '#student-library' } }) });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } });
+  try {
+    const client = createLibraryCompetitionClient(deps({ dataMode: 'production', fetcher: async () => { throw new TypeError('offline'); } }));
+
+    await assert.rejects(client.read('open'), { code: 'LIBRARY_COMPETITION_NETWORK' });
+
+    assert.equal(storage.get(SAVE_FAILURE_STORAGE_KEY), undefined);
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow); else Reflect.deleteProperty(globalThis, 'window');
+    if (previousNavigator) Object.defineProperty(globalThis, 'navigator', previousNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
+  }
 });
 
 test('uncertain teacher adjustment keeps one protocol v2 request identity until confirmed', async () => {

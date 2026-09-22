@@ -32,7 +32,10 @@ export const createLibraryCompetitionClient = (dependencies: LibraryCompetitionC
     const key = JSON.stringify([context.actor, command]);
     const requestId = pendingRequestIds.get(key) ?? createBrowserRequestId();
     pendingRequestIds.set(key, requestId);
-    const result = await withSaveFailureReporting('library', () => request('/api/shared-settings', { ...command, protocolVersion: 2, requestId }, parse));
+    const execute = () => request('/api/shared-settings', { ...command, protocolVersion: 2, requestId }, parse);
+    const result = command.action === 'libraryCompetitionSettings'
+      ? await withSaveFailureReporting('library', execute)
+      : await execute();
     pendingRequestIds.delete(key);
     return result;
   };

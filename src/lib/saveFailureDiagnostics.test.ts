@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseSaveFailureReport, type SaveFailureAlert } from './saveFailure.js';
+import { classifySaveFailure, parseSaveFailureReport, type SaveFailureAlert } from './saveFailure.js';
 import { collectSaveFailureDiagnostics, formatSaveFailureDiagnostic, getSaveFailureExplanation, getSaveFailureLabel } from './saveFailureDiagnostics.js';
 
 const alert: SaveFailureAlert = { id: 'diagnostic-test-123', studentNumber: 4, feature: 'auction', code: 'response', occurredAt: '2026-09-07T01:00:00.000Z', acknowledgedAt: null };
@@ -28,6 +28,17 @@ test('diagnostics preserve the original failure through an uncertain-write wrapp
   assert.deepEqual(parsed?.diagnostics, diagnostics);
   assert.ok(!JSON.stringify(parsed).includes('private'));
   assert.equal(parseSaveFailureReport({ ...alert, diagnostics: { errorCode: 'private text', endpoint: '/api/unknown', httpStatus: '502', online: 'true', view: '__proto__' } })?.diagnostics, undefined);
+});
+
+test('클라이언트가 만든 거래 확인 필요 상태는 서버 HTTP 오류로 기록하지 않는다', () => {
+  const error = Object.assign(new Error('STUDENT_ECONOMY_CONFIRMATION_REQUIRED'), {
+    name: 'StudentEconomyRequestError',
+    code: 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED',
+    status: 504,
+  });
+
+  assert.equal(classifySaveFailure(error), 'response');
+  assert.deepEqual(collectSaveFailureDiagnostics(error), { errorCode: 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED' });
 });
 
 test('teacher guidance distinguishes unconfirmed saves, offline devices, and missing legacy details', () => {

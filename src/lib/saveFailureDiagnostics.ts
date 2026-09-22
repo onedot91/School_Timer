@@ -10,10 +10,11 @@ export const collectSaveFailureDiagnostics = (error: unknown, context: SaveFailu
   let current = error;
   for (let depth = 0; depth < 4 && (current instanceof Error || (typeof DOMException !== 'undefined' && current instanceof DOMException)); depth += 1) {
     const errorCode = Reflect.get(current, 'code');
+    const isSyntheticConfirmation = errorCode === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED';
     const candidate = parseSaveFailureDiagnostics({
       errorCode: typeof errorCode === 'string' ? errorCode : current.message,
       causeCode: Reflect.get(current, 'serverCode'),
-      httpStatus: Reflect.get(current, 'status') ?? Number(/(?:HTTP_|HTTP )([0-9]{3})/.exec(current.message)?.[1]),
+      httpStatus: isSyntheticConfirmation ? undefined : Reflect.get(current, 'status') ?? Number(/(?:HTTP_|HTTP )([0-9]{3})/.exec(current.message)?.[1]),
       errorName: current.name, endpoint: Reflect.get(current, 'endpoint'),
     }) ?? {};
     details = {
