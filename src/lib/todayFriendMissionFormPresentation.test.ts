@@ -109,7 +109,7 @@ test('추천하기와 감정 찾기의 모든 텍스트 입력칸은 안내 문�
 test('공통점 찾기는 세 가지를 나누어 묻고 눈에 보이는 특징을 경고한다', () => {
   const markup = renderForm('commonality');
 
-  assert.match(markup, /today-friend-commonality-warning[\s\S]*눈으로 바로 보이는 특징은 제외해요\./);
+  assert.match(markup, /today-friend-commonality-warning[\s\S]*성별, 학년, 나이처럼 눈으로 바로 보이는 특징은 제외해요\./);
   assert.match(markup, /today-friend-commonality-examples/);
   assert.match(markup, /안 돼요<\/span> 키가 비슷하다, 안경을 쓴다, 옷 색깔이 같다/);
   assert.match(markup, /좋아요<\/span> 좋아하는 음식, 주말에 하는 일, 키우는 동물/);

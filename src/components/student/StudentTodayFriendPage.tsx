@@ -128,7 +128,10 @@ export default function StudentTodayFriendPage({
     } catch (error) {
       if (!(error instanceof Error)) throw error;
       if (sequence !== loadSequence.current) return false;
-      if (error instanceof TodayFriendClientError && error.code === 'TODAY_FRIEND_SUBMISSION_CONFLICT') {
+      if (error instanceof TodayFriendClientError && error.code === 'TODAY_FRIEND_VISIBLE_TRAIT') {
+        await draftStore.confirm(mission, pending.requestId);
+        setPendingSubmission(null);
+      } else if (error instanceof TodayFriendClientError && error.code === 'TODAY_FRIEND_SUBMISSION_CONFLICT') {
         await draftStore.confirm(mission, pending.requestId);
         setPendingSubmission(null);
         try {

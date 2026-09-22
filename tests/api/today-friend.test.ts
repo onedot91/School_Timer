@@ -148,6 +148,37 @@ test('교사 승인 확인은 읽기 전용이며 학생에게 노출하지 않�
   });
 });
 
+test('공통점 제출은 눈으로 바로 보이는 특징을 저장하지 않고 거절한다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let called = false;
+    globalThis.fetch = async () => {
+      called = true;
+      return Response.json([]);
+    };
+    try {
+      const output = createResponse();
+      await handler({
+        method: 'POST',
+        headers: sessionHeaders('student', 3),
+        body: {
+          protocolVersion: 2,
+          action: 'submit',
+          dateKey: DATE_KEY,
+          payload: { kind: 'commonality', commonality: '1. 남자\n2. 떡볶이를 좋아한다\n3. 강아지를 키운다' },
+          requestId: 'visible-trait-0001',
+          expectedRevision: 0,
+        },
+      }, output.response);
+      assert.equal(output.result().statusCode, 400);
+      assert.deepEqual(output.result().body, { error: 'TODAY_FRIEND_VISIBLE_TRAIT' });
+      assert.equal(called, false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 const createResponse = () => {
   let statusCode = 200;
   let body: unknown;

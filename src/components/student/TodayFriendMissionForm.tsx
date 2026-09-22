@@ -17,6 +17,11 @@ import {
   todayFriendDeviceDraftVersion,
   saveTodayFriendDeviceDraft,
 } from '../../lib/todayFriendLocalStore';
+import {
+  findTodayFriendCommonalityVisibleTraitIndex,
+  findTodayFriendVisibleTrait,
+  todayFriendVisibleTraitMessage,
+} from '../../lib/todayFriendCommonalityGuard';
 import type { TodayFriendStudentMission } from '../../lib/todayFriendState';
 
 interface TodayFriendMissionFormProps {
@@ -143,6 +148,11 @@ export default function TodayFriendMissionForm({
     }
   };
 
+  const commonalityTexts = [primaryText, secondaryText, tertiaryText];
+  const visibleTraitIndex = mission.genre === 'commonality'
+    ? commonalityTexts.findIndex((text) => findTodayFriendVisibleTrait(text))
+    : -1;
+  const visibleTraitMessage = visibleTraitIndex >= 0 ? todayFriendVisibleTraitMessage(visibleTraitIndex) : '';
   const isComplete = primaryText.trim().length > 0 && (
     mission.genre === 'commonality' || mission.genre === 'compliment'
       ? secondaryText.trim().length > 0 && tertiaryText.trim().length > 0
@@ -159,6 +169,11 @@ export default function TodayFriendMissionForm({
     if (!isComplete) {
       setFormMessage('비어 있는 내용을 먼저 적어 주세요.');
       return;
+    }
+    const payloadPreview = pendingPayload ?? buildPayload();
+    if (payloadPreview.kind === 'commonality') {
+      const blockedIndex = findTodayFriendCommonalityVisibleTraitIndex(payloadPreview.commonality);
+      if (blockedIndex !== null) return;
     }
     setIsSubmitting(true);
     const submittedVersion = todayFriendDeviceDraftVersion(getDeviceStorage(), mission);
@@ -194,6 +209,10 @@ export default function TodayFriendMissionForm({
       const saved = await onSave(submittedPayload, true);
       const storage = getDeviceStorage();
       if (saved && submittedVersion) await clearTodayFriendDeviceDraft(storage, mission, submittedVersion);
+      if (!saved && payload.kind === 'commonality' && findTodayFriendCommonalityVisibleTraitIndex(payload.commonality) !== null) {
+        setFormMessage('');
+        return;
+      }
       setFormMessage(saved
         ? payload.kind === 'recommendation' || payload.kind === 'compliment' ? '친구에게 편지를 보내고 미션을 제출했어요.' : '제출했어요.'
         : '저장 결과를 확인하지 못했어요. 다시 눌러 확인해 주세요.');
@@ -216,16 +235,30 @@ export default function TodayFriendMissionForm({
         {mission.genre === 'commonality' ? (
           <>
             <div className="today-friend-commonality-warning" role="note">
-              <p>눈으로 바로 보이는 특징은 제외해요.</p>
+              <p>성별, 학년, 나이처럼 눈으로 바로 보이는 특징은 제외해요.</p>
               <ul className="today-friend-commonality-examples">
                 <li data-kind="avoid"><span>안 돼요</span> 키가 비슷하다, 안경을 쓴다, 옷 색깔이 같다</li>
                 <li data-kind="ok"><span>좋아요</span> 좋아하는 음식, 주말에 하는 일, 키우는 동물</li>
               </ul>
             </div>
             <div className="today-friend-field-card today-friend-commonality-list" role="group" aria-label="대화로 찾은 공통점">
-              <label className="today-friend-commonality-item"><span aria-hidden="true">1</span><input value={primaryText} onChange={(event) => { setPrimaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 1" placeholder="첫 번째 공통점" maxLength={120} /></label>
-              <label className="today-friend-commonality-item"><span aria-hidden="true">2</span><input value={secondaryText} onChange={(event) => { setSecondaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 2" placeholder="두 번째 공통점" maxLength={120} /></label>
-              <label className="today-friend-commonality-item"><span aria-hidden="true">3</span><input value={tertiaryText} onChange={(event) => { setTertiaryText(event.target.value); setHasEdited(true); }} aria-label="공통점 3" placeholder="세 번째 공통점" maxLength={120} /></label>
+              {([
+                ['공통점 1', '첫 번째 공통점', primaryText, setPrimaryText],
+                ['공통점 2', '두 번째 공통점', secondaryText, setSecondaryText],
+                ['공통점 3', '세 번째 공통점', tertiaryText, setTertiaryText],
+              ] as const).map(([label, placeholder, value, setValue], index) => {
+                const invalid = findTodayFriendVisibleTrait(value);
+                const messageId = `commonality-trait-${index + 1}`;
+                return (
+                  <label key={label} className="today-friend-commonality-item" data-invalid={invalid ? 'true' : undefined}>
+                    <span aria-hidden="true">{index + 1}</span>
+                    <span className="today-friend-commonality-entry">
+                      <input value={value} onChange={(event) => { setValue(event.target.value); setHasEdited(true); }} aria-invalid={invalid} aria-describedby={invalid ? messageId : undefined} aria-label={label} placeholder={placeholder} maxLength={120} />
+                      {invalid ? <span id={messageId} className="today-friend-commonality-trait" role="alert">{todayFriendVisibleTraitMessage(index)}</span> : null}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </>
         ) : null}
@@ -279,7 +312,7 @@ export default function TodayFriendMissionForm({
       </fieldset>
       {saveMessage || formMessage ? <p className="today-friend-form-message" role="status">{saveMessage || formMessage}</p> : null}
       <div className="today-friend-form-actions">
-        <button type="submit" disabled={!inputReady || isSaving || isSubmitting || isPreview}>
+        <button type="submit" disabled={!inputReady || isSaving || isSubmitting || isPreview || visibleTraitMessage.length > 0}>
           <span>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : mission.submission?.status === 'submitted' ? '다시 제출' : '선생님께 제출'}</span>
           {isSubmitting || isSaving ? null : <small>성의 없이 적으면 고마가 차감될 수 있어요</small>}
         </button>

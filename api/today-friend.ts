@@ -1,4 +1,5 @@
 import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
+import { findTodayFriendCommonalityVisibleTraitIndex } from '../src/lib/todayFriendCommonalityGuard.js';
 import {
   TodayFriendDomainError,
   getTodayFriendDateKey,
@@ -139,6 +140,9 @@ const handlePost = async (
   if (action.type === 'save_draft' || action.type === 'submit') {
     if (session.role !== 'student') throw new TodayFriendApiError(403, 'STUDENT_REQUIRED');
     if (!isTodayFriendStudentNumber(session.studentNumber)) throw new TodayFriendApiError(403, 'STUDENT_FORBIDDEN');
+    if (action.type === 'submit' && action.payload.kind === 'commonality' && findTodayFriendCommonalityVisibleTraitIndex(action.payload.commonality) !== null) {
+      throw new TodayFriendApiError(400, 'TODAY_FRIEND_VISIBLE_TRAIT');
+    }
     const raw: unknown = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
     const expectedStudent = raw && typeof raw === 'object' ? Reflect.get(raw, 'expectedStudentNumber') : undefined;
     if (expectedStudent === undefined && requiresStudentEditRevisions()) throw new TodayFriendApiError(426, 'STORAGE_PROTOCOL_UPGRADE_REQUIRED');
