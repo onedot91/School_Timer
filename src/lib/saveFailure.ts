@@ -108,7 +108,8 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (errorCode === 'CLASSWORD_REWARD_SAVE_FAILED') return 'storage';
   if (errorCode === 'CLASSWORD_REWARD_EVIDENCE_MISMATCH') return 'response';
   const status = Reflect.get(error, 'status') ?? Number(/(?:HTTP_|HTTP )([0-9]{3})/.exec(error.message)?.[1]);
-  if (status === 409 && (Reflect.get(error, 'serverCode') ?? errorCode ?? error.message) === 'AUCTION_ITEM_NOT_REMOVABLE') return null;
+  if (status === 409 && ['AUCTION_ITEM_NOT_REMOVABLE', 'AUCTION_ALREADY_AWARDED', 'AUCTION_BID_CHANGED', 'INSUFFICIENT_CURRENCY_FOR_AUCTION_AWARD']
+    .includes(Reflect.get(error, 'serverCode') ?? errorCode ?? error.message)) return null;
   if (status === 401 || status === 403) return 'permission';
   if (status === 409 || error.message === 'SHARED_SETTINGS_CONFLICT') return 'conflict';
   if (status === 408 || status === 429 || status >= 500) return 'server';

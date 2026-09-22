@@ -4,6 +4,7 @@ import { TEACHER_MAIL_SENDERS } from '../lib/studentLife';
 import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { StorageCommandError } from '../lib/storageCommandClient';
+import { getAuctionAwardErrorMessage } from '../lib/auctionAwardError';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord, type TeacherSettingChange } from '../lib/teacherStorageCommand';
 import { getTodayFriendDateKey } from '../lib/todayFriend';
 import { loadTeacherTodayFriendState } from '../lib/todayFriendClient';
@@ -7726,9 +7727,7 @@ export default function TimerPage() {
       finalizedAwardPresentationKeysRef.current.delete(awardPresentationKey);
       setQueuedAwardItems([]);
       setAwardPresentation(previous => previous?.award.awardedAt === award.awardedAt
-        ? { ...previous, error: error instanceof Error && error.message === 'AUCTION_ALREADY_AWARDED'
-          ? '이미 낙찰된 상품입니다. 창을 닫고 경매 결과를 확인해 주세요.'
-          : '저장 결과를 확인하지 못했어요. 창을 닫고 경매 상태를 확인해 주세요.' }
+        ? { ...previous, error: getAuctionAwardErrorMessage(error) }
         : previous);
     };
 

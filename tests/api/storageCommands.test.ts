@@ -42,6 +42,37 @@ const environment = async (run: (call: (actor:number,method:string,body?:unknown
 };
 const command=(requestId:string,action:string,payload:unknown)=>({protocolVersion:2,requestId,action,payload});
 
+test('낙찰 잔액 부족과 이미 낙찰된 상품은 저장 미확정 서버 오류가 아닌 업무 거절로 응답한다', async () => {
+  for (const alreadyAwarded of [false, true]) {
+    const seed = { ...initial(), auctionBids: { 'item-b': { bidder: 12, amount: 50 } },
+      auctionAwards: alreadyAwarded ? { 'item-b': { itemId: 'item-b', winner: 12, amount: 50, awardedAt: '2026-09-21T00:00:00Z' } } : {} };
+    seed.currencyBalances['12'] = 20;
+    await environment(async (call, fixture) => {
+      const before = structuredClone(fixture.read().value);
+      const result = await call(0, 'POST', command('auction-rejected-once', 'teacher.auction.finalize', {
+        itemId: 'item-b', expectedBidder: 12, expectedAmount: 50,
+      }));
+      assert.equal(result.status, 409, JSON.stringify(result.body));
+      assert.deepEqual(result.body, { error: alreadyAwarded ? 'AUCTION_ALREADY_AWARDED' : 'INSUFFICIENT_CURRENCY_FOR_AUCTION_AWARD', businessRejected: true });
+      assert.equal(fixture.receipts.size, 0);
+      assert.deepEqual(fixture.read().value, before);
+    }, seed);
+  }
+});
+
+test('낙찰 응답 유실 후 같은 요청을 확인·재전송해도 낙찰가를 한 번만 차감한다', () => environment(async (call, fixture) => {
+  fixture.loseNextCommitResponse();
+  const body = command('auction-finalize-once', 'teacher.auction.finalize', { itemId: 'item-b', expectedBidder: 12, expectedAmount: 50 });
+  assert.equal((await call(0, 'POST', body)).status, 502);
+  const receipt = await call(0, 'GET', undefined, { requestId: body.requestId, receiptOnly: '1' });
+  assert.equal(Reflect.get(Object(receipt.body), 'status'), 'committed');
+  assert.equal((await call(0, 'POST', body)).status, 200);
+  const saved = fixture.read().value;
+  assert.equal(Reflect.get(Object(saved.currencyBalances), '12'), 50);
+  assert.equal(Reflect.get(Object(saved.currencyHistory), '12').length, 1);
+  assert.equal(Reflect.get(Object(Reflect.get(Object(saved.auctionAwards), 'item-b')), 'winner'), 12);
+}, { ...initial(), auctionBids: { 'item-b': { bidder: 12, amount: 50 } }, auctionAwards: {} }));
+
 test('v2 rejects legacy money snapshots and student teacher commands',()=>environment(async(call,fixture)=>{
   assert.equal((await call(2,'PUT',{value:{currencyBalances:{2:999999}}})).status,409);
   assert.equal((await call(2,'POST',command('scope-test-0001','teacher.currency.adjust',{studentNumbers:[2],amount:100}))).status,403);

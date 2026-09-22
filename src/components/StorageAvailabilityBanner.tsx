@@ -167,7 +167,7 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
       {copyButton}
       {fallback}
     </aside>;
-    return dialog ? createPortal(banner, dialog) : banner;
+    return typeof document === 'undefined' ? banner : createPortal(banner, dialog ?? document.body);
   }
   const banner = <aside className="storage-availability-banner" data-in-dialog={dialog !== null} role="alert">
     <div><strong>{notice.kind === 'maintenance' ? '저장 서비스 점검 중' : '저장 확인이 필요해요'}</strong>
@@ -179,5 +179,5 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
     {notice.kind === 'update' ? <button type="button" onClick={reload}><RefreshCw size={18} aria-hidden="true" />새로고침</button> : null}
     <button type="button" aria-label="저장 안내 닫기" onClick={() => { setReloadBlocked(false); dismissStorageAvailabilityNotice(); }}><X size={20} /></button>
   </aside>;
-  return dialog ? createPortal(banner, dialog) : banner;
+  return typeof document === 'undefined' ? banner : createPortal(banner, dialog ?? document.body);
 }

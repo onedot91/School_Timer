@@ -835,6 +835,13 @@ export const applyAuctionAwardToCurrencyState = (
   };
 };
 
+export class AuctionAwardError extends Error {
+  readonly status = 409;
+  constructor(readonly code: 'AUCTION_ALREADY_AWARDED' | 'AUCTION_BID_CHANGED' | 'INSUFFICIENT_CURRENCY_FOR_AUCTION_AWARD') {
+    super(code);
+  }
+}
+
 export const finalizeAuctionAwardInSettings = (
   value: unknown,
   award: AuctionAward,
@@ -855,19 +862,19 @@ export const finalizeAuctionAwardInSettings = (
   const existingAward = awards[award.itemId];
   if (existingAward) {
     if (existingAward.winner !== award.winner || existingAward.amount !== award.amount
-      || existingAward.awardedAt !== award.awardedAt) throw new Error('AUCTION_ALREADY_AWARDED');
+      || existingAward.awardedAt !== award.awardedAt) throw new AuctionAwardError('AUCTION_ALREADY_AWARDED');
     return { value: current, awarded: false, balances, history, awards };
   }
 
   const bids = normalizeAuctionBids(current.auctionBids, AUCTION_ITEM_IDS);
   const currentBid = bids[award.itemId];
   if (currentBid?.bidder !== award.winner || currentBid.amount !== award.amount) {
-    throw new Error('AUCTION_BID_CHANGED');
+    throw new AuctionAwardError('AUCTION_BID_CHANGED');
   }
 
   const studentKey = String(award.winner);
   if (balances[studentKey] < award.amount) {
-    throw new Error('INSUFFICIENT_CURRENCY_FOR_AUCTION_AWARD');
+    throw new AuctionAwardError('INSUFFICIENT_CURRENCY_FOR_AUCTION_AWARD');
   }
 
   const nextCurrency = applyAuctionAwardToCurrencyState(balances, history, award);

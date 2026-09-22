@@ -201,7 +201,14 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
             void database.get(key).then(entry => adoptRemote(key, entry)).catch(() => {});
           };
         }
-        for (const entry of await database.readAll()) adoptRemote(entry.key, entry);
+        for (const entry of await database.readAll()) {
+          // An edit can precede hydration; keep its text and use the loaded version for CAS.
+          if (!databaseHydrated && memory.get(entry.key)?.dirty && !persistedVersions.has(entry.key)) {
+            const draft = parseEntry(entry);
+            if (draft) persistedVersions.set(entry.key, draft.requestId);
+          }
+          adoptRemote(entry.key, entry);
+        }
         databaseHydrated = true;
         for (const key of new Set([...localKeys(), ...memory.keys()])) {
           const scope = scopeFromKey(key);
@@ -378,7 +385,8 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
     await flush();
     const key = keyFor(scope);
     try {
-      const removed = await database.remove(key, requestId);
+      const removed = await database.remove(key, requestId)
+        || await database.get(key) === null;
       if (removed) {
         if (load(scope)?.draft.requestId === requestId) forget(key);
         publish(key);

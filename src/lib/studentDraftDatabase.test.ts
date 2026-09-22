@@ -123,6 +123,52 @@ test('느린 초안 쓰기 중 C를 보존하고 이전 응답 확인은 새 버
   assert.equal(reloaded.load(scope)?.draft.requestId, 'edit-3');
 });
 
+test('DB 초기 조회 전에 교사 설정을 편집해도 기존 보관 버전을 기준으로 저장한다', async () => {
+  const { database } = fixture();
+  const editorScope = { studentNumber: 0, feature: 'teacher.settings.editor', entityId: 'classroom' };
+  const initial = createStudentSaveDraftStore({ database, storage: null, createRequestId: () => 'previous-editor' });
+  await initial.saveDurable(editorScope, { changes: ['previous'] });
+  initial.dispose();
+  const editor = createStudentSaveDraftStore({ database, storage: null, createRequestId: () => 'new-editor' });
+  editor.replace(editorScope, { changes: ['latest'] });
+  await editor.flush();
+  assert.equal(editor.load(editorScope)?.durable, true);
+  assert.equal(canReloadWithDrafts(0), true);
+  const restored = createStudentSaveDraftStore({ database, storage: null });
+  await restored.ready();
+  assert.deepEqual(restored.load(editorScope)?.draft.payload, { changes: ['latest'] });
+});
+
+test('임시 저장 실패 뒤 서버에서 확인된 요청은 DB에 없어도 보관 오류로 남지 않는다', async () => {
+  const { database, block } = fixture();
+  const store = createStudentSaveDraftStore({ database, storage: null, createRequestId: () => 'server-confirmed' });
+  await store.ready();
+  block(true);
+  await store.saveDurable(scope, { text: 'confirmed remotely' });
+  assert.equal(canReloadWithDrafts(18), false);
+  assert.equal(await store.confirmDurable(scope, 'server-confirmed'), false);
+  assert.equal(canReloadWithDrafts(18), false);
+  block(false);
+  assert.equal(await store.confirmDurable(scope, 'server-confirmed'), true);
+  assert.equal(store.load(scope), null);
+  assert.equal(canReloadWithDrafts(18), true);
+});
+
+test('DB에 없는 이전 요청의 확인은 새로 편집한 메모리 초안을 지우지 않는다', async () => {
+  const { database } = fixture();
+  let version = 0;
+  const store = createStudentSaveDraftStore({ storage: null, database: {
+    ...database,
+    replace: async () => { throw new Error('synthetic write failure'); },
+  }, createRequestId: () => `memory-${++version}` });
+  await store.ready();
+  store.replace(scope, { text: 'A' }); await store.flush();
+  store.replace(scope, { text: 'B' }); await store.flush();
+  await store.confirmDurable(scope, 'memory-1');
+  assert.deepEqual(store.load(scope)?.draft.payload, { text: 'B' });
+  assert.equal(canReloadWithDrafts(18), false);
+});
+
 test('다른 탭의 최신 편집을 덮지 않고 충돌한 내 입력도 메모리에 보관한다', async () => {
   const { database } = fixture();
   const initial = createStudentSaveDraftStore({ database, storage: null, createRequestId: () => 'initial' });
