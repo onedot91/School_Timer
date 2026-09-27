@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-test('고마 경제 설정 메뉴는 경매, 증권, 기부만 표시하고 기타는 별도 그룹으로 분리한다', async () => {
+test('고마 경제 설정 메뉴에 입출금 내역을 포함하고 기타는 별도 그룹으로 분리한다', async () => {
   // Given
   const source = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
   const economyGroupStart = source.indexOf("label: '고마 경제'");
@@ -12,7 +12,7 @@ test('고마 경제 설정 메뉴는 경매, 증권, 기부만 표시하고 기�
   // When
   const economyGroup = source.slice(economyGroupStart, otherGroupStart);
   const otherGroup = source.slice(otherGroupStart, navigationEnd);
-  const navigationOrder = ['auction', 'stocks', 'donation'].map((panel) => economyGroup.indexOf(`panel: '${panel}'`));
+  const navigationOrder = ['auction', 'stocks', 'donation', 'currency-history'].map((panel) => economyGroup.indexOf(`panel: '${panel}'`));
 
   // Then
   assert.ok(economyGroupStart >= 0);

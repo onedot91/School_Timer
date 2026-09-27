@@ -373,6 +373,7 @@ appear first, followed by the current profile and then grayscale profiles alread
 - 교사 설정 탐색에서 `수업 운영`, `학생 생활`, `고마 경제`는 각각 구분선과 조용한 배경을 가진 카드 헤더로 표시한다. 여러 부가 기능은 `고마 경제` 밖의 독립된 카드에 `기타` 항목으로 두되, 그 카드에는 `기타 설정` 헤더 문구를 표시하지 않고 접근성 그룹 이름으로만 유지한다. 내부 탭은 `프로필`, `고마 스킨 뽑기`, `집`, `캐릭터` 순서를 사용한다. `캐릭터` 탭은 교사 타이머 화면에서 걷는 학생 제작 캐릭터만 1번부터 23번까지 고정된 번호순 카드로 보여 주며, 자캐 이름 대신 각 캐릭터의 고유 멘트를 함께 표시한다. 모든 카드는 번호·캐릭터 무대·멘트의 동일한 세 행 구조를 사용하고, 미등록 번호도 `캐릭터 대기`와 `멘트 대기` 영역을 유지해 카드 높이와 23개 자리의 리듬이 무너지지 않는다.
 - The Sudoku play header always keeps the child-friendly reset notice `매주 월요일 새 문제로 바뀌어요` beside the difficulty and reward so the weekly reset boundary is explicit without opening another explanation.
 - Minimum target size is 44 CSS px in both dimensions.
+- Newspaper question hearts are 44px icon-only buttons: students see only their own pressed state and never a count, while a student's own question has no heart action. Teacher question rows show the received total with a filled `--emotion-red` heart. The `button` state-feedback mechanism uses the existing `--student-motion-state`/`--student-ease-out` tokens, and reduced motion replaces the scale pop with an opacity handoff.
 - Keyboard focus uses a two-layer high-contrast ring with offset; it is never removed without an equivalent.
 - Disabled state remains visually distinct and does not animate on press.
 - Mutually exclusive settings tabs use a filled accent selected state with white label and icon; unselected tabs remain quiet and neutral.
@@ -674,6 +675,7 @@ All Canvas primitives draw from these named tokens. A material uses its listed f
 ### 신문 질문 화면
 
 - 신문 질문 화면은 기존 학생용 cream/green/paper 토큰을 사용한다. 학생 헤더에는 새로고침과 내 기록만 두며 음향 제어는 제공하지 않는다.
+- 교사 설정의 질문 제출 현황은 작은 번호 카드 그리드로 표시한다. 상단 범례의 초록 점은 개인 질문, 파란 점은 주제 질문을 뜻하며 각 카드의 두 점은 해당 번호의 제출 여부를 나타낸다. 하나라도 제출한 카드는 옅은 민트 표면과 녹색 테두리로 강조하고, 미제출 카드는 흰 표면과 따뜻한 테두리를 쓴다. 번호와 두 점만 시각적으로 보여주되, 카드의 접근성 이름에는 질문 종류별 제출·누적 상태를 제공한다. 설정 메뉴에서 `신문 질문`은 `글쓰기`와 구분되는 물음표 말풍선 아이콘을 쓴다. 교사 질문 편집 목록은 개인 질문을 녹색, 주제 질문을 파란색 카드와 명시적 유형 라벨로 구분한다. 삭제 아이콘은 입력창 우측 상단 안에서 기본 상태에는 낮은 강조도로 보이고, 포인터 올림·키보드 포커스 시 선명해지며, 터치 화면에서는 항상 보인다. 질문별 하트 아이콘은 개인 질문과 주제 질문 안에서 각각 가장 많은 질문을 붉게 표시하며, 최고 수가 같으면 모두 강조한다. 최고 수가 0이면 강조하지 않는다.
 - 독립 낱말 `왜`, `만약`, `거꾸로`는 문장 안 위치와 관계없이 입력창에서 `--alert` 색상과 굵은 글씨로 강조한다. `왜가리`, `만약을`처럼 다른 조사·글자가 붙은 일부 문자열은 강조하지 않는다. 실제 입력값, 커서, IME 조합 및 저장 데이터는 plain text input을 유지한다.
 - 질문 안경을 선택하면 트리거에 해당 안경 이미지와 `왜 안경`·`만약 안경`·`거꾸로 안경` 이름을 표시하고, 녹색 활성 배경·테두리와 `aria-pressed`로 선택 상태를 전달한다. 모든 트리거는 같은 폭과 같은 아이콘 슬롯을 사용하고 이미지 비율을 보존한다. 서로 다른 원본 그림의 광학적 중심을 맞추기 위해 `왜`는 슬롯 중심보다 3px 아래, `만약`은 3px 위에 배치하며, 중앙이 적당한 `거꾸로`는 이동하지 않고 1.24배 확대한다. 선택된 이름은 안경테와 어울리는 `--alert` 색상을 사용한다. 선택 전에는 같은 슬롯에 기존 선형 안경 아이콘과 `질문 안경` 문구를 유지한다.
 - 선택 영역 오른쪽에는 72px 정사각형 캐릭터 슬롯을 항상 확보한다. 안경을 선택하면 동일한 안경을 쓴 고마 이미지를 공통 192px 투명 캔버스 자산에서 표시하며, 선택 전에는 빈 슬롯으로 남겨 선택 과정에서 버튼과 입력창이 움직이지 않게 한다. 캐릭터는 선택 상태를 반복하는 장식 이미지이므로 스크린 리더에서는 숨긴다.

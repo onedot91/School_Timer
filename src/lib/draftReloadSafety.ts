@@ -2,6 +2,7 @@ interface DraftReloadCheck {
   actor: number;
   verify: () => boolean;
   recoverText?: () => string;
+  failed?: () => boolean;
 }
 const checks = new Map<string, DraftReloadCheck>();
 const listeners = new Set<() => void>();
@@ -25,8 +26,8 @@ const notify = () => {
   for (const listener of listeners) listener();
 };
 
-export const setDraftReloadCheck = (key: string, actor: number, verify: () => boolean, recoverText?: () => string): void => {
-  checks.set(key, { actor, verify, recoverText });
+export const setDraftReloadCheck = (key: string, actor: number, verify: () => boolean, recoverText?: () => string, failed?: () => boolean): void => {
+  checks.set(key, { actor, verify, recoverText, failed });
   notify();
 };
 export const removeDraftReloadCheck = (key: string): void => { if (checks.delete(key)) notify(); };
@@ -34,6 +35,10 @@ export const canReloadWithDrafts = (actor: number): boolean => (
   [...checks.values()].filter(check => check.actor === actor).every(isSafe)
 );
 export const canReloadAllDrafts = (): boolean => [...checks.values()].every(isSafe);
+export const hasDraftStorageFailure = (actor: number): boolean => [...checks.values()].some(check => {
+  if (check.actor !== actor) return false;
+  try { return check.failed ? check.failed() : !isSafe(check); } catch { return true; }
+});
 export const subscribeDraftReloadSafety = (listener: () => void): (() => void) => {
   listeners.add(listener);
   return () => { listeners.delete(listener); };

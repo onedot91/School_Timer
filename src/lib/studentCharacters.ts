@@ -407,6 +407,16 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     walkTransform: { right: 'none', left: 'scaleX(-1)' },
   },
   {
+    id: 'student-20-rocket',
+    name: '로켓 자캐',
+    creatorName: '20번',
+    imageSrc: '/student-characters/character-20.png',
+    alt: '20번 학생이 만든 외눈 로켓 캐릭터',
+    themeColor: '#D93636',
+    speech: '야르~',
+    walkTransform: { right: 'none', left: 'scaleX(-1)' },
+  },
+  {
     id: 'student-22-additional',
     name: '22번 추가 자캐',
     creatorName: '22번',

@@ -105,7 +105,7 @@ let nextStoreOwner = 0;
 export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {}) => {
   const owner = ++nextStoreOwner;
   const checkKey = (key: string) => `${key}:store-${owner}`;
-  const memory = new Map<string, { text: string; durable: boolean; dirty: boolean }>();
+  const memory = new Map<string, { text: string; durable: boolean; dirty: boolean; pending: boolean }>();
   const listeners = new Set<() => void>();
   const persistedVersions = new Map<string, string>();
   const pendingRemoteReads = new Map<string, object>();
@@ -138,19 +138,20 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
   let channel: BroadcastChannel | null = null;
   const notify = () => { revision++; for (const listener of listeners) listener(); };
   const protectReload = (key: string, scope: StudentSaveDraftScope) => {
-    setDraftReloadCheck(checkKey(key), scope.studentNumber, () => {
+    const verify = () => {
       const entry = memory.get(key);
       if (!entry) return true;
       if (!entry.durable || entry.dirty) return false;
       return database ? true : getStorage()?.getItem(key) === entry.text;
-    }, () => {
+    };
+    setDraftReloadCheck(checkKey(key), scope.studentNumber, verify, () => {
       const draft = parseDraft(memory.get(key)?.text ?? '', scope);
       return draft ? JSON.stringify(draft.payload, null, 2) : '';
-    });
+    }, () => !memory.get(key)?.pending && !verify());
   };
-  const remember = (key: string, draft: StudentSaveDraft, durable: boolean, dirty = false) => {
+  const remember = (key: string, draft: StudentSaveDraft, durable: boolean, dirty = false, pending = false) => {
     pendingRemoteReads.delete(key);
-    memory.set(key, { text: JSON.stringify(draft), durable, dirty });
+    memory.set(key, { text: JSON.stringify(draft), durable, dirty, pending });
     if (durable) persistedVersions.set(key, draft.requestId);
     protectReload(key, draft.scope);
     notify();
@@ -313,6 +314,7 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
   const persist = (draft: StudentSaveDraft, replace: boolean) => {
     if (!database) return persistLocal(draft);
     const key = keyFor(draft.scope);
+    remember(key, draft, false, true, true);
     const attempt: DraftStorageAttempt = { storageBackend: 'indexedDB', storageOperation: replace ? 'replace' : 'write', startedAt: Date.now() };
     enqueue(async () => {
       try {
@@ -321,10 +323,15 @@ export const createStudentSaveDraftStore = (options: StudentSaveDraftOptions = {
           ? (await database.replace(entry, persistedVersions.get(key) ?? null) ? entry : null)
           : await database.insert(entry);
         const current = memory.get(key);
-        if (!selected) { reportUnstored(draft, attempt, 'cas-conflict'); return; }
+        if (!selected) {
+          if (current?.text === JSON.stringify(draft)) remember(key, draft, false, true);
+          reportUnstored(draft, attempt, 'cas-conflict');
+          return;
+        }
         const saved = parseEntry(selected);
         if (saved) persistedVersions.set(key, saved.requestId);
         if (saved && current?.text === JSON.stringify(draft)) remember(key, saved, true);
+        else if (!saved && current?.text === JSON.stringify(draft)) remember(key, draft, false, true);
         publish(key);
       } catch (error) {
         if (memory.get(key)?.text === JSON.stringify(draft)) remember(key, draft, false, true);

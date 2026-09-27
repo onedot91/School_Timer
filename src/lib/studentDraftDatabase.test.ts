@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createStudentSaveDraftStore as createStore, type StudentSaveDraft } from './studentSaveDraft.js';
 import type { StudentDraftDatabase, StudentDraftDatabaseEntry } from './studentDraftDatabase.js';
-import { canReloadWithDrafts, getUnsafeDraftRecoveryText } from './draftReloadSafety.js';
+import { canReloadWithDrafts, getUnsafeDraftRecoveryText, hasDraftStorageFailure } from './draftReloadSafety.js';
 
 const stores: ReturnType<typeof createStore>[] = [];
 const createStudentSaveDraftStore: typeof createStore = options => { const store = createStore(options); stores.push(store); return store; };
@@ -139,6 +139,47 @@ test('DB 초기 조회 전에 교사 설정을 편집해도 기존 보관 버전
   assert.deepEqual(restored.load(editorScope)?.draft.payload, { changes: ['latest'] });
 });
 
+test('느린 경매 설정 보관은 실패 경고 없이 새로고침을 막고 실제 실패와 재시도를 구분한다', async () => {
+  const { database, block } = fixture();
+  const editorScope = { studentNumber: 0, feature: 'teacher.settings.editor', entityId: 'classroom' };
+  let release: (() => void) | undefined;
+  let gate = new Promise<void>(resolve => { release = resolve; });
+  const store = createStudentSaveDraftStore({ storage: null, database: {
+    ...database,
+    replace: async (entry, expected) => { await gate; return database.replace(entry, expected); },
+  } });
+  await store.ready();
+  const changes = { changes: [{ field: 'auctionItems', before: [], after: [{ id: 'synthetic-item', name: '연필' }] }] };
+  store.replace(editorScope, changes);
+  assert.equal(canReloadWithDrafts(0), false);
+  assert.equal(hasDraftStorageFailure(0), false);
+  assert.match(getUnsafeDraftRecoveryText(0), /연필/);
+  release?.();
+  await store.flush();
+  assert.equal(canReloadWithDrafts(0), true);
+  assert.equal(hasDraftStorageFailure(0), false);
+
+  block(true);
+  const latest = { ...changes, note: 'latest synthetic edit' };
+  store.replace(editorScope, latest);
+  await store.flush();
+  assert.equal(canReloadWithDrafts(0), false);
+  assert.equal(hasDraftStorageFailure(0), true);
+  assert.equal(hasDraftStorageFailure(1), false);
+
+  block(false);
+  gate = new Promise<void>(resolve => { release = resolve; });
+  const requestId = store.load(editorScope)?.draft.requestId;
+  store.replace(editorScope, latest);
+  assert.equal(canReloadWithDrafts(0), false);
+  assert.equal(hasDraftStorageFailure(0), false);
+  release?.();
+  await store.flush();
+  assert.equal(store.load(editorScope)?.draft.requestId, requestId);
+  assert.equal(canReloadWithDrafts(0), true);
+  assert.equal(hasDraftStorageFailure(0), false);
+});
+
 test('임시 저장 실패 뒤 서버에서 확인된 요청은 DB에 없어도 보관 오류로 남지 않는다', async () => {
   const { database, block } = fixture();
   const store = createStudentSaveDraftStore({ database, storage: null, createRequestId: () => 'server-confirmed' });
@@ -179,6 +220,7 @@ test('다른 탭의 최신 편집을 덮지 않고 충돌한 내 입력도 메�
   first.replace(scope, { text: 'first tab' }); await first.flush();
   second.replace(scope, { text: 'second tab' }); await second.flush();
   assert.equal(second.load(scope)?.durable, false);
+  assert.equal(hasDraftStorageFailure(18), true);
   assert.deepEqual(second.load(scope)?.draft.payload, { text: 'second tab' });
   const restored = createStudentSaveDraftStore({ database, storage: null });
   await restored.ready();

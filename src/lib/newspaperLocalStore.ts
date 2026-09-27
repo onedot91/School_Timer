@@ -1,23 +1,29 @@
 import { getKoreanIsoWeekKey } from './weeklyMission.js';
-import { NEWSPAPER_CONFIG, NewspaperError, isQuestionRecord, isQuestionStudent, isQuestionType, isQuestionMode, normalizeQuestionText, questionValidationCode, parseNewspaperData, selectQuestionDownload, type NewspaperData } from './newspaperQuestion.js';
+import { NEWSPAPER_CONFIG, NewspaperError, isQuestionRecord, isQuestionStudent, isQuestionType, isQuestionMode, isQuestionUuid, normalizeQuestionText, questionValidationCode, parseNewspaperData, selectQuestionDownload, type NewspaperData } from './newspaperQuestion.js';
 
 export const NEWSPAPER_LOCAL_KEY = 'school-timer-newspaper-mock-v1';
-export const emptyNewspaperData = (): NewspaperData => ({ weekKey: getKoreanIsoWeekKey(), questions: [], history: [], topics: [] });
+export const emptyNewspaperData = (): NewspaperData => ({ weekKey: getKoreanIsoWeekKey(), questions: [], history: [], topics: [], heartRecords: [] });
 export const readLocalNewspaper = (): NewspaperData => {
   const raw = window.localStorage.getItem(NEWSPAPER_LOCAL_KEY);
   return raw === null ? emptyNewspaperData() : parseNewspaperData(JSON.parse(raw));
 };
-export const projectLocalNewspaper = (data: NewspaperData, actor: number, weekKey: string): NewspaperData => ({ weekKey,
-  questions: data.questions.filter(row => row.week_key === weekKey).map(row => actor === 0 ? row : { ...row, downloaded_at: null }).sort((a, b) => a.student_number - b.student_number),
+export const projectLocalNewspaper = (data: NewspaperData, actor: number, weekKey: string): NewspaperData => {
+  const questions = data.questions.filter(row => row.week_key === weekKey).map(row => actor === 0 ? row : { ...row, downloaded_at: null }).sort((a, b) => a.student_number - b.student_number);
+  const questionIds = new Set(questions.map(row => row.id));
+  const heartRecords = (data.heartRecords ?? []).filter(row => questionIds.has(row.question_id));
+  return { weekKey, questions,
   history: data.questions.filter(row => row.student_number === actor).map(row => ({ ...row, downloaded_at: null })).sort((a, b) => b.week_key.localeCompare(a.week_key)),
   topics: data.topics.filter(row => actor === 0 || row.week_key === weekKey),
+  heartedQuestionIds: actor === 0 ? [] : [...new Set(heartRecords.filter(row => row.student_number === actor).map(row => row.question_id))],
+  heartCounts: actor === 0 ? Object.fromEntries(questions.map(question => [question.id, heartRecords.filter(row => row.question_id === question.id).length])) : {},
   weeks: actor === 0 ? [...new Set([...data.questions.map(row => row.week_key), ...data.topics.map(row => row.week_key)])] : [weekKey],
-});
+  };
+};
 export const applyLocalNewspaperCommand = (data: NewspaperData, actor: number, command: Record<string, unknown>, now = new Date()): { data: NewspaperData; result: unknown } => {
   const next = structuredClone(data);
   const stamp = now.toISOString();
   const week = getKoreanIsoWeekKey(now);
-  if (actor !== 0 && command.action !== 'submit') throw new NewspaperError('QUESTION_FORBIDDEN', 403);
+  if (actor !== 0 && command.action !== 'submit' && command.action !== 'heart') throw new NewspaperError('QUESTION_FORBIDDEN', 403);
   let result: unknown = { ok: true };
   if (command.action === 'submit') {
     if (!isQuestionStudent(actor) || actor !== command.studentNumber || !isQuestionType(command.questionType)) throw new NewspaperError('QUESTION_FORBIDDEN', 403);
@@ -37,6 +43,18 @@ export const applyLocalNewspaperCommand = (data: NewspaperData, actor: number, c
     if (existing && existing.question_text !== text) { question.question_text = text; question.updated_at = stamp; question.downloaded_at = null; }
     if (!existing) next.questions.push(question);
     result = { question, reward: null };
+  } else if (command.action === 'heart') {
+    if (!isQuestionStudent(actor) || !isQuestionUuid(command.questionId) || typeof command.liked !== 'boolean') throw new NewspaperError('QUESTION_FORBIDDEN', 403);
+    if (command.weekKey !== week) throw new NewspaperError('QUESTION_WEEK_CHANGED', 409);
+    const question = next.questions.find(row => row.id === command.questionId && row.week_key === week);
+    if (!question) throw new NewspaperError('QUESTION_NOT_FOUND');
+    if (question.student_number === actor) throw new NewspaperError('QUESTION_FORBIDDEN', 403);
+    const hearts = next.heartRecords ?? [];
+    const existing = hearts.some(row => row.question_id === question.id && row.student_number === actor);
+    next.heartRecords = command.liked
+      ? existing ? hearts : [...hearts, { question_id: question.id, student_number: actor }]
+      : hearts.filter(row => row.question_id !== question.id || row.student_number !== actor);
+    result = { ok: true, liked: command.liked };
   } else if (command.action === 'topic') {
     if (typeof command.weekKey !== 'string' || typeof command.topicText !== 'string' || !command.topicText.trim() || [...command.topicText.trim()].length > NEWSPAPER_CONFIG.topicMaxLength) throw new NewspaperError('QUESTION_TOPIC_INVALID');
     const old = next.topics.find(row => row.week_key === command.weekKey);
@@ -47,7 +65,10 @@ export const applyLocalNewspaperCommand = (data: NewspaperData, actor: number, c
     const row = next.questions.find(row => row.id === command.id);
     if (!row) throw new NewspaperError('QUESTION_NOT_FOUND');
     if (row.updated_at !== command.expectedUpdatedAt) throw new NewspaperError('QUESTION_CONFLICT', 409);
-    if (command.action === 'delete') next.questions = next.questions.filter(row => row.id !== command.id);
+    if (command.action === 'delete') {
+      next.questions = next.questions.filter(row => row.id !== command.id);
+      next.heartRecords = (next.heartRecords ?? []).filter(heart => heart.question_id !== command.id);
+    }
     else {
       const text = typeof command.questionText === 'string' ? normalizeQuestionText(command.questionText) : '';
       const code = questionValidationCode(text); if (code) throw new NewspaperError(code);
@@ -57,7 +78,7 @@ export const applyLocalNewspaperCommand = (data: NewspaperData, actor: number, c
     const rows = selectQuestionDownload(next.questions.filter(row => row.week_key === command.weekKey), command.mode, command.cumulative);
     if (command.cumulative) for (const row of rows) row.downloaded_at = stamp;
     result = { questions: rows };
-  } else if (command.action === 'reset' && command.confirmation === '모든 기록 초기화') { next.questions = []; next.topics = []; }
+  } else if (command.action === 'reset' && command.confirmation === '모든 기록 초기화') { next.questions = []; next.topics = []; next.heartRecords = []; }
   else throw new NewspaperError('QUESTION_INVALID_ACTION');
   return { data: next, result };
 };

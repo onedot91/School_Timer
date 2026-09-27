@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, RefreshCw, Trash2 } from 'lucide-react';
+import { Download, Heart, RefreshCw, Trash2 } from 'lucide-react';
 import NewspaperDialog from '../NewspaperDialog';
 import { useNewspaper } from '../../lib/useNewspaper';
 import { newspaperCommand, readPendingNewspaperRequests } from '../../lib/newspaperClient';
@@ -7,11 +7,12 @@ import { isReadOnlyDataMode } from '../../lib/dataMode';
 import { getKoreanIsoWeekKey } from '../../lib/weeklyMission';
 import { NEWSPAPER_CONFIG, QUESTION_LABELS, QUESTION_ERRORS, NewspaperError, newspaperErrorMessage, isQuestionMode, isQuestionWeek, questionValidationCode, normalizeQuestionText, questionWeekLabel, questionWeekOptions, selectQuestionDownload, buildQuestionTxt, questionTxtFilename, parseNewspaperQuestion, type NewspaperQuestion, type QuestionMode } from '../../lib/newspaperQuestion';
 
-function QuestionEditor({ row, busy, onSave, onDelete }: { row: NewspaperQuestion; busy: boolean; onSave: (text: string) => void; onDelete: () => void }) {
+function QuestionEditor({ row, heartCount, isTopHearted, busy, onSave, onDelete }: { row: NewspaperQuestion; heartCount: number; isTopHearted: boolean; busy: boolean; onSave: (text: string) => void; onDelete: () => void }) {
   const [text, setText] = useState(row.question_text);
   const error = text !== row.question_text ? questionValidationCode(text) : null;
-  return <div className="newspaper-editor">
-    <span className="newspaper-download-state">{row.downloaded_at ? '누적 완료' : '누적 대기'}</span>
+  return <div className={`newspaper-editor newspaper-editor--${row.question_type}`}>
+    <div className="newspaper-editor-meta"><div className="newspaper-editor-labels"><span className="newspaper-editor-type">{QUESTION_LABELS[row.question_type]}</span><span className="newspaper-download-state">{row.downloaded_at ? '누적 완료' : '누적 대기'}</span></div>
+      <span className="newspaper-heart-count" aria-label={`하트 ${heartCount}개${isTopHearted ? `, ${QUESTION_LABELS[row.question_type]} 중 최다` : ''}`}><Heart className={isTopHearted ? 'is-category-top' : undefined} size={15} fill="currentColor" aria-hidden="true" /> {heartCount}</span></div>
     <div className="newspaper-editor-field"><input aria-label={`${row.student_number}번 ${QUESTION_LABELS[row.question_type]} 수정`} value={text} disabled={busy || isReadOnlyDataMode}
       onChange={event => setText(event.target.value)} onBlur={() => { if (normalizeQuestionText(text) !== row.question_text && !error) onSave(text); }}
       onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) event.currentTarget.blur(); }} />
@@ -33,6 +34,10 @@ export default function TeacherNewspaperPanel() {
   const [confirmation, setConfirmation] = useState('');
   const [download, setDownload] = useState<{ text: string; filename: string } | null>(null);
   const topic = data?.topics.find(row => row.week_key === selectedWeek);
+  const highestHeartCounts: Record<'personal' | 'topic', number> = { personal: 0, topic: 0 };
+  for (const row of data?.questions ?? []) {
+    highestHeartCounts[row.question_type] = Math.max(highestHeartCounts[row.question_type], data?.heartCounts?.[row.id] ?? 0);
+  }
   const weeks = [...new Set([...questionWeekOptions(), selectedWeek, ...(data?.weeks ?? []), ...(data?.topics.map(row => row.week_key) ?? [])])].sort();
   const run = async (command: Record<string, unknown>, success: string | ((result: Record<string, unknown>) => string), onResult?: (result: Record<string, unknown>) => void) => {
     if (busyRef.current) return;
@@ -66,14 +71,20 @@ export default function TeacherNewspaperPanel() {
     {error ? <p role="alert" className="newspaper-error">{error}</p> : null}
     <p role={failed ? 'alert' : 'status'} className={failed ? 'newspaper-error' : 'newspaper-feedback'}>{notice}</p>
     {data && !error ? <>
+      <div className="newspaper-status-legend" aria-label="질문 종류">
+        {(['personal', 'topic'] as const).map(type => <span key={type}><i data-type={type} aria-hidden="true" />{QUESTION_LABELS[type]}</span>)}
+      </div>
       <div className="newspaper-status-grid">{Array.from({ length: NEWSPAPER_CONFIG.studentCount }, (_, i) => {
         const number = i + 1;
         const states = (['personal', 'topic'] as const).map(type => {
           const row = data.questions.find(item => item.student_number === number && item.question_type === type);
-          return { type, label: row ? row.downloaded_at ? '누적 완료' : '제출 · 누적 대기' : '미제출', row };
+          return { type, row };
         });
-        const label = `${number}번 ${states.map(state => `${QUESTION_LABELS[state.type]} ${state.label}`).join(', ')}`;
-        return <div key={number} className="newspaper-student-status" title={label} aria-label={label}><strong>{number}번</strong>{states.map(state => <span key={state.type} data-submitted={!!state.row}>{state.type === 'personal' ? '개인' : '주제'} {state.row ? state.row.downloaded_at ? '✓ 누적' : '✓ 제출' : '—'}</span>)}</div>;
+        const label = `${number}번 ${states.map(state => `${QUESTION_LABELS[state.type]} ${state.row ? state.row.downloaded_at ? '누적 완료' : '제출' : '미제출'}`).join(', ')}`;
+        return <div key={number} className="newspaper-student-status" data-has-submission={states.some(state => state.row)} title={label} aria-label={label}>
+          <strong>{number}</strong>
+          <span className="newspaper-status-dots" aria-hidden="true">{states.map(state => <i key={state.type} data-type={state.type} data-submitted={!!state.row} />)}</span>
+        </div>;
       })}</div>
       <section className="newspaper-downloads"><h3>신문 이미지용 TXT</h3><p>수정한 질문은 누적 대기로 돌아갑니다.</p>
         <div className="newspaper-download-groups">{[true, false].map(cumulative => <div key={String(cumulative)}><h4>{cumulative ? '누적 다운로드' : '전체 다운로드'}</h4><div className="newspaper-download-buttons">{(['personal', 'topic', 'all'] as const).map(mode => {
@@ -95,7 +106,8 @@ export default function TeacherNewspaperPanel() {
       <div className="newspaper-toolbar"><div className="newspaper-tabs" role="group" aria-label="관리자 질문 필터">{(['all', 'personal', 'topic'] as const).map(mode => <button key={mode} aria-pressed={filter === mode} onClick={() => setFilter(mode)}>{mode === 'all' ? '전체 보기' : QUESTION_LABELS[mode]}</button>)}</div><button className="newspaper-danger" disabled={busy || isReadOnlyDataMode} onClick={() => setConfirm('reset')}>초기화</button></div>
       <div className="newspaper-editor-list">{Array.from({ length: NEWSPAPER_CONFIG.studentCount }, (_, index) => <section key={index} className="newspaper-student-row"><h3>{index + 1}번</h3>{(['personal', 'topic'] as const).filter(type => filter === 'all' || type === filter).map(type => {
         const row = data.questions.find(item => item.student_number === index + 1 && item.question_type === type);
-        return row ? <QuestionEditor key={`${row.id}:${row.updated_at}`} row={row} busy={busy} onSave={text => void run({ action: 'update', id: row.id, questionText: text, expectedUpdatedAt: row.updated_at }, `${row.student_number}번 수정 완료`)} onDelete={() => setConfirm(row)} /> : <p key={type} className="newspaper-missing" aria-label={`${index + 1}번 ${QUESTION_LABELS[type]} 미제출`}>{QUESTION_LABELS[type]} 미제출</p>;
+        const heartCount = row ? data.heartCounts?.[row.id] ?? 0 : 0;
+        return row ? <QuestionEditor key={`${row.id}:${row.updated_at}`} row={row} heartCount={heartCount} isTopHearted={heartCount > 0 && heartCount === highestHeartCounts[type]} busy={busy} onSave={text => void run({ action: 'update', id: row.id, questionText: text, expectedUpdatedAt: row.updated_at }, `${row.student_number}번 수정 완료`)} onDelete={() => setConfirm(row)} /> : <p key={type} className="newspaper-missing" aria-label={`${index + 1}번 ${QUESTION_LABELS[type]} 미제출`}>{QUESTION_LABELS[type]} 미제출</p>;
       })}</section>)}</div>
     </> : null}
     {confirm ? <NewspaperDialog title={confirm === 'reset' ? '정말 초기화시키겠습니까?' : `${confirm.student_number}번 ${QUESTION_LABELS[confirm.question_type]} 삭제`} busy={busy} onClose={() => { setConfirm(null); setConfirmation(''); }}>

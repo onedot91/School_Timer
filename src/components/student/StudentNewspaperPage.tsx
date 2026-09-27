@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Circle, CircleCheck, Glasses, History, PencilLine, RefreshCw } from 'lucide-react';
+import { Circle, CircleCheck, Glasses, Heart, History, PencilLine, RefreshCw } from 'lucide-react';
 import StudentHeader from './StudentHeader';
 import NewspaperDialog from '../NewspaperDialog';
 import { useNewspaper } from '../../lib/useNewspaper';
@@ -12,6 +12,36 @@ const QUESTION_GLASSES_ASSETS: Record<QuestionGlasses, { icon: string; character
   만약: { icon: '/newspaper/glasses-if.png', character: '/newspaper/character-if.png' },
   거꾸로: { icon: '/newspaper/glasses-reverse.png', character: '/newspaper/character-reverse.png' },
 };
+
+function QuestionHeart({ questionId, studentNumber, week, liked, onSaved }: {
+  questionId: string; studentNumber: number; week: string; liked: boolean; onSaved: () => Promise<void>;
+}) {
+  const [pendingLiked, setPendingLiked] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [pop, setPop] = useState(false);
+  const [error, setError] = useState('');
+  const currentLiked = pendingLiked ?? liked;
+  useEffect(() => { setPendingLiked(null); }, [liked]);
+  const toggle = async () => {
+    if (busy || isReadOnlyDataMode) return;
+    const nextLiked = !currentLiked;
+    setBusy(true); setPendingLiked(nextLiked); setPop(nextLiked); setError('');
+    try {
+      await newspaperCommand(studentNumber, { action: 'heart', questionId, weekKey: week, liked: nextLiked });
+      try { await onSaved(); } catch { return; }
+    } catch (cause) {
+      setPendingLiked(null); setPop(false); setError(newspaperErrorMessage(cause));
+    } finally { setBusy(false); }
+  };
+  return <div className="newspaper-heart-wrap">
+    <button type="button" className={`newspaper-heart${pop ? ' is-popping' : ''}`} aria-pressed={currentLiked}
+      aria-label={currentLiked ? '내 하트 표시 취소' : '하트 누르기'} disabled={busy || isReadOnlyDataMode}
+      onClick={() => void toggle()} onAnimationEnd={() => setPop(false)}>
+      <Heart size={20} strokeWidth={2} fill={currentLiked ? 'currentColor' : 'none'} aria-hidden="true" />
+    </button>
+    {error ? <span className="newspaper-heart-error" role="alert">{error}</span> : null}
+  </div>;
+}
 
 function QuestionComposer({ actor, week, type, question, topic, hasPersonal, onSaved, onFocus }: {
   actor: number; week: string; type: QuestionType; question?: NewspaperQuestion; topic?: NewspaperTopic; hasPersonal: boolean;
@@ -114,7 +144,14 @@ export default function StudentNewspaperPage({ studentNumber, onBack, onReward }
         </div>
         <section className="newspaper-collection">
           <div className="newspaper-toolbar"><h2>이번 주 질문 모음</h2><div className="newspaper-tabs" role="group" aria-label="질문 모음 유형">{(['personal', 'topic'] as const).map(type => <button key={type} aria-pressed={tab === type} onClick={() => setTab(type)}>{type === 'personal' ? '개인' : '주제'} {data.questions.filter(row => row.question_type === type).length}</button>)}</div></div>
-          <div className="newspaper-question-grid">{data.questions.filter(row => row.question_type === tab).map(row => <article key={row.id} className="newspaper-question"><span>{row.student_number}번</span><p>{row.question_text}</p></article>)}</div>
+          <div className="newspaper-question-grid">{data.questions.filter(row => row.question_type === tab).map(row => <article key={row.id} className="newspaper-question">
+            <div className="newspaper-question-head"><span>{row.student_number}번</span>
+              {row.student_number === studentNumber
+                ? <span className="newspaper-question-own">내 질문</span>
+                : <QuestionHeart questionId={row.id} studentNumber={studentNumber} week={week} liked={data.heartedQuestionIds?.includes(row.id) ?? false} onSaved={refresh} />}
+            </div>
+            <p>{row.question_text}</p>
+          </article>)}</div>
           {!data.questions.some(row => row.question_type === tab) ? <p className="newspaper-empty">아직 없어요.</p> : null}
         </section>
       </> : null}

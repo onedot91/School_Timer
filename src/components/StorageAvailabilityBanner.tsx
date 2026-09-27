@@ -2,7 +2,7 @@ import { RefreshCw, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscribeStorageAvailability } from '../lib/storageAvailability';
-import { canReloadWithDrafts, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
+import { canReloadWithDrafts, hasDraftStorageFailure, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
 import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, requestSaveRecovery, isReviewedRecoveryIssue, type SaveRecoveryIssue } from '../lib/saveRecovery';
 import { SAVE_FAILURE_FEATURES } from '../lib/saveFailure';
 
@@ -21,7 +21,7 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
   const notice = useSyncExternalStore(subscribeStorageAvailability, getStorageAvailabilityNotice, () => null);
   useSyncExternalStore(subscribeDraftReloadSafety, getDraftReloadSafetySnapshot, () => 0);
   useSyncExternalStore(subscribeSaveRecovery, getSaveRecoverySnapshot, () => 0);
-  const unsafe = actor !== null && !canReloadWithDrafts(actor);
+  const unsafe = actor !== null && hasDraftStorageFailure(actor);
   const [showUnsafe, setShowUnsafe] = useState(false);
   const [copyFallback, setCopyFallback] = useState('');
   useEffect(() => {

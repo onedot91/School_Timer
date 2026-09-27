@@ -29,6 +29,8 @@ export default async function handler(request: Request, response: Response) {
       const data = await loadNewspaperData({ url, key }, actor, week);
       response.status(200).json({ ...data,
         weeks: session.role === 'teacher' ? data.weeks : [week],
+        heartedQuestionIds: session.role === 'student' ? data.heartedQuestionIds ?? [] : [],
+        heartCounts: session.role === 'teacher' ? data.heartCounts ?? {} : {},
         questions: data.questions.filter(row => row.week_key === week).map(row => session.role === 'teacher' ? row : { ...row, downloaded_at: null }),
         history: data.history.filter(row => row.student_number === actor).map(row => ({ ...row, downloaded_at: null })),
         topics: data.topics.filter(row => session.role === 'teacher' || row.week_key === week),
@@ -43,8 +45,8 @@ export default async function handler(request: Request, response: Response) {
     try { body = JSON.parse(serialized); } catch { throw new NewspaperError('QUESTION_INVALID_BODY'); }
     if (!isQuestionRecord(body) || !isQuestionUuid(body.requestId) || !isQuestionRecord(body.command)) throw new NewspaperError('QUESTION_INVALID_BODY');
     const command = body.command;
-    if (typeof command.action !== 'string' || !['submit', 'update', 'delete', 'topic', 'download', 'reset'].includes(command.action)) throw new NewspaperError('QUESTION_INVALID_ACTION');
-    if (session.role !== 'teacher' && command.action !== 'submit') throw new NewspaperError('QUESTION_FORBIDDEN', 403);
+    if (typeof command.action !== 'string' || !['submit', 'heart', 'update', 'delete', 'topic', 'download', 'reset'].includes(command.action)) throw new NewspaperError('QUESTION_INVALID_ACTION');
+    if (session.role !== 'teacher' && !['submit', 'heart'].includes(command.action)) throw new NewspaperError('QUESTION_FORBIDDEN', 403);
     let commandActor = actor;
     if (command.action === 'submit') {
       if (!isQuestionStudent(command.studentNumber)) throw new NewspaperError('STUDENT_NUMBER_MISMATCH', 403);
@@ -55,6 +57,12 @@ export default async function handler(request: Request, response: Response) {
       if (typeof command.weekKey !== 'string') throw new NewspaperError('QUESTION_INVALID_WEEK');
       weekMonday(command.weekKey);
       if (command.action === 'submit' && command.weekKey !== getKoreanIsoWeekKey()) throw new NewspaperError('QUESTION_WEEK_CHANGED', 409);
+    }
+    if (command.action === 'heart') {
+      if (session.role !== 'student' || !isQuestionUuid(command.questionId) || typeof command.liked !== 'boolean') throw new NewspaperError('QUESTION_FORBIDDEN', 403);
+      if (typeof command.weekKey !== 'string') throw new NewspaperError('QUESTION_INVALID_WEEK');
+      weekMonday(command.weekKey);
+      if (command.weekKey !== getKoreanIsoWeekKey()) throw new NewspaperError('QUESTION_WEEK_CHANGED', 409);
     }
     if (['submit', 'update'].includes(command.action)) {
       if (typeof command.questionText !== 'string') throw new NewspaperError('QUESTION_EMPTY');

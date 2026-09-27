@@ -14,9 +14,7 @@ test('등록된 이동 캐릭터를 번호에 연결하고 미등록 번호는 �
   const roster = getStudentCharacterRoster();
 
   assert.equal(roster[0]?.characters[0], STUDENT_CHARACTERS.find(({ creatorName }) => creatorName === '1번'));
-  for (const studentNumber of [20]) {
-    assert.equal(roster.find((slot) => slot.studentNumber === studentNumber)?.characters.length, 0);
-  }
+  assert.deepEqual(roster.find((slot) => slot.studentNumber === 20)?.characters.map(({ id }) => id), ['student-20-rocket']);
 });
 
 test('등록된 교실 캐릭터는 멘트와 고유 ID를 가진다', () => {

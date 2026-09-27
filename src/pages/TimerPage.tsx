@@ -262,7 +262,7 @@ const TeacherPanelLoadFallback = () => (
 );
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'emotion' | 'mail' | 'writing' | 'newspaper' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'currency-history' | 'emotion' | 'mail' | 'writing' | 'newspaper' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
 type TeacherShopTab = 'items' | 'skins' | 'houses' | 'characters';
 type SettingsNavigationGroup = {
   readonly label: string;
@@ -301,7 +301,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
       { panel: 'emotion', label: '감정', icon: HeartPulse },
       { panel: 'mail', label: '편지', icon: Mail },
       { panel: 'writing', label: '글쓰기', icon: NotebookText },
-      { panel: 'newspaper', label: '신문 질문', icon: NotebookText },
+      { panel: 'newspaper', label: '신문 질문', icon: MessageCircleQuestion },
       { panel: 'classword', label: '낱말판', icon: StickyNote },
       { panel: 'today-friend', label: '오늘의 친구', icon: HeartHandshake },
       { panel: 'library-competition', label: '책방 챌린지', icon: Trophy },
@@ -314,6 +314,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
       { panel: 'auction', label: '경매', icon: Coins },
       { panel: 'stocks', label: '증권', icon: Star },
       { panel: 'donation', label: '기부', icon: HeartPulse },
+      { panel: 'currency-history', label: '입출금', icon: Landmark },
     ],
   },
   {
@@ -363,6 +364,40 @@ const formatTeacherThreadDate = (createdAt: string): string => {
 const formatCurrencyAdjustmentSummary = ({ delta }: CurrencyAdjustmentSummary) => {
   const sign = delta > 0 ? '+' : delta < 0 ? '−' : '';
   return `${sign}${Math.abs(delta)}`;
+};
+
+const currencyHistoryReasonLabels: Record<CurrencyHistoryReason, string> = {
+  manual: '직접 설정',
+  reset: '초기화',
+  tax: '세금',
+  allowance: '기본 지급',
+  auction_award: '경매 낙찰',
+  weekly_mission: '주간 미션',
+  daily_emotion: '감정 기록',
+  weekly_emotion: '감정 주간 보상',
+  sudoku_mission: '스도쿠 보상',
+  number_baseball_mission: '숫자야구 보상',
+  classroom_role: '역할 차감',
+  daily_writing: '글쓰기 보상',
+  class_donation: '기부',
+  pet_feed: '먹이 구매',
+  bank_transfer: '예금 이동',
+  shop_purchase: '상점 구매',
+  house_creator_reward: '집 판매 보상',
+  stock_trade: '주식 거래',
+  teacher_deduction: '교사 차감',
+  bulk_adjust: '일괄 조정',
+};
+
+const currencyHistoryTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false,
+});
+const currencyHistoryDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+const getCurrencyHistoryDateKey = (date: Date) => {
+  const values = Object.fromEntries(currencyHistoryDateFormatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return `${values.year ?? ''}-${values.month ?? ''}-${values.day ?? ''}`;
 };
 
 const getEmotionCalendarDate = (dateKey: string) => {
@@ -564,9 +599,9 @@ const MEMO_NOTE_STORAGE_KEY = 'school-memo-note-v1';
 const MEMO_NOTE_PLACEHOLDER = '메모 입력';
 const MEMO_NOTE_MIN_FONT_SCALE = 0;
 const MEMO_NOTE_MAX_FONT_SCALE = 100;
-const MEMO_NOTE_DEFAULT_FONT_SCALE = 50;
+const MEMO_NOTE_DEFAULT_FONT_SCALE = 10;
 const MEMO_NOTE_FONT_SCALE_STEP = 5;
-const MEMO_NOTE_MIN_FONT_SIZE = 40;
+const MEMO_NOTE_MIN_FONT_SIZE = 18;
 const MEMO_NOTE_MAX_FONT_SIZE = 168;
 const SCHEDULE_YOUTUBE_URLS_STORAGE_KEY = 'scheduleYoutubeUrls-v2';
 const SCHEDULE_YOUTUBE_METADATA_STORAGE_KEY = 'scheduleYoutubeMetadata-v1';
@@ -5395,6 +5430,22 @@ export default function TimerPage() {
   }, [isEditingNotice, noticeDraft]);
 
   useEffect(() => {
+    if (!isEditingNotice) return;
+    const textarea = noticeInputRef.current;
+    const container = textarea?.parentElement;
+    if (!textarea || !container) return;
+    let previousWidth = -1;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width === previousWidth) return;
+      previousWidth = entry.contentRect.width;
+      textarea.style.height = '0px';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isEditingNotice]);
+
+  useEffect(() => {
     const interval = window.setInterval(() => {
       setScheduleFocusTick(Date.now());
     }, 1000);
@@ -8293,6 +8344,22 @@ export default function TimerPage() {
   const selectedCurrencyDeposit = editingCurrencyNumber === null
     ? 0
     : (studentEconomyStates[String(editingCurrencyNumber)]?.deposit ?? 0);
+  const currencyTodayKey = getCurrencyHistoryDateKey(new Date());
+  const currencyTodayStart = new Date(`${currencyTodayKey}T00:00:00+09:00`).getTime();
+  const currencyTomorrowStart = currencyTodayStart + 24 * 60 * 60 * 1000;
+  const currencyTodayHistoryByStudent = CURRENCY_STUDENT_NUMBERS.map((studentNumber) => {
+    const entries = (currencyHistory[String(studentNumber)] ?? []).filter((entry) => {
+      const createdAt = Date.parse(entry.createdAt);
+      return Number.isFinite(createdAt) && createdAt >= currencyTodayStart && createdAt < currencyTomorrowStart;
+    });
+    return {
+      studentNumber,
+      entries,
+      incoming: entries.reduce((total, entry) => total + Math.max(entry.delta, 0), 0),
+      outgoing: entries.reduce((total, entry) => total + Math.abs(Math.min(entry.delta, 0)), 0),
+    };
+  });
+  const currencyTodayHistoryCount = currencyTodayHistoryByStudent.reduce((total, student) => total + student.entries.length, 0);
   const parsedCurrencyDeductionAmount = Number(currencyDeductionAmount);
   const currencyWalletDeduction = Number.isInteger(parsedCurrencyDeductionAmount)
     ? Math.min(selectedCurrencyBalance ?? 0, Math.max(0, parsedCurrencyDeductionAmount))
@@ -8532,14 +8599,32 @@ export default function TimerPage() {
         setIsCurrencyPanelOpen(false);
         setIsMemoOpen(true);
       }}
-      className="inline-flex h-6 items-center justify-center gap-1 rounded-full border border-[#D7E2D1] bg-[rgba(240,246,237,0.94)] px-2 text-[0.64rem] font-extrabold text-[#5C8D6D] shadow-[0_8px_16px_rgba(93,118,84,0.1)] backdrop-blur-xl transition-[background-color,transform,color] hover:bg-[rgba(248,251,246,0.98)] hover:scale-[1.02] hover:text-[#4F7258] sm:h-7 sm:px-2.25 sm:text-[0.68rem] md:h-8 md:px-2.5 md:text-[0.72rem]"
+      className="notice-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full border-0 bg-transparent p-0 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
       aria-label="메모장"
       title="메모장"
       data-notice-memo-button="true"
     >
-      <StickyNote size={13} strokeWidth={2.2} />
-      <span>메모</span>
+      <StickyNote size={19} strokeWidth={2.2} aria-hidden="true" />
     </button>
+  );
+  const dismissNotice = () => {
+    if (isEditingNotice) closeNoticeEdit();
+    setIsNoticeEnabled(false);
+    setPendingNoticeHighlightRange(null);
+  };
+  const noticeActions = (
+    <div className="absolute right-1 top-1/2 z-10 flex -translate-y-1/2 flex-col items-center">
+      {noticeMemoButton}
+      <button
+        type="button"
+        onClick={dismissNotice}
+        className="notice-icon-button inline-flex h-11 w-11 items-center justify-center rounded-full border-0 bg-transparent p-0 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+        aria-label="공지 닫기"
+        title="공지 닫기"
+      >
+        <X size={19} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+    </div>
   );
   const noticeBanner = (
     <AnimatePresence initial={false}>
@@ -8569,9 +8654,8 @@ export default function TimerPage() {
         className={`notice-card relative mx-auto w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[#FFFBF6] px-1 pb-1 pt-1 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] md:px-1.5 md:pb-1.5 ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading'}`}
       >
         {isEditingNotice ? (
-          <div className="notice-editor relative grid min-h-[3.6rem] grid-rows-[1.45rem_minmax(0,1fr)_1.45rem] rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-1.5 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:min-h-[3.85rem] sm:grid-rows-[1.55rem_minmax(0,1fr)_1.55rem] sm:px-3 md:min-h-[4.1rem] md:grid-rows-[1.7rem_minmax(0,1fr)_1.7rem]">
-            <div aria-hidden="true" className="row-start-1" />
-            <div className="row-start-2 flex min-h-0 items-center">
+          <div className="notice-editor relative flex min-h-24 items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-12 py-1 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:px-14">
+            <div className="flex w-full min-w-0 items-center">
               <textarea
                 ref={noticeInputRef}
                 value={noticeDraft}
@@ -8618,16 +8702,13 @@ export default function TimerPage() {
                 </button>
               </div>
             ) : null}
-            <div className="row-start-3 flex items-center justify-end gap-2">
-              {noticeMemoButton}
-            </div>
+            {noticeActions}
           </div>
         ) : (
           <>
-            <div className="notice-content relative grid min-h-[3.6rem] w-full grid-rows-[1.45rem_minmax(0,1fr)_1.45rem] rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-2.5 py-1.5 transition-colors hover:bg-white sm:min-h-[3.85rem] sm:grid-rows-[1.55rem_minmax(0,1fr)_1.55rem] sm:px-3 md:min-h-[4.1rem] md:grid-rows-[1.7rem_minmax(0,1fr)_1.7rem]">
-              <div aria-hidden="true" className="row-start-1" />
+            <div className="notice-content relative flex min-h-24 w-full items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-12 py-1 transition-colors hover:bg-white sm:px-14">
               <div
-                className="row-start-2 flex w-full min-h-0 items-center justify-center bg-transparent text-left"
+                className="flex w-full min-w-0 items-center justify-center bg-transparent text-left"
                 title="드래그한 뒤 강조를 누르면 코랄색으로 표시됩니다."
                 onClick={() => {
                   if (skipNextNoticeTextClickRef.current) {
@@ -8647,9 +8728,7 @@ export default function TimerPage() {
                   {renderNoticeTextWithHighlights(trimmedNotice)}
                 </p>
               </div>
-              <div className="row-start-3 flex items-center justify-end">
-                {noticeMemoButton}
-              </div>
+              {noticeActions}
               {pendingNoticeHighlightRange ? (
                 <div
                   className="notice-highlight-popover absolute z-30 flex items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1.5 shadow-[0_12px_24px_rgba(151,80,59,0.16)] backdrop-blur-sm"
@@ -10616,6 +10695,56 @@ export default function TimerPage() {
       if (error instanceof Error) console.error('Failed to reset class donation.', error);
     }
   };
+
+  const currencyHistorySettingsPanel = (
+    <section className="settings-card rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5" aria-labelledby="currency-history-title">
+      <header className="mb-3 flex items-center justify-between gap-3 border-b border-[#E4EDE7] pb-3">
+        <h3 id="currency-history-title" className="section-title text-lg font-extrabold text-[#3F2B20]">오늘 입출금</h3>
+        <span className="rounded-full bg-[#F1F7F3] px-3 py-1 text-[0.875rem] font-black tabular-nums text-[#385348]">{currencyTodayHistoryCount}건</span>
+      </header>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="학생별 당일 입출금">
+        {currencyTodayHistoryByStudent.map(({ studentNumber, entries, incoming, outgoing }) => (
+          entries.length > 0 ? (
+            <details key={studentNumber} className="min-w-0 rounded-[0.85rem] border border-[#D6E3DB] bg-white">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-1.5 rounded-[0.85rem] px-2.5 py-2 text-[0.9rem] font-extrabold text-[#30473D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006241]">
+                <span className="shrink-0">{studentNumber}번 <span className="text-[0.8rem] font-bold text-[#65746C]">{entries.length}건</span></span>
+                <span className="flex min-w-0 items-center gap-1.5 font-mono text-[0.82rem] font-bold tabular-nums">
+                  {incoming > 0 && <span className="truncate text-[#006241]">+{formatCurrencyAmount(incoming)}</span>}
+                  {outgoing > 0 && <span className="truncate text-[#8A4B2B]">−{formatCurrencyAmount(outgoing)}</span>}
+                </span>
+                <ChevronDown size={16} className="shrink-0 text-[#65746C]" aria-hidden="true" />
+              </summary>
+              <ol className="divide-y divide-[#EEF2EF] px-2.5">
+                {entries.map((entry) => {
+                  const createdAt = new Date(entry.createdAt);
+                  const isIncoming = entry.delta >= 0;
+                  return (
+                    <li key={entry.id} className="flex min-w-0 items-center justify-between gap-2 py-2 text-[0.8125rem]">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <time dateTime={entry.createdAt} className="shrink-0 font-mono tabular-nums text-[#65746C]">{currencyHistoryTimeFormatter.format(createdAt)}</time>
+                          <span className="truncate font-bold text-[#46584F]">{currencyHistoryReasonLabels[entry.reason]}</span>
+                        </div>
+                        <span className="font-mono text-[0.75rem] tabular-nums text-[#65746C]">{formatCurrencyAmount(entry.before)} → {formatCurrencyAmount(entry.after)}</span>
+                      </div>
+                      <strong className={`shrink-0 font-mono tabular-nums ${isIncoming ? 'text-[#006241]' : 'text-[#8A4B2B]'}`}>
+                        {isIncoming ? '+' : '−'}{formatCurrencyAmount(Math.abs(entry.delta))}
+                      </strong>
+                    </li>
+                  );
+                })}
+              </ol>
+            </details>
+          ) : (
+            <div key={studentNumber} className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-[0.85rem] border border-[#D6E3DB] bg-white px-2.5 py-2 text-[0.9rem]">
+              <strong className="font-extrabold text-[#30473D]">{studentNumber}번</strong>
+              <span className="font-mono text-[0.8rem] font-bold tabular-nums text-[#65746C]">0건</span>
+            </div>
+          )
+        ))}
+      </div>
+    </section>
+  );
 
   const auctionSettingsPanel = (
     <div className="settings-panel-grid grid gap-4">
@@ -12972,6 +13101,8 @@ export default function TimerPage() {
                                   ? <TeacherLibraryCompetitionPanel />
                                 : settingsPanel === 'bookstore'
                                   ? bookstoreSettingsPanel
+                                  : settingsPanel === 'currency-history'
+                                    ? currencyHistorySettingsPanel
                                   : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'
                                     ? auctionSettingsPanel
                                     : null}

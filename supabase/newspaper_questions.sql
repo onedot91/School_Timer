@@ -9,6 +9,13 @@ create table if not exists public.newspaper_questions (
   unique(student_number,question_type,week_key)
 );
 create index if not exists newspaper_questions_week on public.newspaper_questions(week_key,student_number);
+create table if not exists public.newspaper_hearts (
+  question_id uuid not null references public.newspaper_questions(id) on delete cascade,
+  student_number integer not null check (student_number between 1 and 23),
+  created_at timestamptz not null default now(),
+  primary key(question_id,student_number)
+);
+create index if not exists newspaper_hearts_student on public.newspaper_hearts(student_number,question_id);
 create table if not exists public.newspaper_topics (
   id uuid primary key default gen_random_uuid(), week_key text not null unique check (week_key ~ '^\d{4}-(0[1-9]|[1-4]\d|5[0-3])$'),
   topic_text text not null check (char_length(btrim(topic_text)) between 1 and 40),
@@ -23,25 +30,41 @@ create table if not exists public.newspaper_audit (
   created_at timestamptz not null default now()
 );
 alter table public.newspaper_questions enable row level security;
+alter table public.newspaper_hearts enable row level security;
 alter table public.newspaper_topics enable row level security;
 alter table public.newspaper_receipts enable row level security;
 alter table public.newspaper_audit enable row level security;
-revoke all on public.newspaper_questions,public.newspaper_topics,public.newspaper_receipts,public.newspaper_audit from public,anon,authenticated;
+revoke all on public.newspaper_questions,public.newspaper_hearts,public.newspaper_topics,public.newspaper_receipts,public.newspaper_audit from public,anon,authenticated;
 grant select on public.newspaper_questions,public.newspaper_topics to service_role;
+grant select on public.newspaper_hearts to service_role;
 
 create or replace function public.newspaper_read(p_actor integer,p_week text)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare v_current text := to_char(now() at time zone 'Asia/Seoul','IYYY-IW'); v_questions jsonb; v_history jsonb; v_topics jsonb;
+  v_hearted jsonb := '{}'::jsonb; v_heart_counts jsonb := '{}'::jsonb;
 begin
   if p_actor is null or p_actor not between 0 and 23 then raise exception 'QUESTION_FORBIDDEN'; end if;
   if p_week is null or p_week !~ '^\d{4}-(0[1-9]|[1-4]\d|5[0-3])$' then raise exception 'QUESTION_INVALID_WEEK'; end if;
   if p_actor <> 0 and p_week <> v_current then raise exception 'QUESTION_WEEK_CHANGED'; end if;
-  select coalesce(jsonb_agg(case when p_actor=0 then to_jsonb(q) else to_jsonb(q)||jsonb_build_object('downloaded_at',null) end order by q.student_number,q.question_type),'[]')
-    into v_questions from public.newspaper_questions q where q.week_key=p_week;
+  select coalesce(jsonb_agg(case when p_actor=0 then to_jsonb(q)||jsonb_build_object('heart_count',coalesce(h.heart_count,0))
+    else to_jsonb(q)||jsonb_build_object('downloaded_at',null) end order by q.student_number,q.question_type),'[]')
+    into v_questions from public.newspaper_questions q
+    left join (select question_id,count(*)::integer as heart_count from public.newspaper_hearts group by question_id) h on h.question_id=q.id
+    where q.week_key=p_week;
+  if p_actor <> 0 then
+    select coalesce(jsonb_agg(h.question_id::text),'[]'::jsonb) into v_hearted
+      from public.newspaper_hearts h join public.newspaper_questions q on q.id=h.question_id
+      where h.student_number=p_actor and q.week_key=p_week;
+  else
+    select coalesce(jsonb_object_agg(counts.question_id::text,counts.heart_count),'{}'::jsonb) into v_heart_counts
+      from (select q.id as question_id,count(h.student_number)::integer as heart_count from public.newspaper_questions q
+        left join public.newspaper_hearts h on h.question_id=q.id where q.week_key=p_week group by q.id) counts;
+  end if;
   select coalesce(jsonb_agg(to_jsonb(q)||jsonb_build_object('downloaded_at',null) order by q.week_key desc,q.question_type),'[]')
     into v_history from public.newspaper_questions q where q.student_number=p_actor;
   select coalesce(jsonb_agg(to_jsonb(t) order by t.week_key desc),'[]') into v_topics from public.newspaper_topics t where p_actor=0 or t.week_key=p_week;
   return jsonb_build_object('weekKey',p_week,'questions',v_questions,'history',v_history,'topics',v_topics,
+    'heartedQuestionIds',v_hearted,'heartCounts',v_heart_counts,
     'weeks',case when p_actor=0 then coalesce((select jsonb_agg(w.week_key order by w.week_key desc) from
       (select week_key from public.newspaper_questions union select week_key from public.newspaper_topics) w),'[]'::jsonb) else jsonb_build_array(p_week) end);
 end;
@@ -57,13 +80,16 @@ declare
   v_result jsonb; v_reward jsonb := null; v_topic public.newspaper_topics%rowtype;
 begin
   if p_actor is null or p_actor not between 0 and 23 or p_request_id is null or jsonb_typeof(p_command) is distinct from 'object' then raise exception 'QUESTION_FORBIDDEN'; end if;
-  if v_action is null or v_action not in ('submit','update','delete','topic','download','reset') then raise exception 'QUESTION_INVALID_ACTION'; end if;
-  if p_actor <> 0 and v_action <> 'submit' then raise exception 'QUESTION_FORBIDDEN'; end if;
+  if v_action is null or v_action not in ('submit','heart','update','delete','topic','download','reset') then raise exception 'QUESTION_INVALID_ACTION'; end if;
+  if p_actor <> 0 and v_action not in ('submit','heart') then raise exception 'QUESTION_FORBIDDEN'; end if;
   -- Student submissions may proceed in parallel, while teacher-wide mutations
   -- (download/reset/edit/topic) remain exclusive against every submission.
   if v_action='submit' then
     perform pg_advisory_xact_lock_shared(hashtextextended('newspaper-questions',0));
     perform pg_advisory_xact_lock(hashtextextended('newspaper-student:'||p_actor||':'||coalesce(v_week,''),0));
+  elsif v_action='heart' then
+    perform pg_advisory_xact_lock_shared(hashtextextended('newspaper-questions',0));
+    perform pg_advisory_xact_lock(hashtextextended('newspaper-heart:'||p_actor||':'||coalesce(p_command->>'questionId',''),0));
   else
     perform pg_advisory_xact_lock(hashtextextended('newspaper-questions',0));
   end if;
@@ -73,7 +99,7 @@ begin
     return v_receipt.result;
   end if;
   perform public.storage_require_writable();
-  if v_action in ('submit','topic','download') and (v_week is null or v_week !~ '^\d{4}-(0[1-9]|[1-4]\d|5[0-3])$') then raise exception 'QUESTION_INVALID_WEEK'; end if;
+  if v_action in ('submit','heart','topic','download') and (v_week is null or v_week !~ '^\d{4}-(0[1-9]|[1-4]\d|5[0-3])$') then raise exception 'QUESTION_INVALID_WEEK'; end if;
   if v_action in ('submit','update') then
     if v_text is null or char_length(btrim(v_text)) not between 1 and 60 then raise exception 'QUESTION_TOO_LONG'; end if;
   end if;
@@ -113,6 +139,17 @@ begin
           or exists(select 1 from jsonb_array_elements(case when jsonb_typeof(result->'questions')='array' then result->'questions' else '[]'::jsonb end) q where q->>'id'=v_row.id::text);
     else update public.newspaper_questions set question_text=v_text,updated_at=v_now,downloaded_at=null where id=v_row.id returning * into v_row; end if;
     v_result := jsonb_build_object('ok',true);
+  elsif v_action='heart' then
+    if p_actor=0 or p_command->>'questionId' !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      or jsonb_typeof(p_command->'liked') is distinct from 'boolean' then raise exception 'QUESTION_FORBIDDEN'; end if;
+    if v_week<>v_current then raise exception 'QUESTION_WEEK_CHANGED'; end if;
+    select * into v_row from public.newspaper_questions where id=(p_command->>'questionId')::uuid and week_key=v_week;
+    if not found then raise exception 'QUESTION_NOT_FOUND'; end if;
+    if v_row.student_number=p_actor then raise exception 'QUESTION_FORBIDDEN'; end if;
+    if (p_command->>'liked')::boolean then
+      insert into public.newspaper_hearts(question_id,student_number) values(v_row.id,p_actor) on conflict(question_id,student_number) do nothing;
+    else delete from public.newspaper_hearts where question_id=v_row.id and student_number=p_actor; end if;
+    v_result := jsonb_build_object('ok',true,'liked',(p_command->>'liked')::boolean);
   elsif v_action='topic' then
     if char_length(btrim(p_command->>'topicText')) not between 1 and 40 or p_command->>'topicText' is null then raise exception 'QUESTION_TOPIC_INVALID'; end if;
     select * into v_topic from public.newspaper_topics where week_key=v_week;

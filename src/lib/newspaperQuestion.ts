@@ -42,7 +42,11 @@ export interface NewspaperQuestion {
   created_at: string; updated_at: string; downloaded_at: string | null;
 }
 export interface NewspaperTopic { id: string; week_key: string; topic_text: string; created_at: string; updated_at: string }
-export interface NewspaperData { weekKey: string; questions: NewspaperQuestion[]; history: NewspaperQuestion[]; topics: NewspaperTopic[]; weeks?: string[] }
+export interface NewspaperHeart { question_id: string; student_number: number }
+export interface NewspaperData {
+  weekKey: string; questions: NewspaperQuestion[]; history: NewspaperQuestion[]; topics: NewspaperTopic[]; weeks?: string[];
+  heartedQuestionIds?: string[]; heartCounts?: Record<string, number>; heartRecords?: NewspaperHeart[];
+}
 export const isQuestionRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 export const isQuestionStudent = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= NEWSPAPER_CONFIG.studentCount;
 export const isQuestionType = (value: unknown): value is QuestionType => value === 'personal' || value === 'topic';
@@ -116,7 +120,27 @@ export const parseNewspaperData = (value: unknown): NewspaperData => {
   const weeks = value.weeks === undefined ? [] : value.weeks;
   if (!Array.isArray(weeks) || !weeks.every((key): key is string => typeof key === 'string')) throw new NewspaperError('QUESTION_INVALID_RESPONSE', 502);
   weeks.forEach(weekMonday);
+  const rawHeartedQuestionIds = value.heartedQuestionIds === undefined ? [] : value.heartedQuestionIds;
+  const rawHeartCounts = value.heartCounts === undefined ? {} : value.heartCounts;
+  const rawHeartRecords = value.heartRecords === undefined ? [] : value.heartRecords;
+  if (!Array.isArray(rawHeartedQuestionIds) || !isQuestionRecord(rawHeartCounts) || !Array.isArray(rawHeartRecords)) throw new NewspaperError('QUESTION_INVALID_RESPONSE', 502);
+  const heartedQuestionIds: string[] = [];
+  for (const id of rawHeartedQuestionIds) {
+    if (!isQuestionUuid(id)) throw new NewspaperError('QUESTION_INVALID_RESPONSE', 502);
+    heartedQuestionIds.push(id);
+  }
+  const heartCounts: Record<string, number> = {};
+  for (const [id, count] of Object.entries(rawHeartCounts)) {
+    if (!isQuestionUuid(id) || typeof count !== 'number' || !Number.isInteger(count) || count < 0) throw new NewspaperError('QUESTION_INVALID_RESPONSE', 502);
+    heartCounts[id] = count;
+  }
+  const heartRecords: NewspaperHeart[] = [];
+  for (const row of rawHeartRecords) {
+    if (!isQuestionRecord(row) || !isQuestionUuid(row.question_id) || !isQuestionStudent(row.student_number)) throw new NewspaperError('QUESTION_INVALID_RESPONSE', 502);
+    heartRecords.push({ question_id: row.question_id, student_number: row.student_number });
+  }
   return { weekKey: value.weekKey, weeks, questions: value.questions.map(parseNewspaperQuestion), history: value.history.map(parseNewspaperQuestion),
+    heartedQuestionIds, heartCounts, ...(value.heartRecords === undefined ? {} : { heartRecords }),
     topics: value.topics.map((row: unknown) => {
       if (!isQuestionRecord(row) || !isQuestionUuid(row.id) || typeof row.week_key !== 'string' || typeof row.topic_text !== 'string'
         || !row.topic_text.trim() || [...row.topic_text].length > NEWSPAPER_CONFIG.topicMaxLength || !timestamp(row.created_at) || !timestamp(row.updated_at)) throw new NewspaperError('QUESTION_INVALID_RESPONSE', 502);
