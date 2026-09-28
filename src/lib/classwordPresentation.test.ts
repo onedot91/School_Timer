@@ -32,10 +32,12 @@ const client = readFileSync(new URL('./classwordClient.ts', import.meta.url), 'u
 const css = readFileSync(new URL('../classword.css', import.meta.url), 'utf8');
 const indexCss = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 
-test('낱말판은 3초 갱신과 화면 복귀 즉시 갱신을 유지한다', () => {
-  assert.match(studentPage, /window\.setInterval\(refreshOnReturn, 3000\)/);
-  assert.match(studentPage, /window\.addEventListener\('focus', refreshOnReturn\)/);
-  assert.match(studentPage, /document\.addEventListener\('visibilitychange', refreshOnReturn\)/);
+test('낱말판은 응답 완료 후 3초 갱신과 화면·연결 복귀 갱신을 유지한다', () => {
+  assert.match(studentPage, /Promise\.all\(\[refresh\(\), refreshQuiz\(\)\]\)\.finally\([\s\S]*?window\.setTimeout\(refreshOnFocus, 3000\)/);
+  assert.doesNotMatch(studentPage, /window\.setInterval/);
+  assert.match(studentPage, /window\.addEventListener\('focus', refreshOnFocus\)/);
+  assert.match(studentPage, /window\.addEventListener\('online', refreshOnFocus\)/);
+  assert.match(studentPage, /document\.addEventListener\('visibilitychange', refreshOnFocus\)/);
 });
 
 test('14칸 완성은 배너를 표시하고 동작 줄이기에서는 입자 모션을 제거한다', () => {

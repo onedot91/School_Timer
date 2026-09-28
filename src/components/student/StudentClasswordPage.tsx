@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getKoreanDateKey, type ClasswordBoard as ClasswordBoardData, type ClasswordInitial } from '../../lib/classword';
 import { browserDraftStorage } from '../../lib/featureInputDraft';
+import { appDataMode } from '../../lib/dataMode';
 import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
 import { EMPTY_CLASSWORD_DRAFT, readyClasswordDraft, classwordDraftVersion, confirmClasswordDraft, settleClasswordDraft, storeClasswordDraft, type ClasswordDraft } from '../../lib/classwordDraft';
 import { getClasswordDisplayDate, isClasswordWeekday } from '../../lib/classwordSchedule';
@@ -148,7 +149,7 @@ export default function StudentClasswordPage({
       if (getKoreanDateKey() !== dateKey || generation !== readGenerationRef.current || sequence !== quizReadSequenceRef.current) return;
       setQuizLoadError('낱말 퀴즈를 불러오지 못했어요.');
     } finally {
-      if (getKoreanDateKey() === dateKey) setQuizLoading(false);
+      if (getKoreanDateKey() === dateKey && generation === readGenerationRef.current && sequence === quizReadSequenceRef.current) setQuizLoading(false);
     }
   }, [dateKey, displayDateKey, studentNumber]);
 
@@ -158,31 +159,51 @@ export default function StudentClasswordPage({
     setFeedback(null);
     setQuizLoadError('');
     completionCountRef.current = 0;
-    void refresh();
-    void refreshQuiz();
-    const refreshOnReturn = () => {
+    let active = true;
+    let pending = false;
+    let refreshAfterChange = false;
+    let poll: number | undefined;
+    const refreshOnReturn = (afterChange = false) => {
+      if (!active) return;
       const today = getKoreanDateKey();
       if (today !== dateKey) {
         setDateKey(today);
         return;
       }
-      if (document.visibilityState === 'visible') {
-        void refresh();
-        void refreshQuiz();
+      if (document.visibilityState !== 'visible' || (appDataMode !== 'mock' && !navigator.onLine)) return;
+      if (pending) {
+        refreshAfterChange ||= afterChange;
+        return;
       }
+      window.clearTimeout(poll);
+      pending = true;
+      refreshAfterChange = false;
+      void Promise.all([refresh(), refreshQuiz()]).finally(() => {
+        pending = false;
+        if (!active) return;
+        if (refreshAfterChange) refreshOnReturn();
+        else poll = window.setTimeout(refreshOnFocus, 3000);
+      });
     };
-    const interval = window.setInterval(refreshOnReturn, 3000);
+    const refreshOnFocus = () => refreshOnReturn();
+    const refreshOnChange = () => refreshOnReturn(true);
+    refreshOnReturn();
     const midnight = Date.parse(`${dateKey}T00:00:00+09:00`) + 86_400_000;
-    const rollover = window.setTimeout(refreshOnReturn, Math.max(1, midnight - Date.now()));
-    window.addEventListener('focus', refreshOnReturn);
-    window.addEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, refreshOnReturn);
-    document.addEventListener('visibilitychange', refreshOnReturn);
+    const rollover = window.setTimeout(refreshOnFocus, Math.max(1, midnight - Date.now()));
+    window.addEventListener('focus', refreshOnFocus);
+    window.addEventListener('online', refreshOnFocus);
+    window.addEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, refreshOnChange);
+    document.addEventListener('visibilitychange', refreshOnFocus);
     return () => {
-      window.clearInterval(interval);
+      active = false;
+      boardReadSequenceRef.current += 1;
+      quizReadSequenceRef.current += 1;
+      window.clearTimeout(poll);
       window.clearTimeout(rollover);
-      window.removeEventListener('focus', refreshOnReturn);
-      window.removeEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, refreshOnReturn);
-      document.removeEventListener('visibilitychange', refreshOnReturn);
+      window.removeEventListener('focus', refreshOnFocus);
+      window.removeEventListener('online', refreshOnFocus);
+      window.removeEventListener(CLASSWORD_LOCAL_CHANGE_EVENT, refreshOnChange);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
     };
   }, [dateKey, refresh, refreshQuiz]);
 
