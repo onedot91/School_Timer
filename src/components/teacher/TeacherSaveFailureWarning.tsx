@@ -61,6 +61,8 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
   useEffect(() => {
     let disposed = false;
     let loading: Promise<void> | null = null;
+    let failures = 0;
+    let nextReadAt = 0;
     const refresh = (afterMutation = false): Promise<void> => {
       if (afterMutation) {
         mutationVersion.current++;
@@ -71,26 +73,36 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
       loading = (async () => {
         try {
           const result = await loadSaveFailureAlerts();
+          failures = 0;
+          nextReadAt = 0;
           if (!disposed && version === mutationVersion.current) { setAlerts(result.alerts); setHasMore(result.hasMore); setUnavailable(false); }
-        } catch { if (!disposed && version === mutationVersion.current) setUnavailable(true); }
+        } catch {
+          nextReadAt = Date.now() + Math.min(60_000, SAVE_FAILURE_POLL_MS * 2 ** Math.min(failures++, 4));
+          if (!disposed && version === mutationVersion.current) setUnavailable(true);
+        }
         finally { loading = null; }
       })();
       return loading;
     };
     refreshRef.current = refresh;
-    const onChange = () => void refresh();
+    const onChange = () => {
+      if (document.visibilityState !== 'visible' || !navigator.onLine || Date.now() < nextReadAt) return;
+      void refresh();
+    };
     onChange();
     const interval = window.setInterval(onChange, SAVE_FAILURE_POLL_MS);
     window.addEventListener(SAVE_FAILURE_CHANGE_EVENT, onChange);
     window.addEventListener('storage', onChange);
     window.addEventListener('online', onChange);
     window.addEventListener('focus', onChange);
+    document.addEventListener('visibilitychange', onChange);
     return () => {
       disposed = true; window.clearInterval(interval);
       window.removeEventListener(SAVE_FAILURE_CHANGE_EVENT, onChange);
       window.removeEventListener('storage', onChange);
       window.removeEventListener('online', onChange);
       window.removeEventListener('focus', onChange);
+      document.removeEventListener('visibilitychange', onChange);
     };
   }, []);
 

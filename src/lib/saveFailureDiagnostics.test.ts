@@ -5,6 +5,15 @@ import { collectSaveFailureDiagnostics, formatSaveFailureDiagnostic, getSaveFail
 
 const alert: SaveFailureAlert = { id: 'diagnostic-test-123', studentNumber: 4, feature: 'auction', code: 'response', occurredAt: '2026-09-07T01:00:00.000Z', acknowledgedAt: null };
 
+test('teacher setting and resource revision conflicts retain their allow-listed cause', () => {
+  for (const code of ['TEACHER_SETTING_CONFLICT', 'RESOURCE_REVISION_CONFLICT']) {
+    const error = Object.assign(new Error(code), { serverCode: code, status: 409, endpoint: '/api/shared-settings' });
+    assert.equal(collectSaveFailureDiagnostics(error)?.errorCode, code);
+    assert.equal(classifySaveFailure(error), 'conflict');
+  }
+  assert.equal(parseSaveFailureReport({ ...alert, diagnostics: { errorCode: 'TEACHER_PRIVATE_CONTENT' } })?.diagnostics, undefined);
+});
+
 test('기존 물품 삭제 거절 알림도 다른 기기의 저장 충돌로 설명하지 않는다', () => {
   const explanation = getSaveFailureExplanation({ ...alert, code: 'conflict', diagnostics: { causeCode: 'AUCTION_ITEM_NOT_REMOVABLE', httpStatus: 409 } });
   assert.match(explanation.problem, /물품.*삭제/);

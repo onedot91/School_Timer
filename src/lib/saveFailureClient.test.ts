@@ -3,6 +3,37 @@ import test from 'node:test';
 import { createServer } from 'vite';
 import { parseSaveFailureAlert } from './saveFailure.js';
 
+test('alert reads and acknowledgements allow the server to finish its database requests', async (t) => {
+  const server = await createServer({
+    configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
+    define: { 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fake.invalid'), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('fake') },
+  });
+  const alert = { id: 'slow-alert-123', studentNumber: 0, feature: 'settings', code: 'conflict', occurredAt: '2026-09-29T00:00:00Z', acknowledgedAt: null };
+  const timeouts: number[] = [];
+  t.mock.method(AbortSignal, 'timeout', (milliseconds: number) => {
+    timeouts.push(milliseconds);
+    return new AbortController().signal;
+  });
+  t.mock.method(globalThis, 'fetch', async (_input: string | URL | Request, init?: RequestInit) => {
+    assert.ok(init?.signal);
+    const timeout = timeouts.at(-1)!;
+    const serverRequestBudget = init?.method === 'POST' ? 16_000 : 8_000;
+    if (timeout <= serverRequestBudget) throw new DOMException('timed out', 'TimeoutError');
+    return Response.json(init?.method === 'POST' ? { ok: true } : { alerts: [alert], hasMore: false });
+  });
+  try {
+    const client = await server.ssrLoadModule('/src/lib/saveFailureClient.ts') as typeof import('./saveFailureClient.js');
+    const result = await client.loadSaveFailureAlerts();
+    assert.equal(result.alerts.length, 1);
+    await client.acknowledgeSaveFailure(result.alerts[0]);
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'SAVE_ALERTS_UNAVAILABLE' }, { status: 502 }));
+    await assert.rejects(client.loadSaveFailureAlerts(), /SAVE_ALERTS_UNAVAILABLE/);
+    await assert.rejects(client.acknowledgeSaveFailure(result.alerts[0]), /SAVE_ALERT_ACKNOWLEDGE_FAILED/);
+  } finally {
+    await server.close();
+  }
+});
+
 test('actual save client reports final failures, preserves offline reports, and retries delivery without hiding the save error', async (t) => {
   const server = await createServer({
     configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },

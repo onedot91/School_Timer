@@ -1,4 +1,4 @@
-import { BookOpen, Film, Music, Utensils } from 'lucide-react';
+import { BookOpen, CheckCircle2, Film, Music, Utensils } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
@@ -72,6 +72,7 @@ export default function TodayFriendMissionForm({
   onSendLetter,
 }: TodayFriendMissionFormProps) {
   const savedPayload = pendingPayload ?? mission.submission?.payload;
+  const isSubmitted = !pendingPayload && mission.submission?.status === 'submitted';
   const [deviceDraft] = useState(() => {
     const storage = getDeviceStorage();
     return isPreview || pendingPayload ? null : loadTodayFriendDeviceDraft(storage, mission);
@@ -312,9 +313,10 @@ export default function TodayFriendMissionForm({
       </fieldset>
       {saveMessage || formMessage ? <p className="today-friend-form-message" role="status">{saveMessage || formMessage}</p> : null}
       <div className="today-friend-form-actions">
-        <button type="submit" disabled={!inputReady || isSaving || isSubmitting || isPreview || visibleTraitMessage.length > 0}>
-          <span>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : mission.submission?.status === 'submitted' ? '다시 제출' : '선생님께 제출'}</span>
-          {isSubmitting || isSaving ? null : <small>성의 없이 적으면 고마가 차감될 수 있어요</small>}
+        <button type="submit" data-submitted={isSubmitted || undefined} disabled={!inputReady || isSaving || isSubmitting || isPreview || visibleTraitMessage.length > 0}>
+          {isSubmitted && !isSubmitting && !isSaving ? <span className="today-friend-submit-status"><CheckCircle2 aria-hidden="true" />제출 완료</span> : null}
+          <span>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : isSubmitted ? '수정해서 다시 제출' : '선생님께 제출'}</span>
+          {isSubmitting || isSaving || (isSubmitted && !hasEdited) ? null : <small>성의 없이 적으면 고마가 차감될 수 있어요</small>}
         </button>
       </div>
     </form>

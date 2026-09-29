@@ -5228,9 +5228,12 @@ export default function TimerPage() {
 
     let isCancelled = false;
     let isChecking = false;
+    let readFailures = 0;
+    let nextReadAt = 0;
 
     const syncSharedSettingsFromRemote = async () => {
       if (
+        document.visibilityState !== 'visible' || !navigator.onLine || Date.now() < nextReadAt ||
         !sharedSettingsHydratedRef.current ||
         teacherSettingsErrorRef.current ||
         teacherSettingsSavingRef.current ||
@@ -5257,8 +5260,12 @@ export default function TimerPage() {
           || awardPresentationRef.current !== null
           || isSharedSettingsSavePendingRef.current
           || !remoteUpdatedAt
-          || (remoteUpdatedAt === lastSharedSettingsUpdatedAtRef.current && !teacherRefreshPendingRef.current)
         ) return;
+        if (remoteUpdatedAt === lastSharedSettingsUpdatedAtRef.current && !teacherRefreshPendingRef.current) {
+          readFailures = 0;
+          nextReadAt = 0;
+          return;
+        }
 
         const remoteRow = await loadSharedSettingsRow();
         if (isCancelled || !isSaveRefreshVersionCurrent(0, refreshVersion) || awardPresentationRef.current !== null || isSharedSettingsSavePendingRef.current
@@ -5275,7 +5282,10 @@ export default function TimerPage() {
         teacherRefreshPendingRef.current = false;
         setTeacherRefreshPending(false);
         markSaveRefreshComplete(0, refreshVersion);
+        readFailures = 0;
+        nextReadAt = 0;
       } catch (error) {
+        nextReadAt = Date.now() + Math.min(60_000, 5000 * 2 ** Math.min(readFailures++, 4));
         console.error('Failed to refresh shared settings from Supabase.', error);
       } finally {
         isChecking = false;
@@ -5284,11 +5294,13 @@ export default function TimerPage() {
 
     const intervalId = window.setInterval(syncSharedSettingsFromRemote, 5000);
     window.addEventListener('focus', syncSharedSettingsFromRemote);
+    document.addEventListener('visibilitychange', syncSharedSettingsFromRemote);
 
     return () => {
       isCancelled = true;
       window.clearInterval(intervalId);
       window.removeEventListener('focus', syncSharedSettingsFromRemote);
+      document.removeEventListener('visibilitychange', syncSharedSettingsFromRemote);
     };
   }, []);
 

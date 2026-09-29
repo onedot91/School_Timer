@@ -366,6 +366,8 @@ appear first, followed by the current profile and then grayscale profiles alread
 - Mission status faces use the generated raster set in `public/mission-status-faces`: muted gray for `진행 전` and unavailable states, warm ochre for `진행 중` and loading, classroom green for `완료`, muted red for errors and exhausted attempts, and warm white for `선생님 확인 필요`. Every face keeps the same circular scale and dark hand-drawn ring; expression and color both communicate state, and the completed mouth remains one smooth rounded smile without vertical hooks.
 - Teacher-configured missions are always manual missions and use the four supplied `teacher-mission-*` 4:3 illustrations. At most four may be registered; each keeps one persisted, non-repeating illustration index so its artwork remains stable across devices and refreshes. The teacher-written mission name is the only artwork overlay, centered in the illustration on one compact cream reading plate with the global SUIT Variable display styling, strong ink contrast, restrained text shadow, Korean word-preserving wrapping, and a length-aware size that steps down for longer titles without leaving the safe central field.
 
+- The Today Friend submit action changes after a confirmed submission: one check icon and `제출 완료` badge sit beside `수정해서 다시 제출`; the teacher-review waiting badge is omitted as redundant. The action uses a quiet genre-tinted paper surface with ink text, and the deduction notice returns only after the student edits the submitted answer.
+
 ### Controls
 
 - 교사 시간표의 일정 행 사이는 포인터가 가까워지거나 키보드 초점이 들어오면 44px 감지 면 안의 작은 `+` 원형 버튼을 드러낸다. 버튼은 해당 위치에 새 수업 일정을 삽입하고 필요한 만큼 뒤 일정을 늦춰 순서를 보존한다. `쉬는 시간`과 `점심시간` 유형은 이름을 각각 같은 문구로 고정한다. 공간 이동은 `transform`·`opacity`만 사용하고 동작 줄이기에서는 즉시 상태를 바꾼다.

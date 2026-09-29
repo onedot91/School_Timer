@@ -1,7 +1,7 @@
 import { isReadOnlyDataMode } from './dataMode.js';
 import { isSupabaseSettingsEnabled } from './supabaseConfig.js';
 import { createBrowserRequestId } from './requestId.js';
-import { classifySaveFailure, parseSaveFailureAlert, parseSaveFailureDiagnostics, SAVE_FAILURE_POLL_MS, type SaveFailureAlert, type SaveFailureCode, type SaveFailureFeature, type SaveFailureDiagnostics } from './saveFailure.js';
+import { classifySaveFailure, parseSaveFailureAlert, parseSaveFailureDiagnostics, type SaveFailureAlert, type SaveFailureCode, type SaveFailureFeature, type SaveFailureDiagnostics } from './saveFailure.js';
 import { collectSaveFailureDiagnostics } from './saveFailureDiagnostics.js';
 import { publishStorageAvailability } from './storageAvailability.js';
 import { captureStorageResponseContext } from './storageResponseOrder.js';
@@ -13,6 +13,8 @@ let deferredMemory: SaveFailureAlert[] = [];
 let deferredDirty = false;
 const deferredErrors = new WeakSet<object>();
 export const SAVE_FAILURE_CHANGE_EVENT = 'school-timer-save-failure-change';
+const SAVE_FAILURE_READ_TIMEOUT_MS = 12_000;
+const SAVE_FAILURE_ACKNOWLEDGE_TIMEOUT_MS = 20_000;
 let memory: SaveFailureAlert[] = [];
 let flushing = false;
 let memoryDirty = false;
@@ -45,7 +47,7 @@ export const flushSaveFailureReports = async () => {
       try {
         const result = await fetch('/api/save-alerts', {
           method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(alert), signal: AbortSignal.timeout(8000),
+          body: JSON.stringify(alert), signal: AbortSignal.timeout(SAVE_FAILURE_READ_TIMEOUT_MS),
         });
         if (!result.ok) break;
         writeLocal(readLocal().filter((item) => item.id !== alert.id));
@@ -202,7 +204,7 @@ export const startSaveFailureReporting = () => {
 
 export const loadSaveFailureAlerts = async (): Promise<{ alerts: SaveFailureAlert[]; hasMore: boolean }> => {
   if (!isSupabaseSettingsEnabled) return { alerts: readLocal().filter((item) => item.acknowledgedAt === null), hasMore: false };
-  const response = await fetch('/api/save-alerts', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(SAVE_FAILURE_POLL_MS) });
+  const response = await fetch('/api/save-alerts', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(SAVE_FAILURE_READ_TIMEOUT_MS) });
   if (!response.ok) throw new Error('SAVE_ALERTS_UNAVAILABLE');
   const value: unknown = await response.json();
   if (!value || typeof value !== 'object' || !Array.isArray(Reflect.get(value, 'alerts')) || typeof Reflect.get(value, 'hasMore') !== 'boolean') throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
@@ -220,7 +222,7 @@ export const acknowledgeSaveFailure = async (alert: SaveFailureAlert) => {
   }
   const response = await fetch('/api/save-alerts', {
     method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'acknowledge', alert }), signal: AbortSignal.timeout(8000),
+    body: JSON.stringify({ action: 'acknowledge', alert }), signal: AbortSignal.timeout(SAVE_FAILURE_ACKNOWLEDGE_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error('SAVE_ALERT_ACKNOWLEDGE_FAILED');
 };
@@ -240,7 +242,7 @@ export const acknowledgeAllSaveFailures = async (onProgress: (count: number) => 
   do {
     const response = await fetch('/api/save-alerts', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'acknowledgeAll', before }), signal: AbortSignal.timeout(20000),
+      body: JSON.stringify({ action: 'acknowledgeAll', before }), signal: AbortSignal.timeout(SAVE_FAILURE_ACKNOWLEDGE_TIMEOUT_MS),
     });
     if (!response.ok) throw new Error('SAVE_ALERT_ACKNOWLEDGE_FAILED');
     const value: unknown = await response.json();

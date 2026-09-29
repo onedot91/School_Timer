@@ -21730,6 +21730,30 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   line-height: 1.15;
 }
 
+.student-today-friend-view .today-friend-form-actions button[type='submit'][data-submitted='true'] {
+  border-width: 1px;
+  color: var(--today-friend-theme-ink);
+  background: color-mix(in srgb, var(--today-friend-theme-soft) 68%, var(--today-friend-theme-paper));
+  box-shadow: none;
+}
+
+.today-friend-submit-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .12rem .45rem;
+  border-radius: var(--apple-radius-pill);
+  background: color-mix(in srgb, var(--today-friend-theme-paper) 76%, white);
+  font-size: .8em;
+  line-height: 1.35;
+}
+
+.today-friend-submit-status svg {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+}
+
 .today-friend-form-actions button[type='submit'] small {
   color: inherit;
   font-size: .72rem;

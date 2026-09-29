@@ -227,7 +227,6 @@ export default function StudentTodayFriendPage({
 
         <section className="student-today-friend-guide" data-genre={displayedMission.genre} aria-label={`${TODAY_FRIEND_GENRE_LABELS[displayedMission.genre]} 미션`}>
           {displayedMission.question ? <aside className="today-friend-question"><span>질문</span><strong>{displayedMission.question}</strong></aside> : null}
-          {status === 'submitted' ? <aside className="today-friend-status-card" data-status="submitted"><Clock3 aria-hidden="true" /><strong>선생님 확인 대기</strong></aside> : null}
           {status === 'approved' ? <aside className="today-friend-status-card" data-status="approved"><CheckCircle2 aria-hidden="true" /><span><strong>오늘의 친구 미션 완료!</strong><small>{TODAY_FRIEND_REWARD}고마 지급 완료</small></span></aside> : null}
           {status === 'approved' && displayedMission.submission ? (
             <TodayFriendSubmittedAnswer payload={displayedMission.submission.payload} />

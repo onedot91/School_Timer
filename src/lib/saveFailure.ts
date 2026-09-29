@@ -48,7 +48,8 @@ export const parseSaveFailureDiagnostics = (value: unknown): SaveFailureDiagnost
   const result: SaveFailureDiagnostics = {};
   for (const field of ['errorCode', 'causeCode'] as const) {
     const code = Reflect.get(value, field);
-    if (typeof code === 'string' && /^(?:SHARED_|STUDENT_|QUESTION_|LIBRARY_|CLASSWORD_|TODAY_FRIEND_|WEEKLY_MISSIONS?_|DEVICE_|ANNOUNCEMENT_|CLASS_DONATION_|LOCAL_|AUCTION_|INVALID_|CROSS_SITE_|RATE_LIMIT_|STORAGE)[A-Z0-9_]{1,64}$/.test(code)) result[field] = code;
+    if (typeof code === 'string' && (/^(?:SHARED_|STUDENT_|QUESTION_|LIBRARY_|CLASSWORD_|TODAY_FRIEND_|WEEKLY_MISSIONS?_|DEVICE_|ANNOUNCEMENT_|CLASS_DONATION_|LOCAL_|AUCTION_|INVALID_|CROSS_SITE_|RATE_LIMIT_|STORAGE)[A-Z0-9_]{1,64}$/.test(code)
+      || code === 'TEACHER_SETTING_CONFLICT' || code === 'RESOURCE_REVISION_CONFLICT')) result[field] = code;
   }
   const status = Reflect.get(value, 'httpStatus');
   if (Number.isInteger(status) && status >= 400 && status <= 599) result.httpStatus = status;
