@@ -54,11 +54,12 @@ test('전용 저장 클라이언트는 운영 거절과 저장 미확인을 구�
     }
     for (const makeResponse of [() => Response.json({ error: 'UNKNOWN_FAILURE' }, { status: 503 }), () => Response.json(null)]) {
       response = makeResponse;
-      for (const save of saves.slice(0, 3)) {
+      for (const [index, save] of saves.slice(0, 3).entries()) {
         calls.length = 0; availability.dismissStorageAvailabilityNotice();
         await assert.rejects(save, /CONFIRMATION_REQUIRED/);
         assert.equal(calls.filter(call => call.method !== 'GET').length, 1);
-        assert.ok(calls.some(call => call.method === 'GET'));
+        if (index === 1) assert.equal(calls.filter(call => call.method === 'GET').length, 0, 'offline economy receipts wait for reconnection');
+        else assert.ok(calls.some(call => call.method === 'GET'));
         assert.equal(availability.getStorageAvailabilityNotice(), null);
       }
       for (const save of saves.slice(3)) {

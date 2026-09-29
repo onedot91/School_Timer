@@ -24,6 +24,24 @@ const committedReceipt = async (action: unknown) => {
   return { status: 'committed', action: 'student-economy', payloadHash, committedAt: '2026-09-09T00:00:00Z', result: await successfulResponse().json() };
 };
 
+test('오프라인 감지 후에는 즉시 영수증 조회를 소진하지 않고 실제 조회 횟수를 보고한다', async context => {
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: false } });
+  const methods: string[] = [];
+  context.mock.method(globalThis, 'fetch', async (_input: unknown, init?: RequestInit) => {
+    methods.push(init?.method ?? 'GET');
+    throw new TypeError('Load failed');
+  });
+  try {
+    await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'deposit', amount: 30 }, requestId: 'offline-economy' }),
+      (error: unknown) => error instanceof StudentEconomyRequestError && error.code === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED'
+        && Reflect.get(error, 'retryCount') === 0);
+    assert.deepEqual(methods, ['POST']);
+  } finally {
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
+  }
+});
+
 test('학생 거래는 v2 요청을 한 번 보내고 업무 거절은 재전송하지 않는다', async () => {
   const originalFetch = globalThis.fetch;
   const bodies: unknown[] = [];

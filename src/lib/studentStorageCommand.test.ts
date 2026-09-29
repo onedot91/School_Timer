@@ -137,6 +137,43 @@ const commandBody = (init?: RequestInit): Record<string, unknown> => {
   return value;
 };
 
+test('끊긴 고마 거래는 보관한 요청의 영수증만 확인하고 확정된 뒤 초안을 해제한다', async () => {
+  await withCommandBrowser(10, async () => {
+    const action = { type: 'deposit' as const, amount: 30 };
+    const methods: string[] = [];
+    let requestId: unknown;
+    let receiptReads = 0;
+    const bytes = new TextEncoder().encode(canonicalStorageJson({ action: 'student-economy', payload: { studentNumber: 10, action } }));
+    const payloadHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(byte => byte.toString(16).padStart(2, '0')).join('');
+    globalThis.fetch = async (input, init) => {
+      methods.push(init?.method ?? 'GET');
+      if (init?.method === 'POST') { requestId = commandBody(init).requestId; throw new TypeError('connection lost'); }
+      const query = new URL(String(input), 'https://fixture.invalid').searchParams;
+      assert.equal(query.get('requestId'), requestId);
+      assert.equal(query.get('studentNumber'), '10');
+      if (!query.has('receiptOnly')) return Response.json({ error: 'DISPLAY_REFRESH_UNAVAILABLE' }, { status: 503 });
+      receiptReads++;
+      if (receiptReads === 1) throw new TypeError('still reconnecting');
+      if (receiptReads === 2) return Response.json({ status: 'unknown' });
+      return Response.json({ status: 'committed', action: 'student-economy', payloadHash,
+        committedAt: '2026-09-29T03:11:15Z', result: { message: 'saved', applied: true } });
+    };
+    await assert.rejects(executeStudentEconomyWithDraft(10, action), /CONFIRMATION_REQUIRED/);
+    assert.deepEqual(methods, ['POST']);
+    assert.equal(hasUnconfirmedStudentEconomyDraft(10), true);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await runSaveRecoveryPass(10);
+      assert.equal(result.failed, true);
+      assert.equal(result.pending, 1);
+      assert.equal(hasUnconfirmedStudentEconomyDraft(10), true);
+    }
+    const result = await runSaveRecoveryPass(10);
+    assert.equal(result.pending, 0);
+    assert.equal(hasUnconfirmedStudentEconomyDraft(10), false);
+    assert.deepEqual(methods, ['POST', 'GET', 'GET', 'GET', 'GET']);
+  });
+});
+
 test('고마 수동 재확인은 권한·요청 충돌·호출 제한 오류에서 POST하지 않는다', async () => {
   for (const [actor, status] of [[11, 401], [12, 409], [13, 429]]) {
     await withCommandBrowser(actor, async storage => {

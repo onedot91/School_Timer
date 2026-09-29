@@ -1,4 +1,4 @@
-import { deferSaveFailure, getSaveFailureFeature, reportDeferredSaveFailure, resolveDeferredSaveFailure } from './saveFailureClient.js';
+import { deferSaveFailure, reportDeferredSaveFailure, resolveDeferredSaveFailure } from './saveFailureClient.js';
 import { appDataMode } from './dataMode.js';
 import { captureStorageResponseContext, isStorageResponseContextCurrent } from './storageResponseOrder.js';
 import { getSaveFailureScopeFeature as recoveryFeature, type SaveFailureFeature } from './saveFailure.js';
@@ -183,16 +183,21 @@ const runSaveRecoveryPassInternal = async (actor: number, isCurrent: () => boole
           } else {
             pending += 1;
             issues.push({ feature: recoveryFeature(request.feature), reason: request.mode === 'confirm-only' ? 'confirmation' : 'context', ...transaction });
+            // An unknown receipt can precede a late commit. Only poll; never repeat the financial write.
+            if (request.mode === 'confirm-only') {
+              failed = true;
+              failedRequests.push(request);
+            }
           }
         } catch (error) {
           pending += 1;
           const status: unknown = error instanceof Error ? Reflect.get(error, 'status') : undefined;
           issues.push({ feature: recoveryFeature(request.feature), reason: 'error', ...transaction,
             ...(typeof status === 'number' && Number.isInteger(status) && status >= 400 && status <= 599 ? { httpStatus: status } : {}) });
-          if (request.mode === 'automatic' && adapter.eligible(request) && canRetrySaveError(error)) {
+          if ((request.mode === 'confirm-only' || adapter.eligible(request)) && canRetrySaveError(error)) {
             failed = true;
             failedRequests.push(request);
-            deferSaveFailure(getSaveFailureFeature(), error, actor, { requestId: request.id, stage: 'recovery' });
+            deferSaveFailure(recoveryFeature(request.feature), error, actor, { requestId: request.id, stage: 'recovery' });
           } else reportDeferredSaveFailure(actor, request.id, { stage: 'recovery' });
           const delay: unknown = error instanceof Error ? Reflect.get(error, 'retryAfterMs') : undefined;
           if (typeof delay === 'number' && Number.isFinite(delay) && delay > 0) {

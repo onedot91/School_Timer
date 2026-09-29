@@ -38,9 +38,9 @@ test('financial confirmation and expired context never automatically repeat a mu
   try {
     const result = await runSaveRecoveryPass(3);
     assert.equal(result.pending, 2);
-    assert.equal(result.failed, false);
+    assert.equal(result.failed, true, 'an unknown financial receipt should be polled again');
     assert.equal(result.retryAfterMs, 0);
-    assert.deepEqual(result.failedRequests, []);
+    assert.deepEqual(result.failedRequests, [money]);
     assert.deepEqual(calls, ['confirm:purchase-unchanged', 'confirm:yesterday-answer']);
     assert.deepEqual(getSaveRecoveryStatus(3).issues, [
       { feature: 'economy', reason: 'confirmation' },
@@ -105,7 +105,9 @@ test('manual confirmation preserves pending reasons without exposing raw errors 
     retry: async () => assert.fail('confirmation-only request must not be sent again'),
   });
   try {
-    await requestSaveRecovery(3);
+    const result = await requestSaveRecovery(3);
+    assert.equal(result.failed, true, 'receipt reads retry even when repeating the mutation is ineligible');
+    assert.deepEqual(result.failedRequests.map(value => value.id), ['private-request-id']);
     assert.equal(getSaveRecoveryStatus(3).pending, 1);
     assert.deepEqual(getSaveRecoveryStatus(3).issues, [{ feature: 'settings', reason: 'error', httpStatus: 502 }]);
     committed = true;
@@ -113,6 +115,23 @@ test('manual confirmation preserves pending reasons without exposing raw errors 
     assert.equal(getSaveRecoveryStatus(3).pending, 0);
     assert.deepEqual(getSaveRecoveryStatus(3).issues, []);
   } finally { remove(); }
+});
+
+test('financial receipt authorization and identity errors stop without repeating reads or writes', async () => {
+  for (const status of [401, 403, 409]) {
+    const remove = registerSaveRecoveryAdapter({
+      id: 'test-financial-permanent-error', list: async () => [request(`denied-${status}`, 'confirm-only')],
+      eligible: () => false,
+      confirm: async () => { throw Object.assign(new Error('denied'), { status }); },
+      retry: async () => assert.fail('financial writes cannot be automatic'),
+    });
+    try {
+      const result = await runSaveRecoveryPass(3);
+      assert.equal(result.pending, 1);
+      assert.equal(result.failed, false);
+      assert.deepEqual(result.failedRequests, []);
+    } finally { remove(); }
+  }
 });
 
 test('retry backoff is jittered, capped at thirty seconds, and obeys a longer Retry-After', () => {

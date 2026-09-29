@@ -214,10 +214,14 @@ export const retryStudentEconomyRequest = async ({
         ? error.status === 408 || error.status >= 500
         : error instanceof Error && (['TypeError', 'TimeoutError', 'AbortError', 'SyntaxError'].includes(error.name) || error.message === 'STUDENT_ECONOMY_INVALID_RESPONSE');
       if (!uncertain) throw error;
+      let receiptAttempts = 0;
       for (let confirmationAttempt = 0; confirmationAttempt < 3; confirmationAttempt += 1) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
         if (confirmationAttempt) await new Promise(resolve => setTimeout(resolve, 250 * 2 ** (confirmationAttempt - 1) + Math.random() * 250));
         if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
         try {
+          receiptAttempts += 1;
           const committed = await loadStudentEconomyReceipt(studentNumber, requestId, action, context);
           if (committed) return { result: committed };
         } catch (confirmationError) {
@@ -229,7 +233,7 @@ export const retryStudentEconomyRequest = async ({
       }
       if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
       throw Object.assign(new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504, { cause: error }), {
-        stage: 'receipt', retryCount: 3,
+        stage: 'receipt', retryCount: receiptAttempts,
       });
     } finally { clearTimeout(timeout); }
   }, studentNumber, { requestId });
