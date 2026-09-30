@@ -73,7 +73,8 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
       [...auction, 'auctionArchives', 'studentEconomy', 'studentStockMarket', 'teacherWeeklySettlements'].forEach(name => field(name)); money(allStudents);
     } else if (action === 'teacher.mail.send') {
       (legacyReceipt ? allStudents : validMailStudents(input.recipients)).forEach(number => mail(number));
-    } else if (action === 'teacher.mail.read') mail(0);
+    } else if (action === 'teacher.mail.delete') add({ path: '/studentLife/letters' });
+    else if (action === 'teacher.mail.read') mail(0);
     else if (action === 'teacher.writing.publish') { field('dailyWriting'); allStudents.forEach(number => mail(number)); }
     else if (action === 'teacher.writing.reward' || action === 'teacher.writing.cancel') { field('dailyWriting'); money(target); }
     else if (action === 'teacher.donation.reset') { field('classDonation'); field('classDonationArchives'); }

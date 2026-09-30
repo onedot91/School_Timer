@@ -4085,6 +4085,7 @@ export default function TimerPage() {
   const teacherLetterReadInFlightRef = useRef<Set<string>>(new Set());
   const mailConversationEndRef = useRef<HTMLDivElement>(null);
   const [isMailSending, setIsMailSending] = useState(false);
+  const [isMailDeleting, setIsMailDeleting] = useState(false);
   const [mailStatus, setMailStatus] = useState('');
   const [auctionItemEditCommitVersion, setAuctionItemEditCommitVersion] = useState(0);
   const isEditingAuctionItemRef = useRef(false);
@@ -9660,6 +9661,29 @@ export default function TimerPage() {
     }
   };
 
+  const deleteTeacherLetter = async (letterId: string) => {
+    if (isMailDeleting || !window.confirm('이 편지를 삭제할까요? 학생 화면에서도 삭제되며 복구할 수 없습니다.')) return;
+    setIsMailDeleting(true);
+    setMailStatus('');
+    try {
+      if (isSupabaseSettingsEnabled) {
+        const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.mail.delete', payload: { letterId } });
+        if (saved.value) setStudentLife(normalizeCurrentStudentLifeState(saved.value.studentLife));
+        setMailStatus(saved.refreshPending ? '저장됨 · 화면 갱신 중' : '편지를 삭제했습니다.');
+      } else {
+        const current = loadStoredStudentLifeState();
+        const saved = { ...current, letters: current.letters.filter(letter => letter.id !== letterId) };
+        storeStudentLifeState(saved);
+        setStudentLife(saved);
+        setMailStatus('편지를 삭제했습니다.');
+      }
+    } catch {
+      setMailStatus('편지 삭제 결과를 확인하지 못했습니다. 새로고침 후 확인해 주세요.');
+    } finally {
+      setIsMailDeleting(false);
+    }
+  };
+
   const markTeacherLettersAsRead = async (letterIds: readonly string[]) => {
     const pendingLetterIds = letterIds.filter((letterId) => !teacherLetterReadInFlightRef.current.has(letterId));
     if (pendingLetterIds.length === 0) return;
@@ -10393,6 +10417,9 @@ export default function TimerPage() {
                 {letter.title ? <h4>{letter.title}</h4> : null}
                 <p>{letter.content}</p>
                 <time dateTime={letter.createdAt}>{formatTeacherLetterDate(letter.createdAt)}</time>
+                <button type="button" className="teacher-mail-delete-button" aria-label={`${letter.title || '편지'} 삭제`} disabled={isMailDeleting} onClick={() => void deleteTeacherLetter(letter.id)}>
+                  <Trash2 size={14} aria-hidden="true" />삭제
+                </button>
               </article>
             );
           })}

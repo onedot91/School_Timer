@@ -12,6 +12,18 @@ const apply = (value: unknown, action: string, payload: unknown, id = context.re
   assert.ok(result);
   return result;
 };
+test('teacher deletes only the selected letter and repeated deletion is safe', () => {
+  const letters = Array.from({ length: 700 }, (_, index) => ({ id: `letter-${index}`, recipient: index % 2 + 1,
+    senderLabel: '선생님', senderStudentNumber: null, title: '', content: '테스트', createdAt: context.createdAt, readAt: null }));
+  const first = apply({ studentLife: { letters } }, 'teacher.mail.delete', { letterId: 'letter-1' }).value;
+  assert.ok(first.studentLife && typeof first.studentLife === 'object');
+  const life = Object.fromEntries(Object.entries(first.studentLife));
+  assert.ok(Array.isArray(life.letters));
+  assert.equal(life.letters.length, 699);
+  assert.deepEqual(life.letters.map(letter => letter.id).sort(), letters.filter(letter => letter.id !== 'letter-1').map(letter => letter.id).sort());
+  assert.deepEqual(apply(first, 'teacher.mail.delete', { letterId: 'letter-1' }).value, first);
+  assert.throws(() => apply(first, 'teacher.mail.delete', { letterId: '' }));
+});
 test('latest-bid finalization uses the authoritative winner and amount despite stale teacher display', () => {
   const current = { auctionBids: { 'item-a': { bidder: 2, amount: 30 } }, currencyBalances: { '1': 100, '2': 100 } };
   assert.throws(() => apply(current, 'teacher.auction.finalize', {

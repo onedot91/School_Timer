@@ -171,6 +171,13 @@ export const applyTeacherStorageCommand = (
       id: `${senderLabel === '선생님' ? '' : 'teacher-character-'}${context.requestId}-${recipient}`, recipient, senderLabel, senderStudentNumber: null, title, content, createdAt: context.createdAt,
     }))) });
   }
+  if (action === 'teacher.mail.delete') {
+    const letterId = text(payload.letterId, 150);
+    if (!letterId) return invalid();
+    const life = isStorageRecord(current.studentLife) ? current.studentLife : {};
+    const letters = Array.isArray(life.letters) ? life.letters : [];
+    return { value: { ...current, studentLife: { ...life, letters: letters.filter(letter => !isStorageRecord(letter) || letter.id !== letterId) } }, result: null };
+  }
   if (action === 'teacher.mail.read') {
     if (!Array.isArray(payload.letterIds) || payload.letterIds.length > 600) return invalid();
     return finish({ ...current, studentLife: markTeacherLettersRead(pruneExpiredStudentLetters(normalizeStudentLifeState(current.studentLife), context.createdAt),
