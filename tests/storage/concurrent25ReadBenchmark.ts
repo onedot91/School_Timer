@@ -5,11 +5,15 @@ import { fakeClassroom, fixtureCookie, startHttpHarness } from './httpHarness.js
 import { isStorageRecord, splitStorageState } from '../../src/lib/storageV2Codec.js';
 
 const boundedScopePlan = process.argv.includes('--bounded-scope-plan');
-const reuseReadVersion = boundedScopePlan || process.argv.includes('--reuse-read-version');
+const pollingLoad = process.argv.includes('--polling-load');
+const baselinePath = process.argv[process.argv.indexOf('--baseline-sql') + 1];
+if (pollingLoad && (!process.argv.includes('--baseline-sql') || !baselinePath || baselinePath.startsWith('--')))
+  throw new Error('Pass --baseline-sql <saved pre-change storage_scoped_polling.sql>');
+const reuseReadVersion = pollingLoad || boundedScopePlan || process.argv.includes('--reuse-read-version');
 const pollingSql = await readFile(new URL('../../supabase/storage_scoped_polling.sql', import.meta.url), 'utf8');
 const optimizedReadVersionStart = pollingSql.indexOf("'readVersion',md5(");
 const optimizedReadVersionEnd = pollingSql.indexOf("    'resources',", optimizedReadVersionStart);
-const baselinePollingSql = boundedScopePlan ? pollingSql
+const baselinePollingSql = pollingLoad ? await readFile(baselinePath, 'utf8') : boundedScopePlan ? pollingSql
   .replace('select r.* from public.storage_resources r where r.resource_key in(select resource_key from closure)', 'select r.* from public.storage_resources r join closure c using(resource_key)')
   .replace("union select 'scope:'||category||':all' from nodes\n    union select 'scope:'||category||':'||coalesce(owner_number::text,'shared') from nodes\n    union select 'collection:'||(value->>'parentKey') from nodes where value->>'parentKey' is not null", 'union select public.storage_scope_keys(category,owner_number,value) from nodes')
   : pollingSql.slice(0, optimizedReadVersionStart)
@@ -46,7 +50,7 @@ const percentile = (values: number[], fraction: number) => Math.round([...values
 const canonical = (input: unknown): unknown => {
   if (Array.isArray(input)) return input.map(canonical);
   if (!isStorageRecord(input)) return input;
-  return Object.fromEntries(Object.keys(input).sort().map(key => {
+  return Object.fromEntries(Object.keys(input).filter(key => key !== 'readMarker').sort().map(key => {
     const value = input[key];
     if (['resources', 'wallets', 'history', 'deletedKeys'].includes(key) && Array.isArray(value)) {
       return [key, value.map(canonical).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))];
@@ -66,6 +70,36 @@ const edgeScopes = [
   { resources: [{ path: '/studentEconomy', students: [1, 2] }, { path: '/studentEconomy', students: [2, 3] }], wallets: [1, 2, 3], history: [1, 2, 3], writeResources: [], writeWallets: [], revisionKeys: ['wallet:23'] },
 ];
 const edgeSnapshots = async () => Promise.all(edgeScopes.map(async scope => canonical((await harness.query('select storage_load_scope($1) result', [scope])).rows[0]?.result)));
+const metadataSnapshots = async () => Promise.all([...scopes.values(), ...edgeScopes].map(async scope =>
+  canonical((await harness.query('select storage_load_scope_metadata($1) result', [scope])).rows[0]?.result)));
+const measurePolling = async (label: string, cheap: boolean) => {
+  process.env.STORAGE_SCOPED_POLLING = '1';
+  const knownUpdatedAt = (await harness.query('select storage_load_updated_at() result')).rows[0]?.result;
+  assert.equal(typeof knownUpdatedAt, 'string');
+  const marker = cheap ? (await harness.query('select storage_load_read_marker() result')).rows[0]?.result : undefined;
+  if (cheap) assert.ok(isStorageRecord(marker) && typeof marker.readMarker === 'string');
+  harness.metrics.length = 0;
+  const times: number[] = [];
+  for (let round = 0; round < 5; round++) await Promise.all(actors.map(async actor => {
+    const started = performance.now();
+    const response = await fetch(`${harness.baseUrl}/api/shared-settings?metadata=1&scoped=1${cheap
+      ? `&knownReadMarker=${isStorageRecord(marker) ? marker.readMarker : ''}` : ''}`, {
+      headers: { Cookie: fixtureCookie(actor) }, signal: AbortSignal.timeout(15_000),
+    });
+    const body: unknown = await response.json();
+    assert.equal(response.status, 200);
+    assert.ok(isStorageRecord(body));
+    assert.equal(body.updatedAt, knownUpdatedAt);
+    if (actor) assert.equal(cheap ? body.unchanged : typeof body.readVersion === 'string', true);
+    times.push(performance.now() - started);
+  }));
+  const result = { label, requests: times.length, p95Ms: percentile(times, .95),
+    scopedMetadataCalls: harness.metrics.filter(item => item.rpc === 'storage_load_scope_metadata').length,
+    timestampCalls: harness.metrics.filter(item => item.rpc === 'storage_load_updated_at').length,
+    markerCalls: harness.metrics.filter(item => item.rpc === 'storage_load_read_marker').length };
+  console.log(JSON.stringify(result));
+  if (cheap) assert.equal(result.scopedMetadataCalls, 0);
+};
 const measure = async (label: string, rounds = 3, pauseMs = 0) => {
   harness.metrics.length = 0;
   const latencies: number[] = [], failures: string[] = [];
@@ -123,6 +157,8 @@ try {
   assert.equal(scopes.size, 23);
   const before = await snapshots();
   const edgeBefore = await edgeSnapshots();
+  const metadataBefore = pollingLoad ? await metadataSnapshots() : undefined;
+  if (pollingLoad) await measurePolling('baseline-unchanged-polling', false);
   const baselineSql = reuseReadVersion ? baselinePollingSql : await readFile(new URL('../../supabase/storage_scoped_v2.sql', import.meta.url), 'utf8');
   const query = baselineSql.slice(baselineSql.indexOf('  with recursive selected'), baselineSql.indexOf('  return output;')).replace(' into output;', ';').replaceAll('p_scope', '$1::jsonb');
   const explain = async (sql: string, label: string) => {
@@ -137,6 +173,17 @@ try {
     const after = await snapshots();
     assert.deepEqual(after, before, 'scope resources, history, wallet, revisions, ordering bounds and timestamp must match for all 23 students');
     assert.deepEqual(await edgeSnapshots(), edgeBefore, 'overlapping selectors, mailbox directions, multi-student scope and empty scope must match');
+    if (pollingLoad) {
+      const markerPermissions = (await harness.query(`select has_function_privilege('anon','storage_load_read_marker()','execute') anon,
+        has_function_privilege('authenticated','storage_load_read_marker()','execute') authenticated,
+        has_function_privilege('service_role','storage_load_read_marker()','execute') service_role,
+        has_function_privilege('anon','storage_read_marker()','execute') helper_anon,
+        has_function_privilege('authenticated','storage_read_marker()','execute') helper_authenticated`)).rows[0];
+      assert.deepEqual(markerPermissions, { anon: false, authenticated: false, service_role: true, helper_anon: false, helper_authenticated: false });
+      console.log(JSON.stringify({ markerPermissions }));
+      assert.deepEqual(await metadataSnapshots(), metadataBefore, 'scoped metadata and full snapshot readVersion must remain identical');
+      await measurePolling('optimized-unchanged-polling', true);
+    }
     await assert.rejects(harness.query('select storage_load_scope($1)', [{ ...edgeScopes[0], wallets: [24] }]), /STORAGE_SCOPE_VIOLATION/);
     const optimizedQuery = optimizedSql.slice(optimizedSql.indexOf('  with recursive selected'), optimizedSql.indexOf('  return output;')).replace(' into output;', ';').replaceAll('p_scope', '$1::jsonb');
     if (!reuseReadVersion) await explain(optimizedQuery, 'optimized');
@@ -153,6 +200,22 @@ try {
     console.log(JSON.stringify({ equalityAcross23Scopes: true, edgeScopesEquivalent: edgeScopes.length, invalidScopeRejected: true,
       arrayOrder: 'compared by resource identity; stored order and sort_order included', permissions,
       p95ImprovementPercent: Math.round((1 - (optimized.p95Ms + repeat.p95Ms) / (baseline.p95Ms + reverted.p95Ms)) * 100) }));
+    if (pollingLoad) {
+      await harness.query("update storage_resources set updated_at='2030-01-01T00:00:00Z' where resource_key='/scheduleNotice'");
+      const beforeMarker = (await harness.query('select storage_load_read_marker() result')).rows[0]?.result;
+      assert.ok(isStorageRecord(beforeMarker));
+      const beforeVersions = await metadataSnapshots();
+      const changed = await harness.query("update storage_resources set revision=revision+1,updated_at='2028-01-01T00:00:00Z' where resource_key='/studentEconomy/1' returning resource_key");
+      assert.equal(changed.rows.length, 1);
+      const afterMarker = (await harness.query('select storage_load_read_marker() result')).rows[0]?.result;
+      assert.ok(isStorageRecord(afterMarker));
+      assert.equal(afterMarker.updatedAt, beforeMarker.updatedAt);
+      assert.notEqual(afterMarker.readMarker, beforeMarker.readMarker);
+      const afterVersions = await metadataSnapshots();
+      assert.notDeepEqual(afterVersions[0], beforeVersions[0]);
+      assert.deepEqual(afterVersions[1], beforeVersions[1]);
+      console.log(JSON.stringify({ lateCommitDetectedWithUnchangedTimestamp: true, otherStudentVersionPreserved: true }));
+    }
     if (process.argv.includes('--soak')) await measure('optimized-soak', 60, 2_000);
   }
 } finally {

@@ -69,6 +69,7 @@ test('scoped polling derives its scope from the session and preserves the teache
     globalThis.fetch = async (input, init) => {
       requests.push(String(input));
       if (String(input).endsWith('/storage_load_updated_at')) return Response.json('2026-09-16T00:00:00Z');
+      if (String(input).endsWith('/storage_load_read_marker')) return Response.json({ updatedAt: '2026-09-16T00:00:00Z', readMarker: 'c'.repeat(32) });
       assert.ok(String(input).endsWith('/storage_load_scope_metadata'));
       const body = JSON.parse(String(init?.body));
       assert.deepEqual(body.p_scope.wallets, [7]);
@@ -82,6 +83,25 @@ test('scoped polling derives its scope from the session and preserves the teache
       await handler({ method: 'GET', headers: studentHeaders(7), query: { metadata: '1', scoped: '1', studentNumber: '8' } }, student.response);
       assert.equal(student.result().statusCode, 200);
       assert.equal(Reflect.get(student.result().body as object, 'readVersion'), 'a'.repeat(32));
+      const cheapStart = requests.length;
+      const unchanged = createResponse();
+      await handler({ method: 'GET', headers: studentHeaders(7), query: {
+        metadata: '1', scoped: '1', knownReadMarker: 'c'.repeat(32),
+      } }, unchanged.response);
+      assert.deepEqual(unchanged.result().body, { updatedAt: '2026-09-16T00:00:00Z', readMarker: 'c'.repeat(32), unchanged: true });
+      assert.deepEqual(requests.slice(cheapStart).map(url => url.split('/').at(-1)), ['storage_load_read_marker']);
+      const changedStart = requests.length;
+      const changed = createResponse();
+      await handler({ method: 'GET', headers: studentHeaders(7), query: {
+        metadata: '1', scoped: '1', knownReadMarker: 'd'.repeat(32), studentNumber: '8',
+      } }, changed.response);
+      assert.equal(Reflect.get(changed.result().body as object, 'readVersion'), 'a'.repeat(32));
+      assert.deepEqual(requests.slice(changedStart).map(url => url.split('/').at(-1)), ['storage_load_read_marker', 'storage_load_scope_metadata']);
+      const invalidStart = requests.length;
+      await handler({ method: 'GET', headers: studentHeaders(7), query: {
+        metadata: '1', scoped: '1', knownReadMarker: 'invalid',
+      } }, createResponse().response);
+      assert.deepEqual(requests.slice(invalidStart).map(url => url.split('/').at(-1)), ['storage_load_scope_metadata']);
       const teacher = createResponse();
       await handler({ method: 'GET', headers: teacherHeaders(), query: { metadata: '1', scoped: '1' } }, teacher.response);
       assert.equal(teacher.result().statusCode, 200);

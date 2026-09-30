@@ -5770,6 +5770,11 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   z-index: 1;
   gap: 0.35rem;
   padding: 0.1rem 0 0.3rem;
+  padding-bottom: 4.5rem;
+}
+
+.announcement-stage-with-awards {
+  padding-right: 17rem;
 }
 
 .announcement-toolbar {
@@ -6376,6 +6381,23 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   pointer-events: none;
 }
 
+.announcement-award-sidebar {
+  position: absolute;
+  right: 0;
+  bottom: 4.2rem;
+  width: 16rem;
+}
+
+.announcement-award-list {
+  max-height: min(28rem, calc(100dvh - 14rem));
+}
+
+@media (max-width: 760px) {
+  .announcement-stage-with-awards { padding-right: 0; padding-bottom: 14rem; }
+  .announcement-award-sidebar { width: min(22rem, calc(100vw - 4rem)); }
+  .announcement-award-list { max-height: 6rem; }
+}
+
 .announcement-note-display,
 .announcement-note-textarea {
   font-family: var(--font-family);
@@ -6844,7 +6866,7 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
 
   .announcement-stage {
     gap: 0.45rem;
-    padding-bottom: 0.15rem;
+    padding-bottom: 4.5rem;
   }
 
   .announcement-toolbar {

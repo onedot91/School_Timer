@@ -5,6 +5,21 @@ import { collectSaveFailureDiagnostics, formatSaveFailureDiagnostic, getSaveFail
 
 const alert: SaveFailureAlert = { id: 'diagnostic-test-123', studentNumber: 4, feature: 'auction', code: 'response', occurredAt: '2026-09-07T01:00:00.000Z', acknowledgedAt: null };
 
+test('공용 저장 확인 실패는 최초 서버 코드와 상태를 보존한다', () => {
+  const cause = Object.assign(new Error('STORAGE_DATABASE_HTTP_503'), { serverCode: 'STORAGE_DATABASE_HTTP_503', status: 503 });
+  const error = Object.assign(new Error('STORAGE_CONFIRMATION_REQUIRED', { cause }), {
+    serverCode: 'STORAGE_CONFIRMATION_REQUIRED', status: 502, endpoint: '/api/shared-settings',
+  });
+  assert.deepEqual(collectSaveFailureDiagnostics(error), {
+    errorCode: 'STORAGE_CONFIRMATION_REQUIRED', causeCode: 'STORAGE_DATABASE_HTTP_503',
+    httpStatus: 503, errorName: 'Error', endpoint: '/api/shared-settings',
+  });
+  const network = Object.assign(new Error('STORAGE_CONFIRMATION_REQUIRED', { cause: new TypeError('private network details') }), {
+    serverCode: 'STORAGE_CONFIRMATION_REQUIRED', status: 502,
+  });
+  assert.deepEqual(collectSaveFailureDiagnostics(network), { errorCode: 'STORAGE_CONFIRMATION_REQUIRED', errorName: 'TypeError' });
+});
+
 test('teacher setting and resource revision conflicts retain their allow-listed cause', () => {
   for (const code of ['TEACHER_SETTING_CONFLICT', 'RESOURCE_REVISION_CONFLICT']) {
     const error = Object.assign(new Error(code), { serverCode: code, status: 409, endpoint: '/api/shared-settings' });

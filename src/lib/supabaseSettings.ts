@@ -25,12 +25,13 @@ export type SettingsRow = {
   scope?: 'full' | 'student';
   storagePatch?: StorageProjectionPatch;
   readVersion?: string;
+  readMarker?: string;
 };
 
 let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
 let settingsCacheGeneration = 0;
 let settingsActorContext: StorageResponseContext | undefined;
-let studentReadState: { version: string; updatedAt: string } | undefined;
+let studentReadState: { version: string; updatedAt: string; marker?: string } | undefined;
 let sharedSettingsRead: {
   actorGeneration: number;
   generation: number;
@@ -178,11 +179,13 @@ const parseSettingsRow = (value: unknown): SettingsRow | null => {
   const scope = Reflect.get(value, 'scope');
   const storagePatch: unknown = Reflect.get(value, 'storagePatch');
   const readVersion: unknown = Reflect.get(value, 'readVersion');
+  const readMarker: unknown = Reflect.get(value, 'readMarker');
   if (id !== SHARED_SETTINGS_ID || !settings || typeof settings !== 'object' || Array.isArray(settings)
     || typeof timestamp !== 'string' || !timestamp
     || (scope !== undefined && scope !== 'student' && scope !== 'full')) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
   return { id, value: settings, updated_at: timestamp, ...(scope === 'student' || scope === 'full' ? { scope } : {}),
     ...(typeof readVersion === 'string' && /^[a-f0-9]{32}$/.test(readVersion) ? { readVersion } : {}),
+    ...(typeof readMarker === 'string' && /^[a-f0-9]{32}$/.test(readMarker) ? { readMarker } : {}),
     ...(storagePatch === undefined ? {} : { storagePatch: parseStorageProjectionPatch(storagePatch) }) };
 };
 
@@ -229,7 +232,7 @@ const fetchSharedSettingsRow = async (context: StorageResponseContext) => {
     if (generation === settingsCacheGeneration && isFresh && (row?.scope === 'full' || row?.scope === 'student')) {
       cachedWritableSharedSettingsRow = row;
       studentReadState = received?.scope === 'student' && received.readVersion && received.updated_at === row.updated_at
-        ? { version: received.readVersion, updatedAt: received.updated_at } : undefined;
+        ? { version: received.readVersion, updatedAt: received.updated_at, marker: received.readMarker } : undefined;
     } else if (generation === settingsCacheGeneration && isFresh && row?.updated_at !== currentTimestamp) {
       cachedWritableSharedSettingsRow = undefined;
     }
@@ -277,11 +280,17 @@ const fetchSharedSettingsUpdatedAt = async (context: StorageResponseContext): Pr
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const readState = studentReadState;
-    const result: unknown = await fetchJson(`/api/shared-settings?metadata=1${readState ? '&scoped=1' : ''}`, undefined, true);
+    const result: unknown = await fetchJson(`/api/shared-settings?metadata=1${readState
+      ? `&scoped=1${readState.marker ? `&knownReadMarker=${readState.marker}` : ''}` : ''}`, undefined, true);
     if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
     if (!isStorageRecord(result) || (result.updatedAt !== null && typeof result.updatedAt !== 'string')) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
+    if (readState?.marker && result.unchanged === true && result.readMarker === readState.marker) {
+      return studentReadState === readState ? readState.updatedAt : null;
+    }
     if (readState && typeof result.readVersion === 'string') {
-      return studentReadState === readState && result.readVersion === readState.version ? readState.updatedAt : null;
+      if (studentReadState !== readState || result.readVersion !== readState.version) return null;
+      readState.marker = typeof result.readMarker === 'string' && /^[a-f0-9]{32}$/.test(result.readMarker) ? result.readMarker : undefined;
+      return readState.updatedAt;
     }
     return typeof result.updatedAt === 'string' ? result.updatedAt : null;
   }

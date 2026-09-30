@@ -31,7 +31,8 @@ export class StorageCommandError extends Error {
     readonly status: number,
     readonly uncertainWrite = false,
     readonly retryAfterMs?: number,
-  ) { super(serverCode); this.businessRejected = [400,403,404,422].includes(status); }
+    options?: ErrorOptions,
+  ) { super(serverCode, options); this.businessRejected = [400,403,404,422].includes(status); }
 }
 
 const record = (value: unknown): Record<string, unknown> | null => (
@@ -139,7 +140,8 @@ export const executeStorageCommand = async (command: StorageCommand, context = c
         }
         if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 200 * 2 ** attempt));
       }
-      throw new StorageCommandError('STORAGE_CONFIRMATION_REQUIRED', 502, true, getSaveRecoveryDelay(command.studentNumber ?? Number(context.actor), command.requestId) || undefined);
+      throw new StorageCommandError('STORAGE_CONFIRMATION_REQUIRED', 502, true,
+        getSaveRecoveryDelay(command.studentNumber ?? Number(context.actor), command.requestId) || undefined, { cause: error });
     }
   }, command.studentNumber, { requestId: command.requestId, deferUntilRecovery, stage: 'write', retryCount: 0 });
   if (!outcome.saved) throw new StorageCommandError('STORAGE_INVALID_RESPONSE', 502, true);

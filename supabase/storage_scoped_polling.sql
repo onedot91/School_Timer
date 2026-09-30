@@ -1,5 +1,19 @@
 begin;
 
+create or replace function public.storage_read_marker() returns text
+language sql stable security definer set search_path=pg_catalog,public set jit=off as $$
+  select md5(jsonb_build_array(
+    (select jsonb_build_array(count(*),coalesce(sum(revision),0)) from public.storage_resources),
+    (select jsonb_build_array(count(*),coalesce(sum(revision),0)) from public.wallet_accounts),
+    (select updated_at from public.storage_control where singleton)
+  )::text)
+$$;
+
+create or replace function public.storage_load_read_marker() returns jsonb
+language sql stable security definer set search_path=pg_catalog,public set jit=off as $$
+  select jsonb_build_object('updatedAt',public.storage_load_updated_at(),'readMarker',public.storage_read_marker())
+$$;
+
 create or replace function public.storage_scope_read_version(p_scope jsonb) returns text
 language plpgsql stable security definer set search_path=pg_catalog,public set jit=off as $$
 declare output text;
@@ -42,7 +56,8 @@ $$;
 
 create or replace function public.storage_load_scope_metadata(p_scope jsonb) returns jsonb
 language sql stable security definer set search_path=pg_catalog,public set jit=off as $$
-  select jsonb_build_object('updatedAt',public.storage_load_updated_at(),'readVersion',public.storage_scope_read_version(p_scope))
+  select jsonb_build_object('updatedAt',public.storage_load_updated_at(),'readVersion',public.storage_scope_read_version(p_scope),
+    'readMarker',public.storage_read_marker())
 $$;
 
 create or replace function public.storage_load_scope(p_scope jsonb) returns jsonb
@@ -106,7 +121,7 @@ begin
     from array_parents p left join public.storage_resources r on r.value->>'parentKey'=p.key and not r.deleted group by p.key
   )
   select jsonb_build_object(
-    'kind','scoped','scope',p_scope,'readVersion',md5(jsonb_build_array(p_scope,
+    'kind','scoped','scope',p_scope,'readMarker',public.storage_read_marker(),'readVersion',md5(jsonb_build_array(p_scope,
       (select updated_at from public.storage_control where singleton),
       coalesce((select jsonb_agg(jsonb_build_array(key,revision,deleted) order by key) from (
         select resource_key key,revision,deleted from nodes
@@ -126,7 +141,8 @@ begin
 end;
 $$;
 
-revoke all on function public.storage_scope_read_version(jsonb),public.storage_load_scope_metadata(jsonb),public.storage_load_scope(jsonb) from public,anon,authenticated;
-grant execute on function public.storage_scope_read_version(jsonb),public.storage_load_scope_metadata(jsonb),public.storage_load_scope(jsonb) to service_role;
+revoke all on function public.storage_read_marker(),public.storage_load_read_marker(),public.storage_scope_read_version(jsonb),public.storage_load_scope_metadata(jsonb),public.storage_load_scope(jsonb) from public,anon,authenticated;
+grant execute on function public.storage_read_marker(),public.storage_load_read_marker(),public.storage_scope_read_version(jsonb),public.storage_load_scope_metadata(jsonb),public.storage_load_scope(jsonb) to service_role;
 
+notify pgrst, 'reload schema';
 commit;

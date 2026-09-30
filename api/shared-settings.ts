@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
 import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
-import { loadScopedStorageSnapshot, loadScopedStorageMetadata, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
+import { loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead, loadScopedStorageMetadata, loadStorageReadMarker, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
 import { TEST_STUDENT_NUMBER } from '../src/lib/studentIdentity.js';
 
 import {
@@ -357,10 +357,11 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number) =
     // The existing scoped RPC supports classroom students 1..23; keep the test entry compatible.
     const row = studentNumber === TEST_STUDENT_NUMBER
       ? await loadStorageSnapshotForRead({ url, key })
-      : await loadScopedStorageSnapshot({ url, key }, studentReadScope(studentNumber));
+      : await loadScopedStorageSnapshotForRead({ url, key }, studentReadScope(studentNumber));
     const value = projectStudentValue(row.value, studentNumber);
     return { id: SETTINGS_ID, value, updated_at: row.updated_at, scope: 'student' as const,
       ...(row.kind === 'scoped' && row.readVersion ? { readVersion: row.readVersion } : {}),
+      ...(row.kind === 'scoped' && row.readMarker ? { readMarker: row.readMarker } : {}),
       storagePatch: createStorageProjectionPatch(row, value, true) };
   }
   const studentKey = String(studentNumber);
@@ -479,6 +480,14 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       if (metadataOnly) {
         if (process.env.STORAGE_PROTOCOL_VERSION === '2' && process.env.STORAGE_SCOPED_POLLING === '1'
           && request.query?.scoped === '1' && session.role === 'student' && session.studentNumber !== TEST_STUDENT_NUMBER) {
+          const knownReadMarker = request.query?.knownReadMarker;
+          if (typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker)) {
+            const marker = await loadStorageReadMarker(configuration);
+            if (marker.readMarker === knownReadMarker) {
+              response.status(200).json({ ...marker, unchanged: true });
+              return;
+            }
+          }
           response.status(200).json(await loadScopedStorageMetadata(configuration, studentReadScope(session.studentNumber)));
           return;
         }

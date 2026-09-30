@@ -2822,7 +2822,7 @@ function AnnouncementNotebookOverlay({
         <div aria-hidden="true" className="mascot-leaf mascot-leaf-two" />
 
         <div className={`announcement-page flex min-h-0 flex-1 flex-col overflow-hidden ${pagePaddingClass}`}>
-          <div className={`announcement-stage mx-auto flex ${stageLayoutClass}`}>
+          <div className={`announcement-stage mx-auto flex ${stageLayoutClass}${announcementDayAwardedAuctionItems.length > 0 ? ' announcement-stage-with-awards' : ''}`}>
             <div className={`announcement-paper paper-card relative ${paperShellLayoutClass} overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]`}>
               <div className="announcement-paper-top announcement-paper-top-clean shrink-0 border-b border-[#EADFD1] px-3 py-3 sm:px-5 md:px-6 md:py-4">
                 <div className="announcement-date-row announcement-date-row-clean">
@@ -2956,16 +2956,19 @@ function AnnouncementNotebookOverlay({
                       </button>
                     </div>
                   ) : null}
+                </div>
+              </div>
+            </div>
                   <div className="announcement-note-inline-tools gap-2" data-capture-exclude="true">
                     {announcementDayAwardedAuctionItems.length > 0 ? (
-                      <div className="pointer-events-auto w-[min(22rem,calc(100vw-8rem))] rounded-[1rem] border border-[#D7E6DE] bg-white/95 p-2.5 shadow-[0_8px_18px_rgba(31,24,18,0.1)] backdrop-blur">
+                      <div aria-label="오늘 낙찰" className="announcement-award-sidebar pointer-events-auto rounded-[1rem] border border-[#D7E6DE] bg-white/95 p-2.5 shadow-[0_8px_18px_rgba(31,24,18,0.1)] backdrop-blur">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
                           <span className="text-[0.78rem] font-black text-[#006241]">오늘 낙찰</span>
                           <span className="rounded-full bg-[#EEF7F2] px-2 py-0.5 text-[0.68rem] font-black text-[#006241]">
                             {announcementDayAwardedAuctionItems.length}건
                           </span>
                         </div>
-                        <div className="grid max-h-[8.75rem] gap-1 overflow-y-auto pr-0.5">
+                        <div className="announcement-award-list grid gap-1 overflow-y-auto pr-0.5">
                           {announcementDayAwardedAuctionItems.map(({ item, award }) => (
                             <div
                               key={award.itemId}
@@ -3098,9 +3101,6 @@ function AnnouncementNotebookOverlay({
                       <Sparkles size={18} className="text-[#A67C52]" />
                     </button>
                   </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
         {isHistoryOpen ? (
@@ -5289,6 +5289,7 @@ export default function TimerPage() {
         console.error('Failed to refresh shared settings from Supabase.', error);
       } finally {
         isChecking = false;
+        nextReadAt = Math.max(nextReadAt, Date.now() + 5000);
       }
     };
 
@@ -7783,7 +7784,9 @@ export default function TimerPage() {
       setAuctionAwards((previous) => ({ ...previous, ...result.awards }));
       commitCurrencyState(result.balances, result.history);
       setAwardPresentation((previous) => (
-        previous?.award.awardedAt === award.awardedAt ? { ...previous, hasFinalized: true } : previous
+        previous?.award.awardedAt === award.awardedAt ? {
+          ...previous, award: { ...(result.awards[award.itemId] ?? award), awardedAt: award.awardedAt }, hasFinalized: true,
+        } : previous
       ));
     };
     const showFinalizationError = (error: unknown) => {
@@ -7797,7 +7800,10 @@ export default function TimerPage() {
     if (!isSupabaseSettingsEnabled) {
       try {
         const snapshot = loadStoredStudentPetSnapshot();
-        const result = finalizeAuctionAwardInSettings(snapshot, award);
+        const latestBid = normalizeAuctionBids(snapshot.auctionBids, AUCTION_ITEM_IDS)[award.itemId];
+        const result = finalizeAuctionAwardInSettings(snapshot, {
+          ...award, winner: latestBid?.bidder ?? award.winner, amount: latestBid?.amount ?? award.amount,
+        });
         if (!storeStudentPetSnapshot({
           ...snapshot,
           currencyBalances: result.balances,
@@ -7813,7 +7819,7 @@ export default function TimerPage() {
     }
 
     void executeStorageCommand({ requestId: `award-${awardPresentationKey}`, action: 'teacher.auction.finalize', payload: {
-      itemId: award.itemId, expectedBidder: award.winner, expectedAmount: award.amount,
+      itemId: award.itemId, useLatestBid: true,
     } })
       .then(({ updatedAt, value }) => {
         if (value) lastSharedSettingsUpdatedAtRef.current = updatedAt;

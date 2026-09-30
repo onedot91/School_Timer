@@ -130,6 +130,22 @@ test('실제 full GET와 command partial을 역순 응답해도 모든 기능을
     };
     await assert.rejects(client.executeStorageCommand({ requestId: 'fixture-invalid-patch', action: 'student.letter', payload: {} }), /STORAGE_CONFIRMATION_REQUIRED/);
     assert.equal(writes, 1); assert.equal(receipts, 3);
+    for (const action of ['student.auction.bid', 'teacher.settings.patch']) {
+      writes = 0; receipts = 0;
+      globalThis.fetch = async (_url, init) => {
+        if (init?.method === 'POST') { writes += 1; return Response.json({ error: 'STORAGE_DATABASE_TIMEOUT' }, { status: 502 }); }
+        receipts += 1; return Response.json({ status: 'unknown' });
+      };
+      await assert.rejects(client.executeStorageCommand({ requestId: `fixture-timeout-${action}`, action, payload: {} }), error => {
+        assert.ok(error instanceof client.StorageCommandError);
+        assert.equal(error.serverCode, 'STORAGE_CONFIRMATION_REQUIRED');
+        assert.equal(error.uncertainWrite, true);
+        assert.ok(error.cause instanceof client.StorageCommandError);
+        assert.equal(error.cause.serverCode, 'STORAGE_DATABASE_TIMEOUT');
+        return true;
+      });
+      assert.equal(writes, 1); assert.equal(receipts, 3);
+    }
     const order = await server.ssrLoadModule('/src/lib/storageResponseOrder.ts') as typeof import('./storageResponseOrder.js');
     assert.deepEqual(order.readLatestStorageProjection(order.captureStorageResponseContext())?.value, { profile: 'new', studentLife: { letters: [{ id: 'letter', content: 'new' }], books: [{ id: 'book' }] } });
   } finally {

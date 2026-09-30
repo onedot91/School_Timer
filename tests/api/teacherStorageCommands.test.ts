@@ -4,7 +4,7 @@ import test from 'node:test';
 import { applyTeacherStorageCommand } from '../../src/server/teacherStorageCommands.js';
 import { hasDailyWritingReward } from '../../src/lib/dailyWriting.js';
 import { createTeacherSettingsChanges } from '../../src/lib/teacherStorageCommand.js';
-import { normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
+import { AUCTION_ITEM_IDS, normalizeAuctionAwards, normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
 import { assembleStorageState, splitStorageState } from '../../src/lib/storageV2Codec.js';
 const context = { requestId: 'request-1', createdAt: '2026-09-08T07:00:00.000Z' };
 const apply = (value: unknown, action: string, payload: unknown, id = context.requestId) => {
@@ -12,6 +12,23 @@ const apply = (value: unknown, action: string, payload: unknown, id = context.re
   assert.ok(result);
   return result;
 };
+test('latest-bid finalization uses the authoritative winner and amount despite stale teacher display', () => {
+  const current = { auctionBids: { 'item-a': { bidder: 2, amount: 30 } }, currencyBalances: { '1': 100, '2': 100 } };
+  assert.throws(() => apply(current, 'teacher.auction.finalize', {
+    itemId: 'item-a', expectedBidder: 1, expectedAmount: 20,
+  }), { code: 'AUCTION_BID_CHANGED' });
+  const result = apply(current, 'teacher.auction.finalize', {
+    itemId: 'item-a', useLatestBid: true, expectedBidder: 1, expectedAmount: 20,
+  }).value;
+  assert.equal(normalizeCurrencyBalances(result.currencyBalances)['1'], 100);
+  assert.equal(normalizeCurrencyBalances(result.currencyBalances)['2'], 70);
+  assert.deepEqual(normalizeAuctionAwards(result.auctionAwards, AUCTION_ITEM_IDS)['item-a'],
+    { itemId: 'item-a', winner: 2, amount: 30, awardedAt: context.createdAt });
+  const repeated = apply(result, 'teacher.auction.finalize', { itemId: 'item-a', useLatestBid: true }, 'second').value;
+  assert.equal(normalizeCurrencyBalances(repeated.currencyBalances)['2'], 70);
+  assert.throws(() => applyTeacherStorageCommand(result, 'teacher.auction.finalize',
+    { itemId: 'item-a', useLatestBid: true }, { requestId: 'third', createdAt: '2026-09-08T07:01:00.000Z' }), /AUCTION_ALREADY_AWARDED/);
+});
 test('general settings cannot erase registered auction items even with a matching saved base', () => {
   const items = [...normalizeAuctionItems(null), { id: 'item-2-2', dayIndex: 1, name: '검증 물품', startPrice: 10, isConfigured: true }];
   const current = { auctionItems: items };

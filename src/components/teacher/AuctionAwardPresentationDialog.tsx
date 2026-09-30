@@ -83,7 +83,7 @@ export default function AuctionAwardPresentationDialog({
   onComplete, onRevealComplete, onDismiss,
 }: AuctionAwardPresentationDialogProps) {
   const reduceMotion = useReducedMotion() ?? false;
-  const [replay] = useState(() => getAuctionAwardReplaySteps(presentation.steps, presentation.award));
+  const replay = getAuctionAwardReplaySteps(presentation.steps, presentation.award);
   const [index, setIndex] = useState(0);
   const [revealing, setRevealing] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);

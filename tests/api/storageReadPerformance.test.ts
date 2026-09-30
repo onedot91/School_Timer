@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../../src/server/storageV2Repository.js';
+import { loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt, loadStorageReadMarker, loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead } from '../../src/server/storageV2Repository.js';
 import { createStorageV2Fixture } from './storageV2Fixture.js';
 import { measureStorageRequest, withStorageRequestTiming } from '../../src/server/storageRequestTiming.js';
 
@@ -30,6 +30,32 @@ test('overlapping GET snapshots share reads but mutations and later GETs read af
   assert.equal(calls, 2);
   await loadStorageSnapshotForRead(configuration);
   assert.equal(calls, 3);
+});
+
+test('scoped GET reads share only identical scopes and credentials, while command reads stay fresh', async (t) => {
+  const configuration = { url: 'https://scope-read-fixture.invalid', key: 'fixture' };
+  const fixture = createStorageV2Fixture({ studentPets: { 1: { name: 'one' }, 2: { name: 'two' } } });
+  const scope = (student: number) => ({ resources: [{ path: '/studentPets', students: [student] }], wallets: [], history: [], writeResources: [], writeWallets: [] });
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {
+    calls += 1;
+    return fixture.fetch(input, init);
+  });
+  const pending = Array.from({ length: 25 }, () => loadScopedStorageSnapshotForRead(configuration, scope(1)));
+  await Promise.all([
+    ...pending,
+    loadScopedStorageSnapshot(configuration, scope(1)),
+    loadScopedStorageSnapshotForRead(configuration, scope(2)),
+    loadScopedStorageSnapshotForRead({ ...configuration, key: 'different' }, scope(1)),
+  ]);
+  assert.equal(calls, 4);
+  assert.deepEqual((await pending[0]).value.studentPets, { 1: { name: 'one' } });
+  await loadScopedStorageSnapshotForRead(configuration, scope(1));
+  assert.equal(calls, 5, 'completed reads are never cached for the next polling cycle');
+  const failing = t.mock.method(globalThis, 'fetch', async () => Response.json({}, { status: 503 }));
+  await assert.rejects(loadScopedStorageSnapshotForRead(configuration, scope(1)));
+  await assert.rejects(loadScopedStorageSnapshotForRead(configuration, scope(1)));
+  assert.equal(failing.mock.callCount(), 2, 'failed reads must release the shared promise');
 });
 
 test('metadata merges overlapping reads but keeps no completed value across saves', async (t) => {
@@ -66,4 +92,31 @@ test('metadata does not merge different backend credentials', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => { calls += 1; return Response.json('2026-09-09T00:00:00Z'); });
   await Promise.all(['first', 'second'].map(key => loadStorageUpdatedAt({ url: 'https://metadata-isolation.invalid', key })));
   assert.equal(calls, 2);
+});
+
+test('global revision marker merges only in-flight reads and rejects invalid or failed responses', async (t) => {
+  const configuration = { url: 'https://marker-fixture.invalid', key: 'fixture' };
+  let finish: (response: Response) => void = () => { throw new Error('No pending read'); };
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (input: unknown) => {
+    assert.equal(String(input), `${configuration.url}/rest/v1/rpc/storage_load_read_marker`);
+    calls++;
+    return new Promise<Response>(resolve => { finish = resolve; });
+  });
+  const reads = Array.from({ length: 25 }, () => loadStorageReadMarker(configuration));
+  assert.equal(calls, 1);
+  const marker = { updatedAt: '2026-09-30T00:00:00Z', readMarker: 'a'.repeat(32) };
+  finish(Response.json(marker));
+  assert.deepEqual(await Promise.all(reads), Array(25).fill(marker));
+  const next = loadStorageReadMarker(configuration);
+  assert.equal(calls, 2);
+  finish(Response.json({ ...marker, readMarker: 'invalid' }));
+  await assert.rejects(next, /STORAGE_INVALID_RESPONSE/);
+  const failed = loadStorageReadMarker(configuration);
+  finish(Response.json({}, { status: 503 }));
+  await assert.rejects(failed, /STORAGE_DATABASE_HTTP_503/);
+  const recovered = loadStorageReadMarker(configuration);
+  finish(Response.json(marker));
+  assert.deepEqual(await recovered, marker);
+  assert.equal(calls, 4);
 });

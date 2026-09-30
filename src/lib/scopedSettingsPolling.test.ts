@@ -8,8 +8,9 @@ test('학생 변경 버전은 개인 저장만 재조회하고 캐시 무효화�
   } });
   const timestamp = '2026-09-16T00:00:00.000001Z';
   let version: string | undefined = 'a'.repeat(32);
+  let marker: string | undefined = 'c'.repeat(32);
   let remoteTime = timestamp;
-  let metadata: { readVersion?: string; updatedAt: string } = { updatedAt: timestamp, readVersion: version };
+  let metadata: { readVersion?: string; updatedAt: string; readMarker?: string; unchanged?: boolean } = { updatedAt: timestamp, readVersion: version, readMarker: marker };
   let lastUrl = '';
   let fail = false;
   let beforeMetadata: (() => void) | undefined;
@@ -20,14 +21,21 @@ test('학생 변경 버전은 개인 저장만 재조회하고 캐시 무효화�
       if (fail) return Response.json({ error: 'UNAVAILABLE' }, { status: 502 });
       return Response.json(metadata);
     }
-    return Response.json({ id: 'school-timer-main', value: { currencyBalances: { 7: 100 } }, scope: 'student', updated_at: remoteTime, readVersion: version });
+    return Response.json({ id: 'school-timer-main', value: { currencyBalances: { 7: 100 } }, scope: 'student', updated_at: remoteTime, readVersion: version, readMarker: marker });
   });
   try {
     const client = await server.ssrLoadModule('/src/lib/supabaseSettings.ts') as typeof import('./supabaseSettings.js');
     await client.loadSharedSettingsRow();
     metadata.updatedAt = '2026-09-16T00:00:01.000001Z';
+    metadata.readMarker = 'd'.repeat(32);
     assert.equal(await client.loadSharedSettingsUpdatedAt(), timestamp);
     assert.match(lastUrl, /scoped=1/);
+    assert.equal(new URL(lastUrl, 'https://fixture.invalid').searchParams.get('knownReadMarker'), marker);
+    const observedTime = metadata.updatedAt;
+    metadata = { updatedAt: observedTime, unchanged: true, readMarker: 'd'.repeat(32) };
+    assert.equal(await client.loadSharedSettingsUpdatedAt(), timestamp);
+    assert.equal(new URL(lastUrl, 'https://fixture.invalid').searchParams.get('knownReadMarker'), 'd'.repeat(32));
+    metadata = { updatedAt: timestamp, readVersion: version };
     metadata.readVersion = 'b'.repeat(32);
     metadata.updatedAt = timestamp;
     assert.equal(await client.loadSharedSettingsUpdatedAt(), null);
@@ -40,6 +48,7 @@ test('학생 변경 버전은 개인 저장만 재조회하고 캐시 무효화�
     await client.loadSharedSettingsUpdatedAt();
     assert.equal(lastUrl, '/api/shared-settings?metadata=1');
     version = undefined;
+    marker = undefined;
     remoteTime = '2026-09-16T00:00:02.000001Z';
     await client.loadSharedSettingsRow();
     metadata = { updatedAt: remoteTime };

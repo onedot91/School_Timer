@@ -13,6 +13,8 @@ const fixture = (kind: 'settings' | 'alerts') => {
   let now = 0;
   let fail = true;
   let calls = 0;
+  let pause = false;
+  let finishRead: (() => void) | undefined;
   let cleanup: (() => void) | undefined;
   let tick: (() => Promise<void> | void) | undefined;
   const events = new Map<string, () => void>();
@@ -22,7 +24,11 @@ const fixture = (kind: 'settings' | 'alerts') => {
   const navigator = { onLine: true };
   const refreshRef = { current: async (_afterMutation?: boolean) => {} };
   const ref = (current: unknown = false) => ({ current });
-  const read = async () => { calls++; if (fail) throw new Error('UNAVAILABLE'); };
+  const read = async () => {
+    calls++;
+    if (pause) await new Promise<void>(resolve => { finishRead = resolve; });
+    if (fail) throw new Error('UNAVAILABLE');
+  };
   const refs = Object.fromEntries([
     'teacherSettingsErrorRef', 'teacherSettingsSavingRef', 'isSharedSettingsSavePendingRef',
     'hasUnsavedWeeklySubjectsRef', 'hasUnsavedSubjectCatalogRef', 'hasUnsavedAuctionItemsRef',
@@ -48,6 +54,8 @@ const fixture = (kind: 'settings' | 'alerts') => {
     document, navigator, warnings, refreshRef, events,
     calls: () => calls,
     recover: () => { fail = false; },
+    pause: () => { pause = true; },
+    finish: async () => { pause = false; finishRead?.(); await flush(); },
     event: async (name: string) => { events.get(name)?.(); await flush(); },
     tick: async (at: number) => { now = at; await tick?.(); await flush(); },
     stop: () => cleanup?.(), flush,
@@ -97,5 +105,22 @@ test('explicit alert retry bypasses background backoff', async () => {
   await screen.refreshRef.current();
   assert.equal(screen.calls(), 2);
   assert.equal(screen.warnings.at(-1), false);
+  screen.stop();
+});
+
+test('느린 교사 조회는 완료 후 5초를 기다리고 포커스가 즉시 재조회를 만들지 않는다', async () => {
+  const screen = fixture('settings');
+  screen.recover();
+  screen.pause();
+  const pending = screen.tick(5000);
+  await screen.tick(9900);
+  assert.equal(screen.calls(), 1);
+  await screen.finish();
+  await pending;
+  await screen.tick(10_000);
+  await screen.event('focus');
+  assert.equal(screen.calls(), 1);
+  await screen.tick(14_900);
+  assert.equal(screen.calls(), 2);
   screen.stop();
 });
