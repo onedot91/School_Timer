@@ -3961,6 +3961,7 @@ export default function TimerPage() {
   const [currencyDeductionReason, setCurrencyDeductionReason] = useState('');
   const [currencyDeductionError, setCurrencyDeductionError] = useState('');
   const [isCurrencyDeductionSaving, setIsCurrencyDeductionSaving] = useState(false);
+  const [pendingCurrencyCommandCount, setPendingCurrencyCommandCount] = useState(0);
   const currencyDeductionSavingRef = useRef(false);
   const [currencyGroupStudentNumbers, setCurrencyGroupStudentNumbers] = useState<number[]>([]);
   const [pendingGroupCurrencyAdjustments, setPendingGroupCurrencyAdjustments] = useState<{ requestId: string; groupKey: string; delta: number }[]>([]);
@@ -7047,6 +7048,7 @@ export default function TimerPage() {
 
   const runTeacherCurrencyCommand = (action: string, payload: Record<string, unknown>, target?: CurrencyAdjustmentTarget, delta = 0) => {
     const requestId = crypto.randomUUID();
+    setPendingCurrencyCommandCount(previous => previous + 1);
     const groupKey = currencyGroupKey;
     if (target === 'group') {
       setPendingGroupCurrencyAdjustments(previous => [...previous, { requestId, groupKey, delta }]);
@@ -7063,6 +7065,7 @@ export default function TimerPage() {
         setCurrencyDeductionError('저장 결과를 확인하지 못했어요. 최신 고마를 확인한 뒤 다시 시도해 주세요.');
         throw error;
       } finally {
+        setPendingCurrencyCommandCount(previous => previous - 1);
         if (target === 'group') {
           setPendingGroupCurrencyAdjustments(previous => previous.filter(entry => entry.requestId !== requestId));
         }
@@ -8470,7 +8473,7 @@ export default function TimerPage() {
           onClick={() => void submitCurrencyDeduction()}
           className="relative h-9 w-[5.6rem] shrink-0 overflow-hidden rounded-[0.7rem] bg-[#8B4D2D] px-2 font-mono text-[0.76rem] font-black text-white transition-[background-color,transform] hover:bg-[#713C22] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#C8B7AA]"
         >
-          {isCurrencyDeductionSaving ? '저장 중' : `−${formatCurrencyAmount(Number.isFinite(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0)} 차감`}
+          {`−${formatCurrencyAmount(Number.isFinite(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0)} 차감`}
           {isCurrencyDeductionSaving ? (
             <span className="currency-deduction-progress" aria-hidden="true"><span /></span>
           ) : null}
@@ -12381,6 +12384,14 @@ export default function TimerPage() {
                       </button>
                     </div>
 
+                    <div className="teacher-currency-save-progress-slot">
+                      {pendingCurrencyCommandCount > 0 ? (
+                        <div className="teacher-currency-save-progress" role="progressbar" aria-label="고마 변경 저장 중">
+                          <span />
+                        </div>
+                      ) : null}
+                    </div>
+
                     {currencyAdjustmentTarget === 'student' ? (
                       <div className="mb-3 rounded-[1.15rem] border-2 border-[#DDE9E2] bg-[#F8FCF6] p-3">
                         <div className="currency-student-number-row flex items-center gap-2">
@@ -12593,7 +12604,6 @@ export default function TimerPage() {
                             aria-live="polite"
                           >
                             각 {formatCurrencyAdjustmentSummary({ target: 'group', delta: displayedGroupCurrencyDelta })}
-                            {pendingCurrentGroupAdjustments.length > 0 && <span className="block text-[0.65rem] font-bold" role="status">저장 중</span>}
                           </output>
                           <button
                             type="button"

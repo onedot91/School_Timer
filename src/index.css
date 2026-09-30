@@ -27417,6 +27417,24 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-house-market article > button { min-width: 10rem; min-height: 3.1rem; border-radius: .9rem; background: var(--student-house-accent); padding: 0 1rem; color: #fff; font-weight: 950; }
 .currency-deduction-progress { position: absolute; left: 8px; right: 8px; bottom: 4px; height: 3px; overflow: hidden; border-radius: 999px; background: #ead9c2; }
 .currency-deduction-progress > span { display: block; width: 40%; height: 100%; border-radius: inherit; background: #8b4d2d; animation: currency-deduction-progress 1.2s ease-in-out infinite; }
+.teacher-currency-save-progress-slot { height: 6px; margin-top: -6px; margin-bottom: 12px; }
+.teacher-currency-save-progress { position: relative; height: 100%; overflow: hidden; isolation: isolate; border-radius: 999px; background: #dde9e2; animation: teacher-currency-progress-enter 180ms ease-out both; }
+.teacher-currency-save-progress > span,
+.teacher-currency-save-progress::after { position: absolute; inset: 0; border-radius: inherit; transform-origin: left center; }
+.teacher-currency-save-progress > span { background: linear-gradient(90deg, #006241, #32a878 65%, #b3ebcf); animation: teacher-currency-progress-flow 1.5s cubic-bezier(.4, 0, .2, 1) infinite; }
+.teacher-currency-save-progress::after { content: ''; background: linear-gradient(90deg, transparent, #e4fff2 55%, #55c994); animation: teacher-currency-progress-flow 1.5s cubic-bezier(.4, 0, .2, 1) -.75s infinite; opacity: .75; }
+@keyframes teacher-currency-progress-enter { from { opacity: 0; transform: scaleY(.5); } to { opacity: 1; transform: scaleY(1); } }
+@keyframes teacher-currency-progress-flow {
+  0% { transform: translateX(-45%) scaleX(.2); opacity: .45; }
+  35% { transform: translateX(0) scaleX(.5); opacity: 1; }
+  70% { transform: translateX(55%) scaleX(.35); opacity: 1; }
+  100% { transform: translateX(105%) scaleX(.15); opacity: .45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .teacher-currency-save-progress,
+  .teacher-currency-save-progress > span { animation: none; transform: none; }
+  .teacher-currency-save-progress::after { display: none; }
+}
 @keyframes currency-deduction-progress { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
 @media (prefers-reduced-motion: reduce) { .currency-deduction-progress > span { width: 100%; animation: none; } }
 

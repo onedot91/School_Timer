@@ -17,6 +17,7 @@ const harness = () => {
   let committed = 0;
   let error = '';
   let id = 0;
+  let pendingCommands = 0;
   const responses: { resolve: () => void; reject: () => void }[] = [];
   const queue = { current: Promise.resolve() as Promise<unknown> };
   const group = { current: '16,23' };
@@ -24,6 +25,7 @@ const harness = () => {
     crypto: { randomUUID: () => String(++id) }, currencyGroupKey: '16,23', currencyGroupKeyRef: group,
     teacherCommandQueueRef: queue, isSharedSettingsSavePendingRef: { current: false }, lastSharedSettingsUpdatedAtRef: { current: '' },
     setPendingGroupCurrencyAdjustments: (update: (previous: Pending[]) => Pending[]) => { pending = update(pending); },
+    setPendingCurrencyCommandCount: (update: (previous: number) => number) => { pendingCommands = update(pendingCommands); },
     executeStorageCommand: () => new Promise((resolve, reject) => {
       responses.push({ resolve: () => resolve({ updatedAt: '2026-09-09', value: {} }), reject: () => reject(new Error('unconfirmed')) });
     }),
@@ -34,13 +36,14 @@ const harness = () => {
   };
   const click = runInNewContext(`${handler}\nrunTeacherCurrencyCommand`, context) as (action: string, payload: object, target: string, delta: number) => void;
   return { click: (delta: number) => click('teacher.currency.adjust', { studentNumbers: [16, 23], amount: delta }, 'group', delta),
-    queue, group, responses, state: () => ({ pending, confirmed, committed, error }) };
+    queue, group, responses, state: () => ({ pending, pendingCommands, confirmed, committed, error }) };
 };
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 test('queued group clicks display immediately while balances wait for confirmation', async () => {
   const h = harness();
   h.click(1); h.click(1); h.click(-1);
+  assert.equal(h.state().pendingCommands, 3);
   assert.equal(h.state().pending.reduce((sum, entry) => sum + entry.delta, 0), 1);
   assert.equal(h.state().confirmed, 0);
   assert.equal(h.state().committed, 0);
@@ -51,6 +54,7 @@ test('queued group clicks display immediately while balances wait for confirmati
   }
   await h.queue.current;
   assert.equal(h.state().pending.length, 0);
+  assert.equal(h.state().pendingCommands, 0);
   assert.equal(h.state().confirmed, 1);
   assert.equal(h.state().committed, 3);
 });
@@ -59,6 +63,7 @@ test('unconfirmed saves remove the pending display without claiming a balance ch
   const h = harness(); h.click(1); await tick(); h.responses[0].reject();
   await assert.rejects(h.queue.current);
   assert.equal(h.state().pending.length, 0);
+  assert.equal(h.state().pendingCommands, 0);
   assert.equal(h.state().committed, 0);
   assert.equal(h.state().confirmed, 0);
   assert.match(h.state().error, /저장 결과를 확인하지 못/);
