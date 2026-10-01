@@ -97,7 +97,7 @@ export default function AuctionAwardPresentationDialog({
     : !presentation.isComplete ? 'bidding' : presentation.hasFinalized ? 'strike' : 'saving';
   const canDismiss = Boolean(presentation.error) || (isResult && !hasQueuedPresentations);
   const itemName = getAuctionItemDisplayName(presentation.item.name, presentation.item.dayIndex);
-  const step = replay[index];
+  const step = replay[Math.min(index, replay.length - 1)];
   const profileImage = getFailureProfileImage(presentation.award.winner, profileAssignments);
   const showCertificate = revealing || isResult;
   const closeHistory = () => {
@@ -107,7 +107,7 @@ export default function AuctionAwardPresentationDialog({
 
   useEffect(() => {
     if (presentation.isComplete || presentation.error) return;
-    const delay = index === replay.length - 1
+    const delay = index >= replay.length - 1
       ? AUCTION_CEREMONY_TIMING.lastCall + (index === 0 ? AUCTION_CEREMONY_TIMING.intro : 0)
       : index === 0 ? AUCTION_CEREMONY_TIMING.intro : AUCTION_CEREMONY_TIMING.bid;
     const timer = window.setTimeout(() => {

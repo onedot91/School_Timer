@@ -92,6 +92,8 @@ test('전용 저장 클라이언트는 운영 거절과 저장 미확인을 구�
     await saves[2]();
     assert.deepEqual(recoveredMethods, ['POST', 'GET']);
     assert.equal(values.get(failures.SAVE_FAILURE_STORAGE_KEY), beforeRecovery, 'confirmed recovery creates no final save alert');
+    context.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+    context.mock.timers.tick(6000);
     for (const save of saves) {
       availability.dismissStorageAvailabilityNotice();
       values.set('school-timer-entry-number-v1', '0');
@@ -99,6 +101,7 @@ test('전용 저장 클라이언트는 운영 거절과 저장 미확인을 구�
       await assert.rejects(save, /SESSION_CHANGED/);
       assert.equal(availability.getStorageAvailabilityNotice(), null);
     }
+    context.mock.timers.reset();
     context.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-09T00:00:00Z') });
     values.set('school-timer-entry-number-v1', '3');
     const retrySaves = [

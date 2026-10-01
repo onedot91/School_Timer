@@ -10420,8 +10420,8 @@ export default function TimerPage() {
                 {letter.title ? <h4>{letter.title}</h4> : null}
                 <p>{letter.content}</p>
                 <time dateTime={letter.createdAt}>{formatTeacherLetterDate(letter.createdAt)}</time>
-                <button type="button" className="teacher-mail-delete-button" aria-label={`${letter.title || '편지'} 삭제`} disabled={isMailDeleting} onClick={() => void deleteTeacherLetter(letter.id)}>
-                  <Trash2 size={14} aria-hidden="true" />삭제
+                <button type="button" className="teacher-mail-delete-button" title="편지 삭제" aria-label={`${letter.title || '편지'} 삭제`} disabled={isMailDeleting} onClick={() => void deleteTeacherLetter(letter.id)}>
+                  <Trash2 size={16} strokeWidth={1.8} aria-hidden="true" />
                 </button>
               </article>
             );

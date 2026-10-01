@@ -137,6 +137,13 @@ export const executeStorageCommand = async (command: StorageCommand, context = c
         } catch (confirmationError) {
           if (confirmationError instanceof StorageResponseActorChangedError) throw confirmationError;
           if (!(confirmationError instanceof Error)) throw confirmationError;
+          const retryAfterMs = confirmationError instanceof StorageCommandError ? confirmationError.retryAfterMs : undefined;
+          if (retryAfterMs || (confirmationError instanceof StorageCommandError && [429, 502, 503, 504].includes(confirmationError.status))
+            || ['TimeoutError', 'AbortError'].includes(confirmationError.name)) {
+            deferSaveRecoveryUntil(command.studentNumber ?? Number(context.actor), command.requestId,
+              retryAfterMs || 5000 + Math.random() * 1000);
+            break;
+          }
         }
         if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 200 * 2 ** attempt));
       }

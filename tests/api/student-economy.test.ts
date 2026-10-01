@@ -372,7 +372,8 @@ test('final economy business validation rechecks the same request before rejecti
   assert.equal(db.writes.length, 1);
 }));
 
-test('새 거래는 사전 GET 없이 저장하고 확인 GET 장애 중 수동 재시도는 원래 거래를 중복 차감하지 않는다', () => withFixture(async db => {
+test('새 거래는 사전 GET 없이 저장하고 확인 GET 장애 중 수동 재시도는 원래 거래를 중복 차감하지 않는다', (context) => withFixture(async db => {
+  context.mock.timers.enable({ apis: ['Date'], now: Date.now() });
   const rpcFetch = globalThis.fetch;
   const posts: Record<string, unknown>[] = [];
   let loseResponse = true;
@@ -395,6 +396,10 @@ test('새 거래는 사전 GET 없이 저장하고 확인 GET 장애 중 수동 
   ]);
   assert.deepEqual(db.value().currencyBalances, { 1: 115, 2: 222 });
   assert.equal(hasUnconfirmedStudentEconomyDraft(1), true);
+  await assert.rejects(confirmStudentEconomyDraft(1), /TOO_MANY_REQUESTS/);
+  assert.equal(posts.length, 1, '혼잡 대기 중 수동 확인은 저장을 재전송하지 않는다');
+  assert.equal(hasUnconfirmedStudentEconomyDraft(1), true);
+  context.mock.timers.tick(6000);
   const confirmed = await confirmStudentEconomyDraft(1);
   assert.equal(confirmed?.balance, 115);
   assert.equal(posts.length, 2);

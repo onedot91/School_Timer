@@ -110,12 +110,12 @@ test('거래 응답이 잘못되면 저장 성공으로 반환하지 않는다',
 test('잘못된 거래 map이나 누락된 상태를 기본값 성공으로 바꾸지 않는다', async () => {
   const originalFetch = globalThis.fetch;
   try {
-    for (const invalid of [
+    for (const [index, invalid] of [
       { currencyBalanceEntries: { 1: 'bad' } }, { currencyHistoryEntries: { 1: null } },
       { studentEconomy: {} }, { studentLife: {} },
-    ]) {
+    ].entries()) {
       globalThis.fetch = async () => Response.json({ ...await successfulResponse().json(), ...invalid });
-      await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'select_character', characterId: null }, requestId: 'invalid-map' }), /CONFIRMATION_REQUIRED/);
+      await assert.rejects(updateStudentEconomy({ studentNumber: 1, action: { type: 'select_character', characterId: null }, requestId: `invalid-map-${index}` }), /CONFIRMATION_REQUIRED/);
     }
   } finally { globalThis.fetch = originalFetch; }
 });

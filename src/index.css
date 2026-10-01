@@ -30183,14 +30183,26 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
   .student-newspaper-page .student-header-actions { width: 100%; max-width: none; justify-content: flex-end; gap: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .newspaper button { transition: none; } .newspaper-glasses-options button { animation: none; } .newspaper-heart.is-popping svg { animation-name: newspaper-heart-reduced; } }
- .teacher-mail-delete-button {
+.teacher-mail-chat-message { position: relative; padding-right: 4rem; }
+.teacher-mail-delete-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-width: 44px;
-  min-height: 44px;
-  margin-left: 8px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #e5d5cb;
+  border-radius: 12px;
+  background: #fff5ef;
   color: #8a3d32;
- }
- .teacher-mail-delete-button:disabled { opacity: 0.5; }
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.teacher-mail-chat-message.is-outgoing .teacher-mail-delete-button { color: #fff; background: #ffffff14; border-color: #ffffff45; }
+.teacher-mail-delete-button:hover:not(:disabled) { background: #fbe4d8; border-color: #d9b5a4; }
+.teacher-mail-chat-message.is-outgoing .teacher-mail-delete-button:hover:not(:disabled) { background: #ffffff2e; border-color: #ffffff85; }
+.teacher-mail-delete-button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.teacher-mail-delete-button:disabled { opacity: 0.5; cursor: wait; }
+@media (prefers-reduced-motion: reduce) { .teacher-mail-delete-button { transition: none; } }

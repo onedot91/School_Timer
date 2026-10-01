@@ -1,6 +1,7 @@
 import { canonicalStorageJson } from './storageV2Codec.js';
 import { withSaveFailureReporting } from './saveFailureClient.js';
 import { publishStorageAvailability } from './storageAvailability.js';
+import { deferSaveRecoveryUntil, getSaveRecoveryDelay } from './saveRecovery.js';
 import { parseStorageProjectionPatch } from './storageProjectionPatch.js';
 import { acceptStorageProjection, captureStorageResponseContext, isStorageResponseContextCurrent, StorageResponseActorChangedError, type StorageResponseContext } from './storageResponseOrder.js';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory, type CurrencyBalances, type CurrencyHistory } from './currency.js';
@@ -37,15 +38,25 @@ export type StudentEconomyUpdateResult = StudentEconomyResultMetadata & ({
 
 export class StudentEconomyRequestError extends Error {
   readonly name = 'StudentEconomyRequestError';
+  readonly retryAfterMs?: number;
 
   constructor(
     readonly code: string,
     readonly status: number,
-    options?: ErrorOptions,
+    options?: ErrorOptions & { retryAfterMs?: number },
   ) {
     super(code, options);
+    this.retryAfterMs = options?.retryAfterMs;
   }
 }
+
+const receiptRetryAfterMs = (response: Response): number | undefined => {
+  const header = response.headers.get('Retry-After');
+  if (!header) return undefined;
+  const seconds = Number(header);
+  const delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(header) - Date.now();
+  return Number.isFinite(delay) ? Math.max(0, delay) : undefined;
+};
 
 export const loadStudentEconomyReceipt = async (
   studentNumber: number,
@@ -58,7 +69,8 @@ export const loadStudentEconomyReceipt = async (
     credentials: 'same-origin', cache: 'no-store', headers: { 'X-Storage-Projection': '1' }, signal: AbortSignal.timeout(8000),
   });
   if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
-  if (!response.ok) throw new StudentEconomyRequestError('STUDENT_ECONOMY_STATUS_UNAVAILABLE', response.status);
+  if (!response.ok) throw new StudentEconomyRequestError('STUDENT_ECONOMY_STATUS_UNAVAILABLE', response.status,
+    { retryAfterMs: receiptRetryAfterMs(response) });
   const body: unknown = await response.json();
   if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
   if (isRecord(body) && body.status === 'unknown') return null;
@@ -187,6 +199,8 @@ export const retryStudentEconomyRequest = async ({
 }): Promise<StudentEconomyUpdateResult> => {
   const context = captureStorageResponseContext();
   const outcome = await withSaveFailureReporting('economy', async () => {
+    const retryAfterMs = getSaveRecoveryDelay(studentNumber, requestId);
+    if (retryAfterMs > 0) throw new StudentEconomyRequestError('TOO_MANY_REQUESTS', 429, { retryAfterMs });
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), 45_000);
     try {
@@ -198,7 +212,9 @@ export const retryStudentEconomyRequest = async ({
       });
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
-        const error = new StudentEconomyRequestError(getErrorCode(body) || `STUDENT_ECONOMY_HTTP_${response.status}`, response.status);
+        const error = new StudentEconomyRequestError(getErrorCode(body) || `STUDENT_ECONOMY_HTTP_${response.status}`, response.status,
+          { retryAfterMs: receiptRetryAfterMs(response) });
+        if (error.retryAfterMs) deferSaveRecoveryUntil(studentNumber, requestId, error.retryAfterMs);
         if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
         if (publishStorageAvailability(error, context)) return { error };
         if ((response.status < 500 && isRecord(body) && body.businessRejected === true) || [401, 403, 429].includes(response.status)
@@ -227,12 +243,19 @@ export const retryStudentEconomyRequest = async ({
         } catch (confirmationError) {
           if (confirmationError instanceof StorageResponseActorChangedError
             || (confirmationError instanceof StudentEconomyRequestError && (confirmationError.code === 'STORAGE_REQUEST_REUSED'
-              || [401, 403, 429].includes(confirmationError.status)))) return { error: confirmationError };
+              || [401, 403].includes(confirmationError.status)))) return { error: confirmationError };
           if (!(confirmationError instanceof Error)) throw confirmationError;
+          const retryAfterMs = confirmationError instanceof StudentEconomyRequestError ? confirmationError.retryAfterMs : undefined;
+          if (retryAfterMs || (confirmationError instanceof StudentEconomyRequestError && [429, 502, 503, 504].includes(confirmationError.status))
+            || ['TimeoutError', 'AbortError'].includes(confirmationError.name)) {
+            deferSaveRecoveryUntil(studentNumber, requestId, retryAfterMs || 5000 + Math.random() * 1000);
+            break;
+          }
         }
       }
       if (!isStorageResponseContextCurrent(context)) return { error: new StorageResponseActorChangedError() };
-      throw Object.assign(new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504, { cause: error }), {
+      throw Object.assign(new StudentEconomyRequestError('STUDENT_ECONOMY_CONFIRMATION_REQUIRED', 504,
+        { cause: error, retryAfterMs: getSaveRecoveryDelay(studentNumber, requestId) || undefined }), {
         stage: 'receipt', retryCount: receiptAttempts,
       });
     } finally { clearTimeout(timeout); }

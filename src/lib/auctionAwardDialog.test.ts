@@ -68,6 +68,24 @@ test('오래된 입찰 기록은 확정 대상의 낙찰자와 금액으로 끝�
   ]);
 });
 
+test('발표 중 서버의 최종 입찰이 바뀌어 재생 목록이 줄어도 현재 호가를 표시한다', () => {
+  const history = [
+    { ...finalBid, bidder: 1, amount: 10 },
+    { ...finalBid, bidder: 2, amount: 20 },
+  ];
+  const staleAward = { ...award, winner: 1, amount: 10 };
+  const confirmedAward = { ...award, winner: 2, amount: 20 };
+  const previousIndex = getAuctionAwardReplaySteps(history, staleAward).length - 1;
+  const confirmedReplay = getAuctionAwardReplaySteps(history, confirmedAward);
+  assert.equal(previousIndex, 2);
+  assert.equal(confirmedReplay.length, 2);
+
+  const stepDeclaration = dialogSource.match(/const step = [^;]+;/)?.[0];
+  assert.ok(stepDeclaration);
+  const currentAmount = new Function('replay', 'index', `${stepDeclaration} return step.amount;`);
+  assert.equal(currentAmount(confirmedReplay, previousIndex), confirmedAward.amount);
+});
+
 test('다른 상품과 유효하지 않은 금액은 마지막 호가에 섞이지 않는다', () => {
   const earlier = { ...finalBid, bidder: 7, amount: 50 };
   const history = [
