@@ -15,7 +15,7 @@ test('학생 기능은 기능별 공개 플래그가 켜질 때까지 잠긴다'
     bank: true,
     securities: false,
     bookstore: true,
-    failureExhibition: false,
+    failureExhibition: true,
     emotionOrbs: true,
     petEgg: false,
   });
@@ -27,7 +27,7 @@ test('잠긴 학생 화면의 직접 경로도 공개된 허브로 돌아간다'
   assert.equal(getUnavailableStudentFeature('library'), null);
   assert.equal(getUnavailableStudentFeature('library-bookstore'), null);
   assert.equal(getUnavailableStudentFeature('library-bookshelf'), null);
-  assert.equal(getUnavailableStudentFeature('library-failure-board'), 'failureExhibition');
+  assert.equal(getUnavailableStudentFeature('library-failure-board'), null);
   assert.equal(getUnavailableStudentFeature('store-bank'), null);
   assert.equal(getUnavailableStudentFeature('store-securities'), 'securities');
   assert.equal(getUnavailableStudentFeature('store-securities-trade'), 'securities');

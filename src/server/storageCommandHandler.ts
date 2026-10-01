@@ -107,26 +107,30 @@ export const handleStorageCommand = async (
     };
     const createdAt = new Date().toISOString();
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const receipt = await getStorageReceipt(configuration, commandActor, requestId, { action, payload });
-      if (receipt.found) {
-        const snapshot = await loadScopedStorageSnapshot(configuration, receipt.scope ?? scope);
-        response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result });
-        return;
-      }
-      const snapshot = await loadScopedStorageSnapshot(configuration, scope);
-      if (effectiveSession.role === 'student') validateEditRevisions(action, payload, effectiveSession.studentNumber, snapshot.revisions);
-      const mutation = effectiveSession.role === 'teacher'
-        ? applyTeacherStorageCommand(snapshot.value, action, payload, { requestId, createdAt })
-        : applyStudentStorageCommand(snapshot.value, effectiveSession.studentNumber, action, payload, { requestId, createdAt });
-      if (!mutation) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
-      const saved = await commitScopedStorageMutation(configuration, { snapshot, value: mutation.value,
-        actorKey: commandActor,requestId,action,payload,result: mutation.result,
-        readKeys: scope.revisionKeys,
-      });
-      if (saved.saved) {
-        const current = await loadScopedStorageSnapshot(configuration, scope);
-        response.status(200).json({ storagePatch: createStorageProjectionPatch(current, project(current.value)), status: 'committed',value: project(current.value),updatedAt: current.updated_at,result: saved.result ?? mutation.result });
-        return;
+      try {
+        const receipt = await getStorageReceipt(configuration, commandActor, requestId, { action, payload });
+        if (receipt.found) {
+          const snapshot = await loadScopedStorageSnapshot(configuration, receipt.scope ?? scope);
+          response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result });
+          return;
+        }
+        const snapshot = await loadScopedStorageSnapshot(configuration, scope);
+        if (effectiveSession.role === 'student') validateEditRevisions(action, payload, effectiveSession.studentNumber, snapshot.revisions);
+        const mutation = effectiveSession.role === 'teacher'
+          ? applyTeacherStorageCommand(snapshot.value, action, payload, { requestId, createdAt })
+          : applyStudentStorageCommand(snapshot.value, effectiveSession.studentNumber, action, payload, { requestId, createdAt });
+        if (!mutation) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
+        const saved = await commitScopedStorageMutation(configuration, { snapshot, value: mutation.value,
+          actorKey: commandActor,requestId,action,payload,result: mutation.result,
+          readKeys: scope.revisionKeys,
+        });
+        if (saved.saved) {
+          const current = await loadScopedStorageSnapshot(configuration, scope);
+          response.status(200).json({ storagePatch: createStorageProjectionPatch(current, project(current.value)), status: 'committed',value: project(current.value),updatedAt: current.updated_at,result: saved.result ?? mutation.result });
+          return;
+        }
+      } catch (error) {
+        if (!(error instanceof StorageRepositoryError) || error.code !== 'STORAGE_SERIALIZATION_RETRY' || attempt === 4) throw error;
       }
       if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 40 * 2 ** attempt + Math.random() * 80));
     }

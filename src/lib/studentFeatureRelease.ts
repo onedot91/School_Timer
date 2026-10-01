@@ -4,7 +4,7 @@ export const STUDENT_FEATURE_RELEASES: Readonly<Record<StudentFeatureReleaseId, 
   bank: true,
   securities: false,
   bookstore: true,
-  failureExhibition: false,
+  failureExhibition: true,
   emotionOrbs: true,
   petEgg: false,
 };

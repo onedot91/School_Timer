@@ -5,15 +5,19 @@ import { fakeClassroom, fixtureCookie, startHttpHarness } from './httpHarness.js
 import { isStorageRecord, splitStorageState } from '../../src/lib/storageV2Codec.js';
 
 const boundedScopePlan = process.argv.includes('--bounded-scope-plan');
+const boundedHistoryPlan = process.argv.includes('--bounded-history-plan');
 const pollingLoad = process.argv.includes('--polling-load');
 const baselinePath = process.argv[process.argv.indexOf('--baseline-sql') + 1];
 if (pollingLoad && (!process.argv.includes('--baseline-sql') || !baselinePath || baselinePath.startsWith('--')))
   throw new Error('Pass --baseline-sql <saved pre-change storage_scoped_polling.sql>');
-const reuseReadVersion = pollingLoad || boundedScopePlan || process.argv.includes('--reuse-read-version');
+const reuseReadVersion = pollingLoad || boundedScopePlan || boundedHistoryPlan || process.argv.includes('--reuse-read-version');
 const pollingSql = await readFile(new URL('../../supabase/storage_scoped_polling.sql', import.meta.url), 'utf8');
 const optimizedReadVersionStart = pollingSql.indexOf("'readVersion',md5(");
 const optimizedReadVersionEnd = pollingSql.indexOf("    'resources',", optimizedReadVersionStart);
-const baselinePollingSql = pollingLoad ? await readFile(baselinePath, 'utf8') : boundedScopePlan ? pollingSql
+const baselinePollingSql = pollingLoad ? await readFile(baselinePath, 'utf8') : boundedHistoryPlan ? pollingSql
+  .replace("    'history',coalesce((select jsonb_agg(to_jsonb(h))\n      from (select distinct student_number from history_students) hs\n      cross join lateral (\n        select l.* from public.wallet_ledger l where l.student_number=hs.student_number offset 0\n      ) h),'[]'::jsonb),",
+    "    'history',coalesce((select jsonb_agg(to_jsonb(h)) from public.wallet_ledger h where student_number in(select student_number from history_students)),'[]'::jsonb),")
+  : boundedScopePlan ? pollingSql
   .replace('select r.* from public.storage_resources r where r.resource_key in(select resource_key from closure)', 'select r.* from public.storage_resources r join closure c using(resource_key)')
   .replace("union select 'scope:'||category||':all' from nodes\n    union select 'scope:'||category||':'||coalesce(owner_number::text,'shared') from nodes\n    union select 'collection:'||(value->>'parentKey') from nodes where value->>'parentKey' is not null", 'union select public.storage_scope_keys(category,owner_number,value) from nodes')
   : pollingSql.slice(0, optimizedReadVersionStart)
@@ -23,7 +27,7 @@ const baselinePollingSql = pollingLoad ? await readFile(baselinePath, 'utf8') : 
 const students = Array.from({ length: 23 }, (_, index) => index + 1);
 const actors = [...students, 0, 0];
 const source = fakeClassroom();
-source.currencyHistory = Object.fromEntries(students.map(student => [String(student), Array.from({ length: 134 + Number(student <= 9) }, (_, index) => ({
+source.currencyHistory = Object.fromEntries(students.map(student => [String(student), Array.from({ length: (boundedHistoryPlan ? 212 : 134) + Number(student <= 9) }, (_, index) => ({
   id: `synthetic-history-${student}-${index}`, studentNumber: student, delta: 0, before: 100, after: 100,
   reason: '합성 성능 검증', createdAt: '2026-09-08T00:00:00.000Z',
 }))]));
@@ -68,6 +72,8 @@ const edgeScopes = [
   { resources: [{ path: '/studentLife/letters', mail: { actor: 2, direction: 'participant' } }], wallets: [2], history: [2], writeResources: [], writeWallets: [] },
   { resources: [{ path: '/studentLife/letters', mail: { actor: 0, direction: 'recipient' } }], wallets: [], history: [], writeResources: [], writeWallets: [] },
   { resources: [{ path: '/studentEconomy', students: [1, 2] }, { path: '/studentEconomy', students: [2, 3] }], wallets: [1, 2, 3], history: [1, 2, 3], writeResources: [], writeWallets: [], revisionKeys: ['wallet:23'] },
+  { resources: [], wallets: [1], history: [1, 1, 2], writeResources: [], writeWallets: [] },
+  { resources: [], wallets: students, history: students, writeResources: [], writeWallets: [] },
 ];
 const edgeSnapshots = async () => Promise.all(edgeScopes.map(async scope => canonical((await harness.query('select storage_load_scope($1) result', [scope])).rows[0]?.result)));
 const metadataSnapshots = async () => Promise.all([...scopes.values(), ...edgeScopes].map(async scope =>
@@ -164,12 +170,49 @@ try {
   const explain = async (sql: string, label: string) => {
     const result = await harness.query(`explain (analyze, buffers, format json) ${sql}`, [scopes.get(1)]);
     await writeFile(`/private/tmp/concurrent25-${label}-plan.json`, JSON.stringify(result.rows, null, 2));
+    return result.rows[0]?.['QUERY PLAN'];
   };
   await harness.query('set jit=off');
   if (!reuseReadVersion) await explain(query, 'baseline');
   if (!process.argv.includes('--baseline-only')) {
-    const optimizedSql = reuseReadVersion ? pollingSql : await readFile(new URL('../../supabase/storage_scope_read_performance.sql', import.meta.url), 'utf8');
+    const optimizedSql = boundedHistoryPlan
+      ? await readFile(new URL('../../supabase/storage_scope_history_read_performance.sql', import.meta.url), 'utf8')
+      : reuseReadVersion ? pollingSql : await readFile(new URL('../../supabase/storage_scope_read_performance.sql', import.meta.url), 'utf8');
     await harness.query(optimizedSql);
+    if (boundedHistoryPlan) {
+      assert.notEqual(baselinePollingSql, pollingSql, 'baseline must use the previous ledger scan');
+      await harness.query(optimizedSql);
+      const standaloneBody = (await harness.query("select prosrc from pg_proc where oid='public.storage_load_scope(jsonb)'::regprocedure")).rows[0]?.prosrc;
+      await harness.query(pollingSql);
+      assert.equal((await harness.query("select prosrc from pg_proc where oid='public.storage_load_scope(jsonb)'::regprocedure")).rows[0]?.prosrc, standaloneBody);
+      const scopeQuery = (sql: string): string => {
+        const body = sql.slice(sql.indexOf('create or replace function public.storage_load_scope(p_scope'));
+        return body.slice(body.indexOf('  with recursive selected'), body.indexOf('  return output;'))
+          .replace(' into output;', ';').replaceAll('p_scope', '$1::jsonb');
+      };
+      const ledgerScans = (plan: unknown): Record<string, unknown>[] => {
+        if (Array.isArray(plan)) return plan.flatMap(ledgerScans);
+        if (!isStorageRecord(plan)) return [];
+        return [
+          ...(plan['Relation Name'] === 'wallet_ledger' ? [plan] : []),
+          ...ledgerScans(plan.Plan), ...ledgerScans(plan.Plans),
+        ];
+      };
+      const baselineLedger = ledgerScans(await explain(scopeQuery(baselinePollingSql), 'history-baseline'));
+      const optimizedLedger = ledgerScans(await explain(scopeQuery(optimizedSql), 'history-optimized'));
+      assert.equal(baselineLedger.length, 1);
+      assert.equal(baselineLedger[0]['Node Type'], 'Seq Scan');
+      assert.equal(optimizedLedger.length, 1);
+      assert.equal(optimizedLedger[0]['Index Name'], 'wallet_ledger_student_order');
+      assert.equal(optimizedLedger[0]['Actual Rows'], 213);
+      console.log(JSON.stringify({ ledgerRowsBefore: baselineLedger[0]['Actual Rows'],
+        ledgerRowsAfter: optimizedLedger[0]['Actual Rows'], index: optimizedLedger[0]['Index Name'] }));
+      assert.deepEqual(await metadataSnapshots(), await Promise.all([...scopes.values(), ...edgeScopes].map(async scope => {
+        const result = (await harness.query('select storage_load_scope($1) result', [scope])).rows[0]?.result;
+        assert.ok(isStorageRecord(result));
+        return canonical({ updatedAt: result.updated_at, readVersion: result.readVersion, readMarker: result.readMarker });
+      })));
+    }
     const after = await snapshots();
     assert.deepEqual(after, before, 'scope resources, history, wallet, revisions, ordering bounds and timestamp must match for all 23 students');
     assert.deepEqual(await edgeSnapshots(), edgeBefore, 'overlapping selectors, mailbox directions, multi-student scope and empty scope must match');

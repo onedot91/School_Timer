@@ -105,6 +105,70 @@ test('twenty-three independent mailbox writes all survive concurrently',()=>envi
   assert.equal(Reflect.get(Object(fixture.read().value.studentLife),'letters').length,25);
 }));
 
+test('23 concurrent student commands recover from transient database lock failures', () => environment(async (call, fixture) => {
+  const upstream = globalThis.fetch;
+  const attempts = new Map<string, number>();
+  globalThis.fetch = async (input, init) => {
+    if (String(input).endsWith('/storage_commit_scoped_mutation')) {
+      const body: unknown = JSON.parse(String(init?.body));
+      const id = String(Reflect.get(Object(body), 'p_request_id'));
+      const attempt = (attempts.get(id) ?? 0) + 1;
+      attempts.set(id, attempt);
+      if (attempt === 1) return Response.json({ code: ['40001', '40P01', '55P03'][attempts.size % 3] }, { status: 500 });
+    }
+    return upstream(input, init);
+  };
+  const responses = await Promise.all(Array.from({ length: 23 }, (_, index) => call(index + 1, 'POST',
+    command(`lock-retry-mail-${index + 1}`, 'student.letter.send', { recipient: 0, title: 'hello', content: `fixture${index + 1}` }))));
+  assert.deepEqual(responses.map(result => result.status), Array(23).fill(200));
+  assert.equal(fixture.receipts.size, 23);
+  assert.equal(Reflect.get(Object(fixture.read().value.studentLife), 'letters').length, 25);
+  assert.ok([...attempts.values()].every(attempt => attempt >= 2 && attempt <= 5));
+}));
+
+test('transient failures before and after commit preserve one currency award', async () => {
+  for (const stage of ['storage_get_receipt', 'storage_load_scope', 'storage_commit_scoped_mutation', 'refresh']) {
+    await environment(async (call, fixture) => {
+      const upstream = globalThis.fetch;
+      let failed = false;
+      globalThis.fetch = async (input, init) => {
+        const path = String(input);
+        const matches = stage === 'refresh'
+          ? path.endsWith('/storage_load_scope') && fixture.receipts.size === 1
+          : path.endsWith(`/${stage}`);
+        if (matches && !failed) { failed = true; return Response.json({ code: '40P01' }, { status: 500 }); }
+        return upstream(input, init);
+      };
+      const body = command(`lock-retry-${stage}`, 'teacher.currency.adjust', { studentNumbers: [2], amount: 6 });
+      const response = await call(0, 'POST', body);
+      assert.equal(response.status, 200, `${stage}: ${JSON.stringify(response.body)}`);
+      assert.equal(failed, true);
+      assert.equal(fixture.receipts.size, 1);
+      assert.equal(Reflect.get(Object(fixture.read().value.currencyBalances), '2'), 106);
+      assert.equal(Reflect.get(Object(fixture.read().value.currencyHistory), '2').length, 1);
+    });
+  }
+});
+
+test('persistent database lock failures exhaust five attempts without saving', () => environment(async (call, fixture) => {
+  const upstream = globalThis.fetch;
+  let attempts = 0;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).endsWith('/storage_commit_scoped_mutation')) {
+      attempts++;
+      return Response.json({ code: '55P03' }, { status: 500 });
+    }
+    return upstream(input, init);
+  };
+  const before = structuredClone(fixture.read().value);
+  const response = await call(0, 'POST', command('persistent-lock-0001', 'teacher.currency.adjust', { studentNumbers: [2], amount: 6 }));
+  assert.equal(response.status, 503);
+  assert.deepEqual(response.body, { error: 'STORAGE_SERIALIZATION_RETRY' });
+  assert.equal(attempts, 5);
+  assert.equal(fixture.receipts.size, 0);
+  assert.deepEqual(fixture.read().value, before);
+}));
+
 test('lost command response is recoverable by the same receipt without another credit',()=>environment(async(call,fixture)=>{
   fixture.loseNextCommitResponse();
   const body=command('adjust-once-0001','teacher.currency.adjust',{studentNumbers:[17],amount:6});

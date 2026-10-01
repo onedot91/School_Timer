@@ -1,12 +1,77 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import { createServer } from 'vite';
 import { WEEKLY_MISSION_TYPES } from './weeklyMission.js';
+
+const fastRetryWaits = (context: TestContext): number[] => {
+  const delays: number[] = [];
+  const schedule = globalThis.setTimeout;
+  context.mock.method(globalThis, 'setTimeout', (callback: () => void, delay?: number) => {
+    if (delay !== undefined && delay >= 5_000 && delay <= 12_000) {
+      delays.push(delay);
+      return schedule(callback, 0);
+    }
+    return schedule(callback, delay);
+  });
+  return delays;
+};
+
+test('23 initial mission checks recover from one transient failure without creating alerts', async context => {
+  const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
+    define: { 'import.meta.env.PROD': 'true' } });
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const stored = new Map<string, string>();
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: Object.assign(new EventTarget(), {
+    localStorage: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => stored.set(key, value) },
+    location: { hash: '#student-overview' },
+  }) });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
+  const attempts = new Map<number, number>();
+  let persistentFailure = false;
+  let retryAfter = '7';
+  context.mock.method(globalThis, 'fetch', async (_input: unknown, init?: RequestInit) => {
+    const student: unknown = Reflect.get(Object(JSON.parse(String(init?.body))), 'studentNumber');
+    assert.equal(typeof student, 'number');
+    const studentNumber = Number(student);
+    const count = (attempts.get(studentNumber) ?? 0) + 1;
+    attempts.set(studentNumber, count);
+    if (count === 1 || persistentFailure) return Response.json({ error: 'WEEKLY_MISSIONS_SYNC_FAILED' }, { status: 503, headers: { 'Retry-After': retryAfter } });
+    return Response.json({ missions: WEEKLY_MISSION_TYPES.map(missionType => ({ missionType, weekKey: '2026-37', completed: true, awarded: false, rewardAmount: 5, balance: 100 })) });
+  });
+  try {
+    const client = await server.ssrLoadModule('/src/lib/weeklyMissionClient.ts') as typeof import('./weeklyMissionClient.js');
+    const reports = await server.ssrLoadModule('/src/lib/saveFailureClient.ts') as typeof import('./saveFailureClient.js');
+    const delays = fastRetryWaits(context);
+    const results = await Promise.allSettled(Array.from({ length: 23 }, (_, index) => client.syncWeeklyMissions(index + 1)));
+    assert.ok(results.every(result => result.status === 'fulfilled'), 'a recovered entry check must succeed');
+    assert.deepEqual([...attempts.values()], Array(23).fill(2));
+    assert.equal(delays.length, 23);
+    assert.ok(delays.every(delay => delay >= 7_000), 'respect server wait time before retrying');
+    assert.equal(stored.has(reports.SAVE_FAILURE_STORAGE_KEY), false, 'recovered transient failures must not create save alerts');
+    persistentFailure = true;
+    await assert.rejects(client.syncPersonalQuestionWeeklyMission(1), /HTTP_503/);
+    assert.equal(attempts.get(1), 4, 'persistent failure is retried only once');
+    const alerts: unknown = JSON.parse(stored.get(reports.SAVE_FAILURE_STORAGE_KEY) ?? '[]');
+    assert.ok(Array.isArray(alerts));
+    assert.equal(alerts.length, 1, 'report the final failure once');
+    assert.equal(Reflect.get(Object(Reflect.get(Object(alerts[0]), 'diagnostics')), 'retryCount'), 1);
+    retryAfter = '60';
+    await assert.rejects(client.syncPersonalQuestionWeeklyMission(2), /HTTP_503/);
+    assert.equal(attempts.get(2), 3, 'long server cooldown must not trigger an immediate retry');
+    assert.equal(delays.length, 24);
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow); else Reflect.deleteProperty(globalThis, 'window');
+    if (previousNavigator) Object.defineProperty(globalThis, 'navigator', previousNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
+    await server.close();
+  }
+});
 
 test('weekly failure keeps only allow-listed server codes for diagnosis', async context => {
   const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null }, define: { 'import.meta.env.PROD': 'true' } });
   let code = 'WEEKLY_MISSIONS_SYNC_FAILED';
   context.mock.method(globalThis, 'fetch', async () => Response.json({ error: code }, { status: 502 }));
+  fastRetryWaits(context);
   try {
     const client = await server.ssrLoadModule('/src/lib/weeklyMissionClient.ts');
     await assert.rejects(client.syncWeeklyMissions(1), (error: unknown) => error instanceof Error
@@ -109,7 +174,7 @@ test('foreground bursts share one request and respect successful cooldown and Re
   } finally { Date.now = originalNow; globalThis.fetch = originalFetch; await server.close(); }
 });
 
-test('연속 장애에서 두 보상 경로 모두 재시도를 늦추고 성공 후 대기 간격을 초기화한다', async () => {
+test('연속 장애에서 두 보상 경로 모두 재시도를 늦추고 성공 후 대기 간격을 초기화한다', async context => {
   const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null }, define: { 'import.meta.env.PROD': 'true' } });
   const originalFetch = globalThis.fetch;
   const originalNow = Date.now;
@@ -119,6 +184,7 @@ test('연속 장애에서 두 보상 경로 모두 재시도를 늦추고 성공
   Math.random = () => 0;
   let calls = 0;
   globalThis.fetch = async () => { calls += 1; return Response.json({ error: 'UNAVAILABLE' }, { status: 502 }); };
+  fastRetryWaits(context);
   try {
     const client = await server.ssrLoadModule('/src/lib/weeklyMissionClient.ts');
     for (const delay of [5_000, 10_000, 20_000, 40_000, 60_000]) {
@@ -131,18 +197,18 @@ test('연속 장애에서 두 보상 경로 모두 재시도를 늦추고 성공
       assert.equal(calls, before, 'foreground events must retain both endpoints’ failure backoff');
       now += 1;
     }
-    assert.equal(calls, 10);
+    assert.equal(calls, 20);
     globalThis.fetch = async () => {
       calls += 1;
       return Response.json({ missions: WEEKLY_MISSION_TYPES.map(missionType => ({ missionType, weekKey: '2026-37', completed: false, awarded: false, rewardAmount: 5, balance: 100 })) });
     };
     await client.syncWeeklyMissions(8);
-    assert.equal(calls, 11);
+    assert.equal(calls, 21);
     now += 5_000;
     globalThis.fetch = async () => { calls += 1; return Response.json({ error: 'UNAVAILABLE' }, { status: 502 }); };
     await assert.rejects(client.syncWeeklyMissions(8));
     now += 5_000;
     await assert.rejects(client.syncWeeklyMissions(8));
-    assert.equal(calls, 13, 'a new outage after success starts at five seconds again');
+    assert.equal(calls, 25, 'a new outage after success starts at five seconds again');
   } finally { Date.now = originalNow; Math.random = originalRandom; globalThis.fetch = originalFetch; await server.close(); }
 });

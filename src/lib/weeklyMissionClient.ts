@@ -23,28 +23,38 @@ const settleWeeklyMission = async <T>(studentNumber: number, endpoint: '/api/wee
   for (const [oldKey, check] of missionChecks) if (check.expiresAt <= Date.now() - 300_000) missionChecks.delete(oldKey);
   const prefix = endpoint === '/api/weekly-mission' ? 'WEEKLY_MISSION' : 'WEEKLY_MISSIONS';
   const promise = withSaveFailureReporting('economy', async () => {
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST', credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(45_000),
-        body: JSON.stringify({ protocolVersion: 2, studentNumber }),
-      });
-      if (!response.ok) {
-        const body: unknown = await response.json().catch(() => null);
-        const serverCode = body && typeof body === 'object' ? Reflect.get(body, 'error') : undefined;
-        throw Object.assign(new Error(`${prefix}_HTTP_${response.status}`), {
-          status: response.status, retryAfterMs: getRetryAfterMs(response),
-          ...(typeof serverCode === 'string' && /^WEEKLY_MISSIONS?_[A-Z0-9_]{1,64}$/.test(serverCode) ? { serverCode } : {}),
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST', credentials: 'same-origin',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(45_000),
+          body: JSON.stringify({ protocolVersion: 2, studentNumber }),
         });
+        if (!response.ok) {
+          const body: unknown = await response.json().catch(() => null);
+          const serverCode = body && typeof body === 'object' ? Reflect.get(body, 'error') : undefined;
+          throw Object.assign(new Error(`${prefix}_HTTP_${response.status}`), {
+            status: response.status, retryAfterMs: getRetryAfterMs(response),
+            ...(typeof serverCode === 'string' && /^WEEKLY_MISSIONS?_[A-Z0-9_]{1,64}$/.test(serverCode) ? { serverCode } : {}),
+          });
+        }
+        return parse(await response.json());
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+        Object.assign(error, { endpoint, retryCount: attempt,
+          retryAfterMs: Reflect.get(error, 'retryAfterMs') ?? FOREGROUND_COOLDOWN_MS,
+          ...(error instanceof TypeError ? { code: `${prefix}_NETWORK` } : {}),
+        });
+        const transient = ['TypeError', 'TimeoutError', 'AbortError'].includes(error.name)
+          || [502, 503, 504].includes(Reflect.get(error, 'status'));
+        const delay = studentSettingsRetryDelay(1, error);
+        if (attempt >= 1 || !transient || delay > 10_000
+          || (typeof navigator !== 'undefined' && navigator.onLine === false)) throw error;
+        // Reward keys are idempotent on the server; keep the retry inside one failure report.
+        await new Promise(resolve => setTimeout(resolve, delay));
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) throw error;
       }
-      return parse(await response.json());
-    } catch (error) {
-      if (error instanceof Error) Object.assign(error, { endpoint,
-        retryAfterMs: Reflect.get(error, 'retryAfterMs') ?? FOREGROUND_COOLDOWN_MS,
-        ...(error instanceof TypeError ? { code: `${prefix}_NETWORK` } : {}),
-      });
-      throw error;
     }
   }, studentNumber);
   const check: PendingMissionCheck = { promise, expiresAt: Infinity, failures: previous?.failures ?? 0 };

@@ -1,65 +1,18 @@
 begin;
 
-create or replace function public.storage_read_marker() returns text
-language sql stable security definer set search_path=pg_catalog,public set jit=off as $$
-  select md5(jsonb_build_array(
-    (select jsonb_build_array(count(*),coalesce(sum(revision),0)) from public.storage_resources),
-    (select jsonb_build_array(count(*),coalesce(sum(revision),0)) from public.wallet_accounts),
-    (select updated_at from public.storage_control where singleton)
-  )::text)
-$$;
-
-create or replace function public.storage_load_read_marker() returns jsonb
-language sql stable security definer set search_path=pg_catalog,public set jit=off as $$
-  select jsonb_build_object('updatedAt',public.storage_load_updated_at(),'readMarker',public.storage_read_marker())
-$$;
-
-create or replace function public.storage_scope_read_version(p_scope jsonb) returns text
-language plpgsql stable security definer set search_path=pg_catalog,public set jit=off as $$
-declare output text;
+do $$
 begin
-  perform public.storage_validate_scope(p_scope);
-  with recursive selected as materialized (
-    select r.resource_key from public.storage_resources r
-    where exists(select 1 from jsonb_array_elements(p_scope->'resources') selector
-      where r.category=split_part(selector.value->>'path','/',2)
-      and (r.resource_key=selector.value->>'path' or starts_with(r.resource_key,(selector.value->>'path')||'/'))
-      and (not (selector.value ? 'students') or r.owner_number in(select (n.value#>>'{}')::integer from jsonb_array_elements(selector.value->'students') n))
-      and (not (selector.value ? 'mail') or (r.value->>'parentKey'='/studentLife/letters' and
-        (r.value#>>'{data,recipient}'=selector.value#>>'{mail,actor}' or (selector.value#>>'{mail,direction}'='participant' and r.value#>>'{data,senderStudentNumber}'=selector.value#>>'{mail,actor}')))))
-  ), roots as (
-    select value->>'path' key from jsonb_array_elements(p_scope->'resources')
-    union select ''
-    union select '/currencyBalances' where jsonb_array_length(p_scope->'wallets')>0
-    union select '/currencyHistory' where jsonb_array_length(p_scope->'history')>0
-    union select '/currencyHistory/'||(value#>>'{}') from jsonb_array_elements(p_scope->'history')
-  ), closure as (
-    select r.resource_key,r.value->>'parentKey' parent_key from public.storage_resources r where r.resource_key in(select resource_key from selected) or (r.resource_key in(select key from roots) and r.value->>'kind' in ('object','array'))
-    union
-    select r.resource_key,r.value->>'parentKey' from public.storage_resources r join closure child on child.parent_key=r.resource_key
-  ), nodes as materialized (
-    select r.resource_key,r.revision,r.deleted from public.storage_resources r join closure c using(resource_key)
-
-  ), versions as (
-    select resource_key key,revision,deleted from nodes
-    union all
-    select 'wallet:'||student_number,revision,false from public.wallet_accounts
-    where student_number in (select (value#>>'{}')::integer from jsonb_array_elements((p_scope->'wallets')||(p_scope->'history')))
-  )
-  select md5(jsonb_build_array(p_scope,
-    (select updated_at from public.storage_control where singleton),
-    coalesce((select jsonb_agg(jsonb_build_array(key,revision,deleted) order by key) from versions),'[]'::jsonb))::text)
-  into output;
-  return output;
+  if not exists (
+    select 1 from pg_proc where oid='public.storage_load_scope(jsonb)'::regprocedure
+      and md5(prosrc) in ('387312973223c8924ed37f3527732082','38354d2d883a82b765412b3515d1c31a')
+  ) then
+    raise exception 'STORAGE_HISTORY_READ_VERSION_MISMATCH';
+  end if;
 end;
 $$;
 
-create or replace function public.storage_load_scope_metadata(p_scope jsonb) returns jsonb
-language sql stable security definer set search_path=pg_catalog,public set jit=off as $$
-  select jsonb_build_object('updatedAt',public.storage_load_updated_at(),'readVersion',public.storage_scope_read_version(p_scope),
-    'readMarker',public.storage_read_marker())
-$$;
-
+-- Keep the ledger read correlated to each distinct student. OFFSET 0 prevents
+-- PostgreSQL from flattening it into a scan of every student's ledger.
 create or replace function public.storage_load_scope(p_scope jsonb) returns jsonb
 language plpgsql stable security definer set search_path=pg_catalog,public set jit=off as $$
 declare output jsonb;
@@ -145,8 +98,8 @@ begin
 end;
 $$;
 
-revoke all on function public.storage_read_marker(),public.storage_load_read_marker(),public.storage_scope_read_version(jsonb),public.storage_load_scope_metadata(jsonb),public.storage_load_scope(jsonb) from public,anon,authenticated;
-grant execute on function public.storage_read_marker(),public.storage_load_read_marker(),public.storage_scope_read_version(jsonb),public.storage_load_scope_metadata(jsonb),public.storage_load_scope(jsonb) to service_role;
+revoke all on function public.storage_load_scope(jsonb) from public,anon,authenticated;
+grant execute on function public.storage_load_scope(jsonb) to service_role;
 
 notify pgrst, 'reload schema';
 commit;
