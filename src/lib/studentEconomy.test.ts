@@ -11,6 +11,7 @@ import {
   getInvestmentWeekDateKeys,
   getStudentShopPurchaseLabels,
   getDailyStockQuotes,
+  isStudentStockMarketClosed,
   normalizeStudentEconomyState,
   normalizeStudentEconomyStates,
   getStudentEconomyState,
@@ -230,6 +231,33 @@ test('토·일에는 투자와 투자금 찾기를 할 수 없다', () => {
     availableWallet: 90,
     requestId: 'weekend-withdraw',
   }), /STOCK_MARKET_CLOSED/);
+});
+
+test('등록한 평일 휴장은 0%와 구분하고 거래를 막으며 투자금은 그대로 보존한다', () => {
+  const market = normalizeStudentStockMarket({
+    sunny: [{ dateKey: '2026-10-05', stage: 'rise', returnPercent: 20, isClosed: true, comment: '대체공휴일' }],
+    sprout: [{ dateKey: '2026-10-05', stage: 'flat', returnPercent: 0, comment: '첫 거래일' }],
+    settings: { multipliers: { flat: 1.1 } },
+  });
+  assert.equal(isStudentStockMarketClosed('2026-10-05', 'sunny', market), true);
+  assert.equal(isStudentStockMarketClosed('2026-10-05', 'sprout', market), false);
+  assert.equal(isStudentStockMarketClosed('2026-10-06', 'sunny', market), false);
+  const quotes = getDailyStockQuotes('2026-10-05', market);
+  assert.equal(quotes[0].isClosed, true);
+  assert.equal(quotes[0].comment, '대체공휴일');
+  assert.equal(quotes[1].isClosed, false);
+  const state = normalizeStudentEconomyState({ investments: { sunny: { investedAmount: 40, currentAmount: 40, lastSettledDateKey: '2026-10-02', lastChangeAmount: 5, lastStage: 'rise' } } });
+  const options = { state, wallet: 60, availableWallet: 60, requestId: 'holiday-trade', stockMarket: market };
+  assert.throws(() => applyStudentEconomyAction({ ...options, action: { type: 'invest', stockId: 'sunny', amount: 10, dateKey: '2026-10-05' } }), /STOCK_MARKET_CLOSED/);
+  assert.throws(() => applyStudentEconomyAction({ ...options, action: { type: 'withdraw_investment', stockId: 'sunny', dateKey: '2026-10-05' } }), /STOCK_MARKET_CLOSED/);
+  const settled = applyStudentEconomyAction({ ...options, action: { type: 'settle_investments', dateKey: '2026-10-05' } });
+  assert.equal(settled.state.investments.sunny?.currentAmount, 40);
+  assert.equal(settled.state.investments.sunny?.lastChangeAmount, 0);
+  assert.equal(settled.state.investments.sunny?.lastSettledDateKey, '2026-10-05');
+  const repeated = applyStudentEconomyAction({ ...options, state: settled.state, requestId: 'holiday-repeat', action: { type: 'settle_investments', dateKey: '2026-10-05' } });
+  assert.equal(repeated.applied, false);
+  const reopened = applyStudentEconomyAction({ ...options, state: settled.state, requestId: 'holiday-next-day', action: { type: 'invest', stockId: 'sunny', amount: 10, dateKey: '2026-10-06' } });
+  assert.equal(reopened.applied, true);
 });
 
 test('추가 투자 후 현재 금액이 최대 투자 한도를 넘을 수 없다', () => {

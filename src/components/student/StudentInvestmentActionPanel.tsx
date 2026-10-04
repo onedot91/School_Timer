@@ -25,11 +25,6 @@ const getKoreanDateKey = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date());
 
-const isWeekend = (dateKey: string) => {
-  const day = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
-  return day === 0 || day === 6;
-};
-
 interface InvestmentStatusMessageOptions {
   isSaving: boolean;
   marketClosed: boolean;
@@ -81,7 +76,7 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
 
   const position = state.investments[selectedStock.id];
   const investmentAmount = Number(amount);
-  const marketClosed = isWeekend(dateKey);
+  const marketClosed = selectedStock.isClosed;
   const hasEnteredAmount = amount.trim() !== '';
   const maximum = Math.min(settings.maximumAmount - (position?.currentAmount ?? 0), availableBalance);
   const canInvest = !marketClosed && !isSaving && Number.isInteger(investmentAmount) && investmentAmount >= settings.minimumAmount && investmentAmount <= maximum;

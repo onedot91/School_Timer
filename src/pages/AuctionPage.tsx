@@ -2187,7 +2187,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     : message === 'TRANSFER_AMOUNT_LIMIT_EXCEEDED'
                       ? '한 번에 30고마까지만 보낼 수 있습니다.'
             : message === 'STOCK_MARKET_CLOSED'
-              ? '토·일은 휴장입니다.'
+              ? '오늘은 휴장입니다.'
               : message === 'INVESTMENT_LIMIT_EXCEEDED'
                 ? '최대 투자 금액을 넘을 수 없습니다.'
                 : message === 'INVALID_INVESTMENT_AMOUNT'

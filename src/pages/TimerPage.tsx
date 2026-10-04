@@ -20,7 +20,7 @@ import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureW
 import TeacherQuestionSubmissionGrid from '../components/teacher/TeacherQuestionSubmissionGrid';
 import TeacherStockWeekImport from '../components/teacher/TeacherStockWeekImport';
 import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStatus';
-import { applyStockMarketWeekImport } from '../lib/stockMarketWeekImport';
+import { applyStockMarketWeekImport, getStockMarketWeekLabel } from '../lib/stockMarketWeekImport';
 import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { StorageAvailabilityBanner } from '../components/StorageAvailabilityBanner';
 import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
@@ -181,7 +181,7 @@ import {
 import { DAILY_WRITING_STAMP_IMAGE_SOURCE } from '../lib/dailyWriting';
 
 type StockMarketDraft = {
-  returnPercent: number | '';
+  returnPercent: number | '' | 'closed';
   comment: string;
 };
 
@@ -4057,7 +4057,7 @@ export default function TimerPage() {
       weekDrafts[dateKey] = STUDENT_STOCKS.reduce<Record<StudentStockId, StockMarketDraft>>((dayDrafts, stock) => {
         const entry = studentStockMarket[stock.id]?.find((item) => item.dateKey === dateKey);
         dayDrafts[stock.id] = {
-          returnPercent: entry ? entry.returnPercent ?? investmentMultiplierToPercent(settings.multipliers[entry.stage]) : '',
+          returnPercent: entry?.isClosed ? 'closed' : entry ? entry.returnPercent ?? investmentMultiplierToPercent(settings.multipliers[entry.stage]) : '',
           comment: entry?.comment ?? '',
         };
         return dayDrafts;
@@ -10191,6 +10191,7 @@ export default function TimerPage() {
     ? stockMarketDateKey
     : stockMarketWeekDateKeys[4];
   const stockMarketWeekdayLabels = ['월', '화', '수', '목', '금'] as const;
+  const stockMarketWeekLabel = getStockMarketWeekLabel(stockMarketDateKey, getKoreanLocalDateKey());
   const formatStockMarketDate = (dateKey: string) => {
     const date = new Date(`${dateKey}T12:00:00Z`);
     return `${date.getUTCMonth() + 1}.${date.getUTCDate()}`;
@@ -10231,12 +10232,13 @@ export default function TimerPage() {
     setStudentStockMarket((current) => entries.reduce<StudentStockMarket>((market, { dateKey, stockId, draft }) => (
       upsertStudentStockMarketEntry(market, stockId, {
         dateKey,
-        stage: getInvestmentStageFromPercent(draft.returnPercent),
-        returnPercent: draft.returnPercent,
+        ...(draft.returnPercent === 'closed'
+          ? { stage: 'flat' as const, isClosed: true }
+          : { stage: getInvestmentStageFromPercent(draft.returnPercent), returnPercent: draft.returnPercent }),
         comment: draft.comment,
       })
     ), current));
-    setStockMarketSaveStatus(`이번 주 등락 ${entries.length}개를 반영했습니다.`);
+    setStockMarketSaveStatus(`선택한 주 등락·휴장 ${entries.length}개를 반영했습니다.`);
   };
 
   const stockSettingsPanel = (
@@ -10270,15 +10272,15 @@ export default function TimerPage() {
           <div className="teacher-stock-week-actions">
             <div className="teacher-stock-week-navigation" role="group" aria-label="주 이동">
               <button type="button" onClick={() => shiftStockMarketWeek(-7)} aria-label="이전 주"><ChevronLeft size={18} /></button>
-              <button type="button" onClick={() => setStockMarketDateKey(getKoreanLocalDateKey())}>이번 주</button>
+              <button type="button" aria-label={`${stockMarketWeekLabel}, 이번 주로 이동`} onClick={() => setStockMarketDateKey(getKoreanLocalDateKey())}>{stockMarketWeekLabel}</button>
               <button type="button" onClick={() => shiftStockMarketWeek(7)} aria-label="다음 주"><ChevronRight size={18} /></button>
             </div>
             <label className="teacher-stock-week-date"><span className="sr-only">포함 날짜</span><input type="date" value={stockMarketDateKey} onChange={(event) => { if (event.target.value) setStockMarketDateKey(event.target.value); }} /></label>
-            {stockSettingsTab === 'week' ? <button type="button" className="is-primary" title="미등록 항목을 제외한 등락·이유 저장" onClick={saveStockMarketWeek}>이번 주 저장</button> : null}
+            {stockSettingsTab === 'week' ? <button type="button" className="is-primary" title="미등록 항목을 제외한 등락·휴장·이유 저장" onClick={saveStockMarketWeek}>선택한 주 저장</button> : null}
           </div>
         </header> : null}
         <div className="teacher-stock-tab-panel" id="teacher-stock-panel-week" role="tabpanel" aria-labelledby="teacher-stock-tab-week" hidden={stockSettingsTab !== 'week'} tabIndex={0}>
-          <div className="teacher-stock-week-table" role="table" aria-label="이번 주 종목별 등락 편집표">
+          <div className="teacher-stock-week-table" role="table" aria-label="선택한 주 종목별 등락 편집표">
             <div className="teacher-stock-week-row is-heading" role="row">
               <strong role="columnheader">종목</strong>
               {stockMarketWeekDateKeys.map((dateKey, index) => (
@@ -10296,9 +10298,10 @@ export default function TimerPage() {
                   const draft = stockMarketWeekDrafts[dateKey]?.[stock.id];
                   const percent = draft?.returnPercent ?? '';
                   return (
-                    <label key={dateKey} role="cell" className={`${percent === '' ? 'is-empty' : percent > 0 ? 'is-up' : percent < 0 ? 'is-down' : 'is-flat'}${dateKey === selectedStockMarketWeekday ? ' is-selected-day' : ''}`}>
-                      <select aria-label={`${dateKey} ${stock.name} 수익률`} value={percent} onChange={(event) => updateStockMarketWeekDraft(dateKey, stock.id, { returnPercent: event.target.value === '' ? '' : Number(event.target.value) })}>
+                    <label key={dateKey} role="cell" className={`${percent === '' ? 'is-empty' : percent === 'closed' ? 'is-flat' : percent > 0 ? 'is-up' : percent < 0 ? 'is-down' : 'is-flat'}${dateKey === selectedStockMarketWeekday ? ' is-selected-day' : ''}`}>
+                      <select aria-label={`${dateKey} ${stock.name} 수익률`} value={percent} onChange={(event) => updateStockMarketWeekDraft(dateKey, stock.id, { returnPercent: event.target.value === '' ? '' : event.target.value === 'closed' ? 'closed' : Number(event.target.value) })}>
                         <option value="" aria-label="미등록">—</option>
+                        <option value="closed">휴장</option>
                         {investmentReturnPercentOptions.map((optionPercent) => <option key={optionPercent} value={optionPercent}>{formatInvestmentPercent(optionPercent)}</option>)}
                       </select>
                     </label>

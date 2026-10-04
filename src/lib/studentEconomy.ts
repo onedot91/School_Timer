@@ -310,6 +310,7 @@ export interface StudentStockMarketEntry {
   dateKey: string;
   stage: StudentInvestmentStage;
   returnPercent?: number;
+  isClosed?: boolean;
   comment: string;
 }
 
@@ -470,6 +471,8 @@ const normalizeStockMarketEntry = (value: unknown): StudentStockMarketEntry | nu
   const source = value as Record<string, unknown>;
   const dateKey = typeof source.dateKey === 'string' ? source.dateKey : '';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const comment = typeof source.comment === 'string' ? source.comment.trim().slice(0, 120) : '';
+  if (source.isClosed === true) return { dateKey, stage: 'flat', isClosed: true, comment };
   const rawAmount = Number(source.changeAmount ?? source.changePercent ?? 0);
   const legacyStage: StudentInvestmentStage = rawAmount >= 5 ? 'big_rise'
     : rawAmount > 0 ? 'rise'
@@ -484,7 +487,6 @@ const normalizeStockMarketEntry = (value: unknown): StudentStockMarketEntry | nu
       ? source.stage as StudentInvestmentStage
       : legacyStage
     : getInvestmentStageFromPercent(returnPercent);
-  const comment = typeof source.comment === 'string' ? source.comment.trim().slice(0, 120) : '';
   return returnPercent === null ? { dateKey, stage, comment } : { dateKey, stage, returnPercent, comment };
 };
 
@@ -768,6 +770,7 @@ export const getDailyStockQuotes = (dateKey: string, marketValue?: unknown) => {
     return {
       ...stock,
       stage: currentEntry?.stage ?? 'flat',
+      isClosed: !isWeekdayDateKey(dateKey) || currentEntry?.isClosed === true,
       changeAmount: currentEntry?.stage === 'big_rise' ? 2 : currentEntry?.stage === 'rise' ? 1 : currentEntry?.stage === 'fall' ? -1 : currentEntry?.stage === 'big_fall' ? -2 : 0,
       comment: currentEntry?.comment ?? '',
       history,
@@ -796,6 +799,11 @@ const isWeekdayDateKey = (dateKey: string) => {
   return day >= 1 && day <= 5;
 };
 
+export const isStudentStockMarketClosed = (dateKey: string, stockId: StudentStockId, marketValue: unknown) => (
+  !isWeekdayDateKey(dateKey)
+  || normalizeStudentStockMarket(marketValue)[stockId]?.some(entry => entry.dateKey === dateKey && entry.isClosed === true) === true
+);
+
 const getPendingWeekdayDateKeys = (afterDateKey: string, throughDateKey: string) => {
   const cursor = new Date(`${afterDateKey}T12:00:00Z`);
   const end = new Date(`${throughDateKey}T12:00:00Z`);
@@ -819,6 +827,10 @@ const settleStudentInvestments = (state: StudentEconomyState, dateKey: string, m
     let next = current;
     getPendingWeekdayDateKeys(current.lastSettledDateKey, dateKey).forEach((pendingDateKey) => {
       const entry = (market[stock.id] ?? []).find((candidate) => candidate.dateKey === pendingDateKey);
+      if (entry?.isClosed) {
+        next = { ...next, lastChangeAmount: 0, lastStage: 'flat', lastSettledDateKey: pendingDateKey };
+        return;
+      }
       const stage = entry?.stage ?? 'flat';
       const multiplier = entry?.returnPercent === undefined
         ? settings.multipliers[stage]
@@ -1101,7 +1113,7 @@ export const applyStudentEconomyAction = ({
     message = '';
   } else if (action.type === 'invest') {
     if (!STOCK_IDS.has(action.stockId)) throw new Error('UNKNOWN_STOCK');
-    if (!isWeekdayDateKey(action.dateKey)) throw new Error('STOCK_MARKET_CLOSED');
+    if (isStudentStockMarketClosed(action.dateKey, action.stockId, stockMarket)) throw new Error('STOCK_MARKET_CLOSED');
     const settings = normalizeStudentStockMarket(stockMarket).settings ?? DEFAULT_STUDENT_INVESTMENT_SETTINGS;
     if (!Number.isInteger(action.amount) || action.amount < settings.minimumAmount || action.amount > settings.maximumAmount) throw new Error('INVALID_INVESTMENT_AMOUNT');
     const settledState = settleStudentInvestments(state, action.dateKey, stockMarket);
@@ -1121,7 +1133,7 @@ export const applyStudentEconomyAction = ({
     };
     message = `${action.amount} 고마를 투자했습니다.`;
   } else {
-    if (!isWeekdayDateKey(action.dateKey)) throw new Error('STOCK_MARKET_CLOSED');
+    if (isStudentStockMarketClosed(action.dateKey, action.stockId, stockMarket)) throw new Error('STOCK_MARKET_CLOSED');
     const settledState = settleStudentInvestments(state, action.dateKey, stockMarket);
     const position = settledState.investments[action.stockId];
     if (!position) throw new Error('INVESTMENT_NOT_FOUND');

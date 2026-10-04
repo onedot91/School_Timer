@@ -23,11 +23,6 @@ const getKoreanDateKey = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date());
 
-const isWeekend = (dateKey: string) => {
-  const day = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
-  return day === 0 || day === 6;
-};
-
 export const needsInvestmentSettlement = (state: StudentEconomyState, dateKey: string) => (
   Object.values(state.investments).some((position) => (
     position !== undefined && position.lastSettledDateKey < dateKey
@@ -75,12 +70,11 @@ export default function StudentStockMarketPage({ state, market, isLoading, isSav
     });
   }, [dateKey, isLoading, isSaving, onAction, settlementRetryVersion, shouldSettleInvestments]);
 
-  const closed = isWeekend(dateKey);
-
   return (
     <section className="student-stock-market-page" aria-label="종목별 오늘의 변화">
       <div className="student-stock-market">
         {getDailyStockQuotes(dateKey, market).map((stock) => {
+          const closed = stock.isClosed;
           const position = state.investments[stock.id];
           const presentation = getInvestmentStagePresentation(stock.stage);
           return (
@@ -111,7 +105,7 @@ export default function StudentStockMarketPage({ state, market, isLoading, isSav
                   )}
                 </span>
               </span>
-              {stock.comment && !closed ? <span className="student-market-reason">{stock.comment}</span> : null}
+              {stock.comment ? <span className="student-market-reason">{stock.comment}</span> : null}
             </button>
           );
         })}

@@ -32,7 +32,7 @@ export default function TeacherStockWeekImport({ dateKey, market, readOnly, onRe
     if (!preview || readOnly) return;
     onRegister(preview);
     setResult(null);
-    setStatus('월~금 20개 등락·이유를 반영했습니다.');
+    setStatus('월~금 20개 등락·휴장·이유를 반영했습니다.');
   };
 
   return <div className="teacher-stock-import">
@@ -42,7 +42,7 @@ export default function TeacherStockWeekImport({ dateKey, market, readOnly, onRe
           <label htmlFor={inputId}>날짜 | 종목 | 등락 | 이유</label>
           <button type="button" onClick={() => updateText(buildStockMarketWeekImportTemplate(dateKey))}>입력 양식</button>
         </div>
-        <p>월~금 20행 · 등락 -50~+50%, 10% 단위 · 이유 선택(120자)</p>
+        <p>월~금 20행 · 등락 -50~+50%, 10% 단위 또는 휴장 · 이유 선택(120자)</p>
         <textarea
           id={inputId}
           aria-label="주간 증권 등록 텍스트"
@@ -73,7 +73,7 @@ export default function TeacherStockWeekImport({ dateKey, market, readOnly, onRe
               <thead><tr><th scope="col">날짜</th><th scope="col">종목</th><th scope="col">등락</th><th scope="col">이유</th></tr></thead>
               <tbody>{preview.map(entry => <tr key={`${entry.dateKey}:${entry.stockId}`}>
                 <td>{entry.dateKey}</td><td>{STUDENT_STOCKS.find(stock => stock.id === entry.stockId)?.name}</td>
-                <td>{entry.returnPercent > 0 ? '+' : ''}{entry.returnPercent}%</td><td>{entry.comment || '—'}</td>
+                <td>{entry.returnPercent === 'closed' ? '휴장' : `${entry.returnPercent > 0 ? '+' : ''}${entry.returnPercent}%`}</td><td>{entry.comment || '—'}</td>
               </tr>)}</tbody>
             </table>
           </div>

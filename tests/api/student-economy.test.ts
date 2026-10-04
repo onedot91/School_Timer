@@ -216,6 +216,26 @@ test('투자 및 랜덤 프로필의 비용과 상태가 함께 저장된다', a
   });
 });
 
+test('교사가 등록한 평일 휴장은 학생 API에서도 투자·찾기를 거절하며 저장하지 않는다', async () => {
+  const initial = {
+    ...previousValue,
+    studentStockMarket: { sunny: [{ dateKey: '2026-10-05', stage: 'flat', isClosed: true, comment: '대체공휴일' }] },
+  };
+  await withFixture(async (db) => {
+    for (const action of [
+      { type: 'invest', stockId: 'sunny', amount: 30, dateKey: '2026-10-05' },
+      { type: 'withdraw_investment', stockId: 'sunny', dateKey: '2026-10-05' },
+    ]) {
+      const result = await act(1, action, `holiday-${action.type.replaceAll('_', '-')}`);
+      assert.equal(result.statusCode, 400);
+      assert.deepEqual(result.body, { error: 'STOCK_MARKET_CLOSED', businessRejected: true });
+    }
+    assert.equal(db.writes.length, 0);
+    assert.deepEqual(db.value().studentStockMarket, initial.studentStockMarket);
+    assert.deepEqual(db.value().currencyBalances, previousValue.currencyBalances);
+  }, initial);
+});
+
 test('저장 충돌 때 스킨 추첨 결과와 비용은 동일하다', async () => {
   await withFixture(async (db) => {
     db.conflict(1, 150);

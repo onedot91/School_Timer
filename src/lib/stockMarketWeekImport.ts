@@ -10,7 +10,7 @@ import {
 export interface StockMarketWeekImportEntry {
   readonly dateKey: string;
   readonly stockId: StudentStockId;
-  readonly returnPercent: number;
+  readonly returnPercent: number | 'closed';
   readonly comment: string;
 }
 
@@ -19,6 +19,16 @@ export type StockMarketWeekImportResult =
   | { readonly ok: false; readonly errors: readonly string[] };
 
 const HEADER = '날짜 | 종목 | 등락 | 이유';
+
+export const getStockMarketWeekLabel = (dateKey: string, todayDateKey: string) => {
+  const selectedMonday = getInvestmentWeekDateKeys(dateKey)[0];
+  const currentMonday = getInvestmentWeekDateKeys(todayDateKey)[0];
+  const offset = Math.round((Date.parse(selectedMonday) - Date.parse(currentMonday)) / (7 * 24 * 60 * 60 * 1000));
+  if (offset === 0) return '이번 주';
+  if (offset === -1) return '지난 주';
+  if (offset === 1) return '다음 주';
+  return offset < 0 ? `${-offset}주 전` : `${offset}주 후`;
+};
 
 export const buildStockMarketWeekImportTemplate = (dateKey: string) => [
   HEADER,
@@ -52,8 +62,9 @@ export const parseStockMarketWeekImport = (text: string, dateKey: string): Stock
       continue;
     }
     const percent = Number(percentText.replace(/%$/, ''));
-    if (!/^[+-]?\d{1,2}%?$/.test(percentText) || !Number.isInteger(percent) || percent < -50 || percent > 50 || percent % 10 !== 0) {
-      errors.push(`${prefix}등락은 -50% ~ +50% 사이의 10% 단위로 입력해 주세요.`);
+    const closed = percentText === '휴장';
+    if (!closed && (!/^[+-]?\d{1,2}%?$/.test(percentText) || !Number.isInteger(percent) || percent < -50 || percent > 50 || percent % 10 !== 0)) {
+      errors.push(`${prefix}등락은 -50% ~ +50% 사이의 10% 단위 또는 휴장으로 입력해 주세요.`);
       continue;
     }
     const comment = reasonParts.join(' | ').trim();
@@ -67,7 +78,7 @@ export const parseStockMarketWeekImport = (text: string, dateKey: string): Stock
       continue;
     }
     seen.add(key);
-    entries.push({ dateKey: date, stockId: stock.id, returnPercent: percent === 0 ? 0 : percent, comment });
+    entries.push({ dateKey: date, stockId: stock.id, returnPercent: closed ? 'closed' : percent === 0 ? 0 : percent, comment });
   }
   if (errors.length > 0) return { ok: false, errors };
   const expectedCount = weekDates.length * STUDENT_STOCKS.length;
@@ -81,7 +92,8 @@ export const parseStockMarketWeekImport = (text: string, dateKey: string): Stock
 export const applyStockMarketWeekImport = (market: StudentStockMarket, entries: readonly StockMarketWeekImportEntry[]) =>
   entries.reduce<StudentStockMarket>((current, entry) => upsertStudentStockMarketEntry(current, entry.stockId, {
     dateKey: entry.dateKey,
-    stage: getInvestmentStageFromPercent(entry.returnPercent),
-    returnPercent: entry.returnPercent,
+    ...(entry.returnPercent === 'closed'
+      ? { stage: 'flat' as const, isClosed: true }
+      : { stage: getInvestmentStageFromPercent(entry.returnPercent), returnPercent: entry.returnPercent }),
     comment: entry.comment,
   }), market);
