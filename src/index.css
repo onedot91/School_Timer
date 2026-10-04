@@ -12843,6 +12843,62 @@ h3 {
   padding-block: 0.72rem !important;
 }
 
+.question-submission-status-card:focus-visible {
+  outline: 2px solid var(--green-accent, #168657);
+  outline-offset: 3px;
+}
+
+.question-submission-preview {
+  position: fixed;
+  z-index: 200;
+  width: min(24rem, calc(100dvw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+  border: 1px solid #b9cfc2;
+  border-radius: 18px;
+  background: #fffdf8;
+  color: #302b25;
+  box-shadow: 0 12px 32px rgba(31, 49, 39, 0.18);
+  font-family: var(--font-body);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.question-submission-preview-number {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.question-submission-preview-section + .question-submission-preview-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e8e2;
+}
+
+.question-submission-preview-section h3 {
+  margin: 0 0 6px;
+  color: #176244;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.question-submission-preview-section.is-topic h3 {
+  color: #2565a0;
+}
+
+.question-submission-preview-section p {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.6;
+  word-break: keep-all;
+  white-space: pre-wrap;
+}
+
 @media (min-width: 640px) {
   .question-submission-panel {
     --question-panel-bottom-offset: 8rem;
@@ -24254,7 +24310,30 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   .student-sudoku-settings-option { min-height: 17rem; }
 }
 
-.teacher-stock-settings { display: grid; gap: 1rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-panel); background: var(--apple-surface); padding: 1.25rem; }
+.settings-card.teacher-stock-settings { display: grid; min-width: 0; gap: .65rem; border: 0; border-radius: 0; background: transparent; padding: 0; container: stock-settings / inline-size; }
+.settings-dialog .settings-card.teacher-stock-settings { padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }
+.teacher-stock-import { min-width: 0; }
+.teacher-stock-import-body { display: grid; min-width: 0; gap: .75rem; }
+.teacher-stock-import-entry, .teacher-stock-import-result { display: grid; min-width: 0; align-content: start; gap: .6rem; }
+.teacher-stock-import-format, .teacher-stock-import-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
+.teacher-stock-import-format label { color: var(--apple-text-primary); font-weight: 800; }
+.teacher-stock-import p { margin: 0; color: var(--apple-text-secondary); font-size: .85rem; line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
+.teacher-stock-import textarea { width: 100%; min-width: 0; min-height: 8rem; max-height: 16rem; resize: vertical; border: 1px solid var(--apple-separator-strong); border-radius: var(--apple-radius-control); background: var(--apple-surface); padding: .6rem; color: var(--apple-text-primary); font-family: var(--font-mono); font-size: .9rem; line-height: 1.6; }
+.teacher-stock-import button { min-height: 44px; border: 1px solid var(--apple-separator-strong); border-radius: var(--apple-radius-control); background: var(--apple-surface); padding: .5rem .85rem; color: var(--apple-accent-pressed); font-weight: 800; }
+.teacher-stock-import button.is-primary { border-color: var(--apple-accent); background: var(--apple-accent); color: white; }
+.teacher-stock-import button:disabled { cursor: not-allowed; opacity: .5; }
+.teacher-stock-import :is(button, textarea):focus-visible { outline: 2px solid var(--apple-accent); outline-offset: 2px; }
+.teacher-stock-import-errors { max-height: 12rem; overflow-y: auto; margin: 0; padding-left: 1.2rem; color: var(--alert, #a34f45); font-size: .85rem; line-height: 1.6; }
+.teacher-stock-import .teacher-stock-import-notice { color: var(--apple-text-primary); font-weight: 800; }
+.teacher-stock-import-preview { max-height: 14rem; overflow: auto; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-control); background: var(--apple-surface); }
+.teacher-stock-import-preview table { width: 100%; min-width: 25rem; border-collapse: collapse; color: var(--apple-text-primary); font-size: .85rem; }
+.teacher-stock-import-preview th, .teacher-stock-import-preview td { padding: .65rem; border-bottom: 1px solid var(--apple-separator); text-align: left; vertical-align: top; }
+.teacher-stock-import-preview th { position: sticky; top: 0; background: var(--apple-surface-muted); }
+.teacher-stock-import-preview td:nth-child(-n+3) { white-space: nowrap; }
+.teacher-stock-import-preview td:last-child { min-width: 8rem; overflow-wrap: anywhere; }
+@container stock-settings (min-width: 48rem) {
+  .teacher-stock-import-body.has-result { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
 .teacher-stock-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
 .teacher-stock-heading h3 { color: var(--apple-text-primary); font-size: 1.2rem; font-weight: 950; }
 .teacher-stock-heading p { color: var(--apple-text-secondary); font-size: .82rem; font-weight: 800; }
@@ -24502,53 +24581,125 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .teacher-return-guide p span { color: var(--apple-text-secondary); font-size: .75rem; font-weight: 900; white-space: nowrap; }
 .teacher-return-guide .is-up b { color: var(--student-stock-up); }
 .teacher-return-guide .is-down b { color: var(--student-stock-down); }
-.teacher-stock-week { display: grid; gap: .7rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-card); background: var(--apple-surface); padding: .9rem; box-shadow: var(--apple-shadow-1); }
-.teacher-stock-week > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.teacher-stock-week > header h3, .teacher-stock-comments h4 { margin: 0; color: var(--apple-text-primary); font-size: 1rem; font-weight: 950; }
-.teacher-stock-week > header span, .teacher-stock-comments header p { margin: .15rem 0 0; color: var(--apple-text-secondary); font-size: .78rem; font-weight: 800; }
-.teacher-stock-week-actions { display: flex; align-items: center; gap: .35rem; }
-.teacher-stock-week-actions button { display: inline-flex; min-height: 2.6rem; align-items: center; justify-content: center; border: 1px solid var(--apple-separator-strong); border-radius: var(--apple-radius-control); background: var(--apple-surface); padding: 0 .75rem; color: var(--apple-text-primary); font-size: .78rem; font-weight: 900; }
+.teacher-stock-week { display: grid; min-width: 0; gap: .75rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-card); background: var(--apple-surface); padding: 1rem; }
+.settings-dialog .teacher-stock-week { box-shadow: none !important; }
+.teacher-stock-week > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
+.teacher-stock-week > header > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: .6rem; }
+.teacher-stock-week > header h3, .teacher-stock-comments h4 { margin: 0; color: var(--apple-text-primary); font-size: 1rem; font-weight: 800; }
+.teacher-stock-week > header span { color: var(--apple-text-secondary); font-size: .8rem; font-weight: 650; }
+.teacher-stock-week > header .teacher-stock-empty-legend { padding-left: .6rem; border-left: 1px solid var(--apple-separator); font-size: .75rem; font-weight: 500; }
+.teacher-stock-week-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.teacher-stock-week-actions button { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; border: 1px solid var(--apple-separator); background: var(--apple-surface); padding: 0 .75rem; color: var(--apple-text-primary); font-size: .85rem; font-weight: 700; }
+.settings-dialog .teacher-stock-week-actions button { border-radius: .5rem !important; box-shadow: none !important; }
 .teacher-stock-week-actions button.is-primary { border-color: var(--apple-accent); background: var(--apple-accent); color: var(--apple-surface); }
-.teacher-stock-week-date { display: grid; grid-template-columns: auto 7.6rem; align-items: center; gap: .4rem; color: var(--apple-text-secondary); font-size: .7rem; font-weight: 900; }
-.teacher-stock-week-date input { min-width: 0; min-height: 2.6rem; border: 1px solid var(--apple-separator-strong); border-radius: var(--apple-radius-control); background: var(--apple-surface); padding: 0 .5rem; font-family: var(--font-mono); font-size: .72rem; font-weight: 900; }
-.teacher-stock-week-table { display: grid; gap: .35rem; min-width: 0; }
-.teacher-stock-week-row { display: grid; grid-template-columns: minmax(8.5rem, 1.15fr) repeat(5, minmax(7rem, 1fr)); gap: .35rem; }
-.teacher-stock-week-row.is-heading { align-items: stretch; }
-.teacher-stock-week-row.is-heading > strong, .teacher-stock-week-row.is-heading > button { display: flex; min-height: 3rem; align-items: center; justify-content: center; gap: .35rem; border: 0; border-radius: .65rem; background: var(--apple-surface-muted); color: var(--apple-text-secondary); font-size: .78rem; font-weight: 900; }
-.teacher-stock-week-row.is-heading > button.is-selected { background: color-mix(in srgb, var(--apple-accent) 12%, var(--apple-surface)); color: var(--apple-accent); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--apple-accent) 55%, transparent); }
-.teacher-stock-week-name { display: flex; min-width: 0; align-items: center; gap: .5rem; border-radius: .65rem; background: var(--apple-surface-muted); padding: .65rem .75rem; }
-.teacher-stock-week-name span { font-size: 1.35rem; }
-.teacher-stock-week-name strong { overflow: hidden; color: var(--apple-text-primary); font-size: .83rem; text-overflow: ellipsis; white-space: nowrap; }
-.teacher-stock-week-row label { display: grid; min-width: 0; gap: .22rem; border: 1px solid var(--apple-separator); border-radius: .65rem; background: var(--apple-surface-muted); padding: .38rem; }
-.teacher-stock-week-row label.is-up { background: var(--student-stock-up-soft); }
-.teacher-stock-week-row label.is-down { background: var(--student-stock-down-soft); }
-.teacher-stock-week-row label.is-flat { background: var(--apple-surface); }
-.teacher-stock-week-row label select { width: 100%; min-width: 0; min-height: 2.25rem; border: 1px solid var(--apple-separator); border-radius: .5rem; background: var(--apple-surface); padding: 0 .45rem; color: var(--apple-text-primary); font-family: var(--font-mono); font-size: .78rem; font-weight: 900; }
-.teacher-stock-week-row label > span { overflow: hidden; color: var(--apple-text-secondary); font-size: .67rem; font-weight: 900; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-.teacher-stock-week-row label.is-up > span { color: var(--student-stock-up); }
-.teacher-stock-week-row label.is-down > span { color: var(--student-stock-down); }
-.teacher-stock-save-status { min-height: 1.1rem; margin: 0; color: var(--apple-accent); font-size: .75rem; font-weight: 900; text-align: right; }
-.teacher-stock-comments { display: grid; gap: .65rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-card); background: var(--apple-surface-muted); padding: .85rem; }
-.teacher-stock-comments > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
-.teacher-stock-comments label { display: grid; gap: .3rem; color: var(--apple-text-secondary); font-size: .75rem; font-weight: 900; }
-.teacher-stock-comments input { width: 100%; min-width: 0; min-height: 2.55rem; border: 1px solid var(--apple-separator-strong); border-radius: var(--apple-radius-control); background: var(--apple-surface); padding: 0 .65rem; color: var(--apple-text-primary); font-size: .78rem; font-weight: 800; }
+.teacher-stock-week-navigation { display: inline-flex; overflow: hidden; border: 1px solid var(--apple-separator); border-radius: .5rem; background: var(--apple-surface-muted); }
+.settings-dialog .teacher-stock-week-navigation button { border: 0; border-radius: 0 !important; background: transparent; }
+.teacher-stock-week-navigation button + button { border-left: 1px solid var(--apple-separator); }
+.teacher-stock-week-date { display: block; }
+.teacher-stock-week-date input { width: 9rem; min-width: 0; min-height: 44px; border: 1px solid var(--apple-separator); background: var(--apple-surface); padding: 0 .6rem; font-size: .85rem; font-weight: 650; }
+.settings-dialog .teacher-stock-settings .teacher-stock-week-date input { border-radius: .5rem !important; }
+.teacher-stock-week-table { display: grid; min-width: 0; overflow-x: auto; border: 1px solid var(--apple-separator); border-radius: .65rem; }
+.teacher-stock-week-row { display: grid; grid-template-columns: minmax(7.8rem, 1.15fr) repeat(5, minmax(5.5rem, 1fr)); }
+.teacher-stock-week-row + .teacher-stock-week-row { border-top: 1px solid var(--apple-separator); }
+.teacher-stock-week-row > * + * { border-left: 1px solid var(--apple-separator); }
+.teacher-stock-week-row.is-heading { align-items: stretch; background: var(--apple-surface-muted); }
+.teacher-stock-week-row.is-heading > strong, .teacher-stock-week-row.is-heading > div > button { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: center; gap: .35rem; border: 0; background: transparent; color: var(--apple-text-secondary); font-size: .85rem; font-weight: 700; }
+.settings-dialog .teacher-stock-week-row.is-heading > div > button { position: relative; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+.settings-dialog .teacher-stock-week-row.is-heading > div > button.is-selected { color: var(--apple-accent-pressed) !important; background: color-mix(in srgb, var(--apple-accent) 9%, var(--apple-surface)) !important; }
+.teacher-stock-week-row.is-heading > div > button.is-selected::after { position: absolute; right: .6rem; bottom: 0; left: .6rem; height: 3px; background: var(--apple-accent); content: ''; }
+.settings-dialog .teacher-stock-week-row.is-heading > div > button.is-selected :is(span, b) { color: inherit !important; }
+.teacher-stock-week-name { display: flex; min-width: 0; align-items: center; gap: .5rem; background: var(--apple-surface); padding: .25rem .6rem; }
+.teacher-stock-week-name > span { display: grid; flex: none; width: 1.75rem; height: 1.75rem; place-items: center; border-radius: .4rem; background: var(--apple-surface-muted); font-size: 1.1rem; }
+.teacher-stock-week-name strong { overflow: hidden; color: var(--apple-text-primary); font-size: .85rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-stock-week-row label { display: grid; position: relative; min-width: 0; background: var(--apple-surface); }
+.teacher-stock-week-row label.is-selected-day { background: color-mix(in srgb, var(--apple-accent) 5%, var(--apple-surface)); }
+.teacher-stock-week-row label::after { position: absolute; right: .65rem; top: calc(50% - 4px); width: 6px; height: 6px; border-right: 1px solid var(--apple-text-secondary); border-bottom: 1px solid var(--apple-text-secondary); opacity: .35; pointer-events: none; transform: rotate(45deg); content: ''; }
+.teacher-stock-week-row label:is(:hover, :focus-within)::after { opacity: 1; }
+.teacher-stock-week-row label select { width: 100%; min-width: 0; min-height: 44px; padding: 0 1.5rem 0 .6rem; font-family: var(--font-mono); font-size: .9rem; font-weight: 700; text-align: center; appearance: none; }
+.settings-dialog .teacher-stock-settings .teacher-stock-week-row label select { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+.settings-dialog .teacher-stock-week-row label.is-empty select { color: var(--apple-text-secondary) !important; font-weight: 500; }
+.settings-dialog .teacher-stock-week-row label.is-up select { color: var(--student-stock-up) !important; }
+.settings-dialog .teacher-stock-week-row label.is-down select { color: var(--student-stock-down) !important; }
+.settings-dialog .teacher-stock-week-row label select:hover { background: color-mix(in srgb, var(--apple-accent) 8%, var(--apple-surface)) !important; }
+.settings-dialog .teacher-stock-week-table .teacher-stock-week-row label select:focus-visible { outline: 2px solid var(--apple-accent) !important; outline-offset: -3px; box-shadow: none !important; }
+.teacher-stock-save-status { margin: 0; color: var(--apple-accent); font-size: .75rem; font-weight: 650; }
+.teacher-stock-save-status:empty { display: none; }
+.teacher-stock-comments { display: grid; gap: .5rem; border-top: 1px solid var(--apple-separator); padding-top: .75rem; }
+.settings-dialog .teacher-stock-comments { border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+.teacher-stock-comments > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem; }
+.teacher-stock-comments > header > span { color: var(--apple-text-secondary); font-size: .75rem; }
+.teacher-stock-comments > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; }
+.teacher-stock-comments label { display: grid; gap: .35rem; color: var(--apple-text-secondary); font-size: .75rem; font-weight: 650; }
+.teacher-stock-comments input { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--apple-separator); padding: 0 .65rem; color: var(--apple-text-primary); font-size: .85rem; font-weight: 500; }
+.settings-dialog .teacher-stock-settings .teacher-stock-comments input { border-radius: .5rem !important; background: var(--apple-surface) !important; box-shadow: none !important; }
+.teacher-stock-tabs { display: grid; position: sticky; top: 0; z-index: 2; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .25rem; border: 1px solid var(--apple-separator); border-radius: .7rem; background: var(--apple-surface-muted); padding: .25rem; }
+.settings-dialog .teacher-stock-settings .teacher-stock-tabs button { position: relative; min-width: 0; min-height: 44px; border: 0 !important; border-radius: .5rem !important; background: transparent !important; padding: .5rem; color: var(--apple-text-secondary) !important; font-size: .85rem; font-weight: 650; box-shadow: none !important; }
+.settings-dialog .teacher-stock-settings .teacher-stock-tabs button[aria-selected="true"] { background: var(--apple-surface) !important; color: var(--apple-accent-pressed) !important; font-weight: 800; box-shadow: 0 1px 3px color-mix(in srgb, var(--apple-text-primary) 12%, transparent) !important; }
+.teacher-stock-tabs button[aria-selected="true"]::after { position: absolute; right: .75rem; bottom: 0; left: .75rem; height: 3px; border-radius: 2px; background: var(--apple-accent); content: ''; }
+.settings-dialog .teacher-stock-settings .teacher-stock-tabs button:hover { color: var(--apple-text-primary) !important; }
+.teacher-stock-tab-panel { display: grid; min-width: 0; align-content: start; gap: .75rem; }
+.teacher-stock-tab-panel[hidden] { display: none !important; }
+.settings-dialog .teacher-stock-settings .teacher-stock-import button { border-radius: .5rem !important; box-shadow: none !important; }
+.teacher-stock-options { display: grid; gap: 1.25rem; }
+.teacher-stock-options :is(.teacher-investment-controls, .teacher-return-guide) { border: 0; background: transparent; padding: 0; box-shadow: none; }
+.settings-dialog .teacher-stock-options :is(.teacher-investment-controls, .teacher-return-guide) { background: transparent !important; box-shadow: none !important; }
+.teacher-stock-options .teacher-return-guide > div { grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); }
+.teacher-stock-settings :is(button, select, input, [tabindex]):focus-visible { outline: 2px solid var(--apple-accent); outline-offset: 2px; }
+.teacher-stock-settings button:active { background-color: color-mix(in srgb, var(--apple-accent) 15%, var(--apple-surface)); }
+.teacher-stock-settings button.is-primary:active { background-color: var(--apple-accent-pressed); }
+@container stock-settings (max-width: 40rem) {
+  .teacher-stock-comments > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container stock-settings (max-width: 25rem) {
+  .teacher-stock-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .teacher-stock-weekend { margin: 0; border-radius: .75rem; background: var(--apple-surface-muted); padding: .7rem; color: var(--apple-text-secondary); font-weight: 900; text-align: center; }
-.teacher-investment-status { display: grid; gap: .6rem; }
-.teacher-investment-status h4 { margin: 0; color: var(--apple-text-primary); font-size: 1rem; font-weight: 950; }
-.teacher-investment-status > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: .45rem; max-height: 15rem; overflow: auto; }
-.teacher-investment-status article { display: grid; grid-template-columns: 4rem repeat(4, minmax(0, 1fr)); gap: .4rem; align-items: center; border-radius: .65rem; background: var(--apple-surface); padding: .5rem .75rem; font-size: .78rem; }
-.teacher-investment-status article span, .teacher-investment-status article b { white-space: nowrap; }
-.teacher-investment-status .is-up { color: var(--student-stock-up); }
-.teacher-investment-status .is-down { color: var(--student-stock-down); }
+.settings-dialog .settings-body.teacher-stock-investments-body { display: grid; grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+.teacher-stock-investments-body .teacher-stock-settings { min-height: 0; grid-template-rows: auto minmax(0, 1fr); }
+.teacher-stock-investments-body .teacher-stock-week,
+.teacher-stock-investments-body #teacher-stock-panel-students { min-height: 0; grid-template-rows: minmax(0, 1fr); align-content: stretch; }
+.teacher-investment-dashboard { display: grid; min-width: 0; min-height: 0; grid-template-rows: max-content max-content; gap: 1.25rem; overflow: auto; align-content: start; overscroll-behavior: contain; }
+.teacher-investment-dashboard :is(.teacher-investment-overview, .teacher-investment-detail) { display: grid; min-width: 0; min-height: 0; align-content: start; gap: .75rem; }
+.settings-dialog .teacher-stock-settings .teacher-investment-dashboard section { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+.teacher-investment-dashboard header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .35rem; }
+.teacher-investment-dashboard h4 { margin: 0; color: var(--apple-text-primary); font-size: .95rem; font-weight: 800; }
+.teacher-investment-dashboard header > span { color: var(--apple-text-secondary); font-size: .72rem; }
+.settings-dialog .teacher-stock-settings .teacher-investment-dashboard .is-up { color: var(--student-stock-up) !important; }
+.settings-dialog .teacher-stock-settings .teacher-investment-dashboard .is-down { color: var(--student-stock-down) !important; }
+.settings-dialog .teacher-stock-settings .teacher-investment-dashboard .is-flat { color: #202020 !important; }
+.teacher-investment-legend { display: flex; flex-wrap: wrap; gap: .75rem; font-size: .75rem; font-weight: 650; }
+.teacher-investment-roster { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4rem; }
+.settings-dialog .teacher-stock-settings .teacher-investment-roster button { display: grid; min-width: 0; min-height: 52px; align-content: center; gap: .1rem; border: 1px solid var(--apple-separator) !important; border-radius: .5rem !important; background: var(--apple-surface) !important; padding: .35rem; box-shadow: none !important; }
+.settings-dialog .teacher-stock-settings .teacher-investment-roster button[aria-pressed="true"] { background: color-mix(in srgb, currentColor 7%, var(--apple-surface)) !important; box-shadow: inset 0 0 0 2px currentColor !important; }
+.settings-dialog .teacher-stock-settings .teacher-investment-roster button:hover { background: color-mix(in srgb, currentColor 5%, var(--apple-surface)) !important; }
+.settings-dialog .teacher-stock-settings .teacher-investment-roster button :is(strong, span) { color: inherit !important; }
+.teacher-investment-roster strong { font-size: 1.15rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.teacher-investment-roster span { font-size: .65rem; line-height: 1.3; }
+.teacher-investment-detail { border-top: 1px solid var(--apple-separator); padding-top: 1rem; }
+.settings-dialog .teacher-stock-settings .teacher-investment-dashboard .teacher-investment-detail { border-top: 1px solid var(--apple-separator) !important; }
+.teacher-investment-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; margin: 0; border-bottom: 1px solid var(--apple-separator); padding-bottom: .75rem; }
+.teacher-investment-totals dt { margin-bottom: .3rem; color: var(--apple-text-secondary); font-size: .75rem; }
+.teacher-investment-totals dd { margin: 0; overflow-wrap: anywhere; font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.teacher-investment-totals small, .teacher-investment-breakdown td small { display: block; font-size: .75rem; font-weight: 600; }
+.teacher-investment-empty { margin: 0; padding: 1rem 0; color: var(--apple-text-secondary); font-size: .85rem; }
+.teacher-investment-breakdown { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.teacher-investment-breakdown table { width: 100%; min-width: 25rem; border-collapse: collapse; font-size: .8rem; font-variant-numeric: tabular-nums; }
+.teacher-investment-breakdown :is(th, td) { border-bottom: 1px solid var(--apple-separator); padding: .6rem .4rem; text-align: right; vertical-align: top; }
+.teacher-investment-breakdown thead th { position: sticky; top: 0; z-index: 1; color: var(--apple-text-secondary); background: var(--apple-surface); font-size: .72rem; font-weight: 650; }
+.teacher-investment-breakdown tr > :first-child { width: 45%; padding-left: 0; text-align: left; }
+.teacher-investment-breakdown tbody th strong { display: block; color: var(--apple-text-primary); font-weight: 750; }
+.teacher-investment-breakdown tbody th small { display: block; margin-top: .25rem; color: var(--apple-text-secondary); font-size: .68rem; line-height: 1.5; font-weight: 500; overflow-wrap: anywhere; }
+.teacher-investment-breakdown td { white-space: nowrap; }
+@container stock-settings (min-width: 48rem) {
+  .teacher-investment-dashboard { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); grid-template-rows: minmax(0, 1fr); align-content: stretch; overflow: hidden; }
+  .teacher-investment-dashboard .teacher-investment-overview { overflow: auto; }
+  .teacher-investment-dashboard .teacher-investment-detail { overflow: auto; border-top: 0; border-left: 1px solid var(--apple-separator); padding: 0 0 0 1.25rem; }
+  .settings-dialog .teacher-stock-settings .teacher-investment-dashboard .teacher-investment-detail { border-top: 0 !important; border-left: 1px solid var(--apple-separator) !important; }
+}
 
 @media (max-width: 1050px) {
   .student-market-glance > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .teacher-stock-grid { grid-template-columns: minmax(0, 1fr); }
-  .teacher-stock-week { overflow-x: auto; }
-  .teacher-stock-week > header { min-width: 48rem; }
-  .teacher-stock-week-table { min-width: 48rem; }
-  .teacher-stock-comments { overflow-x: auto; }
-  .teacher-stock-comments > div { min-width: 48rem; }
 }
 
 .student-donation-page {

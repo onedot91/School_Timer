@@ -21,6 +21,10 @@ export const studentSettingsPollInterval = (intervalMs: number, random = Math.ra
   intervalMs + random() * Math.min(2_000, intervalMs * 0.2)
 );
 
+export const studentSettingsBurstDelay = (studentNumber: number, random = Math.random): number => (
+  Math.min(23, Math.max(0, studentNumber - 1)) * 75 + random() * 250
+);
+
 export const isStudentSettingsSnapshotFresh = (updatedAt: string | null | undefined, minimumUpdatedAt: string | null) => (
   minimumUpdatedAt === null || (typeof updatedAt === 'string'
     && Number.isFinite(Date.parse(updatedAt)) && Number.isFinite(Date.parse(minimumUpdatedAt))

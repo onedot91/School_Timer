@@ -262,12 +262,21 @@ export const loadScopedStorageSnapshotForRead = (configuration: StorageConfigura
     return read;
 };
 
-export const loadScopedStorageMetadata = async (configuration: StorageConfiguration, scope: StorageScope): Promise<{ updatedAt: string; readVersion: string; readMarker?: string }> => {
-    const body = await request(configuration, 'storage_load_scope_metadata', { p_scope: parseStorageScope(scope) });
-    if (!isStorageRecord(body) || typeof body.updatedAt !== 'string' || !Number.isFinite(Date.parse(body.updatedAt))
-        || typeof body.readVersion !== 'string' || !/^[a-f0-9]{32}$/.test(body.readVersion)) return invalid();
-    if (body.readMarker !== undefined && (typeof body.readMarker !== 'string' || !/^[a-f0-9]{32}$/.test(body.readMarker))) return invalid();
-    return { updatedAt: body.updatedAt, readVersion: body.readVersion, ...(typeof body.readMarker === 'string' ? { readMarker: body.readMarker } : {}) };
+interface ScopedStorageMetadata { updatedAt: string; readVersion: string; readMarker?: string }
+const scopedMetadataReads = new Map<string, Promise<ScopedStorageMetadata>>();
+export const loadScopedStorageMetadata = async (configuration: StorageConfiguration, scope: StorageScope): Promise<ScopedStorageMetadata> => {
+    const parsedScope = parseStorageScope(scope);
+    const identity = canonicalStorageJson([configuration.url, configuration.key, parsedScope]);
+    const pending = scopedMetadataReads.get(identity);
+    if (pending) return pending;
+    const read = request(configuration, 'storage_load_scope_metadata', { p_scope: parsedScope }).then(body => {
+        if (!isStorageRecord(body) || typeof body.updatedAt !== 'string' || !Number.isFinite(Date.parse(body.updatedAt))
+            || typeof body.readVersion !== 'string' || !/^[a-f0-9]{32}$/.test(body.readVersion)) return invalid();
+        if (body.readMarker !== undefined && (typeof body.readMarker !== 'string' || !/^[a-f0-9]{32}$/.test(body.readMarker))) return invalid();
+        return { updatedAt: body.updatedAt, readVersion: body.readVersion, ...(typeof body.readMarker === 'string' ? { readMarker: body.readMarker } : {}) };
+    }).finally(() => { if (scopedMetadataReads.get(identity) === read) scopedMetadataReads.delete(identity); });
+    scopedMetadataReads.set(identity, read);
+    return read;
 };
 
 const markerReads = new Map<string, Promise<{ updatedAt: string; readMarker: string }>>();

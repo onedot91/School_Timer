@@ -162,6 +162,7 @@ import {
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
   studentSettingsRetryDelay,
   studentSettingsPollInterval,
+  studentSettingsBurstDelay,
 } from '../lib/studentSettingsSync';
 import {
   TEACHER_LETTER_RECIPIENT,
@@ -1510,13 +1511,16 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         }, studentSettingsPollInterval(intervalMs));
       }
     };
-    void refreshWhenVisible();
+    if (isSupabaseSettingsEnabled) {
+      scheduledRefresh = window.setTimeout(() => { void refreshWhenVisible(); }, studentSettingsBurstDelay(studentNumber));
+    } else void refreshWhenVisible();
     const refreshOnReturn = () => {
-      if (document.visibilityState !== 'visible') return;
+      if (document.visibilityState !== 'visible' || !navigator.onLine || isRefreshing) return;
       const now = Date.now();
       if (now - lastForegroundRefreshAt < STUDENT_FOREGROUND_SYNC_COOLDOWN_MS) return;
       lastForegroundRefreshAt = now;
-      void refreshWhenVisible();
+      if (scheduledRefresh !== undefined) window.clearTimeout(scheduledRefresh);
+      scheduledRefresh = window.setTimeout(() => { void refreshWhenVisible(); }, studentSettingsBurstDelay(studentNumber));
     };
     window.addEventListener('focus', refreshOnReturn);
     window.addEventListener('online', refreshOnReturn);
@@ -1661,17 +1665,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }),
       previous,
     ));
-    nextSyncAt = Date.now() + 1_500 + Math.random() * 2_500;
+    nextSyncAt = Date.now() + 1_500 + studentSettingsBurstDelay(studentNumber);
     const syncOnReturn = () => {
       if (document.visibilityState !== 'visible' || !navigator.onLine || isSyncing) return;
-      if (Date.now() < nextSyncAt) {
-        if (scheduledSync === undefined) scheduledSync = window.setTimeout(() => {
-          scheduledSync = undefined;
-          if (isActive && document.visibilityState === 'visible') void syncWeeklyMission();
-        }, nextSyncAt - Date.now());
-        return;
-      }
-      void syncWeeklyMission();
+      if (scheduledSync !== undefined) return;
+      scheduledSync = window.setTimeout(() => {
+        scheduledSync = undefined;
+        if (isActive && document.visibilityState === 'visible') void syncWeeklyMission();
+      }, Math.max(nextSyncAt - Date.now(), studentSettingsBurstDelay(studentNumber)));
     };
     syncOnReturn();
     window.addEventListener('focus', syncOnReturn);

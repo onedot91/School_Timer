@@ -7,6 +7,7 @@ import {
   STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
   STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS,
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
+  studentSettingsBurstDelay,
 } from './studentSettingsSync.js';
 
 const source = readFileSync(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
@@ -15,7 +16,7 @@ const end = source.indexOf('\n  useEffect(', start + 1);
 assert.ok(start >= 0 && end > start);
 const effect = ts.transpile(source.slice(start, end), { target: ts.ScriptTarget.ES2022 });
 
-const fixture = () => {
+const fixture = (studentNumber = 1) => {
   let now = 0;
   let nextId = 0;
   let cleanup: (() => void) | undefined;
@@ -37,10 +38,11 @@ const fixture = () => {
       setInterval: (callback: () => void, delay: number) => schedule(callback, delay, delay),
       clearInterval: (id: number) => timers.delete(id) },
     document, navigator, Date: { now: () => now },
-    studentNumber: 1, SAVE_RECOVERED_EVENT: 'save-recovered', activeStudentView: 'store-auction',
+    studentNumber, isSupabaseSettingsEnabled: true, SAVE_RECOVERED_EVENT: 'save-recovered', activeStudentView: 'store-auction',
     isStudentStoreView: () => true, STUDENT_SETTINGS_SYNC_INTERVAL_MS,
     STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS, STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
     studentSettingsPollInterval: (interval: number) => interval + 200,
+    studentSettingsBurstDelay: (student: number) => studentSettingsBurstDelay(student, () => 0),
     refreshAuctionState: async () => {
       if (reading) return;
       reading = true;
@@ -87,6 +89,7 @@ test('느린 학생 조회는 완료 후 대기 간격을 보장하고 포커스
 
 test('숨김 및 오프라인에서는 조회하지 않고 복귀 시 갱신한 뒤 하나의 예약만 유지한다', async () => {
   const screen = fixture();
+  await screen.advance(0);
   await screen.finish();
   screen.document.visibilityState = 'hidden';
   await screen.advance(4_400);
@@ -97,10 +100,36 @@ test('숨김 및 오프라인에서는 조회하지 않고 복귀 시 갱신한 
   assert.deepEqual(screen.starts, [0]);
   screen.navigator.onLine = true;
   screen.event('online');
+  await screen.advance(6_600);
   await screen.finish();
   assert.deepEqual(screen.starts, [0, 6_600]);
   assert.equal(screen.timers.size, 1);
   screen.stop();
   await screen.advance(20_000);
   assert.equal(screen.starts.length, 2);
+});
+
+test('23명 동시 접속과 네트워크 복귀의 조회를 2초 안에 분산한다', async t => {
+  const screens = Array.from({ length: 23 }, (_, index) => fixture(index + 1));
+  try {
+    const peak = (times: number[]) => Math.max(...times.map(at => times.filter(other => Math.floor(other / 100) === Math.floor(at / 100)).length));
+    assert.ok(screens.flatMap(screen => screen.starts).length <= 2, 'initial mounting must not launch 23 database reads at once');
+    await Promise.all(screens.map(screen => screen.advance(2_000)));
+    const first = screens.flatMap(screen => screen.starts);
+    assert.equal(first.length, 23);
+    assert.ok(peak(first) <= 2, `initial 100ms peak was ${peak(first)}`);
+    await Promise.all(screens.map(screen => screen.finish()));
+    await Promise.all(screens.map(screen => screen.advance(4_000)));
+    screens.forEach(screen => { screen.event('online'); screen.event('focus'); });
+    await Promise.all(screens.map(screen => screen.advance(6_000)));
+    const returned = screens.map(screen => screen.starts[1]);
+    assert.equal(returned.filter(at => at !== undefined).length, 23);
+    assert.ok(peak(returned) <= 2, `return 100ms peak was ${peak(returned)}`);
+    assert.ok(returned.every(at => at >= 4_000 && at < 6_000));
+    t.diagnostic(JSON.stringify({ students: 23, jitter: 0, firstPeakPer100ms: peak(first), returnPeakPer100ms: peak(returned), lastInitialStartMs: Math.max(...first), lastReturnDelayMs: Math.max(...returned) - 4_000 }));
+  } finally {
+    screens.forEach(screen => screen.stop());
+    await Promise.all(screens.map(screen => screen.finish()));
+    assert.ok(screens.every(screen => screen.timers.size === 0));
+  }
 });

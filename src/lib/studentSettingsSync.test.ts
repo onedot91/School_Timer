@@ -12,6 +12,7 @@ import {
   storeStudentProfileSnapshot,
   studentSettingsRetryDelay,
   studentSettingsPollInterval,
+  studentSettingsBurstDelay,
 } from './studentSettingsSync';
 
 test('조회 실패는 간격을 늘리고 서버 대기 시간과 기기별 분산을 유지한다', () => {
@@ -28,6 +29,15 @@ test('student settings only reload fully when the shared timestamp changes', () 
   assert.equal(shouldLoadFullStudentSettings(null, '2026-08-10T00:00:00.000Z'), true);
   assert.equal(shouldLoadFullStudentSettings('2026-08-10T00:00:00.000Z', '2026-08-10T00:00:00.000Z'), false);
   assert.equal(shouldLoadFullStudentSettings('2026-08-10T00:00:00.000Z', '2026-08-10T00:01:00.000Z'), true);
+});
+
+test('동시 접속 분산은 학생별 순서와 탭별 편차를 유지하며 2초 이내다', () => {
+  const delays = Array.from({ length: 24 }, (_, index) => studentSettingsBurstDelay(index + 1, () => 0));
+  assert.equal(delays[0], 0);
+  assert.equal(delays[23], 1_725);
+  assert.ok(delays.every((delay, index) => index === 0 || delay > delays[index - 1]));
+  assert.equal(studentSettingsBurstDelay(24, () => 1), 1_975);
+  assert.equal(studentSettingsBurstDelay(1, () => 0.5), 125);
 });
 
 test('경매는 2초, 일반 상점과 개요는 10초 간격으로 공유 변경을 확인한다', () => {

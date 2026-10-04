@@ -1,18 +1,31 @@
 import { loadNewspaper } from './newspaperClient';
-import { NEWSPAPER_CONFIG } from './newspaperQuestion';
+import { NEWSPAPER_CONFIG, type NewspaperQuestion } from './newspaperQuestion';
 
 export interface QuestionSubmissionStatus {
   readonly number: number;
   readonly personalSubmitted: boolean;
   readonly topicSubmitted: boolean;
+  readonly personalQuestion?: string;
+  readonly topicQuestion?: string;
 }
+
+export const buildQuestionSubmissionStatuses = (questions: readonly NewspaperQuestion[]): QuestionSubmissionStatus[] =>
+  Array.from({ length: NEWSPAPER_CONFIG.studentCount }, (_, index) => {
+    const number = index + 1;
+    const personal = questions.find(row => row.student_number === number && row.question_type === 'personal');
+    const topic = questions.find(row => row.student_number === number && row.question_type === 'topic');
+    return {
+      number,
+      personalSubmitted: personal !== undefined,
+      topicSubmitted: topic !== undefined,
+      personalQuestion: personal?.question_text,
+      topicQuestion: topic?.question_text,
+    };
+  });
 
 export const loadQuestionSubmissionStatuses = async () => {
   const data = await loadNewspaper(0);
-  return Array.from({ length: NEWSPAPER_CONFIG.studentCount }, (_, index) => ({ number: index + 1,
-    personalSubmitted: data.questions.some(row => row.student_number === index + 1 && row.question_type === 'personal'),
-    topicSubmitted: data.questions.some(row => row.student_number === index + 1 && row.question_type === 'topic'),
-  }));
+  return buildQuestionSubmissionStatuses(data.questions);
 };
 
 export const hasPersonalQuestionSubmission = (

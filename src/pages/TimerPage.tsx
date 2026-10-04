@@ -17,6 +17,10 @@ import { classifySaveFailure } from '../lib/saveFailure';
 import { isReadOnlyDataMode } from '../lib/dataMode';
 import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
+import TeacherQuestionSubmissionGrid from '../components/teacher/TeacherQuestionSubmissionGrid';
+import TeacherStockWeekImport from '../components/teacher/TeacherStockWeekImport';
+import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStatus';
+import { applyStockMarketWeekImport } from '../lib/stockMarketWeekImport';
 import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { StorageAvailabilityBanner } from '../components/StorageAvailabilityBanner';
 import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
@@ -3921,7 +3925,6 @@ export default function TimerPage() {
     }
   });
   const [pendingNoticeHighlightRange, setPendingNoticeHighlightRange] = useState<NoticeHighlightRange | null>(null);
-  const [noticeHighlightPopoverPosition, setNoticeHighlightPopoverPosition] = useState({ x: 0, y: 0 });
   const [isNoticeEnabled, setIsNoticeEnabled] = useState(() => {
     const saved = localStorage.getItem('scheduleNoticeEnabled');
     if (saved !== null) return saved === 'true';
@@ -4046,6 +4049,7 @@ export default function TimerPage() {
   const [stockMarketDateKey, setStockMarketDateKey] = useState(getKoreanLocalDateKey);
   const [stockMarketWeekDrafts, setStockMarketWeekDrafts] = useState<StockMarketWeekDrafts>({});
   const [stockMarketSaveStatus, setStockMarketSaveStatus] = useState('');
+  const [stockSettingsTab, setStockSettingsTab] = useState<'week' | 'import' | 'rules' | 'students'>('week');
   const stockMarketWeekStartDateKey = getInvestmentWeekDateKeys(stockMarketDateKey)[0];
   useEffect(() => {
     const settings = normalizeStudentInvestmentSettings(studentStockMarket.settings);
@@ -4060,8 +4064,8 @@ export default function TimerPage() {
       }, {} as Record<StudentStockId, StockMarketDraft>);
       return weekDrafts;
     }, {}));
-    setStockMarketSaveStatus('');
   }, [stockMarketWeekStartDateKey, studentStockMarket]);
+  useEffect(() => { setStockMarketSaveStatus(''); }, [stockMarketWeekStartDateKey]);
   const [teacherShopTab, setTeacherShopTab] = useState<TeacherShopTab>('items');
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
@@ -8516,8 +8520,6 @@ export default function TimerPage() {
     const range = selection.getRangeAt(0);
     const container = document.querySelector('[data-notice-text-content="true"]');
     if (!container || !container.contains(range.commonAncestorContainer)) return;
-    const noticeContent = container.closest('.notice-content');
-    if (!(noticeContent instanceof HTMLElement)) return;
 
     const beforeRange = document.createRange();
     beforeRange.selectNodeContents(container);
@@ -8528,15 +8530,7 @@ export default function TimerPage() {
 
     if (selectedLength <= 0) return;
 
-    const selectionRect = range.getBoundingClientRect();
-    const hostRect = noticeContent.getBoundingClientRect();
-    const popoverWidth = 136;
-    const popoverHeight = 44;
-    const x = Math.max(12, Math.min(selectionRect.right - hostRect.left + 12, hostRect.width - popoverWidth - 12));
-    const y = Math.max(12, Math.min(selectionRect.bottom - hostRect.top + 10, hostRect.height - popoverHeight - 12));
-
     skipNextNoticeTextClickRef.current = true;
-    setNoticeHighlightPopoverPosition({ x, y });
     setPendingNoticeHighlightRange({ start, end, color: NOTICE_HIGHLIGHT_COLORS[0].id });
   };
   const applyNoticeDraftSelectionHighlight = () => {
@@ -8559,20 +8553,6 @@ export default function TimerPage() {
       return;
     }
 
-    const editor = textarea.closest('.notice-editor');
-    if (!(editor instanceof HTMLElement)) return;
-
-    const computedStyle = window.getComputedStyle(textarea);
-    const fontSize = Number.parseFloat(computedStyle.fontSize) || 44;
-    const selectedPrefix = noticeDraft.slice(0, selectionEnd);
-    const lineCount = selectedPrefix.split('\n').length;
-    const estimatedX = textarea.clientWidth / 2 + Math.min(fontSize * 2, textarea.clientWidth * 0.22);
-    const popoverWidth = 136;
-    const popoverHeight = 44;
-    const x = Math.max(12, Math.min(estimatedX, editor.clientWidth - popoverWidth - 12));
-    const y = Math.max(12, Math.min(34 + (lineCount - 1) * fontSize * 1.18, editor.clientHeight - popoverHeight - 12));
-
-    setNoticeHighlightPopoverPosition({ x, y });
     setPendingNoticeHighlightRange({ start, end, color: NOTICE_HIGHLIGHT_COLORS[0].id });
   };
   const applyPendingNoticeHighlight = (color: NoticeHighlightColorId) => {
@@ -8676,12 +8656,19 @@ export default function TimerPage() {
         className={`notice-card relative mx-auto w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[#FFFBF6] px-1 pb-1 pt-1 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] md:px-1.5 md:pb-1.5 ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading'}`}
       >
         {isEditingNotice ? (
-          <div className="notice-editor relative flex min-h-24 items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-12 py-1 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:px-14">
+          <div className="notice-editor relative flex min-h-24 flex-col items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-12 py-1 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:px-14">
             <div className="flex w-full min-w-0 items-center">
               <textarea
                 ref={noticeInputRef}
                 value={noticeDraft}
                 onChange={(e) => applyNoticeDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' || isComposingKeyboardEvent(e) || e.nativeEvent.keyCode === 229) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setPendingNoticeHighlightRange(null);
+                  closeNoticeEdit();
+                }}
                 onKeyUp={(e) => {
                   if (!e.nativeEvent.isComposing) {
                     applyNoticeDraftSelectionHighlight();
@@ -8697,18 +8684,14 @@ export default function TimerPage() {
             </div>
             {pendingNoticeHighlightRange ? (
               <div
-                className="notice-highlight-popover absolute z-30 flex items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1.5 shadow-[0_12px_24px_rgba(151,80,59,0.16)] backdrop-blur-sm"
-                style={{
-                  left: noticeHighlightPopoverPosition.x,
-                  top: noticeHighlightPopoverPosition.y,
-                }}
+                className="notice-highlight-popover relative z-30 mb-1 mt-2 flex shrink-0 items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1.5 shadow-[0_12px_24px_rgba(151,80,59,0.16)] backdrop-blur-sm"
                 data-notice-highlight-popover="true"
               >
                 <button
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => applyPendingNoticeHighlight('coral')}
-                  className="notice-highlight-apply-button inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.72rem] font-extrabold text-white transition-colors"
+                  className="notice-highlight-apply-button inline-flex h-11 min-w-11 items-center justify-center rounded-full px-3 text-[0.72rem] font-extrabold text-white transition-colors"
                   title="코랄색으로 강조"
                   aria-label="코랄색으로 강조"
                 >
@@ -8718,7 +8701,7 @@ export default function TimerPage() {
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={cancelPendingNoticeHighlight}
-                  className="inline-flex h-8 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
+                  className="inline-flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
                 >
                   취소
                 </button>
@@ -8728,7 +8711,7 @@ export default function TimerPage() {
           </div>
         ) : (
           <>
-            <div className="notice-content relative flex min-h-24 w-full items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-12 py-1 transition-colors hover:bg-white sm:px-14">
+            <div className="notice-content relative flex min-h-24 w-full flex-col items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-12 py-1 transition-colors hover:bg-white sm:px-14">
               <div
                 className="flex w-full min-w-0 items-center justify-center bg-transparent text-left"
                 title="드래그한 뒤 강조를 누르면 코랄색으로 표시됩니다."
@@ -8753,18 +8736,14 @@ export default function TimerPage() {
               {noticeActions}
               {pendingNoticeHighlightRange ? (
                 <div
-                  className="notice-highlight-popover absolute z-30 flex items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1.5 shadow-[0_12px_24px_rgba(151,80,59,0.16)] backdrop-blur-sm"
-                  style={{
-                    left: noticeHighlightPopoverPosition.x,
-                    top: noticeHighlightPopoverPosition.y,
-                  }}
+                  className="notice-highlight-popover relative z-30 mb-1 mt-2 flex shrink-0 items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1.5 shadow-[0_12px_24px_rgba(151,80,59,0.16)] backdrop-blur-sm"
                   data-notice-highlight-popover="true"
                 >
                   <button
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => applyPendingNoticeHighlight('coral')}
-                    className="notice-highlight-apply-button inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.72rem] font-extrabold text-white transition-colors"
+                    className="notice-highlight-apply-button inline-flex h-11 min-w-11 items-center justify-center rounded-full px-3 text-[0.72rem] font-extrabold text-white transition-colors"
                     title="코랄색으로 강조"
                     aria-label="코랄색으로 강조"
                   >
@@ -8774,7 +8753,7 @@ export default function TimerPage() {
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={cancelPendingNoticeHighlight}
-                    className="inline-flex h-8 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
+                    className="inline-flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
                   >
                     취소
                   </button>
@@ -10225,16 +10204,19 @@ export default function TimerPage() {
     dateKey: string,
     stockId: StudentStockId,
     patch: Partial<StockMarketDraft>,
-  ) => setStockMarketWeekDrafts((current) => {
-    const existingDraft = current[dateKey]?.[stockId] ?? { returnPercent: '', comment: '' };
-    return {
-      ...current,
-      [dateKey]: {
-        ...current[dateKey],
-        [stockId]: { ...existingDraft, ...patch },
-      },
-    };
-  });
+  ) => {
+    setStockMarketSaveStatus('');
+    setStockMarketWeekDrafts((current) => {
+      const existingDraft = current[dateKey]?.[stockId] ?? { returnPercent: '', comment: '' };
+      return {
+        ...current,
+        [dateKey]: {
+          ...current[dateKey],
+          [stockId]: { ...existingDraft, ...patch },
+        },
+      };
+    });
+  };
   const saveStockMarketWeek = () => {
     const entries = stockMarketWeekDateKeys.flatMap((dateKey) => STUDENT_STOCKS.flatMap((stock) => {
       const draft = stockMarketWeekDrafts[dateKey]?.[stock.id];
@@ -10254,83 +10236,121 @@ export default function TimerPage() {
         comment: draft.comment,
       })
     ), current));
-    setStockMarketSaveStatus(`이번 주 등락 ${entries.length}개를 저장했습니다.`);
+    setStockMarketSaveStatus(`이번 주 등락 ${entries.length}개를 반영했습니다.`);
   };
 
   const stockSettingsPanel = (
     <section className="settings-card teacher-stock-settings" aria-labelledby="teacher-stock-title">
-      <section className="teacher-stock-week" aria-labelledby="teacher-stock-title">
-        <header>
+      <h3 id="teacher-stock-title" className="sr-only">증권 설정</h3>
+      <nav className="teacher-stock-tabs" role="tablist" aria-label="증권 세부 설정">
+        {([
+          { id: 'week', label: '주간 등락' },
+          { id: 'import', label: '일괄 등록' },
+          { id: 'rules', label: '운영 규칙' },
+          { id: 'students', label: '투자 현황' },
+        ] as const).map((tab, index, tabs) => (
+          <button key={tab.id} type="button" role="tab" id={`teacher-stock-tab-${tab.id}`} aria-controls={`teacher-stock-panel-${tab.id}`} aria-selected={stockSettingsTab === tab.id} tabIndex={stockSettingsTab === tab.id ? 0 : -1} onClick={() => setStockSettingsTab(tab.id)} onKeyDown={(event) => {
+            const nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabs.length
+              : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+              : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null;
+            if (nextIndex === null) return;
+            event.preventDefault();
+            setStockSettingsTab(tabs[nextIndex].id);
+            event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#teacher-stock-tab-${tabs[nextIndex].id}`)?.focus();
+          }}>{tab.label}</button>
+        ))}
+      </nav>
+      <div className="teacher-stock-week">
+        {stockSettingsTab === 'week' || stockSettingsTab === 'import' ? <header>
           <div>
-            <h3 id="teacher-stock-title">이번 주 등락</h3>
-            <span>{formatStockMarketDate(stockMarketWeekDateKeys[0])} ~ {formatStockMarketDate(stockMarketWeekDateKeys[4])} · 미등록 칸은 저장하지 않습니다.</span>
+            <h3>{stockSettingsTab === 'week' ? '주간 등락' : '주간 일괄 등록'}</h3>
+            <span>{formatStockMarketDate(stockMarketWeekDateKeys[0])} ~ {formatStockMarketDate(stockMarketWeekDateKeys[4])}</span>
+            {stockSettingsTab === 'week' ? <span className="teacher-stock-empty-legend">— 미등록</span> : null}
           </div>
           <div className="teacher-stock-week-actions">
-            <button type="button" onClick={() => shiftStockMarketWeek(-7)} aria-label="이전 주"><ChevronLeft size={18} /></button>
-            <button type="button" onClick={() => setStockMarketDateKey(getKoreanLocalDateKey())}>이번 주</button>
-            <button type="button" onClick={() => shiftStockMarketWeek(7)} aria-label="다음 주"><ChevronRight size={18} /></button>
-            <label className="teacher-stock-week-date"><span>포함 날짜</span><input type="date" value={stockMarketDateKey} onChange={(event) => setStockMarketDateKey(event.target.value)} /></label>
-            <button type="button" className="is-primary" onClick={saveStockMarketWeek}>이번 주 저장</button>
+            <div className="teacher-stock-week-navigation" role="group" aria-label="주 이동">
+              <button type="button" onClick={() => shiftStockMarketWeek(-7)} aria-label="이전 주"><ChevronLeft size={18} /></button>
+              <button type="button" onClick={() => setStockMarketDateKey(getKoreanLocalDateKey())}>이번 주</button>
+              <button type="button" onClick={() => shiftStockMarketWeek(7)} aria-label="다음 주"><ChevronRight size={18} /></button>
+            </div>
+            <label className="teacher-stock-week-date"><span className="sr-only">포함 날짜</span><input type="date" value={stockMarketDateKey} onChange={(event) => { if (event.target.value) setStockMarketDateKey(event.target.value); }} /></label>
+            {stockSettingsTab === 'week' ? <button type="button" className="is-primary" title="미등록 항목을 제외한 등락·이유 저장" onClick={saveStockMarketWeek}>이번 주 저장</button> : null}
           </div>
-        </header>
-        <div className="teacher-stock-week-table" role="table" aria-label="이번 주 종목별 등락 편집표">
-          <div className="teacher-stock-week-row is-heading" role="row">
-            <strong role="columnheader">종목</strong>
-            {stockMarketWeekDateKeys.map((dateKey, index) => (
-              <button key={dateKey} type="button" role="columnheader" className={dateKey === selectedStockMarketWeekday ? 'is-selected' : ''} onClick={() => setStockMarketDateKey(dateKey)}>
-                <span>{stockMarketWeekdayLabels[index]}</span><b>{formatStockMarketDate(dateKey)}</b>
-              </button>
+        </header> : null}
+        <div className="teacher-stock-tab-panel" id="teacher-stock-panel-week" role="tabpanel" aria-labelledby="teacher-stock-tab-week" hidden={stockSettingsTab !== 'week'} tabIndex={0}>
+          <div className="teacher-stock-week-table" role="table" aria-label="이번 주 종목별 등락 편집표">
+            <div className="teacher-stock-week-row is-heading" role="row">
+              <strong role="columnheader">종목</strong>
+              {stockMarketWeekDateKeys.map((dateKey, index) => (
+                <div key={dateKey} role="columnheader">
+                  <button type="button" aria-pressed={dateKey === selectedStockMarketWeekday} title={`${formatStockMarketDate(dateKey)} 등락 이유 편집`} className={dateKey === selectedStockMarketWeekday ? 'is-selected' : ''} onClick={() => setStockMarketDateKey(dateKey)}>
+                    <span>{stockMarketWeekdayLabels[index]}</span><b>{formatStockMarketDate(dateKey)}</b>
+                  </button>
+                </div>
+              ))}
+            </div>
+            {STUDENT_STOCKS.map((stock) => (
+              <div key={stock.id} className="teacher-stock-week-row" role="row">
+                <div className="teacher-stock-week-name" role="rowheader"><span aria-hidden="true">{stock.emoji}</span><strong>{stock.name}</strong></div>
+                {stockMarketWeekDateKeys.map((dateKey) => {
+                  const draft = stockMarketWeekDrafts[dateKey]?.[stock.id];
+                  const percent = draft?.returnPercent ?? '';
+                  return (
+                    <label key={dateKey} role="cell" className={`${percent === '' ? 'is-empty' : percent > 0 ? 'is-up' : percent < 0 ? 'is-down' : 'is-flat'}${dateKey === selectedStockMarketWeekday ? ' is-selected-day' : ''}`}>
+                      <select aria-label={`${dateKey} ${stock.name} 수익률`} value={percent} onChange={(event) => updateStockMarketWeekDraft(dateKey, stock.id, { returnPercent: event.target.value === '' ? '' : Number(event.target.value) })}>
+                        <option value="" aria-label="미등록">—</option>
+                        {investmentReturnPercentOptions.map((optionPercent) => <option key={optionPercent} value={optionPercent}>{formatInvestmentPercent(optionPercent)}</option>)}
+                      </select>
+                    </label>
+                  );
+                })}
+              </div>
             ))}
           </div>
-          {STUDENT_STOCKS.map((stock) => (
-            <div key={stock.id} className="teacher-stock-week-row" role="row">
-              <div className="teacher-stock-week-name" role="rowheader"><span aria-hidden="true">{stock.emoji}</span><strong>{stock.name}</strong></div>
-              {stockMarketWeekDateKeys.map((dateKey) => {
-                const draft = stockMarketWeekDrafts[dateKey]?.[stock.id];
-                const percent = draft?.returnPercent ?? '';
-                const presentation = percent === '' ? null : getInvestmentStagePresentation(getInvestmentStageFromPercent(percent));
-                return (
-                  <label key={dateKey} role="cell" className={percent === '' ? 'is-empty' : percent > 0 ? 'is-up' : percent < 0 ? 'is-down' : 'is-flat'}>
-                    <select aria-label={`${dateKey} ${stock.name} 수익률`} value={percent} onChange={(event) => updateStockMarketWeekDraft(dateKey, stock.id, { returnPercent: event.target.value === '' ? '' : Number(event.target.value) })}>
-                      <option value="">미등록</option>
-                      {investmentReturnPercentOptions.map((optionPercent) => <option key={optionPercent} value={optionPercent}>{formatInvestmentPercent(optionPercent)}</option>)}
-                    </select>
-                    <span>{presentation ? `${presentation.symbol} ${presentation.studentLabel}` : '결과 없음'}</span>
-                  </label>
-                );
-              })}
+          <section className="teacher-stock-comments" aria-labelledby="teacher-stock-comments-title">
+            <header><h4 id="teacher-stock-comments-title">{stockMarketWeekdayLabels[stockMarketWeekDateKeys.indexOf(selectedStockMarketWeekday)]} {formatStockMarketDate(selectedStockMarketWeekday)} 등락 이유</h4><span>선택 · 120자</span></header>
+            <div>
+              {STUDENT_STOCKS.map((stock) => (
+                <label key={stock.id}><span>{stock.emoji} {stock.name}</span><input aria-label={`${selectedStockMarketWeekday} ${stock.name} 등락 이유`} maxLength={120} value={stockMarketWeekDrafts[selectedStockMarketWeekday]?.[stock.id]?.comment ?? ''} onChange={(event) => updateStockMarketWeekDraft(selectedStockMarketWeekday, stock.id, { comment: event.target.value })} placeholder="이유 (선택)" /></label>
+              ))}
             </div>
-          ))}
+          </section>
+          <p className="teacher-stock-save-status" role="status">{stockMarketSaveStatus}</p>
         </div>
-        <p className="teacher-stock-save-status" role="status">{stockMarketSaveStatus}</p>
-      </section>
-      <section className="teacher-stock-comments" aria-labelledby="teacher-stock-comments-title">
-        <header><div><h4 id="teacher-stock-comments-title">{formatStockMarketDate(selectedStockMarketWeekday)} 등락 이유</h4><p>필요한 종목만 짧게 적어 주세요.</p></div></header>
-        <div>
-          {STUDENT_STOCKS.map((stock) => (
-            <label key={stock.id}><span>{stock.emoji} {stock.name}</span><input maxLength={120} value={stockMarketWeekDrafts[selectedStockMarketWeekday]?.[stock.id]?.comment ?? ''} onChange={(event) => updateStockMarketWeekDraft(selectedStockMarketWeekday, stock.id, { comment: event.target.value })} placeholder="이유 (선택)" /></label>
-          ))}
+        <div className="teacher-stock-tab-panel" id="teacher-stock-panel-import" role="tabpanel" aria-labelledby="teacher-stock-tab-import" hidden={stockSettingsTab !== 'import'} tabIndex={0}>
+          <TeacherStockWeekImport
+            dateKey={stockMarketWeekStartDateKey}
+            market={studentStockMarket}
+            readOnly={isReadOnlyDataMode}
+            onRegister={entries => setStudentStockMarket(current => applyStockMarketWeekImport(current, entries))}
+          />
         </div>
-      </section>
-      <section className="teacher-return-guide" aria-labelledby="teacher-return-guide-title">
-        <header><h4 id="teacher-return-guide-title">학생에게 보이는 말</h4><span>학생 화면에는 %가 표시되지 않습니다.</span></header>
-        <div>
-          {[-40, -10, 0, 10, 40].map((percent) => {
-            const presentation = getInvestmentStagePresentation(getInvestmentStageFromPercent(percent));
-            const range = percent === -40 ? '-50% ~ -30%' : percent === -10 ? '-20% ~ -10%' : percent === 0 ? '0%' : percent === 10 ? '+10% ~ +20%' : '+30% ~ +50%';
-            return <p key={percent} className={percent > 0 ? 'is-up' : percent < 0 ? 'is-down' : 'is-flat'}><b>{range}</b><span>{presentation.symbol} {presentation.studentLabel}</span></p>;
-          })}
+        <div className="teacher-stock-tab-panel" id="teacher-stock-panel-rules" role="tabpanel" aria-labelledby="teacher-stock-tab-rules" hidden={stockSettingsTab !== 'rules'} tabIndex={0}>
+          <div className="teacher-stock-options">
+            <section className="teacher-investment-controls" aria-labelledby="teacher-investment-rules-title">
+              <header><h4 id="teacher-investment-rules-title">투자 운영 규칙</h4></header>
+              <div className="teacher-investment-rules">
+                <label><span>최소 투자</span><div><input type="number" min="1" value={investmentSettings.minimumAmount} onChange={(event) => updateInvestmentSetting('minimumAmount', Number(event.target.value))} /><b>고마</b></div></label>
+                <label><span>최대 투자</span><div><input type="number" min={investmentSettings.minimumAmount} value={investmentSettings.maximumAmount} onChange={(event) => updateInvestmentSetting('maximumAmount', Number(event.target.value))} /><b>고마</b></div></label>
+                <label><span>소수점 계산</span><select value={investmentSettings.rounding} onChange={(event) => updateInvestmentSetting('rounding', event.target.value as StudentInvestmentRounding)}><option value="round">반올림</option><option value="floor">버림</option><option value="ceil">올림</option></select></label>
+              </div>
+            </section>
+            <section className="teacher-return-guide" aria-labelledby="teacher-return-guide-title">
+              <header><h4 id="teacher-return-guide-title">학생에게 보이는 말</h4></header>
+              <div>
+                {[-40, -10, 0, 10, 40].map((percent) => {
+                  const presentation = getInvestmentStagePresentation(getInvestmentStageFromPercent(percent));
+                  const range = percent === -40 ? '-50% ~ -30%' : percent === -10 ? '-20% ~ -10%' : percent === 0 ? '0%' : percent === 10 ? '+10% ~ +20%' : '+30% ~ +50%';
+                  return <p key={percent} className={percent > 0 ? 'is-up' : percent < 0 ? 'is-down' : 'is-flat'}><b>{range}</b><span>{presentation.symbol} {presentation.studentLabel}</span></p>;
+                })}
+              </div>
+            </section>
+          </div>
         </div>
-      </section>
-      <section className="teacher-investment-status" aria-labelledby="teacher-investment-status-title"><h4 id="teacher-investment-status-title">학생별 투자 현황</h4><div>{Array.from({ length: 23 }, (_, index) => index + 1).map((studentNumber) => { const state = studentEconomyStates[String(studentNumber)]; const positions = STUDENT_STOCKS.flatMap((stock) => { const position = state?.investments[stock.id]; return position ? [position] : []; }); const invested = positions.reduce((sum, position) => sum + position.investedAmount, 0); const current = positions.reduce((sum, position) => sum + position.currentAmount, 0); return <article key={studentNumber}><strong>{studentNumber}번</strong><span>{positions.length}종목</span><span>투자 {invested}</span><span className={current - invested > 0 ? 'is-up' : current - invested < 0 ? 'is-down' : ''}>{current - invested > 0 ? '+' : ''}{current - invested} 고마</span><b>현재 {current}</b></article>; })}</div></section>
-      <section className="teacher-investment-controls" aria-labelledby="teacher-investment-rules-title">
-        <header><div><h4 id="teacher-investment-rules-title">투자 운영 규칙</h4><p>처음 정한 뒤 자주 바꾸지 않는 설정입니다.</p></div></header>
-        <div className="teacher-investment-rules">
-          <label><span>최소 투자</span><div><input type="number" min="1" value={investmentSettings.minimumAmount} onChange={(event) => updateInvestmentSetting('minimumAmount', Number(event.target.value))} /><b>고마</b></div></label>
-          <label><span>최대 투자</span><div><input type="number" min={investmentSettings.minimumAmount} value={investmentSettings.maximumAmount} onChange={(event) => updateInvestmentSetting('maximumAmount', Number(event.target.value))} /><b>고마</b></div></label>
-          <label><span>소수점 계산</span><select value={investmentSettings.rounding} onChange={(event) => updateInvestmentSetting('rounding', event.target.value as StudentInvestmentRounding)}><option value="round">반올림</option><option value="floor">버림</option><option value="ceil">올림</option></select></label>
+        <div className="teacher-stock-tab-panel" id="teacher-stock-panel-students" role="tabpanel" aria-labelledby="teacher-stock-tab-students" hidden={stockSettingsTab !== 'students'} tabIndex={0}>
+          <TeacherInvestmentStatus states={studentEconomyStates} market={studentStockMarket} />
         </div>
-      </section>
+      </div>
     </section>
   );
 
@@ -12734,39 +12754,7 @@ export default function TimerPage() {
                     ) : null}
 
                     {questionSubmissionStatuses.length > 0 ? (
-                      <div className="question-submission-grid grid grid-cols-[repeat(auto-fit,minmax(4.85rem,1fr))] gap-2">
-                        {questionSubmissionStatuses.map((status) => (
-                          <div
-                            key={status.number}
-                            className={`question-submission-status-card flex min-h-[5.25rem] flex-col items-center justify-between rounded-[0.9rem] border-2 px-2 py-2.5 shadow-[0_6px_14px_rgba(31,24,18,0.045)] ${
-                              status.personalSubmitted || status.topicSubmitted
-                                ? 'border-[#8FD6BB] bg-[#E8F9F0]'
-                                : 'border-[#DCCCA8] bg-white'
-                            }`}
-                            aria-label={`${status.number}번 개인질문 ${
-                              status.personalSubmitted ? '제출' : '미제출'
-                            }, 주제질문 ${status.topicSubmitted ? '제출' : '미제출'}`}
-                          >
-                            <span className={`font-mono text-[1.45rem] font-black leading-none ${
-                              status.personalSubmitted || status.topicSubmitted ? 'text-[#176244]' : 'text-[#665F56]'
-                            }`}>
-                              {status.number}
-                            </span>
-                            <span className="flex items-center justify-center gap-2" aria-hidden="true">
-                              <span
-                                className={`h-3.5 w-3.5 rounded-full ${
-                                  status.personalSubmitted ? 'bg-[#168657]' : 'bg-[#DDE5EC]'
-                                }`}
-                              />
-                              <span
-                                className={`h-3.5 w-3.5 rounded-full ${
-                                  status.topicSubmitted ? 'bg-[#347FC4]' : 'bg-[#DDE5EC]'
-                                }`}
-                              />
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                      <TeacherQuestionSubmissionGrid statuses={questionSubmissionStatuses} />
                     ) : (
                       <div className="rounded-[1rem] border border-dashed border-[#CFE3D8] bg-[#F8FCF6] px-4 py-5 text-center text-[0.82rem] font-extrabold text-[#6F7D70]">
                         {isQuestionSubmissionLoading ? '제출 현황을 확인하고 있습니다.' : '새로고침을 눌러 제출 현황을 확인하세요.'}
@@ -13128,7 +13116,7 @@ export default function TimerPage() {
                 className="settings-content"
                 aria-label={`${currentSettingsNavigationItem?.label ?? '설정'} 설정`}
               >
-                <div key={settingsPanel} className="settings-body custom-scrollbar overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
+                <div key={settingsPanel} className={`settings-body custom-scrollbar overflow-y-auto bg-[#FDFBF7] p-4 md:p-6${settingsPanel === 'stocks' && stockSettingsTab === 'students' ? ' teacher-stock-investments-body' : ''}`}>
                   <Suspense fallback={<TeacherPanelLoadFallback />}>
                     {settingsPanel === 'schedule'
                       ? scheduleSettingsPanel

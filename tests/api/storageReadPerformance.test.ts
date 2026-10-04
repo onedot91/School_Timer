@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt, loadStorageReadMarker, loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead } from '../../src/server/storageV2Repository.js';
+import { loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt, loadStorageReadMarker, loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead, loadScopedStorageMetadata } from '../../src/server/storageV2Repository.js';
 import { createStorageV2Fixture } from './storageV2Fixture.js';
 import { measureStorageRequest, withStorageRequestTiming } from '../../src/server/storageRequestTiming.js';
 
@@ -75,6 +75,45 @@ test('metadata merges overlapping reads but keeps no completed value across save
   assert.equal(calls, 2);
   finish(Response.json('2026-09-09T00:00:01Z'));
   assert.equal(await afterSave, '2026-09-09T00:00:01Z');
+});
+
+test('25 overlapping scoped metadata reads make one RPC and isolate students and credentials', async t => {
+  const configuration = { url: 'https://scoped-metadata-fixture.invalid', key: 'fixture' };
+  const scope = (student: number) => ({ resources: [{ path: '/studentPets', students: [student] }], wallets: [], history: [], writeResources: [], writeWallets: [] });
+  const metadata = { updatedAt: '2026-10-02T00:00:00Z', readVersion: 'a'.repeat(32), readMarker: 'b'.repeat(32) };
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (input: unknown) => {
+    assert.ok(String(input).endsWith('/rest/v1/rpc/storage_load_scope_metadata'));
+    calls++;
+    return Response.json(metadata);
+  });
+  const reads = Array.from({ length: 25 }, () => loadScopedStorageMetadata(configuration, scope(1)));
+  assert.equal(calls, 1, 'one student with overlapping requests must not multiply database work');
+  await Promise.all([
+    ...reads,
+    loadScopedStorageMetadata(configuration, scope(2)),
+    loadScopedStorageMetadata({ ...configuration, key: 'different' }, scope(1)),
+    loadScopedStorageMetadata({ ...configuration, url: 'https://another-fixture.invalid' }, scope(1)),
+  ]);
+  assert.equal(calls, 4);
+  assert.deepEqual(await reads[0], metadata);
+  await loadScopedStorageMetadata(configuration, scope(1));
+  assert.equal(calls, 5, 'completed metadata must never hide later writes');
+});
+
+test('failed scoped metadata reads release all waiters and allow a fresh recovery read', async t => {
+  const configuration = { url: 'https://scoped-metadata-failure.invalid', key: 'fixture' };
+  const scope = { resources: [], wallets: [1], history: [], writeResources: [], writeWallets: [] };
+  const metadata = { updatedAt: '2026-10-02T00:00:01Z', readVersion: 'c'.repeat(32) };
+  const responses = [Response.json({}, { status: 503 }), Response.json({ ...metadata, readMarker: 'invalid' }), Response.json(metadata)];
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => { calls++; return responses.shift(); });
+  const failed = await Promise.allSettled(Array.from({ length: 25 }, () => loadScopedStorageMetadata(configuration, scope)));
+  assert.equal(calls, 1);
+  assert.ok(failed.every(result => result.status === 'rejected' && result.reason instanceof Error && result.reason.message === 'STORAGE_DATABASE_HTTP_503'));
+  await assert.rejects(loadScopedStorageMetadata(configuration, scope), /STORAGE_INVALID_RESPONSE/);
+  assert.deepEqual(await loadScopedStorageMetadata(configuration, scope), metadata);
+  assert.equal(calls, 3);
 });
 
 test('metadata failures clear pending reads and malformed responses fail closed', async (t) => {
