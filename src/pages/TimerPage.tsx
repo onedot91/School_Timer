@@ -1,6 +1,6 @@
 import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { HOUSE_MAIL_STAMP } from '../lib/studentHouseReward';
-import { TEACHER_MAIL_SENDERS } from '../lib/studentLife';
+import { STOCK_MAIL_SENDER, STOCK_MAIL_STAMP, TEACHER_MAIL_SENDERS } from '../lib/studentLife';
 import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { StorageCommandError } from '../lib/storageCommandClient';
@@ -150,6 +150,7 @@ import {
 } from '../lib/bookstore';
 import { StudentEmotionOrbVisual } from '../components/student/StudentEmotionOrb';
 import { MissionRewardInput } from '../components/teacher/MissionRewardInput';
+import TeacherMailRecipientPicker from '../components/teacher/TeacherMailRecipientPicker';
 import AuctionAwardPresentationDialog, {
   AUCTION_CEREMONY_TIMING,
   type AuctionAwardPresentation,
@@ -4080,7 +4081,7 @@ export default function TimerPage() {
     isSupabaseSettingsEnabled ? normalizeBookstoreSettings(null) : loadStoredBookstoreSettings()
   ));
   const isEditingBookstoreRef = useRef(false);
-  const [mailRecipient, setMailRecipient] = useState(1);
+  const [mailRecipients, setMailRecipients] = useState<readonly number[]>([1]);
   const [mailSender, setMailSender] = useState('선생님');
   const [mailTitle, setMailTitle] = useState('');
   const [mailContent, setMailContent] = useState('');
@@ -4894,9 +4895,12 @@ export default function TimerPage() {
         if (isStorageRecord(letterDraft) && typeof letterDraft.title === 'string' && typeof letterDraft.content === 'string') {
           setMailTitle(letterDraft.title);
           setMailContent(letterDraft.content);
+          if (typeof letterDraft.senderLabel === 'string' && TEACHER_MAIL_SENDERS.some((sender) => sender === letterDraft.senderLabel)) {
+            setMailSender(letterDraft.senderLabel);
+          }
           if (Array.isArray(letterDraft.recipients)) {
-            if (letterDraft.recipients.length === 23) setMailRecipient(ALL_STUDENTS_LETTER_RECIPIENT);
-            else if (typeof letterDraft.recipients[0] === 'number') setMailRecipient(letterDraft.recipients[0]);
+            setMailRecipients(getTeacherLetterRecipients(letterDraft.recipients));
+            setIsStartingTeacherConversation(true);
           }
           setMailStatus(isTeacherStorageCommandPaused({ action: 'teacher.mail.send', payload: {} })
             ? '중단된 편지를 보관했습니다. 다시 보내 주세요.' : '이전 편지의 저장 결과를 확인하지 못했어요. 내용이 보관되어 있습니다.');
@@ -9599,10 +9603,10 @@ export default function TimerPage() {
     const submittedTitle = mailTitle;
     const submittedContent = mailContent;
     const content = submittedContent.trim();
-    if (!content || isMailSending) return;
+    const recipients = getTeacherLetterRecipients(mailRecipients);
+    if (!content || isMailSending || recipients.length === 0) return;
     setIsMailSending(true);
     setMailStatus('');
-    const recipients = getTeacherLetterRecipients(mailRecipient);
     const batchId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const letters = recipients.map((recipient) => ({
@@ -9628,16 +9632,16 @@ export default function TimerPage() {
       if (!refreshPending) setStudentLife(savedState);
       const unchanged = mailEditVersionRef.current === submittedEditVersion;
       if (unchanged) { setMailTitle(''); setMailContent(''); }
-      if (unchanged && mailRecipient !== ALL_STUDENTS_LETTER_RECIPIENT) {
-        setSelectedMailStudentNumber(mailRecipient);
+      if (unchanged && recipients.length === 1) {
+        setSelectedMailStudentNumber(recipients[0]);
         setIsStartingTeacherConversation(false);
       }
-      setMailStatus(refreshPending ? '저장됨 · 화면 갱신 중' : mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT
-        ? '모든 학생에게 보냈습니다.'
-        : `${formatStudentNumberLabel(mailRecipient)}에게 보냈습니다.`);
+      setMailStatus(refreshPending ? '저장됨 · 화면 갱신 중' : recipients.length === 1
+        ? `${formatStudentNumberLabel(recipients[0])}에게 보냈습니다.`
+        : `${recipients.length}명에게 보냈습니다.`);
     } catch (error) {
-      console.error('Failed to send teacher letter.', error);
-      setMailStatus('편지를 보내지 못했습니다.');
+      if (!isSupabaseSettingsEnabled) reportSaveFailure('studentLife', 'storage');
+      setMailStatus(storageAvailabilityMessage(error) ?? '편지 처리 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도해 주세요.');
     } finally {
       setIsMailSending(false);
     }
@@ -9900,11 +9904,12 @@ export default function TimerPage() {
       !isSettingsOpen
       || settingsPanel !== 'mail'
       || isStartingTeacherConversation
+      || mailEditVersionRef.current > 0
       || selectedTeacherConversation.length > 0
       || !firstActiveConversation
     ) return;
     setSelectedMailStudentNumber(firstActiveConversation.studentNumber);
-    setMailRecipient(firstActiveConversation.studentNumber);
+    setMailRecipients([firstActiveConversation.studentNumber]);
   }, [
     sortedTeacherMailConversations[0]?.latestLetter?.id,
     isSettingsOpen,
@@ -10361,6 +10366,7 @@ export default function TimerPage() {
     : mailSender === '은행원 돝돝' ? '/mail-bank-dol-dol.png'
     : mailSender === '아기고마' ? CLASS_DONATION_MAIL_IMAGE_SOURCE
     : mailSender === '밥집 아주머니 가히' ? DAILY_WRITING_STAMP_IMAGE_SOURCE
+    : mailSender === STOCK_MAIL_SENDER ? STOCK_MAIL_STAMP
     : '/(편지용) 선생님.png';
 
   const mailSettingsPanel = (
@@ -10368,7 +10374,8 @@ export default function TimerPage() {
       <aside className="teacher-mail-inbox">
         <header className="teacher-mail-section-header">
           <h3 id="teacher-mail-title">대화</h3>
-          <button type="button" className="teacher-mail-new-button" onClick={() => {
+          <button type="button" className="teacher-mail-new-button" disabled={isMailSending} onClick={() => {
+            mailEditVersionRef.current++;
             setIsStartingTeacherConversation(true);
             setMailTitle('');
             setMailContent('');
@@ -10388,7 +10395,7 @@ export default function TimerPage() {
               onClick={() => {
                 setSelectedMailStudentNumber(studentNumber);
                 mailEditVersionRef.current++;
-                setMailRecipient(studentNumber);
+                setMailRecipients([studentNumber]);
                 setIsStartingTeacherConversation(false);
                 setMailStatus('');
               }}
@@ -10406,7 +10413,7 @@ export default function TimerPage() {
         </nav>
       </aside>
 
-      <div className="teacher-mail-chat">
+      <div className={`teacher-mail-chat${isStartingTeacherConversation ? ' is-composing' : ''}`}>
         <header className="teacher-mail-chat-header">
           <div><h3>{isStartingTeacherConversation ? '새 편지' : `${formatStudentNumberLabel(selectedMailStudentNumber)} 학생`}</h3></div>
           <label className="teacher-mail-new-recipient teacher-mail-sender">
@@ -10421,15 +10428,11 @@ export default function TimerPage() {
         </header>
         <div className={`teacher-mail-chat-log${isStartingTeacherConversation ? ' is-new' : ''}`} role="log" aria-label={isStartingTeacherConversation ? '새 편지 작성' : `${formatStudentNumberLabel(selectedMailStudentNumber)} 학생과 주고받은 편지`} aria-live="polite">
           {isStartingTeacherConversation ? (
-            <label className="teacher-mail-new-recipient">
-              <span>누구에게 보낼까요?</span>
-              <select value={mailRecipient} onChange={(event) => { mailEditVersionRef.current++; setMailRecipient(Number(event.target.value)); }}>
-                <option value={ALL_STUDENTS_LETTER_RECIPIENT}>모든 학생</option>
-                {TEACHER_MAIL_STUDENT_NUMBERS.map((number) => (
-                  <option key={number} value={number}>{`${formatStudentNumberLabel(number)} 학생`}</option>
-                ))}
-              </select>
-            </label>
+            <TeacherMailRecipientPicker recipients={mailRecipients} isSending={isMailSending} onChange={(recipients) => {
+              mailEditVersionRef.current++;
+              setMailRecipients(recipients);
+              setMailStatus('');
+            }} />
           ) : selectedTeacherConversation.length === 0 ? (
             <div className="teacher-mail-chat-empty">
               <Mail size={30} aria-hidden="true" />
@@ -10459,12 +10462,12 @@ export default function TimerPage() {
           </label>
           <label className="teacher-mail-compose-message">
             <span className="sr-only">편지 내용</span>
-            <textarea value={mailContent} maxLength={300} onChange={(event) => { mailEditVersionRef.current++; setMailContent(event.target.value); }} placeholder={`${mailRecipient === ALL_STUDENTS_LETTER_RECIPIENT ? '모든 학생' : `${formatStudentNumberLabel(mailRecipient)} 학생`}에게 전할 내용을 적어 주세요`} />
+            <textarea value={mailContent} maxLength={300} onChange={(event) => { mailEditVersionRef.current++; setMailContent(event.target.value); }} placeholder={mailRecipients.length === 1 ? `${formatStudentNumberLabel(mailRecipients[0])} 학생에게 전할 내용` : '선택한 학생들에게 전할 내용'} />
           </label>
           <div className="teacher-mail-compose-actions">
             <span role="status">{mailStatus}</span>
-            <button type="button" onClick={() => void sendTeacherLetter()} disabled={isMailSending || mailContent.trim().length === 0}>
-              <Send size={18} aria-hidden="true" />{isMailSending ? '보내는 중' : '보내기'}
+            <button type="button" onClick={() => void sendTeacherLetter()} disabled={isMailSending || mailContent.trim().length === 0 || mailRecipients.length === 0}>
+              <Send size={18} aria-hidden="true" />{isMailSending ? '보내는 중' : mailRecipients.length > 1 ? `${mailRecipients.length}명에게 보내기` : '보내기'}
             </button>
           </div>
         </div>

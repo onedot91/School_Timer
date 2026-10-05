@@ -8,7 +8,7 @@ import { TEACHER_MAIL_SENDERS, normalizeStudentLifeState, getTeacherStudentConve
 import StudentMailboxPage from '../components/student/StudentMailboxPage';
 
 const context = { requestId: 'test-character', createdAt: '2026-09-09T04:00:00.000Z' };
-const stamps = ['/mail-donation-baby-goma.png', '/mail-bank-dol-dol.png', '/(편지용) 고키리.png', '/daily-writing-letter-gahi.png'];
+const stamps = ['/mail-donation-baby-goma.png', '/mail-bank-dol-dol.png', '/(편지용) 고키리.png', '/daily-writing-letter-gahi.png', '/mail-stock-mre-neogul.png'];
 for (const [index, senderLabel] of TEACHER_MAIL_SENDERS.slice(1).entries()) {
   test(`${senderLabel}: teacher send preserves sender and content, appears in conversation with character stamp`, () => {
     const result = applyTeacherStorageCommand({}, 'teacher.mail.send', {

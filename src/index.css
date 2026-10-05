@@ -351,6 +351,8 @@ textarea {
 .student-mail-postmark[data-donation="true"],
 .student-mail-envelope-stamp[data-writing="true"],
 .student-mail-postmark[data-writing="true"],
+.student-mail-envelope-stamp[data-stock="true"],
+.student-mail-postmark[data-stock="true"],
 .student-mail-envelope-stamp[data-profile="true"],
 .student-mail-postmark[data-profile="true"] {
   overflow: hidden;
@@ -362,6 +364,7 @@ textarea {
 .student-mail-envelope-stamp[data-bank="true"],
 .student-mail-envelope-stamp[data-donation="true"],
 .student-mail-envelope-stamp[data-writing="true"],
+.student-mail-envelope-stamp[data-stock="true"],
 .student-mail-envelope-stamp[data-profile="true"] {
   top: .375rem;
   left: .375rem;
@@ -380,6 +383,8 @@ textarea {
 .student-mail-postmark[data-donation="true"] img,
 .student-mail-envelope-stamp[data-writing="true"] img,
 .student-mail-postmark[data-writing="true"] img,
+.student-mail-envelope-stamp[data-stock="true"] img,
+.student-mail-postmark[data-stock="true"] img,
 .student-mail-envelope-stamp[data-profile="true"] img,
 .student-mail-postmark[data-profile="true"] img {
   display: block;
@@ -542,6 +547,7 @@ textarea {
 .student-mail-postmark[data-bank="true"],
 .student-mail-postmark[data-donation="true"],
 .student-mail-postmark[data-writing="true"],
+.student-mail-postmark[data-stock="true"],
 .student-mail-postmark[data-profile="true"] {
   width: 4.5rem;
   height: 4.5rem;
@@ -15007,7 +15013,17 @@ a[href]:active {
     color-mix(in srgb, var(--teacher-surface-muted) 72%, #fffaf0);
   scrollbar-gutter: stable;
 }
-.teacher-mail-chat-log.is-new { align-items: center; justify-content: center; }
+.teacher-mail-chat-log.is-new { align-items: stretch; justify-content: flex-start; padding: .85rem; }
+.teacher-mail-recipient-picker { flex: none; min-width: 0; margin: 0; border: 0; padding: 0; }
+.teacher-mail-recipient-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .75rem; }
+.teacher-mail-recipient-header strong { color: var(--teacher-text); font-size: 1rem; font-weight: 850; }
+.teacher-mail-recipient-tools { display: flex; flex-wrap: wrap; gap: .5rem; }
+.teacher-mail-recipient-tools button { min-height: 2.75rem; border: 1px solid var(--teacher-border); border-radius: var(--apple-radius-control); background: var(--teacher-surface); padding-inline: .75rem; color: var(--teacher-text); font-size: .875rem; font-weight: 800; }
+.teacher-mail-recipient-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.75rem, 1fr)); gap: .5rem; }
+.teacher-mail-recipient-option { display: flex; min-height: 2.75rem; align-items: center; gap: .5rem; border: 1px solid var(--teacher-border); border-radius: var(--apple-radius-control); background: var(--teacher-surface); padding: .5rem .65rem; color: var(--teacher-text); font-size: .9375rem; font-weight: 800; cursor: pointer; }
+.teacher-mail-recipient-option:has(:checked) { border-color: var(--teacher-accent); background: var(--teacher-accent-soft); }
+.teacher-settings-theme .settings-dialog .teacher-mail-recipient-option input { flex: none; width: 1.125rem; height: 1.125rem; min-height: 0; margin: 0; padding: 0; accent-color: var(--teacher-accent); }
+.teacher-mail-recipient-picker:disabled .teacher-mail-recipient-option { cursor: wait; opacity: .65; }
 .teacher-mail-chat-empty {
   display: grid;
   min-height: 100%;
@@ -15096,6 +15112,7 @@ a[href]:active {
 .teacher-mail-composer :is(input, select, textarea) { width: 100%; border: 1px solid #d7e3dc; border-radius: .7rem; background: #fbfdfb; color: #26352e; font-size: .82rem; }
 .teacher-mail-compose-subject input { min-height: 2.15rem; padding-inline: .7rem; }
 .teacher-mail-compose-message textarea { display: block; height: clamp(7rem, 20dvh, 12rem); min-height: 7rem; max-height: max(7rem, 32dvh); resize: vertical; padding: .7rem; line-height: 1.6; }
+.teacher-mail-chat.is-composing .teacher-mail-compose-message textarea { height: clamp(4.5rem, 12dvh, 7rem); min-height: 4.5rem; }
 .teacher-mail-compose-actions { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: .75rem; }
 .teacher-mail-compose-actions > span { min-width: 0; color: #476152; font-size: .76rem; font-weight: 800; }
 .teacher-mail-compose-actions button { display: inline-flex; min-height: 2.35rem; align-items: center; gap: .4rem; border-radius: .7rem; background: var(--teacher-accent); padding: .45rem .8rem; color: var(--teacher-surface); font-size: .8rem; font-weight: 950; white-space: nowrap; }
@@ -16668,6 +16685,12 @@ a[href]:active {
 
 .auction-bid-panel input {
   min-height: 44px;
+}
+
+.auction-bid-input input { background: transparent; box-shadow: none; }
+.auction-bid-input input:focus-visible:focus { outline: 0 !important; box-shadow: none; }
+@media (forced-colors: active) {
+  .auction-bid-input:focus-within { outline: 2px solid Highlight; outline-offset: 2px; }
 }
 
 .auction-modal-backdrop {
@@ -23938,7 +23961,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-investment-stock-choice { display: grid; grid-area: stock; min-width: 0; gap: .25rem; }
 .student-investment-stock-choice > span { color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 850; }
 .student-investment-stock-choice > strong { display: flex; min-width: 0; min-height: var(--student-investment-control-height); align-items: center; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-control); background: var(--apple-surface); padding-inline: .85rem; color: var(--apple-text-primary); font-size: 1.05rem; font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; }
-.student-investment-status-message { min-height: 1.25rem; margin: 0; color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 850; text-align: right; }
+.student-investment-status-message { min-height: 1.5em; margin: 0; color: var(--apple-text-secondary); font-size: var(--student-readable-text-min); font-weight: 850; line-height: 1.5; text-align: right; }
 
 .student-portfolio-summary { display: grid; grid-template-columns: minmax(12rem, 1.15fr) minmax(11rem, 1fr) minmax(7rem, .65fr) minmax(12rem, auto); gap: .5rem; padding: .75rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-card); background: var(--apple-surface); box-shadow: var(--apple-shadow-1); }
 .student-portfolio-summary > div { display: grid; align-content: center; gap: .25rem; padding: .2rem .9rem; border-right: 1px solid var(--apple-separator); }
@@ -24033,6 +24056,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-confirm-dialog-close svg { width: 1.25rem; }
 .student-confirm-dialog-kicker { color: var(--apple-accent-pressed); font-size: .95rem; font-weight: 900; }
 .student-confirm-dialog h2 { margin: 0; font-size: 1.75rem; font-weight: 950; }
+.student-unread-mail-dialog h2 { padding: .75rem .75rem 0; word-break: keep-all; text-wrap: balance; }
 .student-confirm-dialog p { margin: 0; color: var(--apple-text-secondary); font-size: 1.05rem; font-weight: 800; overflow-wrap: anywhere; word-break: keep-all; }
 .student-confirm-profile-swap { display: grid; grid-template-columns: 6.5rem 2.5rem 6.5rem; align-items: center; justify-content: center; gap: .55rem; }
 .student-confirm-profile-preview { display: grid; width: 6.5rem; margin: 0; padding: .32rem; border: 1px solid color-mix(in srgb, var(--apple-accent) 22%, var(--apple-separator)); border-radius: 1.05rem; background: color-mix(in srgb, var(--apple-surface) 92%, var(--apple-surface-muted)); box-shadow: inset 0 1px 0 var(--apple-edge-highlight), var(--apple-shadow-1); }
@@ -24384,6 +24408,10 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-investment-input > div { display: flex; min-height: var(--student-investment-control-height); align-items: center; gap: .25rem; border: 1px solid var(--apple-separator-strong); border-radius: var(--apple-radius-control); background: var(--apple-surface-muted); padding-inline: .75rem; }
 .student-investment-input > div:focus-within { border-color: var(--apple-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--apple-accent) 22%, transparent); }
 .student-investment-input input { min-width: 0; width: 100%; border: 0; background: transparent; font-family: var(--font-mono); font-size: 1.2rem; font-weight: 950; outline: 0; text-align: right; }
+.student-investment-input input:focus-visible:focus { outline: 0 !important; box-shadow: none; }
+@media (forced-colors: active) {
+  .student-investment-input > div:focus-within { outline: 2px solid Highlight; outline-offset: 2px; }
+}
 .student-investment-input div > span { flex: none; font-weight: 900; white-space: nowrap; }
 .student-investment-actions { display: grid; grid-area: actions; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
 .student-investment-actions button { min-height: var(--student-investment-control-height); border-radius: var(--apple-radius-control); background: var(--apple-accent); color: var(--apple-surface); font-size: 1rem; font-weight: 950; }
@@ -28398,7 +28426,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
     padding: 1.15rem 1.25rem;
   }
 
-  .student-store-view[data-store-section="auction"] .auction-bid-panel input,
+  .student-store-view[data-store-section="auction"] .auction-bid-panel .auction-bid-input,
   .student-store-view[data-store-section="auction"] .auction-bid-panel button {
     min-height: 3.5rem;
     font-size: 1.05rem;
@@ -29417,7 +29445,7 @@ body {
   }
   .student-store-view[data-store-section="auction"] .auction-item-bidder > img { width: 2.25rem; height: 2.25rem; }
   .student-store-view[data-store-section="auction"] .auction-bid-panel { padding: .65rem .85rem; }
-  .student-store-view[data-store-section="auction"] .auction-bid-panel :is(input, button) { min-height: 2.75rem; }
+  .student-store-view[data-store-section="auction"] .auction-bid-panel :is(.auction-bid-input, button) { min-height: 2.75rem; }
 
   .student-store-view[data-store-section="bank"] .student-bank-grid article {
     min-height: 0;

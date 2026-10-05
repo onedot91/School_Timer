@@ -79,7 +79,7 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
   const marketClosed = selectedStock.isClosed;
   const hasEnteredAmount = amount.trim() !== '';
   const maximum = Math.min(settings.maximumAmount - (position?.currentAmount ?? 0), availableBalance);
-  const canInvest = !marketClosed && !isSaving && Number.isInteger(investmentAmount) && investmentAmount >= settings.minimumAmount && investmentAmount <= maximum;
+  const canInvest = !marketClosed && !isSaving && /^[0-9]+$/.test(amount) && Number.isInteger(investmentAmount) && investmentAmount >= settings.minimumAmount && investmentAmount <= maximum;
   const canWithdraw = !marketClosed && !isSaving && Boolean(position);
   const hasPosition = Boolean(position);
   const statusMessage = getInvestmentStatusMessage({
@@ -114,14 +114,14 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
         </div>
         <label className="student-investment-input">
           <span>투자할 고마</span>
-          <div><input type="number" min={settings.minimumAmount} max={maximum} step="1" inputMode="numeric" aria-label="투자할 고마" value={amount} disabled={marketClosed || isSaving || maximum < settings.minimumAmount} onChange={(event) => setAmount(event.target.value)} /><span>고마</span></div>
+          <div><input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="투자할 고마" value={amount} disabled={marketClosed || isSaving || maximum < settings.minimumAmount} onChange={(event) => setAmount(event.target.value)} /><span>고마</span></div>
         </label>
         <div className="student-investment-actions">
           <button type="button" disabled={!canInvest} onClick={() => setDraft({ type: 'invest', amount: investmentAmount })}>투자하기</button>
           <button type="button" className="is-secondary" disabled={!canWithdraw} onClick={() => position && setDraft({ type: 'withdraw', amount: position.currentAmount })}>투자금 찾기</button>
         </div>
       </div>
-      {footerStatusMessage ? <p className="student-investment-status-message" aria-live="polite">{footerStatusMessage}</p> : null}
+      <p className="student-investment-status-message" aria-live="polite">{footerStatusMessage}</p>
       {draft ? (
         <div className="student-stock-dialog-backdrop">
           <section ref={dialogRef} className="student-stock-dialog" role="dialog" aria-modal="true" aria-labelledby="student-investment-dialog-title" tabIndex={-1}>

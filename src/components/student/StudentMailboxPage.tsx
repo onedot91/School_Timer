@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { Check, ChevronDown, Inbox, Mail, MailOpen, PenLine, Reply, Send, SendHorizontal, Stamp, X } from 'lucide-react';
 import { CLASS_DONATION_MAIL_IMAGE_SOURCE, CLASS_DONATION_MAIL_SENDER_LABEL } from '../../lib/classDonation';
 import { getFailureProfileImage, type FailureProfileAssignments } from '../../lib/failureExhibition';
-import { TEACHER_LETTER_RECIPIENT, type StudentLetter } from '../../lib/studentLife';
+import { STOCK_MAIL_SENDER, STOCK_MAIL_STAMP, TEACHER_LETTER_RECIPIENT, type StudentLetter } from '../../lib/studentLife';
 import { isTodayFriendStudentNumber } from '../../lib/todayFriend';
 import StudentHeader from './StudentHeader';
 import {
@@ -242,6 +242,7 @@ export default function StudentMailboxPage({
   const selectedIsHouseLetter = selectedLetter?.senderLabel === HOUSE_MAIL_SENDER;
   const selectedIsBankLetter = selectedLetter !== null && isBankLetter(selectedLetter);
   const selectedIsDonationLetter = selectedLetter !== null && isDonationLetter(selectedLetter);
+  const selectedIsStockLetter = selectedLetter?.senderLabel === STOCK_MAIL_SENDER;
   const selectedIsDailyWritingLetter = selectedLetter !== null && (isDailyWritingLetter(selectedLetter) || selectedLetter.senderLabel === DAILY_WRITING_SENDER_LABEL);
   const selectedProfileStudentNumber = selectedLetter === null
     ? null
@@ -370,6 +371,7 @@ export default function StudentMailboxPage({
               const isFromHouse = letter.senderLabel === HOUSE_MAIL_SENDER;
               const isFromBank = isBankLetter(letter);
               const isFromDonation = isDonationLetter(letter);
+              const isFromStock = letter.senderLabel === STOCK_MAIL_SENDER;
               const isFromWriting = isDailyWritingLetter(letter) || letter.senderLabel === DAILY_WRITING_SENDER_LABEL;
               const profileStudentNumber = getProfileStudentNumber(letter, folder);
               const profileImage = profileStudentNumber === null
@@ -394,7 +396,7 @@ export default function StudentMailboxPage({
                   style={{ zIndex: activeLetters.length - index }}
                 >
                   <span className="student-mail-envelope-flap" aria-hidden="true" />
-                  <span className="student-mail-envelope-stamp" data-teacher={letter.senderLabel === '선생님' ? 'true' : undefined} data-house={isFromHouse ? 'true' : undefined} data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} data-writing={isFromWriting ? 'true' : undefined} data-profile={profileImage !== null ? 'true' : undefined} aria-hidden="true">
+                  <span className="student-mail-envelope-stamp" data-teacher={letter.senderLabel === '선생님' ? 'true' : undefined} data-house={isFromHouse ? 'true' : undefined} data-bank={isFromBank ? 'true' : undefined} data-donation={isFromDonation ? 'true' : undefined} data-writing={isFromWriting ? 'true' : undefined} data-stock={isFromStock ? 'true' : undefined} data-profile={profileImage !== null ? 'true' : undefined} aria-hidden="true">
                     {letter.senderLabel === '선생님' ? (
                       <img src="/(편지용) 선생님.png" alt="" draggable={false} />
                     ) : isFromHouse ? (
@@ -405,6 +407,8 @@ export default function StudentMailboxPage({
                       <img src={CLASS_DONATION_MAIL_IMAGE_SOURCE} alt="" draggable={false} />
                     ) : isFromWriting ? (
                       <img src={DAILY_WRITING_STAMP_IMAGE_SOURCE} alt="" draggable={false} />
+                    ) : isFromStock ? (
+                      <img src={STOCK_MAIL_STAMP} alt="" draggable={false} />
                     ) : profileImage !== null ? (
                       <img src={profileImage} alt="" draggable={false} />
                     ) : (
@@ -497,7 +501,7 @@ export default function StudentMailboxPage({
               <article className="student-letter-detail student-letter-paper" aria-labelledby="student-mail-letter-title">
                 <header className="student-letter-heading">
                   <h2 id="student-mail-letter-title">{getLetterDisplayTitle(selectedLetter.title)}</h2>
-                  <span className="student-mail-postmark" data-teacher={selectedLetter.senderLabel === '선생님' ? 'true' : undefined} data-kind={getMailKind(selectedLetter)} data-house={selectedIsHouseLetter ? 'true' : undefined} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} data-writing={selectedIsDailyWritingLetter ? 'true' : undefined} data-profile={selectedProfileImage !== null ? 'true' : undefined} aria-label={selectedIsHouseLetter ? '목수 고키리 우표' : selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : selectedIsDailyWritingLetter ? '밥집 아주머니 가히 우표' : selectedProfileStudentNumber !== null ? `${selectedProfileStudentNumber}번 프로필 우표` : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
+                  <span className="student-mail-postmark" data-teacher={selectedLetter.senderLabel === '선생님' ? 'true' : undefined} data-kind={getMailKind(selectedLetter)} data-house={selectedIsHouseLetter ? 'true' : undefined} data-bank={selectedIsBankLetter ? 'true' : undefined} data-donation={selectedIsDonationLetter ? 'true' : undefined} data-writing={selectedIsDailyWritingLetter ? 'true' : undefined} data-stock={selectedIsStockLetter ? 'true' : undefined} data-profile={selectedProfileImage !== null ? 'true' : undefined} aria-label={selectedIsHouseLetter ? '목수 고키리 우표' : selectedIsBankLetter ? '은행원 돝돝' : selectedIsDonationLetter ? CLASS_DONATION_MAIL_SENDER_LABEL : selectedIsDailyWritingLetter ? '밥집 아주머니 가히 우표' : selectedIsStockLetter ? `${STOCK_MAIL_SENDER} 우표` : selectedProfileStudentNumber !== null ? `${selectedProfileStudentNumber}번 프로필 우표` : `${getStampLabel(getMailKind(selectedLetter))} 우표`}>
                     {selectedLetter.senderLabel === '선생님' ? (
                       <img src="/(편지용) 선생님.png" alt="" draggable={false} />
                     ) : selectedIsHouseLetter ? (
@@ -508,6 +512,8 @@ export default function StudentMailboxPage({
                       <img src={CLASS_DONATION_MAIL_IMAGE_SOURCE} alt="" draggable={false} />
                     ) : selectedIsDailyWritingLetter ? (
                       <img src={DAILY_WRITING_STAMP_IMAGE_SOURCE} alt="" draggable={false} />
+                    ) : selectedIsStockLetter ? (
+                      <img src={STOCK_MAIL_STAMP} alt="" draggable={false} />
                     ) : selectedProfileImage !== null ? (
                       <img src={selectedProfileImage} alt="" draggable={false} />
                     ) : (

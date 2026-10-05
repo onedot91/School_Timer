@@ -9,7 +9,9 @@ import { appDataMode } from './dataMode.js';
 import { TEST_STUDENT_NUMBER, isMailStudentNumber } from './studentIdentity.js';
 import { getKoreanLocalDateKey } from './studentEmotion.js';
 
-export const TEACHER_MAIL_SENDERS = ['선생님', '아기고마', '은행원 돝돝', '목수 고키리', '밥집 아주머니 가히'] as const;
+export const STOCK_MAIL_SENDER = '증권사 직원 므레너굴';
+export const STOCK_MAIL_STAMP = '/mail-stock-mre-neogul.png';
+export const TEACHER_MAIL_SENDERS = ['선생님', '아기고마', '은행원 돝돝', '목수 고키리', '밥집 아주머니 가히', STOCK_MAIL_SENDER] as const;
 export const isTeacherMailSender = (value: unknown): value is typeof TEACHER_MAIL_SENDERS[number] => (
   typeof value === 'string' && TEACHER_MAIL_SENDERS.some(sender => sender === value)
 );
@@ -292,8 +294,10 @@ export const createStudentLetters = (
   inputs: readonly LetterInput[],
 ): StudentLifeState => inputs.reduce(createStudentLetter, state);
 
-export const getTeacherLetterRecipients = (recipient: number): readonly number[] => (
-  recipient === ALL_STUDENTS_LETTER_RECIPIENT
+export const getTeacherLetterRecipients = (recipient: number | readonly unknown[]): readonly number[] => (
+  typeof recipient !== 'number'
+    ? TEACHER_MAIL_STUDENT_NUMBERS.filter((number) => recipient.includes(number))
+    : recipient === ALL_STUDENTS_LETTER_RECIPIENT
     ? Array.from({ length: MAX_STUDENT_NUMBER }, (_, index) => index + 1)
     : isMailStudentNumber(recipient) ? [recipient] : []
 );

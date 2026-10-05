@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { Check, ClipboardCheck, X } from 'lucide-react';
 import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import {
@@ -101,6 +101,8 @@ export default function StudentOverviewPage({
   const [skinError, setSkinError] = useState('');
   const [isHouseDialogOpen, setIsHouseDialogOpen] = useState(false);
   const [houseError, setHouseError] = useState('');
+  const [isUnreadMailNoticeOpen, setIsUnreadMailNoticeOpen] = useState(false);
+  const unreadMailTriggerRef = useRef<HTMLElement>(null);
   const petDialogRef = useRef<HTMLElement>(null);
   const skinDialogRef = useRef<HTMLElement>(null);
   const houseDialogRef = useRef<HTMLElement>(null);
@@ -113,8 +115,22 @@ export default function StudentOverviewPage({
 
   useEffect(() => {
     setPetNameDraft(pet.name);
-    if (needsPetName && activePetDialog === null) setActivePetDialog('name');
-  }, [activePetDialog, needsPetName, pet.name]);
+    if (needsPetName && activePetDialog === null && !isUnreadMailNoticeOpen) setActivePetDialog('name');
+  }, [activePetDialog, isUnreadMailNoticeOpen, needsPetName, pet.name]);
+
+  useEffect(() => {
+    if (!hasUnreadMail) setIsUnreadMailNoticeOpen(false);
+  }, [hasUnreadMail]);
+
+  const promptUnreadMail = (event: MouseEvent<HTMLDivElement>) => {
+    if (!hasUnreadMail || !(event.target instanceof Element)) return;
+    const button = event.target.closest('button');
+    if (!button || button.closest('[role="dialog"]') || button.classList.contains('student-home-hotspot-mailbox')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    unreadMailTriggerRef.current = button;
+    setIsUnreadMailNoticeOpen(true);
+  };
 
   useModalFocus({
     dialogRef: petDialogRef,
@@ -170,7 +186,7 @@ export default function StudentOverviewPage({
   };
 
   return (
-    <div className="student-view student-overview-view">
+    <div className="student-view student-overview-view" onClickCapture={promptUnreadMail} onDoubleClickCapture={promptUnreadMail}>
       <h1 className="sr-only">학생 개요</h1>
 
       <section className="student-overview-hero" aria-label="학생 개요">
@@ -229,6 +245,23 @@ export default function StudentOverviewPage({
           onOpen={onOpenStore}
         />
       </div>
+
+      <StudentConfirmDialog
+        isOpen={isUnreadMailNoticeOpen}
+        className="student-unread-mail-dialog"
+        dismissOnBackdrop={false}
+        showCloseButton={false}
+        title="우편함에 새로운 편지가 왔습니다."
+        confirmLabel="우편함 확인"
+        cancelLabel="닫기"
+        isPending={false}
+        returnFocusRef={unreadMailTriggerRef}
+        onCancel={() => setIsUnreadMailNoticeOpen(false)}
+        onConfirm={() => {
+          setIsUnreadMailNoticeOpen(false);
+          onOpenMailbox();
+        }}
+      />
 
       {isSkinDialogOpen ? (
         <div className="student-pet-dialog-backdrop" role="presentation" onClick={closeSkinDialog}>

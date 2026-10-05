@@ -47,6 +47,21 @@ test('교사는 모든 학생을 선택하면 1번부터 23번까지 편지를 �
   assert.ok(recipients.every((recipient) => getStudentLetters(state, recipient).length === 1));
 });
 
+test('교사는 선택한 학생에게만 편지를 보내고 중복·잘못된 수신자는 제외한다', () => {
+  const recipients = getTeacherLetterRecipients([7, 2, 7, 24, 0, -1, 25, '3', null]);
+  assert.deepEqual(recipients, [2, 7, 24]);
+  assert.deepEqual(getTeacherLetterRecipients([]), []);
+  assert.deepEqual(getTeacherLetterRecipients(7), [7]);
+  const state = createStudentLetters(normalizeStudentLifeState(null), recipients.map(recipient => ({
+    id: `selected-mail-${recipient}`, recipient, senderLabel: '선생님', title: '알림',
+    content: '선택한 학생들에게 보내는 편지', createdAt: '2026-10-05T01:00:00.000Z',
+  })));
+  assert.equal(state.letters.length, 3);
+  assert.equal(getStudentLetters(state, 1).length, 0);
+  recipients.forEach(recipient => assert.equal(getStudentLetters(state, recipient).length, 1));
+  assert.deepEqual(createStudentLetters(state, state.letters), state);
+});
+
 test('연습 모드 초기화는 실패 이야기만 비우고 다른 학생 생활 데이터를 보존한다', () => {
   const state = normalizeStudentLifeState({
     letters: [{

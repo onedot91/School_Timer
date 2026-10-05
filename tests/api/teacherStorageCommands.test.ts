@@ -4,6 +4,7 @@ import test from 'node:test';
 import { applyTeacherStorageCommand } from '../../src/server/teacherStorageCommands.js';
 import { hasDailyWritingReward } from '../../src/lib/dailyWriting.js';
 import { createTeacherSettingsChanges } from '../../src/lib/teacherStorageCommand.js';
+import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 import { AUCTION_ITEM_IDS, normalizeAuctionAwards, normalizeAuctionItems, normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
 import { assembleStorageState, splitStorageState } from '../../src/lib/storageV2Codec.js';
 const context = { requestId: 'request-1', createdAt: '2026-09-08T07:00:00.000Z' };
@@ -12,6 +13,27 @@ const apply = (value: unknown, action: string, payload: unknown, id = context.re
   assert.ok(result);
   return result;
 };
+test('teacher sends one batch to selected recipients without duplicates or unrelated changes', () => {
+  const originalLetter = { id: 'existing-5', recipient: 5, senderLabel: '선생님', senderStudentNumber: null, replyToId: null,
+    title: '기존 편지', content: '보존할 편지', createdAt: context.createdAt, readAt: context.createdAt };
+  const before = { currencyBalances: { '2': 127, '5': 93 }, futureField: { preserved: true }, studentLife: { letters: [originalLetter] } };
+  const payload = { recipients: [2, 7, 24], senderLabel: '아기고마', title: '함께 읽기', content: '같은 내용의 편지' };
+  const saved = apply(before, 'teacher.mail.send', payload).value;
+  const letters = normalizeStudentLifeState(saved.studentLife).letters;
+  assert.equal(letters.length, 4);
+  assert.deepEqual(letters.find(letter => letter.id === originalLetter.id), originalLetter);
+  for (const recipient of payload.recipients) {
+    const copies = letters.filter(letter => letter.recipient === recipient);
+    assert.equal(copies.length, 1);
+    assert.equal(copies[0].content, payload.content);
+    assert.equal(copies[0].senderLabel, payload.senderLabel);
+    assert.equal(copies[0].readAt, null);
+  }
+  assert.deepEqual(saved.currencyBalances, before.currencyBalances);
+  assert.deepEqual(saved.futureField, before.futureField);
+  assert.deepEqual(apply(saved, 'teacher.mail.send', payload).value, saved);
+  assert.throws(() => apply(before, 'teacher.mail.send', { ...payload, recipients: [] }));
+});
 test('teacher deletes only the selected letter and repeated deletion is safe', () => {
   const letters = Array.from({ length: 700 }, (_, index) => ({ id: `letter-${index}`, recipient: index % 2 + 1,
     senderLabel: '선생님', senderStudentNumber: null, title: '', content: '테스트', createdAt: context.createdAt, readAt: null }));

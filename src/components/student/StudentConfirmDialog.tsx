@@ -4,6 +4,9 @@ import { useModalFocus } from '../../lib/useModalFocus';
 
 interface StudentConfirmDialogProps {
   readonly isOpen: boolean;
+  readonly className?: string;
+  readonly dismissOnBackdrop?: boolean;
+  readonly showCloseButton?: boolean;
   readonly kicker?: string;
   readonly title: string;
   readonly description?: string;
@@ -19,6 +22,9 @@ interface StudentConfirmDialogProps {
 
 export default function StudentConfirmDialog({
   isOpen,
+  className,
+  dismissOnBackdrop = true,
+  showCloseButton = true,
   kicker,
   title,
   description,
@@ -48,11 +54,11 @@ export default function StudentConfirmDialog({
 
   return (
     <div className="student-confirm-dialog-backdrop" role="presentation" onClick={() => {
-      if (!isPending) onCancel();
+      if (!isPending && dismissOnBackdrop) onCancel();
     }}>
       <section
         ref={dialogRef}
-        className="student-confirm-dialog"
+        className={`student-confirm-dialog${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-busy={isPending}
@@ -60,9 +66,11 @@ export default function StudentConfirmDialog({
         aria-describedby={description ? descriptionId : undefined}
         onClick={(event) => event.stopPropagation()}
       >
-        <button type="button" className="student-confirm-dialog-close" aria-label="확인창 닫기" disabled={isPending} onClick={onCancel}>
-          <X aria-hidden="true" />
-        </button>
+        {showCloseButton ? (
+          <button type="button" className="student-confirm-dialog-close" aria-label="확인창 닫기" disabled={isPending} onClick={onCancel}>
+            <X aria-hidden="true" />
+          </button>
+        ) : null}
         {kicker ? <span className="student-confirm-dialog-kicker">{kicker}</span> : null}
         <h2 id={titleId}>{title}</h2>
         {description ? <p id={descriptionId}>{description}</p> : null}
