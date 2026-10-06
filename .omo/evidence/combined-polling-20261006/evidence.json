@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "files": [
+    "src/server/storageV2Repository.ts",
+    "api/shared-settings.ts",
+    "tests/api/shared-settings.test.ts",
+    "src/server/storageV2Repository.test.ts"
+  ],
+  "scenarios": [
+    {
+      "scenario": "flag2 idle and busy single RPC, session scope ignores query, invalid marker becomes null, teacher/test24 fallback, anonymous blocked",
+      "test": "combined scoped polling uses one RPC for idle and busy students and preserves fallback routes",
+      "invocation": "node --import tsx --test tests/api/shared-settings.test.ts src/server/storageV2Repository.test.ts src/lib/vercelFunctionImports.test.ts",
+      "binary_observable": "HTTP 200, storage_poll_scope calls=1 per student poll; p_scope.wallets=[7] for query studentNumber=8; invalid marker=null; anonymous HTTP 401 with no fetch",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests.log"
+    },
+    {
+      "scenario": "flag1 marker/scoped metadata and disabled fallback unchanged",
+      "test": "scoped polling derives its scope from the session and preserves the teacher and disabled fallback",
+      "invocation": "node --import tsx --test tests/api/shared-settings.test.ts src/server/storageV2Repository.test.ts src/lib/vercelFunctionImports.test.ts",
+      "binary_observable": "flag1 busy RPC sequence storage_load_read_marker/storage_load_scope_metadata; idle only marker; unset flag storage_load_updated_at",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests.log"
+    },
+    {
+      "scenario": "reject malformed, missing/invalid readVersion, marker mismatch, false unchanged, serialization failure, fetch failure",
+      "test": "combined scoped polling rejects malformed, mismatched and failed upstream results without fallback",
+      "invocation": "node --import tsx --test tests/api/shared-settings.test.ts src/server/storageV2Repository.test.ts src/lib/vercelFunctionImports.test.ts",
+      "binary_observable": "each HTTP 502 SHARED_SETTINGS_READ_FAILED and exactly one RPC",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests.log"
+    },
+    {
+      "scenario": "same scope and marker merge; different marker and scope do not; successful completion invalidates",
+      "test": "combined polling merges only in-flight requests with the same scope and known marker",
+      "invocation": "node --import tsx --test tests/api/shared-settings.test.ts src/server/storageV2Repository.test.ts src/lib/vercelFunctionImports.test.ts",
+      "binary_observable": "4 concurrent reads use 3 fetches; subsequent fresh read increases count to 4",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests.log"
+    },
+    {
+      "scenario": "failed shared request removed before retry",
+      "test": "combined polling clears failed requests so the next poll reads afresh",
+      "invocation": "node --import tsx --test tests/api/shared-settings.test.ts src/server/storageV2Repository.test.ts src/lib/vercelFunctionImports.test.ts",
+      "binary_observable": "2 concurrent reads fail STORAGE_DATABASE_NETWORK with 1 fetch; subsequent retry succeeds with fetch count 2",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests.log"
+    }
+  ],
+  "typecheck": {
+    "invocation": "npm run lint",
+    "exit_code": 0,
+    "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/lint.log"
+  },
+  "boundary_tests": {
+    "invocation": "node --import tsx --test tests/api/shared-settings.test.ts src/server/storageV2Repository.test.ts src/lib/vercelFunctionImports.test.ts",
+    "binary_observable": "52 passed, 0 failed, 0 skipped including server import boundary",
+    "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests.log"
+  },
+  "limits": "fetch-mock API/repository validation; SQL and live disposable local HTTP concurrency verification owned by parent agent. No production calls."
+}

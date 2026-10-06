@@ -1,0 +1,60 @@
+{
+  "status": "passed",
+  "invocation": "node --import tsx --test tests/api/shared-settings.test.ts src/server/storageV2Repository.test.ts src/lib/vercelFunctionImports.test.ts",
+  "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log",
+  "exit_code": 0,
+  "tests": 56,
+  "failed": 0,
+  "skipped": 0,
+  "scenarios": [
+    {
+      "scenario": "23 simultaneous idle scopes share exactly one RPC; next completed request reads again",
+      "test": "combined polling shares 23 simultaneous scopes only when the global marker is unchanged=true",
+      "binary_observable": "23 scopes -> 1 storage_poll_scope; next scope23 request -> total2",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log"
+    },
+    {
+      "scenario": "23 simultaneous changed scopes preserve each own readVersion",
+      "test": "combined polling shares 23 simultaneous scopes only when the global marker is unchanged=false",
+      "binary_observable": "1 storage_poll_scope +22 storage_load_scope_metadata; results[i].readVersion equals own student hex32; next request new combined",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log"
+    },
+    {
+      "scenario": "same scope pending coalescing and changed different scope isolation",
+      "test": "combined polling merges the same scope and preserves separate changed versions for other scopes",
+      "binary_observable": "duplicate same scope shares result; other scope gets its distinct d*32 version; completed request starts fetch",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log"
+    },
+    {
+      "scenario": "credential, URL, marker and absent marker isolation",
+      "test": "combined polling never shares different credentials, URLs, markers or absent markers across scopes",
+      "binary_observable": "6 simultaneous isolated polls ->6 storage_poll_scope calls",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log"
+    },
+    {
+      "scenario": "leader errors do not poison other scope; fallback must pass full metadata validation",
+      "test": "combined polling followers independently recover or reject their own metadata after a leader fails",
+      "binary_observable": "leader rejects; follower valid metadata succeeds; missing/bad marker, bad version, retry/network error reject own result; next leader call fetches again",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log"
+    },
+    {
+      "scenario": "API routing, scope ownership and response error contract",
+      "test": "combined scoped polling uses one RPC for idle and busy students and preserves fallback routes",
+      "binary_observable": "sequential polls 1 RPC; signed student7 wins over query8; malformed marker becomes null; teacher/24 fallback; anonymous401 no upstream",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log"
+    },
+    {
+      "scenario": "API rejects malformed results and upstream failures",
+      "test": "combined scoped polling rejects malformed, mismatched and failed upstream results without fallback",
+      "binary_observable": "10 malformed/error cases ->HTTP502 SHARED_SETTINGS_READ_FAILED and one RPC",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log"
+    },
+    {
+      "scenario": "flag1 and disabled compatibility",
+      "test": "scoped polling derives its scope from the session and preserves the teacher and disabled fallback",
+      "binary_observable": "legacy scoped RPC order preserved; unset flag timestamp fallback",
+      "captured_artifact": "/Users/ibyeonghyeon/Documents/GitHub/School_Timer/.omo/evidence/combined-polling-20261006/targeted-tests-shared-marker.log"
+    }
+  ],
+  "limits": "Final lint, full suite, build, disposable SQL and actual HTTP benchmark are assigned to parent and not claimed here. Previous lint.log predates shared-marker fix."
+}

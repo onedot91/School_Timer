@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
 import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
-import { loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead, loadScopedStorageMetadata, loadStorageReadMarker, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
+import { loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead, loadScopedStorageMetadata, pollScopedStorageMetadata, loadStorageReadMarker, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
 import { TEST_STUDENT_NUMBER } from '../src/lib/studentIdentity.js';
 
 import {
@@ -478,9 +478,14 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       }
       const metadataOnly = request.query?.metadata === '1';
       if (metadataOnly) {
-        if (process.env.STORAGE_PROTOCOL_VERSION === '2' && process.env.STORAGE_SCOPED_POLLING === '1'
+        if (process.env.STORAGE_PROTOCOL_VERSION === '2' && ['1', '2'].includes(process.env.STORAGE_SCOPED_POLLING ?? '')
           && request.query?.scoped === '1' && session.role === 'student' && session.studentNumber !== TEST_STUDENT_NUMBER) {
           const knownReadMarker = request.query?.knownReadMarker;
+          if (process.env.STORAGE_SCOPED_POLLING === '2') {
+            response.status(200).json(await pollScopedStorageMetadata(configuration, studentReadScope(session.studentNumber),
+              typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker) ? knownReadMarker : null));
+            return;
+          }
           if (typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker)) {
             const marker = await loadStorageReadMarker(configuration);
             if (marker.readMarker === knownReadMarker) {

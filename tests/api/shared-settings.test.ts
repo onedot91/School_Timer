@@ -122,6 +122,107 @@ test('scoped polling derives its scope from the session and preserves the teache
   });
 });
 
+test('combined scoped polling uses one RPC for idle and busy students and preserves fallback routes', async () => {
+  await withEnvironment(async () => {
+    const previousProtocol = process.env.STORAGE_PROTOCOL_VERSION;
+    const previousPolling = process.env.STORAGE_SCOPED_POLLING;
+    const originalFetch = globalThis.fetch;
+    process.env.STORAGE_PROTOCOL_VERSION = '2';
+    process.env.STORAGE_SCOPED_POLLING = '2';
+    const updatedAt = '2026-10-06T00:00:00Z';
+    const readMarker = 'c'.repeat(32);
+    const readVersion = 'a'.repeat(32);
+    const requests: { rpc: string | undefined; payload: Record<string, unknown> }[] = [];
+    globalThis.fetch = async (input, init) => {
+      const rpc = String(input).split('/').at(-1);
+      const payload = JSON.parse(String(init?.body));
+      requests.push({ rpc, payload });
+      if (rpc === 'storage_load_updated_at') return Response.json(updatedAt);
+      assert.equal(rpc, 'storage_poll_scope');
+      assert.deepEqual(payload.p_scope.wallets, [7]);
+      assert.deepEqual(payload.p_scope.writeResources, []);
+      assert.ok(payload.p_scope.resources.some((selector: { path: string; mail?: { actor: number } }) => selector.path === '/studentLife/letters' && selector.mail?.actor === 7));
+      return Response.json(payload.p_known_read_marker === readMarker
+        ? { updatedAt, readMarker, unchanged: true } : { updatedAt, readMarker, readVersion });
+    };
+    try {
+      for (const knownReadMarker of [readMarker, 'd'.repeat(32), 'invalid', undefined, [readMarker]]) {
+        const start = requests.length;
+        const capture = createResponse();
+        await handler({ method: 'GET', headers: studentHeaders(7), query: {
+          metadata: '1', scoped: '1', studentNumber: '8', knownReadMarker,
+        } }, capture.response);
+        assert.equal(capture.result().statusCode, 200);
+        assert.deepEqual(capture.result().body, knownReadMarker === readMarker
+          ? { updatedAt, readMarker, unchanged: true } : { updatedAt, readMarker, readVersion });
+        assert.deepEqual(requests.slice(start).map(request => request.rpc), ['storage_poll_scope']);
+        assert.equal(requests.at(-1)?.payload.p_known_read_marker,
+          typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker) ? knownReadMarker : null);
+      }
+      for (const headers of [teacherHeaders(), studentHeaders(24)]) {
+        const capture = createResponse();
+        await handler({ method: 'GET', headers, query: { metadata: '1', scoped: '1' } }, capture.response);
+        assert.deepEqual(capture.result(), { statusCode: 200, body: { updatedAt } });
+        assert.equal(requests.at(-1)?.rpc, 'storage_load_updated_at');
+      }
+      const count = requests.length;
+      const anonymous = createResponse();
+      await handler({ method: 'GET', query: { metadata: '1', scoped: '1' } }, anonymous.response);
+      assert.equal(anonymous.result().statusCode, 401);
+      assert.equal(requests.length, count);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousProtocol === undefined) delete process.env.STORAGE_PROTOCOL_VERSION; else process.env.STORAGE_PROTOCOL_VERSION = previousProtocol;
+      if (previousPolling === undefined) delete process.env.STORAGE_SCOPED_POLLING; else process.env.STORAGE_SCOPED_POLLING = previousPolling;
+    }
+  });
+});
+
+test('combined scoped polling rejects malformed, mismatched and failed upstream results without fallback', async () => {
+  await withEnvironment(async () => {
+    const previousProtocol = process.env.STORAGE_PROTOCOL_VERSION;
+    const previousPolling = process.env.STORAGE_SCOPED_POLLING;
+    const originalFetch = globalThis.fetch;
+    process.env.STORAGE_PROTOCOL_VERSION = '2';
+    process.env.STORAGE_SCOPED_POLLING = '2';
+    const base = { updatedAt: '2026-10-06T00:00:00Z', readMarker: 'c'.repeat(32) };
+    const log = test.mock.method(console, 'error', () => undefined);
+    try {
+      const failures = [
+        () => Response.json(null),
+        () => Response.json({ ...base, updatedAt: 'invalid', readVersion: 'a'.repeat(32) }),
+        () => Response.json({ ...base, readMarker: 'invalid', readVersion: 'a'.repeat(32) }),
+        () => Response.json(base),
+        () => Response.json({ ...base, readVersion: 'invalid' }),
+        () => Response.json({ ...base, unchanged: true }),
+        () => Response.json({ ...base, readMarker: 'd'.repeat(32), unchanged: true, readVersion: 'a'.repeat(32) }),
+        () => Response.json({ ...base, unchanged: false, readVersion: 'a'.repeat(32) }),
+        () => Response.json({ code: '40001' }, { status: 503 }),
+        () => { throw new TypeError('network failure'); },
+      ];
+      for (const failure of failures) {
+        let calls = 0;
+        globalThis.fetch = async (input) => {
+          calls += 1;
+          assert.ok(String(input).endsWith('/storage_poll_scope'));
+          return failure();
+        };
+        const capture = createResponse();
+        await handler({ method: 'GET', headers: studentHeaders(7), query: {
+          metadata: '1', scoped: '1', knownReadMarker: 'd'.repeat(32),
+        } }, capture.response);
+        assert.deepEqual(capture.result(), { statusCode: 502, body: { error: 'SHARED_SETTINGS_READ_FAILED' } });
+        assert.equal(calls, 1);
+      }
+    } finally {
+      log.mock.restore();
+      globalThis.fetch = originalFetch;
+      if (previousProtocol === undefined) delete process.env.STORAGE_PROTOCOL_VERSION; else process.env.STORAGE_PROTOCOL_VERSION = previousProtocol;
+      if (previousPolling === undefined) delete process.env.STORAGE_SCOPED_POLLING; else process.env.STORAGE_SCOPED_POLLING = previousPolling;
+    }
+  });
+});
+
 test('숫자 야구는 학생 범위 데이터로 완료와 보상을 저장하고 다른 학생 기록을 보존한다', async () => {
   await withEnvironment(async () => {
     const originalFetch = globalThis.fetch;

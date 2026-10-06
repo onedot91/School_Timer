@@ -262,6 +262,42 @@ export const loadScopedStorageSnapshotForRead = (configuration: StorageConfigura
     return read;
 };
 
+type ScopedStoragePoll = { updatedAt: string; readMarker: string } & ({ unchanged: true } | { readVersion: string });
+const scopedPollReads = new Map<string, Promise<ScopedStoragePoll>>();
+const sharedPollReads = new Map<string, Promise<ScopedStoragePoll>>();
+export const pollScopedStorageMetadata = async (configuration: StorageConfiguration, scope: StorageScope, knownReadMarker: string | null): Promise<ScopedStoragePoll> => {
+    const parsedScope = parseStorageScope(scope);
+    const identity = canonicalStorageJson([configuration.url, configuration.key, parsedScope, knownReadMarker]);
+    const pending = scopedPollReads.get(identity);
+    if (pending) return pending;
+    const sharedIdentity = knownReadMarker !== null && /^[a-f0-9]{32}$/.test(knownReadMarker)
+        ? canonicalStorageJson([configuration.url, configuration.key, knownReadMarker]) : null;
+    const shared = sharedIdentity === null ? undefined : sharedPollReads.get(sharedIdentity);
+    const loadOwnMetadata = async (): Promise<ScopedStoragePoll> => {
+        const metadata = await loadScopedStorageMetadata(configuration, parsedScope);
+        if (typeof metadata.readMarker !== 'string') return invalid();
+        return { updatedAt: metadata.updatedAt, readMarker: metadata.readMarker, readVersion: metadata.readVersion };
+    };
+    // A global unchanged marker can serve every scope; changed versions remain scope-specific.
+    const read = (shared ? shared.then(result => 'unchanged' in result ? result : loadOwnMetadata(), loadOwnMetadata)
+        : request(configuration, 'storage_poll_scope', { p_scope: parsedScope, p_known_read_marker: knownReadMarker }).then((body): ScopedStoragePoll => {
+        if (!isStorageRecord(body) || typeof body.updatedAt !== 'string' || !Number.isFinite(Date.parse(body.updatedAt))
+            || typeof body.readMarker !== 'string' || !/^[a-f0-9]{32}$/.test(body.readMarker)) return invalid();
+        if (body.unchanged === true) {
+            if (body.readMarker !== knownReadMarker || body.readVersion !== undefined) return invalid();
+            return { updatedAt: body.updatedAt, readMarker: body.readMarker, unchanged: true };
+        }
+        if (body.unchanged !== undefined || typeof body.readVersion !== 'string' || !/^[a-f0-9]{32}$/.test(body.readVersion)) return invalid();
+        return { updatedAt: body.updatedAt, readMarker: body.readMarker, readVersion: body.readVersion };
+    })).finally(() => {
+        if (scopedPollReads.get(identity) === read) scopedPollReads.delete(identity);
+        if (sharedIdentity !== null && sharedPollReads.get(sharedIdentity) === read) sharedPollReads.delete(sharedIdentity);
+    });
+    scopedPollReads.set(identity, read);
+    if (sharedIdentity !== null && !shared) sharedPollReads.set(sharedIdentity, read);
+    return read;
+};
+
 interface ScopedStorageMetadata { updatedAt: string; readVersion: string; readMarker?: string }
 const scopedMetadataReads = new Map<string, Promise<ScopedStorageMetadata>>();
 export const loadScopedStorageMetadata = async (configuration: StorageConfiguration, scope: StorageScope): Promise<ScopedStorageMetadata> => {
