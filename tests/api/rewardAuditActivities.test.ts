@@ -74,7 +74,7 @@ test('baseball replays answers and derives the reward from the first winning att
 
 test('failure and placed books reward once per eligible week; unplaced and malformed sources do not', () => {
   const { expected } = collectActivityRewardExpectations({ studentLife: { failureStories: [story('one'), story('two'), story('bad', 'invalid')], books: [book('one', 0), book('two', 1), { ...book('unplaced'), studentNumber: 4 }] } });
-  assert.deepEqual(expected.map(row => [row.feature, row.studentNumber, row.amount]), [['failure', 3, 10], ['bookStack', 3, 10]]);
+  assert.deepEqual(expected.map(row => [row.feature, row.studentNumber, row.amount]), [['failure', 3, 15], ['bookStack', 3, 10]]);
 });
 
 test('raw historical failures survive the UI normalizer 300-entry display limit', () => {

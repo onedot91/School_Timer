@@ -4,7 +4,7 @@ export const CLASSWORD_QUIZ_WEEKLY_MISSION_TYPE = 'classword_quiz_correct';
 export const FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE = 'failure_exhibition';
 export const BOOK_STACK_WEEKLY_MISSION_TYPE = 'book_stack';
 export const PERSONAL_QUESTION_WEEKLY_REWARD = 15;
-export const FAILURE_EXHIBITION_WEEKLY_REWARD = 10;
+export const FAILURE_EXHIBITION_WEEKLY_REWARD = 15;
 export const BOOK_STACK_WEEKLY_REWARD = 10;
 export const CLASSWORD_WEEKLY_REWARD = 5;
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createFailureExhibitionMissionEntry } from './failureExhibitionMission.js';
 
-test('실패 이야기를 저장하면 같은 주에 10고마를 한 번만 지급한다', () => {
+test('실패 이야기를 저장하면 같은 주에 15고마를 한 번만 지급한다', () => {
   const initial = {
     currencyBalances: { 6: 100 },
     currencyHistory: { 6: [] },
@@ -25,11 +25,11 @@ test('실패 이야기를 저장하면 같은 주에 10고마를 한 번만 지�
 
   assert.equal(first.applied, true);
   assert.equal(first.awarded, true);
-  assert.equal(first.balance, 110);
+  assert.equal(first.balance, 115);
   assert.equal(first.studentLife.failureStories.length, 1);
   assert.equal(second.applied, true);
   assert.equal(second.awarded, false);
-  assert.equal(second.balance, 110);
+  assert.equal(second.balance, 115);
   assert.equal(second.studentLife.failureStories.length, 2);
 });
 

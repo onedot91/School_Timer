@@ -114,7 +114,7 @@ test('실패 이야기와 보상을 함께 만들고 기존 원본 이야기를 
   const before = { ...fixture(), studentLife: { ...fixture().studentLife, failureStories: [oldStory] } };
   const after = apply(before, 'student.failure.create', { failure: '실패했던 일', lesson: '다음에는 확인하기' });
   assert.deepEqual((after.studentLife as { failureStories: unknown[] }).failureStories[0], oldStory);
-  assert.equal(normalizeCurrencyBalances(after.currencyBalances)['1'], 110);
+  assert.equal(normalizeCurrencyBalances(after.currencyBalances)['1'], 115);
 });
 
 test('오늘의 친구 편지는 기존 결정적 ID를 유지하고 다른 요청의 중복 전송을 막는다', () => {

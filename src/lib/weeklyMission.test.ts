@@ -100,13 +100,13 @@ test('주간 미션은 개인 질문과 내부 낱말판만 노출한다', () =>
     ],
   );
   assert.equal(getWeeklyMissionRewardAmount('personal_question'), 15);
-  assert.equal(getWeeklyMissionRewardAmount(FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE), 10);
+  assert.equal(getWeeklyMissionRewardAmount(FAILURE_EXHIBITION_WEEKLY_MISSION_TYPE), 15);
   assert.equal(getWeeklyMissionRewardAmount(CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE), 5);
   const classwordMission = WEEKLY_MISSION_DEFINITIONS.find(({ type }) => type === CLASSWORD_WORD_ENTRY_WEEKLY_MISSION_TYPE);
   assert.ok(classwordMission && !('destinationUrl' in classwordMission));
 });
 
-test('실패 전시하기는 학생과 주차별로 10고마를 한 번만 지급한다', () => {
+test('실패 전시하기는 학생과 주차별로 15고마를 한 번만 지급한다', () => {
   const first = claimWeeklyMissionRewardInSettings({
     currencyBalances: { 6: 200 },
     currencyHistory: { 6: [] },
@@ -120,9 +120,9 @@ test('실패 전시하기는 학생과 주차별로 10고마를 한 번만 지�
   );
 
   assert.equal(first.awarded, true);
-  assert.equal(first.balance, 210);
+  assert.equal(first.balance, 215);
   assert.equal(second.awarded, false);
-  assert.equal(second.balance, 210);
+  assert.equal(second.balance, 215);
   assert.equal(hasWeeklyMissionReward(
     second.value.currencyHistory,
     6,
