@@ -2004,6 +2004,24 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   padding: 0.75rem;
 }
 
+.student-canvas-library-failure-board .student-failure-feed-window {
+  grid-template-rows: repeat(2, minmax(16rem, 1fr));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.student-canvas-library-failure-board .student-failure-message-main {
+  align-content: start;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.student-canvas-library-failure-board .student-failure-message-content {
+  max-height: none;
+  align-content: start;
+  overflow: visible;
+}
+
 .student-canvas-library-failure-board .student-failure-relay-item::before,
 .student-canvas-library-failure-board .student-failure-relay-item::after {
   border: 1px solid var(--library-ink-deep);
