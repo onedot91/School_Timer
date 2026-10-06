@@ -58,7 +58,11 @@ node --import tsx tests/storage/combinedPollingBenchmark.ts
 
 ## 운영 적용 순서
 
-2026-10-06 사용자 승인 후 운영 Supabase에 DB 함수 추가를 완료했다. Migration 이름은 `add_combined_scoped_polling`, version은 `20261006011503`이다. 앱 소스 배포와 서버 환경변수 변경은 아직 수행하지 않았다. 앱 배포는 프로젝트 지침에 따라 사용자가 직접 수행한다.
+2026-10-06 사용자 승인 후 운영 Supabase에 DB 함수 추가를 완료했다. Migration 이름은 `add_combined_scoped_polling`, version은 `20261006011503`이다. 사용자 앱 배포 후 Vercel에서 commit `4dafaa4` (`Add combined scoped metadata polling`)의 Production 상태 `Ready`를 확인했다. 하지만 10:24 KST 확인 시 Production 환경변수는 `STORAGE_PROTOCOL_VERSION=2`, `STORAGE_SCOPED_POLLING=1`이어서 새 경로는 활성화되지 않았다. 환경변수를 `2`로 변경하고 사용자가 재배포해야 한다.
+
+배포 후 확인: 10:22:05 KST `/api/shared-settings` snapshot 조회에 `502 / STORAGE_DATABASE_TIMEOUT`, `elapsedMs:8002`가 남아 있었다. Supabase 10:18–10:24 REST 로그에는 기존 marker/metadata RPC만 있고 `storage_poll_scope` 호출은 없었다. 새 경로 활성화 전이므로 개선 효과를 평가할 수 없다.
+
+후속 사용자 요청으로 Vercel Production의 `STORAGE_SCOPED_POLLING`을 `1`에서 `2`로 직접 변경했다. 저장 성공 메시지와 저장된 값 `2`를 확인했다. Vercel은 새 배포가 필요하다고 안내했다. 재배포 버튼 실행은 자동 승인 검토에서 프로젝트 `AGENTS.md`의 배포 트리거 금지 규칙을 이유로 거부되어 실행하지 못했다. 사용자가 직접 재배포해야 실행 중인 서비스에 새 설정이 반영된다. [변경 완료 화면](../.omo/evidence/combined-polling-20261006/vercel-setting-2.jpg)
 
 운영 DB 검증 결과:
 
@@ -69,8 +73,8 @@ node --import tsx tests/storage/combinedPollingBenchmark.ts
 - Supabase security advisor는 기존 테이블의 RLS 정책 없음 `INFO` 28건만 보고했다. 새 함수 관련 경고는 없었다. 서버 전용 테이블에 정책을 임의로 추가하지 않았다. [해당 advisor 설명](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
 
 1. 완료: Supabase에 `supabase/storage_combined_polling.sql`만 추가 적용했다. 학생 데이터나 기존 테이블은 변경하지 않았다.
-2. 서버 환경변수 `STORAGE_PROTOCOL_VERSION=2`를 유지하고, `STORAGE_SCOPED_POLLING=2`를 설정한다. `VITE_` 변수로 추가하지 않는다.
-3. 사용자가 수정 소스를 Vercel에 배포한다. DB 함수 추가만으로 실행 중인 앱 경로는 바뀌지 않는다.
+2. 완료: 서버 환경변수 `STORAGE_PROTOCOL_VERSION=2`를 유지하고, Production `STORAGE_SCOPED_POLLING=2`를 저장했다. `VITE_` 변수는 추가하지 않았다.
+3. 수정 소스 배포는 완료됐다. 환경변수 변경 후 사용자가 Vercel에서 다시 배포해야 한다. DB 함수 추가와 환경변수 저장만으로 실행 중인 앱 경로는 바뀌지 않는다.
 4. 사용자 본인의 학생 세션에서 metadata GET과 화면 로딩을 확인한다. 실학생 잔액·보상·입찰을 테스트로 변경하지 않는다.
 5. 실제 수업 부하에서 이전과 같은 시간 구간으로 HTTP 502, DB 57014, 5초 초과 요청, p95, swap, I/O wait를 비교한다. 배포된 함수의 응답 region도 확인한다.
 6. 성능 악화나 `STORAGE_RPC_INVALID_RESPONSE`, `storage_poll_scope` 함수 미발견이 발생하면 서버 환경변수를 `STORAGE_SCOPED_POLLING=1`로 되돌려 사용자가 재배포한다. 새 RPC를 삭제할 필요는 없다.
