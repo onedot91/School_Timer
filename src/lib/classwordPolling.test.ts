@@ -3,12 +3,13 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import { studentSettingsPollInterval, studentSettingsRetryDelay } from './studentSettingsSync';
 
 const source = readFileSync(new URL('../components/student/StudentClasswordPage.tsx', import.meta.url), 'utf8');
 const script = ts.transpileModule(source.slice(source.indexOf('  const refresh = useCallback'), source.indexOf('  const submitQuiz =')),
   { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 
-const harness = (appDataMode = 'production', online = true) => {
+const harness = (appDataMode = 'production', online = true, random = () => 0) => {
   let now = Date.parse('2026-09-28T09:00:00+09:00'), timerId = 0;
   let today = '2026-09-28';
   const timers = new Map<number, { at: number; interval: number; run: () => void }>();
@@ -23,7 +24,7 @@ const harness = (appDataMode = 'production', online = true) => {
     removeEventListener: (name: string) => listeners.delete(name),
   };
   const schedule = (run: () => void, delay: number, interval = 0) => {
-    timers.set(++timerId, { at: now + delay, interval, run });
+    timers.set(++timerId, { at: now + Math.trunc(delay), interval, run });
     return timerId;
   };
   runInNewContext(script, {
@@ -33,6 +34,8 @@ const harness = (appDataMode = 'production', online = true) => {
       setInterval: (run: () => void, delay: number) => schedule(run, delay, delay), clearInterval: (id: number) => timers.delete(id) },
     document: Object.assign(document, events), navigator,
     Date: { now: () => now, parse: Date.parse }, Math,
+    studentSettingsPollInterval: (interval: number) => studentSettingsPollInterval(interval, random),
+    studentSettingsRetryDelay: (failures: number, error: unknown) => studentSettingsRetryDelay(failures, error, random),
     dateKey: today, displayDateKey: today, studentNumber: 1, readOnly: false, appDataMode,
     getKoreanDateKey: () => today,
     readGenerationRef: { current: 0 }, boardReadSequenceRef: { current: 0 }, quizReadSequenceRef: { current: 0 },
@@ -79,9 +82,53 @@ test('8초 조회 중 폴링·포커스가 요청을 겹치거나 정상 응답�
   await h.settle(0);
   assert.equal(h.boards.length, 1);
   assert.equal(h.quizzes.length, 1);
-  await h.advance(2_999);
+  await h.advance(4_999);
   assert.equal(h.boardRequests.length, 1);
   await h.advance(1);
+  assert.equal(h.boardRequests.length, 2);
+  h.cleanup();
+});
+
+test('실패 시 5초·10초로 물러나고 포커스 반복이 재시도 대기를 우회하지 않는다', async () => {
+  const h = harness();
+  for (let index = 0; index < 2; index++) {
+    h.boardRequests[index].reject(new Error('synthetic failure'));
+    h.quizRequests[index].resolve({ dateKey: '2026-09-28' });
+    await h.flush();
+    h.event('focus');
+    h.event('online');
+    await h.advance((index + 1) * 5_000 - 1);
+    assert.equal(h.boardRequests.length, index + 1);
+    await h.advance(1);
+    assert.equal(h.boardRequests.length, index + 2);
+  }
+  await h.settle(2);
+  await h.advance(5_000);
+  assert.equal(h.boardRequests.length, 4, 'Successful read resets the backoff');
+  h.cleanup();
+});
+
+test('Retry-After를 지키면서 저장 알림은 최신 조회를 즉시 시작한다', async () => {
+  const h = harness();
+  h.boardRequests[0].reject(Object.assign(new Error('synthetic throttle'), { retryAfterMs: 30_000 }));
+  h.quizRequests[0].resolve({ dateKey: '2026-09-28' });
+  await h.flush();
+  await h.advance(29_999);
+  assert.equal(h.boardRequests.length, 1);
+  h.event('local-change');
+  assert.equal(h.boardRequests.length, 2);
+  await h.settle(1);
+  await h.advance(1);
+  assert.equal(h.boardRequests.length, 2, 'Old retry timer is cleared');
+  h.cleanup();
+});
+
+test('소수점 지터를 브라우저 타이머가 버려도 실패 후 폴링이 멈추지 않는다', async () => {
+  const h = harness('production', true, () => 0.123456);
+  h.boardRequests[0].reject(new Error('synthetic failure'));
+  h.quizRequests[0].resolve({ dateKey: '2026-09-28' });
+  await h.flush();
+  await h.advance(5_124);
   assert.equal(h.boardRequests.length, 2);
   h.cleanup();
 });

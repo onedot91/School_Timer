@@ -8,7 +8,7 @@ import {buildScopedStorageMutation,parseScopedStorageSnapshot,parseStorageSnapsh
 const driver=process.env.STORAGE_TEST_PG_MODULE;
 test('real PostgreSQL scoped reads, private mail, independent inserts, atomic reward, tombstones and receipt coverage',{skip:!driver},async()=>{
  const {Client}=createRequire(import.meta.url)(driver);
- const server={host:'127.0.0.1',port:55439,user:'postgres',password:'local-fixture-only'};
+ const server={host:'127.0.0.1',port:Number(process.env.STORAGE_TEST_PG_PORT ?? 55439),user:'postgres',password:'local-fixture-only'};
  const database=`storage_scope_fixture_${process.pid}_${Date.now()}`;
  const admin=new Client({...server,database:'postgres'});await admin.connect();await admin.query(`create database ${database}`);
  const clients=[];const connect=async()=>{const db=new Client({...server,database});await db.connect();clients.push(db);return db;};

@@ -1,8 +1,49 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ClasswordRepositoryError, saveClasswordEntry, loadClasswordQuizRewardAmount, deleteClasswordQuizDefinition } from '../../src/server/classwordRepository.js';
+import { ClasswordRepositoryError, saveClasswordEntry, loadClasswordQuizRewardAmount, deleteClasswordQuizDefinition, loadClasswordQuizDefinition } from '../../src/server/classwordRepository.js';
 const configuration = { url: 'https://example.invalid', key: 'test-only' };
 const input = { requestId: 'fixture-request-1', dateKey: '2026-09-08', studentNumber: 3, initial: 'ㄱ', word: '강아지' } as const;
+
+test('23 identical in-flight reads share one GET, but completion and writes require fresh reads', async () => {
+  const originalFetch = globalThis.fetch;
+  const releases: ((value: Response) => void)[] = [];
+  globalThis.fetch = () => new Promise<Response>(resolve => releases.push(resolve));
+  try {
+    const reads = Array.from({ length: 23 }, () => loadClasswordQuizDefinition(configuration, input.dateKey));
+    assert.equal(releases.length, 1);
+    releases[0](Response.json([]));
+    assert.deepEqual(await Promise.all(reads), Array(23).fill(null));
+    const oldRead = loadClasswordQuizDefinition(configuration, input.dateKey);
+    const write = deleteClasswordQuizDefinition(configuration, input.dateKey);
+    const duringWrite = loadClasswordQuizDefinition(configuration, input.dateKey);
+    assert.equal(releases.length, 4);
+    releases[2](Response.json({}));
+    await write;
+    const afterWrite = loadClasswordQuizDefinition(configuration, input.dateKey);
+    assert.equal(releases.length, 5, 'Post-write read must not join a pre-commit response');
+    for (const index of [1, 3, 4]) releases[index](Response.json([]));
+    await Promise.all([oldRead, duringWrite, afterWrite]);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('failed shared GET is cleared and credentials, dates and projects stay isolated', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new TypeError('synthetic failure'); };
+  try {
+    const results = await Promise.allSettled(Array.from({ length: 23 }, () => loadClasswordQuizDefinition(configuration, input.dateKey)));
+    assert.equal(calls, 1);
+    assert.ok(results.every(result => result.status === 'rejected'));
+    globalThis.fetch = async () => { calls++; return Response.json([]); };
+    await Promise.all([
+      loadClasswordQuizDefinition(configuration, input.dateKey),
+      loadClasswordQuizDefinition(configuration, '2026-09-09'),
+      loadClasswordQuizDefinition({ ...configuration, key: 'other-fixture' }, input.dateKey),
+      loadClasswordQuizDefinition({ ...configuration, url: 'https://other.invalid' }, input.dateKey),
+    ]);
+    assert.equal(calls, 5);
+  } finally { globalThis.fetch = originalFetch; }
+});
 
 for (const failure of [
   { name: 'network rejection', code: 'CLASSWORD_DATABASE_UNAVAILABLE', response: async (): Promise<Response> => { throw new TypeError('private transport details'); } },

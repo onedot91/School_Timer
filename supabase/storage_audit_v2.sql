@@ -1,6 +1,8 @@
 -- One MVCC snapshot: an in-flight reward cannot appear as a committed activity without its committed ledger.
 create or replace function public.storage_reward_audit_source() returns jsonb
-language sql stable security definer set search_path = pg_catalog, public as $$
+language plpgsql stable security definer set search_path = pg_catalog, public as $$
+declare result jsonb;
+begin
   select jsonb_build_object(
     'checkedAt', now(),
     'snapshot', public.storage_load_snapshot(),
@@ -20,7 +22,9 @@ language sql stable security definer set search_path = pg_catalog, public as $$
     'friendRewards', coalesce((select jsonb_agg(to_jsonb(r)) from (
       select submission_id, student_number, reward_amount from public.today_friend_rewards
     ) r), '[]'::jsonb)
-  )
+  ) into result;
+  return result;
+end;
 $$;
 revoke all on function public.storage_reward_audit_source() from public, anon, authenticated;
 grant execute on function public.storage_reward_audit_source() to service_role;

@@ -170,7 +170,9 @@ end;
 $$;
 
 create or replace function public.storage_load_snapshot() returns jsonb
-language sql stable security definer set search_path=pg_catalog,public as $$
+language plpgsql stable security definer set search_path=pg_catalog,public as $$
+declare result jsonb;
+begin
   select jsonb_build_object(
     'resources',coalesce((select jsonb_agg(to_jsonb(r)) from public.storage_resources r where not deleted),'[]'::jsonb),
     'wallets',coalesce((select jsonb_agg(to_jsonb(w)) from public.wallet_accounts w),'[]'::jsonb),
@@ -181,7 +183,9 @@ language sql stable security definer set search_path=pg_catalog,public as $$
       select 'wallet:'||student_number,revision from public.wallet_accounts union all
       select scope_key,revision from public.storage_scopes
     ) versions),'{}'::jsonb)
-  )
+  ) into result;
+  return result;
+end;
 $$;
 create or replace function public.storage_get_receipt(p_actor_key text,p_request_id text) returns jsonb
 language sql stable security definer set search_path=pg_catalog,public as $$
@@ -223,7 +227,13 @@ begin
   end loop;
   -- Absent resources get an advisory lock too; unrelated record inserts never conflict.
   for k in select key from jsonb_object_keys(p_expected) key where key not like 'wallet:%' order by key loop
-    perform pg_advisory_xact_lock(hashtextextended('resource:'||k,0));
+    if not exists(select 1 from jsonb_array_elements(p_resources) c where c.value->>'resource_key'=k)
+      and exists(select 1 from public.storage_resources r where r.resource_key=k and not r.deleted and r.value->>'kind' in ('object','array'))
+      and exists(select 1 from jsonb_array_elements(p_resources) c where c.value->>'resource_key'<>k and (k='' or starts_with(c.value->>'resource_key',k||'/'))) then
+      perform pg_advisory_xact_lock_shared(hashtextextended('resource:'||k,0));
+    else
+      perform pg_advisory_xact_lock(hashtextextended('resource:'||k,0));
+    end if;
   end loop;
   for k,wanted in select key,value::bigint from jsonb_each_text(p_expected) loop
     actual:=null;

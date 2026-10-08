@@ -2,6 +2,30 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildStorageMutation, storagePayloadHash, parseStorageSnapshot, pollScopedStorageMetadata, StorageRepositoryError } from './storageV2Repository.js';
 import { splitStorageState } from '../lib/storageV2Codec.js';
+
+test('a stalled poll leader cannot hold another scope for its full timeout', async () => {
+    const originalFetch = globalThis.fetch;
+    const config = { url: 'https://bounded-poll.test', key: 'fixture' };
+    const marker = 'a'.repeat(32);
+    const scope = { resources: [], wallets: [1], history: [1], writeResources: [], writeWallets: [] };
+    const base = { updatedAt: '2026-10-08T00:00:00Z', readMarker: marker, readVersion: 'b'.repeat(32) };
+    let release: (response: Response) => void = () => {};
+    let ownCalls = 0;
+    globalThis.fetch = async input => {
+        if (String(input).endsWith('/storage_poll_scope')) return new Promise<Response>(resolve => { release = resolve; });
+        ownCalls++;
+        return Response.json(base);
+    };
+    try {
+        const leader = pollScopedStorageMetadata(config, scope, marker);
+        const follower = pollScopedStorageMetadata(config, { ...scope, wallets: [2], history: [2] }, marker);
+        assert.deepEqual(await follower, base);
+        assert.equal(ownCalls, 1, 'Follower completes while leader is still unresolved');
+        release(Response.json({ updatedAt: base.updatedAt, readMarker: marker, unchanged: true }));
+        await leader;
+        assert.equal(ownCalls, 1, 'Late leader completion must not replay the follower read');
+    } finally { globalThis.fetch = originalFetch; }
+});
 test('unrelated letter inserts do not compare a shared collection revision', () => {
     const value = { studentLife: { letters: [{ id: 'a', content: 'existing' }] } };
     const encoded = splitStorageState(value);

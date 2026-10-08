@@ -265,6 +265,15 @@ export const loadScopedStorageSnapshotForRead = (configuration: StorageConfigura
 type ScopedStoragePoll = { updatedAt: string; readMarker: string } & ({ unchanged: true } | { readVersion: string });
 const scopedPollReads = new Map<string, Promise<ScopedStoragePoll>>();
 const sharedPollReads = new Map<string, Promise<ScopedStoragePoll>>();
+const waitForSharedPoll = async (shared: Promise<ScopedStoragePoll>): Promise<ScopedStoragePoll | null> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            shared.catch(() => null),
+            new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 250); }),
+        ]);
+    } finally { clearTimeout(timer); }
+};
 export const pollScopedStorageMetadata = async (configuration: StorageConfiguration, scope: StorageScope, knownReadMarker: string | null): Promise<ScopedStoragePoll> => {
     const parsedScope = parseStorageScope(scope);
     const identity = canonicalStorageJson([configuration.url, configuration.key, parsedScope, knownReadMarker]);
@@ -279,7 +288,8 @@ export const pollScopedStorageMetadata = async (configuration: StorageConfigurat
         return { updatedAt: metadata.updatedAt, readMarker: metadata.readMarker, readVersion: metadata.readVersion };
     };
     // A global unchanged marker can serve every scope; changed versions remain scope-specific.
-    const read = (shared ? shared.then(result => 'unchanged' in result ? result : loadOwnMetadata(), loadOwnMetadata)
+    // Bound follower waiting so a slow leader cannot add another full database timeout.
+    const read = (shared ? waitForSharedPoll(shared).then(result => result && 'unchanged' in result ? result : loadOwnMetadata())
         : request(configuration, 'storage_poll_scope', { p_scope: parsedScope, p_known_read_marker: knownReadMarker }).then((body): ScopedStoragePoll => {
         if (!isStorageRecord(body) || typeof body.updatedAt !== 'string' || !Number.isFinite(Date.parse(body.updatedAt))
             || typeof body.readMarker !== 'string' || !/^[a-f0-9]{32}$/.test(body.readMarker)) return invalid();

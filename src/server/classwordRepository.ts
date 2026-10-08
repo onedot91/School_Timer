@@ -69,7 +69,7 @@ const rejectUpstreamRequest = (error: unknown): never => {
   throw new ClasswordRepositoryError(502, timedOut ? 'CLASSWORD_DATABASE_TIMEOUT' : 'CLASSWORD_DATABASE_UNAVAILABLE');
 };
 
-const request = async (
+const requestOnce = async (
   configuration: ClasswordRepositoryConfiguration,
   path: string,
   init?: RequestInit,
@@ -112,6 +112,27 @@ const request = async (
     if (error instanceof SyntaxError) throw new ClasswordRepositoryError(502, 'CLASSWORD_DATABASE_INVALID_RESPONSE');
     throw error;
   }
+};
+
+const pendingReads = new Map<string, Promise<unknown>>();
+let readGeneration = 0;
+const request = (
+  configuration: ClasswordRepositoryConfiguration,
+  path: string,
+  init?: RequestInit,
+): Promise<unknown> => {
+  if (init !== undefined) {
+    readGeneration += 1;
+    return requestOnce(configuration, path, init).finally(() => { readGeneration += 1; });
+  }
+  const identity = JSON.stringify([configuration.url, configuration.key, path, readGeneration]);
+  const pending = pendingReads.get(identity);
+  if (pending) return pending;
+  const read = requestOnce(configuration, path).finally(() => {
+    if (pendingReads.get(identity) === read) pendingReads.delete(identity);
+  });
+  pendingReads.set(identity, read);
+  return read;
 };
 
 

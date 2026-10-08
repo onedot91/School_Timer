@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getKoreanDateKey, type ClasswordBoard as ClasswordBoardData, type ClasswordInitial } from '../../lib/classword';
 import { browserDraftStorage } from '../../lib/featureInputDraft';
 import { appDataMode } from '../../lib/dataMode';
+import { studentSettingsPollInterval, studentSettingsRetryDelay } from '../../lib/studentSettingsSync';
 import type { ClasswordQuizStudentState } from '../../lib/classwordQuiz';
 import { EMPTY_CLASSWORD_DRAFT, readyClasswordDraft, classwordDraftVersion, confirmClasswordDraft, settleClasswordDraft, storeClasswordDraft, type ClasswordDraft } from '../../lib/classwordDraft';
 import { getClasswordDisplayDate, isClasswordWeekday } from '../../lib/classwordSchedule';
@@ -118,7 +119,7 @@ export default function StudentClasswordPage({
     });
   };
 
-  const refresh = useCallback(async (): Promise<void> => {
+  const refresh = useCallback(async (): Promise<{ error: unknown } | undefined> => {
     const generation = readGenerationRef.current;
     const sequence = ++boardReadSequenceRef.current;
     try {
@@ -134,10 +135,11 @@ export default function StudentClasswordPage({
       if (getKoreanDateKey() !== dateKey || generation !== readGenerationRef.current || sequence !== boardReadSequenceRef.current) return;
       setLoading(false);
       setFeedback({ kind: 'error', message: getErrorMessage(error) });
+      return { error };
     }
   }, [dateKey, displayDateKey, readOnly]);
 
-  const refreshQuiz = useCallback(async (): Promise<void> => {
+  const refreshQuiz = useCallback(async (): Promise<{ error: unknown } | undefined> => {
     const generation = readGenerationRef.current;
     const sequence = ++quizReadSequenceRef.current;
     try {
@@ -145,9 +147,10 @@ export default function StudentClasswordPage({
       if (getKoreanDateKey() !== dateKey || generation !== readGenerationRef.current || sequence !== quizReadSequenceRef.current) return;
       setQuizState(nextState);
       setQuizLoadError('');
-    } catch {
+    } catch (error) {
       if (getKoreanDateKey() !== dateKey || generation !== readGenerationRef.current || sequence !== quizReadSequenceRef.current) return;
       setQuizLoadError('낱말 퀴즈를 불러오지 못했어요.');
+      return { error };
     } finally {
       if (getKoreanDateKey() === dateKey && generation === readGenerationRef.current && sequence === quizReadSequenceRef.current) setQuizLoading(false);
     }
@@ -162,6 +165,8 @@ export default function StudentClasswordPage({
     let active = true;
     let pending = false;
     let refreshAfterChange = false;
+    let failures = 0;
+    let retryAt = 0;
     let poll: number | undefined;
     const refreshOnReturn = (afterChange = false) => {
       if (!active) return;
@@ -175,14 +180,21 @@ export default function StudentClasswordPage({
         refreshAfterChange ||= afterChange;
         return;
       }
+      if (!afterChange && Date.now() < retryAt) return;
       window.clearTimeout(poll);
       pending = true;
       refreshAfterChange = false;
-      void Promise.all([refresh(), refreshQuiz()]).finally(() => {
+      void Promise.all([refresh(), refreshQuiz()]).then(results => {
         pending = false;
         if (!active) return;
-        if (refreshAfterChange) refreshOnReturn();
-        else poll = window.setTimeout(refreshOnFocus, 3000);
+        const errors = results.filter(result => result !== undefined);
+        failures = errors.length ? failures + 1 : 0;
+        const delay = Math.ceil(failures
+          ? Math.max(...errors.map(result => studentSettingsRetryDelay(failures, result.error)))
+          : appDataMode === 'mock' ? 3000 : studentSettingsPollInterval(5000));
+        retryAt = failures ? Date.now() + delay : 0;
+        if (refreshAfterChange) refreshOnReturn(true);
+        else poll = window.setTimeout(refreshOnFocus, delay);
       });
     };
     const refreshOnFocus = () => refreshOnReturn();

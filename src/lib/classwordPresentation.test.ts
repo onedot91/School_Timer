@@ -32,8 +32,10 @@ const client = readFileSync(new URL('./classwordClient.ts', import.meta.url), 'u
 const css = readFileSync(new URL('../classword.css', import.meta.url), 'utf8');
 const indexCss = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 
-test('낱말판은 응답 완료 후 3초 갱신과 화면·연결 복귀 갱신을 유지한다', () => {
-  assert.match(studentPage, /Promise\.all\(\[refresh\(\), refreshQuiz\(\)\]\)\.finally\([\s\S]*?window\.setTimeout\(refreshOnFocus, 3000\)/);
+test('낱말판은 응답 완료 후 분산 갱신과 화면·연결 복귀 갱신을 유지한다', () => {
+  assert.match(studentPage, /Promise\.all\(\[refresh\(\), refreshQuiz\(\)\]\)\.then\([\s\S]*?window\.setTimeout\(refreshOnFocus, delay\)/);
+  assert.match(studentPage, /studentSettingsPollInterval\(5000\)/);
+  assert.match(studentPage, /studentSettingsRetryDelay\(failures, result.error\)/);
   assert.doesNotMatch(studentPage, /window\.setInterval/);
   assert.match(studentPage, /window\.addEventListener\('focus', refreshOnFocus\)/);
   assert.match(studentPage, /window\.addEventListener\('online', refreshOnFocus\)/);
