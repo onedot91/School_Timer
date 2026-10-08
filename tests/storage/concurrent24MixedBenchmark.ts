@@ -39,9 +39,12 @@ try {
     await harness.query(await readFile(new URL('../../supabase/storage_concurrency_rollback.sql', import.meta.url), 'utf8'));
   }
   await harness.query(await readFile(new URL('../../supabase/storage_scope_read_performance.sql', import.meta.url), 'utf8'));
-  if (process.argv.includes('--scoped-polling')) {
+  if (process.argv.includes('--scoped-polling') || process.argv.includes('--read-execution')) {
     await harness.query(await readFile(new URL('../../supabase/storage_scoped_polling.sql', import.meta.url), 'utf8'));
     process.env.STORAGE_SCOPED_POLLING = '1';
+  }
+  if (process.argv.includes('--read-execution')) {
+    await harness.query(await readFile(new URL('../../supabase/storage_scoped_read_execution.sql', import.meta.url), 'utf8'));
   }
   const started = performance.now();
   await Promise.all(actors.map(async (actor, sessionIndex) => {
@@ -58,7 +61,7 @@ try {
   const reconciliation = (await harness.query('select storage_reconcile_wallets() result')).rows[0]?.result;
   const wallets = (await harness.query('select balance from wallet_accounts order by student_number')).rows;
   const receipts = (await harness.query('select count(*)::integer count from storage_receipts')).rows[0]?.count;
-  const report = { variant: process.argv.includes('--baseline-concurrency') ? 'baseline' : 'current', sessions: actors.length, rounds, simulatedRpcRoundTripMs: rpcDelayMs * 2, elapsedMs: Math.round(performance.now() - started),
+  const report = { variant: process.argv.includes('--read-execution') ? 'read-execution' : process.argv.includes('--baseline-concurrency') ? 'baseline' : 'current', sessions: actors.length, rounds, simulatedRpcRoundTripMs: rpcDelayMs * 2, elapsedMs: Math.round(performance.now() - started),
     latency: Object.fromEntries(Object.entries(latencies).map(([key, values]) => [key, { count: values.length, p50: percentile(values, .5), p95: percentile(values, .95), max: Math.round(Math.max(...values)) }])), errors,
     rpcs: Object.fromEntries([...new Set(harness.metrics.map(row => row.rpc))].map(rpc => [rpc, { count: harness.metrics.filter(row => row.rpc === rpc && !row.code).length,
       bytes: harness.metrics.filter(row => row.rpc === rpc).reduce((sum, row) => sum + (row.responseBytes ?? 0), 0) }])), receipts, reconciliation };

@@ -1,0 +1,1518 @@
+{
+  "dateKst": "2026-10-09",
+  "productionApplication": {
+    "securityAdvisor": { "errors": 0, "warnings": 0, "info": 29, "type": "rls_enabled_no_policy", "sameTypeAndCountAsPriorReport": true },
+  "status": "applied",
+  "projectRef": "dxibhawclfhoabfgwria",
+  "migration": {
+    "name": "storage_scoped_read_execution",
+    "version": "20261008153637",
+    "appliedAtKst": "2026-10-09 00:36:37"
+  },
+  "before": [
+    {
+      "observed_at": "2026-10-08 15:36:28.752099+00",
+      "proname": "storage_load_scope",
+      "identity": "storage_load_scope(jsonb)",
+      "body_md5": "38354d2d883a82b765412b3515d1c31a",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=pg_catalog, public",
+        "jit=off"
+      ],
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "arguments": "p_scope jsonb",
+      "result": "jsonb",
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    },
+    {
+      "observed_at": "2026-10-08 15:36:28.752182+00",
+      "proname": "storage_scope_read_version",
+      "identity": "storage_scope_read_version(jsonb)",
+      "body_md5": "732b1b947e71c6da596af2316950056d",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=pg_catalog, public",
+        "jit=off"
+      ],
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "arguments": "p_scope jsonb",
+      "result": "text",
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    }
+  ],
+  "after": [
+    {
+      "observed_at": "2026-10-08 15:36:54.970606+00",
+      "proname": "storage_load_scope",
+      "identity": "storage_load_scope(jsonb)",
+      "body_md5": "6916f9db14ee774148259dbaa7566558",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=pg_catalog, public",
+        "jit=off"
+      ],
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "arguments": "p_scope jsonb",
+      "result": "jsonb",
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    },
+    {
+      "observed_at": "2026-10-08 15:36:54.970668+00",
+      "proname": "storage_scope_read_version",
+      "identity": "storage_scope_read_version(jsonb)",
+      "body_md5": "6866cb51793ad8b48f47a681f28c89a1",
+      "provolatile": "s",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path=pg_catalog, public",
+        "jit=off"
+      ],
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "arguments": "p_scope jsonb",
+      "result": "text",
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    }
+  ],
+  "otherFunctionBodiesUnchanged": 64,
+  "propertiesAndPermissionsPreserved": true,
+  "readOnlyServiceRoleSmoke": [
+    {
+      "execution_role": "service_role",
+      "kind": "scoped",
+      "resources_type": "array",
+      "wallets_type": "array",
+      "history_type": "array",
+      "deleted_keys_type": "array",
+      "ordering_bounds_type": "object",
+      "version_matches": true,
+      "metadata_matches": true,
+      "marker_shape_valid": true
+    }
+  ],
+  "productionDataWrites": false,
+  "productionLoadTest": false,
+  "appDeployment": false
+},
+  "finalStrictValidation": {
+  "database": "storage_http_test_selectors_30135_1791473532536",
+  "fixtures": {
+    "students": 23,
+    "syntheticLetters": 2800,
+    "ledgerEntries": 4830
+  },
+  "studentScopeEquivalence": 23,
+  "edgeScopeEquivalence": 9,
+  "httpProjectionEquivalence": 23,
+  "metadataMatchesFullSnapshot": true,
+  "idempotent": true,
+  "unknownBodyGuardAtomic": true,
+  "invalidScopeRejected": true,
+  "serviceRoleExecution": true,
+  "permissions": [
+    {
+      "proname": "storage_load_scope",
+      "prosecdef": true,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    },
+    {
+      "proname": "storage_scope_read_version",
+      "prosecdef": true,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    }
+  ],
+  "lateRevisionDetected": true,
+  "ownTombstoneDetected": true,
+  "otherStudentVersionPreserved": true,
+  "resourceRowsVisited": {
+    "before": 17471,
+    "after": 11898
+  },
+  "baselineSql": {
+    "storage_load_scope_1": {
+      "requests": 15,
+      "p50Ms": 11,
+      "p95Ms": 12
+    },
+    "storage_load_scope_25": {
+      "requests": 75,
+      "p50Ms": 66,
+      "p95Ms": 89
+    },
+    "storage_scope_read_version_1": {
+      "requests": 15,
+      "p50Ms": 5,
+      "p95Ms": 6
+    },
+    "storage_scope_read_version_25": {
+      "requests": 75,
+      "p50Ms": 19,
+      "p95Ms": 22
+    }
+  },
+  "optimizedSql": {
+    "storage_load_scope_1": {
+      "requests": 15,
+      "p50Ms": 6,
+      "p95Ms": 7
+    },
+    "storage_load_scope_25": {
+      "requests": 75,
+      "p50Ms": 30,
+      "p95Ms": 39
+    },
+    "storage_scope_read_version_1": {
+      "requests": 15,
+      "p50Ms": 2,
+      "p95Ms": 3
+    },
+    "storage_scope_read_version_25": {
+      "requests": 75,
+      "p50Ms": 10,
+      "p95Ms": 12
+    }
+  },
+  "baseline": {
+    "label": "baseline",
+    "sessions": 25,
+    "rounds": 3,
+    "requests": 75,
+    "errors": 0,
+    "p50Ms": 222,
+    "p95Ms": 466,
+    "maxMs": 531,
+    "studentP95Ms": 257,
+    "teacherP95Ms": 531,
+    "rpcCounts": {
+      "storage_load_scope": 69,
+      "storage_load_snapshot": 3
+    }
+  },
+  "optimized": {
+    "label": "optimized",
+    "sessions": 25,
+    "rounds": 3,
+    "requests": 75,
+    "errors": 0,
+    "p50Ms": 184,
+    "p95Ms": 418,
+    "maxMs": 483,
+    "studentP95Ms": 220,
+    "teacherP95Ms": 483,
+    "rpcCounts": {
+      "storage_load_scope": 69,
+      "storage_load_snapshot": 3
+    }
+  },
+  "baselineRepeat": {
+    "sql": {
+      "storage_load_scope_1": {
+        "requests": 15,
+        "p50Ms": 10,
+        "p95Ms": 12
+      },
+      "storage_load_scope_25": {
+        "requests": 75,
+        "p50Ms": 65,
+        "p95Ms": 82
+      },
+      "storage_scope_read_version_1": {
+        "requests": 15,
+        "p50Ms": 5,
+        "p95Ms": 6
+      },
+      "storage_scope_read_version_25": {
+        "requests": 75,
+        "p50Ms": 20,
+        "p95Ms": 24
+      }
+    },
+    "http": {
+      "label": "baseline-repeat",
+      "sessions": 25,
+      "rounds": 3,
+      "requests": 75,
+      "errors": 0,
+      "p50Ms": 228,
+      "p95Ms": 462,
+      "maxMs": 527,
+      "studentP95Ms": 269,
+      "teacherP95Ms": 527,
+      "rpcCounts": {
+        "storage_load_scope": 69,
+        "storage_load_snapshot": 3
+      }
+    }
+  },
+  "optimizedRepeat": {
+    "sql": {
+      "storage_load_scope_1": {
+        "requests": 15,
+        "p50Ms": 6,
+        "p95Ms": 7
+      },
+      "storage_load_scope_25": {
+        "requests": 75,
+        "p50Ms": 30,
+        "p95Ms": 37
+      },
+      "storage_scope_read_version_1": {
+        "requests": 15,
+        "p50Ms": 3,
+        "p95Ms": 4
+      },
+      "storage_scope_read_version_25": {
+        "requests": 75,
+        "p50Ms": 11,
+        "p95Ms": 13
+      }
+    },
+    "http": {
+      "label": "optimized-repeat",
+      "sessions": 25,
+      "rounds": 3,
+      "requests": 75,
+      "errors": 0,
+      "p50Ms": 191,
+      "p95Ms": 425,
+      "maxMs": 490,
+      "studentP95Ms": 227,
+      "teacherP95Ms": 490,
+      "rpcCounts": {
+        "storage_load_scope": 69,
+        "storage_load_snapshot": 3
+      }
+    }
+  },
+  "rollbackExact": true,
+  "p95ImprovementPercent": 10,
+  "timingThreshold": "No machine-dependent timing threshold; resource scan work reduction is asserted"
+},
+  "head": "acdca907e2444c7b6f811f1c4f55dbb05093ca4e",
+  "productionReadOnly": {
+    "functions": [
+      {
+        "name": "storage_apply_wallet_delta",
+        "bodyMd5": "7d64ae29ce7d1826058ce3c0e53205ac",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_bootstrap",
+        "bodyMd5": "0bcc97503273b55a5d3bcf49b3ee59b9",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_commit_mutation",
+        "bodyMd5": "87b5af4e04b5a40080ea697fc540ccbe",
+        "matchingFiles": [
+          "storage_ancestor_locks.sql",
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_commit_scoped_mutation",
+        "bodyMd5": "4a26d976dfc39ac273124af62da2a0e7",
+        "matchingFiles": [
+          "storage_scoped_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_get_receipt",
+        "bodyMd5": "d9c2c3eb697a2b3cf9f79512a1d9f21b",
+        "matchingFiles": [
+          "storage_scoped_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_guard_legacy",
+        "bodyMd5": "5eef1785ea68dc82462eb46252e4fd33",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_immutable_ledger",
+        "bodyMd5": "3b81d4b3cba6f40590a20578d807b2c4",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_load_read_marker",
+        "bodyMd5": "7cef46464585122d1f1955bd7ce74923",
+        "matchingFiles": [
+          "storage_scoped_polling.sql"
+        ]
+      },
+      {
+        "name": "storage_load_scope",
+        "bodyMd5": "38354d2d883a82b765412b3515d1c31a",
+        "matchingFiles": [
+          "storage_scope_history_read_performance.sql",
+          "storage_scoped_polling.sql"
+        ]
+      },
+      {
+        "name": "storage_load_scope_metadata",
+        "bodyMd5": "f759bb536e8f3180fce180aca4c596c0",
+        "matchingFiles": [
+          "storage_scoped_polling.sql"
+        ]
+      },
+      {
+        "name": "storage_load_snapshot",
+        "bodyMd5": "f1160d473fe2a05eccf1845e075e0f71",
+        "matchingFiles": [
+          "storage_snapshot_execution.sql",
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_load_updated_at",
+        "bodyMd5": "1192279aff49c01f9b2a1c112fdcee16",
+        "matchingFiles": [
+          "storage_read_performance.sql"
+        ]
+      },
+      {
+        "name": "storage_place_library_book",
+        "bodyMd5": "e568d6b695affa12ab39f0aa8df98b9a",
+        "matchingFiles": [
+          "storage_library_placement_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_poll_scope",
+        "bodyMd5": "c2730006da7dd37fdc3f72ef283ce118",
+        "matchingFiles": [
+          "storage_combined_polling.sql",
+          "storage_scoped_polling.sql"
+        ]
+      },
+      {
+        "name": "storage_project_node",
+        "bodyMd5": "8d75b8a46d21ae4aceb14707399174f1",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_read_marker",
+        "bodyMd5": "dc66aa40ae771a3b2d352c7b08721415",
+        "matchingFiles": [
+          "storage_scoped_polling.sql"
+        ]
+      },
+      {
+        "name": "storage_reconcile_wallets",
+        "bodyMd5": "f8dc1b5cab7035b0a48ec7bf0c4de21c",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_require_writable",
+        "bodyMd5": "fd9f081b8aae8ea5580f4f80618698b1",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_resource_in_scope",
+        "bodyMd5": "b4c7210a821f1b76d8da86a0d5a65880",
+        "matchingFiles": [
+          "storage_scoped_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_reward_audit_source",
+        "bodyMd5": "b58bc05acb8dbca0b9e7b883d8f7f3af",
+        "matchingFiles": [
+          "storage_audit_v2.sql",
+          "storage_snapshot_execution.sql"
+        ]
+      },
+      {
+        "name": "storage_scope_keys",
+        "bodyMd5": "9fb03623f50f41a812517b39bd3bf45b",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_scope_read_version",
+        "bodyMd5": "732b1b947e71c6da596af2316950056d",
+        "matchingFiles": [
+          "storage_scoped_polling.sql"
+        ]
+      },
+      {
+        "name": "storage_set_maintenance",
+        "bodyMd5": "2c998be8e453227ce72b8e8659e500d9",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_validate_scope",
+        "bodyMd5": "eafc153196fd70965ca92836ce73a011",
+        "matchingFiles": [
+          "storage_scoped_v2.sql"
+        ]
+      },
+      {
+        "name": "storage_write_resource",
+        "bodyMd5": "1bda04b9dd620ce83b111fe8abbaf376",
+        "matchingFiles": [
+          "storage_v2.sql"
+        ]
+      }
+    ],
+    "cancellations0930": {
+      "result": [
+        {
+          "cancellations": 22,
+          "function": "storage_load_snapshot",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 16,
+          "function": "storage_load_scope",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 6,
+          "function": "storage_poll_scope",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 5,
+          "function": "storage_load_scope_metadata",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 2,
+          "function": "storage_reward_audit_source",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 1,
+          "function": "storage_receipts",
+          "sqlstate": "57014"
+        }
+      ]
+    },
+    "cancellations1010": {
+      "result": [
+        {
+          "cancellations": 65,
+          "function": "storage_load_scope",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 46,
+          "function": "storage_load_snapshot",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 6,
+          "function": "storage_poll_scope",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 6,
+          "function": "storage_reward_audit_source",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 6,
+          "function": "storage_load_scope_metadata",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 3,
+          "function": "storage_place_library_book",
+          "sqlstate": "57014"
+        },
+        {
+          "cancellations": 2,
+          "function": "",
+          "sqlstate": "57014"
+        }
+      ]
+    },
+    "paths0930": {
+      "result": [
+        {
+          "calls": 209,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 6607,
+          "path": "/rest/v1/rpc/storage_load_scope",
+          "total_origin_s": 291.3
+        },
+        {
+          "calls": 287,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 6418,
+          "path": "/rest/v1/rpc/storage_get_receipt",
+          "total_origin_s": 281.6
+        },
+        {
+          "calls": 351,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 5311,
+          "path": "/rest/v1/rpc/storage_poll_scope",
+          "total_origin_s": 271.7
+        },
+        {
+          "calls": 333,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 4751,
+          "path": "/rest/v1/classword_entries",
+          "total_origin_s": 255.5
+        },
+        {
+          "calls": 314,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 4662,
+          "path": "/rest/v1/classword_rounds",
+          "total_origin_s": 212
+        },
+        {
+          "calls": 316,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 3811,
+          "path": "/rest/v1/classword_quizzes",
+          "total_origin_s": 208.5
+        },
+        {
+          "calls": 47,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 6725,
+          "path": "/rest/v1/rpc/storage_load_scope_metadata",
+          "total_origin_s": 116.8
+        },
+        {
+          "calls": 135,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 5901,
+          "path": "/rest/v1/app_settings",
+          "total_origin_s": 92.4
+        },
+        {
+          "calls": 298,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 2420,
+          "path": "/rest/v1/classword_quiz_completions",
+          "total_origin_s": 91.5
+        },
+        {
+          "calls": 42,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 6289,
+          "path": "/rest/v1/storage_receipts",
+          "total_origin_s": 61
+        },
+        {
+          "calls": 39,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 7817,
+          "path": "/rest/v1/rpc/claim_weekly_mission_reward_v2",
+          "total_origin_s": 55.2
+        },
+        {
+          "calls": 35,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 5849,
+          "path": "/rest/v1/rpc/gugudan_leaders",
+          "total_origin_s": 53.8
+        },
+        {
+          "calls": 57,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 5793,
+          "path": "/rest/v1/rpc/storage_load_updated_at",
+          "total_origin_s": 36.2
+        },
+        {
+          "calls": 28,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 3383,
+          "path": "/rest/v1/rpc/classword_command_v2",
+          "total_origin_s": 35.6
+        },
+        {
+          "calls": 40,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 3283,
+          "path": "/rest/v1/rpc/storage_commit_scoped_mutation",
+          "total_origin_s": 34.5
+        }
+      ]
+    },
+    "paths1010": {
+      "result": [
+        {
+          "calls": 412,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 5815,
+          "path": "/rest/v1/app_settings",
+          "total_origin_s": 415.8
+        },
+        {
+          "calls": 437,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 5216,
+          "path": "/rest/v1/rpc/storage_get_receipt",
+          "total_origin_s": 379.2
+        },
+        {
+          "calls": 271,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 4248,
+          "path": "/rest/v1/rpc/storage_load_scope",
+          "total_origin_s": 248.8
+        },
+        {
+          "calls": 383,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 4250,
+          "path": "/rest/v1/rpc/storage_poll_scope",
+          "total_origin_s": 231.9
+        },
+        {
+          "calls": 196,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 5705,
+          "path": "/rest/v1/classword_entries",
+          "total_origin_s": 140.8
+        },
+        {
+          "calls": 157,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 3653,
+          "path": "/rest/v1/rpc/storage_load_updated_at",
+          "total_origin_s": 80.6
+        },
+        {
+          "calls": 53,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 7837,
+          "path": "/rest/v1/rpc/gugudan_begin",
+          "total_origin_s": 67.8
+        },
+        {
+          "calls": 84,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 3889,
+          "path": "/rest/v1/rpc/claim_weekly_mission_reward_v2",
+          "total_origin_s": 66.8
+        },
+        {
+          "calls": 32,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 7166,
+          "path": "/rest/v1/rpc/storage_load_snapshot",
+          "total_origin_s": 66.4
+        },
+        {
+          "calls": 38,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 6747,
+          "path": "/rest/v1/newspaper_questions",
+          "total_origin_s": 62.7
+        },
+        {
+          "calls": 22,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 6413,
+          "path": "/rest/v1/rpc/storage_load_scope_metadata",
+          "total_origin_s": 61.3
+        },
+        {
+          "calls": 49,
+          "errors_5xx": 0,
+          "method": "POST",
+          "p95_ms": 5278,
+          "path": "/rest/v1/rpc/gugudan_finish",
+          "total_origin_s": 60.5
+        },
+        {
+          "calls": 131,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 4430,
+          "path": "/rest/v1/classword_rounds",
+          "total_origin_s": 56.1
+        },
+        {
+          "calls": 127,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 3206,
+          "path": "/rest/v1/weekly_mission_rewards",
+          "total_origin_s": 50.8
+        },
+        {
+          "calls": 120,
+          "errors_5xx": 0,
+          "method": "GET",
+          "p95_ms": 2539,
+          "path": "/rest/v1/classword_quizzes",
+          "total_origin_s": 41.1
+        }
+      ]
+    },
+    "statsInitial": [
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-1936734049526453994",
+        "calls": 27741,
+        "total_exec_ms": "12241985.48",
+        "mean_exec_ms": "441.30",
+        "max_exec_ms": "7983.39",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 49441558,
+        "operation": "storage_load_scope"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-2259251542020475362",
+        "calls": 5764,
+        "total_exec_ms": "3781803.97",
+        "mean_exec_ms": "656.11",
+        "max_exec_ms": "7968.29",
+        "temp_blks_read": 2847881,
+        "temp_blks_written": 2847881,
+        "shared_blks_read": 8,
+        "shared_blks_hit": 3613549,
+        "operation": "storage_load_snapshot"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-5793848167676924486",
+        "calls": 9231,
+        "total_exec_ms": "2336346.92",
+        "mean_exec_ms": "253.10",
+        "max_exec_ms": "7944.98",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 6108383,
+        "operation": "storage_load_scope_metadata"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "1215475010039537938",
+        "calls": 2509,
+        "total_exec_ms": "1520789.28",
+        "mean_exec_ms": "606.13",
+        "max_exec_ms": "7735.30",
+        "temp_blks_read": 2726881,
+        "temp_blks_written": 2726881,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 3664727,
+        "operation": "storage_reward_audit_source"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "5760578955137364015",
+        "calls": 4497,
+        "total_exec_ms": "1163627.78",
+        "mean_exec_ms": "258.76",
+        "max_exec_ms": "7869.92",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 14,
+        "shared_blks_hit": 1157702,
+        "operation": "storage_commit_scoped_mutation"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "6712424134972865071",
+        "calls": 31294,
+        "total_exec_ms": "948738.28",
+        "mean_exec_ms": "30.32",
+        "max_exec_ms": "4556.31",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 259070,
+        "operation": "storage_get_receipt"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "9218809685652810202",
+        "calls": 119768,
+        "total_exec_ms": "728214.50",
+        "mean_exec_ms": "6.08",
+        "max_exec_ms": "5792.55",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 6281174,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "8629712353778192678",
+        "calls": 4535,
+        "total_exec_ms": "717358.71",
+        "mean_exec_ms": "158.18",
+        "max_exec_ms": "7845.32",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 2094106,
+        "operation": "storage_poll_scope"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "6434127508302580063",
+        "calls": 106970,
+        "total_exec_ms": "628331.03",
+        "mean_exec_ms": "5.87",
+        "max_exec_ms": "6758.06",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 5249538,
+        "operation": "storage_load_updated_at"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "289653020453916850",
+        "calls": 2183,
+        "total_exec_ms": "597588.30",
+        "mean_exec_ms": "273.75",
+        "max_exec_ms": "7253.27",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 24855,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-1896754992018673686",
+        "calls": 109906,
+        "total_exec_ms": "445497.26",
+        "mean_exec_ms": "4.05",
+        "max_exec_ms": "59.83",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 12,
+        "shared_blks_hit": 2282148,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "644375888802502335",
+        "calls": 9320,
+        "total_exec_ms": "378020.55",
+        "mean_exec_ms": "40.56",
+        "max_exec_ms": "6606.80",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 4210325,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-1896754992018673686",
+        "calls": 35299,
+        "total_exec_ms": "248731.33",
+        "mean_exec_ms": "7.05",
+        "max_exec_ms": "2615.54",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 1326317,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "7850841291916840480",
+        "calls": 8637,
+        "total_exec_ms": "114134.88",
+        "mean_exec_ms": "13.21",
+        "max_exec_ms": "1603.31",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 2591558,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-1149292683442879128",
+        "calls": 1994,
+        "total_exec_ms": "111960.67",
+        "mean_exec_ms": "56.15",
+        "max_exec_ms": "2602.04",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 612822,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-5442779735887888079",
+        "calls": 3760,
+        "total_exec_ms": "72568.62",
+        "mean_exec_ms": "19.30",
+        "max_exec_ms": "2662.65",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 750455,
+        "operation": "storage_load_read_marker"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-1218179466711977581",
+        "calls": 42,
+        "total_exec_ms": "38954.65",
+        "mean_exec_ms": "927.49",
+        "max_exec_ms": "6470.65",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 118498,
+        "operation": "storage_place_library_book"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-1097577999606796265",
+        "calls": 1528,
+        "total_exec_ms": "37023.91",
+        "mean_exec_ms": "24.23",
+        "max_exec_ms": "1054.73",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 240442,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-1149292683442879128",
+        "calls": 834,
+        "total_exec_ms": "15762.14",
+        "mean_exec_ms": "18.90",
+        "max_exec_ms": "42.44",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 13,
+        "shared_blks_hit": 115020,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "604443852856081454",
+        "calls": 18772,
+        "total_exec_ms": "8242.85",
+        "mean_exec_ms": "0.44",
+        "max_exec_ms": "632.70",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 86366,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-4507562809628078605",
+        "calls": 1170,
+        "total_exec_ms": "6012.30",
+        "mean_exec_ms": "5.14",
+        "max_exec_ms": "290.09",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 2380,
+        "operation": "storage_receipts"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-7135897114927759930",
+        "calls": 1088,
+        "total_exec_ms": "5792.91",
+        "mean_exec_ms": "5.32",
+        "max_exec_ms": "400.55",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 1947,
+        "operation": "storage_revision"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-2161161113167788441",
+        "calls": 46462,
+        "total_exec_ms": "4567.58",
+        "mean_exec_ms": "0.10",
+        "max_exec_ms": "319.85",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 101741,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "4487882428739883352",
+        "calls": 98,
+        "total_exec_ms": "4403.50",
+        "mean_exec_ms": "44.93",
+        "max_exec_ms": "3494.56",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 1919,
+        "operation": "app_settings"
+      },
+      {
+        "observed_at": "2026-10-08 15:13:46.993616+00",
+        "queryid": "-3054294516409514378",
+        "calls": 39,
+        "total_exec_ms": "1827.78",
+        "mean_exec_ms": "46.87",
+        "max_exec_ms": "540.69",
+        "temp_blks_read": 0,
+        "temp_blks_written": 0,
+        "shared_blks_read": 0,
+        "shared_blks_hit": 8774,
+        "operation": "app_settings"
+      }
+    ],
+    "statsSecond": [
+      {
+        "observed_at": "2026-10-08 15:27:20.143552+00",
+        "queryid": "-2259251542020475362",
+        "calls": 5764,
+        "total_exec_ms": "3781803.97",
+        "temp_blks_written": 2847881,
+        "operation": "storage_load_snapshot"
+      },
+      {
+        "observed_at": "2026-10-08 15:27:20.143552+00",
+        "queryid": "8629712353778192678",
+        "calls": 4535,
+        "total_exec_ms": "717358.71",
+        "temp_blks_written": 0,
+        "operation": "storage_poll_scope"
+      },
+      {
+        "observed_at": "2026-10-08 15:27:20.143552+00",
+        "queryid": "-5793848167676924486",
+        "calls": 9231,
+        "total_exec_ms": "2336346.92",
+        "temp_blks_written": 0,
+        "operation": "storage_load_scope_metadata"
+      },
+      {
+        "observed_at": "2026-10-08 15:27:20.143552+00",
+        "queryid": "-1936734049526453994",
+        "calls": 27741,
+        "total_exec_ms": "12241985.48",
+        "temp_blks_written": 0,
+        "operation": "storage_load_scope"
+      },
+      {
+        "observed_at": "2026-10-08 15:27:20.143552+00",
+        "queryid": "1215475010039537938",
+        "calls": 2509,
+        "total_exec_ms": "1520789.28",
+        "temp_blks_written": 2726881,
+        "operation": "storage_reward_audit_source"
+      }
+    ]
+  },
+  "local": {
+    "database": "storage_http_test_selectors_29238_1791473142022",
+    "fixtures": {
+      "students": 23,
+      "syntheticLetters": 2800,
+      "ledgerEntries": 4830
+    },
+    "studentScopeEquivalence": 23,
+    "edgeScopeEquivalence": 9,
+    "httpProjectionEquivalence": 23,
+    "metadataMatchesFullSnapshot": true,
+    "idempotent": true,
+    "unknownBodyGuardAtomic": true,
+    "invalidScopeRejected": true,
+    "serviceRoleExecution": true,
+    "permissions": [
+      {
+        "proname": "storage_load_scope",
+        "prosecdef": true,
+        "anon": false,
+        "authenticated": false,
+        "service_role": true
+      },
+      {
+        "proname": "storage_scope_read_version",
+        "prosecdef": true,
+        "anon": false,
+        "authenticated": false,
+        "service_role": true
+      }
+    ],
+    "lateRevisionDetected": true,
+    "ownTombstoneDetected": true,
+    "otherStudentVersionPreserved": true,
+    "resourceRowsVisited": {
+      "before": 17471,
+      "after": 11898
+    },
+    "baselineSql": {
+      "storage_load_scope_1": {
+        "requests": 15,
+        "p50Ms": 11,
+        "p95Ms": 12
+      },
+      "storage_load_scope_25": {
+        "requests": 75,
+        "p50Ms": 94,
+        "p95Ms": 111
+      },
+      "storage_scope_read_version_1": {
+        "requests": 15,
+        "p50Ms": 5,
+        "p95Ms": 6
+      },
+      "storage_scope_read_version_25": {
+        "requests": 75,
+        "p50Ms": 20,
+        "p95Ms": 24
+      }
+    },
+    "optimizedSql": {
+      "storage_load_scope_1": {
+        "requests": 15,
+        "p50Ms": 6,
+        "p95Ms": 7
+      },
+      "storage_load_scope_25": {
+        "requests": 75,
+        "p50Ms": 31,
+        "p95Ms": 38
+      },
+      "storage_scope_read_version_1": {
+        "requests": 15,
+        "p50Ms": 2,
+        "p95Ms": 3
+      },
+      "storage_scope_read_version_25": {
+        "requests": 75,
+        "p50Ms": 10,
+        "p95Ms": 12
+      }
+    },
+    "baseline": {
+      "label": "baseline",
+      "sessions": 25,
+      "rounds": 3,
+      "requests": 75,
+      "errors": 0,
+      "p50Ms": 230,
+      "p95Ms": 484,
+      "maxMs": 545,
+      "studentP95Ms": 280,
+      "teacherP95Ms": 545,
+      "rpcCounts": {
+        "storage_load_scope": 69,
+        "storage_load_snapshot": 3
+      }
+    },
+    "optimized": {
+      "label": "optimized",
+      "sessions": 25,
+      "rounds": 3,
+      "requests": 75,
+      "errors": 0,
+      "p50Ms": 198,
+      "p95Ms": 416,
+      "maxMs": 477,
+      "studentP95Ms": 229,
+      "teacherP95Ms": 477,
+      "rpcCounts": {
+        "storage_load_scope": 69,
+        "storage_load_snapshot": 3
+      }
+    },
+    "baselineRepeat": {
+      "sql": {
+        "storage_load_scope_1": {
+          "requests": 15,
+          "p50Ms": 10,
+          "p95Ms": 12
+        },
+        "storage_load_scope_25": {
+          "requests": 75,
+          "p50Ms": 62,
+          "p95Ms": 87
+        },
+        "storage_scope_read_version_1": {
+          "requests": 15,
+          "p50Ms": 5,
+          "p95Ms": 6
+        },
+        "storage_scope_read_version_25": {
+          "requests": 75,
+          "p50Ms": 20,
+          "p95Ms": 24
+        }
+      },
+      "http": {
+        "label": "baseline-repeat",
+        "sessions": 25,
+        "rounds": 3,
+        "requests": 75,
+        "errors": 0,
+        "p50Ms": 232,
+        "p95Ms": 452,
+        "maxMs": 514,
+        "studentP95Ms": 264,
+        "teacherP95Ms": 514,
+        "rpcCounts": {
+          "storage_load_scope": 69,
+          "storage_load_snapshot": 3
+        }
+      }
+    },
+    "optimizedRepeat": {
+      "sql": {
+        "storage_load_scope_1": {
+          "requests": 15,
+          "p50Ms": 5,
+          "p95Ms": 12
+        },
+        "storage_load_scope_25": {
+          "requests": 75,
+          "p50Ms": 32,
+          "p95Ms": 39
+        },
+        "storage_scope_read_version_1": {
+          "requests": 15,
+          "p50Ms": 2,
+          "p95Ms": 3
+        },
+        "storage_scope_read_version_25": {
+          "requests": 75,
+          "p50Ms": 10,
+          "p95Ms": 13
+        }
+      },
+      "http": {
+        "label": "optimized-repeat",
+        "sessions": 25,
+        "rounds": 3,
+        "requests": 75,
+        "errors": 0,
+        "p50Ms": 188,
+        "p95Ms": 414,
+        "maxMs": 470,
+        "studentP95Ms": 227,
+        "teacherP95Ms": 470,
+        "rpcCounts": {
+          "storage_load_scope": 69,
+          "storage_load_snapshot": 3
+        }
+      }
+    },
+    "rollbackExact": true,
+    "p95ImprovementPercent": 14,
+    "timingThreshold": "No machine-dependent timing threshold; resource scan work reduction is asserted"
+  },
+  "mixed24Before": {
+    "variant": "current",
+    "sessions": 24,
+    "rounds": 5,
+    "simulatedRpcRoundTripMs": 200,
+    "elapsedMs": 5711,
+    "latency": {
+      "read": {
+        "count": 120,
+        "p50": 250,
+        "p95": 282,
+        "max": 339
+      },
+      "write": {
+        "count": 115,
+        "p50": 878,
+        "p95": 919,
+        "max": 934
+      }
+    },
+    "errors": [],
+    "rpcs": {
+      "storage_load_scope": {
+        "count": 345,
+        "bytes": 42122581
+      },
+      "storage_load_snapshot": {
+        "count": 5,
+        "bytes": 13344868
+      },
+      "storage_get_receipt": {
+        "count": 115,
+        "bytes": 1725
+      },
+      "storage_commit_scoped_mutation": {
+        "count": 115,
+        "bytes": 155919
+      }
+    },
+    "receipts": 115,
+    "reconciliation": []
+  },
+  "mixed24After": {
+    "latency": {
+      "read": {
+        "p95": 282
+      },
+      "write": {
+        "p95": 912
+      }
+    },
+    "errors": [],
+    "receipts": 115,
+    "reconciliation": []
+  },
+  "mixed25Before": {
+    "variant": "current",
+    "sessions": 25,
+    "rounds": 5,
+    "simulatedRpcRoundTripMs": 200,
+    "elapsedMs": 5711,
+    "latency": {
+      "read": {
+        "count": 125,
+        "p50": 243,
+        "p95": 306,
+        "max": 350
+      },
+      "write": {
+        "count": 115,
+        "p50": 892,
+        "p95": 924,
+        "max": 956
+      }
+    },
+    "errors": [],
+    "rpcs": {
+      "storage_load_scope": {
+        "count": 345,
+        "bytes": 42122595
+      },
+      "storage_load_snapshot": {
+        "count": 5,
+        "bytes": 13344889
+      },
+      "storage_get_receipt": {
+        "count": 115,
+        "bytes": 1725
+      },
+      "storage_commit_scoped_mutation": {
+        "count": 115,
+        "bytes": 155919
+      }
+    },
+    "receipts": 115,
+    "reconciliation": []
+  },
+  "mixed25After": {
+    "variant": "read-execution",
+    "sessions": 25,
+    "rounds": 5,
+    "simulatedRpcRoundTripMs": 200,
+    "elapsedMs": 5721,
+    "latency": {
+      "read": {
+        "count": 125,
+        "p50": 254,
+        "p95": 307,
+        "max": 345
+      },
+      "write": {
+        "count": 115,
+        "p50": 884,
+        "p95": 916,
+        "max": 930
+      }
+    },
+    "errors": [],
+    "rpcs": {
+      "storage_load_scope": {
+        "count": 345,
+        "bytes": 42123984
+      },
+      "storage_load_snapshot": {
+        "count": 5,
+        "bytes": 13345051
+      },
+      "storage_get_receipt": {
+        "count": 115,
+        "bytes": 1725
+      },
+      "storage_commit_scoped_mutation": {
+        "count": 115,
+        "bytes": 155920
+      }
+    },
+    "receipts": 115,
+    "reconciliation": []
+  }
+}
