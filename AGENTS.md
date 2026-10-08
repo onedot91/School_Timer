@@ -6,15 +6,16 @@
 
 ## OVERVIEW
 
-School Timer is a Vite + React 19 + TypeScript classroom operations app. The same repository contains the browser UI, Netlify serverless adapter and handlers, Node-only server helpers, Supabase SQL, and Node test suites.
+School Timer is a Vite + React 19 + TypeScript classroom operations app running on Vercel with Supabase. The same repository contains the browser UI, Vercel API handlers, a legacy Netlify adapter, Node-only server helpers, Supabase SQL, and Node test suites.
 
 Development defaults to isolated mock data. Read-only shared data and production writes are explicit modes; localStorage remains the fallback when shared Supabase settings are unavailable.
 
 ## DEPLOYMENT OWNERSHIP
 
+- 현재 운영 플랫폼은 **Vercel**이며 데이터베이스는 **Supabase**이다. 저장소에 남아 있는 Netlify 어댑터·설정·문서는 현재 운영 플랫폼의 근거로 사용하지 않는다. 운영 장애 조사와 환경변수·배포 상태 확인은 Vercel 기준으로 진행한다.
 - 운영 배포는 사용자가 직접 수행한다.
 - Codex는 소스 수정, 환경변수 목록·배포 설정 준비, 테스트와 로컬 빌드 검증까지만 수행한다.
-- 사용자가 배포를 요청하거나 승인하더라도 Netlify 배포 명령 실행, Netlify 관리 화면 조작, 운영 배포 트리거는 수행하지 않는다. 대신 사용자가 직접 실행할 절차와 검증 결과를 제공한다.
+- 사용자가 배포를 요청하거나 승인하더라도 Vercel·Netlify 배포 명령 실행, 관리 화면에서의 배포 조작, 운영 배포 트리거는 수행하지 않는다. 대신 사용자가 직접 실행할 절차와 검증 결과를 제공한다.
 
 ## STRUCTURE
 
@@ -28,13 +29,14 @@ School_Timer/
 │   │   └── teacher/             # extracted teacher panels/dialogs
 │   ├── lib/                     # domain logic, normalization, clients, colocated tests
 │   └── server/                  # Node-only auth, request, repository helpers
-├── api/                         # handlers routed through the Netlify adapter
-├── netlify/                     # Netlify Function adapter
+├── api/                         # Vercel API handlers
+├── netlify/                     # legacy Netlify Function adapter
 ├── tests/api/                   # handler and server-boundary tests
 ├── supabase/                    # idempotent schema/RPC SQL
 ├── public/                      # runtime assets served from /
 ├── DESIGN.md                    # visual and interaction contract
-└── netlify.toml                 # build, Functions, CSP and security headers
+├── vercel.json                  # production regions, CSP and security headers
+└── netlify.toml                 # legacy Netlify build and headers
 ```
 
 `dist/`, `tmp/`, and `.omo/` are build or QA artifacts, not source.
@@ -53,7 +55,7 @@ School_Timer/
 | Missions and games | `src/lib/weeklyMission.ts`, `src/lib/randomDraw.ts`, `src/lib/sudoku.ts`, `src/lib/numberBaseball.ts` | Tests are colocated in `src/lib/*.test.ts`. |
 | Database changes | `supabase/app_settings.sql`, `supabase/classword.sql` | RLS/revokes and service-role-only security-definer RPCs are part of the contract. |
 | Visual behavior | `src/index.css`, `src/classword.css`, `DESIGN.md` | Global feature classes and Tailwind utilities coexist. |
-| Deployment policy | `vite.config.ts`, `netlify.toml`, `netlify/functions/api.mts`, `index.html` | Proxy targets, CSP and public metadata share domain assumptions. |
+| Deployment policy | `vercel.json`, `api/`, `vite.config.ts`, `index.html` | Vercel is production; Netlify files are legacy. Check production regions, CSP and public metadata together. |
 
 ## CODE MAP
 
@@ -84,7 +86,7 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 - Base layout on the actual CSS viewport (`100dvh`, container dimensions), never `screen.height`. Do not subtract browser chrome again from `100dvh`. At the final checks reject clipping, overlap, unreachable primary actions, and unintended document scrolling. Long lists/forms may scroll inside a bounded panel; preserve readable text, 44px controls, keyboard access, and text zoom. Do not shrink the whole UI with CSS zoom or transforms to force a fit.
 - Optional audio failures stay non-fatal; autoplay/device restrictions must not block core actions.
 - 저장 오류 알림은 발생 기능·화면, 허용된 오류 코드·HTTP 상태 등 진단 정보와 다음 조치를 함께 제공한다. 원본 오류 메시지·요청 본문·학생 작성 내용은 수집하지 않는다. 응답 미확인을 미저장으로 단정하거나 알림 확인 처리를 기록 복구로 표현하지 않는다.
-- Loading fixes require before/after measurements. Keep Netlify Functions near the Seoul Supabase database where the plan supports region selection; verify the deployed response region after release. Separate read timeouts from write confirmation, and never shorten loading by treating unconfirmed saves as successful. Keep feature-only panels out of initial bundles.
+- Loading fixes require before/after measurements. Keep Vercel Functions near the Seoul Supabase database and verify the deployed response region after release; `vercel.json` currently requests `icn1`. Separate read timeouts from write confirmation, and never shorten loading by treating unconfirmed saves as successful. Keep feature-only panels out of initial bundles.
 
 ## UI 문구 최소화
 
@@ -106,8 +108,8 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 - Do not bypass server/RPC mutation paths for currency, rewards, donations, or other concurrency-sensitive state.
 - Do not change shared-setting shape only in one layer; update normalizer, snapshot builder/apply path, API scope validation, SQL, and tests as applicable.
 - Do not rename numbered/Korean asset files or persisted ids without finding every literal reference and planning stored-data compatibility.
-- Do not add an external API, frame, font, image, or media origin without updating and testing the `netlify.toml` CSP.
-- Do not change the deployment domain in only one place; inspect `netlify.toml`, `index.html`, and development proxies together.
+- Do not add an external API, frame, font, image, or media origin without updating and testing the `vercel.json` CSP; keep legacy Netlify headers consistent when applicable.
+- Do not change the deployment domain in only one place; inspect `vercel.json`, `index.html`, and development proxies together.
 - Do not use `as any`, `@ts-ignore`, or unchecked persistence casts; narrow or normalize instead.
 - Never use live student balances, bids, awards, rewards, donations, or history as QA data. Reverse actions are not restoration; use mock/fake/disposable local state.
 
@@ -136,5 +138,5 @@ npm run preview
 - Browser Supabase variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - Server-only variables: `SUPABASE_SERVICE_ROLE_KEY`, `DEVICE_REGISTRATION_KEY`, `DEVICE_SESSION_SECRET`.
 - Optional YouTube search variable: `VITE_YOUTUBE_API_KEY`.
-- Netlify deploys `netlify/functions/api.mts`, which routes requests to the handlers in `api/*.ts`.
+- Vercel serves the production API from `api/*.ts`; `vercel.json` contains production region and header settings. `netlify/functions/api.mts` is a legacy adapter, not evidence of the active production platform.
 - There is no committed CI workflow or browser E2E suite. Browser-visible changes require manual surface QA in addition to lint, tests, and build.

@@ -28,6 +28,7 @@ test('손실, 상쇄된 손익, 전액 손실과 미투자를 구분한다', () 
 test('23명의 번호와 수익·손실·미투자 상태를 표시하고 상세에는 종목별 금액과 반영 이유를 제공한다', () => {
   const state = createStudentEconomyState();
   const markup = renderToStaticMarkup(createElement(TeacherInvestmentStatus, {
+    dateKey: '2026-10-01',
     states: {
       '1': { ...state, investments: { sunny: position(100, 120, 20) } },
       '2': { ...state, investments: { sunny: position(100, 80, -20) } },
@@ -45,4 +46,19 @@ test('23명의 번호와 수익·손실·미투자 상태를 표시하고 상세
   assert.match(markup, /마지막 등락 \+20 고마/);
   assert.match(markup, /연습용: 판매량 증가/);
   assert.match(markup, /\+20%/);
+});
+
+test('학생이 다시 접속하지 않아도 등록한 등락을 즉시 표시하고 저장 상태는 보존한다', () => {
+  const state = { ...createStudentEconomyState(), investments: { sunny: position(100, 100) } };
+  const before = structuredClone(state);
+  const render = (returnPercent: number, dateKey = '2026-10-02') => renderToStaticMarkup(createElement(TeacherInvestmentStatus, {
+    states: { '1': state }, dateKey,
+    market: { sunny: [{ dateKey: '2026-10-02', stage: returnPercent > 0 ? 'rise' : 'fall', returnPercent, comment: '' }] },
+  }));
+  assert.match(render(20), /class="is-up" aria-label="1번, 수익 20 고마"/);
+  assert.match(render(-20), /class="is-down" aria-label="1번, 손실 20 고마"/);
+  assert.match(render(20), /2026-10-02 반영/);
+  assert.match(render(20), /마지막 등락 \+20 고마/);
+  assert.match(render(20, '2026-10-01'), /class="is-flat" aria-label="1번, 변동 없음"/);
+  assert.deepEqual(state, before);
 });

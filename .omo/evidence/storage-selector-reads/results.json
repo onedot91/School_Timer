@@ -1,0 +1,73 @@
+{
+  "database": "storage_http_test_selectors_97802_1791422213488",
+  "fixtures": {
+    "students": 23,
+    "syntheticLetters": 800,
+    "ledgerEntries": 4830
+  },
+  "studentScopeEquivalence": 23,
+  "edgeScopeEquivalence": 7,
+  "httpProjectionEquivalence": 23,
+  "metadataMatchesFullSnapshot": true,
+  "idempotent": true,
+  "unknownBodyGuardAtomic": true,
+  "invalidScopeRejected": true,
+  "serviceRoleExecution": true,
+  "permissions": [
+    {
+      "proname": "storage_load_scope",
+      "prosecdef": true,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    },
+    {
+      "proname": "storage_scope_read_version",
+      "prosecdef": true,
+      "anon": false,
+      "authenticated": false,
+      "service_role": true
+    }
+  ],
+  "lateRevisionDetected": true,
+  "ownTombstoneDetected": true,
+  "otherStudentVersionPreserved": true,
+  "selectorFunctionLoops": {
+    "before": 27,
+    "after": 4
+  },
+  "baseline": {
+    "label": "baseline",
+    "sessions": 25,
+    "rounds": 3,
+    "requests": 75,
+    "errors": 0,
+    "p50Ms": 86,
+    "p95Ms": 166,
+    "maxMs": 175,
+    "studentP95Ms": 124,
+    "teacherP95Ms": 175,
+    "rpcCounts": {
+      "storage_load_scope": 69,
+      "storage_load_snapshot": 3
+    }
+  },
+  "optimized": {
+    "label": "optimized",
+    "sessions": 25,
+    "rounds": 3,
+    "requests": 75,
+    "errors": 0,
+    "p50Ms": 96,
+    "p95Ms": 178,
+    "maxMs": 192,
+    "studentP95Ms": 123,
+    "teacherP95Ms": 192,
+    "rpcCounts": {
+      "storage_load_scope": 69,
+      "storage_load_snapshot": 3
+    }
+  },
+  "p95ImprovementPercent": -7,
+  "timingThreshold": "No machine-dependent timing threshold; query plan loop reduction is asserted"
+}

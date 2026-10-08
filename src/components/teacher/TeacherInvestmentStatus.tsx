@@ -1,6 +1,8 @@
 import { useId, useState } from 'react';
+import { getKoreanLocalDateKey } from '../../lib/studentEmotion';
 import {
   STUDENT_STOCKS,
+  settleStudentInvestments,
   type StudentEconomyState,
   type StudentEconomyStates,
   type StudentStockMarket,
@@ -29,13 +31,17 @@ const formatAmount = (value: number) => numberFormat.format(value);
 const formatSigned = (value: number) => `${value > 0 ? '+' : ''}${formatAmount(value)}`;
 const trendSymbol = (value: number) => value > 0 ? '▲' : value < 0 ? '▼' : '─';
 
-export default function TeacherInvestmentStatus({ states, market }: {
+export default function TeacherInvestmentStatus({ states, market, dateKey = getKoreanLocalDateKey() }: {
   readonly states: StudentEconomyStates;
   readonly market: StudentStockMarket;
+  readonly dateKey?: string;
 }) {
   const [selectedStudent, setSelectedStudent] = useState(1);
   const id = useId();
-  const state = states[String(selectedStudent)];
+  const displayStates = Object.fromEntries(Object.entries(states).map(([studentNumber, studentState]) => (
+    [studentNumber, settleStudentInvestments(studentState, dateKey, market)]
+  )));
+  const state = displayStates[String(selectedStudent)];
   const summary = getTeacherInvestmentSummary(state);
 
   return <div className="teacher-investment-dashboard">
@@ -46,7 +52,7 @@ export default function TeacherInvestmentStatus({ states, market }: {
       </div>
       <div className="teacher-investment-roster" role="group" aria-label="학생별 누적 손익">
         {Array.from({ length: 23 }, (_, index) => index + 1).map(studentNumber => {
-          const student = getTeacherInvestmentSummary(states[String(studentNumber)]);
+          const student = getTeacherInvestmentSummary(displayStates[String(studentNumber)]);
           const status = student.count === 0 ? '투자 없음' : student.profit === 0 ? '변동 없음'
             : `${student.profit > 0 ? '수익' : '손실'} ${formatAmount(Math.abs(student.profit))} 고마`;
           return <button key={studentNumber} type="button" className={`is-${student.trend}`} aria-label={`${studentNumber}번, ${status}`} title={`${studentNumber}번 · ${status}`} aria-pressed={selectedStudent === studentNumber} aria-controls={`${id}-detail`} data-invested={student.count > 0} onClick={() => setSelectedStudent(studentNumber)}>

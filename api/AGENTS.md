@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Node serverless boundary routed through `netlify/functions/api.mts`. TypeScript handlers authenticate device sessions, enforce student/teacher scope, and call Supabase with server credentials.
+Node serverless boundary served by Vercel in production. `netlify/functions/api.mts` is a legacy compatibility adapter. TypeScript handlers authenticate device sessions, enforce student/teacher scope, and call Supabase with server credentials.
 
 ## HANDLER MAP
 
@@ -54,7 +54,7 @@ Node serverless boundary routed through `netlify/functions/api.mts`. TypeScript 
 - Relative ESM imports in this server graph must end in `.js`, even when the source file is `.ts`.
 - Keep request/response structural types local; reusable auth, rate-limit, repository, and domain logic belongs in `src/server` or `src/lib`.
 - Preserve input caps: shared settings value `1 MiB`; student economy request `8 KiB`.
-- Every added handler must be registered in `netlify/functions/api.mts`. `src/lib/vercelFunctionImports.test.ts` validates handler exports and ESM imports; add new server dependencies to `SERVER_MODULES` there.
+- Vercel discovers handlers in `api/`. Keep `netlify/functions/api.mts` registration consistent when maintaining legacy adapter compatibility. `src/lib/vercelFunctionImports.test.ts` validates handler exports and ESM imports; add new server dependencies to `SERVER_MODULES` there.
 
 ## TESTS
 
@@ -69,4 +69,4 @@ Node serverless boundary routed through `netlify/functions/api.mts`. TypeScript 
 ## ANTI-PATTERNS
 
 - No service-role access from browser code, student mutation outside signed-session scope, or balance/state mutation before authorization.
-- No extensionless relative imports, permissive cross-site write fallback, swallowed optimistic conflicts, or unregistered Netlify handler.
+- No extensionless relative imports, permissive cross-site write fallback, swallowed optimistic conflicts, or broken Vercel handler exports.

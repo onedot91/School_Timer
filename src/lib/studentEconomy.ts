@@ -817,7 +817,7 @@ const getPendingWeekdayDateKeys = (afterDateKey: string, throughDateKey: string)
   return dateKeys;
 };
 
-const settleStudentInvestments = (state: StudentEconomyState, dateKey: string, marketValue: unknown) => {
+export const settleStudentInvestments = (state: StudentEconomyState, dateKey: string, marketValue: unknown) => {
   const market = normalizeStudentStockMarket(marketValue);
   const settings = market.settings ?? DEFAULT_STUDENT_INVESTMENT_SETTINGS;
   const investments = { ...state.investments };

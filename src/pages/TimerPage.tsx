@@ -10356,7 +10356,7 @@ export default function TimerPage() {
           </div>
         </div>
         <div className="teacher-stock-tab-panel" id="teacher-stock-panel-students" role="tabpanel" aria-labelledby="teacher-stock-tab-students" hidden={stockSettingsTab !== 'students'} tabIndex={0}>
-          <TeacherInvestmentStatus states={studentEconomyStates} market={studentStockMarket} />
+          <TeacherInvestmentStatus states={studentEconomyStates} market={studentStockMarket} dateKey={getKoreanLocalDateKey()} />
         </div>
       </div>
     </section>

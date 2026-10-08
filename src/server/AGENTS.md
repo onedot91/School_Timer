@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Node/Netlify Function 전용 코드. `api/*.ts`가 HTTP 경계를 맡고, 이 폴더는 세션·요청 제한·입력 파싱·PostgREST 저장소 로직을 제공한다.
+Node/Vercel Function 전용 코드. 현재 운영은 Vercel이며, `api/*.ts`가 HTTP 경계를 맡고 이 폴더는 세션·요청 제한·입력 파싱·PostgREST 저장소 로직을 제공한다. Netlify 어댑터는 기존 호환 경로이다.
 
 ## WHERE TO LOOK
 
