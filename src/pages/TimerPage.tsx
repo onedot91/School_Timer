@@ -4371,6 +4371,10 @@ export default function TimerPage() {
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [copyTargetDays, setCopyTargetDays] = useState<Set<number>>(() => new Set());
   const [pendingAuctionAction, setPendingAuctionAction] = useState<AuctionManagementAction | null>(null);
+  const [isWeeklyAuctionClosing, setIsWeeklyAuctionClosing] = useState(false);
+  const weeklyAuctionClosingRef = useRef(false);
+  const [weeklyAuctionCloseStatus, setWeeklyAuctionCloseStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [weeklyAuctionCloseMessage, setWeeklyAuctionCloseMessage] = useState('');
   const [isCurrencyResetDangerVisible, setIsCurrencyResetDangerVisible] = useState(false);
   const [pendingAwardItemId, setPendingAwardItemId] = useState<string | null>(null);
   const [queuedAwardItems, setQueuedAwardItems] = useState<AuctionItem[]>([]);
@@ -4422,6 +4426,7 @@ export default function TimerPage() {
     dialogRef: auctionActionDialogRef,
     isOpen: pendingAuctionAction !== null,
     onDismiss: () => setPendingAuctionAction(null),
+    isDismissible: !isWeeklyAuctionClosing,
     returnFocusRef: auctionActionReturnFocusRef,
   });
   useModalFocus({
@@ -7454,64 +7459,66 @@ export default function TimerPage() {
     setAwardPresentation((previous) => (previous?.item.id === itemId ? null : previous));
   };
 
-  const completeWeeklyAuctionCycle = () => {
-    if (isSupabaseSettingsEnabled) {
-      const today = new Date();
-      const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (today.getDay() + 6) % 7);
-      const cycleKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
-      void executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.weekly-close', payload: { cycleKey } })
-        .then(saved => {
-          if (!saved.value) return;
-          commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
-          setStudentEconomyStates(normalizeStudentEconomyStates(saved.value.studentEconomy));
-          const items = normalizeAuctionItems(saved.value.auctionItems);
-          setAuctionItems(items);
-          teacherSettingsBaseRef.current = { ...teacherSettingsBaseRef.current, auctionItems: items };
-          teacherSettingsPersistedBaseRef.current = { ...teacherSettingsPersistedBaseRef.current, auctionItems: saved.value.auctionItems };
-          setAuctionBids(normalizeAuctionBids(saved.value.auctionBids, AUCTION_ITEM_IDS));
-          setAuctionBidHistory(normalizeAuctionBidHistory(saved.value.auctionBidHistory, AUCTION_ITEM_IDS));
-          setAuctionAwards(normalizeAuctionAwards(saved.value.auctionAwards, AUCTION_ITEM_IDS));
-          setTemporaryVisibleAuctionItemIds(new Set());
-          setPendingAwardItemId(null);
-          setAwardPresentation(null);
-          if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
-        }).catch(() => setCurrencyDeductionError('주간 정산 결과를 확인하지 못했어요. 최신 기록을 확인해 주세요.'));
-      return;
-    }
-    const nextAuctionItems = normalizeAuctionItems(null);
-    const emptyAuctionBids = normalizeAuctionBids(null, AUCTION_ITEM_IDS);
-    const emptyAuctionBidHistory = normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS);
-    const emptyAuctionAwards = normalizeAuctionAwards(null, AUCTION_ITEM_IDS);
-    const interestHistoryCreatedAt = new Date().toISOString();
-    const taxHistoryCreatedAt = new Date().toISOString();
-    const allowanceHistoryCreatedAt = new Date().toISOString();
-    const currencyCycle = createWeeklyCurrencyCycle(
-      {
-        currencyBalances: currencyBalancesRef.current,
-        currencyHistory: currencyHistoryRef.current,
-        studentEconomy: studentEconomyStates,
-      },
-      interestHistoryCreatedAt,
-      taxHistoryCreatedAt,
-      allowanceHistoryCreatedAt,
-    );
-    const nextBalances = currencyCycle.balances;
-    const nextHistory = currencyCycle.history;
-    const taxedStudentEconomyStates = currencyCycle.economy;
+  const completeWeeklyAuctionCycle = async () => {
+    if (weeklyAuctionClosingRef.current) return;
+    weeklyAuctionClosingRef.current = true;
+    setIsWeeklyAuctionClosing(true);
+    setWeeklyAuctionCloseStatus('pending');
+    setWeeklyAuctionCloseMessage('주간 경매 마감 중…');
+    try {
+      if (isSupabaseSettingsEnabled) {
+        const today = new Date();
+        const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (today.getDay() + 6) % 7);
+        const cycleKey = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+        const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.weekly-close', payload: { cycleKey } });
+        const alreadySettled = isStorageRecord(saved.result) && saved.result.settled === false;
+        const message = alreadySettled ? '이번 주 경매는 이미 마감되었습니다.' : '주간 경매 마감이 완료되었습니다.';
+        setWeeklyAuctionCloseStatus('success');
+        if (!saved.value) {
+          teacherRefreshPendingRef.current = true;
+          setTeacherRefreshPending(true);
+          setWeeklyAuctionCloseMessage(`${message} 화면 갱신은 다시 불러오기를 눌러 주세요.`);
+          return;
+        }
+        commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
+        setStudentEconomyStates(normalizeStudentEconomyStates(saved.value.studentEconomy));
+        const items = normalizeAuctionItems(saved.value.auctionItems);
+        setAuctionItems(items);
+        teacherSettingsBaseRef.current = { ...teacherSettingsBaseRef.current, auctionItems: items };
+        teacherSettingsPersistedBaseRef.current = { ...teacherSettingsPersistedBaseRef.current, auctionItems: saved.value.auctionItems };
+        setAuctionBids(normalizeAuctionBids(saved.value.auctionBids, AUCTION_ITEM_IDS));
+        setAuctionBidHistory(normalizeAuctionBidHistory(saved.value.auctionBidHistory, AUCTION_ITEM_IDS));
+        setAuctionAwards(normalizeAuctionAwards(saved.value.auctionAwards, AUCTION_ITEM_IDS));
+        setTemporaryVisibleAuctionItemIds(new Set());
+        setPendingAwardItemId(null);
+        setAwardPresentation(null);
+        if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
+        setWeeklyAuctionCloseMessage(message);
+        return;
+      }
+      const nextAuctionItems = normalizeAuctionItems(null);
+      const emptyAuctionBids = normalizeAuctionBids(null, AUCTION_ITEM_IDS);
+      const emptyAuctionBidHistory = normalizeAuctionBidHistory(null, AUCTION_ITEM_IDS);
+      const emptyAuctionAwards = normalizeAuctionAwards(null, AUCTION_ITEM_IDS);
+      const interestHistoryCreatedAt = new Date().toISOString();
+      const taxHistoryCreatedAt = new Date().toISOString();
+      const allowanceHistoryCreatedAt = new Date().toISOString();
+      const currencyCycle = createWeeklyCurrencyCycle(
+        {
+          currencyBalances: currencyBalancesRef.current,
+          currencyHistory: currencyHistoryRef.current,
+          studentEconomy: studentEconomyStates,
+        },
+        interestHistoryCreatedAt,
+        taxHistoryCreatedAt,
+        allowanceHistoryCreatedAt,
+      );
+      const nextBalances = currencyCycle.balances;
+      const nextHistory = currencyCycle.history;
+      const taxedStudentEconomyStates = currencyCycle.economy;
 
-    setAuctionItems(nextAuctionItems);
-    setTemporaryVisibleAuctionItemIds(new Set());
-    setAuctionBids(emptyAuctionBids);
-    setAuctionBidHistory(emptyAuctionBidHistory);
-    setAuctionAwards(emptyAuctionAwards);
-    setPendingAwardItemId(null);
-    setAwardPresentation(null);
-    setStudentEconomyStates(taxedStudentEconomyStates);
-    commitCurrencyState(nextBalances, nextHistory);
-
-    if (!isSupabaseSettingsEnabled) {
       const snapshot = loadStoredStudentPetSnapshot();
-      storeStudentPetSnapshot({
+      if (!storeStudentPetSnapshot({
         ...snapshot,
         currencyBalances: nextBalances,
         currencyHistory: nextHistory,
@@ -7520,8 +7527,31 @@ export default function TimerPage() {
         auctionBids: emptyAuctionBids,
         auctionBidHistory: emptyAuctionBidHistory,
         auctionAwards: emptyAuctionAwards,
-      });
-      return;
+      })) {
+        reportSaveFailure('auction', 'storage');
+        throw new Error('AUCTION_WEEKLY_CLOSE_LOCAL_SAVE_FAILED');
+      }
+
+      setAuctionItems(nextAuctionItems);
+      setTemporaryVisibleAuctionItemIds(new Set());
+      setAuctionBids(emptyAuctionBids);
+      setAuctionBidHistory(emptyAuctionBidHistory);
+      setAuctionAwards(emptyAuctionAwards);
+      setPendingAwardItemId(null);
+      setAwardPresentation(null);
+      setStudentEconomyStates(taxedStudentEconomyStates);
+      commitCurrencyState(nextBalances, nextHistory);
+
+      setWeeklyAuctionCloseStatus('success');
+      setWeeklyAuctionCloseMessage('주간 경매 마감이 완료되었습니다.');
+    } catch (error) {
+      const code = classifySaveFailure(error) ?? 'unknown';
+      const status = error instanceof StorageCommandError ? ` · HTTP ${error.status}` : '';
+      setWeeklyAuctionCloseStatus('error');
+      setWeeklyAuctionCloseMessage(`주간 경매 마감 결과를 확인하지 못했어요 (${code}${status}). 최신 기록을 확인해 주세요.`);
+    } finally {
+      weeklyAuctionClosingRef.current = false;
+      setIsWeeklyAuctionClosing(false);
     }
   };
 
@@ -7728,9 +7758,10 @@ export default function TimerPage() {
     startAwardPresentationForItem(firstItem);
   };
 
-  const confirmAuctionManagementAction = () => {
+  const confirmAuctionManagementAction = async () => {
+    if (weeklyAuctionClosingRef.current) return;
     if (pendingAuctionAction === 'weeklyClose') {
-      completeWeeklyAuctionCycle();
+      await completeWeeklyAuctionCycle();
     } else if (pendingAuctionAction === 'currency') {
       resetCurrencyBalances();
     }
@@ -11405,10 +11436,19 @@ export default function TimerPage() {
               auctionActionReturnFocusRef.current = event.currentTarget;
               setPendingAuctionAction('weeklyClose');
             }}
-            className="inline-flex min-h-12 w-full items-center justify-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#006241] px-4 py-3 text-[0.98rem] font-extrabold text-white shadow-[0_8px_18px_rgba(0,98,65,0.14)] transition-colors hover:bg-[#005336]"
+            disabled={isWeeklyAuctionClosing}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#006241] px-4 py-3 text-[0.98rem] font-extrabold text-white shadow-[0_8px_18px_rgba(0,98,65,0.14)] transition-colors hover:bg-[#005336] disabled:cursor-wait disabled:opacity-60"
           >
-            주간 경매 마감
+            {isWeeklyAuctionClosing ? '마감 중…' : '주간 경매 마감'}
           </button>
+          {weeklyAuctionCloseMessage ? (
+            <p
+              className={`text-center text-[0.86rem] font-bold leading-6 ${weeklyAuctionCloseStatus === 'error' ? 'text-[#A34F45]' : 'text-[#006241]'}`}
+              role={weeklyAuctionCloseStatus === 'error' ? 'alert' : 'status'}
+            >
+              {weeklyAuctionCloseMessage}
+            </p>
+          ) : null}
           <div className="rounded-[1rem] border border-[#E4D7C9] bg-white/70 p-3">
             <button
               type="button"
@@ -13232,7 +13272,7 @@ export default function TimerPage() {
                 <div
                   className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4"
                   role="presentation"
-                  onClick={() => setPendingAuctionAction(null)}
+                  onClick={() => { if (!weeklyAuctionClosingRef.current) setPendingAuctionAction(null); }}
                 >
                   <div
                     ref={auctionActionDialogRef}
@@ -13240,6 +13280,7 @@ export default function TimerPage() {
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="auction-reset-confirm-title"
+                    aria-busy={isWeeklyAuctionClosing}
                     onClick={(event) => event.stopPropagation()}
                   >
                     <h3 id="auction-reset-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
@@ -13252,6 +13293,7 @@ export default function TimerPage() {
                       <button
                         type="button"
                         onClick={() => setPendingAuctionAction(null)}
+                        disabled={isWeeklyAuctionClosing}
                         className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
                       >
                         취소
@@ -13259,9 +13301,10 @@ export default function TimerPage() {
                       <button
                         type="button"
                         onClick={confirmAuctionManagementAction}
+                        disabled={isWeeklyAuctionClosing}
                         className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
                       >
-                        {actionCopy.action}
+                        {isWeeklyAuctionClosing ? '마감 중…' : actionCopy.action}
                       </button>
                     </div>
                   </div>
