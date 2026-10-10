@@ -120,6 +120,7 @@ const initializationFixture = (options: {
   initialChanges?: ReturnType<typeof createTeacherSettingsChanges>;
   initialDraftDeletionFails?: boolean;
   migratedEditorDurable?: boolean;
+  initialDraftReady?: () => Promise<void>;
 } = {}) => {
   const defaults = normalizeAuctionItems(null);
   const remote = {
@@ -133,6 +134,7 @@ const initializationFixture = (options: {
   const commands: unknown[] = [];
   let error = '초기 조회 실패';
   let readFailures = options.initialReadFailures ?? 0;
+  let reads = 0;
   let initialize: unknown;
   let editorChanges = options.editorChanges ?? [];
   const drafts = new Map<string, { draft: { requestId: string; payload: unknown }; durable: boolean }>();
@@ -154,7 +156,7 @@ const initializationFixture = (options: {
       ? { ...value, auctionItems: normalizeAuctionItems(value.auctionItems) } : null,
     teacherStorageDrafts: {
       load: (scope: { feature: string }) => drafts.get(scope.feature) ?? null,
-      ready: async () => undefined, flush: async () => undefined,
+      ready: options.initialDraftReady ?? (async () => undefined), flush: async () => undefined,
       replace: (scope: { feature: string }, payload: unknown) => {
         const draft = { draft: { requestId: 'new-initial-draft', payload }, durable: true };
         drafts.set(scope.feature, draft);
@@ -182,6 +184,7 @@ const initializationFixture = (options: {
     setIsTeacherSettingsRetrying: () => undefined,
     getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete,
     loadSharedSettingsRow: async () => {
+      reads += 1;
       if (readFailures-- > 0) throw new Error('synthetic read failure');
       return { value: remote, updated_at: 'synthetic-time' };
     },
@@ -209,10 +212,10 @@ const initializationFixture = (options: {
   const refresh: unknown = runInNewContext(callbackSource, context);
   const retryStart = source.indexOf('  const retryTeacherSettingsSave = ');
   const retry: unknown = runInNewContext(source.slice(retryStart, callbackStart) + '\nretryTeacherSettingsSave;', context);
-  const initialEffectStart = source.lastIndexOf('  useEffect(() => {', source.indexOf('    void teacherStorageDrafts.ready()'));
+  const initialEffectStart = source.lastIndexOf('  useEffect(() => {', source.indexOf('    void Promise.all([teacherStorageDrafts.ready()'));
   const initialEffectEnd = source.indexOf("  useEffect(() => {\n    localStorage.setItem('weeklySchedule'", initialEffectStart);
   return {
-    remote, base, persisted, snapshot, hydrated, commands, drafts, getEditorChanges: () => editorChanges, getError: () => error,
+    remote, base, persisted, snapshot, hydrated, commands, drafts, reads: () => reads, getEditorChanges: () => editorChanges, getError: () => error,
     getInitialChanges: () => {
       const payload: unknown = JSON.parse(JSON.stringify(drafts.get('teacher.settings.initial.editor')?.draft.payload ?? null));
       if (!isStorageRecord(payload) || !Array.isArray(payload.changes)) return [];
@@ -288,9 +291,23 @@ test('설정 행을 확인하지 못하면 초기화를 완료하거나 자동 �
   const screen = initializationFixture();
   assert.throws(screen.initializeMissing, /SETTINGS_REFRESH_UNAVAILABLE/);
   assert.equal(screen.hydrated.current, false);
-  const initialLoad = source.slice(source.indexOf('    void teacherStorageDrafts.ready()'), source.indexOf("    localStorage.setItem('weeklySchedule'"));
+  const initialLoad = source.slice(source.indexOf('    void Promise.all([teacherStorageDrafts.ready()'), source.indexOf("    localStorage.setItem('weeklySchedule'"));
   assert.doesNotMatch(initialLoad, /sharedSettingsHydratedRef\.current = true/);
   assert.match(initialLoad, /\.catch\(\(error\) =>/);
+});
+
+test('교사 초기 조회는 초안 복구를 기다리지 않고 시작하며 복구 전 저장은 열지 않는다', async () => {
+  let finish: (() => void) | undefined;
+  const screen = initializationFixture({ initialDraftReady: () => new Promise<void>(resolve => { finish = resolve; }) });
+  await screen.startInitialRead();
+  assert.equal(screen.reads(), 1);
+  assert.equal(screen.hydrated.current, false);
+  assert.deepEqual(screen.commands, []);
+  finish?.();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(screen.hydrated.current, true);
+  assert.deepEqual({ ...screen.snapshot.current }, screen.remote);
+  assert.deepEqual(screen.commands, []);
 });
 
 test('실제 초기 GET 실패와 재시도 GET 실패 후에도 기본값 저장을 잠그고 다음 복구에서 등록 물품을 유지한다', async () => {

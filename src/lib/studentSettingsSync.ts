@@ -25,6 +25,10 @@ export const studentSettingsBurstDelay = (studentNumber: number, random = Math.r
   Math.min(23, Math.max(0, studentNumber - 1)) * 75 + random() * 250
 );
 
+export const studentSettingsInitialDelay = (studentNumber: number, random = Math.random): number => (
+  750 + studentSettingsBurstDelay(studentNumber, random)
+);
+
 export const isStudentSettingsSnapshotFresh = (updatedAt: string | null | undefined, minimumUpdatedAt: string | null) => (
   minimumUpdatedAt === null || (typeof updatedAt === 'string'
     && Number.isFinite(Date.parse(updatedAt)) && Number.isFinite(Date.parse(minimumUpdatedAt))

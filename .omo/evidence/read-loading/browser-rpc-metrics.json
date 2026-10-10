@@ -1,0 +1,447 @@
+[
+  {
+    "rpc": "storage_load_scope",
+    "requestBytes": 856,
+    "milliseconds": 53.13629100000071,
+    "responseBytes": 50740,
+    "rows": 26
+  },
+  {
+    "rpc": "newspaper_questions_read",
+    "milliseconds": 2.5936250000013388,
+    "rows": 0
+  },
+  {
+    "rpc": "weekly_mission_rewards_read",
+    "milliseconds": 7.374791000000187,
+    "rows": 0
+  },
+  {
+    "rpc": "classword_entries_read",
+    "milliseconds": 14.202041000000463,
+    "rows": 0
+  },
+  {
+    "rpc": "classword_entries_read",
+    "milliseconds": 13.830500000000029,
+    "rows": 0
+  },
+  {
+    "rpc": "claim_weekly_mission_reward_v2",
+    "requestBytes": 130,
+    "milliseconds": 3.0976659999996627,
+    "responseBytes": 121,
+    "rows": 0
+  },
+  {
+    "rpc": "claim_weekly_mission_reward_v2",
+    "requestBytes": 136,
+    "milliseconds": 0.6574590000000171,
+    "responseBytes": 126,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 1.0811670000002778,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 0.7448750000003201,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.210417000002053,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 8.954499999999825,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_scope",
+    "requestBytes": 454,
+    "milliseconds": 26.720750000000407,
+    "responseBytes": 7212,
+    "rows": 19
+  },
+  {
+    "rpc": "newspaper_questions_read",
+    "milliseconds": 1.931457999999111,
+    "rows": 0
+  },
+  {
+    "rpc": "classword_entries_read",
+    "milliseconds": 1.1504169999971054,
+    "rows": 0
+  },
+  {
+    "rpc": "classword_entries_read",
+    "milliseconds": 5.330625000002328,
+    "rows": 0
+  },
+  {
+    "rpc": "weekly_mission_rewards_read",
+    "milliseconds": 3.949957999997423,
+    "rows": 0
+  },
+  {
+    "rpc": "claim_weekly_mission_reward_v2",
+    "requestBytes": 130,
+    "milliseconds": 2.8747500000026776,
+    "responseBytes": 121,
+    "rows": 0
+  },
+  {
+    "rpc": "claim_weekly_mission_reward_v2",
+    "requestBytes": 136,
+    "milliseconds": 0.41854199999943376,
+    "responseBytes": 126,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_scope",
+    "requestBytes": 454,
+    "milliseconds": 9.755166000002646,
+    "responseBytes": 7212,
+    "rows": 19
+  },
+  {
+    "rpc": "storage_load_scope",
+    "requestBytes": 454,
+    "milliseconds": 10.861959000001661,
+    "responseBytes": 7212,
+    "rows": 19
+  },
+  {
+    "rpc": "storage_load_scope",
+    "requestBytes": 454,
+    "milliseconds": 14.03574999999546,
+    "responseBytes": 7212,
+    "rows": 19
+  },
+  {
+    "rpc": "storage_load_scope",
+    "requestBytes": 454,
+    "milliseconds": 8.511207999996259,
+    "responseBytes": 7212,
+    "rows": 19
+  },
+  {
+    "rpc": "storage_load_scope",
+    "requestBytes": 454,
+    "milliseconds": 21.264207999993232,
+    "responseBytes": 7212,
+    "rows": 19
+  },
+  {
+    "rpc": "storage_load_scope",
+    "requestBytes": 856,
+    "milliseconds": 9.30304199999955,
+    "responseBytes": 50740,
+    "rows": 26
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 4.671583000003011,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.937292000002344,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 2.4002500000060536,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.352416999987327,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.231291999982204,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.650583000009647,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.844041999982437,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.517083000013372,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.792667000001529,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.4436250000144355,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.592166999995243,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.116542000003392,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.62704200000735,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 3.552291999978479,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 2.570292000018526,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_snapshot",
+    "requestBytes": 2,
+    "milliseconds": 3.8307909999857657,
+    "responseBytes": 75312,
+    "rows": 108
+  },
+  {
+    "rpc": "newspaper_questions_read",
+    "milliseconds": 1.6196670000208542,
+    "rows": 0
+  },
+  {
+    "rpc": "classword_entries_read",
+    "milliseconds": 5.913125000020955,
+    "rows": 0
+  },
+  {
+    "rpc": "classword_entries_read",
+    "milliseconds": 6.427625000011176,
+    "rows": 0
+  },
+  {
+    "rpc": "weekly_mission_rewards_read",
+    "milliseconds": 5.909625000029337,
+    "rows": 0
+  },
+  {
+    "rpc": "claim_weekly_mission_reward_v2",
+    "requestBytes": 130,
+    "milliseconds": 4.713332999963313,
+    "responseBytes": 121,
+    "rows": 0
+  },
+  {
+    "rpc": "claim_weekly_mission_reward_v2",
+    "requestBytes": 136,
+    "milliseconds": 1.2133749999920838,
+    "responseBytes": 126,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 1.307165999955032,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 0.9212909999769181,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 0.5361669999547303,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 12.808458999963477,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 1.431958000001032,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.623791999998502,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 0.9895829999586567,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "newspaper_read",
+    "requestBytes": 32,
+    "milliseconds": 7.194666999974288,
+    "responseBytes": 113,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_teacher_changes",
+    "requestBytes": 16,
+    "milliseconds": 13.931666999997105,
+    "responseBytes": 77854,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_reward_audit_source",
+    "requestBytes": 2,
+    "milliseconds": 8.46670799999265,
+    "responseBytes": 75493,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 0.7486250000074506,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.18891700002132,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.0939999999827705,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 7.335625000006985,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 2.2761249999748543,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.113167000003159,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.083332999958657,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 2.267334000032861,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.183334000001196,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 6.252665999985766,
+    "responseBytes": 34,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_updated_at",
+    "requestBytes": 2,
+    "milliseconds": 5.800583000003826,
+    "responseBytes": 34,
+    "rows": 0
+  }
+]

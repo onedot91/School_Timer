@@ -15,16 +15,20 @@ const callbackSource = ts.transpileModule(source.slice(start, end) + '\nrefreshA
 
 const stamp = '2026-09-14T00:00:00.000Z';
 const savedRow = { value: { currencyBalances: { 24: 321 }, currencyHistory: { 24: [{ id: 'saved-record' }] } }, updated_at: stamp };
-const fixture = (read: () => Promise<unknown>, loaded = false) => {
+const fixture = (read: () => Promise<unknown>, loaded = false, initialView = 'store') => {
   let now = 0;
-  const state = { loading: !loaded, error: false, applied: [] as unknown[], reads: 0, metadataReads: 0 };
+  let activeView = initialView;
+  const state = { loading: !loaded, error: false, applied: [] as unknown[], reads: 0, metadataReads: 0, overviewReads: 0, snapshots: 0, accept: true };
   const hasLoaded = { current: loaded };
+  const hasOverview = { current: false };
   const lastUpdatedAt = { current: stamp as string | null };
   const callback: unknown = runInNewContext(callbackSource, {
     useCallback: (fn: unknown) => fn,
     isSupabaseSettingsEnabled: true,
     studentNumber: 24,
+    get activeStudentView() { return activeView; },
     hasLoadedSharedSettingsRef: hasLoaded,
+    hasLoadedOverviewRef: hasOverview,
     sharedSettingsUpdatedAtRef: lastUpdatedAt,
     isSharedSettingsRefreshInFlightRef: { current: false },
     pendingFullSettingsRefreshRef: { current: false },
@@ -35,19 +39,20 @@ const fixture = (read: () => Promise<unknown>, loaded = false) => {
     setIsLoading: (value: boolean) => { state.loading = value; },
     setHasSettingsLoadError: (value: boolean) => { state.error = value; },
     loadSharedSettingsRow: () => { state.reads += 1; return read(); },
+    loadStudentOverviewSettingsRow: () => { state.overviewReads += 1; return read(); },
     loadSharedSettingsUpdatedAt: async () => { state.metadataReads += 1; return stamp; },
     shouldLoadFullStudentSettings,
     getSaveRefreshVersion: () => 0,
     isSaveRefreshVersionCurrent: () => true,
     markSaveRefreshComplete: () => undefined,
-    applySharedSettingsValue: (value: unknown) => { state.applied.push(value); return true; },
-    storeStudentSettingsSnapshot: () => true,
+    applySharedSettingsValue: (value: unknown) => { state.applied.push(value); return state.accept; },
+    storeStudentSettingsSnapshot: () => { state.snapshots++; return true; },
     refreshLocalNumberBaseball: () => undefined,
     refreshLocalStudentSudoku: () => undefined,
     setStudentLifeSnapshot: () => undefined,
     console: { error: () => undefined },
   });
-  return { state, hasLoaded, advance: (milliseconds: number) => { now += milliseconds; }, refresh: async (forceFull = false, manualRetry = forceFull) => {
+  return { state, hasLoaded, hasOverview, setView: (view: string) => { activeView = view; }, advance: (milliseconds: number) => { now += milliseconds; }, refresh: async (forceFull = false, manualRetry = forceFull) => {
     if (typeof callback !== 'function') throw new Error('Missing student refresh callback');
     await callback({ forceFull, manualRetry });
   } };
@@ -123,7 +128,52 @@ test('백그라운드 조회 실패는 이미 불러온 기록을 유지한다',
 test('초기 기록 확인 전에 화면을 열지 않고 캐시는 조회 성공으로 취급하지 않는다', () => {
   const cacheEffect = source.slice(source.indexOf('    const snapshot = loadStudentSettingsSnapshot(studentNumber);'), source.indexOf('    let lastForegroundRefreshAt = 0;'));
   assert.doesNotMatch(cacheEffect, /setIsLoading\(false\)|sharedSettingsUpdatedAtRef.current =|hasLoadedSharedSettingsRef.current = true/);
-  assert.match(source, /if \(!hasLoadedSharedSettingsRef.current\) \{[\s\S]*학생 기록 불러오는 중[\s\S]*학생 기록을 불러오지 못했어요[\s\S]*onRetry=\{\(\) => void refreshAuctionState\(\{ forceFull: true, manualRetry: true \}\)\}/);
+  assert.match(source, /if \(!hasLoadedSharedSettingsRef.current && !\(hasLoadedOverviewRef.current && activeStudentView === 'overview'\)\) \{[\s\S]*학생 기록 불러오는 중[\s\S]*학생 기록을 불러오지 못했어요[\s\S]*onRetry=\{\(\) => void refreshAuctionState\(\{ forceFull: true, manualRetry: true \}\)\}/);
+});
+
+test('overview hydration defers full records until feature navigation and never persists a partial snapshot', async () => {
+  let partial = true;
+  const screen = fixture(async () => partial ? { ...savedRow, readScope: 'overview' } : savedRow, false, 'overview');
+  await screen.refresh();
+  assert.equal(screen.state.overviewReads, 1);
+  assert.equal(screen.state.reads, 0);
+  assert.equal(screen.hasOverview.current, true);
+  assert.equal(screen.hasLoaded.current, false);
+  assert.equal(screen.state.snapshots, 0);
+  assert.equal(screen.state.loading, false);
+  await screen.refresh();
+  assert.equal(screen.state.reads, 0, 'remaining feature data must not load in the background');
+  partial = false;
+  screen.setView('store');
+  await screen.refresh();
+  assert.equal(screen.state.reads, 1);
+  assert.equal(screen.hasLoaded.current, true);
+  assert.equal(screen.state.snapshots, 1);
+});
+
+test('stale initial overview keeps hydration incomplete and exposes retryable failure', async () => {
+  const screen = fixture(async () => ({ ...savedRow, readScope: 'overview' }), false, 'overview');
+  screen.state.accept = false;
+  await screen.refresh();
+  assert.equal(screen.hasOverview.current, false);
+  assert.equal(screen.hasLoaded.current, false);
+  assert.equal(screen.state.error, true);
+  assert.equal(screen.state.snapshots, 0);
+});
+
+test('feature navigation during an overview request queues a full read immediately after that request', async () => {
+  let finish: ((value: unknown) => void) | undefined;
+  let reads = 0;
+  const screen = fixture(() => ++reads === 1 ? new Promise(resolve => { finish = resolve; }) : Promise.resolve(savedRow), false, 'overview');
+  const pending = screen.refresh();
+  screen.setView('store');
+  await screen.refresh();
+  finish?.({ ...savedRow, readScope: 'overview' });
+  await pending;
+  assert.equal(screen.state.overviewReads, 1);
+  assert.equal(screen.state.reads, 1);
+  assert.equal(screen.hasLoaded.current, true);
+  assert.equal(screen.state.snapshots, 1);
 });
 
 test('23명과 46명의 반복 접속·화면 복귀도 장애 중 조회를 계속 증폭하지 않는다', async () => {

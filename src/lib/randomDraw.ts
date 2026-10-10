@@ -76,6 +76,7 @@ const clampInteger = (value: unknown, fallback: number, min: number, max: number
 const normalizeStudentName = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
 const normalizeResultNumber = (value: unknown) => {
+  if (value === null || value === undefined) return null;
   const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric)) return null;
   return clampInteger(numeric, 1, MIN_DRAW_NUMBER, MAX_DRAW_NUMBER);

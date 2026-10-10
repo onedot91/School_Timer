@@ -304,7 +304,8 @@ test('테스트 학생 미션 화면은 오늘의 친구를 미리보기로 연�
   assert.match(markup, /글밥짓기/);
 });
 
-test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시한다', () => {
+test('1인 1역 카드는 배정된 역할 또는 오늘 역할 없음을 표시한다', t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-27T02:00:00Z') });
   const baseProps = {
     profileAssignments: {},
     balance: 100,

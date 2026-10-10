@@ -8,6 +8,7 @@ import {
   STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS,
   STUDENT_SETTINGS_SYNC_INTERVAL_MS,
   studentSettingsBurstDelay,
+  studentSettingsInitialDelay,
 } from './studentSettingsSync.js';
 
 const source = readFileSync(new URL('../pages/AuctionPage.tsx', import.meta.url), 'utf8');
@@ -16,7 +17,7 @@ const end = source.indexOf('\n  useEffect(', start + 1);
 assert.ok(start >= 0 && end > start);
 const effect = ts.transpile(source.slice(start, end), { target: ts.ScriptTarget.ES2022 });
 
-const fixture = (studentNumber = 1) => {
+const fixture = (studentNumber = 1, loaded = true) => {
   let now = 0;
   let nextId = 0;
   let cleanup: (() => void) | undefined;
@@ -39,10 +40,12 @@ const fixture = (studentNumber = 1) => {
       clearInterval: (id: number) => timers.delete(id) },
     document, navigator, Date: { now: () => now },
     studentNumber, isSupabaseSettingsEnabled: true, SAVE_RECOVERED_EVENT: 'save-recovered', activeStudentView: 'store-auction',
+    hasLoadedSharedSettingsRef: { current: loaded }, hasLoadedOverviewRef: { current: false },
     isStudentStoreView: () => true, STUDENT_SETTINGS_SYNC_INTERVAL_MS,
     STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS, STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
     studentSettingsPollInterval: (interval: number) => interval + 200,
     studentSettingsBurstDelay: (student: number) => studentSettingsBurstDelay(student, () => 0),
+    studentSettingsInitialDelay: (student: number) => studentSettingsInitialDelay(student, () => 0),
     refreshAuctionState: async () => {
       if (reading) return;
       reading = true;
@@ -109,12 +112,14 @@ test('숨김 및 오프라인에서는 조회하지 않고 복귀 시 갱신한 
   assert.equal(screen.starts.length, 2);
 });
 
-test('23명 동시 접속과 네트워크 복귀의 조회를 2초 안에 분산한다', async t => {
-  const screens = Array.from({ length: 23 }, (_, index) => fixture(index + 1));
+test('23명 최초 접속은 교사 조회 여유를 남겨 3초, 네트워크 복귀는 2초 안에 분산한다', async t => {
+  const screens = Array.from({ length: 23 }, (_, index) => fixture(index + 1, false));
   try {
     const peak = (times: number[]) => Math.max(...times.map(at => times.filter(other => Math.floor(other / 100) === Math.floor(at / 100)).length));
     assert.ok(screens.flatMap(screen => screen.starts).length <= 2, 'initial mounting must not launch 23 database reads at once');
-    await Promise.all(screens.map(screen => screen.advance(2_000)));
+    await Promise.all(screens.map(screen => screen.advance(749)));
+    assert.equal(screens.flatMap(screen => screen.starts).length, 0);
+    await Promise.all(screens.map(screen => screen.advance(3_000)));
     const first = screens.flatMap(screen => screen.starts);
     assert.equal(first.length, 23);
     assert.ok(peak(first) <= 2, `initial 100ms peak was ${peak(first)}`);

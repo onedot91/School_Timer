@@ -14,7 +14,7 @@ test('보상 확인은 첫 기록 조회 뒤 실행하며 성공해도 전체 �
   let now = 0, calls = 0;
   const timers = new Map<number, { at: number; run: () => void }>();
   const listeners = new Map<string, () => void>();
-  const loaded = { current: false }, navigator = { onLine: true };
+  const loaded = { current: false }, overview = { current: false }, navigator = { onLine: true };
   const refreshes: unknown[] = [];
   let id = 0;
   let cleanup = () => {};
@@ -25,7 +25,7 @@ test('보상 확인은 첫 기록 조회 뒤 실행하며 성공해도 전체 �
     document: { ...events, visibilityState: 'visible' }, navigator,
     Date: { now: () => now }, Math: { random: () => 0, max: Math.max, min: Math.min },
     studentSettingsBurstDelay: (student: number) => studentSettingsBurstDelay(student, () => 0),
-    isSupabaseSettingsEnabled: true, hasLoadedSharedSettingsRef: loaded, studentNumber: 1,
+    isSupabaseSettingsEnabled: true, hasLoadedSharedSettingsRef: loaded, hasLoadedOverviewRef: overview, studentNumber: 1,
     syncWeeklyMissions: async () => { calls++; return { missions: [] }; },
     setWeeklyMissionStatuses: () => {}, setHasWeeklyMissionSyncError: () => {},
     createWeeklyMissionStatuses: () => ({}), getWeeklyMissionStatus: () => 'incomplete', WEEKLY_MISSION_TYPES: [],
@@ -39,10 +39,11 @@ test('보상 확인은 첫 기록 조회 뒤 실행하며 성공해도 전체 �
   assert.equal(calls, 0);
   await advance(1_500);
   assert.equal(calls, 0, 'an unresolved initial read must not start the reward API');
-  loaded.current = true;
+  overview.current = true;
   await advance(2_000);
   await advance(0);
   assert.equal(calls, 1);
+  assert.equal(loaded.current, false, 'server settlement does not need deferred feature data');
   assert.deepEqual(refreshes, [undefined], 'normal metadata refresh detects actual changes without forcing a full row');
   listeners.get('focus')?.();
   navigator.onLine = false;
@@ -78,7 +79,7 @@ test('23명 보상 확인은 첫 접속과 장시간 대기 후 복귀에도 동
       document: { ...events, visibilityState: 'visible' }, navigator: { onLine: true },
       Date: { now: () => now }, Math: { random: () => 0, max: Math.max, min: Math.min },
       studentSettingsBurstDelay: (student: number) => studentSettingsBurstDelay(student, () => 0),
-      isSupabaseSettingsEnabled: true, hasLoadedSharedSettingsRef: { current: true }, studentNumber: index + 1,
+      isSupabaseSettingsEnabled: true, hasLoadedSharedSettingsRef: { current: true }, hasLoadedOverviewRef: { current: false }, studentNumber: index + 1,
       syncWeeklyMissions: async () => { starts.push(now); return { missions: [] }; },
       setWeeklyMissionStatuses: () => {}, setHasWeeklyMissionSyncError: () => {},
       createWeeklyMissionStatuses: () => ({}), getWeeklyMissionStatus: () => 'incomplete', WEEKLY_MISSION_TYPES: [],

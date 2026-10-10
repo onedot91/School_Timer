@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { acceptStorageProjection, captureStorageResponseContext, compareStorageTimestamps, isStorageResponseContextCurrent, readLatestStorageProjection, StorageResponseActorChangedError, type StorageResponseContext } from './storageResponseOrder.js';
 import { isStorageRecord } from './storageV2Codec.js';
+import { parseReadManifest } from './storageReadManifest.js';
 import { parseStorageProjectionPatch, type StorageProjectionPatch } from './storageProjectionPatch.js';
 import { parseClassDonationResult } from './classDonation.js';
 import { isReadOnlyDataMode } from './dataMode.js';
@@ -26,12 +27,16 @@ export type SettingsRow = {
   storagePatch?: StorageProjectionPatch;
   readVersion?: string;
   readMarker?: string;
+  readManifest?: Record<string, string>;
+  readScope?: 'overview';
 };
 
 let cachedWritableSharedSettingsRow: SettingsRow | null | undefined;
 let settingsCacheGeneration = 0;
 let settingsActorContext: StorageResponseContext | undefined;
 let studentReadState: { version: string; updatedAt: string; marker?: string } | undefined;
+let teacherReadManifest: Record<string, string> | undefined;
+let teacherChangesSupported = false;
 let sharedSettingsRead: {
   actorGeneration: number;
   generation: number;
@@ -56,12 +61,14 @@ export const invalidateSharedSettingsCache = () => {
   settingsCacheGeneration += 1;
   cachedWritableSharedSettingsRow = undefined;
   studentReadState = undefined;
+  teacherReadManifest = undefined;
 };
 
 const synchronizeSettingsActor = (): StorageResponseContext => {
   const context = captureStorageResponseContext();
   if (settingsActorContext?.generation !== context.generation) {
     invalidateSharedSettingsCache();
+    teacherChangesSupported = false;
     settingsActorContext = context;
   }
   return context;
@@ -180,13 +187,18 @@ const parseSettingsRow = (value: unknown): SettingsRow | null => {
   const storagePatch: unknown = Reflect.get(value, 'storagePatch');
   const readVersion: unknown = Reflect.get(value, 'readVersion');
   const readMarker: unknown = Reflect.get(value, 'readMarker');
-  if (id !== SHARED_SETTINGS_ID || !settings || typeof settings !== 'object' || Array.isArray(settings)
+  const readManifest: unknown = Reflect.get(value, 'readManifest');
+  const parsedPatch = storagePatch === undefined ? undefined : parseStorageProjectionPatch(storagePatch);
+  const compact = Reflect.get(value, 'encoding') === 'storage-patch';
+  if (id !== SHARED_SETTINGS_ID || (compact ? !parsedPatch?.complete : !settings || typeof settings !== 'object' || Array.isArray(settings))
     || typeof timestamp !== 'string' || !timestamp
     || (scope !== undefined && scope !== 'student' && scope !== 'full')) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
-  return { id, value: settings, updated_at: timestamp, ...(scope === 'student' || scope === 'full' ? { scope } : {}),
+  return { id, value: compact ? {} : settings, updated_at: timestamp, ...(scope === 'student' || scope === 'full' ? { scope } : {}),
     ...(typeof readVersion === 'string' && /^[a-f0-9]{32}$/.test(readVersion) ? { readVersion } : {}),
     ...(typeof readMarker === 'string' && /^[a-f0-9]{32}$/.test(readMarker) ? { readMarker } : {}),
-    ...(storagePatch === undefined ? {} : { storagePatch: parseStorageProjectionPatch(storagePatch) }) };
+    ...(readManifest === undefined ? {} : { readManifest: parseReadManifest(readManifest) }),
+    ...(Reflect.get(value, 'readScope') === 'overview' ? { readScope: 'overview' as const } : {}),
+    ...(parsedPatch ? { storagePatch: parsedPatch } : {}) };
 };
 
 const equalJson = (left: unknown, right: unknown): boolean => {
@@ -219,24 +231,32 @@ export const loadSharedSettings = async () => {
   return data?.value ?? null;
 };
 
-const fetchSharedSettingsRow = async (context: StorageResponseContext) => {
+const fetchSharedSettingsRow = async (context: StorageResponseContext, overview = false) => {
   if (!isSupabaseSettingsEnabled) return null;
   if (useServerProxy) {
     const generation = settingsCacheGeneration;
-    const received = parseSettingsRow(await fetchJson('/api/shared-settings', { headers: { 'X-Storage-Projection': '1' } }, true));
+    const manifest = context.actor === '0' ? teacherReadManifest : undefined;
+    const received = parseSettingsRow(await fetchJson(context.actor === '0' ? '/api/shared-settings?changes=1'
+      : overview ? '/api/shared-settings?overview=1' : '/api/shared-settings', {
+      headers: { 'X-Storage-Projection': '1', 'X-Storage-Compact': '1',
+        ...(manifest ? { 'X-Storage-Read-Manifest': JSON.stringify(manifest) } : {}) },
+    }, true));
+    if (received?.readManifest && !received.storagePatch?.complete && !manifest) throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
     const row = orderSettingsRow(context, received);
     // Student projections contain every field the scoped writer needs. Keep newer receipts
     // when a background read that started before a save arrives afterwards.
     const currentTimestamp = cachedWritableSharedSettingsRow?.updated_at;
     const isFresh = !currentTimestamp || (row?.updated_at && compareStorageTimestamps(row.updated_at, currentTimestamp) >= 0);
-    if (generation === settingsCacheGeneration && isFresh && (row?.scope === 'full' || row?.scope === 'student')) {
+    if (generation === settingsCacheGeneration && isFresh && received?.readScope !== 'overview' && (row?.scope === 'full' || row?.scope === 'student')) {
       cachedWritableSharedSettingsRow = row;
+      teacherReadManifest = received?.readManifest && received.updated_at === row.updated_at ? received.readManifest : undefined;
+      if (context.actor === '0') teacherChangesSupported = received?.readManifest !== undefined;
       studentReadState = received?.scope === 'student' && received.readVersion && received.updated_at === row.updated_at
         ? { version: received.readVersion, updatedAt: received.updated_at, marker: received.readMarker } : undefined;
     } else if (generation === settingsCacheGeneration && isFresh && row?.updated_at !== currentTimestamp) {
       cachedWritableSharedSettingsRow = undefined;
     }
-    return row;
+    return row && received?.readScope === 'overview' ? { ...row, readScope: 'overview' as const } : row;
   }
   if (!supabase) return null;
 
@@ -270,6 +290,10 @@ export const loadSharedSettingsRow = (): Promise<SettingsRow | null> => {
   void request.promise.then(clear, clear);
   return request.promise;
 };
+
+export const canLoadTeacherSettingsChanges = (): boolean => synchronizeSettingsActor().actor === '0' && teacherChangesSupported;
+
+export const loadStudentOverviewSettingsRow = (): Promise<SettingsRow | null> => fetchSharedSettingsRow(synchronizeSettingsActor(), true);
 
 const loadWritableSharedSettingsRow = async () => {
   if (!isSupabaseSettingsEnabled) return null;

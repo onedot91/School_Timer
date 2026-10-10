@@ -25,6 +25,22 @@ export const createStorageV2Fixture = (initialValue: Record<string, unknown>, in
     const url = new URL(String(input));
     const body: unknown = init?.body ? JSON.parse(String(init.body)) : {};
     if (!isStorageRecord(body)) throw new Error('Invalid fixture command');
+    if (url.pathname.endsWith('/storage_prepare_command')) {
+      const receipt = receipts.get(`${body.p_actor_key}:${body.p_request_id}`) ?? { found: false };
+      const scope = receipt.found ? body.p_replay_scope ?? receipt.scope ?? body.p_scope : body.p_scope;
+      const snapshot = await fetcher(`${url.origin}/rest/v1/rpc/storage_load_scope`, { body: JSON.stringify({ p_scope: scope }) });
+      return Response.json({ receipt, snapshot: await snapshot.json() });
+    }
+    if (url.pathname.endsWith('/storage_commit_scoped_and_load')) {
+      const committed = await fetcher(`${url.origin}/rest/v1/rpc/storage_commit_scoped_mutation`, { body: JSON.stringify(body) });
+      const result: unknown = await committed.json();
+      if (!committed.ok || !isStorageRecord(result) || !result.saved) return Response.json(result, { status: committed.status });
+      const receipt = receipts.get(`${body.p_actor_key}:${body.p_request_id}`);
+      const snapshot = await fetcher(`${url.origin}/rest/v1/rpc/storage_load_scope`, {
+        body: JSON.stringify({ p_scope: body.p_result_scope ?? receipt?.scope ?? body.p_scope }),
+      });
+      return Response.json({ ...result, snapshot: await snapshot.json() });
+    }
     if (url.pathname.endsWith('/storage_place_library_book')) {
       const transaction = placementQueue.then(async () => {
         if (commitFailure) return Response.json({ code: 'P0001' }, { status: commitFailure });

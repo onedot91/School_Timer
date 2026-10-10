@@ -1,0 +1,65 @@
+[
+  {
+    "rpc": "newspaper_read",
+    "requestBytes": 32,
+    "milliseconds": 17.208792000001267,
+    "responseBytes": 113,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_teacher_changes",
+    "requestBytes": 16,
+    "milliseconds": 15.734791000000769,
+    "responseBytes": 37287,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_reward_audit_source",
+    "requestBytes": 2,
+    "milliseconds": 5.361249999999927,
+    "responseBytes": 34985,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_teacher_changes",
+    "requestBytes": 2454,
+    "milliseconds": 2.1932919999999285,
+    "responseBytes": 2924,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_teacher_changes",
+    "requestBytes": 2454,
+    "milliseconds": 12.183208000002196,
+    "responseBytes": 2924,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_teacher_changes",
+    "requestBytes": 2454,
+    "milliseconds": 1.9982079999972484,
+    "responseBytes": 2924,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_teacher_changes",
+    "requestBytes": 2454,
+    "milliseconds": 11.402957999998762,
+    "responseBytes": 2924,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_teacher_changes",
+    "requestBytes": 2454,
+    "milliseconds": 2.5869590000002063,
+    "responseBytes": 2924,
+    "rows": 0
+  },
+  {
+    "rpc": "storage_load_teacher_changes",
+    "requestBytes": 2454,
+    "milliseconds": 3.6349170000030426,
+    "responseBytes": 2924,
+    "rows": 0
+  }
+]

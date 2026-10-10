@@ -2,6 +2,8 @@ import { isDeepStrictEqual } from 'node:util';
 import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
 import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
+import { loadTeacherChanges, parseReadManifest } from '../src/server/storageProgressiveRead.js';
+import { prioritizeStorageRead, StorageReadBusyError } from '../src/server/storageReadPriority.js';
 import { loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead, loadScopedStorageMetadata, pollScopedStorageMetadata, loadStorageReadMarker, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
 import { TEST_STUDENT_NUMBER } from '../src/lib/studentIdentity.js';
 
@@ -352,17 +354,22 @@ const studentReadScope = (studentNumber: number): import('../src/server/storageS
   writeWallets: [],
 });
 
-const loadStudentRow = async (url: string, key: string, studentNumber: number) => {
+const loadStudentRow = async (url: string, key: string, studentNumber: number, overview = false) => {
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
     // The existing scoped RPC supports classroom students 1..23; keep the test entry compatible.
+    const fullScope = studentReadScope(studentNumber);
+    const overviewFields = new Set(['/auctionBids', '/auctionItems', '/auctionBidHistory', '/auctionAwards', '/studentEmotionHistory', '/studentPets', '/studentEconomy', '/studentLife/letters', '/studentLife/failureProfileAssignments']);
+    const partial = overview && studentNumber !== TEST_STUDENT_NUMBER;
+    const scope = partial ? { ...fullScope, resources: fullScope.resources.filter(selection => overviewFields.has(selection.path)), history: [] } : fullScope;
     const row = studentNumber === TEST_STUDENT_NUMBER
       ? await loadStorageSnapshotForRead({ url, key })
-      : await loadScopedStorageSnapshotForRead({ url, key }, studentReadScope(studentNumber));
+      : await loadScopedStorageSnapshotForRead({ url, key }, scope);
     const value = projectStudentValue(row.value, studentNumber);
     return { id: SETTINGS_ID, value, updated_at: row.updated_at, scope: 'student' as const,
       ...(row.kind === 'scoped' && row.readVersion ? { readVersion: row.readVersion } : {}),
       ...(row.kind === 'scoped' && row.readMarker ? { readMarker: row.readMarker } : {}),
-      storagePatch: createStorageProjectionPatch(row, value, true) };
+      ...(partial ? { readScope: 'overview' as const } : {}),
+      storagePatch: createStorageProjectionPatch(row, value, !partial) };
   }
   const studentKey = String(studentNumber);
   const select = [
@@ -458,57 +465,91 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
   if (request.method === 'GET') {
     try {
-      if (request.query?.libraryCompetitionHistory === '1') {
-        const month = request.query.month;
-        if (month !== undefined && (typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))) {
-          response.status(400).json({ error: 'INVALID_LIBRARY_COMPETITION_COMMAND' });
-          return;
-        }
-        response.status(200).json(await loadCompetitionHistory(configuration, typeof month === 'string' ? month : undefined));
-        return;
-      }
-      if (request.query?.libraryCompetition === '1') {
-        if (process.env.STORAGE_PROTOCOL_VERSION === '2' && !hasLibraryProjectionCapability(request.headers)) {
-          response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
-        }
-        const row = await loadCompetitionRow(configuration);
-        const value = session.role === 'teacher' ? row?.value ?? {} : projectStudentValue(row?.value, session.studentNumber);
-        response.status(200).json({ ok: true, competition: competitionView(row), value, ...(row ? { storagePatch: createStorageProjectionPatch(row, value) } : {}), updatedAt: row?.updated_at ?? null, rolledOver: false });
-        return;
-      }
-      const metadataOnly = request.query?.metadata === '1';
-      if (metadataOnly) {
-        if (process.env.STORAGE_PROTOCOL_VERSION === '2' && ['1', '2'].includes(process.env.STORAGE_SCOPED_POLLING ?? '')
-          && request.query?.scoped === '1' && session.role === 'student' && session.studentNumber !== TEST_STUDENT_NUMBER) {
-          const knownReadMarker = request.query?.knownReadMarker;
-          if (process.env.STORAGE_SCOPED_POLLING === '2') {
-            response.status(200).json(await pollScopedStorageMetadata(configuration, studentReadScope(session.studentNumber),
-              typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker) ? knownReadMarker : null));
+      await prioritizeStorageRead(session.role, async () => {
+        if (request.query?.libraryCompetitionHistory === '1') {
+          const month = request.query.month;
+          if (month !== undefined && (typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))) {
+            response.status(400).json({ error: 'INVALID_LIBRARY_COMPETITION_COMMAND' });
             return;
           }
-          if (typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker)) {
-            const marker = await loadStorageReadMarker(configuration);
-            if (marker.readMarker === knownReadMarker) {
-              response.status(200).json({ ...marker, unchanged: true });
-              return;
-            }
-          }
-          response.status(200).json(await loadScopedStorageMetadata(configuration, studentReadScope(session.studentNumber)));
+          response.status(200).json(await loadCompetitionHistory(configuration, typeof month === 'string' ? month : undefined));
           return;
         }
-        response.status(200).json({ updatedAt: await loadUpdatedAt(configuration.url, configuration.key),
-          ...(request.query?.capabilities === '1' ? { storageCapabilities: {
-            receiptOnly: true, editRevisionsRequired: requiresStudentEditRevisions(),
-          } } : {}),
-        });
+        if (request.query?.libraryCompetition === '1') {
+          if (process.env.STORAGE_PROTOCOL_VERSION === '2' && !hasLibraryProjectionCapability(request.headers)) {
+            response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
+          }
+          const row = await loadCompetitionRow(configuration);
+          const value = session.role === 'teacher' ? row?.value ?? {} : projectStudentValue(row?.value, session.studentNumber);
+          response.status(200).json({ ok: true, competition: competitionView(row), value, ...(row ? { storagePatch: createStorageProjectionPatch(row, value) } : {}), updatedAt: row?.updated_at ?? null, rolledOver: false });
+          return;
+        }
+        const metadataOnly = request.query?.metadata === '1';
+        if (metadataOnly) {
+          if (process.env.STORAGE_PROTOCOL_VERSION === '2' && ['1', '2'].includes(process.env.STORAGE_SCOPED_POLLING ?? '')
+            && request.query?.scoped === '1' && session.role === 'student' && session.studentNumber !== TEST_STUDENT_NUMBER) {
+            const knownReadMarker = request.query?.knownReadMarker;
+            if (process.env.STORAGE_SCOPED_POLLING === '2') {
+              response.status(200).json(await pollScopedStorageMetadata(configuration, studentReadScope(session.studentNumber),
+                typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker) ? knownReadMarker : null));
+              return;
+            }
+            if (typeof knownReadMarker === 'string' && /^[a-f0-9]{32}$/.test(knownReadMarker)) {
+              const marker = await loadStorageReadMarker(configuration);
+              if (marker.readMarker === knownReadMarker) {
+                response.status(200).json({ ...marker, unchanged: true });
+                return;
+              }
+            }
+            response.status(200).json(await loadScopedStorageMetadata(configuration, studentReadScope(session.studentNumber)));
+            return;
+          }
+          response.status(200).json({ updatedAt: await loadUpdatedAt(configuration.url, configuration.key),
+            ...(request.query?.capabilities === '1' ? { storageCapabilities: {
+              receiptOnly: true, editRevisionsRequired: requiresStudentEditRevisions(),
+            } } : {}),
+          });
+          return;
+        }
+        const shouldLoadFullRow = session.role === 'teacher';
+        if (shouldLoadFullRow && process.env.STORAGE_PROTOCOL_VERSION === '2' && process.env.STORAGE_PROGRESSIVE_READS === '1'
+          && request.query?.changes === '1') {
+          const raw = Object.entries(request.headers ?? {}).find(([name]) => name.toLowerCase() === 'x-storage-read-manifest')?.[1];
+          let known: Record<string, string> | null = null;
+          if (raw !== undefined) {
+            try {
+              if (typeof raw !== 'string' || raw.length > 32768) throw new Error('INVALID');
+              known = parseReadManifest(JSON.parse(raw));
+            } catch {
+              response.status(400).json({ error: 'STORAGE_INVALID_READ_MANIFEST' }); return;
+            }
+          }
+          const row = await loadTeacherChanges(configuration, known);
+          if (row.storagePatch.complete && Object.entries(request.headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-compact' && value === '1')) {
+            const { value: _value, ...compact } = row;
+            response.status(200).json({ ...compact, encoding: 'storage-patch' });
+          } else response.status(200).json(row);
+          return;
+        }
+        const row = shouldLoadFullRow
+          ? await loadRow(configuration.url, configuration.key, true)
+          : await loadStudentRow(configuration.url, configuration.key, session.studentNumber,
+            request.query?.overview === '1' && process.env.STORAGE_PROGRESSIVE_READS === '1');
+        const payload = row && shouldLoadFullRow ? { ...row, scope: 'full' } : row;
+        if (payload && 'storagePatch' in payload && asRecord(payload.storagePatch).complete === true
+          && Object.entries(request.headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-compact' && value === '1')) {
+          const { value: _value, ...compact } = payload;
+          response.status(200).json({ ...compact, encoding: 'storage-patch' });
+        } else {
+          response.status(200).json(payload);
+        }
+      });
+    } catch (error) {
+      if (error instanceof StorageReadBusyError) {
+        response.setHeader('Retry-After', '5');
+        response.status(503).json({ error: 'STORAGE_READ_BUSY' });
         return;
       }
-      const shouldLoadFullRow = session.role === 'teacher';
-      const row = shouldLoadFullRow
-        ? await loadRow(configuration.url, configuration.key, true)
-        : await loadStudentRow(configuration.url, configuration.key, session.studentNumber);
-      response.status(200).json(row && shouldLoadFullRow ? { ...row, scope: 'full' } : row);
-    } catch (error) {
       if (error instanceof LibraryCompetitionError) {
         response.status(error.status).json({ error: error.code });
         return;

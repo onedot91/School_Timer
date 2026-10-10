@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
 
-const fixture = (kind: 'settings' | 'alerts') => {
+const fixture = (kind: 'settings' | 'alerts', changes = false) => {
   const source = readFileSync(new URL(kind === 'settings' ? '../pages/TimerPage.tsx' : '../components/teacher/TeacherSaveFailureWarning.tsx', import.meta.url), 'utf8');
   const marker = kind === 'settings' ? '    const syncSharedSettingsFromRemote = async () => {' : '    let disposed = false;';
   const start = source.lastIndexOf('  useEffect(() => {', source.indexOf(marker));
@@ -13,6 +13,8 @@ const fixture = (kind: 'settings' | 'alerts') => {
   let now = 0;
   let fail = true;
   let calls = 0;
+  let metadataCalls = 0;
+  let applied = 0;
   let pause = false;
   let finishRead: (() => void) | undefined;
   let cleanup: (() => void) | undefined;
@@ -43,8 +45,15 @@ const fixture = (kind: 'settings' | 'alerts') => {
     isSupabaseSettingsEnabled: true, sharedSettingsHydratedRef: ref(true), awardPresentationRef: ref(null),
     lastSharedSettingsUpdatedAtRef: ref('unchanged'), getSaveRefreshVersion: () => 0,
     isSaveRefreshVersionCurrent: () => true, createTeacherSettingsChanges: () => [],
-    loadSharedSettingsUpdatedAt: async () => { await read(); return 'unchanged'; },
-    loadSharedSettingsRow: () => { throw new Error('unchanged metadata must not load a snapshot'); },
+    canLoadTeacherSettingsChanges: () => changes,
+    loadSharedSettingsUpdatedAt: async () => { metadataCalls++; await read(); return 'unchanged'; },
+    loadSharedSettingsRow: async () => {
+      assert.ok(changes, 'unchanged metadata must not load a snapshot');
+      await read(); return { value: {}, updated_at: 'unchanged' };
+    },
+    normalizeSharedSchoolTimerSettings: (value: unknown) => value, isStorageRecord: () => true,
+    teacherSettingsPersistedBaseRef: ref({}), applySharedSettingsSnapshot: () => { applied++; },
+    setTeacherRefreshPending: () => {}, markSaveRefreshComplete: () => {},
     refreshRef, mutationVersion: ref(0), SAVE_FAILURE_POLL_MS: 5000, SAVE_FAILURE_CHANGE_EVENT: 'save-alert-change',
     loadSaveFailureAlerts: async () => { await read(); return { alerts: [], hasMore: false }; },
     setAlerts() {}, setHasMore() {}, setUnavailable: (value: boolean) => warnings.push(value),
@@ -53,6 +62,7 @@ const fixture = (kind: 'settings' | 'alerts') => {
   return {
     document, navigator, warnings, refreshRef, events,
     calls: () => calls,
+    metadataCalls: () => metadataCalls, applied: () => applied,
     recover: () => { fail = false; },
     pause: () => { pause = true; },
     finish: async () => { pause = false; finishRead?.(); await flush(); },
@@ -61,6 +71,16 @@ const fixture = (kind: 'settings' | 'alerts') => {
     stop: () => cleanup?.(), flush,
   };
 };
+
+test('teacher manifests poll once and apply revision changes even when the timestamp is unchanged', async () => {
+  const screen = fixture('settings', true);
+  screen.recover();
+  await screen.tick(5000);
+  assert.equal(screen.calls(), 1);
+  assert.equal(screen.metadataCalls(), 0);
+  assert.equal(screen.applied(), 1);
+  screen.stop();
+});
 
 for (const kind of ['settings', 'alerts'] as const) {
   test(`${kind}: failed background reads back off and recover without overlapping interval requests`, async () => {

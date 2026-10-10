@@ -132,11 +132,10 @@ export interface StorageReceipt {
     readonly result?: unknown;
     readonly committedAt?: string;
 }
-export const getStorageReceipt = async (configuration: StorageConfiguration, actorKey: string, requestId: string, verification?: {
+const parseStorageReceipt = (body: unknown, verification?: {
     readonly action: string;
     readonly payload: unknown;
-}): Promise<StorageReceipt> => {
-    const body = await request(configuration, 'storage_get_receipt', { p_actor_key: actorKey, p_request_id: requestId });
+}): StorageReceipt => {
     if (!isStorageRecord(body) || typeof body.found !== 'boolean')
         return invalid();
     if (body.found && (typeof body.action !== 'string' || typeof body.payloadHash !== 'string' || typeof body.committedAt !== 'string'))
@@ -145,6 +144,9 @@ export const getStorageReceipt = async (configuration: StorageConfiguration, act
         throw new StorageRepositoryError(409, 'STORAGE_REQUEST_REUSED');
     return { found: body.found, ...(body.scope !== undefined && body.scope !== null ? { scope: parseStorageScope(body.scope) } : {}), ...(typeof body.action === 'string' ? { action: body.action } : {}), ...(typeof body.payloadHash === 'string' ? { payloadHash: body.payloadHash } : {}), ...(typeof body.committedAt === 'string' ? { committedAt: body.committedAt } : {}), ...('result' in body ? { result: body.result } : {}) };
 };
+export const getStorageReceipt = async (configuration: StorageConfiguration, actorKey: string, requestId: string,
+    verification?: { readonly action: string; readonly payload: unknown }): Promise<StorageReceipt> =>
+    parseStorageReceipt(await request(configuration, 'storage_get_receipt', { p_actor_key: actorKey, p_request_id: requestId }), verification);
 export const storagePayloadHash = (action: string, payload: unknown): string => createHash('sha256').update(canonicalStorageJson({ action, payload })).digest('hex');
 const buildMutationPayload = (
     mutation: Omit<StorageMutation, 'snapshot'> & { readonly snapshot: Pick<StorageSnapshot, 'value' | 'updated_at' | 'revisions'> },
@@ -417,4 +419,43 @@ export const commitScopedStorageMutation = async (configuration: StorageConfigur
     const body = await request(configuration, 'storage_commit_scoped_mutation', buildScopedStorageMutation(mutation));
     if (!isStorageRecord(body) || typeof body.saved !== 'boolean') return invalid();
     return { saved: body.saved, ...(typeof body.updatedAt === 'string' ? { updatedAt: body.updatedAt } : {}), ...('result' in body ? { result: body.result } : {}) };
+};
+
+const parseCommandSnapshot = (body: unknown, scope: StorageScope): ScopedStorageSnapshot => {
+    const snapshot = parseScopedStorageSnapshot(body);
+    if (canonicalStorageJson(snapshot.scope) !== canonicalStorageJson(parseStorageScope(scope))) return invalid();
+    return snapshot;
+};
+
+export const prepareStorageCommand = async (
+    configuration: StorageConfiguration, actorKey: string, requestId: string, scope: StorageScope,
+    verification: { readonly action: string; readonly payload: unknown }, replayScope?: StorageScope,
+): Promise<{ receipt: StorageReceipt; snapshot: ScopedStorageSnapshot }> => {
+    if (process.env.STORAGE_COMBINED_COMMANDS !== '1') {
+        const receipt = await getStorageReceipt(configuration, actorKey, requestId, verification);
+        const snapshot = await loadScopedStorageSnapshot(configuration, receipt.found ? replayScope ?? receipt.scope ?? scope : scope);
+        return { receipt, snapshot };
+    }
+    const body = await request(configuration, 'storage_prepare_command', {
+        p_actor_key: actorKey, p_request_id: requestId, p_scope: parseStorageScope(scope),
+        p_replay_scope: replayScope ? parseStorageScope(replayScope) : null,
+    });
+    if (!isStorageRecord(body)) return invalid();
+    const receipt = parseStorageReceipt(body.receipt, verification);
+    return { receipt, snapshot: parseCommandSnapshot(body.snapshot, receipt.found ? replayScope ?? receipt.scope ?? scope : scope) };
+};
+
+export const commitScopedStorageMutationAndLoad = async (
+    configuration: StorageConfiguration, mutation: ScopedStorageMutation, resultScope?: StorageScope,
+): Promise<{ saved: boolean; result?: unknown; snapshot?: ScopedStorageSnapshot }> => {
+    if (process.env.STORAGE_COMBINED_COMMANDS !== '1') {
+        const saved = await commitScopedStorageMutation(configuration, mutation);
+        return saved.saved ? { ...saved, snapshot: await loadScopedStorageSnapshot(configuration, resultScope ?? mutation.snapshot.scope) } : saved;
+    }
+    const body = await request(configuration, 'storage_commit_scoped_and_load', {
+        ...buildScopedStorageMutation(mutation), p_result_scope: resultScope ? parseStorageScope(resultScope) : null,
+    });
+    if (!isStorageRecord(body) || typeof body.saved !== 'boolean') return invalid();
+    return { saved: body.saved, ...('result' in body ? { result: body.result } : {}),
+        ...(body.saved ? { snapshot: parseCommandSnapshot(body.snapshot, resultScope ?? mutation.snapshot.scope) } : {}) };
 };

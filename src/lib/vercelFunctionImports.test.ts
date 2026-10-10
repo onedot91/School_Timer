@@ -26,6 +26,8 @@ const SERVER_MODULES = [
   'src/server/storageCommandHandler.ts',
   'src/server/storageScope.ts',
   'src/server/storageProjection.ts',
+  'src/server/storageProgressiveRead.ts',
+  'src/server/storageReadPriority.ts',
   'src/server/storageV2Repository.ts',
   'src/server/storageFailureDiagnostics.ts',
   'src/server/economyStorageScope.ts',

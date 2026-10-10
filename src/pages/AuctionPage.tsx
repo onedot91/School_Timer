@@ -59,6 +59,7 @@ import {
   donateToClassGoal,
   invalidateSharedSettingsCache,
   loadSharedSettingsRow,
+  loadStudentOverviewSettingsRow,
   loadSharedSettingsUpdatedAt,
 } from '../lib/supabaseSettings';
 import {
@@ -163,6 +164,7 @@ import {
   studentSettingsRetryDelay,
   studentSettingsPollInterval,
   studentSettingsBurstDelay,
+  studentSettingsInitialDelay,
 } from '../lib/studentSettingsSync';
 import {
   TEACHER_LETTER_RECIPIENT,
@@ -556,6 +558,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const unavailableFeatureTriggerRef = useRef<HTMLElement>(null);
   const sharedSettingsUpdatedAtRef = useRef<string | null>(null);
   const hasLoadedSharedSettingsRef = useRef(!isSupabaseSettingsEnabled);
+  const hasLoadedOverviewRef = useRef(false);
   const minimumSettingsUpdatedAtRef = useRef<string | null>(null);
   const isSharedSettingsRefreshInFlightRef = useRef(false);
   const pendingFullSettingsRefreshRef = useRef(false);
@@ -1349,7 +1352,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       return;
     }
     if (isSharedSettingsRefreshInFlightRef.current) {
-      if (forceFull) pendingFullSettingsRefreshRef.current = true;
+      if (forceFull || (!hasLoadedSharedSettingsRef.current && activeStudentView !== 'overview')) pendingFullSettingsRefreshRef.current = true;
       return;
     }
     isSharedSettingsRefreshInFlightRef.current = true;
@@ -1371,7 +1374,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
           if (shouldLoadFull) {
             const refreshVersion = getSaveRefreshVersion(studentNumber);
-            const row = await loadSharedSettingsRow();
+            const row = !hasLoadedSharedSettingsRef.current && !shouldForceFull && activeStudentView === 'overview'
+              ? await loadStudentOverviewSettingsRow() : await loadSharedSettingsRow();
             if (!isSaveRefreshVersionCurrent(studentNumber, refreshVersion)) {
               pendingFullSettingsRefreshRef.current = true;
               shouldForceFull = true;
@@ -1381,6 +1385,22 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               throw new Error('SHARED_SETTINGS_INVALID_RESPONSE');
             }
             const value = row.value as SharedSettingsValue;
+            if (row.readScope === 'overview') {
+              if (applySharedSettingsValue(value, row.updated_at)) {
+                hasLoadedOverviewRef.current = true;
+                setIsLoading(false);
+              } else if (!hasLoadedOverviewRef.current) {
+                throw new Error('SHARED_SETTINGS_STALE_RESPONSE');
+              }
+              setHasSettingsLoadError(false);
+              settingsReadFailuresRef.current = 0;
+              nextSettingsReadAtRef.current = 0;
+              if (pendingFullSettingsRefreshRef.current) {
+                shouldForceFull = true;
+                continue;
+              }
+              break;
+            }
             if (applySharedSettingsValue(value, row?.updated_at)) {
               hasLoadedSharedSettingsRef.current = true;
               setHasSettingsLoadError(false);
@@ -1409,7 +1429,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       isSharedSettingsRefreshInFlightRef.current = false;
       setIsLoading(false);
     }
-  }, [applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku, setStudentLifeSnapshot, studentNumber]);
+  }, [activeStudentView, applySharedSettingsValue, refreshLocalNumberBaseball, refreshLocalStudentSudoku, setStudentLifeSnapshot, studentNumber]);
 
   const applyCompetitionSnapshot = useCallback((response: LibraryCompetitionResponse) => {
     setCompetitionSeasonId(response.competition.state?.seasonId ?? null);
@@ -1512,7 +1532,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       }
     };
     if (isSupabaseSettingsEnabled) {
-      scheduledRefresh = window.setTimeout(() => { void refreshWhenVisible(); }, studentSettingsBurstDelay(studentNumber));
+      const delay = hasLoadedSharedSettingsRef.current || hasLoadedOverviewRef.current
+        ? studentSettingsBurstDelay(studentNumber) : studentSettingsInitialDelay(studentNumber);
+      scheduledRefresh = window.setTimeout(() => { void refreshWhenVisible(); }, delay);
     } else void refreshWhenVisible();
     const refreshOnReturn = () => {
       if (document.visibilityState !== 'visible' || !navigator.onLine || isRefreshing) return;
@@ -1544,7 +1566,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
     const syncWeeklyMission = async () => {
       if (!isActive || document.visibilityState !== 'visible' || !navigator.onLine) return;
-      if (isSupabaseSettingsEnabled && !hasLoadedSharedSettingsRef.current) {
+      if (isSupabaseSettingsEnabled && !hasLoadedSharedSettingsRef.current && !hasLoadedOverviewRef.current) {
         if (scheduledSync === undefined) scheduledSync = window.setTimeout(() => {
           scheduledSync = undefined;
           if (isActive) void syncOnReturn();
@@ -2224,7 +2246,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     && profilePurchaseType === 'random'
     && isStudentLifeSaving;
 
-  if (!hasLoadedSharedSettingsRef.current) {
+  if (!hasLoadedSharedSettingsRef.current && !(hasLoadedOverviewRef.current && activeStudentView === 'overview')) {
     return isLoading || !hasSettingsLoadError ? <AppLoadingScreen label="학생 기록 불러오는 중" /> : (
       <AppRecoveryScreen
         title="학생 기록을 불러오지 못했어요"

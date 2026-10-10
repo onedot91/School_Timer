@@ -63,6 +63,7 @@ import {
   loadAnnouncementNote,
   loadAnnouncementNoteHistory,
   loadSharedSettingsRow,
+  canLoadTeacherSettingsChanges,
   loadSharedSettingsUpdatedAt,
   saveAnnouncementNote,
 } from '../lib/supabaseSettings';
@@ -4891,8 +4892,8 @@ export default function TimerPage() {
 
     let isCancelled = false;
 
-    void teacherStorageDrafts.ready().then(() => loadSharedSettingsRow())
-      .then((remoteRow) => {
+    void Promise.all([teacherStorageDrafts.ready(), loadSharedSettingsRow()])
+      .then(([, remoteRow]) => {
         if (isCancelled) return;
 
         initializeTeacherSettingsRef.current(remoteRow);
@@ -5268,7 +5269,8 @@ export default function TimerPage() {
       const refreshVersion = getSaveRefreshVersion(0);
 
       try {
-        const remoteUpdatedAt = await loadSharedSettingsUpdatedAt();
+        const changesAvailable = canLoadTeacherSettingsChanges();
+        const remoteUpdatedAt = changesAvailable ? lastSharedSettingsUpdatedAtRef.current : await loadSharedSettingsUpdatedAt();
         if (
           isCancelled
           || !isSaveRefreshVersionCurrent(0, refreshVersion)
@@ -5276,7 +5278,7 @@ export default function TimerPage() {
           || isSharedSettingsSavePendingRef.current
           || !remoteUpdatedAt
         ) return;
-        if (remoteUpdatedAt === lastSharedSettingsUpdatedAtRef.current && !teacherRefreshPendingRef.current) {
+        if (!changesAvailable && remoteUpdatedAt === lastSharedSettingsUpdatedAtRef.current && !teacherRefreshPendingRef.current) {
           readFailures = 0;
           nextReadAt = 0;
           return;

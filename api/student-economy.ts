@@ -30,7 +30,7 @@ import {
 } from '../src/lib/studentProfilePurchase.js';
 import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSession.js';
 import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
-import { commitScopedStorageMutation, getStorageReceipt, loadScopedStorageSnapshot, StorageRepositoryError } from '../src/server/storageV2Repository.js';
+import { commitScopedStorageMutationAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError, type ScopedStorageSnapshot } from '../src/server/storageV2Repository.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
 import { economyResultScope, economyStorageScope } from '../src/server/economyStorageScope.js';
 
@@ -396,9 +396,9 @@ const scopeEconomyResult = (value: unknown, studentNumber: number, role: 'teache
 };
 
 const currentEconomyResponse = async (
-  configuration: NonNullable<ReturnType<typeof getConfiguration>>, value: unknown, studentNumber: number,
+  configuration: NonNullable<ReturnType<typeof getConfiguration>>, value: unknown, studentNumber: number, currentSnapshot?: ScopedStorageSnapshot,
 ) => {
-  const snapshot = await loadScopedStorageSnapshot(configuration, economyResultScope(studentNumber));
+  const snapshot = currentSnapshot ?? await loadScopedStorageSnapshot(configuration, economyResultScope(studentNumber));
   const own = String(studentNumber), current = snapshot.value;
   const balance = normalizeCurrencyBalances(current.currencyBalances)[own];
   const history = normalizeCurrencyHistory(current.currencyHistory)[own] ?? [];
@@ -489,26 +489,27 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       response.status(200).json(await currentEconomyResponse(configuration, confirmed.result, parsed.studentNumber));
       return true;
     };
-    const receipt = await getStorageReceipt(configuration, actorKey, parsed.requestId, {
-      action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
-    });
-    if (receipt.found) { response.status(200).json(await currentEconomyResponse(configuration, receipt.result, parsed.studentNumber)); return; }
     const scope = economyStorageScope(parsed.studentNumber, parsed.action, parsed.requestId);
     const createdAt = new Date().toISOString();
     const characterDrawRoll = parsed.action.type === 'draw_character' ? randomInt(10) : undefined;
     const profileDrawRoll = parsed.action.type === 'draw_profile' ? randomInt(1_000_000) / 1_000_000 : 0;
     for (let attempt = 0; attempt < UPDATE_RETRY_LIMIT; attempt += 1) {
       try {
-        const current = await loadScopedStorageSnapshot(configuration, scope);
+        const prepared = await prepareStorageCommand(configuration, actorKey, parsed.requestId, scope, {
+          action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
+        }, economyResultScope(parsed.studentNumber));
+        if (prepared.receipt.found) { response.status(200).json(await currentEconomyResponse(configuration, prepared.receipt.result, parsed.studentNumber, prepared.snapshot)); return; }
+        const current = prepared.snapshot;
         // The commit checks the same receipt under its lock; business rejection also confirms before responding.
         const mutation = createMutation(current.value, parsed.studentNumber, parsed.action, parsed.requestId, createdAt, characterDrawRoll, profileDrawRoll);
-        const committed = await commitScopedStorageMutation(configuration, {
+        const committed = await commitScopedStorageMutationAndLoad(configuration, {
           snapshot: current, value: mutation.nextValue, actorKey, requestId: parsed.requestId,
           action: 'student-economy', payload: { studentNumber: parsed.studentNumber, action: parsed.action },
           result: scopeEconomyResult({ ...mutation.response, updatedAt: createdAt }, parsed.studentNumber, session.role),
-        });
+        }, economyResultScope(parsed.studentNumber));
         if (committed.saved) {
-          response.status(200).json(await currentEconomyResponse(configuration, committed.result, parsed.studentNumber)); return;
+          if (!committed.snapshot) throw new StorageRepositoryError(502, 'STORAGE_INVALID_RESPONSE');
+          response.status(200).json(await currentEconomyResponse(configuration, committed.result, parsed.studentNumber, committed.snapshot)); return;
         }
       } catch (error) {
         const retryable = error instanceof StorageRepositoryError && error.code === 'STORAGE_SERIALIZATION_RETRY';

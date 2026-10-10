@@ -1,0 +1,122 @@
+[
+  {
+    "actor": 0,
+    "query": "changes=1",
+    "bytes": 122089,
+    "milliseconds": 13.626749999999987,
+    "rpc": [
+      {
+        "rpc": "storage_load_teacher_changes",
+        "requestBytes": 16,
+        "milliseconds": 1.967458999999991,
+        "responseBytes": 77845,
+        "rows": 0
+      }
+    ]
+  },
+  {
+    "actor": 0,
+    "query": "changes=1",
+    "bytes": 70934,
+    "milliseconds": 4.084791999999993,
+    "rpc": [
+      {
+        "rpc": "storage_load_teacher_changes",
+        "requestBytes": 16,
+        "milliseconds": 1.1920000000000073,
+        "responseBytes": 77845,
+        "rows": 0
+      }
+    ]
+  },
+  {
+    "actor": 0,
+    "query": "changes=1",
+    "bytes": 2861,
+    "milliseconds": 1.913250000000005,
+    "rpc": [
+      {
+        "rpc": "storage_load_teacher_changes",
+        "requestBytes": 2513,
+        "milliseconds": 0.5597080000000005,
+        "responseBytes": 2983,
+        "rows": 0
+      }
+    ]
+  },
+  {
+    "actor": 0,
+    "query": "changes=1",
+    "bytes": 3063,
+    "milliseconds": 8.304041999999981,
+    "rpc": [
+      {
+        "rpc": "storage_load_teacher_changes",
+        "requestBytes": 2513,
+        "milliseconds": 6.9410000000000025,
+        "responseBytes": 3409,
+        "rows": 0
+      }
+    ]
+  },
+  {
+    "actor": 0,
+    "query": "changes=1",
+    "bytes": 2898,
+    "milliseconds": 6.169375000000002,
+    "rpc": [
+      {
+        "rpc": "storage_load_teacher_changes",
+        "requestBytes": 2513,
+        "milliseconds": 4.908375000000007,
+        "responseBytes": 3195,
+        "rows": 0
+      }
+    ]
+  },
+  {
+    "actor": 7,
+    "query": "changes=1",
+    "bytes": 45607,
+    "milliseconds": 28.735458000000023,
+    "rpc": [
+      {
+        "rpc": "storage_load_scope",
+        "requestBytes": 856,
+        "milliseconds": 26.340416999999974,
+        "responseBytes": 50741,
+        "rows": 26
+      }
+    ]
+  },
+  {
+    "actor": 7,
+    "query": "overview=1",
+    "bytes": 5374,
+    "milliseconds": 17.584833000000003,
+    "rpc": [
+      {
+        "rpc": "storage_load_scope",
+        "requestBytes": 454,
+        "milliseconds": 16.42516599999999,
+        "responseBytes": 7212,
+        "rows": 19
+      }
+    ]
+  },
+  {
+    "actor": 0,
+    "query": "changes=1",
+    "bytes": 119584,
+    "milliseconds": 3.0484590000000367,
+    "rpc": [
+      {
+        "rpc": "storage_load_teacher_changes",
+        "requestBytes": 2513,
+        "milliseconds": 0.9632919999999672,
+        "responseBytes": 75360,
+        "rows": 0
+      }
+    ]
+  }
+]

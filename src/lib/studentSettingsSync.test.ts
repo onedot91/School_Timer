@@ -13,6 +13,7 @@ import {
   studentSettingsRetryDelay,
   studentSettingsPollInterval,
   studentSettingsBurstDelay,
+  studentSettingsInitialDelay,
 } from './studentSettingsSync';
 
 test('조회 실패는 간격을 늘리고 서버 대기 시간과 기기별 분산을 유지한다', () => {
@@ -38,6 +39,13 @@ test('동시 접속 분산은 학생별 순서와 탭별 편차를 유지하며 
   assert.ok(delays.every((delay, index) => index === 0 || delay > delays[index - 1]));
   assert.equal(studentSettingsBurstDelay(24, () => 1), 1_975);
   assert.equal(studentSettingsBurstDelay(1, () => 0.5), 125);
+});
+
+test('학생 최초 조회는 교사 즉시 조회를 위해 750ms 뒤부터 3초 이내로 분산한다', () => {
+  const delays = Array.from({ length: 23 }, (_, index) => studentSettingsInitialDelay(index + 1, () => 0));
+  assert.equal(delays[0], 750);
+  assert.equal(delays[22], 2400);
+  assert.equal(studentSettingsInitialDelay(24, () => 1), 2725);
 });
 
 test('경매는 2초, 일반 상점과 개요는 10초 간격으로 공유 변경을 확인한다', () => {

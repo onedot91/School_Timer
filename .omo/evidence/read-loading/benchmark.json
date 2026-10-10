@@ -1,0 +1,110 @@
+[
+  {
+    "fixture": [
+      {
+        "resources": "130",
+        "history": "2300"
+      }
+    ]
+  },
+  {
+    "scenario": "25 initial readers:23 students+2 teachers",
+    "progressive": false,
+    "round": 0,
+    "requests": 25,
+    "rpcs": 24,
+    "responseBytes": 9861719,
+    "dbResponseBytes": 6106550,
+    "p50Ms": 75.20837499999999,
+    "p95Ms": 150.38399999999996,
+    "rpcTimeSumMs": 350.9725859999999
+  },
+  {
+    "scenario": "25 initial readers:23 students+2 teachers",
+    "progressive": false,
+    "round": 1,
+    "requests": 25,
+    "rpcs": 24,
+    "responseBytes": 9861719,
+    "dbResponseBytes": 6106550,
+    "p50Ms": 94.62408399999998,
+    "p95Ms": 121.94016699999997,
+    "rpcTimeSumMs": 772.5851680000001
+  },
+  {
+    "scenario": "25 initial readers:23 students+2 teachers",
+    "progressive": false,
+    "round": 2,
+    "requests": 25,
+    "rpcs": 24,
+    "responseBytes": 9861719,
+    "dbResponseBytes": 6106550,
+    "p50Ms": 113.85074999999995,
+    "p95Ms": 117.61512500000003,
+    "rpcTimeSumMs": 659.7020439999995
+  },
+  {
+    "scenario": "25 initial readers:23 students+2 teachers",
+    "progressive": true,
+    "round": 0,
+    "requests": 25,
+    "rpcs": 24,
+    "responseBytes": 2087552,
+    "dbResponseBytes": 1665391,
+    "p50Ms": 15.281666000000087,
+    "p95Ms": 50.80154100000004,
+    "rpcTimeSumMs": 189.81178799999964
+  },
+  {
+    "scenario": "25 initial readers:23 students+2 teachers",
+    "progressive": true,
+    "round": 1,
+    "requests": 25,
+    "rpcs": 24,
+    "responseBytes": 2087552,
+    "dbResponseBytes": 1665391,
+    "p50Ms": 16.16229199999998,
+    "p95Ms": 48.29708300000004,
+    "rpcTimeSumMs": 178.26082999999983
+  },
+  {
+    "scenario": "25 initial readers:23 students+2 teachers",
+    "progressive": true,
+    "round": 2,
+    "requests": 25,
+    "rpcs": 24,
+    "responseBytes": 2087552,
+    "dbResponseBytes": 1665391,
+    "p50Ms": 14.281999999999925,
+    "p95Ms": 47.64570800000001,
+    "rpcTimeSumMs": 150.38599799999997
+  },
+  {
+    "scenario": "metadata",
+    "p50Ms": 0.4766670000000204,
+    "p95Ms": 1.0280829999999241,
+    "rpcP50Ms": 0.14858300000003055,
+    "responseBytes": 48
+  },
+  {
+    "scenario": "idle changes",
+    "p50Ms": 0.7329170000000431,
+    "p95Ms": 1.091083000000026,
+    "rpcP50Ms": 0.362166000000002,
+    "responseBytes": 2861
+  },
+  {
+    "scenario": "changed full",
+    "p50Ms": 36.28449999999998,
+    "p95Ms": 37.16316699999993,
+    "rpcP50Ms": 17.56833400000005,
+    "responseBytes": 1431286
+  },
+  {
+    "scenario": "changed delta",
+    "p50Ms": 1.393916999999874,
+    "p95Ms": 2.9226670000000468,
+    "rpcP50Ms": 0.9444580000001679,
+    "responseBytes": 3082
+  }
+]

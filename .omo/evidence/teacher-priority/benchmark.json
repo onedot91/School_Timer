@@ -1,0 +1,71 @@
+{
+  "fixture": "23 student reads followed 25ms later by 2 teachers; local PostgreSQL; synthetic 6-slot upstream, 80ms RPC round trip",
+  "samples": [
+    {
+      "priority": false,
+      "round": 0,
+      "teacherMs": [
+        368.33116700000005,
+        368.126042
+      ],
+      "studentMaxMs": 394.864291,
+      "peakStudentUpstreamRequests": 23,
+      "rpc": 24
+    },
+    {
+      "priority": false,
+      "round": 1,
+      "teacherMs": [
+        345.8460000000001,
+        345.726458
+      ],
+      "studentMaxMs": 370.969209,
+      "peakStudentUpstreamRequests": 23,
+      "rpc": 24
+    },
+    {
+      "priority": false,
+      "round": 2,
+      "teacherMs": [
+        339.83299999999986,
+        339.59908399999995
+      ],
+      "studentMaxMs": 365.02758300000005,
+      "peakStudentUpstreamRequests": 23,
+      "rpc": 24
+    },
+    {
+      "priority": true,
+      "round": 0,
+      "teacherMs": [
+        86.44233299999996,
+        86.21233399999983
+      ],
+      "studentMaxMs": 1033.7187919999997,
+      "peakStudentUpstreamRequests": 2,
+      "rpc": 24
+    },
+    {
+      "priority": true,
+      "round": 1,
+      "teacherMs": [
+        87.37879100000009,
+        87.21579199999996
+      ],
+      "studentMaxMs": 1055.287417,
+      "peakStudentUpstreamRequests": 2,
+      "rpc": 24
+    },
+    {
+      "priority": true,
+      "round": 2,
+      "teacherMs": [
+        86.62566700000025,
+        86.53620799999999
+      ],
+      "studentMaxMs": 1049.3821249999996,
+      "peakStudentUpstreamRequests": 2,
+      "rpc": 24
+    }
+  ]
+}

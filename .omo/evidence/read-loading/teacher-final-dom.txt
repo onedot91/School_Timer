@@ -1,0 +1,31 @@
+- generic "드래그한 뒤 강조를 누르면 코랄색으로 표시됩니다.":
+  - paragraph: 차등 조회 검증 완료
+- button "메모장":
+- button "공지 닫기":
+- generic "일정 없음 자캐":
+  - img "23번 학생이 만든 추가 캐릭터"
+- generic "일정 없음 자캐":
+  - generic: 야르~
+  - img "20번 학생이 만든 외눈 로켓 캐릭터"
+- generic "일정 없음 자캐":
+  - img "6번 학생이 만든 추가 캐릭터"
+- button "배경 음악 켜기":
+- button "공지 닫기"
+- img "character notification"
+- 'generic "추첨 상황: A상황"':
+  - button "이전 추첨 상황":
+  - generic: A상황
+  - button "다음 추첨 상황":
+- generic: 00:00
+- button "일정 없음, 오늘 일정 없음. 보조 타이머 열기":
+  - generic: 일정 없음
+- time:
+  - generic: 10월 10일
+  - generic: 토요일
+- button "설정":
+- paragraph: 일정이 없습니다.
+- button "화폐 열기":
+- button "유튜브 재생목록":
+- button "낱말판 열기":
+- button "질문 제출 현황 열기":
+- button "알림장":
