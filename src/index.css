@@ -24708,6 +24708,43 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .teacher-investment-dashboard :is(.teacher-investment-overview, .teacher-investment-detail) { display: grid; min-width: 0; min-height: 0; align-content: start; gap: .75rem; }
 .settings-dialog .teacher-stock-settings .teacher-investment-dashboard section { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
 .teacher-investment-dashboard header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .35rem; }
+.teacher-loan-panel { container: teacher-loans / inline-size; min-width: 0; color: var(--teacher-text); }
+.teacher-loan-header, .teacher-loan-detail > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
+.teacher-loan-header h3, .teacher-loan-detail h4 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+.teacher-loan-header span, .teacher-loan-detail > header > span, .teacher-loan-notice { color: var(--teacher-text-secondary); font-size: .85rem; }
+.teacher-loan-header button { display: inline-flex; min-height: var(--apple-control-min); align-items: center; gap: .5rem; padding: .5rem .75rem; }
+.teacher-loan-workspace { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 1.25rem; align-items: start; }
+.teacher-loan-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.5rem), 1fr)); gap: .5rem; }
+.teacher-loan-roster button { display: grid; min-width: 0; min-height: var(--apple-control-min); align-content: center; gap: .25rem; padding: .6rem .35rem; font-variant-numeric: tabular-nums; }
+.settings-dialog .teacher-loan-roster button { border: 1px solid var(--teacher-border) !important; border-radius: var(--apple-radius-control) !important; background: var(--teacher-surface) !important; color: var(--teacher-text) !important; box-shadow: none !important; }
+.teacher-settings-theme .settings-dialog .teacher-loan-roster button[aria-pressed="true"] { border-color: var(--teacher-border) !important; background: color-mix(in srgb, var(--teacher-accent) 12%, var(--teacher-surface)) !important; color: var(--teacher-text) !important; }
+.settings-dialog .teacher-loan-roster button :is(strong, span) { color: inherit !important; }
+.teacher-loan-roster strong { display: flex; align-items: center; justify-content: center; gap: .25rem; font-size: 1rem; }
+.teacher-loan-roster span { font-size: .8rem; overflow-wrap: anywhere; }
+.settings-dialog .teacher-loan-roster small, .teacher-loan-error { color: var(--teacher-urgent) !important; }
+.settings-dialog .teacher-loan-panel .teacher-loan-warning { display: inline-flex; align-items: center; justify-content: center; gap: .25rem; width: fit-content; max-width: 100%; margin-inline: auto; border-radius: var(--apple-radius-control); padding: .25rem .4rem; color: var(--teacher-warning) !important; background: var(--teacher-warning-soft); font-weight: 750; }
+.settings-dialog .teacher-loan-panel .teacher-loan-warning svg { flex-shrink: 0; color: inherit !important; }
+.teacher-loan-detail { min-width: 0; border-left: 1px solid var(--teacher-border); padding-left: 1.25rem; }
+.teacher-loan-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--teacher-border); }
+.teacher-loan-summary dt { color: var(--teacher-text-secondary); font-size: .8rem; }
+.teacher-loan-summary dd { margin: .35rem 0 0; font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.teacher-loan-summary small { margin-left: .25rem; font-size: .75rem; font-weight: 500; }
+.teacher-loan-notice { margin: .75rem 0; }
+.teacher-loan-table { min-width: 0; overflow-x: auto; }
+.teacher-loan-table table { width: 100%; min-width: 26rem; border-collapse: collapse; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.teacher-loan-table :is(th, td) { padding: .75rem .4rem; border-bottom: 1px solid var(--teacher-border); text-align: right; white-space: nowrap; }
+.teacher-loan-table tr > :first-child, .teacher-loan-table tr > :nth-child(2) { text-align: left; }
+.teacher-loan-table thead th { color: var(--teacher-text-secondary); font-size: .75rem; }
+.teacher-loan-table tbody th { font-weight: 650; }
+.teacher-loan-empty { padding: 1rem 0; color: var(--teacher-text-secondary); }
+@container teacher-loans (max-width: 48rem) {
+  .teacher-loan-workspace { grid-template-columns: minmax(0, 1fr); }
+  .teacher-loan-detail { border-left: 0; border-top: 1px solid var(--teacher-border); padding: 1rem 0 0; }
+}
+@media (max-width: 600px) {
+  .teacher-loan-summary { gap: .4rem; }
+}
+
 .teacher-investment-dashboard h4 { margin: 0; color: var(--apple-text-primary); font-size: .95rem; font-weight: 800; }
 .teacher-investment-dashboard header > span { color: var(--apple-text-secondary); font-size: .72rem; }
 .settings-dialog .teacher-stock-settings .teacher-investment-dashboard .is-up { color: var(--student-stock-up) !important; }

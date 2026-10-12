@@ -35,6 +35,8 @@ const SERVER_MODULES = [
   'src/server/newspaperRepository.ts',
   'src/lib/newspaperQuestion.ts',
   'src/server/rewardAuditActivities.ts',
+  'src/server/teacherLoanHistoryRepository.ts',
+  'src/lib/teacherLoanHistory.ts',
   'api/announcement-notes.ts',
   'api/class-donation.ts',
   'api/classword.ts',

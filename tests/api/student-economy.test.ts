@@ -167,6 +167,35 @@ test('학생 예금은 학생 지갑·경제 상태·새 원장만 트랜잭션�
   });
 });
 
+test('대출·상환 처리 기록은 예금 이동 문구와 독립된 거래 유형과 금액을 보관한다', async () => {
+  await withFixture(async (db) => {
+    const borrowed = await act(1, { type: 'borrow', amount: 40, dateKey: '2026-10-01' }, 'loan-history-borrow-1');
+    assert.equal(borrowed.statusCode, 200);
+    assert.ok(isStorageRecord(db.writes[0].p_result));
+    assert.deepEqual(db.writes[0].p_result.loanTransaction, { type: 'borrow', amount: 40 });
+    const repaid = await act(1, { type: 'repay', amount: 14 }, 'loan-history-repay-1');
+    assert.equal(repaid.statusCode, 200);
+    assert.ok(isStorageRecord(db.writes[1].p_result));
+    assert.deepEqual(db.writes[1].p_result.loanTransaction, { type: 'repay', amount: 14 });
+    const state = db.value();
+    assert.ok(isStorageRecord(state.studentEconomy) && isStorageRecord(state.studentEconomy['1']));
+    assert.equal(state.studentEconomy['1'].loan, 30);
+    assert.equal(state.studentEconomy['1'].loanPrincipal, 30);
+    assert.equal(state.studentEconomy['2'] !== undefined, true);
+  });
+});
+
+test('과거에 처리된 대출 재시도는 새 대출 거래 유형이나 원장을 만들지 않는다', async () => {
+  await withFixture(async (db) => {
+    const result = await act(1, { type: 'borrow', amount: 40, dateKey: '2026-10-01' }, 'loan-history-old-1');
+    assert.equal(result.statusCode, 200);
+    assert.ok(isStorageRecord(db.writes[0].p_result));
+    assert.equal(db.writes[0].p_result.applied, false);
+    assert.equal(db.writes[0].p_result.loanTransaction, undefined);
+    assert.deepEqual(db.writes[0].p_ledger, []);
+  }, { ...previousValue, studentEconomy: { ...previousValue.studentEconomy, '1': { loan: 0, processedRequestIds: ['loan-history-old-1'] } } });
+});
+
 test('잘못된 예금은 업무 거절이며 저장이나 재시도가 없다', async () => {
   await withFixture(async (db) => {
     const result = await act(1, { type: 'open_deposit', amount: 9, dateKey: '2026-08-26' }, 'small-deposit-id');

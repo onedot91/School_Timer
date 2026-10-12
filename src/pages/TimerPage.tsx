@@ -261,6 +261,7 @@ const TeacherWritingSettings = lazy(() => import('../components/teacher/TeacherW
 const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherClasswordPanel'));
 const TeacherTodayFriendPanel = lazy(() => import('../components/teacher/TeacherTodayFriendPanel'));
 const TeacherNewspaperPanel = lazy(() => import('../components/teacher/TeacherNewspaperPanel'));
+const TeacherLoanHistoryPanel = lazy(() => import('../components/teacher/TeacherLoanHistoryPanel'));
 const TeacherLibraryCompetitionPanel = lazy(() => import('../components/teacher/TeacherLibraryCompetitionPanel').then((module) => ({ default: module.TeacherLibraryCompetitionPanel })));
 
 const TeacherPanelLoadFallback = () => (
@@ -268,7 +269,7 @@ const TeacherPanelLoadFallback = () => (
 );
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'currency-history' | 'emotion' | 'mail' | 'writing' | 'newspaper' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
+type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'currency-history' | 'loan-history' | 'emotion' | 'mail' | 'writing' | 'newspaper' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
 type TeacherShopTab = 'items' | 'skins' | 'houses' | 'characters';
 type SettingsNavigationGroup = {
   readonly label: string;
@@ -321,6 +322,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
       { panel: 'stocks', label: '증권', icon: Star },
       { panel: 'donation', label: '기부', icon: HeartPulse },
       { panel: 'currency-history', label: '입출금', icon: Landmark },
+      { panel: 'loan-history', label: '대출 내역', icon: Landmark },
     ],
   },
   {
@@ -13194,6 +13196,8 @@ export default function TimerPage() {
                                   ? bookstoreSettingsPanel
                                   : settingsPanel === 'currency-history'
                                     ? currencyHistorySettingsPanel
+                                  : settingsPanel === 'loan-history'
+                                    ? <TeacherLoanHistoryPanel states={studentEconomyStates} />
                                   : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'
                                     ? auctionSettingsPanel
                                     : null}

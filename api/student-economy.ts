@@ -33,6 +33,8 @@ import { isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import { commitScopedStorageMutationAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError, type ScopedStorageSnapshot } from '../src/server/storageV2Repository.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
 import { economyResultScope, economyStorageScope } from '../src/server/economyStorageScope.js';
+import { loadTeacherLoanReport } from '../src/server/teacherLoanHistoryRepository.js';
+import { TeacherLoanHistoryError } from '../src/lib/teacherLoanHistory.js';
 
 interface ApiRequest {
   readonly method?: string;
@@ -341,6 +343,8 @@ const createDomainMutation = (
       studentLife: nextStudentLife,
       message: result.message,
       applied: result.applied,
+      ...(result.applied && (action.type === 'borrow' || action.type === 'repay')
+        ? { loanTransaction: { type: action.type, amount: action.amount } } : {}),
     },
   };
 };
@@ -426,6 +430,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return;
   }
   if (request.method === 'GET') {
+    if (request.query?.history === 'loans') {
+      if (session.role !== 'teacher') { response.status(403).json({ error: 'TEACHER_REQUIRED' }); return; }
+      try { response.status(200).json(await loadTeacherLoanReport(configuration)); }
+      catch (error) { response.status(502).json({ error: error instanceof TeacherLoanHistoryError ? error.code : 'LOAN_HISTORY_UNAVAILABLE' }); }
+      return;
+    }
     const requestId = request.query?.requestId;
     const studentNumber = Number(request.query?.studentNumber);
     if (request.query?.protocolVersion !== '2' || typeof requestId !== 'string' || !/^[a-zA-Z0-9-]{8,160}$/.test(requestId)

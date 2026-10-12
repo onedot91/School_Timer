@@ -12,12 +12,13 @@ test('고마 경제 설정 메뉴에 입출금 내역을 포함하고 기타는 
   // When
   const economyGroup = source.slice(economyGroupStart, otherGroupStart);
   const otherGroup = source.slice(otherGroupStart, navigationEnd);
-  const navigationOrder = ['auction', 'stocks', 'donation', 'currency-history'].map((panel) => economyGroup.indexOf(`panel: '${panel}'`));
+  const navigationOrder = ['auction', 'stocks', 'donation', 'currency-history', 'loan-history'].map((panel) => economyGroup.indexOf(`panel: '${panel}'`));
 
   // Then
   assert.ok(economyGroupStart >= 0);
   assert.ok(otherGroupStart > economyGroupStart);
   assert.ok(navigationEnd > otherGroupStart);
+  assert.ok(navigationOrder.every(index => index >= 0));
   assert.deepEqual(navigationOrder, [...navigationOrder].sort((left, right) => left - right));
   assert.doesNotMatch(economyGroup, /panel: 'shop'/);
   assert.match(otherGroup, /showHeading: false/);
