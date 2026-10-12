@@ -88,6 +88,16 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 - 저장 오류 알림은 발생 기능·화면, 허용된 오류 코드·HTTP 상태 등 진단 정보와 다음 조치를 함께 제공한다. 원본 오류 메시지·요청 본문·학생 작성 내용은 수집하지 않는다. 응답 미확인을 미저장으로 단정하거나 알림 확인 처리를 기록 복구로 표현하지 않는다.
 - Loading fixes require before/after measurements. Keep Vercel Functions near the Seoul Supabase database and verify the deployed response region after release; `vercel.json` currently requests `icn1`. Separate read timeouts from write confirmation, and never shorten loading by treating unconfirmed saves as successful. Keep feature-only panels out of initial bundles.
 
+## 브라우저 검수 실행 안전
+
+- UI 검수는 Codex 내장 브라우저(`iab`)를 기본으로 사용한다. 이 프로젝트 지침은 별도 브라우저 실행을 권장하는 스킬의 기본값보다 우선한다.
+- 설치된 Google Chrome이나 별도 Chromium/headless 브라우저를 검수용으로 직접 실행하지 않는다. 셸 실행, `connectPipe`, `connectCloakProfile`, Playwright의 `launch`/`launchPersistentContext`, 임시 프로필 및 다른 실행 파일을 통한 우회도 금지한다.
+- 내장 브라우저를 사용할 수 없으면 가능한 코드·테스트 검증을 완료하고 실제 화면 검증이 미실행임을 명확히 보고한다. 브라우저 설치·다운로드 또는 권한 확장을 통한 별도 실행으로 대체하지 않는다.
+- 사용자가 기존 Chrome 탭에서 검수를 명시적으로 요청한 경우에만 연결 도구로 해당 탭을 사용한다. 사용자 브라우저의 재실행·종료, 프로필·쿠키·캐시·설정 변경은 검수에 포함하지 않는다.
+- 브라우저 연결 실패나 충돌 알림이 발생하면 해당 실행 경로를 즉시 중단한다. 동일 실행의 반복, 대체 브라우저 실행, 자동 재시작으로 계속하지 않는다. 원인과 검증 제한을 사용자에게 보고한다.
+- 검수용 탭·연결·개발 서버는 작업 종료와 오류 시 정리한다. 종료 대상은 현재 작업에서 직접 생성했다고 확인된 자원으로 한정하며, 사용자 브라우저와 다른 작업의 프로세스는 종료하지 않는다.
+- 브라우저 검수는 로컬 mock/fake 데이터로 수행한다. 실제 학생 데이터 및 계정 정보를 임시 프로필이나 검수 아티팩트에 복사하지 않는다.
+
 ## UI 문구 최소화
 
 - 모든 화면은 핵심 정보와 행동에 필요한 문구만 남긴다. 문구 없이도 용도와 조작이 명확하면 추가하지 않는다.

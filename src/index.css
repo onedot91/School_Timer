@@ -25766,6 +25766,7 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-skin-dialog {
   width: min(100%, 48rem);
   max-height: min(78dvh, 40rem);
+  grid-template-rows: auto minmax(0, 1fr);
   text-align: left;
 }
 
