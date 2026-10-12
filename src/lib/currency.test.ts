@@ -64,6 +64,75 @@ test('주간 정산은 24번 테스트 학생의 잔액을 유지하고 세금�
   assert.deepEqual(result.history['24'], value.currencyHistory[24]);
 });
 
+test('한국 시간 월요일 주간 정산은 미반영 등락을 적용하고 모든 종목을 매각한 뒤 세금과 주급을 처리한다', () => {
+  const position = { investedAmount: 100, currentAmount: 100, lastSettledDateKey: '2026-10-08', lastChangeAmount: 0, lastStage: 'flat' };
+  const value = {
+    currencyBalances: { 1: 20, 2: 0, 3: 40, 24: 777 },
+    studentEconomy: {
+      1: {
+        deposits: [{ id: 'deposit', principal: 100, interest: 10, openedOn: '2026-10-08', maturityDate: '2026-10-12' }],
+        investments: { sunny: position, sprout: position },
+        inventory: { house_repair: 1 }, loan: 55, loanPrincipal: 50,
+      },
+      2: { investments: { cloud: { ...position, currentAmount: 0 } } },
+      3: { investments: { star: { ...position, lastSettledDateKey: '2026-10-09' } } },
+      24: { investments: { sunny: position } },
+    },
+    studentStockMarket: {
+      sunny: [{ dateKey: '2026-10-09', stage: 'rise', returnPercent: 20 }],
+      sprout: [{ dateKey: '2026-10-09', stage: 'fall', returnPercent: -10 }],
+      star: [{ dateKey: '2026-10-09', stage: 'rise', returnPercent: 20 }],
+    },
+  };
+  const original = structuredClone(value);
+  const result = createWeeklyCurrencyCycle(value, '2026-10-11T15:30:00Z', '2026-10-11T15:30:00Z', '2026-10-11T15:30:00Z');
+  assert.equal(result.balances['1'], 295);
+  assert.equal(result.balances['2'], 100);
+  assert.equal(result.balances['3'], 170);
+  for (const key of ['1', '2', '3']) assert.deepEqual(result.economy[key].investments, {});
+  assert.deepEqual(result.economy['1'].deposits, []);
+  assert.equal(result.economy['1'].inventory.house_repair, 1);
+  assert.equal(result.economy['1'].loanPrincipal, 50);
+  assert.deepEqual(result.history['1'].map(({ reason, before, after }) => ({ reason, before, after })), [
+    { reason: 'allowance', before: 195, after: 295 },
+    { reason: 'tax', before: 340, after: 195 },
+    { reason: 'stock_trade', before: 130, after: 340 },
+    { reason: 'bank_transfer', before: 20, after: 130 },
+  ]);
+  assert.equal(result.history['2'].some(entry => entry.reason === 'stock_trade'), false);
+  assert.equal(result.balances['24'], 777);
+  assert.deepEqual(result.economy['24'].investments, value.studentEconomy[24].investments);
+  assert.deepEqual(value, original);
+});
+
+test('주간 마감은 한국 날짜의 등락까지 적용한다', () => {
+  const result = createWeeklyCurrencyCycle({
+    currencyBalances: { 1: 20 },
+    studentEconomy: { 1: { investments: {
+      sunny: { investedAmount: 100, currentAmount: 100, lastSettledDateKey: '2026-10-08', lastChangeAmount: 0, lastStage: 'flat' },
+    } } },
+    studentStockMarket: { sunny: [{ dateKey: '2026-10-09', stage: 'rise', returnPercent: 20 }] },
+  }, '2026-10-08T15:30:00Z', '2026-10-08T15:30:00Z', '2026-10-08T15:30:00Z');
+  assert.equal(result.history['1'].find(entry => entry.reason === 'stock_trade')?.delta, 120);
+  assert.equal(result.balances['1'], 170);
+});
+
+test('주간 마감은 휴장일에도 전액 매각하고 이미 반영한 등락을 다시 적용하지 않는다', () => {
+  const result = createWeeklyCurrencyCycle({
+    currencyBalances: { 1: 20 },
+    studentEconomy: { 1: { investments: {
+      sunny: { investedAmount: 100, currentAmount: 120, lastSettledDateKey: '2026-10-09', lastChangeAmount: 20, lastStage: 'rise' },
+    } } },
+    studentStockMarket: { sunny: [
+      { dateKey: '2026-10-09', stage: 'rise', returnPercent: 20 },
+      { dateKey: '2026-10-12', isClosed: true },
+    ] },
+  }, '2026-10-12T00:00:00Z', '2026-10-12T00:00:00Z', '2026-10-12T00:00:00Z');
+  assert.equal(result.balances['1'], 170);
+  assert.deepEqual(result.economy['1'].investments, {});
+  assert.equal(result.history['1'].find(entry => entry.reason === 'stock_trade')?.delta, 120);
+});
+
 test('선택한 번호에만 화폐를 일괄 조정하고 중복 번호는 한 번만 반영한다', () => {
   // Given
   const balances = {

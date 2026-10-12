@@ -16,10 +16,12 @@ const callbackSource = transpileModule(source.slice(start, end) + '\ncompleteWee
   compilerOptions: { target: ScriptTarget.ES2022 },
 }).outputText;
 
-const fixture = (shared = true, localSave = true) => {
-  const snapshot = { currencyBalances: { '1': 100 }, currencyHistory: {}, studentEconomy: {} };
+const fixture = (shared = true, localSave = true, snapshot: Record<string, unknown> = {
+  currencyBalances: { '1': 100 }, currencyHistory: {}, studentEconomy: {}, studentStockMarket: {},
+}) => {
   const state = { status: 'idle', message: '', busy: false, refreshPending: false, items: normalizeAuctionItems([{ id: 'lot', dayIndex: 0, name: '공책' }]), balanceCommits: 0 };
   const requests: unknown[] = [];
+  let savedSnapshot: unknown;
   let resolveResponse: ((value: StorageCommandResult) => void) | undefined;
   let rejectResponse: ((error: Error) => void) | undefined;
   const response = new Promise<StorageCommandResult>((resolve, reject) => { resolveResponse = resolve; rejectResponse = reject; });
@@ -31,7 +33,8 @@ const fixture = (shared = true, localSave = true) => {
     weeklyAuctionClosingRef: { current: false }, teacherRefreshPendingRef: { current: false },
     teacherSettingsBaseRef: { current: {} }, teacherSettingsPersistedBaseRef: { current: {} },
     lastSharedSettingsUpdatedAtRef: { current: null },
-    currencyBalancesRef: { current: snapshot.currencyBalances }, currencyHistoryRef: { current: {} }, studentEconomyStates: {},
+    currencyBalancesRef: { current: snapshot.currencyBalances }, currencyHistoryRef: { current: snapshot.currencyHistory },
+    studentEconomyStates: snapshot.studentEconomy, studentStockMarket: snapshot.studentStockMarket,
     executeStorageCommand: (request: unknown) => { requests.push(request); return response; },
     setWeeklyAuctionCloseStatus: (value: string) => { state.status = value; },
     setWeeklyAuctionCloseMessage: (value: string) => { state.message = value; },
@@ -43,11 +46,11 @@ const fixture = (shared = true, localSave = true) => {
     setAuctionBidHistory: () => undefined, setAuctionAwards: () => undefined,
     setTemporaryVisibleAuctionItemIds: () => undefined, setPendingAwardItemId: () => undefined,
     setAwardPresentation: () => undefined, setCurrencyDeductionError: () => undefined,
-    loadStoredStudentPetSnapshot: () => snapshot, storeStudentPetSnapshot: () => localSave,
+    loadStoredStudentPetSnapshot: () => snapshot, storeStudentPetSnapshot: (value: unknown) => { savedSnapshot = value; return localSave; },
     reportSaveFailure: () => undefined,
   });
   if (typeof callback !== 'function') throw new Error('Missing weekly close callback');
-  return { state, requests, close: async () => { await callback(); },
+  return { state, requests, saved: () => savedSnapshot, close: async () => { await callback(); },
     finish: (result: StorageCommandResult) => resolveResponse?.(result), fail: (error: Error) => rejectResponse?.(error) };
 };
 
@@ -106,4 +109,21 @@ test('로컬 마감도 저장 후 완료 안내를 표시한다', async () => {
   await screen.close();
   assert.equal(screen.state.status, 'success');
   assert.equal(screen.state.balanceCommits, 1);
+});
+
+test('로컬 마감 버튼은 시세를 반영해 주식을 매각한 정산 결과를 저장한다', async () => {
+  const screen = fixture(false, true, {
+    currencyBalances: { '1': 20 }, currencyHistory: {},
+    studentEconomy: { '1': { investments: {
+      sunny: { investedAmount: 100, currentAmount: 100, lastSettledDateKey: '2026-01-01', lastChangeAmount: 0, lastStage: 'flat' },
+    } } },
+    studentStockMarket: { sunny: [{ dateKey: '2026-01-02', stage: 'rise', returnPercent: 20 }] },
+  });
+  await screen.close();
+  const saved = screen.saved();
+  assert.ok(isStorageRecord(saved));
+  assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['1'], 170);
+  assert.deepEqual(normalizeStudentEconomyStates(saved.studentEconomy)['1'].investments, {});
+  assert.deepEqual(normalizeCurrencyHistory(saved.currencyHistory)['1'].map(entry => entry.reason), ['allowance', 'tax', 'stock_trade']);
+  assert.equal(screen.state.status, 'success');
 });

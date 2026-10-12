@@ -1,8 +1,10 @@
 import {
   applyStudentEconomyTax,
   applyTeacherCurrencyDeduction,
+  getKoreanDateKey,
   getStudentEconomyState,
   normalizeStudentEconomyStates,
+  settleStudentInvestments,
   type StudentEconomyStates,
 } from './studentEconomy.js';
 import { normalizeStudentEmotionHistory } from './studentEmotion.js';
@@ -941,6 +943,22 @@ const settleWeeklyDeposits = (
   }, { balances: { ...balances }, economy: { ...normalizedEconomy } });
 };
 
+const sellWeeklyInvestments = (
+  balances: CurrencyBalances,
+  economy: StudentEconomyStates,
+  dateKey: string,
+  stockMarket: unknown,
+): CurrencyTaxResult => CURRENCY_STUDENT_NUMBERS.reduce<CurrencyTaxResult>((next, studentNumber) => {
+  const key = String(studentNumber);
+  const state = economy[key];
+  if (!state) return next;
+  const settledState = settleStudentInvestments(state, dateKey, stockMarket);
+  const payout = Object.values(settledState.investments).reduce((sum, position) => sum + position.currentAmount, 0);
+  next.balances[key] = (balances[key] ?? DEFAULT_CURRENCY_BALANCE) + payout;
+  next.economy[key] = { ...settledState, investments: {} };
+  return next;
+}, { balances: { ...balances }, economy: { ...economy } });
+
 export const createWeeklyCurrencyCycle = (
   value: unknown,
   interestCreatedAt: string,
@@ -955,9 +973,15 @@ export const createWeeklyCurrencyCycle = (
     previousBalances,
     normalizeStudentEconomyStates(current.studentEconomy),
   );
-  const taxResult = collectCurrencyTax(
+  const stockResult = sellWeeklyInvestments(
     interestResult.balances,
     interestResult.economy,
+    getKoreanDateKey(new Date(interestCreatedAt)),
+    current.studentStockMarket,
+  );
+  const taxResult = collectCurrencyTax(
+    stockResult.balances,
+    stockResult.economy,
   );
   const balances = grantWeeklyCurrencyAllowance(taxResult.balances);
   const appendChanges = (
@@ -983,9 +1007,16 @@ export const createWeeklyCurrencyCycle = (
     'bank_transfer',
     interestCreatedAt,
   );
-  const historyAfterTax = appendChanges(
+  const historyAfterStocks = appendChanges(
     historyAfterInterest,
     interestResult.balances,
+    stockResult.balances,
+    'stock_trade',
+    interestCreatedAt,
+  );
+  const historyAfterTax = appendChanges(
+    historyAfterStocks,
+    stockResult.balances,
     taxResult.balances,
     'tax',
     taxCreatedAt,

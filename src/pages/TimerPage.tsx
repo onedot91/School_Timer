@@ -7512,6 +7512,7 @@ export default function TimerPage() {
           currencyBalances: currencyBalancesRef.current,
           currencyHistory: currencyHistoryRef.current,
           studentEconomy: studentEconomyStates,
+          studentStockMarket,
         },
         interestHistoryCreatedAt,
         taxHistoryCreatedAt,
@@ -13264,7 +13265,7 @@ export default function TimerPage() {
               const actionCopy = {
                 weeklyClose: {
                   title: '이번 주 경매를 마감할까요?',
-                  body: '물품과 입찰가를 초기화한 뒤, 모든 예금의 원금·이자 지급, 세금 징수, 주급 제공을 순서대로 처리합니다.',
+                  body: '물품·입찰가 초기화 → 예금 원금·이자 지급 → 보유 주식 전량 매각 → 세금 징수 → 주급 지급',
                   action: '주간 마감',
                 },
                 currency: {

@@ -413,13 +413,13 @@ export const getRelativeKoreanWeekdayLabel = (referenceDateKey: string, targetDa
   return `${weekLabel} ${weekday}요일`;
 };
 
-export const getKoreanDateKey = () => {
+export const getKoreanDateKey = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Seoul',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).formatToParts(new Date());
+  }).formatToParts(date);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
 };

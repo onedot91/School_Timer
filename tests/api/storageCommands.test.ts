@@ -6,6 +6,8 @@ import { createStorageV2Fixture } from './storageV2Fixture.js';
 import { createSudokuPuzzle } from '../../src/lib/sudoku.js';
 import { getKoreanIsoWeekKey } from '../../src/lib/weeklyMission.js';
 import { createStudentEmotionEntry } from '../../src/lib/studentEmotion.js';
+import { normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
+import { normalizeStudentEconomyStates } from '../../src/lib/studentEconomy.js';
 
 const secret = 'storage-test-only-secret-at-least-32-bytes';
 const retainedLetterCreatedAt = new Date().toISOString();
@@ -41,6 +43,33 @@ const environment = async (run: (call: (actor:number,method:string,body?:unknown
   try {await run(call,fixture);} finally {globalThis.fetch=originalFetch;process.env=saved;}
 };
 const command=(requestId:string,action:string,payload:unknown)=>({protocolVersion:2,requestId,action,payload});
+
+test('주간 마감 API는 보유 종목을 매각해 세금을 계산하고 재요청에도 한 번만 정산한다', () => environment(async (call, fixture) => {
+  const body = command('weekly-stock-close-0001', 'teacher.auction.weekly-close', { cycleKey: '2026-10-12' });
+  fixture.loseNextCommitResponse();
+  assert.equal((await call(0, 'POST', body)).status, 502);
+  const receipt = await call(0, 'GET', undefined, { requestId: body.requestId, receiptOnly: '1' });
+  assert.equal(Reflect.get(Object(receipt.body), 'status'), 'committed');
+  assert.equal((await call(0, 'POST', body)).status, 200);
+  const saved = fixture.read().value;
+  assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['1'], 200);
+  assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['2'], 150);
+  assert.deepEqual(normalizeStudentEconomyStates(saved.studentEconomy)['1'].investments, {});
+  assert.deepEqual(normalizeCurrencyHistory(saved.currencyHistory)['1'].map(entry => entry.reason), ['allowance', 'tax', 'stock_trade']);
+  assert.equal((await call(0, 'POST', body)).status, 200);
+  assert.equal((await call(0, 'POST', command('weekly-stock-close-0002', 'teacher.auction.weekly-close', { cycleKey: '2026-10-12' }))).status, 200);
+  const repeated = fixture.read().value;
+  assert.deepEqual(repeated.currencyBalances, saved.currencyBalances);
+  assert.deepEqual(repeated.currencyHistory, saved.currencyHistory);
+  assert.deepEqual(repeated.studentEconomy, saved.studentEconomy);
+  assert.deepEqual(repeated.studentStockMarket, saved.studentStockMarket);
+}, {
+  ...initial(),
+  studentEconomy: { 1: { investments: {
+    sunny: { investedAmount: 100, currentAmount: 100, lastSettledDateKey: '2026-01-01', lastChangeAmount: 0, lastStage: 'flat' },
+  } } },
+  studentStockMarket: { sunny: [] },
+}));
 
 test('낙찰 잔액 부족과 이미 낙찰된 상품은 저장 미확정 서버 오류가 아닌 업무 거절로 응답한다', async () => {
   for (const alreadyAwarded of [false, true]) {
