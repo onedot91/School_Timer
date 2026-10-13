@@ -124,7 +124,7 @@ export const applyTeacherStorageCommand = (
     if (!bid?.bidder || bid.amount <= 0) throw new TeacherStorageCommandError('AUCTION_BID_CHANGED', 409);
     if (payload.useLatestBid !== true && (payload.expectedBidder !== bid.bidder || payload.expectedAmount !== bid.amount)) throw new TeacherStorageCommandError('AUCTION_BID_CHANGED', 409);
     const result = finalizeAuctionAwardInSettings(current, { itemId, winner: bid.bidder, amount: bid.amount, awardedAt: context.createdAt });
-    return finish(result.value, { awarded: result.awarded });
+    return finish(result.value, { awarded: result.awarded, award: result.awards[itemId] });
   }
   if (action === 'teacher.auction.remove') {
     const itemId = text(payload.itemId, 100);

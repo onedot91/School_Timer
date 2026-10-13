@@ -35,13 +35,13 @@ type AuctionAwardPresentationDialogProps = {
 };
 
 export const AUCTION_CEREMONY_TIMING = {
-  intro: 480,
-  bid: 260,
-  lastCall: 440,
+  intro: 180,
+  bid: 180,
+  lastCall: 180,
   impact: 340,
-  reveal: 720,
-  settled: 1380,
-  resultHold: 3200,
+  reveal: 620,
+  settled: 920,
+  resultHold: 1200,
 } as const;
 
 // The authoritative award always ends the replay, even when history is stale.

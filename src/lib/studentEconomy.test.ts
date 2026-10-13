@@ -551,6 +551,44 @@ test('고마 스킨 뽑기는 첫 1회 무료이고 다음 뽑기부터 50고마
   assert.equal(second.wallet, 95);
 });
 
+test('12번의 다음 뽑기는 굴인형 고마이며 지급 후에는 기존 랜덤 결과와 동일하다', () => {
+  const options = {
+    studentNumber: 12,
+    state: { characterFreeDrawAvailable: false },
+    action: { type: 'draw_character' } as const,
+    wallet: 300, availableWallet: 300, requestId: 'student-12-oyster-once', characterDrawRoll: 9,
+  };
+  const first = applyStudentEconomyAction(options);
+  assert.equal(first.state.activeCharacterId, 'character-58');
+  assert.deepEqual(first.state.ownedCharacterIds, ['character-58']);
+  assert.equal(first.wallet, 250);
+  const reloaded = normalizeStudentEconomyState(JSON.parse(JSON.stringify(first.state)));
+  const repeated = applyStudentEconomyAction({ ...options, state: reloaded, wallet: 250, availableWallet: 250 });
+  assert.equal(repeated.applied, false);
+  assert.equal(repeated.wallet, 250);
+  const nextOptions = { ...options, state: reloaded, wallet: 250, availableWallet: 250, requestId: 'student-12-random-next' };
+  const next = applyStudentEconomyAction(nextOptions);
+  const random = applyStudentEconomyAction({ ...nextOptions, studentNumber: 11 });
+  assert.deepEqual(next, random);
+  assert.notEqual(next.state.activeCharacterId, 'character-58');
+});
+
+test('12번 지정 뽑기는 비용 부족 시 소모되지 않고 다른 학생의 뽑기와 더블 확률을 바꾸지 않는다', () => {
+  const options = {
+    state: { characterFreeDrawAvailable: false }, action: { type: 'draw_character' } as const,
+    wallet: 300, availableWallet: 300, requestId: 'oyster-double-once', characterDrawRoll: 0,
+  };
+  assert.throws(() => applyStudentEconomyAction({ ...options, studentNumber: 12, availableWallet: 49 }), /INSUFFICIENT_AVAILABLE_CURRENCY/);
+  const result = applyStudentEconomyAction({ ...options, studentNumber: 12 });
+  assert.equal(result.state.activeCharacterId, 'character-58');
+  assert.equal(result.state.ownedCharacterIds.length, 2);
+  assert.equal(new Set(result.state.ownedCharacterIds).size, 2);
+  assert.equal(result.wallet, 250);
+  assert.deepEqual(applyStudentEconomyAction({ ...options, studentNumber: 11 }), applyStudentEconomyAction(options));
+  const ownedOptions = { ...options, state: { ...options.state, ownedCharacterIds: ['character-58'] } };
+  assert.deepEqual(applyStudentEconomyAction({ ...ownedOptions, studentNumber: 12 }), applyStudentEconomyAction(ownedOptions));
+});
+
 test('기본 고마는 보유 스킨과 관계없이 다시 선택할 수 있다', () => {
   const drawn = applyStudentEconomyAction({
     state: null,
@@ -577,6 +615,7 @@ test('고마 스킨 뽑기는 미보유 스킨을 순서대로 지급하고 요�
     wallet: 300,
     availableWallet: 300,
     requestId: 'character-draw-sequential-1',
+    characterDrawRoll: 9,
   });
   const repeated = applyStudentEconomyAction({
     state: first.state,
@@ -591,6 +630,7 @@ test('고마 스킨 뽑기는 미보유 스킨을 순서대로 지급하고 요�
     wallet: first.wallet,
     availableWallet: first.wallet,
     requestId: 'character-draw-sequential-2',
+    characterDrawRoll: 9,
   });
 
   assert.equal(repeated.applied, false);
@@ -751,21 +791,29 @@ test('집 건축하기 구매는 교사 물품 구매 현황에 표시된다', (
   assert.deepEqual(labels, ['집 고치기', '집 건축하기']);
 });
 
-test('10개 확률 구간 중 정확히 한 구간은 같은 50고마로 미보유 스킨 두 개를 지급한다', () => {
+test('10개 확률 구간은 일반 6개·초성 선택 3개·더블 1개이며 비용은 같다', () => {
   let doubles = 0;
+  let choices = 0;
+  let singles = 0;
   for (let roll = 0; roll < 10; roll += 1) {
     const result = applyStudentEconomyAction({
       state: { characterFreeDrawAvailable: false }, action: { type: 'draw_character' }, wallet: 145, availableWallet: 145,
       requestId: 'double-probability-boundary', characterDrawRoll: roll,
     });
     const count = result.state.ownedCharacterIds.length;
-    assert.equal(count, roll === 0 ? 2 : 1);
+    assert.equal(count, roll === 0 ? 2 : roll <= 3 ? 0 : 1);
     assert.equal(result.wallet, 95);
     assert.equal(new Set(result.state.ownedCharacterIds).size, count);
-    assert.equal(result.state.activeCharacterId, result.state.ownedCharacterIds[0]);
+    assert.equal(result.state.activeCharacterId, result.state.ownedCharacterIds[0] ?? null);
     if (count === 2) doubles += 1;
+    else if (result.state.pendingCharacterChoice) {
+      choices += 1;
+      assert.equal(result.state.pendingCharacterChoice.characterIds.length, 3);
+    } else singles += 1;
   }
   assert.equal(doubles, 1);
+  assert.equal(choices, 3);
+  assert.equal(singles, 6);
 });
 
 test('더블 캡슐도 중복 스킨을 제외하고 같은 요청을 다시 차감하거나 지급하지 않는다', () => {

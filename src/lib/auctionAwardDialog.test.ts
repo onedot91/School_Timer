@@ -10,6 +10,8 @@ import AuctionAwardPresentationDialog, {
 } from '../components/teacher/AuctionAwardPresentationDialog';
 import { formatCurrency, type AuctionAward, type AuctionBidHistoryEntry } from './currency';
 import { FAILURE_EMPTY_PROFILE_IMAGE, FAILURE_PROFILE_OPTIONS, type FailureProfileAssignments } from './failureExhibition';
+import { readConfirmedAuctionAward } from './auctionAwardConfirmation';
+import { StorageCommandError } from './storageCommandClient';
 
 const dialogSource = readFileSync(
   new URL('../components/teacher/AuctionAwardPresentationDialog.tsx', import.meta.url),
@@ -50,6 +52,36 @@ test('마지막 호가는 긴 기록 중 실제 마지막 세 입찰만 순서�
 
   assert.deepEqual(getAuctionAwardReplaySteps(history, award), history.slice(-3));
   assert.deepEqual(history, original, '표시용 기록을 줄여도 원본 입찰 기록은 보존해야 합니다.');
+});
+
+test('화면 조회가 늦어져도 낙찰 영수증의 실제 학생으로 발표하고 결과가 없으면 확정하지 않는다', () => {
+  const branch = timerPageSource.match(/const confirmedAward = readConfirmedAuctionAward\(result\);[\s\S]*?\n          return;/)?.[0];
+  assert.ok(branch);
+  const applyReceipt = new Function('award', 'result', 'readConfirmedAuctionAward', 'StorageCommandError', 'setAuctionAwards', 'setAwardPresentation', branch);
+  let current: AuctionAwardPresentation = { ...presentation, award: { ...award, winner: 8 } };
+  let savedAward: AuctionAward | null = null;
+  const apply = (result: unknown) => applyReceipt(current.award, result, readConfirmedAuctionAward, StorageCommandError,
+    (update: (previous: Record<string, AuctionAward>) => Record<string, AuctionAward>) => { savedAward = update({})[award.itemId]; },
+    (update: (previous: AuctionAwardPresentation) => AuctionAwardPresentation) => { current = update(current); });
+  assert.throws(() => apply({ awarded: true }), /AUCTION_RESULT_UNAVAILABLE/);
+  assert.equal(current.hasFinalized, false);
+  const confirmed = { ...award, awardedAt: '2026-10-13T01:00:00Z' };
+  apply({ awarded: true, award: confirmed });
+  assert.equal(current.hasFinalized, true);
+  assert.equal(current.award.winner, 12);
+  assert.equal(current.award.awardedAt, presentation.award.awardedAt, '연출 키는 서버 시각으로 교체하지 않는다.');
+  assert.deepEqual(savedAward, confirmed);
+});
+
+test('최대 세 호가의 결과 공개는 연출 1.2초, 확인 가능 상태는 1.5초 이내로 예약한다', () => {
+  const replay = AUCTION_CEREMONY_TIMING.intro + AUCTION_CEREMONY_TIMING.bid + AUCTION_CEREMONY_TIMING.lastCall;
+  assert.ok(replay + AUCTION_CEREMONY_TIMING.reveal <= 1200);
+  assert.ok(replay + AUCTION_CEREMONY_TIMING.settled <= 1500);
+  for (const name of ['auctionCeremonyProfile', 'auctionCeremonyBid']) {
+    const animation = stylesheetSource.match(new RegExp(`animation: ${name} (\\d+)ms var\\(--auction-ease\\) (\\d+)ms both`));
+    assert.ok(animation);
+    assert.ok(Number(animation[1]) + Number(animation[2]) <= AUCTION_CEREMONY_TIMING.settled - AUCTION_CEREMONY_TIMING.reveal);
+  }
 });
 
 test('입찰 기록이 없어도 확정 대상 금액을 표시하고 단일 최종 입찰은 중복하지 않는다', () => {
@@ -185,7 +217,7 @@ test('연속 낙찰은 프로필 공개 후 결과 유지 시간을 갖고 다�
 
   assert.match(markup, /다음 낙찰 대기 중/);
   assert.doesNotMatch(markup, /aria-label="낙찰 결과 닫기"|class="auction-ceremony-confirm"|class="auction-ceremony-history-toggle"/);
-  assert.ok(AUCTION_CEREMONY_TIMING.resultHold >= 3000);
+  assert.ok(AUCTION_CEREMONY_TIMING.resultHold >= 1000 && AUCTION_CEREMONY_TIMING.resultHold <= 1500);
   assert.ok(AUCTION_CEREMONY_TIMING.impact < AUCTION_CEREMONY_TIMING.reveal);
   assert.ok(AUCTION_CEREMONY_TIMING.reveal < AUCTION_CEREMONY_TIMING.settled);
   assert.match(timerPageSource, /AUCTION_AWARD_QUEUE_ADVANCE_DELAY_MS = AUCTION_CEREMONY_TIMING\.resultHold/);

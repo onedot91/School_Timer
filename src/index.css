@@ -18874,8 +18874,8 @@ a[href]:active {
 .auction-ceremony-deed-item > strong { padding-right: 3rem; font-size: clamp(1.7rem, 3vw, 2.6rem); font-family: var(--font-mono); font-weight: 800; letter-spacing: -.06em; overflow-wrap: anywhere; }
 .auction-ceremony-seal { position: absolute; bottom: 1.5rem; right: 1rem; display: grid; align-content: center; width: 3.5rem; height: 3.5rem; border: 3px double #a75e46; border-radius: 50%; color: #a75e46; font-size: .95rem; text-align: center; line-height: 1.1; font-weight: 900; transform: rotate(-12deg); }
 .auction-ceremony[data-phase="reveal"] .auction-ceremony-certificate { visibility: visible; animation: auctionCeremonyUnfold var(--auction-reveal-duration) var(--auction-ease) both; }
-.auction-ceremony[data-phase="reveal"] .auction-ceremony-profile { animation: auctionCeremonyProfile 400ms var(--auction-ease) 100ms both; }
-.auction-ceremony[data-phase="reveal"] .auction-ceremony-deed h3 { animation: auctionCeremonyBid 260ms var(--auction-ease) 200ms both; }
+.auction-ceremony[data-phase="reveal"] .auction-ceremony-profile { animation: auctionCeremonyProfile 220ms var(--auction-ease) 60ms both; }
+.auction-ceremony[data-phase="reveal"] .auction-ceremony-deed h3 { animation: auctionCeremonyBid 160ms var(--auction-ease) 100ms both; }
 .auction-ceremony[data-phase="result"] .auction-ceremony-certificate { visibility: visible; }
 .auction-ceremony-paper-bits { position: absolute; pointer-events: none; inset: 0; overflow: hidden; }
 .auction-ceremony-paper-bits i { position: absolute; left: 50%; top: 45%; width: 7px; height: 11px; background: #e6c784; opacity: 0; }
@@ -27530,6 +27530,129 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-claw-target-light { position: absolute; inset: -8%; opacity: 0; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,247,188,.85), rgba(255,247,188,.15) 48%, transparent 70%); }
 .student-claw-caught img { transform-origin: 50% 18%; }
 .student-claw-operation > p { min-height: 2.5em; }
+
+.student-confirm-dialog.student-gacha-initial-choice {
+  --initial-paper: var(--apple-canvas-warm);
+  --initial-ink: var(--apple-accent-pressed);
+  --initial-line: color-mix(in srgb, var(--apple-accent) 22%, var(--apple-separator));
+  --initial-ease: cubic-bezier(.22, 1, .36, 1);
+  width: min(62rem, 100%); max-height: calc(100dvh - 2rem); overflow-y: auto;
+  gap: 1.25rem; padding: 1.75rem; background: var(--initial-paper); backdrop-filter: none;
+}
+.student-gacha-initial-choice h2 { padding-inline: 2.75rem; overflow-wrap: anywhere; color: var(--initial-ink); }
+.student-gacha-initial-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.student-gacha-initial-options[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.student-gacha-initial-options[data-count="1"] { grid-template-columns: minmax(0, 20rem); justify-content: center; }
+.student-gacha-initial-card {
+  position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; align-content: start; min-width: 0;
+  padding: 2.75rem 1rem 1.1rem; border: 2px solid var(--initial-line); border-radius: var(--apple-radius-panel);
+  background: var(--apple-surface); color: var(--apple-text-primary); text-align: center;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--initial-ink) 12%, transparent);
+  transition: transform 160ms var(--initial-ease), opacity 180ms ease-out, border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+.student-gacha-initial-number {
+  position: absolute; inset: .75rem auto auto .9rem; display: grid; place-items: center; width: 2rem; height: 2rem;
+  border: 1px solid var(--initial-line); border-radius: 50%; background: var(--initial-paper);
+  color: var(--initial-ink); font-size: .8rem; font-weight: 850; font-variant-numeric: tabular-nums;
+}
+.student-gacha-initial-number svg { width: 1.1rem; height: 1.1rem; }
+.student-gacha-initial-art {
+  position: relative; display: block; width: 100%; height: clamp(9rem, 28dvh, 13rem); isolation: isolate;
+  background: radial-gradient(ellipse at 50% 52%, var(--initial-paper) 0 42%, transparent 70%);
+}
+.student-gacha-initial-art::after {
+  content: ''; position: absolute; z-index: -1; inset: auto 20% 2% 20%; height: .7rem; border-radius: 50%;
+  background: color-mix(in srgb, var(--initial-ink) 12%, transparent);
+}
+.student-gacha-initial-silhouette {
+  position: absolute; inset: 3% 8% 4%; background: var(--initial-ink);
+  mask: url('/goma-canvas-character.webp') center / contain no-repeat;
+  -webkit-mask: url('/goma-canvas-character.webp') center / contain no-repeat;
+  transition: opacity 180ms ease-out, transform 240ms var(--initial-ease);
+}
+.student-gacha-initial-question {
+  position: absolute; inset: 0; display: grid; place-items: center; padding-top: .5rem;
+  color: var(--initial-paper); font-size: clamp(2.75rem, 7dvh, 4rem); font-weight: 850;
+  transition: opacity 140ms ease-out, transform 240ms var(--initial-ease);
+}
+.student-gacha-initial-skin {
+  position: absolute; inset: 3% 8% 4%; width: 84%; height: 93%; object-fit: contain;
+  opacity: 0; transform: translateY(.4rem) scale(.98);
+  transition: opacity 240ms ease-out, transform 240ms var(--initial-ease);
+}
+.student-gacha-initial-art[data-visible="true"] :is(.student-gacha-initial-silhouette, .student-gacha-initial-question) { opacity: 0; transform: scale(.98); }
+.student-gacha-initial-art[data-visible="true"] .student-gacha-initial-skin { opacity: 1; transform: translateY(0) scale(1); }
+.student-gacha-initial-label { display: grid; place-items: center; min-height: 2.7em; margin-top: .5rem; font-size: clamp(1.1rem, 1.9vw, 1.45rem); line-height: 1.35; overflow-wrap: anywhere; }
+.student-gacha-initial-card:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 4px; }
+.student-gacha-initial-card:active:enabled { transform: translateY(2px) scale(.98); }
+.student-gacha-initial-card[data-selected="true"] { border-color: var(--apple-accent); box-shadow: 0 4px 0 var(--apple-accent), inset 0 0 0 1px var(--apple-accent); }
+.student-gacha-initial-card[data-revealed="true"] .student-gacha-initial-number { background: var(--apple-accent); color: white; }
+.student-gacha-initial-card[data-image-ready="true"] { animation: student-gacha-initial-impact 480ms var(--initial-ease) both; }
+.student-gacha-initial-art[data-visible="true"] .student-gacha-initial-skin { animation: student-gacha-initial-skin-reveal 560ms var(--initial-ease) both; }
+.student-gacha-initial-burst { position: absolute; inset: -.75rem; pointer-events: none; overflow: hidden; }
+.student-gacha-initial-burst::before {
+  content: ''; position: absolute; inset: 12% 16%; border: 2px solid #e8bd68; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255,226,160,.85), rgba(255,226,160,0) 70%);
+  animation: student-gacha-initial-flash 700ms ease-out both;
+}
+.student-gacha-initial-burst i {
+  --burst-angle: 0deg; position: absolute; left: calc(50% - .2rem); top: 50%; width: .4rem; height: .8rem;
+  border-radius: .12rem; background: #d6a143; opacity: 0;
+  animation: student-gacha-initial-spark 680ms var(--initial-ease) both;
+}
+.student-gacha-initial-burst i:nth-child(2) { --burst-angle: 45deg; }
+.student-gacha-initial-burst i:nth-child(3) { --burst-angle: 90deg; }
+.student-gacha-initial-burst i:nth-child(4) { --burst-angle: 135deg; }
+.student-gacha-initial-burst i:nth-child(5) { --burst-angle: 180deg; }
+.student-gacha-initial-burst i:nth-child(6) { --burst-angle: 225deg; }
+.student-gacha-initial-burst i:nth-child(7) { --burst-angle: 270deg; }
+.student-gacha-initial-burst i:nth-child(8) { --burst-angle: 315deg; }
+@keyframes student-gacha-initial-impact {
+  0% { transform: scale(.98); }
+  42% { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+@keyframes student-gacha-initial-skin-reveal {
+  0% { opacity: 0; transform: scale(.85); }
+  45% { opacity: 1; transform: scale(1.08); }
+  75% { opacity: 1; transform: scale(.99); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes student-gacha-initial-flash {
+  0% { opacity: 0; transform: scale(.55); }
+  24% { opacity: .9; }
+  100% { opacity: 0; transform: scale(1.45); }
+}
+@keyframes student-gacha-initial-spark {
+  0% { opacity: 0; transform: rotate(var(--burst-angle)) translateY(-1.75rem) scale(.6); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--burst-angle)) translateY(-5.5rem) scale(.5); }
+}
+.student-gacha-initial-choice .student-gacha-initial-card:disabled { opacity: .65; }
+.student-gacha-initial-choice .student-gacha-initial-card[data-selected="true"]:disabled { opacity: 1; }
+.student-gacha-initial-image-error { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: .5rem; color: var(--apple-text-secondary); font-size: .85rem; }
+.student-gacha-initial-footer { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .75rem 1.5rem; min-height: 3rem; }
+.student-gacha-initial-footer .student-confirm-dialog-actions { flex: 0 0 10rem; margin: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .student-gacha-initial-card:hover:not(:active):enabled { transform: translateY(-3px); border-color: var(--apple-accent); box-shadow: 0 7px 0 color-mix(in srgb, var(--initial-ink) 12%, transparent); }
+}
+@media (max-width: 40rem) {
+  .student-confirm-dialog.student-gacha-initial-choice { padding: 1.25rem; }
+  .student-gacha-initial-options[data-count] { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+  .student-gacha-initial-card { grid-template-columns: 6.25rem minmax(0, 1fr); grid-template-rows: auto; align-items: center; gap: .75rem; padding: .75rem 1rem; text-align: left; }
+  .student-gacha-initial-art { height: 6.25rem; }
+  .student-gacha-initial-number { inset: .5rem auto auto .5rem; z-index: 1; width: 1.5rem; height: 1.5rem; font-size: .7rem; }
+  .student-gacha-initial-label { justify-items: start; margin: 0; font-size: 1.1rem; }
+  .student-gacha-initial-question { font-size: 2.25rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-gacha-initial-choice .student-gacha-initial-card,
+  .student-gacha-initial-choice .student-gacha-initial-art :is(.student-gacha-initial-silhouette, .student-gacha-initial-question, .student-gacha-initial-skin) { transition: none; transform: none; }
+  .student-gacha-initial-choice .student-gacha-initial-card:is(:hover, :active):enabled { transform: none; }
+  .student-gacha-initial-choice .student-gacha-initial-card[data-image-ready="true"],
+  .student-gacha-initial-choice .student-gacha-initial-art[data-visible="true"] .student-gacha-initial-skin { animation: none; }
+  .student-gacha-initial-burst { display: none; }
+}
 
 /* One continuous stage owns capsule travel, opening, and the committed result. */
 .student-gacha-reveal-backdrop {

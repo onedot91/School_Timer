@@ -6,6 +6,7 @@ import { canonicalStorageJson } from './storageV2Codec.js';
 import { publishStorageAvailability } from './storageAvailability.js';
 import { parseStorageProjectionPatch, type StorageProjectionPatch } from './storageProjectionPatch.js';
 import { deferSaveRecoveryUntil, getSaveRecoveryDelay } from './saveRecovery.js';
+import { readConfirmedAuctionAward } from './auctionAwardConfirmation.js';
 
 export interface StorageCommand {
   readonly requestId: string;
@@ -89,6 +90,9 @@ export const loadStorageCommandReceipt = async (requestId: string, command?: Sto
     || typeof receipt.payloadHash !== 'string' || typeof receipt.committedAt !== 'string'
     || !Number.isFinite(Date.parse(receipt.committedAt))) throw new StorageCommandError('STORAGE_INVALID_RESPONSE', 502, true);
   invalidateSharedSettingsCache();
+  if (receipt.action === 'teacher.auction.finalize' && readConfirmedAuctionAward(receipt.result)) {
+    return { value: null, updatedAt: receipt.committedAt, result: receipt.result, refreshPending: true };
+  }
   query.delete('receiptOnly');
   try {
     if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();

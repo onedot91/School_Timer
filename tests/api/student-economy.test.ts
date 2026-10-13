@@ -1,9 +1,12 @@
 import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
 import { normalizeCurrencyHistory } from '../../src/lib/currency.js';
+import { applyStudentEconomyAction, normalizeStudentEconomyState } from '../../src/lib/studentEconomy.js';
+import { updateStudentEconomy } from '../../src/lib/studentEconomyClient.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import handler from '../../api/student-economy.js';
+import sharedSettingsHandler from '../../api/shared-settings.js';
 import { FAILURE_PROFILE_IMAGES } from '../../src/lib/failureExhibition.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 import { parseStorageScope, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, type StorageScope } from '../../src/server/storageScope.js';
@@ -277,6 +280,111 @@ test('저장 충돌 때 스킨 추첨 결과와 비용은 동일하다', async (
     });
     assert.deepEqual(economies[0], economies[1]);
     assert.equal(Reflect.get(db.value().currencyBalances as object, '1'), 150);
+  });
+});
+
+test('학생 범위 GET에서 복원한 초성 후보를 클라이언트로 선택하고 타인 데이터·지갑·이력을 보존한다', async () => {
+  const draw = applyStudentEconomyAction({ state: { characterFreeDrawAvailable: false }, wallet: 145, availableWallet: 145,
+    action: { type: 'draw_character' }, requestId: 'initial-api-draw', characterDrawRoll: 1 });
+  const initial = { ...previousValue, currencyBalances: { 1: draw.wallet, 2: 222 },
+    studentEconomy: { ...previousValue.studentEconomy, 1: draw.state }, missingField: null };
+  await withFixture(async db => {
+    const originalProtocol = process.env.STORAGE_PROTOCOL_VERSION;
+    process.env.STORAGE_PROTOCOL_VERSION = '2';
+    try {
+      const scoped = createResponse();
+      await sharedSettingsHandler({ method: 'GET', headers: studentHeaders(1), query: { scoped: '1' } }, scoped.response);
+      assert.equal(scoped.result().statusCode, 200);
+      const body = scoped.result().body;
+      assert.ok(isStorageRecord(body) && isStorageRecord(body.value) && isStorageRecord(body.value.studentEconomy));
+      assert.deepEqual(Object.keys(body.value.studentEconomy), ['1']);
+      const state = normalizeStudentEconomyState(body.value.studentEconomy['1']);
+      const choice = state.pendingCharacterChoice;
+      assert.ok(choice);
+      assert.deepEqual(choice, draw.state.pendingCharacterChoice);
+      const rpcFetch = globalThis.fetch;
+      globalThis.fetch = async (input, init) => {
+        if (!String(input).startsWith('/api/student-economy')) return rpcFetch(input, init);
+        const response = createResponse();
+        const payload: unknown = JSON.parse(String(init?.body));
+        await handler({ method: 'POST', headers: studentHeaders(1), body: payload }, response.response);
+        return Response.json(response.result().body, { status: response.result().statusCode });
+      };
+      const input = { studentNumber: 1, action: { type: 'choose_draw_character' as const, drawRequestId: choice.drawRequestId, characterId: choice.characterIds[1] }, requestId: 'initial-api-select' };
+      db.conflict(1, draw.wallet);
+      const selected = await updateStudentEconomy(input);
+      if (selected.refreshPending) assert.fail('선택 응답에 저장 상태가 필요합니다.');
+      assert.equal(selected.balance, draw.wallet);
+      assert.equal(selected.studentEconomy.activeCharacterId, input.action.characterId);
+      assert.deepEqual(selected.studentEconomy.ownedCharacterIds, [input.action.characterId]);
+      assert.equal(selected.studentEconomy.pendingCharacterChoice, null);
+      assert.deepEqual(selected.currencyBalanceEntries, { 1: draw.wallet });
+      assert.equal(db.writes.length, 2);
+      const repeated = await updateStudentEconomy(input);
+      assert.ok(!repeated.refreshPending);
+      assert.equal(db.writes.length, 2);
+      assert.deepEqual(db.value().currencyBalances, initial.currencyBalances);
+      assert.deepEqual(db.value().currencyHistory, initial.currencyHistory);
+      assert.deepEqual(Reflect.get(db.value().studentEconomy as object, '2'), previousValue.studentEconomy[2]);
+      assert.equal(db.value().missingField, null);
+    } finally {
+      if (originalProtocol === undefined) delete process.env.STORAGE_PROTOCOL_VERSION;
+      else process.env.STORAGE_PROTOCOL_VERSION = originalProtocol;
+    }
+  }, initial);
+});
+
+test('초성 선택권이 없거나 후보·학생 범위가 맞지 않으면 스킨을 저장하지 않는다', async () => {
+  const initial = { ...previousValue, studentEconomy: { ...previousValue.studentEconomy, 1: {
+    characterFreeDrawAvailable: false, pendingCharacterChoice: { drawRequestId: 'initial-api-draw', characterIds: ['character-1', 'character-2', 'character-3'] },
+  } } };
+  await withFixture(async db => {
+    const before = db.value();
+    for (const [drawRequestId, characterId] of [['initial-api-draw', 'character-4'], ['other-api-draw', 'character-1']]) {
+      const result = await act(1, { type: 'choose_draw_character', drawRequestId, characterId }, `invalid-choice-${characterId}-${drawRequestId}`);
+      assert.equal(result.statusCode, 400);
+      assert.deepEqual(result.body, { error: 'INVALID_CHARACTER_CHOICE', businessRejected: true });
+    }
+    const noChoice = await act(2, { type: 'choose_draw_character', drawRequestId: 'initial-api-draw', characterId: 'character-1' }, 'no-choice-api');
+    assert.deepEqual(noChoice.body, { error: 'INVALID_CHARACTER_CHOICE', businessRejected: true });
+    const pending = await act(1, { type: 'draw_character' }, 'pending-new-draw');
+    assert.deepEqual(pending.body, { error: 'CHARACTER_CHOICE_PENDING', businessRejected: true });
+    const malformed = await act(1, { type: 'choose_draw_character', drawRequestId: 'initial-api-draw', characterId: null }, 'malformed-choice');
+    assert.equal(malformed.statusCode, 400);
+    const denied = createResponse();
+    await handler({ method: 'POST', headers: studentHeaders(2), body: { protocolVersion: 2, studentNumber: 1, requestId: 'scope-choice-api', action: { type: 'choose_draw_character', drawRequestId: 'initial-api-draw', characterId: 'character-1' } } }, denied.response);
+    assert.equal(denied.result().statusCode, 403);
+    assert.equal(db.writes.length, 0);
+    assert.deepEqual(db.value(), before);
+  }, initial);
+});
+
+test('12번 지정 스킨은 저장 충돌과 재전송에도 한 번만 지급하고 다음에는 랜덤으로 뽑는다', async () => {
+  await withFixture(async (db) => {
+    db.conflict(12, 300);
+    const first = await act(12, { type: 'draw_character' }, 'oyster-next-draw-12');
+    assert.equal(first.statusCode, 200);
+    let firstState = normalizeStudentEconomyState(Reflect.get(Object(db.value().studentEconomy), '12'));
+    if (firstState.pendingCharacterChoice) {
+      assert.equal(firstState.pendingCharacterChoice.characterIds[0], 'character-58');
+      assert.equal((await act(12, { type: 'choose_draw_character', drawRequestId: firstState.pendingCharacterChoice.drawRequestId, characterId: 'character-58' }, 'oyster-initial-choice-12')).statusCode, 200);
+      firstState = normalizeStudentEconomyState(Reflect.get(Object(db.value().studentEconomy), '12'));
+    }
+    assert.equal(firstState.activeCharacterId, 'character-58');
+    assert.equal(firstState.ownedCharacterIds.filter(id => id === 'character-58').length, 1);
+    const saved = structuredClone(db.value());
+    assert.equal((await act(12, { type: 'draw_character' }, 'oyster-next-draw-12')).statusCode, 200);
+    assert.deepEqual(db.value(), saved);
+    assert.equal((await act(12, { type: 'draw_character' }, 'random-after-oyster-12')).statusCode, 200);
+    let nextState = normalizeStudentEconomyState(Reflect.get(Object(db.value().studentEconomy), '12'));
+    if (nextState.pendingCharacterChoice) {
+      assert.ok(!nextState.pendingCharacterChoice.characterIds.includes('character-58'));
+      assert.equal((await act(12, { type: 'choose_draw_character', drawRequestId: nextState.pendingCharacterChoice.drawRequestId, characterId: nextState.pendingCharacterChoice.characterIds[0] }, 'random-initial-choice-12')).statusCode, 200);
+      nextState = normalizeStudentEconomyState(Reflect.get(Object(db.value().studentEconomy), '12'));
+    }
+    assert.notEqual(nextState.activeCharacterId, 'character-58');
+    assert.equal(nextState.ownedCharacterIds.filter(id => id === 'character-58').length, 1);
+    assert.deepEqual(Reflect.get(Object(db.value().studentEconomy), '1'), Reflect.get(Object(previousValue.studentEconomy), '1'));
   });
 });
 

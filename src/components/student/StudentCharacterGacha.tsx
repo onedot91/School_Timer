@@ -5,6 +5,7 @@ import {
   STUDENT_CHARACTER_DRAW_PRICE,
   STUDENT_CHARACTER_PRIZES,
   type StudentCharacterPrizeId,
+  type StudentCharacterChoice,
   type StudentEconomyAction,
   type StudentEconomyState,
 } from '../../lib/studentEconomy';
@@ -17,6 +18,7 @@ import {
 } from '../../lib/studentGachaMotion';
 import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentCharacterGachaReveal from './StudentCharacterGachaReveal';
+import StudentCharacterInitialChoice from './StudentCharacterInitialChoice';
 
 interface StudentCharacterGachaProps {
   readonly tabPanelId?: string;
@@ -27,7 +29,7 @@ interface StudentCharacterGachaProps {
   readonly onAction: (action: StudentEconomyAction) => Promise<boolean>;
 }
 
-type GachaStage = 'ready' | 'aiming' | 'rolling' | 'reveal';
+type GachaStage = 'ready' | 'aiming' | 'rolling' | 'reveal' | 'choice';
 interface ClawPositionStyle extends CSSProperties {
   readonly '--student-claw-x': string;
 }
@@ -53,6 +55,8 @@ export default function StudentCharacterGacha({
   const [isDrawSaved, setIsDrawSaved] = useState(false);
   const [machineCycle, setMachineCycle] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [choice, setChoice] = useState<StudentCharacterChoice | null>(state.pendingCharacterChoice);
+  const [isChoiceDismissed, setIsChoiceDismissed] = useState(false);
   const [origin, setOrigin] = useState<StudentGachaRect | null>(null);
   const [dailyCapsules, setDailyCapsules] = useState(() => getDailyGachaCapsules(getKoreanDateKey()));
   const [clawDropMotion, setClawDropMotion] = useState({ dropDistance: 0, cableScale: 1 });
@@ -65,7 +69,11 @@ export default function StudentCharacterGacha({
   const selectedCapsuleRef = useRef<HTMLDivElement>(null);
   const ownsAll = state.ownedCharacterIds.length >= STUDENT_CHARACTER_PRIZES.length;
   const drawPrice = state.characterFreeDrawAvailable ? 0 : STUDENT_CHARACTER_DRAW_PRICE;
-  const canDraw = availableBalance >= drawPrice && !ownsAll;
+  const canDraw = availableBalance >= drawPrice && !ownsAll && !state.pendingCharacterChoice;
+  const visibleChoice = choice ?? state.pendingCharacterChoice;
+  useEffect(() => {
+    if (stage === 'ready' && state.pendingCharacterChoice) setChoice(state.pendingCharacterChoice);
+  }, [stage, state.pendingCharacterChoice]);
   const drawnCharacters = drawnCharacterIds.flatMap((id) => {
     const character = STUDENT_CHARACTER_PRIZES.find((prize) => prize.id === id);
     return character ? [character] : [];
@@ -112,13 +120,20 @@ export default function StudentCharacterGacha({
   }, [stage, animate, reduceMotion, clawDropMotion, clawPosition]);
 
   useEffect(() => {
-    if (stage !== 'rolling' || !isRollFinished || !isDrawSaved || drawnCharacterIds.length === 0) return;
+    if (stage !== 'rolling' || !isRollFinished || !isDrawSaved) return;
+    if (state.pendingCharacterChoice) {
+      setChoice(state.pendingCharacterChoice);
+      setIsChoiceDismissed(false);
+      setStage('choice');
+      return;
+    }
+    if (drawnCharacterIds.length === 0) return;
     const capsule = caughtCapsuleRef.current;
     if (!capsule) return;
     const rect = capsule.getBoundingClientRect();
     setOrigin({ left: rect.left, top: rect.top, width: rect.width, height: rect.height });
     setStage('reveal');
-  }, [stage, isRollFinished, isDrawSaved, drawnCharacterIds]);
+  }, [stage, isRollFinished, isDrawSaved, drawnCharacterIds, state.pendingCharacterChoice]);
 
   const resetMachine = () => {
     runRef.current += 1;
@@ -126,6 +141,8 @@ export default function StudentCharacterGacha({
     setStage('ready');
     setOrigin(null);
     setMachineCycle((value) => value + 1);
+    setChoice(null);
+    setIsChoiceDismissed(true);
   };
 
   const startDraw = async () => {
@@ -223,13 +240,18 @@ export default function StudentCharacterGacha({
         <aside ref={controlPanelRef} className="student-claw-control-panel" aria-label="인형 뽑기 조작" tabIndex={stage === 'aiming' ? 0 : -1} onKeyDown={handleControlsKeyDown}>
           <div className="student-claw-control-heading">
             <span>{stage === 'ready' ? '뽑기 시작' : stage === 'aiming' ? '집게 조작' : '뽑는 중'}</span>
-            <strong>{drawPrice === 0 ? '무료' : `${drawPrice} 고마`}</strong>
+            <strong>{state.pendingCharacterChoice ? '추가 비용 없음' : drawPrice === 0 ? '무료' : `${drawPrice} 고마`}</strong>
             {STUDENT_CHARACTER_PRIZES.length - state.ownedCharacterIds.length === 1
               ? <small>마지막 스킨이 기다리고 있어요</small> : null}
           </div>
           {stage === 'ready' ? (
-            <button type="button" className="student-character-draw-button" disabled={!canDraw || isSaving} aria-describedby="student-character-gacha-help" onClick={() => setIsConfirmOpen(true)}>
-              <Sparkles aria-hidden="true" />{ownsAll ? '모든 스킨을 모았어요' : '고마 스킨 뽑기'}
+            <button type="button" className="student-character-draw-button" disabled={(!canDraw && !state.pendingCharacterChoice) || isSaving} aria-describedby="student-character-gacha-help" onClick={() => {
+              if (state.pendingCharacterChoice) {
+                setChoice(state.pendingCharacterChoice);
+                setIsChoiceDismissed(false);
+              } else setIsConfirmOpen(true);
+            }}>
+              <Sparkles aria-hidden="true" />{state.pendingCharacterChoice ? '초성 선택 이어하기' : ownsAll ? '모든 스킨을 모았어요' : '고마 스킨 뽑기'}
             </button>
           ) : (
             <div className="student-claw-operation">
@@ -244,8 +266,8 @@ export default function StudentCharacterGacha({
               <p>{stage === 'aiming' ? '버튼이나 방향키로 움직여요.' : rollMessage}</p>
             </div>
           )}
-          <p id="student-character-gacha-help" className={'student-character-gacha-help' + (availableBalance < drawPrice && stage !== 'rolling' && stage !== 'reveal' ? '' : ' sr-only')}>
-            {availableBalance < drawPrice ? `사용 가능한 고마가 ${drawPrice} 고마보다 적어요.` : '뽑기 전에는 어떤 스킨인지 알 수 없어요.'}
+          <p id="student-character-gacha-help" className={'student-character-gacha-help' + (!state.pendingCharacterChoice && availableBalance < drawPrice && stage !== 'rolling' && stage !== 'reveal' ? '' : ' sr-only')}>
+            {state.pendingCharacterChoice ? '추가 비용 없이 스킨을 선택할 수 있어요.' : availableBalance < drawPrice ? `사용 가능한 고마가 ${drawPrice} 고마보다 적어요.` : '뽑기 전에는 어떤 스킨인지 알 수 없어요.'}
           </p>
           {errorMessage ? <p className="student-character-gacha-help" role="alert">{errorMessage}</p> : null}
         </aside>
@@ -253,6 +275,9 @@ export default function StudentCharacterGacha({
       <p className="sr-only" role="status">{stage === 'rolling' ? rollMessage : ''}</p>
       <StudentConfirmDialog isOpen={isConfirmOpen} kicker="고마 스킨 가챠" title={drawPrice === 0 ? '무료로 뽑을까요?' : `${drawPrice} 고마로 뽑을까요?`} description="확인 후 집게를 직접 움직여 뽑을 수 있어요."
         confirmLabel="조작 시작" isPending={isSaving} returnFocusRef={controlPanelRef} onCancel={() => setIsConfirmOpen(false)} onConfirm={beginAiming} />
+      {visibleChoice && !isChoiceDismissed && (stage === 'choice' || stage === 'ready') ? (
+        <StudentCharacterInitialChoice key={visibleChoice.drawRequestId} choice={visibleChoice} state={state} isSaving={isSaving} returnFocusRef={controlPanelRef} onAction={onAction} onClose={resetMachine} />
+      ) : null}
       {stage === 'reveal' && origin && drawnCharacters[0] ? (
         <StudentCharacterGachaReveal capsuleSrc={selectedCapsule} character={drawnCharacters[0]} bonusCharacter={drawnCharacters[1]} origin={origin} returnFocusRef={controlPanelRef} onClose={resetMachine} />
       ) : null}

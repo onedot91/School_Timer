@@ -63,6 +63,7 @@ const ACTION_TYPES = new Set([
   'transfer',
   'buy_item',
   'draw_character',
+  'choose_draw_character',
   'select_character',
   'buy_house',
   'select_house',
@@ -78,6 +79,8 @@ const ACTION_ERRORS = new Set([
   'HOUSE_CREATOR_BALANCE_LIMIT',
   'ALL_CHARACTERS_OWNED',
   'CHARACTER_NOT_OWNED',
+  'CHARACTER_CHOICE_PENDING',
+  'INVALID_CHARACTER_CHOICE',
   'CUSTOM_HOUSE_COUPON_OWNED',
   'CUSTOM_HOUSE_COUPON_REQUIRED',
   'CUSTOM_HOUSE_NAME_REQUIRED',
@@ -150,6 +153,9 @@ const parseBody = (body: unknown) => {
     || !ACTION_TYPES.has(actionType)
   ) return null;
   if (actionType === 'select_profile' && typeof Reflect.get(action as object, 'profileImage') !== 'string') return null;
+  if (actionType === 'choose_draw_character'
+    && (typeof Reflect.get(action as object, 'characterId') !== 'string'
+      || typeof Reflect.get(action as object, 'drawRequestId') !== 'string')) return null;
   return { studentNumber, requestId, action: action as StudentEconomyApiAction } as const;
 };
 
@@ -259,6 +265,7 @@ const createDomainMutation = (
 
   const result = applyStudentEconomyAction({
     state: economyStates[studentKey],
+    studentNumber,
     action,
     wallet,
     availableWallet: Math.max(0, wallet - reserved),

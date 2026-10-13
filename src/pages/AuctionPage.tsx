@@ -2114,6 +2114,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         const currentWallet = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
         const result = applyStudentEconomyAction({
           state: snapshot.studentEconomy[studentKey],
+          studentNumber,
           action,
           wallet: currentWallet,
           availableWallet: Math.max(0, currentWallet - reservedAmount),
@@ -2181,7 +2182,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setCurrencyHistory(savedHistory);
       setStudentEconomyStates(savedEconomyStates);
       setStudentLifeSnapshot(savedStudentLife);
-      if (resultMessage && action.type !== 'draw_character' && action.type !== 'buy_house') showStatusMessage(resultMessage);
+      if (resultMessage && action.type !== 'draw_character' && action.type !== 'choose_draw_character' && action.type !== 'buy_house') showStatusMessage(resultMessage);
       if (isSupabaseSettingsEnabled) void refreshAuctionState({ forceFull: true });
       return true;
     } catch (error) {
@@ -2192,6 +2193,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         ? '제작자의 고마 보유 한도로 구매할 수 없습니다. 선생님께 알려 주세요.'
         : message === 'INSUFFICIENT_AVAILABLE_CURRENCY'
         ? '사용 가능한 고마가 부족합니다.'
+        : message === 'CHARACTER_CHOICE_PENDING'
+        ? '진행 중인 초성 선택을 먼저 완료해 주세요.'
+        : message === 'INVALID_CHARACTER_CHOICE'
+        ? '초성 선택지를 새로 확인한 뒤 선택해 주세요.'
         : message === 'INVALID_BANK_AMOUNT'
           ? '예금은 10고마부터 맡길 수 있습니다.'
         : message === 'INSUFFICIENT_BANK_BALANCE'

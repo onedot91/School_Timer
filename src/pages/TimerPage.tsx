@@ -5,6 +5,7 @@ import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confir
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { StorageCommandError } from '../lib/storageCommandClient';
 import { getAuctionAwardErrorMessage } from '../lib/auctionAwardError';
+import { readConfirmedAuctionAward } from '../lib/auctionAwardConfirmation';
 import { applyAcknowledgedTeacherChanges, createTeacherSettingsChanges, isStorageRecord, type TeacherSettingChange } from '../lib/teacherStorageCommand';
 import { getTodayFriendDateKey } from '../lib/todayFriend';
 import { loadTeacherTodayFriendState } from '../lib/todayFriendClient';
@@ -7869,11 +7870,21 @@ export default function TimerPage() {
     void executeStorageCommand({ requestId: `award-${awardPresentationKey}`, action: 'teacher.auction.finalize', payload: {
       itemId: award.itemId, useLatestBid: true,
     } })
-      .then(({ updatedAt, value }) => {
+      .then(({ updatedAt, value, result }) => {
         if (value) lastSharedSettingsUpdatedAtRef.current = updatedAt;
         if (!value) {
-          setAwardPresentation(previous => previous?.award.awardedAt === award.awardedAt ? { ...previous, hasFinalized: true } : previous);
+          const confirmedAward = readConfirmedAuctionAward(result);
+          if (!confirmedAward || confirmedAward.itemId !== award.itemId) {
+            throw new StorageCommandError('AUCTION_RESULT_UNAVAILABLE', 502);
+          }
+          setAuctionAwards(previous => ({ ...previous, [award.itemId]: confirmedAward }));
+          setAwardPresentation(previous => previous?.award.awardedAt === award.awardedAt
+            ? { ...previous, award: { ...confirmedAward, awardedAt: award.awardedAt }, hasFinalized: true }
+            : previous);
           return;
+        }
+        if (!normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS)[award.itemId]) {
+          throw new StorageCommandError('AUCTION_RESULT_UNAVAILABLE', 502);
         }
         applyFinalizedState({ value, awarded: true, balances: normalizeCurrencyBalances(value.currencyBalances),
           history: normalizeCurrencyHistory(value.currencyHistory), awards: normalizeAuctionAwards(value.auctionAwards, AUCTION_ITEM_IDS) });

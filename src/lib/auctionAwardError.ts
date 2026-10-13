@@ -6,6 +6,7 @@ export const getAuctionAwardErrorMessage = (error: unknown): string => {
   if (availability) return availability;
   const details = collectSaveFailureDiagnostics(error);
   const code = error instanceof Error ? Reflect.get(error, 'serverCode') ?? Reflect.get(error, 'code') ?? error.message : undefined;
+  if (code === 'AUCTION_RESULT_UNAVAILABLE') return '낙찰 저장은 확인됐지만 결과를 불러오지 못했어요. 창을 닫고 낙찰 내역을 다시 확인해 주세요.';
   if (code === 'AUCTION_ALREADY_AWARDED') return '이미 낙찰된 상품입니다. 창을 닫고 경매 결과를 확인해 주세요.';
   if (code === 'AUCTION_BID_CHANGED') return '최고 입찰이 바뀌었습니다. 창을 닫고 최신 입찰을 확인한 뒤 낙찰해 주세요.';
   if (code === 'INSUFFICIENT_CURRENCY_FOR_AUCTION_AWARD') return '낙찰자의 보유 고마가 낙찰가보다 부족합니다. 창을 닫고 잔액을 확인해 주세요.';

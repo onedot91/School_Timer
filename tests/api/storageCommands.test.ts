@@ -44,6 +44,18 @@ const environment = async (run: (call: (actor:number,method:string,body?:unknown
 };
 const command=(requestId:string,action:string,payload:unknown)=>({protocolVersion:2,requestId,action,payload});
 
+test('낙찰 영수증은 화면과 다른 최신 입찰자를 반환하고 재전송에도 한 번만 차감한다', () => environment(async (call, fixture) => {
+  const body = command('auction-latest-bid-0001', 'teacher.auction.finalize', { itemId: 'item-b', useLatestBid: true });
+  assert.equal((await call(0, 'POST', body)).status, 200);
+  const receipt = await call(0, 'GET', undefined, { requestId: body.requestId, receiptOnly: '1' });
+  const award = Reflect.get(Object(Reflect.get(Object(receipt.body), 'result')), 'award');
+  assert.equal(award?.winner, 12, '조회 없이도 실제 확정된 낙찰자를 알 수 있어야 합니다.');
+  assert.equal(award?.amount, 50);
+  assert.equal((await call(0, 'POST', body)).status, 200);
+  assert.equal(Reflect.get(Object(fixture.read().value.currencyBalances), '12'), 50);
+  assert.equal(Reflect.get(Object(fixture.read().value.currencyHistory), '12').length, 1);
+}, { ...initial(), auctionBids: { 'item-b': { bidder: 12, amount: 50 } }, auctionAwards: {} }));
+
 test('주간 마감 API는 보유 종목을 매각해 세금을 계산하고 재요청에도 한 번만 정산한다', () => environment(async (call, fixture) => {
   const body = command('weekly-stock-close-0001', 'teacher.auction.weekly-close', { cycleKey: '2026-10-12' });
   fixture.loseNextCommitResponse();

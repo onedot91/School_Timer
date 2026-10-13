@@ -31,3 +31,10 @@ test('실제 낙찰 저장 미확정은 안전한 진단 코드만 표시하고 
   assert.doesNotMatch(getAuctionAwardErrorMessage(new Error('private student data')), /private|student data/);
   assert.match(getAuctionAwardErrorMessage(new StorageCommandError('DEVICE_REGISTRATION_REQUIRED', 401)), /교사 로그인/);
 });
+
+test('저장 영수증은 확인됐지만 결과가 없으면 미저장으로 안내하지 않는다', () => {
+  const message = getAuctionAwardErrorMessage(new StorageCommandError('AUCTION_RESULT_UNAVAILABLE', 502));
+  assert.match(message, /낙찰 저장은 확인됐지만/);
+  assert.match(message, /낙찰 내역을 다시 확인/);
+  assert.doesNotMatch(message, /저장 결과를 확인하지 못/);
+});

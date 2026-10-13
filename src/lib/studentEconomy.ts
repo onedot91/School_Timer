@@ -10,6 +10,21 @@ const BANK_INTEREST_RATE = 0.1;
 
 export const STUDENT_CHARACTER_DRAW_PRICE = 50;
 export const STUDENT_CHARACTER_DOUBLE_DRAW_CHANCE = 0.1;
+export const STUDENT_CHARACTER_INITIAL_CHOICE_CHANCE = 0.3;
+
+export const getStudentCharacterInitials = (name: string): string => {
+  const initials = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+  const stem = name.endsWith(' 고마') ? name.slice(0, -3) : name;
+  const masked = Array.from(stem, (letter) => {
+    const code = letter.codePointAt(0) ?? 0;
+    return code >= 0xac00 && code <= 0xd7a3 ? initials[Math.floor((code - 0xac00) / 588)] : letter;
+  }).join('');
+  return name.endsWith(' 고마') ? `${masked} 고마` : masked;
+};
+
+export const hasStudentCharacterInitials = (name: string): boolean => (
+  /[가-힣]/.test(name.endsWith(' 고마') ? name.slice(0, -3) : name)
+);
 export const STUDENT_CUSTOM_HOUSE_COUPON_PRICE = 50;
 
 export interface StudentShopCatalogItem {
@@ -217,11 +232,17 @@ export interface StudentEconomyState {
   ownedCharacterIds: StudentCharacterPrizeId[];
   activeCharacterId: StudentCharacterPrizeId | null;
   characterFreeDrawAvailable: boolean;
+  pendingCharacterChoice: StudentCharacterChoice | null;
   ownedHouseIds: StudentHouseDesignId[];
   activeHouseId: StudentHouseDesignId | 'custom' | null;
   hasCustomHouseCoupon: boolean;
   customHouseDesign: StudentCustomHouseDesign | null;
   processedRequestIds: string[];
+}
+
+export interface StudentCharacterChoice {
+  drawRequestId: string;
+  characterIds: StudentCharacterPrizeId[];
 }
 
 export interface StudentDeposit {
@@ -330,6 +351,7 @@ export type StudentEconomyAction =
   | { type: 'transfer'; amount: number; recipientNumber: number; dateKey: string }
   | { type: 'buy_item'; itemId: StudentShopItemId }
   | { type: 'draw_character' }
+  | { type: 'choose_draw_character'; drawRequestId: string; characterId: StudentCharacterPrizeId }
   | { type: 'select_character'; characterId: StudentCharacterPrizeId | null }
   | { type: 'buy_house'; houseId: StudentHouseDesignId }
   | { type: 'select_house'; houseId: StudentHouseDesignId | 'custom' | null }
@@ -605,6 +627,7 @@ export const createStudentEconomyState = (): StudentEconomyState => ({
   ownedCharacterIds: [],
   activeCharacterId: null,
   characterFreeDrawAvailable: true,
+  pendingCharacterChoice: null,
   ownedHouseIds: [],
   activeHouseId: null,
   hasCustomHouseCoupon: false,
@@ -626,6 +649,12 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
   const loanPrincipal = loan === 0
     ? 0
     : Math.min(loan, storedLoanPrincipal || Math.floor((loan * 10) / 11));
+  const ownedCharacterIds = normalizeIdList<StudentCharacterPrizeId>(source.ownedCharacterIds, CHARACTER_IDS);
+  const choice = source.pendingCharacterChoice;
+  const candidate = choice && typeof choice === 'object' && !Array.isArray(choice)
+    ? choice as Record<string, unknown> : {};
+  const characterIds = normalizeIdList<StudentCharacterPrizeId>(candidate.characterIds, CHARACTER_IDS)
+    .filter((id) => !ownedCharacterIds.includes(id)).slice(0, 3);
   return {
     deposit: normalizedDeposits.reduce((sum, deposit) => sum + deposit.principal, 0),
     deposits: normalizedDeposits,
@@ -644,11 +673,15 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
     holdings: normalizeCountMap<StudentStockId>(source.holdings, STOCK_IDS),
     stockPurchases: normalizeStudentStockPurchases(source.stockPurchases),
     investments: normalizeStudentInvestments(source.investments),
-    ownedCharacterIds: normalizeIdList<StudentCharacterPrizeId>(source.ownedCharacterIds, CHARACTER_IDS),
+    ownedCharacterIds,
     activeCharacterId: typeof source.activeCharacterId === 'string' && CHARACTER_IDS.has(source.activeCharacterId)
       ? source.activeCharacterId as StudentCharacterPrizeId
       : null,
     characterFreeDrawAvailable: source.characterFreeDrawAvailable !== false,
+    pendingCharacterChoice: typeof candidate.drawRequestId === 'string'
+      && candidate.drawRequestId.length >= 8 && candidate.drawRequestId.length <= 160
+      && /^[a-zA-Z0-9-]+$/.test(candidate.drawRequestId) && characterIds.length > 0
+      ? { drawRequestId: candidate.drawRequestId, characterIds } : null,
     ownedHouseIds: normalizeIdList<StudentHouseDesignId>(source.ownedHouseIds, HOUSE_IDS),
     activeHouseId: source.activeHouseId === 'custom' || (typeof source.activeHouseId === 'string' && HOUSE_IDS.has(source.activeHouseId))
       ? source.activeHouseId as StudentHouseDesignId | 'custom'
@@ -918,6 +951,7 @@ export const applyStudentEconomyAction = ({
   wallet,
   availableWallet,
   requestId,
+  studentNumber,
   shopCatalog,
   stockMarket,
   characterDrawRoll,
@@ -927,6 +961,7 @@ export const applyStudentEconomyAction = ({
   wallet: number;
   availableWallet: number;
   requestId: string;
+  studentNumber?: number;
   shopCatalog?: unknown;
   stockMarket?: unknown;
   characterDrawRoll?: number;
@@ -1047,27 +1082,59 @@ export const applyStudentEconomyAction = ({
     nextState = { ...state, inventory: { ...state.inventory, [item.id]: (state.inventory[item.id] ?? 0) + 1 } };
     message = `${item.name}을(를) 샀습니다.`;
   } else if (action.type === 'draw_character') {
+    if (state.pendingCharacterChoice) throw new Error('CHARACTER_CHOICE_PENDING');
     const remaining = STUDENT_CHARACTER_PRIZES.filter((character) => !state.ownedCharacterIds.includes(character.id));
     if (remaining.length < 1) throw new Error('ALL_CHARACTERS_OWNED');
     spend(state.characterFreeDrawAvailable ? 0 : STUDENT_CHARACTER_DRAW_PRICE);
-    const firstIndex = hashText(requestId) % remaining.length;
+    const oneTimeCharacterIndex = studentNumber === 12
+      ? remaining.findIndex((character) => character.id === 'character-58')
+      : -1;
+    const firstIndex = oneTimeCharacterIndex >= 0 ? oneTimeCharacterIndex : hashText(requestId) % remaining.length;
     const character = remaining[firstIndex];
     const roll = characterDrawRoll ?? hashText(requestId + '-double') % 10;
     const isDouble = remaining.length > 1 && roll < STUDENT_CHARACTER_DOUBLE_DRAW_CHANCE * 10;
+    const choicePool = remaining.filter((prize) => hasStudentCharacterInitials(prize.name));
+    const isChoice = choicePool.length > 0 && roll >= STUDENT_CHARACTER_DOUBLE_DRAW_CHANCE * 10
+      && roll < (STUDENT_CHARACTER_DOUBLE_DRAW_CHANCE + STUDENT_CHARACTER_INITIAL_CHOICE_CHANCE) * 10;
     const bonusIndex = isDouble
       ? (firstIndex + 1 + hashText(requestId + '-bonus-skin') % (remaining.length - 1)) % remaining.length
       : null;
     const prizes = bonusIndex === null ? [character] : [character, remaining[bonusIndex]];
+    const shuffledChoicePool = shuffleWithSeed(choicePool, requestId + '-choice');
+    const choicePrizes = choicePool.some((prize) => prize.id === character.id)
+      ? [character, ...shuffledChoicePool.filter((prize) => prize.id !== character.id)]
+      : shuffledChoicePool;
     reason = 'shop_purchase';
-    nextState = {
+    nextState = isChoice ? {
+      ...state,
+      characterFreeDrawAvailable: false,
+      pendingCharacterChoice: {
+        drawRequestId: requestId,
+        characterIds: choicePrizes.slice(0, 3).map((prize) => prize.id),
+      },
+    } : {
       ...state,
       ownedCharacterIds: [...state.ownedCharacterIds, ...prizes.map((prize) => prize.id)],
       activeCharacterId: character.id,
       characterFreeDrawAvailable: false,
     };
-    message = isDouble
+    message = isChoice ? '초성을 보고 스킨을 선택해 주세요.' : isDouble
       ? `더블 캡슐! ${prizes.map((prize) => prize.name).join(', ')} 스킨을 뽑았습니다.`
       : `${character.name} 스킨을 뽑았습니다.`;
+  } else if (action.type === 'choose_draw_character') {
+    const choice = state.pendingCharacterChoice;
+    if (!choice || choice.drawRequestId !== action.drawRequestId || !choice.characterIds.includes(action.characterId)) {
+      throw new Error('INVALID_CHARACTER_CHOICE');
+    }
+    const character = STUDENT_CHARACTER_PRIZES.find((prize) => prize.id === action.characterId);
+    if (!character) throw new Error('INVALID_CHARACTER_CHOICE');
+    nextState = {
+      ...state,
+      pendingCharacterChoice: null,
+      ownedCharacterIds: [...state.ownedCharacterIds, character.id],
+      activeCharacterId: character.id,
+    };
+    message = `${character.name} 스킨을 뽑았습니다.`;
   } else if (action.type === 'select_character') {
     if (action.characterId !== null && !state.ownedCharacterIds.includes(action.characterId)) throw new Error('CHARACTER_NOT_OWNED');
     nextState = { ...state, activeCharacterId: action.characterId };

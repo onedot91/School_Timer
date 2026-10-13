@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body><div id="root"></div><script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import StudentCharacterGacha from '/src/components/student/StudentCharacterGacha.tsx';
+import { applyStudentEconomyAction, createStudentEconomyState, normalizeStudentEconomyState } from '/src/lib/studentEconomy.ts';
+import '/src/index.css';
+const key = 'qa-gacha-impact-20261012';
+function Harness() {
+  const saved = JSON.parse(localStorage.getItem(key) || 'null');
+  const [state, setState] = React.useState(() => normalizeStudentEconomyState(saved?.state ?? { ...createStudentEconomyState(), characterFreeDrawAvailable: false }));
+  const [wallet, setWallet] = React.useState(saved?.wallet ?? 500);
+  const [roll, setRoll] = React.useState(1);
+  const [saving, setSaving] = React.useState(false);
+  const [fail, setFail] = React.useState(false);
+  const [scene, setScene] = React.useState(0);
+  const seedLegacy = (ids) => { setState(normalizeStudentEconomyState({ ...createStudentEconomyState(), characterFreeDrawAvailable: false, pendingCharacterChoice: { drawRequestId: 'qa-legacy-paid-draw', characterIds: ids } })); setScene(n => n + 1); };
+  const onAction = async (action) => {
+    setSaving(true);
+    await new Promise(resolve => setTimeout(resolve, 350));
+    if (fail) { setSaving(false); return false; }
+    try {
+      const result = applyStudentEconomyAction({ state, action, wallet, availableWallet: wallet, requestId: crypto.randomUUID(), characterDrawRoll: roll });
+      localStorage.setItem(key, JSON.stringify({state: result.state, wallet: result.wallet}));
+      setState(result.state); setWallet(result.wallet); return true;
+    } finally { setSaving(false); }
+  };
+  return React.createElement('main', {style: {height: '100dvh', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '16px', gap: '12px'}},
+    React.createElement('div', {style: {display: 'flex', gap: '16px'}},
+      React.createElement('span', {role: 'status'}, `잔액 ${wallet} / 보유 ${state.ownedCharacterIds.length}`),
+      React.createElement('select', {'aria-label': '검수 이벤트', value: roll, onChange: e => setRoll(Number(e.target.value))},
+        [ [1, '초성'], [9, '일반'], [0, '더블'] ].map(([value, label]) => React.createElement('option', {key: value, value}, label))),
+      React.createElement('label', null, React.createElement('input', {type: 'checkbox', checked: fail, onChange: e => setFail(e.target.checked)}), '저장 실패')),
+    React.createElement('div', {style: {display: 'flex', gap: '12px'}},
+      React.createElement('button', {onClick: () => seedLegacy(['character-6', 'character-21', 'character-19'])}, '이전 혼합 후보'),
+      React.createElement('button', {onClick: () => seedLegacy(['character-21'])}, '이전 3D 선택권'),
+      React.createElement('button', {onClick: () => document.documentElement.style.fontSize = document.documentElement.style.fontSize ? '' : '32px'}, '글자 크기 200%')),
+    React.createElement(StudentCharacterGacha, {key: scene, state, availableBalance: wallet, isSaving: saving, onAction}));
+}
+createRoot(document.getElementById('root')).render(React.createElement(Harness));
+</script></body></html>
