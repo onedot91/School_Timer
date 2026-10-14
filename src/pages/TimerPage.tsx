@@ -8015,9 +8015,10 @@ export default function TimerPage() {
     adjustedScheduleNow.getHours() * 3600 +
     adjustedScheduleNow.getMinutes() * 60 +
     adjustedScheduleNow.getSeconds();
+  const classEndImagePeriodIndexes = today === 3 ? [1, 3] : [0, 1];
   const activeClassEndImage = currentDaySchedule
     .filter((slot) => slot.type === 'class')
-    .slice(0, CLASS_END_IMAGE_MESSAGES.length)
+    .filter((_, index) => classEndImagePeriodIndexes.includes(index))
     .map((slot, index) => ({
       secondsSinceEnd: currentScheduleSecondsOfDay - slot.end * 60,
       message: CLASS_END_IMAGE_MESSAGES[index],
