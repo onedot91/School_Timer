@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyTeacherCurrencyDeductionsInSettings, normalizeCurrencyBalances, normalizeCurrencyHistory, settlePendingTeacherDeductionsInSettings } from './currency.js';
-import { getStudentEconomyState, normalizeStudentEconomyStates, normalizePendingTeacherDeductions } from './studentEconomy.js';
+import { getStudentEconomyState, getStudentInvestmentBalance, normalizeStudentEconomyStates, normalizePendingTeacherDeductions } from './studentEconomy.js';
 import { normalizeStudentLifeState } from './studentLife.js';
 import { applyTeacherStorageCommand } from '../server/teacherStorageCommands.js';
 import { storageCommandScope } from '../server/storageCommandScope.js';
@@ -16,6 +16,56 @@ const queue = (wallet = 2, amount = 10) => applyTeacherCurrencyDeductionsInSetti
   studentEconomy: { '3': { future: null } }, studentLife: { letters: [] },
 }, { ...input, amount }).value;
 const state = (value: Record<string, unknown>) => getStudentEconomyState(normalizeStudentEconomyStates(value.studentEconomy), 14);
+
+const investment = (currentAmount: number) => ({ investedAmount: 20, currentAmount, lastSettledDateKey: '2026-10-14', lastChangeAmount: 4, lastStage: 'rise' });
+
+test('교사 차감은 지갑 → 예금 → 증권사 현재 투자금 순서로 사용한다', () => {
+  const before = { currencyBalances: { '14': 2 }, studentEconomy: { '14': { deposit: 3,
+    investments: { sunny: investment(8), sprout: investment(12) } } } };
+  const after = applyTeacherCurrencyDeductionsInSettings(before, { ...input, amount: 10 }).value;
+  assert.equal(normalizeCurrencyBalances(after.currencyBalances)['14'], 0);
+  assert.equal(state(after).deposit, 0);
+  assert.equal(getStudentInvestmentBalance(state(after)), 15);
+  assert.equal(state(after).investments.sunny?.currentAmount, 3);
+  assert.equal(state(after).investments.sunny?.investedAmount, 8);
+  assert.equal(state(after).investments.sunny?.lastChangeAmount, 2);
+  assert.equal(state(after).pendingDeductions.length, 0);
+  assert.match(normalizeStudentLifeState(after.studentLife).letters[0]?.content ?? '', /5고마는 증권사 투자금/);
+  assert.deepEqual(applyTeacherCurrencyDeductionsInSettings(after, { ...input, amount: 10 }).value, after);
+});
+
+test('증권사만으로 차감할 수 있고 소진한 투자 포지션은 제거한다', () => {
+  const after = applyTeacherCurrencyDeductionsInSettings({ currencyBalances: { '14': 0 },
+    studentEconomy: { '14': { investments: { sunny: investment(10) } } },
+  }, input).value;
+  assert.equal(getStudentInvestmentBalance(state(after)), 0);
+  assert.equal(state(after).investments.sunny, undefined);
+  assert.equal(state(after).pendingDeductions.length, 0);
+});
+
+test('증권사 자산도 부족하면 전액 대기하고 투자금이 늘면 자동 차감한다', () => {
+  const before = applyTeacherCurrencyDeductionsInSettings({ currencyBalances: { '14': 0 },
+    studentEconomy: { '14': { investments: { sunny: investment(8) } } },
+  }, input).value;
+  assert.equal(state(before).investments.sunny?.currentAmount, 8);
+  assert.equal(state(before).pendingDeductions.length, 1);
+  const after = settlePendingTeacherDeductionsInSettings({ ...before,
+    studentEconomy: { '14': { ...state(before), investments: { sunny: investment(12) } } },
+  }, createdAt);
+  assert.equal(state(after).investments.sunny?.currentAmount, 2);
+  assert.equal(state(after).pendingDeductions.length, 0);
+  assert.deepEqual(settlePendingTeacherDeductionsInSettings(after, createdAt), after);
+});
+
+test('− 버튼의 서버 명령도 은행과 증권사 잔액을 차감한다', () => {
+  const result = applyTeacherStorageCommand({ currencyBalances: { '14': 1 },
+    studentEconomy: { '14': { deposit: 2, investments: { sunny: investment(10) } } },
+  }, 'teacher.currency.adjust', { studentNumbers: [14], amount: -5 }, { requestId: 'fixture-minus', createdAt });
+  assert.ok(result);
+  assert.equal(normalizeCurrencyBalances(result.value.currencyBalances)['14'], 0);
+  assert.equal(state(result.value).deposit, 0);
+  assert.equal(state(result.value).investments.sunny?.currentAmount, 8);
+});
 
 test('부족한 자산의 차감은 전액 대기로 저장하며 재시도해도 중복 등록하지 않는다', () => {
   const before = queue();

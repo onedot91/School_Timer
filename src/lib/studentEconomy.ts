@@ -409,6 +409,7 @@ export interface TeacherCurrencyDeductionResult {
   wallet: number;
   walletDeduction: number;
   depositDeduction: number;
+  investmentDeduction: number;
   applied: boolean;
 }
 
@@ -929,6 +930,10 @@ const assertTransactionAmount = (amount: number) => {
   }
 };
 
+export const getStudentInvestmentBalance = (state: Pick<StudentEconomyState, 'investments'> | undefined): number => (
+  STUDENT_STOCKS.reduce((sum, stock) => sum + (state?.investments[stock.id]?.currentAmount ?? 0), 0)
+);
+
 export const applyTeacherCurrencyDeduction = ({
   state: rawState,
   wallet: rawWallet,
@@ -943,15 +948,16 @@ export const applyTeacherCurrencyDeduction = ({
   const state = normalizeStudentEconomyState(rawState);
   const wallet = clampAmount(rawWallet);
   if (state.processedRequestIds.includes(requestId)) {
-    return { state, wallet, walletDeduction: 0, depositDeduction: 0, applied: false };
+    return { state, wallet, walletDeduction: 0, depositDeduction: 0, investmentDeduction: 0, applied: false };
   }
   if (!Number.isInteger(amount) || amount <= 0 || amount > 999_999 || requestId.trim().length === 0) {
     throw new Error('INVALID_TEACHER_DEDUCTION');
   }
-  if (wallet + state.deposit < amount) throw new Error('INSUFFICIENT_STUDENT_ASSETS');
+  if (wallet + state.deposit + getStudentInvestmentBalance(state) < amount) throw new Error('INSUFFICIENT_STUDENT_ASSETS');
 
   const walletDeduction = Math.min(wallet, amount);
-  const depositDeduction = amount - walletDeduction;
+  const depositDeduction = Math.min(state.deposit, amount - walletDeduction);
+  const investmentDeduction = amount - walletDeduction - depositDeduction;
   let remainingDepositDeduction = depositDeduction;
   const deposits = state.deposits.flatMap((deposit) => {
     if (remainingDepositDeduction === 0) return [deposit];
@@ -963,16 +969,35 @@ export const applyTeacherCurrencyDeduction = ({
       : [];
   });
 
+  const investments = { ...state.investments };
+  let remainingInvestmentDeduction = investmentDeduction;
+  for (const stock of STUDENT_STOCKS) {
+    const position = investments[stock.id];
+    if (!position || remainingInvestmentDeduction === 0 || position.currentAmount === 0) continue;
+    const deduction = Math.min(position.currentAmount, remainingInvestmentDeduction);
+    remainingInvestmentDeduction -= deduction;
+    const currentAmount = position.currentAmount - deduction;
+    if (currentAmount === 0) delete investments[stock.id];
+    else investments[stock.id] = {
+      ...position,
+      currentAmount,
+      investedAmount: Math.max(1, Math.round(position.investedAmount * currentAmount / position.currentAmount)),
+      lastChangeAmount: Math.round(position.lastChangeAmount * currentAmount / position.currentAmount),
+    };
+  }
+
   return {
     state: {
       ...state,
       deposit: deposits.reduce((sum, deposit) => sum + deposit.principal, 0),
       deposits,
+      investments,
       processedRequestIds: [...state.processedRequestIds, requestId].slice(-MAX_PROCESSED_REQUESTS),
     },
     wallet: wallet - walletDeduction,
     walletDeduction,
     depositDeduction,
+    investmentDeduction,
     applied: true,
   };
 };

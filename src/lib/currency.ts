@@ -3,6 +3,7 @@ import {
   applyTeacherCurrencyDeduction,
   getKoreanDateKey,
   getStudentEconomyState,
+  getStudentInvestmentBalance,
   normalizeStudentEconomyStates,
   settleStudentInvestments,
   type StudentEconomyStates,
@@ -420,13 +421,14 @@ export const appendCurrencyHistoryEntry = (
 
 export const createTeacherCurrencyDeductionLetter = (
   studentLife: unknown,
-  { studentNumber, amount, teacherReason, requestId, createdAt, depositDeduction = 0 }: {
+  { studentNumber, amount, teacherReason, requestId, createdAt, depositDeduction = 0, investmentDeduction = 0 }: {
     studentNumber: number;
     amount: number;
     teacherReason: string;
     requestId: string;
     createdAt: string;
     depositDeduction?: number;
+    investmentDeduction?: number;
   },
 ) => {
   return createStudentLetter(normalizeStudentLifeState(studentLife), {
@@ -442,6 +444,9 @@ export const createTeacherCurrencyDeductionLetter = (
       `: ${teacherReason.trim().slice(0, 60)}`,
       ...(depositDeduction > 0
         ? ['', `보유 고마가 부족해 ${depositDeduction.toLocaleString('ko-KR')}고마는 예금에서 사용했어요.`]
+        : []),
+      ...(investmentDeduction > 0
+        ? ['', `${investmentDeduction.toLocaleString('ko-KR')}고마는 증권사 투자금에서 사용했어요.`]
         : []),
     ].join('\n'),
     createdAt,
@@ -490,6 +495,7 @@ export const applyTeacherCurrencyDeductionInSettings = (
       deposit: getStudentEconomyState(economy, studentNumber).deposit,
       walletDeduction: 0,
       depositDeduction: 0,
+      investmentDeduction: 0,
     };
   }
 
@@ -509,6 +515,7 @@ export const applyTeacherCurrencyDeductionInSettings = (
   const nextLife = createTeacherCurrencyDeductionLetter(current.studentLife, {
     studentNumber, amount, teacherReason: normalizedReason, requestId, createdAt,
     depositDeduction: deduction.depositDeduction,
+    investmentDeduction: deduction.investmentDeduction,
   });
 
   return {
@@ -524,6 +531,7 @@ export const applyTeacherCurrencyDeductionInSettings = (
     deposit: deduction.state.deposit,
     walletDeduction: deduction.walletDeduction,
     depositDeduction: deduction.depositDeduction,
+    investmentDeduction: deduction.investmentDeduction,
   };
 };
 
@@ -540,7 +548,7 @@ export const applyTeacherCurrencyDeductionsInSettings = (
     const request = { ...deduction, studentNumber, requestId: `${deduction.requestId}-${studentNumber}` };
     const state = getStudentEconomyState(normalizeStudentEconomyStates(nextValue.studentEconomy), studentNumber);
     const wallet = normalizeCurrencyBalances(nextValue.currencyBalances)[String(studentNumber)] ?? DEFAULT_CURRENCY_BALANCE;
-    if (deferIfInsufficient && wallet + state.deposit < deduction.amount) {
+    if (deferIfInsufficient && wallet + state.deposit + getStudentInvestmentBalance(state) < deduction.amount) {
       nextValue = queueTeacherCurrencyDeductionInSettings(nextValue, request);
     } else nextValue = applyTeacherCurrencyDeductionInSettings(nextValue, request).value;
   }
@@ -568,7 +576,7 @@ export const queueTeacherCurrencyDeductionInSettings = (
     } },
     studentLife: createStudentLetter(normalizeStudentLifeState(value.studentLife), {
       id: `teacher-pending-letter-${settlementRequestId}`, recipient: studentNumber, senderLabel: '선생님', senderStudentNumber: null,
-      title: '고마 차감 대기', content: `${amount}고마 차감 대기\n\n차감 사유\n: ${reason}\n\n보유 고마와 예금이 충분해지면 자동으로 차감돼요.`, createdAt,
+      title: '고마 차감 대기', content: `${amount}고마 차감 대기\n\n차감 사유\n: ${reason}\n\n보유 고마·예금·증권사 투자금이 충분해지면 자동으로 차감돼요.`, createdAt,
     }),
   };
 };
@@ -582,7 +590,7 @@ export const settlePendingTeacherDeductionsInSettings = (value: Record<string, u
       const current = getStudentEconomyState(normalizeStudentEconomyStates(next.studentEconomy), studentNumber);
       const wallet = record(next.currencyBalances)[String(studentNumber)];
       if (typeof wallet !== 'number' || !Number.isInteger(wallet) || wallet < 0 || wallet > CURRENCY_BALANCE_MAX) break;
-      if (wallet + current.deposit < pending.amount) break;
+      if (wallet + current.deposit + getStudentInvestmentBalance(current) < pending.amount) break;
       const result = applyTeacherCurrencyDeductionInSettings(next, { studentNumber, amount: pending.amount, teacherReason: pending.teacherReason,
         requestId: pending.settlementRequestId, createdAt });
       const economies = normalizeStudentEconomyStates(result.value.studentEconomy);

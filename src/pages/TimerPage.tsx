@@ -24,7 +24,7 @@ import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStat
 import { applyStockMarketWeekImport, getStockMarketWeekLabel } from '../lib/stockMarketWeekImport';
 import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { StorageAvailabilityBanner } from '../components/StorageAvailabilityBanner';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -118,6 +118,7 @@ import {
   getInvestmentWeekDateKeys,
   investmentMultiplierToPercent,
   getPendingTeacherDeductionAmount,
+  getStudentInvestmentBalance,
   type StudentEconomyStates,
   type StudentShopCatalogItem,
   type StudentStockId,
@@ -7077,8 +7078,15 @@ export default function TimerPage() {
       try {
         const saved = await executeStorageCommand({ requestId, action, payload });
         if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
-        if (saved.value) commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
-        if (target && (target !== 'group' || currencyGroupKeyRef.current === groupKey)) recordCurrencyAdjustment(target, delta);
+        if (saved.value) {
+          commitCurrencyState(normalizeCurrencyBalances(saved.value.currencyBalances), normalizeCurrencyHistory(saved.value.currencyHistory));
+          setStudentEconomyStates(normalizeStudentEconomyStates(saved.value.studentEconomy));
+          setStudentLife(normalizeCurrentStudentLifeState(saved.value.studentLife));
+        }
+        const deferred = saved.value && Object.values(normalizeStudentEconomyStates(saved.value.studentEconomy))
+          .some(state => state.pendingDeductions.some(item => item.id.startsWith(`${requestId}-`)));
+        if (deferred) setCurrencyAdjustmentSummary(null);
+        else if (target && (target !== 'group' || currencyGroupKeyRef.current === groupKey)) recordCurrencyAdjustment(target, delta);
         setCurrencyDeductionError('');
       } catch (error) {
         setCurrencyDeductionError('저장 결과를 확인하지 못했어요. 최신 고마를 확인한 뒤 다시 시도해 주세요.');
@@ -7177,11 +7185,39 @@ export default function TimerPage() {
     setCurrencyBalanceInput(String(after));
   };
 
+  const deductLocalCurrency = (studentNumbers: readonly number[], amount: number, target: CurrencyAdjustmentTarget) => {
+    const snapshot = loadStoredStudentPetSnapshot();
+    const requestId = crypto.randomUUID();
+    const { value } = applyTeacherCurrencyDeductionsInSettings(snapshot, {
+      studentNumbers, amount, teacherReason: '화폐 조정', requestId, deferIfInsufficient: true,
+    });
+    const stored = storeStudentPetSnapshot({
+      ...snapshot,
+      currencyBalances: normalizeCurrencyBalances(value.currencyBalances),
+      currencyHistory: normalizeCurrencyHistory(value.currencyHistory),
+      studentEconomy: normalizeStudentEconomyStates(value.studentEconomy),
+      studentLife: normalizeCurrentStudentLifeState(value.studentLife),
+    });
+    if (!stored) {
+      reportSaveFailure('settings', 'storage');
+      setCurrencyDeductionError('차감을 저장하지 못했어요. 잔액을 확인하고 다시 시도해 주세요.');
+      return;
+    }
+    const saved = loadStoredStudentPetSnapshot();
+    commitCurrencyState(saved.currencyBalances, saved.currencyHistory);
+    setStudentEconomyStates(saved.studentEconomy);
+    setStudentLife(saved.studentLife);
+    const deferred = studentNumbers.some(number => saved.studentEconomy[String(number)]?.pendingDeductions.some(item => item.id === `${requestId}-${number}`));
+    if (deferred) setCurrencyAdjustmentSummary(null);
+    else recordCurrencyAdjustment(target, -amount);
+  };
+
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
     if (isSupabaseSettingsEnabled) {
       runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: [studentNumber], amount: delta }, 'student', delta);
       return;
     }
+    if (delta < 0) { deductLocalCurrency([studentNumber], -delta, 'student'); return; }
     setIsCurrencyDeductionVisible(false);
     setCurrencyDeductionReason('');
     setCurrencyDeductionError('');
@@ -7281,6 +7317,7 @@ export default function TimerPage() {
       runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: CURRENCY_STUDENT_NUMBERS, amount: delta }, 'all', delta);
       return;
     }
+    if (delta < 0) { deductLocalCurrency(CURRENCY_STUDENT_NUMBERS, -delta, 'all'); return; }
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = CURRENCY_STUDENT_NUMBERS.reduce<CurrencyBalances>((balances, studentNumber) => {
       const key = String(studentNumber);
@@ -7317,6 +7354,7 @@ export default function TimerPage() {
       runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: selectedStudentNumbers, amount: delta }, 'group', delta);
       return;
     }
+    if (delta < 0) { deductLocalCurrency(selectedStudentNumbers, -delta, 'group'); return; }
 
     const previousBalances = normalizeCurrencyBalances(currencyBalancesRef.current);
     const nextBalances = adjustCurrencyBalancesForStudents(previousBalances, selectedStudentNumbers, delta);
@@ -8434,6 +8472,9 @@ export default function TimerPage() {
   const selectedCurrencyDeposit = editingCurrencyNumber === null
     ? 0
     : (studentEconomyStates[String(editingCurrencyNumber)]?.deposit ?? 0);
+  const selectedCurrencyInvestment = editingCurrencyNumber === null
+    ? 0
+    : getStudentInvestmentBalance(studentEconomyStates[String(editingCurrencyNumber)]);
   const currencyTodayKey = getCurrencyHistoryDateKey(new Date());
   const currencyTodayStart = new Date(`${currencyTodayKey}T00:00:00+09:00`).getTime();
   const currencyTomorrowStart = currencyTodayStart + 24 * 60 * 60 * 1000;
@@ -8455,13 +8496,17 @@ export default function TimerPage() {
     ? Math.min(selectedCurrencyBalance ?? 0, Math.max(0, parsedCurrencyDeductionAmount))
     : 0;
   const currencyDepositDeduction = Number.isInteger(parsedCurrencyDeductionAmount)
-    ? Math.max(0, parsedCurrencyDeductionAmount - currencyWalletDeduction)
+    ? Math.min(selectedCurrencyDeposit, Math.max(0, parsedCurrencyDeductionAmount - currencyWalletDeduction))
+    : 0;
+  const currencyInvestmentDeduction = Number.isInteger(parsedCurrencyDeductionAmount)
+    ? Math.max(0, parsedCurrencyDeductionAmount - currencyWalletDeduction - currencyDepositDeduction)
     : 0;
   const deductionStudents = currencyAdjustmentTarget === 'group'
     ? CURRENCY_STUDENT_NUMBERS.filter(number => currencyGroupStudentNumbers.includes(number))
     : editingCurrencyNumber === null ? [] : [editingCurrencyNumber];
   const currencyDeductionDeferredCount = deductionStudents.filter(number =>
-    (currencyBalances[String(number)] ?? DEFAULT_CURRENCY_BALANCE) + (studentEconomyStates[String(number)]?.deposit ?? 0) < parsedCurrencyDeductionAmount).length;
+    (currencyBalances[String(number)] ?? DEFAULT_CURRENCY_BALANCE) + (studentEconomyStates[String(number)]?.deposit ?? 0)
+      + getStudentInvestmentBalance(studentEconomyStates[String(number)]) < parsedCurrencyDeductionAmount).length;
   const isCurrencyDeductionInvalid = !Number.isInteger(parsedCurrencyDeductionAmount)
     || parsedCurrencyDeductionAmount <= 0
     || parsedCurrencyDeductionAmount > CURRENCY_BALANCE_MAX
@@ -8520,6 +8565,12 @@ export default function TimerPage() {
             −{formatCurrencyAmount(currencyDepositDeduction)}
           </span>
         ) : null}
+        {currencyAdjustmentTarget === 'student' && currencyInvestmentDeduction > 0 && currencyDeductionDeferredCount === 0 ? (
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-[#39735B]" aria-label={`증권사에서 ${currencyInvestmentDeduction}고마 차감`}>
+            <TrendingUp size={13} aria-hidden="true" />
+            −{formatCurrencyAmount(currencyInvestmentDeduction)}
+          </span>
+        ) : null}
       </div>
       <div className="mt-1.5 flex items-center gap-1.5">
         <input
@@ -8549,7 +8600,7 @@ export default function TimerPage() {
         </button>
       </div>
       {!isCurrencyDeductionInvalid && currencyDeductionDeferredCount > 0 ? <p className="mt-2 text-sm text-[var(--teacher-warning)]" role="status">
-        {currencyDeductionDeferredCount}명은 잔액이 부족해 차감 대기로 기록돼요. 보유 고마와 예금이 충분해지면 자동 차감됩니다.
+        {currencyDeductionDeferredCount}명은 잔액이 부족해 차감 대기로 기록돼요. 보유 고마·예금·증권사 투자금이 충분해지면 자동 차감됩니다.
       </p> : null}
       {currencyDeductionError ? (
         <p className="mt-2 text-center text-[0.76rem] font-bold text-[#A34F45]" role="alert">{currencyDeductionError}</p>
@@ -12590,16 +12641,25 @@ export default function TimerPage() {
 
                     {currencyAdjustmentTarget === 'student' && editingCurrencyNumber !== null && selectedCurrencyBalance !== null ? (
                       <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-1.5">
                           <div className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]">
                             <span className="font-mono text-[1.2rem] font-black leading-none">{editingCurrencyNumber}</span>
                           </div>
-                          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-2 py-2.5 font-mono text-[0.9rem] font-black leading-none text-[#1F2523]" aria-label={`현재 보유 ${selectedCurrencyBalance}고마, 예금 ${selectedCurrencyDeposit}고마`}>
-                            <Coins size={15} className="shrink-0 text-[#B1772B]" aria-hidden="true" />
-                            <span>{formatCurrencyAmount(selectedCurrencyBalance)}</span>
+                          <div className="flex min-h-11 min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-1.5 rounded-[0.85rem] border-2 border-[#CFE0D8] bg-white px-1.5 py-2 font-mono text-[0.78rem] font-black leading-none text-[#1F2523]" aria-label={`현재 보유 ${selectedCurrencyBalance}고마, 예금 ${selectedCurrencyDeposit}고마, 증권사 ${selectedCurrencyInvestment}고마`}>
+                            <span className="inline-flex items-center gap-0.5" title="보유 고마">
+                              <Coins size={13} className="shrink-0 text-[#B1772B]" aria-hidden="true" />
+                              <span>{formatCurrencyAmount(selectedCurrencyBalance)}</span>
+                            </span>
                             <span className="text-[#A8B5AF]" aria-hidden="true">+</span>
-                            <Landmark size={15} className="shrink-0 text-[#39735B]" aria-hidden="true" />
-                            <span>{formatCurrencyAmount(selectedCurrencyDeposit)}</span>
+                            <span className="inline-flex items-center gap-0.5" title="은행 예금">
+                              <Landmark size={13} className="shrink-0 text-[#39735B]" aria-hidden="true" />
+                              <span>{formatCurrencyAmount(selectedCurrencyDeposit)}</span>
+                            </span>
+                            <span className="text-[#A8B5AF]" aria-hidden="true">+</span>
+                            <span className="inline-flex items-center gap-0.5" title="증권사 현재 투자금">
+                              <TrendingUp size={13} className="shrink-0 text-[#39735B]" aria-hidden="true" />
+                              <span>{formatCurrencyAmount(selectedCurrencyInvestment)}</span>
+                            </span>
                           </div>
                           {currencyAdjustmentSummary?.target === 'student' ? (
                             <div

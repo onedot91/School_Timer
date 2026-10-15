@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import { normalizeStudentEconomyStates } from './studentEconomy.js';
+import { normalizeStudentLifeState } from './studentLife.js';
 
 const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
 const start = source.indexOf('  const runTeacherCurrencyCommand =');
@@ -30,6 +32,9 @@ const harness = () => {
       responses.push({ resolve: () => resolve({ updatedAt: '2026-09-09', value: {} }), reject: () => reject(new Error('unconfirmed')) });
     }),
     normalizeCurrencyBalances: () => ({}), normalizeCurrencyHistory: () => ({}),
+    normalizeStudentEconomyStates, normalizeCurrentStudentLifeState: normalizeStudentLifeState,
+    setStudentEconomyStates: () => undefined, setStudentLife: () => undefined,
+    setCurrencyAdjustmentSummary: () => undefined,
     commitCurrencyState: () => { committed += 1; },
     recordCurrencyAdjustment: (_target: string, delta: number) => { confirmed += delta; },
     setCurrencyDeductionError: (value: string) => { error = value; },

@@ -93,6 +93,11 @@ export const applyTeacherStorageCommand = (
     const targets = action === 'teacher.currency.reset' ? CURRENCY_STUDENT_NUMBERS : students(payload.studentNumbers);
     const amount = action === 'teacher.currency.reset' ? DEFAULT_CURRENCY_BALANCE
       : integer(payload.amount, action === 'teacher.currency.adjust' ? -CURRENCY_BALANCE_MAX : 0, CURRENCY_BALANCE_MAX);
+    if (action === 'teacher.currency.adjust' && amount < 0) {
+      return finish(applyTeacherCurrencyDeductionsInSettings(current, {
+        studentNumbers: targets, amount: -amount, teacherReason: '화폐 조정', deferIfInsufficient: true, ...context,
+      }).value);
+    }
     const balances = normalizeCurrencyBalances(current.currencyBalances);
     if (action === 'teacher.currency.set' && targets.some(number => balances[String(number)] !== payload.expectedBalance)) {
       throw new TeacherStorageCommandError('CURRENCY_BALANCE_CHANGED', 409);
