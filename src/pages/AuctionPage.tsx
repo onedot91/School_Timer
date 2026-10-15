@@ -2283,6 +2283,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
             isLoading={isLoading}
+            pendingDeductions={studentEconomy.pendingDeductions}
             pet={studentPet}
             isPetSaving={isPetSaving}
             todayEmotion={todayEmotion}

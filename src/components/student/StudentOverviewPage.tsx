@@ -20,6 +20,7 @@ import {
   type StudentCharacterPrizeId,
   type StudentCustomHouseDesign,
   type StudentHouseDesignId,
+  type PendingTeacherDeduction,
 } from '../../lib/studentEconomy';
 import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
@@ -33,6 +34,7 @@ interface StudentOverviewPageProps {
   availableBalance: number;
   reservedAmount: number;
   isLoading: boolean;
+  pendingDeductions?: readonly PendingTeacherDeduction[];
   pet: StudentPetState;
   isPetSaving: boolean;
   todayEmotion: StudentEmotionDefinition | null;
@@ -67,6 +69,7 @@ export default function StudentOverviewPage({
   availableBalance,
   reservedAmount,
   isLoading,
+  pendingDeductions,
   pet,
   isPetSaving,
   todayEmotion,
@@ -222,6 +225,7 @@ export default function StudentOverviewPage({
             availableBalance={availableBalance}
             reservedAmount={reservedAmount}
             isLoading={isLoading}
+            pendingDeductions={pendingDeductions}
             onProfileClick={onOpenProfileShop}
           />
         </div>

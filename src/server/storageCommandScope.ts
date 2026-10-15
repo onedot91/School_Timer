@@ -30,6 +30,10 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
   };
   const money = (students: readonly number[], writable = true) => students.forEach(number => {
     wallets.add(number); history.add(number); if (writable) writeWallets.add(number);
+    if (writable) {
+      resources.push({ path: storageResourceKey('studentEconomy', String(number)) });
+      resources.push({ path: '/studentLife/letters', mail: { actor: number, direction: 'recipient' } });
+    }
   });
   const mail = (actor: number, direction: 'participant' | 'recipient' = 'recipient') => add({ path: '/studentLife/letters', mail: { actor, direction } });
   const own = session.role === 'student' ? session.studentNumber : null;

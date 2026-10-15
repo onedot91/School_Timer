@@ -216,7 +216,37 @@ export interface StudentCustomHouseDesign {
   theme: StudentCustomHouseTheme;
 }
 
+export interface PendingTeacherDeduction {
+  readonly id: string;
+  readonly settlementRequestId: string;
+  readonly amount: number;
+  readonly teacherReason: string;
+  readonly createdAt: string;
+}
+
+export const normalizePendingTeacherDeductions = (value: unknown): PendingTeacherDeduction[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.flatMap((item: unknown) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const source: Record<string, unknown> = Object.fromEntries(Object.entries(item));
+    if (typeof source.id !== 'string' || !/^[a-zA-Z0-9_-]{1,200}$/.test(source.id)
+      || typeof source.settlementRequestId !== 'string' || !/^pending-[a-zA-Z0-9_-]{1,40}$/.test(source.settlementRequestId)
+      || seen.has(source.id) || typeof source.amount !== 'number' || !Number.isInteger(source.amount)
+      || source.amount < 1 || source.amount > 999999 || typeof source.teacherReason !== 'string'
+      || source.teacherReason.trim().length === 0 || typeof source.createdAt !== 'string'
+      || !Number.isFinite(Date.parse(source.createdAt))) return [];
+    seen.add(source.id);
+    return [{ id: source.id, settlementRequestId: source.settlementRequestId, amount: source.amount, teacherReason: source.teacherReason.trim().slice(0, 60), createdAt: source.createdAt }];
+  });
+};
+
+export const getPendingTeacherDeductionAmount = (deductions: readonly PendingTeacherDeduction[]): number => (
+  deductions.reduce((sum, deduction) => sum + deduction.amount, 0)
+);
+
 export interface StudentEconomyState {
+  pendingDeductions: PendingTeacherDeduction[];
   deposit: number;
   deposits: StudentDeposit[];
   savings: number;
@@ -612,6 +642,7 @@ export const storeStudentShopCatalog = (catalog: unknown) => {
 };
 
 export const createStudentEconomyState = (): StudentEconomyState => ({
+  pendingDeductions: [],
   deposit: 0,
   deposits: [],
   savings: 0,
@@ -656,6 +687,7 @@ export const normalizeStudentEconomyState = (value: unknown): StudentEconomyStat
   const characterIds = normalizeIdList<StudentCharacterPrizeId>(candidate.characterIds, CHARACTER_IDS)
     .filter((id) => !ownedCharacterIds.includes(id)).slice(0, 3);
   return {
+    pendingDeductions: normalizePendingTeacherDeductions(source.pendingDeductions),
     deposit: normalizedDeposits.reduce((sum, deposit) => sum + deposit.principal, 0),
     deposits: normalizedDeposits,
     savings: clampAmount(source.savings),

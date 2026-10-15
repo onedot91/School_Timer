@@ -117,6 +117,7 @@ import {
   getInvestmentStageFromPercent,
   getInvestmentWeekDateKeys,
   investmentMultiplierToPercent,
+  getPendingTeacherDeductionAmount,
   type StudentEconomyStates,
   type StudentShopCatalogItem,
   type StudentStockId,
@@ -7100,6 +7101,8 @@ export default function TimerPage() {
     target: CurrencyAdjustmentTarget,
     delta: number,
   ) => {
+    let committedBalances = nextBalances;
+    let committedHistory = nextHistory;
     if (!isSupabaseSettingsEnabled) {
       const snapshot = loadStoredStudentPetSnapshot();
       const stored = storeStudentPetSnapshot({
@@ -7108,15 +7111,20 @@ export default function TimerPage() {
         currencyHistory: nextHistory,
       });
       if (!stored) return;
+      const committed = loadStoredStudentPetSnapshot();
+      committedBalances = committed.currencyBalances;
+      committedHistory = committed.currencyHistory;
+      setStudentEconomyStates(committed.studentEconomy);
+      setStudentLife(committed.studentLife);
     }
-    currencyBalancesRef.current = nextBalances;
-    currencyHistoryRef.current = nextHistory;
+    currencyBalancesRef.current = committedBalances;
+    currencyHistoryRef.current = committedHistory;
     if (isSupabaseSettingsEnabled && sharedSettingsHydratedRef.current) {
       isSharedSettingsSavePendingRef.current = true;
     }
     flushSync(() => {
-      setCurrencyBalances(nextBalances);
-      setCurrencyHistory(nextHistory);
+      setCurrencyBalances(committedBalances);
+      setCurrencyHistory(committedHistory);
       recordCurrencyAdjustment(target, delta);
     });
   };
@@ -7220,6 +7228,7 @@ export default function TimerPage() {
           teacherReason,
           requestId,
           createdAt,
+          deferIfInsufficient: true,
         });
         savedValue = result.value;
         const stored = storeStudentPetSnapshot({
@@ -7233,9 +7242,10 @@ export default function TimerPage() {
           reportSaveFailure('settings', 'storage');
           throw new Error('LOCAL_DEDUCTION_SAVE_FAILED');
         }
+        savedValue = { ...loadStoredStudentPetSnapshot() };
       } else {
         isSharedSettingsSavePendingRef.current = true;
-        const saved = await executeStorageCommand({ requestId, action: 'teacher.currency.deduct', payload: { studentNumbers, amount, teacherReason } });
+        const saved = await executeStorageCommand({ requestId, action: 'teacher.currency.deduct', payload: { studentNumbers, amount, teacherReason, deferIfInsufficient: true } });
         if (saved.value) lastSharedSettingsUpdatedAtRef.current = saved.updatedAt;
         if (!saved.value) return;
         savedValue = saved.value;
@@ -7247,7 +7257,9 @@ export default function TimerPage() {
       setStudentEconomyStates(normalizeStudentEconomyStates(savedValue.studentEconomy));
       setStudentLife(normalizeCurrentStudentLifeState(savedValue.studentLife));
       if (target === 'student') setCurrencyBalanceInput(String(savedBalances[String(studentNumbers[0])] ?? 0));
-      setCurrencyAdjustmentSummary({ target, delta: -amount });
+      const pendingEconomy = normalizeStudentEconomyStates(savedValue.studentEconomy);
+      const hasDeferred = studentNumbers.some(number => pendingEconomy[String(number)]?.pendingDeductions.some(item => item.id === `${requestId}-${number}`));
+      setCurrencyAdjustmentSummary(hasDeferred ? null : { target, delta: -amount });
       setCurrencyDeductionReason('');
       setIsCurrencyDeductionVisible(false);
     } catch (error) {
@@ -8448,11 +8460,11 @@ export default function TimerPage() {
   const deductionStudents = currencyAdjustmentTarget === 'group'
     ? CURRENCY_STUDENT_NUMBERS.filter(number => currencyGroupStudentNumbers.includes(number))
     : editingCurrencyNumber === null ? [] : [editingCurrencyNumber];
-  const currencyDeductionLimit = deductionStudents.length === 0 ? 0 : Math.min(...deductionStudents.map(number =>
-    (currencyBalances[String(number)] ?? DEFAULT_CURRENCY_BALANCE) + (studentEconomyStates[String(number)]?.deposit ?? 0)));
+  const currencyDeductionDeferredCount = deductionStudents.filter(number =>
+    (currencyBalances[String(number)] ?? DEFAULT_CURRENCY_BALANCE) + (studentEconomyStates[String(number)]?.deposit ?? 0) < parsedCurrencyDeductionAmount).length;
   const isCurrencyDeductionInvalid = !Number.isInteger(parsedCurrencyDeductionAmount)
     || parsedCurrencyDeductionAmount <= 0
-    || parsedCurrencyDeductionAmount > currencyDeductionLimit
+    || parsedCurrencyDeductionAmount > CURRENCY_BALANCE_MAX
     || currencyDeductionReason.trim().length === 0;
   const parsedCurrencyBalanceInput = Number(currencyBalanceInput);
   const isCurrencyBalanceInputInvalid = currencyBalanceInput.trim().length === 0
@@ -8493,13 +8505,13 @@ export default function TimerPage() {
         </label>
         <button
           type="button"
-          onClick={() => setCurrencyDeductionAmount(String(Math.min(currencyDeductionLimit, (Number.isInteger(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0) + CURRENCY_BALANCE_STEP)))}
+          onClick={() => setCurrencyDeductionAmount(String(Math.min(CURRENCY_BALANCE_MAX, (Number.isInteger(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0) + CURRENCY_BALANCE_STEP)))}
           className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] border border-[#E2CFB3] bg-white font-mono text-base font-black text-[#765538] transition-[background-color,transform] hover:bg-[#FFF3DE] active:scale-95"
           aria-label="차감액 늘리기"
         >
           +
         </button>
-        {currencyAdjustmentTarget === 'student' && currencyDepositDeduction > 0 ? (
+        {currencyAdjustmentTarget === 'student' && currencyDepositDeduction > 0 && currencyDeductionDeferredCount === 0 ? (
           <span
             className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[0.7rem] bg-[#E8F2EC] px-2 font-mono text-[0.68rem] font-black text-[#39735B]"
             aria-label={`예금에서 ${currencyDepositDeduction}고마 차감`}
@@ -8529,12 +8541,16 @@ export default function TimerPage() {
           onClick={() => void submitCurrencyDeduction()}
           className="relative h-9 w-[5.6rem] shrink-0 overflow-hidden rounded-[0.7rem] bg-[#8B4D2D] px-2 font-mono text-[0.76rem] font-black text-white transition-[background-color,transform] hover:bg-[#713C22] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#C8B7AA]"
         >
-          {`−${formatCurrencyAmount(Number.isFinite(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0)} 차감`}
+          {currencyDeductionDeferredCount === deductionStudents.length && deductionStudents.length > 0
+            ? '대기 등록' : `−${formatCurrencyAmount(Number.isFinite(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0)} 차감`}
           {isCurrencyDeductionSaving ? (
             <span className="currency-deduction-progress" aria-hidden="true"><span /></span>
           ) : null}
         </button>
       </div>
+      {!isCurrencyDeductionInvalid && currencyDeductionDeferredCount > 0 ? <p className="mt-2 text-sm text-[var(--teacher-warning)]" role="status">
+        {currencyDeductionDeferredCount}명은 잔액이 부족해 차감 대기로 기록돼요. 보유 고마와 예금이 충분해지면 자동 차감됩니다.
+      </p> : null}
       {currencyDeductionError ? (
         <p className="mt-2 text-center text-[0.76rem] font-bold text-[#A34F45]" role="alert">{currencyDeductionError}</p>
       ) : null}
@@ -12474,6 +12490,19 @@ export default function TimerPage() {
                         </div>
                       ) : null}
                     </div>
+
+                    {CURRENCY_STUDENT_NUMBERS.some(number => (studentEconomyStates[String(number)]?.pendingDeductions.length ?? 0) > 0) ? (
+                      <section className="mb-3 rounded-[var(--apple-radius-control)] bg-[var(--apple-surface-muted)] p-3" aria-label="차감 대기 내역">
+                        <h3 className="mb-2 text-sm font-bold">차감 대기</h3>
+                        <ul className="max-h-40 space-y-2 overflow-y-auto">{CURRENCY_STUDENT_NUMBERS.flatMap(number => {
+                          const pending = studentEconomyStates[String(number)]?.pendingDeductions ?? [];
+                          return pending.length > 0 ? [<li key={number} className="text-sm">
+                            <strong>{number}번 · {getPendingTeacherDeductionAmount(pending)}고마</strong>
+                            {pending.map(item => <p key={item.id} className="break-words">{item.amount}고마 · {item.teacherReason}</p>)}
+                          </li>] : [];
+                        })}</ul>
+                      </section>
+                    ) : null}
 
                     {currencyAdjustmentTarget === 'student' ? (
                       <div className="mb-3 rounded-[1.15rem] border-2 border-[#DDE9E2] bg-[#F8FCF6] p-3">

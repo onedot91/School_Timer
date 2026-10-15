@@ -194,7 +194,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return void response.status(403).json({ error: 'CROSS_SITE_REQUEST_BLOCKED' });
   }
   if (request.method !== 'GET') {
-    const rateLimit = consumeRequestRateLimit('today-friend-write', request.headers, session.role === 'student' ? session.studentNumber : 0);
+    const rateLimit = consumeRequestRateLimit(session.role === 'teacher' ? 'today-friend-teacher-write' : 'today-friend-write', request.headers, session.role === 'student' ? session.studentNumber : 0);
     if (!rateLimit.allowed) {
       response.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
       return void response.status(429).json({ error: 'TOO_MANY_REQUESTS' });

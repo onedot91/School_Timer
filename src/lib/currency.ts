@@ -529,17 +529,76 @@ export const applyTeacherCurrencyDeductionInSettings = (
 
 export const applyTeacherCurrencyDeductionsInSettings = (
   value: unknown,
-  { studentNumbers, ...deduction }: Omit<Parameters<typeof applyTeacherCurrencyDeductionInSettings>[1], 'studentNumber'> & { studentNumbers: readonly number[] },
+  { studentNumbers, deferIfInsufficient = false, ...deduction }: Omit<Parameters<typeof applyTeacherCurrencyDeductionInSettings>[1], 'studentNumber'> & { studentNumbers: readonly number[]; deferIfInsufficient?: boolean },
 ) => {
   const targets = [...new Set(studentNumbers)];
   if (targets.length === 0 || targets.some(number => !CURRENCY_STUDENT_NUMBERS.includes(number))) {
     throw new Error('INVALID_STUDENT_NUMBER');
   }
-  let nextValue = applyTeacherCurrencyDeductionInSettings(value, { ...deduction, studentNumber: targets[0], requestId: `${deduction.requestId}-${targets[0]}` }).value;
-  for (const studentNumber of targets.slice(1)) {
-    nextValue = applyTeacherCurrencyDeductionInSettings(nextValue, { ...deduction, studentNumber, requestId: `${deduction.requestId}-${studentNumber}` }).value;
+  let nextValue = value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : {};
+  for (const studentNumber of targets) {
+    const request = { ...deduction, studentNumber, requestId: `${deduction.requestId}-${studentNumber}` };
+    const state = getStudentEconomyState(normalizeStudentEconomyStates(nextValue.studentEconomy), studentNumber);
+    const wallet = normalizeCurrencyBalances(nextValue.currencyBalances)[String(studentNumber)] ?? DEFAULT_CURRENCY_BALANCE;
+    if (deferIfInsufficient && wallet + state.deposit < deduction.amount) {
+      nextValue = queueTeacherCurrencyDeductionInSettings(nextValue, request);
+    } else nextValue = applyTeacherCurrencyDeductionInSettings(nextValue, request).value;
   }
   return { value: nextValue };
+};
+
+export const queueTeacherCurrencyDeductionInSettings = (
+  value: Record<string, unknown>,
+  { studentNumber, amount, teacherReason, requestId, createdAt = new Date().toISOString() }: Parameters<typeof applyTeacherCurrencyDeductionInSettings>[1],
+): Record<string, unknown> => {
+  if (!CURRENCY_STUDENT_NUMBERS.includes(studentNumber) || !Number.isInteger(amount) || amount < 1 || amount > CURRENCY_BALANCE_MAX
+    || !/^[a-zA-Z0-9_-]{1,200}$/.test(requestId) || !Number.isFinite(Date.parse(createdAt))) throw new Error('INVALID_TEACHER_DEDUCTION');
+  const reason = teacherReason.trim().slice(0, 60);
+  if (!reason) throw new Error('TEACHER_DEDUCTION_REASON_REQUIRED');
+  const rawEconomy = value.studentEconomy && typeof value.studentEconomy === 'object' && !Array.isArray(value.studentEconomy)
+    ? Object.fromEntries(Object.entries(value.studentEconomy)) : {};
+  const state = getStudentEconomyState(normalizeStudentEconomyStates(rawEconomy), studentNumber);
+  if (state.pendingDeductions.some(item => item.id === requestId) || state.processedRequestIds.includes(requestId)) return value;
+  const settlementRequestId = `pending-${crypto.randomUUID()}`;
+  return {
+    ...value,
+    studentEconomy: { ...rawEconomy, [String(studentNumber)]: { ...state,
+      pendingDeductions: [...state.pendingDeductions, { id: requestId, settlementRequestId, amount, teacherReason: reason, createdAt }],
+      processedRequestIds: [...state.processedRequestIds, requestId].slice(-24),
+    } },
+    studentLife: createStudentLetter(normalizeStudentLifeState(value.studentLife), {
+      id: `teacher-pending-letter-${settlementRequestId}`, recipient: studentNumber, senderLabel: '선생님', senderStudentNumber: null,
+      title: '고마 차감 대기', content: `${amount}고마 차감 대기\n\n차감 사유\n: ${reason}\n\n보유 고마와 예금이 충분해지면 자동으로 차감돼요.`, createdAt,
+    }),
+  };
+};
+
+export const settlePendingTeacherDeductionsInSettings = (value: Record<string, unknown>, createdAt = new Date().toISOString()): Record<string, unknown> => {
+  const record = (input: unknown): Record<string, unknown> => input && typeof input === 'object' && !Array.isArray(input) ? Object.fromEntries(Object.entries(input)) : {};
+  let next = value;
+  for (const studentNumber of CURRENCY_STUDENT_NUMBERS) {
+    const state = getStudentEconomyState(normalizeStudentEconomyStates(next.studentEconomy), studentNumber);
+    for (const pending of state.pendingDeductions) {
+      const current = getStudentEconomyState(normalizeStudentEconomyStates(next.studentEconomy), studentNumber);
+      const wallet = record(next.currencyBalances)[String(studentNumber)];
+      if (typeof wallet !== 'number' || !Number.isInteger(wallet) || wallet < 0 || wallet > CURRENCY_BALANCE_MAX) break;
+      if (wallet + current.deposit < pending.amount) break;
+      const result = applyTeacherCurrencyDeductionInSettings(next, { studentNumber, amount: pending.amount, teacherReason: pending.teacherReason,
+        requestId: pending.settlementRequestId, createdAt });
+      const economies = normalizeStudentEconomyStates(result.value.studentEconomy);
+      const settled = getStudentEconomyState(economies, studentNumber);
+      const key = String(studentNumber);
+      const originalEconomies = record(next.studentEconomy);
+      next = { ...result.value,
+        currencyBalances: { ...record(next.currencyBalances), [key]: normalizeCurrencyBalances(result.value.currencyBalances)[key] },
+        currencyHistory: { ...record(next.currencyHistory), [key]: normalizeCurrencyHistory(result.value.currencyHistory)[key] },
+        studentEconomy: { ...originalEconomies, [key]: { ...record(originalEconomies[key]), ...settled,
+          pendingDeductions: settled.pendingDeductions.filter(item => item.id !== pending.id),
+        } },
+      };
+    }
+  }
+  return next;
 };
 
 const getDailyEmotionRewardId = (studentNumber: number, dateKey: string) => (

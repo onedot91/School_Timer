@@ -424,6 +424,41 @@ test('교사 승인은 원자적 보상 RPC를 호출하고 승인 상태를 반
   });
 });
 
+test('교사는 23명 제출을 연속 승인할 수 있다', async () => {
+  await withEnvironment(async () => {
+    const originalFetch = globalThis.fetch;
+    let approvals = 0;
+    let current: TodayFriendSubmission;
+    try {
+      globalThis.fetch = async (input, init) => {
+        const url = String(input);
+        if (url.includes('storage_get_receipt')) return Response.json({ found: false });
+        if (url.includes('approve_today_friend_submission_v2')) {
+          assert.equal(JSON.parse(String(init?.body)).p_submission_id, current.id);
+          approvals++;
+          current = { ...current, status: 'approved', rewardStatus: 'paid', storageRevision: 1 };
+          return Response.json({ awarded: true, rewardAmount: 15, balance: 115 });
+        }
+        if (url.includes('load_today_friend_planning_v2')) return Response.json(PREPARED_STATE);
+        if (url.includes('today_friend_submissions?')) return Response.json([toSubmissionRow(current)]);
+        throw new Error('UNEXPECTED_REQUEST');
+      };
+      for (let studentNumber = 1; studentNumber <= 23; studentNumber++) {
+        const mission = getTodayFriendStudentMission(PREPARED_STATE, DATE_KEY, studentNumber);
+        current = submitTodayFriendSubmission(createTodayFriendSubmission({ dateKey: DATE_KEY, studentNumber,
+          partnerNumber: mission.partnerNumber, genre: mission.genre, payload: createTodayFriendTextPayload(mission.genre, '합성 답변') }), '2026-09-01T01:00:00Z');
+        const output = createResponse();
+        await handler({ method: 'POST', headers: { ...sessionHeaders('teacher'), 'x-forwarded-for': '192.0.2.123' },
+          body: { protocolVersion: 2, action: 'review', submissionId: current.id, decision: 'approved', expectedRevision: 0, requestId: `class-review-${studentNumber}` } }, output.response);
+        assert.equal(output.result().statusCode, 200, `student ${studentNumber}`);
+        assert.equal(current.status, 'approved');
+        assert.equal(current.rewardStatus, 'paid');
+      }
+      assert.equal(approvals, 23);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
 test('교사는 인터뷰 질문 목록을 운영 저장소에 교체할 수 있다', async () => {
   // Given
   await withEnvironment(async () => {

@@ -19858,6 +19858,144 @@ body:has(.student-mailbox-view) .data-mode-banner span {
   gap: 0.5rem;
 }
 
+.student-balance-meta.has-pending-deduction {
+  flex-direction: column;
+  align-items: stretch;
+  gap: .2rem;
+}
+
+.student-balance-meta.has-pending-deduction .student-balance-detail {
+  display: flex;
+  height: auto;
+  min-height: 0;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .15rem .25rem;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+}
+
+.student-pending-deduction-badge {
+  display: grid;
+  min-height: 4.5rem;
+  align-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: .2rem;
+  border: 0;
+  border-radius: var(--apple-radius-control);
+  padding: .4rem .65rem;
+  color: var(--student-mission);
+  background: color-mix(in srgb, var(--student-mission) 16%, var(--apple-surface));
+  font-size: .75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.student-pending-deduction-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  line-height: 1.2;
+}
+
+.student-pending-deduction-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .25rem;
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.student-pending-deduction-amount small {
+  font-family: var(--font-family);
+  font-size: .8rem;
+  font-weight: 800;
+}
+
+.student-balance-summary.has-pending-deduction .student-balance-primary {
+  min-height: 4.5rem;
+  justify-content: center;
+  justify-items: center;
+  padding: .4rem .5rem;
+  border-radius: var(--apple-radius-control);
+  background: color-mix(in srgb, var(--apple-accent) 7%, var(--apple-surface));
+}
+
+.student-balance-summary.has-pending-deduction .student-balance-primary-heading {
+  justify-content: center;
+}
+
+.student-balance-meta.has-pending-deduction[data-has-reserved="true"] .student-pending-deduction-badge {
+  min-height: var(--apple-control-min);
+  gap: .1rem;
+  padding-block: .25rem;
+}
+
+.student-balance-meta.has-pending-deduction[data-has-reserved="true"] .student-pending-deduction-amount {
+  font-size: 1.2rem;
+}
+
+.student-pending-deduction-badge:focus-visible {
+  outline: 2px solid var(--apple-focus);
+  outline-offset: 2px;
+}
+
+.student-pending-deduction-list {
+  display: grid;
+  max-height: min(40dvh, 18rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  gap: .75rem;
+  margin-block: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.student-pending-deduction-list li {
+  border-radius: var(--apple-radius-control);
+  padding: .75rem;
+  background: var(--apple-surface-muted);
+}
+
+.student-pending-deduction-list p {
+  margin: .25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.deduction-review-controls {
+  position: fixed;
+  z-index: 10;
+  top: 1rem;
+  left: 1rem;
+  display: grid;
+  width: min(18rem, calc(100vw - 2rem));
+  gap: .5rem;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--apple-radius-card);
+  padding: .75rem;
+  background: var(--apple-surface);
+  color: var(--apple-text-primary);
+  box-shadow: var(--apple-shadow-1);
+  font-size: .75rem;
+}
+
+.deduction-review-controls > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+}
+
+.deduction-review-controls button {
+  min-height: var(--apple-control-min);
+  border-radius: var(--apple-radius-control);
+  padding: .4rem .6rem;
+  background: var(--apple-surface-muted);
+}
+
 .student-balance-student-identity {
   display: grid;
   flex: 0 0 auto;

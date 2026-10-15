@@ -6,6 +6,7 @@ import {
   normalizeAuctionItems,
   normalizeCurrencyBalances,
   normalizeCurrencyHistory,
+  settlePendingTeacherDeductionsInSettings,
   type AuctionAwards,
   type AuctionBidHistory,
   type AuctionBids,
@@ -445,6 +446,7 @@ export const storeStudentPetSnapshot = (
   const targetStorage = storage ?? (typeof window === 'undefined' ? null : window.localStorage);
   if (targetStorage === null) return false;
   try {
+    const settled = settlePendingTeacherDeductionsInSettings({ ...snapshot });
     const saved = targetStorage.getItem?.(STUDENT_PET_STORAGE_KEY) ?? null;
     const previous: unknown = saved ? JSON.parse(saved) : null;
     const roleSettings = snapshot.classroomRoleMission ?? (
@@ -455,10 +457,10 @@ export const storeStudentPetSnapshot = (
       saved, {
       ...(roleSettings ? { classroomRoleMission: normalizeClassroomRoleMissionSettings(roleSettings) } : {}),
       studentPets: normalizeStudentPetStates(snapshot.studentPets),
-      currencyBalances: normalizeCurrencyBalances(snapshot.currencyBalances),
-      currencyHistory: normalizeCurrencyHistory(snapshot.currencyHistory),
-      studentEconomy: normalizeStudentEconomyStates(snapshot.studentEconomy),
-      studentLife: normalizeStudentLifeState(snapshot.studentLife),
+      currencyBalances: normalizeCurrencyBalances(settled.currencyBalances),
+      currencyHistory: normalizeCurrencyHistory(settled.currencyHistory),
+      studentEconomy: normalizeStudentEconomyStates(settled.studentEconomy),
+      studentLife: normalizeStudentLifeState(settled.studentLife),
       auctionItems: normalizeAuctionItems(snapshot.auctionItems),
       auctionBids: normalizeAuctionBids(snapshot.auctionBids, AUCTION_ITEM_IDS),
       auctionBidHistory: normalizeAuctionBidHistory(snapshot.auctionBidHistory, AUCTION_ITEM_IDS),

@@ -108,8 +108,10 @@ export const applyTeacherStorageCommand = (
     return finish({ ...current, currencyBalances: balances, currencyHistory: history });
   }
   if (action === 'teacher.currency.deduct') {
+    if (payload.deferIfInsufficient !== undefined && typeof payload.deferIfInsufficient !== 'boolean') return invalid();
     const result = applyTeacherCurrencyDeductionsInSettings(current, { studentNumbers: students(payload.studentNumbers),
-      amount: integer(payload.amount, 1, CURRENCY_BALANCE_MAX), teacherReason: text(payload.teacherReason, 300), ...context });
+      amount: integer(payload.amount, 1, CURRENCY_BALANCE_MAX), teacherReason: text(payload.teacherReason, 300),
+      deferIfInsufficient: payload.deferIfInsufficient === true, ...context });
     return finish(result.value);
   }
   if (action === 'teacher.role.result') {

@@ -17,6 +17,7 @@ import {
 } from '../../lib/todayFriendClient';
 import { createStudentSaveDraftStore } from '../../lib/studentSaveDraft';
 import { isStorageRecord } from '../../lib/teacherStorageCommand';
+import { storageAvailabilityMessage } from '../../lib/storageAvailabilityCopy';
 import type { TodayFriendQuestion, TodayFriendState } from '../../lib/todayFriendState';
 import TeacherTodayFriendPlan from './TeacherTodayFriendPlan';
 import TeacherTodayFriendReview from './TeacherTodayFriendReview';
@@ -39,6 +40,7 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
   const savingRef = useRef(false);
   const loadGenerationRef = useRef(0);
   const currentDateRef = useRef(dateKey);
@@ -71,8 +73,14 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
     return () => { ++loadGenerationRef.current; };
   }, [loadState]);
 
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) return;
+    const timer = window.setTimeout(() => setRetryAfterSeconds(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [retryAfterSeconds]);
+
   const performReview = async (input: PendingReview) => {
-    if (savingRef.current) return;
+    if (savingRef.current || retryAfterSeconds > 0) return;
     savingRef.current = true;
     ++loadGenerationRef.current;
     const requestedDate = dateKey;
@@ -99,13 +107,24 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
         const latest = await loadTeacherTodayFriendState(requestedDate);
         if (currentDateRef.current === requestedDate) setState(latest);
         setHasLoadError(false);
+        const confirmed = latest.submissions.find(entry => entry.id === input.submissionId);
+        if (confirmed?.status === 'approved' && confirmed.rewardStatus === 'paid') {
+          reviewDrafts.confirm(reviewScope(input.submissionId), input.requestId);
+          setPendingReview(null);
+          setMessage('승인 · 15고마 지급 확인 완료');
+          return;
+        }
       } catch (refreshError) {
         if (!(refreshError instanceof Error)) throw refreshError;
         setHasLoadError(true);
       }
-      setMessage(conflict
+      const rateLimited = error instanceof TodayFriendClientError && error.status === 429;
+      if (rateLimited) setRetryAfterSeconds(Math.max(1, Math.ceil((error.retryAfterMs ?? 60_000) / 1000)));
+      setMessage(rateLimited
+        ? '승인 요청이 많습니다. 대기 후 이전 처리를 다시 확인해 주세요. (HTTP 429)'
+        : conflict
         ? '제출 내용이 변경되었습니다. 최신 내용을 확인한 뒤 다시 처리해 주세요.'
-        : '처리 결과를 확인하지 못했습니다.');
+        : storageAvailabilityMessage(error) ?? `오늘의 친구 승인 결과를 확인하지 못했습니다. 이전 처리를 다시 확인해 주세요.${error instanceof TodayFriendClientError && error.status ? ` (HTTP ${error.status})` : ''}`);
     } finally {
       savingRef.current = false;
       setIsSaving(false);
@@ -114,7 +133,7 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
   };
 
   const review = async (submissionId: string) => {
-    if (savingRef.current || isLoading || hasLoadError) return;
+    if (savingRef.current || isLoading || hasLoadError || retryAfterSeconds > 0) return;
     const submission = state?.submissions.find(entry => entry.id === submissionId);
     if (!submission || submission.status !== 'submitted') {
       setMessage('최신 제출 내용을 확인한 뒤 처리해 주세요.');
@@ -196,9 +215,9 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
       </nav>
       {message ? <p className="teacher-today-friend-message" role="status">{message}</p> : null}
       {isLoading && state ? <p className="teacher-today-friend-message" role="status">최신 현황 확인 중…</p> : null}
-      {pendingReview && <button type="button" disabled={isSaving} className="min-h-11 rounded-full border px-4" onClick={() => { void performReview(pendingReview); }}>이전 처리 다시 확인</button>}
+      {pendingReview && <button type="button" disabled={isSaving || retryAfterSeconds > 0} className="min-h-11 rounded-full border px-4" onClick={() => { void performReview(pendingReview); }}>{retryAfterSeconds > 0 ? `${retryAfterSeconds}초 후 다시 확인` : '이전 처리 다시 확인'}</button>}
       {isLoading && !state ? <div className="teacher-today-friend-loading">불러오는 중…</div> : !state ? null : tab === 'review' ? (
-        <TeacherTodayFriendReview submissions={dateSubmissions} isSaving={isSaving || isLoading || hasLoadError} onReview={review} />
+        <TeacherTodayFriendReview submissions={dateSubmissions} isSaving={isSaving || isLoading || hasLoadError || retryAfterSeconds > 0} onReview={review} />
       ) : (
         <TeacherTodayFriendPlan state={state} dateKey={dateKey} isSaving={isSaving || isLoading || hasLoadError} onPlanAction={updatePlan} onQuestionsChange={updateQuestions} />
       )}
