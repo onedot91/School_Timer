@@ -113,6 +113,7 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   const errorCode = Reflect.get(error, 'code');
   if (typeof errorCode === 'string' && ['QUESTION_CONFLICT', 'QUESTION_WEEK_CHANGED', 'QUESTION_NOT_FOUND', 'QUESTION_REQUEST_REUSED'].includes(errorCode)) return null;
   if (errorCode === 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED') return 'response';
+  if (Reflect.get(error, 'serverCode') === 'STORAGE_CONFIRMATION_REQUIRED') return 'response';
   if (errorCode === 'CLASSWORD_INITIAL_OCCUPIED' || errorCode === 'CLASSWORD_STUDENT_ALREADY_ENTERED' || errorCode === 'CLASSWORD_ENTRY_CHANGED') return null;
   if (errorCode === 'CLASSWORD_REWARD_LIMIT_EXCEEDED' || errorCode === 'CLASSWORD_REWARD_PENDING') return null;
   if (errorCode === 'CLASSWORD_REWARD_SAVE_FAILED') return 'storage';
@@ -123,6 +124,7 @@ export const classifySaveFailure = (error: unknown): SaveFailureCode | null => {
   if (status === 401 || status === 403) return 'permission';
   if (status === 409 || error.message === 'SHARED_SETTINGS_CONFLICT') return 'conflict';
   if (status === 408 || status === 429 || status >= 500) return 'server';
+  if (error.message === 'STORAGE_SCOPE_VIOLATION' || Reflect.get(error, 'serverCode') === 'STORAGE_SCOPE_VIOLATION' || errorCode === 'STORAGE_SCOPE_VIOLATION') return 'server';
   if (error.name === 'QuotaExceededError' || /LOCAL_SAVE_FAILED|STORAGE/.test(error.message)) return 'storage';
   if (error.name === 'SyntaxError' || /INVALID_RESPONSE|SHARED_SETTINGS_SAVE_UNCONFIRMED/.test(error.message) || (typeof errorCode === 'string' && errorCode.endsWith('_INVALID_RESPONSE'))) return 'response';
   if (error.name === 'TypeError' || error.name === 'TimeoutError' || error.name === 'AbortError' || errorCode === 'LIBRARY_COMPETITION_NETWORK') return 'network';

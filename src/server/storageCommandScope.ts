@@ -13,6 +13,21 @@ const validStudents = (input: unknown): number[] => Array.isArray(input) ? [...n
 const validMailStudents = (input: unknown): number[] => Array.isArray(input)
   ? [...new Set(input.filter(isMailStudentNumber))] : [];
 
+export const auctionFinalizationScope = (itemId: unknown, winner?: number): StorageScope => {
+  if (typeof itemId !== 'string' || !itemId || itemId.length > 100
+    || (winner !== undefined && !allStudents.includes(winner))) throw new StorageScopeError();
+  const bidPath = storageResourceKey('auctionBids', itemId);
+  const awardPath = storageResourceKey('auctionAwards', itemId);
+  return parseStorageScope({
+    resources: [{ path: bidPath }, { path: '/auctionAwards' }],
+    wallets: winner === undefined ? [] : [winner],
+    history: winner === undefined ? [] : [winner],
+    writeResources: winner === undefined ? [] : [{ path: awardPath }],
+    writeWallets: winner === undefined ? [] : [winner],
+    revisionKeys: [bidPath, awardPath],
+  });
+};
+
 /** Server-selected dependencies; neither resource paths nor owner scopes come from the request. */
 export const storageCommandScope = (action: string, payload: unknown, session: DeviceSession, legacyReceipt = false): StorageScope => {
   const input = isStorageRecord(payload) ? payload : {};
@@ -26,10 +41,13 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
   const field = (name: string, writable = true, collection = true) => {
     const path = storageResourceKey(...name.split('.'));
     add({ path }, writable);
+    if (name.includes('.')) resources.push({ path: storageResourceKey(name.split('.')[0]) });
     if (collection) revisions.add(name.includes('.') ? path : `scope:${name}:all`);
   };
   const money = (students: readonly number[], writable = true) => students.forEach(number => {
-    wallets.add(number); history.add(number); if (writable) writeWallets.add(number);
+    wallets.add(number);
+    if (writable) { history.add(number); writeWallets.add(number); }
+    else revisions.add(`wallet:${number}`);
     if (writable) {
       resources.push({ path: storageResourceKey('studentEconomy', String(number)) });
       resources.push({ path: '/studentLife/letters', mail: { actor: number, direction: 'recipient' } });
@@ -42,7 +60,8 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
     if (!action.startsWith('student.')) throw new StorageScopeError();
     if (action === 'student.letter.send' || action === 'student.letter.read') mail(own, 'participant');
     else if (action === 'student.failure.create') {
-      add({ path: '/studentLife/failureStories', students: [own] }); money([own]);
+      add({ path: '/studentLife/failureStories', students: [own] });
+      money([own]);
     } else if (action === 'student.failure.stamp') {
       const path = !legacyReceipt && typeof input.storyId === 'string'
         ? storageResourceKey('studentLife', 'failureStories', `@${input.storyId}`) : '/studentLife/failureStories';
@@ -86,6 +105,17 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
   }
   return parseStorageScope({ resources, wallets: [...wallets], history: [...history], writeResources: writes,
     writeWallets: [...writeWallets], revisionKeys: [...revisions] });
+};
+
+export const completeFailureStoryReadScope = (scope: StorageScope, resourceKeys: readonly string[]): StorageScope => {
+  const root = '/studentLife/failureStories';
+  if (scope.resources.some(selection => selection.path === root && !selection.students)) return scope;
+  const known = new Set(scope.resources.filter(selection => !selection.students).map(selection => selection.path));
+  const paths = [...new Set(resourceKeys.flatMap(key => /^\/studentLife\/failureStories\/[^/]+/.exec(key)?.[0] ?? []))]
+    .filter(path => !known.has(path));
+  if (!paths.length) return scope;
+  const additions = scope.resources.length + paths.length <= 128 ? paths.map(path => ({ path })) : [{ path: root }];
+  return parseStorageScope({ ...scope, resources: [...scope.resources, ...additions] });
 };
 
 export const studentEditRevisionKeys = (action: string, studentNumber: number): readonly string[] => {

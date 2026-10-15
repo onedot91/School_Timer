@@ -45,6 +45,13 @@ export const getStudentMailboxRecipientOptions = (todayFriendNumber: number | nu
     : []),
 ] as const;
 
+export const changeStudentMailboxRecipient = (draft: MailboxDraft, recipient: number): MailboxDraft => ({
+  recipient,
+  title: draft.title,
+  content: draft.content,
+  ...(recipient === TEACHER_LETTER_RECIPIENT && draft.replyToId ? { replyToId: draft.replyToId } : {}),
+});
+
 const formatLetterDate = (createdAt: string): string => new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
   month: 'numeric',
@@ -181,13 +188,17 @@ export default function StudentMailboxPage({
     });
   };
   const selectRecipient = (nextRecipient: number) => {
+    if (hasPendingSave || isSaving) return;
+    const nextDraft = changeStudentMailboxRecipient({ title, content, replyToId }, nextRecipient);
     markEdited();
     setRecipient(nextRecipient);
+    setReplyToId(nextDraft.replyToId);
     setIsRecipientMenuOpen(false);
-    onDraftChange?.({ recipient: nextRecipient, title, content, ...(replyToId ? { replyToId } : {}) });
+    onDraftChange?.(nextDraft);
     recipientTriggerRef.current?.focus();
   };
   const handleRecipientKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (hasPendingSave || isSaving) return;
     if (event.key === 'Escape' && isRecipientMenuOpen) {
       event.preventDefault();
       setIsRecipientMenuOpen(false);
@@ -451,7 +462,7 @@ export default function StudentMailboxPage({
                   aria-haspopup="listbox"
                   aria-expanded={isRecipientMenuOpen}
                   aria-controls={recipientListId}
-                  disabled={hasPendingSave || replyToId !== undefined}
+                  disabled={hasPendingSave || isSaving}
                   onClick={() => setIsRecipientMenuOpen((open) => !open)}
                 >
                   <span id={`${recipientLabelId}-value`}>{selectedRecipientLabel}</span>
@@ -467,6 +478,7 @@ export default function StudentMailboxPage({
                           type="button"
                           role="option"
                           aria-selected={isSelected}
+                          disabled={hasPendingSave || isSaving}
                           onClick={() => selectRecipient(option.value)}
                         >
                           <span>{option.label}</span>

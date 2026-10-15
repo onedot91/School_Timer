@@ -1,7 +1,9 @@
 import { parseSaveFailureDiagnostics, SAVE_FAILURE_CODE_LABELS, SAVE_FAILURE_FEATURES, SAVE_FAILURE_VIEWS, type SaveFailureAlert, type SaveFailureDiagnostics } from './saveFailure.js';
 
 export const getSaveFailureLabel = (alert: SaveFailureAlert): string => (
-  [alert.diagnostics?.errorCode, alert.diagnostics?.causeCode].includes('AUCTION_ITEM_NOT_REMOVABLE')
+  [alert.diagnostics?.errorCode, alert.diagnostics?.causeCode].includes('STORAGE_SCOPE_VIOLATION')
+    ? '서버 저장 범위 오류' : ['STORAGE_CONFIRMATION_REQUIRED', 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED'].includes(alert.diagnostics?.errorCode ?? '')
+    ? '저장 확인 필요' : [alert.diagnostics?.errorCode, alert.diagnostics?.causeCode].includes('AUCTION_ITEM_NOT_REMOVABLE')
     ? '경매 물품 삭제 불가' : SAVE_FAILURE_CODE_LABELS[alert.code]
 );
 
@@ -33,6 +35,14 @@ export const collectSaveFailureDiagnostics = (error: unknown, context: SaveFailu
 
 export const getSaveFailureExplanation = (alert: SaveFailureAlert): { problem: string; action: string } => {
   const details = alert.diagnostics;
+  if ([details?.errorCode, details?.causeCode].includes('STORAGE_SCOPE_VIOLATION')) return {
+    problem: '서버의 저장 범위 검사에서 요청이 거절되었습니다.',
+    action: '작성 내용을 보존하고 진단 정보를 전달해 주세요. 서버 저장 경로를 수정해야 합니다.',
+  };
+  if (['STORAGE_CONFIRMATION_REQUIRED', 'STUDENT_ECONOMY_CONFIRMATION_REQUIRED'].includes(details?.errorCode ?? '')) return {
+    problem: '저장 완료 응답을 확인하지 못했습니다. 실제로 저장됐을 수도 있습니다.',
+    action: '해당 기록의 저장 결과를 다시 확인하세요. 확인 전에는 같은 지급·차감을 새 요청으로 반복하지 마세요.',
+  };
   if (details?.errorCode === 'LOCAL_DRAFT_CONFIRM_FAILED') return {
     problem: '서버 처리와 별개로 기기의 임시 기록 정리를 완료하지 못했습니다.',
     action: '같은 기록을 다시 보내지 말고 서버 반영 여부와 진단 정보를 확인하세요. 사이트 데이터는 삭제하지 마세요.',

@@ -25,7 +25,7 @@ export const releaseSourceHash = async () => {
 
 const main = async () => {
   if (process.argv.includes('--help')) {
-    console.log('Usage: npm run verify:release\nRequires STORAGE_TEST_PG_MODULE and STORAGE_TEST_DATABASE_URL pointing to the isolated PostgreSQL fixture at localhost:55439/postgres.\nRequires STORAGE_TEST_BROWSER_MODULE pointing to an installed Playwright module and STORAGE_TEST_CHROMIUM_EXECUTABLE pointing to Chromium. No package is downloaded automatically.\nRuns type checks, all tests, PostgreSQL/HTTP checks, emitted Node runtime, production build and isolated production-built browser save scenarios. Any missing prerequisite or failed check exits nonzero. Logs and source hash are written to a new private temporary directory.');
+    console.log('Usage: npm run verify:release\nRequires STORAGE_TEST_PG_MODULE and STORAGE_TEST_DATABASE_URL pointing to the isolated PostgreSQL fixture at localhost:55439/postgres.\nStorage regressions also require initdb, pg_ctl and psql on PATH and must pass without skips.\nRequires STORAGE_TEST_BROWSER_MODULE pointing to an installed Playwright module and STORAGE_TEST_CHROMIUM_EXECUTABLE pointing to Chromium. No package is downloaded automatically.\nRuns type checks, all tests, PostgreSQL/HTTP checks, emitted Node runtime, production build and isolated production-built browser save scenarios. Any missing prerequisite or failed check exits nonzero. Logs and source hash are written to a new private temporary directory.');
     return;
   }
   const driverPath = process.env.STORAGE_TEST_PG_MODULE;
@@ -49,6 +49,7 @@ const main = async () => {
   const steps = [
     ['typecheck', 'npm', ['run', 'lint']],
     ['unit-api', 'npm', ['test']],
+    ['storage-regressions', 'npm', ['run', 'test:storage']],
     ['server-dev', process.execPath, ['--import', 'tsx', '--test', 'src/server/storageV2Repository.test.ts', 'src/server/storageScope.test.ts', 'dev/storageCutover.test.ts', 'dev/verifyRelease.test.mjs', 'dev/storageBackup.test.ts']],
     ['storage-sql', process.execPath, ['--import', 'tsx', '--test', 'src/server/storageV2.integration.test.mjs', 'src/server/storageScope.integration.test.mjs']],
     ['reward-sql', process.execPath, ['tests/storage/run-rewards-v2.mjs']],

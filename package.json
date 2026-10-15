@@ -11,6 +11,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "test": "node --import tsx --test src/lib/*.test.ts tests/api/*.test.ts",
+    "test:storage": "node dev/verifyStorage.mjs",
+    "test:storage:load": "node --import tsx tests/storage/classroomSaveBenchmark.ts",
+    "verify:predeploy": "npm run lint && npm test && npm run test:storage && npm run build",
     "lint": "tsc --noEmit",
     "verify:release": "node dev/verifyRelease.mjs"
   },

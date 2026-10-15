@@ -2,7 +2,7 @@ import { AlertTriangle, X } from 'lucide-react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { groupSaveFailureAlerts, isDelayedSaveFailure, SAVE_FAILURE_FEATURES, SAVE_FAILURE_POLL_MS, type SaveFailureAlert } from '../../lib/saveFailure';
-import { acknowledgeAllSaveFailures, acknowledgeSaveFailure, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
+import { acknowledgeAllSaveFailures, acknowledgeSaveFailure, loadAllSaveFailureAlerts, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
 import { formatSaveFailureDiagnostic, getSaveFailureExplanation, getSaveFailureLabel } from '../../lib/saveFailureDiagnostics';
 import { useModalFocus } from '../../lib/useModalFocus';
 
@@ -52,11 +52,32 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
   const [error, setError] = useState('');
   const [confirmedCount, setConfirmedCount] = useState<number | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
+  const [copyFallback, setCopyFallback] = useState('');
+  const copyTextRef = useRef<HTMLTextAreaElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const refreshRef = useRef<(afterMutation?: boolean) => Promise<void>>(async () => undefined);
   const mutationVersion = useRef(0);
   useModalFocus({ dialogRef, isOpen, onDismiss: () => setIsOpen(false), returnFocusRef, isDismissible: savingId === null });
+
+  useEffect(() => {
+    if (copyFallback && isOpen) { copyTextRef.current?.focus(); copyTextRef.current?.select(); }
+  }, [copyFallback, isOpen]);
+
+  const copyAll = async () => {
+    if (isCopying) return;
+    setIsCopying(true); setCopyStatus(''); setCopyFallback('');
+    try {
+      const all = hasMore ? await loadAllSaveFailureAlerts() : alerts;
+      const text = all.map(formatSaveFailureDiagnostic).join('\n\n---\n\n');
+      if (!text) { setCopyStatus('복사할 저장 오류가 없습니다.'); return; }
+      try { await navigator.clipboard.writeText(text); setCopyStatus(`${all.length}건의 진단 정보를 복사했습니다.`); }
+      catch { setCopyFallback(text); setCopyStatus('자동 복사를 사용할 수 없습니다. 선택된 진단 정보를 직접 복사하세요.'); }
+    } catch { setCopyStatus('전체 진단 정보를 불러오지 못했습니다. 다시 시도해 주세요.'); }
+    finally { setIsCopying(false); }
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -127,7 +148,7 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
   const label = alerts.length > 0 ? `저장 오류 ${alerts.length}${hasMore ? '+' : ''}건` : '저장 오류 확인 불가';
   return <>
     {warning ? <span className="teacher-save-warning" role="alert">
-      <button type="button" ref={triggerRef} className="teacher-save-warning-trigger" onClick={() => { setConfirmedCount(null); setError(''); setConfirmAll(false); setIsOpen(true); }} aria-label={label} title={label} aria-haspopup="dialog">
+      <button type="button" ref={triggerRef} className="teacher-save-warning-trigger" onClick={() => { setConfirmedCount(null); setError(''); setConfirmAll(false); setCopyStatus(''); setCopyFallback(''); setIsOpen(true); }} aria-label={label} title={label} aria-haspopup="dialog">
         <AlertTriangle size={19} aria-hidden="true" /><span>저장 오류</span>{alerts.length > 0 ? <b>{groups.length}{hasMore ? '+' : ''}</b> : null}
       </button>
     </span> : null}
@@ -136,8 +157,13 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
         <header><h2 id="save-warning-title"><AlertTriangle size={22} aria-hidden="true" /> 저장 오류</h2><button type="button" aria-label="저장 오류 닫기" disabled={savingId !== null} onClick={() => setIsOpen(false)}><X size={22} /></button></header>
         {alerts.length > 0 ? <div className="teacher-save-warning-bulk">
           <p>{alerts.length}{hasMore ? '+' : ''}건 · 반복 오류는 묶어 표시합니다.</p>
-          <button type="button" disabled={savingId !== null} onClick={() => setConfirmAll(true)}>모두 확인 처리</button>
+          <div className="teacher-save-warning-actions">
+            <button type="button" disabled={isCopying || savingId !== null} onClick={() => void copyAll()}>{isCopying ? '불러오는 중…' : '진단 정보 일괄 복사'}</button>
+            <button type="button" disabled={savingId !== null || isCopying} onClick={() => setConfirmAll(true)}>모두 확인 처리</button>
+          </div>
         </div> : null}
+        {copyStatus ? <p role="status">{copyStatus}</p> : null}
+        {copyFallback ? <textarea ref={copyTextRef} readOnly rows={5} aria-label="전체 저장 오류 진단 정보" value={copyFallback} /> : null}
         {confirmAll ? <div className="teacher-save-warning-bulk">
           <p>모든 알림을 확인 처리합니다. 기록을 복구하거나 다시 저장하지 않습니다.</p>
           <div><button type="button" onClick={() => void acknowledgeAll()}>일괄 확인</button><button type="button" onClick={() => setConfirmAll(false)}>취소</button></div>
@@ -147,10 +173,10 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
         {error ? <p className="teacher-save-warning-error" role="alert">{error}</p> : null}
         <ul className="teacher-save-warning-list">
           {groups.map((group) => group.length === 1
-            ? <SaveFailureItem key={`${group[0].studentNumber}-${group[0].id}`} alert={group[0]} savingId={savingId} onAcknowledge={acknowledge} />
+            ? <SaveFailureItem key={`${group[0].studentNumber}-${group[0].id}`} alert={group[0]} savingId={isCopying ? 'copy' : savingId} onAcknowledge={acknowledge} />
             : <li key={`${group[0].studentNumber}-${group[0].id}`}><details><summary>
               {group[0].studentNumber === 0 ? '교사' : `${group[0].studentNumber}번 학생`} · {SAVE_FAILURE_FEATURES[group[0].feature]} · 같은 오류 {group.length}건
-            </summary><ul>{group.map(alert => <SaveFailureItem key={alert.id} alert={alert} savingId={savingId} onAcknowledge={acknowledge} />)}</ul></details></li>)}
+            </summary><ul>{group.map(alert => <SaveFailureItem key={alert.id} alert={alert} savingId={isCopying ? 'copy' : savingId} onAcknowledge={acknowledge} />)}</ul></details></li>)}
         </ul>
         {!warning ? <p role="status">미확인 저장 오류가 없습니다.</p> : null}
         {alerts.length > 0 ? <small>확인 처리는 기록 복구가 아닙니다.</small> : null}

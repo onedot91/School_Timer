@@ -8,6 +8,7 @@ import { getKoreanIsoWeekKey } from '../../src/lib/weeklyMission.js';
 import { createStudentEmotionEntry } from '../../src/lib/studentEmotion.js';
 import { normalizeCurrencyBalances, normalizeCurrencyHistory } from '../../src/lib/currency.js';
 import { normalizeStudentEconomyStates } from '../../src/lib/studentEconomy.js';
+import { isStorageRecord } from '../../src/lib/storageV2Codec.js';
 
 const secret = 'storage-test-only-secret-at-least-32-bytes';
 const retainedLetterCreatedAt = new Date().toISOString();
@@ -44,6 +45,43 @@ const environment = async (run: (call: (actor:number,method:string,body?:unknown
 };
 const command=(requestId:string,action:string,payload:unknown)=>({protocolVersion:2,requestId,action,payload});
 
+test('failure creation retries when a new foreign stamp appears during the complete-story read', () => {
+  const source = initial();
+  const stories = [12, 13].map(studentNumber => ({ id: `foreign-${studentNumber}`, studentNumber,
+    failure: '합성 실패', lesson: '합성 배움', createdAt: retainedLetterCreatedAt,
+    stamps: studentNumber === 12 ? [{ studentNumber: 6, stampId: 'brave' }] : [] }));
+  return environment(async (call, fixture) => {
+    const fetch = globalThis.fetch;
+    let raced = false;
+    globalThis.fetch = async (input, init) => {
+      const body: unknown = JSON.parse(String(init?.body));
+      if (!raced && String(input).endsWith('/storage_load_scope') && isStorageRecord(body) && isStorageRecord(body.p_scope)
+        && Array.isArray(body.p_scope.resources) && body.p_scope.resources.some(selection =>
+          isStorageRecord(selection) && selection.path === '/studentLife/failureStories/@foreign-12')) {
+        raced = true;
+        assert.equal((await call(6, 'POST', command('failure-racing-stamp', 'student.failure.stamp', { storyId: 'foreign-13', stampId: 'cheer' }))).status, 200);
+      }
+      return fetch(input, init);
+    };
+    try {
+      const request = command('failure-racing-create', 'student.failure.create', { failure: '합성 새 실패', lesson: '합성 새 배움' });
+      assert.equal((await call(6, 'POST', request)).status, 200);
+      assert.equal((await call(6, 'POST', request)).status, 200);
+      assert.equal(raced, true);
+      const life = fixture.read().value.studentLife;
+      assert.ok(isStorageRecord(life) && Array.isArray(life.failureStories));
+      assert.equal(life.failureStories.length, 3);
+      for (const story of stories) {
+        const saved = life.failureStories.find(entry => isStorageRecord(entry) && entry.id === story.id);
+        assert.ok(isStorageRecord(saved));
+        assert.equal(saved.failure, story.failure);
+        assert.ok(Array.isArray(saved.stamps) && saved.stamps.length === 1);
+      }
+      assert.equal(normalizeCurrencyBalances(fixture.read().value.currencyBalances)['6'], 115);
+    } finally { globalThis.fetch = fetch; }
+  }, { ...source, studentLife: { ...source.studentLife, failureStories: stories } });
+});
+
 test('낙찰 영수증은 화면과 다른 최신 입찰자를 반환하고 재전송에도 한 번만 차감한다', () => environment(async (call, fixture) => {
   const body = command('auction-latest-bid-0001', 'teacher.auction.finalize', { itemId: 'item-b', useLatestBid: true });
   assert.equal((await call(0, 'POST', body)).status, 200);
@@ -55,6 +93,53 @@ test('낙찰 영수증은 화면과 다른 최신 입찰자를 반환하고 재�
   assert.equal(Reflect.get(Object(fixture.read().value.currencyBalances), '12'), 50);
   assert.equal(Reflect.get(Object(fixture.read().value.currencyHistory), '12').length, 1);
 }, { ...initial(), auctionBids: { 'item-b': { bidder: 12, amount: 50 } }, auctionAwards: {} }));
+
+test('낙찰은 서버 낙찰자만 저장하고 다른 학생 잔액 변경 때문에 재시도하지 않는다', () => environment(async (call, fixture) => {
+  const originalFetch = globalThis.fetch;
+  let commits = 0;
+  let raced = false;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).endsWith('/storage_commit_scoped_mutation')) {
+      const body: unknown = JSON.parse(String(init?.body));
+      assert.ok(body && typeof body === 'object');
+      if (Reflect.get(body, 'p_action') === 'teacher.auction.finalize') {
+        commits++;
+        assert.deepEqual(Reflect.get(body, 'p_scope').wallets, [12]);
+        assert.equal(Object.hasOwn(Reflect.get(body, 'p_expected'), 'wallet:3'), false);
+        if (!raced) {
+          raced = true;
+          assert.equal((await call(0, 'POST', command('unrelated-credit-0001', 'teacher.currency.adjust', { studentNumbers: [3], amount: 1 }))).status, 200);
+        }
+      }
+    }
+    return originalFetch(input, init);
+  };
+  try {
+    const result = await call(0, 'POST', command('narrow-auction-0001', 'teacher.auction.finalize', { itemId: 'item-b', useLatestBid: true, studentNumber: 3, studentNumbers: [3] }));
+    assert.equal(result.status, 200);
+    assert.equal(commits, 1);
+    assert.equal(normalizeCurrencyBalances(fixture.read().value.currencyBalances)['12'], 50);
+    assert.equal(normalizeCurrencyBalances(fixture.read().value.currencyBalances)['3'], 101);
+  } finally { globalThis.fetch = originalFetch; }
+}, { ...initial(), auctionBids: { 'item-b': { bidder: 12, amount: 50 } }, auctionAwards: {} }));
+
+test('다른 학생 글에 도장을 찍은 학생의 새 실패 글은 기존 글·도장을 보존한다', () => {
+  const source = initial();
+  const story = { id: 'other-story', studentNumber: 12, failure: '합성 실패', lesson: '합성 배움', createdAt: retainedLetterCreatedAt,
+    stamps: [{ studentNumber: 6, stampId: 'brave' }] };
+  return environment(async (call, fixture) => {
+    const request = command('failure-with-foreign-stamp', 'student.failure.create', { failure: '합성 새 실패', lesson: '합성 새 배움' });
+    assert.equal((await call(6, 'POST', request)).status, 200);
+    assert.equal((await call(6, 'POST', request)).status, 200);
+    const life = fixture.read().value.studentLife;
+    assert.ok(life && typeof life === 'object');
+    const stories: unknown = Reflect.get(life, 'failureStories');
+    assert.ok(Array.isArray(stories));
+    assert.equal(stories.length, 2);
+    assert.deepEqual(stories.find(entry => entry.id === story.id), story);
+    assert.equal(stories.filter(entry => entry.studentNumber === 6).length, 1);
+  }, { ...source, studentLife: { ...source.studentLife, failureStories: [story] } });
+});
 
 test('주간 마감 API는 보유 종목을 매각해 세금을 계산하고 재요청에도 한 번만 정산한다', () => environment(async (call, fixture) => {
   const body = command('weekly-stock-close-0001', 'teacher.auction.weekly-close', { cycleKey: '2026-10-12' });

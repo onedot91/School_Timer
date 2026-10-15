@@ -202,16 +202,46 @@ export const startSaveFailureReporting = () => {
   return () => { window.removeEventListener('online', flush); window.clearInterval(interval); };
 };
 
-export const loadSaveFailureAlerts = async (): Promise<{ alerts: SaveFailureAlert[]; hasMore: boolean }> => {
+type SaveFailureCursor = { readonly updatedAt: string; readonly id: string };
+export const loadSaveFailureAlerts = async (page?: { readonly before?: string; readonly cursor?: SaveFailureCursor }): Promise<{ alerts: SaveFailureAlert[]; hasMore: boolean; before?: string; nextCursor?: SaveFailureCursor }> => {
   if (!isSupabaseSettingsEnabled) return { alerts: readLocal().filter((item) => item.acknowledgedAt === null), hasMore: false };
-  const response = await fetch('/api/save-alerts', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(SAVE_FAILURE_READ_TIMEOUT_MS) });
+  const query = page ? `?${new URLSearchParams({ paged: '1', ...(page.before ? { before: page.before } : {}), ...(page.cursor ? { cursorAt: page.cursor.updatedAt, cursorId: page.cursor.id } : {}) })}` : '';
+  const response = await fetch(`/api/save-alerts${query}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(SAVE_FAILURE_READ_TIMEOUT_MS) });
   if (!response.ok) throw new Error('SAVE_ALERTS_UNAVAILABLE');
   const value: unknown = await response.json();
   if (!value || typeof value !== 'object' || !Array.isArray(Reflect.get(value, 'alerts')) || typeof Reflect.get(value, 'hasMore') !== 'boolean') throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
   const raw: unknown[] = Reflect.get(value, 'alerts');
   const alerts = raw.map(parseSaveFailureAlert);
   if (alerts.some((alert) => !alert)) throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
-  return { alerts: alerts.filter((alert): alert is SaveFailureAlert => alert !== null), hasMore: Reflect.get(value, 'hasMore') };
+  const before: unknown = Reflect.get(value, 'before'), cursor: unknown = Reflect.get(value, 'nextCursor');
+  let nextCursor: SaveFailureCursor | undefined;
+  if (cursor !== undefined) {
+    if (!cursor || typeof cursor !== 'object') throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
+    const updatedAt: unknown = Reflect.get(cursor, 'updatedAt'), id: unknown = Reflect.get(cursor, 'id');
+    if (typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt)) || typeof id !== 'string' || !/^school-timer-save-alert-[a-zA-Z0-9_-]{1,250}$/.test(id)) throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
+    nextCursor = { updatedAt, id };
+  }
+  if (page && (typeof before !== 'string' || !Number.isFinite(Date.parse(before)) || (Reflect.get(value, 'hasMore') && !nextCursor))) throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
+  return { alerts: alerts.filter((alert): alert is SaveFailureAlert => alert !== null), hasMore: Reflect.get(value, 'hasMore'),
+    ...(typeof before === 'string' ? { before } : {}), ...(nextCursor ? { nextCursor } : {}) };
+};
+
+export const loadAllSaveFailureAlerts = async (): Promise<SaveFailureAlert[]> => {
+  const context = captureStorageResponseContext();
+  const alerts = new Map<string, SaveFailureAlert>();
+  const cursors = new Set<string>();
+  let page: { before?: string; cursor?: SaveFailureCursor } = {};
+  for (;;) {
+    const result = await loadSaveFailureAlerts(page);
+    const current = captureStorageResponseContext();
+    if (current.actor !== context.actor || current.generation !== context.generation) throw new Error('SAVE_ALERTS_SESSION_CHANGED');
+    for (const alert of result.alerts) alerts.set(`${alert.studentNumber}:${alert.id}`, alert);
+    if (!result.hasMore) return [...alerts.values()];
+    const cursor = JSON.stringify(result.nextCursor);
+    if (!result.nextCursor || cursors.has(cursor) || (page.before && result.before !== page.before)) throw new Error('SAVE_ALERTS_INVALID_RESPONSE');
+    cursors.add(cursor);
+    page = { before: result.before, cursor: result.nextCursor };
+  }
 };
 
 export const acknowledgeSaveFailure = async (alert: SaveFailureAlert) => {

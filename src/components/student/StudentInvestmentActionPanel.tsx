@@ -114,14 +114,16 @@ export default function StudentInvestmentActionPanel({ state, market, selectedSt
         </div>
         <label className="student-investment-input">
           <span>투자할 고마</span>
-          <div><input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="투자할 고마" value={amount} disabled={marketClosed || isSaving || maximum < settings.minimumAmount} onChange={(event) => setAmount(event.target.value)} /><span>고마</span></div>
+          <div><input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="투자할 고마" aria-describedby="student-investment-minimum" value={amount} disabled={marketClosed || isSaving || maximum < settings.minimumAmount} onChange={(event) => setAmount(event.target.value)} /><span>고마</span></div>
         </label>
         <div className="student-investment-actions">
           <button type="button" disabled={!canInvest} onClick={() => setDraft({ type: 'invest', amount: investmentAmount })}>투자하기</button>
           <button type="button" className="is-secondary" disabled={!canWithdraw} onClick={() => position && setDraft({ type: 'withdraw', amount: position.currentAmount })}>투자금 찾기</button>
         </div>
       </div>
-      <p className="student-investment-status-message" aria-live="polite">{footerStatusMessage}</p>
+      <p id="student-investment-minimum" className="student-investment-status-message" aria-live="polite">
+        최소 투자금액 {settings.minimumAmount.toLocaleString('ko-KR')} 고마{footerStatusMessage ? ` · ${footerStatusMessage}` : ''}
+      </p>
       {draft ? (
         <div className="student-stock-dialog-backdrop">
           <section ref={dialogRef} className="student-stock-dialog" role="dialog" aria-modal="true" aria-labelledby="student-investment-dialog-title" tabIndex={-1}>

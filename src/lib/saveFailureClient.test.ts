@@ -3,6 +3,29 @@ import test from 'node:test';
 import { createServer } from 'vite';
 import { parseSaveFailureAlert } from './saveFailure.js';
 
+test('일괄 복사는 100건 이후의 진단도 조회하며 중간 실패나 반복 커서를 성공으로 처리하지 않는다', async t => {
+  const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
+    define: { 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fake.invalid'), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('fake') } });
+  const at = '2026-10-15T03:00:00Z';
+  const alerts = Array.from({ length: 101 }, (_, index) => ({ id: `fixture-alert-${index}`, studentNumber: 3, feature: 'studentLife', code: 'server', occurredAt: at, acknowledgedAt: null }));
+  let mode = 'success'; const urls: URL[] = [];
+  t.mock.method(globalThis, 'fetch', async (input, init) => {
+    assert.equal(init?.method ?? 'GET', 'GET');
+    const url = new URL(String(input), 'https://fake.invalid'); urls.push(url);
+    if (url.searchParams.has('cursorId') && mode === 'failure') return Response.json({}, { status: 502 });
+    return Response.json(!url.searchParams.has('cursorId') || mode === 'repeat'
+      ? { alerts: alerts.slice(0, 100), hasMore: true, before: at, nextCursor: { updatedAt: at, id: 'school-timer-save-alert-3-fixture-099' } }
+      : { alerts: alerts.slice(100), hasMore: false, before: at });
+  });
+  try {
+    const client = await server.ssrLoadModule('/src/lib/saveFailureClient.ts') as typeof import('./saveFailureClient.js');
+    assert.equal((await client.loadAllSaveFailureAlerts()).length, 101);
+    assert.equal(urls[1].searchParams.get('before'), at);
+    mode = 'failure'; await assert.rejects(client.loadAllSaveFailureAlerts(), /SAVE_ALERTS_UNAVAILABLE/);
+    mode = 'repeat'; await assert.rejects(client.loadAllSaveFailureAlerts(), /SAVE_ALERTS_INVALID_RESPONSE/);
+  } finally { await server.close(); }
+});
+
 test('alert reads and acknowledgements allow the server to finish its database requests', async (t) => {
   const server = await createServer({
     configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },

@@ -5,11 +5,25 @@ import { collectSaveFailureDiagnostics, formatSaveFailureDiagnostic, getSaveFail
 
 const alert: SaveFailureAlert = { id: 'diagnostic-test-123', studentNumber: 4, feature: 'auction', code: 'response', occurredAt: '2026-09-07T01:00:00.000Z', acknowledgedAt: null };
 
+test('서버 저장 범위 거절은 기기 저장 공간 오류로 분류하거나 안내하지 않는다', () => {
+  const error = Object.assign(new Error('STORAGE_SCOPE_VIOLATION'), { serverCode: 'STORAGE_SCOPE_VIOLATION', status: 400 });
+  assert.equal(classifySaveFailure(error), 'server');
+  const legacy: SaveFailureAlert = { ...alert, code: 'storage', diagnostics: { errorCode: 'STORAGE_SCOPE_VIOLATION', httpStatus: 400 } };
+  assert.equal(getSaveFailureLabel(legacy), '서버 저장 범위 오류');
+  const explanation = getSaveFailureExplanation(legacy);
+  assert.match(explanation.problem, /서버.*저장 범위/);
+  assert.doesNotMatch(`${explanation.problem} ${explanation.action}`, /저장 공간|브라우저 설정/);
+});
+
 test('공용 저장 확인 실패는 최초 서버 코드와 상태를 보존한다', () => {
   const cause = Object.assign(new Error('STORAGE_DATABASE_HTTP_503'), { serverCode: 'STORAGE_DATABASE_HTTP_503', status: 503 });
   const error = Object.assign(new Error('STORAGE_CONFIRMATION_REQUIRED', { cause }), {
     serverCode: 'STORAGE_CONFIRMATION_REQUIRED', status: 502, endpoint: '/api/shared-settings',
   });
+  assert.equal(classifySaveFailure(error), 'response');
+  const previous: SaveFailureAlert = { ...alert, code: 'server', diagnostics: { errorCode: 'STORAGE_CONFIRMATION_REQUIRED', httpStatus: 502 } };
+  assert.equal(getSaveFailureLabel(previous), '저장 확인 필요');
+  assert.match(getSaveFailureExplanation(previous).problem, /저장됐을 수도/);
   assert.deepEqual(collectSaveFailureDiagnostics(error), {
     errorCode: 'STORAGE_CONFIRMATION_REQUIRED', causeCode: 'STORAGE_DATABASE_HTTP_503',
     httpStatus: 503, errorName: 'Error', endpoint: '/api/shared-settings',

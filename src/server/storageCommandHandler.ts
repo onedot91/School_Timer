@@ -5,11 +5,13 @@ import {
   commitScopedStorageMutationAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError,
   type StorageConfiguration, type StorageReceipt,
 } from './storageV2Repository.js';
-import { storageCommandScope, studentEditRevisionKeys } from './storageCommandScope.js';
+import { auctionFinalizationScope, completeFailureStoryReadScope, storageCommandScope, studentEditRevisionKeys } from './storageCommandScope.js';
+import { AUCTION_ITEM_IDS, normalizeAuctionBids } from '../lib/currency.js';
 import { createStorageProjectionPatch, supportsStorageProjection } from './storageProjection.js';
 import { isStorageRecord } from '../lib/storageV2Codec.js';
 import { requiresStudentEditRevisions } from './storageClientContract.js';
 import { logStorageFailure } from './storageFailureDiagnostics.js';
+import { StorageScopeError } from './storageScope.js';
 
 interface CommandRequest {
   readonly headers?: RequestHeaders;
@@ -57,6 +59,7 @@ export const handleStorageCommand = async (
     response.status(426).json({ error: 'STORAGE_PROTOCOL_UPGRADE_REQUIRED' }); return;
   }
   let confirmBeforeRejection: (() => Promise<boolean>) | undefined;
+  let diagnosticAction: unknown;
   try {
     const body: unknown = request.method === 'GET' ? undefined
       : typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
@@ -82,6 +85,7 @@ export const handleStorageCommand = async (
       const requestId = request.query?.requestId;
       if (!validId(requestId)) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
       const receipt = await getStorageReceipt(configuration, commandActor, requestId);
+      diagnosticAction = receipt.action;
       if (!receipt.found) { response.status(200).json({ status: 'unknown' }); return; }
       if (request.query?.receiptOnly === '1') { response.status(200).json(receiptStatus(receipt)); return; }
       const scope = receipt.scope ?? storageCommandScope(receipt.action ?? '', {}, effectiveSession, true);
@@ -94,9 +98,12 @@ export const handleStorageCommand = async (
     if (!validId(body.requestId) || typeof body.action !== 'string' || !('payload' in body)
       || Buffer.byteLength(JSON.stringify(body), 'utf8') > 1_048_576) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
     const action = body.action, requestId = body.requestId, payload = body.payload;
+    diagnosticAction = action;
     if (effectiveSession.role === 'student' && !action.startsWith('student.')) { response.status(403).json({ error: 'STUDENT_SETTINGS_SCOPE_VIOLATION' }); return; }
     if (effectiveSession.role === 'teacher' && !action.startsWith('teacher.')) { response.status(403).json({ error: 'TEACHER_COMMAND_REQUIRED' }); return; }
-    const scope = storageCommandScope(action, payload, effectiveSession);
+    const finalizingAuction = effectiveSession.role === 'teacher' && action === 'teacher.auction.finalize';
+    const itemId = isStorageRecord(payload) ? payload.itemId : undefined;
+    const scope = finalizingAuction ? auctionFinalizationScope(itemId) : storageCommandScope(action, payload, effectiveSession);
     confirmBeforeRejection = async () => {
       const receipt = await getStorageReceipt(configuration, commandActor, requestId, { action, payload });
       if (!receipt.found) return false;
@@ -106,12 +113,32 @@ export const handleStorageCommand = async (
       return true;
     };
     const createdAt = new Date().toISOString();
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    const maxAttempts = action === 'student.auction.bid' ? 24 : 5;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       try {
-        const { receipt, snapshot } = await prepareStorageCommand(configuration, commandActor, requestId, scope, { action, payload });
+        const prepared = await prepareStorageCommand(configuration, commandActor, requestId, scope, { action, payload });
+        const { receipt } = prepared;
+        let snapshot = prepared.snapshot;
         if (receipt.found) {
           response.status(200).json({ storagePatch: createStorageProjectionPatch(snapshot, project(snapshot.value)), status: 'committed', value: project(snapshot.value), updatedAt: snapshot.updated_at, result: receipt.result });
           return;
+        }
+        if (action === 'student.failure.create') {
+          const completeScope = completeFailureStoryReadScope(snapshot.scope, snapshot.resources.map(resource => resource.resource_key));
+          if (completeScope !== snapshot.scope) {
+            snapshot = await loadScopedStorageSnapshot(configuration, completeScope);
+            if (completeFailureStoryReadScope(snapshot.scope, snapshot.resources.map(resource => resource.resource_key)) !== snapshot.scope) {
+              throw new StorageRepositoryError(503, 'STORAGE_SERIALIZATION_RETRY');
+            }
+          }
+        }
+        if (finalizingAuction && typeof itemId === 'string') {
+          const winner = normalizeAuctionBids(snapshot.value.auctionBids, AUCTION_ITEM_IDS)[itemId]?.bidder;
+          if (winner === null || winner === undefined) throw new StorageRepositoryError(409, 'AUCTION_BID_CHANGED');
+          snapshot = await loadScopedStorageSnapshot(configuration, auctionFinalizationScope(itemId, winner));
+          if (normalizeAuctionBids(snapshot.value.auctionBids, AUCTION_ITEM_IDS)[itemId]?.bidder !== winner) {
+            throw new StorageRepositoryError(503, 'STORAGE_SERIALIZATION_RETRY');
+          }
         }
         if (effectiveSession.role === 'student') validateEditRevisions(action, payload, effectiveSession.studentNumber, snapshot.revisions);
         const mutation = effectiveSession.role === 'teacher'
@@ -120,7 +147,7 @@ export const handleStorageCommand = async (
         if (!mutation) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
         const saved = await commitScopedStorageMutationAndLoad(configuration, { snapshot, value: mutation.value,
           actorKey: commandActor,requestId,action,payload,result: mutation.result,
-          readKeys: scope.revisionKeys,
+          readKeys: snapshot.scope.revisionKeys,
         });
         if (saved.saved) {
           const current = saved.snapshot;
@@ -129,9 +156,9 @@ export const handleStorageCommand = async (
           return;
         }
       } catch (error) {
-        if (!(error instanceof StorageRepositoryError) || error.code !== 'STORAGE_SERIALIZATION_RETRY' || attempt === 4) throw error;
+        if (!(error instanceof StorageRepositoryError) || error.code !== 'STORAGE_SERIALIZATION_RETRY' || attempt === maxAttempts - 1) throw error;
       }
-      if (attempt < 4) await new Promise(resolve => setTimeout(resolve, 40 * 2 ** attempt + Math.random() * 80));
+      if (attempt < maxAttempts - 1) await new Promise(resolve => setTimeout(resolve, Math.min(40 * 2 ** attempt, 640) + Math.random() * 80));
     }
     throw new StorageRepositoryError(409, 'RESOURCE_REVISION_CONFLICT');
   } catch (error) {
@@ -139,7 +166,7 @@ export const handleStorageCommand = async (
       && error.code !== 'STORAGE_REQUEST_REUSED' || error instanceof Error && businessError(error))) {
       try { if (await confirmBeforeRejection()) return; }
       catch (confirmationError) {
-        logStorageFailure(confirmationError, { route: '/api/shared-settings', stage: 'confirmation', startedAt });
+        logStorageFailure(confirmationError, { route: '/api/shared-settings', stage: 'confirmation', startedAt, action: diagnosticAction });
         const reused = confirmationError instanceof StorageRepositoryError && confirmationError.code === 'STORAGE_REQUEST_REUSED';
         response.status(reused ? 409 : 502).json({ error: reused ? 'STORAGE_REQUEST_REUSED' : 'STORAGE_CONFIRMATION_UNAVAILABLE' });
         return;
@@ -147,13 +174,16 @@ export const handleStorageCommand = async (
     }
     if (error instanceof SyntaxError) { response.status(400).json({ error: 'INVALID_BODY' }); return; }
     if (error instanceof StorageRepositoryError) {
-      logStorageFailure(error, { route: '/api/shared-settings', stage: request.method === 'GET' ? 'receipt' : 'command', startedAt });
+      logStorageFailure(error, { route: '/api/shared-settings', stage: request.method === 'GET' ? 'receipt' : 'command', startedAt, action: diagnosticAction });
       if (error.status === 503) response.setHeader('Retry-After','5');
       response.status(error.status).json({ error: error.code }); return;
     }
     const business = error instanceof Error ? businessError(error) : null;
-    if (business) { response.status(business.status).json({ error: business.code, businessRejected: true }); return; }
-    logStorageFailure(error, { route: '/api/shared-settings', stage: request.method === 'GET' ? 'receipt' : 'command', startedAt });
+    if (business) {
+      if (error instanceof StorageScopeError) logStorageFailure(error, { route: '/api/shared-settings', stage: request.method === 'GET' ? 'receipt' : 'command', startedAt, action: diagnosticAction });
+      response.status(business.status).json({ error: business.code, businessRejected: true }); return;
+    }
+    logStorageFailure(error, { route: '/api/shared-settings', stage: request.method === 'GET' ? 'receipt' : 'command', startedAt, action: diagnosticAction });
     response.status(502).json({ error: 'STORAGE_COMMAND_FAILED' });
   }
 };

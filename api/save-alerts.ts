@@ -38,7 +38,17 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         if (!limit.allowed) { response.setHeader('Retry-After', String(limit.retryAfterSeconds)); response.status(429).json({ error: 'TOO_MANY_REQUESTS' }); return; }
         response.status(200).json(await loadRewardAudit({ url, key })); return;
       }
-      const rows = await query(`?id=like.${SAVE_FAILURE_ROW_PREFIX}*&value->>acknowledgedAt=is.null&select=value,updated_at&order=updated_at.desc&limit=101`);
+      const paged = request.query?.paged === '1';
+      const before = request.query?.before ?? new Date().toISOString();
+      const cursorAt = request.query?.cursorAt, cursorId = request.query?.cursorId;
+      if (paged && (typeof before !== 'string' || before.length > 32 || !Number.isFinite(Date.parse(before))
+        || ((cursorAt !== undefined || cursorId !== undefined) && (typeof cursorAt !== 'string' || cursorAt.length > 32 || !Number.isFinite(Date.parse(cursorAt))
+          || typeof cursorId !== 'string' || !/^school-timer-save-alert-[a-zA-Z0-9_-]{1,250}$/.test(cursorId))))) {
+        response.status(400).json({ error: 'INVALID_SAVE_ALERT_CURSOR' }); return;
+      }
+      const cursor = paged && typeof cursorAt === 'string' && typeof cursorId === 'string'
+        ? `&or=${encodeURIComponent(`(updated_at.lt.${cursorAt},and(updated_at.eq.${cursorAt},id.lt.${cursorId}))`)}` : '';
+      const rows = await query(`?id=like.${SAVE_FAILURE_ROW_PREFIX}*&value->>acknowledgedAt=is.null&select=${paged ? 'id,' : ''}value,updated_at&order=updated_at.desc${paged ? ',id.desc' : ''}&limit=101${paged ? `&updated_at=lte.${encodeURIComponent(String(before))}${cursor}` : ''}`);
       if (!Array.isArray(rows)) throw new Error('INVALID_RESPONSE');
       const alerts = rows.map((row: unknown) => (() => {
         if (!row || typeof row !== 'object') return null;
@@ -46,7 +56,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
         return alert ? parseSaveFailureAlert({ ...alert, receivedAt: Reflect.get(row, 'updated_at') }) : null;
       })());
       if (alerts.some((alert) => !alert)) throw new Error('INVALID_RESPONSE');
-      response.status(200).json({ alerts: alerts.slice(0, 100), hasMore: alerts.length > 100 }); return;
+      const last: unknown = rows[99];
+      const nextCursor = paged && alerts.length > 100 && last && typeof last === 'object'
+        ? { updatedAt: Reflect.get(last, 'updated_at'), id: Reflect.get(last, 'id') } : undefined;
+      response.status(200).json({ alerts: alerts.slice(0, 100), hasMore: alerts.length > 100,
+        ...(paged ? { before, nextCursor } : {}) }); return;
     }
     if (Buffer.byteLength(JSON.stringify(request.body) ?? '', 'utf8') > 2048) {
       response.status(400).json({ error: 'INVALID_SAVE_ALERT' }); return;

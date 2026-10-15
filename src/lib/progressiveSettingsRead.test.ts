@@ -34,9 +34,11 @@ test('teacher delta merging and compact student reads retain complete cache and 
     assert.deepEqual(JSON.parse(requests[1].manifest ?? 'null'), manifest);
     settings.invalidateSharedSettingsCache();
     assert.equal(settings.canLoadTeacherSettingsChanges(), true);
-    replies.push({ id, updated_at: at, scope: 'full', value: initial, storagePatch: patch(initial, true), readManifest: manifest });
-    await settings.loadSharedSettingsRow();
-    assert.equal(requests.at(-1)?.manifest, null, 'invalidated data needs a fresh baseline while retaining capability');
+    const latestManifest = { ...manifest, 'resource:scheduleNotice': 'c'.repeat(32) };
+    replies.push({ id, updated_at: at, scope: 'full', value: {}, storagePatch: patch({}, false, 2), readManifest: latestManifest });
+    const afterInvalidation = await settings.loadSharedSettingsRow();
+    assert.deepEqual(afterInvalidation?.value, { scheduleNotice: null, retained: { content: 'keep' } });
+    assert.deepEqual(JSON.parse(requests.at(-1)?.manifest ?? 'null'), latestManifest);
     actor = '7';
     assert.equal(settings.canLoadTeacherSettingsChanges(), false);
     replies.push({ id, updated_at: at, scope: 'student', value: { studentPets: { '7': { name: 'pet' } } },
@@ -52,6 +54,10 @@ test('teacher delta merging and compact student reads retain complete cache and 
     assert.deepEqual(full?.value, { studentPets: { '7': { name: 'pet' } }, dailyWriting: { title: 'loaded' } });
     replies.push({ id, updated_at: at, scope: 'student', encoding: 'storage-patch', storagePatch: patch({}, false) });
     await assert.rejects(settings.loadSharedSettingsRow(), /SHARED_SETTINGS_INVALID_RESPONSE/);
+    actor = '0';
+    replies.push({ id, updated_at: at, scope: 'full', value: initial, storagePatch: patch(initial, true), readManifest: manifest });
+    await settings.loadSharedSettingsRow();
+    assert.equal(requests.at(-1)?.manifest, null, 'returning to a teacher session requires a new complete baseline');
   } finally {
     globalThis.fetch = priorFetch;
     if (priorWindow) Object.defineProperty(globalThis, 'window', priorWindow); else Reflect.deleteProperty(globalThis, 'window');

@@ -8,13 +8,42 @@ const secret = 'save-alerts-disposable-test-secret-at-least-32-characters';
 const report = { id: 'failure-test-123', studentNumber: 3, feature: 'emotion', code: 'network', occurredAt: '2026-09-07T01:00:00.000Z' };
 const cookie = (teacher: boolean) => `${DEVICE_SESSION_COOKIE_NAME}=${createDeviceSessionToken(teacher ? { role: 'teacher' } : { role: 'student', studentNumber: 3 }, secret)}`;
 let requestIndex = 0;
-const invoke = async (method: string, body?: unknown, teacher = false, extraHeaders = {}) => {
+const invoke = async (method: string, body?: unknown, teacher = false, extraHeaders = {}, query?: Record<string, string>) => {
   let status = 200;
   let value: unknown;
   const response = { setHeader() {}, status(code: number) { status = code; return response; }, json(body: unknown) { value = body; } };
-  await handler({ method, body, headers: { cookie: cookie(teacher), 'sec-fetch-site': 'same-origin', 'x-forwarded-for': `test-${++requestIndex}`, ...extraHeaders } }, response);
+  await handler({ method, body, query, headers: { cookie: cookie(teacher), 'sec-fetch-site': 'same-origin', 'x-forwarded-for': `test-${++requestIndex}`, ...extraHeaders } }, response);
   return { status, value };
 };
+
+test('일괄 진단 조회는 같은 접수 시각도 ID 커서로 넘기고 잘못된 커서와 학생 조회는 거절한다', async t => {
+  const previous = { ...process.env };
+  Object.assign(process.env, { SUPABASE_URL: 'https://save-alerts.invalid', SUPABASE_SERVICE_ROLE_KEY: 'fake', DEVICE_SESSION_SECRET: secret });
+  const at = '2026-10-15T03:00:00.000Z';
+  const rows = Array.from({ length: 101 }, (_, index) => ({ id: `${SAVE_FAILURE_ROW_PREFIX}3-fixture-${String(200 - index).padStart(3, '0')}`,
+    value: { ...report, id: `fixture-${200 - index}`, acknowledgedAt: null }, updated_at: at }));
+  const urls: URL[] = [];
+  t.mock.method(globalThis, 'fetch', async input => {
+    const url = new URL(String(input)); urls.push(url);
+    assert.equal(url.searchParams.get('order'), 'updated_at.desc,id.desc');
+    return Response.json(url.searchParams.has('or') ? [rows[100]] : rows);
+  });
+  try {
+    const first = await invoke('GET', undefined, true, {}, { paged: '1' });
+    assert.equal(first.status, 200);
+    assert.ok(first.value && typeof first.value === 'object');
+    const before = Reflect.get(first.value, 'before');
+    assert.deepEqual(Reflect.get(first.value, 'nextCursor'), { updatedAt: at, id: rows[99].id });
+    const second = await invoke('GET', undefined, true, {}, { paged: '1', before, cursorAt: at, cursorId: rows[99].id });
+    assert.equal(second.status, 200);
+    assert.match(urls[1].searchParams.get('or') ?? '', /id\.lt\.school-timer-save-alert-3-fixture-101/);
+    assert.equal(urls[1].searchParams.get('updated_at'), `lte.${before}`);
+    const count = urls.length;
+    assert.equal((await invoke('GET', undefined, false, {}, { paged: '1' })).status, 403);
+    assert.equal((await invoke('GET', undefined, true, {}, { paged: '1', cursorAt: at, cursorId: 'invalid),id.gt.anything' })).status, 400);
+    assert.equal(urls.length, count);
+  } finally { process.env = previous; }
+});
 
 test('save alerts use independent rows, enforce roles, and retain acknowledgement across retries', async (t) => {
   t.mock.method(globalThis, 'fetch', async (input: string | URL | Request, init?: RequestInit) => {

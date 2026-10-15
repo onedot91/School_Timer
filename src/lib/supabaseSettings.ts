@@ -61,13 +61,13 @@ export const invalidateSharedSettingsCache = () => {
   settingsCacheGeneration += 1;
   cachedWritableSharedSettingsRow = undefined;
   studentReadState = undefined;
-  teacherReadManifest = undefined;
 };
 
 const synchronizeSettingsActor = (): StorageResponseContext => {
   const context = captureStorageResponseContext();
   if (settingsActorContext?.generation !== context.generation) {
     invalidateSharedSettingsCache();
+    teacherReadManifest = undefined;
     teacherChangesSupported = false;
     settingsActorContext = context;
   }

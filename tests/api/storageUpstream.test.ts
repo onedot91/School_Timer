@@ -103,3 +103,49 @@ test('storage diagnostics omit untrusted error details and normal conflicts', as
   assert.equal(JSON.stringify(logs).includes('PRIVATE_STUDENT_CONTENT'), false);
   assert.ok(JSON.stringify(logs).includes('STORAGE_REQUEST_FAILED'));
 });
+
+test('저장 범위 오류는 허용된 코드·작업명·단계·시간만 기록한다', async t => {
+  const { logStorageFailure } = await import('../../src/server/storageFailureDiagnostics.js');
+  const { StorageScopeError } = await import('../../src/server/storageScope.js');
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  const context = { route: '/api/shared-settings', stage: 'command', startedAt: Date.now() - 10, action: 'student.failure.create' } as const;
+  for (const error of [new StorageRepositoryError(400, 'STORAGE_SCOPE_VIOLATION'), new StorageScopeError()]) {
+    Reflect.set(error, 'message', 'private student answer');
+    Reflect.set(error, 'payload', { answer: 'private request body' });
+    logStorageFailure(error, context);
+  }
+  assert.equal(logs.length, 2);
+  for (const [, details] of logs) {
+    assert.ok(details && typeof details === 'object');
+    assert.deepEqual(Object.keys(details).sort(), ['action', 'code', 'elapsedMs', 'route', 'stage', 'status']);
+    assert.equal(Reflect.get(details, 'status'), 400);
+    assert.equal(Reflect.get(details, 'code'), 'STORAGE_SCOPE_VIOLATION');
+    assert.equal(Reflect.get(details, 'action'), 'student.failure.create');
+    assert.ok(Reflect.get(details, 'elapsedMs') >= 10);
+  }
+  logStorageFailure(new StorageRepositoryError(502, 'STORAGE_DATABASE_TIMEOUT'), { ...context, action: 'private unrecognized action' });
+  assert.equal(Object.hasOwn(Object(logs[2][1]), 'action'), false);
+  assert.doesNotMatch(JSON.stringify(logs), /private|answer|payload/);
+  logStorageFailure(new StorageRepositoryError(409, 'RESOURCE_REVISION_CONFLICT'), context);
+  logStorageFailure(new StorageRepositoryError(400, 'INVALID_STORAGE_COMMAND'), context);
+  assert.equal(logs.length, 3);
+});
+
+test('저장 처리기는 저장 범위 오류의 실제 작업명을 남기며 원본 요청은 기록하지 않는다', async t => {
+  const { handleStorageCommand } = await import('../../src/server/storageCommandHandler.js');
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('UNEXPECTED_FETCH'); });
+  let status = 0;
+  const response = { setHeader() {}, status(code: number) { status = code; return this; }, json() {} };
+  await handleStorageCommand({ method: 'POST', headers: { 'x-storage-projection': '1' }, body: {
+    protocolVersion: 2, requestId: 'fixture-scope-logging', action: 'teacher.auction.finalize', payload: { itemId: null, private: 'private student content' },
+  } }, response, configuration, { role: 'teacher', expiresAt: 0 }, () => ({}));
+  assert.equal(status, 400);
+  assert.equal(logs.length, 1);
+  assert.equal(Reflect.get(Object(logs[0][1]), 'action'), 'teacher.auction.finalize');
+  assert.equal(Reflect.get(Object(logs[0][1]), 'code'), 'STORAGE_SCOPE_VIOLATION');
+  assert.equal(Reflect.get(Object(logs[0][1]), 'stage'), 'command');
+  assert.doesNotMatch(JSON.stringify(logs), /private|student content|itemId|payload/);
+});
