@@ -24,7 +24,7 @@ import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStat
 import { applyStockMarketWeekImport, getStockMarketWeekLabel } from '../lib/stockMarketWeekImport';
 import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { StorageAvailabilityBanner } from '../components/StorageAvailabilityBanner';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HeartHandshake, HeartPulse, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HandCoins, HeartHandshake, HeartPulse, House, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, ReceiptText, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -274,7 +274,7 @@ const TeacherPanelLoadFallback = () => (
 );
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
-type SettingsPanel = 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'currency-history' | 'loan-history' | 'emotion' | 'mail' | 'writing' | 'newspaper' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
+type SettingsPanel = 'today' | 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'currency-history' | 'loan-history' | 'emotion' | 'mail' | 'writing' | 'newspaper' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
 type TeacherShopTab = 'items' | 'skins' | 'houses' | 'characters';
 type SettingsNavigationGroup = {
   readonly label: string;
@@ -300,41 +300,42 @@ type EmotionCalendarDay = {
 
 const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
   {
-    label: '수업 운영',
+    label: '오늘',
+    showHeading: false,
+    items: [
+      { panel: 'today', label: '오늘', icon: House },
+    ],
+  },
+  {
+    label: '오늘 처리',
+    items: [
+      { panel: 'auction', label: '경매', icon: Coins },
+      { panel: 'missions', label: '미션', icon: ClipboardCheck },
+      { panel: 'mail', label: '편지', icon: Mail },
+      { panel: 'today-friend', label: '오늘의 친구', icon: HeartHandshake },
+      { panel: 'writing', label: '글쓰기', icon: NotebookText },
+      { panel: 'newspaper', label: '신문 질문', icon: MessageCircleQuestion },
+      { panel: 'emotion', label: '감정', icon: HeartPulse },
+    ],
+  },
+  {
+    label: '학급 설정',
     items: [
       { panel: 'subjects', label: '과목', icon: BookOpen },
       { panel: 'schedule', label: '시간표', icon: CalendarClock },
       { panel: 'draw', label: '추첨', icon: Sparkles },
-    ],
-  },
-  {
-    label: '학생 생활',
-    items: [
-      { panel: 'emotion', label: '감정', icon: HeartPulse },
-      { panel: 'mail', label: '편지', icon: Mail },
-      { panel: 'writing', label: '글쓰기', icon: NotebookText },
-      { panel: 'newspaper', label: '신문 질문', icon: MessageCircleQuestion },
       { panel: 'classword', label: '낱말판', icon: StickyNote },
-      { panel: 'today-friend', label: '오늘의 친구', icon: HeartHandshake },
       { panel: 'library-competition', label: '책방 챌린지', icon: Trophy },
-      { panel: 'missions', label: '미션', icon: ClipboardCheck },
-    ],
-  },
-  {
-    label: '고마 경제',
-    items: [
-      { panel: 'auction', label: '경매', icon: Coins },
       { panel: 'stocks', label: '증권', icon: Star },
-      { panel: 'donation', label: '기부', icon: HeartPulse },
-      { panel: 'currency-history', label: '입출금', icon: Landmark },
-      { panel: 'loan-history', label: '대출 내역', icon: Landmark },
+      { panel: 'donation', label: '기부', icon: HandCoins },
+      { panel: 'shop', label: '기타', icon: Package },
     ],
   },
   {
-    label: '기타 설정',
-    showHeading: false,
+    label: '기록',
     items: [
-      { panel: 'shop', label: '기타', icon: Package },
+      { panel: 'currency-history', label: '입출금', icon: Landmark },
+      { panel: 'loan-history', label: '대출 내역', icon: ReceiptText },
     ],
   },
 ] as const;
@@ -4365,7 +4366,7 @@ export default function TimerPage() {
     });
     return () => controls.stop();
   }, [animateMotion, isSettingsMaterialMounted, isSettingsOpen, settingsMaterialProgress, shouldReduceMotion]);
-  const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('subjects');
+  const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('today');
   const currentSettingsNavigationItem = SETTINGS_NAVIGATION_ITEMS.find((item) => item.panel === settingsPanel);
   const handleSettingsNavigationKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
     const navigationButtons: HTMLButtonElement[] = [
@@ -4688,6 +4689,12 @@ export default function TimerPage() {
     && todayClassroomRoleAssignments.some(({ studentNumber }) => (
       classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(studentNumber)] === undefined
     ));
+
+  const unpaidClassroomRoleRewardCount = hasUnpaidClassroomRoleReward
+    ? todayClassroomRoleAssignments.filter(({ studentNumber }) => (
+      classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(studentNumber)] === undefined
+    )).length
+    : 0;
 
   const teacherSettingsBaseRef = useRef<Record<string, unknown>>({});
   const teacherSettingsPersistedBaseRef = useRef<Record<string, unknown>>({});
@@ -10906,6 +10913,50 @@ export default function TimerPage() {
     }
   };
 
+  const todaySettingsTasks: readonly {
+    readonly panel: SettingsPanel;
+    readonly icon: LucideIcon;
+    readonly label: string;
+    readonly action: string;
+  }[] = [
+    ...(isTodayAuctionUnregistered ? [{ panel: 'auction' as const, icon: Coins, label: '오늘 경매 물품 미등록', action: '등록' }] : []),
+    ...(unpaidClassroomRoleRewardCount > 0 ? [{ panel: 'missions' as const, icon: ClipboardCheck, label: `1인1역 보상 미지급 ${unpaidClassroomRoleRewardCount}명`, action: '지급' }] : []),
+    ...(unreadTeacherLetterCount > 0 ? [{ panel: 'mail' as const, icon: Mail, label: `새 편지 ${unreadTeacherLetterCount}개`, action: '읽기' }] : []),
+    ...(todayFriendPendingReviewCount > 0 ? [{ panel: 'today-friend' as const, icon: HeartHandshake, label: `오늘의 친구 승인 대기 ${todayFriendPendingReviewCount}건`, action: '검토' }] : []),
+  ];
+
+  const todaySettingsPanel = (
+    <section className="settings-today" aria-labelledby="settings-today-title">
+      <h3 id="settings-today-title" className="settings-today-title">
+        {adjustedScheduleNow.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
+      </h3>
+      {todaySettingsTasks.length > 0 ? (
+        <ul className="settings-today-tasks" aria-label="처리할 일">
+          {todaySettingsTasks.map((task) => {
+            const TaskIcon = task.icon;
+            return (
+              <li key={task.panel}>
+                <button type="button" className="settings-today-task" onClick={() => setSettingsPanel(task.panel)}>
+                  <span className="settings-today-task-icon" aria-hidden="true"><TaskIcon size={20} /></span>
+                  <span className="settings-today-task-label">{task.label}</span>
+                  <span className="settings-today-task-action">
+                    {task.action}
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="settings-today-empty" role="status">
+          <CircleCheck size={22} aria-hidden="true" />
+          처리할 일 없음
+        </p>
+      )}
+    </section>
+  );
+
   const currencyHistorySettingsPanel = (
     <section className="settings-card rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5" aria-labelledby="currency-history-title">
       <header className="mb-3 flex items-center justify-between gap-3 border-b border-[#E4EDE7] pb-3">
@@ -13291,7 +13342,9 @@ export default function TimerPage() {
               >
                 <div key={settingsPanel} className={`settings-body custom-scrollbar overflow-y-auto bg-[#FDFBF7] p-4 md:p-6${settingsPanel === 'stocks' && stockSettingsTab === 'students' ? ' teacher-stock-investments-body' : ''}`}>
                   <Suspense fallback={<TeacherPanelLoadFallback />}>
-                    {settingsPanel === 'schedule'
+                    {settingsPanel === 'today'
+                      ? todaySettingsPanel
+                      : settingsPanel === 'schedule'
                       ? scheduleSettingsPanel
                       : settingsPanel === 'subjects'
                         ? subjectSettingsPanel
