@@ -94,9 +94,9 @@ Font sizes come from seven role tokens defined on `:root`. New or migrated style
 | `--type-label` | `.8125rem` | field labels, chips, metadata |
 | `--type-caption` | `.75rem` | minimum readable size: timestamps, badges, footnotes |
 
-- Teacher settings and the Classword styles in `src/classword.css` (student board and quiz, teacher 낱말판 panel and utility pane) use only these tokens; `src/lib/typeScale.test.ts` enforces it. Classword size aliases such as `--classword-quiz-copy-size` stay as named aliases and resolve to a type role; an initial's tense-alias subscript keeps its `em` ratio to the tokenized initial.
-- Listed exceptions are sized against fixed artwork: teacher count badges and character bubbles, the Classword lime `+` medallion, and the quiz initial-hint glyph.
-- Teacher timer TV surfaces, notebook overlays, and student screens migrate separately; until then they keep their feature-owned sizes.
+- Teacher settings, student screens (`.student-*` rules, `AuctionPage`, `AuctionRoom`, `src/components/student/`), and the Classword styles in `src/classword.css` (student board and quiz, teacher 낱말판 panel and utility pane) use only these tokens; `src/lib/typeScale.test.ts` enforces it. Feature size aliases such as `--student-letter-body-size` and `--classword-quiz-copy-size` stay as named aliases and resolve to a type role; an initial's tense-alias subscript keeps its `em` ratio to the tokenized initial.
+- Listed exceptions are sized against fixed artwork or board geometry: teacher count badges and character bubbles; student emoji and pet glyphs, decorative quote marks, envelope stamps, library slot numbers, and the Sudoku and number-baseball board digits; the Classword lime `+` medallion and the quiz initial-hint glyph.
+- Teacher timer TV surfaces and notebook overlays migrate separately; until then they keep their feature-owned sizes.
 
 ### Geometry
 
@@ -133,7 +133,7 @@ Font sizes come from seven role tokens defined on `:root`. New or migrated style
 | emotion mood-meter layout | `2 × 2` zones, each `3 × 3` emotions | show all 36 emotions together at the 1280×650 Chromebook viewport; do not hide zones behind tabs |
 | `--student-emotion-calendar-max-width` | `68rem` | monthly emotion history surface width |
 | `--student-emotion-calendar-cell-min-height` | `5.5rem` | calendar day target height |
-| `--student-emotion-dialog-label-size` / `--student-emotion-dialog-input-size` / `--student-emotion-dialog-counter-size` / `--student-emotion-dialog-action-size` | `1.125rem` / `1.2rem` / `0.875rem` / `1.125rem` | 두 개의 감정 기록 질문, 답변, 글자 수, 저장 행동을 초등 3학년이 모달에서 편하게 읽는 글자 크기 |
+| `--student-emotion-dialog-label-size` / `--student-emotion-dialog-input-size` / `--student-emotion-dialog-counter-size` / `--student-emotion-dialog-action-size` | `--type-heading` / `--type-heading` / `--type-body-sm` / `--type-heading` | 두 개의 감정 기록 질문, 답변, 글자 수, 저장 행동을 초등 3학년이 모달에서 편하게 읽는 글자 크기 |
 | Student browser-content QA viewport | `1280px × 650px` | conservative content budget for a 1280×800 device with Chrome tabs/address bar and OS shelf; also check 1280×600 and fullscreen 1280×800 |
 | `--student-shell-inset` | `0.5rem` (short viewport) / `0.75rem` | compact outer inset at the Chromebook viewport |
 | `--student-shell-gap` | `0.5rem` (short viewport) / `0.75rem` | shared gap between student shell regions |
@@ -143,19 +143,19 @@ Font sizes come from seven role tokens defined on `:root`. New or migrated style
 | `--student-overview-action-height` | `6rem` (short viewport) / `7rem` | paired overview destination cards at the Chromebook viewport |
 | `--student-overview-header-padding-block` | `0.4rem` | vertical inset for the compact balance header |
 | `--student-overview-card-padding` | `0.75rem 1rem` | compact overview destination-card inset |
-| `--student-overview-card-title-size` | `1.45rem` | overview destination-card title size |
+| `--student-overview-card-title-size` | `--type-title` | overview destination-card title size |
 | `--student-content-height` | `calc(100dvh - 5.5rem)` (short viewport) / `calc(100dvh - 6rem)` | task content budget after outer inset, header, and shared gap |
 | `--student-card-radius` | `1.25rem` | student task cards and grouped panels |
 | `--student-compact-control-height` | `2.75rem` | compact Chromebook control with a 44px minimum target |
-| `--student-readable-text-min` | `0.875rem` | minimum student-facing supporting text at the 1280×650 reference viewport |
-| `--student-mission-role-size` | `1.125rem` | prominent role-only caption on the supplied `1인 1역` artwork |
+| `--student-readable-text-min` | `--type-body-sm` | minimum student-facing supporting text at the 1280×650 reference viewport |
+| `--student-mission-role-size` | `--type-heading` | prominent role-only caption on the supplied `1인 1역` artwork |
 | `--student-readable-image-min` | `3rem` | minimum meaningful thumbnail or status artwork at the reference viewport |
 | `--student-today-friend-profile-size` | `clamp(15rem, 26vw, 20rem)` | dominant assigned-friend profile at the Chromebook viewport |
-| `--student-today-friend-partner-size` | `clamp(2.75rem, 4vw, 3.5rem)` | assigned friend number and identity label |
-| `--student-today-friend-tab-size` / `--student-today-friend-field-label-size` | `1.0625rem` / `1.125rem` | 오늘의 친구 장르 탭과 질문·입력 항목 이름을 기존보다 또렷하게 읽는 크기 |
-| `--student-today-friend-question-size` | `clamp(1.4rem, 1.9vw, 1.7rem)` | readable daily question inside the compact prompt card |
-| `--student-today-friend-input-size` / `--student-today-friend-supporting-size` / `--student-today-friend-action-size` | `1.5rem` / `0.95rem` / `1.125rem` | 낮아진 입력 상자에서도 답변·힌트를 또렷하게 읽게 하는 학생용 글자 위계; 좁은 한 줄 칸의 힌트는 완결된 짧은 문구로 유지한다 |
-| `--student-today-friend-quote-size` | `2rem` | 칭찬하기의 마지막 한마디를 직접 전하는 대사로 읽히게 하는 큰따옴표 크기 |
+| `--student-today-friend-partner-size` | `--type-display` | assigned friend number and identity label |
+| `--student-today-friend-tab-size` / `--student-today-friend-field-label-size` | `--type-body` / `--type-heading` | 오늘의 친구 장르 탭과 질문·입력 항목 이름을 기존보다 또렷하게 읽는 크기 |
+| `--student-today-friend-question-size` | `--type-title` | readable daily question inside the compact prompt card |
+| `--student-today-friend-input-size` / `--student-today-friend-supporting-size` / `--student-today-friend-action-size` | `--type-title` / `--type-body` / `--type-heading` | 낮아진 입력 상자에서도 답변·힌트를 또렷하게 읽게 하는 학생용 글자 위계; 좁은 한 줄 칸의 힌트는 완결된 짧은 문구로 유지한다 |
+| `--student-today-friend-quote-size` | `--type-display` | 칭찬하기의 마지막 한마디를 직접 전하는 대사로 읽히게 하는 큰따옴표 크기 |
 | `--student-today-friend-field-gap` | `.625rem` | 칭찬하기와 감정 찾기의 연속 응답 카드가 한 덩어리로 붙어 보이지 않게 하는 세로 간격 |
 | `--student-today-friend-page-inset-block` | `.375rem` | 오늘의 친구 작업판이 헤더와 화면 하단에 붙지 않도록 확보하는 작은 상하 여백 |
 | `--student-today-friend-compliment-answer-height` | `clamp(6.25rem, 17dvh, 7rem)` | 칭찬할 행동과 이유를 두 줄 이상 읽고 쓰며 긴 문장은 내부에서 자동 줄바꿈하는 입력 높이 |
@@ -174,13 +174,13 @@ Font sizes come from seven role tokens defined on `:root`. New or migrated style
 | `--today-friend-theme-panel-shadow` / `--today-friend-theme-art-shadow` | genre-derived | one consistent upper-left light source: a broad tinted panel shadow and a tighter artwork shadow replace generic black elevation while retaining a quiet cream base |
 | `--student-donation-character-size` | `20rem` | 진행 중 기부 화면의 날짜별 일반 캐릭터 크기 |
 | `--student-donation-animation-size` | `clamp(22rem, 60vh, 32rem)` | 목표 달성 후 감사 애니메이션을 Chromebook 높이 안에서 주인공 요소로 크게 보여 주는 최대 크기 |
-| `--student-mail-tab-size` | `1.05rem` | mailbox folder and compose-tab labels |
-| `--student-mail-tray-title-size` | `1.125rem` | received/sent tray heading |
-| `--student-mail-envelope-meta-size` | `.9375rem` | sender and date on a read envelope |
-| `--student-mail-envelope-title-size` | `1.125rem` | subject on a read envelope |
-| `--student-letter-sender-size` | `1.125rem` | calm right-aligned signature inside the student letter paper |
-| `--student-letter-title-size` | `clamp(2.25rem, 3vw, 2.75rem)` | primary title inside the student letter paper |
-| `--student-letter-body-size` | `clamp(1.35rem, 1.9vw, 1.55rem)` | readable serif body copy inside the student letter paper |
+| `--student-mail-tab-size` | `--type-body` | mailbox folder and compose-tab labels |
+| `--student-mail-tray-title-size` | `--type-heading` | received/sent tray heading |
+| `--student-mail-envelope-meta-size` | `--type-body-sm` | sender and date on a read envelope |
+| `--student-mail-envelope-title-size` | `--type-heading` | subject on a read envelope |
+| `--student-letter-sender-size` | `--type-heading` | calm right-aligned signature inside the student letter paper |
+| `--student-letter-title-size` | `--type-display` | primary title inside the student letter paper |
+| `--student-letter-body-size` | `--type-title` | readable serif body copy inside the student letter paper |
 | `--font-writing` | `"Noto Serif KR", serif` | received/composed letter paper and Today Friend text-entry typography; the scoped SUIT Variable exception |
 | `--student-mail-list-ratio` / `--student-mail-reader-ratio` | `31fr` / `69fr` | Chromebook mailbox split that keeps the envelope tray secondary and the reading stage dominant |
 | `--student-mail-paper` / `--student-mail-envelope` | `#fffaf0` / `#f2dfba` | warm paper and envelope materials for the student mailbox |
@@ -190,10 +190,10 @@ Font sizes come from seven role tokens defined on `:root`. New or migrated style
 | `--student-letter-rule` | `2.25rem` | shared enlarged ruled-paper cadence for the letter background, body line-height, and signature rhythm |
 | `--student-letter-rule-offset` | `-2px`; `-1px` above `1100px` | responsive ruled-paper baseline offset that follows the enlarged body font scale and places body and signature glyphs directly on each horizontal rule |
 | `--student-letter-signature-offset` | `5px`; `6px` above `1100px` | signature-only glyph correction that keeps the smaller signature type on the same ruled-paper baseline as body copy |
-| `--student-investment-card-title-size` | `1.2rem` | investment stock name and primary card heading |
-| `--student-investment-reason-size` | `clamp(1.1875rem, 1.7vw, 1.375rem)` | prominent serif stock-change reason text that remains readable across Chromebook widths |
-| `--student-investment-amount-size` | `1.55rem` | prominent invested/current Goma amount |
-| `--student-investment-result-size` | `2rem` | most prominent gained or lost Goma result |
+| `--student-investment-card-title-size` | `--type-heading` | investment stock name and primary card heading |
+| `--student-investment-reason-size` | `--type-title` | prominent serif stock-change reason text that remains readable across Chromebook widths |
+| `--student-investment-amount-size` | `--type-title` | prominent invested/current Goma amount |
+| `--student-investment-result-size` | `--type-display` | most prominent gained or lost Goma result |
 | `--student-investment-control-height` | `3.25rem` | amount input and paired investment actions in the roomier two-row trade panel |
 | `--student-sudoku-cell-size` | 도전 `clamp(3.6rem, min(8.4vh, 6vw), 4.25rem)`; 기본 `clamp(4.75rem, min(10vh, 8vw), 6rem)` | difficulty-aware square cell: 9×9 challenge stays fully operable while 6×6 basic uses the reclaimed area for larger third-grade-friendly targets |
 | `--student-sudoku-selected` | `color-mix(in srgb, var(--student-sudoku-sky) 26%, white)` | selected row, column, and block context |

@@ -255,6 +255,12 @@ test('본인 낱말 수정 화면은 문구 없는 확정과 제거 아이콘 �
   assert.match(css, /\.classword-cell-editor \.classword-editor-actions button \{[\s\S]*?inline-size: 3rem;[\s\S]*?min-block-size: 3rem;/);
 });
 
+test('짧은 화면의 편집 카드는 칸 안에 확정과 제거 버튼을 모두 담는다', () => {
+  assert.match(css, /\.classword-cell-editor \{[^}]*gap: \.2rem;[^}]*overflow-y: auto;[^}]*padding: \.2rem \.45rem;/);
+  assert.match(css, /\.classword-cell-editor form \{ display: grid; gap: \.2rem; \}/);
+  assert.match(css, /\.classword-cell\.is-own\.is-selected \{ border-width: 1px; \}/);
+});
+
 test('내 카드가 있을 때 빈 칸은 확인 모달을 거친 뒤에만 이동 편집을 연다', () => {
   assert.match(studentBoard, /const canSelect = selectedInitial === null && \(isOwn \|\| !entry\);/);
   assert.match(studentBoard, /if \(!entry && ownEntry\) \{[\s\S]*?setMoveTarget\(initial\);[\s\S]*?return;/);
