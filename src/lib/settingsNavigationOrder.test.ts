@@ -2,30 +2,44 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-test('고마 경제 설정 메뉴에 입출금 내역을 포함하고 기타는 별도 그룹으로 분리한다', async () => {
+test('설정 메뉴는 오늘 홈, 오늘 처리, 학급 설정, 기록 순서로 묶는다', async () => {
   // Given
   const source = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
-  const economyGroupStart = source.indexOf("label: '고마 경제'");
-  const otherGroupStart = source.indexOf("label: '기타 설정'");
-  const navigationEnd = source.indexOf('] as const;', otherGroupStart);
+  const navigationStart = source.indexOf('const SETTINGS_NAVIGATION_GROUPS');
+  const navigationEnd = source.indexOf('] as const;', navigationStart);
+  const navigation = source.slice(navigationStart, navigationEnd);
+  const groupLabels = ['오늘', '오늘 처리', '학급 설정', '기록'];
 
   // When
-  const economyGroup = source.slice(economyGroupStart, otherGroupStart);
-  const otherGroup = source.slice(otherGroupStart, navigationEnd);
-  const navigationOrder = ['auction', 'stocks', 'donation', 'currency-history', 'loan-history'].map((panel) => economyGroup.indexOf(`panel: '${panel}'`));
+  const groupStarts = groupLabels.map((label) => navigation.indexOf(`label: '${label}',\n`));
+  const groupOf = (panel: string) => {
+    const index = navigation.indexOf(`panel: '${panel}'`);
+    return groupStarts.filter((start) => start >= 0 && start < index).length - 1;
+  };
 
   // Then
-  assert.ok(economyGroupStart >= 0);
-  assert.ok(otherGroupStart > economyGroupStart);
-  assert.ok(navigationEnd > otherGroupStart);
-  assert.ok(navigationOrder.every(index => index >= 0));
-  assert.deepEqual(navigationOrder, [...navigationOrder].sort((left, right) => left - right));
-  assert.doesNotMatch(economyGroup, /panel: 'shop'/);
-  assert.match(otherGroup, /showHeading: false/);
-  assert.match(otherGroup, /panel: 'shop', label: '기타'/);
+  assert.ok(navigationStart >= 0);
+  assert.ok(groupStarts.every((start) => start >= 0));
+  assert.deepEqual(groupStarts, [...groupStarts].sort((left, right) => left - right));
+  assert.equal(groupOf('today'), 0);
+  for (const panel of ['auction', 'missions', 'mail', 'today-friend']) assert.equal(groupOf(panel), 1);
+  for (const panel of ['subjects', 'schedule', 'stocks', 'donation', 'shop']) assert.equal(groupOf(panel), 2);
+  for (const panel of ['currency-history', 'loan-history']) assert.equal(groupOf(panel), 3);
+  assert.match(source, /useState<SettingsPanel>\('today'\)/);
 });
 
-test('수업 운영, 학생 생활, 고마 경제는 구분된 헤더로 표시한다', async () => {
+test('오늘 홈은 처리할 일만 행동 카드로 모아 보여 준다', async () => {
+  const source = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
+
+  assert.match(source, /isTodayAuctionUnregistered \? \[\{ panel: 'auction'/);
+  assert.match(source, /unpaidClassroomRoleRewardCount > 0 \? \[\{ panel: 'missions'/);
+  assert.match(source, /unreadTeacherLetterCount > 0 \? \[\{ panel: 'mail'/);
+  assert.match(source, /todayFriendPendingReviewCount > 0 \? \[\{ panel: 'today-friend'/);
+  assert.match(source, /onClick=\{\(\) => setSettingsPanel\(task\.panel\)\}/);
+  assert.match(source, /처리할 일 없음/);
+});
+
+test('설정 메뉴 그룹은 구분된 헤더로 표시한다', async () => {
   const source = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../index.css', import.meta.url), 'utf8');
   const headingStylesStart = styles.indexOf('.settings-navigation-label {');

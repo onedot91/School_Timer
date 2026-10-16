@@ -87,7 +87,7 @@ export default function TeacherQuestionSubmissionGrid({ statuses }: {
         <div
           key={status.number}
           className={`question-submission-status-card flex min-h-[5.25rem] flex-col items-center justify-between rounded-[0.9rem] border-2 px-2 py-2.5 shadow-[0_6px_14px_rgba(31,24,18,0.045)] ${
-            status.personalSubmitted || status.topicSubmitted ? 'border-[#8FD6BB] bg-[#E8F9F0]' : 'border-[#DCCCA8] bg-white'
+            status.personalSubmitted || status.topicSubmitted ? 'border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)]' : 'border-[var(--teacher-border)] bg-white'
           }`}
           role="group"
           tabIndex={0}
@@ -100,11 +100,11 @@ export default function TeacherQuestionSubmissionGrid({ statuses }: {
           onClick={event => showPreview(status.number, event.currentTarget)}
         >
           <span className={`font-mono text-[1.45rem] font-black leading-none ${
-            status.personalSubmitted || status.topicSubmitted ? 'text-[#176244]' : 'text-[#665F56]'
+            status.personalSubmitted || status.topicSubmitted ? 'text-[var(--teacher-accent)]' : 'text-[var(--teacher-text-secondary)]'
           }`}>{status.number}</span>
           <span className="flex items-center justify-center gap-2" aria-hidden="true">
-            <span className={`h-3.5 w-3.5 rounded-full ${status.personalSubmitted ? 'bg-[#168657]' : 'bg-[#DDE5EC]'}`} />
-            <span className={`h-3.5 w-3.5 rounded-full ${status.topicSubmitted ? 'bg-[#347FC4]' : 'bg-[#DDE5EC]'}`} />
+            <span className={`h-3.5 w-3.5 rounded-full ${status.personalSubmitted ? 'bg-[#168657]' : 'bg-[var(--teacher-border)]'}`} />
+            <span className={`h-3.5 w-3.5 rounded-full ${status.topicSubmitted ? 'bg-[#347FC4]' : 'bg-[var(--teacher-border)]'}`} />
           </span>
         </div>
       ))}

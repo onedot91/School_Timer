@@ -229,7 +229,7 @@ test('교사 알림장은 번호와 금액을 두 줄로, 학생 화면은 괄�
   const expectedFormat = /\{award\.winner\}번 \(\{formatCurrency\(award\.amount\)\}\)/;
   const legacyFormat = /\{award\.winner\}번 · \{formatCurrency\(award\.amount\)\}/;
 
-  assert.match(timerPageSource, /className="announcement-award-student"[\s\S]*?<img[\s\S]*?className="announcement-award-result text-\[#006241\]">\s*<span>\{award\.winner\}번<\/span>\s*<span>\{formatCurrency\(award\.amount\)\}<\/span>/);
+  assert.match(timerPageSource, /className="announcement-award-student"[\s\S]*?<img[\s\S]*?className="announcement-award-result text-\[var\(--teacher-accent\)\]">\s*<span>\{award\.winner\}번<\/span>\s*<span>\{formatCurrency\(award\.amount\)\}<\/span>/);
   assert.match(auctionPageSource, expectedFormat);
   assert.doesNotMatch(timerPageSource, legacyFormat);
   assert.doesNotMatch(auctionPageSource, legacyFormat);

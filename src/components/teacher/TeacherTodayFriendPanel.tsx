@@ -1,4 +1,4 @@
-import { CalendarCheck2, ClipboardList, RefreshCw, Settings2 } from 'lucide-react';
+import { ClipboardList, RefreshCw, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getTodayFriendDateKey } from '../../lib/todayFriend';
@@ -22,6 +22,7 @@ import type { TodayFriendQuestion, TodayFriendState } from '../../lib/todayFrien
 import TeacherTodayFriendPlan from './TeacherTodayFriendPlan';
 import TeacherTodayFriendReview from './TeacherTodayFriendReview';
 import StatusSlot from '../StatusSlot';
+import SettingsPanelFrame, { SettingsStatusChip } from './SettingsPanelFrame';
 
 type TeacherTodayFriendTab = 'review' | 'plan';
 const reviewDrafts = createStudentSaveDraftStore();
@@ -193,22 +194,27 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
   const dateSubmissions = state?.submissions.filter((submission) => submission.dateKey === dateKey) ?? [];
   const reviewQueue = createTodayFriendReviewQueue(dateSubmissions);
   const pendingReviewCount = getTodayFriendPendingReviewCount(dateSubmissions, dateKey);
+  const approvedCount = reviewQueue.filter((entry) => entry.status === 'approved').length;
+  const missingCount = reviewQueue.filter((entry) => entry.status === 'missing').length;
 
   useEffect(() => {
     if (state && !isLoading && !hasLoadError) onPendingReviewCountChange?.(dateKey, pendingReviewCount);
   }, [dateKey, onPendingReviewCountChange, pendingReviewCount, state, isLoading, hasLoadError]);
 
   return (
-    <section className="teacher-today-friend-panel" aria-labelledby="teacher-today-friend-title">
-      <header className="teacher-today-friend-header">
-        <div><CalendarCheck2 aria-hidden="true" /><h2 id="teacher-today-friend-title">오늘의 친구</h2></div>
-        <label><span className="sr-only">날짜</span><input type="date" disabled={isSaving} value={dateKey} onChange={(event) => setDateKey(event.target.value)} /></label>
-      </header>
-      <div className="teacher-today-friend-summary">
-        <span><strong>{pendingReviewCount}</strong>대기</span>
-        <span><strong>{reviewQueue.filter((entry) => entry.status === 'approved').length}</strong>완료</span>
-        <span><strong>{reviewQueue.filter((entry) => entry.status === 'missing').length}</strong>미제출</span>
-      </div>
+    <SettingsPanelFrame
+      label="오늘의 친구"
+      className="teacher-today-friend-panel"
+      status={(
+        <>
+          <h3>오늘의 친구</h3>
+          <SettingsStatusChip tone={pendingReviewCount > 0 ? 'warning' : 'neutral'}>대기 {pendingReviewCount}</SettingsStatusChip>
+          <SettingsStatusChip tone="accent">완료 {approvedCount}</SettingsStatusChip>
+          <SettingsStatusChip>미제출 {missingCount}</SettingsStatusChip>
+        </>
+      )}
+      action={<input type="date" className="teacher-today-friend-date" aria-label="날짜" disabled={isSaving} value={dateKey} onChange={(event) => setDateKey(event.target.value)} />}
+    >
       <nav className="teacher-today-friend-tabs" aria-label="오늘의 친구 관리 메뉴">
         <button type="button" className={tab === 'review' ? 'is-active' : ''} onClick={() => setTab('review')}><ClipboardList aria-hidden="true" />제출</button>
         <button type="button" className={tab === 'plan' ? 'is-active' : ''} onClick={() => setTab('plan')}><Settings2 aria-hidden="true" />설정</button>
@@ -221,6 +227,6 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
       ) : (
         <TeacherTodayFriendPlan state={state} dateKey={dateKey} isSaving={isSaving || isLoading || hasLoadError} onPlanAction={updatePlan} onQuestionsChange={updateQuestions} />
       )}
-    </section>
+    </SettingsPanelFrame>
   );
 }

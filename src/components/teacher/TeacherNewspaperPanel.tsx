@@ -7,6 +7,7 @@ import { isReadOnlyDataMode } from '../../lib/dataMode';
 import { getKoreanIsoWeekKey } from '../../lib/weeklyMission';
 import { NEWSPAPER_CONFIG, QUESTION_LABELS, QUESTION_ERRORS, NewspaperError, newspaperErrorMessage, isQuestionMode, isQuestionWeek, questionValidationCode, normalizeQuestionText, questionWeekLabel, questionWeekOptions, selectQuestionDownload, buildQuestionTxt, questionTxtFilename, parseNewspaperQuestion, type NewspaperQuestion, type QuestionMode } from '../../lib/newspaperQuestion';
 import StableLabel from '../StableLabel';
+import SettingsPanelFrame, { SettingsStatusChip } from './SettingsPanelFrame';
 
 function QuestionEditor({ row, heartCount, isTopHearted, busy, onSave, onDelete }: { row: NewspaperQuestion; heartCount: number; isTopHearted: boolean; busy: boolean; onSave: (text: string) => void; onDelete: () => void }) {
   const [text, setText] = useState(row.question_text);
@@ -61,12 +62,26 @@ export default function TeacherNewspaperPanel() {
     const file = { text: buildQuestionTxt(rows, mode), filename: questionTxtFilename(weekKey, mode, cumulative) };
     setDownload(file); saveFile(file);
   });
+  const submittedStudentCount = data ? new Set(data.questions.map(row => row.student_number)).size : 0;
+  const pendingDownloadCount = data ? selectQuestionDownload(data.questions, 'all', true).length : 0;
   return <div className="newspaper teacher-newspaper">
-    <div className="newspaper-toolbar"><h2>질문 현황</h2><button disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={17} /> 새로고침</button></div>
+    <SettingsPanelFrame
+      label="신문 질문"
+      status={<>
+        <h3>질문 현황</h3>
+        {data && !error ? <>
+          <SettingsStatusChip tone={submittedStudentCount === NEWSPAPER_CONFIG.studentCount ? 'accent' : 'neutral'}>제출 {submittedStudentCount} / {NEWSPAPER_CONFIG.studentCount}</SettingsStatusChip>
+          <SettingsStatusChip tone={pendingDownloadCount > 0 ? 'warning' : 'neutral'}>누적 대기 {pendingDownloadCount}</SettingsStatusChip>
+        </> : null}
+        <button aria-label="새로고침" title="새로고침" disabled={loading || busy} onClick={() => void refresh()}><RefreshCw size={17} aria-hidden="true" /></button>
+      </>}
+      action={data && !error ? <button className="settings-frame-primary" disabled={busy || pendingDownloadCount === 0 || isReadOnlyDataMode} onClick={() => downloadQuestions('all', true)}><Download size={17} aria-hidden="true" /> {QUESTION_LABELS.all} 누적 ({pendingDownloadCount})</button> : undefined}
+      details={data && !error ? <button className="newspaper-danger" disabled={busy || isReadOnlyDataMode} onClick={() => setConfirm('reset')}>초기화</button> : undefined}
+    >
     <div className="newspaper-topic-settings">
       <label>적용 주<select value={selectedWeek} disabled={busy} onChange={event => { setSelectedWeek(event.target.value); setTopicDraft(null); setNotice(''); setDownload(null); }}>{weeks.map(week => <option key={week} value={week}>{data?.topics.some(row => row.week_key === week) ? '●' : '○'} {questionWeekLabel(week)} ({week}){week === currentWeek ? ' · 오늘' : ''}</option>)}</select></label>
       <label>주제<input value={topicDraft ?? topic?.topic_text ?? ''} disabled={busy || loading || !!error || isReadOnlyDataMode} maxLength={NEWSPAPER_CONFIG.topicMaxLength} onChange={event => setTopicDraft(event.target.value)} /></label>
-      <button className="newspaper-primary" disabled={busy || loading || !!error || isReadOnlyDataMode || !(topicDraft ?? topic?.topic_text ?? '').trim()} onClick={() => void run({ action: 'topic', weekKey: selectedWeek, topicText: topicDraft ?? topic?.topic_text ?? '', expectedUpdatedAt: topic?.updated_at ?? null }, '주제 저장 완료', () => setTopicDraft(null))}><StableLabel busy={busy} busyLabel="처리 중" label={'주제 저장'} /></button>
+      <button disabled={busy || loading || !!error || isReadOnlyDataMode || !(topicDraft ?? topic?.topic_text ?? '').trim()} onClick={() => void run({ action: 'topic', weekKey: selectedWeek, topicText: topicDraft ?? topic?.topic_text ?? '', expectedUpdatedAt: topic?.updated_at ?? null }, '주제 저장 완료', () => setTopicDraft(null))}><StableLabel busy={busy} busyLabel="처리 중" label={'주제 저장'} /></button>
     </div>
     {loading && !data ? <p role="status">확인 중…</p> : null}
     {error ? <p role="alert" className="newspaper-error">{error}</p> : null}
@@ -88,7 +103,7 @@ export default function TeacherNewspaperPanel() {
         </div>;
       })}</div>
       <section className="newspaper-downloads"><h3>신문 이미지용 TXT</h3><p>수정한 질문은 누적 대기로 돌아갑니다.</p>
-        <div className="newspaper-download-groups">{[true, false].map(cumulative => <div key={String(cumulative)}><h4>{cumulative ? '누적 다운로드' : '전체 다운로드'}</h4><div className="newspaper-download-buttons">{(['personal', 'topic', 'all'] as const).map(mode => {
+        <div className="newspaper-download-groups">{[true, false].map(cumulative => <div key={String(cumulative)}><h4>{cumulative ? '누적 다운로드' : '전체 다운로드'}</h4><div className="newspaper-download-buttons">{(['personal', 'topic', 'all'] as const).filter(mode => !(cumulative && mode === 'all')).map(mode => {
           const count = selectQuestionDownload(data.questions, mode, cumulative).length;
           return <button key={mode} disabled={busy || count === 0 || isReadOnlyDataMode} onClick={() => downloadQuestions(mode, cumulative)}><Download size={16} /> {QUESTION_LABELS[mode]} {cumulative ? '누적' : '전체'} ({count})</button>;
         })}</div></div>)}</div>
@@ -104,13 +119,14 @@ export default function TeacherNewspaperPanel() {
             ? <button key={requestId} disabled={busy || isReadOnlyDataMode} onClick={() => downloadQuestions(mode, cumulative, weekKey)}>응답 미확인 TXT 다시 받기 · {questionWeekLabel(weekKey)} · {QUESTION_LABELS[mode]}</button> : null;
         })}
       </section>
-      <div className="newspaper-toolbar"><div className="newspaper-tabs" role="group" aria-label="관리자 질문 필터">{(['all', 'personal', 'topic'] as const).map(mode => <button key={mode} aria-pressed={filter === mode} onClick={() => setFilter(mode)}>{mode === 'all' ? '전체 보기' : QUESTION_LABELS[mode]}</button>)}</div><button className="newspaper-danger" disabled={busy || isReadOnlyDataMode} onClick={() => setConfirm('reset')}>초기화</button></div>
+      <div className="newspaper-tabs" role="group" aria-label="관리자 질문 필터">{(['all', 'personal', 'topic'] as const).map(mode => <button key={mode} aria-pressed={filter === mode} onClick={() => setFilter(mode)}>{mode === 'all' ? '전체 보기' : QUESTION_LABELS[mode]}</button>)}</div>
       <div className="newspaper-editor-list">{Array.from({ length: NEWSPAPER_CONFIG.studentCount }, (_, index) => <section key={index} className="newspaper-student-row"><h3>{index + 1}번</h3>{(['personal', 'topic'] as const).filter(type => filter === 'all' || type === filter).map(type => {
         const row = data.questions.find(item => item.student_number === index + 1 && item.question_type === type);
         const heartCount = row ? data.heartCounts?.[row.id] ?? 0 : 0;
         return row ? <QuestionEditor key={`${row.id}:${row.updated_at}`} row={row} heartCount={heartCount} isTopHearted={heartCount > 0 && heartCount === highestHeartCounts[type]} busy={busy} onSave={text => void run({ action: 'update', id: row.id, questionText: text, expectedUpdatedAt: row.updated_at }, `${row.student_number}번 수정 완료`)} onDelete={() => setConfirm(row)} /> : <p key={type} className="newspaper-missing" aria-label={`${index + 1}번 ${QUESTION_LABELS[type]} 미제출`}>{QUESTION_LABELS[type]} 미제출</p>;
       })}</section>)}</div>
     </> : null}
+    </SettingsPanelFrame>
     {confirm ? <NewspaperDialog title={confirm === 'reset' ? '정말 초기화시키겠습니까?' : `${confirm.student_number}번 ${QUESTION_LABELS[confirm.question_type]} 삭제`} busy={busy} onClose={() => { setConfirm(null); setConfirmation(''); }}>
       <p>{confirm === 'reset' ? '모든 주차의 개인 질문, 주제 질문, 주제 기록이 전부 삭제됩니다.' : '이 질문을 삭제합니다.'}</p><p>이 작업은 되돌릴 수 없습니다. 지급된 고마는 유지됩니다.</p>
       {confirm === 'reset' ? <label>확인 문구: 모든 기록 초기화<input aria-label="초기화 확인 문구" value={confirmation} onChange={event => setConfirmation(event.target.value)} disabled={busy} /></label> : null}
