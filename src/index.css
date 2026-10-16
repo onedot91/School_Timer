@@ -893,6 +893,7 @@ img {
   }
 }
 
+.teacher-app,
 .timer-main-shell,
 .teacher-settings-theme {
   --teacher-canvas: #eae8e1;

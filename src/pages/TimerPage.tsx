@@ -2840,7 +2840,7 @@ function AnnouncementNotebookOverlay({
 
         <div className={`announcement-page flex min-h-0 flex-1 flex-col overflow-hidden ${pagePaddingClass}`}>
           <div className={`announcement-stage mx-auto flex ${stageLayoutClass}${announcementDayAwardedAuctionItems.length > 0 ? ' announcement-stage-with-awards' : ''}`}>
-            <div className={`announcement-paper paper-card relative ${paperShellLayoutClass} overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]`}>
+            <div className={`announcement-paper paper-card relative ${paperShellLayoutClass} overflow-hidden rounded-[2.6rem] border-2 border-[var(--teacher-border)] bg-[#fffcf8]`}>
               <div className="announcement-paper-top announcement-paper-top-clean shrink-0 border-b border-[#EADFD1] px-3 py-3 sm:px-5 md:px-6 md:py-4">
                 <div className="announcement-date-row announcement-date-row-clean">
                   <NotebookOverlayTimerBadge liveTimer={liveTimer} />
@@ -2890,7 +2890,7 @@ function AnnouncementNotebookOverlay({
                     <button
                       ref={announcementHistoryTriggerRef}
                       onClick={openAnnouncementHistory}
-                      className="announcement-date-action-history announcement-chip-button announcement-action-button inline-flex items-center justify-center rounded-full border border-[#dcc7ae] text-[#8A6347]"
+                      className="announcement-date-action-history announcement-chip-button announcement-action-button inline-flex items-center justify-center rounded-full border border-[#dcc7ae] text-[var(--teacher-text-secondary)]"
                       type="button"
                       title="알림장 기록"
                       aria-label="알림장 기록"
@@ -2983,7 +2983,7 @@ function AnnouncementNotebookOverlay({
               </div>
             </div>
                     {announcementDayAwardedAuctionItems.length > 0 ? (
-                      <div aria-label="오늘 낙찰" className="announcement-award-sidebar pointer-events-auto rounded-[1rem] border border-[#D7E6DE] bg-white/95 p-3 shadow-[0_8px_18px_rgba(31,24,18,0.1)]" data-capture-exclude="true">
+                      <div aria-label="오늘 낙찰" className="announcement-award-sidebar pointer-events-auto rounded-[1rem] border border-[var(--teacher-border)] bg-white/95 p-3 shadow-[0_8px_18px_rgba(31,24,18,0.1)]" data-capture-exclude="true">
                         <div className="announcement-award-list gap-2 overflow-y-auto" tabIndex={0} role="region" aria-label="오늘 낙찰 목록">
                           {announcementDayAwardedAuctionItems.map(({ item, award }) => (
                             <div
@@ -3004,7 +3004,7 @@ function AnnouncementNotebookOverlay({
                                     }
                                   }}
                                 />
-                                <span className="announcement-award-result text-[#006241]">
+                                <span className="announcement-award-result text-[var(--teacher-accent)]">
                                   <span>{award.winner}번</span>
                                   <span>{formatCurrency(award.amount)}</span>
                                 </span>
@@ -3022,7 +3022,7 @@ function AnnouncementNotebookOverlay({
                         onClick={() => setIsAwardQueueConfirmOpen(false)}
                       >
                         <div
-                          className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                          className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[var(--teacher-border-strong)] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
                           ref={announcementAwardConfirmRef}
                           role="dialog"
                           aria-modal="true"
@@ -3032,7 +3032,7 @@ function AnnouncementNotebookOverlay({
                           <h3 id="announcement-award-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
                             낙찰 처리할까요?
                           </h3>
-                          <p className="mt-2 text-[0.95rem] font-extrabold leading-6 text-[#6E5139]">
+                          <p className="mt-2 text-[0.95rem] font-extrabold leading-6 text-[var(--teacher-text-secondary)]">
                             {announcementDayAwardableAuctionItems.length}개 물품의 최고 입찰자를 확정하고 낙찰가를 차감합니다.
                           </p>
                           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -3040,7 +3040,7 @@ function AnnouncementNotebookOverlay({
                               type="button"
                               onClick={() => setIsAwardQueueConfirmOpen(false)}
                               ref={announcementAwardCancelRef}
-                              className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                              className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white px-4 text-[0.95rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                             >
                               취소
                             </button>
@@ -3048,7 +3048,7 @@ function AnnouncementNotebookOverlay({
                               type="button"
                               onClick={startAnnouncementDayAwards}
                               disabled={!hasAwardableAuctionItems}
-                              className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+                              className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
                             >
                               낙찰 시작
                             </button>
@@ -3058,11 +3058,11 @@ function AnnouncementNotebookOverlay({
                     ) : null}
                     {isAwardMenuOpen ? (
                       <div
-                        className="pointer-events-auto absolute bottom-[4.2rem] right-0 z-[6] w-[min(21rem,calc(100vw-2.4rem))] rounded-[1.2rem] border border-[#D7E6DE] bg-white/95 p-2.5 shadow-[0_18px_34px_rgba(31,24,18,0.18)] backdrop-blur"
+                        className="pointer-events-auto absolute bottom-[4.2rem] right-0 z-[6] w-[min(21rem,calc(100vw-2.4rem))] rounded-[1.2rem] border border-[var(--teacher-border)] bg-white/95 p-2.5 shadow-[0_18px_34px_rgba(31,24,18,0.18)] backdrop-blur"
                         role="menu"
                       >
                         <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                          <span className="section-title text-[0.9rem] font-black text-[#006241]">낙찰 대기</span>
+                          <span className="section-title text-[0.9rem] font-black text-[var(--teacher-accent)]">낙찰 대기</span>
                           <span className="shrink-0 rounded-full bg-[#EEF7F2] px-2 py-1 text-[0.72rem] font-black text-[#00754A]">
                             {announcementDayAwardableAuctionItems.length}개
                           </span>
@@ -3080,7 +3080,7 @@ function AnnouncementNotebookOverlay({
                                 role="menuitem"
                                 onMouseDown={(event) => event.preventDefault()}
                                 onClick={() => openAwardConfirmFromAnnouncement(item)}
-                                className="flex min-h-[3.75rem] w-full items-center justify-between gap-2 rounded-[0.95rem] border border-[#DCEBE4] bg-[#FCFFFC] px-3 py-2 text-left transition-colors hover:border-[#8DBEA8] hover:bg-[#F3FAF6]"
+                                className="flex min-h-[3.75rem] w-full items-center justify-between gap-2 rounded-[0.95rem] border border-[#DCEBE4] bg-[#FCFFFC] px-3 py-2 text-left transition-colors hover:border-[var(--teacher-border-strong)] hover:bg-[#F3FAF6]"
                               >
                                 <span className="min-w-0">
                                   <span className="block truncate text-[0.95rem] font-black text-[#243832]">
@@ -3127,7 +3127,7 @@ function AnnouncementNotebookOverlay({
                     <button
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={insertSafetyPhrase}
-                      className="announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-full border border-[#dcc7ae] text-[#8A6347]"
+                      className="announcement-note-inline-action announcement-chip-button inline-flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-full border border-[#dcc7ae] text-[var(--teacher-text-secondary)]"
                       type="button"
                       title={ANNOUNCEMENT_SAFETY_PHRASE}
                       aria-label={`${ANNOUNCEMENT_SAFETY_PHRASE} 자동 입력`}
@@ -3139,10 +3139,10 @@ function AnnouncementNotebookOverlay({
         </div>
         {isHistoryOpen ? (
           <div className="announcement-history-overlay absolute inset-0 z-40 flex justify-end bg-black/25 p-2 backdrop-blur-sm sm:p-4" data-capture-exclude="true">
-            <aside className="announcement-history-panel flex h-full w-full max-w-[38rem] flex-col overflow-hidden rounded-[1.5rem] border border-[#D7E2D1] bg-[#FCFFFC] shadow-2xl">
-              <div className="announcement-history-header flex shrink-0 items-center justify-between border-b border-[#D7E2D1] px-5 py-4">
+            <aside className="announcement-history-panel flex h-full w-full max-w-[38rem] flex-col overflow-hidden rounded-[1.5rem] border border-[var(--teacher-border)] bg-[#FCFFFC] shadow-2xl">
+              <div className="announcement-history-header flex shrink-0 items-center justify-between border-b border-[var(--teacher-border)] px-5 py-4">
                 <div>
-                  <h3 className="announcement-history-title section-title text-xl font-extrabold text-[#006241]">알림장 기록</h3>
+                  <h3 className="announcement-history-title section-title text-xl font-extrabold text-[var(--teacher-accent)]">알림장 기록</h3>
                 </div>
                 <button
                   type="button"
@@ -3151,7 +3151,7 @@ function AnnouncementNotebookOverlay({
                     void playAnnouncementSound('pop');
                     window.requestAnimationFrame(() => announcementHistoryTriggerRef.current?.focus({ preventScroll: true }));
                   }}
-                  className="icon-button rounded-full p-2 text-[#8A6347]/70 transition-colors hover:bg-[#F7F0E7] hover:text-[#8A6347]"
+                  className="icon-button rounded-full p-2 text-[var(--teacher-text-secondary)]/70 transition-colors hover:bg-[#F7F0E7] hover:text-[var(--teacher-text-secondary)]"
                   title="기록 닫기"
                   aria-label="기록 닫기"
                 >
@@ -3161,7 +3161,7 @@ function AnnouncementNotebookOverlay({
 
               <div className="custom-scrollbar flex-1 overflow-y-auto p-4 sm:p-5">
                 {isHistoryLoading ? (
-                  <div className="flex min-h-[14rem] items-center justify-center rounded-[1.5rem] border border-dashed border-[#E6D5C9] bg-white/70 text-center text-sm font-extrabold text-[#8A6347]/65">
+                  <div className="flex min-h-[14rem] items-center justify-center rounded-[1.5rem] border border-dashed border-[var(--teacher-border)] bg-white/70 text-center text-sm font-extrabold text-[var(--teacher-text-secondary)]/65">
                     불러오는 중
                   </div>
                 ) : announcementHistory.length > 0 ? (
@@ -3178,8 +3178,8 @@ function AnnouncementNotebookOverlay({
                           onClick={() => selectAnnouncementHistoryRecord(record)}
                           className={`announcement-history-card block w-full rounded-[1.15rem] border p-4 text-left transition-colors ${
                             isCurrentRecord
-                              ? 'border-[#8DBEA8] bg-[#F3FAF6]'
-                              : 'border-[#D7E2D1] bg-white hover:border-[#8DBEA8] hover:bg-[#F8FCF9]'
+                              ? 'border-[var(--teacher-border-strong)] bg-[#F3FAF6]'
+                              : 'border-[var(--teacher-border)] bg-white hover:border-[var(--teacher-border-strong)] hover:bg-[#F8FCF9]'
                           }`}
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3187,7 +3187,7 @@ function AnnouncementNotebookOverlay({
                               {normalizeAnnouncementDateText(record.date_text || record.date_key)}
                             </span>
                             {updatedAt ? (
-                              <span className="shrink-0 rounded-full bg-[#EDF5F0] px-2.5 py-1 text-[0.72rem] font-extrabold text-[#006241]">
+                              <span className="shrink-0 rounded-full bg-[#EDF5F0] px-2.5 py-1 text-[0.72rem] font-extrabold text-[var(--teacher-accent)]">
                                 {updatedAt}
                               </span>
                             ) : null}
@@ -3200,7 +3200,7 @@ function AnnouncementNotebookOverlay({
                     })}
                   </div>
                 ) : (
-                  <div className="flex min-h-[14rem] items-center justify-center rounded-[1.5rem] border border-dashed border-[#E6D5C9] bg-white/70 text-center text-sm font-extrabold text-[#8A6347]/65">
+                  <div className="flex min-h-[14rem] items-center justify-center rounded-[1.5rem] border border-dashed border-[var(--teacher-border)] bg-white/70 text-center text-sm font-extrabold text-[var(--teacher-text-secondary)]/65">
                     저장된 알림장이 없습니다.
                   </div>
                 )}
@@ -3374,7 +3374,7 @@ function MemoNotebookOverlay({
 
         <div className="memo-page flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3 lg:p-4 xl:p-5">
           <div className="memo-stage mx-auto flex h-full w-full max-w-[1160px] min-h-0 flex-col">
-            <div className="memo-paper paper-card relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2.6rem] border-2 border-[#E6D5C9] bg-[#fffcf8]">
+            <div className="memo-paper paper-card relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2.6rem] border-2 border-[var(--teacher-border)] bg-[#fffcf8]">
               <div className="memo-paper-inner flex min-h-0 flex-1 flex-col p-4 sm:p-5 lg:p-6">
                 <div className="memo-toolbar" data-capture-exclude="true">
                   <NotebookOverlayTimerBadge liveTimer={liveTimer} />
@@ -8253,7 +8253,7 @@ export default function TimerPage() {
   };
 
   const manualProgress = manualTotalTime > 0 ? Math.max(0, Math.min(1, manualTimeLeft / manualTotalTime)) : 0;
-  const manualClockClass = 'text-[#006241]';
+  const manualClockClass = 'text-[var(--teacher-accent)]';
   const drawOverlayCaseId = isStudentDrawing
     ? resolvedActiveDrawCaseId
     : drawOverlay?.caseId ?? resolvedActiveDrawCaseId;
@@ -8555,12 +8555,12 @@ export default function TimerPage() {
           type="button"
           disabled={parsedCurrencyDeductionAmount <= CURRENCY_BALANCE_STEP}
           onClick={() => setCurrencyDeductionAmount(String(Math.max(CURRENCY_BALANCE_STEP, (Number.isInteger(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0) - CURRENCY_BALANCE_STEP)))}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] border border-[#E2CFB3] bg-white font-mono text-base font-black text-[#765538] transition-[background-color,transform] hover:bg-[#FFF3DE] active:scale-95"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] border border-[var(--teacher-border)] bg-white font-mono text-base font-black text-[#765538] transition-[background-color,transform] hover:bg-[#FFF3DE] active:scale-95"
           aria-label="차감액 줄이기"
         >
           −
         </button>
-        <label className="flex h-9 min-w-0 flex-1 items-center rounded-[0.7rem] border border-[#E2CFB3] bg-white px-2">
+        <label className="flex h-9 min-w-0 flex-1 items-center rounded-[0.7rem] border border-[var(--teacher-border)] bg-white px-2">
           <input
             type="text"
             inputMode="numeric"
@@ -8579,7 +8579,7 @@ export default function TimerPage() {
         <button
           type="button"
           onClick={() => setCurrencyDeductionAmount(String(Math.min(CURRENCY_BALANCE_MAX, (Number.isInteger(parsedCurrencyDeductionAmount) ? parsedCurrencyDeductionAmount : 0) + CURRENCY_BALANCE_STEP)))}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] border border-[#E2CFB3] bg-white font-mono text-base font-black text-[#765538] transition-[background-color,transform] hover:bg-[#FFF3DE] active:scale-95"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.7rem] border border-[var(--teacher-border)] bg-white font-mono text-base font-black text-[#765538] transition-[background-color,transform] hover:bg-[#FFF3DE] active:scale-95"
           aria-label="차감액 늘리기"
         >
           +
@@ -8609,7 +8609,7 @@ export default function TimerPage() {
             setCurrencyDeductionReason(event.target.value);
             setCurrencyDeductionError('');
           }}
-          className="h-9 min-w-0 flex-1 rounded-[0.7rem] border border-[#E2CFB3] bg-white px-2.5 text-[0.8rem] font-bold text-[#4D3827] outline-none transition-colors placeholder:text-[#B6A38D] focus:border-[#9A6B35]"
+          className="h-9 min-w-0 flex-1 rounded-[0.7rem] border border-[var(--teacher-border)] bg-white px-2.5 text-[0.8rem] font-bold text-[#4D3827] outline-none transition-colors placeholder:text-[#B6A38D] focus:border-[#9A6B35]"
           placeholder="차감 사유"
           aria-label="차감 사유"
         />
@@ -8803,7 +8803,7 @@ export default function TimerPage() {
         className={`notice-card relative mx-auto w-full overflow-visible rounded-[2.2rem] border-2 border-[#4F6B47] bg-[#FFFBF6] px-1 pb-1 pt-1 text-left shadow-[0_16px_30px_rgba(82,107,73,0.16)] md:px-1.5 md:pb-1.5 ${isEditingNotice ? 'notice-card-editing' : 'notice-card-reading'}`}
       >
         {isEditingNotice ? (
-          <div className="notice-editor relative flex min-h-24 flex-col items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-12 py-1 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:px-14">
+          <div className="notice-editor relative flex min-h-24 flex-col items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[var(--teacher-surface)] px-12 py-1 transition-colors focus-within:border-[#5D7654] focus-within:ring-2 focus-within:ring-[#5D7654]/20 sm:px-14">
             <div className="flex w-full min-w-0 items-center">
               <textarea
                 ref={noticeInputRef}
@@ -8848,7 +8848,7 @@ export default function TimerPage() {
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={cancelPendingNoticeHighlight}
-                  className="inline-flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
+                  className="inline-flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                 >
                   취소
                 </button>
@@ -8858,7 +8858,7 @@ export default function TimerPage() {
           </div>
         ) : (
           <>
-            <div className="notice-content relative flex min-h-24 w-full flex-col items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[#FFFDF8] px-12 py-1 transition-colors hover:bg-white sm:px-14">
+            <div className="notice-content relative flex min-h-24 w-full flex-col items-center justify-center rounded-[1.8rem] border border-[#8FA384] bg-[var(--teacher-surface)] px-12 py-1 transition-colors hover:bg-white sm:px-14">
               <div
                 className="flex w-full min-w-0 items-center justify-center bg-transparent text-left"
                 title="드래그한 뒤 강조를 누르면 코랄색으로 표시됩니다."
@@ -8900,7 +8900,7 @@ export default function TimerPage() {
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={cancelPendingNoticeHighlight}
-                    className="inline-flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF2E3]"
+                    className="inline-flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 text-[0.7rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                   >
                     취소
                   </button>
@@ -11665,8 +11665,8 @@ export default function TimerPage() {
   );
 
   return (
-    <div className="mascot-app h-[100dvh] w-full overflow-hidden">
-      {teacherRefreshPending && !isSettingsOpen && <div className="fixed left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl border bg-[#FDFBF7] px-4 py-2 shadow" role="status">
+    <div className="mascot-app teacher-app h-[100dvh] w-full overflow-hidden">
+      {teacherRefreshPending && !isSettingsOpen && <div className="fixed left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl border bg-[var(--teacher-surface)] px-4 py-2 shadow" role="status">
         <span>저장됨 · 화면 갱신 중</span>
         <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => void refreshTeacherSavedState()}>다시 불러오기</button>
       </div>}
@@ -11967,18 +11967,18 @@ export default function TimerPage() {
                 <div className="pointer-events-none flex flex-col items-center">
                   {/* Speech Bubble */}
                   {showTimerNotification ? (
-                    <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[#E6D5C9] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`}>
+                    <div className={`speech-card relative mb-4 max-w-[min(92vw,56rem)] rounded-3xl border-4 border-[var(--teacher-border)] bg-white text-center shadow-xl md:mb-6 ${speechBubbleSizeClass}`}>
                       <p className={`speech-card-text font-bold whitespace-pre-line break-keep text-center leading-[1.12] md:leading-[1.08] ${speechTextSizeClass} ${timerNotificationTextColorClass}`}>{timerNotificationMessage}</p>
                       {/* Bubble Tail (pointing down) */}
                       <div className="speech-tail-fill absolute -bottom-[14px] left-1/2 z-10 h-0 w-0 -translate-x-1/2 border-x-[12px] border-x-transparent border-t-[14px] border-t-white"></div>
-                      <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[#E6D5C9]"></div>
+                      <div className="speech-tail-outline absolute -bottom-[19px] left-1/2 h-0 w-0 -translate-x-1/2 border-x-[15px] border-x-transparent border-t-[17px] border-t-[var(--teacher-border)]"></div>
                     </div>
                   ) : null}
 
                   {/* Character Image or Placeholder */}
                   <div className={`mascot-figure-stage relative shrink-0 ${characterWrapSizeClass}`} style={characterMotionStyle}>
                     {characterImageError && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#8A6347]/40 bg-[#8A6347]/10 text-[#8A6347]/60">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#8A6347]/40 bg-[#8A6347]/10 text-[var(--teacher-text-secondary)]/60">
                         <span className="mb-2 text-5xl md:text-7xl">?</span>
                         <span className="text-center text-sm font-bold leading-tight md:text-base">Character<br/>Area</span>
                       </div>
@@ -12016,7 +12016,7 @@ export default function TimerPage() {
                     setIsDrawCaseSwitchNearby(false);
                   }
                 }}
-                className={`timer-draw-switch absolute left-1/2 top-[7.2%] z-30 grid min-h-[3.2rem] w-[min(16.5rem,62%)] -translate-x-1/2 grid-cols-[2.35rem_minmax(0,1fr)_2.35rem] items-center gap-1 rounded-full border border-[#9FC7B8]/80 bg-[#F7FBF8]/88 px-2 py-1 text-[#006241] shadow-[0_4px_10px_rgba(0,98,65,0.12),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-md transition-[opacity,transform,box-shadow] duration-200 md:min-h-[3.45rem] md:w-[min(18.75rem,52%)] ${
+                className={`timer-draw-switch absolute left-1/2 top-[7.2%] z-30 grid min-h-[3.2rem] w-[min(16.5rem,62%)] -translate-x-1/2 grid-cols-[2.35rem_minmax(0,1fr)_2.35rem] items-center gap-1 rounded-full border border-[var(--teacher-border-strong)]/80 bg-[#F7FBF8]/88 px-2 py-1 text-[var(--teacher-accent)] shadow-[0_4px_10px_rgba(0,98,65,0.12),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-md transition-[opacity,transform,box-shadow] duration-200 md:min-h-[3.45rem] md:w-[min(18.75rem,52%)] ${
                   isDrawCaseSwitchNearby
                     ? 'scale-100 opacity-100 ring-2 ring-[#D4E9E2]/80'
                     : 'pointer-events-none -translate-y-2 opacity-0'
@@ -12028,7 +12028,7 @@ export default function TimerPage() {
                   type="button"
                   onClick={() => selectAdjacentActiveDrawCase(-1)}
                   disabled={drawCases.length <= 1}
-                  className="timer-draw-step-button inline-flex h-9 w-9 items-center justify-center rounded-full text-[#006241] transition-colors hover:bg-[#D4E9E2] disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent md:h-10 md:w-10"
+                  className="timer-draw-step-button inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--teacher-accent)] transition-colors hover:bg-[#D4E9E2] disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent md:h-10 md:w-10"
                   aria-label="이전 추첨 상황"
                   title="이전 추첨 상황"
                 >
@@ -12042,7 +12042,7 @@ export default function TimerPage() {
                   type="button"
                   onClick={() => selectAdjacentActiveDrawCase(1)}
                   disabled={drawCases.length <= 1}
-                  className="timer-draw-step-button inline-flex h-9 w-9 items-center justify-center rounded-full text-[#006241] transition-colors hover:bg-[#D4E9E2] disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent md:h-10 md:w-10"
+                  className="timer-draw-step-button inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--teacher-accent)] transition-colors hover:bg-[#D4E9E2] disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent md:h-10 md:w-10"
                   aria-label="다음 추첨 상황"
                   title="다음 추첨 상황"
                 >
@@ -12164,7 +12164,7 @@ export default function TimerPage() {
                     </button>
                     <button
                       onClick={resetTimer}
-                      className="round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md"
+                      className="round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[var(--teacher-text-secondary)] shadow-md"
                       type="button"
                       title="보조 타이머 초기화"
                       aria-label="보조 타이머 초기화"
@@ -12173,7 +12173,7 @@ export default function TimerPage() {
                     </button>
                     <button
                       onClick={clearManualTimer}
-                      className="round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md"
+                      className="round-action round-action-reset inline-manual-action inline-flex items-center justify-center rounded-full text-[var(--teacher-text-secondary)] shadow-md"
                       type="button"
                       title="보조 타이머 시간 초기화"
                       aria-label="보조 타이머 시간 초기화"
@@ -12182,7 +12182,7 @@ export default function TimerPage() {
                     </button>
                     <button
                       onClick={() => setIsExtraTimerVisible(false)}
-                      className="round-action round-action-reset inline-manual-action inline-manual-close-action inline-flex items-center justify-center rounded-full text-[#8A6347] shadow-md"
+                      className="round-action round-action-reset inline-manual-action inline-manual-close-action inline-flex items-center justify-center rounded-full text-[var(--teacher-text-secondary)] shadow-md"
                       type="button"
                       title="보조 타이머 닫기"
                       aria-label="보조 타이머 닫기"
@@ -12211,7 +12211,7 @@ export default function TimerPage() {
           </div>
 
           {/* Right: Controls & Presets */}
-          <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[#E6D5C9]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
+          <div className="control-pane editorial-control-pane relative flex min-h-0 w-full flex-col gap-4 overflow-hidden border-t border-[var(--teacher-border)]/50 p-5 sm:p-6 lg:w-auto lg:border-l lg:border-t-0 lg:px-7 lg:py-7 xl:px-8 xl:py-8">
             {isClasswordPanelOpen ? (
               <div id="timer-classword-panel" className="timer-classword-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[120] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
                 <section className="timer-classword-panel-card content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col overflow-hidden" aria-labelledby="teacher-classword-utility-today-title">
@@ -12230,12 +12230,12 @@ export default function TimerPage() {
                 </section>
               </div>
             ) : null}
-            <div className="schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[#E6D5C9] bg-[#FDFBF7] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0">
+            <div className="schedule-board schedule-board-compact editorial-schedule-board flex w-full min-h-[23rem] flex-1 flex-col rounded-[2.35rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 text-left shadow-sm sm:min-h-[27rem] sm:p-5 lg:min-h-0">
               {hasMountedScheduleYoutubePlayer && scheduleYoutubeVideoIds.length > 0 ? (
                 <div
-                  className={`shrink-0 overflow-hidden rounded-[1.8rem] bg-[#FFFDF8] transition-[margin,max-height,border-color,opacity,box-shadow] duration-300 ${
+                  className={`shrink-0 overflow-hidden rounded-[1.8rem] bg-[var(--teacher-surface)] transition-[margin,max-height,border-color,opacity,box-shadow] duration-300 ${
                     isScheduleYoutubeVisible
-                      ? 'mb-3 max-h-[42rem] border border-[#E6D5C9] opacity-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]'
+                      ? 'mb-3 max-h-[42rem] border border-[var(--teacher-border)] opacity-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]'
                       : 'pointer-events-none mt-0 max-h-0 border border-transparent opacity-0 shadow-none'
                   }`}
                   aria-hidden={!isScheduleYoutubeVisible}
@@ -12250,9 +12250,9 @@ export default function TimerPage() {
                       onVideoMetadataChange={updateScheduleYoutubeMetadataFromPlayer}
                     />
                   </div>
-                  <div className="border-t border-[#E6D5C9] bg-white/92 px-3 py-2">
-                    <p className="truncate text-[0.78rem] font-extrabold leading-6 text-[#3F2B20]">
-                      <span className="mr-1 text-[#006241]">
+                  <div className="border-t border-[var(--teacher-border)] bg-white/92 px-3 py-2">
+                    <p className="truncate text-[0.78rem] font-extrabold leading-6 text-[var(--teacher-text)]">
+                      <span className="mr-1 text-[var(--teacher-accent)]">
                         {boundedActiveScheduleYoutubeIndex + 1}/{scheduleYoutubeCount}
                       </span>
                       {activeScheduleYoutubeItem?.title || '영상'}
@@ -12270,16 +12270,16 @@ export default function TimerPage() {
                             <button
                               type="button"
                               onClick={() => playScheduleYoutubePlaylistItem(item.number - 1)}
-                              className={`grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[0.8rem] border px-2 py-1.5 text-left transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7] ${
+                              className={`grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[0.8rem] border px-2 py-1.5 text-left transition-colors hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface-muted)] ${
                                 item.isActive
-                                  ? 'border-[#9FC7B8] bg-[#EEF7E8] text-[#006241]'
-                                  : 'border-[#E9DED2] bg-[#FFFDF8] text-[#8A6347]'
+                                  ? 'border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] text-[var(--teacher-accent)]'
+                                  : 'border-[#E9DED2] bg-[var(--teacher-surface)] text-[var(--teacher-text-secondary)]'
                               }`}
                               title={`${item.number}번 영상 재생: ${item.title}`}
                               aria-label={`${item.number}번 영상 재생: ${item.title}`}
                             >
                               <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[0.72rem] font-black ${
-                                item.isActive ? 'bg-[#006241] text-white' : 'bg-[#F3E9DE] text-[#8A6347]'
+                                item.isActive ? 'bg-[var(--teacher-accent)] text-white' : 'bg-[#F3E9DE] text-[var(--teacher-text-secondary)]'
                               }`}>
                                 {item.number}
                               </span>
@@ -12303,14 +12303,14 @@ export default function TimerPage() {
                             setShouldAutoplayScheduleYoutube(false);
                             setIsScheduleYoutubePlaylistOpen(false);
                           }}
-                          className="inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.7rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF7EC]"
+                          className="inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.7rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                         >
                           숨기기
                         </button>
                         <button
                           type="button"
                           onClick={clearScheduleYoutubeUrl}
-                          className="inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.7rem] font-extrabold text-[#B15F49] transition-colors hover:bg-[#FFF2E3]"
+                          className="inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.7rem] font-extrabold text-[#B15F49] transition-colors hover:bg-[var(--teacher-surface)]"
                         >
                           목록 비우기
                         </button>
@@ -12321,7 +12321,7 @@ export default function TimerPage() {
               ) : null}
 
               <div className="schedule-content-area relative min-h-0 flex flex-1 flex-col">
-                <div className="schedule-panel-header relative z-20 flex min-h-12 min-w-0 shrink-0 items-center justify-between gap-3 border-b border-[#D7E2D1] pb-3">
+                <div className="schedule-panel-header relative z-20 flex min-h-12 min-w-0 shrink-0 items-center justify-between gap-3 border-b border-[var(--teacher-border)] pb-3">
                   <time
                     dateTime={formatDateKey(adjustedScheduleNow)}
                     className="flex min-w-0 items-baseline gap-[clamp(0.4rem,1.6cqw,0.65rem)] whitespace-nowrap text-[#1D1D1F]"
@@ -12344,8 +12344,8 @@ export default function TimerPage() {
                         }}
                         className={`inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-1.5 text-[0.76rem] font-extrabold transition-colors ${
                           isScheduleYoutubePlaylistOpen
-                            ? 'border-[#9FC7B8] bg-[#EEF7E8] text-[#006241]'
-                            : 'border-[#D9C8B6] bg-white text-[#8A6347] hover:border-[#9FC7B8] hover:bg-[#F3FAF7]'
+                            ? 'border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] text-[var(--teacher-accent)]'
+                            : 'border-[#D9C8B6] bg-white text-[var(--teacher-text-secondary)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface-muted)]'
                         }`}
                         title={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
                         aria-label={isScheduleYoutubePlaylistOpen ? '재생목록 닫기' : '재생목록 열기'}
@@ -12370,7 +12370,7 @@ export default function TimerPage() {
                         setIsSettingsMaterialMounted(true);
                         setIsSettingsOpen(true);
                       }}
-                      className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D7E6DE] bg-white text-[#006241] transition-colors hover:border-[#9FC7B8] hover:bg-[#F3FAF7]"
+                      className="schedule-settings-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--teacher-border)] bg-white text-[var(--teacher-accent)] transition-colors hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface-muted)]"
                       title="설정"
                       aria-label="설정"
                     >
@@ -12379,14 +12379,14 @@ export default function TimerPage() {
                   </div>
                 </div>
                 {currentDaySchedule.length === 0 ? (
-                  <div className="schedule-empty-state flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-12 text-center text-[#8A6347]/74 sm:min-h-[18rem]">
+                  <div className="schedule-empty-state flex min-h-[15.5rem] flex-1 flex-col items-center justify-center gap-3 rounded-[1.9rem] border border-dashed border-[#D8C7B4] bg-white/62 px-5 py-12 text-center text-[var(--teacher-text-secondary)]/74 sm:min-h-[18rem]">
                     <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F8F1] text-[#6B8B63] shadow-inner shadow-[#E8F0E4]">
                       <CalendarClock size={26} />
                     </div>
                     <p className="text-[1.55rem] font-bold leading-tight text-[#B89E87] sm:text-[1.8rem]">일정이 없습니다.</p>
                   </div>
                 ) : (
-                  <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pb-1 pr-2 pt-2 text-base text-[#8A6347]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
+                  <ul ref={scheduleListRef} className="schedule-scroll schedule-scroll-stack custom-scrollbar min-h-[15rem] flex-1 overflow-y-auto pb-1 pr-2 pt-2 text-base text-[var(--teacher-text-secondary)]/90 sm:min-h-[18rem] lg:min-h-0 lg:text-lg">
                     {currentDaySchedule.map((s) => {
                       const isThisSlot = currentMinsForScheduleView >= s.start && currentMinsForScheduleView < s.end;
                       const scheduleSubject = getWeeklySubject(weeklySubjects, currentSubjectWeekKey, today, s);
@@ -12438,15 +12438,15 @@ export default function TimerPage() {
                     setIsQuestionSubmissionPanelOpen(false);
                     setIsCurrencyPanelOpen((previous) => !previous);
                   }}
-                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
-                    isCurrencyPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
+                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[var(--teacher-text-secondary)] ${
+                    isCurrencyPanelOpen ? 'border-[#BFD4B2] bg-[var(--teacher-surface-muted)]/96 hover:bg-[var(--teacher-surface-muted)]' : ''
                   }`}
                   aria-expanded={isCurrencyPanelOpen}
                   aria-controls={isCurrencyPanelOpen ? 'timer-currency-panel' : undefined}
                   aria-label={isCurrencyPanelOpen ? '화폐 닫기' : '화폐 열기'}
                   title="화폐"
                 >
-                  <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                  <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--teacher-surface)] text-[var(--teacher-accent)]">
                     <Coins size={22} />
                   </div>
                 </button>
@@ -12462,9 +12462,9 @@ export default function TimerPage() {
                     setIsQuestionSubmissionPanelOpen(false);
                     setIsYoutubePanelOpen((previous) => !previous);
                   }}
-                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
+                  className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[var(--teacher-text-secondary)] ${
                     scheduleYoutubeCount > 0
-                      ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]'
+                      ? 'border-[#BFD4B2] bg-[var(--teacher-surface-muted)]/96 hover:bg-[var(--teacher-surface-muted)]'
                       : ''
                   }`}
                   aria-expanded={isYoutubePanelOpen}
@@ -12473,7 +12473,7 @@ export default function TimerPage() {
                   title="유튜브 재생목록"
                   type="button"
                 >
-                  <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                  <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--teacher-surface)] text-[var(--teacher-accent)]">
                     <Music size={22} />
                   </div>
                 </button>
@@ -12488,8 +12488,8 @@ export default function TimerPage() {
                   setIsQuestionSubmissionPanelOpen(false);
                   setIsClasswordPanelOpen((previous) => !previous);
                 }}
-                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
-                  isClasswordPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
+                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[var(--teacher-text-secondary)] ${
+                  isClasswordPanelOpen ? 'border-[#BFD4B2] bg-[var(--teacher-surface-muted)]/96 hover:bg-[var(--teacher-surface-muted)]' : ''
                 }`}
                 aria-expanded={isClasswordPanelOpen}
                 aria-controls={isClasswordPanelOpen ? 'timer-classword-panel' : undefined}
@@ -12497,7 +12497,7 @@ export default function TimerPage() {
                 title="낱말판"
                 type="button"
               >
-                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--teacher-surface)] text-[var(--teacher-accent)]">
                   <LetterText size={22} />
                 </div>
               </button>
@@ -12511,8 +12511,8 @@ export default function TimerPage() {
                   setIsExtraTimerVisible(false);
                   setIsQuestionSubmissionPanelOpen((previous) => !previous);
                 }}
-                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f] ${
-                  isQuestionSubmissionPanelOpen ? 'border-[#BFD4B2] bg-[#EEF7E8]/96 hover:bg-[#F5FBF1]' : ''
+                className={`announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[var(--teacher-text-secondary)] ${
+                  isQuestionSubmissionPanelOpen ? 'border-[#BFD4B2] bg-[var(--teacher-surface-muted)]/96 hover:bg-[var(--teacher-surface-muted)]' : ''
                 }`}
                 aria-expanded={isQuestionSubmissionPanelOpen}
                 aria-controls={isQuestionSubmissionPanelOpen ? 'timer-question-submission-panel' : undefined}
@@ -12520,7 +12520,7 @@ export default function TimerPage() {
                 title="질문 제출 현황"
                 type="button"
               >
-                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--teacher-surface)] text-[var(--teacher-accent)]">
                   <MessageCircleQuestion size={22} />
                 </div>
               </button>
@@ -12534,12 +12534,12 @@ export default function TimerPage() {
                   setIsQuestionSubmissionPanelOpen(false);
                   setIsAnnouncementOpen(true);
                 }}
-                className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[#75461f]"
+                className="announcement-launch-button editorial-utility-button flex min-h-[5.9rem] w-full items-center justify-center rounded-[1.65rem] px-3 py-3 text-center text-[var(--teacher-text-secondary)]"
                 aria-label="알림장"
                 title="알림장"
                 type="button"
               >
-                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8ef] text-[#5C8D6D]">
+                <div className="announcement-launch-icon inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--teacher-surface)] text-[var(--teacher-accent)]">
                   <NotebookText size={22} />
                 </div>
               </button>
@@ -12547,11 +12547,11 @@ export default function TimerPage() {
 
             {isCurrencyPanelOpen ? (
               <div id="timer-currency-panel" className="currency-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[120] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
-                <div className="content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
-                  <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                <div className="content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm">
+                  <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[var(--teacher-border)] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#E9DED2] pb-3">
                       <div className="min-w-0">
-                        <h3 className="section-title text-[1.05rem] font-extrabold text-[#3F2B20]">화폐</h3>
+                        <h3 className="section-title text-[1.05rem] font-extrabold text-[var(--teacher-text)]">화폐</h3>
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">
                         <button
@@ -12563,7 +12563,7 @@ export default function TimerPage() {
                             setCurrencyDeductionReason('');
                             setCurrencyDeductionError('');
                           }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF7EC]"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                           title="화폐 닫기"
                           aria-label="화폐 닫기"
                         >
@@ -12573,7 +12573,7 @@ export default function TimerPage() {
                     </div>
 
                     <div
-                      className="mb-3 grid grid-cols-3 rounded-[1rem] border-2 border-[#DDE9E2] bg-[#F1F7F3] p-1"
+                      className="mb-3 grid grid-cols-3 rounded-[1rem] border-2 border-[var(--teacher-border)] bg-[#F1F7F3] p-1"
                       role="group"
                       aria-label="화폐 조정 대상"
                     >
@@ -12585,7 +12585,7 @@ export default function TimerPage() {
                         }}
                         className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
                           currencyAdjustmentTarget === 'student'
-                            ? 'bg-white text-[#006241] shadow-[0_2px_7px_rgba(48,86,68,0.12)]'
+                            ? 'bg-white text-[var(--teacher-accent)] shadow-[0_2px_7px_rgba(48,86,68,0.12)]'
                             : 'text-[#708078] hover:bg-white/60'
                         }`}
                         aria-pressed={currencyAdjustmentTarget === 'student'}
@@ -12604,7 +12604,7 @@ export default function TimerPage() {
                         }}
                         className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
                           currencyAdjustmentTarget === 'group'
-                            ? 'bg-white text-[#006241] shadow-[0_2px_7px_rgba(48,86,68,0.12)]'
+                            ? 'bg-white text-[var(--teacher-accent)] shadow-[0_2px_7px_rgba(48,86,68,0.12)]'
                             : 'text-[#708078] hover:bg-white/60'
                         }`}
                         aria-pressed={currencyAdjustmentTarget === 'group'}
@@ -12623,7 +12623,7 @@ export default function TimerPage() {
                         }}
                         className={`h-11 rounded-[0.75rem] text-[0.88rem] font-extrabold transition-[background-color,transform] active:scale-[0.98] ${
                           currencyAdjustmentTarget === 'all'
-                            ? 'bg-[#006241] !text-white shadow-[0_3px_8px_rgba(0,98,65,0.2)]'
+                            ? 'bg-[var(--teacher-accent)] !text-white shadow-[0_3px_8px_rgba(0,98,65,0.2)]'
                             : 'text-[#708078] hover:bg-white/60'
                         }`}
                         aria-pressed={currencyAdjustmentTarget === 'all'}
@@ -12654,9 +12654,9 @@ export default function TimerPage() {
                     ) : null}
 
                     {currencyAdjustmentTarget === 'student' ? (
-                      <div className="mb-3 rounded-[1.15rem] border-2 border-[#DDE9E2] bg-[#F8FCF6] p-3">
+                      <div className="mb-3 rounded-[1.15rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-3">
                         <div className="currency-student-number-row flex items-center gap-2">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[0.95rem] bg-[#EAF6F0] text-[#006241]">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[0.95rem] bg-[var(--teacher-surface-muted)] text-[var(--teacher-accent)]">
                             <Search size={18} strokeWidth={2.5} />
                           </div>
                           <input
@@ -12668,7 +12668,7 @@ export default function TimerPage() {
                             maxLength={2}
                             value={currencyStudentNumberInput}
                             onChange={handleCurrencyStudentNumberInputChange}
-                            className="h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[#CFE0D8] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[#006241] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[#006241] focus:bg-[#FDFFFC]"
+                            className="h-12 min-w-0 flex-1 rounded-[0.95rem] border-2 border-[var(--teacher-border)] bg-white px-4 text-center font-mono text-[1.35rem] font-black leading-none text-[var(--teacher-accent)] outline-none transition-colors placeholder:text-[#AFC3BA] focus:border-[var(--teacher-accent)] focus:bg-[#FDFFFC]"
                             placeholder="번호"
                             aria-label="학생 번호 입력"
                             aria-invalid={isCurrencyStudentNumberInvalid}
@@ -12684,7 +12684,7 @@ export default function TimerPage() {
                     ) : null}
 
                     {currencyAdjustmentTarget === 'group' ? (
-                      <div className="mb-3 rounded-[1.15rem] border-2 border-[#DDE9E2] bg-[#F8FCF6] p-3">
+                      <div className="mb-3 rounded-[1.15rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-3">
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <p className="text-[0.82rem] font-extrabold text-[#466258]" aria-live="polite">
                             {selectedCurrencyGroupCount}명 선택
@@ -12696,7 +12696,7 @@ export default function TimerPage() {
                                 setCurrencyGroupStudentNumbers([...CURRENCY_STUDENT_NUMBERS]);
                                 setCurrencyAdjustmentSummary(null);
                               }}
-                              className="h-8 rounded-[0.7rem] px-2.5 text-[0.72rem] font-extrabold text-[#006241] transition-colors hover:bg-[#EAF6F0]"
+                              className="h-8 rounded-[0.7rem] px-2.5 text-[0.72rem] font-extrabold text-[var(--teacher-accent)] transition-colors hover:bg-[var(--teacher-surface-muted)]"
                             >
                               전체 선택
                             </button>
@@ -12723,8 +12723,8 @@ export default function TimerPage() {
                                 onClick={() => toggleCurrencyGroupStudentNumber(studentNumber)}
                                 className={`h-10 rounded-[0.8rem] border-2 font-mono text-[0.92rem] font-black transition-colors ${
                                   isSelected
-                                    ? 'border-[#006241] text-white'
-                                    : 'border-[#D5E4DC] bg-white text-[#385348] hover:border-[#9FC7B8] hover:bg-[#F1FAF6]'
+                                    ? 'border-[var(--teacher-accent)] text-white'
+                                    : 'border-[#D5E4DC] bg-white text-[#385348] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface-muted)]'
                                 }`}
                                 aria-pressed={isSelected}
                                 aria-label={`${studentNumber}번 ${isSelected ? '선택 해제' : '선택'}`}
@@ -12738,12 +12738,12 @@ export default function TimerPage() {
                     ) : null}
 
                     {currencyAdjustmentTarget === 'student' && editingCurrencyNumber !== null && selectedCurrencyBalance !== null ? (
-                      <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
+                      <div className="mb-3 rounded-[1.15rem] border-2 border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
                         <div className="flex items-center gap-1.5">
-                          <div className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]">
+                          <div className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.9rem] bg-[var(--teacher-accent)] text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]">
                             <span className="font-mono text-[1.2rem] font-black leading-none">{editingCurrencyNumber}</span>
                           </div>
-                          <div className="flex min-h-11 min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-1.5 rounded-[0.85rem] border-2 border-[#CFE0D8] bg-white px-1.5 py-2 font-mono text-[0.78rem] font-black leading-none text-[#1F2523]" aria-label={`현재 보유 ${selectedCurrencyBalance}고마, 예금 ${selectedCurrencyDeposit}고마, 증권사 ${selectedCurrencyInvestment}고마`}>
+                          <div className="flex min-h-11 min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-1.5 rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white px-1.5 py-2 font-mono text-[0.78rem] font-black leading-none text-[#1F2523]" aria-label={`현재 보유 ${selectedCurrencyBalance}고마, 예금 ${selectedCurrencyDeposit}고마, 증권사 ${selectedCurrencyInvestment}고마`}>
                             <span className="inline-flex items-center gap-0.5" title="보유 고마">
                               <Coins size={13} className="shrink-0 text-[#B1772B]" aria-hidden="true" />
                               <span>{formatCurrencyAmount(selectedCurrencyBalance)}</span>
@@ -12764,7 +12764,7 @@ export default function TimerPage() {
                               className={`inline-flex h-9 min-w-[2.75rem] shrink-0 items-center justify-center rounded-[0.75rem] px-2 font-mono text-[0.72rem] font-black leading-none ring-1 ring-inset ${
                                 currencyAdjustmentSummary.delta < 0
                                   ? 'bg-[#F8ECE2] text-[#8A4B2B] ring-[#E7CDB8]'
-                                  : 'bg-[#DFF1E8] text-[#006241] ring-[#B8DACB]'
+                                  : 'bg-[#DFF1E8] text-[var(--teacher-accent)] ring-[#B8DACB]'
                               }`}
                               role="status"
                               aria-live="polite"
@@ -12776,7 +12776,7 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustCurrencyBalance(editingCurrencyNumber, -CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white font-mono text-[1.15rem] font-black text-[#6E5139] transition-[background-color,transform] hover:bg-[#FFF7EC] active:scale-90 active:bg-[#F4E8DC]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white font-mono text-[1.15rem] font-black text-[var(--teacher-text-secondary)] transition-[background-color,transform] hover:bg-[var(--teacher-surface)] active:scale-90 active:bg-[#F4E8DC]"
                             aria-label={`${editingCurrencyNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
                             title={`-${CURRENCY_BALANCE_STEP}`}
                           >
@@ -12785,7 +12785,7 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustCurrencyBalance(editingCurrencyNumber, CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] font-mono text-[1.15rem] font-black text-[#006241] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] font-mono text-[1.15rem] font-black text-[var(--teacher-accent)] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC]"
                             aria-label={`${editingCurrencyNumber}번 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
                             title={`+${CURRENCY_BALANCE_STEP}`}
                           >
@@ -12798,7 +12798,7 @@ export default function TimerPage() {
                             className={`inline-flex h-9 items-center justify-center rounded-[0.75rem] border text-[0.78rem] font-extrabold transition-[background-color,border-color,color] ${
                               isCurrencyDeductionVisible
                                 ? 'border-[#C99365] bg-[#FFF1DF] text-[#7A4328]'
-                                : 'border-[#E4D7C9] bg-white text-[#6E5139] hover:bg-[#FFF7EC]'
+                                : 'border-[var(--teacher-border)] bg-white text-[var(--teacher-text-secondary)] hover:bg-[var(--teacher-surface)]'
                             }`}
                             aria-expanded={isCurrencyDeductionVisible}
                             aria-controls="currency-deduction-setting"
@@ -12816,8 +12816,8 @@ export default function TimerPage() {
                             type="button"
                             className={`inline-flex h-9 items-center justify-center rounded-[0.75rem] border text-[0.78rem] font-extrabold transition-[background-color,border-color,color] ${
                               isCurrencyDirectInputVisible
-                                ? 'border-[#9FC7B8] bg-[#EAF6F0] text-[#006241]'
-                                : 'border-[#CFE0D8] bg-white text-[#466258] hover:bg-[#F7FBF9]'
+                                ? 'border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] text-[var(--teacher-accent)]'
+                                : 'border-[var(--teacher-border)] bg-white text-[#466258] hover:bg-[#F7FBF9]'
                             }`}
                             aria-expanded={isCurrencyDirectInputVisible}
                             aria-controls="currency-direct-setting"
@@ -12833,7 +12833,7 @@ export default function TimerPage() {
                         {currencyDeductionForm}
                         {isCurrencyDirectInputVisible ? (
                           <div id="currency-direct-setting" className="mt-2 flex items-center gap-2">
-                            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] border border-[#CFE0D8] bg-white px-3">
+                            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-3">
                               <input
                                 type="number"
                                 min={0}
@@ -12851,7 +12851,7 @@ export default function TimerPage() {
                               type="button"
                               disabled={isCurrencyBalanceInputInvalid}
                               onClick={() => setCurrencyBalanceExactly(editingCurrencyNumber, parsedCurrencyBalanceInput)}
-                              className="h-10 shrink-0 rounded-[0.85rem] bg-[#006241] px-4 text-[0.82rem] font-extrabold text-white transition-colors hover:bg-[#004f35] disabled:cursor-not-allowed disabled:bg-[#9FB8AD]"
+                              className="h-10 shrink-0 rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[0.82rem] font-extrabold text-white transition-colors hover:bg-[#004f35] disabled:cursor-not-allowed disabled:bg-[#9FB8AD]"
                             >
                               적용
                             </button>
@@ -12859,17 +12859,17 @@ export default function TimerPage() {
                         ) : null}
                       </div>
                     ) : currencyAdjustmentTarget === 'group' ? (
-                      <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
+                      <div className="mb-3 rounded-[1.15rem] border-2 border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
                         <div className="currency-all-action-row flex items-center gap-2.5">
                           <div
-                            className="flex h-11 w-24 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] px-1 text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]"
+                            className="flex h-11 w-24 shrink-0 items-center justify-center rounded-[0.9rem] bg-[var(--teacher-accent)] px-1 text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]"
                             role="status"
                             aria-live="polite"
                           >
                             <span className="whitespace-nowrap text-[0.78rem] font-black leading-none">{selectedCurrencyGroupCount}명</span>
                           </div>
                           <output
-                            className="min-w-0 flex-1 text-center font-mono text-sm font-black text-[#006241]"
+                            className="min-w-0 flex-1 text-center font-mono text-sm font-black text-[var(--teacher-accent)]"
                             aria-label="선택한 학생 1명당 누적 증감"
                             aria-live="polite"
                           >
@@ -12878,7 +12878,7 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustGroupCurrencyBalances(-CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white font-mono text-[1.15rem] font-black text-[#6E5139] transition-[background-color,transform] hover:bg-[#FFF7EC] active:scale-90 active:bg-[#F4E8DC] disabled:cursor-not-allowed disabled:opacity-45"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white font-mono text-[1.15rem] font-black text-[var(--teacher-text-secondary)] transition-[background-color,transform] hover:bg-[var(--teacher-surface)] active:scale-90 active:bg-[#F4E8DC] disabled:cursor-not-allowed disabled:opacity-45"
                             aria-label={`선택한 학생 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
                             title={`선택한 학생 -${CURRENCY_BALANCE_STEP}`}
                             disabled={selectedCurrencyGroupCount === 0}
@@ -12888,7 +12888,7 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustGroupCurrencyBalances(CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] font-mono text-[1.15rem] font-black text-[#006241] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC] disabled:cursor-not-allowed disabled:opacity-45"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] font-mono text-[1.15rem] font-black text-[var(--teacher-accent)] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC] disabled:cursor-not-allowed disabled:opacity-45"
                             aria-label={`선택한 학생 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
                             title={`선택한 학생 +${CURRENCY_BALANCE_STEP}`}
                             disabled={selectedCurrencyGroupCount === 0}
@@ -12896,7 +12896,7 @@ export default function TimerPage() {
                             +
                           </button>
                         </div>
-                        <button type="button" className="mt-2 min-h-11 w-full rounded-[0.75rem] border border-[#E4D7C9] bg-white text-sm font-bold text-[#6E5139]" disabled={selectedCurrencyGroupCount === 0 || isCurrencyDeductionSaving}
+                        <button type="button" className="mt-2 min-h-11 w-full rounded-[0.75rem] border border-[var(--teacher-border)] bg-white text-sm font-bold text-[var(--teacher-text-secondary)]" disabled={selectedCurrencyGroupCount === 0 || isCurrencyDeductionSaving}
                           aria-expanded={isCurrencyDeductionVisible} aria-controls="currency-deduction-setting"
                           onClick={() => {
                             setIsCurrencyDeductionVisible(previous => !previous);
@@ -12907,10 +12907,10 @@ export default function TimerPage() {
                         {currencyDeductionForm}
                       </div>
                     ) : currencyAdjustmentTarget === 'all' ? (
-                      <div className="mb-3 rounded-[1.15rem] border-2 border-[#9FC7B8] bg-[#F1FAF6] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
+                      <div className="mb-3 rounded-[1.15rem] border-2 border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] p-3 shadow-[0_8px_18px_rgba(0,98,65,0.06)]">
                         <div className="currency-all-action-row flex items-center gap-2.5">
                           <div
-                            className="flex h-11 w-24 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#006241] px-1 text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]"
+                            className="flex h-11 w-24 shrink-0 items-center justify-center rounded-[0.9rem] bg-[var(--teacher-accent)] px-1 text-white shadow-[0_6px_12px_rgba(0,98,65,0.18)]"
                             role="status"
                             aria-live="polite"
                           >
@@ -12934,7 +12934,7 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustAllCurrencyBalances(-CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white font-mono text-[1.15rem] font-black text-[#6E5139] transition-[background-color,transform] hover:bg-[#FFF7EC] active:scale-90 active:bg-[#F4E8DC]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white font-mono text-[1.15rem] font-black text-[var(--teacher-text-secondary)] transition-[background-color,transform] hover:bg-[var(--teacher-surface)] active:scale-90 active:bg-[#F4E8DC]"
                             aria-label={`전체 화폐 ${CURRENCY_BALANCE_STEP} 줄이기`}
                             title={`전체 -${CURRENCY_BALANCE_STEP}`}
                           >
@@ -12943,7 +12943,7 @@ export default function TimerPage() {
                           <button
                             type="button"
                             onClick={() => adjustAllCurrencyBalances(CURRENCY_BALANCE_STEP)}
-                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[#9FC7B8] bg-[#EAF6F0] font-mono text-[1.15rem] font-black text-[#006241] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC]"
+                            className="inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] font-mono text-[1.15rem] font-black text-[var(--teacher-accent)] transition-[background-color,transform] hover:bg-[#DDF0E8] active:scale-90 active:bg-[#CDE8DC]"
                             aria-label={`전체 화폐 ${CURRENCY_BALANCE_STEP} 늘리기`}
                             title={`전체 +${CURRENCY_BALANCE_STEP}`}
                           >
@@ -12960,10 +12960,10 @@ export default function TimerPage() {
 
             {isQuestionSubmissionPanelOpen ? (
               <div id="timer-question-submission-panel" className="question-submission-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[150] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
-                <div className="content-fit-utility-card question-submission-panel-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#DDE9E2] bg-[#FFFCF7] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
-                  <div className="question-submission-panel-scroll min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[#DDE9E2] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                <div className="content-fit-utility-card question-submission-panel-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)]">
+                  <div className="question-submission-panel-scroll min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[var(--teacher-border)] bg-white p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#E4EDE7] pb-3">
-                      <div className="flex items-center gap-2 rounded-full bg-[#F8FCF6] px-3 py-1.5 text-[0.76rem] font-extrabold text-[#3F2B20]">
+                      <div className="flex items-center gap-2 rounded-full bg-[var(--teacher-surface-muted)] px-3 py-1.5 text-[0.76rem] font-extrabold text-[var(--teacher-text)]">
                         <span className="sr-only">질문 제출 현황</span>
                         <span className="inline-flex items-center gap-1.5">
                           <span aria-hidden="true" className="h-3 w-3 rounded-full bg-[#168657]" />
@@ -12979,7 +12979,7 @@ export default function TimerPage() {
                           type="button"
                           onClick={() => void refreshQuestionSubmissionStatuses()}
                           disabled={isQuestionSubmissionLoading}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#BFD8CB] bg-[#F1FAF6] text-[#006241] transition-colors hover:bg-[#E6F4ED] disabled:cursor-not-allowed disabled:opacity-60"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#BFD8CB] bg-[var(--teacher-surface-muted)] text-[var(--teacher-accent)] transition-colors hover:bg-[#E6F4ED] disabled:cursor-not-allowed disabled:opacity-60"
                           title="제출 현황 새로고침"
                           aria-label="제출 현황 새로고침"
                         >
@@ -12988,7 +12988,7 @@ export default function TimerPage() {
                         <button
                           type="button"
                           onClick={() => setIsQuestionSubmissionPanelOpen(false)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF7EC]"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                           title="질문 제출 현황 닫기"
                           aria-label="질문 제출 현황 닫기"
                         >
@@ -12998,7 +12998,7 @@ export default function TimerPage() {
                     </div>
 
                     {questionSubmissionError ? (
-                      <div className="mb-3 rounded-[1rem] border border-[#E4C5B9] bg-[#FFF7EC] px-3 py-2.5 text-[0.78rem] font-bold leading-5 text-[#A34F45]">
+                      <div className="mb-3 rounded-[1rem] border border-[#E4C5B9] bg-[var(--teacher-surface)] px-3 py-2.5 text-[0.78rem] font-bold leading-5 text-[#A34F45]">
                         {questionSubmissionError}
                       </div>
                     ) : null}
@@ -13006,7 +13006,7 @@ export default function TimerPage() {
                     {questionSubmissionStatuses.length > 0 ? (
                       <TeacherQuestionSubmissionGrid statuses={questionSubmissionStatuses} />
                     ) : (
-                      <div className="rounded-[1rem] border border-dashed border-[#CFE3D8] bg-[#F8FCF6] px-4 py-5 text-center text-[0.82rem] font-extrabold text-[#6F7D70]">
+                      <div className="rounded-[1rem] border border-dashed border-[#CFE3D8] bg-[var(--teacher-surface-muted)] px-4 py-5 text-center text-[0.82rem] font-extrabold text-[#6F7D70]">
                         {isQuestionSubmissionLoading ? '제출 현황을 확인하고 있습니다.' : '새로고침을 눌러 제출 현황을 확인하세요.'}
                       </div>
                     )}
@@ -13018,9 +13018,9 @@ export default function TimerPage() {
             {isYoutubePanelOpen ? (
               <div id="timer-youtube-panel" className="youtube-panel docked-utility-panel utility-pane-anchor pointer-events-none absolute inset-x-0 top-0 bottom-[5.65rem] z-[70] flex flex-col justify-end p-3 sm:bottom-[5.85rem] sm:p-4 lg:bottom-[5.43rem] lg:p-5">
                 <div
-                  className="content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[#E6D5C9] bg-[#FFFCF7]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
+                  className="content-fit-utility-card utility-pane-card pointer-events-auto flex min-h-0 w-full flex-col rounded-[1.45rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)]/98 p-3 shadow-[0_22px_44px_rgba(95,71,50,0.16)] backdrop-blur-sm"
                 >
-                  <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[#E6D5C9] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                  <div className="min-h-0 flex-1 overflow-y-auto rounded-[1.25rem] border border-[var(--teacher-border)] bg-white/92 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                     {hasScheduleYoutubeFavorites ? (
                       <div className="mb-3">
                         <div
@@ -13034,11 +13034,11 @@ export default function TimerPage() {
                           {scheduleYoutubeFavorites.map((favorite, index) => (
                             <div
                               key={favorite.id}
-                              className={`youtube-favorite-chip group flex min-w-0 items-center gap-1 rounded-full border border-[#D7E2D1] bg-[#FFFDF8] transition-[border-color,background-color,box-shadow] ${
+                              className={`youtube-favorite-chip group flex min-w-0 items-center gap-1 rounded-full border border-[var(--teacher-border)] bg-[var(--teacher-surface)] transition-[border-color,background-color,box-shadow] ${
                                 isScheduleYoutubeFavoritesEditing ? 'h-8 px-1.5' : 'h-8 px-2'
                               } ${
                                 draggingScheduleYoutubeFavoriteId === favorite.id
-                                  ? 'border-[#8DBEA8] bg-[#EAF6F0] opacity-70'
+                                  ? 'border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] opacity-70'
                                   : ''
                               }`}
                               onDragEnter={(event) => {
@@ -13065,7 +13065,7 @@ export default function TimerPage() {
                                       event.dataTransfer.effectAllowed = 'move';
                                       event.dataTransfer.setData('text/plain', favorite.id);
                                     }}
-                                    className="inline-flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded-full text-[#A98261] transition-colors hover:bg-[#FFF2E3] active:cursor-grabbing"
+                                    className="inline-flex h-6 w-5 shrink-0 cursor-grab items-center justify-center rounded-full text-[#A98261] transition-colors hover:bg-[var(--teacher-surface)] active:cursor-grabbing"
                                     title={`${favorite.name} 순서 이동`}
                                     aria-label={`${favorite.name} 순서 이동`}
                                   >
@@ -13084,7 +13084,7 @@ export default function TimerPage() {
                                       normalizeScheduleYoutubeFavoriteName(favorite.id);
                                       event.currentTarget.blur();
                                     }}
-                                    className="min-w-0 flex-1 bg-transparent text-[0.68rem] font-extrabold text-[#6E5139] outline-none placeholder:text-[#A98261]/70"
+                                    className="min-w-0 flex-1 bg-transparent text-[0.68rem] font-extrabold text-[var(--teacher-text-secondary)] outline-none placeholder:text-[#A98261]/70"
                                     placeholder="이름"
                                     aria-label={`${favorite.name || '즐겨찾기'} 이름 수정`}
                                     title="즐겨찾기 이름 수정"
@@ -13092,7 +13092,7 @@ export default function TimerPage() {
                                   <button
                                     type="button"
                                     onClick={() => removeScheduleYoutubeFavorite(favorite.id)}
-                                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#A98261] transition-colors hover:bg-[#FFF2E3] hover:text-[#C7684A]"
+                                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#A98261] transition-colors hover:bg-[var(--teacher-surface)] hover:text-[#C7684A]"
                                     title={`${favorite.name} 삭제`}
                                     aria-label={`${favorite.name} 삭제`}
                                   >
@@ -13114,7 +13114,7 @@ export default function TimerPage() {
 
                                     addScheduleYoutubeFavoriteToPlaylist(favorite);
                                   }}
-                                  className="h-full min-h-0 min-w-0 flex-1 truncate px-1 text-left text-[0.68rem] font-extrabold text-[#6E5139] transition-colors group-hover:text-[#006241]"
+                                  className="h-full min-h-0 min-w-0 flex-1 truncate px-1 text-left text-[0.68rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors group-hover:text-[var(--teacher-accent)]"
                                   aria-label={`${favorite.name} 재생목록 추가`}
                                 >
                                   {favorite.name || '이름 없음'}
@@ -13126,7 +13126,7 @@ export default function TimerPage() {
                       </div>
                     ) : null}
                     <div
-                      className="mb-3 rounded-[1rem] border border-[#D7E2D1] bg-[#F8FCF6] p-2.5"
+                      className="mb-3 rounded-[1rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-2.5"
                       onPointerDown={() => {
                         if (!isScheduleYoutubeFavoritesEditing) return;
                         setDraggingScheduleYoutubeFavoriteId(null);
@@ -13155,7 +13155,7 @@ export default function TimerPage() {
                               event.preventDefault();
                               void searchScheduleYoutubeVideos();
                             }}
-                            className="time-input w-full rounded-[0.85rem] border border-[#D7E2D1] bg-white py-2 pl-8 pr-9 text-[0.82rem] font-bold text-[#3F2B20] outline-none transition-colors focus:border-[#8DBEA8]"
+                            className="time-input w-full rounded-[0.85rem] border border-[var(--teacher-border)] bg-white py-2 pl-8 pr-9 text-[0.82rem] font-bold text-[var(--teacher-text)] outline-none transition-colors focus:border-[var(--teacher-border-strong)]"
                             placeholder="YouTube 검색"
                             aria-label="YouTube 검색어"
                           />
@@ -13163,7 +13163,7 @@ export default function TimerPage() {
                             <button
                               type="button"
                               onClick={closeScheduleYoutubeSearch}
-                              className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-[#8A6347] transition-colors hover:bg-[#FFF7EC] hover:text-[#C7684A]"
+                              className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)] hover:text-[#C7684A]"
                               title="검색 닫기"
                               aria-label="검색 닫기"
                             >
@@ -13199,17 +13199,17 @@ export default function TimerPage() {
                                 ) : null}
                               </div>
                               <div className="min-w-0">
-                                <p className="line-clamp-2 text-[0.72rem] font-extrabold leading-4 text-[#3F2B20]">
+                                <p className="line-clamp-2 text-[0.72rem] font-extrabold leading-4 text-[var(--teacher-text)]">
                                   {result.title}
                                 </p>
-                                <p className="mt-0.5 truncate text-[0.65rem] font-bold text-[#8A6347]/75">
+                                <p className="mt-0.5 truncate text-[0.65rem] font-bold text-[var(--teacher-text-secondary)]/75">
                                   {result.channelTitle}
                                 </p>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => addScheduleYoutubeSearchResultToFavorites(result)}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] bg-[#FFF7EC] text-[#C99245] transition-colors hover:bg-[#FFF0DE]"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-[0.7rem] bg-[var(--teacher-surface)] text-[#C99245] transition-colors hover:bg-[#FFF0DE]"
                                 title="즐겨찾기 저장"
                                 aria-label={`${result.title} 즐겨찾기 저장`}
                               >
@@ -13218,7 +13218,7 @@ export default function TimerPage() {
                               <button
                                 type="button"
                                 onClick={() => addScheduleYoutubeSearchResult(result)}
-                                className="inline-flex min-h-8 items-center justify-center rounded-[0.7rem] bg-[#FFF7EC] text-[0.68rem] font-extrabold text-[#8A6347] transition-colors hover:bg-[#FFF0DE]"
+                                className="inline-flex min-h-8 items-center justify-center rounded-[0.7rem] bg-[var(--teacher-surface)] text-[0.68rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[#FFF0DE]"
                               >
                                 추가
                               </button>
@@ -13426,7 +13426,7 @@ export default function TimerPage() {
                 >
                   <div
                     ref={awardConfirmDialogRef}
-                    className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                    className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[var(--teacher-border-strong)] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="auction-award-confirm-title"
@@ -13435,7 +13435,7 @@ export default function TimerPage() {
                     <h3 id="auction-award-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
                       낙찰 처리할까요?
                     </h3>
-                    <p className="mt-2 text-[1.05rem] font-black leading-7 text-[#006241]">
+                    <p className="mt-2 text-[1.05rem] font-black leading-7 text-[var(--teacher-accent)]">
                       {awardItemName}{awardItemParticle} {currentBid?.bidder ?? '-'}번 학생에게
                       <br />
                       {formatCurrency(currentBid?.amount ?? 0)}에 낙찰합니다.
@@ -13444,14 +13444,14 @@ export default function TimerPage() {
                       <button
                         type="button"
                         onClick={() => setPendingAwardItemId(null)}
-                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white px-4 text-[0.95rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                       >
                         취소
                       </button>
                       <button
                         type="button"
                         onClick={startAwardPresentation}
-                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
                       >
                         낙찰
                       </button>
@@ -13484,7 +13484,7 @@ export default function TimerPage() {
                 >
                   <div
                     ref={auctionActionDialogRef}
-                    className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[#9FC7B8] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
+                    className="apple-material-layer w-full max-w-[24rem] rounded-[1.35rem] border-2 border-[var(--teacher-border-strong)] bg-white px-5 py-4 text-center shadow-[0_24px_60px_rgba(31,24,18,0.24)]"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="auction-reset-confirm-title"
@@ -13494,7 +13494,7 @@ export default function TimerPage() {
                     <h3 id="auction-reset-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
                       {actionCopy.title}
                     </h3>
-                    <p className="mt-2 text-[0.95rem] font-extrabold leading-6 text-[#6E5139]">
+                    <p className="mt-2 text-[0.95rem] font-extrabold leading-6 text-[var(--teacher-text-secondary)]">
                       {actionCopy.body}
                     </p>
                     <div className="mt-4 grid grid-cols-2 gap-2">
@@ -13502,7 +13502,7 @@ export default function TimerPage() {
                         type="button"
                         onClick={() => setPendingAuctionAction(null)}
                         disabled={isWeeklyAuctionClosing}
-                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-white px-4 text-[0.95rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white px-4 text-[0.95rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                       >
                         취소
                       </button>
@@ -13510,7 +13510,7 @@ export default function TimerPage() {
                         type="button"
                         onClick={confirmAuctionManagementAction}
                         disabled={isWeeklyAuctionClosing}
-                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
                       >
                         {isWeeklyAuctionClosing ? '마감 중…' : actionCopy.action}
                       </button>
@@ -13522,13 +13522,13 @@ export default function TimerPage() {
              
             {false && (
               <>
-                <div className="tab-strip custom-scrollbar flex shrink-0 overflow-x-auto border-b border-[#E6D5C9] bg-white">
+                <div className="tab-strip custom-scrollbar flex shrink-0 overflow-x-auto border-b border-[var(--teacher-border)] bg-white">
               {[1, 2, 3, 4, 5].map(day => (
                 <button
                   key={day}
                   onClick={() => setEditingDay(day)}
                   className={`day-tab min-w-[80px] flex-1 py-3 text-base font-bold transition-colors md:py-4 md:text-lg ${
-                    editingDay === day ? 'day-tab-active text-white' : 'day-tab-inactive text-[#8A6347]'
+                    editingDay === day ? 'day-tab-active text-white' : 'day-tab-inactive text-[var(--teacher-text-secondary)]'
                   }`}
                 >
                   {DAYS[day]}요일
@@ -13536,12 +13536,12 @@ export default function TimerPage() {
               ))}
             </div>
 
-            <div className="settings-body custom-scrollbar flex-1 overflow-y-auto bg-[#FDFBF7] p-4 md:p-6">
-              <div className="mb-5 rounded-2xl border border-[#E6D5C9] bg-white p-4 shadow-sm">
+            <div className="settings-body custom-scrollbar flex-1 overflow-y-auto bg-[var(--teacher-surface)] p-4 md:p-6">
+              <div className="mb-5 rounded-2xl border border-[var(--teacher-border)] bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h3 className="section-title text-lg font-bold text-[#8A6347]">학교 시계 보정</h3>
-                    <p className="mt-1 text-sm text-[#8A6347]/70">
+                    <h3 className="section-title text-lg font-bold text-[var(--teacher-text-secondary)]">학교 시계 보정</h3>
+                    <p className="mt-1 text-sm text-[var(--teacher-text-secondary)]/70">
                       학교 종이 빠르면 +, 웹이 빠르면 -
                     </p>
                   </div>
@@ -13553,9 +13553,9 @@ export default function TimerPage() {
                       step={1}
                       value={scheduleClockOffsetSeconds}
                       onChange={(e) => setScheduleClockOffsetSeconds(clampScheduleClockOffsetSeconds(e.target.value))}
-                      className="slot-time-input w-24 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2 text-right font-mono text-base font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363]"
+                      className="slot-time-input w-24 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2 text-right font-mono text-base font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)]"
                     />
-                    <span className="text-sm font-bold text-[#8A6347]">초</span>
+                    <span className="text-sm font-bold text-[var(--teacher-text-secondary)]">초</span>
                   </label>
                 </div>
                 <p className="mt-3 text-sm text-[#5C7A4B]">
@@ -13564,10 +13564,10 @@ export default function TimerPage() {
               </div>
 
               <div className="flex justify-between items-center mb-4">
-                <h3 className="section-title text-lg font-bold text-[#8A6347]">{DAYS[editingDay]}요일 일정</h3>
+                <h3 className="section-title text-lg font-bold text-[var(--teacher-text-secondary)]">{DAYS[editingDay]}요일 일정</h3>
                 <button 
                   onClick={() => setShowCopyConfirm(true)}
-                  className="toolbar-button toolbar-button-green inline-flex h-10 w-10 items-center justify-center rounded-full text-[#5C8D5D] transition-colors"
+                  className="toolbar-button toolbar-button-green inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--teacher-accent)] transition-colors"
                   title="선택한 요일 일정을 평일에 복사"
                   aria-label="선택한 요일 일정을 평일에 복사"
                 >
@@ -13583,7 +13583,7 @@ export default function TimerPage() {
                   <div className="flex gap-2 shrink-0">
                     <button 
                       onClick={() => setShowCopyConfirm(false)}
-                      className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[#8A6347]"
+                      className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[var(--teacher-text-secondary)]"
                     >
                       취소
                     </button>
@@ -13613,7 +13613,7 @@ export default function TimerPage() {
 
               <div className="space-y-3">
                 {(weeklySchedule[editingDay] || []).length === 0 ? (
-                  <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
+                  <div className="empty-slot-state rounded-2xl border border-dashed border-[var(--teacher-border)] bg-white py-10 text-center font-medium text-[var(--teacher-text-secondary)]/60">
                     일정이 없습니다.
                   </div>
                 ) : (
@@ -13621,13 +13621,13 @@ export default function TimerPage() {
                     const isMorningRow = index === 0;
                     const isFixedDurationRow = !isMorningRow && (slot.type === 'class' || slot.type === 'break');
                     return (
-                    <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
+                    <div key={slot.id} className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--teacher-border)] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[var(--teacher-border-strong)] md:gap-3 md:p-4 lg:flex-nowrap">
                       <input
                         type="text"
                         value={slot.name}
                         readOnly={isMorningRow}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
-                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[#8A6347] outline-none focus:ring-2 focus:ring-[#5C8D5D]/20 md:text-lg"
+                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[var(--teacher-text-secondary)] outline-none focus:ring-2 focus:ring-[var(--teacher-accent)]/20 md:text-lg"
                         placeholder="일정 이름"
                       />
                       <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end mt-2 lg:mt-0">
@@ -13648,15 +13648,15 @@ export default function TimerPage() {
                             type="time"
                             value={formatMinutesToTime(slot.start)}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'start', parseTimeToMinutes(e.target.value))}
-                            className="slot-time-input cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-2 py-2 font-mono text-sm font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363] md:px-3 md:text-base"
+                            className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-sm font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-base"
                           />
-                          <span className="text-[#8A6347] font-bold">-</span>
+                          <span className="text-[var(--teacher-text-secondary)] font-bold">-</span>
                           <input
                             type="time"
                             value={formatMinutesToTime(slot.end)}
                             disabled={isFixedDurationRow}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'end', parseTimeToMinutes(e.target.value))}
-                            className="slot-time-input cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-2 py-2 font-mono text-sm font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363] md:px-3 md:text-base"
+                            className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-sm font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-base"
                           />
                         </div>
                         <button
@@ -13675,17 +13675,17 @@ export default function TimerPage() {
               
               <button
                 onClick={() => addSlot(editingDay)}
-                className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-[background-color,border-color,box-shadow,color] hover:bg-[#5C8D5D] hover:text-white"
+                className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--teacher-accent)] py-4 text-lg font-bold text-[var(--teacher-accent)] transition-[background-color,border-color,box-shadow,color] hover:bg-[var(--teacher-accent)] hover:text-white"
               >
                 <Plus size={24} />
                 일정 추가
               </button>
 
-              <div className="mt-8 border-t border-[#E6D5C9] pt-6">
+              <div className="mt-8 border-t border-[var(--teacher-border)] pt-6">
                 <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h3 className="section-title text-xl font-bold text-[#8A6347]">추첨 설정</h3>
-                    <p className="mt-1 text-sm text-[#8A6347]/70">
+                    <h3 className="section-title text-xl font-bold text-[var(--teacher-text-secondary)]">추첨 설정</h3>
+                    <p className="mt-1 text-sm text-[var(--teacher-text-secondary)]/70">
                       상황, 범위, 명단
                     </p>
                   </div>
@@ -13694,7 +13694,7 @@ export default function TimerPage() {
                       type="button"
                       onClick={resetActiveDrawCase}
                       disabled={isDrawLocked}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#CBB39D] hover:bg-[#FFF9F2] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[var(--teacher-text-secondary)] transition-colors hover:border-[#CBB39D] hover:bg-[#FFF9F2] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <RotateCcw size={15} />
                       {activeDrawLabel} 초기화
@@ -13704,8 +13704,8 @@ export default function TimerPage() {
                       onClick={() => setIsHiddenDrawSettingsVisible((previous) => !previous)}
                       className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
                         isHiddenDrawSettingsVisible || reservedDrawCount > 0
-                          ? 'border-[#D5C0AB] bg-[#FFF3E5] text-[#8A6347] hover:border-[#C4AB93] hover:bg-[#FFECD7]'
-                          : 'border-[#DCCBB8] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
+                          ? 'border-[#D5C0AB] bg-[#FFF3E5] text-[var(--teacher-text-secondary)] hover:border-[#C4AB93] hover:bg-[#FFECD7]'
+                          : 'border-[#DCCBB8] bg-white text-[var(--teacher-text-secondary)] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
                       }`}
                       aria-pressed={isHiddenDrawSettingsVisible}
                       aria-label={SECRET_DRAW_BUTTON_LABEL}
@@ -13714,16 +13714,16 @@ export default function TimerPage() {
                       <Sparkles size={15} />
                       {SECRET_DRAW_BUTTON_LABEL}
                     </button>
-                    <div className="inline-flex items-center justify-center rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[#8A6347]">
+                    <div className="inline-flex items-center justify-center rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[var(--teacher-text-secondary)]">
                       {DRAW_SHORTCUT_LABEL}
                     </div>
                   </div>
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
-                  <section className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
+                  <section className="rounded-[1.7rem] border border-[var(--teacher-border)] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2.5">
-                      <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">상황</h4>
+                      <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">상황</h4>
                       <button
                         type="button"
                         onClick={addDrawSettingsCase}
@@ -13744,7 +13744,7 @@ export default function TimerPage() {
                             key={caseState.id}
                             className={`rounded-[1.45rem] border-2 p-3 transition-colors ${
                               isSelected
-                                ? 'border-[#B58363] bg-white shadow-[0_10px_20px_rgba(181,131,99,0.12)]'
+                                ? 'border-[var(--teacher-border-strong)] bg-white shadow-[0_10px_20px_rgba(181,131,99,0.12)]'
                                 : 'border-[#E8DCCD] bg-[rgba(255,252,247,0.88)]'
                             }`}
                           >
@@ -13762,7 +13762,7 @@ export default function TimerPage() {
                                 <button
                                   type="button"
                                   onClick={() => setDrawSettingsCaseId(caseState.id)}
-                                  className="mt-1.5 block w-full text-left text-[0.88rem] font-bold leading-6 text-[#B58363]"
+                                  className="mt-1.5 block w-full text-left text-[0.88rem] font-bold leading-6 text-[var(--teacher-text-secondary)]"
                                 >
                                   {getCaseSummaryLabel(caseState)}
                                 </button>
@@ -13772,7 +13772,7 @@ export default function TimerPage() {
                                 <button
                                   type="button"
                                   onClick={() => removeDrawSettingsCase(caseState.id)}
-                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#B58363] transition-colors hover:bg-[#FFF6ED] hover:text-[#8A6347]"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--teacher-text-secondary)] transition-colors hover:bg-[#FFF6ED] hover:text-[var(--teacher-text-secondary)]"
                                   aria-label={`${displayLabel} 삭제`}
                                   title={`${displayLabel} 삭제`}
                                 >
@@ -13787,22 +13787,22 @@ export default function TimerPage() {
                   </section>
 
                   <section className="flex flex-col gap-4">
-                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+                    <div className="rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
                       <div className="grid gap-4">
                         <label className="flex flex-col gap-2">
-                          <span className="section-title text-[0.95rem] font-bold text-[#B58363]">이름</span>
+                          <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">이름</span>
                           <input
                             type="text"
                             value={selectedDrawSettingsCase.label}
                             onChange={(event) => updateDrawCaseLabel(selectedDrawSettingsCase.id, event.target.value)}
-                            className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                            className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                             placeholder={getCaseLabelByIndex(Math.max(selectedDrawSettingsCaseIndex, 0))}
                           />
                         </label>
 
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="flex flex-col gap-2">
-                            <span className="section-title text-[0.95rem] font-bold text-[#B58363]">시작</span>
+                            <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">시작</span>
                             <input
                               type="number"
                               min={MIN_DRAW_NUMBER}
@@ -13816,12 +13816,12 @@ export default function TimerPage() {
                                   selectedDrawSettingsCase.rangeStart,
                                 )
                               }
-                              className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                              className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                             />
                           </label>
 
                           <label className="flex flex-col gap-2">
-                            <span className="section-title text-[0.95rem] font-bold text-[#B58363]">끝</span>
+                            <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">끝</span>
                             <input
                               type="number"
                               min={MIN_DRAW_NUMBER}
@@ -13835,23 +13835,23 @@ export default function TimerPage() {
                                   selectedDrawSettingsCase.rangeEnd,
                                 )
                               }
-                              className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                              className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                             />
                           </label>
                         </div>
                       </div>
                     </div>
 
-                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 md:p-5">
+                    <div className="rounded-[1.7rem] border border-[var(--teacher-border)] bg-[#FBF6EF] p-4 md:p-5">
                       <div className="flex flex-wrap items-start justify-between gap-2.5">
                         <div className="max-w-[32rem]">
-                          <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학생 명단</h4>
-                          <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">
+                          <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">학생 명단</h4>
+                          <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[var(--teacher-text-secondary)]">
                             줄바꿈 또는 번호 이름
                           </p>
                         </div>
 
-                        <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+                        <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
                           {assignedStudentNameCount} / {settingsStudentNumbers.length}
                         </div>
                       </div>
@@ -13859,16 +13859,16 @@ export default function TimerPage() {
                       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
                         <div className="rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
                           <label className="flex flex-col gap-2.5">
-                            <span className="section-title text-[0.92rem] font-bold text-[#B58363]">일괄 입력</span>
+                            <span className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">일괄 입력</span>
                             <textarea
                               value={studentRosterBulkInput}
                               onChange={(event) => setStudentRosterBulkInput(event.target.value)}
-                              className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.92rem] font-bold leading-7 text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                              className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.92rem] font-bold leading-7 text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                               placeholder={`김민서\n이서연\n3 박도윤`}
                             />
                           </label>
                           <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                            <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">
+                            <p className="text-[0.82rem] font-bold leading-6 text-[var(--teacher-text-secondary)]/80">
                               범위 밖 번호 제외
                             </p>
                             <button
@@ -13883,8 +13883,8 @@ export default function TimerPage() {
 
                         <div className="min-h-0">
                           <div className="flex items-center justify-between gap-3">
-                            <h5 className="section-title text-[0.92rem] font-bold text-[#B58363]">개별 수정</h5>
-                            <span className="text-xs font-bold text-[#B58363]/70">Tab</span>
+                            <h5 className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">개별 수정</h5>
+                            <span className="text-xs font-bold text-[var(--teacher-text-secondary)]/70">Tab</span>
                           </div>
 
                           <div className="custom-scrollbar mt-3 max-h-[22rem] overflow-y-auto pr-1">
@@ -13892,9 +13892,9 @@ export default function TimerPage() {
                               {settingsStudentNumbers.map((studentNumber, index) => (
                                 <label
                                   key={studentNumber}
-                                  className="draw-roster-row grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[#E6D5C9] bg-white/90 px-3 py-2.5"
+                                  className="draw-roster-row grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[var(--teacher-border)] bg-white/90 px-3 py-2.5"
                                 >
-                                  <span className="inline-flex items-center justify-center rounded-full bg-[#F7E8D7] px-2 py-2 text-center font-mono text-sm font-extrabold text-[#8A6347]">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-[#F7E8D7] px-2 py-2 text-center font-mono text-sm font-extrabold text-[var(--teacher-text-secondary)]">
                                     {studentNumber}
                                   </span>
                                   <input
@@ -13905,7 +13905,7 @@ export default function TimerPage() {
                                       updateDrawStudentName(selectedDrawSettingsCase.id, studentNumber, event.target.value)
                                     }
                                     onKeyDown={(event) => handleRosterInputKeyDown(event, index)}
-                                    className="rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.95rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                                    className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                                     placeholder="학생 이름"
                                   />
                                 </label>
@@ -13916,18 +13916,18 @@ export default function TimerPage() {
                       </div>
                     </div>
 
-                    <div className="random-history-panel rounded-[1.7rem] border border-[#EEE4D6] p-4 md:p-5">
+                    <div className="random-history-panel rounded-[1.7rem] border border-[var(--teacher-border)] p-4 md:p-5">
                       <div className="flex flex-wrap items-start justify-between gap-2.5">
                         <div className="max-w-[32rem]">
-                          <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
+                          <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">
                             {DRAWN_BALLS_SECTION_LABEL}
                           </h4>
-                          <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[#B58363]">
+                          <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[var(--teacher-text-secondary)]">
                             {DRAWN_BALLS_SECTION_DESCRIPTION}
                           </p>
                         </div>
 
-                        <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+                        <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
                           {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
                         </div>
                       </div>
@@ -13955,18 +13955,18 @@ export default function TimerPage() {
                             })}
                           </div>
                         ) : (
-                          <div className="empty-slot-state flex min-h-[8rem] items-center justify-center rounded-2xl border border-dashed border-[#E6D5C9] bg-white/60 text-center font-medium text-[#8A6347]/60">
+                          <div className="empty-slot-state flex min-h-[8rem] items-center justify-center rounded-2xl border border-dashed border-[var(--teacher-border)] bg-white/60 text-center font-medium text-[var(--teacher-text-secondary)]/60">
                             {DRAWN_BALLS_EMPTY_LABEL}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+                    <div className="rounded-[1.7rem] border border-[var(--teacher-border)] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="max-w-[32rem]">
-                          <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">재등장</h4>
-                          <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
+                          <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">재등장</h4>
+                          <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[var(--teacher-text-secondary)]">
                             이미 뽑힌 번호 1회 재등장
                           </p>
                         </div>
@@ -13993,42 +13993,42 @@ export default function TimerPage() {
                       <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[#FBF2E9] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="max-w-[32rem]">
-                            <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
+                            <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">
                               {SECRET_DRAW_SECTION_LABEL}
                             </h4>
-                            <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[#B58363]">
+                            <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[var(--teacher-text-secondary)]">
                               {SECRET_DRAW_SECTION_DESCRIPTION}
                             </p>
                           </div>
 
-                          <div className="rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+                          <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
                             {reservedDrawCount > 0 ? `${reservedDrawCount}개 예약` : SECRET_DRAW_EMPTY_LABEL}
                           </div>
                         </div>
 
                         <div className="mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
                           <label className="flex flex-col gap-2.5">
-                            <span className="section-title text-[0.92rem] font-bold text-[#B58363]">
+                            <span className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">
                               {SECRET_DRAW_INPUT_LABEL}
                             </span>
                             <input
                               type="text"
                               value={hiddenDrawResultInput}
                               onChange={(event) => setHiddenDrawResultInput(event.target.value)}
-                              className="rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.95rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
+                              className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                               placeholder="7, 12, 18"
                             />
                           </label>
 
                           <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                            <p className="text-[0.82rem] font-bold leading-6 text-[#B58363]/80">
+                            <p className="text-[0.82rem] font-bold leading-6 text-[var(--teacher-text-secondary)]/80">
                               {SECRET_DRAW_HINT}
                             </p>
                             <div className="flex flex-wrap items-center gap-2">
                               <button
                                 type="button"
                                 onClick={clearHiddenDrawResult}
-                                className="inline-flex items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-4 py-2 text-[0.84rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
+                                className="inline-flex items-center justify-center rounded-full border border-[#D9C8B6] bg-[var(--teacher-surface)] px-4 py-2 text-[0.84rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:border-[#C9B19A] hover:bg-[var(--teacher-surface)]"
                               >
                                 {SECRET_DRAW_CLEAR_LABEL}
                               </button>
