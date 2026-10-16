@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>Announcement mock QA setup</title>
+<script type="module">
+import { FAILURE_PROFILE_OPTIONS } from '/src/lib/failureExhibition.ts';
+const count = Math.max(1, Math.min(6, Number(new URL(location.href).searchParams.get('count')) || 4));
+const ids = ['item-e', 'item-5-2', 'item-5-3', 'item-5-4', 'item-5-5', 'item-5-6'].slice(0, count);
+const auctionItems = ids.map((id, index) => ({id, name: ['테스트 견과류', '테스트 젤리', '테스트 연필', '테스트 공책', '테스트 지우개', '테스트 색연필'][index], dayIndex: 4, startPrice: 10}));
+const auctionAwards = Object.fromEntries(ids.map((id, index) => [id, {itemId: id, winner: index + 1, amount: 13 + index, awardedAt: new Date().toISOString()}]));
+localStorage.setItem('school-timer-entry-number-v1', '0');
+const failureProfileAssignments = Object.fromEntries([1, 2, 3].map((number, index) => [number, FAILURE_PROFILE_OPTIONS[index].imageSrc]));
+localStorage.setItem('school-timer-student-pets-v1', JSON.stringify({auctionItems, auctionAwards, studentLife: {failureProfileAssignments}}));
+location.replace('/');
+</script>

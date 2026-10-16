@@ -2,7 +2,7 @@ import type { DeviceSession, RequestHeaders } from './deviceSession.js';
 import { applyStudentStorageCommand } from './studentStorageCommands.js';
 import { applyTeacherStorageCommand } from './teacherStorageCommands.js';
 import {
-  commitScopedStorageMutationAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError,
+  commitAuctionBidAndLoad, commitScopedStorageMutationAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError,
   type StorageConfiguration, type StorageReceipt,
 } from './storageV2Repository.js';
 import { auctionFinalizationScope, completeFailureStoryReadScope, storageCommandScope, studentEditRevisionKeys } from './storageCommandScope.js';
@@ -145,10 +145,17 @@ export const handleStorageCommand = async (
           ? applyTeacherStorageCommand(snapshot.value, action, payload, { requestId, createdAt })
           : applyStudentStorageCommand(snapshot.value, effectiveSession.studentNumber, action, payload, { requestId, createdAt });
         if (!mutation) { response.status(400).json({ error: 'INVALID_STORAGE_COMMAND' }); return; }
-        const saved = await commitScopedStorageMutationAndLoad(configuration, { snapshot, value: mutation.value,
+        const write = { snapshot, value: mutation.value,
           actorKey: commandActor,requestId,action,payload,result: mutation.result,
           readKeys: snapshot.scope.revisionKeys,
-        });
+        };
+        const saved = action === 'student.auction.bid' && effectiveSession.role === 'student'
+          && process.env.STORAGE_ATOMIC_AUCTION_BIDS === '1'
+          ? await commitAuctionBidAndLoad(configuration, write, effectiveSession.studentNumber, createdAt)
+          : await commitScopedStorageMutationAndLoad(configuration, write);
+        if ('rejected' in saved && saved.rejected) {
+          response.status(400).json({ error: saved.rejected, businessRejected: true }); return;
+        }
         if (saved.saved) {
           const current = saved.snapshot;
           if (!current) throw new StorageRepositoryError(502, 'STORAGE_INVALID_RESPONSE');

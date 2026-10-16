@@ -104,9 +104,12 @@ test('an actual Vercel build exits nonzero before Vite when Git identity is miss
 
 test('missing load scenarios, slow saves, and excessive bid retries fail verification', () => {
   const samples = [{ action: 'teacher.settings.patch', ms: 100 },
-    ...Array.from({ length: 23 }, () => ({ action: 'student.auction.bid', ms: 4000 })),
+    ...Array.from({ length: 23 }, () => ({ action: 'student.auction.bid', ms: 500 })),
     ...Array.from({ length: 23 }, () => ({ action: 'student.failure.create', ms: 300 }))];
   assert.doesNotThrow(() => verifyClassroomTimings(samples));
+  const slowBids = samples.map(sample => ({ ...sample, ms: sample.action === 'student.auction.bid' ? 3000 : sample.ms }));
+  assert.throws(() => verifyClassroomTimings(slowBids), /STORAGE_LOAD_TIME_BUDGET/);
+  assert.doesNotThrow(() => verifyClassroomTimings(slowBids, { atomicBids: false }));
   assert.throws(() => verifyClassroomTimings(samples.slice(1)), /STORAGE_LOAD_SAMPLES_REQUIRED/);
   for (const action of ['teacher.settings.patch', 'student.failure.create', 'student.auction.bid']) {
     assert.throws(() => verifyClassroomTimings(samples.map(sample => ({ ...sample, ms: sample.action === action ? 20_000 : sample.ms }))), /STORAGE_LOAD_TIME_BUDGET/);

@@ -1,5 +1,6 @@
 import { measureStorageRequest } from './storageRequestTiming.js';
 import { createHash } from 'node:crypto';
+import { normalizeAuctionItems } from '../lib/currency.js';
 import { parseStorageScope, storageResourceMatchesScope, storageStructuralAncestor, storageScopeStructuralKeys, storageScopeRevisionKeys, StorageScopeError, type StorageScope, type StorageOrderingBounds } from './storageScope.js';
 import { assembleStorageState, canonicalStorageJson, isStorageRecord, reconcileStorageResourceOrder, splitStorageState, type StorageHistoryRecord, type StorageResource, type StorageResourceValue, type StorageWallet, } from '../lib/storageV2Codec.js';
 export interface StorageConfiguration {
@@ -458,4 +459,26 @@ export const commitScopedStorageMutationAndLoad = async (
     if (!isStorageRecord(body) || typeof body.saved !== 'boolean') return invalid();
     return { saved: body.saved, ...('result' in body ? { result: body.result } : {}),
         ...(body.saved ? { snapshot: parseCommandSnapshot(body.snapshot, resultScope ?? mutation.snapshot.scope) } : {}) };
+};
+
+export const commitAuctionBidAndLoad = async (
+    configuration: StorageConfiguration, mutation: ScopedStorageMutation, studentNumber: number, createdAt: string,
+): Promise<{ saved: boolean; result?: unknown; snapshot?: ScopedStorageSnapshot; rejected?: string }> => {
+    const items = normalizeAuctionItems(mutation.snapshot.value.auctionItems);
+    const payload = isStorageRecord(mutation.payload) ? mutation.payload : {};
+    const item = items.find(item => item.id === payload.itemId);
+    if (!item) throw new StorageRepositoryError(400, 'INVALID_STORAGE_COMMAND');
+    const body = await request(configuration, 'storage_place_auction_bid', { p_command: {
+        actorKey: mutation.actorKey, requestId: mutation.requestId,
+        payloadHash: storagePayloadHash(mutation.action, mutation.payload), studentNumber,
+        itemId: item.id, amount: payload.amount, activeItemIds: items.map(item => item.id), startPrice: item.startPrice,
+        configRevision: mutation.snapshot.revisions['scope:auctionItems:all'] ?? 0,
+        createdAt,
+    } });
+    if (!isStorageRecord(body)) return invalid();
+    if (typeof body.rejected === 'string' && ['ALREADY_AWARDED', 'ALREADY_HIGHEST_BIDDER', 'BID_TOO_LOW',
+        'DUPLICATE_BID_AMOUNT', 'INSUFFICIENT_FUNDS'].includes(body.rejected)) return { saved: false, rejected: body.rejected };
+    if (typeof body.saved !== 'boolean') return invalid();
+    return { saved: body.saved, ...('result' in body ? { result: body.result } : {}),
+        ...(body.saved ? { snapshot: parseCommandSnapshot(body.snapshot, mutation.snapshot.scope) } : {}) };
 };

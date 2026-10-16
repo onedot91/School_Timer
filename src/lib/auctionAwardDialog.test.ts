@@ -225,11 +225,11 @@ test('연속 낙찰은 프로필 공개 후 결과 유지 시간을 갖고 다�
   assert.match(timerPageSource, /Math\.max\(0, awardQueueAdvanceRef\.current\.dueAt - Date\.now\(\)\)/);
 });
 
-test('오늘 낙찰은 교사와 학생 화면에서도 학생 번호 뒤에 금액을 괄호로 표시한다', () => {
+test('교사 알림장은 번호와 금액을 두 줄로, 학생 화면은 괄호로 표시한다', () => {
   const expectedFormat = /\{award\.winner\}번 \(\{formatCurrency\(award\.amount\)\}\)/;
   const legacyFormat = /\{award\.winner\}번 · \{formatCurrency\(award\.amount\)\}/;
 
-  assert.match(timerPageSource, expectedFormat);
+  assert.match(timerPageSource, /className="announcement-award-student"[\s\S]*?<img[\s\S]*?className="announcement-award-result text-\[#006241\]">\s*<span>\{award\.winner\}번<\/span>\s*<span>\{formatCurrency\(award\.amount\)\}<\/span>/);
   assert.match(auctionPageSource, expectedFormat);
   assert.doesNotMatch(timerPageSource, legacyFormat);
   assert.doesNotMatch(auctionPageSource, legacyFormat);

@@ -125,7 +125,7 @@ import {
   type StudentStockMarket,
   type StudentInvestmentRounding,
 } from '../lib/studentEconomy';
-import { FAILURE_PROFILE_OPTIONS } from '../lib/failureExhibition';
+import { FAILURE_EMPTY_PROFILE_IMAGE, FAILURE_PROFILE_OPTIONS, getFailureProfileImage, type FailureProfileAssignments } from '../lib/failureExhibition';
 
 import {
   ALL_STUDENTS_LETTER_RECIPIENT,
@@ -2216,6 +2216,7 @@ function AnnouncementNotebookOverlay({
   liveTimer,
   auctionItems,
   auctionAwards,
+  profileAssignments,
   awardableAuctionItems,
   auctionBids,
   onOpenAwardConfirm,
@@ -2226,6 +2227,7 @@ function AnnouncementNotebookOverlay({
   liveTimer: AnnouncementOverlayTimerState;
   auctionItems: AuctionItem[];
   auctionAwards: AuctionAwards;
+  profileAssignments: FailureProfileAssignments;
   awardableAuctionItems: AuctionItem[];
   auctionBids: AuctionBids;
   onOpenAwardConfirm: (item: AuctionItem) => void;
@@ -2838,6 +2840,7 @@ function AnnouncementNotebookOverlay({
               <div className="announcement-paper-top announcement-paper-top-clean shrink-0 border-b border-[#EADFD1] px-3 py-3 sm:px-5 md:px-6 md:py-4">
                 <div className="announcement-date-row announcement-date-row-clean">
                   <NotebookOverlayTimerBadge liveTimer={liveTimer} />
+                  <div className="announcement-date-field">
                   <input
                     value={dateText}
                     onChange={(event) => {
@@ -2865,16 +2868,21 @@ function AnnouncementNotebookOverlay({
                     className="announcement-date-input announcement-date-input-clean"
                     type="text"
                   />
-                  <div className="announcement-date-actions announcement-date-actions-clean" data-capture-exclude="true">
                     <span
-                      className={`announcement-save-badge inline-flex items-center rounded-full border px-3 text-sm font-extrabold ${
+                      data-capture-exclude="true"
+                      role="status"
+                      aria-label={saveStateLabel}
+                      title={saveStateLabel}
+                      className={`announcement-save-badge rounded-full ${
                         announcementSaveState === 'error'
-                          ? 'border-[#E5B8AA] bg-[#FFF4F0] text-[#B55E4C]'
-                          : 'border-[#D7E2D1] bg-[#F5FAF2] text-[#5C8D6D]'
+                          ? 'bg-[#C43832]'
+                          : announcementSaveState === 'saving'
+                            ? 'bg-[#C18A12]'
+                            : 'bg-[#007A57]'
                       }`}
-                    >
-                      {saveStateLabel}
-                    </span>
+                    />
+                  </div>
+                  <div className="announcement-date-actions announcement-date-actions-clean" data-capture-exclude="true">
                     <button
                       ref={announcementHistoryTriggerRef}
                       onClick={openAnnouncementHistory}
@@ -2970,28 +2978,39 @@ function AnnouncementNotebookOverlay({
                 </div>
               </div>
             </div>
-                  <div className="announcement-note-inline-tools gap-2" data-capture-exclude="true">
                     {announcementDayAwardedAuctionItems.length > 0 ? (
-                      <div aria-label="오늘 낙찰" className="announcement-award-sidebar pointer-events-auto rounded-[1rem] border border-[#D7E6DE] bg-white/95 p-2.5 shadow-[0_8px_18px_rgba(31,24,18,0.1)] backdrop-blur">
-                        <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <span className="text-[0.78rem] font-black text-[#006241]">오늘 낙찰</span>
-                          <span className="rounded-full bg-[#EEF7F2] px-2 py-0.5 text-[0.68rem] font-black text-[#006241]">
-                            {announcementDayAwardedAuctionItems.length}건
-                          </span>
-                        </div>
-                        <div className="announcement-award-list grid gap-1 overflow-y-auto pr-0.5">
+                      <div aria-label="오늘 낙찰" className="announcement-award-sidebar pointer-events-auto rounded-[1rem] border border-[#D7E6DE] bg-white/95 p-3 shadow-[0_8px_18px_rgba(31,24,18,0.1)]" data-capture-exclude="true">
+                        <div className="announcement-award-list gap-2 overflow-y-auto" tabIndex={0} role="region" aria-label="오늘 낙찰 목록">
                           {announcementDayAwardedAuctionItems.map(({ item, award }) => (
                             <div
                               key={award.itemId}
-                              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[0.65rem] bg-[#F5FAF7] px-2 py-1.5 text-[0.72rem] font-black text-[#46534B]"
+                              className="announcement-award-row rounded-[0.65rem] bg-[#F5FAF7] font-black text-[#46534B]"
                             >
-                              <span className="min-w-0 truncate">{getAuctionItemDisplayName(item.name, item.dayIndex)}</span>
-                              <span className="shrink-0 font-mono text-[#006241]">{award.winner}번 ({formatCurrency(award.amount)})</span>
+                              <span className="announcement-award-name" title={getAuctionItemDisplayName(item.name, item.dayIndex)}>{getAuctionItemDisplayName(item.name, item.dayIndex)}</span>
+                              <div className="announcement-award-student">
+                                <img
+                                  src={getFailureProfileImage(award.winner, profileAssignments)}
+                                  alt={`${award.winner}번 학생 프로필`}
+                                  width={40}
+                                  height={40}
+                                  className="h-10 w-10 shrink-0 rounded-full bg-white object-contain"
+                                  onError={(event) => {
+                                    if (event.currentTarget.getAttribute('src') !== FAILURE_EMPTY_PROFILE_IMAGE) {
+                                      event.currentTarget.src = FAILURE_EMPTY_PROFILE_IMAGE;
+                                    }
+                                  }}
+                                />
+                                <span className="announcement-award-result text-[#006241]">
+                                  <span>{award.winner}번</span>
+                                  <span>{formatCurrency(award.amount)}</span>
+                                </span>
+                              </div>
                             </div>
                           ))}
                         </div>
                       </div>
                     ) : null}
+                  <div className="announcement-note-inline-tools gap-2" data-capture-exclude="true">
                     {isAwardQueueConfirmOpen ? (
                       <div
                         className="pointer-events-auto fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4"
@@ -13984,6 +14003,7 @@ export default function TimerPage() {
         }}
         auctionItems={auctionItems}
         auctionAwards={auctionAwards}
+        profileAssignments={studentLife.failureProfileAssignments}
         awardableAuctionItems={awardableAuctionItems}
         auctionBids={auctionBids}
         onOpenAwardConfirm={openAwardConfirm}

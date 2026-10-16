@@ -5798,7 +5798,7 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
 }
 
 .announcement-stage-with-awards {
-  padding-right: 17rem;
+  padding-bottom: 0.3rem;
 }
 
 .announcement-toolbar {
@@ -6406,20 +6406,67 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
 }
 
 .announcement-award-sidebar {
-  position: absolute;
-  right: 0;
-  bottom: 4.2rem;
-  width: 16rem;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: calc(100% - 8rem);
+  flex-shrink: 0;
+  min-width: 0;
+  margin-top: 0.4rem;
+  margin-right: 8rem;
 }
 
 .announcement-award-list {
-  max-height: min(28rem, calc(100dvh - 14rem));
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.announcement-award-row {
+  display: flex;
+  flex: 0 1 9.25rem;
+  min-width: 8rem;
+  width: 9.25rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.announcement-award-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 1.125rem;
+  line-height: 1.25;
+}
+
+.announcement-award-student {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  margin-top: 0.25rem;
+}
+
+.announcement-award-result {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 760px) {
-  .announcement-stage-with-awards { padding-right: 0; padding-bottom: 14rem; }
-  .announcement-award-sidebar { width: min(22rem, calc(100vw - 4rem)); }
-  .announcement-award-list { max-height: 6rem; }
+  .announcement-award-sidebar { max-width: 100%; margin-right: 0; }
 }
 
 .announcement-note-display,
@@ -12313,6 +12360,7 @@ h3 {
 
 /* Announcement notebook clean header */
 .announcement-paper-top-clean {
+  padding: 0.5rem 1rem !important;
   background: #fffdfa !important;
   overflow: visible !important;
 }
@@ -12321,7 +12369,7 @@ h3 {
   display: grid !important;
   grid-template-columns: auto minmax(0, 1fr) auto !important;
   align-items: center !important;
-  gap: 1rem !important;
+  gap: 0.65rem !important;
   padding: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -12333,10 +12381,10 @@ h3 {
 }
 
 .announcement-date-row-clean .announcement-date-badge {
-  width: 5.2rem !important;
-  min-width: 5.2rem !important;
-  height: 5.2rem !important;
-  flex-basis: 5.2rem !important;
+  width: 4rem !important;
+  min-width: 4rem !important;
+  height: 4rem !important;
+  flex-basis: 4rem !important;
   box-shadow: none !important;
 }
 
@@ -12356,13 +12404,13 @@ h3 {
 }
 
 .announcement-date-row-clean .announcement-date-badge-content {
-  gap: 0.1rem !important;
-  padding: 0.72rem 0.42rem 0.58rem !important;
+  gap: 0 !important;
+  padding: 0.4rem 0.25rem !important;
 }
 
 .announcement-date-row-clean .announcement-date-badge-icon {
-  width: 1.25rem !important;
-  height: 1.25rem !important;
+  width: 1rem !important;
+  height: 1rem !important;
 }
 
 .announcement-date-row-clean .announcement-date-badge-time {
@@ -12375,22 +12423,34 @@ h3 {
   line-height: 1.05 !important;
 }
 
+.announcement-date-field {
+  position: relative;
+  min-width: 0;
+}
+
+.announcement-date-field .announcement-save-badge {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .announcement-date-input-clean {
   width: 100% !important;
   min-width: 0 !important;
-  min-height: 3.9rem !important;
+  min-height: 3.25rem !important;
   border: 1px solid rgba(0, 98, 65, 0.15) !important;
   border-radius: 1rem !important;
   background: #ffffff !important;
   box-shadow: none !important;
   color: var(--ink) !important;
   font-family: var(--font-body) !important;
-  font-size: clamp(1.55rem, 2.65vw, 2.35rem) !important;
+  font-size: clamp(1.55rem, 2.5vw, 2rem) !important;
   font-weight: 900 !important;
   letter-spacing: 0 !important;
   line-height: 1.05 !important;
   overflow: hidden !important;
-  padding: 0.68rem 1rem !important;
+  padding: 0.45rem 2.75rem 0.45rem 0.75rem !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
 }
@@ -12410,11 +12470,12 @@ h3 {
 }
 
 .announcement-save-badge {
-  min-height: 2.35rem !important;
+  width: 0.625rem;
+  height: 0.625rem;
+  min-height: 0.625rem !important;
+  flex: 0 0 0.625rem;
   border-radius: 999px !important;
-  background: #ffffff !important;
   box-shadow: none !important;
-  font-size: 0.78rem !important;
   white-space: nowrap !important;
 }
 
@@ -12485,15 +12546,13 @@ h3 {
     display: none !important;
   }
 
-  .announcement-date-input-clean {
+  .announcement-date-field {
     grid-column: 1 / -1;
-    min-height: 3.35rem !important;
-    font-size: 1.35rem !important;
   }
 
-  .announcement-save-badge {
-    flex: 1 1 auto;
-    justify-content: center;
+  .announcement-date-input-clean {
+    min-height: 3.35rem !important;
+    font-size: 1.35rem !important;
   }
 
   .announcement-history-overlay {

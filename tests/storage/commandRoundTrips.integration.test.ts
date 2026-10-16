@@ -12,7 +12,7 @@ test('combined commands preserve transaction visibility, replay, scope and permi
       await h.query(await readFile(new URL(`../../supabase/${file}.sql`, import.meta.url), 'utf8'));
     }
     const sql = await readFile(new URL('../../supabase/storage_command_round_trips.sql', import.meta.url), 'utf8');
-    const functions = async () => (await h.query("select oid::regprocedure::text identity,md5(prosrc) body_hash,proconfig from pg_proc where pronamespace='public'::regnamespace and proname not in ('storage_prepare_command','storage_commit_scoped_and_load') order by identity")).rows;
+    const functions = async () => (await h.query("select oid::regprocedure::text identity,md5(prosrc) body_hash,proconfig from pg_proc where pronamespace='public'::regnamespace and proname not in ('storage_prepare_command','storage_commit_scoped_and_load','storage_place_auction_bid','storage_auction_amount','storage_auction_student') order by identity")).rows;
     const before = await functions();
     await h.query(sql);
     await h.query(sql);

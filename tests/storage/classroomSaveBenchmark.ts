@@ -3,6 +3,7 @@ import { execFile, execFileSync } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { mock } from 'node:test';
 import { verifyClassroomTimings } from '../../dev/storageBudgets.mjs';
 import handler from '../../api/shared-settings.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
@@ -27,10 +28,11 @@ const rpcDelayMs = Number(process.env.CLASSROOM_RPC_DELAY_MS ?? 40);
 assert.ok(Number.isFinite(rpcDelayMs) && rpcDelayMs >= 0 && rpcDelayMs <= 1000);
 const originalFetch = globalThis.fetch;
 const environment = { ...process.env };
+mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-16T00:00:00Z') });
 const secret = 'synthetic-classroom-load-session-secret';
 const samples: { action: string; status: number; code?: string; ms: number }[] = [];
 const metrics: { rpc: string; action: string; bytes: number; ms: number; saved?: boolean }[] = [];
-const rpcNames = new Set(['storage_get_receipt', 'storage_load_scope', 'storage_prepare_command', 'storage_commit_scoped_mutation', 'storage_commit_scoped_and_load']);
+const rpcNames = new Set(['storage_get_receipt', 'storage_load_scope', 'storage_prepare_command', 'storage_commit_scoped_mutation', 'storage_commit_scoped_and_load', 'storage_place_auction_bid']);
 invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '--no-locale', '--encoding=UTF8']);
 invoke('pg_ctl', ['-D', `${directory}/data`, '-l', `${directory}/postgres.log`, '-o', `-F -h '' -k ${directory} -p 55488`, '-w', 'start']);
 try {
@@ -56,7 +58,8 @@ try {
     select storage_bootstrap(${literal(createdAt)},${json(source)},${json(encoded.resources)},${json(encoded.wallets)},${json(encoded.history)});
     select storage_set_maintenance(false,true);`);
   Object.assign(process.env, { SUPABASE_URL: 'https://classroom-fixture.invalid', SUPABASE_SERVICE_ROLE_KEY: 'synthetic',
-    DEVICE_SESSION_SECRET: secret, STORAGE_PROTOCOL_VERSION: '2', STORAGE_COMBINED_COMMANDS: '1' });
+    DEVICE_SESSION_SECRET: secret, STORAGE_PROTOCOL_VERSION: '2', STORAGE_COMBINED_COMMANDS: '1',
+    STORAGE_ATOMIC_AUCTION_BIDS: process.env.CLASSROOM_ATOMIC_BIDS ?? '1' });
   globalThis.fetch = async (input, init) => {
     const url = new URL(String(input));
     assert.equal(url.origin, 'https://classroom-fixture.invalid');
@@ -133,7 +136,7 @@ try {
     return [action, { requests: rows.length, statuses: rows.reduce<Record<string, number>>((counts, row) => { const key = `${row.status}:${row.code ?? 'ok'}`; counts[key] = (counts[key] ?? 0) + 1; return counts; }, {}),
       p50: Math.round(times[Math.floor((times.length - 1) * .5)]), p95: Math.round(times[Math.ceil((times.length - 1) * .95)]), max: Math.round(times.at(-1) ?? 0) }];
   }));
-  console.log(JSON.stringify({ rpcDelayMs, syntheticStories: stories.length, historyPerStudent: 100, summary,
+  console.log(JSON.stringify({ atomicBids: process.env.STORAGE_ATOMIC_AUCTION_BIDS === '1', rpcDelayMs, syntheticStories: stories.length, historyPerStudent: 100, summary,
     rpcCalls: workloadMetrics.length, responseBytes: workloadMetrics.reduce((total, metric) => total + metric.bytes, 0), conflicts: workloadMetrics.filter(metric => metric.saved === false).length,
     receiptCount: query('select count(*) from storage_receipts;'), replayUnchanged: beforeReplay === afterReplay }, null, 2));
   assert.equal(beforeReplay, afterReplay, 'replays must not duplicate rewards or stories');
@@ -142,10 +145,11 @@ try {
   assert.equal(query("select count(*) from storage_resources where resource_key like '/studentLife/failureStories/@classroom-story-%/failure' and not deleted;"), '23');
   assert.equal(query("select value->>'data' from storage_resources where resource_key='/scheduleNotice';"), 'after');
   assert.ok(samples.every(sample => sample.status === 200 || (sample.action === 'student.auction.bid' && ['BID_TOO_LOW', 'DUPLICATE_BID_AMOUNT'].includes(sample.code ?? ''))), JSON.stringify(samples.filter(sample => sample.status !== 200)));
-  verifyClassroomTimings(samples);
+  verifyClassroomTimings(samples, { atomicBids: process.env.STORAGE_ATOMIC_AUCTION_BIDS === '1' });
   assert.ok(metrics.every(metric => metric.ms < 8000), 'each database RPC must finish before the production read timeout');
 } finally {
   globalThis.fetch = originalFetch;
   process.env = environment;
+  mock.timers.reset();
   invoke('pg_ctl', ['-D', `${directory}/data`, '-m', 'fast', '-w', 'stop']);
 }
