@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { verifyDeployment } from './verifyDeployment.mjs';
 import { releaseSourceHash } from './releaseSourceHash.mjs';
 import { verifyClassroomTimings } from './storageBudgets.mjs';
@@ -92,6 +93,20 @@ test('the source fingerprint changes with runtime assets, SQL and workflow, but 
   }
   await writeFile(join(directory, 'public/.DS_Store'), 'local metadata');
   assert.equal(await releaseSourceHash(directory), hash);
+});
+
+test('a Git LFS pointer and its fetched object produce the same release hash', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'school-release-lfs-'));
+  for (const folder of ['src', 'api', 'public', 'supabase', 'dev', 'tests', '.github/workflows']) await mkdir(join(directory, folder), { recursive: true });
+  for (const file of ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'vercel.json', 'index.html', '.vercelignore']) await writeFile(join(directory, file), '{}');
+  const audio = Buffer.from('fixture audio bytes');
+  const pointer = (oid) => `version https://git-lfs.github.com/spec/v1\noid sha256:${oid}\nsize ${audio.length}\n`;
+  await writeFile(join(directory, 'public/music.mp3'), audio);
+  const fetched = await releaseSourceHash(directory);
+  await writeFile(join(directory, 'public/music.mp3'), pointer(createHash('sha256').update(audio).digest('hex')));
+  assert.equal(await releaseSourceHash(directory), fetched);
+  await writeFile(join(directory, 'public/music.mp3'), pointer('0'.repeat(64)));
+  assert.notEqual(await releaseSourceHash(directory), fetched);
 });
 
 test('an actual Vercel build exits nonzero before Vite when Git identity is missing', () => {
