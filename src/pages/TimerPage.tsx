@@ -8920,7 +8920,7 @@ export default function TimerPage() {
               <button
                 type="button"
                 onClick={exportSchedule}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[var(--teacher-border)] bg-white px-3 text-[0.84rem] font-extrabold text-[var(--teacher-text)] transition-colors hover:bg-[var(--teacher-surface)]"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[var(--teacher-border)] bg-white px-3 text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text)] transition-colors hover:bg-[var(--teacher-surface)]"
               >
                 <Download size={17} aria-hidden="true" />
                 시간표 백업
@@ -8928,7 +8928,7 @@ export default function TimerPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[var(--teacher-border)] bg-white px-3 text-[0.84rem] font-extrabold text-[var(--teacher-text)] transition-colors hover:bg-[var(--teacher-surface)]"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[var(--teacher-border)] bg-white px-3 text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text)] transition-colors hover:bg-[var(--teacher-surface)]"
               >
                 <Upload size={17} aria-hidden="true" />
                 시간표 복구
@@ -8942,8 +8942,8 @@ export default function TimerPage() {
               />
             </div>
           <section className="settings-frame-detail-group">
-            <h3 className="section-title text-[1.1rem] font-extrabold text-[var(--teacher-text)]">학교 시계 보정</h3>
-            <p className="mt-1.5 text-[0.82rem] font-semibold leading-relaxed text-[var(--teacher-text-secondary)]/75">
+            <h3 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">학교 시계 보정</h3>
+            <p className="mt-1.5 text-[length:var(--type-label)] font-semibold leading-relaxed text-[var(--teacher-text-secondary)]/75">
               학교 종이보다 빠르면 +, 늦으면 −초
             </p>
             <label className="mt-3 flex items-center gap-2">
@@ -8954,9 +8954,9 @@ export default function TimerPage() {
                 step={1}
                 value={scheduleClockOffsetSeconds}
                 onChange={(e) => setScheduleClockOffsetSeconds(clampScheduleClockOffsetSeconds(e.target.value))}
-                className="slot-time-input w-24 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2 text-right font-mono text-base font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)]"
+                className="slot-time-input w-24 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2 text-right font-mono text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)]"
               />
-              <span className="text-sm font-bold text-[var(--teacher-text-secondary)]">초</span>
+              <span className="text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">초</span>
             </label>
           </section>
     </>
@@ -8989,7 +8989,7 @@ export default function TimerPage() {
       <aside className="flex flex-col gap-4 xl:sticky xl:top-0 xl:self-start">
         <section className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="section-title text-[1.2rem] font-extrabold text-[var(--teacher-text)]">요일 선택</h3>
+            <h3 className="section-title text-[length:var(--type-title)] font-extrabold text-[var(--teacher-text)]">요일 선택</h3>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -9010,7 +9010,7 @@ export default function TimerPage() {
                 type="button"
                 onClick={() => selectEditingDay(day)}
                 aria-pressed={editingDay === day}
-                className={`settings-day-button rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
+                className={`settings-day-button rounded-[1.1rem] px-3 py-3 text-center text-[length:var(--type-body)] font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
                   editingDay === day
                     ? 'settings-day-button-active bg-[var(--teacher-accent)] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
                     : 'settings-day-button-idle border border-[var(--teacher-border)] bg-white text-[var(--teacher-text-secondary)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface)]'
@@ -9031,7 +9031,7 @@ export default function TimerPage() {
         {showCopyConfirm && (
           <div className="confirm-box flex flex-col gap-4 rounded-xl border border-[var(--teacher-urgent)]/30 bg-[var(--teacher-urgent-soft)] p-4">
             <div>
-              <p className="text-sm font-bold text-[var(--teacher-urgent)]">
+              <p className="text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-urgent)]">
                 {DAYS[editingDay]}요일 일정을 복사할 평일을 선택하세요.
               </p>
               <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="복사할 평일 선택">
@@ -9045,7 +9045,7 @@ export default function TimerPage() {
                       disabled={isSourceDay}
                       aria-pressed={isSourceDay ? undefined : isSelected}
                       onClick={() => toggleScheduleCopyTarget(day)}
-                      className={`inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
+                      className={`inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-[length:var(--type-body-sm)] font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
                         isSourceDay
                           ? 'cursor-not-allowed border-[var(--teacher-border)] bg-[var(--teacher-surface)] text-[var(--teacher-text-secondary)]'
                           : isSelected
@@ -9063,7 +9063,7 @@ export default function TimerPage() {
               <button
                 type="button"
                 onClick={closeScheduleCopy}
-                className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[var(--teacher-text-secondary)]"
+                className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]"
               >
                 취소
               </button>
@@ -9071,7 +9071,7 @@ export default function TimerPage() {
                 type="button"
                 disabled={copyTargetDays.size === 0}
                 onClick={confirmScheduleCopy}
-                className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-[var(--teacher-border-strong)]"
+                className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-[length:var(--type-body-sm)] font-bold text-white disabled:cursor-not-allowed disabled:bg-[var(--teacher-border-strong)]"
               >
                 {copyTargetDays.size > 0 ? `${copyTargetDays.size}일에 복사` : '요일을 선택하세요'}
               </button>
@@ -9095,7 +9095,7 @@ export default function TimerPage() {
                   <div key={slot.id} className="slot-editor-entry">
                     <div className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--teacher-border)] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[var(--teacher-border-strong)] md:gap-3 md:p-4 lg:flex-nowrap">
                     {isClassRow ? (
-                      <span className="slot-period-label -ml-2 inline-flex min-h-10 min-w-[3.4rem] flex-1 items-center rounded-xl px-3 text-base font-extrabold text-[var(--teacher-text)] md:text-lg">
+                      <span className="slot-period-label -ml-2 inline-flex min-h-10 min-w-[3.4rem] flex-1 items-center rounded-xl px-3 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] md:text-[length:var(--type-heading)]">
                         {periodNumber ?? slot.name}
                       </span>
                     ) : (
@@ -9104,7 +9104,7 @@ export default function TimerPage() {
                         value={slot.name}
                         readOnly={isMorningRow || slot.type === 'break' || slot.type === 'lunch'}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
-                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[var(--teacher-text-secondary)] outline-none focus:ring-2 focus:ring-[var(--teacher-accent)]/20 md:text-lg"
+                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)] outline-none focus:ring-2 focus:ring-[var(--teacher-accent)]/20 md:text-[length:var(--type-heading)]"
                         placeholder="일정 이름"
                       />
                     )}
@@ -9113,7 +9113,7 @@ export default function TimerPage() {
                         value={isMorningRow ? 'morning' : slot.type}
                         disabled={isMorningRow}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'type', e.target.value)}
-                        className="slot-select cursor-pointer rounded-xl border-none bg-[var(--teacher-surface-muted)] px-2 py-2 text-sm font-bold text-[var(--teacher-text)] outline-none transition-colors hover:bg-[var(--teacher-surface-muted)] md:px-3 md:text-base"
+                        className="slot-select cursor-pointer rounded-xl border-none bg-[var(--teacher-surface-muted)] px-2 py-2 text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:bg-[var(--teacher-surface-muted)] md:px-3 md:text-[length:var(--type-body)]"
                       >
                         {isMorningRow && <option value="morning">{MORNING_ACTIVITY_LABEL}</option>}
                         <option value="class">수업</option>
@@ -9126,7 +9126,7 @@ export default function TimerPage() {
                           type="time"
                           value={formatMinutesToTime(slot.start)}
                           onChange={(e) => updateSlot(editingDay, slot.id, 'start', parseTimeToMinutes(e.target.value))}
-                          className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-sm font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-base"
+                          className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-[length:var(--type-body)]"
                         />
                         <span className="text-[var(--teacher-text-secondary)] font-bold">-</span>
                         <input
@@ -9134,7 +9134,7 @@ export default function TimerPage() {
                           value={formatMinutesToTime(slot.end)}
                           disabled={isFixedDurationRow}
                           onChange={(e) => updateSlot(editingDay, slot.id, 'end', parseTimeToMinutes(e.target.value))}
-                          className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-sm font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-base"
+                          className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-[length:var(--type-body)]"
                         />
                       </div>
                       <button
@@ -9188,7 +9188,7 @@ export default function TimerPage() {
               onFocus={beginSubjectCatalogEdit}
               onBlur={endSubjectCatalogEdit}
               maxLength={MAX_SUBJECT_NAME_LENGTH}
-              className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2.5 text-[0.95rem] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20"
+              className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2.5 text-[length:var(--type-body)] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20"
               aria-label={`${index + 1}번째 과목`}
             />
             <button
@@ -9220,14 +9220,14 @@ export default function TimerPage() {
             addSubjectCatalogItem();
           }
         }}
-        className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[var(--teacher-border)] bg-white px-3 py-2.5 text-[0.95rem] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20"
+        className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[var(--teacher-border)] bg-white px-3 py-2.5 text-[length:var(--type-body)] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20"
         placeholder="새 과목"
       />
       <button
         type="button"
         onClick={addSubjectCatalogItem}
         disabled={!normalizeSubjectName(newSubjectName) || subjectCatalog.includes(normalizeSubjectName(newSubjectName))}
-        className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--teacher-accent)] bg-[var(--teacher-accent)] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[var(--teacher-accent-pressed)] disabled:cursor-not-allowed disabled:border-[var(--teacher-border)] disabled:bg-[var(--teacher-border-strong)]"
+        className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--teacher-accent)] bg-[var(--teacher-accent)] px-4 text-[length:var(--type-body)] font-extrabold text-white transition-colors hover:bg-[var(--teacher-accent-pressed)] disabled:cursor-not-allowed disabled:border-[var(--teacher-border)] disabled:bg-[var(--teacher-border-strong)]"
       >
         <Plus size={18} />
         과목 추가
@@ -9258,7 +9258,7 @@ export default function TimerPage() {
           aria-label="주 선택"
           value={selectedSubjectWeekKey}
           onChange={(event) => setSelectedSubjectWeekKey(event.target.value)}
-          className="subject-week-select slot-select min-h-11 w-full min-w-[18rem] cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-white px-3 py-2.5 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:bg-[var(--teacher-surface-muted)]"
+          className="subject-week-select slot-select min-h-11 w-full min-w-[18rem] cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-white px-3 py-2.5 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:bg-[var(--teacher-surface-muted)]"
         >
           {subjectWeekOptions.map((option) => (
             <option key={option.key} value={option.key}>
@@ -9283,9 +9283,9 @@ export default function TimerPage() {
           <table className="subject-week-table w-full min-w-[54rem] border-separate border-spacing-y-2">
             <thead>
               <tr>
-                <th className="px-2 pb-2 text-left text-[0.82rem] font-extrabold text-[var(--teacher-text-secondary)]">교시</th>
+                <th className="px-2 pb-2 text-left text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text-secondary)]">교시</th>
                 {WEEKDAYS.map((day) => (
-                  <th key={day} className="px-2 pb-2 text-left text-[0.82rem] font-extrabold text-[var(--teacher-text-secondary)]">
+                  <th key={day} className="px-2 pb-2 text-left text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text-secondary)]">
                     {DAYS[day]}요일
                   </th>
                 ))}
@@ -9295,7 +9295,7 @@ export default function TimerPage() {
               {subjectPeriodKeys.map((subjectKey) => (
                 <tr key={subjectKey}>
                   <th className="rounded-l-2xl border border-r-0 border-[var(--teacher-border)] bg-white px-3 py-3 text-left">
-                    <span className="slot-period-label inline-flex min-h-10 min-w-[3.4rem] items-center justify-center rounded-xl bg-[var(--teacher-surface-muted)] px-3 text-base font-extrabold text-[var(--teacher-text)]">
+                    <span className="slot-period-label inline-flex min-h-10 min-w-[3.4rem] items-center justify-center rounded-xl bg-[var(--teacher-surface-muted)] px-3 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)]">
                       {Number.isFinite(Number(subjectKey)) ? subjectKey : subjectKey}
                     </span>
                   </th>
@@ -9324,7 +9324,7 @@ export default function TimerPage() {
                               value={weeklySubjectValue}
                               onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
                               maxLength={MAX_SUBJECT_NAME_LENGTH}
-                              className={`slot-subject-input subject-combobox-input w-full min-w-0 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] py-2.5 pl-3 pr-9 text-[0.95rem] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20 ${subjectStatusClass}`}
+                              className={`slot-subject-input subject-combobox-input w-full min-w-0 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] py-2.5 pl-3 pr-9 text-[length:var(--type-body)] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20 ${subjectStatusClass}`}
                               data-subject-state={getSubjectInputState(weeklySubjectValue)}
                               placeholder="선택"
                               title="목록에서 선택하거나 직접 입력"
@@ -9333,7 +9333,7 @@ export default function TimerPage() {
                             <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--teacher-text-secondary)]/70" size={16} />
                           </div>
                         ) : (
-                          <span className="block rounded-xl border border-dashed border-[var(--teacher-border)] bg-[var(--teacher-surface)]/70 px-3 py-2.5 text-center text-[0.9rem] font-bold text-[var(--teacher-text-secondary)]/70">
+                          <span className="block rounded-xl border border-dashed border-[var(--teacher-border)] bg-[var(--teacher-surface)]/70 px-3 py-2.5 text-center text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]/70">
                             -
                           </span>
                         )}
@@ -9353,12 +9353,12 @@ export default function TimerPage() {
     <div className="settings-card random-history-panel rounded-[1.7rem] border border-[var(--teacher-border)] p-4 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2.5">
         <div className="max-w-[32rem]">
-          <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">
+          <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">
             {DRAWN_BALLS_SECTION_LABEL}
           </h4>
         </div>
 
-        <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
+        <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
           {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
         </div>
       </div>
@@ -9399,7 +9399,7 @@ export default function TimerPage() {
             <button
               type="button"
               onClick={() => setIsHiddenDrawSettingsVisible((previous) => !previous)}
-              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
+              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 py-2 text-[length:var(--type-body-sm)] font-bold transition-colors ${
                 isHiddenDrawSettingsVisible || reservedDrawCount > 0
                   ? 'border-[var(--teacher-border)] bg-[var(--teacher-surface)] text-[var(--teacher-text-secondary)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-warning-soft)]'
                   : 'border-[var(--teacher-border)] bg-white text-[var(--teacher-text-secondary)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface)]'
@@ -9416,19 +9416,19 @@ export default function TimerPage() {
         <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="grid gap-4">
             <label className="flex flex-col gap-2">
-              <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">이름</span>
+              <span className="section-title text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)]">이름</span>
               <input
                 type="text"
                 value={selectedDrawSettingsCase.label}
                 onChange={(event) => updateDrawCaseLabel(selectedDrawSettingsCase.id, event.target.value)}
-                className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
                 placeholder={getCaseLabelByIndex(Math.max(selectedDrawSettingsCaseIndex, 0))}
               />
             </label>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-2">
-                <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">시작</span>
+                <span className="section-title text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)]">시작</span>
                 <input
                   type="number"
                   min={MIN_DRAW_NUMBER}
@@ -9442,12 +9442,12 @@ export default function TimerPage() {
                       selectedDrawSettingsCase.rangeStart,
                     )
                   }
-                  className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                  className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
                 />
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">끝</span>
+                <span className="section-title text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)]">끝</span>
                 <input
                   type="number"
                   min={MIN_DRAW_NUMBER}
@@ -9461,7 +9461,7 @@ export default function TimerPage() {
                       selectedDrawSettingsCase.rangeEnd,
                     )
                   }
-                  className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                  className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
                 />
               </label>
             </div>
@@ -9471,7 +9471,7 @@ export default function TimerPage() {
         <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
           <div className="flex items-start justify-between gap-3">
             <div className="max-w-[32rem]">
-              <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">재등장 연출</h4>
+              <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">재등장 연출</h4>
             </div>
 
             <button
@@ -9496,10 +9496,10 @@ export default function TimerPage() {
       <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-2.5">
           <div className="max-w-[32rem]">
-            <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">학생 명단</h4>
+            <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">학생 명단</h4>
           </div>
 
-          <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
+          <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
             {assignedStudentNameCount} / {settingsStudentNumbers.length}
           </div>
         </div>
@@ -9507,11 +9507,11 @@ export default function TimerPage() {
         <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
           <div className="settings-subcard rounded-[1.2rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
             <label className="flex flex-col gap-2.5">
-              <span className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">일괄 입력</span>
+              <span className="section-title text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">일괄 입력</span>
               <textarea
                 value={studentRosterBulkInput}
                 onChange={(event) => setStudentRosterBulkInput(event.target.value)}
-                className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.92rem] font-bold leading-7 text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[length:var(--type-body-sm)] font-bold leading-7 text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
                 placeholder={`김민서\n이서연\n3 박도윤`}
               />
             </label>
@@ -9519,7 +9519,7 @@ export default function TimerPage() {
               <button
                 type="button"
                 onClick={applyBulkStudentRoster}
-                className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-accent)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-accent)] px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
               >
                 반영
               </button>
@@ -9528,7 +9528,7 @@ export default function TimerPage() {
 
           <div className="min-h-0">
             <div className="flex items-center justify-between gap-3">
-              <h5 className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">개별 수정</h5>
+              <h5 className="section-title text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">개별 수정</h5>
             </div>
 
             <div className="custom-scrollbar mt-3 max-h-[22rem] overflow-y-auto pr-1">
@@ -9538,7 +9538,7 @@ export default function TimerPage() {
                     key={studentNumber}
                     className="draw-roster-row grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[var(--teacher-border)] bg-white/90 px-3 py-2.5"
                   >
-                    <span className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-warning-soft)] px-2 py-2 text-center font-mono text-sm font-extrabold text-[var(--teacher-text-secondary)]">
+                    <span className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-warning-soft)] px-2 py-2 text-center font-mono text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
                       {studentNumber}
                     </span>
                     <input
@@ -9549,7 +9549,7 @@ export default function TimerPage() {
                         updateDrawStudentName(selectedDrawSettingsCase.id, studentNumber, event.target.value)
                       }
                       onKeyDown={(event) => handleRosterInputKeyDown(event, index)}
-                      className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                      className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
                       placeholder="학생 이름"
                     />
                   </label>
@@ -9564,26 +9564,26 @@ export default function TimerPage() {
           <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="max-w-[32rem]">
-                <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">
+                <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">
                   {SECRET_DRAW_SECTION_LABEL}
                 </h4>
               </div>
 
-              <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
+              <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
                 {reservedDrawCount > 0 ? `${reservedDrawCount}개 예약` : SECRET_DRAW_EMPTY_LABEL}
               </div>
             </div>
 
             <div className="settings-subcard mt-4 rounded-[1.2rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
               <label className="flex flex-col gap-2.5">
-                <span className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">
+                <span className="section-title text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">
                   {SECRET_DRAW_INPUT_LABEL}
                 </span>
                 <input
                   type="text"
                   value={hiddenDrawResultInput}
                   onChange={(event) => setHiddenDrawResultInput(event.target.value)}
-                  className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                  className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
                   placeholder="7, 12, 18"
                 />
               </label>
@@ -9593,14 +9593,14 @@ export default function TimerPage() {
                   <button
                     type="button"
                     onClick={clearHiddenDrawResult}
-                    className="inline-flex items-center justify-center rounded-full border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-2 text-[0.84rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface)]"
+                    className="inline-flex items-center justify-center rounded-full border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-2 text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface)]"
                   >
                     {SECRET_DRAW_CLEAR_LABEL}
                   </button>
                   <button
                     type="button"
                     onClick={applyHiddenDrawResult}
-                    className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-accent)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                    className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-accent)] px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                   >
                     {SECRET_DRAW_APPLY_LABEL}
                   </button>
@@ -9639,12 +9639,12 @@ export default function TimerPage() {
       <section className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
-            <h3 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">상황</h3>
+            <h3 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">상황</h3>
           </div>
           <button
             type="button"
             onClick={addDrawSettingsCase}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[var(--teacher-accent)] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[var(--teacher-accent)] px-4 py-2.5 text-[length:var(--type-body-sm)] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
           >
             <Plus size={18} />
             추가
@@ -9672,14 +9672,14 @@ export default function TimerPage() {
                       value={caseState.label}
                       onFocus={() => setDrawSettingsCaseId(caseState.id)}
                       onChange={(event) => updateDrawCaseLabel(caseState.id, event.target.value)}
-                      className="draw-case-label-input w-full rounded-xl border px-3 py-2 text-[1rem] font-extrabold md:text-[1.08rem]"
+                      className="draw-case-label-input w-full rounded-xl border px-3 py-2 text-[length:var(--type-body)] font-extrabold md:text-[length:var(--type-heading)]"
                       placeholder={getCaseLabelByIndex(index)}
                       aria-label={`${displayLabel} 이름 수정`}
                     />
                     <button
                       type="button"
                       onClick={() => setDrawSettingsCaseId(caseState.id)}
-                      className="mt-1.5 block w-full text-left text-[0.88rem] font-bold leading-6 text-[var(--teacher-text-secondary)]"
+                      className="mt-1.5 block w-full text-left text-[length:var(--type-body-sm)] font-bold leading-6 text-[var(--teacher-text-secondary)]"
                     >
                       {getCaseSummaryLabel(caseState)}
                     </button>
@@ -10999,9 +10999,9 @@ export default function TimerPage() {
         {currencyTodayHistoryByStudent.map(({ studentNumber, entries, incoming, outgoing }) => (
           entries.length > 0 ? (
             <details key={studentNumber} className="min-w-0 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-1.5 rounded-[0.85rem] px-2.5 py-2 text-[0.9rem] font-extrabold text-[var(--teacher-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--teacher-focus)]">
-                <span className="shrink-0">{studentNumber}번 <span className="text-[0.8rem] font-bold text-[var(--teacher-text-secondary)]">{entries.length}건</span></span>
-                <span className="flex min-w-0 items-center gap-1.5 font-mono text-[0.82rem] font-bold tabular-nums">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-1.5 rounded-[0.85rem] px-2.5 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--teacher-focus)]">
+                <span className="shrink-0">{studentNumber}번 <span className="text-[length:var(--type-label)] font-bold text-[var(--teacher-text-secondary)]">{entries.length}건</span></span>
+                <span className="flex min-w-0 items-center gap-1.5 font-mono text-[length:var(--type-label)] font-bold tabular-nums">
                   {incoming > 0 && <span className="truncate text-[var(--teacher-accent)]">+{formatCurrencyAmount(incoming)}</span>}
                   {outgoing > 0 && <span className="truncate text-[var(--teacher-urgent)]">−{formatCurrencyAmount(outgoing)}</span>}
                 </span>
@@ -11012,13 +11012,13 @@ export default function TimerPage() {
                   const createdAt = new Date(entry.createdAt);
                   const isIncoming = entry.delta >= 0;
                   return (
-                    <li key={entry.id} className="flex min-w-0 items-center justify-between gap-2 py-2 text-[0.8125rem]">
+                    <li key={entry.id} className="flex min-w-0 items-center justify-between gap-2 py-2 text-[length:var(--type-label)]">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <time dateTime={entry.createdAt} className="shrink-0 font-mono tabular-nums text-[var(--teacher-text-secondary)]">{currencyHistoryTimeFormatter.format(createdAt)}</time>
                           <span className="truncate font-bold text-[var(--teacher-text)]">{currencyHistoryReasonLabels[entry.reason]}</span>
                         </div>
-                        <span className="font-mono text-[0.75rem] tabular-nums text-[var(--teacher-text-secondary)]">{formatCurrencyAmount(entry.before)} → {formatCurrencyAmount(entry.after)}</span>
+                        <span className="font-mono text-[length:var(--type-caption)] tabular-nums text-[var(--teacher-text-secondary)]">{formatCurrencyAmount(entry.before)} → {formatCurrencyAmount(entry.after)}</span>
                       </div>
                       <strong className={`shrink-0 font-mono tabular-nums ${isIncoming ? 'text-[var(--teacher-accent)]' : 'text-[var(--teacher-urgent)]'}`}>
                         {isIncoming ? '+' : '−'}{formatCurrencyAmount(Math.abs(entry.delta))}
@@ -11029,9 +11029,9 @@ export default function TimerPage() {
               </ol>
             </details>
           ) : (
-            <div key={studentNumber} className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-2.5 py-2 text-[0.9rem]">
+            <div key={studentNumber} className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-2.5 py-2 text-[length:var(--type-body-sm)]">
               <strong className="font-extrabold text-[var(--teacher-text)]">{studentNumber}번</strong>
-              <span className="font-mono text-[0.8rem] font-bold tabular-nums text-[var(--teacher-text-secondary)]">0건</span>
+              <span className="font-mono text-[length:var(--type-label)] font-bold tabular-nums text-[var(--teacher-text-secondary)]">0건</span>
             </div>
           )
         ))}
@@ -11069,7 +11069,7 @@ export default function TimerPage() {
             type="button"
             onClick={() => void resetClassDonation()}
             disabled={classDonation.totalAmount === 0 && classDonation.history.length === 0}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-4 text-[0.84rem] font-extrabold text-[var(--teacher-text)] disabled:cursor-not-allowed disabled:opacity-45"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-4 text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text)] disabled:cursor-not-allowed disabled:opacity-45"
           >
             새 목표로 초기화
           </button>
@@ -11081,7 +11081,7 @@ export default function TimerPage() {
       >
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
           <label className="grid gap-1.5">
-            <span className="section-title text-[0.76rem] font-black text-[var(--teacher-text-secondary)]">기부 물품명</span>
+            <span className="section-title text-[length:var(--type-caption)] font-black text-[var(--teacher-text-secondary)]">기부 물품명</span>
             <input
               type="text"
               value={classDonation.itemName}
@@ -11094,7 +11094,7 @@ export default function TimerPage() {
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="section-title text-[0.76rem] font-black text-[var(--teacher-text-secondary)]">목표 고마</span>
+            <span className="section-title text-[length:var(--type-caption)] font-black text-[var(--teacher-text-secondary)]">목표 고마</span>
             <input
               type="number"
               min="1"
@@ -11127,14 +11127,14 @@ export default function TimerPage() {
 
         {classDonation.history.length > 0 ? (
           <details className="settings-disclosure mt-3 rounded-[1rem] border border-[var(--teacher-border)] bg-white">
-            <summary className="min-h-11 cursor-pointer px-4 py-3 text-[0.84rem] font-extrabold text-[var(--teacher-text)]">
+            <summary className="min-h-11 cursor-pointer px-4 py-3 text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text)]">
               기부 기록 {classDonation.history.length}건
             </summary>
             <div className="custom-scrollbar max-h-44 overflow-y-auto border-t border-[var(--teacher-border)] p-2">
               {classDonation.history.map((entry) => (
                 <div key={entry.id} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--teacher-border)] px-2 py-2 last:border-b-0">
                   <span className="font-extrabold text-[var(--teacher-text)]">{entry.studentNumber}번</span>
-                  <span className="text-[0.78rem] font-bold text-[var(--teacher-text-secondary)]">{new Date(entry.createdAt).toLocaleString('ko-KR')}</span>
+                  <span className="text-[length:var(--type-caption)] font-bold text-[var(--teacher-text-secondary)]">{new Date(entry.createdAt).toLocaleString('ko-KR')}</span>
                   <span className="font-mono font-black text-[var(--teacher-accent)]">{formatCurrency(entry.amount)}</span>
                 </div>
               ))}
@@ -11154,7 +11154,7 @@ export default function TimerPage() {
             <h3 className="section-title">물품 설정 및 현황</h3>
             <SettingsStatusChip>등록 물품 {auctionItems.filter((item) => !isUnusedAuctionItem(item)).length}개</SettingsStatusChip>
             {isTodayAuctionUnregistered ? <SettingsStatusChip tone="urgent">오늘 미등록</SettingsStatusChip> : null}
-            <div className="status-slot flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">{auctionItemsSaveStatus !== 'idle' && <>
+            <div className="status-slot flex flex-wrap items-center gap-2 text-[length:var(--type-body-sm)]" role="status" aria-live="polite">{auctionItemsSaveStatus !== 'idle' && <>
               <span>{auctionItemsSaveStatus === 'error'
                 ? auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE'
                   ? '서버에 없는 물품이거나 마지막 물품이라 삭제할 수 없습니다. 물품 목록을 확인해 주세요.'
@@ -11186,7 +11186,7 @@ export default function TimerPage() {
         )}
         details={(
           <div className="settings-frame-detail-group">
-            <p className="text-[0.82rem] font-bold leading-5 text-[var(--teacher-text)]">
+            <p className="text-[length:var(--type-label)] font-bold leading-5 text-[var(--teacher-text)]">
               보유 화폐 초기화는 모든 학생의 고마를 100으로 되돌립니다.
             </p>
             <button
@@ -11195,7 +11195,7 @@ export default function TimerPage() {
                 auctionActionReturnFocusRef.current = event.currentTarget;
                 setPendingAuctionAction('currency');
               }}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border-strong)] bg-white px-4 py-2 text-[0.86rem] font-extrabold text-[var(--teacher-urgent)] transition-colors hover:bg-[var(--teacher-warning-soft)]"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border-strong)] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-urgent)] transition-colors hover:bg-[var(--teacher-warning-soft)]"
             >
               보유 화폐 초기화
             </button>
@@ -11205,7 +11205,7 @@ export default function TimerPage() {
       >
         {weeklyAuctionCloseMessage ? (
           <p
-            className={`text-center text-[0.86rem] font-bold leading-6 ${weeklyAuctionCloseStatus === 'error' ? 'text-[var(--teacher-urgent)]' : 'text-[var(--teacher-accent)]'}`}
+            className={`text-center text-[length:var(--type-body-sm)] font-bold leading-6 ${weeklyAuctionCloseStatus === 'error' ? 'text-[var(--teacher-urgent)]' : 'text-[var(--teacher-accent)]'}`}
             role={weeklyAuctionCloseStatus === 'error' ? 'alert' : 'status'}
           >
             {weeklyAuctionCloseMessage}
@@ -11274,7 +11274,7 @@ export default function TimerPage() {
                       style={{ backgroundColor: accent.chip }}
                     />
                     <span
-                      className="section-title truncate text-[1.08rem] font-black"
+                      className="section-title truncate text-[length:var(--type-heading)] font-black"
                       style={{ color: accent.chip }}
                     >
                       {weekdayLabel}요일
@@ -11290,7 +11290,7 @@ export default function TimerPage() {
                     title={`${weekdayLabel}요일 물품 추가`}
                   >
                     <Plus size={17} />
-                    <span className="section-title text-[0.78rem] font-extrabold">추가</span>
+                    <span className="section-title text-[length:var(--type-caption)] font-extrabold">추가</span>
                   </button>
                 </div>
 
@@ -11336,7 +11336,7 @@ export default function TimerPage() {
                                 onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
                                 onFocus={beginAuctionItemEdit}
                                 onBlur={endAuctionItemEdit}
-                                className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border bg-[var(--teacher-surface-muted)] px-3 text-[1rem] font-black leading-tight text-[var(--teacher-text)] outline-none transition-colors focus:bg-white"
+                                className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border bg-[var(--teacher-surface-muted)] px-3 text-[length:var(--type-body)] font-black leading-tight text-[var(--teacher-text)] outline-none transition-colors focus:bg-white"
                                 style={{ borderColor: accent.border }}
                                 aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 이름`}
                                 placeholder="물품 이름"
@@ -11353,7 +11353,7 @@ export default function TimerPage() {
                                 <Trash2 size={14} />
                               </button>
                               {!isPublic && isTemporarilyVisible ? (
-                                <span className="absolute right-3 top-[-0.55rem] rounded-full bg-white px-2 py-0.5 text-[0.58rem] font-black text-[var(--teacher-accent)] shadow-sm">
+                                <span className="absolute right-3 top-[-0.55rem] rounded-full bg-white px-2 py-0.5 text-[length:var(--type-caption)] font-black text-[var(--teacher-accent)] shadow-sm">
                                   임시 공개
                                 </span>
                               ) : null}
@@ -11366,25 +11366,25 @@ export default function TimerPage() {
                               >
                                 {award ? (
                                   <span
-                                    className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.74rem] font-black text-white"
+                                    className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[length:var(--type-caption)] font-black text-white"
                                     style={getStudentLabelStyle(award.winner)}
                                   >
                                     {award.winner}번
                                   </span>
                                 ) : currentBid.bidder ? (
                                   <span
-                                    className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[0.74rem] font-black text-white"
+                                    className="inline-flex h-7 shrink-0 items-center justify-center rounded-full px-2.5 font-mono text-[length:var(--type-caption)] font-black text-white"
                                     style={getStudentLabelStyle(currentBid.bidder)}
                                   >
                                     {currentBid.bidder}번
                                   </span>
                                 ) : (
-                                  <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-[var(--teacher-surface-muted)] px-2.5 text-[0.72rem] font-black text-[var(--teacher-text-secondary)]">
+                                  <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-[var(--teacher-surface-muted)] px-2.5 text-[length:var(--type-caption)] font-black text-[var(--teacher-text-secondary)]">
                                     대기
                                   </span>
                                 )}
                                 <div
-                                  className="min-w-0 flex-1 whitespace-nowrap text-right font-mono text-[1rem] font-black leading-none"
+                                  className="min-w-0 flex-1 whitespace-nowrap text-right font-mono text-[length:var(--type-body)] font-black leading-none"
                                   style={{ color: accent.chip }}
                                 >
                                   {award ? formatCurrency(award.amount) : formatCurrency(currentBid.amount)}
@@ -11394,7 +11394,7 @@ export default function TimerPage() {
                                 type="button"
                                 onClick={(event) => openAwardConfirm(item, event.currentTarget)}
                                 disabled={!canAward}
-                                className={`inline-flex min-h-10 items-center justify-center rounded-[0.85rem] border px-2 text-[0.8rem] font-extrabold transition-colors ${
+                                className={`inline-flex min-h-10 items-center justify-center rounded-[0.85rem] border px-2 text-[length:var(--type-label)] font-extrabold transition-colors ${
                                   award
                                     ? 'cursor-default bg-white'
                                     : canAward
@@ -11484,12 +11484,12 @@ export default function TimerPage() {
           <div className="grid gap-3 lg:grid-cols-2">
             {STUDENT_MISSION_VISIBILITY_GROUPS.map((group) => (
               <fieldset key={group.label} className="grid gap-2 rounded-[1rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-3">
-                <legend className="section-title px-1 text-[0.78rem] font-black text-[var(--teacher-text-secondary)]">{group.label}</legend>
+                <legend className="section-title px-1 text-[length:var(--type-caption)] font-black text-[var(--teacher-text-secondary)]">{group.label}</legend>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {group.items.map((mission) => (
                     <label
                       key={mission.id}
-                      className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-[0.8rem] border px-3 text-[0.82rem] font-extrabold transition-colors ${studentMissionVisibility[mission.id]
+                      className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-[0.8rem] border px-3 text-[length:var(--type-label)] font-extrabold transition-colors ${studentMissionVisibility[mission.id]
                         ? 'border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] text-[var(--teacher-accent)]'
                         : 'border-[var(--teacher-border)] bg-white text-[var(--teacher-text-secondary)]'}`}
                     >
@@ -11517,8 +11517,8 @@ export default function TimerPage() {
         <div className="order-4 grid gap-3 rounded-[1.25rem] border border-[var(--teacher-border)] bg-white/85 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="section-title text-[1.05rem] font-black text-[var(--teacher-text)]">1인 1역</h3>
-              <p className="mt-1 text-[0.82rem] font-bold text-[var(--teacher-text-secondary)]">
+              <h3 className="section-title text-[length:var(--type-heading)] font-black text-[var(--teacher-text)]">1인 1역</h3>
+              <p className="mt-1 text-[length:var(--type-label)] font-bold text-[var(--teacher-text-secondary)]">
                 평일마다 담당 번호가 한 칸씩 이동합니다. 완료 +20고마, 미수행 -20고마
               </p>
             </div>
@@ -11537,11 +11537,11 @@ export default function TimerPage() {
           </div>
 
           <label className="grid max-w-[18rem] gap-1.5">
-            <span className="section-title text-[0.74rem] font-black text-[var(--teacher-text-secondary)]">오늘 칠판 전문가</span>
+            <span className="section-title text-[length:var(--type-caption)] font-black text-[var(--teacher-text-secondary)]">오늘 칠판 전문가</span>
             <select
               value={todayClassroomRoleAssignments[0]?.studentNumber ?? 1}
               onChange={(event) => updateTodayClassroomRoleStart(Number(event.target.value))}
-              className="section-title h-11 rounded-[0.85rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] px-3 text-[0.95rem] font-black text-[var(--teacher-text)] outline-none focus:border-[var(--teacher-border-strong)]"
+              className="section-title h-11 rounded-[0.85rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] px-3 text-[length:var(--type-body)] font-black text-[var(--teacher-text)] outline-none focus:border-[var(--teacher-border-strong)]"
               aria-label="오늘 1인 1역 시작 학생 번호"
               disabled={!isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
             >
@@ -11551,9 +11551,9 @@ export default function TimerPage() {
             </select>
           </label>
 
-          {!isTodayClassroomRoleSchoolDay && <p className="text-sm font-bold text-[var(--teacher-text-secondary)]">주말에는 1인 1역을 쉬어요.</p>}
-          {classroomRoleError && <p role="alert" className="text-sm font-bold text-[var(--teacher-urgent)]">{classroomRoleError}</p>}
-          <StatusSlot className="text-sm font-bold text-[var(--teacher-text-secondary)]">{isClassroomRoleSaving ? '저장 중' : null}</StatusSlot>
+          {!isTodayClassroomRoleSchoolDay && <p className="text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">주말에는 1인 1역을 쉬어요.</p>}
+          {classroomRoleError && <p role="alert" className="text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-urgent)]">{classroomRoleError}</p>}
+          <StatusSlot className="text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">{isClassroomRoleSaving ? '저장 중' : null}</StatusSlot>
           <div className="grid gap-2 md:grid-cols-3">
             {todayClassroomRoleAssignments.map((assignment) => {
               const result = classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(assignment.studentNumber)];
@@ -11563,8 +11563,8 @@ export default function TimerPage() {
                   className="grid gap-2 rounded-[1rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <strong className="text-[0.9rem] font-black text-[var(--teacher-text)]">{assignment.roleName}</strong>
-                    <span className="rounded-full bg-[var(--teacher-surface-muted)] px-2.5 py-1 text-[0.78rem] font-black text-[var(--teacher-accent)]">
+                    <strong className="text-[length:var(--type-body-sm)] font-black text-[var(--teacher-text)]">{assignment.roleName}</strong>
+                    <span className="rounded-full bg-[var(--teacher-surface-muted)] px-2.5 py-1 text-[length:var(--type-caption)] font-black text-[var(--teacher-accent)]">
                       {assignment.studentNumber}번
                     </span>
                   </div>
@@ -11574,7 +11574,7 @@ export default function TimerPage() {
                       onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'rewarded')}
                       disabled={!classroomRoleMission.enabled || !isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
                       aria-pressed={result === 'rewarded'}
-                      className={`min-h-11 rounded-[0.75rem] border border-[var(--teacher-border-strong)] px-2 text-[0.8rem] font-black text-[var(--teacher-accent)] transition-colors hover:bg-[var(--teacher-surface-muted)] disabled:cursor-not-allowed disabled:text-[var(--teacher-text-secondary)] ${result === 'rewarded' ? 'bg-[var(--teacher-surface-muted)]' : 'bg-white'}`}
+                      className={`min-h-11 rounded-[0.75rem] border border-[var(--teacher-border-strong)] px-2 text-[length:var(--type-label)] font-black text-[var(--teacher-accent)] transition-colors hover:bg-[var(--teacher-surface-muted)] disabled:cursor-not-allowed disabled:text-[var(--teacher-text-secondary)] ${result === 'rewarded' ? 'bg-[var(--teacher-surface-muted)]' : 'bg-white'}`}
                     >
                       {result === 'rewarded' ? '지급 취소' : '+20 지급'}
                     </button>
@@ -11583,7 +11583,7 @@ export default function TimerPage() {
                       onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'penalized')}
                       disabled={!classroomRoleMission.enabled || !isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
                       aria-pressed={result === 'penalized'}
-                      className={`min-h-11 rounded-[0.75rem] border border-[var(--teacher-urgent)] px-2 text-[0.8rem] font-black text-[var(--teacher-urgent)] transition-colors hover:bg-[var(--teacher-urgent-soft)] disabled:cursor-not-allowed disabled:text-[var(--teacher-text-secondary)] ${result === 'penalized' ? 'bg-[var(--teacher-urgent-soft)]' : 'bg-white'}`}
+                      className={`min-h-11 rounded-[0.75rem] border border-[var(--teacher-urgent)] px-2 text-[length:var(--type-label)] font-black text-[var(--teacher-urgent)] transition-colors hover:bg-[var(--teacher-urgent-soft)] disabled:cursor-not-allowed disabled:text-[var(--teacher-text-secondary)] ${result === 'penalized' ? 'bg-[var(--teacher-urgent-soft)]' : 'bg-white'}`}
                     >
                       {result === 'penalized' ? '차감 취소' : '-20 차감'}
                     </button>
@@ -11595,7 +11595,7 @@ export default function TimerPage() {
         </div>
 
         {auctionMissions.length === 0 ? (
-          <div className="order-3 rounded-[1.1rem] border border-dashed border-[var(--teacher-border)] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[var(--teacher-text-secondary)]">
+          <div className="order-3 rounded-[1.1rem] border border-dashed border-[var(--teacher-border)] bg-white/80 px-4 py-5 text-center text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
             등록된 미션 없음
           </div>
         ) : (
@@ -11611,7 +11611,7 @@ export default function TimerPage() {
                   className="grid gap-2 rounded-[1.15rem] border border-[var(--teacher-border)] bg-white p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] md:grid-cols-[minmax(0,1fr)_22rem_2.75rem] md:items-end"
                 >
                   <label className="grid min-w-0 gap-1.5">
-                    <span className="section-title text-[0.74rem] font-black text-[var(--teacher-text-secondary)]">
+                    <span className="section-title text-[length:var(--type-caption)] font-black text-[var(--teacher-text-secondary)]">
                       미션 내용 {index + 1}
                     </span>
                     <span className="relative min-w-0">
@@ -11621,7 +11621,7 @@ export default function TimerPage() {
                         onChange={(event) => updateAuctionMissionContent(mission.id, event.target.value)}
                         onFocus={beginAuctionMissionEdit}
                         onBlur={endAuctionMissionEdit}
-                        className="section-title h-11 w-full min-w-0 rounded-[0.85rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] py-2 pl-3 pr-14 text-[0.95rem] font-black leading-tight text-[var(--teacher-text)] outline-none transition-colors focus:border-[var(--teacher-border-strong)] focus:bg-white"
+                        className="section-title h-11 w-full min-w-0 rounded-[0.85rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] py-2 pl-3 pr-14 text-[length:var(--type-body)] font-black leading-tight text-[var(--teacher-text)] outline-none transition-colors focus:border-[var(--teacher-border-strong)] focus:bg-white"
                         aria-label={`미션 ${index + 1} 내용`}
                         aria-describedby={countId}
                         placeholder="예: 책상 정리하기"
@@ -11629,7 +11629,7 @@ export default function TimerPage() {
                       <span
                         id={countId}
                         aria-label={`${contentLength}자, 권장 ${AUCTION_MISSION_RECOMMENDED_LENGTH}자 이내`}
-                        className={`pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.72rem] font-extrabold tabular-nums ${isWithinRecommendedLength ? 'text-[var(--teacher-text-secondary)]' : 'text-[var(--teacher-urgent)]'}`}
+                        className={`pointer-events-none absolute inset-y-0 right-3 flex items-center text-[length:var(--type-caption)] font-extrabold tabular-nums ${isWithinRecommendedLength ? 'text-[var(--teacher-text-secondary)]' : 'text-[var(--teacher-urgent)]'}`}
                       >
                         {contentLength}/{AUCTION_MISSION_RECOMMENDED_LENGTH}
                       </span>
@@ -13274,7 +13274,7 @@ export default function TimerPage() {
               <button type="button" className="min-h-11 rounded-full border px-4 font-bold disabled:cursor-wait disabled:opacity-60" disabled={isTeacherSettingsRetrying} onClick={() => void retryTeacherSettingsSave()}><StableLabel busy={isTeacherSettingsRetrying} busyLabel="저장 확인 중…" label={teacherSettingsConflict ? '내 변경 저장' : '저장 다시 확인'} /></button>
             </div>}
             <div className="settings-header flex shrink-0 items-center justify-between border-b border-[var(--teacher-border)] bg-white p-5 md:p-6">
-              <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-xl font-bold text-[var(--teacher-text-secondary)] md:text-2xl">
+              <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-[length:var(--type-title)] font-bold text-[var(--teacher-text-secondary)] md:text-[length:var(--type-title)]">
                 <Settings size={24} className="md:w-7 md:h-7" />
                 설정
               </h2>
@@ -13432,10 +13432,10 @@ export default function TimerPage() {
                     aria-labelledby="auction-award-confirm-title"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <h3 id="auction-award-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
+                    <h3 id="auction-award-confirm-title" className="section-title text-[length:var(--type-title)] font-extrabold text-[#2F241D]">
                       낙찰 처리할까요?
                     </h3>
-                    <p className="mt-2 text-[1.05rem] font-black leading-7 text-[var(--teacher-accent)]">
+                    <p className="mt-2 text-[length:var(--type-heading)] font-black leading-7 text-[var(--teacher-accent)]">
                       {awardItemName}{awardItemParticle} {currentBid?.bidder ?? '-'}번 학생에게
                       <br />
                       {formatCurrency(currentBid?.amount ?? 0)}에 낙찰합니다.
@@ -13444,14 +13444,14 @@ export default function TimerPage() {
                       <button
                         type="button"
                         onClick={() => setPendingAwardItemId(null)}
-                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white px-4 text-[0.95rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white px-4 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                       >
                         취소
                       </button>
                       <button
                         type="button"
                         onClick={startAwardPresentation}
-                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[length:var(--type-body)] font-extrabold text-white transition-colors hover:bg-[#005336]"
                       >
                         낙찰
                       </button>
@@ -13491,10 +13491,10 @@ export default function TimerPage() {
                     aria-busy={isWeeklyAuctionClosing}
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <h3 id="auction-reset-confirm-title" className="section-title text-[1.35rem] font-extrabold text-[#2F241D]">
+                    <h3 id="auction-reset-confirm-title" className="section-title text-[length:var(--type-title)] font-extrabold text-[#2F241D]">
                       {actionCopy.title}
                     </h3>
-                    <p className="mt-2 text-[0.95rem] font-extrabold leading-6 text-[var(--teacher-text-secondary)]">
+                    <p className="mt-2 text-[length:var(--type-body)] font-extrabold leading-6 text-[var(--teacher-text-secondary)]">
                       {actionCopy.body}
                     </p>
                     <div className="mt-4 grid grid-cols-2 gap-2">
@@ -13502,7 +13502,7 @@ export default function TimerPage() {
                         type="button"
                         onClick={() => setPendingAuctionAction(null)}
                         disabled={isWeeklyAuctionClosing}
-                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white px-4 text-[0.95rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border)] bg-white px-4 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)]"
                       >
                         취소
                       </button>
@@ -13510,7 +13510,7 @@ export default function TimerPage() {
                         type="button"
                         onClick={confirmAuctionManagementAction}
                         disabled={isWeeklyAuctionClosing}
-                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+                        className="inline-flex h-11 items-center justify-center rounded-[0.85rem] bg-[var(--teacher-accent)] px-4 text-[length:var(--type-body)] font-extrabold text-white transition-colors hover:bg-[#005336]"
                       >
                         {isWeeklyAuctionClosing ? '마감 중…' : actionCopy.action}
                       </button>
@@ -13527,7 +13527,7 @@ export default function TimerPage() {
                 <button
                   key={day}
                   onClick={() => setEditingDay(day)}
-                  className={`day-tab min-w-[80px] flex-1 py-3 text-base font-bold transition-colors md:py-4 md:text-lg ${
+                  className={`day-tab min-w-[80px] flex-1 py-3 text-[length:var(--type-body)] font-bold transition-colors md:py-4 md:text-[length:var(--type-heading)] ${
                     editingDay === day ? 'day-tab-active text-white' : 'day-tab-inactive text-[var(--teacher-text-secondary)]'
                   }`}
                 >
@@ -13540,8 +13540,8 @@ export default function TimerPage() {
               <div className="mb-5 rounded-2xl border border-[var(--teacher-border)] bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h3 className="section-title text-lg font-bold text-[var(--teacher-text-secondary)]">학교 시계 보정</h3>
-                    <p className="mt-1 text-sm text-[var(--teacher-text-secondary)]/70">
+                    <h3 className="section-title text-[length:var(--type-heading)] font-bold text-[var(--teacher-text-secondary)]">학교 시계 보정</h3>
+                    <p className="mt-1 text-[length:var(--type-body-sm)] text-[var(--teacher-text-secondary)]/70">
                       학교 종이 빠르면 +, 웹이 빠르면 -
                     </p>
                   </div>
@@ -13553,18 +13553,18 @@ export default function TimerPage() {
                       step={1}
                       value={scheduleClockOffsetSeconds}
                       onChange={(e) => setScheduleClockOffsetSeconds(clampScheduleClockOffsetSeconds(e.target.value))}
-                      className="slot-time-input w-24 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2 text-right font-mono text-base font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)]"
+                      className="slot-time-input w-24 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2 text-right font-mono text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)]"
                     />
-                    <span className="text-sm font-bold text-[var(--teacher-text-secondary)]">초</span>
+                    <span className="text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">초</span>
                   </label>
                 </div>
-                <p className="mt-3 text-sm text-[#5C7A4B]">
+                <p className="mt-3 text-[length:var(--type-body-sm)] text-[#5C7A4B]">
                   예: 학교 종이 10초 빠르면 <span className="font-mono font-bold">10</span>
                 </p>
               </div>
 
               <div className="flex justify-between items-center mb-4">
-                <h3 className="section-title text-lg font-bold text-[var(--teacher-text-secondary)]">{DAYS[editingDay]}요일 일정</h3>
+                <h3 className="section-title text-[length:var(--type-heading)] font-bold text-[var(--teacher-text-secondary)]">{DAYS[editingDay]}요일 일정</h3>
                 <button 
                   onClick={() => setShowCopyConfirm(true)}
                   className="toolbar-button toolbar-button-green inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--teacher-accent)] transition-colors"
@@ -13577,13 +13577,13 @@ export default function TimerPage() {
 
               {showCopyConfirm && (
                 <div className="confirm-box mb-4 flex flex-col items-center justify-between gap-4 rounded-xl border border-[#C65D47]/30 bg-[#FFF5F3] p-4 sm:flex-row">
-                  <span className="text-[#C65D47] font-bold text-sm">
+                  <span className="text-[#C65D47] font-bold text-[length:var(--type-body-sm)]">
                     현재 요일의 일정을 다른 모든 평일(월~금)에 덮어쓰시겠습니까?
                   </span>
                   <div className="flex gap-2 shrink-0">
                     <button 
                       onClick={() => setShowCopyConfirm(false)}
-                      className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[var(--teacher-text-secondary)]"
+                      className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]"
                     >
                       취소
                     </button>
@@ -13603,7 +13603,7 @@ export default function TimerPage() {
                         });
                         setShowCopyConfirm(false);
                       }}
-                      className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-sm font-bold text-white"
+                      className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-[length:var(--type-body-sm)] font-bold text-white"
                     >
                       복사하기
                     </button>
@@ -13627,7 +13627,7 @@ export default function TimerPage() {
                         value={slot.name}
                         readOnly={isMorningRow}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
-                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[var(--teacher-text-secondary)] outline-none focus:ring-2 focus:ring-[var(--teacher-accent)]/20 md:text-lg"
+                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)] outline-none focus:ring-2 focus:ring-[var(--teacher-accent)]/20 md:text-[length:var(--type-heading)]"
                         placeholder="일정 이름"
                       />
                       <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end mt-2 lg:mt-0">
@@ -13635,7 +13635,7 @@ export default function TimerPage() {
                           value={isMorningRow ? 'morning' : slot.type}
                           disabled={isMorningRow}
                           onChange={(e) => updateSlot(editingDay, slot.id, 'type', e.target.value)}
-                          className="slot-select cursor-pointer rounded-xl border-none bg-[#F0F5F0] px-2 py-2 text-sm font-bold text-[#3A5A3B] outline-none transition-colors hover:bg-[#E2EFE2] md:px-3 md:text-base"
+                          className="slot-select cursor-pointer rounded-xl border-none bg-[#F0F5F0] px-2 py-2 text-[length:var(--type-body-sm)] font-bold text-[#3A5A3B] outline-none transition-colors hover:bg-[#E2EFE2] md:px-3 md:text-[length:var(--type-body)]"
                         >
                           {isMorningRow && <option value="morning">{MORNING_ACTIVITY_LABEL}</option>}
                           <option value="class">수업</option>
@@ -13648,7 +13648,7 @@ export default function TimerPage() {
                             type="time"
                             value={formatMinutesToTime(slot.start)}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'start', parseTimeToMinutes(e.target.value))}
-                            className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-sm font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-base"
+                            className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-[length:var(--type-body)]"
                           />
                           <span className="text-[var(--teacher-text-secondary)] font-bold">-</span>
                           <input
@@ -13656,7 +13656,7 @@ export default function TimerPage() {
                             value={formatMinutesToTime(slot.end)}
                             disabled={isFixedDurationRow}
                             onChange={(e) => updateSlot(editingDay, slot.id, 'end', parseTimeToMinutes(e.target.value))}
-                            className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-sm font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-base"
+                            className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-[length:var(--type-body)]"
                           />
                         </div>
                         <button
@@ -13675,7 +13675,7 @@ export default function TimerPage() {
               
               <button
                 onClick={() => addSlot(editingDay)}
-                className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--teacher-accent)] py-4 text-lg font-bold text-[var(--teacher-accent)] transition-[background-color,border-color,box-shadow,color] hover:bg-[var(--teacher-accent)] hover:text-white"
+                className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--teacher-accent)] py-4 text-[length:var(--type-heading)] font-bold text-[var(--teacher-accent)] transition-[background-color,border-color,box-shadow,color] hover:bg-[var(--teacher-accent)] hover:text-white"
               >
                 <Plus size={24} />
                 일정 추가
@@ -13684,8 +13684,8 @@ export default function TimerPage() {
               <div className="mt-8 border-t border-[var(--teacher-border)] pt-6">
                 <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h3 className="section-title text-xl font-bold text-[var(--teacher-text-secondary)]">추첨 설정</h3>
-                    <p className="mt-1 text-sm text-[var(--teacher-text-secondary)]/70">
+                    <h3 className="section-title text-[length:var(--type-title)] font-bold text-[var(--teacher-text-secondary)]">추첨 설정</h3>
+                    <p className="mt-1 text-[length:var(--type-body-sm)] text-[var(--teacher-text-secondary)]/70">
                       상황, 범위, 명단
                     </p>
                   </div>
@@ -13694,7 +13694,7 @@ export default function TimerPage() {
                       type="button"
                       onClick={resetActiveDrawCase}
                       disabled={isDrawLocked}
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[var(--teacher-text-secondary)] transition-colors hover:border-[#CBB39D] hover:bg-[#FFF9F2] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)] transition-colors hover:border-[#CBB39D] hover:bg-[#FFF9F2] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <RotateCcw size={15} />
                       {activeDrawLabel} 초기화
@@ -13702,7 +13702,7 @@ export default function TimerPage() {
                     <button
                       type="button"
                       onClick={() => setIsHiddenDrawSettingsVisible((previous) => !previous)}
-                      className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
+                      className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-[length:var(--type-body-sm)] font-bold transition-colors ${
                         isHiddenDrawSettingsVisible || reservedDrawCount > 0
                           ? 'border-[#D5C0AB] bg-[#FFF3E5] text-[var(--teacher-text-secondary)] hover:border-[#C4AB93] hover:bg-[#FFECD7]'
                           : 'border-[#DCCBB8] bg-white text-[var(--teacher-text-secondary)] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
@@ -13714,7 +13714,7 @@ export default function TimerPage() {
                       <Sparkles size={15} />
                       {SECRET_DRAW_BUTTON_LABEL}
                     </button>
-                    <div className="inline-flex items-center justify-center rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[var(--teacher-text-secondary)]">
+                    <div className="inline-flex items-center justify-center rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">
                       {DRAW_SHORTCUT_LABEL}
                     </div>
                   </div>
@@ -13723,11 +13723,11 @@ export default function TimerPage() {
                 <div className="grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
                   <section className="rounded-[1.7rem] border border-[var(--teacher-border)] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2.5">
-                      <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">상황</h4>
+                      <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">상황</h4>
                       <button
                         type="button"
                         onClick={addDrawSettingsCase}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#6F8A65] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+                        className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#6F8A65] px-4 py-2.5 text-[length:var(--type-body-sm)] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
                       >
                         <Plus size={18} />
                         추가
@@ -13755,14 +13755,14 @@ export default function TimerPage() {
                                   value={caseState.label}
                                   onFocus={() => setDrawSettingsCaseId(caseState.id)}
                                   onChange={(event) => updateDrawCaseLabel(caseState.id, event.target.value)}
-                                  className="draw-case-label-input w-full rounded-xl border px-3 py-2 text-[1rem] font-extrabold md:text-[1.08rem]"
+                                  className="draw-case-label-input w-full rounded-xl border px-3 py-2 text-[length:var(--type-body)] font-extrabold md:text-[length:var(--type-heading)]"
                                   placeholder={getCaseLabelByIndex(index)}
                                   aria-label={`${displayLabel} 이름 수정`}
                                 />
                                 <button
                                   type="button"
                                   onClick={() => setDrawSettingsCaseId(caseState.id)}
-                                  className="mt-1.5 block w-full text-left text-[0.88rem] font-bold leading-6 text-[var(--teacher-text-secondary)]"
+                                  className="mt-1.5 block w-full text-left text-[length:var(--type-body-sm)] font-bold leading-6 text-[var(--teacher-text-secondary)]"
                                 >
                                   {getCaseSummaryLabel(caseState)}
                                 </button>
@@ -13790,19 +13790,19 @@ export default function TimerPage() {
                     <div className="rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
                       <div className="grid gap-4">
                         <label className="flex flex-col gap-2">
-                          <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">이름</span>
+                          <span className="section-title text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)]">이름</span>
                           <input
                             type="text"
                             value={selectedDrawSettingsCase.label}
                             onChange={(event) => updateDrawCaseLabel(selectedDrawSettingsCase.id, event.target.value)}
-                            className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
+                            className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                             placeholder={getCaseLabelByIndex(Math.max(selectedDrawSettingsCaseIndex, 0))}
                           />
                         </label>
 
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="flex flex-col gap-2">
-                            <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">시작</span>
+                            <span className="section-title text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)]">시작</span>
                             <input
                               type="number"
                               min={MIN_DRAW_NUMBER}
@@ -13816,12 +13816,12 @@ export default function TimerPage() {
                                   selectedDrawSettingsCase.rangeStart,
                                 )
                               }
-                              className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
+                              className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                             />
                           </label>
 
                           <label className="flex flex-col gap-2">
-                            <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">끝</span>
+                            <span className="section-title text-[length:var(--type-body)] font-bold text-[var(--teacher-text-secondary)]">끝</span>
                             <input
                               type="number"
                               min={MIN_DRAW_NUMBER}
@@ -13835,7 +13835,7 @@ export default function TimerPage() {
                                   selectedDrawSettingsCase.rangeEnd,
                                 )
                               }
-                              className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
+                              className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                             />
                           </label>
                         </div>
@@ -13845,13 +13845,13 @@ export default function TimerPage() {
                     <div className="rounded-[1.7rem] border border-[var(--teacher-border)] bg-[#FBF6EF] p-4 md:p-5">
                       <div className="flex flex-wrap items-start justify-between gap-2.5">
                         <div className="max-w-[32rem]">
-                          <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">학생 명단</h4>
-                          <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[var(--teacher-text-secondary)]">
+                          <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">학생 명단</h4>
+                          <p className="mt-2 text-[length:var(--type-body-sm)] font-bold leading-6 text-[var(--teacher-text-secondary)]">
                             줄바꿈 또는 번호 이름
                           </p>
                         </div>
 
-                        <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
+                        <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
                           {assignedStudentNameCount} / {settingsStudentNumbers.length}
                         </div>
                       </div>
@@ -13859,22 +13859,22 @@ export default function TimerPage() {
                       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
                         <div className="rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
                           <label className="flex flex-col gap-2.5">
-                            <span className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">일괄 입력</span>
+                            <span className="section-title text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">일괄 입력</span>
                             <textarea
                               value={studentRosterBulkInput}
                               onChange={(event) => setStudentRosterBulkInput(event.target.value)}
-                              className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.92rem] font-bold leading-7 text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
+                              className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[length:var(--type-body-sm)] font-bold leading-7 text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                               placeholder={`김민서\n이서연\n3 박도윤`}
                             />
                           </label>
                           <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                            <p className="text-[0.82rem] font-bold leading-6 text-[var(--teacher-text-secondary)]/80">
+                            <p className="text-[length:var(--type-label)] font-bold leading-6 text-[var(--teacher-text-secondary)]/80">
                               범위 밖 번호 제외
                             </p>
                             <button
                               type="button"
                               onClick={applyBulkStudentRoster}
-                              className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                              className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                             >
                               반영
                             </button>
@@ -13883,8 +13883,8 @@ export default function TimerPage() {
 
                         <div className="min-h-0">
                           <div className="flex items-center justify-between gap-3">
-                            <h5 className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">개별 수정</h5>
-                            <span className="text-xs font-bold text-[var(--teacher-text-secondary)]/70">Tab</span>
+                            <h5 className="section-title text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">개별 수정</h5>
+                            <span className="text-[length:var(--type-caption)] font-bold text-[var(--teacher-text-secondary)]/70">Tab</span>
                           </div>
 
                           <div className="custom-scrollbar mt-3 max-h-[22rem] overflow-y-auto pr-1">
@@ -13894,7 +13894,7 @@ export default function TimerPage() {
                                   key={studentNumber}
                                   className="draw-roster-row grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[var(--teacher-border)] bg-white/90 px-3 py-2.5"
                                 >
-                                  <span className="inline-flex items-center justify-center rounded-full bg-[#F7E8D7] px-2 py-2 text-center font-mono text-sm font-extrabold text-[var(--teacher-text-secondary)]">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-[#F7E8D7] px-2 py-2 text-center font-mono text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
                                     {studentNumber}
                                   </span>
                                   <input
@@ -13905,7 +13905,7 @@ export default function TimerPage() {
                                       updateDrawStudentName(selectedDrawSettingsCase.id, studentNumber, event.target.value)
                                     }
                                     onKeyDown={(event) => handleRosterInputKeyDown(event, index)}
-                                    className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
+                                    className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                                     placeholder="학생 이름"
                                   />
                                 </label>
@@ -13919,15 +13919,15 @@ export default function TimerPage() {
                     <div className="random-history-panel rounded-[1.7rem] border border-[var(--teacher-border)] p-4 md:p-5">
                       <div className="flex flex-wrap items-start justify-between gap-2.5">
                         <div className="max-w-[32rem]">
-                          <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">
+                          <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">
                             {DRAWN_BALLS_SECTION_LABEL}
                           </h4>
-                          <p className="mt-2 text-[0.92rem] font-bold leading-6 text-[var(--teacher-text-secondary)]">
+                          <p className="mt-2 text-[length:var(--type-body-sm)] font-bold leading-6 text-[var(--teacher-text-secondary)]">
                             {DRAWN_BALLS_SECTION_DESCRIPTION}
                           </p>
                         </div>
 
-                        <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
+                        <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
                           {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
                         </div>
                       </div>
@@ -13965,8 +13965,8 @@ export default function TimerPage() {
                     <div className="rounded-[1.7rem] border border-[var(--teacher-border)] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="max-w-[32rem]">
-                          <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">재등장</h4>
-                          <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[var(--teacher-text-secondary)]">
+                          <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">재등장</h4>
+                          <p className="mt-2 text-[length:var(--type-body-sm)] font-bold leading-7 text-[var(--teacher-text-secondary)]">
                             이미 뽑힌 번호 1회 재등장
                           </p>
                         </div>
@@ -13993,49 +13993,49 @@ export default function TimerPage() {
                       <div className="rounded-[1.7rem] border border-[#E6D8C9] bg-[#FBF2E9] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="max-w-[32rem]">
-                            <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">
+                            <h4 className="section-title text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-text)]">
                               {SECRET_DRAW_SECTION_LABEL}
                             </h4>
-                            <p className="mt-2 text-[0.92rem] font-bold leading-7 text-[var(--teacher-text-secondary)]">
+                            <p className="mt-2 text-[length:var(--type-body-sm)] font-bold leading-7 text-[var(--teacher-text-secondary)]">
                               {SECRET_DRAW_SECTION_DESCRIPTION}
                             </p>
                           </div>
 
-                          <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
+                          <div className="rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text-secondary)]">
                             {reservedDrawCount > 0 ? `${reservedDrawCount}개 예약` : SECRET_DRAW_EMPTY_LABEL}
                           </div>
                         </div>
 
                         <div className="mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
                           <label className="flex flex-col gap-2.5">
-                            <span className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">
+                            <span className="section-title text-[length:var(--type-body-sm)] font-bold text-[var(--teacher-text-secondary)]">
                               {SECRET_DRAW_INPUT_LABEL}
                             </span>
                             <input
                               type="text"
                               value={hiddenDrawResultInput}
                               onChange={(event) => setHiddenDrawResultInput(event.target.value)}
-                              className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
+                              className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[length:var(--type-body)] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-border-strong)]"
                               placeholder="7, 12, 18"
                             />
                           </label>
 
                           <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                            <p className="text-[0.82rem] font-bold leading-6 text-[var(--teacher-text-secondary)]/80">
+                            <p className="text-[length:var(--type-label)] font-bold leading-6 text-[var(--teacher-text-secondary)]/80">
                               {SECRET_DRAW_HINT}
                             </p>
                             <div className="flex flex-wrap items-center gap-2">
                               <button
                                 type="button"
                                 onClick={clearHiddenDrawResult}
-                                className="inline-flex items-center justify-center rounded-full border border-[#D9C8B6] bg-[var(--teacher-surface)] px-4 py-2 text-[0.84rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:border-[#C9B19A] hover:bg-[var(--teacher-surface)]"
+                                className="inline-flex items-center justify-center rounded-full border border-[#D9C8B6] bg-[var(--teacher-surface)] px-4 py-2 text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:border-[#C9B19A] hover:bg-[var(--teacher-surface)]"
                               >
                                 {SECRET_DRAW_CLEAR_LABEL}
                               </button>
                               <button
                                 type="button"
                                 onClick={applyHiddenDrawResult}
-                                className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                                className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[length:var(--type-body-sm)] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                               >
                                 {SECRET_DRAW_APPLY_LABEL}
                               </button>

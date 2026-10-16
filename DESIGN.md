@@ -80,6 +80,23 @@ Existing semantic success, warning, and destructive colors remain feature-owned 
 - `font-optical-sizing: auto` is enabled where supported.
 - Display text uses tight leading and negative tracking; body text uses neutral tracking and readable leading; small labels use slight positive tracking.
 
+#### Type scale
+
+Font sizes come from seven role tokens defined on `:root`. New or migrated styles pick a role instead of a raw size; in Tailwind use `text-[length:var(--type-…)]`.
+
+| Token | Size | Role |
+| --- | --- | --- |
+| `--type-display` | `2rem` | large figures and feature heroes |
+| `--type-title` | `1.375rem` | dialog and panel titles |
+| `--type-heading` | `1.125rem` | section headings inside a panel |
+| `--type-body` | `1rem` | primary content, inputs, list rows |
+| `--type-body-sm` | `.875rem` | supporting text, compact controls |
+| `--type-label` | `.8125rem` | field labels, chips, metadata |
+| `--type-caption` | `.75rem` | minimum readable size: timestamps, badges, footnotes |
+
+- Teacher settings use only these tokens; `src/lib/typeScale.test.ts` enforces it. Compact count badges and character bubbles sized against fixed artwork are the listed exceptions.
+- Teacher timer TV surfaces, notebook overlays, and student screens migrate separately; until then they keep their feature-owned sizes.
+
 ### Geometry
 
 | Token | Value | Role |
