@@ -125,30 +125,28 @@ export default function AuctionRoom({
   };
 
   return (
-    <section className={`auction-room-shell overflow-hidden border border-[#D8E4DE] bg-white ${
+    <section className={`auction-room-shell overflow-hidden border border-[var(--apple-separator)] bg-white ${
       isCompact
         ? 'rounded-[1.25rem] shadow-[0_10px_22px_rgba(28,45,40,0.07)]'
         : 'rounded-[2rem] shadow-[0_22px_54px_rgba(28,45,40,0.1)]'
     }`}>
       {showStudentSummary ? <>
-      <div className={`auction-room-header grid gap-3 border-b border-[#E4E9E6] bg-white sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
+      <div className={`auction-room-header grid gap-3 border-b border-[var(--apple-separator)] bg-white sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
         isCompact ? 'p-3 md:p-4' : 'p-3.5 md:px-5 md:py-4'
       }`}>
         <div className="min-w-0">
-          <div className={`inline-flex items-center gap-2 rounded-full border border-[#DCE7E1] bg-[#FAFCFB] font-black text-[#007A57] ${
-            isCompact ? 'px-2.5 py-1 text-[0.78rem]' : 'px-3 py-1.5 text-[0.82rem]'
+          <div className={`inline-flex items-center gap-2 rounded-full border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] font-black text-[var(--apple-accent)] ${
+            isCompact ? 'px-2.5 py-1 text-[length:var(--type-caption)]' : 'px-3 py-1.5 text-[length:var(--type-label)]'
           }`}>
             <Sparkles size={isCompact ? 13 : 15} />
             {studentLabel}
           </div>
-          <h1 className={`section-title mt-2 font-extrabold leading-none text-[#18211E] ${
-            isCompact ? 'text-[1.85rem] md:text-[2.15rem]' : 'text-[clamp(2rem,4.5vw,3.2rem)]'
-          }`}>
+          <h1 className="section-title mt-2 text-[length:var(--type-display)] font-extrabold leading-none text-[var(--apple-text-primary)]">
             오늘의 경매
           </h1>
         </div>
         <div className={`auction-balance-grid grid grid-cols-2 gap-2 ${isCompact ? 'sm:w-[17.5rem]' : 'sm:w-[25rem]'}`}>
-          <div className={`auction-balance-item grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#F2FBF7] text-[#007A57] ${
+          <div className={`auction-balance-item grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[var(--apple-control-hover)] text-[var(--apple-accent)] ${
             isCompact ? 'gap-3 px-2.5 py-2' : 'gap-3.5 px-4 py-3.5 shadow-[0_14px_28px_rgba(0,122,87,0.12)]'
           }`}>
             <span className={`inline-flex items-center justify-center rounded-[0.8rem] bg-white ring-2 ring-[#CFE7DD] ${
@@ -157,13 +155,13 @@ export default function AuctionRoom({
               <Coins size={isCompact ? 16 : 22} strokeWidth={2.8} />
             </span>
             <div className="min-w-0">
-              <div className={`font-black leading-none text-[#007A57] ${isCompact ? 'text-[0.7rem]' : 'text-[0.82rem]'}`}>사용 가능</div>
-              <div className={`mt-1 whitespace-nowrap font-mono font-black leading-tight text-[#18211E] ${isCompact ? 'text-[0.95rem]' : 'text-[1.35rem]'}`}>
+              <div className={`font-black leading-none text-[var(--apple-accent)] ${isCompact ? 'text-[length:var(--type-caption)]' : 'text-[length:var(--type-label)]'}`}>사용 가능</div>
+              <div className={`mt-1 whitespace-nowrap font-mono font-black leading-tight text-[var(--apple-text-primary)] ${isCompact ? 'text-[length:var(--type-body)]' : 'text-[length:var(--type-title)]'}`}>
                 {isLoading ? '...' : formatCurrency(availableBalance)}
               </div>
             </div>
           </div>
-          <div className={`auction-balance-item grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#E1C38F] bg-[#FFFAF1] text-[#8A5A1F] ${
+          <div className={`auction-balance-item grid grid-cols-[auto_minmax(0,1fr)] items-center rounded-[1rem] border-2 border-[#E1C38F] bg-[var(--paper)] text-[#8A5A1F] ${
             isCompact ? 'gap-3 px-2.5 py-2' : 'gap-3.5 px-4 py-3.5 shadow-[0_14px_28px_rgba(154,100,24,0.12)]'
           }`}>
             <span className={`inline-flex items-center justify-center rounded-[0.8rem] bg-white ring-2 ring-[#EBD9BC] ${
@@ -172,8 +170,8 @@ export default function AuctionRoom({
               <Trophy size={isCompact ? 16 : 22} strokeWidth={2.8} />
             </span>
             <div className="min-w-0">
-              <div className={`font-black leading-none text-[#8A5A1F] ${isCompact ? 'text-[0.7rem]' : 'text-[0.82rem]'}`}>예약</div>
-              <div className={`mt-1 whitespace-nowrap font-mono font-black leading-tight text-[#18211E] ${isCompact ? 'text-[0.95rem]' : 'text-[1.35rem]'}`}>
+              <div className={`font-black leading-none text-[#8A5A1F] ${isCompact ? 'text-[length:var(--type-caption)]' : 'text-[length:var(--type-label)]'}`}>예약</div>
+              <div className={`mt-1 whitespace-nowrap font-mono font-black leading-tight text-[var(--apple-text-primary)] ${isCompact ? 'text-[length:var(--type-body)]' : 'text-[length:var(--type-title)]'}`}>
                 {formatCurrency(reservedAmount)}
               </div>
             </div>
@@ -181,47 +179,47 @@ export default function AuctionRoom({
         </div>
       </div>
 
-      <div className={`auction-mission-strip border-b border-[#E4E9E6] bg-[#FAFCFB] ${
+      <div className={`auction-mission-strip border-b border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] ${
         isCompact ? 'px-3 py-2.5 md:px-4' : 'px-4 py-2.5 md:px-5'
       }`}>
         <section
           className={`auction-mission-board overflow-hidden rounded-[1rem] border bg-white ${
             WEEKLY_MISSION_DEFINITIONS.every((mission) => weeklyMissionStatuses[mission.type] === 'completed')
               ? 'border-[#9FC7B8]'
-              : 'border-[#DCE7E1]'
+              : 'border-[var(--apple-separator)]'
           }`}
           aria-busy={WEEKLY_MISSION_DEFINITIONS.some((mission) => weeklyMissionStatuses[mission.type] === 'loading')}
         >
           {auctionMissions.length > 0 ? (
-            <div className="auction-mission-board-row grid min-w-0 grid-cols-[5.25rem_minmax(0,1fr)] items-center border-b border-[#E8ECEA] px-3 py-2">
-              <h2 className="section-title whitespace-nowrap text-[0.86rem] font-extrabold text-[#6E5139]">일일 미션</h2>
+            <div className="auction-mission-board-row grid min-w-0 grid-cols-[5.25rem_minmax(0,1fr)] items-center border-b border-[var(--apple-separator)] px-3 py-2">
+              <h2 className="section-title whitespace-nowrap text-[length:var(--type-body-sm)] font-extrabold text-[#6E5139]">일일 미션</h2>
               <div className="flex min-w-0 flex-wrap gap-1.5">
                 {auctionMissions.map((mission) => (
-                  <div key={mission.id} className="inline-flex min-w-0 items-center gap-2 rounded-full bg-[#FFF8EC] px-3 py-1.5">
-                    <span className="max-w-[13rem] truncate text-[0.86rem] font-extrabold text-[#2F241D]">{mission.content}</span>
-                    <span className="whitespace-nowrap font-mono text-[0.8rem] font-black text-[#007A57]">{formatMissionReward(mission.rewardAmount)}</span>
+                  <div key={mission.id} className="inline-flex min-w-0 items-center gap-2 rounded-full bg-[var(--paper)] px-3 py-1.5">
+                    <span className="max-w-[13rem] truncate text-[length:var(--type-body-sm)] font-extrabold text-[var(--ink)]">{mission.content}</span>
+                    <span className="whitespace-nowrap font-mono text-[length:var(--type-label)] font-black text-[var(--apple-accent)]">{formatMissionReward(mission.rewardAmount)}</span>
                   </div>
                 ))}
               </div>
             </div>
           ) : null}
           <div className="auction-mission-board-row grid min-w-0 grid-cols-[5.25rem_minmax(0,1fr)] items-center px-3 py-2">
-            <h2 className="section-title whitespace-nowrap text-[0.86rem] font-extrabold text-[#2F3834]">주간 미션</h2>
+            <h2 className="section-title whitespace-nowrap text-[length:var(--type-body-sm)] font-extrabold text-[var(--apple-text-primary)]">주간 미션</h2>
             <div className="auction-weekly-mission-list grid min-w-0 grid-cols-1 gap-1.5 lg:grid-cols-3">
               {WEEKLY_MISSION_DEFINITIONS.map((mission) => {
                 const status = weeklyMissionStatuses[mission.type];
                 return (
                   <div key={mission.type} className={`auction-weekly-mission-row grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[0.8rem] px-2 py-1 ${
-                    status === 'completed' ? 'bg-[#F2FBF7]' : 'bg-[#FAFCFB]'
+                    status === 'completed' ? 'bg-[var(--apple-control-hover)]' : 'bg-[var(--apple-surface-tint)]'
                   }`}>
                     <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
                       status === 'completed'
-                        ? 'bg-[#007A57] text-white'
+                        ? 'bg-[var(--apple-accent)] text-white'
                         : status === 'unavailable'
-                          ? 'bg-[#FFF4E8] text-[#9A6418]'
+                          ? 'bg-[var(--cream)] text-[#9A6418]'
                           : status === 'loading'
-                            ? 'bg-[#EAF5F1] text-[#007A57]'
-                            : 'bg-[#EEF4F1] text-[#7A8780]'
+                            ? 'bg-[var(--apple-control-hover)] text-[var(--apple-accent)]'
+                            : 'bg-[var(--apple-surface-muted)] text-[var(--apple-text-tertiary)]'
                     }`} aria-hidden="true">
                       {status === 'completed'
                         ? <CheckCircle2 size={17} strokeWidth={2.8} />
@@ -231,12 +229,12 @@ export default function AuctionRoom({
                             ? <LoaderCircle className="animate-spin" size={17} strokeWidth={2.4} />
                             : <Circle size={17} strokeWidth={2.4} />}
                     </span>
-                    <div className={`min-w-0 truncate text-[0.84rem] font-extrabold leading-snug ${
-                      status === 'completed' ? 'text-[#006B4D]' : 'text-[#2F3834]'
+                    <div className={`min-w-0 truncate text-[length:var(--type-label)] font-extrabold leading-snug ${
+                      status === 'completed' ? 'text-[var(--apple-accent-pressed)]' : 'text-[var(--apple-text-primary)]'
                     }`}>
                       {mission.label}
                     </div>
-                    <div className="whitespace-nowrap font-mono text-[0.78rem] font-black leading-none text-[#007A57]">
+                    <div className="whitespace-nowrap font-mono text-[length:var(--type-caption)] font-black leading-none text-[var(--apple-accent)]">
                       +{formatCurrency(mission.rewardAmount)}
                     </div>
                     <span className="sr-only">
@@ -284,13 +282,13 @@ export default function AuctionRoom({
                   aria-controls="auction-day-panel"
                   aria-selected={isActive}
                   tabIndex={isActive && isUnlocked ? 0 : -1}
-                  className={`auction-day-tab inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border px-3 text-[1.05rem] font-extrabold ${
-                    isActive ? 'text-white' : isUnlocked ? 'bg-white text-[#38423D]' : 'cursor-not-allowed bg-[#F4F6F5] text-[#9AA39E]'
+                  className={`auction-day-tab inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border px-3 text-[length:var(--type-body)] font-extrabold ${
+                    isActive ? 'text-white' : isUnlocked ? 'bg-white text-[var(--apple-text-primary)]' : 'cursor-not-allowed bg-[var(--apple-canvas)] text-[var(--apple-disabled-ink)]'
                   }`}
                   style={isActive ? { backgroundColor: accent.chip, borderColor: accent.chip } : undefined}
                 >
                   <span>{weekdayLabel}요일</span>
-                  {isCurrent ? <span className={`h-2 w-2 rounded-full ${isActive ? 'bg-white' : 'bg-[#007A57]'}`} /> : null}
+                  {isCurrent ? <span className={`h-2 w-2 rounded-full ${isActive ? 'bg-white' : 'bg-[var(--apple-accent)]'}`} /> : null}
                   <span className="sr-only">{items.length}개</span>
                 </button>
               );
@@ -305,12 +303,12 @@ export default function AuctionRoom({
               id="auction-day-panel"
               role="tabpanel"
               aria-labelledby={`auction-day-tab-${activeDayGroup.dayIndex}`}
-              className="auction-current-day overflow-hidden rounded-[1.25rem] border border-[#DCE7E1] bg-white"
+              className="auction-current-day overflow-hidden rounded-[1.25rem] border border-[var(--apple-separator)] bg-white"
               data-item-count={activeDayGroup.items.length}
             >
-              <div className="flex min-h-14 items-center gap-3 border-b border-[#E9EFEB] px-4 py-3">
+              <div className="flex min-h-14 items-center gap-3 border-b border-[var(--apple-separator)] px-4 py-3">
                 <span className="h-2.5 w-8 rounded-full" style={{ backgroundColor: activeDayGroup.accent.chip }} />
-                <h2 className="section-title text-[1.22rem] font-black text-[#18211E]">{activeDayGroup.weekdayLabel}요일</h2>
+                <h2 className="section-title text-[length:var(--type-heading)] font-black text-[var(--apple-text-primary)]">{activeDayGroup.weekdayLabel}요일</h2>
               </div>
               <div className="auction-current-items grid gap-3 p-3 md:grid-cols-2" data-item-count={activeDayGroup.items.length}>
                 {activeDayGroup.dayIndex >= visibleDayCount ? (

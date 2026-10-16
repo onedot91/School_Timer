@@ -9,7 +9,7 @@ export default function StudentGameConflictNotice({ review, onRefresh, onAdopt }
   const [copyStatus, setCopyStatus] = useState('');
   const archived = review.state === 'archived';
   return (
-    <section className="rounded-xl border border-current p-3 text-sm" aria-label="게임 기록 충돌" onKeyDown={event => event.stopPropagation()}>
+    <section className="rounded-xl border border-current p-3 text-[length:var(--type-body-sm)]" aria-label="게임 기록 충돌" onKeyDown={event => event.stopPropagation()}>
       <p role="status">{review.summary}</p>
       <details open={!archived}>
         <summary className="min-h-11 cursor-pointer py-3">{archived ? '이전 입력 보기' : '내 입력과 최신 기록 비교'}</summary>

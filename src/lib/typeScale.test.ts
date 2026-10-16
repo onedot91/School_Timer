@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
 const TYPE_ROLES = ['display', 'title', 'heading', 'body', 'body-sm', 'label', 'caption'];
@@ -35,4 +35,45 @@ test('교사 설정 패널 코드는 Tailwind 기본 글자 크기 대신 토큰
 
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(panels, /(?<![\w[-])text-(xs|sm|base|lg|xl|2xl|\[[0-9.]+rem\])(?=[\s"`'])/);
+});
+
+// Glyph art, game digits, and stamps sized against their own artwork or board geometry.
+const STUDENT_ARTWORK_SELECTOR = /\.student-(sudoku-grid|sudoku-keypad button|sudoku-settings-preview|baseball-slots|baseball-title|baseball-finish-details b|product-emoji|pet-stage-character > span|pet-dialog-visual|pet-picker button span|emotion-confirmed-quote::|gacha-initial-question|mail-postmark|mail-envelope-stamp|canvas-library-slot-number)/;
+const STUDENT_SOURCES = ['../pages/AuctionPage.tsx', '../components/AuctionRoom.tsx'];
+
+test('학생 화면 규칙은 글자 크기 토큰만 사용한다', async () => {
+  const styles = (await readFile(new URL('../index.css', import.meta.url), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '');
+  const definitions = new Map<string, string[]>();
+  for (const [, name, value] of styles.matchAll(/(--[\w-]+):\s*([^;}]+?)\s*(?:!important)?\s*(?=[;}])/g)) {
+    definitions.set(name, [...(definitions.get(name) ?? []), value]);
+  }
+  const isTypeToken = (value: string): boolean => {
+    if (value.startsWith('var(--type-') || value === 'inherit') return true;
+    const alias = value.match(/^var\((--[\w-]+)\)$/)?.[1];
+    return Boolean(alias?.startsWith('--student-') && definitions.get(alias)?.every(isTypeToken));
+  };
+  const rawSizes: string[] = [];
+
+  for (const [, selector, body] of styles.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/\.student-/.test(selector) || STUDENT_ARTWORK_SELECTOR.test(selector)) continue;
+    for (const [, value] of body.matchAll(/font-size:\s*([^;!}]+?)\s*(?:!important)?\s*(?=[;}])/g)) {
+      if (!isTypeToken(value)) rawSizes.push(`${selector.trim()} → ${value}`);
+    }
+  }
+
+  assert.deepEqual(rawSizes, []);
+});
+
+test('학생 화면 코드는 Tailwind 기본 글자 크기 대신 토큰을 쓴다', async () => {
+  const studentDirectory = new URL('../components/student/', import.meta.url);
+  const componentFiles = (await readdir(studentDirectory, { recursive: true })).filter((file) => file.endsWith('.tsx'));
+  const sources = [
+    ...STUDENT_SOURCES.map((path) => new URL(path, import.meta.url)),
+    ...componentFiles.map((file) => new URL(file, studentDirectory)),
+  ];
+
+  for (const source of sources) {
+    const code = await readFile(source, 'utf8');
+    assert.doesNotMatch(code, /(?<![\w[-])text-(xs|sm|base|lg|xl|[2-9]xl|\[(clamp\(|[0-9.]+(rem|px)\]))/, source.pathname);
+  }
 });
