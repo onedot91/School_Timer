@@ -36,3 +36,41 @@ test('교사 설정 패널 코드는 Tailwind 기본 글자 크기 대신 토큰
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(panels, /(?<![\w[-])text-(xs|sm|base|lg|xl|2xl|\[[0-9.]+rem\])(?=[\s"`'])/);
 });
+
+// Initial glyphs drawn inside fixed artwork: the lime `+` medallion and the quiz hint plate.
+const CLASSWORD_ARTWORK_SELECTOR = /\.classword-(empty-mark|quiz-initial)$/;
+const CLASSWORD_SOURCES = [
+  '../components/student/ClasswordBoard.tsx',
+  '../components/student/ClasswordQuiz.tsx',
+  '../components/student/StudentClasswordPage.tsx',
+  '../components/teacher/TeacherClasswordPanel.tsx',
+  '../components/teacher/ClasswordCalendar.tsx',
+];
+
+test('낱말판 규칙은 글자 크기 토큰만 사용한다', async () => {
+  const tokens = (await readFile(new URL('../index.css', import.meta.url), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '');
+  const styles = (await readFile(new URL('../classword.css', import.meta.url), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '');
+  const aliases = new Map<string, string>();
+  for (const [, name, value] of tokens.matchAll(/(--classword-[\w-]+-size):\s*([^;}]+?)\s*(?=[;}])/g)) aliases.set(name, value);
+  // Initials' tense-alias subscripts scale with their tokenized parent glyph.
+  const isTypeToken = (value: string): boolean => value.startsWith('var(--type-')
+    || /^[0-9.]+em$/.test(value)
+    || Boolean(aliases.get(value.match(/^var\((--classword-[\w-]+)\)$/)?.[1] ?? '')?.startsWith('var(--type-'));
+  const rawSizes: string[] = [];
+
+  for (const [, selector, body] of styles.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (CLASSWORD_ARTWORK_SELECTOR.test(selector.trim())) continue;
+    for (const [, value] of body.matchAll(/font-size:\s*([^;!}]+?)\s*(?:!important)?\s*(?=[;}])/g)) {
+      if (!isTypeToken(value)) rawSizes.push(`${selector.trim()} → ${value}`);
+    }
+  }
+
+  assert.deepEqual(rawSizes, []);
+});
+
+test('낱말판 화면 코드는 Tailwind 기본 글자 크기 대신 토큰을 쓴다', async () => {
+  for (const path of CLASSWORD_SOURCES) {
+    const code = await readFile(new URL(path, import.meta.url), 'utf8');
+    assert.doesNotMatch(code, /(?<![\w[-])text-(xs|sm|base|lg|xl|[2-9]xl|\[(clamp\(|[0-9.]+(rem|px)\]))/, path);
+  }
+});

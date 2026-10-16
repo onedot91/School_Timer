@@ -113,8 +113,8 @@ test('보너스 문제는 큰 본문과 하나의 예시 배지 아래 두 초�
   assert.match(studentQuiz, /className="classword-quiz-example-hint">\{state\.question\.initialHint\}/);
   assert.match(css, /\.classword-quiz-copy p \{[\s\S]*?font-size: var\(--classword-quiz-copy-size\);/);
   assert.match(css, /\.classword-quiz-examples > span \{[\s\S]*?font-size: var\(--classword-quiz-badge-size\);/);
-  assert.match(indexCss, /--classword-quiz-copy-size: clamp\(1\.25rem, 1\.6vw, 1\.4rem\);/);
-  assert.match(indexCss, /--classword-quiz-badge-size: 1\.125rem;/);
+  assert.match(indexCss, /--classword-quiz-copy-size: var\(--type-title\);/);
+  assert.match(indexCss, /--classword-quiz-badge-size: var\(--type-heading\);/);
   assert.match(css, /\.classword-quiz-copy > p:first-child \{[\s\S]*?color: var\(--classword-ink\);/);
   assert.match(css, /\.classword-quiz-copy > p:first-child > span/);
   assert.doesNotMatch(css, /\.classword-quiz-copy p:first-child \{/);
@@ -218,7 +218,7 @@ test('보너스 문제 정답을 맞히면 입력값을 유지한 채 입력창�
 test('기본 낱말판은 7×2로 배치하고 모든 정답 낱말 글자 크기를 일관되게 유지한다', () => {
   assert.match(css, /@container \(min-width: 70rem\)[\s\S]*?grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)[\s\S]*?grid-template-rows: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.doesNotMatch(studentBoard, /data-word-length/);
-  assert.match(css, /\.classword-entry-copy strong \{[\s\S]*?font-size: clamp\(1\.55rem, 2\.2vw, 1\.9rem\)/);
+  assert.match(css, /\.classword-entry-copy strong \{[\s\S]*?font-size: var\(--type-title\)/);
   assert.doesNotMatch(css, /classword-entry-copy\[data-word-length/);
 });
 
@@ -313,7 +313,7 @@ test('교사 낱말판은 선택 날짜와 무관하게 오늘 입력 낱말을 
   assert.doesNotMatch(teacherPanel, /onClick=\{\(\) => void deleteEntry\(entry\.id\)\}/);
   assert.doesNotMatch(teacherPanel, /오늘 입력 낱말 관리/);
   assert.match(indexCss, /--teacher-classword-profile-size:\s*2\.25rem;/);
-  assert.match(indexCss, /--classword-topic-heading-size:\s*clamp\(1\.6rem, 2\.8vw, 2\.25rem\);/);
+  assert.match(indexCss, /--classword-topic-heading-size:\s*var\(--type-display\);/);
   assert.match(css, /\.student-classword-view \.student-header-copy h1,\s*\.teacher-classword-today-topic h3 \{[^}]*font-family: var\(--font-display\);[^}]*font-size: var\(--classword-topic-heading-size\);[^}]*font-weight: 850;[^}]*letter-spacing: -\.035em !important;[^}]*line-height: 1\.04;/);
   assert.match(css, /\.teacher-classword-board \{[^}]*grid-template-columns: repeat\(7, minmax\(0, 1fr\)\);/);
   assert.match(css, /\.teacher-classword-board \.classword-student-profile img \{[^}]*var\(--teacher-classword-profile-size\)/);
