@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clearDeviceSession, DEVICE_SESSION_MUTATION_TIMEOUT_MS, DEVICE_SESSION_READ_TIMEOUT_MS, deviceSessionMatchesEntry, loadDeviceSession, registerDeviceSession } from './deviceSessionClient.js';
+import { clearDeviceSession, DeviceSessionRequestError, DEVICE_SESSION_MUTATION_TIMEOUT_MS, DEVICE_SESSION_READ_TIMEOUT_MS, deviceSessionMatchesEntry, loadDeviceSession, registerDeviceSession } from './deviceSessionClient.js';
 
 test('교사 기기 세션은 모든 번호 입장에 사용할 수 있다', () => {
   assert.equal(deviceSessionMatchesEntry({ role: 'teacher' }, 0), true);
@@ -63,4 +63,11 @@ test('등록과 삭제 요청도 응답이 없으면 중단하고 다시 시도�
     { method: 'POST', aborted: true }, { method: 'DELETE', aborted: true },
   ]);
   assert.equal(calls.length, 2, 'unconfirmed session changes must not be replayed automatically');
+});
+
+test('기기 등록 거절은 서버 오류 코드를 전달한다', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ error: 'CLASS_CODE_REQUIRED' }), { status: 403 }));
+  await assert.rejects(registerDeviceSession(5), (error: unknown) => (
+    error instanceof DeviceSessionRequestError && error.status === 403 && error.code === 'CLASS_CODE_REQUIRED'
+  ));
 });

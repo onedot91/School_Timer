@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Clock, Store } from 'lucide-react';
-import { deviceSessionMatchesEntry, type BrowserDeviceSession } from '../lib/deviceSessionClient';
+import { DeviceSessionRequestError, deviceSessionMatchesEntry, type BrowserDeviceSession } from '../lib/deviceSessionClient';
 import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from '../lib/studentIdentity';
 import StableLabel from '../components/StableLabel';
 
@@ -12,6 +12,18 @@ interface EntrySelectPageProps {
 }
 
 const ENTRY_NUMBERS = Array.from({ length: 25 }, (_, index) => index);
+
+const getErrorCode = (error: unknown) => (error instanceof DeviceSessionRequestError ? error.code : null);
+
+const describeRegistrationError = (error: unknown) => {
+  const code = getErrorCode(error);
+  if (code === 'CLASS_CODE_DENIED') return '학급 코드가 올바르지 않습니다.';
+  if (code === 'DEVICE_REGISTRATION_DENIED') return '승인 키가 올바르지 않습니다. 교사에게 확인해 주세요.';
+  if (code === 'TOO_MANY_REQUESTS') return '시도가 너무 많습니다. 1분 뒤 다시 입력해 주세요.';
+  if (code === 'DEVICE_SECURITY_NOT_CONFIGURED') return '기기 보안 설정이 필요합니다. 교사에게 알려 주세요.';
+  const status = error instanceof DeviceSessionRequestError ? ` (HTTP ${error.status})` : '';
+  return `등록하지 못했습니다. 다시 시도해 주세요.${status}`;
+};
 
 export default function EntrySelectPage({
   onSelectNumber,
@@ -30,6 +42,7 @@ export default function EntrySelectPage({
   const dialogRef = useRef<HTMLElement>(null);
   const registrationInputRef = useRef<HTMLInputElement>(null);
   const entryTriggerRef = useRef<HTMLButtonElement>(null);
+  const isTeacherRegistration = pendingEntryNumber === 0;
   const visibleEntryNumbers = isZeroVisible
     ? ENTRY_NUMBERS
     : ENTRY_NUMBERS.filter((studentNumber) => studentNumber !== 0 && studentNumber !== TEST_STUDENT_NUMBER);
@@ -107,7 +120,16 @@ export default function EntrySelectPage({
       setIsRegistering(true);
       setRegistrationError('');
       void onSelectNumber(studentNumber)
-        .catch(() => setRegistrationError('입장 처리에 실패했습니다. 다시 눌러 주세요.'))
+        .catch((error: unknown) => {
+          if (getErrorCode(error) === 'CLASS_CODE_REQUIRED') {
+            setPendingEntryNumber(studentNumber);
+            setRegistrationKey('');
+            return;
+          }
+          setRegistrationError(getErrorCode(error) === null
+            ? '입장 처리에 실패했습니다. 다시 눌러 주세요.'
+            : describeRegistrationError(error));
+        })
         .finally(() => setIsRegistering(false));
       return;
     }
@@ -123,8 +145,8 @@ export default function EntrySelectPage({
     setRegistrationError('');
     try {
       await onSelectNumber(pendingEntryNumber, registrationKey);
-    } catch {
-      setRegistrationError('승인 키가 올바르지 않습니다. 교사에게 확인해 주세요.');
+    } catch (error) {
+      setRegistrationError(describeRegistrationError(error));
     } finally {
       setIsRegistering(false);
     }
@@ -184,18 +206,20 @@ export default function EntrySelectPage({
             role="dialog"
             aria-modal="true"
             aria-labelledby="entry-registration-title"
-            aria-describedby="entry-registration-description"
+            aria-describedby={isTeacherRegistration ? 'entry-registration-description' : undefined}
             tabIndex={-1}
           >
             <form onSubmit={registerNumber}>
               <h2 id="entry-registration-title" className="entry-registration-title">
                 {formatStudentNumberLabel(pendingEntryNumber)} 기기 등록
               </h2>
-              <p id="entry-registration-description" className="entry-registration-description">
-                교사가 이 기기를 확인한 뒤 승인 키를 입력해 주세요.
-              </p>
+              {isTeacherRegistration ? (
+                <p id="entry-registration-description" className="entry-registration-description">
+                  교사가 이 기기를 확인한 뒤 승인 키를 입력해 주세요.
+                </p>
+              ) : null}
               <label className="entry-registration-label" htmlFor="device-registration-key">
-                교사 승인 키
+                {isTeacherRegistration ? '교사 승인 키' : '학급 코드'}
               </label>
               <input
                 ref={registrationInputRef}

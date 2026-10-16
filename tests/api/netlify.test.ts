@@ -4,7 +4,11 @@ import handler from '../../netlify/functions/api.mts';
 
 test('Netlify adapter preserves registration, secure cookies, auth and cross-site rejection', async () => {
   const previous = process.env.DEVICE_SESSION_SECRET;
+  const previousTeacherKey = process.env.DEVICE_REGISTRATION_KEY;
+  const previousClassCode = process.env.STUDENT_REGISTRATION_KEY;
   process.env.DEVICE_SESSION_SECRET = 'netlify-local-test-secret-at-least-32-characters';
+  process.env.DEVICE_REGISTRATION_KEY = 'netlify-teacher-key';
+  process.env.STUDENT_REGISTRATION_KEY = 'netlify-class-code';
   try {
     const endpoint = 'https://local-test.invalid/api/device-session';
     const missing = await handler(new Request(endpoint));
@@ -19,7 +23,7 @@ test('Netlify adapter preserves registration, secure cookies, auth and cross-sit
     }));
     assert.equal(rejected.status, 403);
     const registered = await handler(new Request(endpoint, {
-      method: 'POST', headers: { 'sec-fetch-site': 'same-origin' }, body: '{"entryNumber":7}',
+      method: 'POST', headers: { 'sec-fetch-site': 'same-origin' }, body: '{"entryNumber":7,"registrationKey":"netlify-class-code"}',
     }));
     assert.equal(registered.status, 200);
     const cookie = registered.headers.get('set-cookie');
@@ -38,5 +42,9 @@ test('Netlify adapter preserves registration, secure cookies, auth and cross-sit
   } finally {
     if (previous === undefined) delete process.env.DEVICE_SESSION_SECRET;
     else process.env.DEVICE_SESSION_SECRET = previous;
+    if (previousTeacherKey === undefined) delete process.env.DEVICE_REGISTRATION_KEY;
+    else process.env.DEVICE_REGISTRATION_KEY = previousTeacherKey;
+    if (previousClassCode === undefined) delete process.env.STUDENT_REGISTRATION_KEY;
+    else process.env.STUDENT_REGISTRATION_KEY = previousClassCode;
   }
 });

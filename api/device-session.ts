@@ -5,6 +5,7 @@ import {
   createDeviceSessionCookie,
   createDeviceSessionToken,
   getDeviceSession,
+  hasClassEnrollment,
   type DeviceSessionRegistration,
   type RequestHeaders,
 } from '../src/server/deviceSession.js';
@@ -35,11 +36,12 @@ const parseRegistration = (body: unknown): { readonly registration: DeviceSessio
   const key = Reflect.get(parsedBody, 'registrationKey');
   if (!Number.isInteger(entryNumber) || entryNumber < 0 || entryNumber > 24) return null;
   if (entryNumber === 0 && typeof key !== 'string') return null;
+  if (key !== undefined && typeof key !== 'string') return null;
   return {
     registration: entryNumber === 0
       ? { role: 'teacher' }
       : { role: 'student', studentNumber: entryNumber },
-    key: entryNumber === 0 ? key : null,
+    key: typeof key === 'string' && key.length > 0 ? key : null,
   };
 };
 
@@ -73,7 +75,9 @@ export default function handler(request: ApiRequest, response: ApiResponse) {
   }
 
   if (request.method === 'DELETE') {
-    response.setHeader('Set-Cookie', clearDeviceSessionCookie());
+    response.setHeader('Set-Cookie', hasClassEnrollment(request.headers, sessionSecret)
+      ? createDeviceSessionCookie(createDeviceSessionToken({ role: 'enrolled' }, sessionSecret))
+      : clearDeviceSessionCookie());
     response.status(204).json(null);
     return;
   }
@@ -95,14 +99,29 @@ export default function handler(request: ApiRequest, response: ApiResponse) {
     response.status(429).json({ error: 'TOO_MANY_REQUESTS' });
     return;
   }
+  const registrationKey = process.env.DEVICE_REGISTRATION_KEY;
+  if (!registrationKey || registrationKey.length < 8) {
+    response.status(503).json({ error: 'DEVICE_SECURITY_NOT_CONFIGURED' });
+    return;
+  }
   if (parsed.registration.role === 'teacher') {
-    const registrationKey = process.env.DEVICE_REGISTRATION_KEY;
-    if (!registrationKey || registrationKey.length < 8) {
+    if (parsed.key === null || !secretsMatch(parsed.key, registrationKey)) {
+      response.status(403).json({ error: 'DEVICE_REGISTRATION_DENIED' });
+      return;
+    }
+  } else if (!hasClassEnrollment(request.headers, sessionSecret)) {
+    const classCode = process.env.STUDENT_REGISTRATION_KEY;
+    // A class code equal to the teacher key would hand students the teacher entry.
+    if (!classCode || classCode.length < 6 || classCode === registrationKey) {
       response.status(503).json({ error: 'DEVICE_SECURITY_NOT_CONFIGURED' });
       return;
     }
-    if (parsed.key === null || !secretsMatch(parsed.key, registrationKey)) {
-      response.status(403).json({ error: 'DEVICE_REGISTRATION_DENIED' });
+    if (parsed.key === null) {
+      response.status(403).json({ error: 'CLASS_CODE_REQUIRED' });
+      return;
+    }
+    if (!secretsMatch(parsed.key, classCode)) {
+      response.status(403).json({ error: 'CLASS_CODE_DENIED' });
       return;
     }
   }

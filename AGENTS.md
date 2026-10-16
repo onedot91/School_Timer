@@ -112,7 +112,7 @@ LSP/codegraph and ast-grep were unavailable at generation time. Reference counts
 - 오류 알림은 실패한 학급 설정 저장과 독립적으로 전송하고, 전송 실패 시 재시도할 수 있도록 보관한다. 후속 저장 성공으로 이전 오류를 자동 삭제하지 않는다. 교사의 확인 처리는 기록 복구와 구분하며, 오류 조회 실패도 교사 경고로 표시한다.
 
 - Do not edit `dist/`, `tmp/`, `.omo/`, or `node_modules/` as source.
-- Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `DEVICE_REGISTRATION_KEY`, or `DEVICE_SESSION_SECRET` through a `VITE_` variable or browser import.
+- Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `DEVICE_REGISTRATION_KEY`, `STUDENT_REGISTRATION_KEY`, or `DEVICE_SESSION_SECRET` through a `VITE_` variable or browser import.
 - Do not import `src/server/` into browser bundles; it uses Node APIs and service credentials.
 - Do not remove no-Supabase/local fallback behavior or bypass `dataMode` write gates.
 - Do not bypass server/RPC mutation paths for currency, rewards, donations, or other concurrency-sensitive state.
@@ -146,7 +146,7 @@ npm run preview
 ## NOTES
 
 - Browser Supabase variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-- Server-only variables: `SUPABASE_SERVICE_ROLE_KEY`, `DEVICE_REGISTRATION_KEY`, `DEVICE_SESSION_SECRET`.
+- Server-only variables: `SUPABASE_SERVICE_ROLE_KEY`, `DEVICE_REGISTRATION_KEY`, `STUDENT_REGISTRATION_KEY` (class code; student devices enter it once), `DEVICE_SESSION_SECRET`.
 - Optional YouTube search variable: `VITE_YOUTUBE_API_KEY`.
 - Vercel serves the production API from `api/*.ts`; `vercel.json` contains production region and header settings. `netlify/functions/api.mts` is a legacy adapter, not evidence of the active production platform.
 - There is no committed CI workflow or browser E2E suite. Browser-visible changes require manual surface QA in addition to lint, tests, and build.

@@ -26,6 +26,23 @@ const parseSession = (value: unknown): BrowserDeviceSession | null => {
   return null;
 };
 
+export class DeviceSessionRequestError extends Error {
+  constructor(readonly status: number, readonly code: string | null) {
+    super(`DEVICE_SESSION_HTTP_${status}${code ? `_${code}` : ''}`);
+  }
+}
+
+const readErrorCode = async (response: Response) => {
+  try {
+    const body: unknown = await response.json();
+    const code = body && typeof body === 'object' ? Reflect.get(body, 'error') : null;
+    return typeof code === 'string' ? code : null;
+  } catch (error) {
+    if (error instanceof Error) return null;
+    throw error;
+  }
+};
+
 const requestSession = async (init?: RequestInit) => {
   const response = await fetch('/api/device-session', {
     credentials: 'same-origin',
@@ -33,7 +50,7 @@ const requestSession = async (init?: RequestInit) => {
     ...init,
   });
   if (response.status === 401) return null;
-  if (!response.ok) throw new Error(`DEVICE_SESSION_HTTP_${response.status}`);
+  if (!response.ok) throw new DeviceSessionRequestError(response.status, await readErrorCode(response));
   if (response.status === 204) return null;
   return parseSession(await response.json());
 };

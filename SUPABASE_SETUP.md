@@ -53,11 +53,16 @@ VITE_SUPABASE_ANON_KEY=여기에_anon_public_key
 ```env
 SUPABASE_SERVICE_ROLE_KEY=여기에_service_role_key
 DEVICE_REGISTRATION_KEY=교사만_아는_8자_이상의_기기_승인키
+STUDENT_REGISTRATION_KEY=학생에게_알려줄_6자_이상의_학급_코드
 DEVICE_SESSION_SECRET=충분히_긴_무작위_문자열_32자_이상
 ```
 
 세 값은 공유 설정과 주간 미션을 처리하는 서버 함수에서만 사용합니다. 브라우저 코드에 노출되는 `VITE_` 접두사를 붙이면 안 됩니다.
-배포된 앱에서 번호를 처음 선택하거나 학생 번호를 재설정한 뒤에는 교사가 `DEVICE_REGISTRATION_KEY`를 입력해 기기를 승인합니다. 승인 상태는 브라우저의 `HttpOnly` 쿠키에 저장됩니다.
+배포된 앱에서 0번(교사)은 `DEVICE_REGISTRATION_KEY`로 기기를 승인합니다. 학생 기기는 처음 한 번만 `STUDENT_REGISTRATION_KEY`(학급 코드)를 입력하고, 이후 번호를 바꿔도 다시 묻지 않습니다. 등록 상태는 브라우저의 `HttpOnly` 쿠키에 저장되며 180일 동안 유지됩니다.
+
+- 학급 코드는 교사 승인 키와 달라야 합니다. 값이 없거나 같으면 학생 등록이 거절됩니다.
+- 학급 코드를 처음 적용하면 이미 등록된 학생 기기도 한 번 코드를 다시 입력해야 합니다.
+- 학급 코드가 반 밖으로 새면 코드를 바꾸고 `DEVICE_SESSION_SECRET`도 새 값으로 바꿉니다. 그러면 모든 기기 등록이 해제되고 새 코드로 다시 등록해야 합니다.
 
 ### 5. 앱 다시 실행하기
 
@@ -72,6 +77,6 @@ npm run dev
 
 - `.env` 파일은 Git에 올리지 마세요.
 - `SUPABASE_SERVICE_ROLE_KEY`는 브라우저 코드나 공개 저장소에 절대 넣지 마세요.
-- `DEVICE_REGISTRATION_KEY`와 `DEVICE_SESSION_SECRET`도 Git이나 학생에게 공개하지 마세요.
+- `DEVICE_REGISTRATION_KEY`, `STUDENT_REGISTRATION_KEY`, `DEVICE_SESSION_SECRET`도 Git이나 학생에게 공개하지 마세요.
 - 같은 설정을 공유하려는 모든 PC는 같은 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`를 써야 합니다.
 - Supabase 환경변수가 없으면 앱은 기존처럼 브라우저 로컬 저장소만 사용합니다.
