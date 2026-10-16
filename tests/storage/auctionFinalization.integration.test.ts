@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { handleStorageCommand } from '../../src/server/storageCommandHandler.js';
 import { isStorageRecord, splitStorageState } from '../../src/lib/storageV2Codec.js';
 
@@ -10,9 +12,9 @@ const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const json = (value: unknown) => `${literal(JSON.stringify(value))}::jsonb`;
 
 test('real PostgreSQL: auction scopes survive unrelated credits, bid races and response retries while rejecting outside writes', { skip: !enabled, timeout: 60000 }, async () => {
-  const directory = await mkdtemp('/private/tmp/school-auction-pg.');
+  const directory = await mkdtemp(join(tmpdir(), 'school-auction-pg.'));
   const invoke = (program: string, args: string[], input?: string) => execFileSync(program, args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 8 * 1024 * 1024 });
-  invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '--no-locale']);
+  invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '--no-locale', '--encoding=UTF8']);
   invoke('pg_ctl', ['-D', `${directory}/data`, '-l', `${directory}/postgres.log`, '-o', `-F -h '' -k ${directory} -p 55488`, '-w', 'start']);
   const query = (sql: string) => invoke('psql', ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-h', directory, '-p', '55488', '-U', 'postgres', '-d', 'postgres'], sql).trim();
   const read = (sql: string): unknown => JSON.parse(query(sql));

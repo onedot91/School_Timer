@@ -45,6 +45,34 @@ const environment = async (run: (call: (actor:number,method:string,body?:unknown
 };
 const command=(requestId:string,action:string,payload:unknown)=>({protocolVersion:2,requestId,action,payload});
 
+for (const scenario of [
+  { name: 'wallet', amount: 10, economy: { deposit: 0 }, wallet: 90, pending: 0 },
+  { name: 'pending', amount: 150, economy: { deposit: 0 }, wallet: 100, pending: 1 },
+  { name: 'deposit', amount: 150, economy: { deposit: 100 }, wallet: 0, pending: 0 },
+  { name: 'investment', amount: 150, economy: { deposit: 0, investments: {
+    sunny: { investedAmount: 100, currentAmount: 100, lastSettledDateKey: '2026-10-15', lastChangeAmount: 0, lastStage: 'flat' },
+  } }, wallet: 0, pending: 0 },
+]) {
+  test(`teacher negative adjustment persists deduction state and letters (${scenario.name}) exactly once`, () => environment(async (call, fixture) => {
+    const request = command(`negative-adjustment-${scenario.name}`, 'teacher.currency.adjust', { studentNumbers: [6], amount: -scenario.amount });
+    const response = await call(0, 'POST', request);
+    assert.equal(response.status, 200, JSON.stringify(response.body));
+    const saved = structuredClone(fixture.read().value);
+    const economy = normalizeStudentEconomyStates(saved.studentEconomy)['6'];
+    assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['6'], scenario.wallet);
+    assert.equal(economy.pendingDeductions.length, scenario.pending);
+    if (scenario.name === 'deposit') assert.equal(economy.deposit, 50);
+    if (scenario.name === 'investment') assert.equal(economy.investments.sunny.currentAmount, 50);
+    assert.ok(isStorageRecord(saved.studentLife) && Array.isArray(saved.studentLife.letters));
+    assert.equal(saved.studentLife.letters.filter(letter => isStorageRecord(letter) && letter.recipient === 6).length, 1);
+    assert.equal(normalizeCurrencyBalances(saved.currencyBalances)['4'], 100);
+    assert.deepEqual(normalizeStudentEconomyStates(saved.studentEconomy)['4'], normalizeStudentEconomyStates({ 4: { deposit: 234 } })['4']);
+    assert.deepEqual(saved.studentLife.letters.filter(letter => isStorageRecord(letter) && letter.recipient !== 6), initial().studentLife.letters);
+    assert.equal((await call(0, 'POST', request)).status, 200);
+    assert.deepEqual(fixture.read().value, saved);
+  }, { ...initial(), studentEconomy: { 6: scenario.economy, 4: { deposit: 234 } } }));
+}
+
 test('failure creation retries when a new foreign stamp appears during the complete-story read', () => {
   const source = initial();
   const stories = [12, 13].map(studentNumber => ({ id: `foreign-${studentNumber}`, studentNumber,

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { isStorageRecord, splitStorageState } from '../../src/lib/storageV2Codec.js';
 import { applyStudentStorageCommand } from '../../src/server/studentStorageCommands.js';
 import { applyTeacherStorageCommand } from '../../src/server/teacherStorageCommands.js';
@@ -12,9 +14,9 @@ const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const json = (value: unknown) => `${literal(JSON.stringify(value))}::jsonb`;
 
 test('real PostgreSQL: failure board and nested teacher settings preserve existing parents and unrelated records', { skip: process.env.STORAGE_AUCTION_PSQL_TEST !== '1', timeout: 60000 }, async () => {
-  const directory = await mkdtemp('/private/tmp/school-settings-pg.');
+  const directory = await mkdtemp(join(tmpdir(), 'school-settings-pg.'));
   const invoke = (program: string, args: string[], input?: string) => execFileSync(program, args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 8 * 1024 * 1024 });
-  invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '--no-locale']);
+  invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '--no-locale', '--encoding=UTF8']);
   invoke('pg_ctl', ['-D', `${directory}/data`, '-l', `${directory}/postgres.log`, '-o', `-F -h '' -k ${directory} -p 55488`, '-w', 'start']);
   const query = (sql: string) => invoke('psql', ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-h', directory, '-p', '55488', '-U', 'postgres', '-d', 'postgres'], sql).trim();
   const read = (sql: string): unknown => JSON.parse(query(sql));
@@ -26,6 +28,7 @@ test('real PostgreSQL: failure board and nested teacher settings preserve existi
     const createdAt = '2026-10-15T00:00:00Z';
     const story = { id: 'synthetic-story', studentNumber: 12, failure: '합성 실패 내용', lesson: '합성 배운 점', createdAt, stamps: [] };
     const source = { classDonation: { itemName: '합성 목표', targetAmount: 100 },
+      studentEconomy: { 6: { deposit: 0 }, 15: { deposit: 100 }, 12: { deposit: 234 } },
       studentLife: { failureStories: [story], letters: [], books: [] },
       currencyBalances: Object.fromEntries(Array.from({ length: 23 }, (_, index) => [String(index + 1), 100])), currencyHistory: {},
       retained: 'x'.repeat(100000) };
@@ -83,6 +86,15 @@ test('real PostgreSQL: failure board and nested teacher settings preserve existi
     console.log(JSON.stringify({ fullBytes, deltaBytes }));
     assert.equal(read("select value->'data' from storage_resources where resource_key='/classDonation/itemName';"), source.classDonation.itemName);
     assert.equal(read("select value->'data' from storage_resources where resource_key='/retained';"), source.retained);
+    assert.equal(query('select balance from wallet_accounts where student_number=12;'), '100');
+    for (const [number, amount, expected] of [[6, 10, 105], [15, 150, 0], [6, 999, 105]]) {
+      const adjusted = commit(0, 'teacher.currency.adjust', { studentNumbers: [number], amount: -amount }, `negative-adjustment-${number}-${amount}`);
+      read(adjusted.sql);
+      assert.equal(query(`select balance from wallet_accounts where student_number=${number};`), String(expected));
+    }
+    assert.equal(read("select value#>'{data,deposit}' from storage_resources where resource_key='/studentEconomy/15';"), 50);
+    assert.equal(read("select jsonb_array_length(value#>'{data,pendingDeductions}') from storage_resources where resource_key='/studentEconomy/6';"), 1);
+    assert.deepEqual(read("select value->'data' from storage_resources where resource_key='/studentEconomy/12';"), source.studentEconomy[12]);
     assert.equal(query('select balance from wallet_accounts where student_number=12;'), '100');
     assert.equal(read("select value->'data' from storage_resources where resource_key='/studentLife/failureStories/@synthetic-story/failure';"), story.failure);
     assert.equal(query("select count(*) from storage_resources where value->>'parentKey'='/studentLife/failureStories' and not deleted;"), '2');

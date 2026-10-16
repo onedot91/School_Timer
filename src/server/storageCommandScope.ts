@@ -82,8 +82,15 @@ export const storageCommandScope = (action: string, payload: unknown, session: D
       const fields = legacyReceipt ? settings : Array.isArray(input.changes) ? input.changes.flatMap(change =>
         isStorageRecord(change) && typeof change.field === 'string' && settings.includes(change.field) ? [change.field] : []) : [];
       fields.forEach(name => field(name));
-    } else if (['teacher.currency.adjust', 'teacher.currency.set', 'teacher.currency.reset'].includes(action)) money(action.endsWith('.reset') ? allStudents : target);
-    else if (action === 'teacher.currency.deduct') {
+    } else if (['teacher.currency.adjust', 'teacher.currency.set', 'teacher.currency.reset'].includes(action)) {
+      money(action.endsWith('.reset') ? allStudents : target);
+      if (action === 'teacher.currency.adjust' && typeof input.amount === 'number' && input.amount < 0) {
+        target.forEach(number => {
+          add({ path: storageResourceKey('studentEconomy', String(number)) });
+          mail(number);
+        });
+      }
+    } else if (action === 'teacher.currency.deduct') {
       money(target); add({ path: '/studentEconomy', students: target.length ? target : allStudents }); target.forEach(number => mail(number));
     } else if (action === 'teacher.role.result') {
       field('classroomRoleMission'); money(target); target.forEach(number => mail(number));

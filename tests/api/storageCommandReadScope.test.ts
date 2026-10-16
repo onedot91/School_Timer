@@ -4,6 +4,19 @@ import { completeFailureStoryReadScope, storageCommandScope } from '../../src/se
 
 const student = { role: 'student' as const, studentNumber: 6, expiresAt: 0 };
 
+test('negative teacher adjustments allow only target economy and mail writes', () => {
+  const teacher = { role: 'teacher' as const, expiresAt: 0 };
+  const scope = storageCommandScope('teacher.currency.adjust', { studentNumbers: [6, 15], amount: -10 }, teacher);
+  assert.deepEqual(scope.writeWallets, [6, 15]);
+  assert.deepEqual(scope.writeResources, [
+    { path: '/studentEconomy/6' }, { path: '/studentLife/letters', mail: { actor: 6, direction: 'recipient' } },
+    { path: '/studentEconomy/15' }, { path: '/studentLife/letters', mail: { actor: 15, direction: 'recipient' } },
+  ]);
+  for (const [action, amount] of [['teacher.currency.adjust', 10], ['teacher.currency.set', 10], ['teacher.currency.reset', 0]] as const) {
+    assert.deepEqual(storageCommandScope(action, { studentNumbers: [6], amount }, teacher).writeResources, []);
+  }
+});
+
 test('bid validation reads the wallet revision without loading currency history', () => {
   const scope = storageCommandScope('student.auction.bid', { itemId: 'item-a' }, student);
   assert.deepEqual(scope.wallets, [6]);

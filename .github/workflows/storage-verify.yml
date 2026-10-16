@@ -1,0 +1,45 @@
+name: Required storage verification
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storage-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Storage verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Locate PostgreSQL
+        run: |
+          pg_bin="$(pg_config --bindir)"
+          test -x "$pg_bin/initdb"
+          test -x "$pg_bin/pg_ctl"
+          test -x "$pg_bin/psql"
+          echo "$pg_bin" >> "$GITHUB_PATH"
+      - run: npm ci
+      - name: Capture source
+        id: source
+        run: echo "hash=$(node dev/releaseSourceHash.mjs)" >> "$GITHUB_OUTPUT"
+      - name: Verify storage contracts and concurrent classroom use
+        run: npm run verify:checks
+      - name: Build tested source
+        run: node node_modules/vite/bin/vite.js build
+      - name: verified-source-${{ steps.source.outputs.hash }}
+        env:
+          EXPECTED_SOURCE_HASH: ${{ steps.source.outputs.hash }}
+        run: node dev/releaseSourceHash.mjs --expect "$EXPECTED_SOURCE_HASH"

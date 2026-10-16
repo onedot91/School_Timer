@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { verifyClassroomTimings } from '../../dev/storageBudgets.mjs';
 import handler from '../../api/shared-settings.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
 import { isStorageRecord, splitStorageState } from '../../src/lib/storageV2Codec.js';
 import { createAuctionItemTemplate } from '../../src/lib/currency.js';
 import { parseScopedStorageSnapshot } from '../../src/server/storageV2Repository.js';
 
-const directory = await mkdtemp('/private/tmp/school-classroom-load.');
+const directory = await mkdtemp(join(tmpdir(), 'school-classroom-load.'));
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const json = (value: unknown) => `${literal(JSON.stringify(value))}::jsonb`;
 const invoke = (program: string, args: string[], input?: string) => execFileSync(program, args,
@@ -28,7 +31,7 @@ const secret = 'synthetic-classroom-load-session-secret';
 const samples: { action: string; status: number; code?: string; ms: number }[] = [];
 const metrics: { rpc: string; action: string; bytes: number; ms: number; saved?: boolean }[] = [];
 const rpcNames = new Set(['storage_get_receipt', 'storage_load_scope', 'storage_prepare_command', 'storage_commit_scoped_mutation', 'storage_commit_scoped_and_load']);
-invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '--no-locale']);
+invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '--no-locale', '--encoding=UTF8']);
 invoke('pg_ctl', ['-D', `${directory}/data`, '-l', `${directory}/postgres.log`, '-o', `-F -h '' -k ${directory} -p 55488`, '-w', 'start']);
 try {
   query('create role anon; create role authenticated; create role service_role;');
@@ -139,6 +142,8 @@ try {
   assert.equal(query("select count(*) from storage_resources where resource_key like '/studentLife/failureStories/@classroom-story-%/failure' and not deleted;"), '23');
   assert.equal(query("select value->>'data' from storage_resources where resource_key='/scheduleNotice';"), 'after');
   assert.ok(samples.every(sample => sample.status === 200 || (sample.action === 'student.auction.bid' && ['BID_TOO_LOW', 'DUPLICATE_BID_AMOUNT'].includes(sample.code ?? ''))), JSON.stringify(samples.filter(sample => sample.status !== 200)));
+  verifyClassroomTimings(samples);
+  assert.ok(metrics.every(metric => metric.ms < 8000), 'each database RPC must finish before the production read timeout');
 } finally {
   globalThis.fetch = originalFetch;
   process.env = environment;

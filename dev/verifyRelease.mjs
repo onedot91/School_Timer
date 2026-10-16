@@ -1,27 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { requireBrowserFixture } from '../tests/storage/saveReliabilityBrowser.mjs';
+import { releaseSourceHash } from './releaseSourceHash.mjs';
+export { releaseSourceHash } from './releaseSourceHash.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-export const releaseSourceHash = async () => {
-  const files = ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'vercel.json', 'index.html'];
-  const walk = async (path) => {
-    for (const entry of await readdir(resolve(root, path), { withFileTypes: true })) {
-      const child = `${path}/${entry.name}`;
-      if (entry.isDirectory()) await walk(child);
-      else if (entry.isFile()) files.push(child);
-    }
-  };
-  for (const folder of ['src', 'api', 'supabase', 'dev', 'tests']) await walk(folder);
-  const hash = createHash('sha256');
-  for (const file of files.sort()) { hash.update(file); hash.update('\0'); hash.update(await readFile(resolve(root, file))); hash.update('\0'); }
-  return hash.digest('hex');
-};
 
 const main = async () => {
   if (process.argv.includes('--help')) {

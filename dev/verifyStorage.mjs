@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 export const STORAGE_REGRESSION_FILES = [
   'tests/storage/auctionFinalization.integration.test.ts',
   'tests/storage/settingsAndFailureScopes.integration.test.ts',
+  'tests/storage/librarySaveContract.integration.test.ts',
 ];
 
 export const storageRegressionCommand = (env = process.env) => ({
