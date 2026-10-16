@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { execFile, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mock } from 'node:test';
+import pg from 'pg';
 import { verifyClassroomTimings } from '../../dev/storageBudgets.mjs';
 import handler from '../../api/shared-settings.js';
 import { createDeviceSessionToken } from '../../src/server/deviceSession.js';
@@ -18,12 +19,12 @@ const invoke = (program: string, args: string[], input?: string) => execFileSync
   { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 });
 const args = ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-h', directory, '-p', '55488', '-U', 'postgres', '-d', 'postgres'];
 const query = (sql: string) => invoke('psql', args, sql).trim();
-const asyncQuery = (sql: string): Promise<string> => new Promise((resolve, reject) => {
-  const child = execFile('psql', args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }, (error, stdout, stderr) => {
-    if (error) reject(new Error(stderr)); else resolve(stdout.trim());
-  });
-  child.stdin?.end(sql);
-});
+// Pooled connections like PostgREST: spawning psql per RPC made shared CI runners measure process startup, not storage.
+const pool = new pg.Pool({ host: directory, port: 55488, user: 'postgres', database: 'postgres', max: 48 });
+const asyncQuery = async (sql: string): Promise<string> => {
+  const result = await pool.query<{ output: string }>(`select (${sql})::text as output`);
+  return result.rows[0]?.output ?? '';
+};
 const rpcDelayMs = Number(process.env.CLASSROOM_RPC_DELAY_MS ?? 40);
 assert.ok(Number.isFinite(rpcDelayMs) && rpcDelayMs >= 0 && rpcDelayMs <= 1000);
 const originalFetch = globalThis.fetch;
@@ -74,7 +75,7 @@ try {
     const start = performance.now();
     await new Promise(resolve => setTimeout(resolve, rpcDelayMs));
     try {
-      const output: unknown = JSON.parse(await asyncQuery(`select public.${rpc}(${parameters});`));
+      const output: unknown = JSON.parse(await asyncQuery(`select public.${rpc}(${parameters})`));
       metrics.push({ rpc, action: String(body.p_action ?? ''), bytes: Buffer.byteLength(JSON.stringify(output)), ms: performance.now() - start,
         ...(isStorageRecord(output) && typeof output.saved === 'boolean' ? { saved: output.saved } : {}) });
       return Response.json(output);
@@ -151,5 +152,6 @@ try {
   globalThis.fetch = originalFetch;
   process.env = environment;
   mock.timers.reset();
+  await pool.end();
   invoke('pg_ctl', ['-D', `${directory}/data`, '-m', 'fast', '-w', 'stop']);
 }
