@@ -446,13 +446,18 @@ export const prepareStorageCommand = async (
     return { receipt, snapshot: parseCommandSnapshot(body.snapshot, receipt.found ? replayScope ?? receipt.scope ?? scope : scope) };
 };
 
+/** Reads the result after the commit transaction ends, so its shared scope locks are not held during the read. */
+export const commitScopedStorageMutationThenLoad = async (
+    configuration: StorageConfiguration, mutation: ScopedStorageMutation, resultScope?: StorageScope,
+): Promise<{ saved: boolean; result?: unknown; snapshot?: ScopedStorageSnapshot }> => {
+    const saved = await commitScopedStorageMutation(configuration, mutation);
+    return saved.saved ? { ...saved, snapshot: await loadScopedStorageSnapshot(configuration, resultScope ?? mutation.snapshot.scope) } : saved;
+};
+
 export const commitScopedStorageMutationAndLoad = async (
     configuration: StorageConfiguration, mutation: ScopedStorageMutation, resultScope?: StorageScope,
 ): Promise<{ saved: boolean; result?: unknown; snapshot?: ScopedStorageSnapshot }> => {
-    if (process.env.STORAGE_COMBINED_COMMANDS !== '1') {
-        const saved = await commitScopedStorageMutation(configuration, mutation);
-        return saved.saved ? { ...saved, snapshot: await loadScopedStorageSnapshot(configuration, resultScope ?? mutation.snapshot.scope) } : saved;
-    }
+    if (process.env.STORAGE_COMBINED_COMMANDS !== '1') return commitScopedStorageMutationThenLoad(configuration, mutation, resultScope);
     const body = await request(configuration, 'storage_commit_scoped_and_load', {
         ...buildScopedStorageMutation(mutation), p_result_scope: resultScope ? parseStorageScope(resultScope) : null,
     });

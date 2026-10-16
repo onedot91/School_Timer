@@ -145,3 +145,24 @@ test('combined prepare and commit lock failures retry without crediting twice', 
   assert.equal(failed.size, 2); assert.equal(fixture.receipts.size, 1);
   const value = fixture.read().value; assert.ok(isStorageRecord(value.currencyBalances)); assert.equal(value.currencyBalances['2'], 90);
 }));
+
+test('failure story creation reads its result after the commit transaction and recovers a lost read without another reward', () => environment(async ({ fixture, calls, invoke }) => {
+  const command = { protocolVersion: 2, requestId: 'combined-story-once', action: 'student.failure.create', payload: { failure: '합성 실패', lesson: '합성 배움' } };
+  const created = await invoke('shared', 2, command);
+  assert.equal(created.status, 200, JSON.stringify(created.body));
+  assert.deepEqual(calls, ['storage_prepare_command', 'storage_commit_scoped_mutation', 'storage_load_scope']);
+  const fetcher = globalThis.fetch;
+  let failRead = true;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).endsWith('/storage_load_scope') && failRead) { failRead = false; return Response.json({ code: '57014' }, { status: 500 }); }
+    return fetcher(input, init);
+  };
+  const lost = { ...command, requestId: 'combined-story-lost' };
+  assert.notEqual((await invoke('shared', 2, lost)).status, 200);
+  assert.equal((await invoke('shared', 2, lost)).status, 200);
+  const value = fixture.read().value;
+  assert.ok(isStorageRecord(value.studentLife) && Array.isArray(value.studentLife.failureStories) && isStorageRecord(value.currencyBalances));
+  assert.equal(value.studentLife.failureStories.length, 2);
+  assert.equal(value.currencyBalances['2'], 115);
+  assert.equal(fixture.receipts.size, 2);
+}));

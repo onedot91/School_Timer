@@ -137,7 +137,13 @@ try {
     return [action, { requests: rows.length, statuses: rows.reduce<Record<string, number>>((counts, row) => { const key = `${row.status}:${row.code ?? 'ok'}`; counts[key] = (counts[key] ?? 0) + 1; return counts; }, {}),
       p50: Math.round(times[Math.floor((times.length - 1) * .5)]), p95: Math.round(times[Math.ceil((times.length - 1) * .95)]), max: Math.round(times.at(-1) ?? 0) }];
   }));
+  // GitHub job logs need sign-in; a notice annotation keeps CI measurements readable from the public check run.
+  if (process.env.GITHUB_ACTIONS === 'true') console.log(`::notice title=classroom save load::${JSON.stringify(summary)}`);
   console.log(JSON.stringify({ atomicBids: process.env.STORAGE_ATOMIC_AUCTION_BIDS === '1', rpcDelayMs, syntheticStories: stories.length, historyPerStudent: 100, summary,
+    rpcTimings: Object.fromEntries([...new Set(workloadMetrics.map(metric => `${metric.action || 'read'}:${metric.rpc}`))].map(key => {
+      const times = workloadMetrics.filter(metric => `${metric.action || 'read'}:${metric.rpc}` === key).map(metric => metric.ms).sort((a, b) => a - b);
+      return [key, { calls: times.length, p50: Math.round(times[Math.floor((times.length - 1) * .5)]), max: Math.round(times.at(-1) ?? 0) }];
+    })),
     rpcCalls: workloadMetrics.length, responseBytes: workloadMetrics.reduce((total, metric) => total + metric.bytes, 0), conflicts: workloadMetrics.filter(metric => metric.saved === false).length,
     receiptCount: query('select count(*) from storage_receipts;'), replayUnchanged: beforeReplay === afterReplay }, null, 2));
   assert.equal(beforeReplay, afterReplay, 'replays must not duplicate rewards or stories');
