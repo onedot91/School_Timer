@@ -2533,14 +2533,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             const selectedItemDisplayName = getAuctionItemDisplayName(selectedItem.name, selectedItem.dayIndex);
             if (award) {
               return (
-                <div className="auction-bid-panel rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
-                  <div className="rounded-[1rem] border border-[#E5ECE8] bg-[#FAFCFB] px-4 py-3">
-                    <div className="text-[0.9rem] font-black text-[#8A5A1F]">낙찰 완료</div>
-                    <div className="mt-1 font-mono text-[1.35rem] font-black text-[#007A57]">
+                <div className="auction-bid-panel rounded-[1.25rem] border border-[var(--apple-separator)] bg-white p-4 text-center shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
+                  <div className="rounded-[1rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 py-3">
+                    <div className="text-[length:var(--type-body-sm)] font-black text-[#8A5A1F]">낙찰 완료</div>
+                    <div className="mt-1 font-mono text-[length:var(--type-title)] font-black text-[var(--apple-accent)]">
                       {award.winner}번 ({formatCurrency(award.amount)})
                     </div>
                     {hasPendingBid ? <button type="button" onClick={() => offerPendingBidRecovery(selectedItem.id)}
-                      className="mt-2 min-h-12 rounded-xl bg-[#007A57] px-4 font-bold text-white">이전 입찰 확인</button> : null}
+                      className="mt-2 min-h-12 rounded-xl bg-[var(--apple-accent)] px-4 font-bold text-white">이전 입찰 확인</button> : null}
                   </div>
                 </div>
               );
@@ -2564,22 +2564,22 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               (hasPendingBid || (selectedBidAmount >= minimumBid && selectedBidAmount <= maxBid));
 
             return (
-              <div className="auction-bid-panel rounded-[1.25rem] border border-[#DCE7E1] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
+              <div className="auction-bid-panel rounded-[1.25rem] border border-[var(--apple-separator)] bg-white p-4 shadow-[0_10px_24px_rgba(28,45,40,0.07)]">
                 <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
-                    <h2 className="section-title min-w-0 truncate text-[1.35rem] font-extrabold leading-tight text-[#18211E]">
+                    <h2 className="section-title min-w-0 truncate text-[length:var(--type-title)] font-extrabold leading-tight text-[var(--apple-text-primary)]">
                       {selectedItemDisplayName}
                     </h2>
-                    <p className="font-mono text-[1.05rem] font-black text-[#007A57]">
+                    <p className="font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">
                       최고가 {formatCurrency(currentBid.amount)} · 시작가 {formatCurrency(selectedItem.startPrice)}
                     </p>
                   </div>
-                  <div className="text-[0.95rem] font-black text-[#6E7A72]">
+                  <div className="text-[length:var(--type-body)] font-black text-[var(--apple-text-tertiary)]">
                     입찰 단위 {formatCurrency(AUCTION_BID_STEP)}
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                  <label className="auction-bid-input grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[#DCE7E1] bg-[#FAFCFB] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
+                  <label className="auction-bid-input grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border border-[var(--apple-separator)] bg-[var(--apple-surface-tint)] px-4 focus-within:border-[#8DC9B7] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#8DC9B7]/35">
                     <input
                       id="auction-bid-amount-input"
                       type="text"
@@ -2596,11 +2596,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                           openBidConfirm(selectedItem, selectedBidAmount);
                         }
                       }}
-                      className="h-full min-w-0 bg-transparent text-center font-mono text-[1.28rem] font-black text-[#18211E] outline-none"
+                      className="h-full min-w-0 bg-transparent text-center font-mono text-[length:var(--type-title)] font-black text-[var(--apple-text-primary)] outline-none"
                       aria-label={`${selectedItemDisplayName} 입찰 금액`}
                       placeholder={String(minimumBid)}
                     />
-                    <span className="pl-2 font-mono text-[1.02rem] font-black text-[#007A57]">고마</span>
+                    <span className="pl-2 font-mono text-[length:var(--type-body)] font-black text-[var(--apple-accent)]">고마</span>
                   </label>
                   <button
                     id="auction-bid-trigger"
@@ -2608,7 +2608,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                     type="button"
                     onClick={() => openBidConfirm(selectedItem, selectedBidAmount)}
                     disabled={!canSubmit}
-                    className="inline-flex h-12 w-full items-center justify-center rounded-[0.9rem] bg-[#007A57] text-[1rem] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.14)] transition-colors hover:bg-[#006B4D] disabled:cursor-not-allowed disabled:bg-[#C9D4CD] disabled:text-white/82"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-[0.9rem] bg-[var(--apple-accent)] text-[length:var(--type-body)] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.14)] transition-colors hover:bg-[var(--apple-accent-pressed)] disabled:cursor-not-allowed disabled:bg-[#C9D4CD] disabled:text-white/82"
                   >
                     {isSubmittingItemId === selectedItem.id ? '...' : hasPendingBid ? '이전 입찰 확인' : '입찰'}
                   </button>
@@ -2652,25 +2652,25 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
             className="class-donation-dialog apple-material-layer w-full max-w-[28rem] rounded-[1.75rem] border-2 border-[#8DC9B7] bg-white p-5 shadow-[0_28px_70px_rgba(28,45,40,0.24)]"
           >
             <div className="flex items-center justify-between gap-3">
-              <h2 id="class-donation-title" className="section-title text-[1.45rem] font-extrabold text-[#18211E]">학급 기부</h2>
+              <h2 id="class-donation-title" className="section-title text-[length:var(--type-title)] font-extrabold text-[var(--apple-text-primary)]">학급 기부</h2>
               <button
                 type="button"
                 onClick={() => setIsDonationOpen(false)}
                 disabled={isDonating}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#DCE7E1] text-[#38423D] disabled:opacity-50"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--apple-separator)] text-[var(--apple-text-primary)] disabled:opacity-50"
                 aria-label="기부 창 닫기"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="mt-4 rounded-[1rem] border border-[#DCEAE3] bg-[#F7FBF9] p-3">
-              <div className="font-mono text-[1.25rem] font-black text-[#007A57]">
+            <div className="mt-4 rounded-[1rem] border border-[#DCEAE3] bg-[var(--apple-surface-tint)] p-3">
+              <div className="font-mono text-[length:var(--type-heading)] font-black text-[var(--apple-accent)]">
                 {formatCurrency(classDonation.totalAmount)} / {formatCurrency(classDonation.targetAmount)}
               </div>
-              <span className="mt-2 block h-2 overflow-hidden rounded-full bg-[#DDEAE4]">
+              <span className="mt-2 block h-2 overflow-hidden rounded-full bg-[var(--apple-control-pressed)]">
                 <span
-                  className="block h-full rounded-full bg-[#007A57]"
+                  className="block h-full rounded-full bg-[var(--apple-accent)]"
                   style={{ width: `${Math.min(100, (classDonation.totalAmount / classDonation.targetAmount) * 100)}%` }}
                 />
               </span>
@@ -2678,7 +2678,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
             <label className="mt-4 block">
               <span className="sr-only">기부할 고마</span>
-              <div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border-2 border-[#9FC7B8] bg-white px-4 focus-within:border-[#007A57]">
+              <div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center rounded-[0.9rem] border-2 border-[#9FC7B8] bg-white px-4 focus-within:border-[var(--apple-accent)]">
                 <input
                   type="text"
                   inputMode="numeric"
@@ -2687,30 +2687,30 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   onChange={(event) => setDonationAmountDraft(event.target.value.replace(/\D/g, ''))}
                   disabled={isDonating}
                   placeholder="금액 입력"
-                  className="h-full min-w-0 bg-transparent text-center font-mono text-[1.25rem] font-black text-[#18211E] outline-none placeholder:font-sans placeholder:text-[0.95rem] placeholder:text-[#8A9991]"
+                  className="h-full min-w-0 bg-transparent text-center font-mono text-[length:var(--type-heading)] font-black text-[var(--apple-text-primary)] outline-none placeholder:font-sans placeholder:text-[length:var(--type-body)] placeholder:text-[var(--apple-text-tertiary)]"
                   autoFocus
                 />
-                <span className="font-mono font-black text-[#007A57]">고마</span>
+                <span className="font-mono font-black text-[var(--apple-accent)]">고마</span>
               </div>
             </label>
 
-            <p className="mt-2 text-right text-[0.82rem] font-extrabold text-[#6E7A72]">
+            <p className="mt-2 text-right text-[length:var(--type-label)] font-extrabold text-[var(--apple-text-tertiary)]">
               기부 후 {formatCurrency(Math.max(0, availableBalance - (isDonationAmountValid ? donationAmount : 0)))}
             </p>
             {!isDonationAmountValid && donationAmountDraft !== '' ? (
-              <p className="mt-2 text-[0.8rem] font-extrabold text-[#B84A34]">
+              <p className="mt-2 text-[length:var(--type-label)] font-extrabold text-[var(--student-warning)]">
                 1 이상 {formatCurrency(maximumDonation)} 이하로 입력해 주세요.
               </p>
             ) : null}
             {donationError ? (
-              <p className="mt-2 text-[0.8rem] font-extrabold text-[#B84A34]">{donationError}</p>
+              <p className="mt-2 text-[length:var(--type-label)] font-extrabold text-[var(--student-warning)]">{donationError}</p>
             ) : null}
             <div className="mt-4 grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setIsDonationOpen(false)}
                 disabled={isDonating}
-                className="h-12 rounded-[0.9rem] border-2 border-[#DCE7E1] bg-white font-extrabold text-[#38423D] disabled:opacity-50"
+                className="h-12 rounded-[0.9rem] border-2 border-[var(--apple-separator)] bg-white font-extrabold text-[var(--apple-text-primary)] disabled:opacity-50"
               >
                 취소
               </button>
@@ -2718,7 +2718,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 type="button"
                 onClick={() => void confirmDonation()}
                 disabled={!isDonationAmountValid || isDonating}
-                className="h-12 rounded-[0.9rem] bg-[#007A57] font-extrabold text-white disabled:cursor-not-allowed disabled:bg-[#C9D4CD]"
+                className="h-12 rounded-[0.9rem] bg-[var(--apple-accent)] font-extrabold text-white disabled:cursor-not-allowed disabled:bg-[#C9D4CD]"
               >
                 <StableLabel busy={isDonating} busyLabel="처리 중..." label={'기부하기'} />
               </button>
@@ -2762,24 +2762,24 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 ? { opacity: bidMaterialProgress }
                 : { opacity: bidMaterialProgress, scale: bidMaterialScale, filter: bidMaterialFilter }}
             >
-              <h2 id="auction-bid-confirm-title" className="section-title text-center text-[1.65rem] font-extrabold leading-tight text-[#18211E]">
+              <h2 id="auction-bid-confirm-title" className="section-title text-center text-[length:var(--type-title)] font-extrabold leading-tight text-[var(--apple-text-primary)]">
                 {pendingItemName}{pendingItemParticle}{' 이\u00a0금액으로 입찰할까요?'}
               </h2>
 
-              <div className="mt-5 rounded-[1.15rem] border border-[#D7E6DE] bg-[#F6FCF9] p-4">
+              <div className="mt-5 rounded-[1.15rem] border border-[#D7E6DE] bg-[var(--apple-surface-tint)] p-4">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] lg:items-center">
                   <div className="rounded-[1rem] border border-[#D7E6DE] bg-white px-4 py-3">
-                    <div className="text-[0.76rem] font-black text-[#6E7A72]">현재 최고가</div>
-                    <div className="mt-1 font-mono text-[1.25rem] font-black leading-none text-[#2F241D]">
+                    <div className="text-[length:var(--type-caption)] font-black text-[var(--apple-text-tertiary)]">현재 최고가</div>
+                    <div className="mt-1 font-mono text-[length:var(--type-heading)] font-black leading-none text-[var(--ink)]">
                       {formatCurrency(pendingCurrentBid.amount)}
                     </div>
                   </div>
-                  <div className="auction-bid-flow-arrow hidden h-10 w-10 items-center justify-center rounded-full bg-white text-[#007A57] shadow-sm ring-1 ring-[#D7E6DE] lg:inline-flex">
+                  <div className="auction-bid-flow-arrow hidden h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--apple-accent)] shadow-sm ring-1 ring-[#D7E6DE] lg:inline-flex">
                     <ArrowRight size={22} strokeWidth={3} />
                   </div>
                   <div className="rounded-[1rem] border-2 border-[#8DC9B7] bg-white px-4 py-3 text-right">
-                    <div className="text-[0.76rem] font-black text-[#007A57]">당신의 입찰 금액</div>
-                    <div className="mt-1 font-mono text-[1.55rem] font-black leading-none text-[#007A57]">
+                    <div className="text-[length:var(--type-caption)] font-black text-[var(--apple-accent)]">당신의 입찰 금액</div>
+                    <div className="mt-1 font-mono text-[length:var(--type-title)] font-black leading-none text-[var(--apple-accent)]">
                       {formatCurrency(renderedPendingBid.amount)}
                     </div>
                   </div>
@@ -2787,8 +2787,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
               </div>
 
-              <div className="mt-4 rounded-[1rem] border border-[#E4D7C9] bg-[#FFF8EC] px-4 py-3 text-[0.95rem] font-extrabold leading-6 text-[#6E5139]">
-                입찰 후에는 <strong className="text-[#B84A34] underline decoration-[#B84A34]/30 underline-offset-4">되돌릴 수 없습니다.</strong> 금액과 물품을 확인한 뒤 진행해 주세요.
+              <div className="mt-4 rounded-[1rem] border border-[#E4D7C9] bg-[var(--paper)] px-4 py-3 text-[length:var(--type-body)] font-extrabold leading-6 text-[#6E5139]">
+                입찰 후에는 <strong className="text-[var(--student-warning)] underline decoration-[var(--student-warning)]/30 underline-offset-4">되돌릴 수 없습니다.</strong> 금액과 물품을 확인한 뒤 진행해 주세요.
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3">
@@ -2796,7 +2796,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   type="button"
                   onClick={() => setPendingBid(null)}
                   disabled={isSubmittingItemId !== null}
-                  className="inline-flex h-12 items-center justify-center rounded-[0.95rem] border-2 border-[#E0BF8D] bg-[#FFFCF6] px-4 text-[1rem] font-extrabold text-[#8A5A1F] transition-colors hover:bg-[#FFF2DA] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-12 items-center justify-center rounded-[0.95rem] border-2 border-[#E0BF8D] bg-[var(--apple-surface)] px-4 text-[length:var(--type-body)] font-extrabold text-[#8A5A1F] transition-colors hover:bg-[#FFF2DA] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   다시 확인하기
                 </button>
@@ -2804,7 +2804,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   type="button"
                   onClick={() => void confirmPendingBid()}
                   disabled={isSubmittingItemId !== null}
-                  className="inline-flex h-12 items-center justify-center rounded-[0.95rem] bg-[#007A57] px-4 text-[1rem] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.16)] transition-colors hover:bg-[#006B4D] disabled:cursor-not-allowed disabled:bg-[#C9D4CD]"
+                  className="inline-flex h-12 items-center justify-center rounded-[0.95rem] bg-[var(--apple-accent)] px-4 text-[length:var(--type-body)] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.16)] transition-colors hover:bg-[var(--apple-accent-pressed)] disabled:cursor-not-allowed disabled:bg-[#C9D4CD]"
                 >
                   <StableLabel busy={isSubmittingItemId !== null} busyLabel="입찰 처리 중..." label={'입찰하기'} />
                 </button>
@@ -2834,17 +2834,17 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               ? { opacity: statusMaterialProgress }
               : { opacity: statusMaterialProgress, scale: statusMaterialScale, filter: statusMaterialFilter }}
           >
-            <p id="auction-status-message" aria-live="polite" className="font-mono text-[1.35rem] font-black text-[#006241]">{renderedStatusMessage}</p>
+            <p id="auction-status-message" aria-live="polite" className="font-mono text-[length:var(--type-title)] font-black text-[var(--apple-accent-pressed)]">{renderedStatusMessage}</p>
             <button
               type="button"
               onClick={bidRecovery ? () => void confirmPreviousBid() : dismissStatusMessage}
               disabled={isConfirmingBid}
-              className="mt-4 inline-flex min-h-[2.875rem] min-w-[6.5rem] items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
+              className="mt-4 inline-flex min-h-[2.875rem] min-w-[6.5rem] items-center justify-center rounded-[0.85rem] bg-[var(--apple-accent-pressed)] px-4 text-[length:var(--type-body)] font-extrabold text-white transition-colors hover:bg-[#005336]"
             >
               <StableLabel busy={isConfirmingBid} busyLabel="확인 중…" label={bidRecovery ? `${formatCurrency(bidRecovery.amount)} 입찰 확인` : '확인'} />
             </button>
             {bidRecovery ? <button type="button" disabled={isConfirmingBid} onClick={dismissStatusMessage}
-              className="mt-2 inline-flex min-h-[2.875rem] w-full items-center justify-center rounded-xl text-sm font-bold text-[#006241]">닫기</button> : null}
+              className="mt-2 inline-flex min-h-[2.875rem] w-full items-center justify-center rounded-xl text-[length:var(--type-body-sm)] font-bold text-[var(--apple-accent-pressed)]">닫기</button> : null}
           </motion.div>
         </motion.div>
       ) : null}
