@@ -18,6 +18,7 @@ import { classifySaveFailure } from '../lib/saveFailure';
 import { isReadOnlyDataMode } from '../lib/dataMode';
 import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
+import SettingsPanelFrame, { SettingsStatusChip } from '../components/teacher/SettingsPanelFrame';
 import TeacherQuestionSubmissionGrid from '../components/teacher/TeacherQuestionSubmissionGrid';
 import TeacherStockWeekImport from '../components/teacher/TeacherStockWeekImport';
 import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStatus';
@@ -4403,7 +4404,6 @@ export default function TimerPage() {
   const weeklyAuctionClosingRef = useRef(false);
   const [weeklyAuctionCloseStatus, setWeeklyAuctionCloseStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [weeklyAuctionCloseMessage, setWeeklyAuctionCloseMessage] = useState('');
-  const [isCurrencyResetDangerVisible, setIsCurrencyResetDangerVisible] = useState(false);
   const [pendingAwardItemId, setPendingAwardItemId] = useState<string | null>(null);
   const [queuedAwardItems, setQueuedAwardItems] = useState<AuctionItem[]>([]);
   const [temporaryVisibleAuctionItemIds, setTemporaryVisibleAuctionItemIds] = useState<Set<string>>(() => new Set());
@@ -8914,25 +8914,92 @@ export default function TimerPage() {
       ) : null}
     </AnimatePresence>
   );
+  const scheduleSettingsDetails = (
+    <>
+            <div className="settings-schedule-transfer grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={exportSchedule}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[var(--teacher-border)] bg-white px-3 text-[0.84rem] font-extrabold text-[var(--teacher-text)] transition-colors hover:bg-[var(--teacher-surface)]"
+              >
+                <Download size={17} aria-hidden="true" />
+                시간표 백업
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[var(--teacher-border)] bg-white px-3 text-[0.84rem] font-extrabold text-[var(--teacher-text)] transition-colors hover:bg-[var(--teacher-surface)]"
+              >
+                <Upload size={17} aria-hidden="true" />
+                시간표 복구
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                onChange={importSchedule}
+              />
+            </div>
+          <section className="settings-frame-detail-group">
+            <h3 className="section-title text-[1.1rem] font-extrabold text-[var(--teacher-text)]">학교 시계 보정</h3>
+            <p className="mt-1.5 text-[0.82rem] font-semibold leading-relaxed text-[var(--teacher-text-secondary)]/75">
+              학교 종이보다 빠르면 +, 늦으면 −초
+            </p>
+            <label className="mt-3 flex items-center gap-2">
+              <input
+                type="number"
+                min={-SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
+                max={SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
+                step={1}
+                value={scheduleClockOffsetSeconds}
+                onChange={(e) => setScheduleClockOffsetSeconds(clampScheduleClockOffsetSeconds(e.target.value))}
+                className="slot-time-input w-24 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2 text-right font-mono text-base font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)]"
+              />
+              <span className="text-sm font-bold text-[var(--teacher-text-secondary)]">초</span>
+            </label>
+          </section>
+    </>
+  );
+  const addScheduleSlotAtEnd = () => {
+    addSlot(editingDay);
+    requestAnimationFrame(() => {
+      document.querySelector('.settings-dialog .slot-editor-entry:last-child')?.scrollIntoView({ block: 'nearest' });
+    });
+  };
   const scheduleSettingsPanel = (
-    <div className="settings-panel-grid grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
+    <SettingsPanelFrame
+      label="시간표"
+      status={(
+        <>
+          <h3 className="section-title">{DAYS[editingDay]}요일 일정</h3>
+          <SettingsStatusChip>{editingDaySchedule.length}개</SettingsStatusChip>
+          <SettingsStatusChip tone="accent">{activeWeekdayScheduleCount} / {WEEKDAYS.length}일 사용</SettingsStatusChip>
+        </>
+      )}
+      action={(
+        <button type="button" className="settings-frame-primary" onClick={addScheduleSlotAtEnd}>
+          <Plus size={18} aria-hidden="true" />
+          일정 추가
+        </button>
+      )}
+      details={scheduleSettingsDetails}
+    >
+    <div className="settings-panel-grid grid gap-4 xl:grid-cols-[minmax(15rem,0.5fr)_minmax(0,1.5fr)]">
       <aside className="flex flex-col gap-4 xl:sticky xl:top-0 xl:self-start">
-        <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+        <section className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="section-title text-[1.2rem] font-extrabold text-[#3F2B20]">요일 선택</h3>
+            <h3 className="section-title text-[1.2rem] font-extrabold text-[var(--teacher-text)]">요일 선택</h3>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={openScheduleCopy}
-                className="toolbar-button toolbar-button-green inline-flex h-10 w-10 items-center justify-center rounded-full text-[#5C8D5D] transition-colors"
+                className="toolbar-button toolbar-button-green inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--teacher-accent)] transition-colors"
                 title="선택한 요일 일정을 평일에 복사"
                 aria-label="선택한 요일 일정을 평일에 복사"
               >
                 <Copy size={18} strokeWidth={2.35} />
               </button>
-              <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-3 py-1.5 text-[0.82rem] font-extrabold text-[#8A6347]">
-                {activeWeekdayScheduleCount} / {WEEKDAYS.length}일 사용
-              </div>
             </div>
           </div>
 
@@ -8942,10 +9009,11 @@ export default function TimerPage() {
                 key={day}
                 type="button"
                 onClick={() => selectEditingDay(day)}
+                aria-pressed={editingDay === day}
                 className={`settings-day-button rounded-[1.1rem] px-3 py-3 text-center text-[0.95rem] font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
                   editingDay === day
-                    ? 'settings-day-button-active bg-[#688772] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
-                    : 'settings-day-button-idle border border-[#E6D5C9] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
+                    ? 'settings-day-button-active bg-[var(--teacher-accent)] text-white shadow-[0_12px_20px_rgba(82,107,73,0.2)]'
+                    : 'settings-day-button-idle border border-[var(--teacher-border)] bg-white text-[var(--teacher-text-secondary)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface)]'
                 }`}
               >
                 {DAYS[day]}요일
@@ -8953,70 +9021,17 @@ export default function TimerPage() {
             ))}
           </div>
 
-          <div className="settings-schedule-transfer mt-4 grid grid-cols-2 gap-2 border-t border-[#E6D5C9] pt-4">
-            <button
-              type="button"
-              onClick={exportSchedule}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[#D8C7B6] bg-white px-3 text-[0.84rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF9F2]"
-            >
-              <Download size={17} aria-hidden="true" />
-              시간표 백업
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[0.9rem] border border-[#D8C7B6] bg-white px-3 text-[0.84rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF9F2]"
-            >
-              <Upload size={17} aria-hidden="true" />
-              시간표 복구
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="sr-only"
-              onChange={importSchedule}
-            />
-          </div>
 
         </section>
 
-        <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
-          <h3 className="section-title text-[1.1rem] font-extrabold text-[#3F2B20]">학교 시계 보정</h3>
-          <p className="mt-1.5 text-[0.82rem] font-semibold leading-relaxed text-[#8A6347]/75">
-            학교 종이보다 빠르면 +, 늦으면 −초
-          </p>
-          <label className="mt-3 flex items-center gap-2">
-            <input
-              type="number"
-              min={-SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
-              max={SCHEDULE_CLOCK_OFFSET_LIMIT_SECONDS}
-              step={1}
-              value={scheduleClockOffsetSeconds}
-              onChange={(e) => setScheduleClockOffsetSeconds(clampScheduleClockOffsetSeconds(e.target.value))}
-              className="slot-time-input w-24 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2 text-right font-mono text-base font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363]"
-            />
-            <span className="text-sm font-bold text-[#8A6347]">초</span>
-          </label>
-        </section>
 
       </aside>
 
       <section className="flex min-h-0 flex-col gap-4">
-        <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-          <div className="flex flex-wrap items-start gap-3">
-            <div>
-              <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">
-                {DAYS[editingDay]}요일 일정
-              </h3>
-            </div>
-          </div>
-        </div>
-
         {showCopyConfirm && (
-          <div className="confirm-box flex flex-col gap-4 rounded-xl border border-[#C65D47]/30 bg-[#FFF5F3] p-4">
+          <div className="confirm-box flex flex-col gap-4 rounded-xl border border-[var(--teacher-urgent)]/30 bg-[var(--teacher-urgent-soft)] p-4">
             <div>
-              <p className="text-sm font-bold text-[#C65D47]">
+              <p className="text-sm font-bold text-[var(--teacher-urgent)]">
                 {DAYS[editingDay]}요일 일정을 복사할 평일을 선택하세요.
               </p>
               <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="복사할 평일 선택">
@@ -9032,10 +9047,10 @@ export default function TimerPage() {
                       onClick={() => toggleScheduleCopyTarget(day)}
                       className={`inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-extrabold transition-[background-color,border-color,color,box-shadow,transform] ${
                         isSourceDay
-                          ? 'cursor-not-allowed border-[#D8D6D1] bg-[#ECEBE7] text-[#77736D]'
+                          ? 'cursor-not-allowed border-[var(--teacher-border)] bg-[var(--teacher-surface)] text-[var(--teacher-text-secondary)]'
                           : isSelected
-                            ? 'border-[#4D6F60] bg-[#4D6F60] text-white shadow-[0_6px_14px_rgba(77,111,96,0.18)]'
-                            : 'border-[#D8C7B6] bg-white text-[#6E5139] hover:border-[#9FB9AD] hover:bg-[#F3FAF7]'
+                            ? 'border-[var(--teacher-accent)] bg-[var(--teacher-accent)] text-white shadow-[0_6px_14px_rgba(77,111,96,0.18)]'
+                            : 'border-[var(--teacher-border)] bg-white text-[var(--teacher-text)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface-muted)]'
                       }`}
                     >
                       {DAYS[day]}요일{isSourceDay ? ' · 기준' : ''}
@@ -9048,7 +9063,7 @@ export default function TimerPage() {
               <button
                 type="button"
                 onClick={closeScheduleCopy}
-                className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[#8A6347]"
+                className="toolbar-button toolbar-button-neutral rounded-lg px-3 py-1.5 text-sm font-bold text-[var(--teacher-text-secondary)]"
               >
                 취소
               </button>
@@ -9056,7 +9071,7 @@ export default function TimerPage() {
                 type="button"
                 disabled={copyTargetDays.size === 0}
                 onClick={confirmScheduleCopy}
-                className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-[#B7B4AE]"
+                className="toolbar-button toolbar-button-danger copy-confirm-action-button rounded-lg px-3 py-1.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-[var(--teacher-border-strong)]"
               >
                 {copyTargetDays.size > 0 ? `${copyTargetDays.size}일에 복사` : '요일을 선택하세요'}
               </button>
@@ -9064,10 +9079,10 @@ export default function TimerPage() {
           </div>
         )}
 
-        <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5">
+        <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
           <div className="space-y-3">
             {editingDaySchedule.length === 0 ? (
-              <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
+              <div className="empty-slot-state rounded-2xl border border-dashed border-[var(--teacher-border)] bg-white py-10 text-center font-medium text-[var(--teacher-text-secondary)]/60">
                 일정이 없습니다.
               </div>
             ) : (
@@ -9078,9 +9093,9 @@ export default function TimerPage() {
                 const periodNumber = getSchedulePeriodNumber(slot);
                 return (
                   <div key={slot.id} className="slot-editor-entry">
-                    <div className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[#B58363] md:gap-3 md:p-4 lg:flex-nowrap">
+                    <div className="slot-card group flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--teacher-border)] bg-white p-3 shadow-sm transition-[border-color,box-shadow] hover:border-[var(--teacher-border-strong)] md:gap-3 md:p-4 lg:flex-nowrap">
                     {isClassRow ? (
-                      <span className="slot-period-label -ml-2 inline-flex min-h-10 min-w-[3.4rem] flex-1 items-center rounded-xl px-3 text-base font-extrabold text-[#3A5A3B] md:text-lg">
+                      <span className="slot-period-label -ml-2 inline-flex min-h-10 min-w-[3.4rem] flex-1 items-center rounded-xl px-3 text-base font-extrabold text-[var(--teacher-text)] md:text-lg">
                         {periodNumber ?? slot.name}
                       </span>
                     ) : (
@@ -9089,7 +9104,7 @@ export default function TimerPage() {
                         value={slot.name}
                         readOnly={isMorningRow || slot.type === 'break' || slot.type === 'lunch'}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'name', e.target.value)}
-                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[#8A6347] outline-none focus:ring-2 focus:ring-[#5C8D5D]/20 md:text-lg"
+                        className="slot-name-input -ml-2 min-w-[120px] flex-1 rounded-lg border-none bg-transparent px-2 py-1 text-base font-bold text-[var(--teacher-text-secondary)] outline-none focus:ring-2 focus:ring-[var(--teacher-accent)]/20 md:text-lg"
                         placeholder="일정 이름"
                       />
                     )}
@@ -9098,7 +9113,7 @@ export default function TimerPage() {
                         value={isMorningRow ? 'morning' : slot.type}
                         disabled={isMorningRow}
                         onChange={(e) => updateSlot(editingDay, slot.id, 'type', e.target.value)}
-                        className="slot-select cursor-pointer rounded-xl border-none bg-[#F0F5F0] px-2 py-2 text-sm font-bold text-[#3A5A3B] outline-none transition-colors hover:bg-[#E2EFE2] md:px-3 md:text-base"
+                        className="slot-select cursor-pointer rounded-xl border-none bg-[var(--teacher-surface-muted)] px-2 py-2 text-sm font-bold text-[var(--teacher-text)] outline-none transition-colors hover:bg-[var(--teacher-surface-muted)] md:px-3 md:text-base"
                       >
                         {isMorningRow && <option value="morning">{MORNING_ACTIVITY_LABEL}</option>}
                         <option value="class">수업</option>
@@ -9111,15 +9126,15 @@ export default function TimerPage() {
                           type="time"
                           value={formatMinutesToTime(slot.start)}
                           onChange={(e) => updateSlot(editingDay, slot.id, 'start', parseTimeToMinutes(e.target.value))}
-                          className="slot-time-input cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-2 py-2 font-mono text-sm font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363] md:px-3 md:text-base"
+                          className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-sm font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-base"
                         />
-                        <span className="text-[#8A6347] font-bold">-</span>
+                        <span className="text-[var(--teacher-text-secondary)] font-bold">-</span>
                         <input
                           type="time"
                           value={formatMinutesToTime(slot.end)}
                           disabled={isFixedDurationRow}
                           onChange={(e) => updateSlot(editingDay, slot.id, 'end', parseTimeToMinutes(e.target.value))}
-                          className="slot-time-input cursor-pointer rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-2 py-2 font-mono text-sm font-bold text-[#8A6347] outline-none transition-colors hover:border-[#B58363] md:px-3 md:text-base"
+                          className="slot-time-input cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-2 py-2 font-mono text-sm font-bold text-[var(--teacher-text-secondary)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] md:px-3 md:text-base"
                         />
                       </div>
                       <button
@@ -9151,208 +9166,199 @@ export default function TimerPage() {
             )}
           </div>
 
-          <button
-            onClick={() => addSlot(editingDay)}
-            className="add-slot-button mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#5C8D5D] py-4 text-lg font-bold text-[#5C8D5D] transition-[background-color,border-color,box-shadow,color] hover:bg-[#5C8D5D] hover:text-white"
-          >
-            <Plus size={24} />
-            일정 추가
-          </button>
         </div>
       </section>
     </div>
+    </SettingsPanelFrame>
   );
-  const subjectSettingsPanel = (
-    <div className="settings-panel-grid grid gap-4">
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">주차별 과목</h3>
-          </div>
-          <label className="subject-week-select-label flex w-full max-w-[31rem] flex-col gap-2 sm:min-w-[28rem]">
-            <span className="section-title text-[0.85rem] font-bold text-[#8A6347]">주 선택</span>
-            <select
-              value={selectedSubjectWeekKey}
-              onChange={(event) => setSelectedSubjectWeekKey(event.target.value)}
-              className="subject-week-select slot-select w-full cursor-pointer rounded-xl border border-[#D7E2D1] bg-white px-3 py-2.5 text-[0.95rem] font-extrabold text-[#3A5A3B] outline-none transition-colors hover:bg-[#F3FAF7]"
+  const subjectCatalogSettingsDetails = (
+    <>
+    <div className="subject-catalog-list grid gap-2">
+      {subjectCatalog.length === 0 ? (
+        <div className="empty-slot-state rounded-2xl border border-dashed border-[var(--teacher-border)] bg-white py-6 text-center font-medium text-[var(--teacher-text-secondary)]/60 sm:col-span-2 xl:col-span-3">
+          등록된 과목이 없습니다.
+        </div>
+      ) : (
+        subjectCatalog.map((subject, index) => (
+          <div key={`subject-catalog-${index}`} className="subject-catalog-row flex min-w-0 items-center gap-2 rounded-2xl border border-[var(--teacher-border)] bg-white p-2">
+            <input
+              type="text"
+              value={subject}
+              onChange={(event) => updateSubjectCatalogItem(index, event.target.value)}
+              onFocus={beginSubjectCatalogEdit}
+              onBlur={endSubjectCatalogEdit}
+              maxLength={MAX_SUBJECT_NAME_LENGTH}
+              className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-3 py-2.5 text-[0.95rem] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20"
+              aria-label={`${index + 1}번째 과목`}
+            />
+            <button
+              type="button"
+              onClick={() => removeSubjectCatalogItem(index)}
+              className="icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] text-[var(--teacher-urgent)] transition-colors hover:border-[var(--teacher-urgent)] hover:bg-[var(--teacher-urgent-soft)]"
+              title="과목 삭제"
+              aria-label={`${subject} 삭제`}
             >
-              {subjectWeekOptions.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
-
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h4 className="section-title text-[1.15rem] font-extrabold text-[#3F2B20]">
-            {selectedSubjectWeekLabel}
-          </h4>
-        </div>
-
-        {subjectPeriodKeys.length === 0 ? (
-          <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-10 text-center font-medium text-[#8A6347]/60">
-            수업 일정이 없습니다.
+              <Trash2 size={18} />
+            </button>
           </div>
-        ) : (
-          <div className="custom-scrollbar overflow-x-auto pb-1">
-            <datalist id={SUBJECT_CATALOG_DATALIST_ID}>
-              {subjectCatalog.map((subject) => <option key={subject} value={subject} />)}
-            </datalist>
-            <table className="subject-week-table w-full min-w-[54rem] border-separate border-spacing-y-2">
-              <thead>
-                <tr>
-                  <th className="px-2 pb-2 text-left text-[0.82rem] font-extrabold text-[#8A6347]">교시</th>
-                  {WEEKDAYS.map((day) => (
-                    <th key={day} className="px-2 pb-2 text-left text-[0.82rem] font-extrabold text-[#8A6347]">
-                      {DAYS[day]}요일
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {subjectPeriodKeys.map((subjectKey) => (
-                  <tr key={subjectKey}>
-                    <th className="rounded-l-2xl border border-r-0 border-[#E6D5C9] bg-white px-3 py-3 text-left">
-                      <span className="slot-period-label inline-flex min-h-10 min-w-[3.4rem] items-center justify-center rounded-xl bg-[#F0F5F0] px-3 text-base font-extrabold text-[#3A5A3B]">
-                        {Number.isFinite(Number(subjectKey)) ? subjectKey : subjectKey}
-                      </span>
-                    </th>
-                    {WEEKDAYS.map((day, dayIndex) => {
-                      const slot = subjectClassSlotsByDay[day].find(
-                        (classSlot) => getScheduleSubjectKey(classSlot) === subjectKey,
-                      );
-                      const weeklySubjectValue = slot
-                        ? getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)
-                        : '';
-                      const subjectInputState = getSubjectInputState(weeklySubjectValue);
-                      const subjectStatusClass = `slot-subject-input-${subjectInputState}`;
-
-                      return (
-                        <td
-                          key={`${subjectKey}-${day}`}
-                          className={`border-y border-[#E6D5C9] bg-white px-2 py-3 ${
-                            dayIndex === WEEKDAYS.length - 1 ? 'rounded-r-2xl border-r pr-3' : ''
-                          }`}
-                        >
-                          {slot ? (
-                            <div className="subject-combobox relative">
-                              <input
-                                type="text"
-                                list={subjectCatalog.length > 0 ? SUBJECT_CATALOG_DATALIST_ID : undefined}
-                                value={weeklySubjectValue}
-                                onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
-                                maxLength={MAX_SUBJECT_NAME_LENGTH}
-                                className={`slot-subject-input subject-combobox-input w-full min-w-0 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] py-2.5 pl-3 pr-9 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20 ${subjectStatusClass}`}
-                                data-subject-state={getSubjectInputState(weeklySubjectValue)}
-                                placeholder="선택"
-                                title="목록에서 선택하거나 직접 입력"
-                                aria-label={`${DAYS[day]}요일 ${subjectKey}교시 과목 선택 또는 입력`}
-                              />
-                              <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8A6347]/70" size={16} />
-                            </div>
-                          ) : (
-                            <span className="block rounded-xl border border-dashed border-[#E6D5C9] bg-[#F7F0E8]/70 px-3 py-2.5 text-center text-[0.9rem] font-bold text-[#B89E87]/70">
-                              -
-                            </span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">과목 목록</h3>
-          </div>
-          <span className="settings-count-pill inline-flex min-h-9 items-center rounded-full border border-[#D7E2D1] bg-white px-3 text-[0.82rem] font-extrabold text-[#3A5A3B]">
-            {subjectCatalog.length}개
-          </span>
-        </div>
-
-        <div className="subject-catalog-list grid gap-2">
-          {subjectCatalog.length === 0 ? (
-            <div className="empty-slot-state rounded-2xl border border-dashed border-[#E6D5C9] bg-white py-6 text-center font-medium text-[#8A6347]/60 sm:col-span-2 xl:col-span-3">
-              등록된 과목이 없습니다.
-            </div>
-          ) : (
-            subjectCatalog.map((subject, index) => (
-              <div key={`subject-catalog-${index}`} className="subject-catalog-row flex min-w-0 items-center gap-2 rounded-2xl border border-[#E6D5C9] bg-white p-2">
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(event) => updateSubjectCatalogItem(index, event.target.value)}
-                  onFocus={beginSubjectCatalogEdit}
-                  onBlur={endSubjectCatalogEdit}
-                  maxLength={MAX_SUBJECT_NAME_LENGTH}
-                  className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#B58363] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-                  aria-label={`${index + 1}번째 과목`}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeSubjectCatalogItem(index)}
-                  className="icon-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#E6D5C9] bg-[#FDFBF7] text-[#B05A47] transition-colors hover:border-[#C74C3D] hover:bg-[#FFF1EC]"
-                  title="과목 삭제"
-                  aria-label={`${subject} 삭제`}
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="subject-catalog-add-row mt-3 flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            value={newSubjectName}
-            onChange={(event) => setNewSubjectName(event.target.value)}
-            onFocus={beginSubjectCatalogEdit}
-            onBlur={endSubjectCatalogEdit}
-            maxLength={MAX_SUBJECT_NAME_LENGTH}
-            onKeyDown={(event) => {
-              if (isComposingKeyboardEvent(event) || event.altKey || event.ctrlKey || event.metaKey) return;
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                addSubjectCatalogItem();
-              }
-            }}
-            className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[#D7E2D1] bg-white px-3 py-2.5 text-[0.95rem] font-bold text-[#3F2B20] outline-none transition-colors hover:border-[#9FC7B8] focus:border-[#5C8D5D] focus:ring-2 focus:ring-[#5C8D5D]/20"
-            placeholder="새 과목"
-          />
-          <button
-            type="button"
-            onClick={addSubjectCatalogItem}
-            disabled={!normalizeSubjectName(newSubjectName) || subjectCatalog.includes(normalizeSubjectName(newSubjectName))}
-            className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#5C8D5D] bg-[#5C8D5D] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#476F48] disabled:cursor-not-allowed disabled:border-[#C9D8C9] disabled:bg-[#8FA98F]"
-          >
-            <Plus size={18} />
-            과목 추가
-          </button>
-        </div>
-      </section>
+        ))
+      )}
     </div>
+
+    <div className="subject-catalog-add-row mt-3 flex flex-col gap-2 sm:flex-row">
+      <input
+        type="text"
+        value={newSubjectName}
+        onChange={(event) => setNewSubjectName(event.target.value)}
+        onFocus={beginSubjectCatalogEdit}
+        onBlur={endSubjectCatalogEdit}
+        maxLength={MAX_SUBJECT_NAME_LENGTH}
+        onKeyDown={(event) => {
+          if (isComposingKeyboardEvent(event) || event.altKey || event.ctrlKey || event.metaKey) return;
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            addSubjectCatalogItem();
+          }
+        }}
+        className="subject-catalog-input min-w-0 flex-1 rounded-xl border border-[var(--teacher-border)] bg-white px-3 py-2.5 text-[0.95rem] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20"
+        placeholder="새 과목"
+      />
+      <button
+        type="button"
+        onClick={addSubjectCatalogItem}
+        disabled={!normalizeSubjectName(newSubjectName) || subjectCatalog.includes(normalizeSubjectName(newSubjectName))}
+        className="add-subject-button inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--teacher-accent)] bg-[var(--teacher-accent)] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[var(--teacher-accent-pressed)] disabled:cursor-not-allowed disabled:border-[var(--teacher-border)] disabled:bg-[var(--teacher-border-strong)]"
+      >
+        <Plus size={18} />
+        과목 추가
+      </button>
+    </div>
+    </>
+  );
+  const subjectWeekSlotTotals = WEEKDAYS.reduce((totals, day) => {
+    for (const slot of subjectClassSlotsByDay[day]) {
+      totals.total += 1;
+      if (getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)) totals.filled += 1;
+    }
+    return totals;
+  }, { filled: 0, total: 0 });
+  const subjectSettingsPanel = (
+    <SettingsPanelFrame
+      label="과목"
+      status={(
+        <>
+          <h3 className="section-title">{selectedSubjectWeekLabel}</h3>
+          <SettingsStatusChip tone={subjectWeekSlotTotals.total > 0 && subjectWeekSlotTotals.filled === subjectWeekSlotTotals.total ? 'accent' : 'neutral'}>
+            {subjectWeekSlotTotals.filled} / {subjectWeekSlotTotals.total}칸
+          </SettingsStatusChip>
+        </>
+      )}
+      action={(
+        <select
+          aria-label="주 선택"
+          value={selectedSubjectWeekKey}
+          onChange={(event) => setSelectedSubjectWeekKey(event.target.value)}
+          className="subject-week-select slot-select min-h-11 w-full min-w-[18rem] cursor-pointer rounded-xl border border-[var(--teacher-border)] bg-white px-3 py-2.5 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:bg-[var(--teacher-surface-muted)]"
+        >
+          {subjectWeekOptions.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
+      details={subjectCatalogSettingsDetails}
+      detailsLabel={`과목 목록 ${subjectCatalog.length}개`}
+    >
+    <section className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
+      {subjectPeriodKeys.length === 0 ? (
+        <div className="empty-slot-state rounded-2xl border border-dashed border-[var(--teacher-border)] bg-white py-10 text-center font-medium text-[var(--teacher-text-secondary)]/60">
+          수업 일정이 없습니다.
+        </div>
+      ) : (
+        <div className="custom-scrollbar overflow-x-auto pb-1">
+          <datalist id={SUBJECT_CATALOG_DATALIST_ID}>
+            {subjectCatalog.map((subject) => <option key={subject} value={subject} />)}
+          </datalist>
+          <table className="subject-week-table w-full min-w-[54rem] border-separate border-spacing-y-2">
+            <thead>
+              <tr>
+                <th className="px-2 pb-2 text-left text-[0.82rem] font-extrabold text-[var(--teacher-text-secondary)]">교시</th>
+                {WEEKDAYS.map((day) => (
+                  <th key={day} className="px-2 pb-2 text-left text-[0.82rem] font-extrabold text-[var(--teacher-text-secondary)]">
+                    {DAYS[day]}요일
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {subjectPeriodKeys.map((subjectKey) => (
+                <tr key={subjectKey}>
+                  <th className="rounded-l-2xl border border-r-0 border-[var(--teacher-border)] bg-white px-3 py-3 text-left">
+                    <span className="slot-period-label inline-flex min-h-10 min-w-[3.4rem] items-center justify-center rounded-xl bg-[var(--teacher-surface-muted)] px-3 text-base font-extrabold text-[var(--teacher-text)]">
+                      {Number.isFinite(Number(subjectKey)) ? subjectKey : subjectKey}
+                    </span>
+                  </th>
+                  {WEEKDAYS.map((day, dayIndex) => {
+                    const slot = subjectClassSlotsByDay[day].find(
+                      (classSlot) => getScheduleSubjectKey(classSlot) === subjectKey,
+                    );
+                    const weeklySubjectValue = slot
+                      ? getWeeklySubject(weeklySubjects, selectedSubjectWeekKey, day, slot)
+                      : '';
+                    const subjectInputState = getSubjectInputState(weeklySubjectValue);
+                    const subjectStatusClass = `slot-subject-input-${subjectInputState}`;
+
+                    return (
+                      <td
+                        key={`${subjectKey}-${day}`}
+                        className={`border-y border-[var(--teacher-border)] bg-white px-2 py-3 ${
+                          dayIndex === WEEKDAYS.length - 1 ? 'rounded-r-2xl border-r pr-3' : ''
+                        }`}
+                      >
+                        {slot ? (
+                          <div className="subject-combobox relative">
+                            <input
+                              type="text"
+                              list={subjectCatalog.length > 0 ? SUBJECT_CATALOG_DATALIST_ID : undefined}
+                              value={weeklySubjectValue}
+                              onChange={(event) => updateWeeklySubject(selectedSubjectWeekKey, day, slot, event.target.value)}
+                              maxLength={MAX_SUBJECT_NAME_LENGTH}
+                              className={`slot-subject-input subject-combobox-input w-full min-w-0 rounded-xl border border-[var(--teacher-border)] bg-[var(--teacher-surface)] py-2.5 pl-3 pr-9 text-[0.95rem] font-bold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border-strong)] focus:border-[var(--teacher-accent)] focus:ring-2 focus:ring-[var(--teacher-accent)]/20 ${subjectStatusClass}`}
+                              data-subject-state={getSubjectInputState(weeklySubjectValue)}
+                              placeholder="선택"
+                              title="목록에서 선택하거나 직접 입력"
+                              aria-label={`${DAYS[day]}요일 ${subjectKey}교시 과목 선택 또는 입력`}
+                            />
+                            <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--teacher-text-secondary)]/70" size={16} />
+                          </div>
+                        ) : (
+                          <span className="block rounded-xl border border-dashed border-[var(--teacher-border)] bg-[var(--teacher-surface)]/70 px-3 py-2.5 text-center text-[0.9rem] font-bold text-[var(--teacher-text-secondary)]/70">
+                            -
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+    </SettingsPanelFrame>
   );
   const drawnBallsSettingsCard = (
-    <div className="settings-card random-history-panel rounded-[1.7rem] border border-[#EEE4D6] p-4 md:p-5">
+    <div className="settings-card random-history-panel rounded-[1.7rem] border border-[var(--teacher-border)] p-4 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2.5">
         <div className="max-w-[32rem]">
-          <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
+          <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">
             {DRAWN_BALLS_SECTION_LABEL}
           </h4>
         </div>
 
-        <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
+        <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
           {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
         </div>
       </div>
@@ -9380,24 +9386,265 @@ export default function TimerPage() {
             })}
           </div>
         ) : (
-          <div className="empty-slot-state flex min-h-[8rem] items-center justify-center rounded-2xl border border-dashed border-[#E6D5C9] bg-white/60 text-center font-medium text-[#8A6347]/60">
+          <div className="empty-slot-state flex min-h-[8rem] items-center justify-center rounded-2xl border border-dashed border-[var(--teacher-border)] bg-white/60 text-center font-medium text-[var(--teacher-text-secondary)]/60">
             {DRAWN_BALLS_EMPTY_LABEL}
           </div>
         )}
       </div>
     </div>
   );
+  const drawSettingsDetails = (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsHiddenDrawSettingsVisible((previous) => !previous)}
+              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
+                isHiddenDrawSettingsVisible || reservedDrawCount > 0
+                  ? 'border-[var(--teacher-border)] bg-[var(--teacher-surface)] text-[var(--teacher-text-secondary)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-warning-soft)]'
+                  : 'border-[var(--teacher-border)] bg-white text-[var(--teacher-text-secondary)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface)]'
+              }`}
+              aria-pressed={isHiddenDrawSettingsVisible}
+              aria-label={SECRET_DRAW_BUTTON_LABEL}
+              title={SECRET_DRAW_BUTTON_LABEL}
+            >
+              <Sparkles size={15} />
+              {SECRET_DRAW_BUTTON_LABEL}
+            </button>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.68fr)]">
+        <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
+          <div className="grid gap-4">
+            <label className="flex flex-col gap-2">
+              <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">이름</span>
+              <input
+                type="text"
+                value={selectedDrawSettingsCase.label}
+                onChange={(event) => updateDrawCaseLabel(selectedDrawSettingsCase.id, event.target.value)}
+                className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                placeholder={getCaseLabelByIndex(Math.max(selectedDrawSettingsCaseIndex, 0))}
+              />
+            </label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-2">
+                <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">시작</span>
+                <input
+                  type="number"
+                  min={MIN_DRAW_NUMBER}
+                  max={MAX_DRAW_NUMBER}
+                  value={selectedDrawSettingsCase.rangeStart}
+                  onChange={(event) =>
+                    updateDrawCaseRange(
+                      selectedDrawSettingsCase.id,
+                      'rangeStart',
+                      event.target.value,
+                      selectedDrawSettingsCase.rangeStart,
+                    )
+                  }
+                  className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="section-title text-[0.95rem] font-bold text-[var(--teacher-text-secondary)]">끝</span>
+                <input
+                  type="number"
+                  min={MIN_DRAW_NUMBER}
+                  max={MAX_DRAW_NUMBER}
+                  value={selectedDrawSettingsCase.rangeEnd}
+                  onChange={(event) =>
+                    updateDrawCaseRange(
+                      selectedDrawSettingsCase.id,
+                      'rangeEnd',
+                      event.target.value,
+                      selectedDrawSettingsCase.rangeEnd,
+                    )
+                  }
+                  className="rounded-[1.1rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="max-w-[32rem]">
+              <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">재등장 연출</h4>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setRepeatPickEnabled((previous) => !previous)}
+              className={`relative inline-flex h-11 w-20 shrink-0 rounded-full transition-colors ${
+                repeatPickEnabled ? 'bg-[var(--teacher-accent)]' : 'bg-[var(--teacher-surface-muted)]'
+              }`}
+              aria-pressed={repeatPickEnabled}
+              aria-label="재등장 연출"
+            >
+              <span
+                className={`absolute top-1 h-9 w-9 rounded-full bg-white shadow-md transition-[left] ${
+                  repeatPickEnabled ? 'left-[2.55rem]' : 'left-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2.5">
+          <div className="max-w-[32rem]">
+            <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">학생 명단</h4>
+          </div>
+
+          <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
+            {assignedStudentNameCount} / {settingsStudentNumbers.length}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
+          <div className="settings-subcard rounded-[1.2rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+            <label className="flex flex-col gap-2.5">
+              <span className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">일괄 입력</span>
+              <textarea
+                value={studentRosterBulkInput}
+                onChange={(event) => setStudentRosterBulkInput(event.target.value)}
+                className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.92rem] font-bold leading-7 text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                placeholder={`김민서\n이서연\n3 박도윤`}
+              />
+            </label>
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
+              <button
+                type="button"
+                onClick={applyBulkStudentRoster}
+                className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-accent)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+              >
+                반영
+              </button>
+            </div>
+          </div>
+
+          <div className="min-h-0">
+            <div className="flex items-center justify-between gap-3">
+              <h5 className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">개별 수정</h5>
+            </div>
+
+            <div className="custom-scrollbar mt-3 max-h-[22rem] overflow-y-auto pr-1">
+              <div className="grid gap-2.5">
+                {settingsStudentNumbers.map((studentNumber, index) => (
+                  <label
+                    key={studentNumber}
+                    className="draw-roster-row grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[var(--teacher-border)] bg-white/90 px-3 py-2.5"
+                  >
+                    <span className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-warning-soft)] px-2 py-2 text-center font-mono text-sm font-extrabold text-[var(--teacher-text-secondary)]">
+                      {studentNumber}
+                    </span>
+                    <input
+                      ref={(node) => setRosterInputRef(studentNumber, node)}
+                      type="text"
+                      value={selectedDrawSettingsCase.studentNames[String(studentNumber)] ?? ''}
+                      onChange={(event) =>
+                        updateDrawStudentName(selectedDrawSettingsCase.id, studentNumber, event.target.value)
+                      }
+                      onKeyDown={(event) => handleRosterInputKeyDown(event, index)}
+                      className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                      placeholder="학생 이름"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {isHiddenDrawSettingsVisible ? (
+          <div className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="max-w-[32rem]">
+                <h4 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">
+                  {SECRET_DRAW_SECTION_LABEL}
+                </h4>
+              </div>
+
+              <div className="settings-count-pill rounded-full border border-[var(--teacher-border)] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[var(--teacher-text-secondary)]">
+                {reservedDrawCount > 0 ? `${reservedDrawCount}개 예약` : SECRET_DRAW_EMPTY_LABEL}
+              </div>
+            </div>
+
+            <div className="settings-subcard mt-4 rounded-[1.2rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
+              <label className="flex flex-col gap-2.5">
+                <span className="section-title text-[0.92rem] font-bold text-[var(--teacher-text-secondary)]">
+                  {SECRET_DRAW_INPUT_LABEL}
+                </span>
+                <input
+                  type="text"
+                  value={hiddenDrawResultInput}
+                  onChange={(event) => setHiddenDrawResultInput(event.target.value)}
+                  className="rounded-[1.05rem] border-2 border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-3 text-[0.95rem] font-extrabold text-[var(--teacher-text)] outline-none transition-colors hover:border-[var(--teacher-border)] focus:border-[var(--teacher-border-strong)]"
+                  placeholder="7, 12, 18"
+                />
+              </label>
+
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={clearHiddenDrawResult}
+                    className="inline-flex items-center justify-center rounded-full border border-[var(--teacher-border)] bg-[var(--teacher-surface)] px-4 py-2 text-[0.84rem] font-extrabold text-[var(--teacher-text-secondary)] transition-colors hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface)]"
+                  >
+                    {SECRET_DRAW_CLEAR_LABEL}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={applyHiddenDrawResult}
+                    className="inline-flex items-center justify-center rounded-full bg-[var(--teacher-accent)] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    {SECRET_DRAW_APPLY_LABEL}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+      ) : null}
+    </>
+  );
   const drawSettingsPanel = (
+    <SettingsPanelFrame
+      label="추첨"
+      status={(
+        <>
+          <h3 className="section-title">{selectedDrawSettingsCaseLabel}</h3>
+          <SettingsStatusChip>범위 {selectedDrawSettingsBounds.minNumber} - {selectedDrawSettingsBounds.maxNumber}</SettingsStatusChip>
+          <SettingsStatusChip>명단 {assignedStudentNameCount} / {settingsStudentNumbers.length}</SettingsStatusChip>
+          <SettingsStatusChip>{DRAW_SHORTCUT_LABEL}</SettingsStatusChip>
+        </>
+      )}
+      action={(
+        <button
+          type="button"
+          onClick={resetActiveDrawCase}
+          disabled={isDrawLocked}
+          className="settings-frame-primary"
+        >
+          <RotateCcw size={17} aria-hidden="true" />
+          {activeDrawLabel} 초기화
+        </button>
+      )}
+      details={drawSettingsDetails}
+    >
     <div className="settings-panel-grid grid gap-4 lg:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)]">
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
+      <section className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5 lg:sticky lg:top-0 lg:self-start">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
-            <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">상황</h3>
+            <h3 className="section-title text-[1.18rem] font-extrabold text-[var(--teacher-text)]">상황</h3>
           </div>
           <button
             type="button"
             onClick={addDrawSettingsCase}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#6F8A65] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[var(--teacher-accent)] px-4 py-2.5 text-[0.92rem] font-bold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)]"
           >
             <Plus size={18} />
             추가
@@ -9414,8 +9661,8 @@ export default function TimerPage() {
                 key={caseState.id}
                 className={`settings-case-card rounded-[1.45rem] border-2 p-3 transition-colors ${
                   isSelected
-                    ? 'settings-case-card-active border-[#B58363] bg-white shadow-[0_10px_20px_rgba(181,131,99,0.12)]'
-                    : 'settings-case-card-idle border-[#E8DCCD] bg-[rgba(255,252,247,0.88)]'
+                    ? 'settings-case-card-active border-[var(--teacher-border-strong)] bg-white shadow-[0_10px_20px_rgba(181,131,99,0.12)]'
+                    : 'settings-case-card-idle border-[var(--teacher-border)] bg-[rgba(255,252,247,0.88)]'
                 }`}
               >
                 <div className="draw-case-heading-row flex items-start gap-3">
@@ -9432,7 +9679,7 @@ export default function TimerPage() {
                     <button
                       type="button"
                       onClick={() => setDrawSettingsCaseId(caseState.id)}
-                      className="mt-1.5 block w-full text-left text-[0.88rem] font-bold leading-6 text-[#B58363]"
+                      className="mt-1.5 block w-full text-left text-[0.88rem] font-bold leading-6 text-[var(--teacher-text-secondary)]"
                     >
                       {getCaseSummaryLabel(caseState)}
                     </button>
@@ -9442,7 +9689,7 @@ export default function TimerPage() {
                     <button
                       type="button"
                       onClick={() => removeDrawSettingsCase(caseState.id)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#B58363] transition-colors hover:bg-[#FFF6ED] hover:text-[#8A6347]"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)] hover:text-[var(--teacher-text-secondary)]"
                       aria-label={`${displayLabel} 삭제`}
                       title={`${displayLabel} 삭제`}
                     >
@@ -9457,273 +9704,10 @@ export default function TimerPage() {
       </section>
 
       <section className="flex min-h-0 flex-col gap-4">
-        <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="section-title text-[1.35rem] font-extrabold text-[#3F2B20]">
-                {selectedDrawSettingsCaseLabel}
-              </h3>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={resetActiveDrawCase}
-                disabled={isDrawLocked}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[#8A6347] transition-colors hover:border-[#CBB39D] hover:bg-[#FFF9F2] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RotateCcw size={15} />
-                {activeDrawLabel} 초기화
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsHiddenDrawSettingsVisible((previous) => !previous)}
-                className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
-                  isHiddenDrawSettingsVisible || reservedDrawCount > 0
-                    ? 'border-[#D5C0AB] bg-[#FFF3E5] text-[#8A6347] hover:border-[#C4AB93] hover:bg-[#FFECD7]'
-                    : 'border-[#DCCBB8] bg-white text-[#8A6347] hover:border-[#CBB39D] hover:bg-[#FFF9F2]'
-                }`}
-                aria-pressed={isHiddenDrawSettingsVisible}
-                aria-label={SECRET_DRAW_BUTTON_LABEL}
-                title={SECRET_DRAW_BUTTON_LABEL}
-              >
-                <Sparkles size={15} />
-                {SECRET_DRAW_BUTTON_LABEL}
-              </button>
-              <div className="inline-flex items-center justify-center rounded-full border border-[#DCCBB8] bg-white px-4 py-2 text-sm font-bold text-[#8A6347]">
-                {DRAW_SHORTCUT_LABEL}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <div className="settings-stat-card rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
-              <div className="settings-eyebrow text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
-                범위
-              </div>
-              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
-                {selectedDrawSettingsBounds.minNumber} - {selectedDrawSettingsBounds.maxNumber}
-              </div>
-            </div>
-            <div className="settings-stat-card rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
-              <div className="settings-eyebrow text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
-                명단
-              </div>
-              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
-                {assignedStudentNameCount} / {settingsStudentNumbers.length}
-              </div>
-            </div>
-            <div className="settings-stat-card rounded-[1.15rem] border border-[#E7DACB] bg-[#FFF9F1] px-4 py-3">
-              <div className="settings-eyebrow text-[0.78rem] font-extrabold uppercase tracking-[0.18em] text-[#B58363]/75">
-                기록
-              </div>
-              <div className="mt-1 text-[1rem] font-extrabold text-[#3F2B20]">
-                {selectedDrawHistoryEntries.length} / {selectedDrawSettingsCaseData.totalCount}
-              </div>
-            </div>
-          </div>
-        </div>
-
         {drawnBallsSettingsCard}
-
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.68fr)]">
-          <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FCF8F1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-            <div className="grid gap-4">
-              <label className="flex flex-col gap-2">
-                <span className="section-title text-[0.95rem] font-bold text-[#B58363]">이름</span>
-                <input
-                  type="text"
-                  value={selectedDrawSettingsCase.label}
-                  onChange={(event) => updateDrawCaseLabel(selectedDrawSettingsCase.id, event.target.value)}
-                  className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
-                  placeholder={getCaseLabelByIndex(Math.max(selectedDrawSettingsCaseIndex, 0))}
-                />
-              </label>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-2">
-                  <span className="section-title text-[0.95rem] font-bold text-[#B58363]">시작</span>
-                  <input
-                    type="number"
-                    min={MIN_DRAW_NUMBER}
-                    max={MAX_DRAW_NUMBER}
-                    value={selectedDrawSettingsCase.rangeStart}
-                    onChange={(event) =>
-                      updateDrawCaseRange(
-                        selectedDrawSettingsCase.id,
-                        'rangeStart',
-                        event.target.value,
-                        selectedDrawSettingsCase.rangeStart,
-                      )
-                    }
-                    className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
-                  />
-                </label>
-
-                <label className="flex flex-col gap-2">
-                  <span className="section-title text-[0.95rem] font-bold text-[#B58363]">끝</span>
-                  <input
-                    type="number"
-                    min={MIN_DRAW_NUMBER}
-                    max={MAX_DRAW_NUMBER}
-                    value={selectedDrawSettingsCase.rangeEnd}
-                    onChange={(event) =>
-                      updateDrawCaseRange(
-                        selectedDrawSettingsCase.id,
-                        'rangeEnd',
-                        event.target.value,
-                        selectedDrawSettingsCase.rangeEnd,
-                      )
-                    }
-                    className="rounded-[1.1rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3.5 text-left font-mono text-[1rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF4EC] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
-            <div className="flex items-start justify-between gap-3">
-              <div className="max-w-[32rem]">
-                <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">재등장 연출</h4>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setRepeatPickEnabled((previous) => !previous)}
-                className={`relative inline-flex h-11 w-20 shrink-0 rounded-full transition-colors ${
-                  repeatPickEnabled ? 'bg-[#6F9A58]' : 'bg-[#E6D5C9]'
-                }`}
-                aria-pressed={repeatPickEnabled}
-                aria-label="재등장 연출"
-              >
-                <span
-                  className={`absolute top-1 h-9 w-9 rounded-full bg-white shadow-md transition-[left] ${
-                    repeatPickEnabled ? 'left-[2.55rem]' : 'left-1'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 md:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-2.5">
-            <div className="max-w-[32rem]">
-              <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">학생 명단</h4>
-            </div>
-
-            <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
-              {assignedStudentNameCount} / {settingsStudentNumbers.length}
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(15rem,18.5rem)_minmax(0,1fr)]">
-            <div className="settings-subcard rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
-              <label className="flex flex-col gap-2.5">
-                <span className="section-title text-[0.92rem] font-bold text-[#B58363]">일괄 입력</span>
-                <textarea
-                  value={studentRosterBulkInput}
-                  onChange={(event) => setStudentRosterBulkInput(event.target.value)}
-                  className="min-h-[8.5rem] resize-y rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.92rem] font-bold leading-7 text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
-                  placeholder={`김민서\n이서연\n3 박도윤`}
-                />
-              </label>
-              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                <button
-                  type="button"
-                  onClick={applyBulkStudentRoster}
-                  className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
-                >
-                  반영
-                </button>
-              </div>
-            </div>
-
-            <div className="min-h-0">
-              <div className="flex items-center justify-between gap-3">
-                <h5 className="section-title text-[0.92rem] font-bold text-[#B58363]">개별 수정</h5>
-              </div>
-
-              <div className="custom-scrollbar mt-3 max-h-[22rem] overflow-y-auto pr-1">
-                <div className="grid gap-2.5">
-                  {settingsStudentNumbers.map((studentNumber, index) => (
-                    <label
-                      key={studentNumber}
-                      className="draw-roster-row grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-2 rounded-[1.05rem] border border-[#E6D5C9] bg-white/90 px-3 py-2.5"
-                    >
-                      <span className="inline-flex items-center justify-center rounded-full bg-[#F7E8D7] px-2 py-2 text-center font-mono text-sm font-extrabold text-[#8A6347]">
-                        {studentNumber}
-                      </span>
-                      <input
-                        ref={(node) => setRosterInputRef(studentNumber, node)}
-                        type="text"
-                        value={selectedDrawSettingsCase.studentNames[String(studentNumber)] ?? ''}
-                        onChange={(event) =>
-                          updateDrawStudentName(selectedDrawSettingsCase.id, studentNumber, event.target.value)
-                        }
-                        onKeyDown={(event) => handleRosterInputKeyDown(event, index)}
-                        className="rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.95rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
-                        placeholder="학생 이름"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {isHiddenDrawSettingsVisible ? (
-            <div className="settings-card rounded-[1.7rem] border border-[#E6D8C9] bg-[#FBF2E9] p-4 md:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="max-w-[32rem]">
-                  <h4 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">
-                    {SECRET_DRAW_SECTION_LABEL}
-                  </h4>
-                </div>
-
-                <div className="settings-count-pill rounded-full border border-[#E6D5C9] bg-white px-4 py-2 text-[0.88rem] font-extrabold text-[#8A6347]">
-                  {reservedDrawCount > 0 ? `${reservedDrawCount}개 예약` : SECRET_DRAW_EMPTY_LABEL}
-                </div>
-              </div>
-
-              <div className="settings-subcard mt-4 rounded-[1.2rem] border border-[#E7DACB] bg-[#FFF9F1] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.78)]">
-                <label className="flex flex-col gap-2.5">
-                  <span className="section-title text-[0.92rem] font-bold text-[#B58363]">
-                    {SECRET_DRAW_INPUT_LABEL}
-                  </span>
-                  <input
-                    type="text"
-                    value={hiddenDrawResultInput}
-                    onChange={(event) => setHiddenDrawResultInput(event.target.value)}
-                    className="rounded-[1.05rem] border-2 border-[#E4D9CB] bg-[#FCF8F1] px-4 py-3 text-[0.95rem] font-extrabold text-[#3F2B20] outline-none transition-colors hover:border-[#CFB8A1] focus:border-[#B58363]"
-                    placeholder="7, 12, 18"
-                  />
-                </label>
-
-                <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={clearHiddenDrawResult}
-                      className="inline-flex items-center justify-center rounded-full border border-[#D9C8B6] bg-[#FFF7EC] px-4 py-2 text-[0.84rem] font-extrabold text-[#8A6347] transition-colors hover:border-[#C9B19A] hover:bg-[#FFF2E3]"
-                    >
-                      {SECRET_DRAW_CLEAR_LABEL}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={applyHiddenDrawResult}
-                      className="inline-flex items-center justify-center rounded-full bg-[#6F8A65] px-4 py-2 text-[0.88rem] font-extrabold text-white shadow-[0_10px_18px_rgba(95,133,79,0.16)] transition-transform hover:scale-[1.01] active:scale-[0.99]"
-                    >
-                      {SECRET_DRAW_APPLY_LABEL}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-        ) : null}
       </section>
     </div>
+    </SettingsPanelFrame>
   );
 
   const auctionVisibleDayCount = getAuctionVisibleDayCount();
@@ -10093,8 +10077,23 @@ export default function TimerPage() {
   };
 
   const bookstoreSettingsPanel = (
+    <SettingsPanelFrame
+      label="우수글 진열대"
+      status={(
+        <>
+          <h3 id="teacher-bookstore-title" className="section-title">우수글 진열대</h3>
+          <SettingsStatusChip>{bookstoreSettings.featuredWritings.length}편</SettingsStatusChip>
+        </>
+      )}
+      action={(
+        <button type="button" className="settings-frame-primary" onClick={addFeaturedWriting}>
+          <Plus size={18} aria-hidden="true" />
+          우수글 추가
+        </button>
+      )}
+    >
     <section
-      className="settings-card teacher-bookstore-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5"
+      className="settings-card teacher-bookstore-settings rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5"
       aria-labelledby="teacher-bookstore-title"
       onFocusCapture={() => {
         isEditingBookstoreRef.current = true;
@@ -10105,15 +10104,6 @@ export default function TimerPage() {
         }
       }}
     >
-      <header className="teacher-bookstore-header">
-        <div>
-          <h3 id="teacher-bookstore-title">우수글 진열대</h3>
-        </div>
-        <button type="button" onClick={addFeaturedWriting}>
-          <Plus size={18} aria-hidden="true" /> 우수글 추가
-        </button>
-      </header>
-
       {bookstoreSettings.featuredWritings.length > 0 ? (
         <div className="teacher-featured-writing-list">
           {bookstoreSettings.featuredWritings.map((writing, index) => {
@@ -10201,6 +10191,7 @@ export default function TimerPage() {
         </div>
       )}
     </section>
+    </SettingsPanelFrame>
   );
 
   const assignedStudentByProfile = new Map(
@@ -10217,21 +10208,32 @@ export default function TimerPage() {
   const teacherStudentCharacterRoster = getStudentCharacterRoster();
 
   const shopSettingsPanel = (
-    <section className="teacher-shop-hub" aria-labelledby="teacher-shop-title">
-      <h2 id="teacher-shop-title" className="sr-only">기타 설정</h2>
-      <nav className="teacher-shop-tabs" aria-label="기타 세부 설정" role="tablist">
-        <button type="button" role="tab" id="teacher-shop-tab-items" aria-controls="teacher-shop-panel-items" aria-selected={teacherShopTab === 'items'} className={teacherShopTab === 'items' ? 'is-active' : ''} onClick={() => setTeacherShopTab('items')}><Users aria-hidden="true" /><span>프로필</span></button>
-        <button type="button" role="tab" id="teacher-shop-tab-skins" aria-controls="teacher-shop-panel-skins" aria-selected={teacherShopTab === 'skins'} className={teacherShopTab === 'skins' ? 'is-active' : ''} onClick={() => setTeacherShopTab('skins')}><Gamepad2 aria-hidden="true" /><span>고마 스킨 뽑기</span></button>
-        <button type="button" role="tab" id="teacher-shop-tab-houses" aria-controls="teacher-shop-panel-houses" aria-selected={teacherShopTab === 'houses'} className={teacherShopTab === 'houses' ? 'is-active' : ''} onClick={() => setTeacherShopTab('houses')}><Hammer aria-hidden="true" /><span>집</span></button>
-        <button type="button" role="tab" id="teacher-shop-tab-characters" aria-controls="teacher-shop-panel-characters" aria-selected={teacherShopTab === 'characters'} className={teacherShopTab === 'characters' ? 'is-active' : ''} onClick={() => setTeacherShopTab('characters')}><PersonStanding aria-hidden="true" /><span>캐릭터</span></button>
-      </nav>
+    <SettingsPanelFrame
+      label="기타 설정"
+      className="teacher-shop-hub"
+      status={(
+        <>
+          <nav className="teacher-shop-tabs" aria-label="기타 세부 설정" role="tablist">
+            <button type="button" role="tab" id="teacher-shop-tab-items" aria-controls="teacher-shop-panel-items" aria-selected={teacherShopTab === 'items'} className={teacherShopTab === 'items' ? 'is-active' : ''} onClick={() => setTeacherShopTab('items')}><Users aria-hidden="true" /><span>프로필</span></button>
+            <button type="button" role="tab" id="teacher-shop-tab-skins" aria-controls="teacher-shop-panel-skins" aria-selected={teacherShopTab === 'skins'} className={teacherShopTab === 'skins' ? 'is-active' : ''} onClick={() => setTeacherShopTab('skins')}><Gamepad2 aria-hidden="true" /><span>고마 스킨 뽑기</span></button>
+            <button type="button" role="tab" id="teacher-shop-tab-houses" aria-controls="teacher-shop-panel-houses" aria-selected={teacherShopTab === 'houses'} className={teacherShopTab === 'houses' ? 'is-active' : ''} onClick={() => setTeacherShopTab('houses')}><Hammer aria-hidden="true" /><span>집</span></button>
+            <button type="button" role="tab" id="teacher-shop-tab-characters" aria-controls="teacher-shop-panel-characters" aria-selected={teacherShopTab === 'characters'} className={teacherShopTab === 'characters' ? 'is-active' : ''} onClick={() => setTeacherShopTab('characters')}><PersonStanding aria-hidden="true" /><span>캐릭터</span></button>
+          </nav>
+          <SettingsStatusChip>
+            {teacherShopTab === 'items'
+              ? `사용 중 ${teacherUsedProfiles.length} / ${teacherAvailableProfiles.length + teacherUsedProfiles.length}`
+              : teacherShopTab === 'skins'
+                ? `${STUDENT_CHARACTER_PRIZES.length}종`
+                : teacherShopTab === 'houses'
+                  ? `${STUDENT_HOUSE_DESIGNS.length}채`
+                  : '1~23번'}
+          </SettingsStatusChip>
+        </>
+      )}
+    >
 
       {teacherShopTab === 'items' ? (
-        <section id="teacher-shop-panel-items" role="tabpanel" aria-labelledby="teacher-shop-tab-items" className="settings-card teacher-shop-collection teacher-shop-profiles rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
-          <header>
-            <div><h3>전체 프로필</h3><p>학생에게 배정된 프로필은 사용 중으로 표시됩니다.</p></div>
-            <span>사용 가능 {teacherAvailableProfiles.length} · 사용 중 {teacherUsedProfiles.length}</span>
-          </header>
+        <section id="teacher-shop-panel-items" role="tabpanel" aria-labelledby="teacher-shop-tab-items" className="settings-card teacher-shop-collection teacher-shop-profiles rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
           <div className="teacher-shop-profile-groups">
             <section aria-labelledby="teacher-profile-available-title">
               <header>
@@ -10266,8 +10268,7 @@ export default function TimerPage() {
       ) : null}
 
       {teacherShopTab === 'skins' ? (
-        <section id="teacher-shop-panel-skins" role="tabpanel" aria-labelledby="teacher-shop-tab-skins" className="settings-card teacher-shop-collection teacher-shop-skins rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
-          <header><div><h3>고마 스킨 도감</h3><p>학생이 뽑을 수 있는 전체 스킨</p></div><span>{STUDENT_CHARACTER_PRIZES.length}종</span></header>
+        <section id="teacher-shop-panel-skins" role="tabpanel" aria-labelledby="teacher-shop-tab-skins" className="settings-card teacher-shop-collection teacher-shop-skins rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
           <div className="teacher-shop-skin-list">
             {STUDENT_CHARACTER_PRIZES.map((character) => (
               <article key={character.id}>
@@ -10280,8 +10281,7 @@ export default function TimerPage() {
       ) : null}
 
       {teacherShopTab === 'houses' ? (
-        <section id="teacher-shop-panel-houses" role="tabpanel" aria-labelledby="teacher-shop-tab-houses" className="settings-card teacher-shop-collection teacher-shop-houses rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
-          <header><div><h3>구매 가능한 집</h3></div><span>{STUDENT_HOUSE_DESIGNS.length}채</span></header>
+        <section id="teacher-shop-panel-houses" role="tabpanel" aria-labelledby="teacher-shop-tab-houses" className="settings-card teacher-shop-collection teacher-shop-houses rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
           <div className="teacher-shop-house-list">
             {orderTeacherHouseShopCatalog().map((house) => (
               <article key={house.id}>
@@ -10295,8 +10295,7 @@ export default function TimerPage() {
       ) : null}
 
       {teacherShopTab === 'characters' ? (
-        <section id="teacher-shop-panel-characters" role="tabpanel" aria-labelledby="teacher-shop-tab-characters" className="settings-card teacher-shop-collection teacher-shop-characters rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5">
-          <header><div><h3>교실 캐릭터</h3><p>교사 화면에서 돌아다니는 학생 제작 캐릭터</p></div><span>1~23번</span></header>
+        <section id="teacher-shop-panel-characters" role="tabpanel" aria-labelledby="teacher-shop-tab-characters" className="settings-card teacher-shop-collection teacher-shop-characters rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 md:p-5">
           <div className="teacher-shop-character-grid">
             {teacherStudentCharacterRoster.map(({ studentNumber, characters }) => (
               <article key={studentNumber} data-empty={characters.length === 0 ? 'true' : undefined} aria-label={`${studentNumber}번 캐릭터 ${characters.length}개`}>
@@ -10324,7 +10323,7 @@ export default function TimerPage() {
           </div>
         </section>
       ) : null}
-    </section>
+    </SettingsPanelFrame>
   );
 
   const investmentSettings = normalizeStudentInvestmentSettings(studentStockMarket.settings);
@@ -10390,26 +10389,33 @@ export default function TimerPage() {
   };
 
   const stockSettingsPanel = (
-    <section className="settings-card teacher-stock-settings" aria-labelledby="teacher-stock-title">
-      <h3 id="teacher-stock-title" className="sr-only">증권 설정</h3>
-      <nav className="teacher-stock-tabs" role="tablist" aria-label="증권 세부 설정">
-        {([
-          { id: 'week', label: '주간 등락' },
-          { id: 'import', label: '일괄 등록' },
-          { id: 'rules', label: '운영 규칙' },
-          { id: 'students', label: '투자 현황' },
-        ] as const).map((tab, index, tabs) => (
-          <button key={tab.id} type="button" role="tab" id={`teacher-stock-tab-${tab.id}`} aria-controls={`teacher-stock-panel-${tab.id}`} aria-selected={stockSettingsTab === tab.id} tabIndex={stockSettingsTab === tab.id ? 0 : -1} onClick={() => setStockSettingsTab(tab.id)} onKeyDown={(event) => {
-            const nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabs.length
-              : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
-              : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null;
-            if (nextIndex === null) return;
-            event.preventDefault();
-            setStockSettingsTab(tabs[nextIndex].id);
-            event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#teacher-stock-tab-${tabs[nextIndex].id}`)?.focus();
-          }}>{tab.label}</button>
-        ))}
-      </nav>
+    <SettingsPanelFrame
+      label="증권 설정"
+      className="settings-card teacher-stock-settings"
+      status={(
+          <nav className="teacher-stock-tabs" role="tablist" aria-label="증권 세부 설정">
+            {([
+              { id: 'week', label: '주간 등락' },
+              { id: 'import', label: '일괄 등록' },
+              { id: 'rules', label: '운영 규칙' },
+              { id: 'students', label: '투자 현황' },
+            ] as const).map((tab, index, tabs) => (
+              <button key={tab.id} type="button" role="tab" id={`teacher-stock-tab-${tab.id}`} aria-controls={`teacher-stock-panel-${tab.id}`} aria-selected={stockSettingsTab === tab.id} tabIndex={stockSettingsTab === tab.id ? 0 : -1} onClick={() => setStockSettingsTab(tab.id)} onKeyDown={(event) => {
+                const nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabs.length
+                  : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+                  : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null;
+                if (nextIndex === null) return;
+                event.preventDefault();
+                setStockSettingsTab(tabs[nextIndex].id);
+                event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#teacher-stock-tab-${tabs[nextIndex].id}`)?.focus();
+              }}>{tab.label}</button>
+            ))}
+          </nav>
+      )}
+      action={stockSettingsTab === 'week' ? (
+        <button type="button" className="settings-frame-primary" title="미등록 항목을 제외한 등락·휴장·이유 저장" onClick={saveStockMarketWeek}>선택한 주 저장</button>
+      ) : undefined}
+    >
       <div className="teacher-stock-week">
         {stockSettingsTab === 'week' || stockSettingsTab === 'import' ? <header>
           <div>
@@ -10424,7 +10430,6 @@ export default function TimerPage() {
               <button type="button" onClick={() => shiftStockMarketWeek(7)} aria-label="다음 주"><ChevronRight size={18} /></button>
             </div>
             <label className="teacher-stock-week-date"><span className="sr-only">포함 날짜</span><input type="date" value={stockMarketDateKey} onChange={(event) => { if (event.target.value) setStockMarketDateKey(event.target.value); }} /></label>
-            {stockSettingsTab === 'week' ? <button type="button" className="is-primary" title="미등록 항목을 제외한 등락·휴장·이유 저장" onClick={saveStockMarketWeek}>선택한 주 저장</button> : null}
           </div>
         </header> : null}
         <div className="teacher-stock-tab-panel" id="teacher-stock-panel-week" role="tabpanel" aria-labelledby="teacher-stock-tab-week" hidden={stockSettingsTab !== 'week'} tabIndex={0}>
@@ -10502,7 +10507,7 @@ export default function TimerPage() {
           <TeacherInvestmentStatus states={studentEconomyStates} market={studentStockMarket} dateKey={getKoreanLocalDateKey()} />
         </div>
       </div>
-    </section>
+    </SettingsPanelFrame>
   );
 
   const mailSenderStamp = mailSender === '목수 고키리' ? HOUSE_MAIL_STAMP
@@ -10513,20 +10518,29 @@ export default function TimerPage() {
     : '/(편지용) 선생님.png';
 
   const mailSettingsPanel = (
-    <section className="settings-card teacher-mail-settings rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 md:p-5" aria-labelledby="teacher-mail-title">
+    <SettingsPanelFrame
+      label="편지"
+      className="settings-frame-fill"
+      status={(
+        <>
+          <h3 className="section-title">대화</h3>
+          {unreadTeacherLetterCount > 0 ? <SettingsStatusChip tone="urgent">새 편지 {unreadTeacherLetterCount}개</SettingsStatusChip> : null}
+        </>
+      )}
+      action={(
+        <button type="button" className="settings-frame-primary" disabled={isMailSending} onClick={() => {
+          mailEditVersionRef.current++;
+          setIsStartingTeacherConversation(true);
+          setMailTitle('');
+          setMailContent('');
+          setMailStatus('');
+        }}>
+          <Plus size={18} aria-hidden="true" />새 편지
+        </button>
+      )}
+    >
+    <div className="teacher-mail-settings">
       <aside className="teacher-mail-inbox">
-        <header className="teacher-mail-section-header">
-          <h3 id="teacher-mail-title">대화</h3>
-          <button type="button" className="teacher-mail-new-button" disabled={isMailSending} onClick={() => {
-            mailEditVersionRef.current++;
-            setIsStartingTeacherConversation(true);
-            setMailTitle('');
-            setMailContent('');
-            setMailStatus('');
-          }}>
-            <Plus size={15} aria-hidden="true" />새 편지
-          </button>
-        </header>
         <nav className="teacher-mail-list" aria-label="학생별 편지 대화 목록">
           {sortedTeacherMailConversations.map(({ studentNumber, latestLetter, unreadCount }) => (
             <button
@@ -10615,7 +10629,8 @@ export default function TimerPage() {
           </div>
         </div>
       </div>
-    </section>
+    </div>
+    </SettingsPanelFrame>
   );
 
   const writingSettingsPanel = (
@@ -10632,8 +10647,19 @@ export default function TimerPage() {
     />
   );
 
+  const todayEmotionRecordedCount = Array.from({ length: 23 }, (_, index) => index + 1)
+    .filter((number) => getTodayStudentEmotionEntry(studentEmotionHistory, number)).length;
   const emotionSettingsPanel = (
-    <section className="emotion-status-settings settings-card rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5" aria-label="학생별 오늘 감정">
+    <SettingsPanelFrame
+      label="감정"
+      status={(
+        <>
+          <h3 className="section-title">오늘 감정</h3>
+          <SettingsStatusChip tone={todayEmotionRecordedCount === 23 ? 'accent' : 'neutral'}>기록 {todayEmotionRecordedCount} / 23</SettingsStatusChip>
+        </>
+      )}
+    >
+    <section className="emotion-status-settings settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5" aria-label="학생별 오늘 감정">
       <div className="emotion-status-layout">
         <div className="emotion-status-student-grid">
           {Array.from({ length: 23 }, (_, index) => index + 1).map((number) => {
@@ -10791,6 +10817,7 @@ export default function TimerPage() {
         </div>
       </div>
     </section>
+    </SettingsPanelFrame>
   );
 
   const retryTeacherSettingsSave = async () => {
@@ -10958,24 +10985,29 @@ export default function TimerPage() {
   );
 
   const currencyHistorySettingsPanel = (
-    <section className="settings-card rounded-[1.7rem] border border-[#DDE9E2] bg-[#FFFCF7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5" aria-labelledby="currency-history-title">
-      <header className="mb-3 flex items-center justify-between gap-3 border-b border-[#E4EDE7] pb-3">
-        <h3 id="currency-history-title" className="section-title text-lg font-extrabold text-[#3F2B20]">오늘 입출금</h3>
-        <span className="rounded-full bg-[#F1F7F3] px-3 py-1 text-[0.875rem] font-black tabular-nums text-[#385348]">{currencyTodayHistoryCount}건</span>
-      </header>
+    <SettingsPanelFrame
+      label="입출금"
+      status={(
+        <>
+          <h3 id="currency-history-title" className="section-title">오늘 입출금</h3>
+          <SettingsStatusChip tone={currencyTodayHistoryCount > 0 ? 'accent' : 'neutral'}>{currencyTodayHistoryCount}건</SettingsStatusChip>
+        </>
+      )}
+    >
+    <section className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="학생별 당일 입출금">
         {currencyTodayHistoryByStudent.map(({ studentNumber, entries, incoming, outgoing }) => (
           entries.length > 0 ? (
-            <details key={studentNumber} className="min-w-0 rounded-[0.85rem] border border-[#D6E3DB] bg-white">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-1.5 rounded-[0.85rem] px-2.5 py-2 text-[0.9rem] font-extrabold text-[#30473D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#006241]">
-                <span className="shrink-0">{studentNumber}번 <span className="text-[0.8rem] font-bold text-[#65746C]">{entries.length}건</span></span>
+            <details key={studentNumber} className="min-w-0 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-1.5 rounded-[0.85rem] px-2.5 py-2 text-[0.9rem] font-extrabold text-[var(--teacher-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--teacher-focus)]">
+                <span className="shrink-0">{studentNumber}번 <span className="text-[0.8rem] font-bold text-[var(--teacher-text-secondary)]">{entries.length}건</span></span>
                 <span className="flex min-w-0 items-center gap-1.5 font-mono text-[0.82rem] font-bold tabular-nums">
-                  {incoming > 0 && <span className="truncate text-[#006241]">+{formatCurrencyAmount(incoming)}</span>}
-                  {outgoing > 0 && <span className="truncate text-[#8A4B2B]">−{formatCurrencyAmount(outgoing)}</span>}
+                  {incoming > 0 && <span className="truncate text-[var(--teacher-accent)]">+{formatCurrencyAmount(incoming)}</span>}
+                  {outgoing > 0 && <span className="truncate text-[var(--teacher-urgent)]">−{formatCurrencyAmount(outgoing)}</span>}
                 </span>
-                <ChevronDown size={16} className="shrink-0 text-[#65746C]" aria-hidden="true" />
+                <ChevronDown size={16} className="shrink-0 text-[var(--teacher-text-secondary)]" aria-hidden="true" />
               </summary>
-              <ol className="divide-y divide-[#EEF2EF] px-2.5">
+              <ol className="divide-y divide-[var(--teacher-border)] px-2.5">
                 {entries.map((entry) => {
                   const createdAt = new Date(entry.createdAt);
                   const isIncoming = entry.delta >= 0;
@@ -10983,12 +11015,12 @@ export default function TimerPage() {
                     <li key={entry.id} className="flex min-w-0 items-center justify-between gap-2 py-2 text-[0.8125rem]">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <time dateTime={entry.createdAt} className="shrink-0 font-mono tabular-nums text-[#65746C]">{currencyHistoryTimeFormatter.format(createdAt)}</time>
-                          <span className="truncate font-bold text-[#46584F]">{currencyHistoryReasonLabels[entry.reason]}</span>
+                          <time dateTime={entry.createdAt} className="shrink-0 font-mono tabular-nums text-[var(--teacher-text-secondary)]">{currencyHistoryTimeFormatter.format(createdAt)}</time>
+                          <span className="truncate font-bold text-[var(--teacher-text)]">{currencyHistoryReasonLabels[entry.reason]}</span>
                         </div>
-                        <span className="font-mono text-[0.75rem] tabular-nums text-[#65746C]">{formatCurrencyAmount(entry.before)} → {formatCurrencyAmount(entry.after)}</span>
+                        <span className="font-mono text-[0.75rem] tabular-nums text-[var(--teacher-text-secondary)]">{formatCurrencyAmount(entry.before)} → {formatCurrencyAmount(entry.after)}</span>
                       </div>
-                      <strong className={`shrink-0 font-mono tabular-nums ${isIncoming ? 'text-[#006241]' : 'text-[#8A4B2B]'}`}>
+                      <strong className={`shrink-0 font-mono tabular-nums ${isIncoming ? 'text-[var(--teacher-accent)]' : 'text-[var(--teacher-urgent)]'}`}>
                         {isIncoming ? '+' : '−'}{formatCurrencyAmount(Math.abs(entry.delta))}
                       </strong>
                     </li>
@@ -10997,37 +11029,59 @@ export default function TimerPage() {
               </ol>
             </details>
           ) : (
-            <div key={studentNumber} className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-[0.85rem] border border-[#D6E3DB] bg-white px-2.5 py-2 text-[0.9rem]">
-              <strong className="font-extrabold text-[#30473D]">{studentNumber}번</strong>
-              <span className="font-mono text-[0.8rem] font-bold tabular-nums text-[#65746C]">0건</span>
+            <div key={studentNumber} className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-2.5 py-2 text-[0.9rem]">
+              <strong className="font-extrabold text-[var(--teacher-text)]">{studentNumber}번</strong>
+              <span className="font-mono text-[0.8rem] font-bold tabular-nums text-[var(--teacher-text-secondary)]">0건</span>
             </div>
           )
         ))}
       </div>
     </section>
+    </SettingsPanelFrame>
   );
 
   const auctionSettingsPanel = (
     <div className="settings-panel-grid grid gap-4">
       {settingsPanel === 'donation' ? (
-      <section
-        className="settings-card rounded-[1.7rem] border border-[#CFE3D8] bg-[#F7FBF9] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5"
+      <SettingsPanelFrame
+        label="기부"
+        status={(
+          <>
+            <h3 className="section-title">{classDonation.itemName.trim() || '기부'}</h3>
+            <SettingsStatusChip tone={classDonation.totalAmount >= classDonation.targetAmount ? 'accent' : 'neutral'}>
+              {formatCurrency(classDonation.totalAmount)} / {formatCurrency(classDonation.targetAmount)}
+            </SettingsStatusChip>
+          </>
+        )}
+        action={(
+            <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--teacher-border)] bg-white px-4 font-extrabold text-[var(--teacher-accent)]">
+              <input
+                type="checkbox"
+                checked={classDonation.enabled}
+                onChange={(event) => setClassDonation((previous) => ({ ...previous, enabled: event.target.checked }))}
+                className="h-5 w-5 accent-[var(--teacher-accent)]"
+              />
+              사용
+            </label>
+        )}
+        details={(
+          <button
+            type="button"
+            onClick={() => void resetClassDonation()}
+            disabled={classDonation.totalAmount === 0 && classDonation.history.length === 0}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-4 text-[0.84rem] font-extrabold text-[var(--teacher-text)] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            새 목표로 초기화
+          </button>
+        )}
+        detailsLabel="목표 관리"
       >
-        <div className="flex items-center justify-end">
-          <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#B9D7CA] bg-white px-4 font-extrabold text-[#006B4D]">
-            <input
-              type="checkbox"
-              checked={classDonation.enabled}
-              onChange={(event) => setClassDonation((previous) => ({ ...previous, enabled: event.target.checked }))}
-              className="h-5 w-5 accent-[#007A57]"
-            />
-            사용
-          </label>
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
+      <section
+        className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5"
+      >
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
           <label className="grid gap-1.5">
-            <span className="section-title text-[0.76rem] font-black text-[#6F7D70]">기부 물품명</span>
+            <span className="section-title text-[0.76rem] font-black text-[var(--teacher-text-secondary)]">기부 물품명</span>
             <input
               type="text"
               value={classDonation.itemName}
@@ -11035,12 +11089,12 @@ export default function TimerPage() {
                 ...previous,
                 itemName: event.target.value.slice(0, 60),
               }))}
-              className="h-11 rounded-[0.85rem] border border-[#CFE3D8] bg-white px-3 font-extrabold text-[#1F2523] outline-none focus:border-[#7FB59F]"
+              className="h-11 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-3 font-extrabold text-[var(--teacher-text)] outline-none focus:border-[var(--teacher-border-strong)]"
               placeholder="교사용 물품명"
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="section-title text-[0.76rem] font-black text-[#6F7D70]">목표 고마</span>
+            <span className="section-title text-[0.76rem] font-black text-[var(--teacher-text-secondary)]">목표 고마</span>
             <input
               type="number"
               min="1"
@@ -11057,20 +11111,14 @@ export default function TimerPage() {
                   targetAmount,
                 }));
               }}
-              className="h-11 rounded-[0.85rem] border border-[#CFE3D8] bg-white px-3 text-right font-mono font-black text-[#1F2523] outline-none focus:border-[#7FB59F]"
+              className="h-11 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-3 text-right font-mono font-black text-[var(--teacher-text)] outline-none focus:border-[var(--teacher-border-strong)]"
             />
           </label>
         </div>
 
-        <div className="mt-3 rounded-[1rem] border border-[#DCEAE3] bg-white px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[0.78rem] font-extrabold text-[#6F7D70]">진행</span>
-            <strong className="font-mono text-[1rem] font-black text-[#007A57]">
-              {formatCurrency(classDonation.totalAmount)} / {formatCurrency(classDonation.targetAmount)}
-            </strong>
-          </div>
+        <div className="mt-3 rounded-[1rem] border border-[var(--teacher-border)] bg-white px-4 py-3">
           <progress
-            className="teacher-donation-progress mt-2 h-2.5 w-full overflow-hidden rounded-full"
+            className="teacher-donation-progress h-2.5 w-full overflow-hidden rounded-full"
             value={classDonation.totalAmount}
             max={Math.max(classDonation.targetAmount, 1)}
             aria-label="기부 진행률"
@@ -11078,63 +11126,94 @@ export default function TimerPage() {
         </div>
 
         {classDonation.history.length > 0 ? (
-          <details className="settings-disclosure mt-3 rounded-[1rem] border border-[#DCEAE3] bg-white">
-            <summary className="min-h-11 cursor-pointer px-4 py-3 text-[0.84rem] font-extrabold text-[#46534B]">
+          <details className="settings-disclosure mt-3 rounded-[1rem] border border-[var(--teacher-border)] bg-white">
+            <summary className="min-h-11 cursor-pointer px-4 py-3 text-[0.84rem] font-extrabold text-[var(--teacher-text)]">
               기부 기록 {classDonation.history.length}건
             </summary>
-            <div className="custom-scrollbar max-h-44 overflow-y-auto border-t border-[#EDF2EF] p-2">
+            <div className="custom-scrollbar max-h-44 overflow-y-auto border-t border-[var(--teacher-border)] p-2">
               {classDonation.history.map((entry) => (
-                <div key={entry.id} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-[#EDF2EF] px-2 py-2 last:border-b-0">
-                  <span className="font-extrabold text-[#38423D]">{entry.studentNumber}번</span>
-                  <span className="text-[0.78rem] font-bold text-[#7A8780]">{new Date(entry.createdAt).toLocaleString('ko-KR')}</span>
-                  <span className="font-mono font-black text-[#007A57]">{formatCurrency(entry.amount)}</span>
+                <div key={entry.id} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--teacher-border)] px-2 py-2 last:border-b-0">
+                  <span className="font-extrabold text-[var(--teacher-text)]">{entry.studentNumber}번</span>
+                  <span className="text-[0.78rem] font-bold text-[var(--teacher-text-secondary)]">{new Date(entry.createdAt).toLocaleString('ko-KR')}</span>
+                  <span className="font-mono font-black text-[var(--teacher-accent)]">{formatCurrency(entry.amount)}</span>
                 </div>
               ))}
             </div>
           </details>
         ) : null}
 
-        <details className="settings-disclosure mt-3 rounded-[1rem] border border-[#E4D7C9] bg-white/70">
-          <summary className="min-h-11 cursor-pointer px-4 py-3 text-[0.84rem] font-extrabold text-[#6E5139]">
-            목표 관리
-          </summary>
-          <div className="border-t border-[#EEE4D6] p-3">
-            <button
-              type="button"
-              onClick={() => void resetClassDonation()}
-              disabled={classDonation.totalAmount === 0 && classDonation.history.length === 0}
-              className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border border-[#D8B6A2] bg-white px-4 text-[0.84rem] font-extrabold text-[#7A4C24] disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              새 목표로 초기화
-            </button>
-          </div>
-        </details>
       </section>
+      </SettingsPanelFrame>
       ) : null}
 
       {settingsPanel === 'auction' ? (
-      <section
-        className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FBF6EF] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5"
+      <SettingsPanelFrame
+        label="경매"
+        status={(
+          <>
+            <h3 className="section-title">물품 설정 및 현황</h3>
+            <SettingsStatusChip>등록 물품 {auctionItems.filter((item) => !isUnusedAuctionItem(item)).length}개</SettingsStatusChip>
+            {isTodayAuctionUnregistered ? <SettingsStatusChip tone="urgent">오늘 미등록</SettingsStatusChip> : null}
+            <div className="status-slot flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">{auctionItemsSaveStatus !== 'idle' && <>
+              <span>{auctionItemsSaveStatus === 'error'
+                ? auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE'
+                  ? '서버에 없는 물품이거나 마지막 물품이라 삭제할 수 없습니다. 물품 목록을 확인해 주세요.'
+                  : `물품 저장 확인 불가 (${auctionItemsSaveErrorCode}). 다시 저장해 주세요.`
+                : isRemovingAuctionItem ? '삭제 중…' : auctionItemsSaveStatus === 'pending' ? '저장 중…' : '저장됨'}</span>
+              {auctionItemsSaveStatus === 'error' && <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => {
+                if (auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE') {
+                  void refreshTeacherSavedState();
+                  return;
+                }
+                setAuctionItemsSaveStatus('pending');
+                setAuctionItemEditCommitVersion(previous => previous + 1);
+              }}>{auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE' ? '목록 확인' : '다시 저장'}</button>}
+            </>}</div>
+          </>
+        )}
+        action={(
+          <button
+            type="button"
+            onClick={(event) => {
+              auctionActionReturnFocusRef.current = event.currentTarget;
+              setPendingAuctionAction('weeklyClose');
+            }}
+            disabled={isWeeklyAuctionClosing}
+            className="settings-frame-primary"
+          >
+            {isWeeklyAuctionClosing ? '마감 중…' : '주간 경매 마감'}
+          </button>
+        )}
+        details={(
+          <div className="settings-frame-detail-group">
+            <p className="text-[0.82rem] font-bold leading-5 text-[var(--teacher-text)]">
+              보유 화폐 초기화는 모든 학생의 고마를 100으로 되돌립니다.
+            </p>
+            <button
+              type="button"
+              onClick={(event) => {
+                auctionActionReturnFocusRef.current = event.currentTarget;
+                setPendingAuctionAction('currency');
+              }}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-[0.85rem] border-2 border-[var(--teacher-border-strong)] bg-white px-4 py-2 text-[0.86rem] font-extrabold text-[var(--teacher-urgent)] transition-colors hover:bg-[var(--teacher-warning-soft)]"
+            >
+              보유 화폐 초기화
+            </button>
+          </div>
+        )}
+        detailsLabel="위험 작업"
       >
-        <div className="mb-4">
-          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정 및 현황</h3>
-          <div className="status-slot mt-2 flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">{auctionItemsSaveStatus !== 'idle' && <>
-            <span>{auctionItemsSaveStatus === 'error'
-              ? auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE'
-                ? '서버에 없는 물품이거나 마지막 물품이라 삭제할 수 없습니다. 물품 목록을 확인해 주세요.'
-                : `물품 저장 확인 불가 (${auctionItemsSaveErrorCode}). 다시 저장해 주세요.`
-              : isRemovingAuctionItem ? '삭제 중…' : auctionItemsSaveStatus === 'pending' ? '저장 중…' : '저장됨'}</span>
-            {auctionItemsSaveStatus === 'error' && <button type="button" className="min-h-11 rounded-full border px-4 font-bold" onClick={() => {
-              if (auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE') {
-                void refreshTeacherSavedState();
-                return;
-              }
-              setAuctionItemsSaveStatus('pending');
-              setAuctionItemEditCommitVersion(previous => previous + 1);
-            }}>{auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE' ? '목록 확인' : '다시 저장'}</button>}
-          </>}</div>
-        </div>
-
+        {weeklyAuctionCloseMessage ? (
+          <p
+            className={`text-center text-[0.86rem] font-bold leading-6 ${weeklyAuctionCloseStatus === 'error' ? 'text-[var(--teacher-urgent)]' : 'text-[var(--teacher-accent)]'}`}
+            role={weeklyAuctionCloseStatus === 'error' ? 'alert' : 'status'}
+          >
+            {weeklyAuctionCloseMessage}
+          </p>
+        ) : null}
+      <section
+        className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5"
+      >
         {isAuctionScheduleClosed ? (
           <div className="auction-settings-closed-summary">
             <div className="auction-settings-closed-copy">
@@ -11143,7 +11222,6 @@ export default function TimerPage() {
               </span>
               <div>
                 <strong>경매 일정이 열려 있지 않음</strong>
-                <span>등록 물품 {auctionItems.length}개</span>
               </div>
             </div>
             <button
@@ -11182,7 +11260,7 @@ export default function TimerPage() {
                 }`}
                 style={{
                   borderColor: accent.border,
-                  backgroundColor: isDayPublic ? '#FFFFFF' : accent.soft,
+                  backgroundColor: isDayPublic ? 'var(--apple-surface)' : accent.soft,
                 }}
               >
                 <div
@@ -11206,7 +11284,7 @@ export default function TimerPage() {
                     type="button"
                     onClick={() => addAuctionItem(dayIndex)}
                     disabled={!canAddDayItem}
-                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border bg-white px-3 transition-colors disabled:cursor-not-allowed disabled:border-[#E5DFD8] disabled:bg-[#F4F0EA] disabled:text-[#8A7A6B] lg:w-full"
+                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border bg-white px-3 transition-colors disabled:cursor-not-allowed disabled:border-[var(--teacher-border)] disabled:bg-[var(--teacher-surface)] disabled:text-[var(--teacher-text-secondary)] lg:w-full"
                     style={canAddDayItem ? { borderColor: accent.border, color: accent.chip } : undefined}
                     aria-label={`${weekdayLabel}요일 물품 추가`}
                     title={`${weekdayLabel}요일 물품 추가`}
@@ -11247,7 +11325,7 @@ export default function TimerPage() {
                         }`}
                         style={{
                           borderColor: accent.border,
-                          backgroundColor: isVisibleInSettings ? '#FFFFFF' : accent.soft,
+                          backgroundColor: isVisibleInSettings ? 'var(--apple-surface)' : accent.soft,
                         }}
                       >
                         {isVisibleInSettings ? (
@@ -11258,7 +11336,7 @@ export default function TimerPage() {
                                 onChange={(event) => updateAuctionItem(item.id, { name: event.target.value })}
                                 onFocus={beginAuctionItemEdit}
                                 onBlur={endAuctionItemEdit}
-                                className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border bg-[#FAFCFB] px-3 text-[1rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:bg-white"
+                                className="section-title h-11 min-w-0 flex-1 rounded-[0.85rem] border bg-[var(--teacher-surface-muted)] px-3 text-[1rem] font-black leading-tight text-[var(--teacher-text)] outline-none transition-colors focus:bg-white"
                                 style={{ borderColor: accent.border }}
                                 aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 이름`}
                                 placeholder="물품 이름"
@@ -11267,15 +11345,15 @@ export default function TimerPage() {
                                 type="button"
                                 onClick={() => removeAuctionItem(item.id)}
                                 disabled={!canRemoveItem}
-                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-[#6E5139] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B5A89C]"
-                                style={{ borderColor: accent.border, color: canRemoveItem ? accent.chip : '#B5A89C' }}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-[var(--teacher-text)] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[var(--teacher-text-secondary)]"
+                                style={{ borderColor: accent.border, color: canRemoveItem ? accent.chip : 'var(--teacher-text-secondary)' }}
                                 aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
                                 title={removalPending ? '저장 완료 후 삭제할 수 있습니다' : canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
                               >
                                 <Trash2 size={14} />
                               </button>
                               {!isPublic && isTemporarilyVisible ? (
-                                <span className="absolute right-3 top-[-0.55rem] rounded-full bg-white px-2 py-0.5 text-[0.58rem] font-black text-[#006241] shadow-sm">
+                                <span className="absolute right-3 top-[-0.55rem] rounded-full bg-white px-2 py-0.5 text-[0.58rem] font-black text-[var(--teacher-accent)] shadow-sm">
                                   임시 공개
                                 </span>
                               ) : null}
@@ -11283,7 +11361,7 @@ export default function TimerPage() {
 
                             <div className="mt-2 grid grid-cols-[minmax(0,1fr)_5rem] items-center gap-2">
                               <div
-                                className="flex min-h-10 items-center justify-between gap-2 rounded-[0.85rem] border bg-[#FAFCFB] px-3 py-1.5"
+                                className="flex min-h-10 items-center justify-between gap-2 rounded-[0.85rem] border bg-[var(--teacher-surface-muted)] px-3 py-1.5"
                                 style={{ borderColor: accent.border }}
                               >
                                 {award ? (
@@ -11301,7 +11379,7 @@ export default function TimerPage() {
                                     {currentBid.bidder}번
                                   </span>
                                 ) : (
-                                  <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-[#EEF4F0] px-2.5 text-[0.72rem] font-black text-[#6E7A72]">
+                                  <span className="inline-flex h-7 shrink-0 items-center justify-center rounded-full bg-[var(--teacher-surface-muted)] px-2.5 text-[0.72rem] font-black text-[var(--teacher-text-secondary)]">
                                     대기
                                   </span>
                                 )}
@@ -11326,7 +11404,7 @@ export default function TimerPage() {
                                 style={{
                                   borderColor: accent.border,
                                   backgroundColor: canAward ? accent.chip : undefined,
-                                  color: canAward ? '#FFFFFF' : award ? accent.chip : '#8A7A6B',
+                                  color: canAward ? 'var(--apple-surface)' : award ? accent.chip : 'var(--teacher-text-secondary)',
                                 }}
                               >
                                 {award ? '완료' : canAward ? '낙찰' : '없음'}
@@ -11335,22 +11413,22 @@ export default function TimerPage() {
                           </>
                         ) : (
                           <div className="flex items-start gap-2">
-                            <div className="relative min-h-[4.55rem] flex-1 overflow-hidden rounded-[0.85rem] border border-[#E6EEE9] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                            <div className="relative min-h-[4.55rem] flex-1 overflow-hidden rounded-[0.85rem] border border-[var(--teacher-border)] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                               <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent.chip }} />
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                   <div className="mb-3 flex items-center gap-2">
-                                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#18211E] text-white shadow-[0_8px_16px_rgba(28,45,40,0.16)]">
-                                      <Lock size={17} color="#FFFFFF" strokeWidth={3.4} />
+                                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--teacher-text)] text-white shadow-[0_8px_16px_rgba(28,45,40,0.16)]">
+                                      <Lock size={17} color="currentColor" strokeWidth={3.4} />
                                     </span>
-                                    <span className="h-7 w-12 rounded-full border border-[#DDE8E2] bg-[#F7FAF8]" />
+                                    <span className="h-7 w-12 rounded-full border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)]" />
                                   </div>
                                   <div className="grid gap-1.5">
-                                    <span className="h-3 w-4/5 rounded-full bg-[#DCE6E0]" />
-                                    <span className="h-3 w-3/5 rounded-full bg-[#E9EFEA]" />
+                                    <span className="h-3 w-4/5 rounded-full bg-[var(--teacher-surface-muted)]" />
+                                    <span className="h-3 w-3/5 rounded-full bg-[var(--teacher-surface-muted)]" />
                                   </div>
                                 </div>
-                                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[0.9rem] border border-[#DDE8E2] bg-[#F7FAF8] text-[#8EA099]">
+                                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[0.9rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] text-[var(--teacher-text-secondary)]">
                                   <Sparkles size={18} />
                                 </div>
                               </div>
@@ -11359,8 +11437,8 @@ export default function TimerPage() {
                               type="button"
                               onClick={() => removeAuctionItem(item.id)}
                               disabled={!canRemoveItem}
-                              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-[#6E5139] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[#B5A89C]"
-                              style={{ borderColor: accent.border, color: canRemoveItem ? accent.chip : '#B5A89C' }}
+                              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-[var(--teacher-text)] transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:bg-white/60 disabled:text-[var(--teacher-text-secondary)]"
+                              style={{ borderColor: accent.border, color: canRemoveItem ? accent.chip : 'var(--teacher-text-secondary)' }}
                               aria-label={`${weekdayLabel}요일 ${slotIndex + 1}번 물품 삭제`}
                               title={removalPending ? '저장 완료 후 삭제할 수 있습니다' : canRemoveItem ? '물품 삭제' : '마지막 물품은 삭제할 수 없습니다'}
                             >
@@ -11378,28 +11456,42 @@ export default function TimerPage() {
         </div>
         ) : null}
       </section>
+      </SettingsPanelFrame>
       ) : null}
 
       {settingsPanel === 'missions' ? (
-      <section
-        className="settings-card flex flex-col rounded-[1.7rem] border border-[#DDEBDD] bg-[#F8FCF6] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5"
-      >
-        <div className="order-1 grid gap-3 rounded-[1.25rem] border border-[#BBD8CB] bg-white/85 p-4">
-          <div>
-            <h3 className="section-title text-[1.05rem] font-black text-[#1F2523]">기존 미션 공개</h3>
-            <p className="mt-1 text-[0.82rem] font-bold text-[#65736C]">학생 미션 화면에 보일 항목</p>
-          </div>
+      <SettingsPanelFrame
+        label="미션"
+        status={(
+          <>
+            <h3 className="section-title">미션</h3>
+            <SettingsStatusChip>경매 미션 {auctionMissions.length} / {AUCTION_MISSION_MAX_COUNT}</SettingsStatusChip>
+            {unpaidClassroomRoleRewardCount > 0 ? <SettingsStatusChip tone="urgent">1인1역 미지급 {unpaidClassroomRoleRewardCount}명</SettingsStatusChip> : null}
+          </>
+        )}
+        action={(
+          <button
+            type="button"
+            onClick={addAuctionMission}
+            disabled={auctionMissions.length >= AUCTION_MISSION_MAX_COUNT}
+            className="settings-frame-primary"
+          >
+            <Plus size={18} aria-hidden="true" />
+            {auctionMissions.length >= AUCTION_MISSION_MAX_COUNT ? '최대 4개 등록됨' : '미션 추가'}
+          </button>
+        )}
+        details={(
           <div className="grid gap-3 lg:grid-cols-2">
             {STUDENT_MISSION_VISIBILITY_GROUPS.map((group) => (
-              <fieldset key={group.label} className="grid gap-2 rounded-[1rem] border border-[#DDE8E2] bg-[#F9FCFA] p-3">
-                <legend className="section-title px-1 text-[0.78rem] font-black text-[#52645B]">{group.label}</legend>
+              <fieldset key={group.label} className="grid gap-2 rounded-[1rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-3">
+                <legend className="section-title px-1 text-[0.78rem] font-black text-[var(--teacher-text-secondary)]">{group.label}</legend>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {group.items.map((mission) => (
                     <label
                       key={mission.id}
                       className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-[0.8rem] border px-3 text-[0.82rem] font-extrabold transition-colors ${studentMissionVisibility[mission.id]
-                        ? 'border-[#9CCDBE] bg-[#EAF6F0] text-[#006241]'
-                        : 'border-[#DDE8E2] bg-white text-[#6F7D70]'}`}
+                        ? 'border-[var(--teacher-border-strong)] bg-[var(--teacher-surface-muted)] text-[var(--teacher-accent)]'
+                        : 'border-[var(--teacher-border)] bg-white text-[var(--teacher-text-secondary)]'}`}
                     >
                       <input
                         type="checkbox"
@@ -11416,17 +11508,21 @@ export default function TimerPage() {
               </fieldset>
             ))}
           </div>
-        </div>
-
-        <div className="order-4 mt-4 grid gap-3 rounded-[1.25rem] border border-[#BBD8CB] bg-white/85 p-4">
+        )}
+        detailsLabel="기존 미션 공개"
+      >
+      <section
+        className="settings-card flex flex-col gap-4 rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5"
+      >
+        <div className="order-4 grid gap-3 rounded-[1.25rem] border border-[var(--teacher-border)] bg-white/85 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="section-title text-[1.05rem] font-black text-[#1F2523]">1인 1역</h3>
-              <p className="mt-1 text-[0.82rem] font-bold text-[#65736C]">
+              <h3 className="section-title text-[1.05rem] font-black text-[var(--teacher-text)]">1인 1역</h3>
+              <p className="mt-1 text-[0.82rem] font-bold text-[var(--teacher-text-secondary)]">
                 평일마다 담당 번호가 한 칸씩 이동합니다. 완료 +20고마, 미수행 -20고마
               </p>
             </div>
-            <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#CFE3D8] bg-[#F6FAF7] px-4 font-extrabold text-[#006241]">
+            <label className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] px-4 font-extrabold text-[var(--teacher-accent)]">
               <input
                 type="checkbox"
                 checked={classroomRoleMission.enabled}
@@ -11441,11 +11537,11 @@ export default function TimerPage() {
           </div>
 
           <label className="grid max-w-[18rem] gap-1.5">
-            <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">오늘 칠판 전문가</span>
+            <span className="section-title text-[0.74rem] font-black text-[var(--teacher-text-secondary)]">오늘 칠판 전문가</span>
             <select
               value={todayClassroomRoleAssignments[0]?.studentNumber ?? 1}
               onChange={(event) => updateTodayClassroomRoleStart(Number(event.target.value))}
-              className="section-title h-11 rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] px-3 text-[0.95rem] font-black text-[#1F2523] outline-none focus:border-[#7FB59F]"
+              className="section-title h-11 rounded-[0.85rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] px-3 text-[0.95rem] font-black text-[var(--teacher-text)] outline-none focus:border-[var(--teacher-border-strong)]"
               aria-label="오늘 1인 1역 시작 학생 번호"
               disabled={!isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
             >
@@ -11455,20 +11551,20 @@ export default function TimerPage() {
             </select>
           </label>
 
-          {!isTodayClassroomRoleSchoolDay && <p className="text-sm font-bold text-[#65736C]">주말에는 1인 1역을 쉬어요.</p>}
-          {classroomRoleError && <p role="alert" className="text-sm font-bold text-[#9B4A43]">{classroomRoleError}</p>}
-          <StatusSlot className="text-sm font-bold text-[#65736C]">{isClassroomRoleSaving ? '저장 중' : null}</StatusSlot>
+          {!isTodayClassroomRoleSchoolDay && <p className="text-sm font-bold text-[var(--teacher-text-secondary)]">주말에는 1인 1역을 쉬어요.</p>}
+          {classroomRoleError && <p role="alert" className="text-sm font-bold text-[var(--teacher-urgent)]">{classroomRoleError}</p>}
+          <StatusSlot className="text-sm font-bold text-[var(--teacher-text-secondary)]">{isClassroomRoleSaving ? '저장 중' : null}</StatusSlot>
           <div className="grid gap-2 md:grid-cols-3">
             {todayClassroomRoleAssignments.map((assignment) => {
               const result = classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(assignment.studentNumber)];
               return (
                 <div
                   key={`${assignment.roleName}-${assignment.studentNumber}`}
-                  className="grid gap-2 rounded-[1rem] border border-[#DDE8E2] bg-[#F9FCFA] p-3"
+                  className="grid gap-2 rounded-[1rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <strong className="text-[0.9rem] font-black text-[#1F2523]">{assignment.roleName}</strong>
-                    <span className="rounded-full bg-[#EAF6F0] px-2.5 py-1 text-[0.78rem] font-black text-[#006241]">
+                    <strong className="text-[0.9rem] font-black text-[var(--teacher-text)]">{assignment.roleName}</strong>
+                    <span className="rounded-full bg-[var(--teacher-surface-muted)] px-2.5 py-1 text-[0.78rem] font-black text-[var(--teacher-accent)]">
                       {assignment.studentNumber}번
                     </span>
                   </div>
@@ -11478,7 +11574,7 @@ export default function TimerPage() {
                       onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'rewarded')}
                       disabled={!classroomRoleMission.enabled || !isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
                       aria-pressed={result === 'rewarded'}
-                      className={`min-h-10 rounded-[0.75rem] border border-[#9CCDBE] px-2 text-[0.8rem] font-black text-[#006241] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:text-[#6F7D70] ${result === 'rewarded' ? 'bg-[#DDF2E9]' : 'bg-white'}`}
+                      className={`min-h-11 rounded-[0.75rem] border border-[var(--teacher-border-strong)] px-2 text-[0.8rem] font-black text-[var(--teacher-accent)] transition-colors hover:bg-[var(--teacher-surface-muted)] disabled:cursor-not-allowed disabled:text-[var(--teacher-text-secondary)] ${result === 'rewarded' ? 'bg-[var(--teacher-surface-muted)]' : 'bg-white'}`}
                     >
                       {result === 'rewarded' ? '지급 취소' : '+20 지급'}
                     </button>
@@ -11487,7 +11583,7 @@ export default function TimerPage() {
                       onClick={() => updateClassroomRoleMissionResult(assignment.studentNumber, 'penalized')}
                       disabled={!classroomRoleMission.enabled || !isTodayClassroomRoleSchoolDay || isClassroomRoleSaving}
                       aria-pressed={result === 'penalized'}
-                      className={`min-h-10 rounded-[0.75rem] border border-[#E3AAA5] px-2 text-[0.8rem] font-black text-[#9B4A43] transition-colors hover:bg-[#FFF0ED] disabled:cursor-not-allowed disabled:text-[#7D6865] ${result === 'penalized' ? 'bg-[#FFE3DE]' : 'bg-white'}`}
+                      className={`min-h-11 rounded-[0.75rem] border border-[var(--teacher-urgent)] px-2 text-[0.8rem] font-black text-[var(--teacher-urgent)] transition-colors hover:bg-[var(--teacher-urgent-soft)] disabled:cursor-not-allowed disabled:text-[var(--teacher-text-secondary)] ${result === 'penalized' ? 'bg-[var(--teacher-urgent-soft)]' : 'bg-white'}`}
                     >
                       {result === 'penalized' ? '차감 취소' : '-20 차감'}
                     </button>
@@ -11498,23 +11594,8 @@ export default function TimerPage() {
           </div>
         </div>
 
-        <div className="order-2 my-4 flex flex-wrap items-center justify-end gap-3">
-          <span className="text-[0.82rem] font-extrabold text-[#65736C]">
-            {auctionMissions.length}/{AUCTION_MISSION_MAX_COUNT}개 등록
-          </span>
-          <button
-            type="button"
-            onClick={addAuctionMission}
-            disabled={auctionMissions.length >= AUCTION_MISSION_MAX_COUNT}
-            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#9CCDBE] bg-white px-4 text-[0.86rem] font-extrabold text-[#006241] shadow-[0_8px_16px_rgba(31,98,65,0.08)] transition-colors hover:bg-[#EAF6F0] disabled:cursor-not-allowed disabled:border-[#DDE8E2] disabled:bg-[#F2F5F3] disabled:text-[#87928D] disabled:shadow-none"
-          >
-            <Plus size={16} />
-            {auctionMissions.length >= AUCTION_MISSION_MAX_COUNT ? '최대 4개 등록됨' : '미션 추가'}
-          </button>
-        </div>
-
         {auctionMissions.length === 0 ? (
-          <div className="order-3 rounded-[1.1rem] border border-dashed border-[#BBD8CB] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[#6F7D70]">
+          <div className="order-3 rounded-[1.1rem] border border-dashed border-[var(--teacher-border)] bg-white/80 px-4 py-5 text-center text-[0.86rem] font-extrabold text-[var(--teacher-text-secondary)]">
             등록된 미션 없음
           </div>
         ) : (
@@ -11527,10 +11608,10 @@ export default function TimerPage() {
               return (
                 <div
                   key={mission.id}
-                  className="grid gap-2 rounded-[1.15rem] border border-[#CFE3D8] bg-white p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] md:grid-cols-[minmax(0,1fr)_22rem_2.75rem] md:items-end"
+                  className="grid gap-2 rounded-[1.15rem] border border-[var(--teacher-border)] bg-white p-3 shadow-[0_8px_16px_rgba(31,24,18,0.045)] md:grid-cols-[minmax(0,1fr)_22rem_2.75rem] md:items-end"
                 >
                   <label className="grid min-w-0 gap-1.5">
-                    <span className="section-title text-[0.74rem] font-black text-[#6F7D70]">
+                    <span className="section-title text-[0.74rem] font-black text-[var(--teacher-text-secondary)]">
                       미션 내용 {index + 1}
                     </span>
                     <span className="relative min-w-0">
@@ -11540,7 +11621,7 @@ export default function TimerPage() {
                         onChange={(event) => updateAuctionMissionContent(mission.id, event.target.value)}
                         onFocus={beginAuctionMissionEdit}
                         onBlur={endAuctionMissionEdit}
-                        className="section-title h-11 w-full min-w-0 rounded-[0.85rem] border border-[#CFE3D8] bg-[#FAFCFB] py-2 pl-3 pr-14 text-[0.95rem] font-black leading-tight text-[#1F2523] outline-none transition-colors focus:border-[#7FB59F] focus:bg-white"
+                        className="section-title h-11 w-full min-w-0 rounded-[0.85rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] py-2 pl-3 pr-14 text-[0.95rem] font-black leading-tight text-[var(--teacher-text)] outline-none transition-colors focus:border-[var(--teacher-border-strong)] focus:bg-white"
                         aria-label={`미션 ${index + 1} 내용`}
                         aria-describedby={countId}
                         placeholder="예: 책상 정리하기"
@@ -11548,7 +11629,7 @@ export default function TimerPage() {
                       <span
                         id={countId}
                         aria-label={`${contentLength}자, 권장 ${AUCTION_MISSION_RECOMMENDED_LENGTH}자 이내`}
-                        className={`pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.72rem] font-extrabold tabular-nums ${isWithinRecommendedLength ? 'text-[#65736C]' : 'text-[#9B4A43]'}`}
+                        className={`pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.72rem] font-extrabold tabular-nums ${isWithinRecommendedLength ? 'text-[var(--teacher-text-secondary)]' : 'text-[var(--teacher-urgent)]'}`}
                       >
                         {contentLength}/{AUCTION_MISSION_RECOMMENDED_LENGTH}
                       </span>
@@ -11566,7 +11647,7 @@ export default function TimerPage() {
                   <button
                     type="button"
                     onClick={() => removeAuctionMission(mission.id)}
-                    className="inline-flex h-11 w-full items-center justify-center rounded-[0.85rem] border border-[#E4D7C9] bg-[#FFFDF8] text-[#8A6347] transition-colors hover:bg-[#FFF7EC] md:w-11"
+                    className="inline-flex h-11 w-full items-center justify-center rounded-[0.85rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] text-[var(--teacher-text-secondary)] transition-colors hover:bg-[var(--teacher-surface)] md:w-11"
                     aria-label={`미션 ${index + 1} 삭제`}
                     title="미션 삭제"
                   >
@@ -11578,62 +11659,7 @@ export default function TimerPage() {
           </div>
         )}
       </section>
-      ) : null}
-
-      {settingsPanel === 'auction' ? (
-      <section className="settings-card rounded-[1.7rem] border border-[#EEE4D6] bg-[#FAF5EE] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] md:p-5">
-        <div className="mb-4">
-          <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">경매 관리</h3>
-        </div>
-        <div className="space-y-3">
-          <button
-            type="button"
-            onClick={(event) => {
-              auctionActionReturnFocusRef.current = event.currentTarget;
-              setPendingAuctionAction('weeklyClose');
-            }}
-            disabled={isWeeklyAuctionClosing}
-            className="inline-flex min-h-12 w-full items-center justify-center rounded-[1rem] border-2 border-[#9FC7B8] bg-[#006241] px-4 py-3 text-[0.98rem] font-extrabold text-white shadow-[0_8px_18px_rgba(0,98,65,0.14)] transition-colors hover:bg-[#005336] disabled:cursor-wait disabled:opacity-60"
-          >
-            {isWeeklyAuctionClosing ? '마감 중…' : '주간 경매 마감'}
-          </button>
-          {weeklyAuctionCloseMessage ? (
-            <p
-              className={`text-center text-[0.86rem] font-bold leading-6 ${weeklyAuctionCloseStatus === 'error' ? 'text-[#A34F45]' : 'text-[#006241]'}`}
-              role={weeklyAuctionCloseStatus === 'error' ? 'alert' : 'status'}
-            >
-              {weeklyAuctionCloseMessage}
-            </p>
-          ) : null}
-          <div className="rounded-[1rem] border border-[#E4D7C9] bg-white/70 p-3">
-            <button
-              type="button"
-              onClick={() => setIsCurrencyResetDangerVisible((previous) => !previous)}
-              className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border-2 border-[#E4D7C9] bg-[#FFFDF8] px-4 py-2 text-[0.86rem] font-extrabold text-[#6E5139] transition-colors hover:bg-[#FFF7EC]"
-              aria-expanded={isCurrencyResetDangerVisible}
-            >
-              위험 작업 열기
-            </button>
-            {isCurrencyResetDangerVisible ? (
-              <div className="mt-3 rounded-[0.9rem] border-2 border-[#D8B6A2] bg-[#FFF7EC] p-3">
-                <p className="mb-2 text-center text-[0.82rem] font-bold leading-5 text-[#7A4C24]">
-                  보유 화폐 초기화는 모든 학생의 고마를 100으로 되돌립니다.
-                </p>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    auctionActionReturnFocusRef.current = event.currentTarget;
-                    setPendingAuctionAction('currency');
-                  }}
-                  className="inline-flex min-h-10 w-full items-center justify-center rounded-[0.85rem] border-2 border-[#B9876A] bg-white px-4 py-2 text-[0.86rem] font-extrabold text-[#7A351C] transition-colors hover:bg-[#FBEBD8]"
-                >
-                  보유 화폐 초기화
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </section>
+      </SettingsPanelFrame>
       ) : null}
     </div>
   );
@@ -13226,7 +13252,7 @@ export default function TimerPage() {
         >
           <motion.div
             ref={settingsDialogRef}
-            className="apple-material-layer settings-dialog editorial-settings-dialog app-settings-modal flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border-4 border-[#E6D5C9] bg-[#FDFBF7] shadow-2xl"
+            className="apple-material-layer settings-dialog editorial-settings-dialog app-settings-modal flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border-4 border-[var(--teacher-border)] bg-[var(--teacher-surface)] shadow-2xl"
             role={!hasSettingsChildModal ? 'dialog' : undefined}
             aria-modal={!hasSettingsChildModal ? 'true' : undefined}
             aria-labelledby="timer-settings-title"
@@ -13247,8 +13273,8 @@ export default function TimerPage() {
               <span>{teacherSettingsSaveError}</span>
               <button type="button" className="min-h-11 rounded-full border px-4 font-bold disabled:cursor-wait disabled:opacity-60" disabled={isTeacherSettingsRetrying} onClick={() => void retryTeacherSettingsSave()}><StableLabel busy={isTeacherSettingsRetrying} busyLabel="저장 확인 중…" label={teacherSettingsConflict ? '내 변경 저장' : '저장 다시 확인'} /></button>
             </div>}
-            <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
-              <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">
+            <div className="settings-header flex shrink-0 items-center justify-between border-b border-[var(--teacher-border)] bg-white p-5 md:p-6">
+              <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-xl font-bold text-[var(--teacher-text-secondary)] md:text-2xl">
                 <Settings size={24} className="md:w-7 md:h-7" />
                 설정
               </h2>
@@ -13260,7 +13286,7 @@ export default function TimerPage() {
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(false)}
-                  className="icon-button rounded-full p-2 text-[#8A6347]/60 transition-colors hover:bg-[#FDFBF7] hover:text-[#8A6347]"
+                  className="icon-button rounded-full p-2 text-[var(--teacher-text-secondary)]/60 transition-colors hover:bg-[var(--teacher-surface)] hover:text-[var(--teacher-text-secondary)]"
                   aria-label="설정 닫기"
                   title="설정 닫기"
                 >
@@ -13340,7 +13366,7 @@ export default function TimerPage() {
                 className="settings-content"
                 aria-label={`${currentSettingsNavigationItem?.label ?? '설정'} 설정`}
               >
-                <div key={settingsPanel} className={`settings-body custom-scrollbar overflow-y-auto bg-[#FDFBF7] p-4 md:p-6${settingsPanel === 'stocks' && stockSettingsTab === 'students' ? ' teacher-stock-investments-body' : ''}`}>
+                <div key={settingsPanel} className={`settings-body custom-scrollbar overflow-y-auto bg-[var(--teacher-surface)] p-4 md:p-6${settingsPanel === 'stocks' && stockSettingsTab === 'students' ? ' teacher-stock-investments-body' : ''}`}>
                   <Suspense fallback={<TeacherPanelLoadFallback />}>
                     {settingsPanel === 'today'
                       ? todaySettingsPanel

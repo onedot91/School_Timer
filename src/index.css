@@ -10644,42 +10644,6 @@ h3 {
   color: rgba(0, 0, 0, 0.38) !important;
 }
 
-.settings-dialog .text-\[\#8A6347\],
-.settings-dialog .text-\[\#B58363\],
-.settings-dialog .text-\[\#3F2B20\],
-.settings-dialog .text-\[\#75461f\],
-.random-settings-shell .text-\[\#8A6347\],
-.random-settings-shell .text-\[\#B58363\],
-.random-settings-shell .text-\[\#3F2B20\],
-.random-settings-shell .text-\[\#75461f\] {
-  color: var(--ink) !important;
-}
-
-.settings-dialog .bg-\[\#FDFBF7\],
-.settings-dialog .bg-\[\#FCF8F1\],
-.settings-dialog .bg-\[\#FAF5EE\],
-.settings-dialog .bg-\[\#FFFDF9\],
-.settings-dialog .bg-\[\#FFFAF2\],
-.random-settings-shell .bg-\[\#FDFBF7\],
-.random-settings-shell .bg-\[\#FCF8F1\],
-.random-settings-shell .bg-\[\#FAF5EE\],
-.random-settings-shell .bg-\[\#FFFDF9\],
-.random-settings-shell .bg-\[\#FFFAF2\] {
-  background-color: var(--card-surface) !important;
-}
-
-.settings-dialog .border-\[\#E6D5C9\],
-.settings-dialog .border-\[\#EEE4D6\],
-.settings-dialog .border-\[\#E4D9CB\],
-.settings-dialog .border-\[\#DCCBB8\],
-.random-settings-shell .border-\[\#E6D5C9\],
-.random-settings-shell .border-\[\#EEE4D6\],
-.random-settings-shell .border-\[\#E4D9CB\],
-.random-settings-shell .border-\[\#DCCBB8\],
-.random-settings-shell .border-\[\#B58363\] {
-  border-color: rgba(0, 98, 65, 0.18) !important;
-}
-
 .settings-dialog .toolbar-button-danger,
 .settings-dialog .slot-delete,
 .random-settings-shell .random-settings-case-delete {
@@ -14981,32 +14945,9 @@ a[href]:active {
   overflow: hidden;
 }
 .teacher-mail-inbox {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 .teacher-mail-chat { grid-template-rows: auto minmax(0, 1fr) auto; }
-.teacher-mail-section-header {
-  display: flex;
-  min-height: 4rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: .75rem;
-  border-bottom: 1px solid var(--teacher-border);
-  padding: .75rem .85rem .75rem 1rem;
-}
-.teacher-mail-section-header h3 { color: var(--teacher-text); font-size: 1.08rem; font-weight: 950; }
-.teacher-mail-new-button {
-  display: inline-flex;
-  min-height: 2.25rem;
-  align-items: center;
-  gap: .3rem;
-  border-radius: .65rem;
-  background: var(--teacher-accent);
-  padding: .4rem .65rem;
-  color: var(--teacher-surface);
-  font-size: .74rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
 .teacher-mail-list {
   display: grid;
   min-width: 0;
@@ -15319,12 +15260,6 @@ a[href]:active {
 }
 
 .teacher-bookstore-settings { display: grid; gap: 1rem; }
-.teacher-bookstore-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.teacher-bookstore-header > div { min-width: 0; }
-.teacher-bookstore-header span { color: var(--apple-accent); font-size: .78rem; font-weight: 900; }
-.teacher-bookstore-header h3 { color: var(--bookstore-ink); font-size: 1.35rem; font-weight: 950; }
-.teacher-bookstore-header p { margin-top: .25rem; color: var(--apple-text-secondary); font-size: .9rem; font-weight: 750; word-break: keep-all; }
-.teacher-bookstore-header > button { display: inline-flex; min-height: var(--apple-control-min); flex: 0 0 auto; align-items: center; gap: .4rem; border-radius: var(--apple-radius-control); background: var(--apple-accent); padding: .65rem 1rem; color: white; font-weight: 900; }
 .teacher-featured-writing-list { display: grid; gap: 1rem; }
 .teacher-featured-writing-card { display: grid; gap: 1rem; border: 1px solid var(--apple-separator); border-radius: var(--apple-radius-card); background: var(--apple-surface); padding: 1rem; box-shadow: var(--apple-shadow-1); }
 .teacher-featured-writing-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
@@ -15351,8 +15286,6 @@ a[href]:active {
 .teacher-bookstore-empty p { font-size: .9rem; font-weight: 750; }
 
 @media (max-width: 767px) {
-  .teacher-bookstore-header { align-items: stretch; flex-direction: column; }
-  .teacher-bookstore-header > button { justify-content: center; }
   .teacher-featured-writing-fields { grid-template-columns: minmax(0, 1fr); }
   .teacher-featured-writing-wide { grid-column: auto; }
 }
@@ -17765,6 +17698,203 @@ a[href]:active {
   }
 
   .settings-today-task:active {
+    transform: none;
+  }
+}
+
+/* Shared settings panel frame: status → one primary action → body → collapsed details. */
+.settings-frame {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 1rem;
+}
+
+.settings-frame-fill {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.settings-frame-head {
+  display: flex;
+  min-height: 3.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  border: 1px solid var(--teacher-border);
+  border-radius: var(--apple-radius-card);
+  color: var(--teacher-text);
+  background: var(--teacher-surface);
+}
+
+.settings-frame-status {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+
+.settings-frame-status :is(h3, h4) {
+  margin: 0 .25rem 0 0;
+  color: var(--teacher-text);
+  font-size: 1.2rem;
+  font-weight: 850;
+  letter-spacing: -.01em;
+}
+
+.settings-frame-chip {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: .3rem;
+  padding: 0 .75rem;
+  border: 1px solid var(--teacher-border);
+  border-radius: var(--apple-radius-pill);
+  color: var(--teacher-text-secondary);
+  background: var(--apple-surface);
+  font-size: .85rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.settings-frame-chip[data-tone="accent"] {
+  border-color: color-mix(in srgb, var(--teacher-accent) 45%, var(--teacher-border));
+  color: var(--teacher-accent);
+}
+
+.settings-frame-chip[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--teacher-warning) 40%, var(--teacher-border));
+  color: var(--teacher-warning);
+  background: var(--teacher-warning-soft);
+}
+
+.settings-frame-chip[data-tone="urgent"] {
+  border-color: color-mix(in srgb, var(--teacher-urgent) 40%, var(--teacher-border));
+  color: var(--teacher-urgent);
+  background: var(--teacher-urgent-soft);
+}
+
+.settings-frame-status > [role="tablist"] {
+  flex: 1 1 32rem;
+  min-width: 0;
+}
+
+.settings-frame-head .teacher-shop-tabs {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-frame-action {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: .5rem;
+}
+
+.settings-frame-primary {
+  display: inline-flex;
+  min-height: var(--apple-control-min);
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: 0 1.1rem;
+  border: 1px solid var(--teacher-accent);
+  border-radius: var(--apple-radius-pill);
+  color: var(--teacher-surface);
+  background: var(--teacher-accent);
+  font-size: .95rem;
+  font-weight: 850;
+  white-space: nowrap;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 100ms ease-out;
+}
+
+.settings-frame-primary:hover:not(:disabled) {
+  border-color: var(--teacher-accent-pressed);
+  background: var(--teacher-accent-pressed);
+}
+
+.settings-frame-primary:active:not(:disabled) {
+  transform: scale(.98);
+}
+
+.settings-frame-primary:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.settings-frame-primary:focus-visible {
+  outline: 3px solid var(--teacher-focus);
+  outline-offset: 2px;
+}
+
+.settings-frame-details {
+  border: 1px solid var(--teacher-border);
+  border-radius: var(--apple-radius-card);
+  color: var(--teacher-text);
+  background: var(--teacher-surface);
+}
+
+.settings-frame-details > summary {
+  display: flex;
+  min-height: var(--apple-control-min);
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  color: var(--teacher-text-secondary);
+  font-size: .9rem;
+  font-weight: 850;
+}
+
+.settings-frame-details[open] > summary {
+  border-bottom: 1px solid var(--teacher-border);
+}
+
+.settings-frame-details-body {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.settings-frame-detail-group {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: .5rem;
+}
+
+@media (max-height: 720px) {
+  .settings-frame {
+    gap: .625rem;
+  }
+
+  .settings-frame-head {
+    min-height: 0;
+    padding: .5rem .75rem;
+  }
+
+  .settings-frame-fill .teacher-mail-compose-message textarea {
+    height: clamp(4.5rem, 14dvh, 7rem);
+    min-height: 4.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-frame-primary {
+    transition: none;
+  }
+
+  .settings-frame-primary:active:not(:disabled) {
     transform: none;
   }
 }
