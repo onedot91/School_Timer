@@ -1,4 +1,4 @@
-import { Dices, RotateCcw, Send, Utensils } from 'lucide-react';
+import { Dices, RotateCcw, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   DAILY_WRITING_COOK_IMAGE_SOURCE,
@@ -9,6 +9,7 @@ import {
 import { pickDailyWritingPrompt } from '../../lib/dailyWritingPrompts';
 import TeacherWritingCalendar from './TeacherWritingCalendar';
 import StableLabel from '../StableLabel';
+import SettingsPanelFrame, { SettingsStatusChip } from './SettingsPanelFrame';
 
 type DailyWritingPublishInput = {
   readonly dateKey: string;
@@ -66,15 +67,28 @@ export default function TeacherWritingSettings({
   };
 
   return (
-    <section className="teacher-writing-settings" aria-labelledby="teacher-writing-title">
-      <header className="teacher-writing-hero">
-        <div className="teacher-writing-hero-copy">
-          <span><Utensils size={17} aria-hidden="true" />매일 글쓰기</span>
-          <h2 id="teacher-writing-title">글밥짓기</h2>
-        </div>
-        <img src={DAILY_WRITING_COOK_IMAGE_SOURCE} alt="밥과 주걱을 든 밥집 아주머니 가히" />
-      </header>
-
+    <SettingsPanelFrame
+      label="글쓰기"
+      className="teacher-writing-settings"
+      status={(
+        <>
+          <img className="teacher-writing-guide" src={DAILY_WRITING_COOK_IMAGE_SOURCE} alt="밥과 주걱을 든 밥집 아주머니 가히" />
+          <h3>글밥짓기</h3>
+          <SettingsStatusChip tone={completedStudentNumbers.size > 0 ? 'accent' : 'neutral'}>지급 {completedStudentNumbers.size} / 23</SettingsStatusChip>
+        </>
+      )}
+      action={(
+        <button
+          type="button"
+          className="settings-frame-primary"
+          disabled={!canPublish || isPublishing}
+          onClick={() => void onPublish({ dateKey, topic, requiredWord, requiredWordMeaning })}
+        >
+          <Send size={18} aria-hidden="true" />
+          <StableLabel busy={isPublishing} busyLabel="보내는 중" label={assignment?.dateKey === dateKey ? '편지 다시 보내기' : '23명에게 보내기'} />
+        </button>
+      )}
+    >
       <div className="teacher-writing-workspace">
         <section className="teacher-writing-compose" aria-labelledby="teacher-writing-compose-title">
           <header>
@@ -120,17 +134,7 @@ export default function TeacherWritingSettings({
             </label>
           </div>
 
-          <div className="teacher-writing-publish-row">
-            <p role="status">{status}</p>
-            <button
-              type="button"
-              disabled={!canPublish || isPublishing}
-              onClick={() => void onPublish({ dateKey, topic, requiredWord, requiredWordMeaning })}
-            >
-              <Send size={18} aria-hidden="true" />
-              <StableLabel busy={isPublishing} busyLabel="보내는 중" label={assignment?.dateKey === dateKey ? '편지 다시 보내기' : '23명에게 보내기'} />
-            </button>
-          </div>
+          <p className="teacher-writing-publish-status" role="status">{status}</p>
         </section>
 
       </div>
@@ -138,7 +142,6 @@ export default function TeacherWritingSettings({
       <section className="teacher-writing-submissions" aria-labelledby="teacher-writing-submissions-title">
         <header>
           <h3 id="teacher-writing-submissions-title">제출 확인과 보상</h3>
-          <strong>{completedStudentNumbers.size}/23명 지급</strong>
         </header>
 
         {assignment ? (
@@ -167,6 +170,6 @@ export default function TeacherWritingSettings({
           <p className="teacher-writing-empty">편지를 보내면 제출 확인표가 열립니다.</p>
         )}
       </section>
-    </section>
+    </SettingsPanelFrame>
   );
 }

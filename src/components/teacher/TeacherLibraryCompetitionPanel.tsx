@@ -1,9 +1,10 @@
-import { RefreshCw, Trophy } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { libraryCompetitionClient, LibraryCompetitionClientError, type LibraryCompetitionResponse } from '../../lib/libraryCompetitionClient';
 import type { LibraryCompetitionSpeed } from '../../lib/libraryCompetition';
 import { LibraryCompetitionCountFields } from '../student/library/LibraryCompetitionTable';
 import StableLabel from '../StableLabel';
+import SettingsPanelFrame, { SettingsStatusChip } from './SettingsPanelFrame';
 
 export function TeacherLibraryCompetitionPanel() {
   const [response, setResponse] = useState<LibraryCompetitionResponse | null>(null);
@@ -14,6 +15,7 @@ export function TeacherLibraryCompetitionPanel() {
   const [confirming, setConfirming] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [message, setMessage] = useState('');
+  const formId = useId();
   const request = useRef(0);
   const pending = useRef(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -80,12 +82,27 @@ export function TeacherLibraryCompetitionPanel() {
       else throw error;
     } finally { pending.current = false; setBusy(false); }
   };
-  return <section className="teacher-library-competition-panel" aria-labelledby="teacher-library-competition-title" aria-busy={busy}>
-    <header className="teacher-library-competition-heading"><div><Trophy aria-hidden="true" /><h2 id="teacher-library-competition-title">책방 챌린지</h2></div><button ref={refreshRef} type="button" disabled={busy} onClick={() => { void load(); }}><RefreshCw aria-hidden="true" />최신값 확인</button></header>
+  const latest = state?.adjustments.at(-1);
+  return <div className="teacher-library-competition-panel" aria-busy={busy}>
+    <SettingsPanelFrame
+      label="책방 챌린지"
+      status={<>
+        <h3>책방 챌린지</h3>
+        {state ? <>
+          <SettingsStatusChip tone="accent">{state.seasonId.replace('-', '년 ')}월</SettingsStatusChip>
+          <SettingsStatusChip>{latest?.speed ?? 1}배</SettingsStatusChip>
+          {latest?.paused ? <SettingsStatusChip tone="warning">일시정지</SettingsStatusChip> : null}
+        </> : null}
+        <button ref={refreshRef} type="button" className="teacher-library-competition-refresh" disabled={busy} onClick={() => { void load(); }}><RefreshCw aria-hidden="true" />최신값 확인</button>
+      </>}
+      action={state ? <button ref={saveRef} className="settings-frame-primary" type="submit" form={formId} disabled={busy || confirming || conflict || !valid}>변경 사항 확인</button> : undefined}
+      detailsLabel={state ? `변경 이력 ${state.adjustments.length}건` : undefined}
+      details={state ? (state.adjustments.length === 0 ? <p>아직 변경한 설정이 없습니다.</p> : <ol className="teacher-library-competition-history">{[...state.adjustments].reverse().map(entry => <li key={entry.id}><time dateTime={entry.at}>{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' }).format(new Date(entry.at))}</time><span>{entry.speed}배 · {entry.paused ? '일시정지' : '진행'} · 권수 설정 {entry.counts.length}개 학교</span></li>)}</ol>) : undefined}
+    >
     {message && <p role="status" className="library-competition-message">{message}</p>}
     {busy && !response ? <p role="status">챌린지를 불러오는 중…</p> : !state ? <p>학생 책방의 순위판을 처음 열면 이번 달 챌린지가 시작됩니다.</p> : <>
-      <p className="teacher-library-competition-summary"><strong>{state.seasonId.replace('-', '년 ')}월</strong><span>우리 학교는 책장에 꽂힌 책만 자동 집계합니다.</span></p>
-      <form onSubmit={event => { event.preventDefault(); if (valid && !conflict && !busy) setConfirming(true); }}>
+      <p className="teacher-library-competition-summary">우리 학교는 책장에 꽂힌 책만 자동 집계합니다.</p>
+      <form id={formId} onSubmit={event => { event.preventDefault(); if (valid && !conflict && !busy) setConfirming(true); }}>
         <fieldset disabled={busy || confirming || conflict}>
           <legend>상대 학교 성장 설정</legend>
           <div className="teacher-library-competition-options"><label>성장 속도<select value={speed} onChange={event => {
@@ -98,9 +115,9 @@ export function TeacherLibraryCompetitionPanel() {
         {confirming ? <div className="teacher-library-competition-confirm" role="group" aria-label="변경 사항 확인"><h3>이 설정을 반 전체에 적용할까요?</h3><p>권수 변경 {changedCounts.length}개 학교 · 성장 {speed}배 · {paused ? '일시정지' : '진행'}</p>
           {changedCounts.length > 0 && <ul>{changedCounts.map(row => <li key={row.schoolId}>{row.schoolName}: {row.count} → {counts[row.schoolId]}권</li>)}</ul>}
           <div><button type="button" disabled={busy} onClick={() => setConfirming(false)}>돌아가기</button><button ref={confirmRef} type="button" disabled={busy} onClick={() => { void save(); }}><StableLabel busy={busy} busyLabel="저장 중…" label={'확인하고 적용'} /></button></div>
-        </div> : <button ref={saveRef} className="teacher-library-competition-save" type="submit" disabled={busy || conflict || !valid}>변경 사항 확인</button>}
+        </div> : null}
       </form>
-      <details className="teacher-library-competition-history"><summary>변경 이력 {state.adjustments.length}건</summary>{state.adjustments.length === 0 ? <p>아직 변경한 설정이 없습니다.</p> : <ol>{[...state.adjustments].reverse().map(entry => <li key={entry.id}><time dateTime={entry.at}>{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' }).format(new Date(entry.at))}</time><span>{entry.speed}배 · {entry.paused ? '일시정지' : '진행'} · 권수 설정 {entry.counts.length}개 학교</span></li>)}</ol>}</details>
     </>}
-  </section>;
+    </SettingsPanelFrame>
+  </div>;
 }
