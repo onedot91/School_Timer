@@ -30762,3 +30762,45 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
 .teacher-mail-delete-button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 .teacher-mail-delete-button:disabled { opacity: 0.5; cursor: wait; }
 @media (prefers-reduced-motion: reduce) { .teacher-mail-delete-button { transition: none; } }
+
+/* Transient save/progress copy must not resize controls or push neighbouring layout. */
+/* [data-align] outranks container rules such as `.panel-header span` so inner labels inherit the control's text style. */
+.stable-label[data-align] {
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+}
+
+.stable-label[data-align="start"] {
+  justify-items: start;
+}
+
+.stable-label[data-align] > .stable-label-option {
+  grid-area: 1 / 1;
+  font: inherit;
+  color: inherit;
+}
+
+.stable-label-option[data-active="false"] {
+  visibility: hidden;
+}
+
+.status-slot {
+  min-height: 1.5em;
+  line-height: 1.5;
+}
+
+.student-sudoku-save-state[data-idle] {
+  border-left-color: transparent;
+}
+
+.student-sudoku-save-state[data-idle] > * {
+  visibility: hidden;
+}
+
+.today-friend-form-actions .is-reserved {
+  visibility: hidden;
+}

@@ -8,6 +8,7 @@ import {
 } from '../../lib/dailyWriting';
 import { pickDailyWritingPrompt } from '../../lib/dailyWritingPrompts';
 import TeacherWritingCalendar from './TeacherWritingCalendar';
+import StableLabel from '../StableLabel';
 
 type DailyWritingPublishInput = {
   readonly dateKey: string;
@@ -127,7 +128,7 @@ export default function TeacherWritingSettings({
               onClick={() => void onPublish({ dateKey, topic, requiredWord, requiredWordMeaning })}
             >
               <Send size={18} aria-hidden="true" />
-              {isPublishing ? '보내는 중' : assignment?.dateKey === dateKey ? '편지 다시 보내기' : '23명에게 보내기'}
+              <StableLabel busy={isPublishing} busyLabel="보내는 중" label={assignment?.dateKey === dateKey ? '편지 다시 보내기' : '23명에게 보내기'} />
             </button>
           </div>
         </section>

@@ -211,6 +211,7 @@ import {
 } from '../lib/studentFeatureRelease';
 import { libraryCompetitionClient, LibraryCompetitionClientError, type LibraryCompetitionResponse } from '../lib/libraryCompetitionClient';
 import { parseLibraryCompetitionState } from '../lib/libraryCompetition';
+import StableLabel from '../components/StableLabel';
 
 const AuctionRoom = lazy(() => import('../components/AuctionRoom'));
 const StudentEmotionPage = lazy(() => import('../components/student/StudentEmotionPage'));
@@ -2719,7 +2720,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                 disabled={!isDonationAmountValid || isDonating}
                 className="h-12 rounded-[0.9rem] bg-[#007A57] font-extrabold text-white disabled:cursor-not-allowed disabled:bg-[#C9D4CD]"
               >
-                {isDonating ? '처리 중...' : '기부하기'}
+                <StableLabel busy={isDonating} busyLabel="처리 중..." label={'기부하기'} />
               </button>
             </div>
           </div>
@@ -2805,7 +2806,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
                   disabled={isSubmittingItemId !== null}
                   className="inline-flex h-12 items-center justify-center rounded-[0.95rem] bg-[#007A57] px-4 text-[1rem] font-extrabold text-white shadow-[0_10px_20px_rgba(0,122,87,0.16)] transition-colors hover:bg-[#006B4D] disabled:cursor-not-allowed disabled:bg-[#C9D4CD]"
                 >
-                  {isSubmittingItemId ? '입찰 처리 중...' : '입찰하기'}
+                  <StableLabel busy={isSubmittingItemId !== null} busyLabel="입찰 처리 중..." label={'입찰하기'} />
                 </button>
               </div>
             </motion.div>
@@ -2840,7 +2841,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
               disabled={isConfirmingBid}
               className="mt-4 inline-flex min-h-[2.875rem] min-w-[6.5rem] items-center justify-center rounded-[0.85rem] bg-[#006241] px-4 text-[0.95rem] font-extrabold text-white transition-colors hover:bg-[#005336]"
             >
-              {isConfirmingBid ? '확인 중…' : bidRecovery ? `${formatCurrency(bidRecovery.amount)} 입찰 확인` : '확인'}
+              <StableLabel busy={isConfirmingBid} busyLabel="확인 중…" label={bidRecovery ? `${formatCurrency(bidRecovery.amount)} 입찰 확인` : '확인'} />
             </button>
             {bidRecovery ? <button type="button" disabled={isConfirmingBid} onClick={dismissStatusMessage}
               className="mt-2 inline-flex min-h-[2.875rem] w-full items-center justify-center rounded-xl text-sm font-bold text-[#006241]">닫기</button> : null}

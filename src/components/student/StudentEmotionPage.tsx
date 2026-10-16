@@ -20,6 +20,7 @@ import StudentEmotionOrb, { StudentEmotionOrbVisual } from './StudentEmotionOrb'
 import StudentHeader from './StudentHeader';
 import { useModalFocus } from '../../lib/useModalFocus';
 import type { StudentEmotionConflictSnapshot, StudentEmotionSaveConflict } from '../../lib/studentEmotionConflict';
+import StableLabel from '../StableLabel';
 
 interface EmotionZonePanelProps {
   key?: string;
@@ -632,7 +633,7 @@ export default function StudentEmotionPage({
               onClick={() => { void confirmEmotion(); }}
             >
               <Check size={20} aria-hidden="true" />
-              {isSaving ? '저장 중' : saveConflict?.status === 'ready' ? '이 내용으로 다시 저장' : saveConflict?.status === 'checking' ? '현재 기록 확인 중' : saveConflict?.status === 'expired' ? '이전 날짜 입력 보관됨' : hasPendingSave ? '저장 다시 확인' : '기록하기'}
+              <StableLabel busy={isSaving} busyLabel="저장 중" label={saveConflict?.status === 'ready' ? '이 내용으로 다시 저장' : saveConflict?.status === 'checking' ? '현재 기록 확인 중' : saveConflict?.status === 'expired' ? '이전 날짜 입력 보관됨' : hasPendingSave ? '저장 다시 확인' : '기록하기'} />
             </button>}
             {saveError && !saveConflict ? <p role="alert">{saveError}</p> : null}
           </>}

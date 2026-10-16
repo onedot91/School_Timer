@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { libraryCompetitionClient, LibraryCompetitionClientError, type LibraryCompetitionResponse } from '../../lib/libraryCompetitionClient';
 import type { LibraryCompetitionSpeed } from '../../lib/libraryCompetition';
 import { LibraryCompetitionCountFields } from '../student/library/LibraryCompetitionTable';
+import StableLabel from '../StableLabel';
 
 export function TeacherLibraryCompetitionPanel() {
   const [response, setResponse] = useState<LibraryCompetitionResponse | null>(null);
@@ -96,7 +97,7 @@ export function TeacherLibraryCompetitionPanel() {
         </fieldset>
         {confirming ? <div className="teacher-library-competition-confirm" role="group" aria-label="변경 사항 확인"><h3>이 설정을 반 전체에 적용할까요?</h3><p>권수 변경 {changedCounts.length}개 학교 · 성장 {speed}배 · {paused ? '일시정지' : '진행'}</p>
           {changedCounts.length > 0 && <ul>{changedCounts.map(row => <li key={row.schoolId}>{row.schoolName}: {row.count} → {counts[row.schoolId]}권</li>)}</ul>}
-          <div><button type="button" disabled={busy} onClick={() => setConfirming(false)}>돌아가기</button><button ref={confirmRef} type="button" disabled={busy} onClick={() => { void save(); }}>{busy ? '저장 중…' : '확인하고 적용'}</button></div>
+          <div><button type="button" disabled={busy} onClick={() => setConfirming(false)}>돌아가기</button><button ref={confirmRef} type="button" disabled={busy} onClick={() => { void save(); }}><StableLabel busy={busy} busyLabel="저장 중…" label={'확인하고 적용'} /></button></div>
         </div> : <button ref={saveRef} className="teacher-library-competition-save" type="submit" disabled={busy || conflict || !valid}>변경 사항 확인</button>}
       </form>
       <details className="teacher-library-competition-history"><summary>변경 이력 {state.adjustments.length}건</summary>{state.adjustments.length === 0 ? <p>아직 변경한 설정이 없습니다.</p> : <ol>{[...state.adjustments].reverse().map(entry => <li key={entry.id}><time dateTime={entry.at}>{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' }).format(new Date(entry.at))}</time><span>{entry.speed}배 · {entry.paused ? '일시정지' : '진행'} · 권수 설정 {entry.counts.length}개 학교</span></li>)}</ol>}</details>

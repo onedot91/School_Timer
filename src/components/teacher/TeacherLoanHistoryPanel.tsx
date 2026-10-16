@@ -4,6 +4,7 @@ import { getKoreanLocalDateKey } from '../../lib/studentEmotion';
 import { getTeacherLoanStatusLabel, type TeacherLoanReport } from '../../lib/teacherLoanHistory';
 import { loadTeacherLoanHistory } from '../../lib/teacherLoanHistoryClient';
 import type { StudentEconomyStates } from '../../lib/studentEconomy';
+import StableLabel from '../StableLabel';
 
 const amountFormat = new Intl.NumberFormat('ko-KR');
 const timeFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -34,10 +35,10 @@ export default function TeacherLoanHistoryPanel({ states }: { readonly states: S
   return <section ref={panelRef} tabIndex={-1} className="teacher-loan-panel" aria-labelledby={`${id}-title`} aria-busy={loading}>
     <header className="teacher-loan-header">
       <div><h3 id={`${id}-title`}>대출 내역</h3>{report ? <span>대출 중 {borrowerCount}명 · <time dateTime={report.checkedAt}>{timeFormat.format(new Date(report.checkedAt))} 조회</time></span> : null}</div>
-      <button type="button" onClick={() => { panelRef.current?.focus({ preventScroll: true }); setRefreshVersion(value => value + 1); }} disabled={loading}><RefreshCw size={16} aria-hidden="true" />{loading ? '불러오는 중' : '다시 불러오기'}</button>
+      <button type="button" onClick={() => { panelRef.current?.focus({ preventScroll: true }); setRefreshVersion(value => value + 1); }} disabled={loading}><RefreshCw size={16} aria-hidden="true" /><StableLabel busy={loading} busyLabel="불러오는 중" label={'다시 불러오기'} /></button>
     </header>
     {error ? <p className="teacher-loan-error" role="alert">{error}{report ? ' 아래는 이전 조회 결과입니다.' : ''}</p> : null}
-    {loading ? <p role="status" className="teacher-loan-notice">대출 내역 확인 중…</p> : null}
+    {loading && !report ? <p role="status" className="teacher-loan-notice">대출 내역 확인 중…</p> : null}
     {report ? <>
       <div className="teacher-loan-workspace">
         <section className="teacher-loan-roster" aria-label="학생별 대출 현황">

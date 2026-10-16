@@ -23,6 +23,7 @@ import {
   todayFriendVisibleTraitMessage,
 } from '../../lib/todayFriendCommonalityGuard';
 import type { TodayFriendStudentMission } from '../../lib/todayFriendState';
+import StableLabel from '../StableLabel';
 
 interface TodayFriendMissionFormProps {
   readonly mission: TodayFriendStudentMission;
@@ -314,9 +315,9 @@ export default function TodayFriendMissionForm({
       {saveMessage || formMessage ? <p className="today-friend-form-message" role="status">{saveMessage || formMessage}</p> : null}
       <div className="today-friend-form-actions">
         <button type="submit" data-submitted={isSubmitted || undefined} disabled={!inputReady || isSaving || isSubmitting || isPreview || visibleTraitMessage.length > 0}>
-          {isSubmitted && !isSubmitting && !isSaving ? <span className="today-friend-submit-status"><CheckCircle2 aria-hidden="true" />제출 완료</span> : null}
-          <span>{isSubmitting ? mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…' : isSaving ? '저장 중…' : pendingPayload ? '저장 확인 후 다시 제출' : isSubmitted ? '수정해서 다시 제출' : '선생님께 제출'}</span>
-          {isSubmitting || isSaving || (isSubmitted && !hasEdited) ? null : <small>성의 없이 적으면 고마가 차감될 수 있어요</small>}
+          {isSubmitted ? <span className={`today-friend-submit-status${isSubmitting || isSaving ? ' is-reserved' : ''}`} aria-hidden={isSubmitting || isSaving || undefined}><CheckCircle2 aria-hidden="true" />제출 완료</span> : null}
+          <span><StableLabel busy={isSubmitting || isSaving} busyLabel={isSubmitting && mission.genre === 'recommendation' ? '편지와 미션 저장 중…' : '저장 중…'} label={pendingPayload ? '저장 확인 후 다시 제출' : isSubmitted ? '수정해서 다시 제출' : '선생님께 제출'} /></span>
+          {isSubmitted && !hasEdited && !isSubmitting && !isSaving ? null : <small className={isSubmitting || isSaving ? 'is-reserved' : undefined} aria-hidden={isSubmitting || isSaving || undefined}>성의 없이 적으면 고마가 차감될 수 있어요</small>}
         </button>
       </div>
     </form>

@@ -48,6 +48,7 @@ import {
   STUDENT_FAILURE_EXHIBITION_HIDDEN_LABEL,
   STUDENT_FEATURE_RELEASES,
 } from '../../../lib/studentFeatureRelease';
+import StableLabel from '../../StableLabel';
 
 type PlaceBook = (draft: LibraryBookDraft, slotId: number) => Promise<LibraryPlacedBook | null>;
 
@@ -1220,7 +1221,7 @@ export default function CanvasLibraryGame(props: CanvasLibraryGameProps) {
             <h1 id={slotTitleId}>책을 둘 자리</h1>
             {activeSlot ? (
               <p className="student-canvas-library-slot-caption" aria-live="polite">
-                <span>{isPlacing ? '책을 저장하고 있어요…' : `${activeSlot.id + 1}번 · ${activeSlotBook ? '책' : '빈자리'}`}</span>
+                <span><StableLabel busy={isPlacing} busyLabel="책을 저장하고 있어요…" label={`${activeSlot.id + 1}번 · ${activeSlotBook ? '책' : '빈자리'}`} align="start" /></span>
                 <strong>{activeSlotLabel}</strong>
               </p>
             ) : null}

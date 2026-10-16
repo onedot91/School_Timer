@@ -26,6 +26,7 @@ import StudentPurchaseCard from './StudentPurchaseCard';
 import StudentSectionCard from './StudentSectionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import { STUDENT_FEATURE_RELEASES } from '../../lib/studentFeatureRelease';
+import StableLabel from '../StableLabel';
 
 interface StudentOverviewPageProps {
   studentNumber: number;
@@ -443,7 +444,7 @@ export default function StudentOverviewPage({
                   }}
                 >
                   <Check size={20} aria-hidden="true" />
-                  {isPetSaving ? '저장 중' : '이름 저장'}
+                  <StableLabel busy={isPetSaving} busyLabel="저장 중" label={'이름 저장'} />
                 </button>
               </>
             ) : null}

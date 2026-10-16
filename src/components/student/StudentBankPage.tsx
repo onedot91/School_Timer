@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getKoreanDateKey, getRelativeKoreanWeekdayLabel, STUDENT_DEPOSIT_MINIMUM, type StudentEconomyAction, type StudentEconomyState } from '../../lib/studentEconomy';
 import StudentConfirmDialog from './StudentConfirmDialog';
+import StableLabel from '../StableLabel';
 
 interface StudentBankPageProps {
   state: StudentEconomyState;
@@ -132,7 +133,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
             <div className="student-bank-card-amount"><small>맡긴 고마</small><strong>{state.deposit} 고마</strong></div>
             {state.deposits.length > 0 ? <div className="student-bank-outcome"><b>→ 만기 {depositPayout} 고마</b><span>{nextDepositMaturityDate ? getRelativeKoreanWeekdayLabel(today, nextDepositMaturityDate) : `진행 중 ${state.deposits.length}건`}</span></div> : <b className="student-bank-empty">맡긴 고마 없음</b>}
           </div>
-          <button type="button" className={activeDeposit && !canClaimActiveDeposit ? 'student-bank-break-button' : undefined} disabled={isSaving} onClick={handleDepositButton}>{pendingAction === 'deposit' ? '처리 중' : activeDeposit ? canClaimActiveDeposit ? '예금 받기' : '예금 깨기' : '예금 (고마 맡기기)'}</button>
+          <button type="button" className={activeDeposit && !canClaimActiveDeposit ? 'student-bank-break-button' : undefined} disabled={isSaving} onClick={handleDepositButton}><StableLabel busy={pendingAction === 'deposit'} busyLabel="처리 중" label={activeDeposit ? canClaimActiveDeposit ? '예금 받기' : '예금 깨기' : '예금 (고마 맡기기)'} /></button>
         </article>
         <article>
           <img className="student-bank-card-scene" src={state.loan > 0 ? '/bank-repayment-scene.png' : '/bank-loan-scene.png'} alt={state.loan > 0 ? '상환 안내 그림' : '대출 안내 그림'} />
@@ -140,7 +141,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
             <div className="student-bank-card-amount"><small>{state.loan > 0 ? '갚을 고마' : '빌린 고마'}</small><strong>{state.loan} 고마</strong></div>
             <b className={state.loan > 0 ? 'student-bank-outcome' : 'student-bank-empty'}>{state.loan > 0 ? `${loanDueLabel}까지 갚기` : '빌린 고마 없음'}</b>
           </div>
-          <button type="button" className={state.loan > 0 ? 'student-bank-repay-button' : undefined} disabled={isSaving} onClick={() => setActiveModal('loan')}>{pendingAction === 'loan' ? '처리 중' : state.loan > 0 ? '상환(고마 갚기)' : '대출 (고마 빌리기)'}</button>
+          <button type="button" className={state.loan > 0 ? 'student-bank-repay-button' : undefined} disabled={isSaving} onClick={() => setActiveModal('loan')}><StableLabel busy={pendingAction === 'loan'} busyLabel="처리 중" label={state.loan > 0 ? '상환(고마 갚기)' : '대출 (고마 빌리기)'} /></button>
         </article>
         <article>
           <img className="student-bank-card-scene" src="/bank-transfer-scene.png" alt="송금 안내 그림" />
@@ -148,7 +149,7 @@ export default function StudentBankPage({ state, studentNumber, isSaving, onActi
             <div className="student-bank-card-amount"><small>오늘 보낼 수 있는 횟수</small><strong>하루 1회</strong></div>
             <b className="student-bank-outcome">최대 30고마 · 한 명</b>
           </div>
-          <button type="button" disabled={isSaving || hasTransferredToday} onClick={() => setActiveModal('transfer')}>{pendingAction === 'transfer' ? '처리 중' : '송금 (고마 보내기)'}</button>
+          <button type="button" disabled={isSaving || hasTransferredToday} onClick={() => setActiveModal('transfer')}><StableLabel busy={pendingAction === 'transfer'} busyLabel="처리 중" label={'송금 (고마 보내기)'} /></button>
         </article>
       </div>
       <StudentConfirmDialog

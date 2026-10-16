@@ -135,7 +135,7 @@ export default function StudentNewspaperPage({ studentNumber, onBack, onReward }
     <StudentHeader title="신문 질문하기" status={`${studentNumber}번 · ${questionWeekLabel(week)}`} onBack={onBack} backText="미션" backLabel="미션으로 돌아가기"
       actions={<><button onClick={() => void refresh()} disabled={loading} aria-label="질문 새로고침"><RefreshCw size={18} aria-hidden="true" /></button><button onClick={() => setHistory(true)} disabled={!data}><History size={18} aria-hidden="true" /> 내 기록</button></>} />
     <div className="newspaper-scroll" role="region" aria-label="신문 질문">
-      {loading ? <p role="status">확인 중…</p> : null}
+      {loading && !data ? <p role="status">확인 중…</p> : null}
       {error ? <div role="alert" className="newspaper-error">{error} <button onClick={() => void refresh()}>새로고침</button></div> : null}
       {data && !error ? <>
         <div className={`newspaper-composers${topic ? '' : ' is-single'}`}>

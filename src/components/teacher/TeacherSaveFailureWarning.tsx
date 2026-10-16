@@ -5,6 +5,7 @@ import { groupSaveFailureAlerts, isDelayedSaveFailure, SAVE_FAILURE_FEATURES, SA
 import { acknowledgeAllSaveFailures, acknowledgeSaveFailure, loadAllSaveFailureAlerts, loadSaveFailureAlerts, SAVE_FAILURE_CHANGE_EVENT } from '../../lib/saveFailureClient';
 import { formatSaveFailureDiagnostic, getSaveFailureExplanation, getSaveFailureLabel } from '../../lib/saveFailureDiagnostics';
 import { useModalFocus } from '../../lib/useModalFocus';
+import StableLabel from '../StableLabel';
 
 function SaveFailureItem({ alert, savingId, onAcknowledge }: { alert: SaveFailureAlert; savingId: string | null; onAcknowledge: (alert: SaveFailureAlert) => Promise<void> }) {
   const [copyStatus, setCopyStatus] = useState('');
@@ -37,7 +38,7 @@ function SaveFailureItem({ alert, savingId, onAcknowledge }: { alert: SaveFailur
     <details ref={detailsRef}><summary>진단 정보</summary><textarea ref={textRef} readOnly rows={7} aria-label={`${target} ${SAVE_FAILURE_FEATURES[alert.feature]} 진단 정보`} value={diagnostic} /></details>
     <div className="teacher-save-warning-actions">
       <button type="button" onClick={() => void copy()}>진단 정보 복사</button>
-      <button type="button" disabled={savingId !== null} onClick={() => void onAcknowledge(alert)} aria-label={`${target} ${SAVE_FAILURE_FEATURES[alert.feature]} 오류 확인 처리`}>{savingId === alert.id ? '저장 중' : '확인 처리'}</button>
+      <button type="button" disabled={savingId !== null} onClick={() => void onAcknowledge(alert)} aria-label={`${target} ${SAVE_FAILURE_FEATURES[alert.feature]} 오류 확인 처리`}><StableLabel busy={savingId === alert.id} busyLabel="저장 중" label={'확인 처리'} /></button>
     </div>
     {copyStatus ? <span role="status">{copyStatus}</span> : null}
   </li>;
@@ -158,7 +159,7 @@ export default function TeacherSaveFailureWarning({ returnFocusRef }: { returnFo
         {alerts.length > 0 ? <div className="teacher-save-warning-bulk">
           <p>{alerts.length}{hasMore ? '+' : ''}건 · 반복 오류는 묶어 표시합니다.</p>
           <div className="teacher-save-warning-actions">
-            <button type="button" disabled={isCopying || savingId !== null} onClick={() => void copyAll()}>{isCopying ? '불러오는 중…' : '진단 정보 일괄 복사'}</button>
+            <button type="button" disabled={isCopying || savingId !== null} onClick={() => void copyAll()}><StableLabel busy={isCopying} busyLabel="불러오는 중…" label={'진단 정보 일괄 복사'} /></button>
             <button type="button" disabled={savingId !== null || isCopying} onClick={() => setConfirmAll(true)}>모두 확인 처리</button>
           </div>
         </div> : null}

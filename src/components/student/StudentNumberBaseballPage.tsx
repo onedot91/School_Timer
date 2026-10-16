@@ -19,6 +19,7 @@ import { loadStudentStorageFormDraft, readyStudentStorageDrafts, saveStudentStor
 import { normalizeNumberBaseballInput, restoreNumberBaseballProgressDraft } from '../../lib/studentGameProgressDraft';
 import StudentGameConflictNotice from './StudentGameConflictNotice';
 import { loadLatestStudentGameForm, type StudentGameConflictReview } from '../../lib/useStudentGameConflict';
+import StableLabel from '../StableLabel';
 
 type StudentNumberBaseballPageProps = {
   readonly studentNumber: number;
@@ -237,7 +238,7 @@ export default function StudentNumberBaseballPage({
                     {status === 'completed' && solvedReward && (hasReward || confirmedCompletion) ? (
                       <><b>{answer.join('')}</b><em>+{solvedReward} 고마</em></>
                     ) : status === 'completed' ? (
-                      <span>{isSaving ? '저장 중' : '보상 저장 확인 필요'}</span>
+                      <span><StableLabel busy={isSaving} busyLabel="저장 중" label={'보상 저장 확인 필요'} /></span>
                     ) : (
                       <>정답은 <b>{answer.join('')}</b> · 다음 주에 다시 도전해요</>
                     )}
@@ -298,14 +299,14 @@ export default function StudentNumberBaseballPage({
                     disabled={(!pendingEntry && selectedDigits.length !== 3) || isSaving}
                     onClick={() => void submitGuess()}
                   >
-                    {isSaving ? '저장 중' : pendingEntry ? '저장 다시 확인' : '확인하기'}
+                    <StableLabel busy={isSaving} busyLabel="저장 중" label={pendingEntry ? '저장 다시 확인' : '확인하기'} />
                   </button>
                 </div>
               </>
             )}
             {!hasConflict && isTerminal && pendingEntry ? (
               <button type="button" className="student-baseball-submit" disabled={isSaving} onClick={() => void saveAttempt(pendingEntry)}>
-                {isSaving ? '저장 중' : '저장 다시 확인'}
+                <StableLabel busy={isSaving} busyLabel="저장 중" label={'저장 다시 확인'} />
               </button>
             ) : null}
             {!hasConflict && !isTerminal && shouldShowFeedback ? (

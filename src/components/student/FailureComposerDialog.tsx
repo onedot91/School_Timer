@@ -2,6 +2,7 @@ import { HeartHandshake, Send, X } from 'lucide-react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useModalFocus } from '../../lib/useModalFocus';
 import { FailureAutosizeTextarea } from './FailureAutosizeTextarea';
+import StableLabel from '../StableLabel';
 
 interface FailureComposerDialogProps {
   readonly savedDraft?: StoryDraft;
@@ -147,7 +148,7 @@ export function FailureComposerDialog({
           </label>
           {hasPendingSave || saveError ? <p role="status">{hasPendingSave ? '이전 저장 결과를 확인한 뒤 내용을 바꿀 수 있어요.' : saveError}</p> : null}
           <button type="submit" className="student-primary-action" disabled={isSaving || !canSubmit}>
-            <Send aria-hidden="true" />{isSaving ? '저장하는 중' : hasPendingSave ? '저장 다시 확인' : '자랑하기'}
+            <Send aria-hidden="true" /><StableLabel busy={isSaving} busyLabel="저장하는 중" label={hasPendingSave ? '저장 다시 확인' : '자랑하기'} />
           </button>
         </form>
       </div>

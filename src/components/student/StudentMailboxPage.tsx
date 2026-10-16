@@ -13,6 +13,7 @@ import {
   isDailyWritingLetter,
   normalizeDailyWritingLetterForDisplay,
 } from '../../lib/dailyWriting';
+import StableLabel from '../StableLabel';
 
 interface MailboxDraft { readonly recipient?: number; readonly title: string; readonly content: string; readonly replyToId?: string }
 interface StudentMailboxPageProps {
@@ -503,7 +504,7 @@ export default function StudentMailboxPage({
                   <X size={20} aria-hidden="true" />취소
                 </button>
                 <button type="submit" className="student-primary-action" disabled={isSaving || content.trim().length === 0}>
-                  <Send size={20} aria-hidden="true" />{isSaving ? '보내는 중' : hasPendingSave ? '저장 다시 확인' : '보내기'}
+                  <Send size={20} aria-hidden="true" /><StableLabel busy={isSaving} busyLabel="보내는 중" label={hasPendingSave ? '저장 다시 확인' : '보내기'} />
                 </button>
               </div>
             </form>

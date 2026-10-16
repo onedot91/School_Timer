@@ -6,6 +6,7 @@ import { newspaperCommand, readPendingNewspaperRequests } from '../../lib/newspa
 import { isReadOnlyDataMode } from '../../lib/dataMode';
 import { getKoreanIsoWeekKey } from '../../lib/weeklyMission';
 import { NEWSPAPER_CONFIG, QUESTION_LABELS, QUESTION_ERRORS, NewspaperError, newspaperErrorMessage, isQuestionMode, isQuestionWeek, questionValidationCode, normalizeQuestionText, questionWeekLabel, questionWeekOptions, selectQuestionDownload, buildQuestionTxt, questionTxtFilename, parseNewspaperQuestion, type NewspaperQuestion, type QuestionMode } from '../../lib/newspaperQuestion';
+import StableLabel from '../StableLabel';
 
 function QuestionEditor({ row, heartCount, isTopHearted, busy, onSave, onDelete }: { row: NewspaperQuestion; heartCount: number; isTopHearted: boolean; busy: boolean; onSave: (text: string) => void; onDelete: () => void }) {
   const [text, setText] = useState(row.question_text);
@@ -65,9 +66,9 @@ export default function TeacherNewspaperPanel() {
     <div className="newspaper-topic-settings">
       <label>적용 주<select value={selectedWeek} disabled={busy} onChange={event => { setSelectedWeek(event.target.value); setTopicDraft(null); setNotice(''); setDownload(null); }}>{weeks.map(week => <option key={week} value={week}>{data?.topics.some(row => row.week_key === week) ? '●' : '○'} {questionWeekLabel(week)} ({week}){week === currentWeek ? ' · 오늘' : ''}</option>)}</select></label>
       <label>주제<input value={topicDraft ?? topic?.topic_text ?? ''} disabled={busy || loading || !!error || isReadOnlyDataMode} maxLength={NEWSPAPER_CONFIG.topicMaxLength} onChange={event => setTopicDraft(event.target.value)} /></label>
-      <button className="newspaper-primary" disabled={busy || loading || !!error || isReadOnlyDataMode || !(topicDraft ?? topic?.topic_text ?? '').trim()} onClick={() => void run({ action: 'topic', weekKey: selectedWeek, topicText: topicDraft ?? topic?.topic_text ?? '', expectedUpdatedAt: topic?.updated_at ?? null }, '주제 저장 완료', () => setTopicDraft(null))}>{busy ? '처리 중' : '주제 저장'}</button>
+      <button className="newspaper-primary" disabled={busy || loading || !!error || isReadOnlyDataMode || !(topicDraft ?? topic?.topic_text ?? '').trim()} onClick={() => void run({ action: 'topic', weekKey: selectedWeek, topicText: topicDraft ?? topic?.topic_text ?? '', expectedUpdatedAt: topic?.updated_at ?? null }, '주제 저장 완료', () => setTopicDraft(null))}><StableLabel busy={busy} busyLabel="처리 중" label={'주제 저장'} /></button>
     </div>
-    {loading ? <p role="status">확인 중…</p> : null}
+    {loading && !data ? <p role="status">확인 중…</p> : null}
     {error ? <p role="alert" className="newspaper-error">{error}</p> : null}
     <p role={failed ? 'alert' : 'status'} className={failed ? 'newspaper-error' : 'newspaper-feedback'}>{notice}</p>
     {data && !error ? <>
@@ -114,7 +115,7 @@ export default function TeacherNewspaperPanel() {
       <p>{confirm === 'reset' ? '모든 주차의 개인 질문, 주제 질문, 주제 기록이 전부 삭제됩니다.' : '이 질문을 삭제합니다.'}</p><p>이 작업은 되돌릴 수 없습니다. 지급된 고마는 유지됩니다.</p>
       {confirm === 'reset' ? <label>확인 문구: 모든 기록 초기화<input aria-label="초기화 확인 문구" value={confirmation} onChange={event => setConfirmation(event.target.value)} disabled={busy} /></label> : null}
       {failed ? <p role="alert" className="newspaper-error">{notice}</p> : null}
-      <div className="newspaper-toolbar"><button disabled={busy} onClick={() => setConfirm(null)}>취소</button><button className="newspaper-danger" disabled={busy || confirm === 'reset' && confirmation !== '모든 기록 초기화'} onClick={() => void run(confirm === 'reset' ? { action: 'reset', confirmation } : { action: 'delete', id: confirm.id, expectedUpdatedAt: confirm.updated_at }, confirm === 'reset' ? '초기화 완료' : `${confirm.student_number}번 삭제 완료`, () => { setDownload(null); setTopicDraft(null); })}>{busy ? '처리 중' : confirm === 'reset' ? '모든 기록 초기화' : '삭제'}</button></div>
+      <div className="newspaper-toolbar"><button disabled={busy} onClick={() => setConfirm(null)}>취소</button><button className="newspaper-danger" disabled={busy || confirm === 'reset' && confirmation !== '모든 기록 초기화'} onClick={() => void run(confirm === 'reset' ? { action: 'reset', confirmation } : { action: 'delete', id: confirm.id, expectedUpdatedAt: confirm.updated_at }, confirm === 'reset' ? '초기화 완료' : `${confirm.student_number}번 삭제 완료`, () => { setDownload(null); setTopicDraft(null); })}><StableLabel busy={busy} busyLabel="처리 중" label={confirm === 'reset' ? '모든 기록 초기화' : '삭제'} /></button></div>
     </NewspaperDialog> : null}
   </div>;
 }

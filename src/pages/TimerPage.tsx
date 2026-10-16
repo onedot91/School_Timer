@@ -259,6 +259,8 @@ import {
   STUDENT_MISSION_VISIBILITY_GROUPS,
   type StudentMissionVisibility,
 } from '../lib/studentMissionVisibility';
+import StableLabel from '../components/StableLabel';
+import StatusSlot from '../components/StatusSlot';
 
 const TeacherWritingSettings = lazy(() => import('../components/teacher/TeacherWritingSettings'));
 const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherClasswordPanel'));
@@ -10601,7 +10603,7 @@ export default function TimerPage() {
           <div className="teacher-mail-compose-actions">
             <span role="status">{mailStatus}</span>
             <button type="button" onClick={() => void sendTeacherLetter()} disabled={isMailSending || mailContent.trim().length === 0 || mailRecipients.length === 0}>
-              <Send size={18} aria-hidden="true" />{isMailSending ? '보내는 중' : mailRecipients.length > 1 ? `${mailRecipients.length}명에게 보내기` : '보내기'}
+              <Send size={18} aria-hidden="true" /><StableLabel busy={isMailSending} busyLabel="보내는 중" label={mailRecipients.length > 1 ? `${mailRecipients.length}명에게 보내기` : '보내기'} />
             </button>
           </div>
         </div>
@@ -11065,7 +11067,7 @@ export default function TimerPage() {
       >
         <div className="mb-4">
           <h3 className="section-title text-[1.18rem] font-extrabold text-[#3F2B20]">물품 설정 및 현황</h3>
-          {auctionItemsSaveStatus !== 'idle' && <div className="mt-2 flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">
+          <div className="status-slot mt-2 flex flex-wrap items-center gap-2 text-sm" role="status" aria-live="polite">{auctionItemsSaveStatus !== 'idle' && <>
             <span>{auctionItemsSaveStatus === 'error'
               ? auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE'
                 ? '서버에 없는 물품이거나 마지막 물품이라 삭제할 수 없습니다. 물품 목록을 확인해 주세요.'
@@ -11079,7 +11081,7 @@ export default function TimerPage() {
               setAuctionItemsSaveStatus('pending');
               setAuctionItemEditCommitVersion(previous => previous + 1);
             }}>{auctionItemsSaveErrorCode === 'AUCTION_ITEM_NOT_REMOVABLE' ? '목록 확인' : '다시 저장'}</button>}
-          </div>}
+          </>}</div>
         </div>
 
         {isAuctionScheduleClosed ? (
@@ -11404,7 +11406,7 @@ export default function TimerPage() {
 
           {!isTodayClassroomRoleSchoolDay && <p className="text-sm font-bold text-[#65736C]">주말에는 1인 1역을 쉬어요.</p>}
           {classroomRoleError && <p role="alert" className="text-sm font-bold text-[#9B4A43]">{classroomRoleError}</p>}
-          {isClassroomRoleSaving && <p role="status" className="text-sm font-bold text-[#65736C]">저장 중</p>}
+          <StatusSlot className="text-sm font-bold text-[#65736C]">{isClassroomRoleSaving ? '저장 중' : null}</StatusSlot>
           <div className="grid gap-2 md:grid-cols-3">
             {todayClassroomRoleAssignments.map((assignment) => {
               const result = classroomRoleMission.results[todayClassroomRoleDateKey]?.[String(assignment.studentNumber)];
@@ -13192,7 +13194,7 @@ export default function TimerPage() {
             </div>}
             {teacherSettingsSaveError && <div className="teacher-settings-save-status flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-5 py-2" role="status">
               <span>{teacherSettingsSaveError}</span>
-              <button type="button" className="min-h-11 rounded-full border px-4 font-bold disabled:cursor-wait disabled:opacity-60" disabled={isTeacherSettingsRetrying} onClick={() => void retryTeacherSettingsSave()}>{isTeacherSettingsRetrying ? '저장 확인 중…' : teacherSettingsConflict ? '내 변경 저장' : '저장 다시 확인'}</button>
+              <button type="button" className="min-h-11 rounded-full border px-4 font-bold disabled:cursor-wait disabled:opacity-60" disabled={isTeacherSettingsRetrying} onClick={() => void retryTeacherSettingsSave()}><StableLabel busy={isTeacherSettingsRetrying} busyLabel="저장 확인 중…" label={teacherSettingsConflict ? '내 변경 저장' : '저장 다시 확인'} /></button>
             </div>}
             <div className="settings-header flex shrink-0 items-center justify-between border-b border-[#E6D5C9] bg-white p-5 md:p-6">
               <h2 id="timer-settings-title" className="section-title flex items-center gap-2 text-xl font-bold text-[#8A6347] md:text-2xl">

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Clock, Store } from 'lucide-react';
 import { deviceSessionMatchesEntry, type BrowserDeviceSession } from '../lib/deviceSessionClient';
 import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from '../lib/studentIdentity';
+import StableLabel from '../components/StableLabel';
 
 interface EntrySelectPageProps {
   readonly onSelectNumber: (studentNumber: number, registrationKey?: string) => Promise<void>;
@@ -222,7 +223,7 @@ export default function EntrySelectPage({
                   className="entry-registration-submit"
                   disabled={registrationKey.length === 0 || isRegistering}
                 >
-                  {isRegistering ? '확인 중…' : '등록'}
+                  <StableLabel busy={isRegistering} busyLabel="확인 중…" label={'등록'} />
                 </button>
               </div>
             </form>

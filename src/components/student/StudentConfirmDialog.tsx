@@ -1,6 +1,7 @@
 import { useId, useRef, type ReactNode, type RefObject } from 'react';
 import { X } from 'lucide-react';
 import { useModalFocus } from '../../lib/useModalFocus';
+import StableLabel from '../StableLabel';
 
 interface StudentConfirmDialogProps {
   readonly isOpen: boolean;
@@ -77,7 +78,7 @@ export default function StudentConfirmDialog({
         {children}
         <div className="student-confirm-dialog-actions" data-single-action={cancelLabel === null ? 'true' : undefined}>
           {cancelLabel === null ? null : <button type="button" disabled={isPending} onClick={onCancel}>{cancelLabel}</button>}
-          <button type="button" disabled={isPending || isConfirmDisabled} onClick={onConfirm}>{isPending ? '처리 중' : confirmLabel}</button>
+          <button type="button" disabled={isPending || isConfirmDisabled} onClick={onConfirm}><StableLabel busy={isPending} busyLabel="처리 중" label={confirmLabel} /></button>
         </div>
       </section>
     </div>

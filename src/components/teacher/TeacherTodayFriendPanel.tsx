@@ -21,6 +21,7 @@ import { storageAvailabilityMessage } from '../../lib/storageAvailabilityCopy';
 import type { TodayFriendQuestion, TodayFriendState } from '../../lib/todayFriendState';
 import TeacherTodayFriendPlan from './TeacherTodayFriendPlan';
 import TeacherTodayFriendReview from './TeacherTodayFriendReview';
+import StatusSlot from '../StatusSlot';
 
 type TeacherTodayFriendTab = 'review' | 'plan';
 const reviewDrafts = createStudentSaveDraftStore();
@@ -213,8 +214,7 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
         <button type="button" className={tab === 'plan' ? 'is-active' : ''} onClick={() => setTab('plan')}><Settings2 aria-hidden="true" />설정</button>
         <button type="button" aria-label="현황 새로고침" title="새로고침" disabled={isSaving || isLoading} onClick={() => { void loadState(); }}><RefreshCw aria-hidden="true" /></button>
       </nav>
-      {message ? <p className="teacher-today-friend-message" role="status">{message}</p> : null}
-      {isLoading && state ? <p className="teacher-today-friend-message" role="status">최신 현황 확인 중…</p> : null}
+      <StatusSlot className="teacher-today-friend-message">{message || (isLoading && state ? '최신 현황 확인 중…' : null)}</StatusSlot>
       {pendingReview && <button type="button" disabled={isSaving || retryAfterSeconds > 0} className="min-h-11 rounded-full border px-4" onClick={() => { void performReview(pendingReview); }}>{retryAfterSeconds > 0 ? `${retryAfterSeconds}초 후 다시 확인` : '이전 처리 다시 확인'}</button>}
       {isLoading && !state ? <div className="teacher-today-friend-loading">불러오는 중…</div> : !state ? null : tab === 'review' ? (
         <TeacherTodayFriendReview submissions={dateSubmissions} isSaving={isSaving || isLoading || hasLoadError || retryAfterSeconds > 0} onReview={review} />

@@ -5,6 +5,7 @@ import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscri
 import { canReloadWithDrafts, hasDraftStorageFailure, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
 import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, requestSaveRecovery, isReviewedRecoveryIssue, type SaveRecoveryIssue } from '../lib/saveRecovery';
 import { SAVE_FAILURE_FEATURES } from '../lib/saveFailure';
+import StableLabel from './StableLabel';
 
 const recoveryReasons = {
   confirmation: '저장 결과가 아직 확인되지 않았어요. 해당 기능에서 기록을 확인해 주세요.',
@@ -119,7 +120,7 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
       <p>{isReviewedRecoveryIssue(issue) ? '교사 확인 · 서버 결과 미확인' : recoveryReasons[issue.reason]}</p>
       {transaction && issue.reason === 'confirmation' && !transaction.reviewedAt ? reviewTarget === transaction.requestId ? <div>
         <p>거래 내역을 직접 확인했나요? 알림만 확인 처리하며 저장 성공으로 처리하지 않습니다.</p>
-        <button type="button" disabled={reviewing || isRetrying} onClick={() => void review(transaction.requestId)}>{reviewing ? '처리 중…' : '내역 확인했음'}</button>
+        <button type="button" disabled={reviewing || isRetrying} onClick={() => void review(transaction.requestId)}><StableLabel busy={reviewing} busyLabel="처리 중…" label={'내역 확인했음'} /></button>
         <button type="button" disabled={reviewing} onClick={() => setReviewTarget(null)}>취소</button>
       </div> : <button type="button" disabled={reviewing || isRetrying} onClick={() => setReviewTarget(transaction.requestId)}>알림 확인 처리</button> : null}
     </li>;
@@ -152,7 +153,7 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
             ? '보관된 입력은 새로고침 후 다시 저장해 주세요.' : '이 기기의 저장 결과를 아직 확인하지 못했어요.'}</p> : null}
         {unsafe ? copyButton : activeNotice?.kind === 'update'
           ? <button type="button" onClick={reload}>새로고침</button>
-          : <button type="button" disabled={isRetrying || reviewing || recovery?.recovering} onClick={retry}>{isRetrying ? '확인 중…' : '다시 확인'}</button>}
+          : <button type="button" disabled={isRetrying || reviewing || recovery?.recovering} onClick={retry}><StableLabel busy={isRetrying} busyLabel="확인 중…" label={'다시 확인'} /></button>}
         {!unsafe && !activeNotice ? recoveryDetails : null}
         {retryError ? <p role="status">{retryError}</p> : null}
         {reloadBlocked ? <p>내용을 복사한 뒤 새로고침해 주세요.</p> : null}
