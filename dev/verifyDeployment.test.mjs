@@ -110,9 +110,6 @@ test('missing load scenarios, slow saves, and excessive bid retries fail verific
   const slowBids = samples.map(sample => ({ ...sample, ms: sample.action === 'student.auction.bid' ? 3000 : sample.ms }));
   assert.throws(() => verifyClassroomTimings(slowBids), /STORAGE_LOAD_TIME_BUDGET/);
   assert.doesNotThrow(() => verifyClassroomTimings(slowBids, { atomicBids: false }));
-  const failureStoriesAt = ms => samples.map(sample => ({ ...sample, ms: sample.action === 'student.failure.create' ? ms : sample.ms }));
-  assert.doesNotThrow(() => verifyClassroomTimings(failureStoriesAt(7000)), 'temporary failure-story budget');
-  assert.throws(() => verifyClassroomTimings(failureStoriesAt(10_500)), /STORAGE_LOAD_TIME_BUDGET/);
   assert.throws(() => verifyClassroomTimings(samples.slice(1)), /STORAGE_LOAD_SAMPLES_REQUIRED/);
   for (const action of ['teacher.settings.patch', 'student.failure.create', 'student.auction.bid']) {
     assert.throws(() => verifyClassroomTimings(samples.map(sample => ({ ...sample, ms: sample.action === action ? 20_000 : sample.ms }))), /STORAGE_LOAD_TIME_BUDGET/);

@@ -2,7 +2,7 @@ import type { DeviceSession, RequestHeaders } from './deviceSession.js';
 import { applyStudentStorageCommand } from './studentStorageCommands.js';
 import { applyTeacherStorageCommand } from './teacherStorageCommands.js';
 import {
-  commitAuctionBidAndLoad, commitScopedStorageMutationAndLoad, commitScopedStorageMutationThenLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError,
+  commitAuctionBidAndLoad, commitScopedStorageMutationAndLoad, getStorageReceipt, loadScopedStorageSnapshot, prepareStorageCommand, StorageRepositoryError,
   type StorageConfiguration, type StorageReceipt,
 } from './storageV2Repository.js';
 import { auctionFinalizationScope, completeFailureStoryReadScope, storageCommandScope, studentEditRevisionKeys } from './storageCommandScope.js';
@@ -152,8 +152,6 @@ export const handleStorageCommand = async (
         const saved = action === 'student.auction.bid' && effectiveSession.role === 'student'
           && process.env.STORAGE_ATOMIC_AUCTION_BIDS === '1'
           ? await commitAuctionBidAndLoad(configuration, write, effectiveSession.studentNumber, createdAt)
-          // Every story insert bumps the shared failure-story counters; reading inside that transaction serialized the class.
-          : action === 'student.failure.create' ? await commitScopedStorageMutationThenLoad(configuration, write)
           : await commitScopedStorageMutationAndLoad(configuration, write);
         if ('rejected' in saved && saved.rejected) {
           response.status(400).json({ error: saved.rejected, businessRejected: true }); return;

@@ -4,6 +4,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mock } from 'node:test';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import pg from 'pg';
 import { verifyClassroomTimings } from '../../dev/storageBudgets.mjs';
 import handler from '../../api/shared-settings.js';
@@ -38,7 +39,11 @@ invoke('initdb', ['-D', `${directory}/data`, '-U', 'postgres', '-A', 'trust', '-
 invoke('pg_ctl', ['-D', `${directory}/data`, '-l', `${directory}/postgres.log`, '-o', `-F -h '' -k ${directory} -p 55488`, '-w', 'start']);
 try {
   query('create role anon; create role authenticated; create role service_role;');
-  for (const file of ['app_settings.sql', 'classword.sql', 'library_competition.sql', 'storage_v2.sql', 'storage_scoped_v2.sql', 'storage_rewards_v2.sql', 'storage_command_round_trips.sql']) {
+  // Same function chain as production: JIT-free scoped reads and shared ancestor locks, then the combined command RPCs.
+  for (const file of ['app_settings.sql', 'classword.sql', 'library_competition.sql', 'storage_v2.sql', 'storage_today_friend_v2.sql', 'storage_rewards_v2.sql',
+    'newspaper_questions.sql', 'storage_classword_v2.sql', 'storage_audit_v2.sql', 'storage_scoped_v2.sql', 'storage_read_performance.sql',
+    'storage_library_placement_v2.sql', 'storage_scoped_polling.sql', 'storage_scope_history_read_performance.sql', 'storage_scoped_read_execution.sql', 'storage_snapshot_execution.sql',
+    'storage_ancestor_locks.sql', 'storage_command_round_trips.sql']) {
     query(await readFile(new URL(`../../supabase/${file}`, import.meta.url), 'utf8'));
   }
   const students = Array.from({ length: 23 }, (_, index) => index + 1);
@@ -104,12 +109,19 @@ try {
   const command = (actor: number, action: string, payload: unknown, suffix: string) => {
     const request = { actor, action, payload, requestId: `classroom-${suffix}-${actor}` }; requests.push(request); return request;
   };
+  // Separates database waits from handler CPU on the single Node event loop.
+  const loopDelay = monitorEventLoopDelay({ resolution: 10 }); loopDelay.enable();
+  const cpuStart = process.cpuUsage(), wallStart = performance.now();
   const teacher = command(0, 'teacher.settings.patch', { changes: [{ field: 'scheduleNotice', before: 'before', after: 'after' }] }, 'teacher');
   await Promise.all([call(teacher), ...students.map(async student => {
     await call(command(student, 'student.auction.bid', { itemId: items[(student - 1) % 6].id, amount: student * 10 + 10 }, 'bid'));
     await call(command(student, 'student.failure.create', { failure: '합성 새 실패', lesson: '합성 새 배움' }, 'story'));
   })]);
   const workloadMetrics = [...metrics];
+  loopDelay.disable();
+  const cpu = process.cpuUsage(cpuStart);
+  const node = { wallMs: Math.round(performance.now() - wallStart), cpuMs: Math.round((cpu.user + cpu.system) / 1000),
+    loopDelayP99Ms: Math.round(loopDelay.percentile(99) / 1e6), loopDelayMaxMs: Math.round(loopDelay.max / 1e6) };
   const snapshot = parseScopedStorageSnapshot(JSON.parse(query(`select storage_load_scope(${json({ resources: [{ path: '/studentLife/failureStories' }, { path: '/auctionBids' }], wallets: students, history: [], writeResources: [], writeWallets: [] })});`)));
   assert.ok(isStorageRecord(snapshot.value.studentLife) && Array.isArray(snapshot.value.studentLife.failureStories));
   const savedStories = snapshot.value.studentLife.failureStories;
@@ -138,12 +150,13 @@ try {
       p50: Math.round(times[Math.floor((times.length - 1) * .5)]), p95: Math.round(times[Math.ceil((times.length - 1) * .95)]), max: Math.round(times.at(-1) ?? 0) }];
   }));
   // GitHub job logs need sign-in; a notice annotation keeps CI measurements readable from the public check run.
-  if (process.env.GITHUB_ACTIONS === 'true') console.log(`::notice title=classroom save load::${JSON.stringify(summary)}`);
+  const rpcTimings = Object.fromEntries([...new Set(workloadMetrics.map(metric => `${metric.action || 'read'}:${metric.rpc}`))].map(key => {
+    const times = workloadMetrics.filter(metric => `${metric.action || 'read'}:${metric.rpc}` === key).map(metric => metric.ms).sort((a, b) => a - b);
+    return [key, { calls: times.length, p50: Math.round(times[Math.floor((times.length - 1) * .5)]), max: Math.round(times.at(-1) ?? 0) }];
+  }));
+  if (process.env.GITHUB_ACTIONS === 'true') console.log(`::notice title=classroom save load::${JSON.stringify({ summary, node, rpcTimings })}`);
   console.log(JSON.stringify({ atomicBids: process.env.STORAGE_ATOMIC_AUCTION_BIDS === '1', rpcDelayMs, syntheticStories: stories.length, historyPerStudent: 100, summary,
-    rpcTimings: Object.fromEntries([...new Set(workloadMetrics.map(metric => `${metric.action || 'read'}:${metric.rpc}`))].map(key => {
-      const times = workloadMetrics.filter(metric => `${metric.action || 'read'}:${metric.rpc}` === key).map(metric => metric.ms).sort((a, b) => a - b);
-      return [key, { calls: times.length, p50: Math.round(times[Math.floor((times.length - 1) * .5)]), max: Math.round(times.at(-1) ?? 0) }];
-    })),
+    node, rpcTimings,
     rpcCalls: workloadMetrics.length, responseBytes: workloadMetrics.reduce((total, metric) => total + metric.bytes, 0), conflicts: workloadMetrics.filter(metric => metric.saved === false).length,
     receiptCount: query('select count(*) from storage_receipts;'), replayUnchanged: beforeReplay === afterReplay }, null, 2));
   assert.equal(beforeReplay, afterReplay, 'replays must not duplicate rewards or stories');
