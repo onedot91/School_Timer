@@ -28,7 +28,7 @@ export function MissionRewardInput({
   return (
     <div className="grid gap-1.5">
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={isRange ? `${inputId}-minimum` : inputId} className="section-title text-[0.74rem] font-black text-[var(--teacher-text-secondary)]">
+        <label htmlFor={isRange ? `${inputId}-minimum` : inputId} className="section-title text-[length:var(--type-caption)] font-black text-[var(--teacher-text-secondary)]">
           보상
         </label>
         <div className="inline-grid grid-cols-2 overflow-hidden rounded-full border border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)]" role="group" aria-label={`미션 ${missionIndex} 보상 방식`}>
@@ -37,7 +37,7 @@ export function MissionRewardInput({
             data-reward-mode="single"
             aria-pressed={!isRange}
             onClick={() => onValueChange(isRange ? value[0] : value)}
-            className={`min-h-8 px-2.5 text-[0.7rem] font-black transition-colors ${!isRange ? 'bg-[var(--teacher-accent)] text-white' : 'text-[var(--teacher-accent)] hover:bg-[var(--teacher-surface-muted)]'}`}
+            className={`min-h-8 px-2.5 text-[length:var(--type-caption)] font-black transition-colors ${!isRange ? 'bg-[var(--teacher-accent)] text-white' : 'text-[var(--teacher-accent)] hover:bg-[var(--teacher-surface-muted)]'}`}
           >
             단일
           </button>
@@ -46,7 +46,7 @@ export function MissionRewardInput({
             data-reward-mode="range"
             aria-pressed={isRange}
             onClick={() => onValueChange(isRange ? value : [value, value])}
-            className={`min-h-8 border-l border-[var(--teacher-border)] px-2.5 text-[0.7rem] font-black transition-colors ${isRange ? 'bg-[var(--teacher-accent)] text-white' : 'text-[var(--teacher-accent)] hover:bg-[var(--teacher-surface-muted)]'}`}
+            className={`min-h-8 border-l border-[var(--teacher-border)] px-2.5 text-[length:var(--type-caption)] font-black transition-colors ${isRange ? 'bg-[var(--teacher-accent)] text-white' : 'text-[var(--teacher-accent)] hover:bg-[var(--teacher-surface-muted)]'}`}
           >
             범위
           </button>
@@ -65,7 +65,7 @@ export function MissionRewardInput({
             onChange={(event) => onValueChange([clampAuctionMissionRewardAmount(event.target.value), value[1]])}
             onFocus={onFocus}
             onBlur={onBlur}
-            className="h-11 min-w-0 bg-transparent px-2 text-right font-mono text-[0.9rem] font-black text-[var(--teacher-accent)] outline-none"
+            className="h-11 min-w-0 bg-transparent px-2 text-right font-mono text-[length:var(--type-body-sm)] font-black text-[var(--teacher-accent)] outline-none"
             aria-label={`미션 ${missionIndex} 최소 보상`}
           />
           <span className="flex h-11 items-center justify-center text-[var(--teacher-text-secondary)]" aria-hidden="true">~</span>
@@ -80,10 +80,10 @@ export function MissionRewardInput({
             onChange={(event) => onValueChange([value[0], clampAuctionMissionRewardAmount(event.target.value)])}
             onFocus={onFocus}
             onBlur={onBlur}
-            className="h-11 min-w-0 bg-transparent px-2 text-right font-mono text-[0.9rem] font-black text-[var(--teacher-accent)] outline-none"
+            className="h-11 min-w-0 bg-transparent px-2 text-right font-mono text-[length:var(--type-body-sm)] font-black text-[var(--teacher-accent)] outline-none"
             aria-label={`미션 ${missionIndex} 최대 보상`}
           />
-          <span className="flex h-11 items-center justify-center border-l border-[var(--teacher-border)] text-[0.78rem] font-extrabold text-[var(--teacher-text-secondary)]">고마</span>
+          <span className="flex h-11 items-center justify-center border-l border-[var(--teacher-border)] text-[length:var(--type-caption)] font-extrabold text-[var(--teacher-text-secondary)]">고마</span>
         </div>
       ) : (
         <div className="grid grid-cols-[minmax(7rem,1fr)_repeat(4,2.75rem)] gap-2">
@@ -98,10 +98,10 @@ export function MissionRewardInput({
               onChange={(event) => onValueChange(clampAuctionMissionRewardAmount(event.target.value))}
               onFocus={onFocus}
               onBlur={onBlur}
-              className="h-11 min-w-0 bg-transparent px-3 text-right font-mono text-[0.95rem] font-black text-[var(--teacher-accent)] outline-none"
+              className="h-11 min-w-0 bg-transparent px-3 text-right font-mono text-[length:var(--type-body)] font-black text-[var(--teacher-accent)] outline-none"
               aria-label={`미션 ${missionIndex} 보상`}
             />
-            <span className="flex h-11 items-center justify-center border-l border-[var(--teacher-border)] text-[0.78rem] font-extrabold text-[var(--teacher-text-secondary)]">고마</span>
+            <span className="flex h-11 items-center justify-center border-l border-[var(--teacher-border)] text-[length:var(--type-caption)] font-extrabold text-[var(--teacher-text-secondary)]">고마</span>
           </div>
           {MISSION_REWARD_PRESETS.map((preset) => {
             const isSelected = value === preset;
@@ -113,7 +113,7 @@ export function MissionRewardInput({
                 aria-pressed={isSelected}
                 aria-label={`${preset}고마로 설정`}
                 onClick={() => onValueChange(preset)}
-                className={`h-11 rounded-[0.85rem] border font-mono text-[0.8rem] font-black transition-[background-color,border-color,color,transform] active:translate-y-px ${
+                className={`h-11 rounded-[0.85rem] border font-mono text-[length:var(--type-label)] font-black transition-[background-color,border-color,color,transform] active:translate-y-px ${
                   isSelected
                     ? 'border-[var(--teacher-accent)] bg-[var(--teacher-accent)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]'
                     : 'border-[var(--teacher-border)] bg-[var(--teacher-surface-muted)] text-[var(--teacher-accent)] hover:border-[var(--teacher-border-strong)] hover:bg-[var(--teacher-surface-muted)]'
