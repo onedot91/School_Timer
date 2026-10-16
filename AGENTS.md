@@ -13,9 +13,7 @@ Development defaults to isolated mock data. Read-only shared data and production
 ## DEPLOYMENT OWNERSHIP
 
 - 현재 운영 플랫폼은 **Vercel**이며 데이터베이스는 **Supabase**이다. 저장소에 남아 있는 Netlify 어댑터·설정·문서는 현재 운영 플랫폼의 근거로 사용하지 않는다. 운영 장애 조사와 환경변수·배포 상태 확인은 Vercel 기준으로 진행한다.
-- 운영 배포는 사용자가 직접 수행한다.
-- Codex는 소스 수정, 환경변수 목록·배포 설정 준비, 테스트와 로컬 빌드 검증까지만 수행한다.
-- 사용자가 배포를 요청하거나 승인하더라도 Vercel·Netlify 배포 명령 실행, 관리 화면에서의 배포 조작, 운영 배포 트리거는 수행하지 않는다. 대신 사용자가 직접 실행할 절차와 검증 결과를 제공한다.
+- 운영 배포는 사용자가 요청한 경우에 수행하고, 배포 후 Vercel 배포 상태와 응답 지역을 확인한다.
 
 ## STRUCTURE
 
