@@ -32,6 +32,8 @@ jobs:
           test -x "$pg_bin/psql"
           echo "$pg_bin" >> "$GITHUB_PATH"
       - run: npm ci
+      - name: Show source breakdown
+        run: node dev/releaseSourceHash.mjs --groups
       - name: Capture source
         id: source
         run: echo "hash=$(node dev/releaseSourceHash.mjs)" >> "$GITHUB_OUTPUT"

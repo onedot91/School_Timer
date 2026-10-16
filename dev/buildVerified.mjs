@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { releaseSourceHash } from './releaseSourceHash.mjs';
+import { releaseSourceBreakdown, releaseSourceHash } from './releaseSourceHash.mjs';
 import { verifyDeployment } from './verifyDeployment.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -12,6 +12,8 @@ const run = (command, args) => {
 try {
   const sourceHash = await releaseSourceHash();
   if (process.env.VERCEL === '1') {
+    console.log(`Source fingerprint ${sourceHash}`);
+    for (const line of await releaseSourceBreakdown()) console.log(`  ${line}`);
     console.log('Waiting for required storage verification.');
     const result = await verifyDeployment({ sourceHash });
     console.log(`PASS storage verification run ${result.runId}`);
