@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { releaseSourceBreakdown, releaseSourceHash } from './releaseSourceHash.mjs';
 import { verifyDeployment } from './verifyDeployment.mjs';
@@ -15,7 +14,6 @@ try {
   if (process.env.VERCEL === '1') {
     console.log(`Source fingerprint ${sourceHash}`);
     for (const line of await releaseSourceBreakdown()) console.log(`  ${line}`);
-    console.log(`vercel.json in build checkout: ${JSON.stringify(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'))}`);
     console.log('Waiting for required storage verification.');
     const result = await verifyDeployment({ sourceHash });
     console.log(`PASS storage verification run ${result.runId}`);

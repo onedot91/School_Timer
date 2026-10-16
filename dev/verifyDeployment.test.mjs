@@ -109,6 +109,19 @@ test('a Git LFS pointer and its fetched object produce the same release hash', a
   assert.notEqual(await releaseSourceHash(directory), fetched);
 });
 
+test('Vercel re-serializing vercel.json keeps the release hash but configuration edits change it', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'school-release-vercel-json-'));
+  for (const folder of ['src', 'api', 'public', 'supabase', 'dev', 'tests', '.github/workflows']) await mkdir(join(directory, folder), { recursive: true });
+  for (const file of ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'index.html', '.vercelignore']) await writeFile(join(directory, file), '{}');
+  const config = { regions: ['icn1'], headers: [{ source: '/(.*)', headers: [{ key: 'X-Frame-Options', value: 'DENY' }] }] };
+  await writeFile(join(directory, 'vercel.json'), `${JSON.stringify(config, null, 2)}\n`);
+  const committed = await releaseSourceHash(directory);
+  await writeFile(join(directory, 'vercel.json'), `${JSON.stringify(config)}\n`);
+  assert.equal(await releaseSourceHash(directory), committed);
+  await writeFile(join(directory, 'vercel.json'), JSON.stringify({ ...config, regions: ['iad1'] }));
+  assert.notEqual(await releaseSourceHash(directory), committed);
+});
+
 test('an actual Vercel build exits nonzero before Vite when Git identity is missing', () => {
   const result = spawnSync(process.execPath, ['dev/buildVerified.mjs'], { encoding: 'utf8',
     env: { ...process.env, VERCEL: '1', VERCEL_GIT_PROVIDER: '', VERCEL_GIT_COMMIT_SHA: '' } });

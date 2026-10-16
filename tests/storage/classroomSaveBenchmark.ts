@@ -22,6 +22,9 @@ const args = ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-h', directory, 
 const query = (sql: string) => invoke('psql', args, sql).trim();
 // Pooled connections like PostgREST: spawning psql per RPC made shared CI runners measure process startup, not storage.
 const pool = new pg.Pool({ host: directory, port: 55488, user: 'postgres', database: 'postgres', max: 48 });
+// pool.end() resolves before idle sockets close, so stopping PostgreSQL can reach them with 57P01 admin_shutdown.
+const unexpectedPoolErrors: unknown[] = [];
+pool.on('error', error => { if (Reflect.get(error, 'code') !== '57P01') unexpectedPoolErrors.push(error); });
 const asyncQuery = async (sql: string): Promise<string> => {
   const result = await pool.query<{ output: string }>(`select (${sql})::text as output`);
   return result.rows[0]?.output ?? '';
@@ -167,6 +170,7 @@ try {
   assert.ok(samples.every(sample => sample.status === 200 || (sample.action === 'student.auction.bid' && ['BID_TOO_LOW', 'DUPLICATE_BID_AMOUNT'].includes(sample.code ?? ''))), JSON.stringify(samples.filter(sample => sample.status !== 200)));
   verifyClassroomTimings(samples, { atomicBids: process.env.STORAGE_ATOMIC_AUCTION_BIDS === '1' });
   assert.ok(metrics.every(metric => metric.ms < 8000), 'each database RPC must finish before the production read timeout');
+  assert.deepEqual(unexpectedPoolErrors, []);
 } finally {
   globalThis.fetch = originalFetch;
   process.env = environment;

@@ -28,7 +28,11 @@ const releaseSourceEntries = async directory => {
     }
   };
   for (const folder of ['src', 'api', 'public', 'supabase', 'dev', 'tests', '.github/workflows']) await walk(folder);
-  return Promise.all(files.sort().map(async file => [file, contentDigest(await readFile(resolve(directory, file)))]));
+  return Promise.all(files.sort().map(async file => {
+    const content = await readFile(resolve(directory, file));
+    // Vercel re-serializes vercel.json without whitespace in its build checkout; compare the parsed configuration.
+    return [file, file === 'vercel.json' ? contentDigest(Buffer.from(JSON.stringify(JSON.parse(content.toString('utf8'))))) : contentDigest(content)];
+  }));
 };
 
 export const releaseSourceHash = async (directory = root) => {
