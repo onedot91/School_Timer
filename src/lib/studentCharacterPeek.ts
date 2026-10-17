@@ -15,6 +15,18 @@ export interface PeekContentBox {
   y: number;
   width: number;
   height: number;
+  /**
+   * 그림 영역을 cols×rows 칸으로 나눴을 때 칸마다의 선(불투명 픽셀) 비율. 합은 1.
+   * 체리·뱀처럼 선이 한쪽에 몰린 그림도 빼꼼했을 때 충분히 보이도록 내미는 정도를 정하는 데 쓴다.
+   */
+  massGrid?: PeekMassGrid;
+}
+
+export interface PeekMassGrid {
+  cols: number;
+  rows: number;
+  /** 왼쪽 위부터 행 순서 */
+  cells: number[];
 }
 
 export interface PeekViewport {
@@ -64,7 +76,7 @@ const TILT_BY_SHAPE: Record<PeekShape, number> = { tall: 36, round: 15, wide: 0 
 export const classifyPeekShape = (contentWidth: number, contentHeight: number): PeekShape => {
   if (contentWidth <= 0 || contentHeight <= 0) return 'round';
   const ratio = contentWidth / contentHeight;
-  if (ratio >= 1.45) return 'wide';
+  if (ratio >= 1.4) return 'wide';
   if (ratio <= 0.8) return 'tall';
   return 'round';
 };
@@ -130,6 +142,8 @@ export const computePeekLayout = (
   box: PeekContentBox,
   viewport: PeekViewport,
   corner: PeekCorner,
+  /** 그림을 좌우 반전해서 보여 주는지(진행 방향 맞춤) */
+  mirrored = false,
 ): PeekLayout => {
   const contentWidth = Math.max(1, box.width);
   const contentHeight = Math.max(1, box.height);
@@ -177,19 +191,24 @@ export const computePeekLayout = (
     overX = sideSign * boxWidth * 0.11;
     const frontX = anchorX + sideSign * (boxWidth / 2) + shownX;
     bubbleX = frontX - sideSign * boxWidth * 0.12;
-    bubbleY = anchorY - boxHeight - 10;
+    // 말풍선은 앞부분(얼굴 쪽)에 그려진 선의 맨 위에 붙인다. 뱀처럼 꼬리만 높이 솟은 그림 대비.
+    const frontTop = getFrontTopRatio(box.massGrid, left, mirrored);
+    bubbleY = anchorY - boxHeight + frontTop * boxHeight - 10;
   } else {
     // 세로형·둥근형: 모서리에 발끝을 두고 기울인 몸의 축을 따라 머리부터 내민다.
     // 발끝을 모서리에서 살짝 안쪽에 두어 얼굴이 화면 가장자리에 잘리지 않게 한다.
     const inset = boxWidth * 0.2;
     anchorX = left ? inset : viewport.width - inset;
     anchorY = top ? 0 : viewport.height;
-    const showRatio = shape === 'tall' ? 0.58 : 0.6;
+    const radians = (angle * Math.PI) / 180;
     // 축 방향 이동(translateY 양수 = 발 쪽 = 화면 밖)
     hiddenY = boxHeight + boxWidth * 0.6 + 24;
+    const showRatio = getPeekShowRatio(shape, (ratio) => getVisibleMass(box.massGrid, {
+      boxWidth, boxHeight, anchorX, anchorY, radians, mirrored, viewport,
+      translateY: boxHeight * (1 - ratio),
+    }));
     shownY = boxHeight * (1 - showRatio);
     overY = shownY - boxHeight * 0.035;
-    const radians = (angle * Math.PI) / 180;
     const headDirX = Math.sin(radians);
     const headDirY = -Math.cos(radians);
     const visibleLength = boxHeight - shownY;
@@ -222,6 +241,81 @@ export const computePeekLayout = (
     bubbleAlign: left ? 'start' : 'end',
     bubbleSide: top && shape !== 'wide' ? 'below' : 'above',
   };
+};
+
+export const PEEK_MIN_VISIBLE_MASS = 0.42;
+export const PEEK_MAX_SHOW_RATIO = 0.85;
+
+/**
+ * 몸의 몇 %를 내밀지 정한다. 기본은 절반 남짓이고, 그만큼 내밀어도 그려진 선이
+ * PEEK_MIN_VISIBLE_MASS보다 적게 보이는 그림은 충분히 보일 때까지 더 내민다.
+ * visibleMassAt(ratio)은 그만큼 내밀었을 때 화면 안에 들어오는 선의 비율(모르면 undefined).
+ */
+export const getPeekShowRatio = (shape: PeekShape, visibleMassAt?: (ratio: number) => number | undefined) => {
+  const base = shape === 'tall' ? 0.58 : 0.6;
+  if (!visibleMassAt) return base;
+  let best = base;
+  let bestMass = -1;
+  for (let step = 0; base + step * 0.02 <= PEEK_MAX_SHOW_RATIO + 1e-9; step += 1) {
+    const ratio = Math.round((base + step * 0.02) * 100) / 100;
+    const mass = visibleMassAt(ratio);
+    if (mass === undefined) return base;
+    if (mass >= PEEK_MIN_VISIBLE_MASS) return ratio;
+    if (mass > bestMass) {
+      best = ratio;
+      bestMass = mass;
+    }
+  }
+  return best;
+};
+
+/** 가로형 앞부분(화면 안쪽 끝 25%)에서 선이 시작되는 높이(0=맨 위, 1=맨 아래) */
+export const getFrontTopRatio = (grid: PeekMassGrid | undefined, left: boolean, mirrored: boolean) => {
+  if (!grid || grid.cells.length !== grid.cols * grid.rows) return 0;
+  const frontCols = Math.max(1, Math.round(grid.cols * 0.25));
+  for (let row = 0; row < grid.rows; row += 1) {
+    for (let index = 0; index < frontCols; index += 1) {
+      const screenCol = left ? grid.cols - 1 - index : index;
+      const col = mirrored ? grid.cols - 1 - screenCol : screenCol;
+      if (grid.cells[row * grid.cols + col] > 0.002) return row / grid.rows;
+    }
+  }
+  return 0;
+};
+
+/** 빼꼼 자세에서 화면 안에 보이는 선의 비율 */
+export const getVisibleMass = (
+  grid: PeekMassGrid | undefined,
+  pose: {
+    boxWidth: number;
+    boxHeight: number;
+    anchorX: number;
+    anchorY: number;
+    radians: number;
+    mirrored: boolean;
+    viewport: PeekViewport;
+    translateY: number;
+  },
+) => {
+  if (!grid || grid.cells.length !== grid.cols * grid.rows) return undefined;
+  const cos = Math.cos(pose.radians);
+  const sin = Math.sin(pose.radians);
+  let visible = 0;
+  for (let row = 0; row < grid.rows; row += 1) {
+    for (let col = 0; col < grid.cols; col += 1) {
+      const mass = grid.cells[row * grid.cols + col];
+      if (!mass) continue;
+      const u = (col + 0.5) / grid.cols;
+      const x = (pose.mirrored ? 1 - u : u) * pose.boxWidth - pose.boxWidth / 2;
+      const y = ((row + 0.5) / grid.rows) * pose.boxHeight - pose.boxHeight + pose.translateY;
+      const screenX = pose.anchorX + x * cos - y * sin;
+      const screenY = pose.anchorY + x * sin + y * cos;
+      if (screenX >= 0 && screenX <= pose.viewport.width && screenY >= 0 && screenY <= pose.viewport.height) {
+        visible += mass;
+      }
+    }
+  }
+  return visible;
 };
 
 /** 반대쪽 아래 모서리 (짝꿍 빼꼼용) */
@@ -261,4 +355,29 @@ export const findOpaqueBounds = (
   }
   if (maxX < 0) return null;
   return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+};
+
+/** 그림 영역을 cols×rows 칸으로 나눠 칸마다 선 비율을 구한다. */
+export const getMassGrid = (
+  data: ArrayLike<number>,
+  width: number,
+  bounds: { x: number; y: number; width: number; height: number },
+  cols = 16,
+  rows = 16,
+  threshold = 24,
+): PeekMassGrid => {
+  const counts = new Array<number>(cols * rows).fill(0);
+  let total = 0;
+  for (let y = bounds.y; y < bounds.y + bounds.height; y += 1) {
+    const row = Math.min(rows - 1, Math.floor(((y - bounds.y) / bounds.height) * rows));
+    const offset = y * width * 4;
+    for (let x = bounds.x; x < bounds.x + bounds.width; x += 1) {
+      if (data[offset + x * 4 + 3] > threshold) {
+        const col = Math.min(cols - 1, Math.floor(((x - bounds.x) / bounds.width) * cols));
+        counts[row * cols + col] += 1;
+        total += 1;
+      }
+    }
+  }
+  return { cols, rows, cells: counts.map((count) => (total > 0 ? count / total : 0)) };
 };

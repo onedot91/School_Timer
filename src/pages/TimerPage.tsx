@@ -8349,6 +8349,23 @@ export default function TimerPage() {
     !isCurrencyPanelOpen &&
     !showTimerNotification;
   const [studentCharacterWalkCycles, setStudentCharacterWalkCycles] = useState([0, 0, 0]);
+  // 모서리 빼꼼이 나와 있는 동안에는 새 걷는 캐릭터를 들여보내지 않는다(한 화면 최대 3마리).
+  const isStudentCharacterPeekActiveRef = useRef(false);
+  const pendingStudentCharacterWalkStreamsRef = useRef(new Set<number>());
+  const advanceStudentCharacterWalkStream = (streamIndex: number) => {
+    if (isStudentCharacterPeekActiveRef.current) {
+      pendingStudentCharacterWalkStreamsRef.current.add(streamIndex);
+      return;
+    }
+    setStudentCharacterWalkCycles((cycles) => cycles.map((cycle, index) => index === streamIndex ? cycle + 1 : cycle));
+  };
+  const handleStudentCharacterPeekActiveChange = (active: boolean) => {
+    isStudentCharacterPeekActiveRef.current = active;
+    if (active || pendingStudentCharacterWalkStreamsRef.current.size === 0) return;
+    const pending = new Set(pendingStudentCharacterWalkStreamsRef.current);
+    pendingStudentCharacterWalkStreamsRef.current.clear();
+    setStudentCharacterWalkCycles((cycles) => cycles.map((cycle, index) => pending.has(index) ? cycle + 1 : cycle));
+  };
   const getStudentCharacterWalker = (
     streamIndex: number,
   ): StudentCharacterWalker | null => {
@@ -11734,7 +11751,7 @@ export default function TimerPage() {
                     spawnScale={walker.spawnScale}
                     shouldSpeak={walker.shouldSpeak}
                     onImageError={markStudentCharacterFailed}
-                    onWalkComplete={() => setStudentCharacterWalkCycles((cycles) => cycles.map((cycle, index) => index === walker.streamIndex ? cycle + 1 : cycle))}
+                    onWalkComplete={() => advanceStudentCharacterWalkStream(walker.streamIndex)}
                   />
                 </React.Fragment>
               ))}
@@ -11742,6 +11759,7 @@ export default function TimerPage() {
                 characters={visibleStudentCharacters}
                 busyCharacterIds={activeStudentCharacterWalkers.map((walker) => walker.character.id)}
                 enabled={canShowStudentCharacter && !shouldReduceMotion}
+                onActiveChange={handleStudentCharacterPeekActiveChange}
               />
             </StudentCharacterStage>
           ) : null}

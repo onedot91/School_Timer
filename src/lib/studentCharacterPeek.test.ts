@@ -155,3 +155,28 @@ test('"뭐지?" 돌아보기는 모서리 빼꼼이 나올 때만 한다', async
   assert.match(stage, /addEventListener\('studentcharacterpeek', onPeek\)/);
   assert.equal(stage.match(/node\.dataset\.encounter = 'look'/g)?.length, 1);
 });
+
+test('선이 한쪽에 몰린 그림은 충분히 보일 때까지 더 내민다', () => {
+  // 위쪽 절반은 비고 아래쪽에만 선이 있는 그림(체리처럼)
+  const cols = 4;
+  const rows = 4;
+  const cells = [0, 0, 0, 0, 0, 0, 0, 0, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125];
+  const bottomHeavy = { ...box(800, 900), massGrid: { cols, rows, cells } };
+  const normal = computePeekLayout(box(800, 900), viewport, 'bottom-left');
+  const adjusted = computePeekLayout(bottomHeavy, viewport, 'bottom-left');
+  assert.ok(adjusted.shownY < normal.shownY, '더 많이 내밀어야 한다');
+});
+
+test('뱀처럼 가로로 긴 그림은 가로형으로 옆에서 나온다', () => {
+  assert.equal(classifyPeekShape(1363, 957), 'wide');
+});
+
+test('빼꼼 중에는 새 걷는 캐릭터가 들어오지 않아 한 화면 최대 3마리를 지킨다', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const timerPage = await readFile(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
+  const peek = await readFile(new URL('../components/teacher/StudentCharacterPeek.tsx', import.meta.url), 'utf8');
+  assert.match(timerPage, /onWalkComplete=\{\(\) => advanceStudentCharacterWalkStream\(walker\.streamIndex\)\}/);
+  assert.match(timerPage, /onActiveChange=\{handleStudentCharacterPeekActiveChange\}/);
+  assert.match(peek, /export const MAX_CHARACTERS_ON_SCREEN = 3;/);
+  assert.match(peek, /present >= MAX_CHARACTERS_ON_SCREEN/);
+});
