@@ -1,15 +1,12 @@
 import { shouldCharactersGreet } from '../../lib/studentCharacterEncounter';
 import { useEffect, useRef, type ReactNode } from 'react';
 
-export default function StudentCharacterStage({ children, lookBackProbability = .3 }: { children: ReactNode; lookBackProbability?: number }) {
+export default function StudentCharacterStage({ children }: { children: ReactNode }) {
   const stage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = stage.current;
     if (!root) return;
     const previousCenters = new WeakMap<HTMLElement, number>();
-    const seen = new WeakMap<HTMLElement, number>();
-    const looked = new WeakSet<HTMLElement>();
-    const greeted = new WeakSet<HTMLElement>();
     const encounters = new WeakMap<HTMLElement, WeakSet<HTMLElement>>();
     const active = new Map<HTMLElement, { start: number; kind: 'look' | 'greet' }>();
     const clear = (node: HTMLElement) => {
@@ -37,7 +34,6 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
       if (!nearest) return;
       const { node, center } = nearest as { node: HTMLElement; distance: number; center: number };
       const peekIsBehind = node.dataset.direction === 'left' ? detail.x > center : detail.x < center;
-      looked.add(node);
       node.dataset.lookFlip = peekIsBehind ? 'true' : 'false';
       node.dataset.encounter = 'look';
       node.dataset.encounterPhase = 'pause';
@@ -96,8 +92,6 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
           encounters.set(b.node, reversePartners);
           for (const { node } of [a, b]) {
             clear(node);
-            looked.add(node);
-            greeted.add(node);
             node.dataset.greetingSpeaker = 'true';
             node.dataset.encounter = 'greet';
             node.dataset.encounterPhase = 'pause';
@@ -105,19 +99,9 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
           }
         }
       }
-      positions.forEach(({ node, box }, index) => {
+      // "뭐지?" 돌아보기는 모서리 빼꼼이 나올 때만 한다(onPeek). 혼자 걷다 갑자기 돌아보지 않는다.
+      positions.forEach(({ node, box }) => {
         previousCenters.set(node, box.left + box.width / 2);
-        if (reduced.matches) return;
-        if (!seen.has(node)) {
-          seen.set(node, now);
-          if (Math.random() >= lookBackProbability) looked.add(node);
-        }
-        if (active.has(node) || looked.has(node) || greeted.has(node) || box.left < 0 || box.right > innerWidth) return;
-        if (now - (seen.get(node) ?? now) < 6000 + index * 3000) return;
-        looked.add(node);
-        node.dataset.encounter = 'look';
-        node.dataset.encounterPhase = 'pause';
-        active.set(node, { start: now, kind: 'look' });
       });
     }, 100);
     return () => {
@@ -126,6 +110,6 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
       active.forEach((_, node) => clear(node));
       root.querySelectorAll<HTMLElement>('[data-spacing-wait]').forEach(node => delete node.dataset.spacingWait);
     };
-  }, [lookBackProbability]);
+  }, []);
   return <div ref={stage} className="student-character-stage pointer-events-none absolute inset-0 overflow-hidden">{children}</div>;
 }

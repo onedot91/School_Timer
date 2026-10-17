@@ -147,3 +147,11 @@ test('빼꼼 크기는 걷는 캐릭터 크기에 맞춰 1.5~2.4배 정도로 �
   assert.ok(tall.boxHeight <= walker * 1.7 + 0.5);
   assert.ok(tall.boxHeight >= walker * 1.4);
 });
+
+test('"뭐지?" 돌아보기는 모서리 빼꼼이 나올 때만 한다', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const stage = await readFile(new URL('../components/teacher/StudentCharacterStage.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(stage, /lookBackProbability|Math\.random\(\)/);
+  assert.match(stage, /addEventListener\('studentcharacterpeek', onPeek\)/);
+  assert.equal(stage.match(/node\.dataset\.encounter = 'look'/g)?.length, 1);
+});
