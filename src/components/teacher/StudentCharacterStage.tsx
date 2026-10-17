@@ -16,8 +16,34 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
       delete node.dataset.encounter;
       delete node.dataset.encounterPhase;
       delete node.dataset.greetingSpeaker;
+      delete node.dataset.lookFlip;
       active.delete(node);
     };
+    // 모서리 빼꼼이 나오면 가장 가까이 걷던 캐릭터가 멈춰서 그쪽을 보며 "뭐지?" 한다.
+    const onPeek = (event: Event) => {
+      const detail = (event as CustomEvent<{ x: number; y: number }>).detail;
+      if (!detail || reduced.matches || document.hidden) return;
+      const now = performance.now();
+      let nearest: { node: HTMLElement; distance: number; center: number } | null = null;
+      root.querySelectorAll<HTMLElement>('.student-character-showcase').forEach(node => {
+        if (active.has(node)) return;
+        const box = (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
+        if (box.right <= 0 || box.left >= innerWidth) return;
+        const center = box.left + box.width / 2;
+        const distance = Math.abs(center - detail.x);
+        if (distance > innerWidth * .75) return;
+        if (!nearest || distance < nearest.distance) nearest = { node, distance, center };
+      });
+      if (!nearest) return;
+      const { node, center } = nearest as { node: HTMLElement; distance: number; center: number };
+      const peekIsBehind = node.dataset.direction === 'left' ? detail.x > center : detail.x < center;
+      looked.add(node);
+      node.dataset.lookFlip = peekIsBehind ? 'true' : 'false';
+      node.dataset.encounter = 'look';
+      node.dataset.encounterPhase = 'pause';
+      active.set(node, { start: now, kind: 'look' });
+    };
+    root.addEventListener('studentcharacterpeek', onPeek);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const timer = window.setInterval(() => {
       const now = performance.now();
@@ -96,6 +122,7 @@ export default function StudentCharacterStage({ children, lookBackProbability = 
     }, 100);
     return () => {
       window.clearInterval(timer);
+      root.removeEventListener('studentcharacterpeek', onPeek);
       active.forEach((_, node) => clear(node));
       root.querySelectorAll<HTMLElement>('[data-spacing-wait]').forEach(node => delete node.dataset.spacingWait);
     };

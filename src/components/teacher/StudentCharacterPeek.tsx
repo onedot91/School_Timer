@@ -16,6 +16,22 @@ import {
   type PeekLayout,
 } from '../../lib/studentCharacterPeek';
 
+/** 걸어가는 캐릭터가 있는 쪽의 아래 모서리, 그리고 지금 말하고 있는 걷는 캐릭터가 있는지 */
+const readWalkerScene = (stage: Element | null, viewport: { width: number; height: number }) => {
+  const blocked = new Set<PeekCorner>();
+  let walkerSpeaking = false;
+  if (!stage) return { blocked, walkerSpeaking };
+  stage.querySelectorAll<HTMLElement>('.student-character-showcase').forEach((node) => {
+    const box = (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
+    if (box.right <= 0 || box.left >= viewport.width) return;
+    const edgeZone = viewport.width * 0.32;
+    if (box.left < edgeZone) blocked.add('bottom-left');
+    if (box.right > viewport.width - edgeZone) blocked.add('bottom-right');
+    if (!node.dataset.encounter && node.querySelector('.student-character-speech')) walkerSpeaking = true;
+  });
+  return { blocked, walkerSpeaking };
+};
+
 interface ActivePeek {
   key: string;
   character: StudentCharacter;
@@ -158,30 +174,34 @@ export default function StudentCharacterPeek({
 
       const rect = layer.getBoundingClientRect();
       const viewport = { width: rect.width || window.innerWidth, height: rect.height || window.innerHeight };
+      const scene = readWalkerScene(layer.parentElement, viewport);
       const mainShape = classifyPeekShape(mainBox.width, mainBox.height);
-      let mainCorner = pickPeekCorner(Math.random, mainShape, lastCornerRef.current);
+      let mainCorner = pickPeekCorner(Math.random, mainShape, lastCornerRef.current, scene.blocked);
       const nextPeeks: ActivePeek[] = [];
       const stamp = Date.now().toString(36);
 
-      if (partner && partnerBox) {
-        // 짝꿍은 둘 다 아래 모서리(가로형도 자연스럽게)에서 마주 보듯 나온다.
+      // 짝꿍은 아래 두 모서리에서 마주 보듯 나오므로, 걷는 캐릭터가 모서리 근처에 없을 때만 한다.
+      if (partner && partnerBox && scene.blocked.size === 0) {
         mainCorner = Math.random() < 0.5 ? 'bottom-left' : 'bottom-right';
+        const speak = !scene.walkerSpeaking;
         nextPeeks.push(
-          { key: `${stamp}-a`, character: main, layout: computePeekLayout(mainBox, viewport, mainCorner), speech: main.speech ?? null, delayMs: 0 },
+          { key: `${stamp}-a`, character: main, layout: computePeekLayout(mainBox, viewport, mainCorner), speech: speak ? main.speech ?? null : null, delayMs: 0 },
           {
             key: `${stamp}-b`,
             character: partner,
             layout: computePeekLayout(partnerBox, viewport, getOppositeCorner(mainCorner)),
-            speech: partner.speech ?? null,
+            speech: speak ? partner.speech ?? null : null,
             delayMs: 450,
           },
         );
-      } else {
+      }
+      if (nextPeeks.length === 0) {
         nextPeeks.push({
           key: `${stamp}-a`,
           character: main,
           layout: computePeekLayout(mainBox, viewport, mainCorner),
-          speech: main.speech && Math.random() < 0.75 ? main.speech : null,
+          // 걷는 캐릭터가 말하는 중이면 말풍선이 겹치지 않게 빼꼼은 조용히 나온다.
+          speech: main.speech && !scene.walkerSpeaking && Math.random() < 0.75 ? main.speech : null,
           delayMs: 0,
         });
       }
@@ -189,6 +209,17 @@ export default function StudentCharacterPeek({
       lastCornerRef.current = mainCorner;
       recentIdsRef.current = [...nextPeeks.map((peek) => peek.character.id), ...recentIdsRef.current].slice(0, 8);
       setPeeks(nextPeeks);
+      // 빼꼼이 다 나왔을 때 근처에 걷던 캐릭터가 돌아보도록 알린다.
+      const first = nextPeeks[0].layout;
+      const reactTimer = window.setTimeout(() => {
+        cleanupTimers.delete(reactTimer);
+        if (cancelled) return;
+        layer.dispatchEvent(new CustomEvent('studentcharacterpeek', {
+          bubbles: true,
+          detail: { x: first.anchorX, y: first.anchorY },
+        }));
+      }, PEEK_DURATION_MS * 0.2);
+      cleanupTimers.add(reactTimer);
       const longestDelay = Math.max(...nextPeeks.map((peek) => peek.delayMs));
       const clearTimer = window.setTimeout(() => {
         cleanupTimers.delete(clearTimer);
@@ -257,8 +288,10 @@ export default function StudentCharacterPeek({
               style={style}
             >
               <div className="student-character-peek-gesture">
-                <div className="student-character-peek-art" style={artStyle}>
-                  <img src={character.imageSrc} alt="" draggable={false} style={imageStyle} />
+                <div className="student-character-peek-bob">
+                  <div className="student-character-peek-art" style={artStyle}>
+                    <img src={character.imageSrc} alt="" draggable={false} style={imageStyle} />
+                  </div>
                 </div>
               </div>
             </div>

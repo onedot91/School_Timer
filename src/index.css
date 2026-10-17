@@ -9157,7 +9157,8 @@ h3 {
   }
 }
 
-/* ── 교실 캐릭터: 모서리 빼꼼 ───────────────────────────── */
+/* ── 교실 캐릭터: 모서리 빼꼼 ───────────────────────────────
+   걷는 캐릭터와 같은 세계처럼 보이도록 그림자·말풍선·흔들림 리듬을 맞춘다. */
 .student-character-peek-layer {
   position: absolute;
   inset: 0;
@@ -9167,6 +9168,8 @@ h3 {
 }
 
 .student-character-peek {
+  --student-character-bob-lift: -0.42rem;
+  --student-character-bob-tilt: 0.6deg;
   position: absolute;
   transform-origin: 50% 100%;
   transform: rotate(var(--peek-angle)) translate(var(--peek-hidden-x), var(--peek-hidden-y));
@@ -9179,11 +9182,19 @@ h3 {
   height: 100%;
   transform-origin: 50% 100%;
   animation: studentCharacterPeekLook calc(var(--peek-duration) * 0.5) ease-in-out
-    calc(var(--peek-delay) + var(--peek-duration) * 0.22) both;
+    calc(var(--peek-delay) + var(--peek-duration) * 0.24) both;
 }
 
 .student-character-peek[data-gesture="wiggle"] .student-character-peek-gesture {
   animation-name: studentCharacterPeekWiggle;
+}
+
+/* 걷는 캐릭터와 같은 통통 흔들림(studentCharacterWalkBob)을 그대로 쓴다. */
+.student-character-peek-bob {
+  width: 100%;
+  height: 100%;
+  transform-origin: center bottom;
+  animation: studentCharacterWalkBob 1720ms ease-in-out infinite;
 }
 
 .student-character-peek-art {
@@ -9191,13 +9202,7 @@ h3 {
   width: 100%;
   height: 100%;
   overflow: visible;
-  /* 가는 선·흰 그림도 배경에 묻히지 않게 스티커처럼 흰 테두리와 그림자 */
-  filter:
-    drop-shadow(2.5px 0 0 #fff)
-    drop-shadow(-2.5px 0 0 #fff)
-    drop-shadow(0 2.5px 0 #fff)
-    drop-shadow(0 -2.5px 0 #fff)
-    drop-shadow(0 12px 18px rgba(47, 36, 28, 0.24));
+  filter: drop-shadow(0 12px 14px rgba(47, 36, 28, 0.18));
 }
 
 .student-character-peek-art img {
@@ -9207,17 +9212,19 @@ h3 {
   user-select: none;
 }
 
+/* 걷는 캐릭터 말풍선(.student-character-speech)과 같은 모양 */
 .student-character-peek-speech {
   --peek-bubble-x: 0%;
   --peek-bubble-y: -100%;
+  --peek-bubble-border: color-mix(in srgb, var(--peek-accent) 34%, #ffffff);
   position: absolute;
   z-index: 1;
   width: max-content;
-  max-width: min(17rem, 42vw);
-  border: 2px solid color-mix(in srgb, var(--peek-accent) 38%, #ffffff);
-  border-radius: 1.4rem;
-  background: rgba(255, 255, 252, 0.97);
-  padding: .55rem 1rem;
+  max-width: min(15rem, 70vw);
+  border: 2px solid var(--peek-bubble-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 252, 0.96);
+  padding: .5rem .9rem;
   color: #3e2d20;
   font-size: var(--type-heading);
   font-weight: 900;
@@ -9225,16 +9232,34 @@ h3 {
   text-align: center;
   word-break: keep-all;
   overflow-wrap: break-word;
-  box-shadow: 0 10px 18px rgba(47, 36, 28, 0.16);
+  box-shadow: 0 10px 18px rgba(47, 36, 28, 0.14);
   opacity: 0;
-  transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(.9);
+  transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(.92);
   transform-origin: left bottom;
-  animation: studentCharacterPeekSpeech var(--peek-duration) ease-out var(--peek-delay) both;
+  animation: studentCharacterPeekSpeech var(--peek-duration) ease-in-out var(--peek-delay) both;
+}
+
+.student-character-peek-speech::after {
+  content: "";
+  position: absolute;
+  left: 1.4rem;
+  bottom: -0.42rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  transform: rotate(45deg);
+  border-bottom: 2px solid var(--peek-bubble-border);
+  border-right: 2px solid var(--peek-bubble-border);
+  background: rgba(255, 255, 252, 0.96);
 }
 
 .student-character-peek-speech[data-align="end"] {
   --peek-bubble-x: -100%;
   transform-origin: right bottom;
+}
+
+.student-character-peek-speech[data-align="end"]::after {
+  left: auto;
+  right: 1.4rem;
 }
 
 .student-character-peek-speech[data-side="below"] {
@@ -9246,59 +9271,64 @@ h3 {
   transform-origin: right top;
 }
 
+.student-character-peek-speech[data-side="below"]::after {
+  top: -0.42rem;
+  bottom: auto;
+  transform: rotate(-135deg);
+}
+
+/* 빼꼼이 앞쪽에 나타났으면 걷던 캐릭터는 뒤돌지 않고 멈춰서 "뭐지?"만 한다. */
+.student-character-showcase[data-encounter="look"][data-look-flip="false"][data-encounter-phase="act"] .student-character-gesture {
+  transform: none;
+}
+
 @keyframes studentCharacterPeekMove {
   0% {
     transform: rotate(var(--peek-angle)) translate(var(--peek-hidden-x), var(--peek-hidden-y));
-    animation-timing-function: cubic-bezier(.2, .9, .3, 1.2);
+    animation-timing-function: cubic-bezier(.22, .8, .32, 1);
   }
-  13% {
+  14% {
     transform: rotate(var(--peek-angle)) translate(var(--peek-over-x), var(--peek-over-y));
     animation-timing-function: ease-in-out;
   }
-  20%,
+  22%,
   80% {
     transform: rotate(var(--peek-angle)) translate(var(--peek-shown-x), var(--peek-shown-y));
-    animation-timing-function: cubic-bezier(.5, 0, .9, .4);
+    animation-timing-function: cubic-bezier(.55, 0, .85, .45);
   }
   100% {
     transform: rotate(var(--peek-angle)) translate(var(--peek-hidden-x), var(--peek-hidden-y));
   }
 }
 
-/* 얼굴이 있는 캐릭터: 좌우로 두리번 */
+/* 얼굴이 있는 캐릭터: 천천히 두리번 */
 @keyframes studentCharacterPeekLook {
   0%, 100% { transform: rotate(0deg); }
-  18% { transform: rotate(-7deg); }
-  40% { transform: rotate(-7deg); }
-  60% { transform: rotate(6deg); }
-  80% { transform: rotate(6deg); }
+  22%, 42% { transform: rotate(-4deg); }
+  62%, 82% { transform: rotate(3.5deg); }
 }
 
-/* 얼굴이 없는 사물: 통통 흔들기 */
+/* 얼굴이 없는 사물: 걷기 흔들림 위에 살짝 들썩 */
 @keyframes studentCharacterPeekWiggle {
   0%, 100% { transform: translateY(0) rotate(0deg); }
-  10% { transform: translateY(-5%) rotate(-2deg); }
-  20% { transform: translateY(0) rotate(1.5deg); }
-  30% { transform: translateY(-4%) rotate(-1.5deg); }
+  20% { transform: translateY(-2.5%) rotate(-1.5deg); }
   40% { transform: translateY(0) rotate(1deg); }
-  55% { transform: translateY(-5%) rotate(-2deg); }
-  65% { transform: translateY(0) rotate(1.5deg); }
-  75% { transform: translateY(-3%) rotate(0deg); }
-  85% { transform: translateY(0) rotate(0deg); }
+  60% { transform: translateY(-2%) rotate(-1deg); }
+  80% { transform: translateY(0) rotate(.5deg); }
 }
 
 @keyframes studentCharacterPeekSpeech {
-  0%, 21% {
+  0%, 22% {
     opacity: 0;
-    transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(.85);
+    transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(.92);
   }
-  26%, 72% {
+  27%, 74% {
     opacity: 1;
     transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(1);
   }
-  78%, 100% {
+  79%, 100% {
     opacity: 0;
-    transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(.9);
+    transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(.92);
   }
 }
 

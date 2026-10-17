@@ -8,6 +8,7 @@ import {
   getOppositeCorner,
   getPeekAngle,
   getPeekFacingTransform,
+  getWalkerReferenceSize,
   pickPeekCorner,
   type PeekContentBox,
 } from './studentCharacterPeek.js';
@@ -123,4 +124,26 @@ test('6번 학생의 마법사 캐릭터가 다시 등록되어 있다', () => {
 test('10번 학생의 마법 곰 캐릭터가 다시 등록되어 있다', () => {
   const tenth = STUDENT_CHARACTERS.filter(({ creatorName }) => creatorName === '10번').map(({ id }) => id);
   assert.deepEqual(tenth.sort(), ['student-10-additional', 'student-10-magic-bear']);
+});
+
+test('걷는 캐릭터가 지나가는 아래 모서리는 피해서 나온다', () => {
+  let seed = 0;
+  const random = () => {
+    seed = (seed + 0.29) % 1;
+    return seed;
+  };
+  const blocked = new Set(['bottom-left'] as const);
+  for (let index = 0; index < 40; index += 1) {
+    assert.notEqual(pickPeekCorner(random, 'wide', null, blocked), 'bottom-left');
+    assert.notEqual(pickPeekCorner(random, 'tall', null, blocked), 'bottom-left');
+  }
+  const allBottom = new Set(['bottom-left', 'bottom-right'] as const);
+  assert.match(pickPeekCorner(() => 0.9, 'tall', null, allBottom), /^top-/);
+});
+
+test('빼꼼 크기는 걷는 캐릭터 크기에 맞춰 1.5~2.4배 정도로 커진다', () => {
+  const walker = getWalkerReferenceSize(viewport);
+  const tall = computePeekLayout(box(4360, 7390), viewport, 'bottom-left');
+  assert.ok(tall.boxHeight <= walker * 1.7 + 0.5);
+  assert.ok(tall.boxHeight >= walker * 1.4);
 });

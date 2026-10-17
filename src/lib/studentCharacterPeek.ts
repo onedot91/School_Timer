@@ -80,15 +80,34 @@ export const pickPeekCorner = (
   random: () => number,
   shape: PeekShape,
   previousCorner?: PeekCorner | null,
+  blockedCorners: ReadonlySet<PeekCorner> = new Set(),
 ): PeekCorner => {
   const allowTop = shape !== 'wide';
-  const candidates: PeekCorner[] = allowTop && random() < PEEK_TOP_CORNER_CHANCE
-    ? ['top-left', 'top-right']
-    : ['bottom-left', 'bottom-right'];
+  const bottom: PeekCorner[] = ['bottom-left', 'bottom-right'];
+  const topCorners: PeekCorner[] = allowTop ? ['top-left', 'top-right'] : [];
+  let candidates = allowTop && random() < PEEK_TOP_CORNER_CHANCE ? topCorners : bottom;
+  // 걸어가는 캐릭터가 막 들어오거나 나가는 아래 모서리는 피한다.
+  const open = candidates.filter((corner) => !blockedCorners.has(corner));
+  if (open.length === 0) {
+    const fallback = [...bottom, ...topCorners].filter((corner) => !blockedCorners.has(corner));
+    candidates = fallback.length > 0 ? fallback : candidates;
+  } else {
+    candidates = open;
+  }
   const filtered = candidates.filter((corner) => corner !== previousCorner);
   const pool = filtered.length > 0 ? filtered : candidates;
   return pool[Math.floor(random() * pool.length) % pool.length];
 };
+
+/**
+ * 걸어 다니는 캐릭터 한 마리의 크기(TimerPage의 가장 큰 걷기 경로와 같은 계산).
+ * 빼꼼은 이 크기를 기준으로 키워서, 걷는 캐릭터와 같은 세계에 있는 것처럼 보이게 한다.
+ */
+export const getWalkerReferenceSize = (viewport: PeekViewport, remPx = 16) =>
+  Math.min(viewport.width * 0.31, viewport.height * 0.33, remPx * 16);
+
+/** 걷는 캐릭터 대비 빼꼼 크기 배율 */
+export const PEEK_SIZE_FACTOR: Record<PeekShape, number> = { tall: 1.7, round: 1.5, wide: 2.4 };
 
 /** 머리 방향(그림 위쪽)이 화면 안쪽을 향하도록 회전 각도를 정한다. */
 export const getPeekAngle = (corner: PeekCorner, shape: PeekShape) => {
@@ -118,14 +137,15 @@ export const computePeekLayout = (
   const shortSide = Math.min(viewport.width, viewport.height);
 
   // 형태별 목표 크기: 세로형은 키, 둥근형은 긴 변, 가로형은 너비 기준
+  const walkerSize = getWalkerReferenceSize(viewport);
   let scale: number;
   if (shape === 'wide') {
-    const targetWidth = Math.min(viewport.width * 0.4, viewport.height * 0.66);
+    const targetWidth = Math.min(viewport.width * 0.4, walkerSize * PEEK_SIZE_FACTOR.wide);
     scale = targetWidth / contentWidth;
   } else if (shape === 'tall') {
-    scale = (viewport.height * 0.5) / contentHeight;
+    scale = Math.min(viewport.height * 0.5, walkerSize * PEEK_SIZE_FACTOR.tall) / contentHeight;
   } else {
-    scale = (shortSide * 0.44) / Math.max(contentWidth, contentHeight);
+    scale = Math.min(shortSide * 0.44, walkerSize * PEEK_SIZE_FACTOR.round) / Math.max(contentWidth, contentHeight);
   }
   scale = Math.min(scale, PEEK_MAX_UPSCALE);
 
@@ -154,7 +174,7 @@ export const computePeekLayout = (
     // 기본 상태(0)는 그림의 가운데가 화면 가장자리에 걸친 상태
     hiddenX = -sideSign * (boxWidth / 2 + 32);
     shownX = sideSign * boxWidth * 0.08;
-    overX = sideSign * boxWidth * 0.14;
+    overX = sideSign * boxWidth * 0.11;
     const frontX = anchorX + sideSign * (boxWidth / 2) + shownX;
     bubbleX = frontX - sideSign * boxWidth * 0.12;
     bubbleY = anchorY - boxHeight - 10;
@@ -168,7 +188,7 @@ export const computePeekLayout = (
     // 축 방향 이동(translateY 양수 = 발 쪽 = 화면 밖)
     hiddenY = boxHeight + boxWidth * 0.6 + 24;
     shownY = boxHeight * (1 - showRatio);
-    overY = shownY - boxHeight * 0.07;
+    overY = shownY - boxHeight * 0.035;
     const radians = (angle * Math.PI) / 180;
     const headDirX = Math.sin(radians);
     const headDirY = -Math.cos(radians);
