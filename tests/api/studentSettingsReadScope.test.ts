@@ -110,3 +110,21 @@ test('테스트 학생은 기존 전체 RPC와 호환되고 응답은 본인 범
   assert.equal(screen.requests[0].path, '/rest/v1/rpc/storage_load_snapshot');
   assert.deepEqual(result.value.currencyBalances, {});
 });
+
+test('학생 GET은 수업 준비 안내에 필요한 시간표와 해제 정보만 읽기 전용으로 받는다', async t => {
+  const weeklySchedule = { 1: [{ id: 'b1', name: '쉬는 시간', type: 'break', start: 580, end: 590 }, { id: 'c2', name: '2교시', type: 'class', start: 590, end: 630 }] };
+  const weeklySubjects = { '2026-10-19': { 1: { 2: '수학' } } };
+  const classPrepRelease = { dateKey: '2026-10-19', slotId: 'c2' };
+  const screen = setup(t, { weeklySchedule, weeklySubjects, scheduleClockOffsetSeconds: 12, classPrepRelease,
+    scheduleNotice: 'teacher-only-notice', randomDraw: { cases: [] } });
+  const result = await screen.read(3);
+  assert.deepEqual(result.value.weeklySchedule, weeklySchedule);
+  assert.deepEqual(result.value.weeklySubjects, weeklySubjects);
+  assert.equal(result.value.scheduleClockOffsetSeconds, 12);
+  assert.deepEqual(result.value.classPrepRelease, classPrepRelease);
+  assert.equal(result.value.scheduleNotice, undefined);
+  assert.equal(result.value.randomDraw, undefined);
+  const payload = screen.requests[0].payload;
+  assert.ok(isStorageRecord(payload) && isStorageRecord(payload.p_scope));
+  assert.deepEqual(payload.p_scope.writeResources, []);
+});

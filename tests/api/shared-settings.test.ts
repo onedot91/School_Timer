@@ -543,7 +543,7 @@ test('teacher reads stay complete while student full queries remain scoped', asy
       }
       return Response.json([{
         id: 'school-timer-main',
-        value: { weeklySchedule: ['월요일'] },
+        value: { scheduleNotice: 'teacher-only' },
         updated_at: '2026-09-05T00:00:01.000Z',
       }]);
     };
@@ -567,7 +567,7 @@ test('teacher reads stay complete while student full queries remain scoped', asy
       };
       assert.equal(studentRow.scope, 'student');
       assert.deepEqual(studentRow.value?.currencyBalances, { 7: 145 });
-      assert.equal(Reflect.has(studentRow.value ?? {}, 'weeklySchedule'), false);
+      assert.equal(Reflect.has(studentRow.value ?? {}, 'scheduleNotice'), false);
     } finally {
       globalThis.fetch = originalFetch;
     }

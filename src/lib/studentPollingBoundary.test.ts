@@ -40,6 +40,7 @@ const fixture = (studentNumber = 1, loaded = true) => {
       clearInterval: (id: number) => timers.delete(id) },
     document, navigator, Date: { now: () => now },
     studentNumber, isSupabaseSettingsEnabled: true, SAVE_RECOVERED_EVENT: 'save-recovered', activeStudentView: 'store-auction',
+    isClassPrepLocked: false, CLASS_PREP_LOCKED_SYNC_INTERVAL_MS: 3_000,
     hasLoadedSharedSettingsRef: { current: loaded }, hasLoadedOverviewRef: { current: false },
     isStudentStoreView: () => true, STUDENT_SETTINGS_SYNC_INTERVAL_MS,
     STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS, STUDENT_FOREGROUND_SYNC_COOLDOWN_MS,
