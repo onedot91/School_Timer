@@ -49,5 +49,6 @@ test('12번 추가 캐릭터는 좌우 멘트를 따로 표시하고 방향을 �
   const character = STUDENT_CHARACTERS.find(({ id }) => id === 'student-12-additional');
   assert.deepEqual(character?.speechBubbles?.map(({ text }) => text), ['흥!', '에베베베']);
   assert.deepEqual(character?.walkTransform, { right: 'none', left: 'none' });
-  for (const studentNumber of [6, 14, 19]) assert.equal(getStudentCharacterRoster().find((slot) => slot.studentNumber === studentNumber)?.characters.length, 1);
+  for (const studentNumber of [14, 19]) assert.equal(getStudentCharacterRoster().find((slot) => slot.studentNumber === studentNumber)?.characters.length, 1);
+  assert.equal(getStudentCharacterRoster().find((slot) => slot.studentNumber === 6)?.characters.length, 2);
 });

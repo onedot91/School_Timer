@@ -17,6 +17,7 @@ import { reportSaveFailure } from '../lib/saveFailureClient';
 import { classifySaveFailure } from '../lib/saveFailure';
 import { isReadOnlyDataMode } from '../lib/dataMode';
 import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
+import StudentCharacterPeek from '../components/teacher/StudentCharacterPeek';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
 import SettingsPanelFrame, { SettingsStatusChip } from '../components/teacher/SettingsPanelFrame';
 import TeacherQuestionSubmissionGrid from '../components/teacher/TeacherQuestionSubmissionGrid';
@@ -11737,6 +11738,11 @@ export default function TimerPage() {
                   />
                 </React.Fragment>
               ))}
+              <StudentCharacterPeek
+                characters={visibleStudentCharacters}
+                busyCharacterIds={activeStudentCharacterWalkers.map((walker) => walker.character.id)}
+                enabled={canShowStudentCharacter && !shouldReduceMotion}
+              />
             </StudentCharacterStage>
           ) : null}
           {/* Left: Timer Display */}
