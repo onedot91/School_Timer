@@ -1,23 +1,23 @@
 import { useEffect, useRef } from 'react';
-import { formatClassPrepSecondsLabel } from '../../lib/classPrep';
+import { formatClassPrepSecondsLabel, type ClassPrepState } from '../../lib/classPrep';
 import { useClassPrepState, type ClassPrepSource } from '../../lib/useClassPrepState';
 import { useModalFocus } from '../../lib/useModalFocus';
 
 type StudentClassPrepProps = {
   readonly source: ClassPrepSource | null;
-  readonly onLockedChange: (isLocked: boolean) => void;
+  readonly onStageChange: (stage: ClassPrepState['stage']) => void;
 };
 
 const noop = () => undefined;
 
-export default function StudentClassPrep({ source, onLockedChange }: StudentClassPrepProps) {
+export default function StudentClassPrep({ source, onStageChange }: StudentClassPrepProps) {
   const state = useClassPrepState(source);
   const isLocked = state.stage === 'locked';
   const lockDialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    onLockedChange(isLocked);
-  }, [isLocked, onLockedChange]);
+    onStageChange(state.stage);
+  }, [state.stage, onStageChange]);
 
   useModalFocus({ dialogRef: lockDialogRef, isOpen: isLocked, onDismiss: noop, isDismissible: false });
 

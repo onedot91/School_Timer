@@ -20,6 +20,9 @@ import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
 import StudentClassPrep from '../components/student/StudentClassPrep';
 import { loadStoredClassPrepSource } from '../lib/classPrepLocalStore';
 import type { ClassPrepSource } from '../lib/useClassPrepState';
+import type { ClassPrepState } from '../lib/classPrep';
+import { CLASS_PREP_BLOCKED_MESSAGE, isClassPrepBlockedEconomyAction, isClassPrepBlockingStage } from '../lib/classPrepGuard';
+import { ClassPrepBlockingContext } from '../lib/classPrepGuardContext';
 import { getKoreanDateKey } from '../lib/classword';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
@@ -468,7 +471,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
   ));
   const [classPrepSource, setClassPrepSource] = useState<ClassPrepSource | null>(null);
-  const [isClassPrepLocked, setIsClassPrepLocked] = useState(false);
+  const [classPrepStage, setClassPrepStage] = useState<ClassPrepState['stage']>('idle');
+  const isClassPrepLocked = classPrepStage === 'locked';
+  const isClassPrepBlocking = isClassPrepBlockingStage(classPrepStage);
   const [dailyWriting, setDailyWriting] = useState<DailyWritingState>(() => (
     isSupabaseSettingsEnabled ? normalizeDailyWritingState(null) : loadStoredDailyWritingState()
   ));
@@ -959,6 +964,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const selectStudentFailureProfile = async (purchase: StudentProfilePurchase): Promise<StudentProfilePurchaseOutcome> => {
     if (isStudentLifeSaving) return { ok: false, message: '프로필 변경을 처리하고 있어요.' };
+    if (isClassPrepBlocking) return { ok: false, message: CLASS_PREP_BLOCKED_MESSAGE };
     setProfilePurchaseType(purchase.type);
     setIsStudentLifeSaving(true);
     const createdAt = new Date().toISOString();
@@ -1054,7 +1060,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   };
 
   const feedStudentPet = async () => {
-    if (isPetSaving) return false;
+    if (isPetSaving || isClassPrepBlocking) return false;
     setIsPetSaving(true);
     try {
       let savedPet = studentPet;
@@ -1937,6 +1943,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const openBidConfirm = (item: AuctionItem, bidAmount: number) => {
     if (offerPendingBidRecovery(item.id)) return;
+    if (isClassPrepBlocking) {
+      showStatusMessage(CLASS_PREP_BLOCKED_MESSAGE);
+      return;
+    }
     void prepareAuctionAudio();
 
     const currentBid = auctionBids[item.id] ?? { amount: 0, bidder: null };
@@ -1982,6 +1992,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const confirmPendingBid = async () => {
     if (!pendingBid) return;
+    if (isClassPrepBlocking) {
+      showStatusMessage(CLASS_PREP_BLOCKED_MESSAGE);
+      return;
+    }
     void prepareAuctionAudio();
 
     const item = auctionItems.find((auctionItem) => auctionItem.id === pendingBid.itemId);
@@ -2000,6 +2014,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const openDonation = () => {
     if (!classDonation.enabled || maximumDonation < 1 || activeModal !== null) return;
+    if (isClassPrepBlocking) {
+      showStatusMessage(CLASS_PREP_BLOCKED_MESSAGE);
+      return;
+    }
     setDonationAmountDraft('');
     setDonationError('');
     donationRequestIdRef.current = `class-donation-${studentNumber}-${createBrowserRequestId()}`;
@@ -2008,6 +2026,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const confirmDonation = async () => {
     if (!isDonationAmountValid || isDonating) return;
+    if (isClassPrepBlocking) {
+      setDonationError(CLASS_PREP_BLOCKED_MESSAGE);
+      return;
+    }
     setIsDonating(true);
     try {
       const requestId = donationRequestIdRef.current;
@@ -2102,6 +2124,10 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   const runStudentEconomyAction = async (action: StudentEconomyAction) => {
     if (isEconomySavingRef.current) return false;
+    if (isClassPrepBlockedEconomyAction(classPrepStage, action)) {
+      showStatusMessage(CLASS_PREP_BLOCKED_MESSAGE);
+      return false;
+    }
     isEconomySavingRef.current = true;
     setIsEconomySaving(true);
     try {
@@ -2285,9 +2311,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     );
   }
 
-  return (
+  const page = (
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
-      <StudentClassPrep source={classPrepSource} onLockedChange={setIsClassPrepLocked} />
+      <StudentClassPrep source={classPrepSource} onStageChange={setClassPrepStage} />
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
       <main className="mx-auto w-full max-w-7xl">
         {isSupabaseSettingsEnabled && hasUnconfirmedStudentEconomyDraft(studentNumber) ? (
@@ -2873,4 +2899,6 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       ) : null}
     </div>
   );
+
+  return <ClassPrepBlockingContext.Provider value={isClassPrepBlocking}>{page}</ClassPrepBlockingContext.Provider>;
 }

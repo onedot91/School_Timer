@@ -27,6 +27,8 @@ import StudentSectionCard from './StudentSectionCard';
 import type { FailureProfileAssignments } from '../../lib/failureExhibition';
 import { STUDENT_FEATURE_RELEASES } from '../../lib/studentFeatureRelease';
 import StableLabel from '../StableLabel';
+import { CLASS_PREP_BLOCKED_MESSAGE } from '../../lib/classPrepGuard';
+import { useIsClassPrepBlocking } from '../../lib/classPrepGuardContext';
 
 interface StudentOverviewPageProps {
   studentNumber: number;
@@ -97,6 +99,7 @@ export default function StudentOverviewPage({
   onOpenMailbox,
   onOpenLibrary,
 }: StudentOverviewPageProps) {
+  const isClassPrepBlocking = useIsClassPrepBlocking();
   const [activePetDialog, setActivePetDialog] = useState<'feed' | 'name' | 'picker' | null>(null);
   const [petNameDraft, setPetNameDraft] = useState(pet.name);
   const [petError, setPetError] = useState('');
@@ -493,6 +496,11 @@ export default function StudentOverviewPage({
         returnFocusRef={feedButtonRef}
         onCancel={() => setIsFeedConfirmationOpen(false)}
         onConfirm={() => {
+          if (isClassPrepBlocking) {
+            setPetError(CLASS_PREP_BLOCKED_MESSAGE);
+            setIsFeedConfirmationOpen(false);
+            return;
+          }
           void onFeedPet().then((saved) => {
             if (!saved) {
               setPetError('먹이를 주지 못했습니다. 잔액을 확인해 주세요.');
