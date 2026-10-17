@@ -40,7 +40,7 @@ test('추가 캐릭터는 기존 캐릭터와 함께 번호에 연결된다', ()
     assert.equal(roster.find((slot) => slot.studentNumber === studentNumber)?.characters.length, 2);
   }
   assert.equal(roster.find((slot) => slot.studentNumber === 17)?.characters.length, 1);
-  assert.deepEqual(roster.find((slot) => slot.studentNumber === 10)?.characters.map(({ id }) => id), ['student-10-additional']);
+  assert.deepEqual(roster.find((slot) => slot.studentNumber === 10)?.characters.map(({ id }) => id), ['student-10-magic-bear', 'student-10-additional']);
   assert.equal(roster.find((slot) => slot.studentNumber === 17)?.characters[0]?.speech, '안뇽하슈아!');
   assert.equal(roster.flatMap(({ characters }) => characters).length, STUDENT_CHARACTERS.length);
 });

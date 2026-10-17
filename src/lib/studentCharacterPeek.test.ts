@@ -119,3 +119,8 @@ test('6번 학생의 마법사 캐릭터가 다시 등록되어 있다', () => {
   const sixth = STUDENT_CHARACTERS.filter(({ creatorName }) => creatorName === '6번').map(({ id }) => id);
   assert.deepEqual(sixth.sort(), ['student-6-additional', 'student-6-wizard']);
 });
+
+test('10번 학생의 마법 곰 캐릭터가 다시 등록되어 있다', () => {
+  const tenth = STUDENT_CHARACTERS.filter(({ creatorName }) => creatorName === '10번').map(({ id }) => id);
+  assert.deepEqual(tenth.sort(), ['student-10-additional', 'student-10-magic-bear']);
+});
