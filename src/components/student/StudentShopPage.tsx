@@ -29,6 +29,8 @@ import {
   type StudentProfilePurchaseOutcome,
 } from '../../lib/studentProfilePurchase';
 import { STUDENT_CUSTOM_HOUSE_RELEASED } from '../../lib/studentFeatureRelease';
+import { CLASS_PREP_BLOCKED_MESSAGE } from '../../lib/classPrepGuard';
+import { useIsClassPrepBlocking } from '../../lib/classPrepGuardContext';
 
 interface StudentShopPageProps {
   studentNumber: number;
@@ -73,6 +75,7 @@ export default function StudentShopPage({
   onAction,
   onSelectProfile,
 }: StudentShopPageProps) {
+  const isClassPrepBlocking = useIsClassPrepBlocking();
   const reduceMotion = useReducedMotion();
   const canAssignProfile = canAssignFailureProfile(studentNumber);
   const activeProfile = getAssignedFailureProfileImage(studentNumber, profileAssignments);
@@ -311,6 +314,10 @@ export default function StudentShopPage({
         onCancel={() => setPendingPurchase(null)}
         onConfirm={() => {
           if (!pendingPurchase || purchaseInFlight.current || isSaving) return;
+          if (isClassPrepBlocking) {
+            setPurchaseError(CLASS_PREP_BLOCKED_MESSAGE);
+            return;
+          }
           const purchase = pendingPurchase;
           purchaseInFlight.current = true;
           setPurchaseSaving(true);
