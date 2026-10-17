@@ -17,6 +17,9 @@ import { AppLoadingScreen, AppRecoveryScreen } from '../components/AppRecovery';
 import StudentActionProgress from '../components/student/StudentActionProgress';
 import StudentOverviewPage from '../components/student/StudentOverviewPage';
 import StudentConfirmDialog from '../components/student/StudentConfirmDialog';
+import StudentClassPrep from '../components/student/StudentClassPrep';
+import { loadStoredClassPrepSource } from '../lib/classPrepLocalStore';
+import type { ClassPrepSource } from '../lib/useClassPrepState';
 import { getKoreanDateKey } from '../lib/classword';
 import type { StudentStoreSection } from '../components/student/StudentPlaza';
 import {
@@ -252,7 +255,13 @@ type SharedSettingsValue = {
   dailyWriting?: unknown;
   studentSudoku?: unknown;
   studentNumberBaseball?: unknown;
+  weeklySchedule?: unknown;
+  weeklySubjects?: unknown;
+  scheduleClockOffsetSeconds?: unknown;
+  classPrepRelease?: unknown;
 };
+
+const CLASS_PREP_LOCKED_SYNC_INTERVAL_MS = 3_000;
 
 const STUDENT_VIEW_HASHES: Record<StudentView, string> = {
   overview: '#student-overview',
@@ -458,6 +467,8 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [studentLife, setStudentLife] = useState<StudentLifeState>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentLifeState(null) : loadStoredStudentLifeState()
   ));
+  const [classPrepSource, setClassPrepSource] = useState<ClassPrepSource | null>(null);
+  const [isClassPrepLocked, setIsClassPrepLocked] = useState(false);
   const [dailyWriting, setDailyWriting] = useState<DailyWritingState>(() => (
     isSupabaseSettingsEnabled ? normalizeDailyWritingState(null) : loadStoredDailyWritingState()
   ));
@@ -1207,6 +1218,14 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     });
     setStudentLifeSnapshot(normalizedStudentLife);
     setDailyWriting(normalizeDailyWritingState(value.dailyWriting));
+    if (value.weeklySchedule !== undefined) {
+      setClassPrepSource({
+        weeklySchedule: value.weeklySchedule,
+        weeklySubjects: value.weeklySubjects ?? null,
+        clockOffsetSeconds: value.scheduleClockOffsetSeconds ?? 0,
+        release: value.classPrepRelease ?? null,
+      });
+    }
     applySharedStudentSudoku(value);
     applySharedNumberBaseball(value);
     const weekKey = getKoreanIsoWeekKey();
@@ -1342,6 +1361,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       setStudentShopCatalog(loadStoredStudentShopCatalog());
       setStudentLifeSnapshot(loadStoredStudentLifeState());
       setDailyWriting(loadStoredDailyWritingState());
+      setClassPrepSource(loadStoredClassPrepSource(window.localStorage));
       refreshLocalStudentSudoku();
       refreshLocalNumberBaseball();
       setIsLoading(false);
@@ -1513,7 +1533,9 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
     let scheduledRefresh: number | undefined;
     const syncView = activeStudentView === 'store-auction' ? 'store-auction'
       : isStudentStoreView(activeStudentView) ? 'store' : activeStudentView;
-    const intervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView] ?? STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS;
+    const viewIntervalMs = STUDENT_SETTINGS_SYNC_INTERVAL_MS[syncView] ?? STUDENT_SETTINGS_DEFAULT_SYNC_INTERVAL_MS;
+    // A teacher release should reach a locked screen quickly.
+    const intervalMs = isClassPrepLocked ? Math.min(viewIntervalMs, CLASS_PREP_LOCKED_SYNC_INTERVAL_MS) : viewIntervalMs;
     const recovered = (event: Event) => {
       if (event instanceof CustomEvent && event.detail?.actor === studentNumber) void refreshAuctionState({ forceFull: true });
     };
@@ -1557,7 +1579,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       window.removeEventListener('online', refreshOnReturn);
       document.removeEventListener('visibilitychange', refreshOnReturn);
     };
-  }, [activeStudentView, refreshAuctionState]);
+  }, [activeStudentView, isClassPrepLocked, refreshAuctionState]);
 
   useEffect(() => {
     let isActive = true;
@@ -2265,6 +2287,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
 
   return (
     <div ref={pageScrollRef} className="auction-page student-mode-page custom-scrollbar h-[100dvh] w-full overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 md:py-5" aria-busy={isStudentActionPending}>
+      <StudentClassPrep source={classPrepSource} onLockedChange={setIsClassPrepLocked} />
       <StudentActionProgress isActive={isStudentActionPending && !isProfileGachaSaving} />
       <main className="mx-auto w-full max-w-7xl">
         {isSupabaseSettingsEnabled && hasUnconfirmedStudentEconomyDraft(studentNumber) ? (

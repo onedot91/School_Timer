@@ -26,7 +26,7 @@ import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStat
 import { applyStockMarketWeekImport, getStockMarketWeekLabel } from '../lib/stockMarketWeekImport';
 import TeacherRewardAudit from '../components/teacher/TeacherRewardAudit';
 import { StorageAvailabilityBanner } from '../components/StorageAvailabilityBanner';
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HandCoins, HeartHandshake, HeartPulse, House, Landmark, LetterText, Lock, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, ReceiptText, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardCheck, Coffee, Coins, Copy, Download, Gamepad2, GripVertical, Hammer, HandCoins, HeartHandshake, HeartPulse, House, Landmark, LetterText, Lock, LockOpen, Mail, MessageCircleQuestion, Music, NotebookText, Package, Pause, PersonStanding, Play, Plus, ReceiptText, RotateCcw, Search, Send, Settings, Sparkles, Star, StickyNote, Timer, Trash2, TrendingUp, Trophy, Upload, Users, Utensils, Volume2, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { animate as animateMotion, AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import {
   buildStudentRosterBulkInput,
@@ -263,6 +263,8 @@ import {
 } from '../lib/studentMissionVisibility';
 import StableLabel from '../components/StableLabel';
 import StatusSlot from '../components/StatusSlot';
+import { getClassPrepState, parseClassPrepRelease, type ClassPrepRelease } from '../lib/classPrep';
+import { CLASS_PREP_RELEASE_STORAGE_KEY } from '../lib/classPrepLocalStore';
 
 const TeacherWritingSettings = lazy(() => import('../components/teacher/TeacherWritingSettings'));
 const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherClasswordPanel'));
@@ -507,6 +509,7 @@ interface SharedSchoolTimerSettings {
   studentEconomy?: StudentEconomyStates;
   studentShopCatalog: StudentShopCatalogItem[];
   studentStockMarket: StudentStockMarket;
+  classPrepRelease: ClassPrepRelease | null;
 }
 
 interface NoticeHighlightRange {
@@ -1787,6 +1790,7 @@ const normalizeSharedSchoolTimerSettings = (value: unknown): SharedSchoolTimerSe
     studentEconomy: normalizeStudentEconomyStates(parsed.studentEconomy),
     studentShopCatalog: normalizeStudentShopCatalog(parsed.studentShopCatalog),
     studentStockMarket: normalizeStudentStockMarket(parsed.studentStockMarket),
+    classPrepRelease: parseClassPrepRelease(parsed.classPrepRelease),
   };
 };
 
@@ -4077,6 +4081,13 @@ export default function TimerPage() {
   const [studentStockMarket, setStudentStockMarket] = useState<StudentStockMarket>(() => (
     isSupabaseSettingsEnabled ? normalizeStudentStockMarket(undefined) : loadStoredStudentStockMarket()
   ));
+  const [classPrepRelease, setClassPrepRelease] = useState<ClassPrepRelease | null>(() => {
+    try {
+      return parseClassPrepRelease(JSON.parse(localStorage.getItem(CLASS_PREP_RELEASE_STORAGE_KEY) || 'null'));
+    } catch {
+      return null;
+    }
+  });
   const [stockMarketDateKey, setStockMarketDateKey] = useState(getKoreanLocalDateKey);
   const [stockMarketWeekDrafts, setStockMarketWeekDrafts] = useState<StockMarketWeekDrafts>({});
   const [stockMarketSaveStatus, setStockMarketSaveStatus] = useState('');
@@ -4754,6 +4765,7 @@ export default function TimerPage() {
     studentEconomy: studentEconomyStates,
     studentShopCatalog,
     studentStockMarket,
+    classPrepRelease,
   });
 
   const latestTeacherSnapshotRef = useRef<Record<string, unknown>>({});
@@ -4821,6 +4833,7 @@ export default function TimerPage() {
     setStudentEconomyStates(normalizeStudentEconomyStates(remoteSettings.studentEconomy));
     setStudentShopCatalog(normalizeStudentShopCatalog(remoteSettings.studentShopCatalog));
     setStudentStockMarket(normalizeStudentStockMarket(remoteSettings.studentStockMarket));
+    setClassPrepRelease(remoteSettings.classPrepRelease);
     if (!isEditingAuctionMissionRef.current && !hasBlankAuctionMissionDraftRef.current) {
       const remoteAuctionMissions = normalizeAuctionMissions(remoteSettings.auctionMissions);
       lastPersistedAuctionMissionsRef.current = remoteAuctionMissions;
@@ -4995,6 +5008,11 @@ export default function TimerPage() {
   useEffect(() => {
     localStorage.setItem('scheduleClockOffsetSeconds', String(scheduleClockOffsetSeconds));
   }, [scheduleClockOffsetSeconds]);
+
+  useEffect(() => {
+    if (classPrepRelease) localStorage.setItem(CLASS_PREP_RELEASE_STORAGE_KEY, JSON.stringify(classPrepRelease));
+    else localStorage.removeItem(CLASS_PREP_RELEASE_STORAGE_KEY);
+  }, [classPrepRelease]);
 
   useEffect(() => {
     if (scheduleYoutubeUrls.length > 0) {
@@ -5266,6 +5284,7 @@ export default function TimerPage() {
     studentEconomyStates,
     studentShopCatalog,
     studentStockMarket,
+    classPrepRelease,
     subjectCatalogEditCommitVersion,
     auctionItemEditCommitVersion,
     auctionMissionEditCommitVersion,
@@ -8078,6 +8097,13 @@ export default function TimerPage() {
   const displayTotalTime = scheduleTotalTime;
   const displayTimeLeft = scheduleTimeLeft;
   const displayIsRunning = scheduleIsRunning;
+  const classPrepState = getClassPrepState({
+    nowMs: scheduleFocusTick,
+    clockOffsetSeconds: scheduleClockOffsetSeconds,
+    weeklySchedule,
+    weeklySubjects,
+    release: classPrepRelease,
+  });
   const isScheduleIdle = displayTotalTime === 0;
   const adjustedScheduleNow = getAdjustedScheduleDate(scheduleFocusTick, scheduleClockOffsetSeconds);
   const today = adjustedScheduleNow.getDay();
@@ -12231,6 +12257,16 @@ export default function TimerPage() {
                   </div>
                 </div>
               </div>
+              {classPrepState.stage !== 'idle' ? (
+                <button
+                  type="button"
+                  onClick={() => setClassPrepRelease({ dateKey: classPrepState.target.dateKey, slotId: classPrepState.target.slotId })}
+                  className="timer-class-prep-release inline-flex min-h-[3rem] items-center justify-center gap-2 rounded-full border-2 border-[var(--teacher-border-strong)] bg-[var(--teacher-surface)] px-5 text-[length:var(--type-heading)] font-extrabold text-[var(--teacher-accent)] transition-colors hover:bg-[#EDF7F1]"
+                >
+                  {classPrepState.stage === 'locked' ? <LockOpen size={22} strokeWidth={2.5} /> : <Lock size={22} strokeWidth={2.5} />}
+                  {classPrepState.stage === 'locked' ? '학생 화면 잠금 해제' : '이번 잠금 끄기'}
+                </button>
+              ) : null}
             </div>
           </div>
 

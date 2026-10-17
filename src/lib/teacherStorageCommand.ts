@@ -5,6 +5,7 @@ export const TEACHER_SETTING_FIELDS = [
   'isNoticeEnabled', 'scheduleClockOffsetSeconds', 'scheduleYoutubeUrls', 'scheduleYoutubeFavorites',
   'isScheduleYoutubeVisible', 'randomDraw', 'manualTimer', 'auctionItems', 'auctionMissions',
   'studentMissionVisibility', 'bookstoreSettings', 'studentShopCatalog', 'studentStockMarket',
+  'classPrepRelease',
 ] as const;
 
 export type TeacherSettingChange = {

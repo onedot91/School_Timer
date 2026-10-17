@@ -31206,3 +31206,44 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
 .today-friend-form-actions .is-reserved {
   visibility: hidden;
 }
+
+/* Break-end class prep: shrinking bar, then a full-screen "close the Chromebook" card. */
+.student-class-prep-spacer { height: 3.5rem; }
+.student-class-prep-banner {
+  position: fixed; inset: 0 0 auto; z-index: 70; display: flex; flex-direction: column; gap: .375rem;
+  padding: .5rem 1rem .625rem; border-bottom: 1px solid var(--apple-separator); background: var(--paper);
+  box-shadow: 0 6px 16px rgba(31, 24, 18, .08);
+}
+.student-class-prep-banner-label {
+  color: var(--apple-accent-pressed); font-size: var(--type-heading); font-weight: 900; line-height: 1.3; text-align: center; word-break: keep-all;
+}
+.student-class-prep-track {
+  height: .375rem; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--apple-accent) 14%, transparent);
+  transition: height var(--student-motion-state, 160ms) ease-out;
+}
+.student-class-prep-fill {
+  height: 100%; border-radius: inherit; background: var(--apple-accent); transform-origin: left center; transition: transform 1s linear;
+}
+.student-class-prep-banner[data-stage="wrap-up"] { background: #fff4e3; }
+.student-class-prep-banner[data-stage="wrap-up"] .student-class-prep-banner-label { color: #7a3f0c; }
+.student-class-prep-banner[data-stage="wrap-up"] .student-class-prep-track { height: .75rem; background: rgba(196, 106, 22, .16); }
+.student-class-prep-banner[data-stage="wrap-up"] .student-class-prep-fill { background: #c46a16; }
+.student-class-prep-lock {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-content: center; justify-items: center; gap: .75rem;
+  padding: 1.5rem; background: var(--paper); text-align: center; outline: none;
+  animation: student-class-prep-in 240ms ease-out;
+}
+.student-class-prep-lock-character { width: clamp(6.5rem, 20dvh, 10rem); height: auto; }
+.student-class-prep-lock-title {
+  color: var(--apple-accent-pressed); font-size: var(--type-display); font-weight: 950; line-height: 1.2; letter-spacing: -.02em; word-break: keep-all;
+}
+.student-class-prep-lock-class { color: var(--apple-text-secondary); font-size: var(--type-title); font-weight: 800; }
+@keyframes student-class-prep-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .student-class-prep-fill, .student-class-prep-track { transition: none; }
+  .student-class-prep-lock { animation: none; }
+}
+@media (forced-colors: active) {
+  .student-class-prep-track { border: 1px solid CanvasText; }
+  .student-class-prep-fill { background: CanvasText; }
+}

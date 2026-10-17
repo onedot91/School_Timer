@@ -63,6 +63,11 @@ const STUDENT_SHARED_FIELDS = [
   'dailyWriting',
   'studentSudoku',
   'studentNumberBaseball',
+  // Read-only for students: drives the break-end class prep banner and lock.
+  'weeklySchedule',
+  'weeklySubjects',
+  'scheduleClockOffsetSeconds',
+  'classPrepRelease',
 ] as const;
 const STUDENT_SCOPED_MAP_FIELDS = [
   ...STUDENT_MUTABLE_MAP_FIELDS,
@@ -358,7 +363,8 @@ const loadStudentRow = async (url: string, key: string, studentNumber: number, o
   if (process.env.STORAGE_PROTOCOL_VERSION === '2') {
     // The existing scoped RPC supports classroom students 1..23; keep the test entry compatible.
     const fullScope = studentReadScope(studentNumber);
-    const overviewFields = new Set(['/auctionBids', '/auctionItems', '/auctionBidHistory', '/auctionAwards', '/studentEmotionHistory', '/studentPets', '/studentEconomy', '/studentLife/letters', '/studentLife/failureProfileAssignments']);
+    const overviewFields = new Set(['/auctionBids', '/auctionItems', '/auctionBidHistory', '/auctionAwards', '/studentEmotionHistory', '/studentPets', '/studentEconomy', '/studentLife/letters', '/studentLife/failureProfileAssignments',
+      '/weeklySchedule', '/weeklySubjects', '/scheduleClockOffsetSeconds', '/classPrepRelease']);
     const partial = overview && studentNumber !== TEST_STUDENT_NUMBER;
     const scope = partial ? { ...fullScope, resources: fullScope.resources.filter(selection => overviewFields.has(selection.path)), history: [] } : fullScope;
     const row = studentNumber === TEST_STUDENT_NUMBER
