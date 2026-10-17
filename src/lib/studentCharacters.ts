@@ -14,6 +14,8 @@ export interface StudentCharacter {
     right: string;
     left: string;
   };
+  /** 모서리 빼꼼 때의 몸짓. 얼굴이 없는 사물(자동차 등)은 두리번 대신 통통 흔들기 */
+  peekGesture?: 'look' | 'wiggle';
 }
 
 export const STUDENT_CHARACTER_WALK_SECONDS = 34;
@@ -86,6 +88,19 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     },
   },
   {
+    id: 'student-6-wizard',
+    name: '마법사 자캐',
+    creatorName: '6번',
+    imageSrc: '/student-characters/character-6.png',
+    alt: '6번 학생이 만든 마법사 캐릭터',
+    themeColor: '#6D45B8',
+    speech: '연금술사의 토큰이 있으면 나한테 오도록 해!',
+    walkTransform: {
+      right: 'none',
+      left: 'none',
+    },
+  },
+  {
     id: 'student-7-orange-car',
     name: '주황 자동차 자캐',
     creatorName: '7번',
@@ -93,6 +108,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     alt: '7번 학생이 만든 주황 자동차 캐릭터',
     themeColor: '#F36B1D',
     speech: '나는 시속 300km로 달리는\u00a0중..',
+    peekGesture: 'wiggle',
     walkTransform: {
       right: 'scaleX(-1)',
       left: 'none',
@@ -121,6 +137,19 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     alt: '9번 학생이 만든 하트 캐릭터',
     themeColor: '#E23A3A',
     speech: '친구와 사이좋게 지내자.',
+    walkTransform: {
+      right: 'none',
+      left: 'none',
+    },
+  },
+  {
+    id: 'student-10-magic-bear',
+    name: '마법 곰 자캐',
+    creatorName: '10번',
+    imageSrc: '/student-characters/character-10.png',
+    alt: '10번 학생이 만든 마법 곰 캐릭터',
+    themeColor: '#7ED957',
+    speech: '고마워!',
     walkTransform: {
       right: 'none',
       left: 'none',
@@ -349,6 +378,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-1-additional.png',
     alt: '1번 학생이 만든 추가 캐릭터',
     speech: '배고파',
+    peekGesture: 'wiggle',
     walkTransform: { right: 'none', left: 'scaleX(-1)' },
   },
   {
@@ -376,6 +406,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-7-additional.png',
     alt: '7번 학생이 만든 추가 캐릭터',
     speech: '연습중',
+    peekGesture: 'wiggle',
     walkTransform: { right: 'scaleX(-1)', left: 'none' },
   },
   {
@@ -404,6 +435,7 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-19-additional.png',
     alt: '19번 학생이 만든 추가 캐릭터',
     speech: '와',
+    peekGesture: 'wiggle',
     walkTransform: { right: 'none', left: 'scaleX(-1)' },
   },
   {
