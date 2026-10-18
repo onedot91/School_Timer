@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatClassPrepSecondsLabel, getClassPrepState, parseClassPrepRelease } from './classPrep';
+import { formatClassPrepSecondsLabel, getClassPrepState, getClassPrepWrapUpRatio, parseClassPrepRelease } from './classPrep';
 
 const monday = [
   { id: 'm0', name: '아침활동', type: 'morning', start: 525, end: 540 },
@@ -93,4 +93,12 @@ test('남은 시간 읽기 문구', () => {
   assert.equal(formatClassPrepSecondsLabel(90), '1분 30초');
   assert.equal(formatClassPrepSecondsLabel(60), '1분');
   assert.equal(formatClassPrepSecondsLabel(29.2), '30초');
+});
+
+test('마무리 링은 마무리 시작에 가득 차고 잠금 순간에 비워진다', () => {
+  assert.equal(getClassPrepWrapUpRatio(30), 1);
+  assert.equal(getClassPrepWrapUpRatio(15), 0.5);
+  assert.equal(getClassPrepWrapUpRatio(0), 0);
+  assert.equal(getClassPrepWrapUpRatio(45), 1);
+  assert.equal(getClassPrepWrapUpRatio(-1), 0);
 });

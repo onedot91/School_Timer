@@ -147,6 +147,11 @@ export const getClassPrepState = ({
   return CLASS_PREP_IDLE;
 };
 
+/** 1 when wrap-up starts, 0 at the lock moment. */
+export const getClassPrepWrapUpRatio = (secondsUntilLock: number) => (
+  Math.min(1, Math.max(0, secondsUntilLock / (CLASS_PREP_WRAP_UP_SECONDS - CLASS_PREP_LOCK_SECONDS)))
+);
+
 export const formatClassPrepSecondsLabel = (seconds: number) => {
   const total = Math.max(0, Math.ceil(seconds));
   const minutes = Math.floor(total / 60);
