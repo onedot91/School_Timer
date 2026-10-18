@@ -4,7 +4,7 @@
 export const CLASS_PREP_BREAK_NOTICE_RATIO = 0.2;
 export const CLASS_PREP_LUNCH_NOTICE_SECONDS = 120;
 export const CLASS_PREP_WRAP_UP_SECONDS = 60;
-export const CLASS_PREP_LOCK_SECONDS = 30;
+export const CLASS_PREP_LOCK_SECONDS = 50;
 const CLOCK_OFFSET_LIMIT_SECONDS = 59;
 const SUBJECT_UNSET_LABEL = '과목';
 
@@ -101,7 +101,7 @@ export interface ClassPrepInput {
 
 /**
  * Bar appears 20% before a break ends (lunch: 2 minutes), switches to wrap-up
- * 60 seconds before class, and locks 30 seconds before class until the class
+ * 60 seconds before class, and locks 50 seconds before class until the class
  * ends or the teacher releases that class.
  */
 export const getClassPrepState = ({
