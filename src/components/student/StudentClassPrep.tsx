@@ -71,7 +71,7 @@ export default function StudentClassPrep({ source, onStageChange }: StudentClass
           </svg>
           <img className="student-class-prep-ring-character" src="/character.png?v=20260301" alt="" />
         </div>
-        <p className="student-class-prep-wrap-up-label" role="status">저장하고 끝내세요</p>
+        <p className="student-class-prep-wrap-up-label" role="status">크롬북을 닫아주세요.</p>
       </div>
     );
   }
