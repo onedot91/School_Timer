@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatClassPrepSecondsLabel, getClassPrepState, parseClassPrepRelease } from './classPrep';
+import { formatClassPrepSecondsLabel, getClassPrepState, getClassPrepWrapUpRatio, parseClassPrepRelease } from './classPrep';
 
 const monday = [
   { id: 'm0', name: '아침활동', type: 'morning', start: 525, end: 540 },
@@ -17,16 +17,17 @@ const state = (nowMs: number, extra: Partial<Parameters<typeof getClassPrepState
   nowMs, clockOffsetSeconds: 0, weeklySchedule: schedule, ...extra,
 });
 
-test('쉬는 시간은 남은 20%에 예고, 60초 전 마무리, 30초 전 잠금 순서로 진행한다', () => {
+test('쉬는 시간은 남은 20%에 예고, 60초 전 마무리, 50초 전 잠금 순서로 진행한다', () => {
   // Break 9:40-9:50, class 2 starts 9:50. 20% of 10 minutes = 2 minutes.
   assert.equal(state(at(9, 47, 59)).stage, 'idle');
   const notice = state(at(9, 48, 0));
   assert.equal(notice.stage, 'notice');
-  assert.ok(notice.stage === 'notice' && notice.remainingRatio === 1 && notice.secondsUntilLock === 90);
+  assert.ok(notice.stage === 'notice' && notice.remainingRatio === 1 && notice.secondsUntilLock === 70);
   const wrapUp = state(at(9, 49, 0));
   assert.equal(wrapUp.stage, 'wrap-up');
-  assert.ok(wrapUp.stage === 'wrap-up' && Math.abs(wrapUp.remainingRatio - 30 / 90) < 1e-9);
-  const locked = state(at(9, 49, 30));
+  assert.ok(wrapUp.stage === 'wrap-up' && Math.abs(wrapUp.remainingRatio - 10 / 70) < 1e-9);
+  assert.equal(state(at(9, 49, 9)).stage, 'wrap-up');
+  const locked = state(at(9, 49, 10));
   assert.equal(locked.stage, 'locked');
   assert.deepEqual(locked.stage === 'locked' ? locked.target : null, { dateKey: '2026-10-19', slotId: 'c2', label: '2교시' });
 });
@@ -52,7 +53,8 @@ test('짧은 쉬는 시간은 예고 없이 마무리부터 시작한다', () =>
   assert.equal(state(at(9, 43, 59), { weeklySchedule: short }).stage, 'idle');
   const first = state(at(9, 44, 0), { weeklySchedule: short });
   assert.equal(first.stage, 'wrap-up');
-  assert.ok(first.stage === 'wrap-up' && first.remainingRatio === 1);
+  assert.ok(first.stage === 'wrap-up' && first.remainingRatio === 1 && first.secondsUntilLock === 10);
+  assert.equal(state(at(9, 44, 10), { weeklySchedule: short }).stage, 'locked');
 });
 
 test('수업 시간·아침활동 뒤의 수업은 대상이 아니다', () => {
@@ -93,4 +95,12 @@ test('남은 시간 읽기 문구', () => {
   assert.equal(formatClassPrepSecondsLabel(90), '1분 30초');
   assert.equal(formatClassPrepSecondsLabel(60), '1분');
   assert.equal(formatClassPrepSecondsLabel(29.2), '30초');
+});
+
+test('마무리 링은 마무리 시작에 가득 차고 잠금 순간에 비워진다', () => {
+  assert.equal(getClassPrepWrapUpRatio(10), 1);
+  assert.equal(getClassPrepWrapUpRatio(5), 0.5);
+  assert.equal(getClassPrepWrapUpRatio(0), 0);
+  assert.equal(getClassPrepWrapUpRatio(15), 1);
+  assert.equal(getClassPrepWrapUpRatio(-1), 0);
 });
