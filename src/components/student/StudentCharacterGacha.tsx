@@ -19,6 +19,8 @@ import {
 import StudentConfirmDialog from './StudentConfirmDialog';
 import StudentCharacterGachaReveal from './StudentCharacterGachaReveal';
 import StudentCharacterInitialChoice from './StudentCharacterInitialChoice';
+import { CLASS_PREP_BLOCKED_MESSAGE } from '../../lib/classPrepGuard';
+import { useIsClassPrepBlocking } from '../../lib/classPrepGuardContext';
 
 interface StudentCharacterGachaProps {
   readonly tabPanelId?: string;
@@ -45,6 +47,7 @@ const getKoreanDateKey = () => new Intl.DateTimeFormat('en-CA', {
 export default function StudentCharacterGacha({
   tabPanelId, tabPanelLabelledBy, state, availableBalance, isSaving, onAction,
 }: StudentCharacterGachaProps) {
+  const isClassPrepBlocking = useIsClassPrepBlocking();
   const [scope, animate] = useAnimate<HTMLElement>();
   const reduceMotion = useReducedMotion();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -147,6 +150,11 @@ export default function StudentCharacterGacha({
 
   const startDraw = async () => {
     if (isDrawStartingRef.current || stage !== 'aiming' || isSaving || !canDraw) return;
+    if (isClassPrepBlocking) {
+      resetMachine();
+      setErrorMessage(CLASS_PREP_BLOCKED_MESSAGE);
+      return;
+    }
     const cable = clawCableRef.current;
     const caughtCapsule = caughtCapsuleRef.current;
     const targetCapsule = selectedCapsuleRef.current;
@@ -183,6 +191,11 @@ export default function StudentCharacterGacha({
   };
 
   const beginAiming = () => {
+    if (isClassPrepBlocking) {
+      setIsConfirmOpen(false);
+      setErrorMessage(CLASS_PREP_BLOCKED_MESSAGE);
+      return;
+    }
     setDailyCapsules(getDailyGachaCapsules(getKoreanDateKey()));
     setClawPosition(INITIAL_CLAW_POSITION);
     setIsConfirmOpen(false);
