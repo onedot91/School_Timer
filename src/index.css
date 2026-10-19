@@ -31207,23 +31207,7 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
   visibility: hidden;
 }
 
-/* Break-end class prep: shrinking bar, then a full-screen "close the Chromebook" card. */
-.student-class-prep-spacer { height: 3.5rem; }
-.student-class-prep-banner {
-  position: fixed; inset: 0 0 auto; z-index: 70; display: flex; flex-direction: column; gap: .375rem;
-  padding: .5rem 1rem .625rem; border-bottom: 1px solid var(--apple-separator); background: var(--paper);
-  box-shadow: 0 6px 16px rgba(31, 24, 18, .08);
-}
-.student-class-prep-banner-label {
-  color: var(--apple-accent-pressed); font-size: var(--type-heading); font-weight: 900; line-height: 1.3; text-align: center; word-break: keep-all;
-}
-.student-class-prep-track {
-  height: .375rem; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--apple-accent) 14%, transparent);
-  transition: height var(--student-motion-state, 160ms) ease-out;
-}
-.student-class-prep-fill {
-  height: 100%; border-radius: inherit; background: var(--apple-accent); transform-origin: left center; transition: transform 1s linear;
-}
+/* Break-end class prep: see-through ring card (notice, then wrap-up), then a full-screen lock. */
 .student-class-prep-wrap-up {
   position: fixed; top: 50%; left: 50%; z-index: 45; display: grid; justify-items: center; gap: .25rem;
   width: min(24rem, calc(100vw - 2rem)); padding: 1.25rem 1.5rem 1.375rem; border: 2px solid rgba(196, 106, 22, .4); border-radius: 1.75rem;
@@ -31252,6 +31236,14 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
   color: #7a3f0c; font-size: var(--type-title); font-weight: 900; line-height: 1.3; word-break: keep-all;
   text-shadow: 0 0 .5rem #fff4e3, 0 0 .25rem #fff4e3;
 }
+.student-class-prep-wrap-up[data-stage="notice"] {
+  border-color: rgba(0, 122, 87, .35); background: rgba(237, 247, 241, .45); box-shadow: 0 24px 60px rgba(0, 82, 58, .1);
+}
+.student-class-prep-wrap-up[data-stage="notice"] .student-class-prep-ring-track { stroke: rgba(0, 122, 87, .16); }
+.student-class-prep-wrap-up[data-stage="notice"] .student-class-prep-ring-fill { stroke: var(--apple-accent); }
+.student-class-prep-wrap-up[data-stage="notice"] .student-class-prep-wrap-up-label {
+  color: var(--apple-accent-pressed); text-shadow: 0 0 .5rem #edf7f1, 0 0 .25rem #edf7f1;
+}
 .student-class-prep-lock {
   position: fixed; inset: 0; z-index: 90; display: grid; place-content: center; justify-items: center; gap: .75rem;
   padding: 1.5rem; background: var(--paper); text-align: center; outline: none;
@@ -31264,12 +31256,10 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
 .student-class-prep-lock-class { color: var(--apple-text-secondary); font-size: var(--type-title); font-weight: 800; }
 @keyframes student-class-prep-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .student-class-prep-fill, .student-class-prep-track, .student-class-prep-ring-fill { transition: none; }
+  .student-class-prep-ring-fill { transition: none; }
   .student-class-prep-lock, .student-class-prep-wrap-up, .student-class-prep-ring-character { animation: none; }
 }
 @media (forced-colors: active) {
-  .student-class-prep-track { border: 1px solid CanvasText; }
-  .student-class-prep-fill { background: CanvasText; }
-  .student-class-prep-wrap-up { border-color: CanvasText; background: Canvas; }
-  .student-class-prep-ring-fill { stroke: CanvasText; }
+  .student-class-prep-wrap-up, .student-class-prep-wrap-up[data-stage="notice"] { border-color: CanvasText; background: Canvas; }
+  .student-class-prep-wrap-up .student-class-prep-ring-fill { stroke: CanvasText; }
 }

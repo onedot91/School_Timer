@@ -53,38 +53,27 @@ export default function StudentClassPrep({ source, onStageChange }: StudentClass
     'aria-valuetext': `잠금까지 ${formatClassPrepSecondsLabel(state.secondsUntilLock)}`,
   } as const;
 
-  if (isWrapUp) {
-    return (
-      // See-through and click-through so students can still save what they were doing.
-      <div className="student-class-prep-wrap-up">
-        <div className="student-class-prep-ring" {...progressProps}>
-          <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
-            <circle className="student-class-prep-ring-track" cx="60" cy="60" r={RING_RADIUS} />
-            <circle
-              className="student-class-prep-ring-fill"
-              cx="60"
-              cy="60"
-              r={RING_RADIUS}
-              pathLength={1}
-              style={{ strokeDashoffset: 1 - ratio }}
-            />
-          </svg>
-          <img className="student-class-prep-ring-character" src="/character.png?v=20260301" alt="" />
-        </div>
-        <p className="student-class-prep-wrap-up-label" role="status">크롬북을 닫아주세요.</p>
-      </div>
-    );
-  }
-
   return (
-    <>
-      <div className="student-class-prep-spacer" aria-hidden="true" />
-      <div className="student-class-prep-banner" data-stage={state.stage}>
-        <p className="student-class-prep-banner-label" role="status">하던 것 마무리하세요</p>
-        <div className="student-class-prep-track" {...progressProps}>
-          <div className="student-class-prep-fill" style={{ transform: `scaleX(${ratio})` }} />
-        </div>
+    // See-through and click-through so students can still save what they were doing.
+    // Keyed by stage so the wrap-up ring starts full instead of animating back up.
+    <div key={state.stage} className="student-class-prep-wrap-up" data-stage={state.stage}>
+      <div className="student-class-prep-ring" {...progressProps}>
+        <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+          <circle className="student-class-prep-ring-track" cx="60" cy="60" r={RING_RADIUS} />
+          <circle
+            className="student-class-prep-ring-fill"
+            cx="60"
+            cy="60"
+            r={RING_RADIUS}
+            pathLength={1}
+            style={{ strokeDashoffset: 1 - ratio }}
+          />
+        </svg>
+        <img className="student-class-prep-ring-character" src="/character.png?v=20260301" alt="" />
       </div>
-    </>
+      <p className="student-class-prep-wrap-up-label" role="status">
+        {isWrapUp ? '크롬북을 닫아주세요.' : '하던 것 마무리하세요'}
+      </p>
+    </div>
   );
 }
