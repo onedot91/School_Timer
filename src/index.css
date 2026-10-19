@@ -9332,9 +9332,20 @@ h3 {
   }
 }
 
+/* 걷는 캐릭터처럼 동작 줄이기 설정에서도 빼꼼은 그대로 나온다(전역 0.01ms 단축을 되돌린다). */
 @media (prefers-reduced-motion: reduce) {
-  .student-character-peek-layer {
-    display: none;
+  .student-character-peek,
+  .student-character-peek-speech {
+    animation-duration: var(--peek-duration) !important;
+  }
+
+  .student-character-peek-gesture {
+    animation-duration: calc(var(--peek-duration) * 0.5) !important;
+  }
+
+  .student-character-peek-bob {
+    animation-duration: 1720ms !important;
+    animation-iteration-count: infinite !important;
   }
 }
 

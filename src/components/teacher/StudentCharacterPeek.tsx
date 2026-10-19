@@ -148,7 +148,6 @@ export default function StudentCharacterPeek({
       setActive(false);
       return;
     }
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let cancelled = false;
     let scheduleTimer = 0;
     const cleanupTimers = new Set<number>();
@@ -169,7 +168,7 @@ export default function StudentCharacterPeek({
     const run = async () => {
       if (cancelled) return;
       const layer = layerRef.current;
-      if (document.hidden || reducedMotion.matches || !layer) {
+      if (document.hidden || !layer) {
         setActive(false);
         schedule(randomBetween(PEEK_INTERVAL_MS));
         return;
