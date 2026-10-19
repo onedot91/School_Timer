@@ -17,17 +17,18 @@ const state = (nowMs: number, extra: Partial<Parameters<typeof getClassPrepState
   nowMs, clockOffsetSeconds: 0, weeklySchedule: schedule, ...extra,
 });
 
-test('쉬는 시간은 남은 20%에 예고, 60초 전 마무리, 50초 전 잠금 순서로 진행한다', () => {
+test('쉬는 시간은 남은 20%에 예고, 70초 전 마무리, 60초 전 잠금 순서로 진행한다', () => {
   // Break 9:40-9:50, class 2 starts 9:50. 20% of 10 minutes = 2 minutes.
   assert.equal(state(at(9, 47, 59)).stage, 'idle');
   const notice = state(at(9, 48, 0));
   assert.equal(notice.stage, 'notice');
-  assert.ok(notice.stage === 'notice' && notice.remainingRatio === 1 && notice.secondsUntilLock === 70);
-  const wrapUp = state(at(9, 49, 0));
+  assert.ok(notice.stage === 'notice' && notice.remainingRatio === 1 && notice.secondsUntilLock === 60);
+  assert.equal(state(at(9, 48, 49)).stage, 'notice');
+  const wrapUp = state(at(9, 48, 50));
   assert.equal(wrapUp.stage, 'wrap-up');
-  assert.ok(wrapUp.stage === 'wrap-up' && Math.abs(wrapUp.remainingRatio - 10 / 70) < 1e-9);
-  assert.equal(state(at(9, 49, 9)).stage, 'wrap-up');
-  const locked = state(at(9, 49, 10));
+  assert.ok(wrapUp.stage === 'wrap-up' && Math.abs(wrapUp.remainingRatio - 10 / 60) < 1e-9);
+  assert.equal(state(at(9, 48, 59)).stage, 'wrap-up');
+  const locked = state(at(9, 49, 0));
   assert.equal(locked.stage, 'locked');
   assert.deepEqual(locked.stage === 'locked' ? locked.target : null, { dateKey: '2026-10-19', slotId: 'c2', label: '2교시' });
 });
@@ -41,7 +42,8 @@ test('잠금은 수업이 시작돼도 유지되고 수업이 끝나면 풀린�
 test('점심시간은 비율과 상관없이 2분 전부터 예고한다', () => {
   assert.equal(state(at(12, 57, 59)).stage, 'idle');
   assert.equal(state(at(12, 58, 0)).stage, 'notice');
-  assert.equal(state(at(12, 59, 30)).stage, 'locked');
+  assert.equal(state(at(12, 58, 59)).stage, 'wrap-up');
+  assert.equal(state(at(12, 59, 0)).stage, 'locked');
 });
 
 test('짧은 쉬는 시간은 예고 없이 마무리부터 시작한다', () => {
@@ -50,11 +52,12 @@ test('짧은 쉬는 시간은 예고 없이 마무리부터 시작한다', () =>
     { id: 'b1', name: '쉬는 시간', type: 'break', start: 580, end: 585 },
     { id: 'c2', name: '2교시', type: 'class', start: 585, end: 625 },
   ] };
-  assert.equal(state(at(9, 43, 59), { weeklySchedule: short }).stage, 'idle');
-  const first = state(at(9, 44, 0), { weeklySchedule: short });
+  // 20% of 5 minutes is 60 seconds, shorter than the 70-second wrap-up.
+  assert.equal(state(at(9, 43, 49), { weeklySchedule: short }).stage, 'idle');
+  const first = state(at(9, 43, 50), { weeklySchedule: short });
   assert.equal(first.stage, 'wrap-up');
   assert.ok(first.stage === 'wrap-up' && first.remainingRatio === 1 && first.secondsUntilLock === 10);
-  assert.equal(state(at(9, 44, 10), { weeklySchedule: short }).stage, 'locked');
+  assert.equal(state(at(9, 44, 0), { weeklySchedule: short }).stage, 'locked');
 });
 
 test('수업 시간·아침활동 뒤의 수업은 대상이 아니다', () => {
