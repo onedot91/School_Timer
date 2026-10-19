@@ -7,6 +7,7 @@ import { getSaveRecoveryStatus, getSaveRefreshVersion, isSaveRefreshVersionCurre
 import { normalizeAuctionItems } from './currency.js';
 import { transpileModule, ScriptTarget } from 'typescript';
 import { StorageCommandError } from './storageCommandClient.js';
+import { INITIAL_LOAD_RETRY_DELAYS_MS, startInitialLoadWithRetry } from './initialLoadRetry.js';
 
 const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
 const callbackStart = source.indexOf('  const refreshTeacherSavedState = ');
@@ -128,6 +129,7 @@ const initializationFixture = (options: {
     scheduleNotice: '원격 공지',
   };
   const base = { current: {} as Record<string, unknown> };
+  const retryTimers: Array<{ ms: number; run: () => void } | null> = [];
   const persisted = { current: {} as Record<string, unknown> };
   const snapshot = { current: { auctionItems: options.editedItems ?? defaults, scheduleNotice: '' } as Record<string, unknown> };
   const hydrated = { current: false };
@@ -147,6 +149,12 @@ const initializationFixture = (options: {
     latestTeacherSnapshotRef: snapshot, sharedSettingsHydratedRef: hydrated,
     teacherSettingsBaseRef: base, teacherSettingsPersistedBaseRef: persisted,
     teacherSettingsSavingRef: { current: false }, teacherSettingsConflict: false, StorageCommandError,
+    initialSettingsLoadRef: { current: null },
+    startInitialLoadWithRetry: (retryOptions: Parameters<typeof startInitialLoadWithRetry<unknown>>[0]) => startInitialLoadWithRetry({
+      ...retryOptions, random: () => 0.5,
+      setTimer: (run, ms) => retryTimers.push({ ms, run }) - 1,
+      clearTimer: (index) => { if (typeof index === 'number') retryTimers[index] = null; },
+    }),
     lastSharedSettingsUpdatedAtRef: { current: null }, teacherRefreshPendingRef: { current: true },
     skipNextSharedSettingsSaveRef: { current: true },
     hasUnsavedWeeklySubjectsRef: { current: false }, hasUnsavedSubjectCatalogRef: { current: false },
@@ -212,10 +220,20 @@ const initializationFixture = (options: {
   const refresh: unknown = runInNewContext(callbackSource, context);
   const retryStart = source.indexOf('  const retryTeacherSettingsSave = ');
   const retry: unknown = runInNewContext(source.slice(retryStart, callbackStart) + '\nretryTeacherSettingsSave;', context);
-  const initialEffectStart = source.lastIndexOf('  useEffect(() => {', source.indexOf('    void Promise.all([teacherStorageDrafts.ready()'));
+  const initialEffectStart = source.lastIndexOf('  useEffect(() => {', source.indexOf('    const initialLoad = startInitialLoadWithRetry({'));
   const initialEffectEnd = source.indexOf("  useEffect(() => {\n    localStorage.setItem('weeklySchedule'", initialEffectStart);
   return {
-    remote, base, persisted, snapshot, hydrated, commands, drafts, reads: () => reads, getEditorChanges: () => editorChanges, getError: () => error,
+    remote, base, persisted, snapshot, hydrated, commands, drafts, reads: () => reads,
+    pendingRetries: () => retryTimers.filter(timer => timer !== null).length,
+    fireRetry: async () => {
+      const index = retryTimers.findIndex(timer => timer !== null);
+      const timer = retryTimers[index];
+      assert.ok(timer, 'expected a pending initial read retry');
+      retryTimers[index] = null;
+      timer.run();
+      await new Promise(resolve => setImmediate(resolve));
+      return timer.ms;
+    }, getEditorChanges: () => editorChanges, getError: () => error,
     getInitialChanges: () => {
       const payload: unknown = JSON.parse(JSON.stringify(drafts.get('teacher.settings.initial.editor')?.draft.payload ?? null));
       if (!isStorageRecord(payload) || !Array.isArray(payload.changes)) return [];
@@ -291,9 +309,9 @@ test('설정 행을 확인하지 못하면 초기화를 완료하거나 자동 �
   const screen = initializationFixture();
   assert.throws(screen.initializeMissing, /SETTINGS_REFRESH_UNAVAILABLE/);
   assert.equal(screen.hydrated.current, false);
-  const initialLoad = source.slice(source.indexOf('    void Promise.all([teacherStorageDrafts.ready()'), source.indexOf("    localStorage.setItem('weeklySchedule'"));
+  const initialLoad = source.slice(source.indexOf('    const initialLoad = startInitialLoadWithRetry({'), source.indexOf("    localStorage.setItem('weeklySchedule'"));
   assert.doesNotMatch(initialLoad, /sharedSettingsHydratedRef\.current = true/);
-  assert.match(initialLoad, /\.catch\(\(error\) =>/);
+  assert.match(initialLoad, /onFinalFailure: \(\) =>/);
 });
 
 test('교사 초기 조회는 초안 복구를 기다리지 않고 시작하며 복구 전 저장은 열지 않는다', async () => {
@@ -310,9 +328,33 @@ test('교사 초기 조회는 초안 복구를 기다리지 않고 시작하며 
   assert.deepEqual(screen.commands, []);
 });
 
-test('실제 초기 GET 실패와 재시도 GET 실패 후에도 기본값 저장을 잠그고 다음 복구에서 등록 물품을 유지한다', async () => {
+test('교사 첫 설정 조회는 일시적 DB 시간 초과 뒤 백오프 재시도로 스스로 복구하고 오류를 띄우지 않는다', async () => {
   const screen = initializationFixture({ initialReadFailures: 2 });
   await screen.startInitialRead();
+  assert.equal(screen.hydrated.current, false);
+  assert.doesNotMatch(screen.getError(), /설정을 불러오지 못했어요/);
+  assert.equal(await screen.fireRetry(), INITIAL_LOAD_RETRY_DELAYS_MS[0]);
+  assert.doesNotMatch(screen.getError(), /설정을 불러오지 못했어요/);
+  assert.equal(await screen.fireRetry(), INITIAL_LOAD_RETRY_DELAYS_MS[1]);
+  assert.equal(screen.reads(), 3);
+  assert.equal(screen.hydrated.current, true);
+  assert.deepEqual({ ...screen.snapshot.current }, screen.remote);
+  assert.doesNotMatch(screen.getError(), /설정을 불러오지 못했어요/);
+  assert.equal(screen.pendingRetries(), 0);
+  assert.deepEqual(screen.commands, []);
+});
+
+test('실제 초기 GET 자동 재시도를 모두 실패한 뒤에만 오류를 띄우고 수동 재시도 실패 후에도 기본값 저장을 잠근다', async () => {
+  const screen = initializationFixture({ initialReadFailures: INITIAL_LOAD_RETRY_DELAYS_MS.length + 2 });
+  await screen.startInitialRead();
+  const delays: number[] = [];
+  for (let attempt = 0; attempt < INITIAL_LOAD_RETRY_DELAYS_MS.length; attempt += 1) {
+    assert.doesNotMatch(screen.getError(), /설정을 불러오지 못했어요/);
+    delays.push(await screen.fireRetry());
+  }
+  assert.deepEqual(delays, [...INITIAL_LOAD_RETRY_DELAYS_MS]);
+  assert.equal(screen.reads(), INITIAL_LOAD_RETRY_DELAYS_MS.length + 1);
+  assert.equal(screen.pendingRetries(), 0);
   assert.equal(screen.hydrated.current, false);
   assert.match(screen.getError(), /설정을 불러오지 못했어요/);
   await screen.retry();
@@ -417,4 +459,94 @@ test('정상 초안의 영구 보관을 확인하지 못하면 초기 편집 원
   assert.deepEqual(screen.getInitialChanges(), initialChanges);
   assert.equal(screen.drafts.get('teacher.settings.initial.editor')?.draft.requestId, 'stored-initial-draft');
   assert.deepEqual(screen.commands, []);
+});
+
+const initialLoadHarness = (results: Array<'fail' | 'ok'>) => {
+  const timers: Array<{ ms: number; run: () => void } | null> = [];
+  const slot = { busy: false };
+  const hydrated = { current: false };
+  const errors: unknown[] = [];
+  const loaded: string[] = [];
+  let loads = 0;
+  const handle = startInitialLoadWithRetry({
+    load: async () => {
+      const result = results[loads];
+      loads += 1;
+      if (result !== 'ok') throw new StorageCommandError('STORAGE_DATABASE_TIMEOUT', 502);
+      return 'row';
+    },
+    isSettled: () => hydrated.current,
+    acquire: () => { if (slot.busy) return false; slot.busy = true; return true; },
+    release: () => { slot.busy = false; },
+    onSuccess: (value) => { hydrated.current = true; loaded.push(value); },
+    onFinalFailure: (error) => { errors.push(error); },
+    random: () => 0.5,
+    setTimer: (run, ms) => timers.push({ ms, run }) - 1,
+    clearTimer: (index) => { if (typeof index === 'number') timers[index] = null; },
+  });
+  const settle = () => new Promise<void>(resolve => setImmediate(resolve));
+  const fireNext = async () => {
+    const index = timers.findIndex(timer => timer !== null);
+    const timer = timers[index];
+    assert.ok(timer, 'expected a pending retry timer');
+    timers[index] = null;
+    timer.run();
+    await settle();
+    return timer.ms;
+  };
+  return { handle, timers, slot, errors, loaded, settle, fireNext, loads: () => loads,
+    pending: () => timers.filter(timer => timer !== null).length };
+};
+
+test('교사 첫 설정 재시도는 취소 시 타이머를 정리하고 수동 확인 중에는 조회를 겹치지 않는다', async () => {
+  const cancelled = initialLoadHarness(['fail', 'ok']);
+  await cancelled.settle();
+  assert.equal(cancelled.pending(), 1);
+  cancelled.handle.cancel();
+  assert.equal(cancelled.pending(), 0);
+  assert.equal(cancelled.loads(), 1);
+  assert.deepEqual(cancelled.errors, []);
+
+  const busy = initialLoadHarness(['fail', 'ok']);
+  await busy.settle();
+  busy.slot.busy = true;
+  await busy.fireNext();
+  assert.equal(busy.loads(), 1);
+  busy.slot.busy = false;
+  await busy.fireNext();
+  assert.equal(busy.loads(), 2);
+  assert.deepEqual(busy.loaded, ['row']);
+});
+
+test('교사 첫 설정 초기화가 행을 거부하면 처리되지 않은 오류 없이 재시도 실패로 센다', async () => {
+  const errors: unknown[] = [];
+  let loads = 0;
+  const timers: Array<() => void> = [];
+  startInitialLoadWithRetry({
+    load: async () => { loads += 1; return null; },
+    isSettled: () => false, acquire: () => true, release: () => undefined,
+    onSuccess: () => { throw new Error('SETTINGS_REFRESH_UNAVAILABLE'); },
+    onFinalFailure: (error) => { errors.push(error); },
+    delaysMs: [1], setTimer: (run) => timers.push(run), clearTimer: () => undefined,
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(timers.length, 1);
+  timers[0]();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(loads, 2);
+  assert.equal(errors.length, 1);
+  assert.match(String(errors[0]), /SETTINGS_REFRESH_UNAVAILABLE/);
+});
+
+test('교사 첫 설정 로딩 effect와 수동 저장 다시 확인은 같은 재시도 핸들과 저장 슬롯을 공유한다', () => {
+  const effectStart = source.indexOf('    const initialLoad = startInitialLoadWithRetry({');
+  const effect = source.slice(effectStart, source.indexOf('  }, []);', effectStart));
+  assert.ok(effectStart >= 0);
+  assert.match(effect, /isSettled: \(\) => sharedSettingsHydratedRef\.current/);
+  assert.match(effect, /if \(teacherSettingsSavingRef\.current\) return false;\s*teacherSettingsSavingRef\.current = true;/);
+  assert.match(effect, /onFinalFailure:[\s\S]*설정을 불러오지 못했어요\. 저장 다시 확인을 눌러 주세요\./);
+  assert.doesNotMatch(effect, /executeStorageCommand|updateSharedSettings/);
+  assert.match(effect, /return \(\) => \{\s*initialLoad\.cancel\(\);/);
+  const retry = source.slice(source.indexOf('  const retryTeacherSettingsSave = '), source.indexOf('  const refreshTeacherSavedState = '));
+  assert.match(retry, /if \(teacherSettingsSavingRef\.current\) return;\s*initialSettingsLoadRef\.current\?\.cancel\(\);\s*teacherSettingsSavingRef\.current = true;/);
 });

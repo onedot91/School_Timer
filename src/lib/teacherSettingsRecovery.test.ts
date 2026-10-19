@@ -13,6 +13,7 @@ const retryFixture = (conflict: boolean, execute: (command: { requestId: string;
   assert.ok(start >= 0 && end > start);
   const screen = {
     teacherSettingsSavingRef: { current: false },
+    initialSettingsLoadRef: { current: null },
     sharedSettingsHydratedRef: { current: true },
     teacherSettingsBaseRef: { current: { scheduleNotice: 'old', isNoticeEnabled: true } },
     teacherSettingsPersistedBaseRef: { current: { scheduleNotice: 'old', isNoticeEnabled: true } },

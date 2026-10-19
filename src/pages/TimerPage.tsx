@@ -265,6 +265,7 @@ import StableLabel from '../components/StableLabel';
 import StatusSlot from '../components/StatusSlot';
 import { getClassPrepState, parseClassPrepRelease, type ClassPrepRelease } from '../lib/classPrep';
 import { CLASS_PREP_RELEASE_STORAGE_KEY } from '../lib/classPrepLocalStore';
+import { startInitialLoadWithRetry, type InitialLoadRetryHandle } from '../lib/initialLoadRetry';
 
 const TeacherWritingSettings = lazy(() => import('../components/teacher/TeacherWritingSettings'));
 const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherClasswordPanel'));
@@ -4712,6 +4713,7 @@ export default function TimerPage() {
   const teacherSettingsPersistedBaseRef = useRef<Record<string, unknown>>({});
   const teacherCommandQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const teacherSettingsSavingRef = useRef(false);
+  const initialSettingsLoadRef = useRef<InitialLoadRetryHandle | null>(null);
   const teacherSettingsErrorRef = useRef(false);
   const [teacherSettingsSaveVersion, setTeacherSettingsSaveVersion] = useState(0);
   const [teacherSettingsSaveError, setTeacherSettingsSaveError] = useState('');
@@ -4937,12 +4939,22 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSupabaseSettingsEnabled) return;
 
-    let isCancelled = false;
-
-    void Promise.all([teacherStorageDrafts.ready(), loadSharedSettingsRow()])
-      .then(([, remoteRow]) => {
-        if (isCancelled) return;
-
+    const initialLoad = startInitialLoadWithRetry({
+      load: () => Promise.all([teacherStorageDrafts.ready(), loadSharedSettingsRow()]),
+      isSettled: () => sharedSettingsHydratedRef.current,
+      acquire: () => {
+        if (teacherSettingsSavingRef.current) return false;
+        teacherSettingsSavingRef.current = true;
+        return true;
+      },
+      release: () => { teacherSettingsSavingRef.current = false; },
+      onAttemptFailure: (error) => console.error('Failed to load shared settings from Supabase.', error),
+      onFinalFailure: () => {
+        if (!sharedSettingsHydratedRef.current) {
+          setTeacherSettingsSaveError('설정을 불러오지 못했어요. 저장 다시 확인을 눌러 주세요.');
+        }
+      },
+      onSuccess: ([, remoteRow]) => {
         initializeTeacherSettingsRef.current(remoteRow);
         const letterDraft = teacherStorageDrafts.load(teacherCommandScope({ action: 'teacher.mail.send', payload: {} }))?.draft.payload;
         if (isStorageRecord(letterDraft) && typeof letterDraft.title === 'string' && typeof letterDraft.content === 'string') {
@@ -4958,16 +4970,13 @@ export default function TimerPage() {
           setMailStatus(isTeacherStorageCommandPaused({ action: 'teacher.mail.send', payload: {} })
             ? '중단된 편지를 보관했습니다. 다시 보내 주세요.' : '이전 편지의 저장 결과를 확인하지 못했어요. 내용이 보관되어 있습니다.');
         }
-      })
-      .catch((error) => {
-        console.error('Failed to load shared settings from Supabase.', error);
-        if (!isCancelled && !sharedSettingsHydratedRef.current) {
-          setTeacherSettingsSaveError('설정을 불러오지 못했어요. 저장 다시 확인을 눌러 주세요.');
-        }
-      });
+      },
+    });
+    initialSettingsLoadRef.current = initialLoad;
 
     return () => {
-      isCancelled = true;
+      initialLoad.cancel();
+      if (initialSettingsLoadRef.current === initialLoad) initialSettingsLoadRef.current = null;
     };
   }, []);
 
@@ -10866,6 +10875,7 @@ export default function TimerPage() {
 
   const retryTeacherSettingsSave = async () => {
     if (teacherSettingsSavingRef.current) return;
+    initialSettingsLoadRef.current?.cancel();
     teacherSettingsSavingRef.current = true;
     setIsTeacherSettingsRetrying(true);
     const scope = teacherCommandScope({ action: 'teacher.settings.patch', payload: {} });
