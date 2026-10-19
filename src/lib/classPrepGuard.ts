@@ -1,4 +1,4 @@
-// Wrap-up guard: from 60 seconds before class, students cannot start new
+// Wrap-up guard: from 70 seconds before class, students cannot start new
 // state-changing work. Finishing, confirming, or closing in-progress work stays allowed.
 import type { ClassPrepState } from './classPrep';
 import type { StudentEconomyAction } from './studentEconomy';
