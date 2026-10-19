@@ -39,7 +39,8 @@ const readWalkerScene = (stage: Element | null, viewport: { width: number; heigh
 
 /** 걷는 캐릭터와 빼꼼을 합쳐 한 화면에 나오는 캐릭터 수의 최대값 */
 export const MAX_CHARACTERS_ON_SCREEN = 3;
-const CROWDED_RETRY_MS: [number, number] = [1500, 3000];
+/** 자리를 맡아 둔 뒤 걷는 캐릭터가 빠져나갔는지 다시 보는 간격 */
+const CROWDED_RETRY_MS: [number, number] = [500, 800];
 
 export interface ActivePeek {
   key: string;
@@ -126,7 +127,7 @@ export default function StudentCharacterPeek({
   characters: StudentCharacter[];
   busyCharacterIds: string[];
   enabled: boolean;
-  /** 빼꼼이 나와 있는 동안 true. 그동안 새 걷는 캐릭터가 들어오지 않게 하는 데 쓴다. */
+  /** 빼꼼이 자리를 기다리거나 나와 있는 동안 true. 그동안 새 걷는 캐릭터가 들어오지 않게 하는 데 쓴다. */
   onActiveChange?: (active: boolean) => void;
 }) {
   const layerRef = useRef<HTMLDivElement>(null);
@@ -169,21 +170,25 @@ export default function StudentCharacterPeek({
       if (cancelled) return;
       const layer = layerRef.current;
       if (document.hidden || reducedMotion.matches || !layer) {
+        setActive(false);
         schedule(randomBetween(PEEK_INTERVAL_MS));
         return;
       }
       // 이미 걷는 캐릭터가 3마리면(들어오는 중 포함) 번잡하지 않게 자리가 날 때까지 기다린다.
+      // 걷는 캐릭터는 쉬지 않고 이어 들어오므로, 먼저 자리를 맡아(새 입장 보류) 한 마리가 나가기를 기다린다.
       const crowdedNow = () => {
         const rect = layer.getBoundingClientRect();
         const size = { width: rect.width || window.innerWidth, height: rect.height || window.innerHeight };
         return readWalkerScene(layer.parentElement, size).present >= MAX_CHARACTERS_ON_SCREEN;
       };
       if (crowdedNow()) {
+        setActive(true);
         schedule(randomBetween(CROWDED_RETRY_MS));
         return;
       }
       const main = pickCharacter();
       if (!main) {
+        setActive(false);
         schedule(randomBetween(PEEK_INTERVAL_MS));
         return;
       }
@@ -200,10 +205,12 @@ export default function StudentCharacterPeek({
       ]);
       if (cancelled) return;
       if (!mainBox) {
+        setActive(false);
         schedule(randomBetween(PEEK_INTERVAL_MS));
         return;
       }
       if (crowdedNow()) {
+        setActive(true);
         schedule(randomBetween(CROWDED_RETRY_MS));
         return;
       }
