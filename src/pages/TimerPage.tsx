@@ -11794,7 +11794,7 @@ export default function TimerPage() {
               <StudentCharacterPeek
                 characters={visibleStudentCharacters}
                 busyCharacterIds={activeStudentCharacterWalkers.map((walker) => walker.character.id)}
-                enabled={canShowStudentCharacter && !shouldReduceMotion}
+                enabled={canShowStudentCharacter}
                 onActiveChange={handleStudentCharacterPeekActiveChange}
               />
             </StudentCharacterStage>
