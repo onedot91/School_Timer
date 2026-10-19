@@ -9287,12 +9287,12 @@ h3 {
     transform: rotate(var(--peek-angle)) translate(var(--peek-hidden-x), var(--peek-hidden-y));
     animation-timing-function: cubic-bezier(.22, .8, .32, 1);
   }
-  14% {
+  9% {
     transform: rotate(var(--peek-angle)) translate(var(--peek-over-x), var(--peek-over-y));
     animation-timing-function: ease-in-out;
   }
-  22%,
-  80% {
+  15%,
+  87% {
     transform: rotate(var(--peek-angle)) translate(var(--peek-shown-x), var(--peek-shown-y));
     animation-timing-function: cubic-bezier(.55, 0, .85, .45);
   }
@@ -9318,15 +9318,15 @@ h3 {
 }
 
 @keyframes studentCharacterPeekSpeech {
-  0%, 22% {
+  0%, 15% {
     opacity: 0;
     transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(.92);
   }
-  27%, 74% {
+  18%, 83% {
     opacity: 1;
     transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(1);
   }
-  79%, 100% {
+  87%, 100% {
     opacity: 0;
     transform: translate(var(--peek-bubble-x), var(--peek-bubble-y)) scale(.92);
   }

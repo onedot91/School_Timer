@@ -19,7 +19,8 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
     // 모서리 빼꼼이 나오면 가장 가까이 걷던 캐릭터가 멈춰서 그쪽을 보며 "뭐지?" 한다.
     const onPeek = (event: Event) => {
       const detail = (event as CustomEvent<{ x: number; y: number }>).detail;
-      if (!detail || reduced.matches || document.hidden) return;
+      // 걷기·빼꼼처럼 동작 줄이기 설정에서도 반응한다.
+      if (!detail || document.hidden) return;
       const now = performance.now();
       let nearest: { node: HTMLElement; distance: number; center: number } | null = null;
       root.querySelectorAll<HTMLElement>('.student-character-showcase').forEach(node => {
@@ -40,7 +41,6 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
       active.set(node, { start: now, kind: 'look' });
     };
     root.addEventListener('studentcharacterpeek', onPeek);
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const timer = window.setInterval(() => {
       const now = performance.now();
       if (document.hidden) {
@@ -50,9 +50,10 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
       const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase'));
       active.forEach((action, node) => {
         const age = now - action.start;
-        if (!node.isConnected || age >= (action.kind === 'look' ? 1800 : 2200)) clear(node);
+        // "뭐지?"는 빼꼼이 다 나와 있는 동안 읽을 수 있게 약 2.6초 보여 준다.
+        if (!node.isConnected || age >= (action.kind === 'look' ? 3200 : 2200)) clear(node);
         else {
-          const phase = age < 250 ? 'pause' : age < (action.kind === 'look' ? 1450 : 1800) ? 'act' : 'settle';
+          const phase = age < 250 ? 'pause' : age < (action.kind === 'look' ? 2850 : 1800) ? 'act' : 'settle';
           if (node.dataset.encounterPhase !== phase) node.dataset.encounterPhase = phase;
         }
       });
