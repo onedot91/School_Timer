@@ -17747,6 +17747,12 @@ a[href]:active {
   -webkit-text-fill-color: var(--apple-surface);
 }
 
+.settings-dialog .settings-navigation-new-badge--done {
+  background: var(--teacher-accent);
+  box-shadow: 0 .12rem .3rem rgb(32 58 46 / 22%);
+  text-shadow: 0 1px rgb(20 40 30 / 28%);
+}
+
 .settings-navigation-item:active {
   transform: scale(.98);
 }

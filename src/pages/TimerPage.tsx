@@ -75,6 +75,7 @@ import {
   getWeeklyMissionRewardIds,
 } from '../lib/weeklyMission';
 import {
+  isClassDonationCompleted,
   normalizeClassDonationSettings,
   type ClassDonationSettings,
 } from '../lib/classDonation';
@@ -4381,6 +4382,7 @@ export default function TimerPage() {
     return () => controls.stop();
   }, [animateMotion, isSettingsMaterialMounted, isSettingsOpen, settingsMaterialProgress, shouldReduceMotion]);
   const [settingsPanel, setSettingsPanel] = useState<SettingsPanel>('today');
+  const isClassDonationGoalReached = classDonation.enabled && isClassDonationCompleted(classDonation);
   const currentSettingsNavigationItem = SETTINGS_NAVIGATION_ITEMS.find((item) => item.panel === settingsPanel);
   const handleSettingsNavigationKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
     const navigationButtons: HTMLButtonElement[] = [
@@ -13414,6 +13416,14 @@ export default function TimerPage() {
                                 aria-label={`새로 받은 편지 ${unreadTeacherLetterCount}개`}
                               >
                                 New
+                              </span>
+                            ) : null}
+                            {item.panel === 'donation' && isClassDonationGoalReached ? (
+                              <span
+                                className="settings-navigation-new-badge settings-navigation-new-badge--done"
+                                aria-label="기부 목표 달성"
+                              >
+                                달성
                               </span>
                             ) : null}
                             {item.panel === 'today-friend' && todayFriendPendingReviewCount > 0 ? (
