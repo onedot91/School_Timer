@@ -1,5 +1,5 @@
 import { appDataMode, canWriteSharedBackend } from './dataMode.js';
-import { withSaveFailureReporting } from './saveFailureClient.js';
+import { skipSaveFailureReport, withSaveFailureReporting } from './saveFailureClient.js';
 import { getKoreanDateKey } from './classword.js';
 import { getKoreanIsoWeekKey, parseWeeklyMissionResult, parseWeeklyMissionsResult } from './weeklyMission.js';
 import { studentSettingsRetryDelay } from './studentSettingsSync.js';
@@ -49,11 +49,13 @@ const settleWeeklyMission = async <T>(studentNumber: number, endpoint: '/api/wee
         const transient = ['TypeError', 'TimeoutError', 'AbortError'].includes(error.name)
           || [502, 503, 504].includes(Reflect.get(error, 'status'));
         const delay = studentSettingsRetryDelay(1, error);
-        if (attempt >= 1 || !transient || delay > 10_000
-          || (typeof navigator !== 'undefined' && navigator.onLine === false)) throw error;
+        // Settlement reads server evidence and retries on reconnect, so an offline device loses nothing.
+        const offline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+        if (transient && offline()) skipSaveFailureReport(error);
+        if (attempt >= 1 || !transient || delay > 10_000 || offline()) throw error;
         // Reward keys are idempotent on the server; keep the retry inside one failure report.
         await new Promise(resolve => setTimeout(resolve, delay));
-        if (typeof navigator !== 'undefined' && navigator.onLine === false) throw error;
+        if (offline()) { skipSaveFailureReport(error); throw error; }
       }
     }
   }, studentNumber);

@@ -7,6 +7,7 @@ import { StorageAvailabilityBanner } from './components/StorageAvailabilityBanne
 import { startSaveFailureReporting } from './lib/saveFailureClient';
 import {
   clearDeviceSession,
+  DEVICE_SESSION_REJECTED_EVENT,
   deviceSessionMatchesEntry,
   loadDeviceSession,
   registerDeviceSession,
@@ -234,6 +235,34 @@ export default function RootApp() {
       controller.abort();
     };
   }, [sessionAttempt]);
+
+  useEffect(() => {
+    if (!requiresDeviceRegistration || !isDeviceSessionReady || selectedEntryNumber === null) return;
+    let checking = false;
+    let cancelled = false;
+    const controller = new AbortController();
+    // Long-open tabs can outlive their cookie; return to registration instead of failing every save.
+    const recheckSession = () => {
+      if (checking) return;
+      checking = true;
+      void loadDeviceSession(controller.signal)
+        .then((session) => {
+          if (cancelled || deviceSessionMatchesEntry(session, selectedEntryNumber)) return;
+          if (!canReloadWithDrafts(selectedEntryNumber)) return;
+          setDeviceSession(session);
+          clearStoredEntryNumber();
+          setSelectedEntryNumber(null);
+        })
+        .catch(() => undefined)
+        .finally(() => { checking = false; });
+    };
+    window.addEventListener(DEVICE_SESSION_REJECTED_EVENT, recheckSession);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.removeEventListener(DEVICE_SESSION_REJECTED_EVENT, recheckSession);
+    };
+  }, [isDeviceSessionReady, selectedEntryNumber]);
 
   useEffect(() => {
     const handleEntryResetShortcut = (event: KeyboardEvent) => {

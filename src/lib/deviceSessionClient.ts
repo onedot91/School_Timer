@@ -83,3 +83,11 @@ export const registerDeviceSession = (entryNumber: number, registrationKey?: str
 }, DEVICE_SESSION_MUTATION_TIMEOUT_MS);
 
 export const clearDeviceSession = () => requestSessionWithTimeout({ method: 'DELETE' }, DEVICE_SESSION_MUTATION_TIMEOUT_MS);
+
+export const DEVICE_SESSION_REJECTED_EVENT = 'school-timer-device-session-rejected';
+
+/** A 401 from any API means this tab's cookie no longer authorizes the device. */
+export const notifyDeviceSessionRejected = () => {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+  window.dispatchEvent(new Event(DEVICE_SESSION_REJECTED_EVENT));
+};

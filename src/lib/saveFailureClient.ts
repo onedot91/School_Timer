@@ -6,12 +6,14 @@ import { collectSaveFailureDiagnostics } from './saveFailureDiagnostics.js';
 import { publishStorageAvailability } from './storageAvailability.js';
 import { captureStorageResponseContext } from './storageResponseOrder.js';
 import { beginSaveProgress } from './saveProgress.js';
+import { notifyDeviceSessionRejected } from './deviceSessionClient.js';
 
 export const SAVE_FAILURE_STORAGE_KEY = 'school-timer-save-failures-v1';
 export const DEFERRED_SAVE_FAILURE_STORAGE_KEY = 'school-timer-save-failure-deferred-v1';
 let deferredMemory: SaveFailureAlert[] = [];
 let deferredDirty = false;
 const deferredErrors = new WeakSet<object>();
+const unreportedErrors = new WeakSet<object>();
 export const SAVE_FAILURE_CHANGE_EVENT = 'school-timer-save-failure-change';
 const SAVE_FAILURE_READ_TIMEOUT_MS = 12_000;
 const SAVE_FAILURE_ACKNOWLEDGE_TIMEOUT_MS = 20_000;
@@ -162,6 +164,9 @@ export const reportDeferredSaveFailure = (studentNumber: number, requestId: stri
   return true;
 };
 
+/** Background work that the next foreground sync settles again is not a lost save. */
+export const skipSaveFailureReport = (error: Error) => { unreportedErrors.add(error); };
+
 export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, save: () => Promise<T>, studentNumber?: number, options?: SaveFailureReportingOptions): Promise<T> => {
   const storageContext = captureStorageResponseContext();
   const context = captureSaveFailureContext();
@@ -174,13 +179,14 @@ export const withSaveFailureReporting = async <T>(feature: SaveFailureFeature, s
   }
   catch (error) {
     if (publishStorageAvailability(error, storageContext)) throw error;
-    if (error instanceof Error && deferredErrors.has(error)) throw error;
+    if (error instanceof Error && (deferredErrors.has(error) || unreportedErrors.has(error))) throw error;
     const code = classifySaveFailure(error);
     if (code) {
       const details = collectSaveFailureDiagnostics(error, { ...context,
         requestId: options?.requestId, stage: options?.stage, retryCount: options?.retryCount,
         online: typeof navigator === 'undefined' ? undefined : navigator.onLine,
       });
+      if (details?.httpStatus === 401) notifyDeviceSessionRejected();
       if (actor !== undefined && options?.deferUntilRecovery && options.requestId
         && deferSaveFailure(feature, error, actor, { ...details, requestId: options.requestId })) throw error;
       try {

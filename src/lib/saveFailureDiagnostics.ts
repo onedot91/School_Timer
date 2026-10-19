@@ -75,7 +75,8 @@ export const getSaveFailureExplanation = (alert: SaveFailureAlert): { problem: s
   };
   if (alert.code === 'permission') return {
     problem: details?.httpStatus === 401 ? '기기 인증이 없거나 만료되어 서버가 요청을 거절했습니다.' : '서버가 해당 기기의 저장 권한을 허용하지 않았습니다.',
-    action: '해당 기기의 학생 번호와 등록 상태를 확인하세요. 올바르게 등록해도 계속되면 진단 정보를 전달해 주세요.',
+    action: details?.httpStatus === 401 ? '해당 기기에서 학급 코드로 학생 번호를 다시 등록하세요. 등록 후에도 계속되면 진단 정보를 전달해 주세요.'
+      : '해당 기기의 학생 번호와 등록 상태를 확인하세요. 올바르게 등록해도 계속되면 진단 정보를 전달해 주세요.',
   };
   if (alert.code === 'conflict') return {
     problem: '다른 기기의 변경과 겹쳐 최신 기록을 덮어쓰지 않도록 저장을 중단했습니다.',
