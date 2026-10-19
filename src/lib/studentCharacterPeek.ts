@@ -62,7 +62,8 @@ export interface PeekLayout {
   bubbleSide: 'above' | 'below';
 }
 
-export const PEEK_DURATION_MS = 4800;
+/** 들어오기 약 1초·나가기 약 1초는 그대로 두고, 다 나와서 말풍선을 보여 주는 시간을 넉넉히 둔다. */
+export const PEEK_DURATION_MS = 7200;
 export const PEEK_FIRST_DELAY_MS: [number, number] = [14000, 24000];
 export const PEEK_INTERVAL_MS: [number, number] = [30000, 55000];
 export const PEEK_PAIR_CHANCE = 0.15;
