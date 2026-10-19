@@ -82,7 +82,7 @@ test('weekly failure keeps only allow-listed server codes for diagnosis', async 
   } finally { await server.close(); }
 });
 
-test('weekly settlement tracks pending work, reports failure and leaves incomplete missions quiet', async () => {
+test('weekly settlement tracks pending work, reports online failure and leaves offline or incomplete missions quiet', async context => {
   const server = await createServer({ configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
     define: { 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fixture.invalid'), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('fixture') } });
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -109,9 +109,15 @@ test('weekly settlement tracks pending work, reports failure and leaves incomple
     pending[1].reject(new TypeError('private fixture text'));
     await assert.rejects(second);
     assert.equal(progress.getSaveProgress(), false);
+    assert.equal(stored.has(reports.SAVE_FAILURE_STORAGE_KEY), false, 'offline background settlement retries on reconnect without an alert');
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
+    globalThis.fetch = async () => { throw new TypeError('private fixture text'); };
+    fastRetryWaits(context);
+    stored.set('school-timer-entry-number-v1', '4');
+    await assert.rejects(client.syncPersonalQuestionWeeklyMission(4));
     const alerts = JSON.parse(stored.get(reports.SAVE_FAILURE_STORAGE_KEY) ?? '[]');
     assert.equal(alerts.length, 1);
-    assert.equal(alerts[0].studentNumber, 3);
+    assert.equal(alerts[0].studentNumber, 4);
     assert.equal(alerts[0].code, 'network');
     assert.equal(alerts[0].diagnostics.endpoint, '/api/weekly-mission');
     assert.equal(JSON.stringify(alerts).includes('private fixture text'), false);

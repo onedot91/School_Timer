@@ -159,3 +159,41 @@ test('actual save client reports final failures, preserves offline reports, and 
     if (previousNavigator) Object.defineProperty(globalThis, 'navigator', previousNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
   }
 });
+
+test('401 저장 실패는 기기 세션 재확인을 요청하고, 건너뛰기 표시된 실패는 알림을 남기지 않는다', async () => {
+  const server = await createServer({
+    configFile: false, envDir: false, logLevel: 'silent', server: { middlewareMode: true, watch: null },
+    define: { 'import.meta.env.PROD': 'true' },
+  });
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const storage = new Map<string, string>([['school-timer-entry-number-v1', '5']]);
+  const target = Object.assign(new EventTarget(), {
+    localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => { storage.set(key, value); } },
+    location: { hash: '#student-store-shop' },
+  });
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: target });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
+  try {
+    const client = await server.ssrLoadModule('/src/lib/saveFailureClient.ts') as typeof import('./saveFailureClient.js');
+    const session = await server.ssrLoadModule('/src/lib/deviceSessionClient.ts') as typeof import('./deviceSessionClient.js');
+    let rejected = 0;
+    target.addEventListener(session.DEVICE_SESSION_REJECTED_EVENT, () => { rejected += 1; });
+    const unauthorized = Object.assign(new Error('WEEKLY_MISSIONS_HTTP_401'), { status: 401 });
+    await assert.rejects(client.withSaveFailureReporting('economy', async () => { throw unauthorized; }, 5), (error) => error === unauthorized);
+    assert.equal(rejected, 1);
+    const forbidden = Object.assign(new Error('HTTP_403'), { status: 403 });
+    await assert.rejects(client.withSaveFailureReporting('economy', async () => { throw forbidden; }, 5));
+    assert.equal(rejected, 1, 'a scope rejection is not a missing device session');
+    const alertCount = () => JSON.parse(storage.get(client.SAVE_FAILURE_STORAGE_KEY) ?? '[]').length;
+    const before = alertCount();
+    const skipped = new TypeError('offline');
+    client.skipSaveFailureReport(skipped);
+    await assert.rejects(client.withSaveFailureReporting('economy', async () => { throw skipped; }, 5));
+    assert.equal(alertCount(), before);
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow); else Reflect.deleteProperty(globalThis, 'window');
+    if (previousNavigator) Object.defineProperty(globalThis, 'navigator', previousNavigator); else Reflect.deleteProperty(globalThis, 'navigator');
+    await server.close();
+  }
+});
