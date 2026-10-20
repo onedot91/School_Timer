@@ -8,6 +8,7 @@ import {
   AUCTION_MAX_ITEMS_PER_DAY,
   adjustCurrencyBalancesForStudents,
   applyTeacherCurrencyDeductionInSettings,
+  normalizeCurrencyHistory,
   applyTeacherCurrencyDeductionsInSettings,
   applyAuctionAwardToCurrencyState,
   createDefaultCurrencyBalances,
@@ -215,6 +216,9 @@ test('교사 차감은 지갑이 부족한 만큼 예금에서 사용하고 사�
   assert.equal(result.walletDeduction, 5);
   assert.equal(result.depositDeduction, 10);
   assert.equal((value.currencyBalances as Record<string, number>)['12'], 0);
+  const [historyEntry] = normalizeCurrencyHistory(value.currencyHistory)['12'] ?? [];
+  assert.equal(historyEntry?.delta, -5);
+  assert.equal(historyEntry?.ownAccountAmount, 10);
   assert.equal(economy.deposit, 20);
   assert.equal(economy.deposits[0]?.principal, 10);
   assert.equal(economy.deposits[0]?.interest, 1);
@@ -537,4 +541,13 @@ test('모둠 중 한 명의 자산이 부족하거나 번호가 잘못되면 일
   assert.throws(() => applyTeacherCurrencyDeductionsInSettings(initial, { ...input, studentNumbers: [1, 24] }), /INVALID_STUDENT_NUMBER/);
   assert.throws(() => applyTeacherCurrencyDeductionsInSettings(initial, { ...input, studentNumbers: [] }), /INVALID_STUDENT_NUMBER/);
   assert.deepEqual(initial, original);
+});
+
+test('기록 정규화는 유효한 원금 이동액만 보존한다', () => {
+  const history = normalizeCurrencyHistory({ '1': [
+    { id: 'a', studentNumber: 1, before: 100, after: 50, reason: 'bank_transfer', createdAt: '2026-10-20T01:00:00.000Z', ownAccountAmount: -50 },
+    { id: 'b', studentNumber: 1, before: 50, after: 40, reason: 'shop_purchase', createdAt: '2026-10-20T00:00:00.000Z', ownAccountAmount: 1.5 },
+  ] });
+  assert.equal(history['1']?.[0]?.ownAccountAmount, -50);
+  assert.equal('ownAccountAmount' in (history['1']?.[1] ?? {}), false);
 });

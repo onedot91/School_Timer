@@ -163,6 +163,10 @@ test('학생 예금은 학생 지갑·경제 상태·새 원장만 트랜잭션�
     assert.deepEqual(current.schedule, previousValue.schedule);
     assert.deepEqual(Reflect.get(current.currencyHistory as object, '2'), previousValue.currencyHistory[2]);
     assert.equal(normalizeCurrencyHistory(current.currencyHistory)['1'][0].id, 'currency-economy-deposit-request-1-1');
+    assert.equal(normalizeCurrencyHistory(current.currencyHistory)['1'][0].ownAccountAmount, -30);
+    const ledger = db.writes[0].p_ledger;
+    assert.ok(Array.isArray(ledger));
+    assert.equal(JSON.parse(JSON.stringify(ledger[0])).value.data.ownAccountAmount, -30);
     assert.ok(!JSON.stringify(db.writes).includes('legacyField'));
     assert.ok(isStorageRecord(db.writes[0].p_expected));
     assert.ok('wallet:1' in db.writes[0].p_expected);

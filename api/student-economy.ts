@@ -276,7 +276,7 @@ const createDomainMutation = (
   });
 
   let nextBalances = { ...balances, [studentKey]: result.wallet };
-  let nextHistory = result.applied && result.wallet !== wallet
+  let nextHistory = result.applied && (result.wallet !== wallet || result.ownAccountAmount !== 0)
     ? appendCurrencyHistoryEntry(history, {
         id: `currency-economy-${requestId}-${studentKey}`,
         studentNumber,
@@ -284,6 +284,7 @@ const createDomainMutation = (
         after: result.wallet,
         reason: result.reason,
         createdAt,
+        ownAccountAmount: result.ownAccountAmount,
       })
     : history;
   const changedStudentKeys = [studentKey];

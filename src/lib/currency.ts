@@ -47,6 +47,8 @@ export interface CurrencyHistoryEntry {
   after: number;
   reason: CurrencyHistoryReason;
   createdAt: string;
+  /** 지갑과 본인 예금·투자 사이에서 옮긴 원금(지갑 기준 부호). 보유 고마 증감은 delta - ownAccountAmount다. */
+  ownAccountAmount?: number;
 }
 
 export type CurrencyHistory = Record<string, CurrencyHistoryEntry[]>;
@@ -370,6 +372,10 @@ export const normalizeCurrencyHistory = (value: unknown): CurrencyHistory => {
           ? entry.createdAt.trim()
           : '';
         const reason = isCurrencyHistoryReason(entry.reason) ? entry.reason : null;
+        const ownAccountAmount = typeof entry.ownAccountAmount === 'number' && Number.isInteger(entry.ownAccountAmount)
+          && entry.ownAccountAmount !== 0 && Math.abs(entry.ownAccountAmount) <= CURRENCY_BALANCE_MAX
+          ? entry.ownAccountAmount
+          : null;
 
         if (entryStudentNumber !== studentNumber || !createdAt || !reason) return null;
 
@@ -383,6 +389,7 @@ export const normalizeCurrencyHistory = (value: unknown): CurrencyHistory => {
           after,
           reason,
           createdAt,
+          ...(ownAccountAmount === null ? {} : { ownAccountAmount }),
         };
       })
       .filter((entry): entry is CurrencyHistoryEntry => entry !== null)
@@ -400,7 +407,8 @@ export const appendCurrencyHistoryEntry = (
   const createdAt = entry.createdAt ?? new Date().toISOString();
   const before = clampCurrencyBalance(entry.before);
   const after = clampCurrencyBalance(entry.after);
-  if (before === after && entry.reason !== 'classroom_role') return normalizedHistory;
+  const ownAccountAmount = entry.ownAccountAmount ?? 0;
+  if (before === after && ownAccountAmount === 0 && entry.reason !== 'classroom_role') return normalizedHistory;
 
   return {
     ...normalizedHistory,
@@ -413,6 +421,7 @@ export const appendCurrencyHistoryEntry = (
         after,
         reason: entry.reason,
         createdAt,
+        ...(ownAccountAmount === 0 ? {} : { ownAccountAmount }),
       },
       ...(normalizedHistory[studentKey] ?? []),
     ],
@@ -507,6 +516,9 @@ export const applyTeacherCurrencyDeductionInSettings = (
     after: deduction.wallet,
     reason: 'teacher_deduction',
     createdAt,
+    ...(deduction.depositDeduction + deduction.investmentDeduction > 0
+      ? { ownAccountAmount: deduction.depositDeduction + deduction.investmentDeduction }
+      : {}),
   };
   const nextHistory = normalizeCurrencyHistory({
     ...history,

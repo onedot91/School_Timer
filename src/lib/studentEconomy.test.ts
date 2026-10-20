@@ -350,6 +350,8 @@ test('투자금을 찾으면 현재 투자 금액이 지갑으로 돌아온다',
   });
   assert.equal(sold.wallet, 100);
   assert.equal(sold.state.investments[quote.id], undefined);
+  assert.equal(bought.ownAccountAmount, -40);
+  assert.equal(sold.ownAccountAmount, 40);
   assert.throws(() => applyStudentEconomyAction({
     state: sold.state,
     action: { type: 'withdraw_investment', stockId: quote.id, dateKey: '2026-08-12' },
@@ -837,4 +839,34 @@ test('미보유 스킨이 하나뿐이면 특별 구간에서도 한 개만 지�
   assert.equal(result.state.ownedCharacterIds.length, STUDENT_CHARACTER_PRIZES.length);
   assert.equal(result.state.activeCharacterId, remaining.id);
   assert.throws(() => applyStudentEconomyAction({ state: result.state, action: { type: 'draw_character' }, wallet: 100, availableWallet: 100, requestId: 'double-all-skins', characterDrawRoll: 0 }), /ALL_CHARACTERS_OWNED/);
+});
+
+test('예금·투자 원금 이동은 ownAccountAmount로 남기고 이자는 포함하지 않는다', () => {
+  const opened = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'open_deposit', amount: 20, dateKey: '2026-08-20' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'own-account-open',
+  });
+  assert.equal(opened.ownAccountAmount, -20);
+  const deposit = opened.state.deposits[0];
+  assert.ok(deposit);
+  const claimed = applyStudentEconomyAction({
+    state: opened.state,
+    action: { type: 'claim_deposit', depositId: deposit.id, dateKey: deposit.maturityDate },
+    wallet: opened.wallet,
+    availableWallet: opened.wallet,
+    requestId: 'own-account-claim',
+  });
+  assert.equal(claimed.wallet - opened.wallet, deposit.principal + deposit.interest);
+  assert.equal(claimed.ownAccountAmount, deposit.principal);
+  const transferred = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'transfer', amount: 5, recipientNumber: 2, dateKey: '2026-08-20' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'own-account-transfer',
+  });
+  assert.equal(transferred.ownAccountAmount, 0);
 });
