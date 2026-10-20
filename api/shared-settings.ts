@@ -3,6 +3,7 @@ import { handleStorageCommand } from '../src/server/storageCommandHandler.js';
 import { requiresStudentEditRevisions } from '../src/server/storageClientContract.js';
 import { createStorageProjectionPatch } from '../src/server/storageProjection.js';
 import { loadTeacherChanges, parseReadManifest } from '../src/server/storageProgressiveRead.js';
+import { formatServerTiming, withStorageRequestTiming } from '../src/server/storageRequestTiming.js';
 import { prioritizeStorageRead, StorageReadBusyError } from '../src/server/storageReadPriority.js';
 import { loadScopedStorageSnapshot, loadScopedStorageSnapshotForRead, loadScopedStorageMetadata, pollScopedStorageMetadata, loadStorageReadMarker, loadStorageSnapshot, loadStorageSnapshotForRead, loadStorageUpdatedAt } from '../src/server/storageV2Repository.js';
 import { TEST_STUDENT_NUMBER } from '../src/lib/studentIdentity.js';
@@ -530,7 +531,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
               response.status(400).json({ error: 'STORAGE_INVALID_READ_MANIFEST' }); return;
             }
           }
-          const row = await loadTeacherChanges(configuration, known);
+          const row = await withStorageRequestTiming(async timing => {
+            try { return await loadTeacherChanges(configuration, known); }
+            finally { response.setHeader('Server-Timing', formatServerTiming(Date.now() - startedAt, timing)); }
+          });
           if (row.storagePatch.complete && Object.entries(request.headers ?? {}).some(([name, value]) => name.toLowerCase() === 'x-storage-compact' && value === '1')) {
             const { value: _value, ...compact } = row;
             response.status(200).json({ ...compact, encoding: 'storage-patch' });
