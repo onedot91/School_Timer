@@ -47,7 +47,7 @@ export interface CurrencyHistoryEntry {
   after: number;
   reason: CurrencyHistoryReason;
   createdAt: string;
-  /** 지갑과 본인 예금·투자 사이에서 옮긴 원금(지갑 기준 부호). 보유 고마 증감은 delta - ownAccountAmount다. */
+  /** 지갑과 본인 예금·투자·대출 사이에서 옮긴 원금(지갑 기준 부호). 보유 고마 증감은 delta - ownAccountAmount다. */
   ownAccountAmount?: number;
 }
 

@@ -175,6 +175,7 @@ import {
   STUDENT_CHARACTER_WALK_SECONDS,
   type StudentCharacter,
 } from '../lib/studentCharacters';
+import { resolveLockedStudentCharacterWalker, type StudentCharacterWalkLock } from '../lib/studentCharacterWalkLock';
 import {
   cancelDailyWritingRewardInSettings,
   claimDailyWritingRewardInSettings,
@@ -8434,12 +8435,25 @@ export default function TimerPage() {
     pendingStudentCharacterWalkStreamsRef.current.clear();
     setStudentCharacterWalkCycles((cycles) => cycles.map((cycle, index) => pending.has(index) ? cycle + 1 : cycle));
   };
+  const studentCharacterWalkLocksRef = useRef(new Map<number, StudentCharacterWalkLock<StudentCharacterWalker>>());
+  const visibleStudentCharacterIds = new Set(visibleStudentCharacters.map((character) => character.id));
   const getStudentCharacterWalker = (
     streamIndex: number,
   ): StudentCharacterWalker | null => {
     if (!canShowStudentCharacter) return null;
     if (streamIndex >= visibleStudentCharacters.length) return null;
-
+    const walker = resolveLockedStudentCharacterWalker(
+      studentCharacterWalkLocksRef.current,
+      streamIndex,
+      studentCharacterWalkCycles[streamIndex],
+      visibleStudentCharacterIds,
+      () => pickStudentCharacterWalker(streamIndex),
+    );
+    return walker ? { ...walker } : null;
+  };
+  const pickStudentCharacterWalker = (
+    streamIndex: number,
+  ): StudentCharacterWalker | null => {
     const walkCycle = studentCharacterWalkCycles[streamIndex];
     const spawnOrder = walkCycle * 3 + streamIndex;
     const characterRoundIndex = Math.floor(spawnOrder / visibleStudentCharacters.length);
@@ -9786,6 +9800,8 @@ export default function TimerPage() {
   const todayAuctionDayIndex = new Date(scheduleFocusTick).getDay() - 1;
   const isTodayAuctionUnregistered = todayAuctionDayIndex >= 0 && todayAuctionDayIndex < AUCTION_WEEKDAY_LABELS.length
     && !auctionItems.some((item) => item.dayIndex === todayAuctionDayIndex && !isUnusedAuctionItem(item));
+  const isTodaySubjectUnset = (subjectClassSlotsByDay[today] ?? [])
+    .some((slot) => !getWeeklySubject(weeklySubjects, currentSubjectWeekKey, today, slot));
   const isAuctionScheduleClosed = auctionVisibleDayCount === 0;
   const isAuctionConfigurationExpanded =
     !isAuctionScheduleClosed || temporaryVisibleAuctionItemIds.size > 0;
@@ -13380,6 +13396,14 @@ export default function TimerPage() {
                                 aria-label="오늘 경매 물품 미등록"
                               >
                                 미등록
+                              </span>
+                            ) : null}
+                            {!isTeacherSettingsLoading && item.panel === 'subjects' && isTodaySubjectUnset ? (
+                              <span
+                                className="settings-navigation-new-badge"
+                                aria-label="오늘 과목 미설정"
+                              >
+                                미설정
                               </span>
                             ) : null}
                             {!isTeacherSettingsLoading && item.panel === 'missions' && hasUnpaidClassroomRoleReward ? (

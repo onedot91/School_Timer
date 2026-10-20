@@ -13,9 +13,24 @@ test('고마 접미사는 유지하고 한글 이름만 초성으로 표시한�
   ]) assert.equal(getStudentCharacterInitials(name), initials);
 });
 
+test('초성이 비속어처럼 읽히는 스킨은 초성 카드 후보가 될 수 없다', () => {
+  for (const name of ['보석 고마', '복서 고마', '변신 로봇 고마', '나무 마법사 고마', '소방관 고마', '몬치치 고마', '사슴벌레 고마', '진주 귀걸이를 한 고마', '나는 고마가 아니고마', '선풍기 고마']) {
+    assert.equal(hasStudentCharacterInitials(name), false, name);
+  }
+  const blocked = ['ㅂㅅ', 'ㅅㅂ', 'ㅆㅂ', 'ㅅㅍ', 'ㅆㅍ', 'ㅁㅊ', 'ㅈㄹ', 'ㅈㄴ', 'ㅅㄲ', 'ㅆㄲ', 'ㄴㄱㅁ', 'ㅈㄲ', 'ㄲㅈ', 'ㄷㅊ', 'ㅈㅈ', 'ㅅㅅ'];
+  for (let index = 0; index < 60; index += 1) {
+    const result = applyStudentEconomyAction({ state: { characterFreeDrawAvailable: false }, action: { type: 'draw_character' }, wallet: 100, availableWallet: 100,
+      requestId: `blocked-initials-${index}`, characterDrawRoll: 1 });
+    for (const id of result.state.pendingCharacterChoice?.characterIds ?? []) {
+      const initials = getStudentCharacterInitials(STUDENT_CHARACTER_PRIZES.find((prize) => prize.id === id)?.name ?? '');
+      assert.ok(blocked.every((pattern) => !initials.includes(pattern)), initials);
+    }
+  }
+});
+
 test('초성이 없는 이름은 고마 접미사가 있어도 초성 후보가 될 수 없다', () => {
   for (const name of ['3D 고마', 'ABC 고마', '123 고마', '3D', '']) assert.equal(hasStudentCharacterInitials(name), false);
-  for (const name of ['여우 고마', '거꾸로 고마', '나는 고마가 아니고마']) assert.equal(hasStudentCharacterInitials(name), true);
+  for (const name of ['여우 고마', '거꾸로 고마', '냉장고 고마']) assert.equal(hasStudentCharacterInitials(name), true);
 });
 
 test('초성 이벤트는 미보유 스킨 중 초성이 있는 후보만 지급하며 3D 고마를 제외한다', () => {
