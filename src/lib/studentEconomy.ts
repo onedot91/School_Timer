@@ -397,6 +397,8 @@ export interface StudentEconomyResult {
   reason: CurrencyHistoryReason;
   message: string;
   applied: boolean;
+  /** 지갑과 본인 예금·투자 사이에서 옮긴 원금(지갑 기준 부호). 이자·투자 손익은 포함하지 않는다. */
+  ownAccountAmount: number;
 }
 
 export interface StudentEconomyTaxResult {
@@ -1025,13 +1027,14 @@ export const applyStudentEconomyAction = ({
 }): StudentEconomyResult => {
   const state = normalizeStudentEconomyState(rawState);
   if (state.processedRequestIds.includes(requestId)) {
-    return { state, wallet, reason: 'bank_transfer', message: '이미 처리되었습니다.', applied: false };
+    return { state, wallet, reason: 'bank_transfer', message: '이미 처리되었습니다.', applied: false, ownAccountAmount: 0 };
   }
 
   let nextState = state;
   let nextWallet = wallet;
   let reason: CurrencyHistoryReason = 'bank_transfer';
   let message = '';
+  let ownAccountAmount = 0;
   const spend = (amount: number) => {
     if (availableWallet < amount) throw new Error('INSUFFICIENT_AVAILABLE_CURRENCY');
     nextWallet -= amount;
@@ -1051,12 +1054,14 @@ export const applyStudentEconomyAction = ({
       maturityDate,
       interest,
     };
+    ownAccountAmount = -action.amount;
     nextState = { ...state, deposit: state.deposit + action.amount, deposits: [...state.deposits, deposit] };
     message = `${action.amount}\u00a0고마를 맡겼습니다. ${getRelativeKoreanWeekdayLabel(action.dateKey, maturityDate)}에 ${action.amount + interest}\u00a0고마를 받을 수\u00a0있습니다.`;
   } else if (action.type === 'close_deposit') {
     const deposit = state.deposits.find((candidate) => candidate.id === action.depositId);
     if (!deposit) throw new Error('DEPOSIT_NOT_FOUND');
     nextWallet += deposit.principal;
+    ownAccountAmount = deposit.principal;
     nextState = {
       ...state,
       deposit: state.deposit - deposit.principal,
@@ -1068,6 +1073,7 @@ export const applyStudentEconomyAction = ({
     if (!deposit) throw new Error('DEPOSIT_NOT_FOUND');
     if (!deposit.maturityDate || action.dateKey < deposit.maturityDate) throw new Error('DEPOSIT_NOT_MATURED');
     nextWallet += deposit.principal + deposit.interest;
+    ownAccountAmount = deposit.principal;
     nextState = {
       ...state,
       deposit: state.deposit - deposit.principal,
@@ -1090,12 +1096,14 @@ export const applyStudentEconomyAction = ({
     if (action.type === 'deposit' && action.amount < STUDENT_DEPOSIT_MINIMUM) throw new Error('INVALID_BANK_AMOUNT');
     assertTransactionAmount(action.amount);
     spend(action.amount);
+    ownAccountAmount = -action.amount;
     nextState = { ...state, [action.type === 'deposit' ? 'deposit' : 'savings']: state[action.type === 'deposit' ? 'deposit' : 'savings'] + action.amount };
     message = `${action.amount} 고마를 맡겼습니다.`;
   } else if (action.type === 'withdraw') {
     assertTransactionAmount(action.amount);
     if (state.deposit < action.amount) throw new Error('INSUFFICIENT_BANK_BALANCE');
     nextWallet += action.amount;
+    ownAccountAmount = action.amount;
     let remainingWithdrawal = action.amount;
     const deposits = state.deposits.flatMap((deposit) => {
       if (remainingWithdrawal === 0) return [deposit];
@@ -1231,7 +1239,7 @@ export const applyStudentEconomyAction = ({
   } else if (action.type === 'settle_investments') {
     const settledState = settleStudentInvestments(state, action.dateKey, stockMarket);
     const hasChangedPosition = STUDENT_STOCKS.some((stock) => settledState.investments[stock.id] !== state.investments[stock.id]);
-    if (!hasChangedPosition) return { state, wallet, reason: 'stock_trade', message: '', applied: false };
+    if (!hasChangedPosition) return { state, wallet, reason: 'stock_trade', message: '', applied: false, ownAccountAmount: 0 };
     nextState = settledState;
     reason = 'stock_trade';
     message = '';
@@ -1245,6 +1253,7 @@ export const applyStudentEconomyAction = ({
     if ((current?.currentAmount ?? 0) + action.amount > settings.maximumAmount) throw new Error('INVESTMENT_LIMIT_EXCEEDED');
     spend(action.amount);
     reason = 'stock_trade';
+    ownAccountAmount = -action.amount;
     nextState = {
       ...settledState,
       investments: { ...settledState.investments, [action.stockId]: {
@@ -1265,6 +1274,7 @@ export const applyStudentEconomyAction = ({
     delete investments[action.stockId];
     reason = 'stock_trade';
     nextWallet += position.currentAmount;
+    ownAccountAmount = position.investedAmount;
     nextState = { ...settledState, investments };
     message = `${position.currentAmount} 고마를 찾았습니다.`;
   }
@@ -1278,5 +1288,6 @@ export const applyStudentEconomyAction = ({
     reason,
     message,
     applied: true,
+    ownAccountAmount,
   };
 };

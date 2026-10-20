@@ -13449,7 +13449,7 @@ export default function TimerPage() {
                                 : settingsPanel === 'bookstore'
                                   ? bookstoreSettingsPanel
                                   : settingsPanel === 'currency-history'
-                                    ? <TeacherCurrencyHistoryPanel history={currencyHistory} balances={currencyBalances} dayStart={currencyTodayStart} />
+                                    ? <TeacherCurrencyHistoryPanel history={currencyHistory} balances={currencyBalances} economyStates={studentEconomyStates} dayStart={currencyTodayStart} />
                                   : settingsPanel === 'loan-history'
                                     ? <TeacherLoanHistoryPanel states={studentEconomyStates} />
                                   : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'
