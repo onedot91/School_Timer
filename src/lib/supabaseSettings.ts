@@ -291,6 +291,27 @@ export const loadSharedSettingsRow = (): Promise<SettingsRow | null> => {
   return request.promise;
 };
 
+let teacherSettingsPrefetch: { actorGeneration: number; generation: number; promise: Promise<SettingsRow | null> } | undefined;
+
+// 교사 화면 코드와 기기 확인을 기다리지 않고 첫 설정 조회를 미리 출발시킨다.
+export const prefetchTeacherSettingsRow = (): void => {
+  if (!isSupabaseSettingsEnabled || teacherSettingsPrefetch) return;
+  const context = synchronizeSettingsActor();
+  if (context.actor !== '0') return;
+  const promise = loadSharedSettingsRow();
+  promise.catch(() => undefined);
+  teacherSettingsPrefetch = { actorGeneration: context.generation, generation: settingsCacheGeneration, promise };
+};
+
+// 첫 교사 조회는 미리 출발한 요청을 한 번만 이어받고, 이후 조회는 항상 새로 요청한다.
+export const loadInitialTeacherSettingsRow = (): Promise<SettingsRow | null> => {
+  const prefetched = teacherSettingsPrefetch;
+  teacherSettingsPrefetch = undefined;
+  const context = synchronizeSettingsActor();
+  if (prefetched?.actorGeneration === context.generation && prefetched.generation === settingsCacheGeneration) return prefetched.promise;
+  return loadSharedSettingsRow();
+};
+
 export const canLoadTeacherSettingsChanges = (): boolean => synchronizeSettingsActor().actor === '0' && teacherChangesSupported;
 
 export const loadStudentOverviewSettingsRow = (): Promise<SettingsRow | null> => fetchSharedSettingsRow(synchronizeSettingsActor(), true);

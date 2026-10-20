@@ -5,6 +5,7 @@ import type { LibraryCompetitionSpeed } from '../../lib/libraryCompetition';
 import { LibraryCompetitionCountFields } from '../student/library/LibraryCompetitionTable';
 import StableLabel from '../StableLabel';
 import SettingsPanelFrame, { SettingsStatusChip } from './SettingsPanelFrame';
+import TeacherLoadingState from './TeacherLoadingState';
 
 export function TeacherLibraryCompetitionPanel() {
   const [response, setResponse] = useState<LibraryCompetitionResponse | null>(null);
@@ -100,7 +101,7 @@ export function TeacherLibraryCompetitionPanel() {
       details={state ? (state.adjustments.length === 0 ? <p>아직 변경한 설정이 없습니다.</p> : <ol className="teacher-library-competition-history">{[...state.adjustments].reverse().map(entry => <li key={entry.id}><time dateTime={entry.at}>{new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short' }).format(new Date(entry.at))}</time><span>{entry.speed}배 · {entry.paused ? '일시정지' : '진행'} · 권수 설정 {entry.counts.length}개 학교</span></li>)}</ol>) : undefined}
     >
     {message && <p role="status" className="library-competition-message">{message}</p>}
-    {busy && !response ? <p role="status">챌린지를 불러오는 중…</p> : !state ? <p>학생 책방의 순위판을 처음 열면 이번 달 챌린지가 시작됩니다.</p> : <>
+    {busy && !response ? <TeacherLoadingState label="챌린지 불러오는 중" variant="list" /> : !state ? <p>학생 책방의 순위판을 처음 열면 이번 달 챌린지가 시작됩니다.</p> : <>
       <p className="teacher-library-competition-summary">우리 학교는 책장에 꽂힌 책만 자동 집계합니다.</p>
       <form id={formId} onSubmit={event => { event.preventDefault(); if (valid && !conflict && !busy) setConfirming(true); }}>
         <fieldset disabled={busy || confirming || conflict}>

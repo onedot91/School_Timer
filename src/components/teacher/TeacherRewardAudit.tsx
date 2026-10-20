@@ -5,6 +5,7 @@ import { REWARD_AUDIT_FEATURES, type RewardAuditReport } from '../../lib/rewardA
 import { loadRewardAuditReport } from '../../lib/rewardAuditClient';
 import { REWARD_AUDIT_INTERVAL_MS, startRewardAuditPolling } from '../../lib/rewardAuditPolling';
 import { useModalFocus } from '../../lib/useModalFocus';
+import TeacherLoadingState from './TeacherLoadingState';
 
 export default function TeacherRewardAudit() {
   const [report, setReport] = useState<RewardAuditReport | null>(null);
@@ -53,7 +54,7 @@ export default function TeacherRewardAudit() {
           <button type="button" onClick={refresh} disabled={loading}><RefreshCw size={16} aria-hidden="true" />{loading ? '검사 중' : '다시 검사'}</button>
         </div>
         {error ? <p role="alert" className="teacher-save-warning-error">{error}{report ? ' 아래는 이전 검사 결과입니다.' : ''}</p> : null}
-        {!report && !error ? <p role="status">보상 기록 확인 중</p> : null}
+        {!report && !error ? <TeacherLoadingState label="보상 기록 불러오는 중" variant="list" rows={2} /> : null}
         {report ? <>
           <p><time dateTime={report.checkedAt}>{new Date(report.checkedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</time> · {report.checkedRewards}건 대조</p>
           {issues.length + wallets.length > 0 ? <p>지급 내역 확인이 필요합니다. 별도 복구 내역을 확인한 뒤 판단해 주세요.</p> : <p role="status">{student === 'all' ? '' : `${student}번 학생의 `}확인 가능한 기록에서 누락 의심 건이 없습니다.</p>}

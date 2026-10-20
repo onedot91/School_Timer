@@ -31355,3 +31355,115 @@ body:has(.student-newspaper-page) .data-mode-banner { top: auto; bottom: 6px; }
   .student-class-prep-wrap-up, .student-class-prep-wrap-up[data-stage="notice"] { border-color: CanvasText; background: Canvas; }
   .student-class-prep-wrap-up .student-class-prep-ring-fill { stroke: CanvasText; }
 }
+
+/* Teacher loading placeholders: shown until server records arrive, so default
+   values (0 items, "미등록") never read as the real classroom state. */
+.teacher-loading {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.teacher-loading-head {
+  display: flex;
+  min-height: 3.75rem;
+  align-items: center;
+  gap: .6rem;
+  padding: .75rem 1rem;
+  border: 1px solid var(--teacher-border);
+  border-radius: var(--apple-radius-card);
+  background: var(--teacher-surface);
+}
+
+.teacher-loading-rows {
+  display: grid;
+  gap: .75rem;
+}
+
+.teacher-loading[data-variant="list"] .teacher-loading-rows {
+  gap: .5rem;
+}
+
+.teacher-loading-card {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  min-height: 4.25rem;
+  padding: .9rem 1rem;
+  border: 1px solid var(--teacher-border);
+  border-radius: var(--apple-radius-card);
+  background: color-mix(in srgb, white 55%, var(--teacher-surface));
+}
+
+.teacher-loading[data-variant="list"] .teacher-loading-card {
+  min-height: 3.25rem;
+  padding: .6rem .9rem;
+}
+
+.teacher-loading-lines {
+  display: grid;
+  flex: 1 1 auto;
+  gap: .5rem;
+  min-width: 0;
+}
+
+.teacher-loading-block {
+  display: block;
+  border-radius: var(--apple-radius-pill);
+  background:
+    linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, .78) 50%, transparent 80%) no-repeat,
+    color-mix(in srgb, var(--teacher-accent) 13%, var(--teacher-surface-muted));
+  background-size: 45% 100%, 100% 100%;
+  background-position: -60% 0, 0 0;
+  animation: teacherLoadingSweep 1.25s ease-in-out infinite;
+}
+
+.teacher-loading-title { width: 7.5rem; height: 1.35rem; }
+.teacher-loading-chip { width: 5.25rem; height: 2rem; }
+.teacher-loading-action { width: 8.5rem; height: 2.75rem; margin-left: auto; }
+.teacher-loading-avatar { flex: 0 0 auto; width: 2.5rem; height: 2.5rem; border-radius: 999px; }
+.teacher-loading[data-variant="list"] .teacher-loading-avatar { width: 2rem; height: 2rem; }
+.teacher-loading-line { height: .85rem; }
+.teacher-loading-line--short { width: 34%; height: .7rem; opacity: .7; }
+
+.teacher-loading-bar {
+  position: relative;
+  height: 3px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--teacher-accent) 14%, transparent);
+}
+
+.teacher-loading-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  border-radius: 999px;
+  background: var(--teacher-accent);
+  animation: teacherLoadingBar 1.1s cubic-bezier(.45, 0, .25, 1) infinite;
+}
+
+@keyframes teacherLoadingSweep {
+  to { background-position: 160% 0, 0 0; }
+}
+
+@keyframes teacherLoadingBar {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(265%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacher-loading-block {
+    animation: teacherLoadingPulse 1.6s ease-in-out infinite;
+    background-image: none;
+  }
+
+  .teacher-loading-bar > span {
+    width: 100%;
+    animation: teacherLoadingPulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes teacherLoadingPulse {
+  50% { opacity: .55; }
+}
