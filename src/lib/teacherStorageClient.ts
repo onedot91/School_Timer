@@ -19,7 +19,19 @@ export const teacherSettingsSaveErrorMessage = (error: unknown): string => {
   return `설정 저장 확인 불가 (${details}). 변경 내용은 보관했습니다. 저장 다시 확인을 눌러 주세요.`;
 };
 
-const teacherWirePayload = (value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
+export const teacherCurrencySaveErrorMessage = (error: unknown): string => {
+  if (error instanceof StorageCommandError && error.serverCode === 'STORAGE_PREVIOUS_CONFIRMATION_REQUIRED') {
+    return '이전 고마 변경의 저장 결과를 확인하지 못해 멈췄어요 (STORAGE_PREVIOUS_CONFIRMATION_REQUIRED). 저장 확인 알림에서 거래 내역을 확인하고 알림 확인 처리를 눌러 주세요.';
+  }
+  const availability = storageAvailabilityMessage(error);
+  if (availability) return availability;
+  const diagnostics = collectSaveFailureDiagnostics(error);
+  const code = diagnostics?.causeCode ?? diagnostics?.errorCode ?? classifySaveFailure(error) ?? 'unknown';
+  const details = [code, ...(diagnostics?.httpStatus ? [`HTTP ${diagnostics.httpStatus}`] : [])].join(' · ');
+  return `저장 결과를 확인하지 못했어요 (${details}). 최신 고마를 확인한 뒤 다시 시도해 주세요.`;
+};
+
+const teacherWirePayload =(value: unknown): unknown => JSON.parse(JSON.stringify(value ?? null));
 
 export const teacherStorageDrafts = createStudentSaveDraftStore();
 const transactionReviewKey = (requestId: string) => `school-timer-teacher-transaction-review-v1:${encodeURIComponent(requestId)}`;
@@ -77,6 +89,17 @@ const executeTeacherCommand = async (command: StorageCommand) => {
   let saved = await teacherStorageDrafts.saveDurable(scope, payload);
   if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
   if (saved.status === 'invalid') throw new StorageCommandError('INVALID_TEACHER_COMMAND', 400);
+  if (saved.status !== 'saved' && readTransactionReview(saved.draft.requestId)) {
+    // A teacher-reviewed transaction stays listed for receipt checks but no longer holds new adjustments.
+    const moved = await teacherStorageDrafts.importDurable({ ...saved.draft, scope: { ...scope, entityId: `${scope.entityId}#${saved.draft.requestId}` } });
+    if (moved.status === 'invalid') throw new StorageCommandError('STORAGE_PREVIOUS_CONFIRMATION_REQUIRED', 409, true);
+    await teacherStorageDrafts.confirmDurable(scope, saved.draft.requestId);
+    saved = await teacherStorageDrafts.saveDurable(scope, payload);
+    if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
+    if (saved.status === 'invalid' || saved.status === 'payload_changed') {
+      throw new StorageCommandError('STORAGE_PREVIOUS_CONFIRMATION_REQUIRED', 409, true);
+    }
+  }
   if (saved.status === 'payload_changed') {
     const paused = teacherStorageDrafts.load(pausedScope)?.draft.payload === saved.draft.requestId;
     const confirmed = paused ? null : await loadStorageCommandReceipt(saved.draft.requestId, { ...command, requestId: saved.draft.requestId, payload: saved.draft.payload }, context);

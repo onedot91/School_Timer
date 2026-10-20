@@ -1,7 +1,7 @@
 import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { HOUSE_MAIL_STAMP } from '../lib/studentHouseReward';
 import { STOCK_MAIL_SENDER, STOCK_MAIL_STAMP, TEACHER_MAIL_SENDERS } from '../lib/studentLife';
-import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage } from '../lib/teacherStorageClient';
+import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage, teacherCurrencySaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { StorageCommandError } from '../lib/storageCommandClient';
 import { getAuctionAwardErrorMessage } from '../lib/auctionAwardError';
@@ -7148,7 +7148,7 @@ export default function TimerPage() {
         else if (target && (target !== 'group' || currencyGroupKeyRef.current === groupKey)) recordCurrencyAdjustment(target, delta);
         setCurrencyDeductionError('');
       } catch (error) {
-        setCurrencyDeductionError('저장 결과를 확인하지 못했어요. 최신 고마를 확인한 뒤 다시 시도해 주세요.');
+        setCurrencyDeductionError(teacherCurrencySaveErrorMessage(error));
         throw error;
       } finally {
         setPendingCurrencyCommandCount(previous => previous - 1);
@@ -12711,6 +12711,10 @@ export default function TimerPage() {
                         </div>
                       ) : null}
                     </div>
+
+                    {currencyDeductionError && !isCurrencyDeductionVisible ? (
+                      <p className="mb-3 text-[0.76rem] font-bold text-[#A34F45]" role="alert">{currencyDeductionError}</p>
+                    ) : null}
 
                     {CURRENCY_STUDENT_NUMBERS.some(number => (studentEconomyStates[String(number)]?.pendingDeductions.length ?? 0) > 0) ? (
                       <section className="mb-3 rounded-[var(--apple-radius-control)] bg-[var(--apple-surface-muted)] p-3" aria-label="차감 대기 내역">

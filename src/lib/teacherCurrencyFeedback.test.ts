@@ -5,6 +5,7 @@ import test from 'node:test';
 import ts from 'typescript';
 import { normalizeStudentEconomyStates } from './studentEconomy.js';
 import { normalizeStudentLifeState } from './studentLife.js';
+import { teacherCurrencySaveErrorMessage } from './teacherStorageClient.js';
 
 const source = readFileSync(new URL('../pages/TimerPage.tsx', import.meta.url), 'utf8');
 const start = source.indexOf('  const runTeacherCurrencyCommand =');
@@ -37,7 +38,7 @@ const harness = () => {
     setCurrencyAdjustmentSummary: () => undefined,
     commitCurrencyState: () => { committed += 1; },
     recordCurrencyAdjustment: (_target: string, delta: number) => { confirmed += delta; },
-    setCurrencyDeductionError: (value: string) => { error = value; },
+    setCurrencyDeductionError: (value: string) => { error = value; }, teacherCurrencySaveErrorMessage,
   };
   const click = runInNewContext(`${handler}\nrunTeacherCurrencyCommand`, context) as (action: string, payload: object, target: string, delta: number) => void;
   return { click: (delta: number) => click('teacher.currency.adjust', { studentNumbers: [16, 23], amount: delta }, 'group', delta),
