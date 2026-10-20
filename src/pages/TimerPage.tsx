@@ -1,6 +1,7 @@
 import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { HOUSE_MAIL_STAMP } from '../lib/studentHouseReward';
 import { STOCK_MAIL_SENDER, STOCK_MAIL_STAMP, TEACHER_MAIL_SENDERS } from '../lib/studentLife';
+import { addTeacherCurrencyClick, pendingTeacherCurrencyDelta, TEACHER_CURRENCY_BATCH_DELAY_MS, type PendingTeacherCurrencyAdjustment, type TeacherCurrencyClickBatch } from '../lib/teacherCurrencyBatch';
 import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, syncTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage, teacherCurrencySaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { StorageCommandError } from '../lib/storageCommandClient';
@@ -4004,13 +4005,22 @@ export default function TimerPage() {
   const [pendingCurrencyCommandCount, setPendingCurrencyCommandCount] = useState(0);
   const currencyDeductionSavingRef = useRef(false);
   const [currencyGroupStudentNumbers, setCurrencyGroupStudentNumbers] = useState<number[]>([]);
-  const [pendingGroupCurrencyAdjustments, setPendingGroupCurrencyAdjustments] = useState<{ requestId: string; groupKey: string; delta: number }[]>([]);
+  const [pendingCurrencyAdjustments, setPendingCurrencyAdjustments] = useState<PendingTeacherCurrencyAdjustment[]>([]);
+  const [currencyClickBatch, setCurrencyClickBatch] = useState<TeacherCurrencyClickBatch | null>(null);
+  const currencyClickBatchRef = useRef<TeacherCurrencyClickBatch | null>(null);
+  const currencyClickBatchTimerRef = useRef<number | null>(null);
   const currencyGroupKey = CURRENCY_STUDENT_NUMBERS.filter(number => currencyGroupStudentNumbers.includes(number)).join(',');
   const currencyGroupKeyRef = useRef(currencyGroupKey);
   currencyGroupKeyRef.current = currencyGroupKey;
-  const pendingCurrentGroupAdjustments = pendingGroupCurrencyAdjustments.filter(entry => entry.groupKey === currencyGroupKey);
-  const displayedGroupCurrencyDelta = (currencyAdjustmentSummary?.target === 'group' ? currencyAdjustmentSummary.delta : 0)
-    + pendingCurrentGroupAdjustments.reduce((total, entry) => total + entry.delta, 0);
+  const currencyStudentKey = editingCurrencyNumber === null ? '' : String(editingCurrencyNumber);
+  const pendingCurrencyDeltaFor = (target: CurrencyAdjustmentTarget, key: string) => (
+    pendingTeacherCurrencyDelta(currencyClickBatch, pendingCurrencyAdjustments, target, key)
+  );
+  const displayedCurrencyDeltaFor = (target: CurrencyAdjustmentTarget, key: string) => (
+    (currencyAdjustmentSummary?.target === target ? currencyAdjustmentSummary.delta : 0) + pendingCurrencyDeltaFor(target, key)
+  );
+  const displayedGroupCurrencyDelta = displayedCurrencyDeltaFor('group', currencyGroupKey);
+  const hasPendingCurrencyChange = pendingCurrencyCommandCount > 0 || (currencyClickBatch?.delta ?? 0) !== 0;
   const [currencyBalances, setCurrencyBalances] = useState<CurrencyBalances>(() => (
     isSupabaseSettingsEnabled
       ? createDefaultCurrencyBalances()
@@ -4135,6 +4145,9 @@ export default function TimerPage() {
   const mailConversationEndRef = useRef<HTMLDivElement>(null);
   const [isMailSending, setIsMailSending] = useState(false);
   const [isMailDeleting, setIsMailDeleting] = useState(false);
+  const [isClassDonationResetting, setIsClassDonationResetting] = useState(false);
+  const [classDonationResetError, setClassDonationResetError] = useState('');
+  const classDonationResettingRef = useRef(false);
   const [mailStatus, setMailStatus] = useState('');
   const [auctionItemEditCommitVersion, setAuctionItemEditCommitVersion] = useState(0);
   const isEditingAuctionItemRef = useRef(false);
@@ -7125,12 +7138,12 @@ export default function TimerPage() {
     ));
   };
 
-  const runTeacherCurrencyCommand = (action: string, payload: Record<string, unknown>, target?: CurrencyAdjustmentTarget, delta = 0) => {
+  const runTeacherCurrencyCommand = (action: string, payload: Record<string, unknown>, target?: CurrencyAdjustmentTarget, delta = 0, pendingKey?: string) => {
     const requestId = crypto.randomUUID();
     setPendingCurrencyCommandCount(previous => previous + 1);
-    const groupKey = currencyGroupKey;
-    if (target === 'group') {
-      setPendingGroupCurrencyAdjustments(previous => [...previous, { requestId, groupKey, delta }]);
+    const groupKey = pendingKey ?? currencyGroupKey;
+    if (target && delta !== 0) {
+      setPendingCurrencyAdjustments(previous => [...previous, { requestId, target, key: target === 'group' ? groupKey : pendingKey ?? '', delta }]);
     }
     const queued = teacherCommandQueueRef.current.catch(() => undefined).then(async () => {
       isSharedSettingsSavePendingRef.current = true;
@@ -7152,9 +7165,7 @@ export default function TimerPage() {
         throw error;
       } finally {
         setPendingCurrencyCommandCount(previous => previous - 1);
-        if (target === 'group') {
-          setPendingGroupCurrencyAdjustments(previous => previous.filter(entry => entry.requestId !== requestId));
-        }
+        if (target) setPendingCurrencyAdjustments(previous => previous.filter(entry => entry.requestId !== requestId));
         isSharedSettingsSavePendingRef.current = false;
       }
     });
@@ -7195,6 +7206,44 @@ export default function TimerPage() {
       recordCurrencyAdjustment(target, delta);
     });
   };
+
+  const runTeacherCurrencyCommandRef = useRef(runTeacherCurrencyCommand);
+  runTeacherCurrencyCommandRef.current = runTeacherCurrencyCommand;
+  const sendCurrencyClickBatch = (batch: TeacherCurrencyClickBatch) => {
+    if (batch.delta === 0) return;
+    runTeacherCurrencyCommandRef.current('teacher.currency.adjust', { studentNumbers: [...batch.studentNumbers], amount: batch.delta }, batch.target, batch.delta, batch.key);
+  };
+  const flushCurrencyClickBatch = () => {
+    if (currencyClickBatchTimerRef.current !== null) window.clearTimeout(currencyClickBatchTimerRef.current);
+    currencyClickBatchTimerRef.current = null;
+    const batch = currencyClickBatchRef.current;
+    currencyClickBatchRef.current = null;
+    setCurrencyClickBatch(null);
+    if (batch) sendCurrencyClickBatch(batch);
+  };
+  const flushCurrencyClickBatchRef = useRef(flushCurrencyClickBatch);
+  flushCurrencyClickBatchRef.current = flushCurrencyClickBatch;
+  // Clicks show at once; the server receives one request after the teacher pauses.
+  const queueCurrencyClick = (click: TeacherCurrencyClickBatch) => {
+    const { batch, flush } = addTeacherCurrencyClick(currencyClickBatchRef.current, click);
+    if (flush) sendCurrencyClickBatch(flush);
+    currencyClickBatchRef.current = batch;
+    setCurrencyClickBatch(batch);
+    setCurrencyDeductionError('');
+    if (currencyClickBatchTimerRef.current !== null) window.clearTimeout(currencyClickBatchTimerRef.current);
+    currencyClickBatchTimerRef.current = window.setTimeout(() => flushCurrencyClickBatchRef.current(), TEACHER_CURRENCY_BATCH_DELAY_MS);
+  };
+  useEffect(() => () => flushCurrencyClickBatchRef.current(), [currencyAdjustmentTarget, currencyGroupKey, editingCurrencyNumber, isCurrencyPanelOpen]);
+  useEffect(() => {
+    const flushWhenHidden = () => { if (document.visibilityState === 'hidden') flushCurrencyClickBatchRef.current(); };
+    const flushOnPageHide = () => flushCurrencyClickBatchRef.current();
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    window.addEventListener('pagehide', flushOnPageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', flushWhenHidden);
+      window.removeEventListener('pagehide', flushOnPageHide);
+    };
+  }, []);
 
   const handleCurrencyStudentNumberInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextInput = event.target.value.replace(/\D/g, '').slice(0, 2);
@@ -7273,7 +7322,7 @@ export default function TimerPage() {
 
   const adjustCurrencyBalance = (studentNumber: number, delta: number) => {
     if (isSupabaseSettingsEnabled) {
-      runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: [studentNumber], amount: delta }, 'student', delta);
+      queueCurrencyClick({ target: 'student', key: String(studentNumber), studentNumbers: [studentNumber], delta });
       return;
     }
     if (delta < 0) { deductLocalCurrency([studentNumber], -delta, 'student'); return; }
@@ -7373,7 +7422,7 @@ export default function TimerPage() {
 
   const adjustAllCurrencyBalances = (delta: number) => {
     if (isSupabaseSettingsEnabled) {
-      runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: CURRENCY_STUDENT_NUMBERS, amount: delta }, 'all', delta);
+      queueCurrencyClick({ target: 'all', key: 'all', studentNumbers: CURRENCY_STUDENT_NUMBERS, delta });
       return;
     }
     if (delta < 0) { deductLocalCurrency(CURRENCY_STUDENT_NUMBERS, -delta, 'all'); return; }
@@ -7410,7 +7459,7 @@ export default function TimerPage() {
     );
     if (selectedStudentNumbers.length === 0) return;
     if (isSupabaseSettingsEnabled) {
-      runTeacherCurrencyCommand('teacher.currency.adjust', { studentNumbers: selectedStudentNumbers, amount: delta }, 'group', delta);
+      queueCurrencyClick({ target: 'group', key: selectedStudentNumbers.join(','), studentNumbers: selectedStudentNumbers, delta });
       return;
     }
     if (delta < 0) { deductLocalCurrency(selectedStudentNumbers, -delta, 'group'); return; }
@@ -10988,11 +11037,18 @@ export default function TimerPage() {
       setClassDonation(previous => ({ ...previous, totalAmount: 0, history: [] }));
       return;
     }
+    if (classDonationResettingRef.current) return;
+    classDonationResettingRef.current = true;
+    setIsClassDonationResetting(true);
+    setClassDonationResetError('');
     try {
       const saved = await executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.donation.reset', payload: {} });
       if (saved.value) setClassDonation(normalizeClassDonationSettings(saved.value.classDonation));
     } catch (error) {
-      if (error instanceof Error) console.error('Failed to reset class donation.', error);
+      setClassDonationResetError(teacherSettingsSaveErrorMessage(error));
+    } finally {
+      classDonationResettingRef.current = false;
+      setIsClassDonationResetting(false);
     }
   };
 
@@ -11121,14 +11177,18 @@ export default function TimerPage() {
             </label>
         )}
         details={(
-          <button
-            type="button"
-            onClick={() => void resetClassDonation()}
-            disabled={classDonation.totalAmount === 0 && classDonation.history.length === 0}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-4 text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text)] disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            새 목표로 초기화
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => void resetClassDonation()}
+              disabled={isClassDonationResetting || (classDonation.totalAmount === 0 && classDonation.history.length === 0)}
+              aria-busy={isClassDonationResetting}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-4 text-[length:var(--type-label)] font-extrabold text-[var(--teacher-text)] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <StableLabel busy={isClassDonationResetting} busyLabel="초기화 중…" label="새 목표로 초기화" />
+            </button>
+            {classDonationResetError ? <p className="mt-2 text-[length:var(--type-body-sm)] font-bold text-[#A34F45]" role="alert">{classDonationResetError}</p> : null}
+          </>
         )}
         detailsLabel="목표 관리"
       >
@@ -12705,7 +12765,7 @@ export default function TimerPage() {
                     </div>
 
                     <div className="teacher-currency-save-progress-slot">
-                      {pendingCurrencyCommandCount > 0 ? (
+                      {hasPendingCurrencyChange ? (
                         <div className="teacher-currency-save-progress" role="progressbar" aria-label="고마 변경 저장 중">
                           <span />
                         </div>
@@ -12835,18 +12895,18 @@ export default function TimerPage() {
                               <span>{formatCurrencyAmount(selectedCurrencyInvestment)}</span>
                             </span>
                           </div>
-                          {currencyAdjustmentSummary?.target === 'student' ? (
+                          {currencyAdjustmentSummary?.target === 'student' || pendingCurrencyDeltaFor('student', currencyStudentKey) !== 0 ? (
                             <div
                               className={`inline-flex h-9 min-w-[2.75rem] shrink-0 items-center justify-center rounded-[0.75rem] px-2 font-mono text-[0.72rem] font-black leading-none ring-1 ring-inset ${
-                                currencyAdjustmentSummary.delta < 0
+                                displayedCurrencyDeltaFor('student', currencyStudentKey) < 0
                                   ? 'bg-[#F8ECE2] text-[#8A4B2B] ring-[#E7CDB8]'
                                   : 'bg-[#DFF1E8] text-[var(--teacher-accent)] ring-[#B8DACB]'
                               }`}
                               role="status"
                               aria-live="polite"
-                              aria-label={`이번 증감 ${formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}고마`}
+                              aria-label={`이번 증감 ${formatCurrencyAdjustmentSummary({ target: 'student', delta: displayedCurrencyDeltaFor('student', currencyStudentKey) })}고마${pendingCurrencyDeltaFor('student', currencyStudentKey) !== 0 ? ', 저장 중' : ''}`}
                             >
-                              {formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}
+                              {formatCurrencyAdjustmentSummary({ target: 'student', delta: displayedCurrencyDeltaFor('student', currencyStudentKey) })}
                             </div>
                           ) : null}
                           <button
@@ -12990,9 +13050,12 @@ export default function TimerPage() {
                             role="status"
                             aria-live="polite"
                           >
-                            {currencyAdjustmentSummary?.target === 'all' ? (
-                              <span className="whitespace-nowrap text-[0.72rem] font-black leading-none text-white">
-                                {formatCurrencyAdjustmentSummary(currencyAdjustmentSummary)}
+                            {currencyAdjustmentSummary?.target === 'all' || pendingCurrencyDeltaFor('all', 'all') !== 0 ? (
+                              <span
+                                className="whitespace-nowrap text-[0.72rem] font-black leading-none text-white"
+                                aria-label={`이번 증감 ${formatCurrencyAdjustmentSummary({ target: 'all', delta: displayedCurrencyDeltaFor('all', 'all') })}고마${pendingCurrencyDeltaFor('all', 'all') !== 0 ? ', 저장 중' : ''}`}
+                              >
+                                {formatCurrencyAdjustmentSummary({ target: 'all', delta: displayedCurrencyDeltaFor('all', 'all') })}
                               </span>
                             ) : (
                               <motion.span
