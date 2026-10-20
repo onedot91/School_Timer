@@ -8,6 +8,7 @@ import { getKoreanIsoWeekKey } from '../../lib/weeklyMission';
 import { NEWSPAPER_CONFIG, QUESTION_LABELS, QUESTION_ERRORS, NewspaperError, newspaperErrorMessage, isQuestionMode, isQuestionWeek, questionValidationCode, normalizeQuestionText, questionWeekLabel, questionWeekOptions, selectQuestionDownload, buildQuestionTxt, questionTxtFilename, parseNewspaperQuestion, type NewspaperQuestion, type QuestionMode } from '../../lib/newspaperQuestion';
 import StableLabel from '../StableLabel';
 import SettingsPanelFrame, { SettingsStatusChip } from './SettingsPanelFrame';
+import TeacherLoadingState from './TeacherLoadingState';
 
 function QuestionEditor({ row, heartCount, isTopHearted, busy, onSave, onDelete }: { row: NewspaperQuestion; heartCount: number; isTopHearted: boolean; busy: boolean; onSave: (text: string) => void; onDelete: () => void }) {
   const [text, setText] = useState(row.question_text);
@@ -83,7 +84,7 @@ export default function TeacherNewspaperPanel() {
       <label>주제<input value={topicDraft ?? topic?.topic_text ?? ''} disabled={busy || loading || !!error || isReadOnlyDataMode} maxLength={NEWSPAPER_CONFIG.topicMaxLength} onChange={event => setTopicDraft(event.target.value)} /></label>
       <button disabled={busy || loading || !!error || isReadOnlyDataMode || !(topicDraft ?? topic?.topic_text ?? '').trim()} onClick={() => void run({ action: 'topic', weekKey: selectedWeek, topicText: topicDraft ?? topic?.topic_text ?? '', expectedUpdatedAt: topic?.updated_at ?? null }, '주제 저장 완료', () => setTopicDraft(null))}><StableLabel busy={busy} busyLabel="처리 중" label={'주제 저장'} /></button>
     </div>
-    {loading && !data ? <p role="status">확인 중…</p> : null}
+    {loading && !data ? <TeacherLoadingState label="신문 질문 불러오는 중" variant="list" /> : null}
     {error ? <p role="alert" className="newspaper-error">{error}</p> : null}
     <p role={failed ? 'alert' : 'status'} className={failed ? 'newspaper-error' : 'newspaper-feedback'}>{notice}</p>
     {data && !error ? <>

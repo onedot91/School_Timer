@@ -189,9 +189,14 @@ const initializationFixture = (options: {
     setAuctionItems: (value: unknown) => { snapshot.current = { ...snapshot.current, auctionItems: value }; },
     setTeacherSettingsSaveError: (value: string) => { error = value; }, setTeacherSettingsConflict: () => undefined,
     setTeacherSettingsSaveVersion: () => undefined, setTeacherRefreshPending: () => undefined,
-    setIsTeacherSettingsRetrying: () => undefined,
+    setIsTeacherSettingsRetrying: () => undefined, setIsTeacherSettingsHydrated: () => undefined,
     getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete,
     loadSharedSettingsRow: async () => {
+      reads += 1;
+      if (readFailures-- > 0) throw new Error('synthetic read failure');
+      return { value: remote, updated_at: 'synthetic-time' };
+    },
+    loadInitialTeacherSettingsRow: async () => {
       reads += 1;
       if (readFailures-- > 0) throw new Error('synthetic read failure');
       return { value: remote, updated_at: 'synthetic-time' };

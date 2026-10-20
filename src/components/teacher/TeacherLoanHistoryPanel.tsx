@@ -6,6 +6,7 @@ import { loadTeacherLoanHistory } from '../../lib/teacherLoanHistoryClient';
 import type { StudentEconomyStates } from '../../lib/studentEconomy';
 import StableLabel from '../StableLabel';
 import SettingsPanelFrame, { SettingsStatusChip } from './SettingsPanelFrame';
+import TeacherLoadingState from './TeacherLoadingState';
 
 const amountFormat = new Intl.NumberFormat('ko-KR');
 const timeFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -49,7 +50,7 @@ export default function TeacherLoanHistoryPanel({ states }: { readonly states: S
       action={<button type="button" className="settings-frame-primary" onClick={() => { panelRef.current?.focus({ preventScroll: true }); setRefreshVersion(value => value + 1); }} disabled={loading}><RefreshCw size={16} aria-hidden="true" /><StableLabel busy={loading} busyLabel="불러오는 중" label={'다시 불러오기'} /></button>}
     >
     {error ? <p className="teacher-loan-error" role="alert">{error}{report ? ' 아래는 이전 조회 결과입니다.' : ''}</p> : null}
-    {loading && !report ? <p role="status" className="teacher-loan-notice">대출 내역 확인 중…</p> : null}
+    {loading && !report ? <TeacherLoadingState label="대출 내역 불러오는 중" variant="list" /> : null}
     {report ? <>
       <div className="teacher-loan-workspace">
         <section className="teacher-loan-roster" aria-label="학생별 대출 현황">

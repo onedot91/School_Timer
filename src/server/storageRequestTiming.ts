@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-interface StorageRequestTiming { calls: number; duration: number }
+export interface StorageRequestTiming { calls: number; duration: number }
 const timings = new AsyncLocalStorage<StorageRequestTiming>();
 
 export const withStorageRequestTiming = <T>(run: (timing: StorageRequestTiming) => Promise<T>): Promise<T> => {
@@ -16,3 +16,6 @@ export const measureStorageRequest = async <T>(run: () => Promise<T>): Promise<T
   try { return await run(); }
   finally { timing.duration += performance.now() - started; }
 };
+
+export const formatServerTiming = (appDuration: number, timing: StorageRequestTiming): string =>
+  `app;dur=${appDuration.toFixed(1)}, storage;dur=${timing.duration.toFixed(1)};desc="${timing.calls} RPC"`;

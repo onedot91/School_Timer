@@ -55,9 +55,16 @@ const preloadGomaLoadingArt = () => {
   }
 };
 
+// 기기 확인·교사 화면 코드와 병렬로 첫 설정 조회를 출발시킨다. 정적 import는 번호 선택 화면 번들을 키운다.
+const prefetchTeacherSettings = () => {
+  if (!isSupabaseSettingsEnabled) return;
+  void import('./lib/supabaseSettings').then(({ prefetchTeacherSettingsRow }) => prefetchTeacherSettingsRow()).catch(() => undefined);
+};
+
 const preloadEntryPage = (entryNumber: number | null) => {
   if (entryNumber === 0) {
     preloadGomaLoadingArt();
+    prefetchTeacherSettings();
     return import('./pages/TimerPage');
   }
   if (entryNumber !== null) {
@@ -194,6 +201,7 @@ export default function RootApp() {
         : STUDENT_HOME_HASH,
     );
     storeEntryNumber(studentNumber);
+    if (studentNumber === 0) prefetchTeacherSettings();
     setSelectedEntryNumber(studentNumber);
   };
 

@@ -21,6 +21,7 @@ import StudentCharacterStage from '../components/teacher/StudentCharacterStage';
 import StudentCharacterPeek from '../components/teacher/StudentCharacterPeek';
 import TeacherSaveFailureWarning from '../components/teacher/TeacherSaveFailureWarning';
 import SettingsPanelFrame, { SettingsStatusChip } from '../components/teacher/SettingsPanelFrame';
+import TeacherLoadingState, { TeacherLoadingBar } from '../components/teacher/TeacherLoadingState';
 import TeacherQuestionSubmissionGrid from '../components/teacher/TeacherQuestionSubmissionGrid';
 import TeacherStockWeekImport from '../components/teacher/TeacherStockWeekImport';
 import TeacherInvestmentStatus from '../components/teacher/TeacherInvestmentStatus';
@@ -67,6 +68,7 @@ import {
   loadAnnouncementNote,
   loadAnnouncementNoteHistory,
   loadSharedSettingsRow,
+  loadInitialTeacherSettingsRow,
   canLoadTeacherSettingsChanges,
   loadSharedSettingsUpdatedAt,
   saveAnnouncementNote,
@@ -277,9 +279,9 @@ const TeacherLoanHistoryPanel = lazy(() => import('../components/teacher/Teacher
 const TeacherCurrencyHistoryPanel = lazy(() => import('../components/teacher/TeacherCurrencyHistoryPanel'));
 const TeacherLibraryCompetitionPanel = lazy(() => import('../components/teacher/TeacherLibraryCompetitionPanel').then((module) => ({ default: module.TeacherLibraryCompetitionPanel })));
 
-const TeacherPanelLoadFallback = () => (
-  <p className="p-4 text-center" role="status">불러오는 중</p>
-);
+const TeacherPanelLoadFallback = () => <TeacherLoadingState label="불러오는 중" />;
+// 자체 API로 조회하는 패널. 나머지는 공용 설정을 받은 뒤에야 실제 상태를 보여 줄 수 있다.
+const SELF_LOADING_SETTINGS_PANELS: ReadonlySet<SettingsPanel> = new Set(['newspaper', 'classword', 'today-friend', 'library-competition']);
 
 type TimerType = 'break' | 'lunch' | 'class' | 'morning' | 'none';
 type SettingsPanel = 'today' | 'schedule' | 'subjects' | 'draw' | 'auction' | 'donation' | 'missions' | 'shop' | 'stocks' | 'currency-history' | 'loan-history' | 'emotion' | 'mail' | 'writing' | 'newspaper' | 'classword' | 'today-friend' | 'bookstore' | 'library-competition';
@@ -4715,6 +4717,10 @@ export default function TimerPage() {
     return saved;
   };
   const [isTeacherSettingsRetrying, setIsTeacherSettingsRetrying] = useState(false);
+  const [isTeacherSettingsHydrated, setIsTeacherSettingsHydrated] = useState(!isSupabaseSettingsEnabled);
+  // 불러오기 실패 후에는 기존처럼 화면을 열어 두고 오류 알림의 다시 확인으로 복구한다.
+  const isTeacherSettingsLoading = !isTeacherSettingsHydrated && (!teacherSettingsSaveError || isTeacherSettingsRetrying);
+  const showsSettingsPanelLoading = isTeacherSettingsLoading && !SELF_LOADING_SETTINGS_PANELS.has(settingsPanel);
   const [teacherSettingsConflict, setTeacherSettingsConflict] = useState(false);
   teacherSettingsErrorRef.current = Boolean(teacherSettingsSaveError);
 
@@ -4920,6 +4926,7 @@ export default function TimerPage() {
       });
     }
     sharedSettingsHydratedRef.current = true;
+    setIsTeacherSettingsHydrated(true);
     if (earlyChanges.length > 0) skipNextSharedSettingsSaveRef.current = false;
     setTeacherSettingsSaveVersion(previous => previous + 1);
   };
@@ -4930,7 +4937,7 @@ export default function TimerPage() {
     if (!isSupabaseSettingsEnabled) return;
 
     const initialLoad = startInitialLoadWithRetry({
-      load: () => Promise.all([teacherStorageDrafts.ready(), loadSharedSettingsRow()]),
+      load: () => Promise.all([teacherStorageDrafts.ready(), loadInitialTeacherSettingsRow()]),
       isSettled: () => sharedSettingsHydratedRef.current,
       acquire: () => {
         if (teacherSettingsSavingRef.current) return false;
@@ -13338,6 +13345,7 @@ export default function TimerPage() {
                 </button>
               </div>
             </div>
+            {isTeacherSettingsLoading ? <TeacherLoadingBar label="학급 설정 불러오는 중" /> : null}
 
             <div className="settings-workspace min-h-0 flex-1">
               <nav
@@ -13366,7 +13374,7 @@ export default function TimerPage() {
                           >
                             <ItemIcon size={19} aria-hidden="true" />
                             <span>{item.label}</span>
-                            {item.panel === 'auction' && isTodayAuctionUnregistered ? (
+                            {!isTeacherSettingsLoading && item.panel === 'auction' && isTodayAuctionUnregistered ? (
                               <span
                                 className="settings-navigation-new-badge"
                                 aria-label="오늘 경매 물품 미등록"
@@ -13374,7 +13382,7 @@ export default function TimerPage() {
                                 미등록
                               </span>
                             ) : null}
-                            {item.panel === 'missions' && hasUnpaidClassroomRoleReward ? (
+                            {!isTeacherSettingsLoading && item.panel === 'missions' && hasUnpaidClassroomRoleReward ? (
                               <span
                                 className="settings-navigation-new-badge"
                                 aria-label="오늘 1인1역 보상 미지급"
@@ -13382,7 +13390,7 @@ export default function TimerPage() {
                                 미지급
                               </span>
                             ) : null}
-                            {item.panel === 'mail' && unreadTeacherLetterCount > 0 ? (
+                            {!isTeacherSettingsLoading && item.panel === 'mail' && unreadTeacherLetterCount > 0 ? (
                               <span
                                 className="settings-navigation-new-badge"
                                 aria-label={`새로 받은 편지 ${unreadTeacherLetterCount}개`}
@@ -13390,7 +13398,7 @@ export default function TimerPage() {
                                 New
                               </span>
                             ) : null}
-                            {item.panel === 'donation' && isClassDonationGoalReached ? (
+                            {!isTeacherSettingsLoading && item.panel === 'donation' && isClassDonationGoalReached ? (
                               <span
                                 className="settings-navigation-new-badge settings-navigation-new-badge--done"
                                 aria-label="기부 목표 달성"
@@ -13420,7 +13428,9 @@ export default function TimerPage() {
               >
                 <div key={settingsPanel} className={`settings-body custom-scrollbar overflow-y-auto bg-[var(--teacher-surface)] p-4 md:p-6${settingsPanel === 'stocks' && stockSettingsTab === 'students' ? ' teacher-stock-investments-body' : ''}`}>
                   <Suspense fallback={<TeacherPanelLoadFallback />}>
-                    {settingsPanel === 'today'
+                    {showsSettingsPanelLoading
+                      ? <TeacherLoadingState label={`${currentSettingsNavigationItem?.label ?? '설정'} 불러오는 중`} />
+                      : settingsPanel === 'today'
                       ? todaySettingsPanel
                       : settingsPanel === 'schedule'
                       ? scheduleSettingsPanel

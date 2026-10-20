@@ -1,4 +1,4 @@
-import { withStorageRequestTiming } from '../../src/server/storageRequestTiming.js';
+import { formatServerTiming, withStorageRequestTiming } from '../../src/server/storageRequestTiming.js';
 
 const handlers = new Map([
   ['/api/announcement-notes', () => import('../../api/announcement-notes.js')],
@@ -45,7 +45,7 @@ export default async function handler(request: Request): Promise<Response> {
     const { default: execute } = await route();
     await withStorageRequestTiming(async timing => {
       try { await execute(apiRequest, response); }
-      finally { headers.set('Server-Timing', `app;dur=${(performance.now() - started).toFixed(1)}, storage;dur=${timing.duration.toFixed(1)};desc="${timing.calls} RPC"`); }
+      finally { headers.set('Server-Timing', formatServerTiming(performance.now() - started, timing)); }
     });
   } catch {
     return new Response(JSON.stringify({ error: 'INTERNAL_SERVER_ERROR' }), { status: 500, headers });

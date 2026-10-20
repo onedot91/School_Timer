@@ -23,6 +23,7 @@ import TeacherTodayFriendPlan from './TeacherTodayFriendPlan';
 import TeacherTodayFriendReview from './TeacherTodayFriendReview';
 import StatusSlot from '../StatusSlot';
 import SettingsPanelFrame, { SettingsStatusChip } from './SettingsPanelFrame';
+import TeacherLoadingState from './TeacherLoadingState';
 
 type TeacherTodayFriendTab = 'review' | 'plan';
 const reviewDrafts = createStudentSaveDraftStore();
@@ -222,7 +223,7 @@ export default function TeacherTodayFriendPanel({ onPendingReviewCountChange }: 
       </nav>
       <StatusSlot className="teacher-today-friend-message">{message || (isLoading && state ? '최신 현황 확인 중…' : null)}</StatusSlot>
       {pendingReview && <button type="button" disabled={isSaving || retryAfterSeconds > 0} className="min-h-11 rounded-full border px-4" onClick={() => { void performReview(pendingReview); }}>{retryAfterSeconds > 0 ? `${retryAfterSeconds}초 후 다시 확인` : '이전 처리 다시 확인'}</button>}
-      {isLoading && !state ? <div className="teacher-today-friend-loading">불러오는 중…</div> : !state ? null : tab === 'review' ? (
+      {isLoading && !state ? <TeacherLoadingState label="오늘의 친구 불러오는 중" variant="list" /> : !state ? null : tab === 'review' ? (
         <TeacherTodayFriendReview submissions={dateSubmissions} isSaving={isSaving || isLoading || hasLoadError || retryAfterSeconds > 0} onReview={review} />
       ) : (
         <TeacherTodayFriendPlan state={state} dateKey={dateKey} isSaving={isSaving || isLoading || hasLoadError} onPlanAction={updatePlan} onQuestionsChange={updateQuestions} />

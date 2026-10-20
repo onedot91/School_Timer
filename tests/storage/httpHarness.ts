@@ -22,6 +22,7 @@ const RPCS = new Set(['storage_load_snapshot', 'storage_load_scope', 'storage_lo
 RPCS.add('storage_prepare_command');
 RPCS.add('storage_commit_scoped_and_load');
 RPCS.add('storage_load_teacher_changes');
+RPCS.add('storage_load_teacher_changes_v2');
 interface Database { query(sql: string, values?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>; end(): Promise<void> }
 const database = (name: string): Database => {
   const driver: unknown = createRequire(import.meta.url)(process.env.STORAGE_TEST_PG_MODULE ?? '/tmp/school-storage-runtime/node_modules/pg/lib/index.js');
@@ -126,7 +127,7 @@ export const startHttpHarness = async ({ name = 'storage_http_test', port = 3018
         const code = error instanceof Error ? Reflect.get(error,'code') : undefined;
         const message = error instanceof Error ? error.message : 'FIXTURE_DATABASE_ERROR';
         metrics.push({rpc,code:typeof code==='string'?code:'UNKNOWN'});
-        json(response,code==='40001'||code==='40P01'?503:409,{message,code});
+        json(response,code==='40001'||code==='40P01'?503:code==='42883'?404:409,{message,code});
       }
     } catch (error) { json(response,500,{error:error instanceof Error?error.message:'FIXTURE_GATEWAY_ERROR'}); }
   });
