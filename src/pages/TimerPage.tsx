@@ -274,6 +274,7 @@ const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherCl
 const TeacherTodayFriendPanel = lazy(() => import('../components/teacher/TeacherTodayFriendPanel'));
 const TeacherNewspaperPanel = lazy(() => import('../components/teacher/TeacherNewspaperPanel'));
 const TeacherLoanHistoryPanel = lazy(() => import('../components/teacher/TeacherLoanHistoryPanel'));
+const TeacherCurrencyHistoryPanel = lazy(() => import('../components/teacher/TeacherCurrencyHistoryPanel'));
 const TeacherLibraryCompetitionPanel = lazy(() => import('../components/teacher/TeacherLibraryCompetitionPanel').then((module) => ({ default: module.TeacherLibraryCompetitionPanel })));
 
 const TeacherPanelLoadFallback = () => (
@@ -387,32 +388,6 @@ const formatCurrencyAdjustmentSummary = ({ delta }: CurrencyAdjustmentSummary) =
   return `${sign}${Math.abs(delta)}`;
 };
 
-const currencyHistoryReasonLabels: Record<CurrencyHistoryReason, string> = {
-  manual: '직접 설정',
-  reset: '초기화',
-  tax: '세금',
-  allowance: '기본 지급',
-  auction_award: '경매 낙찰',
-  weekly_mission: '주간 미션',
-  daily_emotion: '감정 기록',
-  weekly_emotion: '감정 주간 보상',
-  sudoku_mission: '스도쿠 보상',
-  number_baseball_mission: '숫자야구 보상',
-  classroom_role: '역할 차감',
-  daily_writing: '글쓰기 보상',
-  class_donation: '기부',
-  pet_feed: '먹이 구매',
-  bank_transfer: '예금 이동',
-  shop_purchase: '상점 구매',
-  house_creator_reward: '집 판매 보상',
-  stock_trade: '주식 거래',
-  teacher_deduction: '교사 차감',
-  bulk_adjust: '일괄 조정',
-};
-
-const currencyHistoryTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
-  timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false,
-});
 const currencyHistoryDateFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
 });
@@ -8609,20 +8584,6 @@ export default function TimerPage() {
     : getStudentInvestmentBalance(studentEconomyStates[String(editingCurrencyNumber)]);
   const currencyTodayKey = getCurrencyHistoryDateKey(new Date());
   const currencyTodayStart = new Date(`${currencyTodayKey}T00:00:00+09:00`).getTime();
-  const currencyTomorrowStart = currencyTodayStart + 24 * 60 * 60 * 1000;
-  const currencyTodayHistoryByStudent = CURRENCY_STUDENT_NUMBERS.map((studentNumber) => {
-    const entries = (currencyHistory[String(studentNumber)] ?? []).filter((entry) => {
-      const createdAt = Date.parse(entry.createdAt);
-      return Number.isFinite(createdAt) && createdAt >= currencyTodayStart && createdAt < currencyTomorrowStart;
-    });
-    return {
-      studentNumber,
-      entries,
-      incoming: entries.reduce((total, entry) => total + Math.max(entry.delta, 0), 0),
-      outgoing: entries.reduce((total, entry) => total + Math.abs(Math.min(entry.delta, 0)), 0),
-    };
-  });
-  const currencyTodayHistoryCount = currencyTodayHistoryByStudent.reduce((total, student) => total + student.entries.length, 0);
   const parsedCurrencyDeductionAmount = Number(currencyDeductionAmount);
   const currencyWalletDeduction = Number.isInteger(parsedCurrencyDeductionAmount)
     ? Math.min(selectedCurrencyBalance ?? 0, Math.max(0, parsedCurrencyDeductionAmount))
@@ -11096,62 +11057,6 @@ export default function TimerPage() {
     </section>
   );
 
-  const currencyHistorySettingsPanel = (
-    <SettingsPanelFrame
-      label="입출금"
-      status={(
-        <>
-          <h3 id="currency-history-title" className="section-title">오늘 입출금</h3>
-          <SettingsStatusChip tone={currencyTodayHistoryCount > 0 ? 'accent' : 'neutral'}>{currencyTodayHistoryCount}건</SettingsStatusChip>
-        </>
-      )}
-    >
-    <section className="settings-card rounded-[1.7rem] border border-[var(--teacher-border)] bg-[var(--teacher-surface)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)] md:p-5">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="학생별 당일 입출금">
-        {currencyTodayHistoryByStudent.map(({ studentNumber, entries, incoming, outgoing }) => (
-          entries.length > 0 ? (
-            <details key={studentNumber} className="min-w-0 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-1.5 rounded-[0.85rem] px-2.5 py-2 text-[length:var(--type-body-sm)] font-extrabold text-[var(--teacher-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--teacher-focus)]">
-                <span className="shrink-0">{studentNumber}번 <span className="text-[length:var(--type-label)] font-bold text-[var(--teacher-text-secondary)]">{entries.length}건</span></span>
-                <span className="flex min-w-0 items-center gap-1.5 font-mono text-[length:var(--type-label)] font-bold tabular-nums">
-                  {incoming > 0 && <span className="truncate text-[var(--teacher-accent)]">+{formatCurrencyAmount(incoming)}</span>}
-                  {outgoing > 0 && <span className="truncate text-[var(--teacher-urgent)]">−{formatCurrencyAmount(outgoing)}</span>}
-                </span>
-                <ChevronDown size={16} className="shrink-0 text-[var(--teacher-text-secondary)]" aria-hidden="true" />
-              </summary>
-              <ol className="divide-y divide-[var(--teacher-border)] px-2.5">
-                {entries.map((entry) => {
-                  const createdAt = new Date(entry.createdAt);
-                  const isIncoming = entry.delta >= 0;
-                  return (
-                    <li key={entry.id} className="flex min-w-0 items-center justify-between gap-2 py-2 text-[length:var(--type-label)]">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <time dateTime={entry.createdAt} className="shrink-0 font-mono tabular-nums text-[var(--teacher-text-secondary)]">{currencyHistoryTimeFormatter.format(createdAt)}</time>
-                          <span className="truncate font-bold text-[var(--teacher-text)]">{currencyHistoryReasonLabels[entry.reason]}</span>
-                        </div>
-                        <span className="font-mono text-[length:var(--type-caption)] tabular-nums text-[var(--teacher-text-secondary)]">{formatCurrencyAmount(entry.before)} → {formatCurrencyAmount(entry.after)}</span>
-                      </div>
-                      <strong className={`shrink-0 font-mono tabular-nums ${isIncoming ? 'text-[var(--teacher-accent)]' : 'text-[var(--teacher-urgent)]'}`}>
-                        {isIncoming ? '+' : '−'}{formatCurrencyAmount(Math.abs(entry.delta))}
-                      </strong>
-                    </li>
-                  );
-                })}
-              </ol>
-            </details>
-          ) : (
-            <div key={studentNumber} className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-[0.85rem] border border-[var(--teacher-border)] bg-white px-2.5 py-2 text-[length:var(--type-body-sm)]">
-              <strong className="font-extrabold text-[var(--teacher-text)]">{studentNumber}번</strong>
-              <span className="font-mono text-[length:var(--type-label)] font-bold tabular-nums text-[var(--teacher-text-secondary)]">0건</span>
-            </div>
-          )
-        ))}
-      </div>
-    </section>
-    </SettingsPanelFrame>
-  );
-
   const auctionSettingsPanel = (
     <div className="settings-panel-grid grid gap-4">
       {settingsPanel === 'donation' ? (
@@ -13544,7 +13449,7 @@ export default function TimerPage() {
                                 : settingsPanel === 'bookstore'
                                   ? bookstoreSettingsPanel
                                   : settingsPanel === 'currency-history'
-                                    ? currencyHistorySettingsPanel
+                                    ? <TeacherCurrencyHistoryPanel history={currencyHistory} balances={currencyBalances} dayStart={currencyTodayStart} />
                                   : settingsPanel === 'loan-history'
                                     ? <TeacherLoanHistoryPanel states={studentEconomyStates} />
                                   : settingsPanel === 'auction' || settingsPanel === 'donation' || settingsPanel === 'missions'
