@@ -64,7 +64,8 @@ export default function StudentCharacterInitialChoice({ choice, state, isSaving,
     const character = STUDENT_CHARACTER_PRIZES.find((prize) => prize.id === id);
     return character && hasStudentCharacterInitials(character.name);
   });
-  const displayedChoices = eligibleChoices.length > 0 ? eligibleChoices : result ? [result.id] : [];
+  // 이전에 받아 둔 후보가 모두 빠지면 선택할 수 없게 되므로 원래 후보를 그대로 보여 준다.
+  const displayedChoices = eligibleChoices.length > 0 ? eligibleChoices : result ? [result.id] : choice.characterIds;
 
   useModalFocus({ dialogRef, isOpen: true, returnFocusRef, isDismissible, onDismiss: onClose });
   useEffect(() => { if (result) confirmRef.current?.focus({ preventScroll: true }); }, [result]);

@@ -10,27 +10,55 @@ import { getStudentInvestmentBalance, type StudentEconomyStates } from './studen
 
 // 교사가 ±버튼·직접 입력·차감으로 바꾼 기록은 한 묶음으로 보여 준다.
 export const TEACHER_ADJUST_REASON = 'teacher_adjust';
-// 예금·주식 원금 이동은 보유 고마 변화가 아니다. 회수할 때의 이자·손익만 입출금으로 본다.
-export const DEPOSIT_INTEREST_REASON = 'deposit_interest';
+// 예금·대출·주식 원금 이동은 보유 고마 변화가 아니다. 이자·손익과 학생 사이 송금만 입출금으로 본다.
+export const BANK_INTEREST_REASON = 'bank_interest';
 export const INVESTMENT_RETURN_REASON = 'investment_return';
+export const STUDENT_TRANSFER_REASON = 'student_transfer';
 export type CurrencyDayReason =
-  | Exclude<CurrencyHistoryReason, 'manual' | 'bulk_adjust' | 'teacher_deduction'>
+  | Exclude<CurrencyHistoryReason, 'manual' | 'bulk_adjust' | 'teacher_deduction' | 'bank_transfer'>
   | typeof TEACHER_ADJUST_REASON
-  | typeof DEPOSIT_INTEREST_REASON
-  | typeof INVESTMENT_RETURN_REASON;
+  | typeof BANK_INTEREST_REASON
+  | typeof INVESTMENT_RETURN_REASON
+  | typeof STUDENT_TRANSFER_REASON;
 
 const TEACHER_ADJUST_SOURCES: readonly CurrencyHistoryReason[] = ['manual', 'bulk_adjust', 'teacher_deduction'];
 const TEACHER_ADJUST_MERGE_GAP_MS = 10 * 60 * 1000;
 
+// 송금은 보낸 학생과 받은 학생 기록이 같은 요청 id(`currency-economy-<요청>-<학생>`)를 나눠 갖는다.
+const ECONOMY_ENTRY_ID = /^currency-economy-(.+)-\d+$/;
+const getEconomyRequestId = (entry: CurrencyHistoryEntry) => ECONOMY_ENTRY_ID.exec(entry.id)?.[1] ?? null;
+
+export const findStudentTransferRequestIds = (history: CurrencyHistory): ReadonlySet<string> => {
+  const owners = new Map<string, Set<string>>();
+  for (const [key, entries] of Object.entries(history)) {
+    for (const entry of entries) {
+      if (entry.reason !== 'bank_transfer' || entry.ownAccountAmount !== undefined) continue;
+      const requestId = getEconomyRequestId(entry);
+      if (requestId) owners.set(requestId, (owners.get(requestId) ?? new Set()).add(key));
+    }
+  }
+  return new Set([...owners].filter(([, keys]) => keys.size > 1).map(([requestId]) => requestId));
+};
+
+const isStudentTransfer = (entry: CurrencyHistoryEntry, transferRequestIds: ReadonlySet<string>) => {
+  const requestId = entry.reason === 'bank_transfer' && entry.ownAccountAmount === undefined ? getEconomyRequestId(entry) : null;
+  return requestId !== null && transferRequestIds.has(requestId);
+};
+
+// 원금 이동액을 남기기 전의 은행·주식 기록은 원금과 이자·손익을 나눌 수 없어 모두 원금 이동으로 본다.
+const isLegacyOwnAccountMove = (entry: CurrencyHistoryEntry, transferRequestIds: ReadonlySet<string>) =>
+  entry.ownAccountAmount === undefined
+  && (entry.reason === 'stock_trade' || (entry.reason === 'bank_transfer' && !isStudentTransfer(entry, transferRequestIds)));
+
 const toDayReason = (entry: CurrencyHistoryEntry): CurrencyDayReason => {
   const { reason } = entry;
   if (reason === 'manual' || reason === 'bulk_adjust' || reason === 'teacher_deduction') return TEACHER_ADJUST_REASON;
-  if (entry.ownAccountAmount !== undefined && reason === 'bank_transfer') return DEPOSIT_INTEREST_REASON;
-  if (entry.ownAccountAmount !== undefined && reason === 'stock_trade') return INVESTMENT_RETURN_REASON;
+  if (reason === 'bank_transfer') return entry.ownAccountAmount === undefined ? STUDENT_TRANSFER_REASON : BANK_INTEREST_REASON;
+  if (reason === 'stock_trade') return INVESTMENT_RETURN_REASON;
   return reason;
 };
 
-/** 보유 고마(지갑+예금+투자)의 실제 증감. */
+/** 보유 고마(지갑+예금+투자−대출 원금)의 실제 증감. */
 export const getHoldingDelta = (entry: CurrencyHistoryEntry) => entry.delta - (entry.ownAccountAmount ?? 0);
 
 export interface CurrencyDayEntry {
@@ -42,10 +70,11 @@ export interface CurrencyDayEntry {
 
 export interface CurrencyDayStudent {
   readonly studentNumber: number;
-  /** 지갑+예금+적금+투자 평가액 */
+  /** 지갑+예금+적금+투자 평가액−대출 원금 */
   readonly balance: number;
   readonly wallet: number;
   readonly savedAmount: number;
+  readonly loanPrincipal: number;
   readonly entries: readonly CurrencyDayEntry[];
   readonly net: number;
 }
@@ -68,10 +97,14 @@ export interface CurrencyDaySummary {
 }
 
 // 최신순 기록에서 원금 이동만 있는 기록은 빼고, 10분 이내로 이어진 교사 조정은 한 줄로 합친다.
-export const mergeTeacherAdjustments = (entries: readonly CurrencyHistoryEntry[]): CurrencyDayEntry[] => {
+export const mergeTeacherAdjustments = (
+  entries: readonly CurrencyHistoryEntry[],
+  transferRequestIds: ReadonlySet<string> = new Set(),
+): CurrencyDayEntry[] => {
   const merged: CurrencyDayEntry[] = [];
   let oldestInRun = Number.NaN;
   for (const entry of entries) {
+    if (isLegacyOwnAccountMove(entry, transferRequestIds)) continue;
     const delta = getHoldingDelta(entry);
     if (delta === 0 && entry.ownAccountAmount !== undefined && !TEACHER_ADJUST_SOURCES.includes(entry.reason)) continue;
     const createdAt = Date.parse(entry.createdAt);
@@ -96,7 +129,7 @@ const sortReasonTotals = (totals: Map<CurrencyDayReason, number>) =>
     .map(([reason, amount]) => ({ reason, amount }))
     .sort((left, right) => right.amount - left.amount);
 
-// [dayStart, dayEnd) 구간의 학생별·사유별 입출금과 현재 보유 고마(지갑+예금+투자)를 묶는다. 테스트 학생은 제외한다.
+// [dayStart, dayEnd) 구간의 학생별·사유별 입출금과 현재 보유 고마(지갑+예금+투자−대출 원금)를 묶는다. 테스트 학생은 제외한다.
 export const summarizeCurrencyDay = (
   history: CurrencyHistory,
   balances: CurrencyBalances,
@@ -108,12 +141,13 @@ export const summarizeCurrencyDay = (
   const outgoingTotals = new Map<CurrencyDayReason, number>();
   let incoming = 0;
   let outgoing = 0;
+  const transferRequestIds = findStudentTransferRequestIds(history);
   const students = CURRENCY_STUDENT_NUMBERS.map((studentNumber): CurrencyDayStudent => {
     const key = String(studentNumber);
     const entries = mergeTeacherAdjustments((history[key] ?? []).filter((entry) => {
       const createdAt = Date.parse(entry.createdAt);
       return Number.isFinite(createdAt) && createdAt >= dayStart && createdAt < dayEnd;
-    }));
+    }), transferRequestIds);
     for (const entry of entries) {
       if (entry.delta > 0) {
         incoming += entry.delta;
@@ -127,7 +161,8 @@ export const summarizeCurrencyDay = (
     const wallet = balances[key] ?? DEFAULT_CURRENCY_BALANCE;
     const economy = economyStates[key];
     const savedAmount = (economy?.deposit ?? 0) + (economy?.savings ?? 0) + getStudentInvestmentBalance(economy);
-    return { studentNumber, balance: wallet + savedAmount, wallet, savedAmount, entries, net };
+    const loanPrincipal = economy?.loanPrincipal ?? 0;
+    return { studentNumber, balance: wallet + savedAmount - loanPrincipal, wallet, savedAmount, loanPrincipal, entries, net };
   });
   return {
     students,

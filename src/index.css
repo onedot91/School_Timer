@@ -25363,6 +25363,14 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .teacher-currency-panel { container: teacher-currency / inline-size; display: grid; gap: 1rem; min-width: 0; color: var(--teacher-text); font-variant-numeric: tabular-nums; }
 .teacher-currency-panel [data-tone="in"] { color: var(--teacher-accent) !important; }
 .teacher-currency-panel [data-tone="out"] { color: var(--teacher-urgent) !important; }
+.teacher-currency-holdings { min-width: 0; border: 1px solid var(--teacher-border); border-radius: 1.2rem; background: var(--teacher-surface); padding: .75rem .75rem .5rem; }
+.teacher-currency-holdings h4 { margin: 0 0 .5rem .25rem; color: var(--teacher-text); font-size: var(--type-label); font-weight: 800; }
+.teacher-currency-holdings > ol { display: grid; grid-template-columns: repeat(23, minmax(0, 1fr)); gap: 2px; height: 10rem; margin: 0; padding: 0; list-style: none; }
+.teacher-currency-holdings li { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; justify-items: center; gap: .2rem; min-width: 0; }
+.teacher-currency-holdings strong { max-width: 100%; overflow: hidden; color: var(--teacher-text); font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--type-caption); font-weight: 800; text-overflow: clip; white-space: nowrap; }
+.teacher-currency-holdings li > span:last-child { color: var(--teacher-text-secondary); font-size: var(--type-caption); font-weight: 800; }
+.teacher-currency-holdings-bar { display: flex; align-items: flex-end; width: min(100%, 1.75rem); border-bottom: 1px solid var(--teacher-border-strong); }
+.teacher-currency-holdings-bar > span { display: block; width: 100%; height: max(calc(var(--bar, 0) * 100%), 2px); border-radius: 4px 4px 0 0; background: var(--teacher-accent); }
 .teacher-currency-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin: 0; }
 .teacher-currency-totals > div { min-width: 0; border: 1px solid var(--teacher-border); border-radius: 1rem; background: var(--teacher-surface); padding: .75rem 1rem; }
 .teacher-currency-totals dt { color: var(--teacher-text-secondary); font-size: var(--type-label); font-weight: 700; }

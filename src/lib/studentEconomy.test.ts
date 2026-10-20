@@ -74,7 +74,7 @@ test('멸종위기 동물 8종 고마 스킨은 선택 가능한 카탈로그에
   ];
 
   assert.deepEqual(
-    STUDENT_CHARACTER_PRIZES.slice(102).map(({ id, name, imageSrc }) => ({ id, name, imageSrc })),
+    STUDENT_CHARACTER_PRIZES.slice(102, 110).map(({ id, name, imageSrc }) => ({ id, name, imageSrc })),
     addedSkins,
   );
 });
@@ -91,6 +91,33 @@ test('고마 스킨 원본은 모서리 배경이 투명하다', async () => {
     if (colorType !== 4 && colorType !== 6) opaque.push(character.name);
   }
   assert.deepEqual(opaque, []);
+});
+
+test('음식·학교 17종 고마 스킨은 선택 가능한 카탈로그에 등록된다', () => {
+  const addedSkins = [
+    { id: 'character-111', name: '거북이 고마', imageSrc: '/goma-skins/turtle-goma.png' },
+    { id: 'character-112', name: '떡볶이 고마', imageSrc: '/goma-skins/tteokbokki-goma.png' },
+    { id: 'character-113', name: '샐러드 고마', imageSrc: '/goma-skins/salad-goma.png' },
+    { id: 'character-114', name: '삼겹살 고마', imageSrc: '/goma-skins/samgyeopsal-goma.png' },
+    { id: 'character-115', name: '마라탕 고마', imageSrc: '/goma-skins/malatang-goma.png' },
+    { id: 'character-116', name: '라임소다 고마', imageSrc: '/goma-skins/lime-soda-goma.png' },
+    { id: 'character-117', name: '수학 고마', imageSrc: '/goma-skins/math-goma.png' },
+    { id: 'character-118', name: '시계 고마', imageSrc: '/goma-skins/clock-goma.png' },
+    { id: 'character-119', name: '장동초 고마', imageSrc: '/goma-skins/jangdong-school-goma.png' },
+    { id: 'character-120', name: '치킨 고마', imageSrc: '/goma-skins/chicken-goma.png' },
+    { id: 'character-121', name: '팝콘 고마', imageSrc: '/goma-skins/popcorn-goma.png' },
+    { id: 'character-122', name: '태극기 고마', imageSrc: '/goma-skins/taegeukgi-goma.png' },
+    { id: 'character-123', name: '콧물 고마', imageSrc: '/goma-skins/runny-nose-goma.png' },
+    { id: 'character-124', name: '콜라 고마', imageSrc: '/goma-skins/cola-goma.png' },
+    { id: 'character-125', name: '푸딩 고마', imageSrc: '/goma-skins/pudding-goma.png' },
+    { id: 'character-126', name: '피자 고마', imageSrc: '/goma-skins/pizza-goma.png' },
+    { id: 'character-127', name: '필통 고마', imageSrc: '/goma-skins/pencil-case-goma.png' },
+  ];
+
+  assert.deepEqual(
+    STUDENT_CHARACTER_PRIZES.slice(110).map(({ id, name, imageSrc }) => ({ id, name, imageSrc })),
+    addedSkins,
+  );
 });
 
 test('학생 증권은 4개 종목과 날짜별 등락 단계를 유지한다', () => {
@@ -869,4 +896,32 @@ test('예금·투자 원금 이동은 ownAccountAmount로 남기고 이자는 �
     requestId: 'own-account-transfer',
   });
   assert.equal(transferred.ownAccountAmount, 0);
+});
+
+test('대출 원금은 ownAccountAmount로 남기고 상환 이자만 보유 고마 감소로 본다', () => {
+  const borrowed = applyStudentEconomyAction({
+    state: null,
+    action: { type: 'borrow', amount: 50, dateKey: '2026-08-17' },
+    wallet: 100,
+    availableWallet: 100,
+    requestId: 'own-account-borrow',
+  });
+  assert.equal(borrowed.ownAccountAmount, 50);
+  const interestOnly = applyStudentEconomyAction({
+    state: borrowed.state,
+    action: { type: 'repay', amount: 3 },
+    wallet: borrowed.wallet,
+    availableWallet: borrowed.wallet,
+    requestId: 'own-account-repay-interest',
+  });
+  assert.equal(interestOnly.ownAccountAmount, 0);
+  const repaid = applyStudentEconomyAction({
+    state: interestOnly.state,
+    action: { type: 'repay', amount: interestOnly.state.loan },
+    wallet: interestOnly.wallet,
+    availableWallet: interestOnly.wallet,
+    requestId: 'own-account-repay-rest',
+  });
+  assert.equal(repaid.ownAccountAmount, -50);
+  assert.equal(repaid.state.loan, 0);
 });

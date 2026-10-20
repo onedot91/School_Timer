@@ -12,6 +12,11 @@ export const STUDENT_CHARACTER_DRAW_PRICE = 50;
 export const STUDENT_CHARACTER_DOUBLE_DRAW_CHANCE = 0.1;
 export const STUDENT_CHARACTER_INITIAL_CHOICE_CHANCE = 0.3;
 
+// 초성으로 바꿨을 때 비속어·은어로 읽히는 묶음. 한 단어 안에서 이어진 초성만 본다.
+const STUDENT_CHARACTER_BLOCKED_INITIALS = [
+  'ㅂㅅ', 'ㅅㅂ', 'ㅆㅂ', 'ㅅㅍ', 'ㅆㅍ', 'ㅁㅊ', 'ㅈㄹ', 'ㅈㄴ', 'ㅅㄲ', 'ㅆㄲ', 'ㄴㄱㅁ', 'ㅈㄲ', 'ㄲㅈ', 'ㄷㅊ', 'ㅈㅈ', 'ㅅㅅ',
+] as const;
+
 export const getStudentCharacterInitials = (name: string): string => {
   const initials = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
   const stem = name.endsWith(' 고마') ? name.slice(0, -3) : name;
@@ -22,9 +27,12 @@ export const getStudentCharacterInitials = (name: string): string => {
   return name.endsWith(' 고마') ? `${masked} 고마` : masked;
 };
 
-export const hasStudentCharacterInitials = (name: string): boolean => (
-  /[가-힣]/.test(name.endsWith(' 고마') ? name.slice(0, -3) : name)
-);
+// 한글 이름이 있고 초성이 비속어처럼 읽히지 않는 스킨만 초성 카드 후보가 된다.
+export const hasStudentCharacterInitials = (name: string): boolean => {
+  if (!/[가-힣]/.test(name.endsWith(' 고마') ? name.slice(0, -3) : name)) return false;
+  const initials = getStudentCharacterInitials(name);
+  return !STUDENT_CHARACTER_BLOCKED_INITIALS.some((pattern) => initials.includes(pattern));
+};
 export const STUDENT_CUSTOM_HOUSE_COUPON_PRICE = 50;
 
 export interface StudentShopCatalogItem {
@@ -158,6 +166,23 @@ export const STUDENT_CHARACTER_PRIZES = [
   { id: 'character-108', name: '붉은박쥐 고마', imageSrc: '/goma-skins/red-bat-goma.png' },
   { id: 'character-109', name: '표범 고마', imageSrc: '/goma-skins/leopard-goma.png' },
   { id: 'character-110', name: '호랑이 고마', imageSrc: '/goma-skins/tiger-goma.png' },
+  { id: 'character-111', name: '거북이 고마', imageSrc: '/goma-skins/turtle-goma.png' },
+  { id: 'character-112', name: '떡볶이 고마', imageSrc: '/goma-skins/tteokbokki-goma.png' },
+  { id: 'character-113', name: '샐러드 고마', imageSrc: '/goma-skins/salad-goma.png' },
+  { id: 'character-114', name: '삼겹살 고마', imageSrc: '/goma-skins/samgyeopsal-goma.png' },
+  { id: 'character-115', name: '마라탕 고마', imageSrc: '/goma-skins/malatang-goma.png' },
+  { id: 'character-116', name: '라임소다 고마', imageSrc: '/goma-skins/lime-soda-goma.png' },
+  { id: 'character-117', name: '수학 고마', imageSrc: '/goma-skins/math-goma.png' },
+  { id: 'character-118', name: '시계 고마', imageSrc: '/goma-skins/clock-goma.png' },
+  { id: 'character-119', name: '장동초 고마', imageSrc: '/goma-skins/jangdong-school-goma.png' },
+  { id: 'character-120', name: '치킨 고마', imageSrc: '/goma-skins/chicken-goma.png' },
+  { id: 'character-121', name: '팝콘 고마', imageSrc: '/goma-skins/popcorn-goma.png' },
+  { id: 'character-122', name: '태극기 고마', imageSrc: '/goma-skins/taegeukgi-goma.png' },
+  { id: 'character-123', name: '콧물 고마', imageSrc: '/goma-skins/runny-nose-goma.png' },
+  { id: 'character-124', name: '콜라 고마', imageSrc: '/goma-skins/cola-goma.png' },
+  { id: 'character-125', name: '푸딩 고마', imageSrc: '/goma-skins/pudding-goma.png' },
+  { id: 'character-126', name: '피자 고마', imageSrc: '/goma-skins/pizza-goma.png' },
+  { id: 'character-127', name: '필통 고마', imageSrc: '/goma-skins/pencil-case-goma.png' },
 ] as const;
 
 export const DEFAULT_STUDENT_CHARACTER = {
@@ -397,7 +422,7 @@ export interface StudentEconomyResult {
   reason: CurrencyHistoryReason;
   message: string;
   applied: boolean;
-  /** 지갑과 본인 예금·투자 사이에서 옮긴 원금(지갑 기준 부호). 이자·투자 손익은 포함하지 않는다. */
+  /** 지갑과 본인 예금·투자·대출 사이에서 옮긴 원금(지갑 기준 부호). 이자·투자 손익은 포함하지 않는다. */
   ownAccountAmount: number;
 }
 
@@ -1121,6 +1146,7 @@ export const applyStudentEconomyAction = ({
     const borrowedOn = action.dateKey ?? getKoreanDateKey();
     if (!isDateKey(borrowedOn)) throw new Error('INVALID_BANK_DATE');
     nextWallet += action.amount;
+    ownAccountAmount = action.amount;
     const repaymentAmount = action.amount + calculateBankInterest(action.amount);
     const loanDueDate = addDaysToDateKey(borrowedOn, 7);
     nextState = { ...state, loan: repaymentAmount, loanPrincipal: action.amount, loanDueDate };
@@ -1133,6 +1159,7 @@ export const applyStudentEconomyAction = ({
     const interest = Math.max(0, state.loan - state.loanPrincipal);
     const repaidPrincipal = Math.max(0, action.amount - interest);
     const loanPrincipal = Math.max(0, state.loanPrincipal - repaidPrincipal);
+    ownAccountAmount = 0 - Math.min(repaidPrincipal, state.loanPrincipal);
     nextState = { ...state, loan: remainingLoan, loanPrincipal: remainingLoan > 0 ? loanPrincipal : 0, loanDueDate: remainingLoan > 0 ? state.loanDueDate : null };
     message = `${action.amount} 고마를 갚았습니다.`;
   } else if (action.type === 'buy_item') {

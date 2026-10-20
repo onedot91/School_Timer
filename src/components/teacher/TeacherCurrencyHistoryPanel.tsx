@@ -7,8 +7,9 @@ import SettingsPanelFrame from './SettingsPanelFrame';
 
 const reasonLabels: Record<CurrencyDayReason, string> = {
   teacher_adjust: '교사 조정',
-  deposit_interest: '예금 이자',
+  bank_interest: '이자',
   investment_return: '투자 손익',
+  student_transfer: '송금',
   reset: '초기화',
   tax: '세금',
   allowance: '기본 지급',
@@ -22,7 +23,6 @@ const reasonLabels: Record<CurrencyDayReason, string> = {
   daily_writing: '글쓰기 보상',
   class_donation: '기부',
   pet_feed: '먹이 구매',
-  bank_transfer: '은행 거래',
   shop_purchase: '상점 구매',
   house_creator_reward: '집 판매 보상',
   stock_trade: '주식 거래',
@@ -30,7 +30,7 @@ const reasonLabels: Record<CurrencyDayReason, string> = {
 
 const timeFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
 const REASON_LIMIT = 5;
-const ratio = (value: number, max: number) => (max > 0 ? Math.min(1, value / max) : 0);
+const ratio = (value: number, max: number) => (max > 0 ? Math.min(1, Math.max(0, value) / max) : 0);
 
 function ReasonBars({ title, tone, reasons }: { readonly title: string; readonly tone: 'in' | 'out'; readonly reasons: readonly CurrencyDayReasonTotal[] }) {
   const shown = reasons.length > REASON_LIMIT ? reasons.slice(0, REASON_LIMIT - 1) : reasons;
@@ -83,6 +83,23 @@ export default function TeacherCurrencyHistoryPanel({ history, balances, economy
       )}
     >
       <div className="teacher-currency-panel">
+        <section className="teacher-currency-holdings" aria-labelledby="teacher-currency-holdings-title">
+          <h4 id="teacher-currency-holdings-title">보유 {CURRENCY_UNIT_LABEL}</h4>
+          <ol>
+            {summary.students.map((student) => (
+              <li key={student.studentNumber} title={`${student.studentNumber}번 보유 ${formatCurrencyAmount(student.balance)}${CURRENCY_UNIT_LABEL}`}>
+                <strong data-tone={student.balance < 0 ? 'out' : undefined}>
+                  <span className="sr-only">{student.studentNumber}번 </span>{formatCurrencyAmount(student.balance)}
+                </strong>
+                <span className="teacher-currency-holdings-bar" aria-hidden="true">
+                  <span style={{ '--bar': ratio(student.balance, summary.maxBalance) } as CSSProperties} />
+                </span>
+                <span aria-hidden="true">{student.studentNumber}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
         <dl className="teacher-currency-totals">
           <div data-tone="in"><dt>들어옴</dt><dd>+{formatCurrencyAmount(summary.incoming)}</dd></div>
           <div data-tone="out"><dt>나감</dt><dd>−{formatCurrencyAmount(summary.outgoing)}</dd></div>
@@ -112,7 +129,7 @@ export default function TeacherCurrencyHistoryPanel({ history, balances, economy
               const row = (
                 <>
                   <strong className="teacher-currency-student-number">{student.studentNumber}번</strong>
-                  <span className="teacher-currency-balance" title={`지갑 ${formatCurrencyAmount(student.wallet)} · 예금·투자 ${formatCurrencyAmount(student.savedAmount)}`}>
+                  <span className="teacher-currency-balance" title={`지갑 ${formatCurrencyAmount(student.wallet)} · 예금·투자 ${formatCurrencyAmount(student.savedAmount)}${student.loanPrincipal > 0 ? ` · 대출 −${formatCurrencyAmount(student.loanPrincipal)}` : ''}`}>
                     <span className="sr-only">보유 </span>{formatCurrencyAmount(student.balance)}
                     <span className="teacher-currency-balance-track" aria-hidden="true">
                       <span style={{ '--bar': ratio(student.balance, summary.maxBalance) } as CSSProperties} />
