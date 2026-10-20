@@ -242,7 +242,7 @@ const initializationFixture = (options: {
     },
     persistInitialEdits: async () => {
       const saveStart = source.indexOf('if (!isSupabaseSettingsEnabled) return;\n    if (!sharedSettingsHydratedRef.current)');
-      const saveEnd = source.indexOf('    saveTeacherSettingsEditor(createTeacherSettingsChanges', saveStart);
+      const saveEnd = source.indexOf('    syncTeacherSettingsEditor(createTeacherSettingsChanges', saveStart);
       runInNewContext('(() => { ' + source.slice(saveStart, saveEnd) + ' })();', { ...context, isSupabaseSettingsEnabled: true });
       await new Promise(resolve => setImmediate(resolve));
     },

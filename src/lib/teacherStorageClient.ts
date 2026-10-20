@@ -195,8 +195,17 @@ registerSaveRecoveryAdapter({
 });
 
 const editorScope = { studentNumber: 0, feature: 'teacher.settings.editor', entityId: 'classroom' };
+let ownEditorRequestId: string | undefined;
 export const saveTeacherSettingsEditor = (changes: readonly import('./teacherStorageCommand.js').TeacherSettingChange[]) => {
-  return teacherStorageDrafts.replace(editorScope, teacherWirePayload({ changes }));
+  const saved = teacherStorageDrafts.replace(editorScope, teacherWirePayload({ changes }));
+  if (saved.status !== 'invalid') ownEditorRequestId = saved.draft.requestId;
+  return saved;
+};
+/** Runs on every teacher state change, so an idle tab must not clear another open tab's unsaved edits. */
+export const syncTeacherSettingsEditor = (changes: readonly import('./teacherStorageCommand.js').TeacherSettingChange[]): void => {
+  const current = teacherStorageDrafts.load(editorScope);
+  if (changes.length === 0 && (!current || current.draft.requestId !== ownEditorRequestId)) return;
+  saveTeacherSettingsEditor(changes);
 };
 export const getTeacherSettingsEditorRequestId = (): string | undefined => teacherStorageDrafts.load(editorScope)?.draft.requestId;
 export const confirmTeacherSettingsEditor = async (requestId: string | undefined): Promise<void> => {

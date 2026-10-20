@@ -1,7 +1,7 @@
 import { SAVE_RECOVERED_EVENT, getSaveRefreshVersion, isSaveRefreshVersionCurrent, markSaveRefreshComplete, markSaveRefreshPending } from '../lib/saveRecovery';
 import { HOUSE_MAIL_STAMP } from '../lib/studentHouseReward';
 import { STOCK_MAIL_SENDER, STOCK_MAIL_STAMP, TEACHER_MAIL_SENDERS } from '../lib/studentLife';
-import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage, teacherCurrencySaveErrorMessage } from '../lib/teacherStorageClient';
+import { executeTeacherStorageCommand, getTeacherSettingsEditorRequestId, confirmTeacherSettingsEditor, teacherCommandScope, teacherStorageDrafts, saveTeacherSettingsEditor, syncTeacherSettingsEditor, loadTeacherSettingsEditor, isTeacherStorageCommandPaused, teacherSettingsSaveErrorMessage, teacherCurrencySaveErrorMessage } from '../lib/teacherStorageClient';
 import { storageAvailabilityMessage } from '../lib/storageAvailabilityCopy';
 import { StorageCommandError } from '../lib/storageCommandClient';
 import { getAuctionAwardErrorMessage } from '../lib/auctionAwardError';
@@ -5182,7 +5182,7 @@ export default function TimerPage() {
       });
       return;
     }
-    saveTeacherSettingsEditor(createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot(), teacherSettingsPersistedBaseRef.current));
+    syncTeacherSettingsEditor(createTeacherSettingsChanges(teacherSettingsBaseRef.current, buildSharedSettingsSnapshot(), teacherSettingsPersistedBaseRef.current));
     if (teacherSettingsSavingRef.current || teacherSettingsSaveError) return;
 
     if (
