@@ -336,15 +336,6 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     walkTransform: { right: 'none', left: 'scaleX(-1)' },
   },
   {
-    id: 'student-16-additional',
-    name: '16번 추가 자캐',
-    creatorName: '16번',
-    imageSrc: '/student-characters/character-16-additional.png',
-    alt: '16번 학생이 만든 추가 캐릭터',
-    speech: '뀨?',
-    walkTransform: { right: 'none', left: 'scaleX(-1)' },
-  },
-  {
     id: 'student-17-additional',
     name: '17번 추가 자캐',
     creatorName: '17번',
