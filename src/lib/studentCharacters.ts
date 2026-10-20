@@ -475,6 +475,24 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     speech: 'ㅎㅎㅎ흥응미마',
     walkTransform: { right: 'none', left: 'scaleX(-1)' },
   },
+  {
+    id: 'student-13-additional-2',
+    name: '13번 두 번째 추가 자캐',
+    creatorName: '13번',
+    imageSrc: '/student-characters/character-13-additional-2.png',
+    alt: '13번 학생이 만든 산타 모자 소녀 캐릭터',
+    speech: '안뇽!',
+    walkTransform: { right: 'scaleX(-1)', left: 'none' },
+  },
+  {
+    id: 'student-21-additional-2',
+    name: '21번 두 번째 추가 자캐',
+    creatorName: '21번',
+    imageSrc: '/student-characters/character-21-additional-2.png',
+    alt: '21번 학생이 만든 토마토 캐릭터',
+    speech: 'ㅎㅇ',
+    walkTransform: { right: 'none', left: 'none' },
+  },
 ];
 
 export interface StudentCharacterRosterSlot {
