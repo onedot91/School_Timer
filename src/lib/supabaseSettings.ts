@@ -7,6 +7,7 @@ import { parseClassDonationResult } from './classDonation.js';
 import { isReadOnlyDataMode } from './dataMode.js';
 import { createStudentSettingsUpdate, STUDENT_MUTABLE_MAP_FIELDS } from './studentSettingsUpdate.js';
 import { getSaveFailureFeature, withSaveFailureReporting } from './saveFailureClient.js';
+import { trackSaveActivity } from './saveActivity.js';
 import {
   isSupabaseSettingsEnabled,
   shouldEnableSupabaseSettings,
@@ -52,7 +53,7 @@ let sharedSettingsMetadataRead: {
 let sharedSettingsUpdateQueue: Promise<unknown> = Promise.resolve();
 
 const enqueueSharedSettingsUpdate = <T>(update: () => Promise<T>) => {
-  const result = sharedSettingsUpdateQueue.then(update);
+  const result = trackSaveActivity(() => sharedSettingsUpdateQueue.then(update));
   sharedSettingsUpdateQueue = result.catch(() => undefined);
   return result;
 };
