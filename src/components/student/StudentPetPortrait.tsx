@@ -1,17 +1,17 @@
 import { getStudentPetKind, type StudentPetKind } from '../../lib/studentPet';
-import { PET_SPRITE_BACKGROUND_SIZE, getPetSpriteSheet } from '../../lib/petSprites';
+import { getPetPortrait } from '../../lib/petSprites';
 
 interface StudentPetPortraitProps {
   kind: StudentPetKind | null;
   className?: string;
 }
 
-/** Still sprite of the pet when its art exists; emoji for kinds not drawn yet. */
+/** Still picture of the pet when its art exists; emoji for kinds not drawn yet. */
 export default function StudentPetPortrait({ kind, className }: StudentPetPortraitProps) {
-  const sheetUrl = getPetSpriteSheet(kind);
-  const classes = ['student-pet-portrait', sheetUrl ? 'has-sprite' : '', className ?? ''].filter(Boolean).join(' ');
-  return sheetUrl ? (
-    <span className={classes} style={{ backgroundImage: `url(${sheetUrl})`, backgroundSize: PET_SPRITE_BACKGROUND_SIZE }} aria-hidden="true" />
+  const portraitUrl = getPetPortrait(kind);
+  const classes = ['student-pet-portrait', portraitUrl ? 'has-sprite' : '', className ?? ''].filter(Boolean).join(' ');
+  return portraitUrl ? (
+    <img className={classes} src={portraitUrl} alt="" aria-hidden="true" draggable={false} decoding="async" />
   ) : (
     <span className={classes} aria-hidden="true">{getStudentPetKind(kind).emoji}</span>
   );

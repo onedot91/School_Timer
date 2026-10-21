@@ -23,13 +23,17 @@ import {
 import {
   PET_ANIMATIONS,
   PET_CARRY_GRIP,
+  PET_SIZES,
   PET_SPRITE_BACKGROUND_SIZE,
   PET_SPRITE_FRAME,
+  PET_TRICKS,
   getPetFrameColumn,
   getPetFramePosition,
 } from '../../lib/petSprites';
+import type { StudentPetKind } from '../../lib/studentPet';
 
 interface StudentPetWalkerProps {
+  kind: StudentPetKind;
   sheetUrl: string;
   name: string;
   kindLabel: string;
@@ -75,6 +79,7 @@ interface PointerGesture {
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
 export default function StudentPetWalker({
+  kind,
   sheetUrl,
   name,
   kindLabel,
@@ -98,12 +103,14 @@ export default function StudentPetWalker({
   const updateInterestsRef = useRef<() => void>(() => undefined);
   const heartIdRef = useRef(0);
   const [hearts, setHearts] = useState<readonly { id: number; left: number }[]>([]);
+  const size = PET_SIZES[kind];
+  const widthRatio = PET_WIDTH_RATIO * size;
 
   if (!stateRef.current) stateRef.current = createPetBehaviorState(initialPosition, configRef.current, Math.random);
 
   /** Pixels per sprite unit at the pet's current depth. */
   const spriteUnitPx = (state: PetBehaviorState) => {
-    const spriteWidth = stageSizeRef.current.width * PET_WIDTH_RATIO;
+    const spriteWidth = stageSizeRef.current.width * widthRatio;
     return (spriteWidth / PET_SPRITE_FRAME.width) * (.86 + getPetDepth(state.position.y, configRef.current.ground) * .2);
   };
 
@@ -186,12 +193,16 @@ export default function StudentPetWalker({
         aspectRatio: width > 0 && height > 0 ? width / height : DEFAULT_PET_BEHAVIOR_CONFIG.aspectRatio,
         interests: computeInterests(),
         calm: reducedMotion.matches,
+        trick: PET_TRICKS[kind],
+        // Smaller animals take shorter steps and walk a little slower, so paws never slide.
+        strideLength: DEFAULT_PET_BEHAVIOR_CONFIG.strideLength * size,
+        walkSpeed: DEFAULT_PET_BEHAVIOR_CONFIG.walkSpeed * (.55 + .45 * size),
       };
     };
     updateInterestsRef.current = updateConfig;
     const measure = () => {
       stageSizeRef.current = { width: stage.clientWidth, height: stage.clientHeight };
-      root.style.setProperty('--student-pet-walker-width', `${Math.round(stage.clientWidth * PET_WIDTH_RATIO)}px`);
+      root.style.setProperty('--student-pet-walker-width', `${Math.round(stage.clientWidth * widthRatio)}px`);
       updateConfig();
       render();
     };

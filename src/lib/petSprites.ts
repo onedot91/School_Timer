@@ -19,6 +19,8 @@ export const PET_ANIMATION_IDS = [
   'yawn',
   'stretch',
   'twitch',
+  'trick',
+  'trickSit',
 ] as const;
 
 export type PetAnimation = (typeof PET_ANIMATION_IDS)[number];
@@ -73,18 +75,80 @@ export const PET_ANIMATIONS: Readonly<Record<PetAnimation, PetAnimationSpec>> = 
   yawn: spec('yawn', 6, 6, false, 'stand'),
   stretch: spec('stretch', 6, 6, false, 'stand'),
   twitch: spec('twitch', 4, 10, false, 'stand'),
+  // Each species draws its signature move in one of these rows (see PET_TRICKS).
+  trick: spec('trick', 8, 7, false, 'stand'),
+  trickSit: spec('trickSit', 8, 7, false, 'sit'),
+};
+
+export type PetTrick = 'trick' | 'trickSit';
+
+/** Which row holds each species' signature move, standing or sitting. */
+export const PET_TRICKS: Readonly<Record<StudentPetKind, PetTrick>> = {
+  cat: 'trick',
+  dog: 'trick',
+  rabbit: 'trick',
+  chick: 'trick',
+  fox: 'trick',
+  hamster: 'trickSit',
+  squirrel: 'trickSit',
+  raccoon: 'trickSit',
+  panda: 'trickSit',
+  koala: 'trickSit',
+  pig: 'trick',
+  sheep: 'trick',
+  tiger: 'trick',
+  lion: 'trick',
 };
 
 /** Scruff point of the `carried` frames; printed by dev/generatePetSprites.mjs. */
 export const PET_CARRY_GRIP = { x: 90, y: 53 } as const;
 
-export const PET_SPRITE_SHEETS: Readonly<Partial<Record<StudentPetKind, string>>> = {
-  cat: '/pets/cat-sprite.svg',
+/** On-stage size relative to the cat; stride and walking speed scale with it. */
+export const PET_SIZES: Readonly<Record<StudentPetKind, number>> = {
+  hamster: .62,
+  chick: .64,
+  squirrel: .72,
+  rabbit: .82,
+  raccoon: .9,
+  koala: .94,
+  cat: 1,
+  fox: 1.02,
+  pig: 1.06,
+  dog: 1.08,
+  sheep: 1.12,
+  panda: 1.22,
+  tiger: 1.26,
+  lion: 1.3,
 };
+
+/** Kinds drawn by dev/generatePetSprites.mjs; any other kind falls back to its emoji. */
+export const PET_SPRITE_KINDS: ReadonlySet<StudentPetKind> = new Set<StudentPetKind>([
+  'cat',
+  'dog',
+  'rabbit',
+  'chick',
+  'fox',
+  'hamster',
+  'squirrel',
+  'raccoon',
+  'panda',
+  'koala',
+  'pig',
+  'sheep',
+  'tiger',
+  'lion',
+]);
 
 export const PET_SPRITE_BACKGROUND_SIZE = `${PET_SPRITE_FRAME.columns * 100}% ${PET_SPRITE_FRAME.rows * 100}%`;
 
-export const getPetSpriteSheet = (kind: StudentPetKind | null) => (kind ? PET_SPRITE_SHEETS[kind] ?? null : null);
+export const getPetSpriteSheet = (kind: StudentPetKind | null) => (
+  kind && PET_SPRITE_KINDS.has(kind) ? `/pets/${kind}-sprite.svg` : null
+);
+
+/** One idle frame, so pickers do not load and rasterize whole sprite sheets. */
+export const getPetPortrait = (kind: StudentPetKind | null) => (
+  kind && PET_SPRITE_KINDS.has(kind) ? `/pets/${kind}-portrait.svg` : null
+);
 
 export const getPetAnimationDurationMs = (animation: PetAnimation) => {
   const animationSpec = PET_ANIMATIONS[animation];

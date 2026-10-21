@@ -26575,9 +26575,10 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-pet-portrait.has-sprite {
   display: block;
   width: 5.5rem;
+  height: auto;
   aspect-ratio: 160 / 128;
-  background-repeat: no-repeat;
-  background-position: 0 0;
+  pointer-events: none;
+  user-select: none;
 }
 .student-pet-picker button .student-pet-portrait.has-sprite { width: 5rem; }
 .student-pet-dialog-visual.has-sprite { width: 9rem; }

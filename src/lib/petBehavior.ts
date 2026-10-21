@@ -1,4 +1,4 @@
-import { PET_ANIMATIONS, getPetAnimationDurationMs, type PetAnimation, type PetPosture } from './petSprites.js';
+import { PET_ANIMATIONS, getPetAnimationDurationMs, type PetAnimation, type PetPosture, type PetTrick } from './petSprites.js';
 
 export type PetMode = PetAnimation;
 export type PetTouchZone = 'head' | 'back';
@@ -37,6 +37,8 @@ export interface PetBehaviorConfig {
   gravity: number;
   /** Reduced motion: the pet stays in place and never wanders or sleeps. */
   calm: boolean;
+  /** Row holding this species' signature move; null for pets without one. */
+  trick: PetTrick | null;
 }
 
 export interface PetBehaviorState {
@@ -75,6 +77,7 @@ export const DEFAULT_PET_BEHAVIOR_CONFIG: PetBehaviorConfig = {
   strideLength: .075,
   gravity: 4,
   calm: false,
+  trick: null,
 };
 
 const REST_DURATION_MS: Readonly<Partial<Record<PetMode, readonly [number, number]>>> = {
@@ -87,6 +90,7 @@ const MIN_WALK_DISTANCE = .1;
 const ARRIVE_DISTANCE = .004;
 const MAX_STEP_MS = 100;
 const INTEREST_CHANCE = .35;
+const TAP_TRICK_CHANCE = .35;
 const HOLDING_MODES: ReadonlySet<PetMode> = new Set(['pet', 'petBack', 'petSit', 'carried']);
 
 const POSTURE_PATHS: Readonly<Record<PetPosture, Readonly<Partial<Record<PetPosture, readonly PetMode[]>>>>> = {
@@ -97,9 +101,10 @@ const POSTURE_PATHS: Readonly<Record<PetPosture, Readonly<Partial<Record<PetPost
 };
 
 type Weighted = readonly (readonly [PetMode, number])[];
+// `trick` stands for the species' own move (config.trick), standing or sitting.
 const NEXT_FROM: Readonly<Record<PetPosture, Weighted>> = {
-  stand: [['walk', .42], ['sit', .2], ['idle', .06], ['yawn', .07], ['stretch', .07], ['twitch', .1], ['sleep', .08]],
-  sit: [['walk', .3], ['idle', .2], ['groom', .2], ['sit', .12], ['sleep', .18]],
+  stand: [['walk', .38], ['sit', .18], ['idle', .05], ['yawn', .06], ['stretch', .06], ['twitch', .08], ['sleep', .07], ['trick', .12]],
+  sit: [['walk', .28], ['idle', .18], ['groom', .17], ['sit', .1], ['sleep', .15], ['trick', .12]],
   loaf: [['idle', 1]],
   carried: [['idle', 1]],
 };
@@ -210,7 +215,9 @@ const chooseNextMode = (state: PetBehaviorState, config: PetBehaviorConfig, rand
   if (config.calm) return settleInto(state, random() < .5 ? 'sit' : 'idle', config, random);
   if (!isRestingSpot(state.position, config)) return wander(state, config, random);
   const next = pick(state.mode === 'walk' ? AFTER_WALK : NEXT_FROM[getPetPosture(state.mode)], random);
-  return next === 'walk' ? wander(state, config, random) : settleInto(state, next, config, random);
+  if (next === 'walk') return wander(state, config, random);
+  if (next === 'trick' || next === 'trickSit') return settleInto(state, config.trick ?? 'idle', config, random);
+  return settleInto(state, next, config, random);
 };
 
 const arrive = (state: PetBehaviorState, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => {
@@ -306,7 +313,9 @@ export const reactToPetTap = (state: PetBehaviorState, config: PetBehaviorConfig
   const base = { ...state, held: false, target: null, arrival: null, turnTo: null };
   const posture = getPetPosture(state.mode);
   if (posture === 'loaf') return play(base, config.calm ? ['idle'] : ['wakeUp'], random);
-  return play(base, [...pathTo(state.mode, 'happy', config), 'happy'], random);
+  // Sometimes a tap gets the species' own move instead of a hop.
+  const reaction: PetMode = !config.calm && config.trick && random() < TAP_TRICK_CHANCE ? config.trick : 'happy';
+  return play(base, [...pathTo(state.mode, reaction, config), reaction], random);
 };
 
 export const startPetting = (state: PetBehaviorState, zone: PetTouchZone): PetBehaviorState => {

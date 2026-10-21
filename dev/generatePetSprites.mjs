@@ -1,21 +1,114 @@
-// Generates public/pets/cat-sprite.svg: one row per animation, frames laid out left to right.
-// The cat is a small rig (body, four legs, haunch, tail, head) so transitions are interpolated poses.
+// Generates public/pets/<kind>-sprite.svg (one row per animation, frames left to right) and
+// public/pets/<kind>-portrait.svg (one idle frame for pickers) for every species below.
+// Every species shares one rig (body, four legs, haunch, tail, head), so transitions are interpolated
+// poses and the carry grip is the same; species only change colours, ears, nose, tail and markings.
 // Run: node dev/generatePetSprites.mjs
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { PET_ANIMATIONS, PET_SPRITE_FRAME } from '../src/lib/petSprites.ts';
+import { PET_ANIMATIONS, PET_SPRITE_FRAME, PET_TRICKS } from '../src/lib/petSprites.ts';
 
 const C = {
   line: '#3b2a1f',
-  fur: '#f2a650',
-  furFar: '#d98b3c',
-  stripe: '#c46d2b',
-  belly: '#fde7c6',
-  nose: '#ee8f8c',
-  earIn: '#f6b8aa',
   eye: '#2b1d14',
   mouth: '#7a3b2e',
   blush: '#f08c7d',
 };
+
+// Fields: fur/furFar (near/far body side), legFur/legFar (default fur/furFar), haunchFur, headFur,
+// belly, muzzle (null = none), pattern colour, bodyPattern, forehead, marking, ears, earFur, earIn,
+// nose, noseType, eyeLine/eyeRing (for eyes on dark patches), whiskers, mane, wool, tail.
+const SPECIES = {
+  dog: {
+    fur: '#e3b27c', furFar: '#c99660', belly: '#fff3e3', muzzle: '#fff3e3', pattern: '#c99660',
+    bodyPattern: 'none', forehead: 'none', ears: 'floppy', earsFront: true, earFur: '#9a6236', earIn: '#9a6236',
+    nose: '#3b2a1f', noseType: 'dog', whiskers: false,
+    tail: { type: 'thin', outer: 12, inner: 6.6 },
+  },
+  rabbit: {
+    fur: '#f5f2ed', furFar: '#ddd8cf', belly: '#ffffff', muzzle: '#ffffff', pattern: '#ddd8cf',
+    bodyPattern: 'none', forehead: 'none', ears: 'long', earIn: '#f6b6b8',
+    nose: '#ee8f9b', noseType: 'triangle', whiskers: true,
+    tail: { type: 'stub', color: '#ffffff', size: 6.5 },
+  },
+  chick: {
+    fur: '#ffd84a', furFar: '#f2c22c', belly: '#fff1a8', muzzle: null, pattern: '#f2c22c',
+    bodyPattern: 'none', forehead: 'none', ears: 'tuft', earsFront: true, earIn: '#ffd84a',
+    nose: '#f29b2c', noseType: 'beak', whiskers: false,
+    bird: true, legFur: '#f29b2c', legFar: '#f29b2c',
+    bodyPath: 'M58 84 C57 68 70 60 84 60 C100 60 110 70 110 84 C110 99 98 104 84 104 C70 104 59 99 58 84 Z',
+    tail: { type: 'feather', color: '#f2c22c' },
+  },
+  fox: {
+    fur: '#ec7a30', furFar: '#cf621f', legFur: '#5b3a2b', legFar: '#4a2e22', haunchFur: '#ec7a30',
+    belly: '#fff6ec', muzzle: '#fff6ec', pattern: '#cf621f',
+    bodyPattern: 'none', forehead: 'none', ears: 'pointed', earFur: '#ec7a30', earIn: '#fff1e6',
+    nose: '#3b2a1f', noseType: 'triangle', whiskers: false,
+    tail: { type: 'bushy', outer: 22, inner: 16.4, scale: 1.05, tuft: '#fff6ec', tuftSize: 8 },
+  },
+  cat: {
+    fur: '#f2a650', furFar: '#d98b3c', belly: '#fde7c6', muzzle: '#fde7c6', pattern: '#c46d2b',
+    bodyPattern: 'tabby', forehead: 'tabby', ears: 'pointed', earIn: '#f6b8aa',
+    nose: '#ee8f8c', noseType: 'triangle', whiskers: true,
+    tail: { type: 'thin', outer: 13, inner: 7.4, rings: '#c46d2b', dash: '3.5 9' },
+  },
+  hamster: {
+    fur: '#eab275', furFar: '#d39858', belly: '#fff3e0', muzzle: '#fff3e0', pattern: '#d39858',
+    bodyPattern: 'none', forehead: 'none', marking: 'cheekPouches', ears: 'round', earSize: 7, earIn: '#f4a7a0',
+    nose: '#ee8f8c', noseType: 'triangle', whiskers: true,
+    tail: { type: 'stub', color: '#f4c9a8', size: 4 },
+  },
+  squirrel: {
+    fur: '#c97a42', furFar: '#ae6331', belly: '#f7e0c4', muzzle: '#f7e0c4', pattern: '#8f4f26',
+    bodyPattern: 'backStripe', forehead: 'none', ears: 'pointed', earIn: '#f0b9a0',
+    nose: '#4a3428', noseType: 'triangle', whiskers: false,
+    tail: { type: 'bushy', outer: 25, inner: 19.4, highlight: '#e3a46b', scale: 1.15 },
+  },
+  raccoon: {
+    fur: '#a09b95', furFar: '#86817b', belly: '#e9e5df', muzzle: '#f1eee9', pattern: '#4a4440',
+    bodyPattern: 'none', forehead: 'none', marking: 'raccoonMask', ears: 'pointed', earIn: '#f1eee9',
+    nose: '#2f2a28', noseType: 'triangle', eyeLine: '#ffffff', eyeRing: true, whiskers: true,
+    tail: { type: 'thin', outer: 17, inner: 11.4, rings: '#4a4440', dash: '5 5' },
+  },
+  panda: {
+    fur: '#faf8f3', furFar: '#e6e2da', legFur: '#3a3431', legFar: '#2a2523', haunchFur: '#3a3431',
+    belly: '#faf8f3', muzzle: '#ffffff', pattern: '#3a3431',
+    bodyPattern: 'pandaBand', forehead: 'none', marking: 'pandaEyes', ears: 'round', earSize: 8.5,
+    earFur: '#3a3431', earIn: '#3a3431',
+    nose: '#2f2a28', noseType: 'triangle', eyeLine: '#ffffff', eyeRing: true, whiskers: false,
+    tail: { type: 'stub', color: '#faf8f3', size: 5 },
+  },
+  koala: {
+    fur: '#a3aab3', furFar: '#899099', belly: '#eceae6', muzzle: null, pattern: '#899099',
+    bodyPattern: 'none', forehead: 'none', ears: 'koala', earIn: '#f4f2ee',
+    nose: '#3a3532', noseType: 'koala', whiskers: false,
+    tail: { type: 'none' },
+  },
+  pig: {
+    fur: '#f6b7c1', furFar: '#e59aa6', belly: '#fbd5db', muzzle: null, pattern: '#e59aa6',
+    bodyPattern: 'none', forehead: 'none', ears: 'pig', earIn: '#ec8f9e',
+    nose: '#f39aa9', noseType: 'snout', mouthDy: 5, whiskers: false,
+    tail: { type: 'curl', color: '#f6b7c1' },
+  },
+  sheep: {
+    fur: '#fbf7f0', furFar: '#e8e2d7', legFur: '#5d4c43', legFar: '#4a3c35', haunchFur: '#fbf7f0',
+    headFur: '#f1dfc8', belly: '#fbf7f0', muzzle: '#f8ecdc', pattern: '#e8e2d7',
+    bodyPattern: 'none', forehead: 'none', ears: 'sheep', earFur: '#f1dfc8', earIn: '#e9b8a8',
+    nose: '#5d4c43', noseType: 'triangle', whiskers: false, wool: true,
+    tail: { type: 'stub', color: '#fbf7f0', size: 6 },
+  },
+  tiger: {
+    fur: '#f29434', furFar: '#d97c21', belly: '#fdf3e3', muzzle: '#fdf3e3', pattern: '#2e231b',
+    bodyPattern: 'tiger', forehead: 'tiger', marking: 'tigerCheeks', ears: 'round', earSize: 8, earIn: '#fdf3e3',
+    nose: '#e88a7c', noseType: 'triangle', whiskers: true,
+    tail: { type: 'thin', outer: 14, inner: 8.4, rings: '#2e231b', dash: '4 6' },
+  },
+  lion: {
+    fur: '#eab65e', furFar: '#d39c44', belly: '#fbe9c6', muzzle: '#fbe9c6', pattern: '#d39c44',
+    bodyPattern: 'none', forehead: 'none', ears: 'round', earSize: 6.5, earIn: '#f6c89a',
+    nose: '#7a4526', noseType: 'triangle', whiskers: false, mane: '#b8682c',
+    tail: { type: 'tuft', outer: 7.4, inner: 3.6, tuft: '#b8682c' },
+  },
+};
+
 const SW = 3.2;
 const GROUND = PET_SPRITE_FRAME.anchorY;
 const DEG = Math.PI / 180;
@@ -34,7 +127,9 @@ const BASE = {
   hdx: 0, hdy: 0, hrot: 0,
   eyes: 'open', yawn: 0, tongue: 0, blush: .5, earL: 0, earR: 0, faceTurn: 0, whiskers: 1,
   wUp: 1, wGround: 0, wDown: 0, wHigh: 0, trot: 0, tflick: 0, tsx: 1, tailFront: false,
-  frameRot: 0, pawOverHead: false, zStep: -1,
+  frameRot: 0, fcx: 80, fcy: 40, pawOverHead: false, zStep: -1,
+  // Species details: chick wings (0 folded .. 1 raised) and hamster cheeks (0 .. 1 puffed).
+  wing: 0, cheek: 0,
 };
 const LEG_KEYS = ['nf', 'ff', 'nb', 'fb'];
 
@@ -82,8 +177,15 @@ const legLength = ([, pivotY], leg) => {
   return lerp(leg.len, reachGround, leg.reach) - leg.lift;
 };
 
-const drawLeg = ([x, y], leg, fill, width) => {
+const drawLeg = ([x, y], leg, fill, width, sp) => {
   const length = legLength([x, y], leg);
+  if (sp.bird) {
+    return `
+  <g transform="translate(${r(x)} ${r(y)}) rotate(${r(leg.a)})">
+    <path d="M0 -4 V${r(length - 1)} M0 ${r(length - 1)} l6 .6 M0 ${r(length - 1)} l3.4 -2.4 M0 ${r(length - 1)} l-3.6 .4" fill="none" stroke="${C.line}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M0 -4 V${r(length - 1)} M0 ${r(length - 1)} l6 .6 M0 ${r(length - 1)} l3.4 -2.4 M0 ${r(length - 1)} l-3.6 .4" fill="none" stroke="${fill}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>`;
+  }
   return `
   <g transform="translate(${r(x)} ${r(y)}) rotate(${r(leg.a)})">
     <rect x="${r(-width / 2)}" y="-6" width="${r(width)}" height="${r(length + 6)}" rx="${r(width / 2)}" fill="${fill}" ${outline}/>
@@ -100,11 +202,36 @@ const TAIL_SHAPES = {
 };
 const GROUND_TAIL_BASE = [50, 107];
 
-const drawTail = (p) => {
+const drawTail = (p, sp) => {
+  const tail = sp.tail;
+  if (tail.type === 'none') return '';
+  const rump = toWorld(p, 50, 77);
+  if (tail.type === 'stub') {
+    const [x, y] = toWorld(p, 47, 80);
+    return `<circle cx="${r(x)}" cy="${r(y)}" r="${tail.size}" fill="${tail.color}" ${outline}/>`;
+  }
+  if (tail.type === 'feather') {
+    const [x, y] = toWorld(p, 60, 76);
+    return `<g transform="rotate(${r(p.trot * .5)} ${r(x)} ${r(y)})">
+      <path d="M${r(x)} ${r(y)} l-9 -6 l3 6 l-8 1 l8 3 z" fill="${tail.color}" ${outline}/>
+    </g>`;
+  }
+  if (tail.type === 'curl') {
+    const [x, y] = toWorld(p, 48, 78);
+    const d = `M${r(x)} ${r(y)} c-5 -1 -9 -6 -5 -10 c3 -3 7 1 4 4 c-2 2 -4 0 -3 -1.5`;
+    return `<g transform="rotate(${r(p.trot * .5)} ${r(x)} ${r(y)})">
+      <path d="${d}" fill="none" stroke="${C.line}" stroke-width="6.4" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${tail.color}" stroke-width="3" stroke-linecap="round"/>
+    </g>`;
+  }
   const weights = { up: p.wUp, high: p.wHigh, ground: p.wGround, down: p.wDown };
   const total = Object.values(weights).reduce((sum, value) => sum + value, 0) || 1;
-  const rump = toWorld(p, 50, 77);
-  const base = [lerp(rump[0], GROUND_TAIL_BASE[0], p.wGround / total), lerp(rump[1], GROUND_TAIL_BASE[1], p.wGround / total)];
+  const scale = tail.scale ?? 1;
+  // A thick tail lying on the ground is raised by its extra thickness so it stays above the frame edge.
+  const groundY = GROUND_TAIL_BASE[1] - Math.max(0, tail.outer - 13) / 2;
+  // ...and hangs a little shorter, since its thickness already reaches further down.
+  const hang = Math.min(1, 1.6 * 13 / tail.outer);
+  const base = [lerp(rump[0], GROUND_TAIL_BASE[0], p.wGround / total), lerp(rump[1], groundY, p.wGround / total)];
   const points = TAIL_SHAPES.up.map((_, index) => {
     let x = 0;
     let y = 0;
@@ -113,65 +240,171 @@ const drawTail = (p) => {
       y += TAIL_SHAPES[shape][index][1] * (weight / total);
     }
     if (index >= 4) x += p.tflick * (index === 5 ? 1 : .5);
-    return [base[0] + x * p.tsx, base[1] + y];
+    return [base[0] + x * p.tsx * scale, base[1] + (y < 0 ? y * scale : y * hang)];
   });
   const [c1, c2, p1, c3, c4, p2] = points.map(([x, y]) => `${r(x)} ${r(y)}`);
   const d = `M${r(base[0])} ${r(base[1])} C${c1} ${c2} ${p1} C${c3} ${c4} ${p2}`;
-  return `
-  <g transform="rotate(${r(p.trot)} ${r(base[0])} ${r(base[1])})">
-    <path d="${d}" fill="none" stroke="${C.line}" stroke-width="13" stroke-linecap="round"/>
-    <path d="${d}" fill="none" stroke="${C.fur}" stroke-width="7.4" stroke-linecap="round"/>
-    <path d="${d}" fill="none" stroke="${C.stripe}" stroke-width="7.4" stroke-dasharray="3.5 9" stroke-dashoffset="-6"/>
-  </g>`;
+  const tip = points[5];
+  const layers = [
+    `<path d="${d}" fill="none" stroke="${C.line}" stroke-width="${tail.outer}" stroke-linecap="round"/>`,
+    `<path d="${d}" fill="none" stroke="${sp.fur}" stroke-width="${tail.inner}" stroke-linecap="round"/>`,
+  ];
+  if (tail.rings) layers.push(`<path d="${d}" fill="none" stroke="${tail.rings}" stroke-width="${tail.inner}" stroke-dasharray="${tail.dash}" stroke-dashoffset="-6"/>`);
+  if (tail.highlight) layers.push(`<path d="${d}" fill="none" stroke="${tail.highlight}" stroke-width="${r(tail.inner * .4)}" stroke-linecap="round"/>`);
+  if (tail.tuft) layers.push(`<circle cx="${r(tip[0])}" cy="${r(tip[1])}" r="${tail.tuftSize ?? 6}" fill="${tail.tuft}" ${outline}/>`);
+  return `<g transform="rotate(${r(p.trot)} ${r(base[0])} ${r(base[1])})">${layers.join('')}</g>`;
 };
 
-const drawEyes = (kind) => [[109, 55], [128, 55]].map(([x, y]) => {
-  const stroke = `fill="none" stroke="${C.line}" stroke-width="2.6" stroke-linecap="round"`;
-  if (kind === 'open') return `<ellipse cx="${x}" cy="${y}" rx="3.5" ry="4.5" fill="${C.eye}"/><circle cx="${x + 1.2}" cy="${y - 1.7}" r="1.35" fill="#fff"/>`;
-  if (kind === 'wide') return `<ellipse cx="${x}" cy="${y}" rx="4.2" ry="5.4" fill="${C.eye}"/><circle cx="${x + 1.4}" cy="${y - 2}" r="1.7" fill="#fff"/>`;
+const drawEyes = (kind, sp) => [[109, 55], [128, 55]].map(([x, y]) => {
+  const stroke = `fill="none" stroke="${sp.eyeLine ?? C.line}" stroke-width="2.6" stroke-linecap="round"`;
+  const ring = (size) => (sp.eyeRing ? `<circle cx="${x}" cy="${y}" r="${size}" fill="#fff"/>` : '');
+  if (kind === 'open') return `${ring(5)}<ellipse cx="${x}" cy="${y}" rx="3.5" ry="4.5" fill="${C.eye}"/><circle cx="${x + 1.2}" cy="${y - 1.7}" r="1.35" fill="#fff"/>`;
+  if (kind === 'wide') return `${ring(6)}<ellipse cx="${x}" cy="${y}" rx="4.2" ry="5.4" fill="${C.eye}"/><circle cx="${x + 1.4}" cy="${y - 2}" r="1.7" fill="#fff"/>`;
   if (kind === 'happy') return `<path d="M${x - 4} ${y + 1.5} q4 -5.5 8 0" ${stroke}/>`;
   if (kind === 'blink') return `<path d="M${x - 4} ${y + .5} q4 2.2 8 0" ${stroke}/>`;
   if (kind === 'squeeze') return `<path d="M${x - 4} ${y - 2} l7 2.4 l-7 2.4" ${stroke}/>`;
-  return `<path d="M${x - 4} ${y} q4 3.5 8 0" fill="none" stroke="${C.line}" stroke-width="2.4" stroke-linecap="round"/>`;
+  return `<path d="M${x - 4} ${y} q4 3.5 8 0" fill="none" stroke="${sp.eyeLine ?? C.line}" stroke-width="2.4" stroke-linecap="round"/>`;
 }).join('');
 
-const drawMouth = (p) => {
+const drawMouth = (p, sp) => {
   const open = p.yawn;
   const smile = `<path d="M119 65.8 v1.8 M119 67.6 q-2.6 2.8 -5.2 0 M119 67.6 q2.6 2.8 5.2 0" fill="none" stroke="${C.line}" stroke-width="1.6" stroke-linecap="round"/>`;
   const tongue = p.tongue > .5
-    ? `<ellipse cx="120.5" cy="71.4" rx="2.6" ry="3.2" fill="${C.nose}" stroke="${C.line}" stroke-width="1.1"/>`
+    ? `<ellipse cx="120.5" cy="71.4" rx="2.6" ry="3.2" fill="#ee8f8c" stroke="${C.line}" stroke-width="1.1"/>`
     : '';
-  if (open < .08) return smile + tongue;
-  const rx = 2.4 + 3.4 * open;
-  const ry = 2 + 5.6 * open;
-  const cy = 67.5 + ry;
-  return `${open < .35 ? smile : `<path d="M119 65.8 v1.6" stroke="${C.line}" stroke-width="1.6" stroke-linecap="round"/>`}
-    <ellipse cx="119" cy="${r(cy)}" rx="${r(rx)}" ry="${r(ry)}" fill="${C.mouth}" stroke="${C.line}" stroke-width="1.3"/>
-    <ellipse cx="119" cy="${r(cy + ry * .45)}" rx="${r(rx * .62)}" ry="${r(ry * .42)}" fill="${C.nose}"/>`;
+  const body = (() => {
+    if (open < .08) return smile + tongue;
+    const rx = 2.4 + 3.4 * open;
+    const ry = 2 + 5.6 * open;
+    const cy = 67.5 + ry;
+    return `${open < .35 ? smile : `<path d="M119 65.8 v1.6" stroke="${C.line}" stroke-width="1.6" stroke-linecap="round"/>`}
+      <ellipse cx="119" cy="${r(cy)}" rx="${r(rx)}" ry="${r(ry)}" fill="${C.mouth}" stroke="${C.line}" stroke-width="1.3"/>
+      <ellipse cx="119" cy="${r(cy + ry * .45)}" rx="${r(rx * .62)}" ry="${r(ry * .42)}" fill="#ee8f8c"/>`;
+  })();
+  return sp.mouthDy ? `<g transform="translate(0 ${sp.mouthDy})">${body}</g>` : body;
 };
 
-const drawHead = (p) => {
+const drawNose = (sp) => {
+  if (sp.noseType === 'snout') {
+    return `<ellipse cx="119" cy="65" rx="8" ry="5.6" fill="${sp.nose}" ${outline}/>
+      <ellipse cx="116.4" cy="65" rx="1.2" ry="2" fill="${C.line}"/><ellipse cx="121.6" cy="65" rx="1.2" ry="2" fill="${C.line}"/>`;
+  }
+  if (sp.noseType === 'koala') {
+    return `<ellipse cx="119" cy="62.5" rx="5.6" ry="7" fill="${sp.nose}" stroke="${C.line}" stroke-width="1.4"/>
+      <ellipse cx="117.4" cy="59.6" rx="1.6" ry="1.1" fill="#fff" opacity=".7"/>`;
+  }
+  if (sp.noseType === 'dog') {
+    return `<ellipse cx="119.5" cy="63" rx="4.4" ry="3.2" fill="${sp.nose}"/><ellipse cx="118.3" cy="62" rx="1.3" ry=".8" fill="#fff" opacity=".7"/>`;
+  }
+  return `<path d="M116.2 62.6 h5.6 l-2.8 3.2 z" fill="${sp.nose}" stroke="${C.line}" stroke-width="1.2" stroke-linejoin="round"/>`;
+};
+
+// Beak that opens with the yawn value (chirping, yawning).
+const drawBeak = (p, sp) => {
+  const open = Math.min(1, p.yawn * 1.6);
+  return `<path d="M113 61.5 L126 64.5 L113 66 Z" fill="${sp.nose}" stroke="${C.line}" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M113 66.5 L${r(124 - open * 2)} ${r(66.2 + open * 4)} L113 ${r(69 + open * 3)} Z" fill="${sp.nose}" stroke="${C.line}" stroke-width="1.5" stroke-linejoin="round"/>`;
+};
+
+const drawEars = (p, sp) => {
+  const fur = sp.earFur ?? sp.headFur ?? sp.fur;
+  const pair = (left, right) => `
+  <g transform="rotate(${r(p.earL)} 104 41)">${left}</g>
+  <g transform="rotate(${r(p.earR)} 126 38)">${right}</g>`;
+  if (sp.ears === 'round' || sp.ears === 'koala') {
+    const big = sp.ears === 'koala';
+    const size = big ? 14 : sp.earSize ?? 8;
+    const ear = (x, y) => `<circle cx="${x}" cy="${y}" r="${size}" fill="${fur}" ${outline}/><circle cx="${x + .6}" cy="${y + .6}" r="${r(size * (big ? .62 : .5))}" fill="${sp.earIn}"/>`;
+    return big ? pair(ear(93, 42), ear(139, 40)) : pair(ear(100, 37), ear(131, 35));
+  }
+  if (sp.ears === 'pig') {
+    return pair(
+      `<path d="M95 44 Q93 26 108 31 Q107 41 95 44 Z" fill="${fur}" ${outline}/><path d="M98 39 Q98 31 105 33 Q104 38 98 39 Z" fill="${sp.earIn}"/>`,
+      `<path d="M124 31 Q139 24 139 41 Q131 41 124 31 Z" fill="${fur}" ${outline}/><path d="M128 32 Q136 29 135.5 37 Q131 36 128 32 Z" fill="${sp.earIn}"/>`,
+    );
+  }
+  if (sp.ears === 'floppy') {
+    return pair(
+      `<path d="M98 35 Q84 38 85.5 58 Q87 67 94.5 63.5 Q98.5 51 105 39 Z" fill="${fur}" ${outline}/>`,
+      `<path d="M126 34 Q141 36 142.5 55 Q142 64 135.5 61.5 Q132.5 49 124 39 Z" fill="${fur}" ${outline}/>`,
+    );
+  }
+  if (sp.ears === 'long') {
+    // Laid back so the tips stay inside the frame at the top of a hop.
+    const ear = (x, y, angle) => `<g transform="rotate(${angle} ${x} ${y})"><ellipse cx="${x}" cy="${y - 9}" rx="6.6" ry="9.6" fill="${fur}" ${outline}/><ellipse cx="${x}" cy="${y - 8.6}" rx="3.2" ry="6.2" fill="${sp.earIn}"/></g>`;
+    return pair(ear(104, 37, -36), ear(122, 36, -42));
+  }
+  if (sp.ears === 'tuft') {
+    return pair(
+      `<path d="M112 34 q-3 -8 2 -11 q0 6 3 10 M117 33 q1 -9 7 -9 q-3 4 -3 9" fill="${fur}" stroke="${C.line}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`,
+      '',
+    );
+  }
+  if (sp.ears === 'sheep') {
+    const ear = (x, y, angle) => `<g transform="rotate(${angle} ${x} ${y})"><ellipse cx="${x}" cy="${y}" rx="9.5" ry="4.8" fill="${fur}" ${outline}/><ellipse cx="${x}" cy="${y}" rx="5.5" ry="2.2" fill="${sp.earIn}"/></g>`;
+    return pair(ear(91, 50, -22), ear(141, 48, 22));
+  }
+  return pair(
+    `<path d="M93 47 L97 21 L115 35 Z" fill="${fur}" ${outline}/><path d="M98.5 40 L100 28 L108.5 35 Z" fill="${sp.earIn}"/>`,
+    `<path d="M115 34 L134 19 L136 46 Z" fill="${fur}" ${outline}/><path d="M121 34 L131 27 L132 40 Z" fill="${sp.earIn}"/>`,
+  );
+};
+
+const bumps = (points, radius, fill, stroked) => points
+  .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${stroked ? radius : r(radius - SW / 2)}" fill="${fill}"${stroked ? ` ${outline}` : ''}/>`)
+  .join('');
+
+const MANE_POINTS = Array.from({ length: 13 }, (_, i) => {
+  const angle = (i / 13) * Math.PI * 2;
+  return [r(116 + Math.cos(angle) * 28), r(57 + Math.sin(angle) * 25)];
+});
+const HEAD_WOOL = [[103, 38], [111, 33.5], [120, 33], [128.5, 36.5]];
+
+const drawMarking = (p, sp) => {
+  if (sp.marking === 'cheekPouches') {
+    const puff = 1 + p.cheek * .35;
+    return `<ellipse cx="100.5" cy="67" rx="${r(9.5 * puff)}" ry="${r(7.4 * puff)}" fill="${sp.belly}" stroke="${C.line}" stroke-width="1.3" opacity=".95"/>
+      <ellipse cx="136" cy="66" rx="${r(8.5 * puff)}" ry="${r(7 * puff)}" fill="${sp.belly}" stroke="${C.line}" stroke-width="1.3" opacity=".95"/>`;
+  }
+  if (sp.marking === 'raccoonMask') {
+    return `<ellipse cx="108" cy="45.5" rx="6.2" ry="2.8" fill="${sp.muzzle}"/><ellipse cx="129" cy="44.5" rx="6" ry="2.8" fill="${sp.muzzle}"/>
+      <path d="M93 57 C95 48 105 47.5 112 52 Q118.5 55 125 52 C132 47.5 141.5 48 141.5 57 C139 63.5 130 63 124.5 60 Q118.5 58 112.5 60 C106 63 95.5 63.5 93 57 Z" fill="${sp.pattern}"/>`;
+  }
+  if (sp.marking === 'pandaEyes') {
+    return `<ellipse cx="107.5" cy="56" rx="6.8" ry="8.6" transform="rotate(28 107.5 56)" fill="${sp.pattern}"/>
+      <ellipse cx="129.5" cy="56" rx="6.6" ry="8.4" transform="rotate(-28 129.5 56)" fill="${sp.pattern}"/>`;
+  }
+  if (sp.marking === 'tigerCheeks') {
+    return `<path d="M90.5 57 l8 1.2 M90 62.5 l8 -.2 M142 56.5 l-7.5 1.2 M142.5 62 l-7.5 -.2" stroke="${sp.pattern}" stroke-width="2.4" stroke-linecap="round"/>`;
+  }
+  return '';
+};
+
+const drawForehead = (sp) => {
+  if (sp.forehead === 'tabby') return `<path d="M110 35 v6.5 M116.5 33.6 v7.6 M123 35 v6.5" stroke="${sp.pattern}" stroke-width="3" stroke-linecap="round"/>`;
+  if (sp.forehead === 'tiger') return `<path d="M109 37 h6.5 M107.5 42 h6.5 M116.5 34.5 v7.5 M118.5 37 h6.5 M120 42 h6.5" stroke="${sp.pattern}" stroke-width="2.6" stroke-linecap="round"/>`;
+  return '';
+};
+
+const drawHead = (p, sp) => {
   const shift = -3 * p.faceTurn;
   const leftWhisker = 11 + 6 * p.faceTurn;
+  const headFur = sp.headFur ?? sp.fur;
   return `
-  <g transform="rotate(${r(p.earL)} 104 41)">
-    <path d="M93 47 L97 21 L115 35 Z" fill="${C.fur}" ${outline}/>
-    <path d="M98.5 40 L100 28 L108.5 35 Z" fill="${C.earIn}"/>
-  </g>
-  <g transform="rotate(${r(p.earR)} 126 38)">
-    <path d="M115 34 L134 19 L136 46 Z" fill="${C.fur}" ${outline}/>
-    <path d="M121 34 L131 27 L132 40 Z" fill="${C.earIn}"/>
-  </g>
-  <ellipse cx="116" cy="57" rx="27" ry="24" fill="${C.fur}" ${outline}/>
-  <path d="M110 35 v6.5 M116.5 33.6 v7.6 M123 35 v6.5" stroke="${C.stripe}" stroke-width="3" stroke-linecap="round"/>
+  ${sp.mane ? `${bumps(MANE_POINTS, 10, sp.mane, true)}<ellipse cx="116" cy="57" rx="28" ry="25" fill="${sp.mane}"/>` : ''}
+  ${sp.earsFront ? '' : drawEars(p, sp)}
+  <ellipse cx="116" cy="57" rx="27" ry="24" fill="${headFur}" ${outline}/>
+  ${sp.earsFront ? drawEars(p, sp) : ''}
+  ${sp.wool ? bumps(HEAD_WOOL, 6.5, sp.fur, true) : ''}
+  ${drawForehead(sp)}
   <g transform="translate(${r(shift)} 0)">
-    <ellipse cx="119" cy="68" rx="12" ry="7.5" fill="${C.belly}"/>
-    ${drawEyes(p.eyes)}
-    <path d="M116.2 62.6 h5.6 l-2.8 3.2 z" fill="${C.nose}" stroke="${C.line}" stroke-width="1.2" stroke-linejoin="round"/>
-    ${drawMouth(p)}
+    ${drawMarking(p, sp)}
+    ${sp.muzzle ? `<ellipse cx="119" cy="68" rx="12" ry="7.5" fill="${sp.muzzle}"/>` : ''}
+    ${drawEyes(p.eyes, sp)}
+    ${sp.noseType === 'beak' ? drawBeak(p, sp) : `${drawNose(sp)}${drawMouth(p, sp)}`}
     <ellipse cx="101.5" cy="64" rx="4.4" ry="2.6" fill="${C.blush}" opacity="${r(p.blush)}"/>
     <ellipse cx="136" cy="63.5" rx="4" ry="2.5" fill="${C.blush}" opacity="${r(p.blush)}"/>
-    ${p.whiskers > .5 ? `<path d="M135 66 l13 -3 M135 69 l13 1.5 M101 67 l-${r(leftWhisker)} -1.5 M101 69.5 l-${r(leftWhisker * .8)} 1.8" stroke="${C.line}" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>` : ''}
+    ${sp.whiskers && p.whiskers > .5 ? `<path d="M135 66 l13 -3 M135 69 l13 1.5 M101 67 l-${r(leftWhisker)} -1.5 M101 69.5 l-${r(leftWhisker * .8)} 1.8" stroke="${C.line}" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>` : ''}
   </g>`;
 };
 
@@ -181,44 +414,82 @@ const drawSleepZ = (step) => {
   return z(118 + step * 3, 60 - step * 7, 6, .35 + step * .2) + (step >= 2 ? z(130 + step * 2, 46 - step * 5, 8, .75) : '');
 };
 
-const drawCat = (p) => {
-  const hipNear = toWorld(p, 57, 90);
+const BODY_WOOL = [[51, 74], [57, 64.5], [67, 59.5], [79, 58], [91, 58.5], [102, 61], [111, 67.5], [115, 78]];
+
+const drawBodyPattern = (sp, clipId, body) => {
+  if (sp.bodyPattern === 'tabby') {
+    return `<path d="M67 61 q2.4 6 -1 11 M79 59.6 q2.4 6.6 -1 12 M91 60.4 q2.4 6 -1 10.6" fill="none" stroke="${sp.pattern}" stroke-width="4" stroke-linecap="round"/>`;
+  }
+  if (sp.bodyPattern === 'tiger') {
+    return `<path d="M58 63.5 q3.4 6 -.6 12 M68.5 60 q3.4 7 -.6 13.5 M79 59 q3.4 7.4 -.6 14 M89.5 59.4 q3.4 7 -.6 13.5 M100 61.4 q3 6.4 -.8 11.6 M53 82 q4 3 2 9" fill="none" stroke="${sp.pattern}" stroke-width="4.2" stroke-linecap="round"/>`;
+  }
+  if (sp.bodyPattern === 'backStripe') {
+    return `<path d="M52 70 C64 61 90 57 109 63" fill="none" stroke="${sp.pattern}" stroke-width="3.2" stroke-linecap="round"/>
+      <path d="M53 75 C65 66.5 90 63 108 68" fill="none" stroke="${sp.belly}" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  if (sp.bodyPattern === 'pandaBand') {
+    return `<g clip-path="url(#${clipId})"><g transform="${body}"><ellipse cx="100" cy="80" rx="15" ry="30" fill="${sp.pattern}"/></g></g>`;
+  }
+  return '';
+};
+
+// Birds stand on two thin legs under a round body; the far legs are hidden.
+const BIRD_LEG_PIVOTS = { near: [92, 98], back: [76, 98] };
+
+const drawCat = (p, sp, id) => {
+  const bodyPath = sp.bodyPath ?? BODY_PATH;
+  const hipNear = toWorld(p, ...(sp.bird ? BIRD_LEG_PIVOTS.back : [57, 90]));
   const hipFar = toWorld(p, 62, 88);
-  const shoulderNear = toWorld(p, 98, 90);
+  const shoulderNear = toWorld(p, ...(sp.bird ? BIRD_LEG_PIVOTS.near : [98, 90]));
   const shoulderFar = toWorld(p, 104, 88);
   const neck = toWorld(p, 106, 70);
   const body = bodyTransform(p);
+  const legFur = sp.legFur ?? sp.fur;
+  const legFar = sp.legFar ?? sp.furFar;
+  const haunchFur = sp.haunchFur ?? sp.fur;
   const haunchRy = 7 + 8 * p.fold;
   const haunchRx = 8 + 12 * p.fold;
   const haunch = [lerp(hipNear[0], hipNear[0] + 1, p.fold), lerp(hipNear[1], GROUND - 1 - haunchRy, p.fold)];
   // Parts appear outright rather than fading, so in-between frames have no ghost shapes.
-  const showHaunch = p.fold > .2;
-  const showHindPaw = p.fold > .7;
-  const showChest = p.fold > .5 && !p.tailFront;
+  const showHaunch = p.fold > .2 && !sp.bird;
+  const showHindPaw = p.fold > .7 && !sp.bird;
+  const showChest = p.fold > .5 && !p.tailFront && !sp.bird;
+  const pawOverHead = p.pawOverHead && !sp.bird;
   const hindPaw = [haunch[0] + haunchRx * .72, GROUND - 4.2];
-  const frontLeg = drawLeg(shoulderNear, p.nf, C.fur, p.lw);
-  const head = `<g transform="translate(${r(neck[0] - 106 + p.hdx)} ${r(neck[1] - 70 + p.hdy)}) rotate(${r(p.hrot)} 112 70)">${drawHead(p)}</g>`;
+  const clipId = `body-${id}`;
+  const frontLegPose = p.pawOverHead && sp.bird ? { ...p.nf, a: 0, reach: 1 } : p.nf;
+  const frontLeg = drawLeg(shoulderNear, frontLegPose, legFur, p.lw, sp);
+  const head = `<g transform="translate(${r(neck[0] - 106 + p.hdx)} ${r(neck[1] - 70 + p.hdy)}) rotate(${r(p.hrot)} 112 70)">${drawHead(p, sp)}</g>`;
+  const striped = sp.bodyPattern === 'tabby' || sp.bodyPattern === 'tiger';
+  const wing = sp.bird
+    ? `<g transform="rotate(${r(-55 * p.wing)} 92 74)"><path d="M92 74 C84 70 66 72 64 84 C70 90 86 90 94 82 Z" fill="${sp.furFar}" ${outline}/></g>`
+    : '';
   // Legs sit behind the body so its outline crosses the top of each leg; near legs are lighter.
   return `
-  <g transform="rotate(${r(p.frameRot)} 80 40)">
-    ${drawLeg(shoulderFar, p.ff, C.furFar, p.lw)}
-    ${drawLeg(hipFar, p.fb, C.furFar, p.lw)}
-    ${p.tailFront ? '' : drawTail(p)}
-    ${drawLeg(hipNear, p.nb, C.fur, p.lw)}
-    ${p.pawOverHead ? '' : frontLeg}
-    <path d="${BODY_PATH}" transform="${body}" fill="${C.fur}" ${outline} vector-effect="non-scaling-stroke"/>
+  <clipPath id="${clipId}"><path d="${bodyPath}" transform="${body}"/></clipPath>
+  <g transform="rotate(${r(p.frameRot)} ${r(p.fcx)} ${r(p.fcy)})">
+    ${sp.bird ? '' : drawLeg(shoulderFar, p.ff, legFar, p.lw, sp)}
+    ${sp.bird ? '' : drawLeg(hipFar, p.fb, legFar, p.lw, sp)}
+    ${p.tailFront ? '' : drawTail(p, sp)}
+    ${drawLeg(hipNear, p.nb, legFur, p.lw, sp)}
+    ${pawOverHead ? '' : frontLeg}
+    <g transform="${body}">${sp.wool ? bumps(BODY_WOOL, 8, sp.fur, true) : ''}</g>
+    <path d="${bodyPath}" transform="${body}" fill="${sp.fur}" ${outline} vector-effect="non-scaling-stroke"/>
+    ${sp.bodyPattern === 'pandaBand' ? drawBodyPattern(sp, clipId, body) : ''}
     <g transform="${body}">
-      <ellipse cx="84" cy="92" rx="21" ry="5.5" fill="${C.belly}"/>
-      <path d="M67 61 q2.4 6 -1 11 M79 59.6 q2.4 6.6 -1 12 M91 60.4 q2.4 6 -1 10.6" fill="none" stroke="${C.stripe}" stroke-width="4" stroke-linecap="round"/>
+      ${sp.wool ? bumps(BODY_WOOL, 8, sp.fur, false) : ''}
+      ${sp.belly !== sp.fur ? `<ellipse cx="84" cy="${sp.bird ? 95 : 92}" rx="${sp.bird ? 16 : 21}" ry="5.5" fill="${sp.belly}"/>` : ''}
+      ${sp.bodyPattern === 'pandaBand' ? '' : drawBodyPattern(sp, clipId, body)}
+      ${wing}
     </g>
-    ${showHindPaw ? `<ellipse cx="${r(hindPaw[0])}" cy="${r(hindPaw[1])}" rx="8.5" ry="4.4" fill="${C.fur}" ${outline}/>
+    ${showHindPaw ? `<ellipse cx="${r(hindPaw[0])}" cy="${r(hindPaw[1])}" rx="8.5" ry="4.4" fill="${legFur}" ${outline}/>
       <path d="M${r(hindPaw[0] + 3)} ${r(hindPaw[1] + 1.5)} v-2.6 M${r(hindPaw[0] + 6)} ${r(hindPaw[1] + 1)} v-2.4" stroke="${C.line}" stroke-width="1.4" stroke-linecap="round" opacity=".55"/>` : ''}
-    ${showHaunch ? `<ellipse cx="${r(haunch[0])}" cy="${r(haunch[1])}" rx="${r(haunchRx)}" ry="${r(haunchRy)}" fill="${C.fur}" ${outline}/>
-      <path d="M${r(haunch[0] - 8)} ${r(haunch[1] - haunchRy * .55)} q5 3 4 ${r(haunchRy * .65)} M${r(haunch[0] - 1)} ${r(haunch[1] - haunchRy * .7)} q4 3 3 ${r(haunchRy * .55)}" fill="none" stroke="${C.stripe}" stroke-width="3.4" stroke-linecap="round"/>` : ''}
-    ${showChest ? `<ellipse cx="${r(shoulderNear[0] + 3)}" cy="${r(shoulderNear[1] - 5)}" rx="7.5" ry="11" fill="${C.belly}"/>` : ''}
-    ${p.tailFront ? drawTail(p) : ''}
+    ${showHaunch ? `<ellipse cx="${r(haunch[0])}" cy="${r(haunch[1])}" rx="${r(haunchRx)}" ry="${r(haunchRy)}" fill="${haunchFur}" ${outline}/>
+      ${striped ? `<path d="M${r(haunch[0] - 8)} ${r(haunch[1] - haunchRy * .55)} q5 3 4 ${r(haunchRy * .65)} M${r(haunch[0] - 1)} ${r(haunch[1] - haunchRy * .7)} q4 3 3 ${r(haunchRy * .55)}" fill="none" stroke="${sp.pattern}" stroke-width="3.4" stroke-linecap="round"/>` : ''}` : ''}
+    ${showChest && sp.belly !== sp.fur ? `<ellipse cx="${r(shoulderNear[0] + 3)}" cy="${r(shoulderNear[1] - 5)}" rx="7.5" ry="11" fill="${sp.belly}"/>` : ''}
+    ${p.tailFront ? drawTail(p, sp) : ''}
     ${head}
-    ${p.pawOverHead ? frontLeg : ''}
+    ${pawOverHead ? frontLeg : ''}
     ${drawSleepZ(p.zStep)}
   </g>`;
 };
@@ -373,35 +644,188 @@ const ANIMATION_POSES = {
   })),
 };
 
-// ---- Sheet ----------------------------------------------------------------------------------
-const { width: W, height: H, columns, rows } = PET_SPRITE_FRAME;
-const frames = Object.entries(PET_ANIMATIONS).flatMap(([name, spec]) => {
-  const poses = ANIMATION_POSES[name];
-  if (!poses || poses.length !== spec.frames) throw new Error(`${name}: expected ${spec.frames} frames, got ${poses?.length ?? 0}`);
-  return poses.map((p, i) => `<g transform="translate(${i * W} ${spec.row * H})"><g filter="url(#crayon)">${drawCat(p)}</g></g>`);
+
+// ---- Signature moves ------------------------------------------------------------------------
+// One per species, in the `trick` (standing) or `trickSit` (sitting) row named by PET_TRICKS.
+// Every move starts and ends in the row's resting pose so the engine can enter and leave it.
+const eight = (frame) => Array.from({ length: 8 }, (_, i) => frame(i));
+const at = (values, i) => values[i];
+const crouch = { bdy: 4, nf: { a: 6 }, ff: { a: 6 }, nb: { a: -6 }, fb: { a: -6 } };
+const airborne = (len, nf, ff, nb, fb) => ({
+  nf: { a: nf, len, reach: 0 }, ff: { a: ff, len, reach: 0 }, nb: { a: nb, len, reach: 0 }, fb: { a: fb, len, reach: 0 },
 });
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * columns}" height="${H * rows}" viewBox="0 0 ${W * columns} ${H * rows}">
-<defs>
-  <filter id="crayon" filterUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+const TRICK_FRAMES = {
+  // 꾹꾹이: front paws knead in turn, eyes squeezed happy.
+  cat: () => eight((i) => pose(STAND, {
+    bdy: .6,
+    nf: { a: i % 2 === 0 ? -10 : 0, lift: i % 2 === 0 ? 4 : 0 },
+    ff: { a: i % 2 === 1 ? -10 : 0, lift: i % 2 === 1 ? 4 : 0 },
+    hdy: i % 2 === 0 ? 1 : 0,
+    eyes: i === 0 || i === 7 ? 'open' : 'happy', blush: .85,
+    trot: wave(i, 8) * 5, bsy: 1 + breath(i, 8) * .03,
+  })),
+  // Tail wagging hard, panting with the tongue out.
+  dog: () => eight((i) => pose(STAND, {
+    wUp: i === 0 || i === 7 ? .5 : 0, wHigh: i === 0 || i === 7 ? .5 : 1,
+    trot: at([-6, 20, -20, 22, -22, 20, -12, 0], i), tflick: at([0, 8, -8, 8, -8, 8, -4, 0], i),
+    yawn: i === 0 || i === 7 ? 0 : .32,
+    eyes: i === 0 || i === 7 ? 'open' : 'happy', blush: .75,
+    bdy: at([0, -1, 0, -1, 0, -1, 0, 0], i), hdy: at([0, 1, 0, 1, 0, 1, 0, 0], i),
+  })),
+  // Two quick hops with the ears flopping back.
+  rabbit: () => [
+    crouch,
+    { bdy: -9, ...airborne(26, -20, -16, 24, 20) },
+    { bdy: -12, ...airborne(20, -28, -24, 28, 26) },
+    { bdy: 3 },
+    { bdy: -9, ...airborne(26, -20, -16, 24, 20) },
+    { bdy: -12, ...airborne(20, -28, -24, 28, 26) },
+    { bdy: 3 },
+    {},
+  ].map((overrides, i) => pose(pose(STAND, overrides), {
+    earL: at([0, -8, -12, -4, -8, -12, -4, 0], i), earR: at([0, -6, -10, -3, -6, -10, -3, 0], i),
+    eyes: i === 0 || i === 7 ? 'open' : 'happy', blush: .7,
+  })),
+  // Wings flapping with little chirps.
+  chick: () => eight((i) => pose(STAND, {
+    wing: at([0, 1, .2, 1, .2, 1, .3, 0], i),
+    bdy: at([0, -3, -1, -4, -1, -3, 0, 0], i),
+    yawn: at([0, .4, .1, .5, .1, .4, 0, 0], i),
+    eyes: i === 0 || i === 7 ? 'open' : 'happy', blush: .75,
+  })),
+  // Mouse pounce: crouch, wiggle, leap, then dive nose-first into the ground.
+  fox: () => [
+    { ...crouch, bdy: 5, brot: 4, hdy: 3, tflick: 6, wUp: .6, wHigh: .4 },
+    { ...crouch, bdy: 6, brot: 5, hdy: 3, tflick: -6, wUp: .6, wHigh: .4 },
+    { bdy: -2, brot: -14, ...airborne(26, -30, -26, 30, 26), wUp: 0, wHigh: 1 },
+    { bdy: -10, brot: -2, ...airborne(22, -20, -18, 26, 24), wUp: 0, wHigh: 1 },
+    { bdy: -8, brot: 16, ...airborne(26, -40, -36, 20, 18), hrot: 10, wUp: 0, wHigh: 1 },
+    { bdy: 3, brot: 14, hrot: 12, hdy: 3, eyes: 'squeeze', wUp: .3, wHigh: .7 },
+    { bdy: 1, brot: 6, eyes: 'happy', wUp: .6, wHigh: .4 },
+    {},
+  ].map((overrides) => pose(STAND, { eyes: 'wide', ...overrides })),
+  // Paw at the mouth, cheeks puffing up while munching.
+  hamster: () => eight((i) => pose(SIT, {
+    nf: i === 0 || i === 7 ? { a: -3 } : { a: -150, len: 21, reach: 0 },
+    pawOverHead: i > 0 && i < 7,
+    cheek: at([0, .3, .6, 1, .8, 1, .7, .2], i),
+    hdy: at([1, 2, 2.5, 2, 2.5, 2, 2, 1], i),
+    yawn: at([0, 0, .14, 0, .14, 0, .14, 0], i),
+    eyes: i === 0 || i === 7 ? 'open' : 'happy', blush: .8,
+  })),
+  // Tail flicked up and shivering while looking around.
+  squirrel: () => eight((i) => pose(SIT, {
+    wGround: at([.5, 0, 0, 0, 0, 0, 0, .5], i), wHigh: at([.5, 1, 1, 1, 1, 1, 1, .5], i),
+    tflick: at([0, 10, -8, 10, -8, 10, -4, 0], i), trot: at([0, 4, -4, 4, -4, 2, 0, 0], i),
+    hrot: at([0, 6, -6, 6, -4, 0, 0, 0], i), earR: at([0, 0, 0, 14, 0, 0, 0, 0], i),
+  })),
+  // Rubbing the front paws together, as if washing them.
+  raccoon: () => eight((i) => pose(SIT, {
+    nf: { a: at([-3, -62, -48, -62, -48, -62, -48, -3], i), len: i === 0 || i === 7 ? 26 : 20, reach: i === 0 || i === 7 ? 1 : 0 },
+    ff: { a: at([-3, -50, -60, -50, -60, -50, -60, -3], i), len: i === 0 || i === 7 ? 26 : 19, reach: i === 0 || i === 7 ? 1 : 0 },
+    pawOverHead: i > 0 && i < 7,
+    hrot: i === 0 || i === 7 ? 0 : 8, hdy: i === 0 || i === 7 ? 1 : 2,
+  })),
+  // Rocking side to side on its bottom.
+  panda: () => eight((i) => pose(SIT, {
+    frameRot: at([-5, -10, -5, 0, 5, 10, 5, 0], i), fcx: 70, fcy: 118,
+    hrot: at([4, 7, 4, 0, -4, -7, -4, 0], i),
+    eyes: i === 7 ? 'open' : 'happy', blush: .8,
+  })),
+  // Nodding off, then waking with a start.
+  koala: () => eight((i) => pose(SIT, {
+    hrot: at([0, 6, 12, 18, 22, -4, 0, 0], i), hdy: at([1, 2, 3, 4, 5, 0, 1, 1], i),
+    eyes: at(['open', 'blink', 'closed', 'closed', 'closed', 'wide', 'open', 'blink'], i),
+  })),
+  // Nose to the ground, sniffing with the tail wiggling.
+  pig: () => eight((i) => pose(STAND, {
+    hdy: at([1, 4, 6, 6, 6, 6, 4, 1], i), hdx: at([0, 2, 3, 3, 3, 3, 2, 0], i),
+    hrot: at([4, 12, 16, 14, 16, 14, 10, 2], i),
+    eyes: i === 0 || i === 7 ? 'open' : 'happy',
+    trot: wave(i, 8) * 16, bdy: .5,
+  })),
+  // Stiff-legged spring into the air, twice.
+  sheep: () => [
+    crouch,
+    { bdy: -8, ...airborne(26, 0, 0, 0, 0) },
+    { bdy: -12, ...airborne(26, -4, -4, 4, 4) },
+    { bdy: -6, ...airborne(26, 0, 0, 0, 0) },
+    { bdy: 2 },
+    { bdy: -8, ...airborne(26, 0, 0, 0, 0) },
+    { bdy: -11, ...airborne(26, -4, -4, 4, 4) },
+    {},
+  ].map((overrides, i) => pose(pose(STAND, overrides), {
+    earL: at([0, -10, -14, -8, 0, -10, -14, 0], i), earR: at([0, 10, 14, 8, 0, 10, 14, 0], i),
+    eyes: i === 0 || i === 7 ? 'open' : 'happy', blush: .7,
+  })),
+  // Rearing up on one paw for a big roar.
+  tiger: () => eight((i) => pose(STAND, {
+    brot: at([-2, -5, -8, -8, -8, -6, -3, 0], i),
+    hrot: at([-2, -5, -8, -9, -9, -6, -2, 0], i),
+    yawn: at([0, .4, .8, 1, 1, .7, .3, 0], i),
+    eyes: at(['open', 'squeeze', 'squeeze', 'squeeze', 'squeeze', 'squeeze', 'open', 'open'], i),
+    nf: {
+      a: at([0, -25, -55, -65, -65, -45, -15, 0], i),
+      len: at([26, 24, 22, 22, 22, 22, 24, 26], i),
+      reach: i === 0 || i === 7 ? 1 : 0,
+    },
+    earL: at([0, -5, -10, -12, -12, -8, -3, 0], i), earR: at([0, 5, 10, 12, 12, 8, 3, 0], i),
+    wUp: .4, wHigh: .6,
+  })),
+  // Shaking the mane from side to side.
+  lion: () => eight((i) => pose(STAND, {
+    hrot: at([0, -12, 12, -12, 12, -8, 4, 0], i),
+    eyes: at(['open', 'squeeze', 'squeeze', 'squeeze', 'squeeze', 'closed', 'happy', 'open'], i),
+    tflick: at([0, 6, -6, 6, -6, 4, 0, 0], i), trot: at([0, 4, -4, 4, -4, 2, 0, 0], i),
+  })),
+};
+
+// The row a species does not use is filled with resting frames; the engine never plays it.
+const framesFor = (kind, name) => {
+  if (name !== 'trick' && name !== 'trickSit') return ANIMATION_POSES[name];
+  if (PET_TRICKS[kind] === name) return TRICK_FRAMES[kind]();
+  return name === 'trick' ? ANIMATION_POSES.idle : eight(() => pose(SIT));
+};
+
+// ---- Sheets ---------------------------------------------------------------------------------
+const { width: W, height: H, columns, rows } = PET_SPRITE_FRAME;
+const CRAYON_FILTER = `<filter id="crayon" filterUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
     <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7" result="wobble"/>
     <feDisplacementMap in="SourceGraphic" in2="wobble" scale="2" xChannelSelector="R" yChannelSelector="G" result="drawn"/>
     <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="3" result="grain"/>
     <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0.36  0 0 0 0 0.2  0 0 0 0 0.08  0.9 0 0 0 -0.34" result="tint"/>
     <feComposite in="tint" in2="drawn" operator="in" result="texture"/>
     <feMerge><feMergeNode in="drawn"/><feMergeNode in="texture"/></feMerge>
-  </filter>
-</defs>
+  </filter>`;
+const minify = (svg) => svg.replace(/\n\s*\n/g, '\n').replace(/^\s+/gm, '');
+const outputDir = new URL('../public/pets/', import.meta.url);
+mkdirSync(outputDir, { recursive: true });
+
+for (const [kind, species] of Object.entries(SPECIES)) {
+  if (!TRICK_FRAMES[kind] || !PET_TRICKS[kind]) throw new Error(`${kind}: missing signature move`);
+  const frames = Object.entries(PET_ANIMATIONS).flatMap(([name, spec]) => {
+    const poses = framesFor(kind, name);
+    if (!poses || poses.length !== spec.frames) throw new Error(`${name}: expected ${spec.frames} frames, got ${poses?.length ?? 0}`);
+    return poses.map((p, i) => `<g transform="translate(${i * W} ${spec.row * H})"><g filter="url(#crayon)">${drawCat(p, species, `${name}-${i}`)}</g></g>`);
+  });
+  const sheet = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * columns}" height="${H * rows}" viewBox="0 0 ${W * columns} ${H * rows}">
+<defs>${CRAYON_FILTER}</defs>
 ${frames.join('\n')}
 </svg>
 `;
-
-const outputUrl = new URL('../public/pets/cat-sprite.svg', import.meta.url);
-mkdirSync(new URL('.', outputUrl), { recursive: true });
-writeFileSync(outputUrl, svg.replace(/\n\s*\n/g, '\n').replace(/^\s+/gm, ''));
-console.log(`wrote ${outputUrl.pathname} (${frames.length} frames)`);
+  const portrait = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<defs>${CRAYON_FILTER}</defs>
+<g filter="url(#crayon)">${drawCat(ANIMATION_POSES.idle[0], species, 'portrait')}</g>
+</svg>
+`;
+  writeFileSync(new URL(`${kind}-sprite.svg`, outputDir), minify(sheet));
+  writeFileSync(new URL(`${kind}-portrait.svg`, outputDir), minify(portrait));
+  console.log(`wrote ${kind} (${frames.length} frames)`);
+}
 
 // Where the walker's pointer holds a carried pet: the scruff between the shoulders and the head.
+// Every species shares the rig, so one grip serves all of them.
 const carried = ANIMATION_POSES.carried[0];
 const [scruffX, scruffY] = toWorld(carried, 101, 60);
 console.log(`carried scruff ≈ (${r(scruffX)}, ${r(scruffY)})`);

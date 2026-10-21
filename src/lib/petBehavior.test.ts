@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import test from 'node:test';
 import {
   DEFAULT_PET_BEHAVIOR_CONFIG,
@@ -16,8 +17,19 @@ import {
   stopPetting,
   type PetBehaviorConfig,
   type PetBehaviorState,
+  type PetMode,
 } from './petBehavior';
-import { PET_ANIMATIONS, PET_ANIMATION_IDS, PET_SPRITE_FRAME, getPetFrameColumn, getPetFramePosition } from './petSprites';
+import {
+  PET_ANIMATIONS,
+  PET_ANIMATION_IDS,
+  PET_SPRITE_FRAME,
+  PET_SPRITE_KINDS,
+  getPetFrameColumn,
+  getPetFramePosition,
+  getPetPortrait,
+  getPetSpriteSheet,
+} from './petSprites';
+import { STUDENT_PET_KINDS } from './studentPet';
 
 const seeded = (seed: number) => {
   let value = seed;
@@ -174,7 +186,7 @@ test('a pet dropped on the mailbox walks away from it', () => {
 
 test('calm mode never wanders, sleeps or plays transitions', () => {
   const random = seeded(21);
-  const calm = { ...config, calm: true };
+  const calm = { ...config, calm: true, trick: 'trick' as const };
   let state = createPetBehaviorState({ x: .5, y: .88 }, calm, random);
   const start = state.position;
   for (let elapsed = 0; elapsed < 120_000; elapsed += 50) {
@@ -193,5 +205,39 @@ test('sprite frames loop or hold on the last frame', () => {
   assert.equal(getPetFrameColumn('walk', 1000), 8 % PET_ANIMATIONS.walk.frames);
   assert.equal(getPetFrameColumn('happy', 10_000), PET_ANIMATIONS.happy.frames - 1);
   assert.deepEqual(getPetFramePosition('idle', 0), { x: 0, y: 0 });
-  assert.deepEqual(getPetFramePosition('twitch', 7), { x: 100, y: 100 });
+  assert.deepEqual(getPetFramePosition('trickSit', 7), { x: 100, y: 100 });
+});
+
+test('every pet kind is drawn, with a sheet and a portrait on disk', () => {
+  assert.equal(PET_SPRITE_KINDS.size, STUDENT_PET_KINDS.length);
+  for (const { id } of STUDENT_PET_KINDS) {
+    assert.ok(PET_SPRITE_KINDS.has(id), id);
+    for (const url of [getPetSpriteSheet(id), getPetPortrait(id)]) {
+      assert.ok(url && existsSync(new URL(`../../public${url}`, import.meta.url)), `${id}: ${url}`);
+    }
+  }
+});
+
+test('a pet with a signature move plays it, reaching a sitting move through sitDown', () => {
+  for (const trick of ['trick', 'trickSit'] as const) {
+    const random = seeded(31);
+    const withTrick = { ...config, trick };
+    const seen: string[] = [];
+    run(createPetBehaviorState({ x: .5, y: .88 }, withTrick, random), 600_000, random, (state, previous) => {
+      if (state.mode === trick && previous.mode !== trick) seen.push(previous.mode);
+    }, withTrick);
+    assert.ok(seen.length > 0, `${trick} never played`);
+    if (trick === 'trickSit') assert.ok(seen.every((mode) => getPetPosture(mode as PetMode) === 'sit'), seen.join());
+  }
+});
+
+test('taps sometimes trigger the signature move, never in calm mode', () => {
+  const standing = createPetBehaviorState({ x: .5, y: .88 }, config, seeded(41));
+  const withTrick = { ...config, trick: 'trick' as const };
+  assert.equal(reactToPetTap(standing, withTrick, () => .1).mode, 'trick');
+  assert.equal(reactToPetTap(standing, withTrick, () => .9).mode, 'happy');
+  assert.equal(reactToPetTap(standing, { ...withTrick, calm: true }, () => .1).mode, 'happy');
+  const sitTrick = reactToPetTap(standing, { ...config, trick: 'trickSit' }, () => .1);
+  assert.equal(sitTrick.mode, 'sitDown');
+  assert.deepEqual(sitTrick.queue, ['trickSit']);
 });

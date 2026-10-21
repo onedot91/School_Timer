@@ -266,6 +266,7 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
       {hasActivePet && petSpriteSheet ? (
         <StudentPetWalker
           key={pet.activePetId ?? 'pet'}
+          kind={petKind.id}
           sheetUrl={petSpriteSheet}
           name={pet.name}
           kindLabel={petKind.label}
