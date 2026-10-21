@@ -6,6 +6,8 @@ import {
   AUCTION_MISSION_MAX_COUNT,
   AUCTION_MAX_ITEM_COUNT,
   AUCTION_MAX_ITEMS_PER_DAY,
+  getAuctionVisibleDayCount,
+  getAuctionVisibleItemCount,
   adjustCurrencyBalancesForStudents,
   applyTeacherCurrencyDeductionInSettings,
   normalizeCurrencyHistory,
@@ -550,4 +552,11 @@ test('기록 정규화는 유효한 원금 이동액만 보존한다', () => {
   ] });
   assert.equal(history['1']?.[0]?.ownAccountAmount, -50);
   assert.equal('ownAccountAmount' in (history['1']?.[1] ?? {}), false);
+});
+
+test('auction day counts follow the Korean weekday on a UTC server clock', () => {
+  const wednesdayMorningKst = new Date('2026-10-20T23:55:00Z');
+  assert.equal(getAuctionVisibleDayCount(wednesdayMorningKst), 3);
+  assert.equal(getAuctionVisibleItemCount(wednesdayMorningKst), Math.min(3, AUCTION_MAX_ITEM_COUNT));
+  assert.equal(getAuctionVisibleDayCount(new Date('2026-10-23T15:30:00Z')), 0);
 });
