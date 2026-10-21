@@ -1885,7 +1885,7 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
 .student-canvas-library .student-canvas-library-failure-board[role="dialog"] {
   position: fixed;
   z-index: 110;
-  inset: 3rem max(1.5rem, calc((100vw - 1160px) / 2));
+  inset: clamp(0.75rem, 4dvh, 3rem) max(1.5rem, calc((100vw - 1160px) / 2));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
@@ -1983,7 +1983,7 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
 }
 
 .student-canvas-library-failure-board .student-failure-gallery-shell {
-  min-height: 29rem;
+  min-height: 0;
   border: 3px solid var(--library-timber-deep);
   border-radius: 0;
   background: repeating-linear-gradient(0deg, transparent 0 23px, rgb(166 110 88 / 12%) 23px 24px), var(--library-timber-lit);
@@ -2000,18 +2000,18 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
   border: 2px solid var(--library-ink-deep);
   border-radius: 0;
   box-shadow: 4px 4px 0 var(--library-book-coral);
-  padding: 0.75rem;
+  padding: 0.5rem;
+  gap: 0.5rem;
 }
 
 .student-canvas-library-failure-board .student-failure-message-main {
   border-radius: 0;
-  padding: 0.75rem;
+  padding: 0.5rem 0.75rem;
 }
 
+/* Both rows share the board height so non-fullscreen Chromebook windows show every card; long text scrolls inside its card. */
 .student-canvas-library-failure-board .student-failure-feed-window {
-  grid-template-rows: repeat(2, minmax(16rem, 1fr));
-  overflow: auto;
-  overscroll-behavior: contain;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
 }
 
 .student-canvas-library-failure-board .student-failure-message-main {
@@ -2022,8 +2022,25 @@ body:has(.student-canvas-library [aria-modal="true"]) .data-mode-banner {
 
 .student-canvas-library-failure-board .student-failure-message-content {
   max-height: none;
+  grid-template-rows: auto auto;
   align-content: start;
+  gap: 0.35rem;
   overflow: visible;
+}
+
+@media (max-height: 44rem) {
+  .student-canvas-library .student-canvas-library-failure-board[role="dialog"] { padding: 0.75rem; }
+  .student-canvas-library-failure-board-header { padding-bottom: 0.5rem; }
+  .student-canvas-library-failure-board .student-failure-feed-window { gap: 1.25rem; padding-top: 0.9rem; }
+  .student-canvas-library-failure-board .student-failure-message { gap: 0.35rem; }
+  .student-canvas-library-failure-board .student-failure-message-main { padding-block: 0.35rem; }
+}
+
+/* Short windows give each card less height; reserved blank lines would push the lesson out of view. */
+.student-canvas-library-failure-board .student-failure-message-text,
+.student-canvas-library-failure-board .student-failure-message-next,
+.student-canvas-library-failure-board .student-failure-message-next span {
+  min-height: 0;
 }
 
 .student-canvas-library-failure-board .student-failure-relay-item::before,
