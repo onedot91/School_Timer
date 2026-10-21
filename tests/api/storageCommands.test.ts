@@ -169,6 +169,25 @@ test('다른 학생 글에 도장을 찍은 학생의 새 실패 글은 기존 �
   }, { ...source, studentLife: { ...source.studentLife, failureStories: [story] } });
 });
 
+test('7일 지난 받은 편지가 남아 있어도 실패 글과 도장을 저장하고 편지는 건드리지 않는다', () => {
+  const source = initial();
+  const expiredLetter = { id: 'expired-own-letter', recipient: 2, senderStudentNumber: 0, senderLabel: 'teacher', title: 'old', content: 'old',
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), readAt: null };
+  return environment(async (call, fixture) => {
+    const created = await call(2, 'POST', command('failure-with-expired-letter', 'student.failure.create', { failure: '합성 새 실패', lesson: '합성 새 배움' }));
+    assert.equal(created.status, 200, JSON.stringify(created.body));
+    const life = fixture.read().value.studentLife;
+    assert.ok(isStorageRecord(life) && Array.isArray(life.failureStories) && Array.isArray(life.letters));
+    const story = life.failureStories.find(entry => isStorageRecord(entry) && entry.studentNumber === 2);
+    assert.ok(isStorageRecord(story) && typeof story.id === 'string');
+    const stamped = await call(2, 'POST', command('stamp-with-expired-letter', 'student.failure.stamp', { storyId: story.id, stampId: 'brave' }));
+    assert.equal(stamped.status, 200, JSON.stringify(stamped.body));
+    const saved = fixture.read().value.studentLife;
+    assert.ok(isStorageRecord(saved) && Array.isArray(saved.letters));
+    assert.ok(saved.letters.some(entry => isStorageRecord(entry) && entry.id === expiredLetter.id));
+  }, { ...source, studentLife: { ...source.studentLife, letters: [...source.studentLife.letters, expiredLetter] } });
+});
+
 test('주간 마감 API는 보유 종목을 매각해 세금을 계산하고 재요청에도 한 번만 정산한다', () => environment(async (call, fixture) => {
   const body = command('weekly-stock-close-0001', 'teacher.auction.weekly-close', { cycleKey: '2026-10-12' });
   fixture.loseNextCommitResponse();
