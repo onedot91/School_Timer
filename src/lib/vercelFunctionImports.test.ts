@@ -44,6 +44,7 @@ const SERVER_MODULES = [
   'api/newspaper.ts',
   'api/shared-settings.ts',
   'api/save-alerts.ts',
+  'api/server-time.ts',
   'api/student-economy.ts',
   'api/today-friend.ts',
   'api/weekly-mission.ts',

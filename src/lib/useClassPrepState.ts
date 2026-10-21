@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CLASS_PREP_IDLE, getClassPrepState, type ClassPrepState } from './classPrep';
+import { getServerSyncedNow } from './serverClock';
 
 export interface ClassPrepSource {
   readonly weeklySchedule: unknown;
@@ -12,13 +13,13 @@ const TICK_MS = 1000;
 
 /** Re-evaluates the class prep stage every second while a schedule is known. */
 export const useClassPrepState = (source: ClassPrepSource | null): ClassPrepState => {
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => getServerSyncedNow());
   const hasSchedule = source !== null && source.weeklySchedule !== null && source.weeklySchedule !== undefined;
 
   useEffect(() => {
     if (!hasSchedule) return undefined;
-    setNowMs(Date.now());
-    const intervalId = window.setInterval(() => setNowMs(Date.now()), TICK_MS);
+    setNowMs(getServerSyncedNow());
+    const intervalId = window.setInterval(() => setNowMs(getServerSyncedNow()), TICK_MS);
     return () => window.clearInterval(intervalId);
   }, [hasSchedule]);
 

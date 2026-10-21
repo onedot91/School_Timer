@@ -7,6 +7,7 @@ const handlers = new Map([
   ['/api/device-session', () => import('../../api/device-session.js')],
   ['/api/newspaper', () => import('../../api/newspaper.js')],
   ['/api/save-alerts', () => import('../../api/save-alerts.js')],
+  ['/api/server-time', () => import('../../api/server-time.js')],
   ['/api/shared-settings', () => import('../../api/shared-settings.js')],
   ['/api/student-economy', () => import('../../api/student-economy.js')],
   ['/api/today-friend', () => import('../../api/today-friend.js')],

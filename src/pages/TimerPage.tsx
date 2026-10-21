@@ -270,6 +270,7 @@ import StableLabel from '../components/StableLabel';
 import StatusSlot from '../components/StatusSlot';
 import { getClassPrepState, parseClassPrepRelease, type ClassPrepRelease } from '../lib/classPrep';
 import { CLASS_PREP_RELEASE_STORAGE_KEY } from '../lib/classPrepLocalStore';
+import { getServerSyncedNow } from '../lib/serverClock';
 import { startInitialLoadWithRetry, type InitialLoadRetryHandle } from '../lib/initialLoadRetry';
 import { setSaveActivityPending } from '../lib/saveActivity';
 
@@ -1274,7 +1275,7 @@ const getAdjustedScheduleDate = (timeMs: number, offsetSeconds: number) =>
   new Date(timeMs + clampScheduleClockOffsetSeconds(offsetSeconds) * 1000);
 
 const getCurrentScheduleWeekday = (offsetSeconds: number) => {
-  const currentDay = getAdjustedScheduleDate(Date.now(), offsetSeconds).getDay();
+  const currentDay = getAdjustedScheduleDate(getServerSyncedNow(), offsetSeconds).getDay();
   return WEEKDAYS.includes(currentDay) ? currentDay : WEEKDAYS[0];
 };
 
@@ -4306,7 +4307,7 @@ export default function TimerPage() {
     }
     return buildWeeklySubjectsFromSchedule(
       weeklySchedule,
-      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds)),
     );
   });
   const weeklySubjectsRef = useRef(weeklySubjects);
@@ -4325,7 +4326,7 @@ export default function TimerPage() {
   const [subjectCatalogEditCommitVersion, setSubjectCatalogEditCommitVersion] = useState(0);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [selectedSubjectWeekKey, setSelectedSubjectWeekKey] = useState(() =>
-    getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+    getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds)),
   );
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -4420,7 +4421,7 @@ export default function TimerPage() {
   awardPresentationRef.current = awardPresentation;
   const awardQueueAdvanceRef = useRef<{ key: string; dueAt: number } | null>(null);
   const [characterImageError, setCharacterImageError] = useState(false);
-  const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
+  const [scheduleFocusTick, setScheduleFocusTick] = useState(() => getServerSyncedNow());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsDialogRef = useRef<HTMLDivElement>(null);
@@ -4599,7 +4600,7 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSettingsOpen || settingsPanel !== 'subjects') return;
     setSelectedSubjectWeekKey(
-      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds)),
     );
   }, [isSettingsOpen, settingsPanel, scheduleClockOffsetSeconds]);
 
@@ -4624,7 +4625,7 @@ export default function TimerPage() {
   const reservedDrawCount = selectedDrawSettingsCase.hiddenNumberQueue.length;
   const editingDaySchedule = weeklySchedule[editingDay] || [];
   const activeWeekdayScheduleCount = WEEKDAYS.filter((day) => (weeklySchedule[day] || []).length > 0).length;
-  const subjectWeekOptions = buildSubjectWeekOptions(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds));
+  const subjectWeekOptions = buildSubjectWeekOptions(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds));
   const selectedSubjectWeekLabel =
     subjectWeekOptions.find((option) => option.key === selectedSubjectWeekKey)?.dateLabel ??
     getWeekOptionLabel(selectedSubjectWeekKey);
@@ -5542,7 +5543,7 @@ export default function TimerPage() {
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setScheduleFocusTick(Date.now());
+      setScheduleFocusTick(getServerSyncedNow());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -5581,12 +5582,12 @@ export default function TimerPage() {
   useEffect(() => {
     const checkSchedule = () => {
       const { dayOfWeek, currentMinutes, currentSeconds } = getScheduleClockParts(
-        Date.now(),
+        getServerSyncedNow(),
         scheduleClockOffsetSeconds,
       );
 
       const todaysSchedule = weeklySchedule[dayOfWeek] || [];
-      const currentWeekKey = getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds));
+      const currentWeekKey = getWeekKeyForDate(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds));
       const activeSlot = todaysSchedule.find(s => currentMinutes >= s.start && currentMinutes < s.end);
       const nextSlotId = activeSlot ? activeSlot.id : null;
       const didSlotChange = prevSlotIdRef.current !== null && prevSlotIdRef.current !== nextSlotId;
