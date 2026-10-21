@@ -47,6 +47,8 @@ interface StudentPetWalkerProps {
 const LONG_PRESS_MS = 450;
 const PETTING_HEART_INTERVAL_MS = 700;
 const DRAG_THRESHOLD_PX = 8;
+const DOUBLE_TAP_MS = 400;
+const DOUBLE_TAP_DISTANCE_PX = 30;
 const HEART_LIFETIME_MS = 1000;
 const PET_WIDTH_RATIO = .13;
 const GRIP_BLEND_MS = 180;
@@ -102,6 +104,7 @@ export default function StudentPetWalker({
   const interestInputsRef = useRef({ gomaPosition, hasUnreadMail });
   const updateInterestsRef = useRef<() => void>(() => undefined);
   const heartIdRef = useRef(0);
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const [hearts, setHearts] = useState<readonly { id: number; left: number }[]>([]);
   const size = PET_SIZES[kind];
   const widthRatio = PET_WIDTH_RATIO * size;
@@ -369,6 +372,17 @@ export default function StudentPetWalker({
     } else if (gesture.petting) {
       stateRef.current = stopPetting(state, Math.random);
     } else {
+      // A second quick tap near the first opens the pet picker instead of reacting again.
+      const lastTap = lastTapRef.current;
+      const isDoubleTap = lastTap !== null
+        && event.timeStamp - lastTap.time < DOUBLE_TAP_MS
+        && Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < DOUBLE_TAP_DISTANCE_PX;
+      if (isDoubleTap) {
+        lastTapRef.current = null;
+        onOpenPicker();
+        return;
+      }
+      lastTapRef.current = { time: event.timeStamp, x: event.clientX, y: event.clientY };
       stateRef.current = reactToPetTap(state, configRef.current, Math.random);
       spawnHeart();
     }
