@@ -1275,15 +1275,18 @@ export const getReservedAuctionBidAmount = (
     return total + bid.amount;
   }, 0);
 
+// Auction days follow the classroom's Korean weekday, not the server's UTC clock.
+const getKoreanWeekday = (date: Date) => new Date(date.getTime() + 9 * 60 * 60 * 1000).getUTCDay();
+
 export const getAuctionVisibleItemCount = (date = new Date(), itemCount = AUCTION_MAX_ITEM_COUNT) => {
-  const day = date.getDay();
+  const day = getKoreanWeekday(date);
   if (day === 0 || day === 6) return 0;
   if (day === 5) return Math.min(itemCount, AUCTION_MAX_ITEM_COUNT);
   return Math.min(day, itemCount, AUCTION_MAX_ITEM_COUNT);
 };
 
 export const getAuctionVisibleDayCount = (date = new Date()) => {
-  const day = date.getDay();
+  const day = getKoreanWeekday(date);
   if (day === 0 || day === 6) return 0;
   return Math.min(day, AUCTION_WEEKDAY_LABELS.length);
 };
