@@ -26418,6 +26418,103 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-goma-stage-character:active { cursor: grabbing; transition: none; }
 .student-goma-stage-character > img { display: block; width: 100%; height: auto; filter: drop-shadow(0 .55rem .6rem rgba(42, 62, 54, .18)); pointer-events: none; }
 
+.student-pet-walker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  will-change: transform;
+}
+
+.student-pet-walker-shadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--student-pet-walker-width, 7rem) * .52);
+  height: calc(var(--student-pet-walker-width, 7rem) * .09);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(82 57 33 / 30%), rgb(82 57 33 / 0%));
+  pointer-events: none;
+}
+
+.student-pet-walker-body {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: var(--student-pet-walker-width, 7rem);
+  aspect-ratio: 160 / 128;
+  padding: 0;
+  border: 0;
+  border-radius: 1.5rem;
+  background: transparent;
+  transform-origin: 50% 92.19%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.student-pet-walker[data-mode="carried"] .student-pet-walker-body { cursor: grabbing; }
+
+.student-pet-walker-body:focus-visible {
+  outline: 3px solid var(--apple-focus);
+  outline-offset: 2px;
+}
+
+.student-pet-walker-swing,
+.student-pet-walker-sprite {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.student-pet-walker-sprite { background-repeat: no-repeat; }
+
+.student-pet-walker-name {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  color: var(--apple-text-primary);
+  font-size: var(--type-body-sm);
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 .08rem .2rem rgba(255, 255, 255, .95), 0 0 .35rem rgba(255, 255, 255, .9);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.student-pet-walker-heart {
+  position: absolute;
+  top: 8%;
+  width: 1.4rem;
+  height: 1.4rem;
+  color: #e9687a;
+  fill: currentColor;
+  stroke: #8a3240;
+  stroke-width: 1.5;
+  pointer-events: none;
+  animation: student-pet-heart-float 1s ease-out forwards;
+}
+
+@keyframes student-pet-heart-float {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(.6); }
+  20% { opacity: 1; transform: translate(-50%, -.4rem) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -2.6rem) scale(.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-pet-walker-heart { animation-name: student-pet-heart-fade; }
+  @keyframes student-pet-heart-fade {
+    0% { opacity: 0; transform: translateX(-50%); }
+    25%, 70% { opacity: 1; transform: translateX(-50%); }
+    100% { opacity: 0; transform: translateX(-50%); }
+  }
+}
+
 .student-pet-dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -26475,6 +26572,15 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
 .student-pet-picker button[aria-pressed='true'] { border-color: #316b91; background: #e8f3f8; box-shadow: inset 0 0 0 1px #316b91; }
 .student-pet-picker button span { font-size: 2.5rem; line-height: 1; }
 .student-pet-picker button strong { font-size: var(--type-caption); font-weight: 850; }
+.student-pet-portrait.has-sprite {
+  display: block;
+  width: 5.5rem;
+  aspect-ratio: 160 / 128;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+}
+.student-pet-picker button .student-pet-portrait.has-sprite { width: 5rem; }
+.student-pet-dialog-visual.has-sprite { width: 9rem; }
 .student-pet-dialog-error { margin: 0; color: var(--student-warning); font-size: var(--type-caption); font-weight: 850; }
 
 .student-skin-dialog {

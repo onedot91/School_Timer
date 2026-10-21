@@ -12,6 +12,7 @@ import {
 import { useModalFocus } from '../../lib/useModalFocus';
 import StudentBalanceSummary from './StudentBalanceSummary';
 import StudentConfirmDialog from './StudentConfirmDialog';
+import StudentPetPortrait from './StudentPetPortrait';
 import StudentPetStage from './StudentPetStage';
 import {
   DEFAULT_STUDENT_CHARACTER,
@@ -113,7 +114,6 @@ export default function StudentOverviewPage({
   const houseDialogRef = useRef<HTMLElement>(null);
   const feedButtonRef = useRef<HTMLButtonElement>(null);
   const needsPetName = pet.pendingNamePetId !== null;
-  const petKind = getStudentPetKind(pet.petKind);
   const eggStage = getStudentPetEggStage(pet.fedAmount);
   const ownedCharacters = STUDENT_CHARACTER_PRIZES.filter((character) => ownedCharacterIds.includes(character.id));
   const ownedHouses = STUDENT_HOUSE_DESIGNS.filter((house) => ownedHouseIds.includes(house.id));
@@ -416,7 +416,7 @@ export default function StudentOverviewPage({
 
             {activePetDialog === 'name' ? (
               <>
-                <span className="student-pet-dialog-visual" aria-hidden="true">{petKind.emoji}</span>
+                <StudentPetPortrait kind={pet.petKind} className="student-pet-dialog-visual" />
                 <div className="student-pet-dialog-copy">
                   <span>알이 부화했어요</span>
                   <h2 id="student-pet-dialog-title">펫 이름을 지어 주세요</h2>
@@ -473,7 +473,7 @@ export default function StudentOverviewPage({
                         });
                       }}
                     >
-                      <span aria-hidden="true">{ownedKind.emoji}</span>
+                      <StudentPetPortrait kind={ownedPet.kind} />
                       <strong>{ownedPet.name || ownedKind.label}</strong>
                     </button>
                     );

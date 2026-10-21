@@ -7,7 +7,9 @@ import {
 } from '../../lib/studentPet';
 import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import { STUDENT_CHARACTER_PRIZES, STUDENT_HOUSE_DESIGNS, type StudentCharacterPrizeId, type StudentCustomHouseTheme, type StudentHouseDesignId } from '../../lib/studentEconomy';
+import { getPetSpriteSheet } from '../../lib/petSprites';
 import { StudentEmotionOrbVisual } from './StudentEmotionOrb';
+import StudentPetWalker from './StudentPetWalker';
 
 interface StudentPetStageProps {
   pet: StudentPetState;
@@ -48,6 +50,7 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
   const [gomaPosition, setGomaPosition] = useState(pet.gomaPosition);
   const hasActivePet = pet.petKind !== null;
   const petKind = getStudentPetKind(pet.petKind);
+  const petSpriteSheet = getPetSpriteSheet(pet.petKind);
   const activeCharacter = STUDENT_CHARACTER_PRIZES.find((character) => character.id === activeCharacterId);
   const activeHouse = STUDENT_HOUSE_DESIGNS.find((house) => house.id === activeHouseId);
   const activeHouseStageStyle: CSSProperties | undefined = activeHouse ? {
@@ -260,7 +263,19 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
           <img src="/goma-canvas-character.webp" alt="" draggable={false} decoding="async" fetchPriority="low" />
         )}
       </button>
-      {hasActivePet ? (
+      {hasActivePet && petSpriteSheet ? (
+        <StudentPetWalker
+          key={pet.activePetId ?? 'pet'}
+          sheetUrl={petSpriteSheet}
+          name={pet.name}
+          kindLabel={petKind.label}
+          stageRef={stageRef}
+          initialPosition={pet.position}
+          gomaPosition={gomaPosition}
+          hasUnreadMail={hasUnreadMail}
+          onOpenPicker={onOpenPetPicker}
+        />
+      ) : hasActivePet ? (
         <button
           type="button"
           className="student-pet-stage-character"
