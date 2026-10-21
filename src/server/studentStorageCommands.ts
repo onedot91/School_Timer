@@ -28,10 +28,11 @@ export const applyStudentStorageCommand = (
   const date = new Date(context.createdAt), weekKey = getKoreanIsoWeekKey(date);
   const life = pruneExpiredStudentLetters(normalizeStudentLifeState(current.studentLife), context.createdAt);
   const storedLife = record(current.studentLife);
-  const rawLife: Record<string, unknown> = {
+  // Only letter commands may write letters; pruning them elsewhere is a read-only scope violation.
+  const rawLife: Record<string, unknown> = action.startsWith('student.letter.') ? {
     ...storedLife,
     letters: rawList(storedLife.letters).filter((letter) => isStudentLetterRetained(record(letter).createdAt, context.createdAt)),
-  };
+  } : storedLife;
   const finish = (value: Record<string, unknown>, result: unknown = { applied: true }) => {
     if (value.currencyHistory !== current.currencyHistory) {
       const knownIds = new Set((normalizeCurrencyHistory(current.currencyHistory)[studentKey] ?? []).map(({ id }) => id));
