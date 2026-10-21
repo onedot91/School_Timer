@@ -269,6 +269,7 @@ import {
 import StableLabel from '../components/StableLabel';
 import StatusSlot from '../components/StatusSlot';
 import { getClassPrepState, parseClassPrepRelease, type ClassPrepRelease } from '../lib/classPrep';
+import { hasMorningActivityEnded, isMorningSlot, MORNING_ACTIVITY_LABEL } from '../lib/morningActivity';
 import { CLASS_PREP_RELEASE_STORAGE_KEY } from '../lib/classPrepLocalStore';
 import { getServerSyncedNow } from '../lib/serverClock';
 import { startInitialLoadWithRetry, type InitialLoadRetryHandle } from '../lib/initialLoadRetry';
@@ -579,7 +580,6 @@ type WeeklySchedule = {
 type WeeklySubjectSchedule = Record<string, Record<number, Record<string, string>>>;
 type SubjectCatalog = string[];
 
-const MORNING_ACTIVITY_LABEL = '\uC544\uCE68\uD65C\uB3D9';
 const MORNING_DEFAULT_DURATION = 15;
 const CLASS_DURATION = 40;
 const BREAK_DURATION = 10;
@@ -1392,8 +1392,6 @@ const getScheduleClockParts = (timeMs: number, offsetSeconds: number) => {
     currentSeconds: adjustedNow.getSeconds(),
   };
 };
-
-const isMorningSlot = (slot: ScheduleSlot) => slot.type === 'morning' || slot.name === MORNING_ACTIVITY_LABEL;
 
 const getSchedulePeriodNumber = (slot: Pick<ScheduleSlot, 'name' | 'type'>) => {
   if (slot.type !== 'class') return null;
@@ -3463,6 +3461,7 @@ function ScheduleYoutubePlayer({
   shouldAutoplay,
   selectedIndex,
   selectionRequestId,
+  pauseRequestId,
   onActiveIndexChange,
   onVideoMetadataChange,
 }: {
@@ -3470,6 +3469,7 @@ function ScheduleYoutubePlayer({
   shouldAutoplay: boolean;
   selectedIndex: number;
   selectionRequestId: number;
+  pauseRequestId: number;
   onActiveIndexChange: (index: number) => void;
   onVideoMetadataChange: (index: number, metadata: ScheduleYoutubeMetadata) => void;
 }) {
@@ -3647,6 +3647,11 @@ function ScheduleYoutubePlayer({
     autoplayRetryRef.current = false;
     playVideoAtIndex(player, nextIndex);
   }, [selectionRequestId]);
+
+  useEffect(() => {
+    if (pauseRequestId === 0) return;
+    playerRef.current?.pauseVideo();
+  }, [pauseRequestId]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -4156,6 +4161,7 @@ export default function TimerPage() {
   const [shouldAutoplayScheduleYoutube, setShouldAutoplayScheduleYoutube] = useState(false);
   const [activeScheduleYoutubeIndex, setActiveScheduleYoutubeIndex] = useState(0);
   const [scheduleYoutubeSelectionRequestId, setScheduleYoutubeSelectionRequestId] = useState(0);
+  const [scheduleYoutubePauseRequestId, setScheduleYoutubePauseRequestId] = useState(0);
   const [isScheduleYoutubePlaylistOpen, setIsScheduleYoutubePlaylistOpen] = useState(false);
   const [isScheduleYoutubeFavoritesEditing, setIsScheduleYoutubeFavoritesEditing] = useState(false);
   const [draggingScheduleYoutubeFavoriteId, setDraggingScheduleYoutubeFavoriteId] = useState<string | null>(null);
@@ -4250,6 +4256,7 @@ export default function TimerPage() {
   }, [isQuestionSubmissionPanelOpen, refreshQuestionSubmissionStatuses]);
 
   const prevSlotIdRef = useRef<string | null>(null);
+  const prevSlotRef = useRef<ScheduleSlot | null>(null);
   const previousWatchFaceRunningRef = useRef<boolean | null>(null);
   const previousWatchFaceFinishedRef = useRef(false);
   // Manual Timer State
@@ -5596,7 +5603,13 @@ export default function TimerPage() {
         clearAndCloseNotice();
       }
 
+      if (hasMorningActivityEnded(prevSlotRef.current, activeSlot ?? null)) {
+        getSharedBackgroundMusicAudio()?.pause();
+        setScheduleYoutubePauseRequestId((previous) => previous + 1);
+      }
+
       prevSlotIdRef.current = nextSlotId;
+      prevSlotRef.current = activeSlot ?? null;
 
       if (activeSlot) {
         const slotTotalSeconds = (activeSlot.end - activeSlot.start) * 60;
@@ -12315,6 +12328,7 @@ export default function TimerPage() {
                       shouldAutoplay={shouldAutoplayScheduleYoutube}
                       selectedIndex={boundedActiveScheduleYoutubeIndex}
                       selectionRequestId={scheduleYoutubeSelectionRequestId}
+                      pauseRequestId={scheduleYoutubePauseRequestId}
                       onActiveIndexChange={setActiveScheduleYoutubeIndex}
                       onVideoMetadataChange={updateScheduleYoutubeMetadataFromPlayer}
                     />
