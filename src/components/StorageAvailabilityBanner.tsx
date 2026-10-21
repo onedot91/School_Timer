@@ -1,10 +1,12 @@
-import { RefreshCw, X } from 'lucide-react';
+import { CircleAlert, CircleDashed, CircleQuestionMark, CloudCheck, Ellipsis, Laptop, LoaderCircle, RefreshCw, RotateCw, TriangleAlert, Wrench, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { dismissStorageAvailabilityNotice, getStorageAvailabilityNotice, subscribeStorageAvailability } from '../lib/storageAvailability';
 import { canReloadWithDrafts, hasDraftStorageFailure, getUnsafeDraftRecoveryText, subscribeDraftReloadSafety, getDraftReloadSafetySnapshot } from '../lib/draftReloadSafety';
 import { subscribeSaveRecovery, getSaveRecoverySnapshot, getSaveRecoveryStatus, requestSaveRecovery, isReviewedRecoveryIssue, type SaveRecoveryIssue } from '../lib/saveRecovery';
 import { SAVE_FAILURE_FEATURES } from '../lib/saveFailure';
+import { getSaveActivitySnapshot, subscribeSaveActivity } from '../lib/saveActivity';
+import { deriveTeacherSaveIndicator, type TeacherSaveIndicator, type TeacherSaveIndicatorState } from '../lib/teacherSaveIndicator';
 import StableLabel from './StableLabel';
 
 const recoveryReasons = {
@@ -14,14 +16,62 @@ const recoveryReasons = {
   waiting: '서버가 요청한 재시도 대기 시간이에요. 잠시 후 다시 확인해 주세요.',
 };
 
-export function StorageAvailabilityBanner({ actor, compact = false, onSettingsConflict }: {
+const indicatorIcons: Record<TeacherSaveIndicatorState, LucideIcon> = {
+  unsafe: TriangleAlert, failed: CircleAlert, unconfirmed: CircleQuestionMark, maintenance: Wrench, update: RotateCw,
+  saving: LoaderCircle, refresh: RefreshCw, loading: Ellipsis, reviewed: CircleDashed, local: Laptop, saved: CloudCheck,
+};
+const MIN_SAVING_MS = 300;
+const SAVED_FLASH_MS = 1500;
+
+export interface TeacherSaveStatus {
+  readonly saveError: boolean;
+  readonly refreshPending: boolean;
+  readonly loading: boolean;
+  readonly sharedBackend: boolean;
+}
+
+/** Problems and progress show at once; calm states wait until "saving" has been visible long enough not to flicker. */
+function useSteadySaveIndicator(indicator: TeacherSaveIndicator) {
+  const immediate = indicator.state === 'saving' || indicator.tone === 'danger' || indicator.tone === 'warning';
+  const [held, setHeld] = useState(indicator);
+  const [justSaved, setJustSaved] = useState(false);
+  const savingSinceRef = useRef<number | null>(null);
+  // The indicator object is rebuilt every render; its state, count and label are what matter.
+  useEffect(() => {
+    if (immediate) {
+      savingSinceRef.current = indicator.state === 'saving' ? savingSinceRef.current ?? Date.now() : null;
+      setHeld(indicator);
+      setJustSaved(false);
+      return;
+    }
+    const since = savingSinceRef.current;
+    const timer = window.setTimeout(() => {
+      savingSinceRef.current = null;
+      setHeld(indicator);
+      setJustSaved(since !== null && indicator.state === 'saved');
+    }, since === null ? 0 : Math.max(0, MIN_SAVING_MS - (Date.now() - since)));
+    return () => window.clearTimeout(timer);
+  }, [indicator.state, indicator.count, indicator.label, immediate]);
+  useEffect(() => {
+    if (!justSaved) return;
+    const timer = window.setTimeout(() => setJustSaved(false), SAVED_FLASH_MS);
+    return () => window.clearTimeout(timer);
+  }, [justSaved]);
+  const shown = immediate ? indicator : held;
+  return { indicator: shown, justSaved: justSaved && shown.state === 'saved' };
+}
+
+export function StorageAvailabilityBanner({ actor, compact = false, teacherStatus, onSettingsConflict }: {
   readonly actor: number | null;
   readonly compact?: boolean;
+  /** Settings-screen state the shared stores do not know about; only read in compact mode. */
+  readonly teacherStatus?: TeacherSaveStatus;
   readonly onSettingsConflict?: (error: unknown) => void;
 }) {
   const notice = useSyncExternalStore(subscribeStorageAvailability, getStorageAvailabilityNotice, () => null);
   useSyncExternalStore(subscribeDraftReloadSafety, getDraftReloadSafetySnapshot, () => 0);
   useSyncExternalStore(subscribeSaveRecovery, getSaveRecoverySnapshot, () => 0);
+  const inFlightSaves = useSyncExternalStore(subscribeSaveActivity, getSaveActivitySnapshot, () => 0);
   const unsafe = actor !== null && hasDraftStorageFailure(actor);
   const [showUnsafe, setShowUnsafe] = useState(false);
   const [copyFallback, setCopyFallback] = useState('');
@@ -39,6 +89,20 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
   const [reviewing, setReviewing] = useState(false);
   const activeIssues = recovery?.issues.filter(issue => !isReviewedRecoveryIssue(issue)) ?? [];
   const reviewedIssues = recovery?.issues.filter(isReviewedRecoveryIssue) ?? [];
+  const activeNotice = notice?.actor === actor ? notice : null;
+  const steady = useSteadySaveIndicator(deriveTeacherSaveIndicator({
+    unsafe,
+    saveError: teacherStatus?.saveError ?? false,
+    noticeKind: activeNotice?.kind ?? null,
+    pendingRecovery: recovery?.pending ?? 0,
+    activeIssues: activeIssues.length,
+    reviewedIssues: reviewedIssues.length,
+    recovering: (recovery?.recovering ?? false) || isRetrying,
+    inFlightSaves,
+    refreshPending: (teacherStatus?.refreshPending ?? false) || (recovery?.refreshPending ?? false),
+    loading: teacherStatus?.loading ?? false,
+    sharedBackend: teacherStatus?.sharedBackend ?? true,
+  }));
   useEffect(() => { setRetryError(''); setReviewTarget(null); }, [actor]);
   useEffect(() => { if (recovery?.pending === 0) setRetryError(''); }, [recovery?.pending]);
   const recoveryDetailsRef = useRef<HTMLDetailsElement>(null);
@@ -58,7 +122,7 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
     observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-modal'] });
     return () => observer.disconnect();
   }, [notice, actor, showUnsafe, needsRecovery, compact]);
-  if ((!notice || notice.actor !== actor) && !showUnsafe && !needsRecovery) return null;
+  if (!compact && (!notice || notice.actor !== actor) && !showUnsafe) return null;
   const reload = () => {
     if (actor !== null && !canReloadWithDrafts(actor)) { setReloadBlocked(true); return; }
     window.location.reload();
@@ -141,12 +205,23 @@ export function StorageAvailabilityBanner({ actor, compact = false, onSettingsCo
     </details> : null}
   </> : null;
   if (compact) {
-    const activeNotice = notice?.actor === actor ? notice : null;
     const onlyReviewed = !unsafe && !activeNotice && !recovery?.refreshPending && activeIssues.length === 0 && reviewedIssues.length > 0;
-    const label = unsafe ? '보관 오류' : activeNotice?.kind === 'maintenance' ? '저장 점검'
-      : recovery?.refreshPending ? '화면 갱신 중' : onlyReviewed ? '확인한 알림' : recovery?.recovering || isRetrying ? '확인 중…' : '저장 상태';
-    return <details ref={indicatorRef} className="teacher-storage-indicator" data-reviewed={onlyReviewed}>
-      <summary><span role="status">{label}</span></summary>
+    const { indicator } = steady;
+    const Icon = indicatorIcons[indicator.state];
+    const name = indicator.count > 0 ? `${indicator.label} ${indicator.count}건` : indicator.label;
+    const face = <>
+      <span className="teacher-storage-indicator-icon" aria-hidden="true">
+        <Icon size={22} strokeWidth={2.4} />
+        {indicator.count > 0 ? <b>{indicator.count > 99 ? '99+' : indicator.count}</b> : null}
+      </span>
+      <span className="sr-only" role="status">{name}</span>
+    </>;
+    const faceProps = { className: 'teacher-storage-indicator', 'data-state': indicator.state, 'data-tone': indicator.tone, 'data-just-saved': steady.justSaved || undefined };
+    if (!unsafe && !activeNotice && !needsRecovery && !onlyReviewed) {
+      return <span {...faceProps}><span className="teacher-storage-indicator-face" title={name}>{face}</span></span>;
+    }
+    return <details ref={indicatorRef} {...faceProps}>
+      <summary className="teacher-storage-indicator-face" title={name}>{face}</summary>
       <div className="teacher-storage-indicator-content">
         {!onlyReviewed ? <p>{unsafe ? '화면을 닫기 전에 내용을 복사해 주세요.' : activeNotice?.kind === 'maintenance'
           ? '잠시 후 다시 저장해 주세요.' : activeNotice?.kind === 'update'

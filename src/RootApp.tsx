@@ -13,7 +13,8 @@ import {
   registerDeviceSession,
   type BrowserDeviceSession,
 } from './lib/deviceSessionClient';
-import { appDataMode } from './lib/dataMode';
+import { appDataMode, canReadSharedBackend } from './lib/dataMode';
+import { startServerClockSync } from './lib/serverClock';
 import { detectEntryResetPlatform, isEntryResetShortcut } from './lib/entryResetShortcut';
 import { isSupabaseSettingsEnabled } from './lib/supabaseConfig';
 import { captureStorageResponseContext } from './lib/storageResponseOrder';
@@ -171,6 +172,7 @@ export default function RootApp() {
   }, [selectedEntryNumber]);
 
   useEffect(() => startSaveFailureReporting(), [selectedEntryNumber]);
+  useEffect(() => (canReadSharedBackend(appDataMode) ? startServerClockSync() : undefined), []);
   useEffect(() => {
     if (!isDeviceSessionReady || selectedEntryNumber === null) return;
     if (requiresDeviceRegistration && !deviceSessionMatchesEntry(deviceSession, selectedEntryNumber)) return;

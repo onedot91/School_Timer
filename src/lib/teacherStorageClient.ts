@@ -7,6 +7,7 @@ import { getStorageAvailability } from './storageAvailability.js';
 import { storageAvailabilityMessage } from './storageAvailabilityCopy.js';
 import { collectSaveFailureDiagnostics } from './saveFailureDiagnostics.js';
 import { classifySaveFailure } from './saveFailure.js';
+import { trackSaveActivity } from './saveActivity.js';
 
 export const teacherSettingsSaveErrorMessage = (error: unknown): string => {
   const availability = storageAvailabilityMessage(error);
@@ -130,9 +131,9 @@ const executeTeacherCommand = async (command: StorageCommand) => {
   }
 };
 
-export const executeTeacherStorageCommand = (command: StorageCommand) => serializeStudentSave(0, () => executeTeacherCommand(command)).finally(() => notifySaveRecovery());
+export const executeTeacherStorageCommand = (command: StorageCommand) => trackSaveActivity(() => serializeStudentSave(0, () => executeTeacherCommand(command))).finally(() => notifySaveRecovery());
 
-export const recheckTeacherSaveResults = async () => {
+const recheckTeacherSaves = async () => {
   const context = captureStorageResponseContext();
   await teacherStorageDrafts.refresh();
   if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
@@ -156,6 +157,7 @@ export const recheckTeacherSaveResults = async () => {
   if (!isStorageResponseContextCurrent(context)) throw new StorageResponseActorChangedError();
   return requestSaveRecovery(0);
 };
+export const recheckTeacherSaveResults = () => trackSaveActivity(recheckTeacherSaves);
 
 registerSaveRecoveryAdapter({
   id: 'teacher-storage',

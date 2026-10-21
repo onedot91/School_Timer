@@ -270,7 +270,9 @@ import StableLabel from '../components/StableLabel';
 import StatusSlot from '../components/StatusSlot';
 import { getClassPrepState, parseClassPrepRelease, type ClassPrepRelease } from '../lib/classPrep';
 import { CLASS_PREP_RELEASE_STORAGE_KEY } from '../lib/classPrepLocalStore';
+import { getServerSyncedNow } from '../lib/serverClock';
 import { startInitialLoadWithRetry, type InitialLoadRetryHandle } from '../lib/initialLoadRetry';
+import { setSaveActivityPending } from '../lib/saveActivity';
 
 const TeacherWritingSettings = lazy(() => import('../components/teacher/TeacherWritingSettings'));
 const TeacherClasswordPanel = lazy(() => import('../components/teacher/TeacherClasswordPanel'));
@@ -352,6 +354,7 @@ const SETTINGS_NAVIGATION_GROUPS: readonly SettingsNavigationGroup[] = [
 ] as const;
 const SETTINGS_NAVIGATION_ITEMS = SETTINGS_NAVIGATION_GROUPS.flatMap((group) => group.items);
 const AUCTION_MISSION_RECOMMENDED_LENGTH = 18;
+const TEACHER_SETTINGS_SAVE_ACTIVITY = 'teacher.settings.debounce';
 
 const EMOTION_CALENDAR_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const emotionCalendarMonthFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -1272,7 +1275,7 @@ const getAdjustedScheduleDate = (timeMs: number, offsetSeconds: number) =>
   new Date(timeMs + clampScheduleClockOffsetSeconds(offsetSeconds) * 1000);
 
 const getCurrentScheduleWeekday = (offsetSeconds: number) => {
-  const currentDay = getAdjustedScheduleDate(Date.now(), offsetSeconds).getDay();
+  const currentDay = getAdjustedScheduleDate(getServerSyncedNow(), offsetSeconds).getDay();
   return WEEKDAYS.includes(currentDay) ? currentDay : WEEKDAYS[0];
 };
 
@@ -4304,7 +4307,7 @@ export default function TimerPage() {
     }
     return buildWeeklySubjectsFromSchedule(
       weeklySchedule,
-      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds)),
     );
   });
   const weeklySubjectsRef = useRef(weeklySubjects);
@@ -4323,7 +4326,7 @@ export default function TimerPage() {
   const [subjectCatalogEditCommitVersion, setSubjectCatalogEditCommitVersion] = useState(0);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [selectedSubjectWeekKey, setSelectedSubjectWeekKey] = useState(() =>
-    getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+    getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds)),
   );
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -4418,7 +4421,7 @@ export default function TimerPage() {
   awardPresentationRef.current = awardPresentation;
   const awardQueueAdvanceRef = useRef<{ key: string; dueAt: number } | null>(null);
   const [characterImageError, setCharacterImageError] = useState(false);
-  const [scheduleFocusTick, setScheduleFocusTick] = useState(() => Date.now());
+  const [scheduleFocusTick, setScheduleFocusTick] = useState(() => getServerSyncedNow());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsDialogRef = useRef<HTMLDivElement>(null);
@@ -4597,7 +4600,7 @@ export default function TimerPage() {
   useEffect(() => {
     if (!isSettingsOpen || settingsPanel !== 'subjects') return;
     setSelectedSubjectWeekKey(
-      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds)),
+      getDefaultSubjectWeekKeyForDate(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds)),
     );
   }, [isSettingsOpen, settingsPanel, scheduleClockOffsetSeconds]);
 
@@ -4622,7 +4625,7 @@ export default function TimerPage() {
   const reservedDrawCount = selectedDrawSettingsCase.hiddenNumberQueue.length;
   const editingDaySchedule = weeklySchedule[editingDay] || [];
   const activeWeekdayScheduleCount = WEEKDAYS.filter((day) => (weeklySchedule[day] || []).length > 0).length;
-  const subjectWeekOptions = buildSubjectWeekOptions(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds));
+  const subjectWeekOptions = buildSubjectWeekOptions(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds));
   const selectedSubjectWeekLabel =
     subjectWeekOptions.find((option) => option.key === selectedSubjectWeekKey)?.dateLabel ??
     getWeekOptionLabel(selectedSubjectWeekKey);
@@ -5202,8 +5205,10 @@ export default function TimerPage() {
     }
 
     isSharedSettingsSavePendingRef.current = true;
+    setSaveActivityPending(TEACHER_SETTINGS_SAVE_ACTIVITY, true);
     sharedSettingsSaveTimeoutRef.current = window.setTimeout(() => {
       sharedSettingsSaveTimeoutRef.current = null;
+      setSaveActivityPending(TEACHER_SETTINGS_SAVE_ACTIVITY, false);
       const snapshot = buildSharedSettingsSnapshot();
       const auctionItemsEditVersionAtSave = auctionItemsEditVersionRef.current;
       if (hasUnsavedAuctionItemsRef.current) setAuctionItemsSaveStatus('pending');
@@ -5255,6 +5260,7 @@ export default function TimerPage() {
         window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
         sharedSettingsSaveTimeoutRef.current = null;
       }
+      setSaveActivityPending(TEACHER_SETTINGS_SAVE_ACTIVITY, false);
       if (!teacherSettingsSavingRef.current) isSharedSettingsSavePendingRef.current = false;
     };
   }, [
@@ -5537,7 +5543,7 @@ export default function TimerPage() {
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setScheduleFocusTick(Date.now());
+      setScheduleFocusTick(getServerSyncedNow());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -5576,12 +5582,12 @@ export default function TimerPage() {
   useEffect(() => {
     const checkSchedule = () => {
       const { dayOfWeek, currentMinutes, currentSeconds } = getScheduleClockParts(
-        Date.now(),
+        getServerSyncedNow(),
         scheduleClockOffsetSeconds,
       );
 
       const todaysSchedule = weeklySchedule[dayOfWeek] || [];
-      const currentWeekKey = getWeekKeyForDate(getAdjustedScheduleDate(Date.now(), scheduleClockOffsetSeconds));
+      const currentWeekKey = getWeekKeyForDate(getAdjustedScheduleDate(getServerSyncedNow(), scheduleClockOffsetSeconds));
       const activeSlot = todaysSchedule.find(s => currentMinutes >= s.start && currentMinutes < s.end);
       const nextSlotId = activeSlot ? activeSlot.id : null;
       const didSlotChange = prevSlotIdRef.current !== null && prevSlotIdRef.current !== nextSlotId;
@@ -6574,6 +6580,7 @@ export default function TimerPage() {
     if (sharedSettingsSaveTimeoutRef.current !== null) {
       window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
       sharedSettingsSaveTimeoutRef.current = null;
+      setSaveActivityPending(TEACHER_SETTINGS_SAVE_ACTIVITY, false);
     }
   };
 
@@ -7529,6 +7536,7 @@ export default function TimerPage() {
       if (sharedSettingsSaveTimeoutRef.current !== null) {
         window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
         sharedSettingsSaveTimeoutRef.current = null;
+        setSaveActivityPending(TEACHER_SETTINGS_SAVE_ACTIVITY, false);
       }
       void executeStorageCommand({ requestId: crypto.randomUUID(), action: 'teacher.auction.remove', payload: { itemId } })
         .then(saved => {
@@ -7725,6 +7733,7 @@ export default function TimerPage() {
     if (sharedSettingsSaveTimeoutRef.current !== null) {
       window.clearTimeout(sharedSettingsSaveTimeoutRef.current);
       sharedSettingsSaveTimeoutRef.current = null;
+      setSaveActivityPending(TEACHER_SETTINGS_SAVE_ACTIVITY, false);
     }
   };
 
@@ -13346,7 +13355,12 @@ export default function TimerPage() {
                 설정
               </h2>
               <div className="flex items-center">
-                <StorageAvailabilityBanner actor={0} compact onSettingsConflict={error => {
+                <StorageAvailabilityBanner actor={0} compact teacherStatus={{
+                  saveError: Boolean(teacherSettingsSaveError),
+                  refreshPending: teacherRefreshPending,
+                  loading: isTeacherSettingsLoading,
+                  sharedBackend: isSupabaseSettingsEnabled,
+                }} onSettingsConflict={error => {
                   setTeacherSettingsConflict(true);
                   setTeacherSettingsSaveError(teacherSettingsSaveErrorMessage(error));
                 }} />

@@ -13,6 +13,7 @@ Node serverless boundary served by Vercel in production. `netlify/functions/api.
 | `classword.ts` | Classword board, quiz, topic, round, and entry GET/POST router |
 | `device-session.ts` | Device registration/session GET/POST/DELETE |
 | `newspaper.ts` | Session-scoped newspaper GET; student submit and teacher edit/topic/download/reset POST |
+| `server-time.ts` | Unauthenticated GET/HEAD server clock reference `{ now }` for device clock sync |
 | `shared-settings.ts` | Scoped settings GET and optimistic-concurrency PUT |
 | `student-economy.ts` | Idempotent student economy action POST |
 | `today-friend.ts` | Today-friend student/teacher GET/POST router |

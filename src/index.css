@@ -30751,10 +30751,26 @@ body {
 .storage-availability-banner button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 12px; border: 1px solid var(--teacher-border, #bec9c0); }
 .storage-availability-banner button:focus-visible { outline: 3px solid var(--apple-focus, #4f8068); outline-offset: 2px; }
 .storage-availability-banner[data-in-dialog="true"] { position: relative; inset: auto; transform: none; order: -1; flex-shrink: 0; width: auto; margin: 10px; }
-.teacher-storage-indicator { position: relative; flex-shrink: 0; color: var(--teacher-warning, #805525); font-size: 12px; }
-.teacher-storage-indicator[data-reviewed="true"] { color: var(--teacher-text, #243c32); }
-.teacher-storage-indicator summary { display: flex; align-items: center; min-height: 44px; padding: 0 6px; cursor: pointer; font-weight: 700; list-style: none; }
-.teacher-storage-indicator summary::-webkit-details-marker { display: none; }
+/* Settings save status: one icon whose shape and tone change together, so state never relies on color alone. */
+.teacher-storage-indicator { --indicator-color: var(--teacher-text-secondary, #5d6863); --indicator-soft: transparent; position: relative; flex-shrink: 0; margin-right: 4px; color: var(--teacher-text, #243c32); font-size: 12px; }
+.teacher-storage-indicator[data-tone="success"], .teacher-storage-indicator[data-tone="progress"] { --indicator-color: var(--teacher-accent, #4d6f60); }
+.teacher-storage-indicator[data-tone="progress"], .teacher-storage-indicator[data-just-saved] { --indicator-soft: color-mix(in srgb, var(--teacher-accent, #4d6f60) 16%, transparent); }
+.teacher-storage-indicator[data-tone="warning"] { --indicator-color: var(--teacher-warning, #805525); --indicator-soft: var(--teacher-warning-soft, #eee4d5); }
+.teacher-storage-indicator[data-tone="danger"] { --indicator-color: var(--teacher-urgent, #914b45); --indicator-soft: var(--teacher-urgent-soft, #eddfdc); }
+/* Two classes so the global `.settings-dialog span { color: inherit }` rule cannot drop the tone color. */
+.teacher-storage-indicator .teacher-storage-indicator-face { display: grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: 999px; color: var(--indicator-color); background: var(--indicator-soft); transition: background-color 200ms ease-out, color 200ms ease-out, box-shadow 200ms ease-out; }
+.teacher-storage-indicator:is([data-tone="warning"], [data-tone="danger"]) .teacher-storage-indicator-face { box-shadow: inset 0 0 0 2px var(--indicator-color); }
+summary.teacher-storage-indicator-face { cursor: pointer; list-style: none; }
+summary.teacher-storage-indicator-face::-webkit-details-marker { display: none; }
+summary.teacher-storage-indicator-face:hover { background: color-mix(in srgb, var(--indicator-color) 20%, var(--teacher-surface, #f4f2ec)); }
+.teacher-storage-indicator-icon { position: relative; display: grid; place-items: center; }
+.teacher-storage-indicator-icon b { position: absolute; top: -9px; right: -12px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; color: #fff; background: var(--indicator-color); font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; }
+.teacher-storage-indicator[data-state="saving"] .teacher-storage-indicator-icon svg { animation: teacher-save-spin 900ms linear infinite; }
+@keyframes teacher-save-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .teacher-storage-indicator[data-state="saving"] .teacher-storage-indicator-icon svg { animation: none; }
+  .teacher-storage-indicator-face { transition-duration: 0ms; }
+}
 .teacher-storage-indicator summary:focus-visible, .teacher-storage-indicator button:focus-visible { outline: 3px solid var(--apple-focus, #0066cc); outline-offset: 2px; }
 .teacher-storage-indicator-content { position: absolute; right: 0; top: 100%; z-index: 20; width: min(320px, calc(100vw - 48px)); max-height: min(480px, calc(100dvh - 180px)); overflow-y: auto; overscroll-behavior: contain; padding: 12px; border: 1px solid var(--teacher-border, #bec9c0); border-radius: 12px; background: var(--teacher-surface, #faf7ee); color: var(--teacher-text, #243c32); box-shadow: 0 4px 16px #203c3220; }
 .teacher-storage-indicator-content p { margin: 0 0 8px; overflow-wrap: anywhere; }
