@@ -60,7 +60,7 @@ const SPECIES = {
     fur: '#c97a42', furFar: '#ae6331', belly: '#f7e0c4', muzzle: '#f7e0c4', pattern: '#8f4f26',
     bodyPattern: 'backStripe', forehead: 'none', ears: 'pointed', earIn: '#f0b9a0',
     nose: '#4a3428', noseType: 'triangle', whiskers: false,
-    tail: { type: 'bushy', outer: 25, inner: 19.4, highlight: '#e3a46b', scale: 1.15 },
+    tail: { type: 'bushy', outer: 25, inner: 19.4, highlight: '#e3a46b', scale: 1.05 },
   },
   raccoon: {
     fur: '#a09b95', furFar: '#86817b', belly: '#e9e5df', muzzle: '#f1eee9', pattern: '#4a4440',
@@ -127,7 +127,7 @@ const BASE = {
   hdx: 0, hdy: 0, hrot: 0,
   eyes: 'open', yawn: 0, tongue: 0, blush: .5, earL: 0, earR: 0, faceTurn: 0, whiskers: 1,
   wUp: 1, wGround: 0, wDown: 0, wHigh: 0, trot: 0, tflick: 0, tsx: 1, tailFront: false,
-  frameRot: 0, fcx: 80, fcy: 40, pawOverHead: false, zStep: -1,
+  frameRot: 0, fcx: 80, fcy: 40, pawOverHead: false, hindOverHead: false, zStep: -1,
   // Species details: chick wings (0 folded .. 1 raised) and hamster cheeks (0 .. 1 puffed).
   wing: 0, cheek: 0,
 };
@@ -252,7 +252,8 @@ const drawTail = (p, sp) => {
   if (tail.rings) layers.push(`<path d="${d}" fill="none" stroke="${tail.rings}" stroke-width="${tail.inner}" stroke-dasharray="${tail.dash}" stroke-dashoffset="-6"/>`);
   if (tail.highlight) layers.push(`<path d="${d}" fill="none" stroke="${tail.highlight}" stroke-width="${r(tail.inner * .4)}" stroke-linecap="round"/>`);
   if (tail.tuft) layers.push(`<circle cx="${r(tip[0])}" cy="${r(tip[1])}" r="${tail.tuftSize ?? 6}" fill="${tail.tuft}" ${outline}/>`);
-  return `<g transform="rotate(${r(p.trot)} ${r(base[0])} ${r(base[1])})">${layers.join('')}</g>`;
+  const swing = tail.type === 'bushy' ? p.trot * .5 : p.trot;
+  return `<g transform="rotate(${r(swing)} ${r(base[0])} ${r(base[1])})">${layers.join('')}</g>`;
 };
 
 const drawEyes = (kind, sp) => [[109, 55], [128, 55]].map(([x, y]) => {
@@ -313,9 +314,9 @@ const drawEars = (p, sp) => {
   <g transform="rotate(${r(p.earR)} 126 38)">${right}</g>`;
   if (sp.ears === 'round' || sp.ears === 'koala') {
     const big = sp.ears === 'koala';
-    const size = big ? 14 : sp.earSize ?? 8;
+    const size = big ? 13 : sp.earSize ?? 8;
     const ear = (x, y) => `<circle cx="${x}" cy="${y}" r="${size}" fill="${fur}" ${outline}/><circle cx="${x + .6}" cy="${y + .6}" r="${r(size * (big ? .62 : .5))}" fill="${sp.earIn}"/>`;
-    return big ? pair(ear(93, 42), ear(139, 40)) : pair(ear(100, 37), ear(131, 35));
+    return big ? pair(ear(93.5, 42), ear(137.5, 40)) : pair(ear(100, 37), ear(131, 35));
   }
   if (sp.ears === 'pig') {
     return pair(
@@ -455,6 +456,8 @@ const drawCat = (p, sp, id) => {
   const showHindPaw = p.fold > .7 && !sp.bird;
   const showChest = p.fold > .5 && !p.tailFront && !sp.bird;
   const pawOverHead = p.pawOverHead && !sp.bird;
+  // A bird lying down sits on its legs, so none show.
+  const birdTucked = sp.bird && p.bdy > 12;
   const hindPaw = [haunch[0] + haunchRx * .72, GROUND - 4.2];
   const clipId = `body-${id}`;
   const frontLegPose = p.pawOverHead && sp.bird ? { ...p.nf, a: 0, reach: 1 } : p.nf;
@@ -471,8 +474,8 @@ const drawCat = (p, sp, id) => {
     ${sp.bird ? '' : drawLeg(shoulderFar, p.ff, legFar, p.lw, sp)}
     ${sp.bird ? '' : drawLeg(hipFar, p.fb, legFar, p.lw, sp)}
     ${p.tailFront ? '' : drawTail(p, sp)}
-    ${drawLeg(hipNear, p.nb, legFur, p.lw, sp)}
-    ${pawOverHead ? '' : frontLeg}
+    ${p.hindOverHead || birdTucked ? '' : drawLeg(hipNear, p.nb, legFur, p.lw, sp)}
+    ${pawOverHead || birdTucked ? '' : frontLeg}
     <g transform="${body}">${sp.wool ? bumps(BODY_WOOL, 8, sp.fur, true) : ''}</g>
     <path d="${bodyPath}" transform="${body}" fill="${sp.fur}" ${outline} vector-effect="non-scaling-stroke"/>
     ${sp.bodyPattern === 'pandaBand' ? drawBodyPattern(sp, clipId, body) : ''}
@@ -490,6 +493,7 @@ const drawCat = (p, sp, id) => {
     ${p.tailFront ? drawTail(p, sp) : ''}
     ${head}
     ${pawOverHead ? frontLeg : ''}
+    ${p.hindOverHead ? drawLeg(hipNear, p.nb, legFur, p.lw, sp) : ''}
     ${drawSleepZ(p.zStep)}
   </g>`;
 };
@@ -642,6 +646,71 @@ const ANIMATION_POSES = {
     trot: [0, 6, -3, 0][i],
     tflick: [0, 6, -3, 0][i],
   })),
+  // Bounding run: front legs move together and back legs together (half a cycle apart), the body
+  // rocks and lifts, the ears fold back and the tail streams behind. Same stance rule as walk.
+  run: Array.from({ length: 8 }, (_, i) => {
+    const phase = (i / 8) * tau;
+    const leg = (offset, spread = 0) => ({
+      a: -34 * Math.sin(phase + offset) + spread,
+      lift: Math.max(0, Math.cos(phase + offset)) * 7,
+    });
+    const squash = Math.cos(phase * 2);
+    return pose(STAND, {
+      bdy: -2 - 2.6 * Math.abs(Math.sin(phase)),
+      brot: 4 * Math.sin(phase),
+      bsx: 1 + .04 * squash, bsy: 1 - .04 * squash,
+      nf: leg(0), ff: leg(.45, 4), nb: leg(Math.PI), fb: leg(Math.PI + .45, -4),
+      trot: -16 + 6 * Math.sin(phase), tflick: 4 * Math.sin(phase + 1),
+      earL: -9, earR: 9,
+      hdy: 1.6 * Math.cos(phase * 2 + .4),
+    });
+  }),
+  // Turns to face the viewer, then looks up and flicks an ear.
+  lookAround: Array.from({ length: 8 }, (_, i) => pose(STAND, {
+    faceTurn: [0, .5, 1, 1, 1, .5, 0, 0][i],
+    hdx: [0, -2, -4, -4, -4, -2, 0, 0][i],
+    hrot: [0, 0, -2, -2, -8, -6, -3, 0][i],
+    eyes: i === 3 ? 'blink' : 'open',
+    earL: [0, 0, 0, 0, -6, -2, 0, 0][i], earR: [0, 0, 0, 0, 10, 4, 0, 0][i],
+    trot: wave(i, 8) * 5,
+  })),
+  // Curious head tilt to one side, then the other.
+  tilt: Array.from({ length: 6 }, (_, i) => pose(STAND, {
+    hrot: [0, 9, 11, -9, -10, 0][i],
+    hdy: [0, -.5, -.5, -.5, -.5, 0][i],
+    earL: [0, -8, -8, 6, 6, 0][i], earR: [0, 8, 8, -6, -6, 0][i],
+    eyes: i === 0 || i === 5 ? 'open' : 'wide',
+  })),
+  // Sitting, the near hind paw comes up and scratches the cheek fast, head leaning into it.
+  scratch: Array.from({ length: 8 }, (_, i) => {
+    const up = i > 0 && i < 7;
+    return pose(SIT, {
+      nb: up ? { a: i % 2 === 1 ? -150 : -140, len: 32, reach: 0 } : { a: i === 7 ? -60 : 0, len: i === 7 ? 18 : 4, reach: 0 },
+      hindOverHead: up || i === 7,
+      hdx: up ? -11 : -3, hdy: up ? 11 : 1, hrot: up ? 22 : 0,
+      eyes: up ? 'squeeze' : 'open',
+      yawn: up ? .12 : 0,
+      earL: up ? (i % 2 ? -6 : 4) : 0, earR: up ? (i % 2 ? 6 : -4) : 0,
+    });
+  }),
+  // Lying flat with front legs stretched forward and hind legs stretched back, then tucking in.
+  sploot: (() => {
+    const flat = pose(LOAF, {
+      eyes: 'open', whiskers: 1, fold: .3, hdx: -10, hrot: 5,
+      nf: { a: -82, len: 26, reach: 0 }, ff: { a: -80, len: 24, reach: 0 },
+      nb: { a: 82, len: 28, reach: 0 }, fb: { a: 80, len: 26, reach: 0 },
+    });
+    const tucked = pose(LOAF, { eyes: 'open', whiskers: 1 });
+    return [
+      tucked, lerpPose(tucked, flat, .5),
+      ...[0, 1, 2, 3].map((i) => pose(flat, {
+        bsy: .96 + breath(i, 4) * .04,
+        eyes: ['open', 'blink', 'happy', 'open'][i],
+        tflick: wave(i, 4) * 4,
+      })),
+      lerpPose(flat, tucked, .5), pose(tucked, { eyes: 'blink' }),
+    ];
+  })(),
 };
 
 

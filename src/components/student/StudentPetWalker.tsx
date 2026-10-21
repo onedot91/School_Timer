@@ -141,8 +141,8 @@ export default function StudentPetWalker({
     const animation = getPetAnimation(state);
     const column = config.calm
       ? 0
-      : animation === 'walk'
-        ? Math.floor(state.gaitPhase * PET_ANIMATIONS.walk.frames) % PET_ANIMATIONS.walk.frames
+      : animation === 'walk' || animation === 'run'
+        ? Math.floor(state.gaitPhase * PET_ANIMATIONS[animation].frames) % PET_ANIMATIONS[animation].frames
         : getPetFrameColumn(animation, state.modeElapsedMs);
     const frame = getPetFramePosition(animation, column);
     const groundY = clampToGround(state.position, config.ground).y;

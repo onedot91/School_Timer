@@ -32,8 +32,8 @@
 <ellipse cx="84" cy="92" rx="21" ry="5.5" fill="#eceae6"/>
 </g>
 <g transform="translate(0 0) rotate(0 112 70)">
-<g transform="rotate(0 104 41)"><circle cx="93" cy="42" r="14" fill="#a3aab3" stroke="#3b2a1f" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="93.6" cy="42.6" r="8.68" fill="#f4f2ee"/></g>
-<g transform="rotate(0 126 38)"><circle cx="139" cy="40" r="14" fill="#a3aab3" stroke="#3b2a1f" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="139.6" cy="40.6" r="8.68" fill="#f4f2ee"/></g>
+<g transform="rotate(0 104 41)"><circle cx="93.5" cy="42" r="13" fill="#a3aab3" stroke="#3b2a1f" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="94.1" cy="42.6" r="8.06" fill="#f4f2ee"/></g>
+<g transform="rotate(0 126 38)"><circle cx="137.5" cy="40" r="13" fill="#a3aab3" stroke="#3b2a1f" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="138.1" cy="40.6" r="8.06" fill="#f4f2ee"/></g>
 <ellipse cx="116" cy="57" rx="27" ry="24" fill="#a3aab3" stroke="#3b2a1f" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
 <g transform="translate(0 0)">
 <ellipse cx="109" cy="55" rx="3.5" ry="4.5" fill="#2b1d14"/><circle cx="110.2" cy="53.3" r="1.35" fill="#fff"/><ellipse cx="128" cy="55" rx="3.5" ry="4.5" fill="#2b1d14"/><circle cx="129.2" cy="53.3" r="1.35" fill="#fff"/>

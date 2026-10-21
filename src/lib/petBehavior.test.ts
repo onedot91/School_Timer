@@ -9,6 +9,7 @@ import {
   getPetPosture,
   isRestingSpot,
   moveCarry,
+  pickNextAction,
   pickWalkTarget,
   reactToPetTap,
   startCarry,
@@ -72,7 +73,7 @@ test('pet starts on the ground even when the saved spot is in the sky', () => {
 test('wandering pet stays on the ground and uses transitions and fidgets', () => {
   const random = seeded(7);
   const seen = new Set<string>();
-  run(createPetBehaviorState({ x: .5, y: .88 }, config, random), 600_000, random, (state, previous) => {
+  run(createPetBehaviorState({ x: .5, y: .88 }, config, random), 1_800_000, random, (state, previous) => {
     seen.add(state.mode);
     assert.ok(state.position.x >= config.ground.minX && state.position.x <= config.ground.maxX);
     assert.ok(state.position.y >= config.ground.minY && state.position.y <= config.ground.maxY);
@@ -87,7 +88,10 @@ test('wandering pet stays on the ground and uses transitions and fidgets', () =>
       );
     }
   });
-  for (const mode of ['idle', 'walk', 'turn', 'sit', 'sleep', 'sitDown', 'standUp', 'lieDown', 'wakeUp', 'groom', 'yawn', 'stretch', 'twitch']) {
+  for (const mode of [
+    'idle', 'walk', 'run', 'turn', 'sit', 'sleep', 'sitDown', 'standUp', 'lieDown', 'wakeUp',
+    'groom', 'yawn', 'stretch', 'twitch', 'lookAround', 'tilt', 'scratch', 'sploot',
+  ]) {
     assert.ok(seen.has(mode), `expected ${mode}`);
   }
 });
@@ -205,7 +209,7 @@ test('sprite frames loop or hold on the last frame', () => {
   assert.equal(getPetFrameColumn('walk', 1000), 8 % PET_ANIMATIONS.walk.frames);
   assert.equal(getPetFrameColumn('happy', 10_000), PET_ANIMATIONS.happy.frames - 1);
   assert.deepEqual(getPetFramePosition('idle', 0), { x: 0, y: 0 });
-  assert.deepEqual(getPetFramePosition('trickSit', 7), { x: 100, y: 100 });
+  assert.deepEqual(getPetFramePosition('sploot', 7), { x: 100, y: 100 });
 });
 
 test('every pet kind is drawn, with a sheet and a portrait on disk', () => {
@@ -240,4 +244,54 @@ test('taps sometimes trigger the signature move, never in calm mode', () => {
   const sitTrick = reactToPetTap(standing, { ...config, trick: 'trickSit' }, () => .1);
   assert.equal(sitTrick.mode, 'sitDown');
   assert.deepEqual(sitTrick.queue, ['trickSit']);
+});
+
+test('walks curve, vary in pace, and sometimes run or pause halfway', () => {
+  const random = seeded(51);
+  const paces = new Set<number>();
+  let runs = 0;
+  let pauses = 0;
+  let maxDeviation = 0;
+  let walk: { from: { x: number; y: number }; to: { x: number; y: number } } | null = null;
+  run(createPetBehaviorState({ x: .5, y: .88 }, config, random), 900_000, random, (state, previous) => {
+    const moving = state.mode === 'walk' || state.mode === 'run';
+    if (moving && state.target && walk?.to !== state.target) {
+      walk = { from: previous.position, to: state.target };
+      paces.add(Math.round(state.pace * 100));
+      if (state.mode === 'run') runs += 1;
+    }
+    if (moving && walk) {
+      // Distance from the straight line between where the walk started and its target.
+      const lx = walk.to.x - walk.from.x;
+      const ly = (walk.to.y - walk.from.y) / config.aspectRatio;
+      const length = Math.hypot(lx, ly);
+      const px = state.position.x - walk.from.x;
+      const py = (state.position.y - walk.from.y) / config.aspectRatio;
+      if (length > .1) maxDeviation = Math.max(maxDeviation, Math.abs(px * ly - py * lx) / length);
+    }
+    if ((state.mode === 'lookAround' || state.mode === 'tilt') && previous.mode === 'walk' && state.queue[0] === 'walk') pauses += 1;
+  });
+  assert.ok(paces.size >= 5, `paces ${[...paces].join()}`);
+  assert.ok(runs > 0, 'never ran');
+  assert.ok(pauses > 0, 'never paused mid-walk');
+  assert.ok(maxDeviation > .01, `paths stayed straight (${maxDeviation})`);
+});
+
+test('a curved walk reaches its target exactly', () => {
+  const random = seeded(61);
+  let state: PetBehaviorState = {
+    ...createPetBehaviorState({ x: .2, y: .82 }, config, random),
+    mode: 'walk', target: { x: .6, y: .93 }, modeDurationMs: Infinity, heading: 1.2, pace: 1, pauseAt: null,
+  };
+  for (let i = 0; i < 4000 && state.mode === 'walk'; i += 1) state = stepPetBehavior(state, 50, config, random);
+  assert.notEqual(state.mode, 'walk');
+  assert.deepEqual(state.position, { x: .6, y: .93 });
+});
+
+test('the next action re-rolls once instead of repeating the last one', () => {
+  const choices = [['idle', .5], ['sit', .5]] as const;
+  const rolls = (...values: number[]) => () => values.shift() ?? 0;
+  assert.equal(pickNextAction(choices, 'idle', rolls(.1, .9)), 'sit');
+  assert.equal(pickNextAction(choices, 'sit', rolls(.1)), 'idle');
+  assert.equal(pickNextAction([['idle', 1]], 'idle', rolls(.1)), 'idle');
 });

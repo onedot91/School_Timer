@@ -18,7 +18,7 @@
 <rect x="-6.5" y="-6" width="13" height="36" rx="6.5" fill="#ae6331" stroke="#3b2a1f" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
 <path d="M-2.6 29 v-3.6 M2.2 29 v-3.6" stroke="#3b2a1f" stroke-width="1.5" stroke-linecap="round" opacity=".55"/>
 </g>
-<g transform="rotate(0 50 77)"><path d="M50 77 C31.6 77 17.8 64.35 20.1 45.95 C21.25 35.6 27 28.7 35.05 26.4" fill="none" stroke="#3b2a1f" stroke-width="25" stroke-linecap="round"/><path d="M50 77 C31.6 77 17.8 64.35 20.1 45.95 C21.25 35.6 27 28.7 35.05 26.4" fill="none" stroke="#c97a42" stroke-width="19.4" stroke-linecap="round"/><path d="M50 77 C31.6 77 17.8 64.35 20.1 45.95 C21.25 35.6 27 28.7 35.05 26.4" fill="none" stroke="#e3a46b" stroke-width="7.76" stroke-linecap="round"/></g>
+<g transform="rotate(0 50 77)"><path d="M50 77 C33.2 77 20.6 65.45 22.7 48.65 C23.75 39.2 29 32.9 36.35 30.8" fill="none" stroke="#3b2a1f" stroke-width="25" stroke-linecap="round"/><path d="M50 77 C33.2 77 20.6 65.45 22.7 48.65 C23.75 39.2 29 32.9 36.35 30.8" fill="none" stroke="#c97a42" stroke-width="19.4" stroke-linecap="round"/><path d="M50 77 C33.2 77 20.6 65.45 22.7 48.65 C23.75 39.2 29 32.9 36.35 30.8" fill="none" stroke="#e3a46b" stroke-width="7.76" stroke-linecap="round"/></g>
 <g transform="translate(57 90) rotate(0)">
 <rect x="-6.5" y="-6" width="13" height="34" rx="6.5" fill="#c97a42" stroke="#3b2a1f" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
 <path d="M-2.6 27 v-3.6 M2.2 27 v-3.6" stroke="#3b2a1f" stroke-width="1.5" stroke-linecap="round" opacity=".55"/>

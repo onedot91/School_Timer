@@ -61,6 +61,14 @@ export interface PetBehaviorState {
   held: boolean;
   /** Downward speed while falling after a drop, in stage heights per second. */
   fallSpeed: number | null;
+  /** Walking direction in visual space (radians); steering turns it gradually, so paths curve. */
+  heading: number | null;
+  /** Speed multiplier for the current walk or run. */
+  pace: number;
+  /** Remaining distance at which the current walk stops for a look around, or null. */
+  pauseAt: number | null;
+  /** Last action chosen on its own, so the same one is not picked twice in a row. */
+  lastChoice: PetMode | null;
 }
 
 export type PetRandom = () => number;
@@ -81,10 +89,20 @@ export const DEFAULT_PET_BEHAVIOR_CONFIG: PetBehaviorConfig = {
 };
 
 const REST_DURATION_MS: Readonly<Partial<Record<PetMode, readonly [number, number]>>> = {
-  idle: [2500, 5000],
-  sit: [4000, 8000],
-  sleep: [9000, 15000],
+  idle: [1400, 3200],
+  sit: [2500, 5000],
+  sleep: [7000, 12000],
 };
+const WALK_PACE: readonly [number, number] = [.75, 1.2];
+const RUN_PACE = 2.3;
+const RUN_STRIDE = 1.7;
+const RUN_CHANCE = .3;
+const RUN_MIN_DISTANCE = .3;
+const PAUSE_CHANCE = .45;
+const PAUSE_MIN_DISTANCE = .25;
+const MEANDER_RADIANS = .35;
+const START_DEVIATION_RADIANS = .6;
+const STRAIGHT_IN_DISTANCE = .03;
 const LANDING_PAUSE_MS = 700;
 const MIN_WALK_DISTANCE = .1;
 const ARRIVE_DISTANCE = .004;
@@ -103,18 +121,24 @@ const POSTURE_PATHS: Readonly<Record<PetPosture, Readonly<Partial<Record<PetPost
 type Weighted = readonly (readonly [PetMode, number])[];
 // `trick` stands for the species' own move (config.trick), standing or sitting.
 const NEXT_FROM: Readonly<Record<PetPosture, Weighted>> = {
-  stand: [['walk', .38], ['sit', .18], ['idle', .05], ['yawn', .06], ['stretch', .06], ['twitch', .08], ['sleep', .07], ['trick', .12]],
-  sit: [['walk', .28], ['idle', .18], ['groom', .17], ['sit', .1], ['sleep', .15], ['trick', .12]],
-  loaf: [['idle', 1]],
+  stand: [
+    ['walk', .32], ['sit', .14], ['idle', .03], ['yawn', .05], ['stretch', .05], ['twitch', .07],
+    ['sleep', .06], ['trick', .1], ['lookAround', .09], ['tilt', .09],
+  ],
+  sit: [['walk', .24], ['idle', .14], ['groom', .14], ['sit', .06], ['sleep', .12], ['trick', .1], ['scratch', .12], ['sploot', .08]],
+  loaf: [['idle', .7], ['sploot', .3]],
   carried: [['idle', 1]],
 };
-const AFTER_WALK: Weighted = [['idle', .5], ['sit', .35], ['twitch', .15]];
+const AFTER_WALK: Weighted = [['idle', .3], ['sit', .25], ['twitch', .1], ['lookAround', .15], ['tilt', .2]];
+const MOVING_MODES: ReadonlySet<PetMode> = new Set(['walk', 'run']);
+
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const between = (random: PetRandom, min: number, max: number) => min + random() * (max - min);
 const isInside = (point: PetPoint, area: PetArea) => (
   point.x >= area.minX && point.x <= area.maxX && point.y >= area.minY && point.y <= area.maxY
 );
+const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 const pick = (choices: Weighted, random: PetRandom): PetMode => {
   const roll = random();
   let sum = 0;
@@ -123,6 +147,12 @@ const pick = (choices: Weighted, random: PetRandom): PetMode => {
     if (roll < sum) return mode;
   }
   return choices[0]?.[0] ?? 'idle';
+};
+
+/** Picks the next action, re-rolling once rather than repeating the previous one. */
+export const pickNextAction = (choices: Weighted, previous: PetMode | null, random: PetRandom): PetMode => {
+  const first = pick(choices, random);
+  return first === previous && choices.length > 1 ? pick(choices, random) : first;
 };
 
 export const getPetPosture = (mode: PetMode): PetPosture => PET_ANIMATIONS[mode].posture;
@@ -169,7 +199,7 @@ const pickInterest = (from: PetPoint, config: PetBehaviorConfig, random: PetRand
 const durationFor = (mode: PetMode, random: PetRandom) => {
   const rest = REST_DURATION_MS[mode];
   if (rest) return between(random, rest[0], rest[1]);
-  if (mode === 'walk' || HOLDING_MODES.has(mode)) return Infinity;
+  if (MOVING_MODES.has(mode) || HOLDING_MODES.has(mode)) return Infinity;
   return getPetAnimationDurationMs(mode);
 };
 
@@ -197,11 +227,23 @@ const walkTo = (
 ): PetBehaviorState => {
   const direction: 1 | -1 = target.x >= state.position.x ? 1 : -1;
   const needsTurn = Math.abs(target.x - state.position.x) > .002 && direction !== state.facing;
-  return play(
-    { ...state, target, arrival, turnTo: needsTurn ? direction : null },
-    [...pathTo(state.mode, 'walk', config), ...(needsTurn ? ['turn' as const] : []), 'walk'],
-    random,
-  );
+  const distance = visualDistance(state.position, target, config.aspectRatio);
+  // Long trips are sometimes a run; walks each get their own pace and may stop halfway.
+  const running = !arrival && distance >= RUN_MIN_DISTANCE && random() < RUN_CHANCE;
+  const pause = !running && distance >= PAUSE_MIN_DISTANCE && random() < PAUSE_CHANCE;
+  const straight = Math.atan2((target.y - state.position.y) / config.aspectRatio, target.x - state.position.x);
+  const moving = {
+    ...state,
+    target,
+    arrival,
+    turnTo: needsTurn ? direction : null,
+    pace: running ? RUN_PACE : between(random, WALK_PACE[0], WALK_PACE[1]),
+    pauseAt: pause ? distance * between(random, .35, .65) : null,
+    // Start a little off the straight line; steering then bends the path toward the target.
+    heading: straight + between(random, -START_DEVIATION_RADIANS, START_DEVIATION_RADIANS),
+  };
+  const mode: PetMode = running ? 'run' : 'walk';
+  return play(moving, [...pathTo(state.mode, mode, config), ...(needsTurn ? ['turn' as const] : []), mode], random);
 };
 
 const wander = (state: PetBehaviorState, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => {
@@ -214,10 +256,12 @@ const wander = (state: PetBehaviorState, config: PetBehaviorConfig, random: PetR
 const chooseNextMode = (state: PetBehaviorState, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => {
   if (config.calm) return settleInto(state, random() < .5 ? 'sit' : 'idle', config, random);
   if (!isRestingSpot(state.position, config)) return wander(state, config, random);
-  const next = pick(state.mode === 'walk' ? AFTER_WALK : NEXT_FROM[getPetPosture(state.mode)], random);
-  if (next === 'walk') return wander(state, config, random);
-  if (next === 'trick' || next === 'trickSit') return settleInto(state, config.trick ?? 'idle', config, random);
-  return settleInto(state, next, config, random);
+  const choices = MOVING_MODES.has(state.mode) ? AFTER_WALK : NEXT_FROM[getPetPosture(state.mode)];
+  const next = pickNextAction(choices, state.lastChoice, random);
+  const chosen = { ...state, lastChoice: next };
+  if (next === 'walk') return wander(chosen, config, random);
+  if (next === 'trick' || next === 'trickSit') return settleInto(chosen, config.trick ?? 'idle', config, random);
+  return settleInto(chosen, next, config, random);
 };
 
 const arrive = (state: PetBehaviorState, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => {
@@ -247,29 +291,48 @@ export const createPetBehaviorState = (start: PetPoint, config: PetBehaviorConfi
     gaitPhase: 0,
     held: false,
     fallSpeed: null,
+    heading: null,
+    pace: 1,
+    pauseAt: null,
+    lastChoice: null,
   };
   return play(initial, ['idle'], random);
 };
 
 const stepWalk = (state: PetBehaviorState, dtMs: number, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => {
-  if (!state.target) return chooseNextMode(state, config, random);
-  const distance = visualDistance(state.position, state.target, config.aspectRatio);
-  if (distance <= ARRIVE_DISTANCE) return arrive({ ...state, position: state.target }, config, random);
+  const { target } = state;
+  if (!target) return chooseNextMode(state, config, random);
+  const distance = visualDistance(state.position, target, config.aspectRatio);
+  if (distance <= ARRIVE_DISTANCE) return arrive({ ...state, position: target, heading: null }, config, random);
+  if (state.pauseAt !== null && distance <= state.pauseAt) {
+    return play({ ...state, pauseAt: null }, [random() < .5 ? 'lookAround' : 'tilt', state.mode], random);
+  }
+  const running = state.mode === 'run';
   // Ease in from a standstill and slow down over the last few steps.
-  const desiredSpeed = config.walkSpeed * Math.min(1, distance / .05);
-  const speed = state.speed + (desiredSpeed - state.speed) * Math.min(1, dtMs / 300);
-  const travel = Math.min(distance, Math.max(speed, config.walkSpeed * .15) * (dtMs / 1000));
-  const ratio = travel / distance;
-  const dx = state.target.x - state.position.x;
+  const topSpeed = config.walkSpeed * state.pace;
+  const desiredSpeed = topSpeed * Math.min(1, distance / (running ? .09 : .05));
+  const speed = state.speed + (desiredSpeed - state.speed) * Math.min(1, dtMs / (running ? 400 : 300));
+  const travel = Math.min(distance, Math.max(speed, topSpeed * .15) * (dtMs / 1000));
+  // Steer toward the target with a gentle meander; close in, head straight so the pet always arrives.
+  const toTarget = Math.atan2((target.y - state.position.y) / config.aspectRatio, target.x - state.position.x);
+  const meander = Math.sin(state.modeElapsedMs / 700) * MEANDER_RADIANS * Math.min(1, distance / .15);
+  const current = state.heading ?? toTarget;
+  const turnLimit = (2.2 + 1.2 / Math.max(distance, .05)) * (dtMs / 1000);
+  const steered = current + clamp(wrapAngle(toTarget + meander - current), -turnLimit, turnLimit);
+  const heading = distance < STRAIGHT_IN_DISTANCE ? toTarget : steered;
+  const position = clampToGround({
+    x: state.position.x + Math.cos(heading) * travel,
+    y: state.position.y + Math.sin(heading) * travel * config.aspectRatio,
+  }, config.ground);
+  const dx = target.x - position.x;
   return {
     ...state,
-    position: {
-      x: state.position.x + dx * ratio,
-      y: state.position.y + (state.target.y - state.position.y) * ratio,
-    },
+    position,
+    heading,
     speed,
-    facing: Math.abs(dx) > .002 ? (dx > 0 ? 1 : -1) : state.facing,
-    gaitPhase: (state.gaitPhase + travel / config.strideLength) % 1,
+    // Facing follows the target side, not the curve, so the sprite never flips mid-stride.
+    facing: Math.abs(dx) > .01 ? (dx > 0 ? 1 : -1) : state.facing,
+    gaitPhase: (state.gaitPhase + travel / (config.strideLength * (running ? RUN_STRIDE : 1))) % 1,
   };
 };
 
@@ -299,7 +362,7 @@ export const stepPetBehavior = (
   if (next.mode === 'turn' && next.turnTo !== null && next.modeElapsedMs >= next.modeDurationMs * (2 / 3)) {
     return { ...next, facing: next.turnTo, turnTo: null };
   }
-  if (next.mode === 'walk') return stepWalk(next, dt, config, random);
+  if (MOVING_MODES.has(next.mode)) return stepWalk(next, dt, config, random);
   if (next.modeElapsedMs < next.modeDurationMs) return next;
   if (next.queue.length > 0) return play(next, next.queue, random);
   if (REST_DURATION_MS[next.mode]) return chooseNextMode(next, config, random);
@@ -372,7 +435,7 @@ export const nudgePet = (state: PetBehaviorState, delta: PetPoint, config: PetBe
   const position = clampToGround({ x: state.position.x + delta.x, y: state.position.y + delta.y }, config.ground);
   const facing: 1 | -1 = delta.x === 0 ? state.facing : delta.x > 0 ? 1 : -1;
   const moved = { ...state, position, facing, target: null, arrival: null, turnTo: null };
-  return state.mode === 'walk' || state.mode === 'turn' ? play(moved, ['idle'], random) : moved;
+  return MOVING_MODES.has(state.mode) || state.mode === 'turn' ? play(moved, ['idle'], random) : moved;
 };
 
 export const getPetAnimation = (state: PetBehaviorState): PetAnimation => state.mode;

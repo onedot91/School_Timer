@@ -21,6 +21,11 @@ export const PET_ANIMATION_IDS = [
   'twitch',
   'trick',
   'trickSit',
+  'run',
+  'lookAround',
+  'tilt',
+  'scratch',
+  'sploot',
 ] as const;
 
 export type PetAnimation = (typeof PET_ANIMATION_IDS)[number];
@@ -78,6 +83,13 @@ export const PET_ANIMATIONS: Readonly<Record<PetAnimation, PetAnimationSpec>> = 
   // Each species draws its signature move in one of these rows (see PET_TRICKS).
   trick: spec('trick', 8, 7, false, 'stand'),
   trickSit: spec('trickSit', 8, 7, false, 'sit'),
+  // Shared variety: a bounding run (frames follow the gait like walk), looking around, a curious head
+  // tilt, scratching with a hind paw, and lying stretched out flat.
+  run: spec('run', 8, 12, true, 'stand'),
+  lookAround: spec('lookAround', 8, 5, false, 'stand'),
+  tilt: spec('tilt', 6, 6, false, 'stand'),
+  scratch: spec('scratch', 8, 10, false, 'sit'),
+  sploot: spec('sploot', 8, 3, false, 'loaf'),
 };
 
 export type PetTrick = 'trick' | 'trickSit';
