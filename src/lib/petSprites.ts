@@ -26,6 +26,7 @@ export const PET_ANIMATION_IDS = [
   'tilt',
   'scratch',
   'sploot',
+  'startle',
 ] as const;
 
 export type PetAnimation = (typeof PET_ANIMATION_IDS)[number];
@@ -90,6 +91,8 @@ export const PET_ANIMATIONS: Readonly<Record<PetAnimation, PetAnimationSpec>> = 
   tilt: spec('tilt', 6, 6, false, 'stand'),
   scratch: spec('scratch', 8, 10, false, 'sit'),
   sploot: spec('sploot', 8, 3, false, 'loaf'),
+  // Startled jump before fleeing from a touch.
+  startle: spec('startle', 4, 12, false, 'stand'),
 };
 
 export type PetTrick = 'trick' | 'trickSit';

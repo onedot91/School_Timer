@@ -209,7 +209,7 @@ test('sprite frames loop or hold on the last frame', () => {
   assert.equal(getPetFrameColumn('walk', 1000), 8 % PET_ANIMATIONS.walk.frames);
   assert.equal(getPetFrameColumn('happy', 10_000), PET_ANIMATIONS.happy.frames - 1);
   assert.deepEqual(getPetFramePosition('idle', 0), { x: 0, y: 0 });
-  assert.deepEqual(getPetFramePosition('sploot', 7), { x: 100, y: 100 });
+  assert.deepEqual(getPetFramePosition(PET_ANIMATION_IDS[PET_ANIMATION_IDS.length - 1], 7), { x: 100, y: 100 });
 });
 
 test('every pet kind is drawn, with a sheet and a portrait on disk', () => {
@@ -294,4 +294,43 @@ test('the next action re-rolls once instead of repeating the last one', () => {
   assert.equal(pickNextAction(choices, 'idle', rolls(.1, .9)), 'sit');
   assert.equal(pickNextAction(choices, 'sit', rolls(.1)), 'idle');
   assert.equal(pickNextAction([['idle', 1]], 'idle', rolls(.1)), 'idle');
+});
+
+test('a touch sometimes startles the pet into fleeing away from it, then it looks around', () => {
+  const random = seeded(81);
+  const fleeRoll = (() => {
+    let first = true;
+    return () => {
+      if (!first) return random();
+      first = false;
+      return .05;
+    };
+  })();
+  const standing: PetBehaviorState = { ...createPetBehaviorState({ x: .35, y: .92 }, config, random), facing: -1 };
+  // Touched on its left side: it jumps, turns, and runs off to the right.
+  let state = reactToPetTap(standing, config, fleeRoll, { x: .3, y: .9 });
+  assert.equal(state.mode, 'startle');
+  assert.deepEqual(state.queue, ['run']);
+  assert.equal(state.facing, 1);
+  assert.ok(state.target && state.target.x - .35 >= .24, `target ${state.target?.x}`);
+  assert.ok(state.pace > 2.5);
+  const seen = new Set<string>();
+  for (let i = 0; i < 400 && state.mode !== 'lookAround'; i += 1) {
+    state = stepPetBehavior(state, 50, config, random);
+    seen.add(state.mode);
+  }
+  assert.ok(seen.has('run'));
+  assert.equal(state.mode, 'lookAround');
+  assert.equal(state.fleeing, false);
+});
+
+test('a cornered pet flees the other way, and never flees without a touch or in calm mode', () => {
+  const nearRightEdge = createPetBehaviorState({ x: .9, y: .9 }, config, seeded(83));
+  const cornered = reactToPetTap(nearRightEdge, config, () => .05, { x: .85, y: .9 });
+  assert.equal(cornered.mode, 'startle');
+  assert.ok(cornered.target && cornered.target.x < .9);
+  const standing = createPetBehaviorState({ x: .5, y: .88 }, config, seeded(85));
+  assert.equal(reactToPetTap(standing, config, () => .05).mode, 'happy');
+  assert.equal(reactToPetTap(standing, { ...config, calm: true }, () => .05, { x: .45, y: .86 }).mode, 'happy');
+  assert.equal(reactToPetTap(standing, config, () => .9, { x: .45, y: .86 }).mode, 'happy');
 });

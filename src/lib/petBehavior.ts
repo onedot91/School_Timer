@@ -69,6 +69,8 @@ export interface PetBehaviorState {
   pauseAt: number | null;
   /** Last action chosen on its own, so the same one is not picked twice in a row. */
   lastChoice: PetMode | null;
+  /** Running away from a touch; on arrival the pet looks back around. */
+  fleeing: boolean;
 }
 
 export type PetRandom = () => number;
@@ -103,6 +105,9 @@ const PAUSE_MIN_DISTANCE = .25;
 const MEANDER_RADIANS = .35;
 const START_DEVIATION_RADIANS = .6;
 const STRAIGHT_IN_DISTANCE = .03;
+const FLEE_CHANCE = .25;
+const FLEE_PACE = 4;
+const FLEE_DISTANCE: readonly [number, number] = [.3, .45];
 const LANDING_PAUSE_MS = 700;
 const MIN_WALK_DISTANCE = .1;
 const ARRIVE_DISTANCE = .004;
@@ -215,7 +220,7 @@ const pathTo = (from: PetMode, to: PetMode, config: PetBehaviorConfig): readonly
 
 /** Moves to `mode`, inserting the stand/sit/lie transitions between postures. */
 const settleInto = (state: PetBehaviorState, mode: PetMode, config: PetBehaviorConfig, random: PetRandom) => (
-  play({ ...state, target: null, arrival: null }, [...pathTo(state.mode, mode, config), mode], random)
+  play({ ...state, target: null, arrival: null, fleeing: false }, [...pathTo(state.mode, mode, config), mode], random)
 );
 
 const walkTo = (
@@ -265,7 +270,8 @@ const chooseNextMode = (state: PetBehaviorState, config: PetBehaviorConfig, rand
 };
 
 const arrive = (state: PetBehaviorState, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => {
-  const arrived = { ...state, target: null, speed: 0 };
+  const arrived = { ...state, target: null, speed: 0, fleeing: false };
+  if (state.fleeing) return play(arrived, ['lookAround'], random);
   const interest = state.arrival;
   if (!interest) return chooseNextMode(arrived, config, random);
   const needsTurn = interest.facing !== state.facing;
@@ -295,6 +301,7 @@ export const createPetBehaviorState = (start: PetPoint, config: PetBehaviorConfi
     pace: 1,
     pauseAt: null,
     lastChoice: null,
+    fleeing: false,
   };
   return play(initial, ['idle'], random);
 };
@@ -371,9 +378,55 @@ export const stepPetBehavior = (
   return play(next, [posture === 'sit' ? 'sit' : posture === 'loaf' ? 'sleep' : 'idle'], random);
 };
 
-export const reactToPetTap = (state: PetBehaviorState, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => {
+/** A spot on the ground well away from the touch, or null when the pet is cornered. */
+const pickFleeTarget = (state: PetBehaviorState, touch: PetPoint, config: PetBehaviorConfig, random: PetRandom) => {
+  const away = touch.x <= state.position.x ? 1 : -1;
+  for (const direction of [away, -away]) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = clampToGround({
+        x: state.position.x + direction * between(random, FLEE_DISTANCE[0], FLEE_DISTANCE[1]),
+        y: state.position.y + between(random, -.05, .05),
+      }, config.ground);
+      if (isRestingSpot(candidate, config) && Math.abs(candidate.x - state.position.x) >= FLEE_DISTANCE[0] * .8) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+};
+
+/** Startled jump, then a fast run away from the touch; the facing flips during the jump. */
+const flee = (state: PetBehaviorState, target: PetPoint, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => (
+  play({
+    ...state,
+    held: false,
+    target,
+    arrival: null,
+    turnTo: null,
+    facing: target.x >= state.position.x ? 1 : -1,
+    pace: FLEE_PACE,
+    pauseAt: null,
+    heading: Math.atan2((target.y - state.position.y) / config.aspectRatio, target.x - state.position.x),
+    fleeing: true,
+  }, ['startle', 'run'], random)
+);
+
+/**
+ * Reaction to a tap. With the touch point, the pet is sometimes startled and flees from it;
+ * otherwise it hops, plays its signature move, or wakes with a stretch.
+ */
+export const reactToPetTap = (
+  state: PetBehaviorState,
+  config: PetBehaviorConfig,
+  random: PetRandom,
+  touch?: PetPoint,
+): PetBehaviorState => {
   if (state.mode === 'carried' || state.fallSpeed !== null) return state;
-  const base = { ...state, held: false, target: null, arrival: null, turnTo: null };
+  if (touch && !config.calm && random() < FLEE_CHANCE) {
+    const target = pickFleeTarget(state, touch, config, random);
+    if (target) return flee(state, target, config, random);
+  }
+  const base = { ...state, held: false, target: null, arrival: null, turnTo: null, fleeing: false };
   const posture = getPetPosture(state.mode);
   if (posture === 'loaf') return play(base, config.calm ? ['idle'] : ['wakeUp'], random);
   // Sometimes a tap gets the species' own move instead of a hop.
@@ -384,7 +437,7 @@ export const reactToPetTap = (state: PetBehaviorState, config: PetBehaviorConfig
 export const startPetting = (state: PetBehaviorState, zone: PetTouchZone): PetBehaviorState => {
   if (state.mode === 'carried' || state.fallSpeed !== null) return state;
   const posture = getPetPosture(state.mode);
-  const base = { ...state, held: true, queue: [], target: null, arrival: null, turnTo: null, speed: 0 };
+  const base = { ...state, held: true, queue: [], target: null, arrival: null, turnTo: null, speed: 0, fleeing: false };
   // A sleeping pet keeps sleeping and simply enjoys it.
   if (posture === 'loaf') return { ...base, mode: 'sleep' };
   const mode: PetMode = posture === 'sit' ? 'petSit' : zone === 'head' ? 'pet' : 'petBack';
@@ -408,6 +461,7 @@ export const startCarry = (state: PetBehaviorState): PetBehaviorState => ({
   arrival: null,
   turnTo: null,
   fallSpeed: null,
+  fleeing: false,
   speed: 0,
   modeElapsedMs: 0,
   modeDurationMs: Infinity,
@@ -434,7 +488,7 @@ export const dropPet = (state: PetBehaviorState, config: PetBehaviorConfig, rand
 export const nudgePet = (state: PetBehaviorState, delta: PetPoint, config: PetBehaviorConfig, random: PetRandom): PetBehaviorState => {
   const position = clampToGround({ x: state.position.x + delta.x, y: state.position.y + delta.y }, config.ground);
   const facing: 1 | -1 = delta.x === 0 ? state.facing : delta.x > 0 ? 1 : -1;
-  const moved = { ...state, position, facing, target: null, arrival: null, turnTo: null };
+  const moved = { ...state, position, facing, target: null, arrival: null, turnTo: null, fleeing: false };
   return MOVING_MODES.has(state.mode) || state.mode === 'turn' ? play(moved, ['idle'], random) : moved;
 };
 

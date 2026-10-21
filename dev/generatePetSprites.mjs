@@ -693,6 +693,21 @@ const ANIMATION_POSES = {
       earL: up ? (i % 2 ? -6 : 4) : 0, earR: up ? (i % 2 ? 6 : -4) : 0,
     });
   }),
+  // Startled by a touch: flinch, jump with wide eyes, ears flat and tail up, land ready to run.
+  startle: [
+    { bdy: 3, bsy: .92, bsx: 1.05, nf: { a: 8 }, ff: { a: 8 }, nb: { a: -8 }, fb: { a: -8 }, earL: -14, earR: 14, wUp: .5, wHigh: .5 },
+    {
+      bdy: -10, bsy: 1.08, bsx: .96, ...legs({ len: 24, reach: 0 }),
+      nf: { a: -24 }, ff: { a: -20 }, nb: { a: 24 }, fb: { a: 20 },
+      earL: -18, earR: 18, wUp: 0, wHigh: 1, yawn: .2,
+    },
+    {
+      bdy: -6, ...legs({ len: 26, reach: 0 }),
+      nf: { a: -14 }, ff: { a: -12 }, nb: { a: 16 }, fb: { a: 14 },
+      earL: -16, earR: 16, wUp: 0, wHigh: 1,
+    },
+    { bdy: 3, bsy: .92, bsx: 1.04, nf: { a: 6 }, ff: { a: 6 }, nb: { a: -6 }, fb: { a: -6 }, earL: -12, earR: 12, wUp: .3, wHigh: .7 },
+  ].map((overrides) => pose(STAND, { eyes: 'wide', ...overrides })),
   // Lying flat with front legs stretched forward and hind legs stretched back, then tucking in.
   sploot: (() => {
     const flat = pose(LOAF, {

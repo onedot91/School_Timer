@@ -383,8 +383,10 @@ export default function StudentPetWalker({
         return;
       }
       lastTapRef.current = { time: event.timeStamp, x: event.clientX, y: event.clientY };
-      stateRef.current = reactToPetTap(state, configRef.current, Math.random);
-      spawnHeart();
+      const touch = toStagePoint(event.clientX, event.clientY) ?? undefined;
+      stateRef.current = reactToPetTap(state, configRef.current, Math.random, touch);
+      // A startled pet runs off instead of showing a heart.
+      if (stateRef.current.mode !== 'startle') spawnHeart();
     }
   };
 
