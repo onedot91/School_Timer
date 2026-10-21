@@ -2,6 +2,7 @@ import { getDeviceSession, type RequestHeaders } from '../src/server/deviceSessi
 import { consumeRequestRateLimit, isCrossSiteRequest } from '../src/server/requestRateLimit.js';
 import { parseSaveFailureAlert, parseSaveFailureReport, SAVE_FAILURE_ROW_PREFIX } from '../src/lib/saveFailure.js';
 import { loadRewardAudit } from '../src/server/rewardAuditRepository.js';
+import { toRewardAuditFailure } from '../src/lib/rewardAudit.js';
 import { createHash } from 'node:crypto';
 
 interface ApiRequest { method?: string; body?: unknown; headers?: RequestHeaders; query?: Record<string, string | readonly string[] | undefined> }
@@ -36,7 +37,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       if (request.query?.audit === 'rewards') {
         const limit = consumeRequestRateLimit('reward-audit', request.headers, 0);
         if (!limit.allowed) { response.setHeader('Retry-After', String(limit.retryAfterSeconds)); response.status(429).json({ error: 'TOO_MANY_REQUESTS' }); return; }
-        response.status(200).json(await loadRewardAudit({ url, key })); return;
+        const startedAt = Date.now();
+        try { response.status(200).json(await loadRewardAudit({ url, key })); } catch (error) {
+          const failure = toRewardAuditFailure(error, 'request');
+          console.error('Reward audit failed.', { route: '/api/save-alerts', ...failure, elapsedMs: Date.now() - startedAt });
+          response.status(502).json({ error: 'REWARD_AUDIT_UNAVAILABLE', ...failure });
+        }
+        return;
       }
       const paged = request.query?.paged === '1';
       const before = request.query?.before ?? new Date().toISOString();
@@ -123,7 +130,6 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     });
     response.status(200).json({ ok: true });
   } catch (error) {
-    if (request.method === 'GET' && request.query?.audit === 'rewards') { response.status(502).json({ error: 'REWARD_AUDIT_UNAVAILABLE' }); return; }
     response.status(error instanceof SyntaxError ? 400 : 502).json({ error: error instanceof SyntaxError ? 'INVALID_SAVE_ALERT' : 'SAVE_ALERTS_UNAVAILABLE' });
   }
 }

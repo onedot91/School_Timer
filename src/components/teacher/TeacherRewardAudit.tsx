@@ -1,7 +1,7 @@
 import { ClipboardCheck, RefreshCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { REWARD_AUDIT_FEATURES, type RewardAuditReport } from '../../lib/rewardAudit';
+import { describeRewardAuditFailure, REWARD_AUDIT_FEATURES, RewardAuditRequestError, type RewardAuditFailure, type RewardAuditReport } from '../../lib/rewardAudit';
 import { loadRewardAuditReport } from '../../lib/rewardAuditClient';
 import { REWARD_AUDIT_INTERVAL_MS, startRewardAuditPolling } from '../../lib/rewardAuditPolling';
 import { useModalFocus } from '../../lib/useModalFocus';
@@ -11,7 +11,7 @@ export default function TeacherRewardAudit() {
   const [report, setReport] = useState<RewardAuditReport | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<RewardAuditFailure | null>(null);
   const [student, setStudent] = useState('all');
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLButtonElement>(null);
@@ -27,9 +27,9 @@ export default function TeacherRewardAudit() {
       const current = ++revision; setLoading(true);
       try {
         const next = await loadRewardAuditReport(signal);
-        if (!disposed && !signal.aborted && current === revision) { setReport(next); setError(''); }
-      } catch {
-        if (!disposed && !signal.aborted && current === revision) setError('보상 기록을 조회하지 못했습니다. 다시 검사해 주세요.');
+        if (!disposed && !signal.aborted && current === revision) { setReport(next); setError(null); }
+      } catch (failure) {
+        if (!disposed && !signal.aborted && current === revision) setError(failure instanceof RewardAuditRequestError ? failure.failure : { httpStatus: null, code: 'REWARD_AUDIT_FAILED', stage: null });
       } finally { if (activeRequest === signal) activeRequest = null; if (!disposed && current === revision) setLoading(false); }
     };
     refreshRef.current = refresh;
@@ -41,6 +41,7 @@ export default function TeacherRewardAudit() {
   const issues = (report?.issues ?? []).filter(issue => student === 'all' || String(issue.studentNumber) === student);
   const wallets = (report?.walletMismatches ?? []).filter(item => student === 'all' || String(item.studentNumber) === student);
   const refresh = () => { manualRequest.current?.abort(); const request = new AbortController(); manualRequest.current = request; void refreshRef.current(request.signal); };
+  const failure = error ? describeRewardAuditFailure(error) : null;
   if (count === 0 && !error && !isOpen) return null;
   return <>
     <button ref={returnFocusRef} className="teacher-save-warning-trigger teacher-reward-audit-trigger" data-warning={count > 0 || !!error} type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" aria-label={count > 0 ? `보상 점검 확인 필요 ${count}건` : '보상 점검'}>
@@ -53,7 +54,7 @@ export default function TeacherRewardAudit() {
           <label>학생 <select value={student} onChange={event => setStudent(event.target.value)}><option value="all">전체</option>{Array.from({ length: 23 }, (_, i) => <option key={i + 1} value={String(i + 1)}>{i + 1}번</option>)}</select></label>
           <button type="button" onClick={refresh} disabled={loading}><RefreshCw size={16} aria-hidden="true" />{loading ? '검사 중' : '다시 검사'}</button>
         </div>
-        {error ? <p role="alert" className="teacher-save-warning-error">{error}{report ? ' 아래는 이전 검사 결과입니다.' : ''}</p> : null}
+        {failure ? <div role="alert" className="teacher-save-warning-error"><p>보상 기록을 조회하지 못했습니다. {failure.action}{report ? ' 아래는 이전 검사 결과입니다.' : ''}</p><p className="teacher-reward-audit-failure-detail">{failure.detail}</p></div> : null}
         {!report && !error ? <TeacherLoadingState label="보상 기록 불러오는 중" variant="list" rows={2} /> : null}
         {report ? <>
           <p><time dateTime={report.checkedAt}>{new Date(report.checkedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</time> · {report.checkedRewards}건 대조</p>

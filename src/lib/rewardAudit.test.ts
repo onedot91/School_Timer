@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compareRewardPayments, parseRewardAuditReport } from './rewardAudit.js';
+import { compareRewardPayments, describeRewardAuditFailure, parseRewardAuditFailureBody, parseRewardAuditReport } from './rewardAudit.js';
 
 test('완료 기록과 +6 지급 표식이 있어도 원장에 없으면 누락으로 표시한다', () => {
   const result = compareRewardPayments({ expected: [{ id: 'quiz-17', studentNumber: 17, feature: 'classwordQuiz', dateKey: '2026-09-08', amount: 6, ledgerIds: ['quiz-17'] }], ledger: [] });
@@ -30,4 +30,14 @@ test('감사 응답의 학생 범위와 금액을 검증하고 임의 필드는 
   const report = { checkedAt: '2026-09-08T00:00:00Z', checkedRewards: 0, issues: [], walletMismatches: [], unavailableSources: [] };
   assert.deepEqual(parseRewardAuditReport({ ...report, studentAnswers: 'private' }), report);
   assert.throws(() => parseRewardAuditReport({ ...report, checkedRewards: -1 }));
+});
+
+test('보상 점검 실패 응답은 허용된 코드·단계만 받아 HTTP 상태와 함께 표시한다', () => {
+  const failure = parseRewardAuditFailureBody(502, { error: 'REWARD_AUDIT_UNAVAILABLE', code: 'REWARD_AUDIT_SOURCE_TIMEOUT', stage: 'source' });
+  assert.deepEqual(failure, { httpStatus: 502, code: 'REWARD_AUDIT_SOURCE_TIMEOUT', stage: 'source' });
+  assert.deepEqual(describeRewardAuditFailure(failure), { action: '다시 검사해 주세요.', detail: 'HTTP 502 · REWARD_AUDIT_SOURCE_TIMEOUT · 단계: 보상 원본 조회' });
+  assert.deepEqual(parseRewardAuditFailureBody(401, { error: 'DEVICE_REGISTRATION_REQUIRED' }), { httpStatus: 401, code: 'DEVICE_REGISTRATION_REQUIRED', stage: null });
+  assert.match(describeRewardAuditFailure({ httpStatus: 401, code: 'DEVICE_REGISTRATION_REQUIRED', stage: null }).action, /교사 기기 등록/);
+  assert.deepEqual(parseRewardAuditFailureBody(500, { code: 'raw message here', stage: 'evil' }), { httpStatus: 500, code: 'REWARD_AUDIT_UNAVAILABLE', stage: null });
+  assert.equal(describeRewardAuditFailure({ httpStatus: null, code: 'REWARD_AUDIT_NETWORK', stage: 'request' }).detail, '응답 없음 · REWARD_AUDIT_NETWORK · 단계: 검사 요청');
 });

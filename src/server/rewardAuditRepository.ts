@@ -1,4 +1,4 @@
-import { compareRewardPayments, parseRewardAuditReport, RewardAuditError, type ExpectedReward, type RewardAuditFeature, type RewardAuditReport, type RewardPayment } from '../lib/rewardAudit.js';
+import { compareRewardPayments, inRewardAuditStage, parseRewardAuditReport, RewardAuditError, type ExpectedReward, type RewardAuditFeature, type RewardAuditReport, type RewardPayment } from '../lib/rewardAudit.js';
 import { isStorageRecord } from '../lib/storageV2Codec.js';
 import { getKoreanDateKey } from '../lib/classword.js';
 import { parseStorageSnapshot, type StorageConfiguration } from './storageV2Repository.js';
@@ -29,57 +29,62 @@ const weeklyId = (number: number, period: string, mission: string): string => mi
   ? `weekly-mission-${number}-${period}` : `weekly-mission-${mission}-${number}-${period}`;
 
 export const buildRewardAudit = (input: unknown, questions: QuestionAudit = { expected: [], unavailableSources: ['개인 질문 완료 원본을 조회하지 않았습니다.'] }): RewardAuditReport => {
-  if (!isStorageRecord(input)) throw new RewardAuditError();
-  const checkedAt = text(input.checkedAt);
-  if (!Number.isFinite(Date.parse(checkedAt))) throw new RewardAuditError();
+  if (!isStorageRecord(input)) throw new RewardAuditError('REWARD_AUDIT_INVALID_RESPONSE', 'source');
+  const checkedAt = inRewardAuditStage('source', () => text(input.checkedAt));
+  if (!Number.isFinite(Date.parse(checkedAt))) throw new RewardAuditError('REWARD_AUDIT_INVALID_RESPONSE', 'source');
   const today = getKoreanDateKey(new Date(checkedAt));
-  const snapshot = parseStorageSnapshot(input.snapshot);
-  const activities = collectActivityRewardExpectations(snapshot.value);
+  const snapshot = inRewardAuditStage('snapshot', () => parseStorageSnapshot(input.snapshot));
+  const activities = inRewardAuditStage('activities', () => collectActivityRewardExpectations(snapshot.value));
   const expected = new Map<string, ExpectedReward>();
   const add = (reward: ExpectedReward) => { const key = `${reward.studentNumber}:${reward.id}`; if (!expected.has(key) || reward.amount !== null) expected.set(key, reward); };
   for (const reward of [...activities.expected, ...questions.expected]) add(reward);
-  for (const row of rows(input.weeklyRewards)) {
+  inRewardAuditStage('weeklyRewards', () => { for (const row of rows(input.weeklyRewards)) {
     const number = student(row.student_number), period = text(row.week_key), mission = text(row.mission_type), id = weeklyId(number, period, mission);
     const ledgerIds = mission === 'personal_question' ? [id, `weekly-mission-correction-5-${number}-${period}`] : [id];
     add({ id, studentNumber: number, feature: missionFeature(mission), dateKey: period, amount: amount(row.reward_amount), ledgerIds });
-  }
-  for (const row of rows(input.wordEntries)) {
+  } });
+  inRewardAuditStage('wordEntries', () => { for (const row of rows(input.wordEntries)) {
     const number = student(row.student_number), period = text(row.round_date);
     if (period >= today) continue;
     const id = weeklyId(number, period, 'classword_word_entry');
     add({ id, studentNumber: number, feature: 'classwordEntry', dateKey: period, amount: 5, ledgerIds: [id] });
-  }
-  for (const row of rows(input.quizCompletions)) {
+  } });
+  inRewardAuditStage('quizCompletions', () => { for (const row of rows(input.quizCompletions)) {
     const number = student(row.student_number), period = text(row.quiz_date), id = weeklyId(number, period, 'classword_quiz_correct');
     add({ id, studentNumber: number, feature: 'classwordQuiz', dateKey: period, amount: null, ledgerIds: [id] });
-  }
-  const friends = rows(input.friendSubmissions);
-  for (const row of friends) {
-    const number = student(row.student_number), dateKey = text(row.submission_date);
-    if (row.status !== 'approved') continue;
-    const id = `today-friend-reward-${text(row.id)}`;
-    add({ id, studentNumber: number, feature: 'todayFriend', dateKey, amount: 15, ledgerIds: [id] });
-  }
-  for (const row of rows(input.friendRewards)) {
+  } });
+  const friends = inRewardAuditStage('friendSubmissions', () => {
+    const submissions = rows(input.friendSubmissions);
+    for (const row of submissions) {
+      const number = student(row.student_number), dateKey = text(row.submission_date);
+      if (row.status !== 'approved') continue;
+      const id = `today-friend-reward-${text(row.id)}`;
+      add({ id, studentNumber: number, feature: 'todayFriend', dateKey, amount: 15, ledgerIds: [id] });
+    }
+    return submissions;
+  });
+  inRewardAuditStage('friendRewards', () => { for (const row of rows(input.friendRewards)) {
     const number = student(row.student_number), submissionId = text(row.submission_id), id = `today-friend-reward-${submissionId}`;
     const submission = friends.find(item => item.id === submissionId && item.student_number === number);
     add({ id, studentNumber: number, feature: 'todayFriend', dateKey: typeof submission?.submission_date === 'string' ? submission.submission_date : '날짜 확인 필요', amount: amount(row.reward_amount), ledgerIds: [id] });
-  }
+  } });
   const ledger: RewardPayment[] = [];
-  if (!isStorageRecord(snapshot.value.currencyHistory)) throw new RewardAuditError();
-  for (const [key, entries] of Object.entries(snapshot.value.currencyHistory)) {
-    const number = student(Number(key));
-    for (const entry of rows(entries)) {
-      if (typeof entry.delta !== 'number' || !Number.isSafeInteger(entry.delta)) throw new RewardAuditError();
-      ledger.push({ id: text(entry.id), studentNumber: number, delta: entry.delta });
+  inRewardAuditStage('ledger', () => {
+    if (!isStorageRecord(snapshot.value.currencyHistory)) throw new RewardAuditError();
+    for (const [key, entries] of Object.entries(snapshot.value.currencyHistory)) {
+      const number = student(Number(key));
+      for (const entry of rows(entries)) {
+        if (typeof entry.delta !== 'number' || !Number.isSafeInteger(entry.delta)) throw new RewardAuditError();
+        ledger.push({ id: text(entry.id), studentNumber: number, delta: entry.delta });
+      }
     }
-  }
-  return parseRewardAuditReport({ checkedAt, checkedRewards: expected.size,
+  });
+  return inRewardAuditStage('report', () => parseRewardAuditReport({ checkedAt, checkedRewards: expected.size,
     issues: compareRewardPayments({ expected: [...expected.values()], ledger }).filter(issue => !isResolvedHistoricalReward(issue)), walletMismatches: input.walletMismatches,
     unavailableSources: [...new Set([...activities.unavailableSources, ...questions.unavailableSources,
       `${historicalRewardResolution.decidedOn} ${historicalRewardResolution.decision}`,
       '삭제되거나 보존 기간이 지난 활동은 완료 여부를 확인할 수 없습니다.',
-      '별도 ID로 복구한 지급은 원래 보상과의 연결 확인이 필요할 수 있습니다.'])] });
+      '별도 ID로 복구한 지급은 원래 보상과의 연결 확인이 필요할 수 있습니다.'])] }));
 };
 
 const loadQuestionAudit = async (configuration: StorageConfiguration): Promise<QuestionAudit> => {
@@ -99,7 +104,12 @@ export const loadRewardAudit = async (configuration: StorageConfiguration): Prom
   const response = await fetch(`${configuration.url.replace(/\/$/, '')}/rest/v1/rpc/storage_reward_audit_source`, {
     method: 'POST', headers: { apikey: configuration.key, Authorization: `Bearer ${configuration.key}`, 'Content-Type': 'application/json' },
     body: '{}', signal: AbortSignal.timeout(8000),
+  }).catch((error: unknown) => {
+    throw new RewardAuditError(error instanceof Error && error.name === 'TimeoutError' ? 'REWARD_AUDIT_SOURCE_TIMEOUT' : 'REWARD_AUDIT_SOURCE_NETWORK', 'source');
   });
-  if (!response.ok) throw new RewardAuditError('REWARD_AUDIT_UNAVAILABLE');
-  return buildRewardAudit(await response.json(), questions);
+  if (!response.ok) throw new RewardAuditError(`REWARD_AUDIT_SOURCE_HTTP_${response.status}`, 'source');
+  const source: unknown = await response.json().catch((error: unknown) => {
+    throw new RewardAuditError(error instanceof Error && error.name === 'TimeoutError' ? 'REWARD_AUDIT_SOURCE_TIMEOUT' : 'REWARD_AUDIT_INVALID_RESPONSE', 'source');
+  });
+  return buildRewardAudit(source, questions);
 };

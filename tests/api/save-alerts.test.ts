@@ -168,3 +168,22 @@ test('bulk acknowledgement batches existing alerts, preserves diagnostics and ne
     }
   }
 });
+
+test('보상 점검 실패는 실패 단계와 허용된 오류 코드만 응답·로그에 남긴다', async t => {
+  const previous = { ...process.env };
+  Object.assign(process.env, { SUPABASE_URL: 'https://save-alerts.invalid', SUPABASE_SERVICE_ROLE_KEY: 'fake', DEVICE_SESSION_SECRET: secret });
+  t.mock.method(globalThis, 'fetch', async () => new Response('private upstream detail', { status: 503 }));
+  const logged: unknown[] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
+  try {
+    const result = await invoke('GET', undefined, true, {}, { audit: 'rewards' });
+    assert.equal(result.status, 502);
+    assert.deepEqual(result.value, { error: 'REWARD_AUDIT_UNAVAILABLE', code: 'REWARD_AUDIT_SOURCE_HTTP_503', stage: 'source' });
+    assert.equal(logged.length, 1);
+    const [, details] = logged[0] as [string, Record<string, unknown>];
+    assert.equal(details.code, 'REWARD_AUDIT_SOURCE_HTTP_503');
+    assert.equal(details.stage, 'source');
+    assert.equal(typeof details.elapsedMs, 'number');
+    assert.doesNotMatch(JSON.stringify(logged), /private upstream detail/);
+  } finally { process.env = previous; }
+});
