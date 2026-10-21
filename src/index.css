@@ -30277,6 +30277,7 @@ body {
 .teacher-reward-audit-toolbar select, .teacher-reward-audit-toolbar button { min-height: 44px; padding: .4rem .7rem; border: 1px solid var(--teacher-border); border-radius: var(--apple-radius-control); background: var(--teacher-surface); }
 .teacher-reward-audit-toolbar button { display: inline-flex; align-items: center; gap: .4rem; }
 .teacher-reward-audit-coverage { margin-top: .8rem; font-size: var(--type-label); }
+.teacher-reward-audit-failure-detail { margin-top: .25rem; font-size: var(--type-label); overflow-wrap: anywhere; user-select: text; }
 .teacher-reward-audit-coverage summary { min-height: 44px; align-content: center; cursor: pointer; font-weight: 700; }
 .teacher-reward-audit-coverage li { margin: .5rem 0; overflow-wrap: anywhere; }
 .teacher-reward-audit-toolbar select:focus-visible, .teacher-reward-audit-coverage summary:focus-visible { outline: 3px solid var(--apple-focus); outline-offset: 2px; }

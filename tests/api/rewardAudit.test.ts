@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildRewardAudit } from '../../src/server/rewardAuditRepository.js';
 import { splitStorageState } from '../../src/lib/storageV2Codec.js';
+import { RewardAuditError } from '../../src/lib/rewardAudit.js';
 
 const source = () => ({ checkedAt: '2026-09-08T06:00:00Z', snapshot: { ...splitStorageState({ currencyBalances: { 17: 335 }, currencyHistory: {} }), revisions: {}, updated_at: '2026-09-08T06:00:00Z' }, walletMismatches: [], weeklyRewards: [], wordEntries: [], quizCompletions: [], friendSubmissions: [], friendRewards: [] });
 test('교사가 추가 정산 없이 종결한 7월 여섯 건만 경고에서 제외한다', () => {
@@ -109,4 +110,12 @@ test('교사가 수동 지급한 이번 주 주간 감정 보상은 보상 점�
   const report = buildRewardAudit(input);
 
   assert.deepEqual(report.issues, []);
+});
+
+test('검사를 깨는 원본 구간을 실패 단계로 알려 준다', () => {
+  const stageOf = (input: unknown) => { try { buildRewardAudit(input); } catch (error) { return error instanceof RewardAuditError ? [error.code, error.stage] : ['other']; } return ['ok']; };
+  assert.deepEqual(stageOf({ ...source(), wordEntries: [{ id: 'bad', student_number: 24, round_date: '2026-09-07' }] }), ['REWARD_AUDIT_INVALID_RESPONSE', 'wordEntries']);
+  assert.deepEqual(stageOf({ ...source(), weeklyRewards: [{ student_number: 1, week_key: '2026-37', mission_type: 'new_mission', reward_amount: 5 }] }), ['REWARD_AUDIT_UNKNOWN_MISSION', 'weeklyRewards']);
+  const badLedger = { ...source(), snapshot: { ...splitStorageState({ currencyBalances: { 17: 335 }, currencyHistory: { 17: [{ id: '', studentNumber: 17, delta: 5 }] } }), revisions: {}, updated_at: '2026-09-08T06:00:00Z' } };
+  assert.deepEqual(stageOf(badLedger), ['REWARD_AUDIT_INVALID_RESPONSE', 'ledger']);
 });

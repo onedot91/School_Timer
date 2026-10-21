@@ -33,9 +33,43 @@ export interface RewardAuditReport {
   readonly walletMismatches: readonly WalletMismatch[];
   readonly unavailableSources: readonly string[];
 }
+export const REWARD_AUDIT_STAGES = {
+  request: '검사 요청', source: '보상 원본 조회', snapshot: '학급 저장 데이터', ledger: '고마 기록',
+  activities: '활동 기록', weeklyRewards: '주간 미션 지급', wordEntries: 'ㄱㄴㄷ 게임 기록', quizCompletions: '낱말판 퀴즈 기록',
+  friendSubmissions: '오늘의 친구 제출', friendRewards: '오늘의 친구 지급', report: '검사 결과', response: '검사 응답',
+} as const;
+export type RewardAuditStage = keyof typeof REWARD_AUDIT_STAGES;
 export class RewardAuditError extends Error {
-  constructor(readonly code = 'REWARD_AUDIT_INVALID_RESPONSE') { super(code); this.name = 'RewardAuditError'; }
+  constructor(readonly code = 'REWARD_AUDIT_INVALID_RESPONSE', readonly stage?: RewardAuditStage) { super(code); this.name = 'RewardAuditError'; }
 }
+const REWARD_AUDIT_CODE = /^(?:REWARD_AUDIT_(?:INVALID_RESPONSE|UNKNOWN_MISSION|UNAVAILABLE|FAILED|NETWORK|TIMEOUT|CLIENT_TIMEOUT|SOURCE_NETWORK|SOURCE_TIMEOUT|SOURCE_HTTP_[45][0-9]{2})|DEVICE_REGISTRATION_REQUIRED|TEACHER_REQUIRED|TOO_MANY_REQUESTS|SAVE_ALERTS_NOT_CONFIGURED)$/;
+export const isRewardAuditStage = (value: unknown): value is RewardAuditStage => typeof value === 'string' && Object.hasOwn(REWARD_AUDIT_STAGES, value);
+export const toRewardAuditFailure = (error: unknown, fallbackStage: RewardAuditStage): { readonly code: string; readonly stage: RewardAuditStage } => ({
+  code: error instanceof RewardAuditError && REWARD_AUDIT_CODE.test(error.code) ? error.code : 'REWARD_AUDIT_FAILED',
+  stage: error instanceof RewardAuditError && error.stage ? error.stage : fallbackStage,
+});
+// Server-side stages wrap their own validation so the failing section stays visible.
+export const inRewardAuditStage = <T>(stage: RewardAuditStage, run: () => T): T => {
+  try { return run(); } catch (error) {
+    if (error instanceof RewardAuditError && error.stage) throw error;
+    throw new RewardAuditError(error instanceof RewardAuditError ? error.code : 'REWARD_AUDIT_INVALID_RESPONSE', stage);
+  }
+};
+export interface RewardAuditFailure { readonly httpStatus: number | null; readonly code: string; readonly stage: RewardAuditStage | null }
+export class RewardAuditRequestError extends Error {
+  constructor(readonly failure: RewardAuditFailure) { super(failure.code); this.name = 'RewardAuditRequestError'; }
+}
+export const parseRewardAuditFailureBody = (httpStatus: number, body: unknown): RewardAuditFailure => {
+  const record = isStorageRecord(body) ? body : {};
+  const code = [record.code, record.error].find((value): value is string => typeof value === 'string' && REWARD_AUDIT_CODE.test(value));
+  return { httpStatus, code: code ?? 'REWARD_AUDIT_UNAVAILABLE', stage: isRewardAuditStage(record.stage) ? record.stage : null };
+};
+export const describeRewardAuditFailure = (failure: RewardAuditFailure): { readonly action: string; readonly detail: string } => ({
+  action: failure.httpStatus === 401 || failure.httpStatus === 403 ? '교사 기기 등록을 확인한 뒤 다시 검사해 주세요.'
+    : failure.httpStatus === 429 ? '잠시 후 다시 검사해 주세요.' : '다시 검사해 주세요.',
+  detail: [failure.httpStatus === null ? '응답 없음' : `HTTP ${failure.httpStatus}`, failure.code,
+    ...(failure.stage ? [`단계: ${REWARD_AUDIT_STAGES[failure.stage]}`] : [])].join(' · '),
+});
 export const compareRewardPayments = ({ expected, ledger }: { readonly expected: readonly ExpectedReward[]; readonly ledger: readonly RewardPayment[] }): RewardAuditIssue[] => {
   const unique = new Map(expected.map(reward => [`${reward.studentNumber}:${reward.id}`, reward]));
   const byStudent = new Map<number, RewardPayment[]>();
