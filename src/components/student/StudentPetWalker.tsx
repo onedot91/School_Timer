@@ -22,7 +22,7 @@ import {
 } from '../../lib/petBehavior';
 import {
   PET_ANIMATIONS,
-  PET_CARRY_GRIP,
+  PET_CARRY_GRIPS,
   PET_SIZES,
   PET_SPRITE_BACKGROUND_SIZE,
   PET_SPRITE_FRAME,
@@ -58,8 +58,6 @@ const SWING_STIFFNESS = 140;
 const SWING_DAMPING = 11;
 const ANCHOR_X = (PET_SPRITE_FRAME.anchorX / PET_SPRITE_FRAME.width) * 100;
 const ANCHOR_Y = (PET_SPRITE_FRAME.anchorY / PET_SPRITE_FRAME.height) * 100;
-const GRIP_X = (PET_CARRY_GRIP.x / PET_SPRITE_FRAME.width) * 100;
-const GRIP_Y = (PET_CARRY_GRIP.y / PET_SPRITE_FRAME.height) * 100;
 const MAILBOX_INTEREST: PetInterest = { point: { x: .29, y: .87 }, facing: -1 };
 
 interface PointerGesture {
@@ -107,6 +105,9 @@ export default function StudentPetWalker({
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const [hearts, setHearts] = useState<readonly { id: number; left: number }[]>([]);
   const size = PET_SIZES[kind];
+  const grip = PET_CARRY_GRIPS[kind];
+  const gripX = (grip.x / PET_SPRITE_FRAME.width) * 100;
+  const gripY = (grip.y / PET_SPRITE_FRAME.height) * 100;
   const widthRatio = PET_WIDTH_RATIO * size;
 
   if (!stateRef.current) stateRef.current = createPetBehaviorState(initialPosition, configRef.current, Math.random);
@@ -123,8 +124,8 @@ export default function StudentPetWalker({
     const unit = spriteUnitPx(state);
     if (width === 0 || height === 0) return { x: 0, y: 0 };
     return {
-      x: -((PET_CARRY_GRIP.x - PET_SPRITE_FRAME.anchorX) * state.facing * unit) / width,
-      y: ((PET_SPRITE_FRAME.anchorY - PET_CARRY_GRIP.y) * unit) / height,
+      x: -((grip.x - PET_SPRITE_FRAME.anchorX) * state.facing * unit) / width,
+      y: ((PET_SPRITE_FRAME.anchorY - grip.y) * unit) / height,
     };
   };
 
@@ -154,7 +155,7 @@ export default function StudentPetWalker({
     root.style.zIndex = String(3 + Math.round(groundY * 10));
     root.dataset.mode = state.mode;
     body.style.transform = `translate(-${ANCHOR_X}%, -${ANCHOR_Y}%) scale(${scale})`;
-    swing.style.transformOrigin = `${state.facing > 0 ? GRIP_X : 100 - GRIP_X}% ${GRIP_Y}%`;
+    swing.style.transformOrigin = `${state.facing > 0 ? gripX : 100 - gripX}% ${gripY}%`;
     swing.style.transform = `rotate(${swingRefState.current.angle}deg)`;
     sprite.style.transform = `scaleX(${state.facing})`;
     sprite.style.backgroundPosition = `${frame.x}% ${frame.y}%`;

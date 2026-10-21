@@ -48,6 +48,11 @@ export const STUDENT_PET_KINDS = [
   { id: 'sheep', emoji: '🐑', label: '양' },
   { id: 'tiger', emoji: '🐯', label: '호랑이' },
   { id: 'lion', emoji: '🦁', label: '사자' },
+  { id: 'penguin', emoji: '🐧', label: '펭귄' },
+  { id: 'cow', emoji: '🐮', label: '소' },
+  { id: 'monkey', emoji: '🐵', label: '원숭이' },
+  { id: 'hedgehog', emoji: '🦔', label: '고슴도치' },
+  { id: 'elephant', emoji: '🐘', label: '코끼리' },
 ] as const;
 
 export type StudentPetKind = (typeof STUDENT_PET_KINDS)[number]['id'];

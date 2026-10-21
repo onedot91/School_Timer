@@ -113,17 +113,47 @@ export const PET_TRICKS: Readonly<Record<StudentPetKind, PetTrick>> = {
   sheep: 'trick',
   tiger: 'trick',
   lion: 'trick',
+  penguin: 'trick',
+  cow: 'trick',
+  monkey: 'trickSit',
+  hedgehog: 'trick',
+  elephant: 'trick',
 };
 
-/** Scruff point of the `carried` frames; printed by dev/generatePetSprites.mjs. */
-export const PET_CARRY_GRIP = { x: 90, y: 53 } as const;
+type PetGrip = { readonly x: number; readonly y: number };
+
+/** Scruff point of each species' `carried` frames; printed by dev/generatePetSprites.mjs. */
+export const PET_CARRY_GRIPS: Readonly<Record<StudentPetKind, PetGrip>> = {
+  cat: { x: 89, y: 53 },
+  dog: { x: 90, y: 52 },
+  rabbit: { x: 87, y: 55 },
+  chick: { x: 89, y: 53 },
+  fox: { x: 92, y: 54 },
+  hamster: { x: 86, y: 58 },
+  squirrel: { x: 87, y: 57 },
+  raccoon: { x: 89, y: 53 },
+  panda: { x: 90, y: 51 },
+  koala: { x: 87, y: 54 },
+  pig: { x: 91, y: 54 },
+  sheep: { x: 90, y: 48 },
+  tiger: { x: 92, y: 51 },
+  lion: { x: 90, y: 51 },
+  penguin: { x: 89, y: 53 },
+  cow: { x: 92, y: 48 },
+  monkey: { x: 88, y: 54 },
+  hedgehog: { x: 89, y: 60 },
+  elephant: { x: 90, y: 48 },
+};
 
 /** On-stage size relative to the cat; stride and walking speed scale with it. */
 export const PET_SIZES: Readonly<Record<StudentPetKind, number>> = {
+  hedgehog: .58,
   hamster: .62,
   chick: .64,
   squirrel: .72,
+  penguin: .8,
   rabbit: .82,
+  monkey: .86,
   raccoon: .9,
   koala: .94,
   cat: 1,
@@ -131,9 +161,11 @@ export const PET_SIZES: Readonly<Record<StudentPetKind, number>> = {
   pig: 1.06,
   dog: 1.08,
   sheep: 1.12,
+  cow: 1.18,
   panda: 1.22,
   tiger: 1.26,
   lion: 1.3,
+  elephant: 1.4,
 };
 
 /** Kinds drawn by dev/generatePetSprites.mjs; any other kind falls back to its emoji. */
@@ -152,6 +184,11 @@ export const PET_SPRITE_KINDS: ReadonlySet<StudentPetKind> = new Set<StudentPetK
   'sheep',
   'tiger',
   'lion',
+  'penguin',
+  'cow',
+  'monkey',
+  'hedgehog',
+  'elephant',
 ]);
 
 export const PET_SPRITE_BACKGROUND_SIZE = `${PET_SPRITE_FRAME.columns * 100}% ${PET_SPRITE_FRAME.rows * 100}%`;
