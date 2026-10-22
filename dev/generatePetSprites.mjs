@@ -198,9 +198,16 @@ const SPECIES = {
     tail: { type: 'none' },
   },
   giraffe: {
-    shape: { body: [.8, .74], lift: 0, head: .64, headShift: [20, -34] }, legWidth: 11,
-    fur: '#f3c45e', furFar: '#dcab48', belly: '#fbe7b6', muzzle: '#f7ddb0', pattern: '#b9732f',
-    bodyPattern: 'giraffeSpots', forehead: 'none', ears: 'sheep', earFur: '#f3c45e', earIn: '#f0b79a',
+    shape: { body: [.8, .74], lift: 0, head: .68, headShift: [14, -29] }, legWidth: 11,
+    fur: '#f3c45e', furFar: '#dcab48', belly: '#fbe7b6', muzzle: null, pattern: '#b9732f',
+    bodyPattern: 'giraffeSpots', forehead: 'none', ears: 'giraffe', earFur: '#f3c45e', earIn: '#f0b79a',
+    // A slim skull with a long muzzle reaching forward, not a round cat face.
+    headPath: 'M98 52 C97 41 105 33 115 33 C125 33 132 40 133 50 C134 57 131 63 125 66 C116 70 101 66 98 52 Z',
+    eyesAt: [[109, 48], [123, 47]],
+    snout: {
+      path: 'M118 52 C128 50 144 54 152 61 C156 65 154 71 148 73 C139 76 125 74 118 69 C112 64 112 55 118 52 Z',
+      fill: '#f7ddb0', nose: [150, 63, 1.8, 1.3], mouth: [143, 69], mouthScale: .6,
+    },
     ossicones: '#b9732f', nose: '#8a5527', noseType: 'triangle', whiskers: false, liesDown: true,
     neck: { from: [104, 76], width: 15, spots: '#b9732f' },
     tail: { type: 'tuft', outer: 6.4, inner: 3, tuft: '#7a4a24', scale: .55 },
@@ -537,6 +544,11 @@ const drawEars = (p, sp) => {
     return pair(ear(104, 38, -46), ear(121, 37, -54));
   }
   if (sp.ears === 'none') return '';
+  // Giraffe: small leaf ears sticking out sideways behind the ossicones.
+  if (sp.ears === 'giraffe') {
+    const ear = (x, y, angle) => `<g transform="rotate(${angle} ${x} ${y})"><ellipse cx="${x}" cy="${y}" rx="8.5" ry="4" fill="${fur}" ${outline}/><ellipse cx="${x}" cy="${y}" rx="4.6" ry="1.8" fill="${sp.earIn}"/></g>`;
+    return pair(ear(96, 40, -24), ear(134, 37, 20));
+  }
   // Frog: the eyes sit in two bumps on top of the head, so they stay still with the ear angles.
   if (sp.ears === 'frog') {
     return sp.eyesAt.map(([x, y]) => `<circle cx="${x}" cy="${y - 1}" r="9.5" fill="${fur}" ${outline}/>`).join('');
@@ -1442,14 +1454,15 @@ const SPECIES_POSES = {
   // Frogs hop out of their crouch: the folded hind legs kick out long behind, the front paws land first.
   frog: { walk: frogHop(.7), run: frogHop(1.15) },
   // Giraffes pace: both legs on one side move together, and the long neck nods with each step.
-  // Tall heads get a lower happy hop; carried, the giraffe's tail stays half up off the frame edge.
+  // Tall heads get a lower happy hop.
   giraffe: {
     walk: gait({ swing: 18, lift: 5, bob: .8, pairs: 'lateral', nod: 2, headBob: 1.4, roll: 1, tail: 6, wag: 4 }),
     happy: lowHop,
     // A rocking gallop with the neck swinging, low enough that the head stays in the frame.
     run: gait({ swing: 28, lift: 6, bob: 1.2, pairs: 'bound', nod: 2.5, headBob: 1.2, tail: 8, wag: 6 }),
     startle: ANIMATION_POSES.startle.map((p) => pose(p, { bdy: p.bdy < 0 ? p.bdy * .4 : p.bdy })),
-    carried: ANIMATION_POSES.carried.map((p) => pose(p, { wDown: .5, wUp: .5 })),
+    // Carried, the tail stays half up off the bottom edge and the head droops below the top edge.
+    carried: ANIMATION_POSES.carried.map((p) => pose(p, { wDown: .5, wUp: .5, hdy: p.hdy + 9, hdx: p.hdx - 3 })),
   },
   // Zebra: a springy horse trot with the head bobbing and the tail swishing.
   zebra: { walk: gait({ swing: 24, lift: 7, bob: 2, nod: 1.5, headBob: 1, tail: 5, wag: 6, ears: 2 }), happy: lowHop },

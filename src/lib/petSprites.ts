@@ -249,7 +249,7 @@ export const PET_HEAD_TOPS: Readonly<Record<StudentPetKind, number>> = {
   turtle: 57,
   duck: 31,
   frog: 33,
-  giraffe: 10,
+  giraffe: 12,
   zebra: 14,
 };
 
