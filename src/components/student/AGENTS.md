@@ -40,6 +40,7 @@ Student-facing screens and interaction primitives. `src/pages/AuctionPage.tsx` o
 - Reuse `StudentConfirmDialog` for standard confirmations instead of duplicating backdrop and focus behavior.
 - `RootApp` wraps student mode with `StudentProfanityGuard` and `StudentRapidClickGuard`; keep event-capture behavior compatible.
 - Only add `data-rapid-click-ignore="true"` to controls that intentionally bypass repeated-pointer detection.
+- The rapid-click warning is one short line ("천천히 눌러 주세요") with no close button: it can't be dismissed and closes itself after `STUDENT_RAPID_CLICK_WARNING_MS` (3s), with a shrinking bar showing the time left. Keep it that short; third graders skip longer text.
 - Free-text inputs must remain ordinary input/textarea events so the profanity guard can restore the last accepted value.
 
 ## PETS

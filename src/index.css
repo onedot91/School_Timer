@@ -24734,10 +24734,24 @@ body:has(.student-baseball-view) .data-mode-banner { top: 6.25rem; }
   background: var(--student-warning-soft);
 }
 .student-rapid-click-dialog-icon svg { width: 1.75rem; height: 1.75rem; }
-.student-rapid-click-dialog .student-confirm-dialog-kicker { color: var(--student-warning); }
-.student-rapid-click-dialog p { word-break: keep-all; text-wrap: balance; }
-.student-rapid-click-dialog-actions { grid-template-columns: minmax(0, 1fr); }
-.student-rapid-click-dialog-actions button:last-child { background: var(--student-warning); }
+.student-rapid-click-dialog:focus { outline: none; }
+.student-rapid-click-dialog h2 { word-break: keep-all; }
+/* Shrinks over the forced viewing time, so students see when the warning will close. */
+.student-rapid-click-dialog-timer {
+  display: block;
+  height: .5rem;
+  border-radius: var(--apple-radius-pill);
+  background: var(--student-warning);
+  transform-origin: left center;
+  animation: student-rapid-click-timer linear both;
+}
+@keyframes student-rapid-click-timer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-rapid-click-dialog-timer { animation: none; opacity: .45; }
+}
 
 .student-confirm-dialog.student-sudoku-settings-dialog {
   width: min(100%, 46rem);
