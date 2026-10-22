@@ -748,7 +748,10 @@ const drawCat = (pose, sp, id) => {
   const haunchFur = sp.haunchFur ?? sp.fur;
   const haunchRy = 7 + 8 * p.fold;
   const haunchRx = 8 + 12 * p.fold;
-  const haunch = [lerp(hipNear[0], hipNear[0] + 1, p.fold), lerp(hipNear[1], GROUND - 1 - haunchRy, p.fold)];
+  // A sitting animal's haunch rests on the ground; a crouching frog's thigh stays on its hip, so it
+  // lifts with the body in a jump or a stretch instead of staying behind on the ground.
+  const haunchRestY = sp.crouch ? Math.min(GROUND - 1 - haunchRy, hipNear[1] + 4) : GROUND - 1 - haunchRy;
+  const haunch = [lerp(hipNear[0], hipNear[0] + 1, p.fold), lerp(hipNear[1], haunchRestY, p.fold)];
   // Parts appear outright rather than fading, so in-between frames have no ghost shapes.
   const showHaunch = p.fold > .2 && !sp.bird;
   const showHindPaw = p.fold > .7 && !sp.bird;
@@ -756,7 +759,7 @@ const drawCat = (pose, sp, id) => {
   const pawOverHead = p.pawOverHead && !sp.bird;
   // A bird lying down sits on its legs, so none show.
   const birdTucked = sp.bird && p.bdy > 12;
-  const hindPaw = [haunch[0] + haunchRx * .72, GROUND - 4.2];
+  const hindPaw = [haunch[0] + haunchRx * .72, sp.crouch ? Math.min(GROUND - 4.2, haunch[1] + haunchRy - 3) : GROUND - 4.2];
   const clipId = `body-${id}`;
   const frontLegPose = p.pawOverHead && sp.bird ? { ...p.nf, a: 0, reach: 1 } : p.nf;
   const frontLeg = drawLeg(shoulderNear, frontLegPose, legFur, p.lw, sp);
@@ -1452,7 +1455,8 @@ const SPECIES_POSES = {
     run: gait({ swing: 18, lift: 4, bob: 2, roll: 7, nod: 2.5, headBob: 1.2, tail: 6, wag: 10, extra: (i, phase) => ({ wing: .45 + .4 * Math.sin(phase * 2) }) }),
   },
   // Frogs hop out of their crouch: the folded hind legs kick out long behind, the front paws land first.
-  frog: { walk: frogHop(.7), run: frogHop(1.15) },
+  // Happy: a small cheerful hop in place (the walker lifts the sprite for the jump itself).
+  frog: { walk: frogHop(.7), run: frogHop(1.15), happy: [0, 2, 3, 4, 5, 7].map((i) => frogHop(.35, true)[i]) },
   // Giraffes pace: both legs on one side move together, and the long neck nods with each step.
   // Tall heads get a lower happy hop.
   giraffe: {
