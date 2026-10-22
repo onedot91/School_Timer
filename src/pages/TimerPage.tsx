@@ -3871,7 +3871,7 @@ function StudentCharacterShowcase({
     '--student-character-route-end-top': path.endTop,
     '--student-character-walk-size': path.size,
     '--student-character-walk-scale': path.scale,
-    '--student-character-walk-duration': `${STUDENT_CHARACTER_WALK_SECONDS}s`,
+    '--student-character-walk-duration': `${character.walkSeconds ?? STUDENT_CHARACTER_WALK_SECONDS}s`,
     '--student-character-walk-delay': `${initialAnimationDelaySeconds}s`,
     '--student-character-spawn-scale': spawnScale,
     '--student-character-walk-easing': path.easing,
@@ -3893,8 +3893,11 @@ function StudentCharacterShowcase({
       className={`student-character-showcase student-character-walk-${direction}`}
       onAnimationEnd={(event) => {
         if (event.target === event.currentTarget && event.animationName === 'studentCharacterWalkAcross') onWalkComplete();
+        // 토네이도에 날려 화면 밖으로 사라졌으면 끝까지 걸은 것처럼 다음 캐릭터로 넘긴다.
+        if (event.animationName === 'studentCharacterTornadoBlown') onWalkComplete();
       }}
       data-direction={direction}
+      data-walk-style={character.walkStyle}
       data-walk-lane={lane}
       aria-label={`${modeLabel} 자캐`}
       style={frameStyle}
@@ -3914,6 +3917,13 @@ function StudentCharacterShowcase({
               ) : null}
               <span className="student-character-greeting" aria-hidden="true">안녕!</span>
               <span className="student-character-look-question" aria-hidden="true">뭐지?</span>
+              {character.walkStyle === 'tornado' ? (
+                <span className="student-character-tornado-dust" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              ) : null}
               <div className="student-character-gesture">
               <img
                 src={characterImageSrc}

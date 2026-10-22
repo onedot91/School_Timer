@@ -30648,6 +30648,78 @@ body {
   padding: .5rem .9rem;
 }
 
+/* 토네이도: 좌우로 휘청이며 비틀리고, 바닥에서는 흙먼지가 맴돈다. */
+.student-character-showcase[data-walk-style="tornado"] .student-character-frame {
+  animation: studentCharacterTornadoMeander 2.2s ease-in-out infinite;
+}
+.student-character-showcase[data-walk-style="tornado"] .student-character-gesture {
+  animation: studentCharacterTornadoTwist .42s ease-in-out infinite alternate;
+}
+@keyframes studentCharacterTornadoMeander {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-7%, -0.3rem) rotate(-4deg); }
+  50% { transform: translate(3%, 0.15rem) rotate(2deg); }
+  75% { transform: translate(8%, -0.45rem) rotate(5deg); }
+}
+@keyframes studentCharacterTornadoTwist {
+  0% { transform: skewX(-7deg) scaleX(0.93); }
+  100% { transform: skewX(7deg) scaleX(1.05); }
+}
+.student-character-tornado-dust {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  z-index: 0;
+  width: 70%;
+  height: 18%;
+  transform: translateX(-50%);
+}
+.student-character-tornado-dust span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22%;
+  aspect-ratio: 2 / 1;
+  margin: -6% 0 0 -11%;
+  border-radius: 50%;
+  background: rgba(150, 82, 40, 0.34);
+  animation: studentCharacterTornadoDust .9s linear infinite;
+}
+.student-character-tornado-dust span:nth-child(2) { background: rgba(70, 78, 92, 0.3); animation-delay: -.3s; }
+.student-character-tornado-dust span:nth-child(3) { animation-delay: -.6s; }
+@keyframes studentCharacterTornadoDust {
+  0%, 100% { transform: translateX(-210%) scale(0.7); opacity: .35; }
+  25% { transform: translateX(0) translateY(35%) scale(1.15); opacity: .8; }
+  50% { transform: translateX(210%) scale(0.7); opacity: .35; }
+  75% { transform: translateX(0) translateY(-35%) scale(0.5); opacity: .15; }
+}
+
+/* 토네이도에 닿은 캐릭터는 그 자리에서 빙글빙글 휘말려 토네이도가 가는 쪽 하늘 밖으로 날아간다. */
+.student-character-showcase { --student-character-blow-direction: 1; }
+.student-character-walk-left { --student-character-blow-direction: -1; }
+.student-character-showcase[data-tornado-blown],
+.student-character-showcase[data-tornado-blown] .student-character-path,
+.student-character-showcase[data-tornado-blown] .student-character-frame { animation-play-state: paused !important; }
+.student-character-showcase[data-tornado-blown] .student-character-speech { visibility: hidden; }
+.student-character-showcase[data-tornado-blown] .student-character-scale {
+  transform-origin: center center;
+  animation: studentCharacterTornadoBlown 1.7s cubic-bezier(.45, 0, .75, .45) forwards;
+}
+@keyframes studentCharacterTornadoBlown {
+  0% { transform: scale(var(--student-character-walk-scale)); }
+  18% {
+    transform: translate(calc(var(--student-character-blow-direction) * 1.5rem), -1.2rem)
+      rotate(calc(var(--student-character-blow-direction) * -30deg)) scale(var(--student-character-walk-scale));
+  }
+  100% {
+    transform: translate(calc(var(--student-character-blow-direction) * 60vw), -125vh)
+      rotate(calc(var(--student-character-blow-direction) * 1080deg)) scale(calc(var(--student-character-walk-scale) * 0.35));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-character-tornado-dust { display: none; }
+}
+
 /* Four hand-drawn poses, held discretely to keep pixel edges intact. */
 .goma-loading-sprite { aspect-ratio: 5 / 4; display: grid; place-items: center; mix-blend-mode: multiply; }
 .goma-loading-preload { position: absolute; width: 1px; height: 1px; visibility: hidden; pointer-events: none; }

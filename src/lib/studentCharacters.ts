@@ -16,6 +16,10 @@ export interface StudentCharacter {
   };
   /** 모서리 빼꼼 때의 몸짓. 얼굴이 없는 사물(자동차 등)은 두리번 대신 통통 흔들기 */
   peekGesture?: 'look' | 'wiggle';
+  /** 토네이도는 빠르게 휘몰아치며 지나가고, 같은 방향으로 가던 캐릭터를 날려 보낸다 */
+  walkStyle?: 'tornado';
+  /** 화면을 가로지르는 시간(초). 없으면 STUDENT_CHARACTER_WALK_SECONDS */
+  walkSeconds?: number;
 }
 
 export const STUDENT_CHARACTER_WALK_SECONDS = 34;
@@ -491,6 +495,18 @@ export const STUDENT_CHARACTERS: StudentCharacter[] = [
     imageSrc: '/student-characters/character-21-additional-2.png',
     alt: '21번 학생이 만든 토마토 캐릭터',
     speech: 'ㅎㅇ',
+    walkTransform: { right: 'none', left: 'none' },
+  },
+  {
+    id: 'student-7-additional-2',
+    name: '7번 두 번째 추가 자캐',
+    creatorName: '7번',
+    imageSrc: '/student-characters/character-7-additional-2.png',
+    alt: '7번 학생이 만든 토네이도 캐릭터',
+    speech: '지나간다~',
+    peekGesture: 'wiggle',
+    walkStyle: 'tornado',
+    walkSeconds: 16,
     walkTransform: { right: 'none', left: 'none' },
   },
 ];
