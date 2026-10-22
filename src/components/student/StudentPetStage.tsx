@@ -9,6 +9,7 @@ import {
 import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import { STUDENT_CHARACTER_PRIZES, STUDENT_HOUSE_DESIGNS, type StudentCharacterPrizeId, type StudentCustomHouseTheme, type StudentHouseDesignId } from '../../lib/studentEconomy';
 import { getPetSpriteSheet } from '../../lib/petSprites';
+import { isStudentFeatureOpen } from '../../lib/studentFeatureRelease';
 import { StudentEmotionOrbVisual } from './StudentEmotionOrb';
 import StudentPetWalker from './StudentPetWalker';
 
@@ -49,7 +50,8 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
   const lastHouseTapAtRef = useRef(0);
   const [position, setPosition] = useState(pet.position);
   const [gomaPosition, setGomaPosition] = useState(pet.gomaPosition);
-  const hasActivePet = pet.petKind !== null;
+  // Pets stay off the student screen until the pet feature is released (the test server shows them).
+  const hasActivePet = pet.petKind !== null && isStudentFeatureOpen('petEgg');
   const petKind = getStudentPetKind(pet.petKind);
   const petSpriteSheet = getPetSpriteSheet(pet.petKind);
   const activeCharacter = STUDENT_CHARACTER_PRIZES.find((character) => character.id === activeCharacterId);

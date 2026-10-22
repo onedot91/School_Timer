@@ -58,6 +58,7 @@ Student-facing screens and interaction primitives. `src/pages/AuctionPage.tsx` o
 - A pet is named once, right after hatching (up to `STUDENT_PET_NAME_MAX_LENGTH`, 8 characters), and the dialog warns that the name can't be changed. Older names up to 12 characters stay as saved.
 - Once every kind is owned (`hasHatchedEveryStudentPet`), the egg closes: the home egg hotspot is disabled, and feeding is refused on the client and the server (`PET_UPDATE_REJECTED`, no goma charged). Owned pets can still walk around and be switched.
 - On the test server (mock data), student 1 is given one of every kind (`grantTestServerPets` in `AuctionPage`), so new species can be checked there. Use another student to test the egg.
+- Until release the whole pet feature is hidden from students, not just the egg: the walking pet, the pet picker, and the naming prompt all check `isStudentFeatureOpen('petEgg')`.
 - `petEgg` stays `false` in `STUDENT_FEATURE_RELEASES` until release. `isStudentFeatureOpen` opens the features listed in `STUDENT_TEST_SERVER_FEATURES` on the dev server (`import.meta.env.DEV`) only.
 - QA pets on the mock dev server (localStorage `school-timer-student-pets-v1`) at 1280×650. The browser pane may pause `requestAnimationFrame`, so check motion through the sprite rows and behavior tests when live movement can't be observed.
 

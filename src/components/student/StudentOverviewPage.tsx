@@ -118,7 +118,7 @@ export default function StudentOverviewPage({
   const houseDialogRef = useRef<HTMLElement>(null);
   const feedButtonRef = useRef<HTMLButtonElement>(null);
   const petNameInputRef = useRef<HTMLInputElement>(null);
-  const needsPetName = pet.pendingNamePetId !== null;
+  const needsPetName = pet.pendingNamePetId !== null && isStudentFeatureOpen('petEgg');
   // The hatch scene and naming the hatched pet are required steps, so they cannot be dismissed.
   const isNamingPet = activePetDialog === 'name' || activePetDialog === 'hatching';
   const eggStage = getStudentPetEggStage(pet.fedAmount);
