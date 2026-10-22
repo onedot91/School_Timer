@@ -44,7 +44,7 @@
 <ellipse cx="131" cy="41" rx="9.5" ry="7.5" transform="rotate(-20 131 41)" fill="#3a3330"/>
 <ellipse cx="109" cy="55" rx="3.5" ry="4.5" fill="#2b1d14"/><circle cx="110.2" cy="53.3" r="1.35" fill="#fff"/><ellipse cx="128" cy="55" rx="3.5" ry="4.5" fill="#2b1d14"/><circle cx="129.2" cy="53.3" r="1.35" fill="#fff"/>
 <ellipse cx="119" cy="65" rx="8" ry="5.6" fill="#f4b6b0" stroke="#3b2a1f" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
-<ellipse cx="116.4" cy="65" rx="1.2" ry="2" fill="#3b2a1f"/><ellipse cx="121.6" cy="65" rx="1.2" ry="2" fill="#3b2a1f"/><g transform="translate(0 5)"><path d="M119 65.8 v1.8 M119 67.6 q-2.6 2.8 -5.2 0 M119 67.6 q2.6 2.8 5.2 0" fill="none" stroke="#3b2a1f" stroke-width="1.6" stroke-linecap="round"/></g>
+<ellipse cx="116.4" cy="65" rx="1.2" ry="2" fill="#3b2a1f"/><ellipse cx="121.6" cy="65" rx="1.2" ry="2" fill="#3b2a1f"/><g transform="translate(119 71) scale(1) translate(-119 -66)"><path d="M119 65.8 v1.8 M119 67.6 q-2.6 2.8 -5.2 0 M119 67.6 q2.6 2.8 5.2 0" fill="none" stroke="#3b2a1f" stroke-width="1.6" stroke-linecap="round"/></g>
 <ellipse cx="101.5" cy="64" rx="4.4" ry="2.6" fill="#f08c7d" opacity="0.5"/>
 <ellipse cx="136" cy="63.5" rx="4" ry="2.5" fill="#f08c7d" opacity="0.5"/>
 </g></g>

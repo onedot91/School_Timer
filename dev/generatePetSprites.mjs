@@ -19,9 +19,13 @@ const C = {
 const SPECIES = {
   dog: {
     shape: { body: [1.05, 1], lift: -2 },
-    fur: '#e3b27c', furFar: '#c99660', belly: '#fff3e3', muzzle: '#fff3e3', pattern: '#c99660',
+    fur: '#e3b27c', furFar: '#c99660', belly: '#fff3e3', muzzle: null, pattern: '#c99660',
     bodyPattern: 'none', forehead: 'none', ears: 'floppy', earsFront: true, earFur: '#9a6236', earIn: '#9a6236',
     nose: '#3b2a1f', noseType: 'dog', whiskers: false,
+    snout: {
+      path: 'M112 63 C116 56 136 55 146 59 C152 62 152 71 145 74 C136 78 118 78 113 72 C110 69 110 66 112 63 Z',
+      fill: '#fff3e3', nose: [146, 61.5, 4.4, 3.3], mouth: [137, 70],
+    },
     tail: { type: 'thin', outer: 12, inner: 6.6 },
   },
   rabbit: {
@@ -42,9 +46,14 @@ const SPECIES = {
   fox: {
     shape: { body: [1.08, .92], lift: -3, head: .95 }, legWidth: 11,
     fur: '#ec7a30', furFar: '#cf621f', legFur: '#5b3a2b', legFar: '#4a2e22', haunchFur: '#ec7a30',
-    belly: '#fff6ec', muzzle: '#fff6ec', pattern: '#cf621f',
+    belly: '#fff6ec', muzzle: null, pattern: '#cf621f',
     bodyPattern: 'none', forehead: 'none', ears: 'pointed', earFur: '#ec7a30', earIn: '#fff1e6',
     nose: '#3b2a1f', noseType: 'triangle', whiskers: false,
+    snout: {
+      path: 'M110 60 C120 55 138 57 152 63.5 C153 65 151 67 148 68 C137 73 120 75 111 71 C107 68 107 63 110 60 Z',
+      lower: 'M111 67 C124 69 140 68 152 64.5 C152 66 150 67.5 148 68 C137 73 120 75 111 71 Z',
+      fill: '#ec7a30', nose: [150.5, 63.5, 3, 2.4], mouth: [141, 66], mouthScale: .58,
+    },
     tail: { type: 'bushy', outer: 22, inner: 16.4, scale: 1.05, tuft: '#fff6ec', tuftSize: 8 },
   },
   cat: {
@@ -138,16 +147,22 @@ const SPECIES = {
   hedgehog: {
     shape: { body: [.98, 1], lift: 9, head: .95, headShift: [-4, 8] }, legWidth: 12,
     fur: '#8a6446', furFar: '#74533a', headFur: '#f0d8b6', legFur: '#e8cba5', legFar: '#d2b28b',
-    belly: '#f0d8b6', muzzle: '#f7e7cf', pattern: '#74533a', spikes: '#6b4a33',
+    belly: '#f0d8b6', muzzle: null, pattern: '#74533a', spikes: '#6b4a33',
     bodyPattern: 'none', forehead: 'none', ears: 'round', earSize: 6, earFur: '#e8cba5', earIn: '#d9a99a',
     nose: '#3b2a1f', noseType: 'dog', whiskers: false,
+    snout: {
+      path: 'M111 61 C122 56 140 60 151 65.5 C152 67 150 68.5 147 69 C136 73 120 75 112 71 C108 68 108 64 111 61 Z',
+      fill: '#f7e7cf', nose: [150, 65.5, 3.2, 2.6], mouth: [139, 67.2], mouthScale: .65,
+    },
     tail: { type: 'none' },
   },
   elephant: {
     shape: { body: [1.13, 1.2], lift: 3, head: 1.04, headShift: [-4, 1] },
     fur: '#a9b0b9', furFar: '#8e96a0', belly: '#bfc5cc', muzzle: null, pattern: '#8e96a0',
     bodyPattern: 'none', forehead: 'none', ears: 'elephant', earsFront: true, earIn: '#e7bdb7',
-    nose: '#a9b0b9', noseType: 'trunk', whiskers: false, legWidth: 19,
+    nose: '#a9b0b9', noseType: 'trunk', whiskers: false, legWidth: 19, toenails: '#efe9df', tusk: '#fffaf0',
+    headPath: 'M89 60 C87 40 101 29 118 29 C135 29 146 41 146 56 C146 64 142 71 137 75 C130 80 118 81 106 79 C95 77 90 70 89 60 Z',
+    mouthAt: [124, 76],
     tail: { type: 'tuft', outer: 6.4, inner: 3, tuft: '#6f7780', scale: .5 },
   },
   lion: {
@@ -256,7 +271,9 @@ const drawLeg = ([x, y], leg, fill, width, sp) => {
   return `
   <g transform="translate(${r(x)} ${r(y)}) rotate(${r(leg.a)})">
     <rect x="${r(-w / 2)}" y="-6" width="${r(w)}" height="${r(length + 6)}" rx="${r(w / 2)}" fill="${fill}" ${outline}/>
-    <path d="M-2.6 ${r(length - 1)} v-3.6 M2.2 ${r(length - 1)} v-3.6" stroke="${C.line}" stroke-width="1.5" stroke-linecap="round" opacity=".55"/>
+    ${sp.toenails
+      ? [-w * .28, 0, w * .28].map((dx) => `<ellipse cx="${r(dx)}" cy="${r(length - 1.8)}" rx="2.4" ry="1.7" fill="${sp.toenails}" stroke="${C.line}" stroke-width="1"/>`).join('')
+      : `<path d="M-2.6 ${r(length - 1)} v-3.6 M2.2 ${r(length - 1)} v-3.6" stroke="${C.line}" stroke-width="1.5" stroke-linecap="round" opacity=".55"/>`}
   </g>`;
 };
 
@@ -349,7 +366,22 @@ const drawMouth = (p, sp) => {
       <ellipse cx="119" cy="${r(cy)}" rx="${r(rx)}" ry="${r(ry)}" fill="${C.mouth}" stroke="${C.line}" stroke-width="1.3"/>
       <ellipse cx="119" cy="${r(cy + ry * .45)}" rx="${r(rx * .62)}" ry="${r(ry * .42)}" fill="#ee8f8c"/>`;
   })();
-  return sp.mouthDy ? `<g transform="translate(0 ${sp.mouthDy})">${body}</g>` : body;
+  const [mx, my] = sp.snout?.mouth ?? sp.mouthAt ?? [119, 66 + (sp.mouthDy ?? 0)];
+  // A slim snout gets a smaller mouth so it stays inside the snout outline.
+  const scale = sp.snout?.mouthScale ?? 1;
+  if (mx === 119 && my === 66 && scale === 1) return body;
+  return `<g transform="translate(${r(mx)} ${r(my)}) scale(${scale}) translate(-119 -66)">${body}</g>`;
+};
+
+// A muzzle that grows out of the face: its outline is drawn behind the head so only the part sticking
+// out is outlined, then its colour is filled over the face with the nose at the tip.
+const drawSnoutBehind = (sp) => `<path d="${sp.snout.path}" fill="${sp.snout.fill}" ${outline}/>`;
+const drawSnout = (sp) => {
+  const { path, fill, lower, nose } = sp.snout;
+  return `<path d="${path}" fill="${fill}"/>
+    ${lower ? `<path d="${lower}" fill="${sp.belly}"/>` : ''}
+    <ellipse cx="${nose[0]}" cy="${nose[1]}" rx="${nose[2] ?? 3.6}" ry="${nose[3] ?? 2.8}" fill="${sp.nose}"/>
+    <ellipse cx="${r(nose[0] - 1)}" cy="${r(nose[1] - 1)}" rx="1.1" ry=".7" fill="#fff" opacity=".7"/>`;
 };
 
 const drawNose = (sp) => {
@@ -369,20 +401,43 @@ const drawNose = (sp) => {
 };
 
 // Elephant trunk from the muzzle: hangs and curls in, or (trunk = 1) rises with the tip curled up.
-const TRUNK_DOWN = [[131, 67], [141, 70], [142, 86], [139, 99]];
-const TRUNK_UP = [[131, 67], [143, 63], [148, 48], [142, 35]];
+const TRUNK_DOWN = [[133, 70], [142, 74], [143, 88], [139, 101]];
+const TRUNK_UP = [[133, 70], [146, 66], [150, 50], [143, 37]];
+const bezier = ([a, b, c, d], t) => [0, 1].map((k) => (
+  (1 - t) ** 3 * a[k] + 3 * (1 - t) ** 2 * t * b[k] + 3 * (1 - t) * t ** 2 * c[k] + t ** 3 * d[k]
+));
 const drawTrunk = (p, sp) => {
   // Lying down, the trunk curls up so it stays above the ground.
   const raise = Math.max(p.trunk, Math.min(1, Math.max(0, (p.bdy - 6) / 10)) * .6);
   const [a, b, c, d] = TRUNK_DOWN.map(([x, y], i) => [lerp(x, TRUNK_UP[i][0], raise), lerp(y, TRUNK_UP[i][1], raise)]);
-  const path = `M${r(a[0])} ${r(a[1])} C${r(b[0])} ${r(b[1])} ${r(c[0])} ${r(c[1])} ${r(d[0])} ${r(d[1])}`;
+  // Outline a trunk that tapers from the face to the tip, with wrinkle lines across it.
+  const samples = Array.from({ length: 15 }, (_, i) => i / 14);
+  const sides = samples.map((t) => {
+    const [x, y] = bezier([a, b, c, d], t);
+    const [x2, y2] = bezier([a, b, c, d], Math.min(1, t + .02));
+    const [x1, y1] = bezier([a, b, c, d], Math.max(0, t - .02));
+    const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+    const [nx, ny] = [-(y2 - y1) / length, (x2 - x1) / length];
+    const half = lerp(7.4, 4, t);
+    return { left: [x + nx * half, y + ny * half], right: [x - nx * half, y - ny * half], normal: [nx, ny], half, at: [x, y] };
+  });
+  const point = ([x, y]) => `${r(x)} ${r(y)}`;
+  const outlinePath = `M${sides.map((side) => point(side.left)).join(' L')} L${[...sides].reverse().map((side) => point(side.right)).join(' L')} Z`;
+  const wrinkles = [.35, .5, .65, .8].map((t) => {
+    const side = sides[Math.round(t * 14)];
+    const [nx, ny] = side.normal;
+    return `M${point([side.at[0] + nx * side.half * .8, side.at[1] + ny * side.half * .8])} L${point([side.at[0] - nx * side.half * .8, side.at[1] - ny * side.half * .8])}`;
+  }).join(' ');
+  const fur = sp.headFur ?? sp.fur;
   const drops = p.spray > 0
     ? [[0, -8], [-6, -13], [6, -14], [-2, -20], [9, -22], [-9, -21]].slice(0, Math.ceil(p.spray * 6))
       .map(([dx, dy], i) => `<circle cx="${r(d[0] + dx * p.spray)}" cy="${r(d[1] + dy * p.spray)}" r="${2.2 - i * .15}" fill="#8fd0f0" stroke="#4f8fb3" stroke-width="1"/>`).join('')
     : '';
-  return `<path d="${path}" fill="none" stroke="${C.line}" stroke-width="13" stroke-linecap="round"/>
-    <path d="${path}" fill="none" stroke="${sp.headFur ?? sp.fur}" stroke-width="7.6" stroke-linecap="round"/>
-    <path d="M${r(d[0] - 3)} ${r(d[1] + 1)} q3 2 6 0" fill="none" stroke="${C.line}" stroke-width="1.4" stroke-linecap="round" opacity=".6"/>
+  return `<path d="${outlinePath}" fill="${fur}" ${outline}/>
+    <circle cx="${r(a[0] - 3)}" cy="${r(a[1] - 3)}" r="7.6" fill="${fur}"/>
+    <path d="${wrinkles}" stroke="${C.line}" stroke-width="1.3" stroke-linecap="round" opacity=".45"/>
+    <ellipse cx="${r(d[0])}" cy="${r(d[1])}" rx="3.2" ry="1.6" fill="${C.line}" opacity=".55" transform="rotate(${r(Math.atan2(sides[14].normal[1], sides[14].normal[0]) * 180 / Math.PI)} ${r(d[0])} ${r(d[1])})"/>
+    ${sp.tusk ? `<path d="M129 77 q1 7 9 8 q-4 -3 -4.5 -8 Z" fill="${sp.tusk}" stroke="${C.line}" stroke-width="1.5" stroke-linejoin="round"/>` : ''}
     ${drops}`;
 };
 
@@ -418,8 +473,8 @@ const drawEars = (p, sp) => {
   }
   if (sp.ears === 'long') {
     // Laid back so the tips stay inside the frame at the top of a hop.
-    const ear = (x, y, angle) => `<g transform="rotate(${angle} ${x} ${y})"><ellipse cx="${x}" cy="${y - 9}" rx="6.6" ry="9.6" fill="${fur}" ${outline}/><ellipse cx="${x}" cy="${y - 8.6}" rx="3.2" ry="6.2" fill="${sp.earIn}"/></g>`;
-    return pair(ear(104, 37, -36), ear(122, 36, -42));
+    const ear = (x, y, angle) => `<g transform="rotate(${angle} ${x} ${y})"><ellipse cx="${x}" cy="${y - 13}" rx="6.4" ry="14" fill="${fur}" ${outline}/><ellipse cx="${x}" cy="${y - 12.5}" rx="3" ry="10" fill="${sp.earIn}"/></g>`;
+    return pair(ear(104, 38, -46), ear(121, 37, -54));
   }
   if (sp.ears === 'none') return '';
   if (sp.ears === 'monkey') {
@@ -428,7 +483,8 @@ const drawEars = (p, sp) => {
   }
   if (sp.ears === 'elephant') {
     return pair(
-      `<g transform="rotate(-8 92 59)"><ellipse cx="92" cy="59" rx="13" ry="18.5" fill="${fur}" ${outline}/><ellipse cx="93" cy="59.5" rx="8" ry="12" fill="${sp.earIn}"/></g>`,
+      `<path d="M102 39 C92 33 78 36 73 47 C70 54 72 60 70 66 C69 74 76 84 86 85 C95 86 101 80 102 72 C103 62 104 50 102 39 Z" fill="${fur}" ${outline}/>
+       <path d="M98 45 C90 41 81 44 78 52 C76 58 78 63 77 68 C77 74 82 80 88 80 C94 80 97 75 98 69 C99 61 99 53 98 45 Z" fill="${sp.earIn}"/>`,
       '',
     );
   }
@@ -503,7 +559,8 @@ const drawHead = (p, sp) => {
   ${sp.horns ? `<path d="M106 38 q-3 -9 2 -13 q1 6 4 11 Z M124 36 q1 -10 7 -12 q-1 7 -2 12 Z" fill="${sp.horns}" ${outline}/>` : ''}
   ${sp.spikes ? drawSpikes(HEAD_SPIKES, sp.spikes) : ''}
   ${sp.earsFront ? '' : drawEars(p, sp)}
-  <ellipse cx="116" cy="57" rx="27" ry="24" fill="${headFur}" ${outline}/>
+  ${sp.snout ? drawSnoutBehind(sp) : ''}
+  ${sp.headPath ? `<path d="${sp.headPath}" fill="${headFur}" ${outline}/>` : `<ellipse cx="116" cy="57" rx="27" ry="24" fill="${headFur}" ${outline}/>`}
   ${sp.earsFront ? drawEars(p, sp) : ''}
   ${sp.wool ? bumps(HEAD_WOOL, 6.5, sp.fur, true) : ''}
   ${drawForehead(sp)}
@@ -511,10 +568,11 @@ const drawHead = (p, sp) => {
     ${drawMarking(p, sp)}
     ${sp.muzzle ? `<ellipse cx="119" cy="68" rx="12" ry="7.5" fill="${sp.muzzle}"/>` : ''}
     ${drawEyes(p.eyes, sp)}
-    ${sp.noseType === 'beak' ? drawBeak(p, sp) : `${drawNose(sp)}${drawMouth(p, sp)}`}
+    ${sp.snout ? drawSnout(sp) : ''}
+    ${sp.noseType === 'beak' ? drawBeak(p, sp) : `${sp.snout ? '' : drawNose(sp)}${drawMouth(p, sp)}`}
     ${sp.noseType === 'trunk' ? drawTrunk(p, sp) : ''}
     <ellipse cx="101.5" cy="64" rx="4.4" ry="2.6" fill="${C.blush}" opacity="${r(p.blush)}"/>
-    <ellipse cx="136" cy="63.5" rx="4" ry="2.5" fill="${C.blush}" opacity="${r(p.blush)}"/>
+    ${sp.snout ? '' : `<ellipse cx="136" cy="63.5" rx="4" ry="2.5" fill="${C.blush}" opacity="${r(p.blush)}"/>`}
     ${sp.whiskers && p.whiskers > .5 ? `<path d="M135 66 l13 -3 M135 69 l13 1.5 M101 67 l-${r(leftWhisker)} -1.5 M101 69.5 l-${r(leftWhisker * .8)} 1.8" stroke="${C.line}" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>` : ''}
   </g>`;
 };
@@ -919,7 +977,7 @@ const TRICK_FRAMES = {
     { ...crouch, bdy: 6, brot: 5, hdy: 3, tflick: -6, wUp: .6, wHigh: .4 },
     { bdy: -2, brot: -14, ...airborne(26, -30, -26, 30, 26), wUp: 0, wHigh: 1 },
     { bdy: -10, brot: -2, ...airborne(22, -20, -18, 26, 24), wUp: 0, wHigh: 1 },
-    { bdy: -8, brot: 16, ...airborne(26, -40, -36, 20, 18), hrot: 10, wUp: 0, wHigh: 1 },
+    { bdy: -8, brot: 12, ...airborne(26, -40, -36, 20, 18), hrot: 7, wUp: 0, wHigh: 1 },
     { bdy: 3, brot: 14, hrot: 12, hdy: 3, eyes: 'squeeze', wUp: .3, wHigh: .7 },
     { bdy: 1, brot: 6, eyes: 'happy', wUp: .6, wHigh: .4 },
     {},
@@ -1020,7 +1078,7 @@ const TRICK_FRAMES = {
   hedgehog: () => {
     const ball = pose(STAND, {
       bdy: 8, bsx: .86, bsy: 1.04, ...legs({ len: 4, reach: 0 }),
-      hdx: -18, hdy: 16, hrot: 38, eyes: 'closed', whiskers: 0,
+      hdx: -18, hdy: 11, hrot: 30, eyes: 'closed', whiskers: 0,
     });
     return [
       pose(STAND, { bdy: 3, eyes: 'wide' }),
