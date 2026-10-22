@@ -165,6 +165,15 @@ const SPECIES = {
     mouthAt: [124, 76],
     tail: { type: 'tuft', outer: 6.4, inner: 3, tuft: '#6f7780', scale: .5 },
   },
+  turtle: {
+    shape: { body: [1.05, 1], lift: 7, head: .82, headShift: [10, 12] }, legWidth: 15,
+    fur: '#8cb45c', furFar: '#77a04a', headFur: '#a7d07c', legFur: '#a7d07c', legFar: '#8fbb67', haunchFur: '#a7d07c',
+    belly: '#8cb45c', muzzle: null, pattern: '#5e8a3e', rim: '#d8c27a', neck: true,
+    bodyPattern: 'shell', forehead: 'none', ears: 'none', earIn: '#a7d07c',
+    nose: '#5e8a3e', noseType: 'none', whiskers: false,
+    bodyPath: 'M44 92 C44 70 60 56 80 56 C100 56 116 70 116 92 C116 97 112 100 106 100 L54 100 C48 100 44 97 44 92 Z',
+    tail: { type: 'stub', color: '#a7d07c', size: 4 },
+  },
   lion: {
     shape: { body: [1.04, 1.02], lift: -2, headShift: [-3, 0] }, legWidth: 15,
     fur: '#eab65e', furFar: '#d39c44', belly: '#fbe9c6', muzzle: '#fbe9c6', pattern: '#d39c44',
@@ -192,7 +201,7 @@ const BASE = {
   hdx: 0, hdy: 0, hrot: 0,
   eyes: 'open', yawn: 0, tongue: 0, blush: .5, earL: 0, earR: 0, faceTurn: 0, whiskers: 1,
   wUp: 1, wGround: 0, wDown: 0, wHigh: 0, trot: 0, tflick: 0, tsx: 1, tailFront: false,
-  frameRot: 0, fcx: 80, fcy: 40, pawOverHead: false, hindOverHead: false, zStep: -1,
+  frameRot: 0, fcx: 80, fcy: 40, pawOverHead: false, hindOverHead: false, headBehind: false, zStep: -1,
   // Species details: chick wings (0 folded .. 1 raised) and hamster cheeks (0 .. 1 puffed).
   wing: 0, cheek: 0,
   // Elephant trunk (0 hanging .. 1 raised) and water spray from its tip (0 .. 1).
@@ -393,7 +402,7 @@ const drawNose = (sp) => {
     return `<ellipse cx="119" cy="62.5" rx="5.6" ry="7" fill="${sp.nose}" stroke="${C.line}" stroke-width="1.4"/>
       <ellipse cx="117.4" cy="59.6" rx="1.6" ry="1.1" fill="#fff" opacity=".7"/>`;
   }
-  if (sp.noseType === 'trunk') return '';
+  if (sp.noseType === 'trunk' || sp.noseType === 'none') return '';
   if (sp.noseType === 'dog') {
     return `<ellipse cx="119.5" cy="63" rx="4.4" ry="3.2" fill="${sp.nose}"/><ellipse cx="118.3" cy="62" rx="1.3" ry=".8" fill="#fff" opacity=".7"/>`;
   }
@@ -403,13 +412,15 @@ const drawNose = (sp) => {
 // Elephant trunk from the muzzle: hangs and curls in, or (trunk = 1) rises with the tip curled up.
 const TRUNK_DOWN = [[133, 70], [142, 74], [143, 88], [139, 101]];
 const TRUNK_UP = [[133, 70], [146, 66], [150, 50], [143, 37]];
+const TRUNK_REST = [[133, 70], [141, 77], [146, 84], [154, 86]];
 const bezier = ([a, b, c, d], t) => [0, 1].map((k) => (
   (1 - t) ** 3 * a[k] + 3 * (1 - t) ** 2 * t * b[k] + 3 * (1 - t) * t ** 2 * c[k] + t ** 3 * d[k]
 ));
 const drawTrunk = (p, sp) => {
-  // Lying down, the trunk curls up so it stays above the ground.
-  const raise = Math.max(p.trunk, Math.min(1, Math.max(0, (p.bdy - 6) / 10)) * .6);
-  const [a, b, c, d] = TRUNK_DOWN.map(([x, y], i) => [lerp(x, TRUNK_UP[i][0], raise), lerp(y, TRUNK_UP[i][1], raise)]);
+  // Sitting, the trunk hangs at full length; lying down, it rests forward along the ground.
+  const lying = Math.min(1, Math.max(0, (p.bdy - 12) / 6));
+  const hanging = TRUNK_DOWN.map(([x, y], i) => [lerp(x, TRUNK_REST[i][0], lying), lerp(y, TRUNK_REST[i][1], lying)]);
+  const [a, b, c, d] = hanging.map(([x, y], i) => [lerp(x, TRUNK_UP[i][0], p.trunk), lerp(y, TRUNK_UP[i][1], p.trunk)]);
   // Outline a trunk that tapers from the face to the tip, with wrinkle lines across it.
   const samples = Array.from({ length: 15 }, (_, i) => i / 14);
   const sides = samples.map((t) => {
@@ -605,12 +616,20 @@ const drawBodyPattern = (sp, clipId, body) => {
       <ellipse cx="102" cy="86" rx="8" ry="6.5" transform="rotate(25 102 86)"/><ellipse cx="72" cy="90" rx="7" ry="5"/>
     </g></g>`;
   }
+  if (sp.bodyPattern === 'shell') {
+    return `<g clip-path="url(#${clipId})"><g transform="${body}">
+      <rect x="38" y="91" width="84" height="14" fill="${sp.rim}"/>
+      <path d="M38 91 H122" stroke="${sp.pattern}" stroke-width="2.4"/>
+      <path d="M66 62 L80 58 L94 62 L98 76 L80 82 L62 76 Z M66 62 L56 59 M94 62 L105 61 M62 76 L49 86 M98 76 L111 86 M80 82 L80 91 M56 59 L46 74 M105 61 L114 74"
+        fill="none" stroke="${sp.pattern}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+    </g></g>`;
+  }
   if (sp.bodyPattern === 'penguinFront') {
     return `<g clip-path="url(#${clipId})"><g transform="${body}"><ellipse cx="101" cy="86" rx="15" ry="22" fill="${sp.belly}"/></g></g>`;
   }
   return '';
 };
-const CLIPPED_PATTERNS = new Set(['pandaBand', 'cowSpots', 'penguinFront']);
+const CLIPPED_PATTERNS = new Set(['pandaBand', 'cowSpots', 'penguinFront', 'shell']);
 
 // Spikes stick out of an outline: each base point gets a triangle pointing away from `center`.
 const drawSpikes = ({ center, points }, color) => points.map(([x, y]) => {
@@ -655,7 +674,15 @@ const drawCat = (pose, sp, id) => {
   const frontLegPose = p.pawOverHead && sp.bird ? { ...p.nf, a: 0, reach: 1 } : p.nf;
   const frontLeg = drawLeg(shoulderNear, frontLegPose, legFur, p.lw, sp);
   const headScale = shape.head === 1 ? '' : ` translate(106 70) scale(${shape.head}) translate(-106 -70)`;
-  const head = `<g transform="translate(${r(neck[0] - 106 + p.hdx + shape.headShift[0])} ${r(neck[1] - 70 + p.hdy + shape.headShift[1])}) rotate(${r(p.hrot)} 112 70)${headScale}">${drawHead(p, sp)}</g>`;
+  const headX = neck[0] - 106 + p.hdx + shape.headShift[0];
+  const headY = neck[1] - 70 + p.hdy + shape.headShift[1];
+  const head = `<g transform="translate(${r(headX)} ${r(headY)}) rotate(${r(p.hrot)} 112 70)${headScale}">${drawHead(p, sp)}</g>`;
+  // A neck from under the body to the head, for animals whose head sits out in front (turtle).
+  const neckFrom = sp.neck ? toWorld(p, 100, 84) : null;
+  const neckPath = neckFrom ? `M${r(neckFrom[0])} ${r(neckFrom[1])} L${r(110 + headX)} ${r(68 + headY)}` : '';
+  const neckShape = neckFrom
+    ? `<path d="${neckPath}" stroke="${C.line}" stroke-width="15" stroke-linecap="round"/><path d="${neckPath}" stroke="${sp.headFur}" stroke-width="9.6" stroke-linecap="round"/>`
+    : '';
   const striped = sp.bodyPattern === 'tabby' || sp.bodyPattern === 'tiger';
   const wing = sp.bird
     ? `<g transform="rotate(${r(-55 * p.wing)} 92 74)"><path d="M92 74 C84 70 66 72 64 84 C70 90 86 90 94 82 Z" fill="${sp.furFar}" ${outline}/></g>`
@@ -669,6 +696,8 @@ const drawCat = (pose, sp, id) => {
     ${p.tailFront ? '' : drawTail(p, sp)}
     ${p.hindOverHead || birdTucked ? '' : drawLeg(hipNear, p.nb, legFur, p.lw, sp)}
     ${pawOverHead || birdTucked ? '' : frontLeg}
+    ${neckShape}
+    ${p.headBehind ? head : ''}
     <g transform="${body}">${sp.wool ? bumps(BODY_WOOL, 8, sp.fur, true) : ''}${sp.spikes ? drawSpikes(BODY_SPIKES, sp.spikes) : ''}</g>
     <path d="${bodyPath}" transform="${body}" fill="${sp.fur}" ${outline} vector-effect="non-scaling-stroke"/>
     ${CLIPPED_PATTERNS.has(sp.bodyPattern) ? drawBodyPattern(sp, clipId, body) : ''}
@@ -684,7 +713,7 @@ const drawCat = (pose, sp, id) => {
       ${striped ? `<path d="M${r(haunch[0] - 8)} ${r(haunch[1] - haunchRy * .55)} q5 3 4 ${r(haunchRy * .65)} M${r(haunch[0] - 1)} ${r(haunch[1] - haunchRy * .7)} q4 3 3 ${r(haunchRy * .55)}" fill="none" stroke="${sp.pattern}" stroke-width="3.4" stroke-linecap="round"/>` : ''}` : ''}
     ${showChest && sp.belly !== sp.fur ? `<ellipse cx="${r(shoulderNear[0] + 3)}" cy="${r(shoulderNear[1] - 5)}" rx="7.5" ry="11" fill="${sp.belly}"/>` : ''}
     ${p.tailFront ? drawTail(p, sp) : ''}
-    ${head}
+    ${p.headBehind ? '' : head}
     ${pawOverHead ? frontLeg : ''}
     ${p.hindOverHead ? drawLeg(hipNear, p.nb, legFur, p.lw, sp) : ''}
     ${drawSleepZ(p.zStep)}
@@ -1096,6 +1125,20 @@ const TRICK_FRAMES = {
     eyes: at(['open', 'open', 'happy', 'happy', 'happy', 'happy', 'open', 'open'], i),
     earL: at([0, -8, 4, -8, 4, -8, 0, 0], i),
   })),
+  // Pulling head and legs into the shell, wobbling there, then peeking back out.
+  turtle: () => {
+    const hidden = (frameRot) => pose(STAND, {
+      headBehind: true, hdx: -26, hdy: 5, bdy: 4, ...legs({ len: 3, reach: 0 }),
+      frameRot, fcx: 80, fcy: 112, eyes: 'closed',
+    });
+    return [
+      pose(STAND, { eyes: 'wide' }),
+      pose(STAND, { hdx: -12, hdy: 2, bdy: 2, eyes: 'blink' }),
+      hidden(-2), hidden(2), hidden(-2), hidden(2),
+      pose(STAND, { hdx: -12, hdy: 3, bdy: 2, eyes: 'open' }),
+      pose(STAND, { eyes: 'happy', blush: .75 }),
+    ];
+  },
   // Shaking the mane from side to side.
   lion: () => eight((i) => pose(STAND, {
     hrot: at([0, -12, 12, -12, 12, -8, 4, 0], i),

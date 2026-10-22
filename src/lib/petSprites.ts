@@ -118,6 +118,7 @@ export const PET_TRICKS: Readonly<Record<StudentPetKind, PetTrick>> = {
   monkey: 'trickSit',
   hedgehog: 'trick',
   elephant: 'trick',
+  turtle: 'trick',
 };
 
 type PetGrip = { readonly x: number; readonly y: number };
@@ -143,6 +144,7 @@ export const PET_CARRY_GRIPS: Readonly<Record<StudentPetKind, PetGrip>> = {
   monkey: { x: 88, y: 54 },
   hedgehog: { x: 89, y: 60 },
   elephant: { x: 90, y: 48 },
+  turtle: { x: 90, y: 58 },
 };
 
 /** On-stage size relative to the cat; stride and walking speed scale with it. */
@@ -150,6 +152,7 @@ export const PET_SIZES: Readonly<Record<StudentPetKind, number>> = {
   hedgehog: .58,
   hamster: .62,
   chick: .64,
+  turtle: .7,
   squirrel: .72,
   penguin: .8,
   rabbit: .82,
@@ -189,6 +192,7 @@ export const PET_SPRITE_KINDS: ReadonlySet<StudentPetKind> = new Set<StudentPetK
   'monkey',
   'hedgehog',
   'elephant',
+  'turtle',
 ]);
 
 export const PET_SPRITE_BACKGROUND_SIZE = `${PET_SPRITE_FRAME.columns * 100}% ${PET_SPRITE_FRAME.rows * 100}%`;
