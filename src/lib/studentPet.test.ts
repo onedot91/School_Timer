@@ -26,6 +26,8 @@ import {
   STUDENT_PET_KINDS,
   grantEveryStudentPet,
   hasHatchedEveryStudentPet,
+  pickStudentPetHatchKind,
+  STUDENT_PET_NAME_MAX_LENGTH,
 } from './studentPet';
 
 test('a completed legacy egg becomes an owned pet and starts a new egg', () => {
@@ -44,48 +46,33 @@ test('a completed legacy egg becomes an owned pet and starts a new egg', () => {
   assert.equal(pet.eggKind, 'dog');
 });
 
-test('feeding a full egg adds the hatched pet and resets the next egg', () => {
+test('feeding a full egg hatches a random kind the student does not own yet', () => {
+  const owned = { id: 'cat-1', kind: 'cat', name: '냥냥이', position: { x: 0.4, y: 0.6 } } as const;
   const pet = getStudentPetState({
-    2: {
-      fedAmount: 95,
-      eggKind: 'rabbit',
-      ownedPets: [{ id: 'cat-1', kind: 'cat', name: '냥냥이', position: { x: 0.4, y: 0.6 } }],
-      activePetId: 'cat-1',
-      pendingNamePetId: null,
-    },
+    2: { fedAmount: 95, eggKind: 'rabbit', ownedPets: [owned], activePetId: 'cat-1', pendingNamePetId: null },
   }, 2);
 
-  const hatched = feedStudentPetEgg(pet);
-
+  const hatched = feedStudentPetEgg(pet, 2);
   assert.equal(hatched.fedAmount, 0);
   assert.equal(hatched.ownedPets.length, 2);
-  assert.equal(hatched.petKind, 'rabbit');
+  assert.notEqual(hatched.petKind, 'cat');
   assert.equal(hatched.pendingNamePetId, hatched.activePetId);
-  assert.equal(hatched.eggKind, 'dog');
+  assert.ok(!hatched.ownedPets.some((pet) => pet.kind === hatched.eggKind));
+  // The same student and collection always hatch the same kind, so a retried save agrees.
+  assert.equal(feedStudentPetEgg(pet, 2).petKind, hatched.petKind);
 
-  const fedAgain = feedStudentPetEgg(hatched);
+  const fedAgain = feedStudentPetEgg(hatched, 2);
   assert.equal(fedAgain.fedAmount, 5);
   assert.equal(fedAgain.ownedPets.length, 2);
 });
 
-test('an egg already owned hatches a kind the student does not have yet', () => {
-  const owned = [
-    { id: 'cat-1', kind: 'cat', name: '나비', position: { x: 0.4, y: 0.6 } },
-    { id: 'dog-1', kind: 'dog', name: '', position: { x: 0.4, y: 0.6 } },
-  ] as const;
-  const pet = getStudentPetState({
-    2: { fedAmount: 95, eggKind: 'cat', ownedPets: [...owned], activePetId: 'cat-1', pendingNamePetId: null },
-  }, 2);
-  assert.equal(pet.eggKind, 'rabbit');
-  assert.equal(feedStudentPetEgg(pet).petKind, 'rabbit');
-});
-
-test('once every kind is owned, the stored egg kind stays as it is', () => {
-  const ownedPets = STUDENT_PET_KINDS.map((kind) => ({ id: `${kind.id}-1`, kind: kind.id, name: '', position: { x: 0.4, y: 0.6 } }));
-  const pet = getStudentPetState({
-    2: { fedAmount: 0, eggKind: 'dog', ownedPets, activePetId: 'cat-1', pendingNamePetId: null },
-  }, 2);
-  assert.equal(pet.eggKind, 'dog');
+test('different students hatch their pets in different orders, never repeating a kind', () => {
+  const firstKinds = new Set(Array.from({ length: 23 }, (_, i) => pickStudentPetHatchKind([], i + 1)));
+  assert.ok(firstKinds.size >= 8, `first pets ${[...firstKinds].join()}`);
+  let pet = getStudentPetState({}, 7);
+  for (let i = 0; i < STUDENT_PET_KINDS.length; i += 1) pet = feedStudentPetEgg({ ...pet, fedAmount: 95 }, 7);
+  assert.equal(new Set(pet.ownedPets.map((owned) => owned.kind)).size, STUDENT_PET_KINDS.length);
+  assert.equal(hasHatchedEveryStudentPet(pet), true);
 });
 
 test('only an owned pet can be selected and moved', () => {
@@ -332,4 +319,18 @@ test('모든 펫을 부화시키면 알을 더 키울 수 없다', () => {
   assert.equal(hasHatchedEveryStudentPet(all), true);
   assert.deepEqual(feedStudentPetEgg(all), all);
   assert.deepEqual(grantEveryStudentPet(all).ownedPets, all.ownedPets);
+});
+
+test('펫 이름은 8글자까지 짓고, 이미 지은 이름은 바꿀 수 없으며, 예전의 긴 이름은 그대로 둔다', () => {
+  assert.equal(STUDENT_PET_NAME_MAX_LENGTH, 8);
+  const hatched = getStudentPetState({
+    1: { fedAmount: 0, eggKind: 'dog', ownedPets: [{ id: 'cat-1', kind: 'cat', name: '', position: { x: 0.4, y: 0.6 } }], activePetId: 'cat-1', pendingNamePetId: 'cat-1' },
+  }, 1);
+  const named = nameStudentPet(hatched, '가나다라마바사아자차');
+  assert.equal(named?.name, '가나다라마바사아');
+  assert.equal(named && nameStudentPet(named, '새이름'), null);
+  const legacy = getStudentPetState({
+    1: { fedAmount: 0, eggKind: 'dog', ownedPets: [{ id: 'cat-1', kind: 'cat', name: '열두글자이름을가진고양이', position: { x: 0.4, y: 0.6 } }], activePetId: 'cat-1', pendingNamePetId: null },
+  }, 1);
+  assert.equal(legacy.name, '열두글자이름을가진고양이'.slice(0, 12));
 });

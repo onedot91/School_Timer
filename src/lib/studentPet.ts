@@ -31,7 +31,10 @@ export const STUDENT_PET_STORAGE_KEY = 'school-timer-student-pets-v1';
 export const STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY = 'school-timer-student-pet-position-overrides-v1';
 export const STUDENT_PET_FEED_AMOUNT = 5;
 export const STUDENT_PET_HATCH_AMOUNT = 100;
-export const STUDENT_PET_NAME_MAX_LENGTH = 12;
+/** Longest name a student can give a newly hatched pet. */
+export const STUDENT_PET_NAME_MAX_LENGTH = 8;
+/** Names saved before the 8-character limit (up to 12) are kept as they are. */
+const STUDENT_PET_STORED_NAME_MAX_LENGTH = 12;
 
 export const STUDENT_PET_KINDS = [
   { id: 'cat', emoji: '🐱', label: '고양이' },
@@ -137,9 +140,28 @@ const normalizePet = (value: unknown, fallbackId: string): StudentPet | null => 
   return {
     id,
     kind: rawPet.kind,
-    name: typeof rawPet.name === 'string' ? rawPet.name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH) : '',
+    name: typeof rawPet.name === 'string' ? rawPet.name.trim().slice(0, STUDENT_PET_STORED_NAME_MAX_LENGTH) : '',
     position: normalizePosition(rawPet.position),
   };
+};
+
+// FNV-1a: a stable number from text, so the same student and collection always pick the same pet
+// (the server and the device agree, and a retried save hatches the same kind).
+const hashText = (text: string) => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
+};
+
+/** The kind a hatching egg turns into: picked at random among the kinds the student doesn't own yet. */
+export const pickStudentPetHatchKind = (ownedPets: readonly StudentPet[], seed: number | string): StudentPetKind | null => {
+  const unowned = STUDENT_PET_KINDS.filter((kind) => !ownedPets.some((pet) => pet.kind === kind.id));
+  if (unowned.length === 0) return null;
+  const owned = ownedPets.map((pet) => pet.id).sort().join(',');
+  return unowned[hashText(`${seed}|${owned}`) % unowned.length].id;
 };
 
 const getNextEggKind = (ownedPets: StudentPet[], previousKind: StudentPetKind) => {
@@ -202,7 +224,7 @@ export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
       return pets;
     }, []);
     const legacyKind = isPetKind(state.petKind) ? state.petKind : null;
-    const legacyName = typeof state.name === 'string' ? state.name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH) : '';
+    const legacyName = typeof state.name === 'string' ? state.name.trim().slice(0, STUDENT_PET_STORED_NAME_MAX_LENGTH) : '';
     const legacyPosition = normalizePosition(state.position);
     const gomaPosition = normalizePosition(state.gomaPosition ?? DEFAULT_GOMA_POSITION);
 
@@ -285,17 +307,19 @@ export const grantEveryStudentPet = (state: StudentPetState): StudentPetState =>
   return withActivePet({ ...normalizedState, fedAmount: 0, ownedPets, activePetId: normalizedState.activePetId ?? ownedPets[0]?.id ?? null });
 };
 
-export const feedStudentPetEgg = (state: StudentPetState): StudentPetState => {
+/** `seed` is the student number, so each student gets their own random order of pets. */
+export const feedStudentPetEgg = (state: StudentPetState, seed: number | string = 0): StudentPetState => {
   const normalizedState = getStudentPetState({ 1: state }, 1);
-  if (hasHatchedEveryStudentPet(normalizedState)) return normalizedState;
+  const hatchKind = pickStudentPetHatchKind(normalizedState.ownedPets, seed);
+  if (hatchKind === null) return normalizedState;
   const nextFedAmount = Math.min(STUDENT_PET_HATCH_AMOUNT, normalizedState.fedAmount + STUDENT_PET_FEED_AMOUNT);
   if (nextFedAmount < STUDENT_PET_HATCH_AMOUNT) {
     return withActivePet({ ...normalizedState, fedAmount: nextFedAmount });
   }
 
   const hatchedPet: StudentPet = {
-    id: createPetId(normalizedState.eggKind, normalizedState.ownedPets),
-    kind: normalizedState.eggKind,
+    id: createPetId(hatchKind, normalizedState.ownedPets),
+    kind: hatchKind,
     name: '',
     position: { ...DEFAULT_POSITION },
   };
@@ -303,7 +327,7 @@ export const feedStudentPetEgg = (state: StudentPetState): StudentPetState => {
   return withActivePet({
     ...normalizedState,
     fedAmount: 0,
-    eggKind: getNextEggKind(ownedPets, normalizedState.eggKind),
+    eggKind: pickStudentPetHatchKind(ownedPets, seed) ?? hatchKind,
     ownedPets,
     activePetId: hatchedPet.id,
     pendingNamePetId: hatchedPet.id,

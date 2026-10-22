@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ClipboardCheck, Sparkles, X } from 'lucide-react';
+import { Check, ClipboardCheck, Lock, Sparkles, X } from 'lucide-react';
 import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import {
   STUDENT_PET_FEED_AMOUNT,
@@ -464,34 +464,41 @@ export default function StudentOverviewPage({
                 <div className="student-pet-dialog-copy">
                   <h2 id="student-pet-dialog-title">{getStudentPetHatchMessage(pet.petKind)}</h2>
                 </div>
-                <label className="student-pet-name-field">
-                  <span className="sr-only">펫 이름</span>
-                  <input
-                    ref={petNameInputRef}
-                    value={petNameDraft}
-                    maxLength={STUDENT_PET_NAME_MAX_LENGTH}
-                    placeholder="이름을 지어 주세요"
-                    onChange={(event) => {
-                      setPetNameDraft(event.target.value);
-                      setPetError('');
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
-                      event.preventDefault();
-                      savePetName();
-                    }}
-                  />
-                  <small>{petNameDraft.length}/{STUDENT_PET_NAME_MAX_LENGTH}</small>
-                </label>
-                <button
-                  type="button"
-                  className="student-pet-dialog-primary"
-                  disabled={isPetSaving || petNameDraft.trim().length === 0}
-                  onClick={savePetName}
-                >
-                  <Check size={20} aria-hidden="true" />
-                  <StableLabel busy={isPetSaving} busyLabel="저장 중" label="이름 짓기" />
-                </button>
+                <p className="student-pet-name-warning" id="student-pet-name-warning">
+                  <Lock size={16} aria-hidden="true" />
+                  <span>한 번 정한 이름은 <strong>바꿀 수 없어요.</strong></span>
+                </p>
+                <div className="student-pet-name-row">
+                  <label className="student-pet-name-field">
+                    <span className="sr-only">펫 이름</span>
+                    <input
+                      ref={petNameInputRef}
+                      value={petNameDraft}
+                      maxLength={STUDENT_PET_NAME_MAX_LENGTH}
+                      aria-describedby="student-pet-name-warning"
+                      placeholder="이름을 지어 주세요"
+                      onChange={(event) => {
+                        setPetNameDraft(event.target.value);
+                        setPetError('');
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+                        event.preventDefault();
+                        savePetName();
+                      }}
+                    />
+                    <small>{petNameDraft.length}/{STUDENT_PET_NAME_MAX_LENGTH}</small>
+                  </label>
+                  <button
+                    type="button"
+                    className="student-pet-dialog-primary"
+                    disabled={isPetSaving || petNameDraft.trim().length === 0}
+                    onClick={savePetName}
+                  >
+                    <Check size={20} aria-hidden="true" />
+                    <StableLabel busy={isPetSaving} busyLabel="저장 중" label="이름 짓기" />
+                  </button>
+                </div>
               </>
             ) : null}
 

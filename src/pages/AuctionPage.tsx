@@ -1092,7 +1092,7 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
         const latestBalance = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
         if (latestBalance - reservedAmount < STUDENT_PET_FEED_AMOUNT) return false;
         const nextBalance = latestBalance - STUDENT_PET_FEED_AMOUNT;
-        savedPet = feedStudentPetEgg(currentPet);
+        savedPet = feedStudentPetEgg(currentPet, studentNumber);
         savedBalances = { ...snapshot.currencyBalances, [studentKey]: nextBalance };
         const stored = storeStudentPetSnapshot({
           ...snapshot,
