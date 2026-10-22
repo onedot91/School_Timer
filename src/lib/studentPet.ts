@@ -215,9 +215,14 @@ export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
       });
     }
 
-    const eggKind = isPetKind(state.eggKind)
+    const storedEggKind = isPetKind(state.eggKind)
       ? state.eggKind
       : getNextEggKind(ownedPets, legacyKind ?? STUDENT_PET_KINDS[0].id);
+    // An egg chosen before newer kinds existed may already be owned; hatch a new kind while one is left.
+    const unownedKind = STUDENT_PET_KINDS.find((kind) => !ownedPets.some((pet) => pet.kind === kind.id));
+    const eggKind = unownedKind && ownedPets.some((pet) => pet.kind === storedEggKind)
+      ? unownedKind.id
+      : storedEggKind;
     const requestedActivePetId = typeof state.activePetId === 'string' ? state.activePetId : null;
     const activePetId = ownedPets.some((pet) => pet.id === requestedActivePetId)
       ? requestedActivePetId
@@ -264,8 +269,25 @@ export const getStudentPetEggStage = (fedAmount: number) => (
   Math.min(STUDENT_PET_EGG_HATCHED_STAGE - 1, Math.floor(Math.max(0, fedAmount) / STUDENT_PET_FEED_AMOUNT))
 );
 
+/** Once every kind has hatched there are no more eggs to raise. */
+export const hasHatchedEveryStudentPet = (state: Pick<StudentPetState, 'ownedPets'>) => (
+  STUDENT_PET_KINDS.every((kind) => state.ownedPets.some((pet) => pet.kind === kind.id))
+);
+
+/** Adds one unnamed pet of every kind the student does not own yet (test-server student data). */
+export const grantEveryStudentPet = (state: StudentPetState): StudentPetState => {
+  const normalizedState = getStudentPetState({ 1: state }, 1);
+  const ownedPets = [...normalizedState.ownedPets];
+  for (const kind of STUDENT_PET_KINDS) {
+    if (ownedPets.some((pet) => pet.kind === kind.id)) continue;
+    ownedPets.push({ id: createPetId(kind.id, ownedPets), kind: kind.id, name: '', position: { ...DEFAULT_POSITION } });
+  }
+  return withActivePet({ ...normalizedState, fedAmount: 0, ownedPets, activePetId: normalizedState.activePetId ?? ownedPets[0]?.id ?? null });
+};
+
 export const feedStudentPetEgg = (state: StudentPetState): StudentPetState => {
   const normalizedState = getStudentPetState({ 1: state }, 1);
+  if (hasHatchedEveryStudentPet(normalizedState)) return normalizedState;
   const nextFedAmount = Math.min(STUDENT_PET_HATCH_AMOUNT, normalizedState.fedAmount + STUDENT_PET_FEED_AMOUNT);
   if (nextFedAmount < STUDENT_PET_HATCH_AMOUNT) {
     return withActivePet({ ...normalizedState, fedAmount: nextFedAmount });

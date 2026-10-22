@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 import { CircleDashed } from 'lucide-react';
 import {
   STUDENT_PET_HATCH_AMOUNT,
+  hasHatchedEveryStudentPet,
   getStudentPetKind,
   type StudentPetState,
 } from '../../lib/studentPet';
@@ -189,7 +190,7 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
         onClick={onOpenEgg}
         aria-label={onOpenEgg
           ? `알 성장 ${pet.fedAmount} / ${STUDENT_PET_HATCH_AMOUNT} 고마. 알 성장 창 열기`
-          : '펫 알. 아직 사용할 수 없음'}
+          : hasHatchedEveryStudentPet(pet) ? '펫 알. 모든 펫을 부화시켰어요' : '펫 알. 아직 사용할 수 없음'}
       />
       <button type="button" className="student-home-hotspot student-home-hotspot-mailbox" onClick={onOpenMailbox} aria-label={hasUnreadMail ? '새 편지가 있는 우편함 열기' : '우편함 열기'} />
       <button type="button" className="student-home-hotspot student-home-hotspot-library" onClick={onOpenLibrary} aria-label="실패 전시관과 책장 열기" />

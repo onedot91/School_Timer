@@ -52,6 +52,8 @@ Student-facing screens and interaction primitives. `src/pages/AuctionPage.tsx` o
 - Poses that don't fit an animal get replaced for that species, not shared: the turtle hides in its shell instead of sitting, and the frog's eye bumps don't swing like ears.
 - The name tag sits on `PET_HEAD_TOPS`, not the frame top.
 - Egg: `egg-stages.svg` has `STUDENT_PET_EGG_STAGE_COUNT` (21) frames; each 5-goma feed moves one stage further, and the last frame (open egg, eyes peeking out) is used only by the hatch scene. Feeding is immediate, with no confirmation dialog; the button shows the cost and disables while saving. The hatch scene and naming step cannot be dismissed.
+- An egg always hatches a kind the student doesn't own yet. Once every kind is owned (`hasHatchedEveryStudentPet`), the egg closes: the home egg hotspot is disabled, and feeding is refused on the client and the server (`PET_UPDATE_REJECTED`, no goma charged). Owned pets can still walk around and be switched.
+- On the test server (mock data), student 1 is given one of every kind (`grantTestServerPets` in `AuctionPage`), so new species can be checked there. Use another student to test the egg.
 - `petEgg` stays `false` in `STUDENT_FEATURE_RELEASES` until release. `isStudentFeatureOpen` opens the features listed in `STUDENT_TEST_SERVER_FEATURES` on the dev server (`import.meta.env.DEV`) only.
 - QA pets on the mock dev server (localStorage `school-timer-student-pets-v1`) at 1280×650. The browser pane may pause `requestAnimationFrame`, so check motion through the sprite rows and behavior tests when live movement can't be observed.
 

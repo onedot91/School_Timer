@@ -3,7 +3,7 @@ import { TEST_STUDENT_NUMBER, formatStudentNumberLabel } from '../lib/studentIde
 import { createStudentLetter, isStudentLetterRetained, markStudentLetterRead, normalizeStudentLifeState, pruneExpiredStudentLetters } from '../lib/studentLife.js';
 import { FAILURE_STAMP_OPTIONS, toggleFailureStamp } from '../lib/failureExhibition.js';
 import { createFailureExhibitionMissionEntry } from '../lib/failureExhibitionMission.js';
-import { getStudentPetState, feedStudentPetEgg, nameStudentPet, selectStudentPet, moveStudentPet, moveGomaCharacter, STUDENT_PET_FEED_AMOUNT } from '../lib/studentPet.js';
+import { getStudentPetState, feedStudentPetEgg, hasHatchedEveryStudentPet, nameStudentPet, selectStudentPet, moveStudentPet, moveGomaCharacter, STUDENT_PET_FEED_AMOUNT } from '../lib/studentPet.js';
 import { STUDENT_EMOTIONS, createStudentEmotionEntry, normalizeStudentEmotionHistory, getTodayStudentEmotionEntry, upsertStudentEmotionEntry, getSchoolWeekDateKeys } from '../lib/studentEmotion.js';
 import { createSudokuPuzzle, isSudokuSolved, getSudokuWeeklyMissionId, SUDOKU_REWARDS, getStudentSudokuProgressFromSettings, getActiveSudokuDifficulty } from '../lib/sudoku.js';
 import { getNumberBaseballGameId, createNumberBaseballAnswer, createNumberBaseballProgressEntry, appendNumberBaseballAttempt, getStudentNumberBaseballProgressFromSettings, getNumberBaseballStatus, getNumberBaseballReward } from '../lib/numberBaseball.js';
@@ -90,6 +90,8 @@ export const applyStudentStorageCommand = (
       const reserved = getReservedAuctionBidAmount(normalizeAuctionBids(current.auctionBids, itemIds), studentNumber, undefined, normalizeAuctionAwards(current.auctionAwards, itemIds), itemIds);
       const before = balances[studentKey];
       if (before - reserved < STUDENT_PET_FEED_AMOUNT) return fail('INSUFFICIENT_FUNDS');
+      // Every pet hatched: no egg is left to feed, so nothing is charged.
+      if (hasHatchedEveryStudentPet(pet)) return fail('PET_UPDATE_REJECTED');
       next = feedStudentPetEgg(pet);
       value = { ...current, currencyBalances: { ...record(current.currencyBalances), [studentKey]: before - STUDENT_PET_FEED_AMOUNT }, currencyHistory: appendCurrencyHistoryEntry(history, { id: `pet-feed-${context.requestId}`, studentNumber, before, after: before - STUDENT_PET_FEED_AMOUNT, reason: 'pet_feed', createdAt: context.createdAt }) };
     } else if (action === 'student.pet.name') {

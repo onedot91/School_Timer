@@ -6,6 +6,7 @@ import {
   STUDENT_PET_HATCH_AMOUNT,
   STUDENT_PET_NAME_MAX_LENGTH,
   getStudentPetEggStage,
+  hasHatchedEveryStudentPet,
   getStudentPetHatchMessage,
   getStudentPetKind,
   type StudentPetState,
@@ -238,7 +239,7 @@ export default function StudentOverviewPage({
           onOpenMailbox={onOpenMailbox}
           onOpenLibrary={onOpenLibrary}
           onOpenEmotions={onOpenEmotions}
-          onOpenEgg={isStudentFeatureOpen('petEgg') ? () => {
+          onOpenEgg={isStudentFeatureOpen('petEgg') && !hasHatchedEveryStudentPet(pet) ? () => {
             setPetError('');
             setActivePetDialog('feed');
           } : undefined}

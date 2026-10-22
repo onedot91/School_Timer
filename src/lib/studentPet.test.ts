@@ -23,6 +23,9 @@ import {
   getStudentPetEggStage,
   STUDENT_PET_EGG_HATCHED_STAGE,
   STUDENT_PET_EGG_STAGE_COUNT,
+  STUDENT_PET_KINDS,
+  grantEveryStudentPet,
+  hasHatchedEveryStudentPet,
 } from './studentPet';
 
 test('a completed legacy egg becomes an owned pet and starts a new egg', () => {
@@ -63,6 +66,26 @@ test('feeding a full egg adds the hatched pet and resets the next egg', () => {
   const fedAgain = feedStudentPetEgg(hatched);
   assert.equal(fedAgain.fedAmount, 5);
   assert.equal(fedAgain.ownedPets.length, 2);
+});
+
+test('an egg already owned hatches a kind the student does not have yet', () => {
+  const owned = [
+    { id: 'cat-1', kind: 'cat', name: '나비', position: { x: 0.4, y: 0.6 } },
+    { id: 'dog-1', kind: 'dog', name: '', position: { x: 0.4, y: 0.6 } },
+  ] as const;
+  const pet = getStudentPetState({
+    2: { fedAmount: 95, eggKind: 'cat', ownedPets: [...owned], activePetId: 'cat-1', pendingNamePetId: null },
+  }, 2);
+  assert.equal(pet.eggKind, 'rabbit');
+  assert.equal(feedStudentPetEgg(pet).petKind, 'rabbit');
+});
+
+test('once every kind is owned, the stored egg kind stays as it is', () => {
+  const ownedPets = STUDENT_PET_KINDS.map((kind) => ({ id: `${kind.id}-1`, kind: kind.id, name: '', position: { x: 0.4, y: 0.6 } }));
+  const pet = getStudentPetState({
+    2: { fedAmount: 0, eggKind: 'dog', ownedPets, activePetId: 'cat-1', pendingNamePetId: null },
+  }, 2);
+  assert.equal(pet.eggKind, 'dog');
 });
 
 test('only an owned pet can be selected and moved', () => {
@@ -294,4 +317,19 @@ test('알은 고마를 줄 때마다 한 단계씩 더 갈라지고, 열린 알�
   assert.equal(getStudentPetEggStage(100), STUDENT_PET_EGG_HATCHED_STAGE - 1);
   const sheet = readFileSync(new URL('../../public/pets/egg-stages.svg', import.meta.url), 'utf8');
   assert.match(sheet, new RegExp(`viewBox="0 0 ${120 * STUDENT_PET_EGG_STAGE_COUNT} 110"`));
+});
+
+test('모든 펫을 부화시키면 알을 더 키울 수 없다', () => {
+  const pet = getStudentPetState({
+    1: { fedAmount: 40, eggKind: 'rabbit', ownedPets: [{ id: 'cat-1', kind: 'cat', name: '나비', position: { x: 0.4, y: 0.6 } }], activePetId: 'cat-1', pendingNamePetId: null },
+  }, 1);
+  assert.equal(hasHatchedEveryStudentPet(pet), false);
+  const all = grantEveryStudentPet(pet);
+  assert.equal(all.ownedPets.length, STUDENT_PET_KINDS.length);
+  assert.equal(new Set(all.ownedPets.map((owned) => owned.kind)).size, STUDENT_PET_KINDS.length);
+  assert.equal(all.ownedPets[0]?.name, '나비');
+  assert.equal(all.activePetId, 'cat-1');
+  assert.equal(hasHatchedEveryStudentPet(all), true);
+  assert.deepEqual(feedStudentPetEgg(all), all);
+  assert.deepEqual(grantEveryStudentPet(all).ownedPets, all.ownedPets);
 });
