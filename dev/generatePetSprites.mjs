@@ -181,6 +181,41 @@ const SPECIES = {
     nose: '#7a4526', noseType: 'triangle', whiskers: false, mane: '#b8682c',
     tail: { type: 'tuft', outer: 7.4, inner: 3.6, tuft: '#b8682c' },
   },
+  duck: {
+    fur: '#fbfaf5', furFar: '#e4e0d6', belly: '#ffffff', muzzle: null, pattern: '#e4e0d6',
+    bodyPattern: 'none', forehead: 'none', ears: 'none', earIn: '#fbfaf5',
+    nose: '#f4a332', noseType: 'bill', whiskers: false,
+    bird: true, legFur: '#f4a332', legFar: '#f4a332',
+    bodyPath: 'M52 84 C51 70 64 62 82 62 C100 62 112 70 112 84 C112 98 98 104 82 104 C66 104 53 98 52 84 Z',
+    tail: { type: 'feather', color: '#e4e0d6' },
+  },
+  frog: {
+    shape: { body: [1.02, .9], lift: 7, head: 1.04, headShift: [-6, 7] }, legWidth: 14,
+    fur: '#7cc36b', furFar: '#62a956', belly: '#e6f4c4', muzzle: null, pattern: '#4f9447',
+    bodyPattern: 'frogSpots', forehead: 'none', ears: 'frog', earIn: '#7cc36b',
+    eyesAt: [[105, 40], [128, 38]], eyeRing: true, wideMouth: true,
+    nose: '#4f9447', noseType: 'nostrils', whiskers: false,
+    tail: { type: 'none' },
+  },
+  giraffe: {
+    shape: { body: [.92, .86], lift: 0, head: .72, headShift: [14, -22] }, legWidth: 12,
+    fur: '#f3c45e', furFar: '#dcab48', belly: '#fbe7b6', muzzle: '#f7ddb0', pattern: '#b9732f',
+    bodyPattern: 'giraffeSpots', forehead: 'none', ears: 'sheep', earFur: '#f3c45e', earIn: '#f0b79a',
+    ossicones: '#b9732f', nose: '#8a5527', noseType: 'triangle', whiskers: false,
+    neck: { from: [102, 72], width: 16, spots: '#b9732f' },
+    tail: { type: 'tuft', outer: 6.4, inner: 3, tuft: '#7a4a24', scale: .55 },
+  },
+  zebra: {
+    shape: { body: [1.08, 1], lift: -3, headShift: [-1, 1] }, legWidth: 13,
+    fur: '#fbfaf6', furFar: '#e3e0d9', belly: '#fbfaf6', muzzle: null, pattern: '#2b2a2e',
+    bodyPattern: 'zebra', forehead: 'tiger', ears: 'pointed', earFur: '#fbfaf6', earIn: '#f0c4bd',
+    crest: '#2b2a2e', nose: '#3b3940', noseType: 'dog', whiskers: false,
+    snout: {
+      path: 'M110 60 C116 55 136 56 146 60 C152 63 152 72 145 75 C136 79 118 78 112 72 C108 68 108 63 110 60 Z',
+      fill: '#4b4852', nose: [146, 63, 3.4, 2.6], mouth: [137, 70],
+    },
+    tail: { type: 'tuft', outer: 7, inner: 3.4, tuft: '#2b2a2e', scale: .9 },
+  },
 };
 
 const SW = 3.2;
@@ -349,7 +384,7 @@ const drawTail = (p, sp) => {
   return `<g transform="rotate(${r(swing)} ${r(base[0])} ${r(base[1])})">${layers.join('')}</g>`;
 };
 
-const drawEyes = (kind, sp) => [[109, 55], [128, 55]].map(([x, y]) => {
+const drawEyes = (kind, sp) => (sp.eyesAt ?? [[109, 55], [128, 55]]).map(([x, y]) => {
   const stroke = `fill="none" stroke="${sp.eyeLine ?? C.line}" stroke-width="2.6" stroke-linecap="round"`;
   const ring = (size) => (sp.eyeRing ? `<circle cx="${x}" cy="${y}" r="${size}" fill="#fff"/>` : '');
   if (kind === 'open') return `${ring(5)}<ellipse cx="${x}" cy="${y}" rx="3.5" ry="4.5" fill="${C.eye}"/><circle cx="${x + 1.2}" cy="${y - 1.7}" r="1.35" fill="#fff"/>`;
@@ -362,7 +397,10 @@ const drawEyes = (kind, sp) => [[109, 55], [128, 55]].map(([x, y]) => {
 
 const drawMouth = (p, sp) => {
   const open = p.yawn;
-  const smile = `<path d="M119 65.8 v1.8 M119 67.6 q-2.6 2.8 -5.2 0 M119 67.6 q2.6 2.8 5.2 0" fill="none" stroke="${C.line}" stroke-width="1.6" stroke-linecap="round"/>`;
+  // A frog's mouth runs almost across the whole face.
+  const smile = sp.wideMouth
+    ? `<path d="M100 63 C108 72 130 72 138 62" fill="none" stroke="${C.line}" stroke-width="1.8" stroke-linecap="round"/>`
+    : `<path d="M119 65.8 v1.8 M119 67.6 q-2.6 2.8 -5.2 0 M119 67.6 q2.6 2.8 5.2 0" fill="none" stroke="${C.line}" stroke-width="1.6" stroke-linecap="round"/>`;
   const tongue = p.tongue > .5
     ? `<ellipse cx="120.5" cy="71.4" rx="2.6" ry="3.2" fill="#ee8f8c" stroke="${C.line}" stroke-width="1.1"/>`
     : '';
@@ -403,6 +441,9 @@ const drawNose = (sp) => {
       <ellipse cx="117.4" cy="59.6" rx="1.6" ry="1.1" fill="#fff" opacity=".7"/>`;
   }
   if (sp.noseType === 'trunk' || sp.noseType === 'none') return '';
+  if (sp.noseType === 'nostrils') {
+    return `<circle cx="115.5" cy="59" r="1.2" fill="${sp.nose}"/><circle cx="122.5" cy="58.5" r="1.2" fill="${sp.nose}"/>`;
+  }
   if (sp.noseType === 'dog') {
     return `<ellipse cx="119.5" cy="63" rx="4.4" ry="3.2" fill="${sp.nose}"/><ellipse cx="118.3" cy="62" rx="1.3" ry=".8" fill="#fff" opacity=".7"/>`;
   }
@@ -452,6 +493,14 @@ const drawTrunk = (p, sp) => {
     ${drops}`;
 };
 
+// Duck bill: flat and wide with a rounded tip; the lower half drops as it quacks.
+const drawBill = (p, sp) => {
+  const open = Math.min(1, p.yawn * 1.6);
+  return `<path d="M110 62 C118 59 130 59 136 62 C139 64 137 67 132 67 L111 67 Z" fill="${sp.nose}" stroke="${C.line}" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M111 67.5 L131 ${r(67.5 + open * 3)} C135 ${r(68 + open * 4)} 134 ${r(71 + open * 4)} 129 ${r(71 + open * 4)} L111 ${r(70 + open * 2)} Z" fill="${sp.nose}" stroke="${C.line}" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="125" cy="62.4" r=".9" fill="${C.line}" opacity=".6"/>`;
+};
+
 // Beak that opens with the yawn value (chirping, yawning).
 const drawBeak = (p, sp) => {
   const open = Math.min(1, p.yawn * 1.6);
@@ -488,6 +537,10 @@ const drawEars = (p, sp) => {
     return pair(ear(104, 38, -46), ear(121, 37, -54));
   }
   if (sp.ears === 'none') return '';
+  // Frog: the eyes sit in two bumps on top of the head, so they stay still with the ear angles.
+  if (sp.ears === 'frog') {
+    return sp.eyesAt.map(([x, y]) => `<circle cx="${x}" cy="${y - 1}" r="9.5" fill="${fur}" ${outline}/>`).join('');
+  }
   if (sp.ears === 'monkey') {
     const ear = (x, y) => `<circle cx="${x}" cy="${y}" r="9" fill="${fur}" ${outline}/><circle cx="${x}" cy="${y}" r="5.4" fill="${sp.earIn}"/>`;
     return pair(ear(90, 56), ear(142.5, 54));
@@ -568,6 +621,8 @@ const drawHead = (p, sp) => {
   return `
   ${sp.mane ? `${bumps(MANE_POINTS, 10, sp.mane, true)}<ellipse cx="116" cy="57" rx="28" ry="25" fill="${sp.mane}"/>` : ''}
   ${sp.horns ? `<path d="M106 38 q-3 -9 2 -13 q1 6 4 11 Z M124 36 q1 -10 7 -12 q-1 7 -2 12 Z" fill="${sp.horns}" ${outline}/>` : ''}
+  ${sp.ossicones ? `<path d="M109 38 L107 27 M123 36 L124 25" stroke="${C.line}" stroke-width="6.4" stroke-linecap="round"/><path d="M109 38 L107 27 M123 36 L124 25" stroke="${sp.fur}" stroke-width="3.2" stroke-linecap="round"/><circle cx="107" cy="26" r="3.8" fill="${sp.ossicones}" ${outline}/><circle cx="124" cy="24" r="3.8" fill="${sp.ossicones}" ${outline}/>` : ''}
+  ${sp.crest ? `<path d="M90 50 C91 38 99 31 110 30" fill="none" stroke="${C.line}" stroke-width="12" stroke-linecap="round"/><path d="M90 50 C91 38 99 31 110 30" fill="none" stroke="${sp.crest}" stroke-width="7.4" stroke-linecap="round"/><path d="M90 50 C91 38 99 31 110 30" fill="none" stroke="${sp.fur}" stroke-width="7.4" stroke-dasharray="2.6 3.4"/>` : ''}
   ${sp.spikes ? drawSpikes(HEAD_SPIKES, sp.spikes) : ''}
   ${sp.earsFront ? '' : drawEars(p, sp)}
   ${sp.snout ? drawSnoutBehind(sp) : ''}
@@ -580,7 +635,7 @@ const drawHead = (p, sp) => {
     ${sp.muzzle ? `<ellipse cx="119" cy="68" rx="12" ry="7.5" fill="${sp.muzzle}"/>` : ''}
     ${drawEyes(p.eyes, sp)}
     ${sp.snout ? drawSnout(sp) : ''}
-    ${sp.noseType === 'beak' ? drawBeak(p, sp) : `${sp.snout ? '' : drawNose(sp)}${drawMouth(p, sp)}`}
+    ${sp.noseType === 'beak' ? drawBeak(p, sp) : sp.noseType === 'bill' ? drawBill(p, sp) : `${sp.snout ? '' : drawNose(sp)}${drawMouth(p, sp)}`}
     ${sp.noseType === 'trunk' ? drawTrunk(p, sp) : ''}
     <ellipse cx="101.5" cy="64" rx="4.4" ry="2.6" fill="${C.blush}" opacity="${r(p.blush)}"/>
     ${sp.snout ? '' : `<ellipse cx="136" cy="63.5" rx="4" ry="2.5" fill="${C.blush}" opacity="${r(p.blush)}"/>`}
@@ -624,12 +679,29 @@ const drawBodyPattern = (sp, clipId, body) => {
         fill="none" stroke="${sp.pattern}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
     </g></g>`;
   }
+  if (sp.bodyPattern === 'giraffeSpots') {
+    return `<g clip-path="url(#${clipId})"><g transform="${body}" fill="${sp.pattern}" stroke="${sp.fur}" stroke-width="2.4" stroke-linejoin="round">
+      <path d="M50 66 l9 -4 l6 6 l-3 9 l-10 1 Z"/><path d="M68 60 l11 -2 l4 8 l-6 7 l-10 -3 Z"/><path d="M87 60 l10 1 l3 9 l-8 5 l-7 -6 Z"/>
+      <path d="M103 66 l9 2 l2 9 l-9 3 l-4 -7 Z"/><path d="M56 82 l10 -2 l5 8 l-7 6 l-9 -4 Z"/><path d="M75 79 l11 0 l3 9 l-9 5 l-7 -5 Z"/>
+      <path d="M93 81 l10 0 l3 8 l-8 6 l-7 -5 Z"/>
+    </g></g>`;
+  }
+  if (sp.bodyPattern === 'zebra') {
+    return `<g clip-path="url(#${clipId})"><g transform="${body}" fill="none" stroke="${sp.pattern}" stroke-width="4.4" stroke-linecap="round">
+      <path d="M54 66 q6 10 0 22 M64 61 q6 12 -1 26 M74 59 q6 14 -1 30 M84 59 q6 14 -1 30 M94 60 q6 13 -1 28 M104 63 q5 10 -1 22 M47 78 q6 3 6 12"/>
+    </g></g>`;
+  }
+  if (sp.bodyPattern === 'frogSpots') {
+    return `<g clip-path="url(#${clipId})"><g transform="${body}" fill="${sp.pattern}">
+      <ellipse cx="62" cy="70" rx="5" ry="3.6"/><ellipse cx="80" cy="64" rx="4" ry="3"/><ellipse cx="96" cy="70" rx="4.6" ry="3.4"/><ellipse cx="72" cy="80" rx="3.4" ry="2.6"/>
+    </g></g>`;
+  }
   if (sp.bodyPattern === 'penguinFront') {
     return `<g clip-path="url(#${clipId})"><g transform="${body}"><ellipse cx="101" cy="86" rx="15" ry="22" fill="${sp.belly}"/></g></g>`;
   }
   return '';
 };
-const CLIPPED_PATTERNS = new Set(['pandaBand', 'cowSpots', 'penguinFront', 'shell']);
+const CLIPPED_PATTERNS = new Set(['pandaBand', 'cowSpots', 'penguinFront', 'shell', 'giraffeSpots', 'zebra', 'frogSpots']);
 
 // Spikes stick out of an outline: each base point gets a triangle pointing away from `center`.
 const drawSpikes = ({ center, points }, color) => points.map(([x, y]) => {
@@ -677,13 +749,17 @@ const drawCat = (pose, sp, id) => {
   const headX = neck[0] - 106 + p.hdx + shape.headShift[0];
   const headY = neck[1] - 70 + p.hdy + shape.headShift[1];
   const head = `<g transform="translate(${r(headX)} ${r(headY)}) rotate(${r(p.hrot)} 112 70)${headScale}">${drawHead(p, sp)}</g>`;
-  // A neck from under the body to the head, for animals whose head sits out in front (turtle).
-  const neckFrom = sp.neck ? toWorld(p, 100, 84) : null;
+  // A neck from the body to the head, for animals whose head sits out in front (turtle) or up high
+  // (giraffe, whose long neck carries the body's spots).
+  const neckSpec = sp.neck === true ? { from: [100, 84], width: 15 } : sp.neck;
+  const neckFrom = neckSpec ? toWorld(p, ...neckSpec.from) : null;
   const neckPath = neckFrom ? `M${r(neckFrom[0])} ${r(neckFrom[1])} L${r(110 + headX)} ${r(68 + headY)}` : '';
+  const neckFur = sp.headFur ?? sp.fur;
   const neckShape = neckFrom
-    ? `<path d="${neckPath}" stroke="${C.line}" stroke-width="15" stroke-linecap="round"/><path d="${neckPath}" stroke="${sp.headFur}" stroke-width="9.6" stroke-linecap="round"/>`
+    ? `<path d="${neckPath}" stroke="${C.line}" stroke-width="${neckSpec.width}" stroke-linecap="round"/><path d="${neckPath}" stroke="${neckFur}" stroke-width="${r(neckSpec.width - 5.4)}" stroke-linecap="round"/>
+      ${neckSpec.spots ? `<path d="${neckPath}" stroke="${neckSpec.spots}" stroke-width="${r(neckSpec.width - 11)}" stroke-dasharray="4 6" stroke-dashoffset="-3"/>` : ''}`
     : '';
-  const striped = sp.bodyPattern === 'tabby' || sp.bodyPattern === 'tiger';
+  const striped = sp.bodyPattern === 'tabby' || sp.bodyPattern === 'tiger' || sp.bodyPattern === 'zebra';
   const wing = sp.bird
     ? `<g transform="rotate(${r(-55 * p.wing)} 92 74)"><path d="M92 74 C84 70 66 72 64 84 C70 90 86 90 94 82 Z" fill="${sp.furFar}" ${outline}/></g>`
     : '';
@@ -1139,6 +1215,45 @@ const TRICK_FRAMES = {
       pose(STAND, { eyes: 'happy', blush: .75 }),
     ];
   },
+  // Quacking with the wings flapping and the tail feathers wiggling.
+  duck: () => eight((i) => pose(STAND, {
+    wing: at([0, .9, .2, .9, .2, .9, .2, 0], i),
+    bdy: at([0, -2, 0, -2, 0, -2, 0, 0], i),
+    yawn: at([0, .6, 0, .6, 0, .6, 0, 0], i),
+    trot: at([0, 8, -8, 8, -8, 8, -4, 0], i),
+    eyes: i === 0 || i === 7 ? 'open' : 'happy', blush: .75,
+  })),
+  // A big leap straight up, legs flung out, and a soft landing.
+  frog: () => [
+    pose(STAND, { bdy: 4, ...legs({ a: 0, len: 18 }), eyes: 'open' }),
+    pose(STAND, { bdy: 6, ...legs({ a: 0, len: 14 }), eyes: 'squeeze' }),
+    pose(STAND, { bdy: -10, nf: { a: -24 }, ff: { a: -20 }, nb: { a: 34 }, fb: { a: 30 }, eyes: 'wide' }),
+    pose(STAND, { bdy: -16, nf: { a: -30, lift: 4 }, ff: { a: -26, lift: 4 }, nb: { a: 40, lift: 4 }, fb: { a: 36, lift: 4 }, ...HAPPY_FACE }),
+    pose(STAND, { bdy: -12, nf: { a: -14 }, ff: { a: -10 }, nb: { a: 22 }, fb: { a: 18 }, ...HAPPY_FACE }),
+    pose(STAND, { bdy: -3, nf: { a: -4 }, ff: { a: -4 }, nb: { a: 6 }, fb: { a: 6 }, ...HAPPY_FACE }),
+    pose(STAND, { bdy: 4, ...legs({ a: 0, len: 18 }), ...HAPPY_FACE }),
+    pose(STAND, { bdy: 1, yawn: .35, eyes: 'open' }),
+  ],
+  // Swinging the long neck from side to side, then a lick of the long tongue.
+  giraffe: () => eight((i) => pose(STAND, {
+    hdx: at([0, -3, -6, -3, 0, 2, 0, 0], i),
+    hdy: at([0, 2, 4, 2, 0, -1, 0, 0], i),
+    hrot: at([0, -6, -10, -6, 2, 6, 2, 0], i),
+    tongue: i === 5 || i === 6 ? 1 : 0,
+    eyes: i >= 3 && i <= 6 ? 'happy' : 'open', blush: .7,
+    trot: wave(i, 8) * 6,
+  })),
+  // A playful buck: weight onto the front legs and both hind legs kicked out behind.
+  zebra: () => [
+    pose(STAND, {}),
+    pose(STAND, { brot: 6, bdy: 1, nf: { a: 6 }, ff: { a: 6 }, hdy: 2 }),
+    pose(STAND, { brot: 10, bdy: -2, nf: { a: 10 }, ff: { a: 10 }, nb: { a: 40, lift: 6 }, fb: { a: 34, lift: 6 }, hdy: 4, wHigh: 1, wUp: 0, eyes: 'squeeze' }),
+    pose(STAND, { brot: 11, bdy: -3, nf: { a: 10 }, ff: { a: 10 }, nb: { a: 50, lift: 8 }, fb: { a: 44, lift: 8 }, hdy: 4, wHigh: 1, wUp: 0, eyes: 'squeeze' }),
+    pose(STAND, { brot: 8, bdy: 0, nf: { a: 6 }, ff: { a: 6 }, nb: { a: 20, lift: 4 }, fb: { a: 16, lift: 4 }, hdy: 2, ...HAPPY_FACE }),
+    pose(STAND, { brot: 2, ...HAPPY_FACE }),
+    pose(STAND, { ...HAPPY_FACE, earL: -6, earR: 6 }),
+    pose(STAND, {}),
+  ],
   // Shaking the mane from side to side.
   lion: () => eight((i) => pose(STAND, {
     hrot: at([0, -12, 12, -12, 12, -8, 4, 0], i),
@@ -1248,6 +1363,7 @@ const penguinWaddle = gait({ swing: 10, lift: 2, bob: 1.6, roll: 6, headBob: .8,
 const elephantStomp = gait({ swing: 16, lift: 5, bob: .9, pairs: 'lateral', roll: 1.2, nod: 1, headBob: .8, tail: 7, wag: 4, ears: 5, squash: .02, extra: (i, phase) => ({ trunk: .12 + .1 * Math.sin(phase * 2 + 1) }) });
 const koalaClamber = gait({ swing: 16, lift: 3, bob: 1.6, roll: 2, headBob: 1.2, low: 2, tail: 0 });
 
+const lowHop = ANIMATION_POSES.happy.map((p) => pose(p, { bdy: p.bdy < 0 ? p.bdy * .45 : p.bdy }));
 const SPECIES_POSES = {
   cat: {},
   dog: {
@@ -1272,10 +1388,28 @@ const SPECIES_POSES = {
   tiger: { walk: gait({ swing: 28, lift: 4, bob: .6, low: 3, nod: 1, headBob: .5, tail: 9, wag: 4 }) },
   lion: { walk: gait({ swing: 26, lift: 5, bob: 1, low: -1, headBob: .6, tail: 6, wag: 8 }) },
   penguin: { walk: penguinWaddle, run: gait({ swing: 12, lift: 3, bob: 2, roll: 8, headBob: 1, tail: 2, extra: (i, phase) => ({ wing: .3 + .25 * Math.sin(phase * 2) }) }) },
-  cow: { walk: gait({ swing: 18, lift: 4, bob: 1, nod: 2.5, headBob: 1, tail: 8, wag: 5 }) },
+  cow: { walk: gait({ swing: 18, lift: 4, bob: 1, nod: 2.5, headBob: 1, tail: 8, wag: 5 }), happy: lowHop },
   monkey: { walk: gait({ swing: 24, lift: 7, bob: 3.4, pairs: 'bound', headBob: 1.2, tail: 8 }) },
   hedgehog: { walk: gait({ swing: 16, lift: 2.5, bob: .5, headBob: .6, tail: 0 }) },
   elephant: { walk: elephantStomp, run: elephantStomp },
+  duck: {
+    walk: gait({ swing: 14, lift: 3, bob: 1.6, roll: 5, nod: 2, headBob: 1, tail: 6, wag: 8, extra: (i, phase) => ({ wing: .08 + .08 * Math.sin(phase) }) }),
+    run: gait({ swing: 18, lift: 4, bob: 2, roll: 7, nod: 2.5, headBob: 1.2, tail: 6, wag: 10, extra: (i, phase) => ({ wing: .45 + .4 * Math.sin(phase * 2) }) }),
+  },
+  // Frogs hop low and long; the eye bumps do not swing like rabbit ears.
+  frog: {
+    walk: rabbitHop(.8).map((p) => pose(p, { earL: 0, earR: 0 })),
+    run: rabbitHop(1.4).map((p) => pose(p, { earL: 0, earR: 0 })),
+  },
+  // Giraffes pace: both legs on one side move together, and the long neck nods with each step.
+  // Tall heads get a lower happy hop; carried, the giraffe's tail stays half up off the frame edge.
+  giraffe: {
+    walk: gait({ swing: 18, lift: 5, bob: .8, pairs: 'lateral', nod: 2, headBob: 1.4, roll: 1, tail: 6, wag: 4 }),
+    happy: lowHop,
+    carried: ANIMATION_POSES.carried.map((p) => pose(p, { wDown: .5, wUp: .5 })),
+  },
+  // Zebra: a springy horse trot with the head bobbing and the tail swishing.
+  zebra: { walk: gait({ swing: 24, lift: 7, bob: 2, nod: 1.5, headBob: 1, tail: 5, wag: 6, ears: 2 }), happy: lowHop },
   turtle: {
     walk: turtleCrawl,
     run: turtleCrawl,

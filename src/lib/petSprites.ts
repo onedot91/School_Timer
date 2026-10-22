@@ -119,6 +119,10 @@ export const PET_TRICKS: Readonly<Record<StudentPetKind, PetTrick>> = {
   hedgehog: 'trick',
   elephant: 'trick',
   turtle: 'trick',
+  duck: 'trick',
+  frog: 'trick',
+  giraffe: 'trick',
+  zebra: 'trick',
 };
 
 type PetGrip = { readonly x: number; readonly y: number };
@@ -145,6 +149,10 @@ export const PET_CARRY_GRIPS: Readonly<Record<StudentPetKind, PetGrip>> = {
   hedgehog: { x: 89, y: 60 },
   elephant: { x: 90, y: 48 },
   turtle: { x: 90, y: 58 },
+  duck: { x: 89, y: 53 },
+  frog: { x: 91, y: 62 },
+  giraffe: { x: 89, y: 59 },
+  zebra: { x: 91, y: 51 },
 };
 
 /** On-stage size relative to the cat; stride and walking speed scale with it. */
@@ -169,6 +177,10 @@ export const PET_SIZES: Readonly<Record<StudentPetKind, number>> = {
   tiger: 1.26,
   lion: 1.3,
   elephant: 1.4,
+  frog: .6,
+  duck: .76,
+  zebra: 1.24,
+  giraffe: 1.36,
 };
 
 export interface PetGait {
@@ -204,30 +216,38 @@ export const PET_GAITS: Readonly<Record<StudentPetKind, PetGait>> = {
   hedgehog: { speed: 1, runChance: .3, fleeRuns: true, stride: .5 },
   elephant: { speed: .55, runChance: 0, fleeRuns: false, stride: 1.2 },
   turtle: { speed: .4, runChance: 0, fleeRuns: false, stride: 1 },
+  duck: { speed: .85, runChance: .2, fleeRuns: true, stride: .6 },
+  frog: { speed: .95, runChance: .35, fleeRuns: true, stride: 1.5 },
+  giraffe: { speed: .8, runChance: .15, fleeRuns: true, stride: 1.3 },
+  zebra: { speed: 1.05, runChance: .4, fleeRuns: true, stride: 1.15 },
 };
 
-/** Top of the walking pet in its frame (y, of the 128-pixel frame height); the name tag sits just above. */
+/** Top of the standing pet in its frame (y, of the 128-pixel frame height); the name tag sits just above. */
 export const PET_HEAD_TOPS: Readonly<Record<StudentPetKind, number>> = {
-  cat: 14,
-  dog: 22,
-  rabbit: 18,
-  chick: 20,
-  fox: 16,
-  hamster: 34,
-  squirrel: 20,
-  raccoon: 14,
-  panda: 18,
-  koala: 24,
-  pig: 31,
-  sheep: 18,
-  tiger: 20,
-  lion: 16,
-  penguin: 19,
-  cow: 14,
-  monkey: 20,
-  hedgehog: 39,
-  elephant: 21,
-  turtle: 55,
+  cat: 16,
+  dog: 25,
+  rabbit: 20,
+  chick: 22,
+  fox: 18,
+  hamster: 36,
+  squirrel: 21,
+  raccoon: 16,
+  panda: 20,
+  koala: 26,
+  pig: 33,
+  sheep: 20,
+  tiger: 22,
+  lion: 18,
+  penguin: 21,
+  cow: 15,
+  monkey: 23,
+  hedgehog: 41,
+  elephant: 23,
+  turtle: 57,
+  duck: 31,
+  frog: 41,
+  giraffe: 14,
+  zebra: 14,
 };
 
 /** Kinds drawn by dev/generatePetSprites.mjs; any other kind falls back to its emoji. */
@@ -252,6 +272,10 @@ export const PET_SPRITE_KINDS: ReadonlySet<StudentPetKind> = new Set<StudentPetK
   'hedgehog',
   'elephant',
   'turtle',
+  'duck',
+  'frog',
+  'giraffe',
+  'zebra',
 ]);
 
 export const PET_SPRITE_BACKGROUND_SIZE = `${PET_SPRITE_FRAME.columns * 100}% ${PET_SPRITE_FRAME.rows * 100}%`;
