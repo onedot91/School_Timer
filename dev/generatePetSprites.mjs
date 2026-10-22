@@ -1148,7 +1148,59 @@ const TRICK_FRAMES = {
 };
 
 // The row a species does not use is filled with resting frames; the engine never plays it.
+// ---- Species-specific replacements -----------------------------------------------------------
+// A species can replace shared rows that would look wrong on its body. The turtle never sits:
+// wherever others sit or lie down, it pulls head and legs into its shell and rests there.
+const turtleRest = pose(STAND, {
+  bdy: 5, ...legs({ len: 3, reach: 0 }), headBehind: true, hdx: -24, hdy: 5, eyes: 'closed', whiskers: 0,
+});
+const turtlePeek = pose(STAND, { bdy: 4, ...legs({ len: 3, reach: 0 }), hdx: -9, hdy: 4 });
+const turtleSun = pose(STAND, {
+  bdy: 5,
+  nf: { a: -78, len: 16, reach: 0 }, ff: { a: -74, len: 15, reach: 0 },
+  nb: { a: 78, len: 16, reach: 0 }, fb: { a: 74, len: 15, reach: 0 },
+  hdx: 2, hdy: 7, eyes: 'happy', blush: .75,
+});
+const restBreath = (n, extra = () => ({})) => Array.from({ length: n }, (_, i) => pose(turtleRest, {
+  bsy: 1 + breath(i, n) * .02, ...extra(i),
+}));
+const peekAndHide = (middle) => [
+  turtleRest, lerpPose(turtleRest, turtlePeek, .5), turtlePeek,
+  ...middle,
+  lerpPose(turtlePeek, turtleRest, .5), turtleRest,
+];
+const SPECIES_POSES = {
+  turtle: {
+    sit: restBreath(4),
+    sitDown: steps(5, STAND, turtleRest),
+    standUp: steps(5, turtleRest, STAND),
+    lieDown: restBreath(5),
+    sleep: restBreath(4, (i) => ({ zStep: i })),
+    petSit: Array.from({ length: 6 }, (_, i) => pose(turtlePeek, {
+      eyes: 'happy', blush: .85, hrot: [-4, -6, -4, 0, 2, 0][i],
+    })),
+    groom: peekAndHide([
+      pose(turtlePeek, { faceTurn: .6 }), pose(turtlePeek, { faceTurn: 1, eyes: 'blink' }), pose(turtlePeek, { hrot: -6 }),
+    ]),
+    scratch: peekAndHide([
+      pose(turtlePeek, { yawn: .6, eyes: 'squeeze' }), pose(turtlePeek, { yawn: 1, eyes: 'squeeze' }), pose(turtlePeek, { eyes: 'blink' }),
+    ]),
+    wakeUp: [
+      turtleRest, turtleRest, lerpPose(turtleRest, turtlePeek, .5), turtlePeek,
+      pose(turtlePeek, { yawn: 1, eyes: 'squeeze' }),
+      lerpPose(turtlePeek, STAND, .4), lerpPose(turtlePeek, STAND, .75), pose(STAND, { eyes: 'blink' }),
+    ],
+    sploot: [
+      turtleRest, lerpPose(turtleRest, turtleSun, .5),
+      ...[0, 1, 2, 3].map((i) => pose(turtleSun, { bsy: .98 + breath(i, 4) * .03, eyes: ['happy', 'blink', 'happy', 'open'][i] })),
+      lerpPose(turtleSun, turtleRest, .5), turtleRest,
+    ],
+  },
+};
+
 const framesFor = (kind, name) => {
+  const replaced = SPECIES_POSES[kind]?.[name];
+  if (replaced) return replaced;
   if (name !== 'trick' && name !== 'trickSit') return ANIMATION_POSES[name];
   if (PET_TRICKS[kind] === name) return TRICK_FRAMES[kind]();
   return name === 'trick' ? ANIMATION_POSES.idle : eight(() => pose(SIT));
