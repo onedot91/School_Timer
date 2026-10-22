@@ -30703,16 +30703,17 @@ body {
 .student-character-showcase[data-tornado-blown] .student-character-speech { visibility: hidden; }
 .student-character-showcase[data-tornado-blown] .student-character-scale {
   transform-origin: center center;
-  animation: studentCharacterTornadoBlown 1.7s cubic-bezier(.45, 0, .75, .45) forwards;
+  animation: studentCharacterTornadoBlown 2s cubic-bezier(.4, 0, .7, .5) forwards;
 }
+/* 먼저 토네이도 쪽으로 빨려 들어가며 돌다가, 토네이도가 가는 쪽 하늘 밖으로 날아간다. */
 @keyframes studentCharacterTornadoBlown {
   0% { transform: scale(var(--student-character-walk-scale)); }
-  18% {
-    transform: translate(calc(var(--student-character-blow-direction) * 1.5rem), -1.2rem)
-      rotate(calc(var(--student-character-blow-direction) * -30deg)) scale(var(--student-character-walk-scale));
+  35% {
+    transform: translate(var(--student-character-blow-pull-x, 0px), -2rem)
+      rotate(calc(var(--student-character-blow-direction) * 300deg)) scale(calc(var(--student-character-walk-scale) * 0.85));
   }
   100% {
-    transform: translate(calc(var(--student-character-blow-direction) * 60vw), -125vh)
+    transform: translate(calc(var(--student-character-blow-pull-x, 0px) + var(--student-character-blow-direction) * 60vw), -125vh)
       rotate(calc(var(--student-character-blow-direction) * 1080deg)) scale(calc(var(--student-character-walk-scale) * 0.35));
   }
 }

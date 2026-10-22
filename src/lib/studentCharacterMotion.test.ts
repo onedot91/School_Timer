@@ -106,8 +106,12 @@ test('토네이도는 빠르게 휘몰아치며 지나가고 같은 방향 캐�
 
   assert.match(timerPage, /data-walk-style=\{character\.walkStyle\}/);
   assert.match(timerPage, /event\.animationName === 'studentCharacterTornadoBlown'\) onWalkComplete\(\)/);
-  assert.match(stage, /victim\.dataset\.tornadoBlown = 'true'/);
+  assert.match(stage, /node\.dataset\.tornadoBlown = 'true'/);
+  assert.match(stage, /Math\.abs\(pull\) > innerWidth \* \.35/);
+  // 보이는 중에도 hidden으로 알려 오는 화면이 있어 토네이도 판정은 hidden 검사보다 먼저 한다.
+  assert.ok(stage.indexOf('sweepTornadoes();') < stage.indexOf('if (document.hidden) {'));
   assert.match(stage, /isTornado\(a\.node\) \|\| isTornado\(b\.node\)/);
+  assert.match(css, /translate\(var\(--student-character-blow-pull-x, 0px\), -2rem\)/);
   assert.match(css, /@keyframes studentCharacterTornadoBlown \{[\s\S]*?-125vh/);
   assert.match(css, /\[data-tornado-blown\] \.student-character-scale \{[^}]*forwards/);
 });

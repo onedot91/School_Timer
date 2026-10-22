@@ -11,6 +11,28 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
     const active = new Map<HTMLElement, { start: number; kind: 'look' | 'greet' }>();
     const isTornado = (node: HTMLElement) => node.dataset.walkStyle === 'tornado';
     const isBlown = (node: HTMLElement) => node.dataset.tornadoBlown === 'true';
+    const getImageBox = (node: HTMLElement) => (node.querySelector('.student-character-image') ?? node).getBoundingClientRect();
+    // 토네이도 바람이 닿는 거리 안에 같은 방향 캐릭터가 들어오면 토네이도 쪽으로 빨려 들어가 날아간다.
+    // 뒤처진 캐릭터도, 따라잡기 전에 화면을 벗어날 앞 캐릭터도 놓치지 않도록 겹칠 때까지 기다리지 않는다.
+    const sweepTornadoes = () => {
+      const nodes = Array.from(root.querySelectorAll<HTMLElement>('.student-character-showcase')).filter(node => !isBlown(node));
+      const isOnScreen = (box: DOMRect) => box.left + box.width / 2 > 0 && box.left + box.width / 2 < innerWidth;
+      nodes.filter(isTornado).forEach(tornado => {
+        const tornadoBox = getImageBox(tornado);
+        if (!isOnScreen(tornadoBox)) return;
+        const tornadoCenter = tornadoBox.left + tornadoBox.width / 2;
+        nodes.forEach(node => {
+          if (node === tornado || isTornado(node) || isBlown(node) || node.dataset.direction !== tornado.dataset.direction) return;
+          const box = getImageBox(node);
+          const pull = tornadoCenter - (box.left + box.width / 2);
+          if (!isOnScreen(box) || Math.abs(pull) > innerWidth * .35) return;
+          clear(node);
+          delete node.dataset.spacingWait;
+          node.style.setProperty('--student-character-blow-pull-x', `${Math.round(pull)}px`);
+          node.dataset.tornadoBlown = 'true';
+        });
+      });
+    };
     const clear = (node: HTMLElement) => {
       delete node.dataset.encounter;
       delete node.dataset.encounterPhase;
@@ -46,6 +68,8 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
     root.addEventListener('studentcharacterpeek', onPeek);
     const timer = window.setInterval(() => {
       const now = performance.now();
+      // 일부 화면(앱 안 미리보기 등)은 보이는 중에도 hidden으로 알려 오므로 토네이도는 항상 판정한다.
+      sweepTornadoes();
       if (document.hidden) {
         active.forEach((_, node) => clear(node));
         return;
@@ -71,16 +95,8 @@ export default function StudentCharacterStage({ children }: { children: ReactNod
           const delta = (a.box.left + a.box.right - b.box.left - b.box.right) / 2;
           const follower = (direction === 'right' ? delta < 0 : delta > 0) ? a.node : b.node;
           const gap = (a.box.width + b.box.width) / 2 + 24;
-          // 같은 방향으로 가던 캐릭터는 토네이도에 닿으면 기다리지 않고 휘말려 화면 밖으로 날아간다.
-          if (isTornado(a.node) !== isTornado(b.node)) {
-            const victim = isTornado(a.node) ? b.node : a.node;
-            if (Math.abs(delta) < (a.box.width + b.box.width) * .4) {
-              clear(victim);
-              delete victim.dataset.spacingWait;
-              victim.dataset.tornadoBlown = 'true';
-            }
-            continue;
-          }
+          // 토네이도는 간격을 두고 기다리지 않는다(같은 방향 캐릭터는 sweepTornadoes가 날려 보낸다).
+          if (isTornado(a.node) || isTornado(b.node)) continue;
           if (Math.abs(delta) < gap + (follower.dataset.spacingWait ? 24 : 0)) waiting.add(follower);
         }
       }
