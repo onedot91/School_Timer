@@ -1,5 +1,7 @@
 export const STUDENT_RAPID_CLICK_LIMIT = 8;
 export const STUDENT_RAPID_CLICK_WINDOW_MS = 2000;
+/** The warning stays up this long with no way to close it, so students actually stop and read it. */
+export const STUDENT_RAPID_CLICK_WARNING_MS = 3000;
 
 export type StudentRapidClickState = {
   readonly target: object | null;

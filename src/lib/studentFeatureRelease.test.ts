@@ -8,6 +8,7 @@ import {
   STUDENT_FEATURE_RELEASES,
   getStudentFeatureFallbackView,
   getUnavailableStudentFeature,
+  isStudentFeatureOpen,
 } from './studentFeatureRelease';
 
 test('학생 기능은 기능별 공개 플래그가 켜질 때까지 잠긴다', () => {
@@ -20,6 +21,13 @@ test('학생 기능은 기능별 공개 플래그가 켜질 때까지 잠긴다'
     petEgg: false,
   });
   assert.equal(STUDENT_CUSTOM_HOUSE_RELEASED, false);
+});
+
+test('펫 알 기능은 테스트 서버에서만 열린다', () => {
+  assert.equal(isStudentFeatureOpen('petEgg', false), false);
+  assert.equal(isStudentFeatureOpen('petEgg', true), true);
+  assert.equal(isStudentFeatureOpen('bank', false), true);
+  assert.equal(isStudentFeatureOpen('petEgg'), false);
 });
 
 test('잠긴 학생 화면의 직접 경로도 공개된 허브로 돌아간다', () => {

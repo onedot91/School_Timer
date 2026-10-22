@@ -4,11 +4,13 @@ import { normalizeStudentLifeState } from './studentLife.js';
 import { normalizeStudentEconomyState } from './studentEconomy.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import {
   STUDENT_PET_HATCH_AMOUNT,
   STUDENT_PET_STORAGE_KEY,
   applyStudentPetPositionOverrides,
   feedStudentPetEgg,
+  getStudentPetHatchMessage,
   getStudentPetState,
   loadStoredStudentPetSnapshot,
   moveStudentPet,
@@ -18,6 +20,14 @@ import {
   selectStudentPet,
   storeStudentPetSnapshot,
   storeStudentPetPositionOverride,
+  getStudentPetEggStage,
+  STUDENT_PET_EGG_HATCHED_STAGE,
+  STUDENT_PET_EGG_STAGE_COUNT,
+  STUDENT_PET_KINDS,
+  grantEveryStudentPet,
+  hasHatchedEveryStudentPet,
+  pickStudentPetHatchKind,
+  STUDENT_PET_NAME_MAX_LENGTH,
 } from './studentPet';
 
 test('a completed legacy egg becomes an owned pet and starts a new egg', () => {
@@ -36,28 +46,33 @@ test('a completed legacy egg becomes an owned pet and starts a new egg', () => {
   assert.equal(pet.eggKind, 'dog');
 });
 
-test('feeding a full egg adds the hatched pet and resets the next egg', () => {
+test('feeding a full egg hatches a random kind the student does not own yet', () => {
+  const owned = { id: 'cat-1', kind: 'cat', name: '냥냥이', position: { x: 0.4, y: 0.6 } } as const;
   const pet = getStudentPetState({
-    2: {
-      fedAmount: 95,
-      eggKind: 'rabbit',
-      ownedPets: [{ id: 'cat-1', kind: 'cat', name: '냥냥이', position: { x: 0.4, y: 0.6 } }],
-      activePetId: 'cat-1',
-      pendingNamePetId: null,
-    },
+    2: { fedAmount: 95, eggKind: 'rabbit', ownedPets: [owned], activePetId: 'cat-1', pendingNamePetId: null },
   }, 2);
 
-  const hatched = feedStudentPetEgg(pet);
-
+  const hatched = feedStudentPetEgg(pet, 2);
   assert.equal(hatched.fedAmount, 0);
   assert.equal(hatched.ownedPets.length, 2);
-  assert.equal(hatched.petKind, 'rabbit');
+  assert.notEqual(hatched.petKind, 'cat');
   assert.equal(hatched.pendingNamePetId, hatched.activePetId);
-  assert.equal(hatched.eggKind, 'dog');
+  assert.ok(!hatched.ownedPets.some((pet) => pet.kind === hatched.eggKind));
+  // The same student and collection always hatch the same kind, so a retried save agrees.
+  assert.equal(feedStudentPetEgg(pet, 2).petKind, hatched.petKind);
 
-  const fedAgain = feedStudentPetEgg(hatched);
+  const fedAgain = feedStudentPetEgg(hatched, 2);
   assert.equal(fedAgain.fedAmount, 5);
   assert.equal(fedAgain.ownedPets.length, 2);
+});
+
+test('different students hatch their pets in different orders, never repeating a kind', () => {
+  const firstKinds = new Set(Array.from({ length: 23 }, (_, i) => pickStudentPetHatchKind([], i + 1)));
+  assert.ok(firstKinds.size >= 8, `first pets ${[...firstKinds].join()}`);
+  let pet = getStudentPetState({}, 7);
+  for (let i = 0; i < STUDENT_PET_KINDS.length; i += 1) pet = feedStudentPetEgg({ ...pet, fedAmount: 95 }, 7);
+  assert.equal(new Set(pet.ownedPets.map((owned) => owned.kind)).size, STUDENT_PET_KINDS.length);
+  assert.equal(hasHatchedEveryStudentPet(pet), true);
 });
 
 test('only an owned pet can be selected and moved', () => {
@@ -271,4 +286,51 @@ test('역할 차감의 잔액·결과·우편은 저장 실패와 재진입에�
     if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
     else Reflect.deleteProperty(globalThis, 'localStorage');
   }
+});
+
+test('the hatch message names the animal with the right subject particle', () => {
+  assert.equal(getStudentPetHatchMessage('cat'), '고양이가 태어났어요');
+  assert.equal(getStudentPetHatchMessage('penguin'), '펭귄이 태어났어요');
+  assert.equal(getStudentPetHatchMessage('sheep'), '양이 태어났어요');
+  assert.equal(getStudentPetHatchMessage('cow'), '소가 태어났어요');
+});
+
+test('알은 고마를 줄 때마다 한 단계씩 더 갈라지고, 열린 알은 부화 장면에만 쓴다', () => {
+  assert.equal(STUDENT_PET_EGG_STAGE_COUNT, 21);
+  assert.equal(getStudentPetEggStage(0), 0);
+  assert.equal(getStudentPetEggStage(4), 0);
+  assert.equal(getStudentPetEggStage(5), 1);
+  assert.equal(getStudentPetEggStage(95), 19);
+  assert.equal(getStudentPetEggStage(100), STUDENT_PET_EGG_HATCHED_STAGE - 1);
+  const sheet = readFileSync(new URL('../../public/pets/egg-stages.svg', import.meta.url), 'utf8');
+  assert.match(sheet, new RegExp(`viewBox="0 0 ${120 * STUDENT_PET_EGG_STAGE_COUNT} 110"`));
+});
+
+test('모든 펫을 부화시키면 알을 더 키울 수 없다', () => {
+  const pet = getStudentPetState({
+    1: { fedAmount: 40, eggKind: 'rabbit', ownedPets: [{ id: 'cat-1', kind: 'cat', name: '나비', position: { x: 0.4, y: 0.6 } }], activePetId: 'cat-1', pendingNamePetId: null },
+  }, 1);
+  assert.equal(hasHatchedEveryStudentPet(pet), false);
+  const all = grantEveryStudentPet(pet);
+  assert.equal(all.ownedPets.length, STUDENT_PET_KINDS.length);
+  assert.equal(new Set(all.ownedPets.map((owned) => owned.kind)).size, STUDENT_PET_KINDS.length);
+  assert.equal(all.ownedPets[0]?.name, '나비');
+  assert.equal(all.activePetId, 'cat-1');
+  assert.equal(hasHatchedEveryStudentPet(all), true);
+  assert.deepEqual(feedStudentPetEgg(all), all);
+  assert.deepEqual(grantEveryStudentPet(all).ownedPets, all.ownedPets);
+});
+
+test('펫 이름은 8글자까지 짓고, 이미 지은 이름은 바꿀 수 없으며, 예전의 긴 이름은 그대로 둔다', () => {
+  assert.equal(STUDENT_PET_NAME_MAX_LENGTH, 8);
+  const hatched = getStudentPetState({
+    1: { fedAmount: 0, eggKind: 'dog', ownedPets: [{ id: 'cat-1', kind: 'cat', name: '', position: { x: 0.4, y: 0.6 } }], activePetId: 'cat-1', pendingNamePetId: 'cat-1' },
+  }, 1);
+  const named = nameStudentPet(hatched, '가나다라마바사아자차');
+  assert.equal(named?.name, '가나다라마바사아');
+  assert.equal(named && nameStudentPet(named, '새이름'), null);
+  const legacy = getStudentPetState({
+    1: { fedAmount: 0, eggKind: 'dog', ownedPets: [{ id: 'cat-1', kind: 'cat', name: '열두글자이름을가진고양이', position: { x: 0.4, y: 0.6 } }], activePetId: 'cat-1', pendingNamePetId: null },
+  }, 1);
+  assert.equal(legacy.name, '열두글자이름을가진고양이'.slice(0, 12));
 });

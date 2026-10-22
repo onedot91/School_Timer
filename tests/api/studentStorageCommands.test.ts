@@ -8,6 +8,7 @@ import { normalizeCurrencyBalances, normalizeCurrencyHistory, normalizeAuctionIt
 import { createStudentEmotionEntry, getSchoolWeekDateKeys } from '../../src/lib/studentEmotion.js';
 import { getStudentEmotionExcusedDay } from '../../src/lib/studentEmotionCalendar.js';
 import { normalizeStudentLifeState } from '../../src/lib/studentLife.js';
+import { STUDENT_PET_KINDS } from '../../src/lib/studentPet.js';
 
 const context = { requestId: 'isolated-request-1', createdAt: '2026-09-08T02:00:00.000Z' };
 
@@ -54,6 +55,12 @@ test('서버가 펫 비용을 계산하고 다른 학생 및 원본 기록을 �
 test('펫 먹이 비용은 최신 예약금을 제외하고 검증한다', () => {
   const items = normalizeAuctionItems(null);
   assert.throws(() => apply({ ...fixture(), auctionItems: items, auctionBids: { [items[0].id]: { bidder: 1, amount: 99 } } }, 'student.pet.feed', {}), /INSUFFICIENT_FUNDS/);
+});
+
+test('모든 펫을 부화시킨 학생은 먹이를 줄 수 없고 고마도 빠지지 않는다', () => {
+  const ownedPets = STUDENT_PET_KINDS.map((kind) => ({ id: `${kind.id}-1`, kind: kind.id, name: '', position: { x: .5, y: .88 } }));
+  const before = { ...fixture(), studentPets: { '1': { fedAmount: 0, eggKind: 'cat', ownedPets, activePetId: 'cat-1', pendingNamePetId: null }, '2': { preserve: true } } };
+  assert.throws(() => apply(before, 'student.pet.feed', {}), /PET_UPDATE_REJECTED/);
 });
 
 test('학생은 타인의 우편을 읽음 처리할 수 없고 본인 읽음은 멱등이다', () => {

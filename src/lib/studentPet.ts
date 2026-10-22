@@ -31,7 +31,10 @@ export const STUDENT_PET_STORAGE_KEY = 'school-timer-student-pets-v1';
 export const STUDENT_PET_POSITION_OVERRIDE_STORAGE_KEY = 'school-timer-student-pet-position-overrides-v1';
 export const STUDENT_PET_FEED_AMOUNT = 5;
 export const STUDENT_PET_HATCH_AMOUNT = 100;
-export const STUDENT_PET_NAME_MAX_LENGTH = 12;
+/** Longest name a student can give a newly hatched pet. */
+export const STUDENT_PET_NAME_MAX_LENGTH = 8;
+/** Names saved before the 8-character limit (up to 12) are kept as they are. */
+const STUDENT_PET_STORED_NAME_MAX_LENGTH = 12;
 
 export const STUDENT_PET_KINDS = [
   { id: 'cat', emoji: '🐱', label: '고양이' },
@@ -39,6 +42,25 @@ export const STUDENT_PET_KINDS = [
   { id: 'rabbit', emoji: '🐰', label: '토끼' },
   { id: 'chick', emoji: '🐥', label: '병아리' },
   { id: 'fox', emoji: '🦊', label: '여우' },
+  { id: 'hamster', emoji: '🐹', label: '햄스터' },
+  { id: 'squirrel', emoji: '🐿️', label: '다람쥐' },
+  { id: 'raccoon', emoji: '🦝', label: '너구리' },
+  { id: 'panda', emoji: '🐼', label: '판다' },
+  { id: 'koala', emoji: '🐨', label: '코알라' },
+  { id: 'pig', emoji: '🐷', label: '돼지' },
+  { id: 'sheep', emoji: '🐑', label: '양' },
+  { id: 'tiger', emoji: '🐯', label: '호랑이' },
+  { id: 'lion', emoji: '🦁', label: '사자' },
+  { id: 'penguin', emoji: '🐧', label: '펭귄' },
+  { id: 'cow', emoji: '🐮', label: '소' },
+  { id: 'monkey', emoji: '🐵', label: '원숭이' },
+  { id: 'hedgehog', emoji: '🦔', label: '고슴도치' },
+  { id: 'elephant', emoji: '🐘', label: '코끼리' },
+  { id: 'turtle', emoji: '🐢', label: '거북이' },
+  { id: 'duck', emoji: '🦆', label: '오리' },
+  { id: 'frog', emoji: '🐸', label: '개구리' },
+  { id: 'giraffe', emoji: '🦒', label: '기린' },
+  { id: 'zebra', emoji: '🦓', label: '얼룩말' },
 ] as const;
 
 export type StudentPetKind = (typeof STUDENT_PET_KINDS)[number]['id'];
@@ -118,9 +140,28 @@ const normalizePet = (value: unknown, fallbackId: string): StudentPet | null => 
   return {
     id,
     kind: rawPet.kind,
-    name: typeof rawPet.name === 'string' ? rawPet.name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH) : '',
+    name: typeof rawPet.name === 'string' ? rawPet.name.trim().slice(0, STUDENT_PET_STORED_NAME_MAX_LENGTH) : '',
     position: normalizePosition(rawPet.position),
   };
+};
+
+// FNV-1a: a stable number from text, so the same student and collection always pick the same pet
+// (the server and the device agree, and a retried save hatches the same kind).
+const hashText = (text: string) => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
+};
+
+/** The kind a hatching egg turns into: picked at random among the kinds the student doesn't own yet. */
+export const pickStudentPetHatchKind = (ownedPets: readonly StudentPet[], seed: number | string): StudentPetKind | null => {
+  const unowned = STUDENT_PET_KINDS.filter((kind) => !ownedPets.some((pet) => pet.kind === kind.id));
+  if (unowned.length === 0) return null;
+  const owned = ownedPets.map((pet) => pet.id).sort().join(',');
+  return unowned[hashText(`${seed}|${owned}`) % unowned.length].id;
 };
 
 const getNextEggKind = (ownedPets: StudentPet[], previousKind: StudentPetKind) => {
@@ -183,7 +224,7 @@ export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
       return pets;
     }, []);
     const legacyKind = isPetKind(state.petKind) ? state.petKind : null;
-    const legacyName = typeof state.name === 'string' ? state.name.trim().slice(0, STUDENT_PET_NAME_MAX_LENGTH) : '';
+    const legacyName = typeof state.name === 'string' ? state.name.trim().slice(0, STUDENT_PET_STORED_NAME_MAX_LENGTH) : '';
     const legacyPosition = normalizePosition(state.position);
     const gomaPosition = normalizePosition(state.gomaPosition ?? DEFAULT_GOMA_POSITION);
 
@@ -196,9 +237,14 @@ export const normalizeStudentPetStates = (input: unknown): StudentPetStates => {
       });
     }
 
-    const eggKind = isPetKind(state.eggKind)
+    const storedEggKind = isPetKind(state.eggKind)
       ? state.eggKind
       : getNextEggKind(ownedPets, legacyKind ?? STUDENT_PET_KINDS[0].id);
+    // An egg chosen before newer kinds existed may already be owned; hatch a new kind while one is left.
+    const unownedKind = STUDENT_PET_KINDS.find((kind) => !ownedPets.some((pet) => pet.kind === kind.id));
+    const eggKind = unownedKind && ownedPets.some((pet) => pet.kind === storedEggKind)
+      ? unownedKind.id
+      : storedEggKind;
     const requestedActivePetId = typeof state.activePetId === 'string' ? state.activePetId : null;
     const activePetId = ownedPets.some((pet) => pet.id === requestedActivePetId)
       ? requestedActivePetId
@@ -228,20 +274,52 @@ export const getStudentPetKind = (kind: StudentPetKind | null) => (
   STUDENT_PET_KINDS.find((pet) => pet.id === kind) ?? STUDENT_PET_KINDS[0]
 );
 
+/** "고양이가 태어났어요" / "펭귄이 태어났어요" for the hatch dialog, with the right subject particle. */
+export const getStudentPetHatchMessage = (kind: StudentPetKind | null) => {
+  const { label } = getStudentPetKind(kind);
+  const code = (label.at(-1) ?? '').charCodeAt(0);
+  const particle = code >= 0xac00 && code <= 0xd7a3 && (code - 0xac00) % 28 !== 0 ? '이' : '가';
+  return `${label}${particle} 태어났어요`;
+};
+
+/** Frames in public/pets/egg-stages.svg: one per feed until hatching, then the open egg. */
+export const STUDENT_PET_EGG_STAGE_COUNT = STUDENT_PET_HATCH_AMOUNT / STUDENT_PET_FEED_AMOUNT + 1;
+export const STUDENT_PET_EGG_HATCHED_STAGE = STUDENT_PET_EGG_STAGE_COUNT - 1;
+
+/** Every feed cracks the egg a little further; the open egg is kept for the hatch scene. */
 export const getStudentPetEggStage = (fedAmount: number) => (
-  Math.min(5, Math.floor(Math.max(0, fedAmount) / 20))
+  Math.min(STUDENT_PET_EGG_HATCHED_STAGE - 1, Math.floor(Math.max(0, fedAmount) / STUDENT_PET_FEED_AMOUNT))
 );
 
-export const feedStudentPetEgg = (state: StudentPetState): StudentPetState => {
+/** Once every kind has hatched there are no more eggs to raise. */
+export const hasHatchedEveryStudentPet = (state: Pick<StudentPetState, 'ownedPets'>) => (
+  STUDENT_PET_KINDS.every((kind) => state.ownedPets.some((pet) => pet.kind === kind.id))
+);
+
+/** Adds one unnamed pet of every kind the student does not own yet (test-server student data). */
+export const grantEveryStudentPet = (state: StudentPetState): StudentPetState => {
   const normalizedState = getStudentPetState({ 1: state }, 1);
+  const ownedPets = [...normalizedState.ownedPets];
+  for (const kind of STUDENT_PET_KINDS) {
+    if (ownedPets.some((pet) => pet.kind === kind.id)) continue;
+    ownedPets.push({ id: createPetId(kind.id, ownedPets), kind: kind.id, name: '', position: { ...DEFAULT_POSITION } });
+  }
+  return withActivePet({ ...normalizedState, fedAmount: 0, ownedPets, activePetId: normalizedState.activePetId ?? ownedPets[0]?.id ?? null });
+};
+
+/** `seed` is the student number, so each student gets their own random order of pets. */
+export const feedStudentPetEgg = (state: StudentPetState, seed: number | string = 0): StudentPetState => {
+  const normalizedState = getStudentPetState({ 1: state }, 1);
+  const hatchKind = pickStudentPetHatchKind(normalizedState.ownedPets, seed);
+  if (hatchKind === null) return normalizedState;
   const nextFedAmount = Math.min(STUDENT_PET_HATCH_AMOUNT, normalizedState.fedAmount + STUDENT_PET_FEED_AMOUNT);
   if (nextFedAmount < STUDENT_PET_HATCH_AMOUNT) {
     return withActivePet({ ...normalizedState, fedAmount: nextFedAmount });
   }
 
   const hatchedPet: StudentPet = {
-    id: createPetId(normalizedState.eggKind, normalizedState.ownedPets),
-    kind: normalizedState.eggKind,
+    id: createPetId(hatchKind, normalizedState.ownedPets),
+    kind: hatchKind,
     name: '',
     position: { ...DEFAULT_POSITION },
   };
@@ -249,7 +327,7 @@ export const feedStudentPetEgg = (state: StudentPetState): StudentPetState => {
   return withActivePet({
     ...normalizedState,
     fedAmount: 0,
-    eggKind: getNextEggKind(ownedPets, normalizedState.eggKind),
+    eggKind: pickStudentPetHatchKind(ownedPets, seed) ?? hatchKind,
     ownedPets,
     activePetId: hatchedPet.id,
     pendingNamePetId: hatchedPet.id,

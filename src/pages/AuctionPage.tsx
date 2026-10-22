@@ -1,3 +1,4 @@
+import { appDataMode } from '../lib/dataMode';
 import { getAuctionBidErrorMessage } from '../lib/auctionBidError';
 import { mergeStudentEconomyLife } from '../lib/studentEconomyClient';
 import { confirmStudentAuctionBidDraft, loadStudentStorageDraft, isRejectedStudentStorageDraft, executeStudentEconomyWithDraft, confirmStudentEconomyDraft, hasUnconfirmedStudentEconomyDraft, executeStudentStorageCommand, loadStudentStorageFormDraft, clearStudentStorageFormDraft, saveStudentStorageFormDraft, rebaseStudentStorageFormDraft, hasUnconfirmedStudentStorageDraft, subscribeStudentStorageDrafts, readyStudentStorageDrafts } from '../lib/studentStorageCommand';
@@ -103,6 +104,8 @@ import {
   STUDENT_PET_FEED_AMOUNT,
   applyStudentPetPositionOverrides,
   feedStudentPetEgg,
+  grantEveryStudentPet,
+  hasHatchedEveryStudentPet,
   getStudentPetState,
   loadStoredStudentPetSnapshot,
   moveStudentPet,
@@ -361,6 +364,16 @@ const getInitialSelectedAuctionItemId = () => {
     ?? '';
 };
 
+/** On the test server (mock data) student 1 owns every pet, so all of them can be checked there. */
+const TEST_SERVER_ALL_PETS_STUDENT = 1;
+const grantTestServerPets = (studentNumber: number) => {
+  if (appDataMode !== 'mock' || studentNumber !== TEST_SERVER_ALL_PETS_STUDENT) return;
+  const snapshot = loadStoredStudentPetSnapshot();
+  const pet = getStudentPetState(snapshot.studentPets, studentNumber);
+  if (hasHatchedEveryStudentPet(pet)) return;
+  storeStudentPetSnapshot({ ...snapshot, studentPets: { ...snapshot.studentPets, [String(studentNumber)]: grantEveryStudentPet(pet) } });
+};
+
 export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [, setDraftRevision] = useState(0);
   useEffect(() => {
@@ -453,11 +466,13 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
   const [studentEmotionHistory, setStudentEmotionHistory] = useState<StudentEmotionHistory>(
     loadStoredStudentEmotionHistory,
   );
-  const [studentPetStates, setStudentPetStates] = useState<StudentPetStates>(() => (
-    isSupabaseSettingsEnabled
-      ? applyStudentPetPositionOverrides({ [String(studentNumber)]: getStudentPetState({}, studentNumber) })
-      : loadStoredStudentPetSnapshot().studentPets
-  ));
+  const [studentPetStates, setStudentPetStates] = useState<StudentPetStates>(() => {
+    if (isSupabaseSettingsEnabled) {
+      return applyStudentPetPositionOverrides({ [String(studentNumber)]: getStudentPetState({}, studentNumber) });
+    }
+    grantTestServerPets(studentNumber);
+    return loadStoredStudentPetSnapshot().studentPets;
+  });
   const [studentEconomyStates, setStudentEconomyStates] = useState<StudentEconomyStates>(() => (
     isSupabaseSettingsEnabled ? {} : loadStoredStudentPetSnapshot().studentEconomy
   ));
@@ -1073,10 +1088,11 @@ export default function AuctionPage({ studentNumber }: AuctionPageProps) {
       } else {
         const snapshot = loadStoredStudentPetSnapshot();
         const currentPet = getStudentPetState(snapshot.studentPets, studentNumber);
+        if (hasHatchedEveryStudentPet(currentPet)) return false;
         const latestBalance = snapshot.currencyBalances[studentKey] ?? getDefaultCurrencyBalance(studentNumber);
         if (latestBalance - reservedAmount < STUDENT_PET_FEED_AMOUNT) return false;
         const nextBalance = latestBalance - STUDENT_PET_FEED_AMOUNT;
-        savedPet = feedStudentPetEgg(currentPet);
+        savedPet = feedStudentPetEgg(currentPet, studentNumber);
         savedBalances = { ...snapshot.currencyBalances, [studentKey]: nextBalance };
         const stored = storeStudentPetSnapshot({
           ...snapshot,

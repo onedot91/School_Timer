@@ -40,7 +40,27 @@ Student-facing screens and interaction primitives. `src/pages/AuctionPage.tsx` o
 - Reuse `StudentConfirmDialog` for standard confirmations instead of duplicating backdrop and focus behavior.
 - `RootApp` wraps student mode with `StudentProfanityGuard` and `StudentRapidClickGuard`; keep event-capture behavior compatible.
 - Only add `data-rapid-click-ignore="true"` to controls that intentionally bypass repeated-pointer detection.
+- The rapid-click warning is one short line ("천천히 눌러 주세요") with no close button: it can't be dismissed and closes itself after `STUDENT_RAPID_CLICK_WARNING_MS` (3s), with a shrinking bar showing the time left. Keep it that short; third graders skip longer text.
 - Free-text inputs must remain ordinary input/textarea events so the profanity guard can restore the last accepted value.
+
+## PETS
+
+- Home pets: `StudentPetStage` places the pet, `StudentPetWalker` runs it (rAF loop, grip, taps), `src/lib/petBehavior.ts` decides what it does, and `src/lib/petSprites.ts` holds the per-species tables. The egg UI is `StudentPetEgg` inside `StudentOverviewPage`; egg/pet state rules live in `src/lib/studentPet.ts`.
+- Sprites are generated: `node dev/generatePetSprites.mjs` writes `public/pets/<kind>-sprite.svg`, `<kind>-portrait.svg`, and `egg-stages.svg`. Never hand-edit those SVGs; change the generator and rerun it.
+- Frames are 160×128 with the feet anchored at (80, 118), 8 columns × one row per `PET_ANIMATION_IDS` entry. After any art change, every frame of every species keeps at least 2px of clear margin; tall heads, jumps, kicks, and hanging tails are the usual offenders, fixed per species in `SPECIES_POSES` (for example a lower happy hop).
+- Adding a species: append it to the end of `STUDENT_PET_KINDS` (earlier positions decide existing students' egg hatch order), then add it to `SPECIES` (look plus the features that make the animal recognizable), `TRICK_FRAMES` (its signature move), `SPECIES_POSES` (walk/run in its own gait), and every `Record<StudentPetKind, …>` in `petSprites.ts` plus `PET_SPRITE_KINDS`. The generator fails until `PET_CARRY_GRIPS` matches the grip it prints; `PET_HEAD_TOPS` is the top of the first idle frame.
+- Each animal moves like itself: the drawn walk/run rows and `PET_GAITS` (speed, run chance, stride, flee style) must agree. Animals that never run (turtle, elephant, koala, penguin) use `runChance: 0` and `fleeRuns: false`, so a fright ends in a brisk walk, and their run row repeats their walk. Don't give every species the shared defaults.
+- Poses that don't fit an animal get replaced for that species, not shared: the turtle hides in its shell instead of sitting. The frog (`crouch: true`) never stands on four straight legs: `frogify` folds every shared standing pose into a crouch (hind thighs folded, webbed feet forward, body sloping up to the head), and it moves only by hopping. The giraffe (`liesDown: true`) never sits like a cat: `giraffeRest` turns every sit, lie-down, and sleep into lying with its legs folded under the body and the long neck upright.
+- Hoppers (rabbit, frog) set `hop` in `PET_GAITS`: the hop cycle advances with time, and the pet moves forward only during the airborne part, so it never slides along the ground while crouched.
+- The name tag sits on `PET_HEAD_TOPS`, not the frame top.
+- Egg: `egg-stages.svg` has `STUDENT_PET_EGG_STAGE_COUNT` (21) frames; each 5-goma feed moves one stage further, and the last frame (open egg, eyes peeking out) is used only by the hatch scene. Feeding is immediate, with no confirmation dialog; the button shows the cost and disables while saving. The hatch scene and naming step cannot be dismissed.
+- An egg hatches a random kind the student doesn't own yet: `pickStudentPetHatchKind` hashes the student number with the owned pet ids, so the server and the device pick the same kind and a retried save doesn't change it.
+- A pet is named once, right after hatching (up to `STUDENT_PET_NAME_MAX_LENGTH`, 8 characters), and the dialog warns that the name can't be changed. Older names up to 12 characters stay as saved.
+- Once every kind is owned (`hasHatchedEveryStudentPet`), the egg closes: the home egg hotspot is disabled, and feeding is refused on the client and the server (`PET_UPDATE_REJECTED`, no goma charged). Owned pets can still walk around and be switched.
+- On the test server (mock data), student 1 is given one of every kind (`grantTestServerPets` in `AuctionPage`), so new species can be checked there. Use another student to test the egg.
+- Until release the whole pet feature is hidden from students, not just the egg: the walking pet, the pet picker, and the naming prompt all check `isStudentFeatureOpen('petEgg')`.
+- `petEgg` stays `false` in `STUDENT_FEATURE_RELEASES` until release. `isStudentFeatureOpen` opens the features listed in `STUDENT_TEST_SERVER_FEATURES` on the dev server (`import.meta.env.DEV`) only.
+- QA pets on the mock dev server (localStorage `school-timer-student-pets-v1`) at 1280×650. The browser pane may pause `requestAnimationFrame`, so check motion through the sprite rows and behavior tests when live movement can't be observed.
 
 ## STYLING
 

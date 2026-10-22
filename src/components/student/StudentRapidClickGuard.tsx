@@ -1,7 +1,8 @@
 import { TriangleAlert } from 'lucide-react';
-import { useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import {
   createStudentRapidClickState,
+  STUDENT_RAPID_CLICK_WARNING_MS,
   trackStudentRapidClick,
 } from '../../lib/studentRapidClick';
 import { useModalFocus } from '../../lib/useModalFocus';
@@ -14,20 +15,25 @@ export const StudentRapidClickGuard = ({ children }: StudentRapidClickGuardProps
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const clickStateRef = useRef(createStudentRapidClickState());
   const dialogRef = useRef<HTMLElement>(null);
-  const acknowledgeRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  const dialogId = useId();
-  const titleId = `${dialogId}-title`;
-  const descriptionId = `${dialogId}-description`;
+  const titleId = `${useId()}-title`;
 
   const closeWarning = () => setIsWarningOpen(false);
+
+  // No button, Escape, or backdrop close: the warning stays for a few seconds, then closes itself.
+  useEffect(() => {
+    if (!isWarningOpen) return undefined;
+    const timer = window.setTimeout(closeWarning, STUDENT_RAPID_CLICK_WARNING_MS);
+    return () => window.clearTimeout(timer);
+  }, [isWarningOpen]);
 
   useModalFocus({
     dialogRef,
     isOpen: isWarningOpen,
     onDismiss: closeWarning,
-    initialFocusRef: acknowledgeRef,
+    initialFocusRef: dialogRef,
     returnFocusRef,
+    isDismissible: false,
   });
 
   const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
@@ -65,21 +71,17 @@ export const StudentRapidClickGuard = ({ children }: StudentRapidClickGuardProps
             role="alertdialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            aria-describedby={descriptionId}
+            tabIndex={-1}
           >
             <span className="student-rapid-click-dialog-icon" aria-hidden="true">
               <TriangleAlert />
             </span>
-            <span className="student-confirm-dialog-kicker">잠깐 멈춰 주세요</span>
-            <h2 id={titleId}>버튼을 너무 빠르게 누르고 있어요</h2>
-            <p id={descriptionId}>
-              같은 버튼을 장난으로 계속 누르지 말고, 필요한 동작을 천천히 한 번씩 눌러 주세요.
-            </p>
-            <div className="student-confirm-dialog-actions student-rapid-click-dialog-actions">
-              <button ref={acknowledgeRef} type="button" data-rapid-click-ignore="true" onClick={closeWarning}>
-                알겠어요
-              </button>
-            </div>
+            <h2 id={titleId}>천천히 눌러 주세요</h2>
+            <span
+              className="student-rapid-click-dialog-timer"
+              style={{ animationDuration: `${STUDENT_RAPID_CLICK_WARNING_MS}ms` }}
+              aria-hidden="true"
+            />
           </section>
         </div>
       ) : null}

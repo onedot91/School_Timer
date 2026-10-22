@@ -2,12 +2,16 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 import { CircleDashed } from 'lucide-react';
 import {
   STUDENT_PET_HATCH_AMOUNT,
+  hasHatchedEveryStudentPet,
   getStudentPetKind,
   type StudentPetState,
 } from '../../lib/studentPet';
 import type { StudentEmotionDefinition } from '../../lib/studentEmotion';
 import { STUDENT_CHARACTER_PRIZES, STUDENT_HOUSE_DESIGNS, type StudentCharacterPrizeId, type StudentCustomHouseTheme, type StudentHouseDesignId } from '../../lib/studentEconomy';
+import { getPetSpriteSheet } from '../../lib/petSprites';
+import { isStudentFeatureOpen } from '../../lib/studentFeatureRelease';
 import { StudentEmotionOrbVisual } from './StudentEmotionOrb';
+import StudentPetWalker from './StudentPetWalker';
 
 interface StudentPetStageProps {
   pet: StudentPetState;
@@ -46,8 +50,10 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
   const lastHouseTapAtRef = useRef(0);
   const [position, setPosition] = useState(pet.position);
   const [gomaPosition, setGomaPosition] = useState(pet.gomaPosition);
-  const hasActivePet = pet.petKind !== null;
+  // Pets stay off the student screen until the pet feature is released (the test server shows them).
+  const hasActivePet = pet.petKind !== null && isStudentFeatureOpen('petEgg');
   const petKind = getStudentPetKind(pet.petKind);
+  const petSpriteSheet = getPetSpriteSheet(pet.petKind);
   const activeCharacter = STUDENT_CHARACTER_PRIZES.find((character) => character.id === activeCharacterId);
   const activeHouse = STUDENT_HOUSE_DESIGNS.find((house) => house.id === activeHouseId);
   const activeHouseStageStyle: CSSProperties | undefined = activeHouse ? {
@@ -186,7 +192,7 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
         onClick={onOpenEgg}
         aria-label={onOpenEgg
           ? `알 성장 ${pet.fedAmount} / ${STUDENT_PET_HATCH_AMOUNT} 고마. 알 성장 창 열기`
-          : '펫 알. 아직 사용할 수 없음'}
+          : hasHatchedEveryStudentPet(pet) ? '펫 알. 모든 펫을 부화시켰어요' : '펫 알. 아직 사용할 수 없음'}
       />
       <button type="button" className="student-home-hotspot student-home-hotspot-mailbox" onClick={onOpenMailbox} aria-label={hasUnreadMail ? '새 편지가 있는 우편함 열기' : '우편함 열기'} />
       <button type="button" className="student-home-hotspot student-home-hotspot-library" onClick={onOpenLibrary} aria-label="실패 전시관과 책장 열기" />
@@ -260,7 +266,20 @@ export default function StudentPetStage({ pet, hasUnreadMail, isHouseRepaired, a
           <img src="/goma-canvas-character.webp" alt="" draggable={false} decoding="async" fetchPriority="low" />
         )}
       </button>
-      {hasActivePet ? (
+      {hasActivePet && petSpriteSheet ? (
+        <StudentPetWalker
+          key={pet.activePetId ?? 'pet'}
+          kind={petKind.id}
+          sheetUrl={petSpriteSheet}
+          name={pet.name}
+          kindLabel={petKind.label}
+          stageRef={stageRef}
+          initialPosition={pet.position}
+          gomaPosition={gomaPosition}
+          hasUnreadMail={hasUnreadMail}
+          onOpenPicker={onOpenPetPicker}
+        />
+      ) : hasActivePet ? (
         <button
           type="button"
           className="student-pet-stage-character"

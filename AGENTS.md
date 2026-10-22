@@ -50,6 +50,7 @@ School_Timer/
 | Shared browser state | `src/lib/supabaseSettings.ts`, `src/lib/dataMode.ts`, `src/lib/supabaseConfig.ts` | Normalize remote/local payloads; mock, readonly, and production have different write permissions. |
 | API contracts | `api/`, `src/server/`, `tests/api/` | Cookie auth, student scoping, cross-site checks, rate limits, and PostgREST contracts. |
 | Classword and Today Friend | `src/lib/classword*.ts`, `src/lib/todayFriend*.ts`, matching server/API files | Domain, codec, client, repository, and reward paths are separate layers. |
+| Pets and egg | `src/components/student/StudentPetWalker.tsx`, `src/lib/petBehavior.ts`, `src/lib/petSprites.ts`, `dev/generatePetSprites.mjs` | Generated SVG sprites and per-species tables; rules in `src/components/student/AGENTS.md` (PETS). |
 | Missions and games | `src/lib/weeklyMission.ts`, `src/lib/randomDraw.ts`, `src/lib/sudoku.ts`, `src/lib/numberBaseball.ts` | Tests are colocated in `src/lib/*.test.ts`. |
 | Database changes | `supabase/app_settings.sql`, `supabase/classword.sql` | RLS/revokes and service-role-only security-definer RPCs are part of the contract. |
 | Visual behavior | `src/index.css`, `src/classword.css`, `DESIGN.md` | Global feature classes and Tailwind utilities coexist. |

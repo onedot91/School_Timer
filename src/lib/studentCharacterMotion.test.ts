@@ -95,3 +95,23 @@ test('뒤돌아보기는 원래 이미지 변환을 유지한 채 전체를 제�
   assert.doesNotMatch(timerPage, /--student-character-look-transform/);
   assert.match(css, /\.student-character-gesture \{[^}]*transform-origin: center bottom/);
 });
+
+test('토네이도는 빠르게 휘몰아치며 지나가고 같은 방향 캐릭터를 날려 보낸다', async () => {
+  const { STUDENT_CHARACTERS, STUDENT_CHARACTER_WALK_SECONDS } = await import('./studentCharacters.js');
+  const stage = readFileSync(new URL('../components/teacher/StudentCharacterStage.tsx', import.meta.url), 'utf8');
+  const tornado = STUDENT_CHARACTERS.find(({ id }) => id === 'student-7-additional-2');
+  assert.equal(tornado?.speech, '지나간다~');
+  assert.equal(tornado?.walkStyle, 'tornado');
+  assert.ok((tornado?.walkSeconds ?? STUDENT_CHARACTER_WALK_SECONDS) < STUDENT_CHARACTER_WALK_SECONDS);
+
+  assert.match(timerPage, /data-walk-style=\{character\.walkStyle\}/);
+  assert.match(timerPage, /event\.animationName === 'studentCharacterTornadoBlown'\) onWalkComplete\(\)/);
+  assert.match(stage, /node\.dataset\.tornadoBlown = 'true'/);
+  assert.match(stage, /Math\.abs\(pull\) > innerWidth \* \.35/);
+  // 보이는 중에도 hidden으로 알려 오는 화면이 있어 토네이도 판정은 hidden 검사보다 먼저 한다.
+  assert.ok(stage.indexOf('sweepTornadoes();') < stage.indexOf('if (document.hidden) {'));
+  assert.match(stage, /isTornado\(a\.node\) \|\| isTornado\(b\.node\)/);
+  assert.match(css, /translate\(var\(--student-character-blow-pull-x, 0px\), -2rem\)/);
+  assert.match(css, /@keyframes studentCharacterTornadoBlown \{[\s\S]*?-125vh/);
+  assert.match(css, /\[data-tornado-blown\] \.student-character-scale \{[^}]*forwards/);
+});
